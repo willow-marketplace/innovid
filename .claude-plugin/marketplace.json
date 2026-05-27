@@ -8,5 +8,141 @@
     "version": "1.0.0",
     "pluginRoot": "./plugins"
   },
-  "plugins": []
+  "plugins": [
+    {
+      "name": "token-optimizer",
+      "source": "./plugins/token-optimizer",
+      "description": "Audit, fix, and monitor Claude Code context window usage. Find the ghost tokens.",
+      "version": "5.7.1",
+      "author": {
+        "url": "https://linkedin.com/in/alexgreensh",
+        "name": "Alex Greenshpun"
+      },
+      "homepage": "https://github.com/alexgreensh/token-optimizer",
+      "repository": "https://github.com/alexgreensh/token-optimizer",
+      "keywords": [
+        "token",
+        "optimization",
+        "context",
+        "audit",
+        "cost",
+        "coach"
+      ]
+    },
+    {
+      "name": "claude-mem",
+      "source": "./plugins/claude-mem",
+      "description": "Memory compression system for Claude Code - persist context across sessions",
+      "version": "13.3.0",
+      "author": {
+        "name": "Alex Newman"
+      },
+      "homepage": "https://github.com/thedotmack/claude-mem#readme",
+      "repository": "https://github.com/thedotmack/claude-mem",
+      "keywords": [
+        "claude",
+        "claude-code",
+        "claude-agent-sdk",
+        "mcp",
+        "plugin",
+        "memory",
+        "compression",
+        "knowledge-graph",
+        "transcript",
+        "typescript",
+        "nodejs"
+      ]
+    },
+    {
+      "name": "caveman",
+      "source": "./plugins/caveman",
+      "description": "Ultra-compressed communication mode. Cuts ~75% of tokens while keeping full technical accuracy by speaking like a caveman.",
+      "version": "1.0.0",
+      "author": {
+        "url": "https://github.com/JuliusBrussee",
+        "name": "Julius Brussee"
+      }
+    },
+    {
+      "name": "context-mode",
+      "source": "./plugins/context-mode",
+      "description": "MCP server that saves 98% of your context window with session continuity. Sandboxed code execution in 11 languages, FTS5 knowledge base with BM25 ranking, and automatic state restore across compactions.",
+      "version": "1.0.151",
+      "author": {
+        "url": "https://github.com/mksglu",
+        "name": "Mert Koseoğlu"
+      },
+      "homepage": "https://github.com/mksglu/context-mode#readme",
+      "repository": "https://github.com/mksglu/context-mode",
+      "keywords": [
+        "mcp",
+        "context-window",
+        "sandbox",
+        "code-execution",
+        "fts5",
+        "bm25",
+        "playwright",
+        "context7"
+      ]
+    },
+    {
+      "name": "ui-ux-pro-max",
+      "source": "./plugins/ui-ux-pro-max",
+      "description": "UI/UX design intelligence. 67 styles, 161 palettes, 57 font pairings, 25 charts, 15 stacks (React, Next.js, Vue, Svelte, Astro, SwiftUI, React Native, Flutter, Tailwind, shadcn/ui, Nuxt, Jetpack Compose). Actions: plan, build, create, design, implement, review, fix, improve, optimize, enhance, refactor, check UI/UX code. Projects: website, landing page, dashboard, admin panel, e-commerce, SaaS, portfolio, blog, mobile app. Elements: button, modal, navbar, sidebar, card, table, form, chart. Styles: glassmorphism, claymorphism, minimalism, brutalism, neumorphism, bento grid, dark mode, responsive, skeuomorphism, flat design. Topics: color palette, accessibility, animation, layout, typography, font pairing, spacing, hover, shadow, gradient.",
+      "version": "2.5.0",
+      "author": {
+        "name": "nextlevelbuilder"
+      },
+      "keywords": [
+        "ui",
+        "ux",
+        "design",
+        "styles",
+        "typography",
+        "color-palette",
+        "accessibility",
+        "charts",
+        "components"
+      ]
+    },
+    {
+      "name": "asana",
+      "source": "./plugins/asana",
+      "description": "Asana project management integration. Create and manage tasks, search projects, update assignments, track progress, and integrate your development workflow with Asana's work management platform.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Asana"
+      }
+    },
+    {
+      "name": "claude-code-setup",
+      "source": "./plugins/claude-code-setup",
+      "description": "Analyze codebases and recommend tailored Claude Code automations such as hooks, skills, MCP servers, and subagents.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Anthropic",
+        "email": "support@anthropic.com"
+      }
+    },
+    {
+      "name": "claude-md-management",
+      "source": "./plugins/claude-md-management",
+      "description": "Tools to maintain and improve CLAUDE.md files - audit quality, capture session learnings, and keep project memory current.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Anthropic",
+        "email": "support@anthropic.com"
+      }
+    },
+    {
+      "name": "code-review",
+      "source": "./plugins/code-review",
+      "description": "Automated code review for pull requests using multiple specialized agents with confidence-based scoring",
+      "version": "1.0.0",
+      "author": {
+        "name": "Anthropic",
+        "email": "support@anthropic.com"
+      }
+    }
+  ]
 }

@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "context-mode": {
+      "args": [
+        "${CLAUDE_PLUGIN_ROOT}/start.mjs"
+      ],
+      "command": "node"
+    }
+  }
+}
