@@ -1,0 +1,44 @@
+{
+  "name": "warp",
+  "version": "2.1.0",
+  "description": "Warp terminal integration for Claude Code - native notifications, and more to come",
+  "author": {
+    "url": "https://warp.dev",
+    "name": "Warp"
+  },
+  "homepage": "https://github.com/warpdotdev/claude-code-warp",
+  "hooks": {
+    "Notification": [
+      {
+        "command": "${CLAUDE_PLUGIN_ROOT}/scripts/on-notification.sh",
+        "matcher": "idle_prompt"
+      }
+    ],
+    "SessionStart": [
+      {
+        "command": "${CLAUDE_PLUGIN_ROOT}/scripts/on-session-start.sh",
+        "matcher": "startup|resume"
+      }
+    ],
+    "Stop": [
+      {
+        "command": "${CLAUDE_PLUGIN_ROOT}/scripts/on-stop.sh"
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "command": "${CLAUDE_PLUGIN_ROOT}/scripts/on-permission-request.sh"
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "command": "${CLAUDE_PLUGIN_ROOT}/scripts/on-prompt-submit.sh"
+      }
+    ],
+    "PostToolUse": [
+      {
+        "command": "${CLAUDE_PLUGIN_ROOT}/scripts/on-post-tool-use.sh"
+      }
+    ]
+  }
+}

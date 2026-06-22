@@ -1,0 +1,16 @@
+{
+  "name": "notion",
+  "version": "0.1.0",
+  "description": "Notion Skills + Notion MCP server packaged as a Claude Code plugin.",
+  "author": {
+    "url": "https://www.notion.so",
+    "name": "Notion Labs"
+  },
+  "repository": "https://github.com/makenotion/claude-code-notion-plugin",
+  "mcpServers": {
+    "notion": {
+      "url": "https://mcp.notion.com/mcp",
+      "type": "http"
+    }
+  }
+}

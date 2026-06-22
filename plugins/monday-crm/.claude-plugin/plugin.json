@@ -1,0 +1,31 @@
+{
+  "name": "monday-crm",
+  "version": "0.3.0",
+  "description": "Run your sales pipeline in monday CRM from plain language. Start the day with a ranked deal briefing, build a forecast, turn meeting notes into deal updates, set up a CRM workspace from scratch, and keep your data clean — every result written straight back into monday as a real board, dashboard, or doc. Built on the official monday MCP connector.",
+  "author": {
+    "url": "https://monday.com",
+    "name": "monday.com",
+    "email": "support@monday.com"
+  },
+  "homepage": "https://github.com/mondaycom/mcp/tree/master/plugins/monday-crm",
+  "repository": "https://github.com/mondaycom/mcp",
+  "keywords": [
+    "monday",
+    "monday-crm",
+    "crm",
+    "sales",
+    "pipeline",
+    "forecast",
+    "daily-briefing",
+    "meeting-to-deal",
+    "data-cleanup",
+    "workspace-builder"
+  ],
+  "skills": "./skills/",
+  "mcpServers": {
+    "monday": {
+      "url": "https://mcp.monday.com/mcp",
+      "type": "http"
+    }
+  }
+}

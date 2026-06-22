@@ -1,0 +1,31 @@
+{
+  "name": "cloudflare",
+  "version": "1.0.0",
+  "description": "Skills for the Cloudflare developer platform: Workers, Durable Objects, Agents SDK, MCP servers, Wrangler CLI, and web performance",
+  "author": {
+    "name": "Cloudflare"
+  },
+  "skills": "./skills/",
+  "mcpServers": {
+    "cloudflare-api": {
+      "url": "https://mcp.cloudflare.com/mcp",
+      "type": "http"
+    },
+    "cloudflare-docs": {
+      "url": "https://docs.mcp.cloudflare.com/mcp",
+      "type": "http"
+    },
+    "cloudflare-builds": {
+      "url": "https://builds.mcp.cloudflare.com/mcp",
+      "type": "http"
+    },
+    "cloudflare-bindings": {
+      "url": "https://bindings.mcp.cloudflare.com/mcp",
+      "type": "http"
+    },
+    "cloudflare-observability": {
+      "url": "https://observability.mcp.cloudflare.com/mcp",
+      "type": "http"
+    }
+  }
+}

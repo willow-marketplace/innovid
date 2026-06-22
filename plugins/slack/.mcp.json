@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "slack": {
+      "url": "https://mcp.slack.com/mcp",
+      "type": "http",
+      "oauth": {
+        "clientId": "1601185624273.8899143856786",
+        "callbackPort": 3118
+      }
+    }
+  }
+}

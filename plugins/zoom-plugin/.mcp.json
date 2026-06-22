@@ -1,0 +1,25 @@
+{
+  "mcpServers": {
+    "zoom-mcp": {
+      "url": "https://mcp.zoom.us/mcp/zoom/streamable",
+      "type": "http",
+      "headers": {
+        "Authorization": "Bearer ${ZOOM_MCP_ACCESS_TOKEN}"
+      }
+    },
+    "zoom-docs-mcp": {
+      "url": "https://mcp.zoom.us/mcp/docs/streamable",
+      "type": "http",
+      "headers": {
+        "Authorization": "Bearer ${ZOOM_DOCS_MCP_ACCESS_TOKEN}"
+      }
+    },
+    "zoom-whiteboard-mcp": {
+      "url": "https://mcp.zoom.us/mcp/whiteboard/streamable",
+      "type": "http",
+      "headers": {
+        "Authorization": "Bearer ${ZOOM_WHITEBOARD_MCP_ACCESS_TOKEN}"
+      }
+    }
+  }
+}

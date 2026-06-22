@@ -1,0 +1,19 @@
+{
+  "name": "sonarqube",
+  "version": "2.2.0",
+  "description": "Automatically enforce SonarQube code quality and security in the agent coding loop — 7,000+ rules, secrets scanning, agentic analysis, and quality gates across 40+ languages.",
+  "author": {
+    "url": "https://www.sonarsource.com/",
+    "name": "Sonar"
+  },
+  "homepage": "https://www.sonarsource.com",
+  "repository": "https://github.com/SonarSource/sonarqube-agent-plugins",
+  "keywords": [
+    "sonarqube",
+    "code-quality",
+    "static-analysis",
+    "security",
+    "secrets"
+  ],
+  "skills": "./skills/"
+}

@@ -1,0 +1,22 @@
+{
+  "name": "adobe-for-creativity",
+  "version": "1.1.0",
+  "description": "Brings together Adobe Creative Cloud tools for images, vectors, design, and video. Edit multiple assets at once, adapt for different platforms, and complete multi-step creative workflows for polished results.",
+  "author": {
+    "name": "Adobe"
+  },
+  "repository": "https://github.com/adobe/skills",
+  "keywords": [
+    "adobe",
+    "creative-cloud",
+    "image-editing",
+    "design"
+  ],
+  "skills": "./skills/",
+  "mcpServers": {
+    "Adobe for creativity": {
+      "url": "https://adobe-creativity.adobe.io/mcp",
+      "type": "http"
+    }
+  }
+}

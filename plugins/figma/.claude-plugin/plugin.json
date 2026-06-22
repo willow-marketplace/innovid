@@ -1,0 +1,39 @@
+{
+  "name": "figma",
+  "version": "2.2.50",
+  "description": "Plugin that includes the Figma MCP server and Skills for common workflows",
+  "author": {
+    "name": "Figma"
+  },
+  "skills": "./skills/",
+  "mcpServers": {
+    "figma": {
+      "url": "https://mcp.figma.com/mcp",
+      "type": "http",
+      "_meta": {
+        "ideToolTitles": {
+          "whoami": "Who Am I",
+          "use_figma": "Use Figma",
+          "get_figjam": "Get FigJam Content",
+          "get_metadata": "Get Metadata",
+          "get_libraries": "Get Libraries",
+          "upload_assets": "Upload Assets",
+          "get_screenshot": "Get Screenshot",
+          "create_new_file": "Create New File",
+          "generate_diagram": "Generate Diagram",
+          "get_variable_defs": "Get Variable Definitions",
+          "get_design_context": "Get Design Context",
+          "add_code_connect_map": "Add Code Connect Mapping",
+          "get_code_connect_map": "Get Code Connect Mapping",
+          "search_design_system": "Search Design System",
+          "generate_figma_design": "Generate Figma Design",
+          "send_code_connect_mappings": "Send Code Connect Mappings",
+          "get_code_connect_suggestions": "Get Code Connect Suggestions",
+          "get_context_for_code_connect": "Get Code Connect Context"
+        },
+        "ideToolIconPath": "./Figma Icon (Mono-line black, tight).svg",
+        "ideToolIconRendersAsTemplate": true
+      }
+    }
+  }
+}

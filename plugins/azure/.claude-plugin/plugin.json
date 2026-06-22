@@ -1,0 +1,33 @@
+{
+  "name": "azure",
+  "version": "1.1.71",
+  "description": "Microsoft Azure MCP and Skills integration for cloud resource management, deployments, and Azure services. Manage your Azure infrastructure, monitor applications, and deploy resources directly from Claude Code.",
+  "author": {
+    "url": "https://www.microsoft.com",
+    "name": "Microsoft"
+  },
+  "homepage": "https://github.com/microsoft/azure-skills",
+  "repository": "https://github.com/microsoft/azure-skills",
+  "keywords": [
+    "azure",
+    "cloud",
+    "infrastructure",
+    "deployment",
+    "microsoft",
+    "devops",
+    "foundry",
+    "diagnostics"
+  ],
+  "skills": "./skills/",
+  "mcpServers": {
+    "azure": {
+      "args": [
+        "-y",
+        "@azure/mcp@latest",
+        "server",
+        "start"
+      ],
+      "command": "npx"
+    }
+  }
+}

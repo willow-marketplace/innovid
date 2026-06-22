@@ -1,0 +1,27 @@
+{
+  "name": "huggingface-skills",
+  "version": "1.0.8",
+  "description": "Agent Skills for AI/ML tasks including dataset creation, model training, evaluation, and research paper publishing on Hugging Face Hub",
+  "author": {
+    "name": "Hugging Face"
+  },
+  "homepage": "https://github.com/huggingface/skills",
+  "repository": "https://github.com/huggingface/skills",
+  "keywords": [
+    "huggingface",
+    "machine-learning",
+    "datasets",
+    "training",
+    "evaluation",
+    "papers",
+    "fine-tuning",
+    "llm"
+  ],
+  "skills": "./skills/",
+  "mcpServers": {
+    "huggingface-skills": {
+      "url": "https://huggingface.co/mcp?login",
+      "type": "http"
+    }
+  }
+}
