@@ -1,0 +1,9 @@
+{
+  "name": "spanner",
+  "version": "1.0.0",
+  "description": "Connect and interact with Spanner data using natural language.",
+  "author": {
+    "name": "Google LLC"
+  },
+  "homepage": "https://github.com/gemini-cli-extensions/spanner"
+}

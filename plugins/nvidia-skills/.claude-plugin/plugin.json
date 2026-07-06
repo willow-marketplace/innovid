@@ -1,0 +1,9 @@
+{
+  "name": "nvidia-skills",
+  "version": "1.0.0",
+  "description": "NVIDIA agent skills for accelerated-computing workflows — starting with cuOpt vehicle-routing optimization (VRP, TSP, PDP) via the cuOpt Python API.",
+  "author": {
+    "name": "NVIDIA"
+  },
+  "homepage": "https://github.com/NVIDIA/skills"
+}

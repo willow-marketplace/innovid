@@ -1,0 +1,18 @@
+{
+  "name": "imessage",
+  "version": "1.0.0",
+  "description": "iMessage messaging bridge with built-in access control. Reads chat.db directly, sends via AppleScript. Manage pairing, allowlists, and policy via /imessage:access.",
+  "mcpServers": {
+    "imessage": {
+      "args": [
+        "run",
+        "--cwd",
+        "${CLAUDE_PLUGIN_ROOT}",
+        "--shell=bun",
+        "--silent",
+        "start"
+      ],
+      "command": "bun"
+    }
+  }
+}

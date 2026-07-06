@@ -6,5 +6,5 @@
     "name": "Anthropic",
     "email": "support@anthropic.com"
   },
-  "skills": "./skills/"
+  "homepage": "https://github.com/anthropics/claude-plugins-official/tree/main/plugins/skill-creator"
 }

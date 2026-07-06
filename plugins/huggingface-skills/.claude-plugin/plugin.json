@@ -1,6 +1,6 @@
 {
   "name": "huggingface-skills",
-  "version": "1.0.8",
+  "version": "1.0.10",
   "description": "Agent Skills for AI/ML tasks including dataset creation, model training, evaluation, and research paper publishing on Hugging Face Hub",
   "author": {
     "name": "Hugging Face"

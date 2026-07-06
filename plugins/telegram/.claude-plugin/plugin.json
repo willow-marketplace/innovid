@@ -1,0 +1,5 @@
+{
+  "name": "telegram",
+  "version": "1.0.0",
+  "description": "Telegram messaging bridge with built-in access control. Manage pairing, allowlists, and policy via /telegram:access."
+}

@@ -1,0 +1,6 @@
+{
+  "name": "greptile",
+  "version": "1.0.0",
+  "description": "AI-powered codebase search and understanding. Query your repositories using natural language to find relevant code, understand dependencies, and get contextual answers about your codebase architecture.",
+  "homepage": "https://github.com/anthropics/claude-plugins-public/tree/main/external_plugins/greptile"
+}

@@ -1,11 +1,12 @@
 {
   "name": "notion",
-  "version": "0.1.0",
-  "description": "Notion Skills + Notion MCP server packaged as a Claude Code plugin.",
+  "version": "1.0.0",
+  "description": "Notion workspace integration. Search pages, create and update documents, manage databases, and access your team's knowledge base directly from Claude Code for seamless documentation workflows.",
   "author": {
     "url": "https://www.notion.so",
     "name": "Notion Labs"
   },
+  "homepage": "https://github.com/makenotion/claude-code-notion-plugin",
   "repository": "https://github.com/makenotion/claude-code-notion-plugin",
   "mcpServers": {
     "notion": {

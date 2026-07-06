@@ -1,0 +1,15 @@
+{
+  "name": "rill",
+  "version": "1.0.0",
+  "description": "Skills for developing and querying projects in the Rill business intelligence platform",
+  "author": {
+    "name": "Rill Data"
+  },
+  "homepage": "https://docs.rilldata.com/developers/build/ai-configuration",
+  "mcpServers": {
+    "rill-developer": {
+      "url": "http://localhost:9009/mcp",
+      "type": "http"
+    }
+  }
+}

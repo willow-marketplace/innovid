@@ -1,0 +1,30 @@
+{
+  "name": "grafana-mcp",
+  "version": "1.0.0",
+  "description": "MCP server for AI-assisted Grafana dashboard, datasource, alerting, and incident management.",
+  "author": {
+    "name": "Grafana"
+  },
+  "homepage": "https://grafana.com",
+  "mcpServers": {
+    "grafana": {
+      "env": {
+        "GRAFANA_URL": "${user_config.grafana_url}",
+        "GRAFANA_SERVICE_ACCOUNT_TOKEN": "${user_config.grafana_service_account_token}"
+      },
+      "args": [
+        "run",
+        "--rm",
+        "-i",
+        "-e",
+        "GRAFANA_URL",
+        "-e",
+        "GRAFANA_SERVICE_ACCOUNT_TOKEN",
+        "grafana/mcp-grafana",
+        "-t",
+        "stdio"
+      ],
+      "command": "docker"
+    }
+  }
+}

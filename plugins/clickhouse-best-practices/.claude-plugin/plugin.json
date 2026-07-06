@@ -1,0 +1,20 @@
+{
+  "name": "clickhouse-best-practices",
+  "version": "0.3.0",
+  "description": "28 best practice rules for ClickHouse schema design, query optimization, and data ingestion — prioritized by impact",
+  "author": {
+    "url": "https://clickhouse.com",
+    "name": "ClickHouse Inc"
+  },
+  "homepage": "https://clickhouse.ai",
+  "repository": "https://github.com/ClickHouse/agent-skills",
+  "keywords": [
+    "clickhouse",
+    "database",
+    "query-optimization",
+    "schema-design",
+    "best-practices",
+    "data-ingestion"
+  ],
+  "skills": "./skills/"
+}

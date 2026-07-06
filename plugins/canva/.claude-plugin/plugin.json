@@ -1,0 +1,27 @@
+{
+  "name": "canva",
+  "version": "1.0.0",
+  "description": "Create, edit, review, resize, and brand-check Canva designs with the Canva MCP server.",
+  "author": {
+    "name": "Canva"
+  },
+  "keywords": [
+    "canva",
+    "design",
+    "presentation",
+    "social media",
+    "brand kit",
+    "ai generation",
+    "flyer",
+    "poster",
+    "graphic design",
+    "marketing"
+  ],
+  "skills": "./skills/",
+  "mcpServers": {
+    "canva": {
+      "url": "https://mcp.canva.com/mcp",
+      "type": "http"
+    }
+  }
+}

@@ -108,13 +108,13 @@
     {
       "name": "superpowers",
       "source": "./plugins/superpowers",
-      "description": "Core skills library for Claude Code: TDD, debugging, collaboration patterns, and proven techniques",
-      "version": "6.1.1",
+      "description": "Superpowers teaches Claude brainstorming, subagent driven development with built in code review, systematic debugging, and red/green TDD. Additionally, it teaches Claude how to author and test new skills.",
+      "version": "1.0.0",
       "author": {
         "name": "Jesse Vincent",
         "email": "jesse@fsck.com"
       },
-      "homepage": "https://github.com/obra/superpowers",
+      "homepage": "https://github.com/obra/superpowers.git",
       "repository": "https://github.com/obra/superpowers",
       "keywords": [
         "skills",
@@ -161,7 +161,8 @@
       "version": "1.0.0",
       "author": {
         "name": "JetBrains"
-      }
+      },
+      "homepage": "https://www.jetbrains.com/teamcity/"
     },
     {
       "name": "typescript-lsp",
@@ -246,11 +247,10 @@
     {
       "name": "sonarqube",
       "source": "./plugins/sonarqube",
-      "description": "Automatically enforce SonarQube code quality and security in the agent coding loop — 7,000+ rules, secrets scanning, agentic analysis, and quality gates across 40+ languages.",
-      "version": "2.2.0",
+      "description": "Automatically enforce SonarQube code quality and security in the agent coding loop — 7,000+ rules, secrets scanning, agentic analysis, and quality gates across 40+ languages. PostToolUse hooks run analysis after every file edit. Pre-tool secrets scanning prevents 450+ patterns from reaching the LLM. Slash commands give on-demand access to quality gate status, coverage, duplication, and dependency risks. Includes SonarQube CLI, MCP Server, skills, hooks, and slash commands.",
+      "version": "1.0.0",
       "author": {
-        "url": "https://www.sonarsource.com/",
-        "name": "Sonar"
+        "name": "SonarSource"
       },
       "homepage": "https://www.sonarsource.com",
       "repository": "https://github.com/SonarSource/sonarqube-agent-plugins",
@@ -265,12 +265,12 @@
     {
       "name": "snowflake-cortex-code",
       "source": "./plugins/snowflake-cortex-code",
-      "description": "Automatically route Snowflake prompts from Claude Code to Cortex Code for execution.",
-      "version": "3.2.2",
+      "description": "Automatically route Snowflake prompts from Claude Code to Cortex Code for execution. Provides slash commands for code review and task delegation, plus skills for routing, run, and setup.",
+      "version": "1.0.0",
       "author": {
         "name": "Snowflake"
       },
-      "homepage": "https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code",
+      "homepage": "https://docs.snowflake.com/en/user-guide/cortex-code",
       "repository": "https://github.com/Snowflake-Labs/snowflake-ai-kit",
       "keywords": [
         "snowflake",
@@ -283,19 +283,19 @@
     {
       "name": "slack",
       "source": "./plugins/slack",
-      "description": "Slack integration for searching messages, sending communications, managing canvases, and more",
+      "description": "Slack workspace integration. Search messages, access channels, read threads, and stay connected with your team's communications while coding. Find relevant discussions and context quickly.",
       "version": "1.0.0",
       "author": {
         "url": "https://slack.com",
         "name": "Slack"
       },
-      "homepage": "https://github.com/slackapi/slack-mcp-cursor-plugin"
+      "homepage": "https://github.com/slackapi/slack-mcp-plugin/tree/main"
     },
     {
       "name": "postman",
       "source": "./plugins/postman",
       "description": "Full API lifecycle management for Claude Code. Sync collections, generate client code, discover APIs, run tests, create mocks, publish docs, and audit security. Powered by the Postman MCP Server.",
-      "version": "1.2.0",
+      "version": "1.0.0",
       "author": {
         "url": "https://www.postman.com",
         "name": "Postman"
@@ -318,25 +318,26 @@
     {
       "name": "notion",
       "source": "./plugins/notion",
-      "description": "Notion Skills + Notion MCP server packaged as a Claude Code plugin.",
-      "version": "0.1.0",
+      "description": "Notion workspace integration. Search pages, create and update documents, manage databases, and access your team's knowledge base directly from Claude Code for seamless documentation workflows.",
+      "version": "1.0.0",
       "author": {
         "url": "https://www.notion.so",
         "name": "Notion Labs"
       },
+      "homepage": "https://github.com/makenotion/claude-code-notion-plugin",
       "repository": "https://github.com/makenotion/claude-code-notion-plugin"
     },
     {
       "name": "mongodb",
       "source": "./plugins/mongodb",
       "description": "Official Claude plugin for MongoDB (MCP Server + Skills). Connect to databases, explore data, manage collections, optimize queries, generate reliable code, implement best practices, develop advanced features, and more.",
-      "version": "1.1.0",
+      "version": "1.0.0",
       "author": {
         "url": "https://www.mongodb.com",
         "name": "MongoDB",
         "email": "agent-plugins@mongodb.com"
       },
-      "homepage": "https://www.mongodb.com/docs/claude/",
+      "homepage": "https://www.mongodb.com/docs/mcp-server/overview/",
       "repository": "https://github.com/mongodb/agent-skills",
       "keywords": [
         "mongodb",
@@ -351,8 +352,10 @@
       "description": "The Terraform MCP Server provides seamless integration with Terraform ecosystem, enabling advanced automation and interaction capabilities for Infrastructure as Code (IaC) development.",
       "version": "1.0.0",
       "author": {
-        "name": "HashiCorp"
-      }
+        "name": "HashiCorp",
+        "email": "support@hashicorp.com"
+      },
+      "homepage": "https://github.com/anthropics/claude-plugins-public/tree/main/external_plugins/terraform"
     },
     {
       "name": "github",
@@ -370,7 +373,8 @@
       "version": "1.0.0",
       "author": {
         "name": "GitLab"
-      }
+      },
+      "homepage": "https://github.com/anthropics/claude-plugins-public/tree/main/external_plugins/gitlab"
     },
     {
       "name": "context7",
@@ -384,12 +388,13 @@
     {
       "name": "ralph-loop",
       "source": "./plugins/ralph-loop",
-      "description": "Continuous self-referential AI loops for interactive iterative development, implementing the Ralph Wiggum technique. Run Claude in a while-true loop with the same prompt until task completion.",
+      "description": "Interactive self-referential AI loops for iterative development, implementing the Ralph Wiggum technique. Claude works on the same task repeatedly, seeing its previous work, until completion.",
       "version": "1.0.0",
       "author": {
         "name": "Anthropic",
         "email": "support@anthropic.com"
-      }
+      },
+      "homepage": "https://github.com/anthropics/claude-plugins-public/tree/main/plugins/ralph-loop"
     },
     {
       "name": "playwright",
@@ -398,7 +403,8 @@
       "version": "1.0.0",
       "author": {
         "name": "Microsoft"
-      }
+      },
+      "homepage": "https://github.com/anthropics/claude-plugins-public/tree/main/external_plugins/playwright"
     },
     {
       "name": "code-review",
@@ -458,19 +464,18 @@
       "author": {
         "name": "Anthropic",
         "email": "support@anthropic.com"
-      }
+      },
+      "homepage": "https://github.com/anthropics/claude-plugins-official/tree/main/plugins/skill-creator"
     },
     {
       "name": "monday-crm",
       "source": "./plugins/monday-crm",
-      "description": "Run your sales pipeline in monday CRM from plain language. Start the day with a ranked deal briefing, build a forecast, turn meeting notes into deal updates, set up a CRM workspace from scratch, and keep your data clean — every result written straight back into monday as a real board, dashboard, or doc. Built on the official monday MCP connector.",
-      "version": "0.3.0",
+      "description": "Run your monday CRM in plain language. Build a pipeline from scratch, start the day with a ranked deal briefing, spin up a forecast dashboard, audit board health, clean up messy data in bulk, and turn meeting notes into deal updates. Every skill writes back into monday as a real update, doc, or dashboard. Built on the official monday MCP connector.",
+      "version": "1.0.0",
       "author": {
-        "url": "https://monday.com",
-        "name": "monday.com",
-        "email": "support@monday.com"
+        "name": "monday.com"
       },
-      "homepage": "https://github.com/mondaycom/mcp/tree/master/plugins/monday-crm",
+      "homepage": "https://monday.com",
       "repository": "https://github.com/mondaycom/mcp",
       "keywords": [
         "monday",
@@ -489,16 +494,21 @@
       "name": "sentry-cli",
       "source": "./plugins/sentry-cli",
       "description": "Skills for using the Sentry CLI to interact with Sentry from the command line",
-      "version": "0.38.0"
-    },
-    {
-      "name": "sentry",
-      "source": "./plugins/sentry",
-      "description": "Sentry Plugin for Claude Code to help with debugging including MCP, commands, and skill capabilities.",
       "version": "1.0.0",
       "author": {
         "name": "Sentry"
       },
+      "homepage": "https://sentry.io"
+    },
+    {
+      "name": "sentry",
+      "source": "./plugins/sentry",
+      "description": "Sentry error monitoring integration. Access error reports, analyze stack traces, search issues by fingerprint, and debug production errors directly from your development environment.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Sentry"
+      },
+      "homepage": "https://github.com/getsentry/plugin-claude",
       "repository": "https://github.com/getsentry/sentry-for-ai",
       "keywords": [
         "sentry",
@@ -510,8 +520,8 @@
     {
       "name": "zoom-plugin",
       "source": "./plugins/zoom-plugin",
-      "description": "Claude plugin for planning, building, and debugging Zoom integrations across REST APIs, SDKs, webhooks, bots, and MCP workflows",
-      "version": "1.1.3",
+      "description": "Claude plugin for planning, building, and debugging Zoom integrations across REST APIs, SDKs, webhooks, bots, and MCP workflows.",
+      "version": "1.0.0",
       "author": {
         "url": "https://github.com/zoom/zoom-plugin",
         "name": "Zoom"
@@ -537,11 +547,11 @@
       "name": "microsoft-docs",
       "source": "./plugins/microsoft-docs",
       "description": "Access official Microsoft documentation, API references, and code samples for Azure, .NET, Windows, and more.",
-      "version": "0.3.1",
+      "version": "1.0.0",
       "author": {
         "name": "Microsoft"
       },
-      "homepage": "https://learn.microsoft.com",
+      "homepage": "https://github.com/microsoftdocs/mcp",
       "repository": "https://github.com/microsoftdocs/mcp",
       "keywords": [
         "microsoft",
@@ -560,12 +570,11 @@
     {
       "name": "jfrog",
       "source": "./plugins/jfrog",
-      "description": "Official JFrog plugin. Connect Claude Code to JFrog to manage, secure, and govern your software supply chain. Give agents the context to build secure, compliant software.",
-      "version": "0.2.7",
+      "description": "Use the JFrog Platform from Claude Code: Artifactory repos and artifacts, security findings and exposures, Catalog package safety and downloads, workflows across the SDLC, and platform administration.",
+      "version": "1.0.0",
       "author": {
         "url": "https://jfrog.com",
-        "name": "JFrog Ltd.",
-        "email": "devrel@jfrog.com"
+        "name": "JFrog Ltd."
       },
       "homepage": "https://jfrog.com",
       "repository": "https://github.com/jfrog/claude-plugin",
@@ -586,10 +595,9 @@
       "name": "miro",
       "source": "./plugins/miro",
       "description": "Secure access to Miro boards. Enables AI to read board context, create diagrams, and generate code with enterprise-grade security.",
-      "version": "1.3.0",
+      "version": "1.0.0",
       "author": {
-        "name": "Miro",
-        "email": "support@miro.com"
+        "name": "Miro"
       },
       "homepage": "https://miro.com",
       "repository": "https://github.com/miroapp/miro-ai",
@@ -636,7 +644,7 @@
       "name": "huggingface-skills",
       "source": "./plugins/huggingface-skills",
       "description": "Agent Skills for AI/ML tasks including dataset creation, model training, evaluation, and research paper publishing on Hugging Face Hub",
-      "version": "1.0.8",
+      "version": "1.0.10",
       "author": {
         "name": "Hugging Face"
       },
@@ -657,11 +665,9 @@
       "name": "hyperframes",
       "source": "./plugins/hyperframes",
       "description": "HyperFrames by HeyGen. Write HTML, render video. Compositions, GSAP and runtime adapter animations, captions, voiceovers, audio-reactive visuals, and website-to-video capture for HyperFrames.",
-      "version": "0.6.121",
+      "version": "1.0.0",
       "author": {
-        "url": "https://hyperframes.heygen.com",
-        "name": "HeyGen",
-        "email": "hyperframes@heygen.com"
+        "name": "HeyGen"
       },
       "homepage": "https://hyperframes.heygen.com",
       "repository": "https://github.com/heygen-com/hyperframes"
@@ -669,8 +675,8 @@
     {
       "name": "desktop-commander",
       "source": "./plugins/desktop-commander",
-      "description": "MCP server for terminal commands, process management, and file operations across text, code, PDF, DOCX, Excel, images, and structured data",
-      "version": "1.0.0",
+      "description": "MCP server for terminal commands, process management, and file operations across text files, code, PDF, DOCX, Excel, images, and structured data",
+      "version": "0.2.0",
       "author": {
         "name": "Desktop Commander",
         "email": "es@desktopcommander.app"
@@ -692,7 +698,7 @@
       "name": "expo",
       "source": "./plugins/expo",
       "description": "Official Expo skills for building, deploying, upgrading, and debugging Expo apps",
-      "version": "1.3.0",
+      "version": "1.5.1",
       "author": {
         "name": "Expo Team",
         "email": "support@expo.dev"
@@ -724,7 +730,7 @@
       "name": "figma",
       "source": "./plugins/figma",
       "description": "Plugin that includes the Figma MCP server and Skills for common workflows",
-      "version": "2.2.50",
+      "version": "2.2.68",
       "author": {
         "name": "Figma"
       }
@@ -777,7 +783,7 @@
       "name": "chrome-devtools-mcp",
       "source": "./plugins/chrome-devtools-mcp",
       "description": "Reliable automation, in-depth debugging, and performance analysis in Chrome using Chrome DevTools and Puppeteer",
-      "version": "1.3.0"
+      "version": "1.5.0"
     },
     {
       "name": "airtable",
@@ -853,7 +859,7 @@
       "name": "azure",
       "source": "./plugins/azure",
       "description": "Microsoft Azure MCP and Skills integration for cloud resource management, deployments, and Azure services. Manage your Azure infrastructure, monitor applications, and deploy resources directly from Claude Code.",
-      "version": "1.1.71",
+      "version": "1.1.79",
       "author": {
         "url": "https://www.microsoft.com",
         "name": "Microsoft"
@@ -932,6 +938,2827 @@
         "name": "Warp"
       },
       "homepage": "https://github.com/warpdotdev/claude-code-warp"
+    },
+    {
+      "name": "forge-skills",
+      "source": "./plugins/forge-skills",
+      "description": "Forge-focused skills and MCP configuration for Atlassian Forge: scaffold and deploy apps (forge create, templates, dev spaces), build Teamwork Graph connectors for Rovo Search/Rovo Chat, pre-deploy review, systematic debugging, plus Forge docs and Atlassian Design System lookups via MCP.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Atlassian"
+      },
+      "homepage": "https://developer.atlassian.com/platform/forge/"
+    },
+    {
+      "name": "grafana-cloud-mcp",
+      "source": "./plugins/grafana-cloud-mcp",
+      "description": "Hosted MCP server for AI-assisted Grafana Cloud observability — no local installation required.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Grafana"
+      },
+      "homepage": "https://grafana.com"
+    },
+    {
+      "name": "ui5",
+      "source": "./plugins/ui5",
+      "description": "SAPUI5 / OpenUI5 plugin for coding agents. Create and validate UI5 projects, access API documentation, run UI5 linter, get development guidelines and best practices for UI5 development.",
+      "version": "1.0.0",
+      "author": {
+        "url": "https://www.sap.com",
+        "name": "SAP SE",
+        "email": "openui5@sap.com"
+      },
+      "homepage": "https://github.com/UI5/plugins-coding-agents"
+    },
+    {
+      "name": "ui5-modernization",
+      "source": "./plugins/ui5-modernization",
+      "description": "Complete UI5 modernization toolkit with workflow and specialized fix patterns for modernizing SAPUI5/OpenUI5 applications.",
+      "version": "1.0.0",
+      "author": {
+        "url": "https://www.sap.com",
+        "name": "SAP SE",
+        "email": "openui5@sap.com"
+      },
+      "homepage": "https://github.com/UI5/plugins-coding-agents"
+    },
+    {
+      "name": "vercel",
+      "source": "./plugins/vercel",
+      "description": "Vercel deployment platform integration. Manage deployments, check build status, access logs, configure domains, and control your frontend infrastructure directly from Claude Code.",
+      "version": "1.0.0",
+      "homepage": "https://github.com/vercel/vercel-plugin"
+    },
+    {
+      "name": "valtown",
+      "source": "./plugins/valtown",
+      "description": "Build and deploy on Val Town. Bundles the Val Town MCP server and platform skills (HTTP vals, cron/intervals, SQLite, email, OAuth, React UI, third-party integrations, templates).",
+      "version": "1.0.0",
+      "author": {
+        "name": "Val Town"
+      },
+      "homepage": "https://val.town"
+    },
+    {
+      "name": "vanta",
+      "source": "./plugins/vanta",
+      "description": "The Vanta plugin connects Claude Code to Vanta's security and compliance platform through the Vanta MCP server. It combines Vanta's test-specific remediation intelligence with your local repository context to help you fix compliance failures faster.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Vanta"
+      },
+      "homepage": "https://help.vanta.com/en/articles/14094979-connecting-to-vanta-mcp#h_887ce3f337"
+    },
+    {
+      "name": "youdotcom-agent-skills",
+      "source": "./plugins/youdotcom-agent-skills",
+      "description": "You.com agent skills for web search, research with citations, and content extraction. Guided integrations for Vercel AI SDK, Claude Agent SDK, OpenAI Agents SDK, crewAI, LangChain, Microsoft Teams.ai, direct REST API, and bash CLI.",
+      "version": "1.0.0",
+      "author": {
+        "name": "You.com"
+      },
+      "homepage": "https://you.com"
+    },
+    {
+      "name": "unreal-engine-skills-for-claude-code",
+      "source": "./plugins/unreal-engine-skills-for-claude-code",
+      "description": "Control Unreal Editor directly from Claude Code via MCP. Hundreds of tools exposed via Unreal's ToolsetRegistry across 30+ toolsets: actors, blueprints, materials, Niagara, Control Rigs, Sequencer, State Trees, widgets, Gameplay Ability System, automation testing, and more.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Epic Games"
+      },
+      "homepage": "https://dev.epicgames.com/documentation/unreal-engine/unreal-mcp-in-unreal-editor"
+    },
+    {
+      "name": "langfuse",
+      "source": "./plugins/langfuse",
+      "description": "Skills for working with Langfuse, the open-source LLM engineering platform for tracing, prompt management, and evaluation.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Langfuse"
+      },
+      "homepage": "https://langfuse.com"
+    },
+    {
+      "name": "zscaler",
+      "source": "./plugins/zscaler",
+      "description": "Manage Zscaler cloud security platform including ZPA (private access), ZIA (internet access), ZDX (digital experience), ZCC (client connector), EASM (attack surface), and Z-Insights (analytics). Create and manage policies, troubleshoot connectivity, audit security configurations, and investigate incidents across the full Zscaler ecosystem.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Zscaler"
+      },
+      "homepage": "https://github.com/zscaler/zscaler-mcp-server"
+    },
+    {
+      "name": "zoominfo",
+      "source": "./plugins/zoominfo",
+      "description": "Search companies and contacts, enrich leads, find lookalikes, and get AI-ranked contact recommendations. Pre-built skills chain multiple ZoomInfo tools into complete B2B sales workflows.",
+      "version": "1.0.0",
+      "author": {
+        "name": "ZoomInfo"
+      },
+      "homepage": "https://www.zoominfo.com"
+    },
+    {
+      "name": "windsor-ai",
+      "source": "./plugins/windsor-ai",
+      "description": "Connect Claude Code to 325+ business data sources via Windsor.ai. Query marketing, sales, CRM, ecommerce, finance, and analytics data from Google Ads, Meta, HubSpot, Salesforce, Shopify, Stripe, and hundreds more — directly from your terminal.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Windsor.ai"
+      },
+      "homepage": "https://windsor.ai"
+    },
+    {
+      "name": "wix",
+      "source": "./plugins/wix",
+      "description": "Build, manage, and deploy Wix sites and apps. CLI development skills for dashboard extensions, backend APIs, site widgets, and service plugins with the Wix Design System, plus MCP server for site management.",
+      "version": "1.0.0",
+      "homepage": "https://dev.wix.com/docs/wix-cli/guides/development/about-wix-skills"
+    },
+    {
+      "name": "sumup",
+      "source": "./plugins/sumup",
+      "description": "SumUp payment integrations across terminal and online checkout flows. Build Android and iOS POS apps with SumUp card readers, online checkout with server SDKs and the checkout widget, and control card readers remotely via Cloud API.",
+      "version": "1.0.0",
+      "homepage": "https://www.sumup.com/"
+    },
+    {
+      "name": "workos",
+      "source": "./plugins/workos",
+      "description": "WorkOS integration skills for AuthKit, SSO, Directory Sync, RBAC, Vault, Audit Logs, migrations, and API references.",
+      "version": "1.0.0",
+      "author": {
+        "name": "WorkOS"
+      },
+      "homepage": "https://workos.com"
+    },
+    {
+      "name": "wordpress.com",
+      "source": "./plugins/wordpress.com",
+      "description": "Uses Claude Code to create and edit WordPress sites with WordPress Studio before deploying changes to your WordPress.com site.",
+      "version": "1.0.0",
+      "homepage": "https://developer.wordpress.com/wordpress-com-claude-code-plugin/"
+    },
+    {
+      "name": "vsql-extension-builder",
+      "source": "./plugins/vsql-extension-builder",
+      "description": "Builds a VillageSQL extension for MySQL end-to-end through a 7-phase persona-driven workflow. Commonly used to port PostgreSQL extensions to MySQL.",
+      "version": "1.0.0",
+      "author": {
+        "name": "VillageSQL"
+      },
+      "homepage": "https://villagesql.com"
+    },
+    {
+      "name": "ui5-typescript-conversion",
+      "source": "./plugins/ui5-typescript-conversion",
+      "description": "SAPUI5 / OpenUI5 plugin for coding agents. Convert JavaScript based UI5 projects to TypeScript.",
+      "version": "1.0.0",
+      "author": {
+        "url": "https://www.sap.com",
+        "name": "SAP SE",
+        "email": "openui5@sap.com"
+      },
+      "homepage": "https://github.com/UI5/plugins-coding-agents"
+    },
+    {
+      "name": "spotify-ads-api",
+      "source": "./plugins/spotify-ads-api",
+      "description": "Manage Spotify ad campaigns with natural language. Create campaigns, ad sets, ads, pull reports, and handle OAuth — all through conversation.",
+      "version": "1.0.0",
+      "homepage": "https://github.com/spotify/ads-claude-plugin"
+    },
+    {
+      "name": "tavily",
+      "source": "./plugins/tavily",
+      "description": "Build AI applications with real-time web data using Tavily's search, extract, crawl, and research APIs.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Tavily Team"
+      },
+      "homepage": "https://www.tavily.com/"
+    },
+    {
+      "name": "togetherai-skills",
+      "source": "./plugins/togetherai-skills",
+      "description": "Agent Skills for Together AI platform — inference, training, embeddings, audio, video, images, function calling, and infrastructure. Covers serverless chat completions, image/video generation, fine-tuning, batch inference, evaluations, sandboxes, dedicated endpoints, and GPU clusters.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Together AI"
+      },
+      "homepage": "https://www.together.ai"
+    },
+    {
+      "name": "zilliz",
+      "source": "./plugins/zilliz",
+      "description": "Zilliz Cloud management plugin with 14 skills covering cluster lifecycle, collection schema, vector search, index tuning, bulk import, RBAC, backups, and monitoring.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Zilliz"
+      },
+      "homepage": "https://docs.zilliz.com"
+    },
+    {
+      "name": "zapier",
+      "source": "./plugins/zapier",
+      "description": "Connect 8,000+ apps to your AI workflow. Discover, enable, and execute Zapier actions directly from your client.",
+      "version": "1.0.0",
+      "homepage": "https://github.com/zapier/zapier-mcp/tree/main/plugins/zapier"
+    },
+    {
+      "name": "supabase",
+      "source": "./plugins/supabase",
+      "description": "Supabase MCP integration for database operations, authentication, storage, and real-time subscriptions. Manage your Supabase projects, run SQL queries, and interact with your backend directly.",
+      "version": "1.0.0",
+      "homepage": "https://github.com/supabase-community/supabase-plugin"
+    },
+    {
+      "name": "stripe",
+      "source": "./plugins/stripe",
+      "description": "Stripe development plugin for Claude",
+      "version": "1.0.0",
+      "homepage": "https://github.com/stripe/ai/tree/main/providers/claude/plugin"
+    },
+    {
+      "name": "twilio-developer-kit",
+      "source": "./plugins/twilio-developer-kit",
+      "description": "Twilio Skills provide procedural knowledge for AI coding agents — which APIs to use, in what order, and what to avoid. Covers SMS, Voice, WhatsApp, Verify, SendGrid, Compliance, and 30+ products.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Twilio"
+      },
+      "homepage": "https://www.twilio.com"
+    },
+    {
+      "name": "atomic-agents",
+      "source": "./plugins/atomic-agents",
+      "description": "Comprehensive development workflow for building AI agents with the Atomic Agents framework. Includes specialized agents for schema design, architecture planning, code review, and tool development. Features guided workflows, progressive-disclosure skills, and best practice validation.",
+      "version": "1.0.0",
+      "homepage": "https://github.com/BrainBlend-AI/atomic-agents"
+    },
+    {
+      "name": "swift-lsp",
+      "source": "./plugins/swift-lsp",
+      "description": "Swift language server (SourceKit-LSP) for code intelligence",
+      "version": "1.0.0",
+      "author": {
+        "name": "Anthropic",
+        "email": "support@anthropic.com"
+      }
+    },
+    {
+      "name": "zyte-web-data",
+      "source": "./plugins/zyte-web-data",
+      "description": "Web scraping skills for Claude Code powered by the Zyte API — scrape sites, generate and run Scrapy spiders, define extraction schemas, and ship to Scrapy Cloud.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Zyte"
+      },
+      "homepage": "https://www.zyte.com"
+    },
+    {
+      "name": "telegram",
+      "source": "./plugins/telegram",
+      "description": "Telegram messaging bridge with built-in access control. Manage pairing, allowlists, and policy via /telegram:access.",
+      "version": "1.0.0"
+    },
+    {
+      "name": "vanta-mcp-plugin",
+      "source": "./plugins/vanta-mcp-plugin",
+      "description": "The Vanta plugin connects Claude Code to Vanta's security and compliance platform through the Vanta MCP server. It combines Vanta's test-specific remediation intelligence with your local repository context to help you fix compliance failures faster.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Vanta"
+      },
+      "homepage": "https://help.vanta.com/en/articles/14094979-connecting-to-vanta-mcp#h_887ce3f337"
+    },
+    {
+      "name": "vibe-prospecting",
+      "source": "./plugins/vibe-prospecting",
+      "description": "Vibe Prospecting connects Claude to live B2B company and contact data so users can search, match, enrich, filter, and export prospects at scale. It turns natural-language requests into structured GTM workflows for lead generation, CRM enrichment, company research, executive discovery, and multi-step prospecting automation inside Claude Cowork and Claude Code.",
+      "version": "1.0.0",
+      "author": {
+        "name": "vibeprospecting.ai"
+      },
+      "homepage": "https://www.vibeprospecting.ai/product/claude-plugin"
+    },
+    {
+      "name": "idmp-plugin",
+      "source": "./plugins/idmp-plugin",
+      "description": "TDengine IDMP plugin with packaged skills for discovery, schema inspection, and safe operational workflows.",
+      "version": "1.0.0",
+      "author": {
+        "name": "TaosData",
+        "email": "it@taosdata.com"
+      },
+      "homepage": "https://github.com/taosdata/agent-skills"
+    },
+    {
+      "name": "langfuse-observability",
+      "source": "./plugins/langfuse-observability",
+      "description": "The Langfuse x Claude Code Observability Plugin",
+      "version": "1.0.0",
+      "author": {
+        "name": "Langfuse"
+      },
+      "homepage": "https://langfuse.com/integrations/other/claude-code"
+    },
+    {
+      "name": "grafana-assistant",
+      "source": "./plugins/grafana-assistant",
+      "description": "Skills and rules for developing and using the Grafana Assistant app and CLI.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Grafana"
+      },
+      "homepage": "https://grafana.com"
+    },
+    {
+      "name": "math-olympiad",
+      "source": "./plugins/math-olympiad",
+      "description": "Solve competition math (IMO, Putnam, USAMO) with adversarial verification that catches what self-verification misses. Fresh-context verifiers attack proofs with specific failure patterns. Calibrated abstention over bluffing.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Anthropic",
+        "email": "support@anthropic.com"
+      },
+      "homepage": "https://github.com/anthropics/claude-plugins-official/tree/main/plugins/math-olympiad"
+    },
+    {
+      "name": "lusha",
+      "source": "./plugins/lusha",
+      "description": "Prospect, enrich, and build call-ready lead lists using Lusha's B2B intelligence platform — verified phone numbers, company signals, and lookalike targeting.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Lusha"
+      },
+      "homepage": "https://www.lusha.com"
+    },
+    {
+      "name": "learn-with-coursera",
+      "source": "./plugins/learn-with-coursera",
+      "description": "Turn any learning intent into a personalized Coursera experience. Asks three quick questions (topic, familiarity, preferred format), searches Coursera's catalog, and delivers the right next step — a course, hands-on project, short video, or live roleplay — then maps a path forward. Requires the Coursera connector for catalog tools.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Coursera"
+      },
+      "homepage": "https://github.com/coursera/skills"
+    },
+    {
+      "name": "oracle-ai-data-platform-workbench-engineer-agent",
+      "source": "./plugins/oracle-ai-data-platform-workbench-engineer-agent",
+      "description": "Oracle AI Data Platform (AIDP) Workbench engineer agent for Claude Code — a 37-skill agent that operates the full Spark/Delta lakehouse in natural language. Discovers your catalog into a grounding cache, turns plain English into accurate Spark SQL, and runs the lifecycle (CREATE/INSERT/UPDATE/DELETE/MERGE, OPTIMIZE/VACUUM, time-travel). Ingests files, profiles data and sets quality rules, authors and repairs pipelines, provisions clusters, and debugs via the Spark UI. Governs the platform (roles, credential store, Delta Sharing, audit logs), plus native Git, bundles, and MLOps/MLflow. Runs via the official Oracle aidp CLI.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Oracle"
+      },
+      "homepage": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/index.html"
+    },
+    {
+      "name": "outputai",
+      "source": "./plugins/outputai",
+      "description": "Output.ai workflow development toolkit for Claude Code. Adds 5 specialist agents (planner, builder, debugger, prompt writer, quality reviewer), 40+ slash-command skills covering scaffolding, debugging, evaluation, and credential management, plus a SessionStart hook that auto-loads Output SDK conventions so Claude understands the framework before the first prompt.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Output.ai"
+      },
+      "homepage": "https://output.ai"
+    },
+    {
+      "name": "mcp-tunnels",
+      "source": "./plugins/mcp-tunnels",
+      "description": "Connect Claude to a private MCP server through an Anthropic MCP tunnel. The /create-docker-mcp-tunnel command drives the Docker Compose quickstart end to end: certificates, proxy config, cloudflared, and a verifiable sample server.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Anthropic",
+        "email": "support@anthropic.com"
+      },
+      "homepage": "https://github.com/anthropics/claude-plugins-official/tree/main/plugins/mcp-tunnels"
+    },
+    {
+      "name": "mergify",
+      "source": "./plugins/mergify",
+      "description": "Skills for the Mergify CLI: manage merge queues, stacked pull requests, Test Insights (flaky tests, quarantine), merge protections, and Mergify configuration directly from the terminal.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Mergify"
+      },
+      "homepage": "https://mergify.com"
+    },
+    {
+      "name": "playground",
+      "source": "./plugins/playground",
+      "description": "Creates interactive HTML playgrounds — self-contained single-file explorers with visual controls, live preview, and prompt output with copy button. Includes templates for design playgrounds, data explorers, concept maps, and document critique.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Anthropic",
+        "email": "support@anthropic.com"
+      },
+      "homepage": "https://github.com/anthropics/claude-plugins-official/tree/main/plugins/playground"
+    },
+    {
+      "name": "preset-cli-skills",
+      "source": "./plugins/preset-cli-skills",
+      "description": "Preset CLI skills for explicit shell, scripting, and CI/CD workflows driven by the `sup` CLI (PyPI package `superset-sup`). Use only for CLI workflows; do not use for MCP-only work or as a substitute for direct API calls when the user wants HTTP/SDK code.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Preset"
+      },
+      "homepage": "https://www.preset.io"
+    },
+    {
+      "name": "pydantic-ai",
+      "source": "./plugins/pydantic-ai",
+      "description": "Write accurate Pydantic AI code from the start. Up-to-date patterns, decision trees, and common gotchas for agents, tools, structured output, streaming, and multi-agent apps.",
+      "version": "1.0.0",
+      "homepage": "https://github.com/pydantic/skills/tree/main/plugins/ai"
+    },
+    {
+      "name": "qdrant-skills",
+      "source": "./plugins/qdrant-skills",
+      "description": "Agent skills for Qdrant vector search covering scaling, performance optimization, search quality, monitoring, deployment, model migration, version upgrades, and SDK usage across Python, TypeScript, Rust, Go, .NET, and Java.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Qdrant"
+      },
+      "homepage": "https://skills.qdrant.tech"
+    },
+    {
+      "name": "pr-review-toolkit",
+      "source": "./plugins/pr-review-toolkit",
+      "description": "Comprehensive PR review agents specializing in comments, tests, error handling, type design, code quality, and code simplification",
+      "version": "1.0.0",
+      "author": {
+        "name": "Anthropic",
+        "email": "support@anthropic.com"
+      },
+      "homepage": "https://github.com/anthropics/claude-plugins-public/tree/main/plugins/pr-review-toolkit"
+    },
+    {
+      "name": "rc",
+      "source": "./plugins/rc",
+      "description": "Configure RevenueCat projects, apps, products, entitlements, and offerings directly from Claude Code. Manage your in-app purchase backend without leaving your development workflow.",
+      "version": "1.0.0",
+      "homepage": "https://www.revenuecat.com"
+    },
+    {
+      "name": "redis-development",
+      "source": "./plugins/redis-development",
+      "description": "Redis development best practices — data structures, query engine, vector search, caching, and performance optimization",
+      "version": "1.0.0",
+      "author": {
+        "name": "Redis"
+      },
+      "homepage": "https://redis.io"
+    },
+    {
+      "name": "remember",
+      "source": "./plugins/remember",
+      "description": "Continuous memory for Claude Code. Extracts, summarizes, and compresses conversations into tiered daily logs. Claude remembers what you did yesterday.",
+      "version": "1.0.0",
+      "homepage": "https://github.com/Digital-Process-Tools/claude-remember"
+    },
+    {
+      "name": "semgrep",
+      "source": "./plugins/semgrep",
+      "description": "Semgrep catches security vulnerabilities in real-time and guides Claude to write secure code from the start.",
+      "version": "1.0.0",
+      "homepage": "https://github.com/semgrep/mcp-marketplace.git"
+    },
+    {
+      "name": "sonatype-guide",
+      "source": "./plugins/sonatype-guide",
+      "description": "Sonatype Guide MCP server for software supply chain intelligence and dependency security. Analyze dependencies for vulnerabilities, get secure version recommendations, and check component quality metrics.",
+      "version": "1.0.0",
+      "homepage": "https://github.com/sonatype/sonatype-guide-claude-plugin.git"
+    },
+    {
+      "name": "aikido",
+      "source": "./plugins/aikido",
+      "description": "Aikido Security for Claude Code: scan code (SAST, secrets, IaC) and list all issues from your Aikido feed powered by the Aikido MCP server.",
+      "version": "1.2.1",
+      "author": {
+        "url": "https://aikido.dev",
+        "name": "Aikido Security"
+      },
+      "homepage": "https://help.aikido.dev/ide-plugins/aikido-mcp",
+      "repository": "https://github.com/AikidoSec/aikido-claude-plugin",
+      "keywords": [
+        "aikido",
+        "security",
+        "sast",
+        "secrets",
+        "iac",
+        "sca",
+        "scanning",
+        "vulnerability"
+      ]
+    },
+    {
+      "name": "pixeltable",
+      "source": "./plugins/pixeltable",
+      "description": "Build multimodal AI applications with Pixeltable -- tables, computed columns, embedding search, UDFs, tool-calling agents, and 25+ AI provider integrations.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Pixeltable"
+      },
+      "homepage": "https://docs.pixeltable.com"
+    },
+    {
+      "name": "hunter",
+      "source": "./plugins/hunter",
+      "description": "Find and verify professional email addresses, search contacts by domain, and enrich company data -- directly in Claude.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Hunter.io"
+      },
+      "homepage": "https://hunter.io"
+    },
+    {
+      "name": "greptile",
+      "source": "./plugins/greptile",
+      "description": "AI-powered codebase search and understanding. Query your repositories using natural language to find relevant code, understand dependencies, and get contextual answers about your codebase architecture.",
+      "version": "1.0.0",
+      "homepage": "https://github.com/anthropics/claude-plugins-public/tree/main/external_plugins/greptile"
+    },
+    {
+      "name": "hookify",
+      "source": "./plugins/hookify",
+      "description": "Easily create custom hooks to prevent unwanted behaviors by analyzing conversation patterns or from explicit instructions. Define rules via simple markdown files.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Anthropic",
+        "email": "support@anthropic.com"
+      },
+      "homepage": "https://github.com/anthropics/claude-plugins-public/tree/main/plugins/hookify"
+    },
+    {
+      "name": "jdtls-lsp",
+      "source": "./plugins/jdtls-lsp",
+      "description": "Java language server (Eclipse JDT.LS) for code intelligence",
+      "version": "1.0.0",
+      "author": {
+        "name": "Anthropic",
+        "email": "support@anthropic.com"
+      }
+    },
+    {
+      "name": "laravel-boost",
+      "source": "./plugins/laravel-boost",
+      "description": "Laravel development toolkit MCP server. Provides intelligent assistance for Laravel applications including Artisan commands, Eloquent queries, routing, migrations, and framework-specific code generation.",
+      "version": "1.0.0",
+      "homepage": "https://github.com/anthropics/claude-plugins-public/tree/main/external_plugins/laravel-boost"
+    },
+    {
+      "name": "knowledge-catalog",
+      "source": "./plugins/knowledge-catalog",
+      "description": "Connect to Knowledge Catalog to discover, manage, monitor, and govern data and AI artifacts across your data platform",
+      "version": "1.0.0",
+      "author": {
+        "name": "Google LLC"
+      },
+      "homepage": "https://github.com/gemini-cli-extensions/knowledge-catalog"
+    },
+    {
+      "name": "legalzoom",
+      "source": "./plugins/legalzoom",
+      "description": "Attorney guidance and legal tools for business and personal needs. AI-powered document review identifies critical risks and important clauses, advises when to engage an attorney, and routes to LegalZoom's network when professional expertise is needed.",
+      "version": "1.0.0",
+      "homepage": "https://www.legalzoom.com/"
+    },
+    {
+      "name": "learning-output-style",
+      "source": "./plugins/learning-output-style",
+      "description": "Interactive learning mode that requests meaningful code contributions at decision points (mimics the unshipped Learning output style)",
+      "version": "1.0.0",
+      "author": {
+        "name": "Anthropic",
+        "email": "support@anthropic.com"
+      },
+      "homepage": "https://github.com/anthropics/claude-plugins-public/tree/main/plugins/learning-output-style"
+    },
+    {
+      "name": "linear",
+      "source": "./plugins/linear",
+      "description": "Linear issue tracking integration. Create issues, manage projects, update statuses, search across workspaces, and streamline your software development workflow with Linear's modern issue tracker.",
+      "version": "1.0.0",
+      "homepage": "https://github.com/anthropics/claude-plugins-public/tree/main/external_plugins/linear"
+    },
+    {
+      "name": "liquid-lsp",
+      "source": "./plugins/liquid-lsp",
+      "description": "LSP integration for Shopify Liquid templates via the Shopify CLI theme language server.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Shopify"
+      },
+      "homepage": "https://github.com/Shopify/liquid-skills/tree/main/plugins/liquid-lsp"
+    },
+    {
+      "name": "liquid-skills",
+      "source": "./plugins/liquid-skills",
+      "description": "Liquid language fundamentals, CSS/JS/HTML coding standards, and WCAG accessibility patterns for Shopify themes",
+      "version": "1.0.0",
+      "author": {
+        "name": "Shopify"
+      },
+      "homepage": "https://github.com/Shopify/liquid-skills/tree/main/plugins/liquid-skills"
+    },
+    {
+      "name": "looker",
+      "source": "./plugins/looker",
+      "description": "Connect to Looker and interact with your data using LookML.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Google LLC"
+      },
+      "homepage": "https://github.com/gemini-cli-extensions/looker"
+    },
+    {
+      "name": "mcp-apps",
+      "source": "./plugins/mcp-apps",
+      "description": "Skills for creating MCP Apps with the MCP Apps SDK",
+      "version": "1.0.0",
+      "author": {
+        "name": "Anthropic / Model Context Protocol"
+      },
+      "homepage": "https://modelcontextprotocol.io"
+    },
+    {
+      "name": "lovable",
+      "source": "./plugins/lovable",
+      "description": "Build, iterate on, deploy, and manage Lovable apps from Claude Code. Bundles the official Lovable MCP server (remote, OAuth 2.1) and adds focused commands for the common build/iterate/database workflows, with credit- and publish-safety prompts.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Lovable"
+      },
+      "homepage": "https://lovable.dev"
+    },
+    {
+      "name": "lumen",
+      "source": "./plugins/lumen",
+      "description": "Precise local semantic code search via MCP. Indexes your codebase with Go AST parsing, embeds with Ollama or LM Studio, and exposes vector search to Claude through an MCP server — no cloud, no npm.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Ory Corp"
+      },
+      "homepage": "https://www.ory.sh"
+    },
+    {
+      "name": "mintlify",
+      "source": "./plugins/mintlify",
+      "description": "Build beautiful documentation sites with Mintlify. Convert non-markdown files into properly formatted MDX pages, add and modify content with correct component use, and automate documentation updates.",
+      "version": "1.0.0",
+      "homepage": "https://www.mintlify.com/"
+    },
+    {
+      "name": "neon",
+      "source": "./plugins/neon",
+      "description": "Manage your Neon projects and databases with the neon-postgres agent skill and the Neon MCP Server.",
+      "version": "1.0.0",
+      "homepage": "https://github.com/neondatabase/agent-skills/tree/main/plugins/neon-postgres"
+    },
+    {
+      "name": "netsuite-suitecloud",
+      "source": "./plugins/netsuite-suitecloud",
+      "description": "NetSuite agent skills from Oracle — authoring guidance for SuiteCloud Development Framework (SDF) objects and UIF single-page-app components, plus runtime guidance for the NetSuite AI Service Connector.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Oracle NetSuite"
+      },
+      "homepage": "https://github.com/oracle/netsuite-suitecloud-sdk"
+    },
+    {
+      "name": "mcp-server-dev",
+      "source": "./plugins/mcp-server-dev",
+      "description": "Skills for designing and building MCP servers that work seamlessly with Claude. Guides you through deployment models (remote HTTP, MCPB, local), tool design patterns, auth, and interactive MCP apps.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Anthropic",
+        "email": "support@anthropic.com"
+      },
+      "homepage": "https://github.com/anthropics/claude-plugins-official/tree/main/plugins/mcp-server-dev"
+    },
+    {
+      "name": "mercadopago",
+      "source": "./plugins/mercadopago",
+      "description": "Mercado Pago full-product integration toolkit. One agent routes to four orchestration skills (mp-integrate wizard, mp-webhooks, mp-test-setup, mp-review) that pull every endpoint, payload, and snippet live from the official Mercado Pago MCP server. The MCP must always be connected — there is no offline mode.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Mercado Pago Developer Experience"
+      },
+      "homepage": "https://github.com/mercadopago/mercadopago-claude-marketplace/tree/main/plugins/mercadopago"
+    },
+    {
+      "name": "migration-to-aws",
+      "source": "./plugins/migration-to-aws",
+      "description": "Plan a migration from Google Cloud Platform (and OpenAI/Gemini AI workloads) to AWS. Analyzes your Infrastructure-as-Code files, app code, and GCP billing data to discover resources, design an AWS architecture, estimate costs, and generate migration artifacts — including AI-provider mapping to Amazon Bedrock. Processing is local; your data stays in your environment.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Amazon Web Services"
+      },
+      "homepage": "https://github.com/awslabs/startups"
+    },
+    {
+      "name": "oracledb",
+      "source": "./plugins/oracledb",
+      "description": "Connect, query, and interact with Oracle Databases and their data.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Google LLC"
+      },
+      "homepage": "https://github.com/gemini-cli-extensions/oracledb"
+    },
+    {
+      "name": "pinecone",
+      "source": "./plugins/pinecone",
+      "description": "Pinecone vector database integration. Streamline your Pinecone development with powerful tools for managing vector indexes, querying data, and rapid prototyping. Use slash commands like /quickstart to generate AGENTS.md files and initialize Python projects and /query to quickly explore indexes. Access the Pinecone MCP server for creating, describing, upserting and querying indexes with Claude. Perfect for developers building semantic search, RAG applications, recommendation systems, and other vector-based applications with Pinecone.",
+      "version": "1.0.0",
+      "homepage": "https://github.com/pinecone-io/pinecone-claude-code-plugin"
+    },
+    {
+      "name": "netlify-skills",
+      "source": "./plugins/netlify-skills",
+      "description": "Netlify platform skills for Claude Code — functions, edge functions, blobs, database, image CDN, forms, config, CLI, frameworks, caching, AI gateway, and deployment.",
+      "version": "1.0.0",
+      "homepage": "https://github.com/netlify/context-and-tools"
+    },
+    {
+      "name": "nimble",
+      "source": "./plugins/nimble",
+      "description": "Nimble web data toolkit — search, extract, map, crawl the web and work with structured data agents",
+      "version": "1.0.0",
+      "homepage": "https://docs.nimbleway.com/integrations/agent-skills/plugin-installation"
+    },
+    {
+      "name": "plugin-dev",
+      "source": "./plugins/plugin-dev",
+      "description": "Comprehensive toolkit for developing Claude Code plugins. Includes 7 expert skills covering hooks, MCP integration, commands, agents, and best practices. AI-assisted plugin creation and validation.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Anthropic",
+        "email": "support@anthropic.com"
+      },
+      "homepage": "https://github.com/anthropics/claude-plugins-public/tree/main/plugins/plugin-dev"
+    },
+    {
+      "name": "project-artifact",
+      "source": "./plugins/project-artifact",
+      "description": "Generate and publish a living project status page — overview & success criteria, the workstream sequence, and next steps — as a shareable claude.ai artifact backed by a per-project config, so refreshes re-gather live state, redeploy the same URL, and report only the delta.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Anthropic",
+        "email": "support@anthropic.com"
+      },
+      "homepage": "https://github.com/anthropics/claude-plugins-public/tree/main/plugins/project-artifact"
+    },
+    {
+      "name": "nvidia-skills",
+      "source": "./plugins/nvidia-skills",
+      "description": "NVIDIA agent skills for accelerated-computing workflows — starting with cuOpt vehicle-routing optimization (VRP, TSP, PDP) via the cuOpt Python API.",
+      "version": "1.0.0",
+      "author": {
+        "name": "NVIDIA"
+      },
+      "homepage": "https://github.com/NVIDIA/skills"
+    },
+    {
+      "name": "nightvision",
+      "source": "./plugins/nightvision",
+      "description": "Skills for working with NightVision, a DAST and API Discovery platform that finds exploitable vulnerabilities in web applications and REST APIs",
+      "version": "1.0.0",
+      "homepage": "https://github.com/nvsecurity/nightvision-skills"
+    },
+    {
+      "name": "oracle-ai-data-platform-workbench-spark-connectors",
+      "source": "./plugins/oracle-ai-data-platform-workbench-spark-connectors",
+      "description": "Oracle AI Data Platform Workbench Spark connectors for Claude Code. 18 connector skills covering every data source workbench customers commonly need: Oracle Autonomous DB family (ALH/ADW/ATP) via wallet/IAM-DB-Token/API-key, ExaCS, Fusion ERP REST, Fusion BICC, EPM Cloud Planning, Essbase 21c, OCI Streaming (Kafka), OCI Object Storage, Apache Iceberg, plus external systems (PostgreSQL, MySQL/HeatWave, SQL Server, Snowflake, Azure ADLS Gen2, AWS S3, generic REST, custom JDBC, Excel). Live-validated on the workbench `tpcds` cluster (Spark 3.5.0): 17 PASS / 4 ship-as-is out of 21 test rows.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Oracle"
+      },
+      "homepage": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/index.html"
+    },
+    {
+      "name": "resend",
+      "source": "./plugins/resend",
+      "description": "Agent skills for working with Resend to send and receive emails — email API integration, agent inbox, CLI, React Email components, and deliverability best practices. Includes the Resend MCP server.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Resend"
+      },
+      "homepage": "https://resend.com"
+    },
+    {
+      "name": "runway-api",
+      "source": "./plugins/runway-api",
+      "description": "Video generation at scale. Generate videos, images, and audio with Runway's API — batch ad campaigns, product videos, multishot stories, and creative iteration. Supports seedance2, gen4.5, veo3, Nano, Banana Pro, and more.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Runway"
+      },
+      "homepage": "https://runwayml.com"
+    },
+    {
+      "name": "sanity",
+      "source": "./plugins/sanity",
+      "description": "Sanity content platform integration with MCP server, agent skills, and slash commands. Query and author content, build and optimize GROQ queries, design schemas, and set up Visual Editing.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Sanity"
+      },
+      "homepage": "https://www.sanity.io"
+    },
+    {
+      "name": "security-guidance",
+      "source": "./plugins/security-guidance",
+      "description": "Security review for Claude-generated code. Pattern-based warnings on edits, LLM-powered diff review on Stop, and an agentic commit reviewer that catches injection, XSS, SSRF, hardcoded secrets, and 25+ other vulnerability classes.",
+      "version": "2.0.6",
+      "author": {
+        "name": "Anthropic",
+        "email": "support@anthropic.com"
+      },
+      "homepage": "https://github.com/anthropics/claude-plugins-official/tree/main/plugins/security-guidance"
+    },
+    {
+      "name": "serena",
+      "source": "./plugins/serena",
+      "description": "Semantic code analysis MCP server providing intelligent code understanding, refactoring suggestions, and codebase navigation through language server protocol integration.",
+      "version": "1.0.0",
+      "homepage": "https://github.com/anthropics/claude-plugins-public/tree/main/external_plugins/serena"
+    },
+    {
+      "name": "spanner",
+      "source": "./plugins/spanner",
+      "description": "Connect and interact with Spanner data using natural language.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Google LLC"
+      },
+      "homepage": "https://github.com/gemini-cli-extensions/spanner"
+    },
+    {
+      "name": "qodo-skills",
+      "source": "./plugins/qodo-skills",
+      "description": "Qodo Skills provides a curated library of reusable AI agent capabilities that extend Claude's functionality for software development workflows. Each skill is designed to integrate seamlessly into your development process, enabling tasks like code quality checks, automated testing, security scanning, and compliance validation. Skills operate across your entire SDLC—from IDE to CI/CD—ensuring consistent standards and catching issues early.",
+      "version": "1.0.0",
+      "homepage": "https://github.com/qodo-ai/qodo-skills.git"
+    },
+    {
+      "name": "pyright-lsp",
+      "source": "./plugins/pyright-lsp",
+      "description": "Python language server (Pyright) for type checking and code intelligence",
+      "version": "1.0.0",
+      "author": {
+        "name": "Anthropic",
+        "email": "support@anthropic.com"
+      }
+    },
+    {
+      "name": "qt-development-skills",
+      "source": "./plugins/qt-development-skills",
+      "description": "Agentic engineering skills for Qt software development — Qt C++/QML code review, QML coding, and Qt C++/QML code documentation.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Qt Group"
+      },
+      "homepage": "https://www.qt.io/"
+    },
+    {
+      "name": "render",
+      "source": "./plugins/render",
+      "description": "Deploy, debug, and monitor applications on Render. Includes skills, an agent, slash commands, and a render.yaml validation hook.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Render"
+      },
+      "homepage": "https://render.com"
+    },
+    {
+      "name": "revenuecat",
+      "source": "./plugins/revenuecat",
+      "description": "Configure RevenueCat projects, apps, products, entitlements, and offerings directly from Claude Code. Manage your in-app purchase backend without leaving your development workflow.",
+      "version": "1.0.0",
+      "homepage": "https://www.revenuecat.com"
+    },
+    {
+      "name": "rootly",
+      "source": "./plugins/rootly",
+      "description": "Full-lifecycle incident management: deploy safety, incident response, on-call management, and retrospectives.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Rootly"
+      },
+      "homepage": "https://rootly.com"
+    },
+    {
+      "name": "oracle-ai-data-platform-workbench-databricks-migrator",
+      "source": "./plugins/oracle-ai-data-platform-workbench-databricks-migrator",
+      "description": "Drive the Oracle AI Data Platform (AIDP) Databricks Migration Toolkit in natural language. Plans and executes automated Databricks → AIDP migrations of notebooks, jobs, schedules, and catalog DDL — Pass-1 dependency rewrite + Pass-2 cell-by-cell execute/verify/fix on a live AIDP cluster with Claude.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Oracle"
+      },
+      "homepage": "https://docs.oracle.com/en/cloud/paas/ai-data-platform/index.html"
+    },
+    {
+      "name": "planetscale",
+      "source": "./plugins/planetscale",
+      "description": "An authenticated hosted MCP server that accesses your PlanetScale organizations, databases, branches, schema, and Insights data. Query against your data, surface slow queries, and get organizational and account information.",
+      "version": "1.0.0",
+      "homepage": "https://planetscale.com/"
+    },
+    {
+      "name": "rust-analyzer-lsp",
+      "source": "./plugins/rust-analyzer-lsp",
+      "description": "Rust language server for code intelligence and analysis",
+      "version": "1.0.0",
+      "author": {
+        "name": "Anthropic",
+        "email": "support@anthropic.com"
+      }
+    },
+    {
+      "name": "prisma",
+      "source": "./plugins/prisma",
+      "description": "Prisma MCP integration for Postgres database management, schema migrations, SQL queries, and connection string management. Provision Prisma Postgres databases, run migrations, and interact with your data directly.",
+      "version": "1.0.0",
+      "homepage": "https://prisma.io"
+    },
+    {
+      "name": "sap-mdk-server",
+      "source": "./plugins/sap-mdk-server",
+      "description": "MCP server for SAP Mobile Development Kit (MDK). Build and modify MDK applications with AI assistance — schema lookups, action validation, rule editing, and project scaffolding.",
+      "version": "1.0.0",
+      "author": {
+        "url": "https://www.sap.com",
+        "name": "SAP SE",
+        "email": "ospo@sap.com"
+      },
+      "homepage": "https://help.sap.com/docs/MDK"
+    },
+    {
+      "name": "save-to-spotify",
+      "source": "./plugins/save-to-spotify",
+      "description": "Create polished audio episodes with TTS narration, rich timelines, cover images, and save them to Spotify via the save-to-spotify CLI.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Spotify"
+      },
+      "homepage": "https://github.com/spotify/save-to-spotify"
+    },
+    {
+      "name": "servicenow-sdk",
+      "source": "./plugins/servicenow-sdk",
+      "description": "Create, edit, and deploy ServiceNow applications with the Fluent SDK effortlessly through Claude AI.",
+      "version": "1.0.0",
+      "author": {
+        "name": "ServiceNow"
+      },
+      "homepage": "https://servicenow.github.io/sdk/"
+    },
+    {
+      "name": "session-report",
+      "source": "./plugins/session-report",
+      "description": "Generate an explorable HTML report of Claude Code session usage — tokens, cache efficiency, subagents, skills, and the most expensive prompts — from local ~/.claude/projects transcripts.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Anthropic",
+        "email": "support@anthropic.com"
+      },
+      "homepage": "https://github.com/anthropics/claude-plugins-official/tree/main/plugins/session-report"
+    },
+    {
+      "name": "sap-cds-mcp",
+      "source": "./plugins/sap-cds-mcp",
+      "description": "AI-assisted development of SAP Cloud Application Programming Model (CAP) projects. Search CDS models and CAP documentation.",
+      "version": "1.0.0",
+      "author": {
+        "url": "https://www.sap.com",
+        "name": "SAP SE",
+        "email": "ospo@sap.com"
+      },
+      "homepage": "https://cap.cloud.sap/"
+    },
+    {
+      "name": "circleback",
+      "source": "./plugins/circleback",
+      "description": "Circleback conversational context integration. Search and access meetings, emails, calendar events, and more.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Circleback"
+      }
+    },
+    {
+      "name": "42crunch-api-security-testing",
+      "source": "./plugins/42crunch-api-security-testing",
+      "description": "Catch API security issues during development: audit, scan, remediate, validate with AI guardrails in Claude Code.",
+      "version": "1.9.0",
+      "author": {
+        "url": "https://github.com/42Crunch",
+        "name": "42Crunch",
+        "email": "support@42crunch.com"
+      },
+      "homepage": "https://42crunch.com",
+      "repository": "https://github.com/42Crunch-AI/claude-plugins",
+      "keywords": [
+        "openapi",
+        "api-security",
+        "audit",
+        "scan",
+        "remediation",
+        "vulnerability",
+        "compliance",
+        "owasp",
+        "bola",
+        "bfla",
+        "ai",
+        "devsecops",
+        "42crunch"
+      ]
+    },
+    {
+      "name": "hostinger",
+      "source": "./plugins/hostinger",
+      "description": "Deploy, manage and monitor Hostinger services — Websites, Domains, Ecommerce, Email Marketing, Subscriptions & Payments, and VPS. Authenticate via browser (OAuth) or API token.",
+      "version": "1.0.0",
+      "author": {
+        "url": "https://www.hostinger.com",
+        "name": "Hostinger"
+      },
+      "homepage": "https://developers.hostinger.com",
+      "repository": "https://github.com/nicka-hostinger/api-mcp-server"
+    },
+    {
+      "name": "dropbox",
+      "source": "./plugins/dropbox",
+      "description": "The Dropbox plugin for Claude connects your Dropbox files directly to Claude, so you can search, organize, save generated content, and create sharing links without switching tools. It respects your existing Dropbox permissions, and Claude only works with files you already have access to.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Dropbox"
+      },
+      "homepage": "https://www.dropbox.com",
+      "keywords": [
+        "dropbox",
+        "files",
+        "storage",
+        "cloud",
+        "cloud storage",
+        "save",
+        "upload",
+        "download",
+        "share",
+        "sharing",
+        "sync",
+        "folder",
+        "folders",
+        "documents",
+        "docs",
+        "content",
+        "links",
+        "permissions",
+        "organize",
+        "search",
+        "retrieve",
+        "manage",
+        "import",
+        "export"
+      ]
+    },
+    {
+      "name": "grafana-mcp",
+      "source": "./plugins/grafana-mcp",
+      "description": "MCP server for AI-assisted Grafana dashboard, datasource, alerting, and incident management.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Grafana"
+      },
+      "homepage": "https://grafana.com"
+    },
+    {
+      "name": "imessage",
+      "source": "./plugins/imessage",
+      "description": "iMessage messaging bridge with built-in access control. Reads chat.db directly, sends via AppleScript. Manage pairing, allowlists, and policy via /imessage:access.",
+      "version": "1.0.0"
+    },
+    {
+      "name": "intercom",
+      "source": "./plugins/intercom",
+      "description": "Intercom integration for Claude Code. Search conversations, analyze customer support patterns, look up contacts and companies, and install the Intercom Messenger. Connect your Intercom workspace to get real-time insights from customer data.",
+      "version": "1.0.0",
+      "homepage": "https://github.com/intercom/claude-plugin-external"
+    },
+    {
+      "name": "quarkus-agent",
+      "source": "./plugins/quarkus-agent",
+      "description": "MCP server for AI coding agents to create, manage, and interact with Quarkus applications. Provides tools for project scaffolding, dev mode lifecycle, extension skills, Dev MCP proxy, and documentation search.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Quarkus"
+      },
+      "homepage": "https://quarkus.io"
+    },
+    {
+      "name": "logfire",
+      "source": "./plugins/logfire",
+      "description": "Add Logfire observability to Python applications with auto-instrumentation for FastAPI, httpx, asyncpg, SQLAlchemy, and more",
+      "version": "1.0.0",
+      "author": {
+        "name": "Pydantic"
+      },
+      "homepage": "https://github.com/pydantic/skills/tree/main/plugins/logfire"
+    },
+    {
+      "name": "logrocket",
+      "source": "./plugins/logrocket",
+      "description": "Connect Claude Code to LogRocket to query session replays, metrics, issues, and user behavior using natural language.",
+      "version": "1.0.0",
+      "author": {
+        "name": "LogRocket"
+      },
+      "homepage": "https://logrocket.com"
+    },
+    {
+      "name": "mapbox",
+      "source": "./plugins/mapbox",
+      "description": "Mapbox skills and MCP servers for building location-aware applications with AI. Includes geospatial tools, style management, and patterns for web, iOS, Android, and AI agent frameworks.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Mapbox"
+      },
+      "homepage": "https://www.mapbox.com"
+    },
+    {
+      "name": "rill",
+      "source": "./plugins/rill",
+      "description": "Skills for developing and querying projects in the Rill business intelligence platform",
+      "version": "1.0.0",
+      "author": {
+        "name": "Rill Data"
+      },
+      "homepage": "https://docs.rilldata.com/developers/build/ai-configuration"
+    },
+    {
+      "name": "sagemaker-ai",
+      "source": "./plugins/sagemaker-ai",
+      "description": "Build, train, and deploy AI models with deep AWS AI/ML expertise brought directly into your coding assistants, covering the surface area of Amazon SageMaker AI.",
+      "version": "1.0.0",
+      "homepage": "https://github.com/awslabs/agent-plugins"
+    },
+    {
+      "name": "pagerduty",
+      "source": "./plugins/pagerduty",
+      "description": "Enhance code quality and security through PagerDuty risk scoring and incident correlation. Score pre-commit diffs against historical incident data and surface deployment risk before you ship.",
+      "version": "1.0.0",
+      "homepage": "https://github.com/PagerDuty/claude-code-plugins"
+    },
+    {
+      "name": "sap-hana-cli",
+      "source": "./plugins/sap-hana-cli",
+      "description": "150+ SAP HANA database tools for AI assistants. Query tables, import/export data, profile data quality, compare schemas, manage backups, monitor performance, and more. Connects to SAP HANA Cloud and on-premise databases.",
+      "version": "1.0.0",
+      "author": {
+        "url": "https://www.sap.com",
+        "name": "SAP SE",
+        "email": "ospo@sap.com"
+      },
+      "homepage": "https://github.com/SAP-samples/hana-cli-claude-plugin"
+    },
+    {
+      "name": "pigment",
+      "source": "./plugins/pigment",
+      "description": "Analyze business data and build custom Pigment models, metrics, and boards through natural language.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Pigment"
+      },
+      "homepage": "https://www.pigment.com"
+    },
+    {
+      "name": "sap-fiori-mcp-server",
+      "source": "./plugins/sap-fiori-mcp-server",
+      "description": "MCP server for SAP Fiori development tools for Claude Code. Build and modify SAP Fiori applications with AI assistance.",
+      "version": "1.0.0",
+      "author": {
+        "url": "https://www.sap.com",
+        "name": "SAP SE",
+        "email": "ospo@sap.com"
+      },
+      "homepage": "https://github.com/SAP/open-ux-tools/tree/main/packages/fiori-mcp-server"
+    },
+    {
+      "name": "sourcegraph",
+      "source": "./plugins/sourcegraph",
+      "description": "Code search and understanding across codebases. Search, read, and trace references across repositories; analyze refactor impact; investigate incidents via commit and diff search; run targeted security sweeps.",
+      "version": "1.0.0",
+      "homepage": "https://sourcegraph.com"
+    },
+    {
+      "name": "posthog",
+      "source": "./plugins/posthog",
+      "description": "Access PostHog analytics, feature flags, experiments, error tracking, and insights directly from Claude Code.",
+      "version": "1.0.0",
+      "homepage": "https://posthog.com/docs/model-context-protocol"
+    },
+    {
+      "name": "apollo",
+      "source": "./plugins/apollo",
+      "description": "Prospect, enrich leads, load outreach sequences, and query sales analytics with Apollo.io — one-click MCP server integration for Claude Code and Cowork.",
+      "version": "0.1.1",
+      "author": {
+        "url": "https://www.apollo.io/",
+        "name": "Apollo.io"
+      },
+      "homepage": "https://www.apollo.io/",
+      "repository": "https://github.com/apolloio/apollo-mcp-plugin",
+      "keywords": [
+        "apollo",
+        "sales",
+        "prospecting",
+        "icp",
+        "enrichment",
+        "sequences",
+        "analytics",
+        "mcp"
+      ]
+    },
+    {
+      "name": "datadog",
+      "source": "./plugins/datadog",
+      "description": "Use Datadog directly in Claude Code through a preconfigured Datadog MCP server. Query logs, metrics, traces, dashboards, and more through natural conversation. This plugin is in preview.",
+      "version": "0.7.14",
+      "author": {
+        "name": "Datadog"
+      },
+      "repository": "https://github.com/datadog-labs/claude-code-plugin.git",
+      "keywords": [
+        "datadog",
+        "infrastructure",
+        "mcp",
+        "observability",
+        "productivity"
+      ]
+    },
+    {
+      "name": "dataproc",
+      "source": "./plugins/dataproc",
+      "description": "Manage Dataproc clusters and jobs.",
+      "version": "0.1.0",
+      "author": {
+        "name": "Google LLC",
+        "email": "data-cloud-ai-integrations@google.com"
+      },
+      "homepage": "https://cloud.google.com/dataproc",
+      "repository": "https://github.com/gemini-cli-extensions/dataproc"
+    },
+    {
+      "name": "railway",
+      "source": "./plugins/railway",
+      "description": "Deploy and manage apps, databases, and infrastructure on Railway. Covers project setup, deploys, environment configuration, networking, troubleshooting, and monitoring.",
+      "version": "1.0.0",
+      "homepage": "https://docs.railway.com/ai/claude-code-plugin"
+    },
+    {
+      "name": "shopify-ai-toolkit",
+      "source": "./plugins/shopify-ai-toolkit",
+      "description": "Shopify developer tools for GitHub Copilot — search Shopify docs, generate and validate GraphQL, Liquid, and UI extension code. Skill scripts send usage telemetry (queries, code, model/client identifiers) to shopify.dev by default; set OPT_OUT_INSTRUMENTATION=true to disable.",
+      "version": "1.5.2",
+      "author": {
+        "name": "Shopify"
+      },
+      "keywords": [
+        "shopify",
+        "mcp",
+        "graphql",
+        "liquid",
+        "storefront",
+        "admin-api",
+        "plugin"
+      ]
+    },
+    {
+      "name": "shopify",
+      "source": "./plugins/shopify",
+      "description": "Shopify developer tools for GitHub Copilot — search Shopify docs, generate and validate GraphQL, Liquid, and UI extension code",
+      "version": "1.0.0",
+      "author": {
+        "name": "Shopify"
+      },
+      "keywords": [
+        "shopify",
+        "mcp",
+        "graphql",
+        "liquid",
+        "storefront",
+        "admin-api",
+        "plugin"
+      ]
+    },
+    {
+      "name": "coderabbit",
+      "source": "./plugins/coderabbit",
+      "description": "AI-powered code review in Claude Code, powered by CodeRabbit",
+      "version": "1.1.1",
+      "author": {
+        "url": "https://coderabbit.ai",
+        "name": "CodeRabbit AI",
+        "email": "support@coderabbit.ai"
+      },
+      "homepage": "https://docs.coderabbit.ai/cli/claude-code-integration",
+      "repository": "https://github.com/coderabbitai/skills",
+      "keywords": [
+        "code-review",
+        "ai",
+        "coderabbit",
+        "claude-code"
+      ]
+    },
+    {
+      "name": "fullstory",
+      "source": "./plugins/fullstory",
+      "description": "Connect Claude to Fullstory to query behavioral analytics, session replays, and customer experience insights.",
+      "version": "0.1.0",
+      "author": {
+        "name": "Fullstory"
+      },
+      "homepage": "https://www.fullstory.com",
+      "keywords": [
+        "analytics",
+        "customer-experience",
+        "behavioral-analytics",
+        "session-replay"
+      ]
+    },
+    {
+      "name": "canva",
+      "source": "./plugins/canva",
+      "description": "Create, edit, review, resize, and brand-check Canva designs with the Canva MCP server.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Canva"
+      },
+      "keywords": [
+        "canva",
+        "design",
+        "presentation",
+        "social media",
+        "brand kit",
+        "ai generation",
+        "flyer",
+        "poster",
+        "graphic design",
+        "marketing"
+      ]
+    },
+    {
+      "name": "firestore-native",
+      "source": "./plugins/firestore-native",
+      "description": "Connect and interact with Firestore databases, collections, and documents.",
+      "version": "0.3.2",
+      "author": {
+        "name": "Google LLC",
+        "email": "data-cloud-ai-integrations@google.com"
+      },
+      "homepage": "https://cloud.google.com/firestore",
+      "repository": "https://github.com/gemini-cli-extensions/firestore-native"
+    },
+    {
+      "name": "duckdb-skills",
+      "source": "./plugins/duckdb-skills",
+      "description": "DuckDB-powered skills for Claude Code: read any data file, attach and query DuckDB databases, search DuckDB/DuckLake docs, search past session logs, and install/update DuckDB extensions.",
+      "version": "0.2.4",
+      "author": {
+        "url": "https://github.com/duckdb",
+        "name": "duckdb"
+      },
+      "homepage": "https://duckdb.org",
+      "repository": "https://github.com/duckdb/duckdb-skills",
+      "keywords": [
+        "duckdb",
+        "ducklake",
+        "parquet",
+        "csv",
+        "json",
+        "avro",
+        "excel",
+        "iceberg",
+        "delta",
+        "read-file",
+        "read-memories",
+        "duckdb-docs",
+        "data-exploration",
+        "session-logs",
+        "query",
+        "sql",
+        "attach-db"
+      ]
+    },
+    {
+      "name": "cds-mcp",
+      "source": "./plugins/cds-mcp",
+      "description": "Model Context Protocol (MCP) server for AI-assisted development of CAP applications.",
+      "version": "0.0.5",
+      "author": {
+        "name": "SAP SE"
+      },
+      "homepage": "https://cap.cloud.sap/",
+      "repository": "https://github.com/cap-js/mcp-server",
+      "keywords": [
+        "sap",
+        "cap",
+        "cds",
+        "mcp"
+      ]
+    },
+    {
+      "name": "atlan",
+      "source": "./plugins/atlan",
+      "description": "Atlan context layer plugin for Claude Code. Search, explore, govern, and manage your data assets through natural language. Powered by the Atlan MCP server with semantic search, lineage traversal, glossary management, data quality rules, and more.",
+      "version": "1.0.0",
+      "author": {
+        "url": "https://atlan.com",
+        "name": "Atlan",
+        "email": "engineering@atlan.com"
+      },
+      "homepage": "https://atlan.com/docs",
+      "repository": "https://github.com/atlanhq/agent-toolkit",
+      "keywords": [
+        "data-catalog",
+        "data-governance",
+        "metadata",
+        "lineage",
+        "data-quality",
+        "semantic-search",
+        "glossary",
+        "mcp",
+        "atlan"
+      ]
+    },
+    {
+      "name": "bigquery-data-analytics",
+      "source": "./plugins/bigquery-data-analytics",
+      "description": "Connect, query, and generate data insights for BigQuery datasets and data.",
+      "version": "0.2.1",
+      "author": {
+        "name": "Google LLC",
+        "email": "data-cloud-ai-integrations@google.com"
+      },
+      "homepage": "https://cloud.google.com/bigquery",
+      "repository": "https://github.com/gemini-cli-extensions/bigquery-data-analytics"
+    },
+    {
+      "name": "cloud-sql-sqlserver",
+      "source": "./plugins/cloud-sql-sqlserver",
+      "description": "Connect to Cloud SQL for SQL Server",
+      "version": "0.2.0",
+      "author": {
+        "name": "Google LLC",
+        "email": "data-cloud-ai-integrations@google.com"
+      },
+      "homepage": "https://cloud.google.com/sql/docs/sqlserver",
+      "repository": "https://github.com/gemini-cli-extensions/cloud-sql-sqlserver"
+    },
+    {
+      "name": "dash0",
+      "source": "./plugins/dash0",
+      "description": "OpenTelemetry observability for Claude Code sessions. Captures tool calls, LLM invocations, token usage, and errors as OTel traces.",
+      "version": "0.1.18",
+      "author": {
+        "name": "Dash0"
+      },
+      "homepage": "https://dash0.com",
+      "repository": "https://github.com/dash0hq/dash0-agent-plugin",
+      "keywords": [
+        "observability",
+        "tracing",
+        "opentelemetry",
+        "dash0",
+        "otel"
+      ]
+    },
+    {
+      "name": "firecrawl",
+      "source": "./plugins/firecrawl",
+      "description": "Scrape, search, crawl, and map the web with a single command.",
+      "version": "1.0.9",
+      "author": {
+        "name": "Firecrawl"
+      }
+    },
+    {
+      "name": "alloydb",
+      "source": "./plugins/alloydb",
+      "description": "Create, connect, and interact with an AlloyDB for PostgreSQL database and data.",
+      "version": "0.2.0",
+      "author": {
+        "name": "Google LLC",
+        "email": "data-cloud-ai-integrations@google.com"
+      },
+      "homepage": "https://cloud.google.com/alloydb",
+      "repository": "https://github.com/gemini-cli-extensions/alloydb"
+    },
+    {
+      "name": "azure-cosmos-db-assistant",
+      "source": "./plugins/azure-cosmos-db-assistant",
+      "description": "Azure Cosmos DB plugin for Claude Code. Includes 73 best-practice rules across 10 categories covering data modeling, partition key design, query optimization, SDK usage, indexing, throughput management, global distribution, monitoring, design patterns, and vector search. No external services or configuration required. Optional MCP Toolkit integration available for live database operations.",
+      "version": "1.0.0",
+      "author": {
+        "url": "https://azure.microsoft.com/products/cosmos-db",
+        "name": "Azure Cosmos DB"
+      },
+      "homepage": "https://github.com/AzureCosmosDB/cosmosdb-claude-code-plugin",
+      "repository": "https://github.com/AzureCosmosDB/cosmosdb-claude-code-plugin",
+      "keywords": [
+        "azure",
+        "cosmos-db",
+        "cosmosdb",
+        "nosql",
+        "database",
+        "vector-search",
+        "best-practices"
+      ]
+    },
+    {
+      "name": "alloydb-omni",
+      "source": "./plugins/alloydb-omni",
+      "description": "Create, connect, and interact with an AlloyDB Omni database and data.",
+      "version": "0.2.1",
+      "author": {
+        "name": "Google LLC",
+        "email": "data-cloud-ai-integrations@google.com"
+      },
+      "homepage": "https://cloud.google.com/alloydb/omni",
+      "repository": "https://github.com/gemini-cli-extensions/alloydb-omni"
+    },
+    {
+      "name": "appwrite",
+      "source": "./plugins/appwrite",
+      "description": "Appwrite tools for Claude Code, including SDK skills, Appwrite MCP servers, and deployment commands.",
+      "version": "0.1.0",
+      "author": {
+        "name": "Appwrite",
+        "email": "team@appwrite.io"
+      },
+      "homepage": "https://appwrite.io/docs/tooling/ai/ai-dev-tools/claude-code",
+      "repository": "https://github.com/appwrite/claude-plugin",
+      "keywords": [
+        "appwrite",
+        "claude-code",
+        "mcp",
+        "skills"
+      ]
+    },
+    {
+      "name": "cloud-sql-postgresql",
+      "source": "./plugins/cloud-sql-postgresql",
+      "description": "Create, connect, and interact with a Cloud SQL for PostgreSQL database and data.",
+      "version": "0.4.0",
+      "author": {
+        "name": "Google LLC",
+        "email": "data-cloud-ai-integrations@google.com"
+      },
+      "homepage": "https://cloud.google.com/sql",
+      "repository": "https://github.com/gemini-cli-extensions/cloud-sql-postgresql"
+    },
+    {
+      "name": "cloud-sql-mysql",
+      "source": "./plugins/cloud-sql-mysql",
+      "description": "Connect and interact with a Cloud SQL for MySQL database and data.",
+      "version": "0.2.0",
+      "author": {
+        "name": "Google LLC",
+        "email": "data-cloud-ai-integrations@google.com"
+      },
+      "homepage": "https://cloud.google.com/sql",
+      "repository": "https://github.com/gemini-cli-extensions/cloud-sql-mysql"
+    },
+    {
+      "name": "postiz",
+      "source": "./plugins/postiz",
+      "description": "Social media automation CLI for scheduling posts, managing integrations, uploading media, and tracking analytics across 28+ platforms including X, LinkedIn, Reddit, YouTube, TikTok, Instagram, and more",
+      "version": "1.0.0",
+      "homepage": "https://postiz.com/agent"
+    },
+    {
+      "name": "exa",
+      "source": "./plugins/exa",
+      "description": "Exa AI web search, deep research, and content extraction. Provides MCP tools and research skills for comprehensive web search, people discovery, company research, academic papers, and more.",
+      "version": "3.3.10",
+      "author": {
+        "name": "Exa",
+        "email": "hello@exa.ai"
+      },
+      "repository": "https://github.com/exa-labs/exa-mcp-server"
+    },
+    {
+      "name": "fastly-agent-toolkit",
+      "source": "./plugins/fastly-agent-toolkit",
+      "description": "Fastly development tools and platform skills",
+      "version": "0.1.0",
+      "author": {
+        "name": "Fastly"
+      },
+      "keywords": [
+        "fastly",
+        "edge",
+        "compute",
+        "vcl",
+        "cdn"
+      ]
+    },
+    {
+      "name": "apollo-skills",
+      "source": "./plugins/apollo-skills",
+      "description": "Agent skills for AI coding agents working with Apollo GraphQL tools and technologies",
+      "version": "1.2.6",
+      "author": {
+        "name": "Apollo GraphQL",
+        "email": "opensource@apollographql.com"
+      },
+      "homepage": "https://www.apollographql.com",
+      "repository": "https://github.com/apollographql/skills",
+      "keywords": [
+        "graphql",
+        "apollo",
+        "apollo-client",
+        "apollo-connectors",
+        "apollo-federation",
+        "apollo-ios",
+        "apollo-kotlin",
+        "apollo-mcp-server",
+        "apollo-router",
+        "apollo-server",
+        "graphql-operations",
+        "graphql-schema",
+        "graphql-lsp",
+        "rover",
+        "rust-best-practices"
+      ]
+    },
+    {
+      "name": "base44",
+      "source": "./plugins/base44",
+      "description": "Build and deploy Base44 full-stack apps with CLI project management and JavaScript/TypeScript SDK development skills",
+      "version": "1.0.0-beta.1",
+      "author": {
+        "url": "https://base44.com",
+        "name": "base44"
+      },
+      "homepage": "https://docs.base44.com",
+      "repository": "https://github.com/base44/skills",
+      "keywords": [
+        "base44",
+        "full-stack",
+        "sdk",
+        "cli",
+        "deployment",
+        "entities",
+        "backend-functions",
+        "javascript",
+        "typescript"
+      ]
+    },
+    {
+      "name": "datarobot-agent-skills",
+      "source": "./plugins/datarobot-agent-skills",
+      "description": "DataRobot skills for AI/ML workflows — model training, deployment, predictions, feature engineering, monitoring, explainability, data preparation, App Framework CI/CD, and external agent monitoring.",
+      "version": "1.3.4"
+    },
+    {
+      "name": "buildkite",
+      "source": "./plugins/buildkite",
+      "description": "Official Buildkite skills for Claude Code, Cursor, and other AI coding agents — pipelines, migration, preflight, agent runtime, CLI, and API",
+      "version": "1.0.0"
+    },
+    {
+      "name": "crowdstrike-falcon-foundry",
+      "source": "./plugins/crowdstrike-falcon-foundry",
+      "description": "CrowdStrike Falcon Foundry development skills for building cybersecurity applications on the Falcon platform. Includes UI development, collections, functions, workflows, API integration, security patterns, and debugging workflows. Swagger 2.0 specs are auto-converted to OpenAPI 3.0 via npx swagger2openapi (requires Node.js; network call to npm registry).",
+      "version": "1.3.0",
+      "author": {
+        "name": "CrowdStrike"
+      },
+      "keywords": [
+        "foundry",
+        "crowdstrike",
+        "cybersecurity",
+        "falcon",
+        "ui-development",
+        "collections",
+        "functions",
+        "workflows",
+        "api-integration",
+        "security"
+      ]
+    },
+    {
+      "name": "dataverse",
+      "source": "./plugins/dataverse",
+      "description": "Microsoft Dataverse plugin for coding agents — powering CRUD, bulk data operations, advanced queries, schema lifecycle, and environment management through intelligent skills that unify MCP, CLI, and SDK workflows.",
+      "version": "1.6.0",
+      "author": {
+        "url": "https://www.microsoft.com",
+        "name": "Microsoft"
+      },
+      "homepage": "https://github.com/microsoft/Dataverse-skills",
+      "keywords": [
+        "dataverse",
+        "mcp",
+        "power-platform",
+        "dynamics-365"
+      ]
+    },
+    {
+      "name": "dominodatalab",
+      "source": "./plugins/dominodatalab",
+      "description": "Full Domino Data Lab platform support — workspaces, jobs, model deployment, experiment tracking, GenAI tracing, Spark/Ray/Dask, and app deployment for data science teams",
+      "version": "1.0.0",
+      "author": {
+        "url": "https://www.domino.ai",
+        "name": "Domino Data Lab"
+      },
+      "homepage": "https://github.com/dominodatalab/domino-claude-plugin",
+      "repository": "https://github.com/dominodatalab/domino-claude-plugin",
+      "keywords": [
+        "domino",
+        "mlops",
+        "data-science",
+        "machine-learning",
+        "experiment-tracking",
+        "genai-tracing",
+        "spark",
+        "ray",
+        "dask",
+        "app-deployment"
+      ]
+    },
+    {
+      "name": "circle-skills",
+      "source": "./plugins/circle-skills",
+      "description": "Ship stablecoin apps faster. Best-practice skills for USDC payments, cross-chain transfers, wallets, and smart contracts — plus Circle's MCP server for real-time SDK and documentation guidance.",
+      "version": "1.1.0",
+      "author": {
+        "name": "Circle Technology Services"
+      },
+      "keywords": [
+        "usdc",
+        "stablecoin",
+        "circle",
+        "cctp",
+        "wallets",
+        "web3",
+        "payments"
+      ]
+    },
+    {
+      "name": "bigdata-com",
+      "source": "./plugins/bigdata-com",
+      "description": "Financial research and market intelligence on stocks, companies, sectors, and economies. Run valuation snapshots, peer comparables, and investment memos; preview, digest, and analyze earnings (quality, reactions, surprises); assess risk, monitor catalysts, and review competitive moats and governance. Covers thematic and sector research, cross-sector and regional comparisons, country and macro analysis, G7 benchmarking, scenario analysis, and company briefs. Powered by Bigdata MCP.",
+      "version": "1.1.0",
+      "author": {
+        "name": "RavenPack",
+        "email": "support@bigdata.com"
+      },
+      "keywords": [
+        "Bigdata",
+        "finance",
+        "RavenPack",
+        "stocks",
+        "companies",
+        "sectors",
+        "economies",
+        "valuation",
+        "peers",
+        "investment memos",
+        "earnings",
+        "risk",
+        "catalysts",
+        "moats",
+        "governance",
+        "thematic research",
+        "sector research",
+        "cross-sector comparisons",
+        "regional comparisons",
+        "country analysis",
+        "macro analysis",
+        "G7 benchmarking",
+        "scenario analysis",
+        "company briefs"
+      ]
+    },
+    {
+      "name": "data-agent-kit-starter-pack",
+      "source": "./plugins/data-agent-kit-starter-pack",
+      "description": "This plugin provides a specialized suite of skills for data engineers and database practitioners working on Google Cloud. It acts as an expert assistant, allowing you to use natural language prompts in your preferred coding agent to architect complex data pipelines, transform data with dbt, write Spark and BigQuery SQL notebooks, and orchestrate end-to-end workflows across GCP's data ecosystem.",
+      "version": "0.4.0",
+      "author": {
+        "name": "Google LLC",
+        "email": "data-cloud-ai-integrations@google.com"
+      }
+    },
+    {
+      "name": "airwallex-agentos",
+      "source": "./plugins/airwallex-agentos",
+      "description": "Bring Airwallex's global financial infrastructure to Claude. Orchestrate actions across your account in plain language, e.g., set up invoices from a PO, onboard suppliers from invoices, and check current cash position across currencies. AgentOS bundles pre-built finance Skills with MCP servers. A public CLI connects your agent to Airwallex's capabilities.",
+      "version": "0.2.2",
+      "author": {
+        "url": "https://www.airwallex.com",
+        "name": "Airwallex"
+      },
+      "homepage": "https://www.airwallex.com/docs",
+      "repository": "https://github.com/airwallex/airwallex-marketplace.git",
+      "keywords": [
+        "airwallex",
+        "business accounts",
+        "billing",
+        "invoices",
+        "payments",
+        "issuing",
+        "treasury",
+        "cli",
+        "mcp"
+      ]
+    },
+    {
+      "name": "datahub-skills",
+      "source": "./plugins/datahub-skills",
+      "description": "DataHub development and interaction toolkit with connector planning, PR review, catalog search, metadata enrichment, lineage tracing, data quality management, and connection setup skills",
+      "version": "1.4.1",
+      "author": {
+        "name": "DataHub Project"
+      }
+    },
+    {
+      "name": "brightdata-plugin",
+      "source": "./plugins/brightdata-plugin",
+      "description": "Web scraping, Google search, structured data extraction, and MCP server integration powered by Bright Data. Includes 21 skills: scrape any webpage as markdown (with bot detection/CAPTCHA bypass), search Google with structured JSON results, extract data from 40+ websites (Amazon, LinkedIn, Instagram, TikTok, YouTube, and more), orchestrate Bright Data's 60+ MCP tools, Bright Data CLI for terminal-based scraping/search/data extraction/zone management, real-time competitive intelligence (competitor snapshots, pricing comparison, review mining, hiring signals, market landscape mapping), built-in best practices for Web Unlocker, SERP API, Web Scraper API, and Browser API, proxy integration code for Datacenter/ISP/Residential/Mobile networks, Python SDK best practices for the brightdata-sdk package, JavaScript/TypeScript SDK best practices for the @brightdata/sdk package, Discover API for intent-ranked semantic web search (trigger/poll, relevance scoring, parsed page content), deep multi-source cited research briefs, RAG and search-engine pipelines built on Discover (live retrieval and vector ingestion), scraper builder for any website, AI-generated Scraper Studio scrapers (`bdata scraper create` / `bdata scraper run`), SEO audits with live web data, social listening and brand reputation monitoring (sentiment and themes across Reddit/X/Instagram/TikTok/YouTube/reviews), shopping price comparison across Amazon/Walmart/eBay/Best Buy/Google Shopping (find the cheapest in-stock offer, region-aware), agent onboarding, design system mirroring, and Browser API session debugging.",
+      "version": "1.8.0",
+      "author": {
+        "url": "https://brightdata.com",
+        "name": "Bright Data",
+        "email": "support@brightdata.com"
+      },
+      "homepage": "https://brightdata.com",
+      "repository": "https://github.com/brightdata/brightdata-plugin",
+      "keywords": [
+        "web-scraping",
+        "search",
+        "serp",
+        "bright-data",
+        "web-unlocker",
+        "captcha-bypass",
+        "claude-code",
+        "data-feeds",
+        "mcp",
+        "mcp-server",
+        "browser-automation",
+        "structured-data",
+        "best-practices",
+        "serp-api",
+        "browser-api",
+        "python-sdk",
+        "javascript-sdk",
+        "typescript-sdk",
+        "nodejs",
+        "discover-api",
+        "live-research",
+        "rag",
+        "rag-pipeline",
+        "semantic-search",
+        "vector-search",
+        "brightdata-sdk",
+        "brightdata-cli",
+        "bdata",
+        "cli",
+        "scraper-studio",
+        "ai-generated-scraper",
+        "linkedin",
+        "amazon",
+        "instagram",
+        "tiktok",
+        "youtube",
+        "facebook",
+        "competitive-intelligence",
+        "market-research",
+        "competitor-analysis",
+        "pricing-intelligence",
+        "social-listening",
+        "brand-monitoring",
+        "sentiment-analysis",
+        "brand-research",
+        "price-comparison",
+        "shopping",
+        "deal-finder",
+        "price-tracking"
+      ]
+    },
+    {
+      "name": "fiftyone",
+      "source": "./plugins/fiftyone",
+      "description": "Build high-quality datasets and computer vision models. Visualize datasets, analyze models, find duplicates, run inference, evaluate predictions, and develop custom plugins.",
+      "version": "1.0.3",
+      "author": {
+        "name": "Voxel51"
+      },
+      "homepage": "https://docs.voxel51.com/",
+      "repository": "https://github.com/voxel51/fiftyone-skills"
+    },
+    {
+      "name": "honeycomb",
+      "source": "./plugins/honeycomb",
+      "description": "Skills, agents, and workflows for Honeycomb observability — query patterns, production investigations, SLOs, OpenTelemetry instrumentation, and Beeline migration. Designed to complement the Honeycomb MCP server.",
+      "version": "1.1.0",
+      "author": {
+        "url": "https://honeycomb.io",
+        "name": "Honeycomb"
+      },
+      "homepage": "https://docs.honeycomb.io/integrations/mcp/",
+      "repository": "https://github.com/honeycombio/agent-skill",
+      "keywords": [
+        "honeycomb",
+        "observability",
+        "opentelemetry",
+        "tracing",
+        "slo",
+        "mcp",
+        "debugging",
+        "instrumentation"
+      ]
+    },
+    {
+      "name": "agentforce-adlc",
+      "source": "./plugins/agentforce-adlc",
+      "description": "Agentforce Agent Development Life Cycle — author, discover, scaffold, deploy, test, secure, and optimize .agent files",
+      "version": "0.9.0",
+      "author": {
+        "name": "SalesforceAIResearch"
+      },
+      "repository": "https://github.com/SalesforceAIResearch/agentforce-adlc",
+      "keywords": [
+        "agentforce",
+        "agent-script",
+        "salesforce",
+        "adlc"
+      ]
+    },
+    {
+      "name": "clickhouse-best-practices",
+      "source": "./plugins/clickhouse-best-practices",
+      "description": "28 best practice rules for ClickHouse schema design, query optimization, and data ingestion — prioritized by impact",
+      "version": "0.3.0",
+      "author": {
+        "url": "https://clickhouse.com",
+        "name": "ClickHouse Inc"
+      },
+      "homepage": "https://clickhouse.ai",
+      "repository": "https://github.com/ClickHouse/agent-skills",
+      "keywords": [
+        "clickhouse",
+        "database",
+        "query-optimization",
+        "schema-design",
+        "best-practices",
+        "data-ingestion"
+      ]
+    },
+    {
+      "name": "carta-crm",
+      "source": "./plugins/carta-crm",
+      "description": "Manage the Carta CRM conversationally — search, add, update, and enrich investors, companies, contacts, deals, notes, and fundraisings via the Carta CRM MCP Server",
+      "version": "0.9.0",
+      "author": {
+        "name": "Carta",
+        "email": "crm@carta.com"
+      },
+      "homepage": "https://github.com/carta/plugins",
+      "repository": "https://github.com/carta/plugins",
+      "keywords": [
+        "carta",
+        "crm",
+        "investors",
+        "companies",
+        "contacts",
+        "deals",
+        "notes",
+        "fundraisings",
+        "search",
+        "enrich"
+      ]
+    },
+    {
+      "name": "data-engineering",
+      "source": "./plugins/data-engineering",
+      "description": "Data engineering plugin - warehouse exploration, pipeline authoring, Airflow integration",
+      "version": "0.1.0"
+    },
+    {
+      "name": "astronomer-data-agents",
+      "source": "./plugins/astronomer-data-agents",
+      "description": "Data engineering plugin - warehouse exploration, pipeline authoring, Airflow integration",
+      "version": "0.1.0"
+    },
+    {
+      "name": "data",
+      "source": "./plugins/data",
+      "description": "Data engineering plugin - warehouse exploration, pipeline authoring, Airflow integration",
+      "version": "0.1.0"
+    },
+    {
+      "name": "cockroachdb",
+      "source": "./plugins/cockroachdb",
+      "description": "Connect Claude Code directly to your CockroachDB clusters for hands-on database work — explore schemas, write optimized SQL, debug queries, and manage distributed database clusters. This plugin provides tools across MCP backends (self-hosted MCP Toolbox and managed CockroachDB Cloud MCP Server), specialized agents (DBA, Developer, Operator), skills across operational domains, and built-in safety hooks.",
+      "version": "0.1.10",
+      "author": {
+        "url": "https://github.com/cockroachdb",
+        "name": "Cockroach Labs"
+      },
+      "homepage": "https://github.com/cockroachdb/claude-plugin",
+      "repository": "https://github.com/cockroachdb/claude-plugin",
+      "keywords": [
+        "cockroachdb",
+        "database",
+        "sql",
+        "distributed-sql",
+        "postgres-compatible",
+        "mcp",
+        "schema",
+        "migration",
+        "multi-region"
+      ]
+    },
+    {
+      "name": "convex",
+      "source": "./plugins/convex",
+      "description": "Bundled design + quickstart skills, code-writing and code-review subagents, lint guard + end-of-turn verify hooks, runtime-error and OCC-insights monitors, and MCP server for live deployment introspection. The quickstart scaffolds a running app from one sentence and builds it live LOCALLY, narrated in chat; the convex-reviewer subagent audits Convex functions for auth, validators, and performance. Build reactive, type-safe backends on one platform — schema, real-time, file storage, scheduled jobs, and AI agents.",
+      "version": "1.8.2",
+      "author": {
+        "url": "https://convex.dev",
+        "name": "Convex"
+      },
+      "homepage": "https://github.com/get-convex/convex-backend-skill",
+      "repository": "https://github.com/get-convex/convex-backend-skill",
+      "keywords": [
+        "convex",
+        "backend",
+        "database",
+        "realtime",
+        "reactive",
+        "websocket",
+        "auth",
+        "storage",
+        "scheduler",
+        "cron",
+        "agent",
+        "rag",
+        "mobile",
+        "typescript",
+        "mcp"
+      ]
+    },
+    {
+      "name": "amplitude",
+      "source": "./plugins/amplitude",
+      "description": "Use Amplitude like an expert - instrument analytics, discover product opportunities, analyze charts, create dashboards, manage experiments, and understand users and accounts",
+      "version": "1.0.0",
+      "author": {
+        "url": "https://amplitude.com",
+        "name": "Amplitude",
+        "email": "support@amplitude.com"
+      }
+    },
+    {
+      "name": "aws-dev-toolkit",
+      "source": "./plugins/aws-dev-toolkit",
+      "description": "AWS development toolkit — 34 skills, 11 agents, and 3 MCP servers for building, migrating, and performing architecture reviews on AWS.",
+      "version": "0.3.0",
+      "author": {
+        "name": "aws-samples"
+      },
+      "homepage": "https://github.com/aws-samples/sample-claude-code-plugins-for-startups/tree/main/plugins/aws-dev-toolkit",
+      "repository": "https://github.com/aws-samples/sample-claude-code-plugins-for-startups",
+      "keywords": [
+        "aws",
+        "cdk",
+        "cloudformation",
+        "terraform",
+        "serverless",
+        "well-architected",
+        "iac",
+        "migration",
+        "gcp",
+        "azure",
+        "bedrock"
+      ]
+    },
+    {
+      "name": "codspeed",
+      "source": "./plugins/codspeed",
+      "description": "CodSpeed plugin for Claude Code helping with performance measurement and optimization.",
+      "version": "1.0.0",
+      "author": {
+        "name": "CodSpeed"
+      },
+      "homepage": "https://codspeed.io",
+      "repository": "https://github.com/CodSpeedHQ/codspeed",
+      "keywords": [
+        "codspeed",
+        "performance",
+        "profiling",
+        "optimization",
+        "benchmarking"
+      ]
+    },
+    {
+      "name": "boltz",
+      "source": "./plugins/boltz",
+      "description": "Predict structures, screen molecules and proteins, and design binders with Boltz from Claude Code.",
+      "version": "0.1.1",
+      "author": {
+        "url": "https://boltz.bio",
+        "name": "Boltz",
+        "email": "support@boltz.bio"
+      },
+      "homepage": "https://boltz.bio",
+      "repository": "https://github.com/boltz-bio/boltz-api-skills",
+      "keywords": [
+        "boltz",
+        "boltz-api",
+        "computational-biology",
+        "protein-design",
+        "protein-screening",
+        "small-molecule-design",
+        "virtual-screening",
+        "structure-prediction",
+        "molecular-modeling",
+        "drug-discovery"
+      ]
+    },
+    {
+      "name": "carta-cap-table",
+      "source": "./plugins/carta-cap-table",
+      "description": "Carta Cap Table plugin — skills and hooks for querying cap tables, grants, SAFEs, 409A valuations, waterfall scenarios, and more",
+      "version": "6.24.1",
+      "author": {
+        "name": "Carta",
+        "email": "engineering@carta.com"
+      },
+      "homepage": "https://github.com/carta/plugins",
+      "repository": "https://github.com/carta/plugins",
+      "keywords": [
+        "cap_table",
+        "mcp",
+        "carta",
+        "equity",
+        "grants"
+      ]
+    },
+    {
+      "name": "commit-commands",
+      "source": "./plugins/commit-commands",
+      "description": "Streamline your git workflow with simple commands for committing, pushing, and creating pull requests",
+      "version": "1.0.0",
+      "author": {
+        "name": "Anthropic",
+        "email": "support@anthropic.com"
+      }
+    },
+    {
+      "name": "fakechat",
+      "source": "./plugins/fakechat",
+      "description": "Localhost iMessage-style web chat for Claude Code — test surface with file upload and edits. No tokens, no access control.",
+      "version": "0.0.1",
+      "keywords": [
+        "fakechat",
+        "web",
+        "localhost",
+        "testing",
+        "channel",
+        "mcp"
+      ]
+    },
+    {
+      "name": "firebase",
+      "source": "./plugins/firebase",
+      "description": "Google Firebase MCP integration. Manage Firestore databases, authentication, cloud functions, hosting, and storage. Build and manage your Firebase backend directly from your development workflow.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Google"
+      }
+    },
+    {
+      "name": "discord",
+      "source": "./plugins/discord",
+      "description": "Discord channel for Claude Code — messaging bridge with built-in access control. Manage pairing, allowlists, and policy via /discord:access.",
+      "version": "0.0.4",
+      "keywords": [
+        "discord",
+        "messaging",
+        "channel",
+        "mcp"
+      ]
+    },
+    {
+      "name": "explanatory-output-style",
+      "source": "./plugins/explanatory-output-style",
+      "description": "Adds educational insights about implementation choices and codebase patterns (mimics the deprecated Explanatory output style)",
+      "version": "1.0.0",
+      "author": {
+        "name": "Anthropic",
+        "email": "support@anthropic.com"
+      }
+    },
+    {
+      "name": "feature-dev",
+      "source": "./plugins/feature-dev",
+      "description": "Comprehensive feature development workflow with specialized agents for codebase exploration, architecture design, and quality review",
+      "version": "1.0.0",
+      "author": {
+        "name": "Anthropic",
+        "email": "support@anthropic.com"
+      }
+    },
+    {
+      "name": "frontend-design",
+      "source": "./plugins/frontend-design",
+      "description": "Frontend design skill for UI/UX implementation",
+      "version": "1.0.0",
+      "author": {
+        "name": "Anthropic",
+        "email": "support@anthropic.com"
+      }
+    },
+    {
+      "name": "agent-sdk-dev",
+      "source": "./plugins/agent-sdk-dev",
+      "description": "Claude Agent SDK Development Plugin",
+      "version": "1.0.0",
+      "author": {
+        "name": "Anthropic",
+        "email": "support@anthropic.com"
+      }
+    },
+    {
+      "name": "carta-investors",
+      "source": "./plugins/carta-investors",
+      "description": "Carta Investors plugin — skills for querying investors data, performance benchmarks, regulatory reporting, AGM deck generation, brand extraction, and more via the Carta MCP server",
+      "version": "0.122.2",
+      "author": {
+        "name": "Carta",
+        "email": "engineering@carta.com"
+      },
+      "homepage": "https://github.com/carta/plugins",
+      "repository": "https://github.com/carta/plugins",
+      "keywords": [
+        "investors",
+        "mcp",
+        "carta",
+        "agm",
+        "annual-general-meeting",
+        "deck",
+        "presentation",
+        "brand",
+        "brand-board",
+        "pdf",
+        "pptx"
+      ]
+    },
+    {
+      "name": "aws-transform",
+      "source": "./plugins/aws-transform",
+      "description": "Migrate, modernize, and upgrade codebases to AWS. Transforms .NET Framework to .NET 8/10, mainframe COBOL to Java, VMware VMs to EC2, SQL Server to Aurora, and upgrades Java/Python/Node.js versions and AWS SDKs. AWS Transform - continuous modernization analyzes codebases for tech debt, security issues, and upgrade opportunities, then remediates them.",
+      "version": "1.2.0",
+      "author": {
+        "name": "Amazon Web Services"
+      },
+      "homepage": "https://github.com/awslabs/agent-plugins",
+      "repository": "https://github.com/awslabs/agent-plugins",
+      "keywords": [
+        "aws",
+        "aws-transform",
+        "migration",
+        "modernization",
+        "dotnet",
+        "mainframe",
+        "cobol",
+        "vmware",
+        "ec2",
+        "sql-server",
+        "aurora",
+        "java",
+        "python",
+        "sdk",
+        "continuous modernization",
+        "AWS Transform - continuous modernization",
+        "tech debt",
+        "security vulnerabilities",
+        "analyze repos",
+        "security analysis",
+        "modernization analysis",
+        "agentic readiness"
+      ]
+    },
+    {
+      "name": "amazon-location-service",
+      "source": "./plugins/amazon-location-service",
+      "description": "Guide developers through adding maps, places search, geocoding, routing, and other geospatial features with Amazon Location Service, including authentication setup, SDK integration, and best practices.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Amazon Web Services"
+      },
+      "repository": "https://github.com/awslabs/agent-plugins",
+      "keywords": [
+        "location",
+        "maps",
+        "geocoding",
+        "routing",
+        "places",
+        "geofencing",
+        "tracking",
+        "amazon-location",
+        "maplibre",
+        "address",
+        "coordinates"
+      ]
+    },
+    {
+      "name": "cwc-makers",
+      "source": "./plugins/cwc-makers",
+      "description": "Seamless onboarding for the Code-with-Claude Makers Cardputer: one /maker-setup command clones the build-with-claude repo, flashes UIFlow firmware, and installs the Claude Buddy app bundle onto a freshly-plugged-in M5Stack Cardputer-Adv.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Anthropic",
+        "email": "support@anthropic.com"
+      },
+      "homepage": "https://claude.com/cwc-makers",
+      "repository": "https://github.com/moremas/build-with-claude",
+      "keywords": [
+        "cardputer",
+        "m5stack",
+        "esp32",
+        "hardware",
+        "maker",
+        "onboarding",
+        "cwc"
+      ]
+    },
+    {
+      "name": "aws-amplify",
+      "source": "./plugins/aws-amplify",
+      "description": "Build full-stack apps with AWS Amplify Gen 2 using guided workflows for authentication, data models, storage, GraphQL APIs, and Lambda functions.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Amazon Web Services"
+      },
+      "homepage": "https://github.com/awslabs/agent-plugins",
+      "repository": "https://github.com/awslabs/agent-plugins",
+      "keywords": [
+        "aws",
+        "amplify",
+        "fullstack",
+        "authentication",
+        "data",
+        "storage",
+        "graphql",
+        "functions"
+      ]
+    },
+    {
+      "name": "databases-on-aws",
+      "source": "./plugins/databases-on-aws",
+      "description": "Expert database guidance for the AWS database portfolio. Design schemas, execute queries, handle migrations, and choose the right database for your workload.",
+      "version": "1.4.0",
+      "author": {
+        "name": "Amazon Web Services"
+      },
+      "homepage": "https://github.com/awslabs/agent-plugins",
+      "repository": "https://github.com/awslabs/agent-plugins",
+      "keywords": [
+        "aws",
+        "aurora",
+        "database",
+        "databases",
+        "distributed-sql",
+        "dsql",
+        "iam-auth",
+        "migration",
+        "postgresql",
+        "postgres",
+        "schema",
+        "serverless",
+        "sql"
+      ]
+    },
+    {
+      "name": "aws-serverless",
+      "source": "./plugins/aws-serverless",
+      "description": "Design, build, deploy, test, and debug serverless applications with AWS Serverless services.",
+      "version": "1.3.0",
+      "author": {
+        "name": "Amazon Web Services"
+      },
+      "homepage": "https://github.com/awslabs/agent-plugins",
+      "repository": "https://github.com/awslabs/agent-plugins",
+      "keywords": [
+        "aws",
+        "lambda",
+        "durable functions",
+        "managed-instances",
+        "lmi",
+        "serverless",
+        "development",
+        "sam",
+        "api-gateway",
+        "eventbridge",
+        "step-functions",
+        "microvms",
+        "firecracker"
+      ]
+    },
+    {
+      "name": "deploy-on-aws",
+      "source": "./plugins/deploy-on-aws",
+      "description": "Deploy applications to AWS with architecture recommendations, cost estimates, and IaC deployment. Generate validated AWS architecture diagrams as draw.io XML.",
+      "version": "1.3.0",
+      "author": {
+        "name": "Amazon Web Services"
+      },
+      "homepage": "https://github.com/awslabs/agent-plugins",
+      "repository": "https://github.com/awslabs/agent-plugins",
+      "keywords": [
+        "aws",
+        "deploy",
+        "infrastructure",
+        "cdk",
+        "cloudformation",
+        "pricing",
+        "diagrams",
+        "draw.io",
+        "architecture"
+      ]
+    },
+    {
+      "name": "confidence",
+      "source": "./plugins/confidence",
+      "description": "Access Confidence feature flags, experiments, and migration tools directly from Claude Code.",
+      "version": "0.4.2",
+      "author": {
+        "url": "https://confidence.spotify.com",
+        "name": "Spotify Confidence"
+      },
+      "homepage": "https://confidence.spotify.com",
+      "repository": "https://github.com/spotify/confidence-ai-plugins",
+      "keywords": [
+        "feature-flags",
+        "experiments",
+        "a/b-testing",
+        "migration",
+        "openfeature"
+      ]
+    },
+    {
+      "name": "aws-startup-advisor",
+      "source": "./plugins/aws-startup-advisor",
+      "description": "Personalized architecture, cost, security, and migration guidance for startups. From day-one account setup and security baselines to production-ready infrastructure, cost optimization, and beyond. Includes AWS Activate Credits eligibility, 60+ exclusive startup offers, and multi-account multi-region support. Built on expertise from AWS Startup Solutions Architects and patterns from 350,000+ startups.",
+      "version": "1.5.2",
+      "author": {
+        "name": "Amazon Web Services"
+      },
+      "keywords": [
+        "aws",
+        "startups",
+        "activate",
+        "knowledge-base",
+        "prompt-library",
+        "gcp",
+        "google-cloud",
+        "migration",
+        "cloud-migration",
+        "terraform",
+        "fargate",
+        "rds",
+        "aurora",
+        "eks",
+        "bedrock",
+        "ai-migration",
+        "openai",
+        "openai-to-bedrock",
+        "langchain",
+        "langgraph",
+        "crewai",
+        "autogen",
+        "agentic",
+        "agents",
+        "llm-migration",
+        "cost-estimation"
+      ]
+    },
+    {
+      "name": "ai-plugins",
+      "source": "./plugins/ai-plugins",
+      "description": "Endor Labs Agent Kit setup and security workflow agents and skills for Cursor.",
+      "version": "2.1.0",
+      "author": {
+        "url": "https://www.endorlabs.com/",
+        "name": "Endor Labs",
+        "email": "support@endor.ai"
+      },
+      "homepage": "https://endorlabs.com",
+      "repository": "https://github.com/endorlabs/ai-plugins",
+      "keywords": [
+        "endor-labs",
+        "security",
+        "dependencies",
+        "endorctl",
+        "sca",
+        "sast",
+        "agentic remediation",
+        "AppSec"
+      ]
+    },
+    {
+      "name": "aws-data-analytics",
+      "source": "./plugins/aws-data-analytics",
+      "description": "Data lake, analytics, search, and ETL workflows with S3 Tables, AWS Glue, Athena, and Amazon OpenSearch Service. Covers managed Iceberg tables on S3 Tables, ingestion from JDBC databases (Oracle, SQL Server, PostgreSQL, MySQL, RDS), Amazon Redshift, Snowflake, BigQuery, and DynamoDB, AWS Glue Data Catalog inventory and asset discovery, federated Athena queries, vector storage and semantic search on Amazon S3 Vectors, and Amazon OpenSearch Service and Serverless (migration from Solr/Elasticsearch, provisioning, vector/semantic/hybrid search, log analytics, trace analytics).",
+      "version": "1.1.0",
+      "author": {
+        "name": "Amazon Web Services"
+      },
+      "homepage": "https://github.com/aws/agent-toolkit-for-aws",
+      "repository": "https://github.com/aws/agent-toolkit-for-aws",
+      "keywords": [
+        "aws",
+        "amazon",
+        "amazon-web-services",
+        "iam",
+        "analytics",
+        "data-lake",
+        "lakehouse",
+        "athena",
+        "glue",
+        "aws-glue",
+        "data-catalog",
+        "s3",
+        "s3-tables",
+        "s3-vectors",
+        "iceberg",
+        "apache-iceberg",
+        "etl",
+        "redshift",
+        "snowflake",
+        "bigquery",
+        "rds",
+        "dynamodb",
+        "jdbc",
+        "secrets-manager",
+        "vector-search",
+        "semantic-search",
+        "rag",
+        "embeddings",
+        "vector-database",
+        "aurora",
+        "opensearch",
+        "opensearch-serverless",
+        "amazon-opensearch-service",
+        "elasticsearch",
+        "solr",
+        "hybrid-search",
+        "k-nn",
+        "log-analytics",
+        "trace-analytics"
+      ]
+    },
+    {
+      "name": "aws-agents-for-devsecops",
+      "source": "./plugins/aws-agents-for-devsecops",
+      "description": "Investigate incidents, review code and execute UAT for release readiness, scan code for vulnerabilities, and run penetration tests with AWS DevOps Agent and AWS Security Agent.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Amazon Web Services"
+      },
+      "homepage": "https://docs.aws.amazon.com/devopsagent/latest/userguide/",
+      "repository": "https://github.com/aws/agent-toolkit-for-aws/tree/main/plugins/aws-agents-for-devsecops",
+      "keywords": [
+        "Amazon Web Services",
+        "agentspace",
+        "api-testing",
+        "appsec",
+        "architecture-review",
+        "aws",
+        "cloudwatch",
+        "code-review",
+        "cost-optimization",
+        "devops",
+        "devsecops",
+        "incident",
+        "investigation",
+        "is-my-code-secure",
+        "mcp",
+        "observability",
+        "operations",
+        "penetration-test",
+        "pentest",
+        "pre-merge",
+        "qa",
+        "release",
+        "release-analysis",
+        "release-readiness",
+        "release-testing",
+        "reliability",
+        "remediation",
+        "risk-analysis",
+        "security",
+        "security-scan",
+        "security-vulnerabilities",
+        "testing",
+        "threat-model",
+        "topology",
+        "uat",
+        "ui-testing"
+      ]
+    },
+    {
+      "name": "aws-core",
+      "source": "./plugins/aws-core",
+      "description": "Build, deploy, and operate applications on AWS. Skills to author infrastructure-as-code (CDK, CloudFormation), use core services (Lambda, API Gateway, Step Functions, ECS/Fargate, ECR, IAM, Amazon Bedrock with Knowledge Bases and Guardrails, AWS Blocks), and complete common tasks across observability (CloudWatch, X-Ray, CloudTrail, ADOT), messaging and streaming (SQS, SNS, EventBridge, Kinesis, MSK), AWS SDKs (boto3, JS v3, Swift), and cost optimization.",
+      "version": "1.1.0",
+      "author": {
+        "name": "Amazon Web Services"
+      },
+      "homepage": "https://github.com/aws/agent-toolkit-for-aws",
+      "repository": "https://github.com/aws/agent-toolkit-for-aws",
+      "keywords": [
+        "aws",
+        "amazon",
+        "amazon-web-services",
+        "iam",
+        "bedrock",
+        "amazon-bedrock",
+        "aws-blocks",
+        "billing",
+        "cost-explorer",
+        "cost-optimization",
+        "savings-plans",
+        "compute-optimizer",
+        "cdk",
+        "aws-cdk",
+        "cloudformation",
+        "sam",
+        "serverless",
+        "lambda",
+        "api-gateway",
+        "step-functions",
+        "eventbridge",
+        "containers",
+        "ecs",
+        "fargate",
+        "ecr",
+        "messaging",
+        "streaming",
+        "sqs",
+        "sns",
+        "kinesis",
+        "kinesis-firehose",
+        "msk",
+        "kafka",
+        "flink",
+        "amazon-mq",
+        "observability",
+        "cloudwatch",
+        "logs-insights",
+        "x-ray",
+        "cloudtrail",
+        "adot",
+        "opentelemetry",
+        "sdk",
+        "aws-sdk",
+        "boto3",
+        "aws-sdk-js-v3",
+        "aws-sdk-swift",
+        "knowledge-bases",
+        "rag",
+        "guardrails",
+        "opensearch",
+        "opensearch-serverless",
+        "amazon-opensearch-service",
+        "cognito",
+        "appsync",
+        "dynamodb",
+        "app-runner",
+        "snapstart",
+        "powertools",
+        "durable-functions",
+        "budgets",
+        "reserved-instances",
+        "right-sizing"
+      ]
+    },
+    {
+      "name": "aws-agents",
+      "source": "./plugins/aws-agents",
+      "description": "Build, deploy, and operate AI agents on AWS. Skills for scaffolding agents with Amazon Bedrock AgentCore (Strands, LangGraph), connecting tools via Gateway and MCP, multi-agent and A2A orchestration, memory, Cedar policies, evaluation, observability, debugging traces and logs, and production hardening (inbound auth, IAM, rate limiting, cold-start tuning).",
+      "version": "1.0.0",
+      "author": {
+        "name": "Amazon Web Services"
+      },
+      "homepage": "https://github.com/aws/agent-toolkit-for-aws",
+      "repository": "https://github.com/aws/agent-toolkit-for-aws",
+      "keywords": [
+        "aws",
+        "amazon",
+        "amazon-web-services",
+        "ai",
+        "ai-agents",
+        "agents",
+        "agentcore",
+        "bedrock",
+        "amazon-bedrock",
+        "iam",
+        "deploy",
+        "debug",
+        "memory",
+        "gateway",
+        "policy",
+        "cedar",
+        "evaluation",
+        "evals",
+        "strands",
+        "langgraph",
+        "mcp",
+        "a2a",
+        "multi-agent",
+        "tool-use",
+        "rag",
+        "vpc",
+        "observability",
+        "cloudwatch",
+        "tracing",
+        "x-ray",
+        "production-hardening",
+        "jwt",
+        "sigv4",
+        "oauth",
+        "openapi",
+        "code-interpreter",
+        "browser-tool",
+        "rate-limiting"
+      ]
+    },
+    {
+      "name": "databricks",
+      "source": "./plugins/databricks",
+      "description": "Databricks skills for the CLI, Apps, Lakebase, Model Serving, Lakeflow Jobs, Spark Declarative Pipelines, Declarative Automation Bundles (DABs), and classic-to-serverless migration.",
+      "version": "0.2.9",
+      "author": {
+        "url": "https://databricks.com",
+        "name": "Databricks"
+      },
+      "homepage": "https://github.com/databricks/databricks-agent-skills",
+      "repository": "https://github.com/databricks/databricks-agent-skills",
+      "keywords": [
+        "databricks",
+        "cli",
+        "apps",
+        "app-design",
+        "lakebase",
+        "model-serving",
+        "jobs",
+        "pipelines",
+        "dabs",
+        "serverless",
+        "vector-search",
+        "agent-bricks",
+        "ai-functions",
+        "aibi-dashboards",
+        "apps-python",
+        "dbsql",
+        "docs",
+        "execution-compute",
+        "iceberg",
+        "lakeflow-connect",
+        "metric-views",
+        "ml-training",
+        "mlflow-evaluation",
+        "python-sdk",
+        "structured-streaming",
+        "synthetic-data",
+        "unity-catalog",
+        "pdf-generation",
+        "zerobus",
+        "data-engineering"
+      ]
+    },
+    {
+      "name": "duende-skills",
+      "source": "./plugins/duende-skills",
+      "description": "Duende development skills and agents for Claude Code — covering OAuth/OIDC protocols, IdentityServer, token management, ASP.NET Core authentication/authorization, BFF patterns, and secure identity architecture",
+      "version": "0.1.0",
+      "author": {
+        "url": "https://github.com/DuendeSoftware",
+        "name": "Duende Software"
+      },
+      "repository": "https://github.com/DuendeSoftware/duende-skills"
     }
   ]
 }

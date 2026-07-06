@@ -4,5 +4,6 @@
   "description": "Agent skill for interacting with TeamCity CI/CD using the teamcity CLI. Enables Claude to explore builds, view logs, start jobs, manage queues, agents, and more.",
   "author": {
     "name": "JetBrains"
-  }
+  },
+  "homepage": "https://www.jetbrains.com/teamcity/"
 }

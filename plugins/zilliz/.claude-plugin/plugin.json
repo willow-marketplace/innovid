@@ -1,0 +1,9 @@
+{
+  "name": "zilliz",
+  "version": "1.0.0",
+  "description": "Zilliz Cloud management plugin with 14 skills covering cluster lifecycle, collection schema, vector search, index tuning, bulk import, RBAC, backups, and monitoring.",
+  "author": {
+    "name": "Zilliz"
+  },
+  "homepage": "https://docs.zilliz.com"
+}

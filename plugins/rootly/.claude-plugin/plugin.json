@@ -1,0 +1,9 @@
+{
+  "name": "rootly",
+  "version": "1.0.0",
+  "description": "Full-lifecycle incident management: deploy safety, incident response, on-call management, and retrospectives.",
+  "author": {
+    "name": "Rootly"
+  },
+  "homepage": "https://rootly.com"
+}

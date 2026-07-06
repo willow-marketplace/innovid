@@ -1,0 +1,6 @@
+{
+  "name": "pagerduty",
+  "version": "1.0.0",
+  "description": "Enhance code quality and security through PagerDuty risk scoring and incident correlation. Score pre-commit diffs against historical incident data and surface deployment risk before you ship.",
+  "homepage": "https://github.com/PagerDuty/claude-code-plugins"
+}

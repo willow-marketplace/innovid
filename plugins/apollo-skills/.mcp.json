@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "graphos-tools": {
+      "url": "https://mcp.apollographql.com",
+      "type": "http"
+    }
+  }
+}

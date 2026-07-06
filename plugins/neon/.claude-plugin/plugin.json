@@ -1,0 +1,6 @@
+{
+  "name": "neon",
+  "version": "1.0.0",
+  "description": "Manage your Neon projects and databases with the neon-postgres agent skill and the Neon MCP Server.",
+  "homepage": "https://github.com/neondatabase/agent-skills/tree/main/plugins/neon-postgres"
+}

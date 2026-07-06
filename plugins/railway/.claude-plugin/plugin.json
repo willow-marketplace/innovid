@@ -1,0 +1,12 @@
+{
+  "name": "railway",
+  "version": "1.0.0",
+  "description": "Deploy and manage apps, databases, and infrastructure on Railway. Covers project setup, deploys, environment configuration, networking, troubleshooting, and monitoring.",
+  "homepage": "https://docs.railway.com/ai/claude-code-plugin",
+  "mcpServers": {
+    "railway": {
+      "url": "https://mcp.railway.com",
+      "type": "http"
+    }
+  }
+}

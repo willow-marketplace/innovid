@@ -1,0 +1,9 @@
+{
+  "name": "learn-with-coursera",
+  "version": "1.0.0",
+  "description": "Turn any learning intent into a personalized Coursera experience. Asks three quick questions (topic, familiarity, preferred format), searches Coursera's catalog, and delivers the right next step — a course, hands-on project, short video, or live roleplay — then maps a path forward. Requires the Coursera connector for catalog tools.",
+  "author": {
+    "name": "Coursera"
+  },
+  "homepage": "https://github.com/coursera/skills"
+}

@@ -1,0 +1,6 @@
+{
+  "name": "remember",
+  "version": "1.0.0",
+  "description": "Continuous memory for Claude Code. Extracts, summarizes, and compresses conversations into tiered daily logs. Claude remembers what you did yesterday.",
+  "homepage": "https://github.com/Digital-Process-Tools/claude-remember"
+}

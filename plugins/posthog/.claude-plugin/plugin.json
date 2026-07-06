@@ -1,0 +1,15 @@
+{
+  "name": "posthog",
+  "version": "1.0.0",
+  "description": "Access PostHog analytics, feature flags, experiments, error tracking, and insights directly from Claude Code.",
+  "homepage": "https://posthog.com/docs/model-context-protocol",
+  "mcpServers": {
+    "posthog": {
+      "url": "https://mcp.posthog.com/mcp",
+      "type": "http",
+      "headers": {
+        "x-posthog-mcp-consumer": "plugin"
+      }
+    }
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "name": "qt-development-skills",
+  "version": "1.0.0",
+  "description": "Agentic engineering skills for Qt software development — Qt C++/QML code review, QML coding, and Qt C++/QML code documentation.",
+  "author": {
+    "name": "Qt Group"
+  },
+  "homepage": "https://www.qt.io/"
+}

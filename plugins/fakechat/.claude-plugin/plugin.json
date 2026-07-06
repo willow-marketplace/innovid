@@ -1,0 +1,26 @@
+{
+  "name": "fakechat",
+  "version": "0.0.1",
+  "description": "Localhost iMessage-style web chat for Claude Code — test surface with file upload and edits. No tokens, no access control.",
+  "keywords": [
+    "fakechat",
+    "web",
+    "localhost",
+    "testing",
+    "channel",
+    "mcp"
+  ],
+  "mcpServers": {
+    "fakechat": {
+      "args": [
+        "run",
+        "--cwd",
+        "${CLAUDE_PLUGIN_ROOT}",
+        "--shell=bun",
+        "--silent",
+        "start"
+      ],
+      "command": "bun"
+    }
+  }
+}

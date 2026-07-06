@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "shopify-mcp": {
+      "args": [
+        "-y",
+        "@shopify/dev-mcp@latest"
+      ],
+      "type": "stdio",
+      "command": "npx"
+    }
+  }
+}

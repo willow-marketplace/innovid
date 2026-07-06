@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "posthog": {
+      "url": "https://mcp.posthog.com/mcp",
+      "type": "http",
+      "headers": {
+        "x-posthog-mcp-consumer": "plugin"
+      }
+    }
+  }
+}

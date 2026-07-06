@@ -1,0 +1,64 @@
+{
+  "name": "databricks",
+  "version": "0.2.9",
+  "description": "Databricks skills for the CLI, Apps, Lakebase, Model Serving, Lakeflow Jobs, Spark Declarative Pipelines, Declarative Automation Bundles (DABs), and classic-to-serverless migration.",
+  "author": {
+    "url": "https://databricks.com",
+    "name": "Databricks"
+  },
+  "homepage": "https://github.com/databricks/databricks-agent-skills",
+  "repository": "https://github.com/databricks/databricks-agent-skills",
+  "keywords": [
+    "databricks",
+    "cli",
+    "apps",
+    "app-design",
+    "lakebase",
+    "model-serving",
+    "jobs",
+    "pipelines",
+    "dabs",
+    "serverless",
+    "vector-search",
+    "agent-bricks",
+    "ai-functions",
+    "aibi-dashboards",
+    "apps-python",
+    "dbsql",
+    "docs",
+    "execution-compute",
+    "iceberg",
+    "lakeflow-connect",
+    "metric-views",
+    "ml-training",
+    "mlflow-evaluation",
+    "python-sdk",
+    "structured-streaming",
+    "synthetic-data",
+    "unity-catalog",
+    "pdf-generation",
+    "zerobus",
+    "data-engineering"
+  ],
+  "skills": "./skills/",
+  "commands": "./commands/",
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/databricks-router.py\" || python \"${CLAUDE_PLUGIN_ROOT}/hooks/databricks-router.py\" || true"
+      }
+    ],
+    "SessionStart": [
+      {
+        "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/databricks-context.py\" || python \"${CLAUDE_PLUGIN_ROOT}/hooks/databricks-context.py\" || true",
+        "matcher": "startup|clear|compact"
+      }
+    ],
+    "PostToolUse": [
+      {
+        "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/databricks-auth-helper.py\" || python \"${CLAUDE_PLUGIN_ROOT}/hooks/databricks-auth-helper.py\" || true",
+        "matcher": "Bash"
+      }
+    ]
+  }
+}

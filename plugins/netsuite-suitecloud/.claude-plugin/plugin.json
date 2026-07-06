@@ -1,0 +1,9 @@
+{
+  "name": "netsuite-suitecloud",
+  "version": "1.0.0",
+  "description": "NetSuite agent skills from Oracle — authoring guidance for SuiteCloud Development Framework (SDF) objects and UIF single-page-app components, plus runtime guidance for the NetSuite AI Service Connector.",
+  "author": {
+    "name": "Oracle NetSuite"
+  },
+  "homepage": "https://github.com/oracle/netsuite-suitecloud-sdk"
+}

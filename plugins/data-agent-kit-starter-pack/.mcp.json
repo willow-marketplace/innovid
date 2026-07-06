@@ -1,0 +1,178 @@
+{
+  "mcpServers": {
+    "spanner": {
+      "env": {
+        "SPANNER_DIALECT": "",
+        "SPANNER_PROJECT": "$PROJECT_ID",
+        "SPANNER_DATABASE": "",
+        "SPANNER_INSTANCE": ""
+      },
+      "args": [
+        "-y",
+        "@toolbox-sdk/server@>=1.1.0",
+        "--prebuilt",
+        "spanner",
+        "--stdio",
+        "--user-agent-metadata",
+        "datacloud.codex"
+      ],
+      "command": "npx"
+    },
+    "bigquery": {
+      "env": {
+        "BIGQUERY_PROJECT": "$PROJECT_ID",
+        "BIGQUERY_LOCATION": "$BIGQUERY_LOCATION"
+      },
+      "args": [
+        "-y",
+        "@toolbox-sdk/server@>=1.1.0",
+        "--prebuilt",
+        "bigquery",
+        "--stdio",
+        "--user-agent-metadata",
+        "datacloud.codex"
+      ],
+      "command": "npx"
+    },
+    "dataproc": {
+      "env": {
+        "DATAPROC_REGION": "$GCP_REGION",
+        "DATAPROC_PROJECT": "$PROJECT_ID"
+      },
+      "args": [
+        "-y",
+        "@toolbox-sdk/server@>=1.1.0",
+        "--prebuilt",
+        "dataproc",
+        "--stdio",
+        "--user-agent-metadata",
+        "datacloud.codex"
+      ],
+      "command": "npx"
+    },
+    "notebook": {
+      "env": {},
+      "args": [
+        "-y",
+        "git+https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack.git",
+        "--mode=notebook"
+      ],
+      "command": "npx",
+      "env_vars": [
+        "DATA_CLOUD_CURR_IDE_NAME"
+      ]
+    },
+    "visualization": {
+      "env": {},
+      "args": [
+        "-y",
+        "git+https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack.git",
+        "--mode=visualization"
+      ],
+      "command": "npx",
+      "env_vars": [
+        "DATA_CLOUD_CURR_IDE_NAME"
+      ]
+    },
+    "alloydb-postgres": {
+      "env": {
+        "ALLOYDB_POSTGRES_USER": "",
+        "ALLOYDB_POSTGRES_REGION": "$GCP_REGION",
+        "ALLOYDB_POSTGRES_CLUSTER": "",
+        "ALLOYDB_POSTGRES_IP_TYPE": "",
+        "ALLOYDB_POSTGRES_PROJECT": "$PROJECT_ID",
+        "ALLOYDB_POSTGRES_DATABASE": "",
+        "ALLOYDB_POSTGRES_INSTANCE": "",
+        "ALLOYDB_POSTGRES_PASSWORD": ""
+      },
+      "args": [
+        "-y",
+        "@toolbox-sdk/server@>=1.1.0",
+        "--prebuilt",
+        "alloydb-postgres",
+        "--stdio",
+        "--user-agent-metadata",
+        "datacloud.codex"
+      ],
+      "command": "npx"
+    },
+    "serverless-spark": {
+      "env": {
+        "SERVERLESS_SPARK_PROJECT": "$PROJECT_ID",
+        "SERVERLESS_SPARK_LOCATION": "$GCP_REGION"
+      },
+      "args": [
+        "-y",
+        "@toolbox-sdk/server@>=1.1.0",
+        "--prebuilt",
+        "serverless-spark",
+        "--stdio",
+        "--user-agent-metadata",
+        "datacloud.codex"
+      ],
+      "command": "npx"
+    },
+    "knowledge_catalog": {
+      "env": {
+        "DATAPLEX_PROJECT": "$PROJECT_ID"
+      },
+      "args": [
+        "-y",
+        "@toolbox-sdk/server@>=1.1.0",
+        "--prebuilt",
+        "dataplex",
+        "--stdio",
+        "--user-agent-metadata",
+        "datacloud.codex"
+      ],
+      "command": "npx"
+    },
+    "cloud-sql-postgresql": {
+      "env": {
+        "CLOUD_SQL_POSTGRES_USER": "",
+        "CLOUD_SQL_POSTGRES_REGION": "$GCP_REGION",
+        "CLOUD_SQL_POSTGRES_IP_TYPE": "",
+        "CLOUD_SQL_POSTGRES_PROJECT": "$PROJECT_ID",
+        "CLOUD_SQL_POSTGRES_DATABASE": "",
+        "CLOUD_SQL_POSTGRES_INSTANCE": "",
+        "CLOUD_SQL_POSTGRES_PASSWORD": ""
+      },
+      "args": [
+        "-y",
+        "@toolbox-sdk/server@>=1.1.0",
+        "--prebuilt",
+        "cloud-sql-postgres",
+        "--stdio",
+        "--user-agent-metadata",
+        "datacloud.codex"
+      ],
+      "command": "npx"
+    },
+    "alloydb-postgres-admin": {
+      "env": {},
+      "args": [
+        "-y",
+        "@toolbox-sdk/server@>=1.1.0",
+        "--prebuilt",
+        "alloydb-postgres-admin",
+        "--stdio",
+        "--user-agent-metadata",
+        "datacloud.codex"
+      ],
+      "command": "npx"
+    },
+    "cloud-sql-postgresql-admin": {
+      "env": {},
+      "args": [
+        "-y",
+        "@toolbox-sdk/server@>=1.1.0",
+        "--prebuilt",
+        "cloud-sql-postgres-admin",
+        "--stdio",
+        "--user-agent-metadata",
+        "datacloud.codex"
+      ],
+      "command": "npx"
+    }
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "name": "tavily",
+  "version": "1.0.0",
+  "description": "Build AI applications with real-time web data using Tavily's search, extract, crawl, and research APIs.",
+  "author": {
+    "name": "Tavily Team"
+  },
+  "homepage": "https://www.tavily.com/"
+}

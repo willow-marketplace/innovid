@@ -1,0 +1,9 @@
+{
+  "name": "hunter",
+  "version": "1.0.0",
+  "description": "Find and verify professional email addresses, search contacts by domain, and enrich company data -- directly in Claude.",
+  "author": {
+    "name": "Hunter.io"
+  },
+  "homepage": "https://hunter.io"
+}

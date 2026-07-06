@@ -1,0 +1,14 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "command": "${CLAUDE_PLUGIN_ROOT}/skills/airflow/hooks/warm-uvx-cache.sh"
+      }
+    ],
+    "Stop": [
+      {
+        "command": "uv run ${CLAUDE_PLUGIN_ROOT}/skills/analyzing-data/scripts/cli.py stop"
+      }
+    ]
+  }
+}

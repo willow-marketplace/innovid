@@ -1,0 +1,36 @@
+{
+  "name": "appwrite",
+  "version": "0.1.0",
+  "description": "Appwrite tools for Claude Code, including SDK skills, Appwrite MCP servers, and deployment commands.",
+  "author": {
+    "name": "Appwrite",
+    "email": "team@appwrite.io"
+  },
+  "homepage": "https://appwrite.io/docs/tooling/ai/ai-dev-tools/claude-code",
+  "repository": "https://github.com/appwrite/claude-plugin",
+  "keywords": [
+    "appwrite",
+    "claude-code",
+    "mcp",
+    "skills"
+  ],
+  "skills": "./skills/",
+  "mcpServers": {
+    "appwrite-api": {
+      "env": {
+        "APPWRITE_API_KEY": "${user_config.appwrite_api_key}",
+        "APPWRITE_ENDPOINT": "${user_config.appwrite_endpoint}",
+        "APPWRITE_PROJECT_ID": "${user_config.appwrite_project_id}"
+      },
+      "args": [
+        "mcp-server-appwrite"
+      ],
+      "type": "stdio",
+      "command": "uvx"
+    },
+    "appwrite-docs": {
+      "url": "https://mcp-for-docs.appwrite.io",
+      "type": "http"
+    }
+  }
+}

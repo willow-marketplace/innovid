@@ -1,0 +1,9 @@
+{
+  "name": "langfuse-observability",
+  "version": "1.0.0",
+  "description": "The Langfuse x Claude Code Observability Plugin",
+  "author": {
+    "name": "Langfuse"
+  },
+  "homepage": "https://langfuse.com/integrations/other/claude-code"
+}

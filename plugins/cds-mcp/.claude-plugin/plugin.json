@@ -1,0 +1,25 @@
+{
+  "name": "cds-mcp",
+  "version": "0.0.5",
+  "description": "Model Context Protocol (MCP) server for AI-assisted development of CAP applications.",
+  "author": {
+    "name": "SAP SE"
+  },
+  "homepage": "https://cap.cloud.sap/",
+  "repository": "https://github.com/cap-js/mcp-server",
+  "keywords": [
+    "sap",
+    "cap",
+    "cds",
+    "mcp"
+  ],
+  "mcpServers": {
+    "cds-mcp": {
+      "args": [
+        "-y",
+        "@cap-js/mcp-server"
+      ],
+      "command": "npx"
+    }
+  }
+}

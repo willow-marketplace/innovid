@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "atlan": {
+      "url": "https://mcp.atlan.com/mcp",
+      "type": "http"
+    }
+  }
+}

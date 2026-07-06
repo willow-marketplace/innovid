@@ -1,0 +1,6 @@
+{
+  "name": "sonatype-guide",
+  "version": "1.0.0",
+  "description": "Sonatype Guide MCP server for software supply chain intelligence and dependency security. Analyze dependencies for vulnerabilities, get secure version recommendations, and check component quality metrics.",
+  "homepage": "https://github.com/sonatype/sonatype-guide-claude-plugin.git"
+}

@@ -1,11 +1,11 @@
 {
   "name": "microsoft-docs",
-  "version": "0.3.1",
+  "version": "1.0.0",
   "description": "Access official Microsoft documentation, API references, and code samples for Azure, .NET, Windows, and more.",
   "author": {
     "name": "Microsoft"
   },
-  "homepage": "https://learn.microsoft.com",
+  "homepage": "https://github.com/microsoftdocs/mcp",
   "repository": "https://github.com/microsoftdocs/mcp",
   "keywords": [
     "microsoft",
@@ -20,7 +20,6 @@
     "powerbi",
     "office"
   ],
-  "skills": "./skills/",
   "mcpServers": {
     "microsoft-learn": {
       "url": "https://learn.microsoft.com/api/mcp",

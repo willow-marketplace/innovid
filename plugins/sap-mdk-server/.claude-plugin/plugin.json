@@ -1,0 +1,11 @@
+{
+  "name": "sap-mdk-server",
+  "version": "1.0.0",
+  "description": "MCP server for SAP Mobile Development Kit (MDK). Build and modify MDK applications with AI assistance — schema lookups, action validation, rule editing, and project scaffolding.",
+  "author": {
+    "url": "https://www.sap.com",
+    "name": "SAP SE",
+    "email": "ospo@sap.com"
+  },
+  "homepage": "https://help.sap.com/docs/MDK"
+}

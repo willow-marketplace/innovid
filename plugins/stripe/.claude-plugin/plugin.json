@@ -1,0 +1,6 @@
+{
+  "name": "stripe",
+  "version": "1.0.0",
+  "description": "Stripe development plugin for Claude",
+  "homepage": "https://github.com/stripe/ai/tree/main/providers/claude/plugin"
+}

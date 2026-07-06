@@ -1,0 +1,6 @@
+{
+  "name": "wix",
+  "version": "1.0.0",
+  "description": "Build, manage, and deploy Wix sites and apps. CLI development skills for dashboard extensions, backend APIs, site widgets, and service plugins with the Wix Design System, plus MCP server for site management.",
+  "homepage": "https://dev.wix.com/docs/wix-cli/guides/development/about-wix-skills"
+}

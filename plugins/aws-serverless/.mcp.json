@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "aws-serverless-mcp": {
+      "env": {
+        "FASTMCP_LOG_LEVEL": "ERROR"
+      },
+      "args": [
+        "awslabs.aws-serverless-mcp-server@latest",
+        "--allow-write"
+      ],
+      "command": "uvx",
+      "timeout": 120000
+    }
+  }
+}

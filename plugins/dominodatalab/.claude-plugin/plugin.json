@@ -1,0 +1,39 @@
+{
+  "name": "dominodatalab",
+  "version": "1.0.0",
+  "description": "Full Domino Data Lab platform support — workspaces, jobs, model deployment, experiment tracking, GenAI tracing, Spark/Ray/Dask, and app deployment for data science teams",
+  "author": {
+    "url": "https://www.domino.ai",
+    "name": "Domino Data Lab"
+  },
+  "homepage": "https://github.com/dominodatalab/domino-claude-plugin",
+  "repository": "https://github.com/dominodatalab/domino-claude-plugin",
+  "keywords": [
+    "domino",
+    "mlops",
+    "data-science",
+    "machine-learning",
+    "experiment-tracking",
+    "genai-tracing",
+    "spark",
+    "ray",
+    "dask",
+    "app-deployment"
+  ],
+  "skills": "./skills/",
+  "mcpServers": {
+    "domino_server": {
+      "env": {
+        "DOMINO_HOST": "${DOMINO_HOST}",
+        "DOMINO_API_KEY": "${DOMINO_API_KEY}"
+      },
+      "args": [
+        "--directory",
+        "$/mnt/code/.claude/mcp-servers/domino_mcp_server",
+        "run",
+        "domino_mcp_server.py"
+      ],
+      "command": "uv"
+    }
+  }
+}

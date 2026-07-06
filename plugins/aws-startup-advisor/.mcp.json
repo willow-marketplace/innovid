@@ -1,0 +1,26 @@
+{
+  "mcpServers": {
+    "awspricing": {
+      "env": {
+        "AWS_REGION": "us-east-1",
+        "FASTMCP_LOG_LEVEL": "ERROR"
+      },
+      "args": [
+        "awslabs.aws-pricing-mcp-server@latest"
+      ],
+      "type": "stdio",
+      "command": "uvx",
+      "timeout": 120000,
+      "autoApprove": [
+        "get_pricing_service_codes",
+        "get_pricing_service_attributes",
+        "get_pricing_attribute_values",
+        "get_pricing"
+      ]
+    },
+    "awsknowledge": {
+      "url": "https://knowledge-mcp.global.api.aws",
+      "type": "http"
+    }
+  }
+}

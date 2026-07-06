@@ -1,0 +1,31 @@
+{
+  "name": "duckdb-skills",
+  "version": "0.2.4",
+  "description": "DuckDB-powered skills for Claude Code: read any data file, attach and query DuckDB databases, search DuckDB/DuckLake docs, search past session logs, and install/update DuckDB extensions.",
+  "author": {
+    "url": "https://github.com/duckdb",
+    "name": "duckdb"
+  },
+  "homepage": "https://duckdb.org",
+  "repository": "https://github.com/duckdb/duckdb-skills",
+  "keywords": [
+    "duckdb",
+    "ducklake",
+    "parquet",
+    "csv",
+    "json",
+    "avro",
+    "excel",
+    "iceberg",
+    "delta",
+    "read-file",
+    "read-memories",
+    "duckdb-docs",
+    "data-exploration",
+    "session-logs",
+    "query",
+    "sql",
+    "attach-db"
+  ],
+  "skills": "./skills/"
+}

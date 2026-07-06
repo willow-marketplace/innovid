@@ -1,0 +1,56 @@
+{
+  "name": "carta-cap-table",
+  "version": "6.24.1",
+  "description": "Carta Cap Table plugin — skills and hooks for querying cap tables, grants, SAFEs, 409A valuations, waterfall scenarios, and more",
+  "author": {
+    "name": "Carta",
+    "email": "engineering@carta.com"
+  },
+  "homepage": "https://github.com/carta/plugins",
+  "repository": "https://github.com/carta/plugins",
+  "keywords": [
+    "cap_table",
+    "mcp",
+    "carta",
+    "equity",
+    "grants"
+  ],
+  "skills": "./skills/",
+  "hooks": {
+    "SessionStart": [
+      {
+        "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/hooks/inject-skill-context.js\""
+      },
+      {
+        "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/hooks/init-data-dir.js\""
+      }
+    ],
+    "PreToolUse": [
+      {
+        "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/hooks/track-active-skill.js\"",
+        "matcher": "Skill"
+      },
+      {
+        "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/hooks/inject-instrumentation.js\"",
+        "matcher": "mcp__(plugin_.*[Cc]arta.*|carta.*|Carta.*|2827383e-1775-4df3-b6ff-04d5392f6d18|640916d9-5e0c-4d0b-830a-03500fa93e5e|1af3c326-9402-463c-ba5c-d62de59cf57b|8eb65db0-0cbd-4f50-833b-3057c150d41a|33b9b857-8443-4b2d-b191-2d9b6c50eb86)__.*"
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/hooks/track-slash-skill.js\""
+      }
+    ],
+    "PostToolUse": [
+      {
+        "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/hooks/post-tool-tracker.js\"",
+        "matcher": "mcp__(plugin_.*[Cc]arta.*|carta.*|Carta.*|2827383e-1775-4df3-b6ff-04d5392f6d18|640916d9-5e0c-4d0b-830a-03500fa93e5e|1af3c326-9402-463c-ba5c-d62de59cf57b|8eb65db0-0cbd-4f50-833b-3057c150d41a|33b9b857-8443-4b2d-b191-2d9b6c50eb86)__.*"
+      }
+    ]
+  },
+  "mcpServers": {
+    "carta": {
+      "url": "https://mcp.app.carta.com/mcp",
+      "type": "http"
+    }
+  }
+}

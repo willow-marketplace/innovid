@@ -1,0 +1,32 @@
+{
+  "name": "amazon-location-service",
+  "version": "1.0.0",
+  "description": "Guide developers through adding maps, places search, geocoding, routing, and other geospatial features with Amazon Location Service, including authentication setup, SDK integration, and best practices.",
+  "author": {
+    "name": "Amazon Web Services"
+  },
+  "repository": "https://github.com/awslabs/agent-plugins",
+  "keywords": [
+    "location",
+    "maps",
+    "geocoding",
+    "routing",
+    "places",
+    "geofencing",
+    "tracking",
+    "amazon-location",
+    "maplibre",
+    "address",
+    "coordinates"
+  ],
+  "skills": "./skills/",
+  "mcpServers": {
+    "aws-mcp": {
+      "args": [
+        "mcp-proxy-for-aws@latest",
+        "https://aws-mcp.us-east-1.api.aws/mcp"
+      ],
+      "command": "uvx"
+    }
+  }
+}

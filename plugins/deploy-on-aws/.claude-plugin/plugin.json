@@ -1,0 +1,54 @@
+{
+  "name": "deploy-on-aws",
+  "version": "1.3.0",
+  "description": "Deploy applications to AWS with architecture recommendations, cost estimates, and IaC deployment. Generate validated AWS architecture diagrams as draw.io XML.",
+  "author": {
+    "name": "Amazon Web Services"
+  },
+  "homepage": "https://github.com/awslabs/agent-plugins",
+  "repository": "https://github.com/awslabs/agent-plugins",
+  "keywords": [
+    "aws",
+    "deploy",
+    "infrastructure",
+    "cdk",
+    "cloudformation",
+    "pricing",
+    "diagrams",
+    "draw.io",
+    "architecture"
+  ],
+  "skills": "./skills/",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "command": "${CLAUDE_PLUGIN_ROOT}/scripts/validate-drawio.sh",
+        "matcher": "Edit|Write"
+      }
+    ]
+  },
+  "mcpServers": {
+    "awsiac": {
+      "args": [
+        "awslabs.aws-iac-mcp-server@latest"
+      ],
+      "command": "uvx"
+    },
+    "awspricing": {
+      "env": {
+        "FASTMCP_LOG_LEVEL": "ERROR"
+      },
+      "args": [
+        "awslabs.aws-pricing-mcp-server@latest"
+      ],
+      "type": "stdio",
+      "command": "uvx",
+      "timeout": 120000,
+      "disabled": false
+    },
+    "awsknowledge": {
+      "url": "https://knowledge-mcp.global.api.aws",
+      "type": "http"
+    }
+  }
+}

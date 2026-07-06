@@ -1,0 +1,9 @@
+{
+  "name": "looker",
+  "version": "1.0.0",
+  "description": "Connect to Looker and interact with your data using LookML.",
+  "author": {
+    "name": "Google LLC"
+  },
+  "homepage": "https://github.com/gemini-cli-extensions/looker"
+}

@@ -1,0 +1,9 @@
+{
+  "name": "zoominfo",
+  "version": "1.0.0",
+  "description": "Search companies and contacts, enrich leads, find lookalikes, and get AI-ranked contact recommendations. Pre-built skills chain multiple ZoomInfo tools into complete B2B sales workflows.",
+  "author": {
+    "name": "ZoomInfo"
+  },
+  "homepage": "https://www.zoominfo.com"
+}

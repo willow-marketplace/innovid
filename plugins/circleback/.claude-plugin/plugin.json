@@ -1,0 +1,14 @@
+{
+  "name": "circleback",
+  "version": "1.0.0",
+  "description": "Circleback conversational context integration. Search and access meetings, emails, calendar events, and more.",
+  "author": {
+    "name": "Circleback"
+  },
+  "mcpServers": {
+    "circleback": {
+      "url": "https://app.circleback.ai/api/mcp",
+      "type": "http"
+    }
+  }
+}

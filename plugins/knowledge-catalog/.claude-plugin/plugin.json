@@ -1,0 +1,9 @@
+{
+  "name": "knowledge-catalog",
+  "version": "1.0.0",
+  "description": "Connect to Knowledge Catalog to discover, manage, monitor, and govern data and AI artifacts across your data platform",
+  "author": {
+    "name": "Google LLC"
+  },
+  "homepage": "https://github.com/gemini-cli-extensions/knowledge-catalog"
+}

@@ -1,6 +1,9 @@
 {
   "name": "sentry-cli",
-  "version": "0.38.0",
+  "version": "1.0.0",
   "description": "Skills for using the Sentry CLI to interact with Sentry from the command line",
-  "skills": "./skills/"
+  "author": {
+    "name": "Sentry"
+  },
+  "homepage": "https://sentry.io"
 }

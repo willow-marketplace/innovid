@@ -1,0 +1,9 @@
+{
+  "name": "lovable",
+  "version": "1.0.0",
+  "description": "Build, iterate on, deploy, and manage Lovable apps from Claude Code. Bundles the official Lovable MCP server (remote, OAuth 2.1) and adds focused commands for the common build/iterate/database workflows, with credit- and publish-safety prompts.",
+  "author": {
+    "name": "Lovable"
+  },
+  "homepage": "https://lovable.dev"
+}

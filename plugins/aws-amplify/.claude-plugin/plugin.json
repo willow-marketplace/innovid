@@ -1,0 +1,30 @@
+{
+  "name": "aws-amplify",
+  "version": "1.0.0",
+  "description": "Build full-stack apps with AWS Amplify Gen 2 using guided workflows for authentication, data models, storage, GraphQL APIs, and Lambda functions.",
+  "author": {
+    "name": "Amazon Web Services"
+  },
+  "homepage": "https://github.com/awslabs/agent-plugins",
+  "repository": "https://github.com/awslabs/agent-plugins",
+  "keywords": [
+    "aws",
+    "amplify",
+    "fullstack",
+    "authentication",
+    "data",
+    "storage",
+    "graphql",
+    "functions"
+  ],
+  "skills": "./skills/",
+  "mcpServers": {
+    "aws-mcp": {
+      "args": [
+        "mcp-proxy-for-aws@latest",
+        "https://aws-mcp.us-east-1.api.aws/mcp"
+      ],
+      "command": "uvx"
+    }
+  }
+}

@@ -1,11 +1,10 @@
 {
   "name": "jfrog",
-  "version": "0.2.7",
-  "description": "Official JFrog plugin. Connect Claude Code to JFrog to manage, secure, and govern your software supply chain. Give agents the context to build secure, compliant software.",
+  "version": "1.0.0",
+  "description": "Use the JFrog Platform from Claude Code: Artifactory repos and artifacts, security findings and exposures, Catalog package safety and downloads, workflows across the SDLC, and platform administration.",
   "author": {
     "url": "https://jfrog.com",
-    "name": "JFrog Ltd.",
-    "email": "devrel@jfrog.com"
+    "name": "JFrog Ltd."
   },
   "homepage": "https://jfrog.com",
   "repository": "https://github.com/jfrog/claude-plugin",
@@ -20,6 +19,5 @@
     "curation",
     "agent-guard",
     "ai-catalog"
-  ],
-  "skills": "./skills/"
+  ]
 }

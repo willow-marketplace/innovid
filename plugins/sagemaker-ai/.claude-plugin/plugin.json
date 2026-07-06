@@ -1,0 +1,16 @@
+{
+  "name": "sagemaker-ai",
+  "version": "1.0.0",
+  "description": "Build, train, and deploy AI models with deep AWS AI/ML expertise brought directly into your coding assistants, covering the surface area of Amazon SageMaker AI.",
+  "homepage": "https://github.com/awslabs/agent-plugins",
+  "mcpServers": {
+    "aws-mcp": {
+      "args": [
+        "mcp-proxy-for-aws@latest",
+        "https://aws-mcp.us-east-1.api.aws/mcp"
+      ],
+      "command": "uvx",
+      "disabled": false
+    }
+  }
+}

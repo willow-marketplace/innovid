@@ -1,0 +1,6 @@
+{
+  "name": "sumup",
+  "version": "1.0.0",
+  "description": "SumUp payment integrations across terminal and online checkout flows. Build Android and iOS POS apps with SumUp card readers, online checkout with server SDKs and the checkout widget, and control card readers remotely via Cloud API.",
+  "homepage": "https://www.sumup.com/"
+}

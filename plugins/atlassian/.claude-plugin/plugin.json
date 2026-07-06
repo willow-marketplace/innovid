@@ -8,7 +8,7 @@
   "skills": "./skills/",
   "mcpServers": {
     "atlassian": {
-      "url": "https://mcp.atlassian.com/v1/mcp",
+      "url": "https://mcp.atlassian.com/v1/mcp/authv2",
       "type": "http"
     }
   }

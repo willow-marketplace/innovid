@@ -1,0 +1,25 @@
+{
+  "name": "discord",
+  "version": "0.0.4",
+  "description": "Discord channel for Claude Code — messaging bridge with built-in access control. Manage pairing, allowlists, and policy via /discord:access.",
+  "keywords": [
+    "discord",
+    "messaging",
+    "channel",
+    "mcp"
+  ],
+  "skills": "./skills/",
+  "mcpServers": {
+    "discord": {
+      "args": [
+        "run",
+        "--cwd",
+        "${CLAUDE_PLUGIN_ROOT}",
+        "--shell=bun",
+        "--silent",
+        "start"
+      ],
+      "command": "bun"
+    }
+  }
+}

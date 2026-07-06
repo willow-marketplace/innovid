@@ -1,0 +1,15 @@
+{
+  "name": "sourcegraph",
+  "version": "1.0.0",
+  "description": "Code search and understanding across codebases. Search, read, and trace references across repositories; analyze refactor impact; investigate incidents via commit and diff search; run targeted security sweeps.",
+  "homepage": "https://sourcegraph.com",
+  "mcpServers": {
+    "sourcegraph": {
+      "url": "${SOURCEGRAPH_ENDPOINT}/.api/mcp",
+      "type": "http",
+      "headers": {
+        "Authorization": "token ${SOURCEGRAPH_ACCESS_TOKEN}"
+      }
+    }
+  }
+}

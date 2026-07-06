@@ -1,0 +1,6 @@
+{
+  "name": "semgrep",
+  "version": "1.0.0",
+  "description": "Semgrep catches security vulnerabilities in real-time and guides Claude to write secure code from the start.",
+  "homepage": "https://github.com/semgrep/mcp-marketplace.git"
+}

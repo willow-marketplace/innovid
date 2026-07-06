@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "exa": {
+      "url": "https://mcp.exa.ai/mcp?client=claude-code-plugin",
+      "type": "http",
+      "headers": {
+        "x-exa-source": "claude-code-plugin"
+      }
+    }
+  }
+}

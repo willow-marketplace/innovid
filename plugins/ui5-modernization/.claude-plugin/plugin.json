@@ -1,0 +1,11 @@
+{
+  "name": "ui5-modernization",
+  "version": "1.0.0",
+  "description": "Complete UI5 modernization toolkit with workflow and specialized fix patterns for modernizing SAPUI5/OpenUI5 applications.",
+  "author": {
+    "url": "https://www.sap.com",
+    "name": "SAP SE",
+    "email": "openui5@sap.com"
+  },
+  "homepage": "https://github.com/UI5/plugins-coding-agents"
+}

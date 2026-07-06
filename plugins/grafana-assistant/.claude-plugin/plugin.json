@@ -1,0 +1,9 @@
+{
+  "name": "grafana-assistant",
+  "version": "1.0.0",
+  "description": "Skills and rules for developing and using the Grafana Assistant app and CLI.",
+  "author": {
+    "name": "Grafana"
+  },
+  "homepage": "https://grafana.com"
+}

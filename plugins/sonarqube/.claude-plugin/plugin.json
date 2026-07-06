@@ -1,10 +1,9 @@
 {
   "name": "sonarqube",
-  "version": "2.2.0",
-  "description": "Automatically enforce SonarQube code quality and security in the agent coding loop — 7,000+ rules, secrets scanning, agentic analysis, and quality gates across 40+ languages.",
+  "version": "1.0.0",
+  "description": "Automatically enforce SonarQube code quality and security in the agent coding loop — 7,000+ rules, secrets scanning, agentic analysis, and quality gates across 40+ languages. PostToolUse hooks run analysis after every file edit. Pre-tool secrets scanning prevents 450+ patterns from reaching the LLM. Slash commands give on-demand access to quality gate status, coverage, duplication, and dependency risks. Includes SonarQube CLI, MCP Server, skills, hooks, and slash commands.",
   "author": {
-    "url": "https://www.sonarsource.com/",
-    "name": "Sonar"
+    "name": "SonarSource"
   },
   "homepage": "https://www.sonarsource.com",
   "repository": "https://github.com/SonarSource/sonarqube-agent-plugins",
@@ -14,6 +13,5 @@
     "static-analysis",
     "security",
     "secrets"
-  ],
-  "skills": "./skills/"
+  ]
 }

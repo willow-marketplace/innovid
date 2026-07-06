@@ -1,0 +1,42 @@
+{
+  "name": "dropbox",
+  "version": "1.0.0",
+  "description": "The Dropbox plugin for Claude connects your Dropbox files directly to Claude, so you can search, organize, save generated content, and create sharing links without switching tools. It respects your existing Dropbox permissions, and Claude only works with files you already have access to.",
+  "author": {
+    "name": "Dropbox"
+  },
+  "homepage": "https://www.dropbox.com",
+  "keywords": [
+    "dropbox",
+    "files",
+    "storage",
+    "cloud",
+    "cloud storage",
+    "save",
+    "upload",
+    "download",
+    "share",
+    "sharing",
+    "sync",
+    "folder",
+    "folders",
+    "documents",
+    "docs",
+    "content",
+    "links",
+    "permissions",
+    "organize",
+    "search",
+    "retrieve",
+    "manage",
+    "import",
+    "export"
+  ],
+  "skills": "./skills/",
+  "mcpServers": {
+    "claude_app_mcp": {
+      "url": "https://mcp.dropbox.com/claude_app_mcp",
+      "type": "http"
+    }
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "name": "resend",
+  "version": "1.0.0",
+  "description": "Agent skills for working with Resend to send and receive emails — email API integration, agent inbox, CLI, React Email components, and deliverability best practices. Includes the Resend MCP server.",
+  "author": {
+    "name": "Resend"
+  },
+  "homepage": "https://resend.com"
+}

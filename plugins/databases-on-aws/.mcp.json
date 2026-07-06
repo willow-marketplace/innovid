@@ -1,0 +1,18 @@
+{
+  "mcpServers": {
+    "aurora-dsql": {
+      "env": {
+        "FASTMCP_LOG_LEVEL": "ERROR"
+      },
+      "args": [
+        "awslabs.aurora-dsql-mcp-server@latest"
+      ],
+      "command": "uvx",
+      "disabled": true
+    },
+    "awsknowledge": {
+      "url": "https://knowledge-mcp.global.api.aws",
+      "type": "http"
+    }
+  }
+}

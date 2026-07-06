@@ -1,0 +1,52 @@
+{
+  "name": "cockroachdb",
+  "version": "0.1.10",
+  "description": "Connect Claude Code directly to your CockroachDB clusters for hands-on database work — explore schemas, write optimized SQL, debug queries, and manage distributed database clusters. This plugin provides tools across MCP backends (self-hosted MCP Toolbox and managed CockroachDB Cloud MCP Server), specialized agents (DBA, Developer, Operator), skills across operational domains, and built-in safety hooks.",
+  "author": {
+    "url": "https://github.com/cockroachdb",
+    "name": "Cockroach Labs"
+  },
+  "homepage": "https://github.com/cockroachdb/claude-plugin",
+  "repository": "https://github.com/cockroachdb/claude-plugin",
+  "keywords": [
+    "cockroachdb",
+    "database",
+    "sql",
+    "distributed-sql",
+    "postgres-compatible",
+    "mcp",
+    "schema",
+    "migration",
+    "multi-region"
+  ],
+  "mcpServers": {
+    "cockroachdb-cloud": {
+      "url": "https://cockroachlabs.cloud/mcp",
+      "type": "http",
+      "headers": {
+        "mcp-cluster-id": "${COCKROACHDB_CLUSTER_ID}"
+      }
+    },
+    "cockroachdb-toolbox": {
+      "env": {
+        "COCKROACHDB_HOST": "${COCKROACHDB_HOST}",
+        "COCKROACHDB_PORT": "${COCKROACHDB_PORT}",
+        "COCKROACHDB_USER": "${COCKROACHDB_USER}",
+        "COCKROACHDB_SSLMODE": "${COCKROACHDB_SSLMODE}",
+        "COCKROACHDB_DATABASE": "${COCKROACHDB_DATABASE}",
+        "COCKROACHDB_PASSWORD": "${COCKROACHDB_PASSWORD}"
+      },
+      "args": [
+        "--config",
+        "${CLAUDE_PLUGIN_ROOT}/tools.yaml",
+        "--stdio"
+      ],
+      "command": "toolbox"
+    },
+    "cockroachdb-toolbox-http": {
+      "url": "http://127.0.0.1:5000/mcp",
+      "type": "http",
+      "_comment": "SSE transport — run 'toolbox --config tools.yaml' first, then connect via this URL"
+    }
+  }
+}

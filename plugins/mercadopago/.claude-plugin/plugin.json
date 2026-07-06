@@ -1,0 +1,9 @@
+{
+  "name": "mercadopago",
+  "version": "1.0.0",
+  "description": "Mercado Pago full-product integration toolkit. One agent routes to four orchestration skills (mp-integrate wizard, mp-webhooks, mp-test-setup, mp-review) that pull every endpoint, payload, and snippet live from the official Mercado Pago MCP server. The MCP must always be connected — there is no offline mode.",
+  "author": {
+    "name": "Mercado Pago Developer Experience"
+  },
+  "homepage": "https://github.com/mercadopago/mercadopago-claude-marketplace/tree/main/plugins/mercadopago"
+}

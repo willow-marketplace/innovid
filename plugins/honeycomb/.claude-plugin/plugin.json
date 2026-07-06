@@ -1,0 +1,38 @@
+{
+  "name": "honeycomb",
+  "version": "1.1.0",
+  "description": "Skills, agents, and workflows for Honeycomb observability — query patterns, production investigations, SLOs, OpenTelemetry instrumentation, and Beeline migration. Designed to complement the Honeycomb MCP server.",
+  "author": {
+    "url": "https://honeycomb.io",
+    "name": "Honeycomb"
+  },
+  "homepage": "https://docs.honeycomb.io/integrations/mcp/",
+  "repository": "https://github.com/honeycombio/agent-skill",
+  "keywords": [
+    "honeycomb",
+    "observability",
+    "opentelemetry",
+    "tracing",
+    "slo",
+    "mcp",
+    "debugging",
+    "instrumentation"
+  ],
+  "skills": "./skills/",
+  "commands": "./commands/",
+  "agents": "./agents/",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/cache-columns.sh",
+        "matcher": "mcp__.*__find_columns|mcp__.*__get_dataset_columns|mcp__.*__get_dataset"
+      }
+    ],
+    "PreToolUse": [
+      {
+        "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/validate-query.sh",
+        "matcher": "mcp__.*__run_query"
+      }
+    ]
+  }
+}

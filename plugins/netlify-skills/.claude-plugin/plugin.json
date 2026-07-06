@@ -1,0 +1,6 @@
+{
+  "name": "netlify-skills",
+  "version": "1.0.0",
+  "description": "Netlify platform skills for Claude Code — functions, edge functions, blobs, database, image CDN, forms, config, CLI, frameworks, caching, AI gateway, and deployment.",
+  "homepage": "https://github.com/netlify/context-and-tools"
+}

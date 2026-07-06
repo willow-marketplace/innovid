@@ -1,0 +1,35 @@
+{
+  "name": "ai-plugins",
+  "version": "2.1.0",
+  "description": "Endor Labs Agent Kit setup and security workflow agents and skills for Cursor.",
+  "author": {
+    "url": "https://www.endorlabs.com/",
+    "name": "Endor Labs",
+    "email": "support@endor.ai"
+  },
+  "homepage": "https://endorlabs.com",
+  "repository": "https://github.com/endorlabs/ai-plugins",
+  "keywords": [
+    "endor-labs",
+    "security",
+    "dependencies",
+    "endorctl",
+    "sca",
+    "sast",
+    "agentic remediation",
+    "AppSec"
+  ],
+  "skills": "./skills/",
+  "mcpServers": {
+    "endor-cli-tools": {
+      "args": [
+        "-y",
+        "endorctl",
+        "ai-tools",
+        "mcp-server"
+      ],
+      "type": "stdio",
+      "command": "npx"
+    }
+  }
+}

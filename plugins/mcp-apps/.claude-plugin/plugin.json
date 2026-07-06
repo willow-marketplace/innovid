@@ -1,0 +1,9 @@
+{
+  "name": "mcp-apps",
+  "version": "1.0.0",
+  "description": "Skills for creating MCP Apps with the MCP Apps SDK",
+  "author": {
+    "name": "Anthropic / Model Context Protocol"
+  },
+  "homepage": "https://modelcontextprotocol.io"
+}

@@ -1,0 +1,9 @@
+{
+  "name": "zyte-web-data",
+  "version": "1.0.0",
+  "description": "Web scraping skills for Claude Code powered by the Zyte API — scrape sites, generate and run Scrapy spiders, define extraction schemas, and ship to Scrapy Cloud.",
+  "author": {
+    "name": "Zyte"
+  },
+  "homepage": "https://www.zyte.com"
+}
