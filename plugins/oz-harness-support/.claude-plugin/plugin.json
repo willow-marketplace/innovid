@@ -1,0 +1,40 @@
+{
+  "name": "oz-harness-support",
+  "version": "1.1.2",
+  "description": "Warp terminal integration for Claude Code in Oz cloud agent environments, including parent-message delivery hooks",
+  "author": {
+    "url": "https://warp.dev",
+    "name": "Warp"
+  },
+  "homepage": "https://github.com/warpdotdev/claude-code-warp",
+  "skills": "./skills/",
+  "hooks": {
+    "SessionStart": [
+      {
+        "command": "${CLAUDE_PLUGIN_ROOT}/scripts/on-session-start.sh",
+        "matcher": "startup|resume"
+      }
+    ],
+    "Stop": [
+      {
+        "command": "${CLAUDE_PLUGIN_ROOT}/scripts/on-stop.sh"
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "command": "${CLAUDE_PLUGIN_ROOT}/scripts/drain-mailbox.sh UserPromptSubmit"
+      }
+    ],
+    "PostToolUse": [
+      {
+        "command": "${CLAUDE_PLUGIN_ROOT}/scripts/drain-mailbox.sh PostToolUse",
+        "matcher": "*"
+      }
+    ],
+    "SessionEnd": [
+      {
+        "command": "${CLAUDE_PLUGIN_ROOT}/scripts/on-session-end.sh"
+      }
+    ]
+  }
+}

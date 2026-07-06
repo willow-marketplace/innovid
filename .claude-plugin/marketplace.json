@@ -1,5 +1,5 @@
 {
-  "name": "innovid-marketplace",
+  "name": "innovid-open-source-marketplace",
   "owner": {
     "name": "Innovid"
   },
@@ -109,7 +109,7 @@
       "name": "superpowers",
       "source": "./plugins/superpowers",
       "description": "Core skills library for Claude Code: TDD, debugging, collaboration patterns, and proven techniques",
-      "version": "5.1.0",
+      "version": "6.1.1",
       "author": {
         "name": "Jesse Vincent",
         "email": "jesse@fsck.com"
@@ -921,6 +921,17 @@
         "fusion",
         "platform-migration"
       ]
+    },
+    {
+      "name": "oz-harness-support",
+      "source": "./plugins/oz-harness-support",
+      "description": "Warp terminal integration for Claude Code in Oz cloud agent environments, including parent-message delivery hooks",
+      "version": "1.1.2",
+      "author": {
+        "url": "https://warp.dev",
+        "name": "Warp"
+      },
+      "homepage": "https://github.com/warpdotdev/claude-code-warp"
     }
   ]
 }

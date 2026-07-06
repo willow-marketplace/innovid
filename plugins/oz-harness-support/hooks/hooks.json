@@ -1,0 +1,31 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "command": "${CLAUDE_PLUGIN_ROOT}/scripts/on-session-start.sh",
+        "matcher": "startup|resume"
+      }
+    ],
+    "Stop": [
+      {
+        "command": "${CLAUDE_PLUGIN_ROOT}/scripts/on-stop.sh"
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "command": "${CLAUDE_PLUGIN_ROOT}/scripts/drain-mailbox.sh UserPromptSubmit"
+      }
+    ],
+    "PostToolUse": [
+      {
+        "command": "${CLAUDE_PLUGIN_ROOT}/scripts/drain-mailbox.sh PostToolUse",
+        "matcher": "*"
+      }
+    ],
+    "SessionEnd": [
+      {
+        "command": "${CLAUDE_PLUGIN_ROOT}/scripts/on-session-end.sh"
+      }
+    ]
+  }
+}
