@@ -1,6 +1,6 @@
 {
   "name": "sap-fiori-mcp-server",
-  "version": "1.0.0",
+  "version": "1.8.9",
   "description": "MCP server for SAP Fiori development tools for Claude Code. Build and modify SAP Fiori applications with AI assistance.",
   "author": {
     "url": "https://www.sap.com",
@@ -8,6 +8,16 @@
     "email": "ospo@sap.com"
   },
   "homepage": "https://github.com/SAP/open-ux-tools/tree/main/packages/fiori-mcp-server",
+  "repository": "https://github.com/SAP/open-ux-tools",
+  "keywords": [
+    "sap",
+    "fiori",
+    "ui5",
+    "cap",
+    "mcp",
+    "fiori-elements"
+  ],
+  "skills": "./skills/",
   "mcpServers": {
     "fiori-mcp": {
       "args": [

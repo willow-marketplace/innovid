@@ -1,7 +1,7 @@
 {
   "name": "notion",
   "version": "1.0.0",
-  "description": "Notion workspace integration. Search pages, create and update documents, manage databases, and access your team's knowledge base directly from Claude Code for seamless documentation workflows.",
+  "description": "Notion Skills + Notion MCP server packaged as a Claude Code plugin.",
   "author": {
     "url": "https://www.notion.so",
     "name": "Notion Labs"

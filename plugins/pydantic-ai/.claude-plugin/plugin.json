@@ -1,6 +1,11 @@
 {
   "name": "pydantic-ai",
   "version": "1.0.0",
-  "description": "Write accurate Pydantic AI code from the start. Up-to-date patterns, decision trees, and common gotchas for agents, tools, structured output, streaming, and multi-agent apps.",
-  "homepage": "https://github.com/pydantic/skills/tree/main/plugins/ai"
+  "description": "Build production-grade AI agents with Pydantic AI — tools, capabilities, structured output, streaming, and testing patterns",
+  "author": {
+    "name": "Pydantic",
+    "email": "support@pydantic.dev"
+  },
+  "homepage": "https://github.com/pydantic/skills/tree/main/plugins/ai",
+  "skills": "./skills/"
 }

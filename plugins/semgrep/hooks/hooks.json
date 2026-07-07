@@ -1,0 +1,27 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "command": "${CLAUDE_PLUGIN_ROOT}/scripts/hook.sh claude PreToolUse",
+        "matcher": "Write|Edit|Bash"
+      }
+    ],
+    "PostToolUse": [
+      {
+        "command": "${CLAUDE_PLUGIN_ROOT}/scripts/hook.sh claude PostToolUse",
+        "matcher": "Write|Edit|Bash"
+      }
+    ],
+    "SessionStart": [
+      {
+        "command": "${CLAUDE_PLUGIN_ROOT}/scripts/hook.sh claude SessionStart",
+        "matcher": "startup|resume|clear|compact"
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "command": "${CLAUDE_PLUGIN_ROOT}/scripts/hook.sh claude UserPromptSubmit"
+      }
+    ]
+  }
+}

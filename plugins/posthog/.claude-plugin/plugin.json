@@ -1,8 +1,25 @@
 {
   "name": "posthog",
-  "version": "1.0.0",
-  "description": "Access PostHog analytics, feature flags, experiments, error tracking, and insights directly from Claude Code.",
+  "version": "1.1.46",
+  "description": "Access PostHog analytics, feature flags, experiments, error tracking, and insights directly from your AI coding tool. Optionally capture Claude Code sessions to PostHog LLM Analytics.",
+  "author": {
+    "url": "https://posthog.com",
+    "name": "PostHog",
+    "email": "hey@posthog.com"
+  },
   "homepage": "https://posthog.com/docs/model-context-protocol",
+  "repository": "https://github.com/PostHog/ai-plugin",
+  "keywords": [
+    "analytics",
+    "feature-flags",
+    "experiments",
+    "error-tracking",
+    "a/b-testing",
+    "surveys",
+    "dashboards",
+    "llm-analytics"
+  ],
+  "skills": "./skills/",
   "mcpServers": {
     "posthog": {
       "url": "https://mcp.posthog.com/mcp",

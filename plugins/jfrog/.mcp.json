@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "jfrog": {
+      "url": "${JFROG_URL}/mcp",
+      "type": "http"
+    }
+  }
+}

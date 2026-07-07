@@ -1,6 +1,17 @@
 {
   "name": "greptile",
   "version": "1.0.0",
-  "description": "AI-powered codebase search and understanding. Query your repositories using natural language to find relevant code, understand dependencies, and get contextual answers about your codebase architecture.",
-  "homepage": "https://github.com/anthropics/claude-plugins-public/tree/main/external_plugins/greptile"
+  "description": "AI code review agent for GitHub and GitLab. View and resolve Greptile's PR review comments directly from Claude Code.",
+  "author": {
+    "url": "https://greptile.com",
+    "name": "Greptile"
+  },
+  "homepage": "https://greptile.com/docs",
+  "keywords": [
+    "code-review",
+    "pull-requests",
+    "github",
+    "gitlab",
+    "ai"
+  ]
 }

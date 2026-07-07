@@ -1,9 +1,28 @@
 {
   "name": "rootly",
-  "version": "1.0.0",
-  "description": "Full-lifecycle incident management: deploy safety, incident response, on-call management, and retrospectives.",
+  "version": "2.2.0",
+  "description": "Full-lifecycle incident management from your IDE. Prevent incidents before deploy, respond in real-time, and learn from post-mortems -- powered by Rootly.",
   "author": {
-    "name": "Rootly"
+    "url": "https://rootly.com",
+    "name": "Rootly AI Labs",
+    "email": "support@rootly.com"
   },
-  "homepage": "https://rootly.com"
+  "homepage": "https://rootly.com/integrations/claude",
+  "repository": "https://github.com/Rootly-AI-Labs/rootly-claude-plugin",
+  "keywords": [
+    "incident-management",
+    "on-call",
+    "sre",
+    "devops",
+    "deploy-safety",
+    "retrospectives",
+    "rootly"
+  ],
+  "skills": "./skills/",
+  "mcpServers": {
+    "rootly": {
+      "url": "https://mcp.rootly.com/mcp",
+      "type": "http"
+    }
+  }
 }

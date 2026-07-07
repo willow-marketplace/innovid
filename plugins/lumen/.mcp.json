@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "lumen": {
+      "args": [
+        "stdio"
+      ],
+      "command": "${CLAUDE_PLUGIN_ROOT}/scripts/run"
+    }
+  }
+}

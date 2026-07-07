@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "hunter": {
+      "url": "https://mcp.hunter.io/mcp",
+      "type": "http"
+    }
+  }
+}

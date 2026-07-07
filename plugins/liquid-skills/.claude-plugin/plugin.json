@@ -5,5 +5,15 @@
   "author": {
     "name": "Shopify"
   },
-  "homepage": "https://github.com/Shopify/liquid-skills/tree/main/plugins/liquid-skills"
+  "homepage": "https://github.com/Shopify/liquid-skills/tree/main/plugins/liquid-skills",
+  "repository": "https://github.com/Shopify/liquid-skills",
+  "keywords": [
+    "liquid",
+    "shopify",
+    "theme",
+    "accessibility",
+    "css",
+    "javascript"
+  ],
+  "skills": "./skills/"
 }

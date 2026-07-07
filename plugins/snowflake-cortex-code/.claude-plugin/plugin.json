@@ -1,11 +1,11 @@
 {
   "name": "snowflake-cortex-code",
-  "version": "1.0.0",
-  "description": "Automatically route Snowflake prompts from Claude Code to Cortex Code for execution. Provides slash commands for code review and task delegation, plus skills for routing, run, and setup.",
+  "version": "3.2.2",
+  "description": "Automatically route Snowflake prompts from Claude Code to Cortex Code for execution.",
   "author": {
     "name": "Snowflake"
   },
-  "homepage": "https://docs.snowflake.com/en/user-guide/cortex-code",
+  "homepage": "https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code",
   "repository": "https://github.com/Snowflake-Labs/snowflake-ai-kit",
   "keywords": [
     "snowflake",
@@ -13,5 +13,18 @@
     "auto-routing",
     "sql",
     "data"
-  ]
+  ],
+  "skills": "./skills/",
+  "hooks": {
+    "SessionStart": [
+      {
+        "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/router/discover_cortex.py\" || python \"${CLAUDE_PLUGIN_ROOT}/scripts/router/discover_cortex.py\""
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/router/prompt_filter.py\" || python \"${CLAUDE_PLUGIN_ROOT}/scripts/router/prompt_filter.py\""
+      }
+    ]
+  }
 }

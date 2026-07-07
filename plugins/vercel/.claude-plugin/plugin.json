@@ -1,6 +1,29 @@
 {
   "name": "vercel",
   "version": "1.0.0",
-  "description": "Vercel deployment platform integration. Manage deployments, check build status, access logs, configure domains, and control your frontend infrastructure directly from Claude Code.",
-  "homepage": "https://github.com/vercel/vercel-plugin"
+  "description": "Build and deploy web apps and agents",
+  "author": {
+    "url": "https://github.com/vercel",
+    "name": "Vercel"
+  },
+  "homepage": "https://github.com/vercel/vercel-plugin",
+  "repository": "https://github.com/vercel/vercel-plugin",
+  "keywords": [
+    "vercel",
+    "nextjs",
+    "ai-sdk",
+    "turborepo",
+    "turbopack",
+    "workflow",
+    "deployment",
+    "serverless"
+  ],
+  "skills": "./skills/",
+  "mcpServers": {
+    "vercel": {
+      "url": "https://mcp.vercel.com",
+      "note": "Official Vercel MCP server. Uses OAuth — on first connection the agent will be prompted to authorize via Vercel. Read-only in initial release: search docs, list projects/deployments, inspect logs.",
+      "type": "http"
+    }
+  }
 }

@@ -1,6 +1,20 @@
 {
   "name": "legalzoom",
   "version": "1.0.0",
-  "description": "Attorney guidance and legal tools for business and personal needs. AI-powered document review identifies critical risks and important clauses, advises when to engage an attorney, and routes to LegalZoom's network when professional expertise is needed.",
-  "homepage": "https://www.legalzoom.com/"
+  "description": "LegalZoom Plugin - AI-powered business legal assistance with contract review and attorney consultation",
+  "author": {
+    "name": "LegalZoom",
+    "email": "engineering@legalzoom.com"
+  },
+  "homepage": "https://github.com/legalzoom/claude-plugins",
+  "repository": "https://github.com/legalzoom/claude-plugins",
+  "skills": "./skills/",
+  "commands": "./commands/",
+  "mcpServers": {
+    "legalzoom": {
+      "url": "https://www.legalzoom.com/mcp/claude/v1",
+      "type": "http",
+      "description": "LegalZoom MCP server for attorney consultations and legal services"
+    }
+  }
 }

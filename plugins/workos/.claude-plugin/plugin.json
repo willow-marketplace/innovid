@@ -3,7 +3,10 @@
   "version": "1.0.0",
   "description": "WorkOS integration skills for AuthKit, SSO, Directory Sync, RBAC, Vault, Audit Logs, migrations, and API references.",
   "author": {
-    "name": "WorkOS"
+    "name": "WorkOS",
+    "email": "support@workos.com"
   },
-  "homepage": "https://workos.com"
+  "homepage": "https://workos.com",
+  "repository": "https://github.com/workos/skills",
+  "skills": "./skills/"
 }

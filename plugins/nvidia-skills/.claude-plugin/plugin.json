@@ -1,9 +1,29 @@
 {
   "name": "nvidia-skills",
-  "version": "1.0.0",
-  "description": "NVIDIA agent skills for accelerated-computing workflows — starting with cuOpt vehicle-routing optimization (VRP, TSP, PDP) via the cuOpt Python API.",
+  "version": "1.1.2",
+  "description": "Skills for NVIDIAs ecosystem spans GPU acceleration, CUDA, AI agents, inference, robotics, Physical AI, Omniverse, and simulation. This plugin helps you understand the pieces, choose a path, validate your setup, and build practical NVIDIA-powered workflows.",
   "author": {
+    "url": "https://github.com/NVIDIA/skills",
     "name": "NVIDIA"
   },
-  "homepage": "https://github.com/NVIDIA/skills"
+  "homepage": "https://build.nvidia.com/skills/",
+  "repository": "https://github.com/NVIDIA/skills",
+  "keywords": [
+    "nvidia",
+    "gpu",
+    "cuda",
+    "ai-agents",
+    "data-loading",
+    "training",
+    "inference",
+    "llm-serving",
+    "robotics",
+    "simulation",
+    "omniverse",
+    "openusd",
+    "digital-twin",
+    "physical-ai",
+    "cad"
+  ],
+  "skills": "./skills/"
 }

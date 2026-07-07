@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "pinecone": {
+      "cwd": "${CLAUDE_PLUGIN_ROOT}",
+      "env": {
+        "PINECONE_API_KEY": "${PINECONE_API_KEY}"
+      },
+      "args": [
+        "-y",
+        "@pinecone-database/mcp"
+      ],
+      "command": "npx"
+    }
+  }
+}

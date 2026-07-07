@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "Mintlify": {
+      "url": "https://mintlify.com/docs/mcp",
+      "type": "http"
+    },
+    "Mintlify MCP": {
+      "url": "https://mcp.mintlify.com",
+      "type": "http"
+    }
+  }
+}

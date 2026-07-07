@@ -1,9 +1,18 @@
 {
   "name": "mcp-apps",
   "version": "1.0.0",
-  "description": "Skills for creating MCP Apps with the MCP Apps SDK",
+  "description": "Claude Code skill for building MCP Apps with interactive UIs",
   "author": {
-    "name": "Anthropic / Model Context Protocol"
+    "name": "MCP Apps"
   },
-  "homepage": "https://modelcontextprotocol.io"
+  "homepage": "https://modelcontextprotocol.io",
+  "repository": "https://github.com/modelcontextprotocol/ext-apps",
+  "keywords": [
+    "mcp",
+    "mcp-apps",
+    "model-context-protocol",
+    "ui",
+    "interactive"
+  ],
+  "skills": "./skills/"
 }

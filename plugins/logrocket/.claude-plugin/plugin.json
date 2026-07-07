@@ -3,7 +3,16 @@
   "version": "1.0.0",
   "description": "Connect Claude Code to LogRocket to query session replays, metrics, issues, and user behavior using natural language.",
   "author": {
-    "name": "LogRocket"
+    "name": "LogRocket",
+    "email": "support@logrocket.com"
   },
-  "homepage": "https://logrocket.com"
+  "homepage": "https://logrocket.com",
+  "keywords": [
+    "logrocket",
+    "session-replay",
+    "analytics",
+    "mcp",
+    "galileo"
+  ],
+  "skills": "./skills/"
 }

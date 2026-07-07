@@ -3,7 +3,16 @@
   "version": "1.0.0",
   "description": "Skills and rules for developing and using the Grafana Assistant app and CLI.",
   "author": {
-    "name": "Grafana"
+    "name": "Grafana Labs",
+    "email": "grafana-assistant@grafana.com"
   },
-  "homepage": "https://grafana.com"
+  "homepage": "https://github.com/grafana/ai-marketplace/tree/main/plugins/grafana-assistant",
+  "repository": "https://github.com/grafana/ai-marketplace",
+  "keywords": [
+    "grafana",
+    "assistant",
+    "a2a",
+    "cli"
+  ],
+  "skills": "./skills/"
 }

@@ -1,9 +1,29 @@
 {
   "name": "resend",
-  "version": "1.0.0",
-  "description": "Agent skills for working with Resend to send and receive emails — email API integration, agent inbox, CLI, React Email components, and deliverability best practices. Includes the Resend MCP server.",
+  "version": "1.0.1",
+  "description": "Send and receive emails, build with React Email, follow deliverability best practices",
   "author": {
-    "name": "Resend"
+    "url": "https://resend.com",
+    "name": "Resend",
+    "email": "support@resend.com"
   },
-  "homepage": "https://resend.com"
+  "homepage": "https://resend.com",
+  "repository": "https://github.com/resend/resend-skills",
+  "keywords": [
+    "email",
+    "resend",
+    "smtp",
+    "notifications",
+    "agent-inbox"
+  ],
+  "skills": "./skills/",
+  "mcpServers": {
+    "resend": {
+      "url": "https://mcp.resend.com",
+      "type": "http",
+      "headers": {
+        "Authorization": "Bearer ${RESEND_API_KEY}"
+      }
+    }
+  }
 }

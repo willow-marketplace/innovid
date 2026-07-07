@@ -1,10 +1,13 @@
 {
   "name": "plugin-dev",
   "version": "1.0.0",
-  "description": "Comprehensive toolkit for developing Claude Code plugins. Includes 7 expert skills covering hooks, MCP integration, commands, agents, and best practices. AI-assisted plugin creation and validation.",
+  "description": "Plugin development toolkit with skills for creating agents, commands, hooks, MCP integrations, and comprehensive plugin structure guidance",
   "author": {
     "name": "Anthropic",
     "email": "support@anthropic.com"
   },
-  "homepage": "https://github.com/anthropics/claude-plugins-public/tree/main/plugins/plugin-dev"
+  "homepage": "https://github.com/anthropics/claude-plugins-public/tree/main/plugins/plugin-dev",
+  "skills": "./skills/",
+  "commands": "./commands/",
+  "agents": "./agents/"
 }

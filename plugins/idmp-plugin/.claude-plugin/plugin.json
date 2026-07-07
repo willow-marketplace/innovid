@@ -6,5 +6,21 @@
     "name": "TaosData",
     "email": "it@taosdata.com"
   },
-  "homepage": "https://github.com/taosdata/agent-skills"
+  "homepage": "https://github.com/taosdata/agent-skills",
+  "keywords": [
+    "TDengine",
+    "IDMP",
+    "database",
+    "monitoring",
+    "alert",
+    "dashboard",
+    "industrial-data",
+    "industrial-manufacturing",
+    "data-management",
+    "iot",
+    "time-series",
+    "asset-modeling",
+    "data-ingestion"
+  ],
+  "skills": "./skills/"
 }

@@ -1,9 +1,66 @@
 {
   "name": "migration-to-aws",
-  "version": "1.0.0",
-  "description": "Plan a migration from Google Cloud Platform (and OpenAI/Gemini AI workloads) to AWS. Analyzes your Infrastructure-as-Code files, app code, and GCP billing data to discover resources, design an AWS architecture, estimate costs, and generate migration artifacts — including AI-provider mapping to Amazon Bedrock. Processing is local; your data stays in your environment.",
+  "version": "1.1.0",
+  "description": "This no-cost tool assesses your current cloud provider's usage, geography, and billing data to estimate and compare AWS services and pricing, and recommends migration or continued use of your current provider. AWS pricing is based on current published pricing and may vary over time. The tool may generate a .migration folder containing comparison and migration execution data, which you may delete upon completion or use to migrate to AWS.",
   "author": {
     "name": "Amazon Web Services"
   },
-  "homepage": "https://github.com/awslabs/startups"
+  "homepage": "https://github.com/awslabs/startups",
+  "keywords": [
+    "aws",
+    "gcp",
+    "google-cloud",
+    "cloud-run",
+    "cloud-sql",
+    "vertex-ai",
+    "gemini",
+    "migration",
+    "cloud-migration",
+    "move-to-aws",
+    "switch-to-aws",
+    "terraform",
+    "fargate",
+    "rds",
+    "aurora",
+    "eks",
+    "bedrock",
+    "ai-migration",
+    "openai",
+    "openai-to-bedrock",
+    "langchain",
+    "langgraph",
+    "crewai",
+    "autogen",
+    "agentic",
+    "agents",
+    "llm-migration",
+    "cost-estimation",
+    "cost-comparison",
+    "pricing-comparison"
+  ],
+  "skills": "./skills/",
+  "mcpServers": {
+    "awspricing": {
+      "env": {
+        "AWS_REGION": "us-east-1",
+        "FASTMCP_LOG_LEVEL": "ERROR"
+      },
+      "args": [
+        "awslabs.aws-pricing-mcp-server@latest"
+      ],
+      "type": "stdio",
+      "command": "uvx",
+      "timeout": 120000,
+      "autoApprove": [
+        "get_pricing_service_codes",
+        "get_pricing_service_attributes",
+        "get_pricing_attribute_values",
+        "get_pricing"
+      ]
+    },
+    "awsknowledge": {
+      "url": "https://knowledge-mcp.global.api.aws",
+      "type": "http"
+    }
+  }
 }

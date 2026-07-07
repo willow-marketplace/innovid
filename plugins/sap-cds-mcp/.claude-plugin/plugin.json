@@ -1,11 +1,25 @@
 {
   "name": "sap-cds-mcp",
   "version": "1.0.0",
-  "description": "AI-assisted development of SAP Cloud Application Programming Model (CAP) projects. Search CDS models and CAP documentation.",
+  "description": "Model Context Protocol (MCP) server for AI-assisted development of CAP applications.",
   "author": {
-    "url": "https://www.sap.com",
-    "name": "SAP SE",
-    "email": "ospo@sap.com"
+    "name": "SAP SE"
   },
-  "homepage": "https://cap.cloud.sap/"
+  "homepage": "https://cap.cloud.sap/",
+  "repository": "https://github.com/cap-js/mcp-server",
+  "keywords": [
+    "sap",
+    "cap",
+    "cds",
+    "mcp"
+  ],
+  "mcpServers": {
+    "cds-mcp": {
+      "args": [
+        "-y",
+        "@cap-js/mcp-server"
+      ],
+      "command": "npx"
+    }
+  }
 }

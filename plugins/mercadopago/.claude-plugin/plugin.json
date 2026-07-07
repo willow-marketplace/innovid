@@ -1,9 +1,51 @@
 {
   "name": "mercadopago",
-  "version": "1.0.0",
-  "description": "Mercado Pago full-product integration toolkit. One agent routes to four orchestration skills (mp-integrate wizard, mp-webhooks, mp-test-setup, mp-review) that pull every endpoint, payload, and snippet live from the official Mercado Pago MCP server. The MCP must always be connected — there is no offline mode.",
+  "version": "4.2.0",
+  "description": "Mercado Pago full-product integration toolkit. One agent routes to four orchestration skills (mp-integrate, mp-webhooks, mp-test-setup, mp-review). Scaffolding works without MCP auth; live docs, credential lookup, and test-user creation require the official Mercado Pago MCP server.",
   "author": {
     "name": "Mercado Pago Developer Experience"
   },
-  "homepage": "https://github.com/mercadopago/mercadopago-claude-marketplace/tree/main/plugins/mercadopago"
+  "homepage": "https://github.com/mercadopago/mercadopago-claude-marketplace/tree/main/plugins/mercadopago",
+  "repository": "https://github.com/mercadopago/mercadopago-claude-marketplace",
+  "keywords": [
+    "mercadopago",
+    "payments",
+    "checkout",
+    "webhooks",
+    "ipn",
+    "qr",
+    "point",
+    "subscriptions",
+    "marketplace",
+    "wallet",
+    "3ds",
+    "fintech",
+    "meli"
+  ],
+  "skills": "./skills/",
+  "commands": "./commands/",
+  "agents": "./agents/",
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/check-version.sh"
+      }
+    ],
+    "PreToolUse": [
+      {
+        "command": "python3 ${CLAUDE_PLUGIN_ROOT}/hooks/validate_mp_credentials.py",
+        "matcher": "Bash|Edit|Write|MultiEdit|Read"
+      }
+    ]
+  },
+  "mcpServers": {
+    "mcp": {
+      "url": "https://mcp.mercadopago.com/mcp",
+      "type": "http",
+      "headers": {
+        "X-Plugin-Version": "4.2.0",
+        "X-Invocation-Context": "router"
+      }
+    }
+  }
 }

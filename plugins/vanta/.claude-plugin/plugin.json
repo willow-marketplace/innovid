@@ -1,9 +1,20 @@
 {
   "name": "vanta",
   "version": "1.0.0",
-  "description": "The Vanta plugin connects Claude Code to Vanta's security and compliance platform through the Vanta MCP server. It combines Vanta's test-specific remediation intelligence with your local repository context to help you fix compliance failures faster.",
+  "description": "Vanta MCP server integration for Claude Code",
   "author": {
+    "url": "https://www.vanta.com",
     "name": "Vanta"
   },
-  "homepage": "https://help.vanta.com/en/articles/14094979-connecting-to-vanta-mcp#h_887ce3f337"
+  "homepage": "https://github.com/VantaInc/vanta-mcp-plugin",
+  "repository": "https://github.com/VantaInc/vanta-mcp-plugin",
+  "keywords": [
+    "vanta",
+    "security",
+    "compliance",
+    "mcp",
+    "grc",
+    "risk"
+  ],
+  "skills": "./skills/"
 }

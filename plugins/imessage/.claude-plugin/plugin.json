@@ -1,7 +1,14 @@
 {
   "name": "imessage",
   "version": "1.0.0",
-  "description": "iMessage messaging bridge with built-in access control. Reads chat.db directly, sends via AppleScript. Manage pairing, allowlists, and policy via /imessage:access.",
+  "description": "iMessage channel for Claude Code — reads chat.db directly, sends via AppleScript. Built-in access control; manage pairing, allowlists, and policy via /imessage:access.",
+  "keywords": [
+    "imessage",
+    "messaging",
+    "channel",
+    "mcp"
+  ],
+  "skills": "./skills/",
   "mcpServers": {
     "imessage": {
       "args": [

@@ -5,5 +5,6 @@
   "author": {
     "name": "Coursera"
   },
-  "homepage": "https://github.com/coursera/skills"
+  "homepage": "https://github.com/coursera/skills",
+  "skills": "./skills/"
 }

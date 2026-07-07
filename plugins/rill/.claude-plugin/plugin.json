@@ -6,6 +6,7 @@
     "name": "Rill Data"
   },
   "homepage": "https://docs.rilldata.com/developers/build/ai-configuration",
+  "skills": "./skills/",
   "mcpServers": {
     "rill-developer": {
       "url": "http://localhost:9009/mcp",

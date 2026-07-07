@@ -3,7 +3,26 @@
   "version": "1.0.0",
   "description": "Find and verify professional email addresses, search contacts by domain, and enrich company data -- directly in Claude.",
   "author": {
+    "url": "https://hunter.io",
     "name": "Hunter.io"
   },
-  "homepage": "https://hunter.io"
+  "homepage": "https://hunter.io",
+  "repository": "https://github.com/hunter-io/claude-plugin",
+  "keywords": [
+    "hunter",
+    "email",
+    "leads",
+    "b2b",
+    "prospecting",
+    "sales",
+    "enrichment",
+    "verification"
+  ],
+  "skills": "./skills/",
+  "mcpServers": {
+    "hunter": {
+      "url": "https://mcp.hunter.io/mcp",
+      "type": "http"
+    }
+  }
 }

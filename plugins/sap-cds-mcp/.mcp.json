@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "cds-mcp": {
+      "args": [
+        "-y",
+        "@cap-js/mcp-server"
+      ],
+      "command": "npx"
+    }
+  }
+}

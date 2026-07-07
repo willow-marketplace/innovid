@@ -3,9 +3,20 @@
   "version": "1.0.0",
   "description": "MCP server for AI-assisted Grafana dashboard, datasource, alerting, and incident management.",
   "author": {
-    "name": "Grafana"
+    "name": "Grafana Labs",
+    "email": "grafana-assistant@grafana.com"
   },
-  "homepage": "https://grafana.com",
+  "homepage": "https://github.com/grafana/ai-marketplace/tree/main/plugins/grafana-mcp",
+  "repository": "https://github.com/grafana/ai-marketplace",
+  "keywords": [
+    "grafana",
+    "mcp",
+    "observability",
+    "dashboards",
+    "prometheus",
+    "loki"
+  ],
+  "skills": "./skills/",
   "mcpServers": {
     "grafana": {
       "env": {

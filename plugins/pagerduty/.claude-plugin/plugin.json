@@ -1,6 +1,9 @@
 {
   "name": "pagerduty",
-  "version": "1.0.0",
-  "description": "Enhance code quality and security through PagerDuty risk scoring and incident correlation. Score pre-commit diffs against historical incident data and surface deployment risk before you ship.",
+  "version": "1.1.0",
+  "description": "A collection of Claude Code plugins developed by PagerDuty for pre-commit risk assessment and PagerDuty skill creation for AI agents (Early Access).",
+  "author": {
+    "name": "PagerDuty"
+  },
   "homepage": "https://github.com/PagerDuty/claude-code-plugins"
 }

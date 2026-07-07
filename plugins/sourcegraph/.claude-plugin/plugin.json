@@ -1,8 +1,13 @@
 {
   "name": "sourcegraph",
   "version": "1.0.0",
-  "description": "Code search and understanding across codebases. Search, read, and trace references across repositories; analyze refactor impact; investigate incidents via commit and diff search; run targeted security sweeps.",
-  "homepage": "https://sourcegraph.com",
+  "description": "Use Sourcegraph MCP from Claude Code for code search, navigation, history, and Deep Search.",
+  "author": {
+    "name": "Sourcegraph Community"
+  },
+  "homepage": "https://github.com/sourcegraph-community/sourcegraph-claudecode-plugin",
+  "repository": "https://github.com/sourcegraph-community/sourcegraph-claudecode-plugin",
+  "skills": "./skills/",
   "mcpServers": {
     "sourcegraph": {
       "url": "${SOURCEGRAPH_ENDPOINT}/.api/mcp",

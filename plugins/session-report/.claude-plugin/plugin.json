@@ -6,5 +6,6 @@
     "name": "Anthropic",
     "email": "support@anthropic.com"
   },
-  "homepage": "https://github.com/anthropics/claude-plugins-official/tree/main/plugins/session-report"
+  "homepage": "https://github.com/anthropics/claude-plugins-official/tree/main/plugins/session-report",
+  "skills": "./skills/"
 }

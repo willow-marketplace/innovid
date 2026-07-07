@@ -1,7 +1,7 @@
 {
   "name": "shopify",
   "version": "1.0.0",
-  "description": "Shopify developer tools for GitHub Copilot — search Shopify docs, generate and validate GraphQL, Liquid, and UI extension code",
+  "description": "Shopify developer tools for Claude Code — search Shopify docs, generate and validate GraphQL, Liquid, and UI extension code",
   "author": {
     "name": "Shopify"
   },
@@ -11,8 +11,7 @@
     "graphql",
     "liquid",
     "storefront",
-    "admin-api",
-    "plugin"
+    "admin-api"
   ],
   "mcpServers": {
     "shopify-mcp": {

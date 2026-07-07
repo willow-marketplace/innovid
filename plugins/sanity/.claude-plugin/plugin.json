@@ -1,9 +1,28 @@
 {
   "name": "sanity",
   "version": "1.0.0",
-  "description": "Sanity content platform integration with MCP server, agent skills, and slash commands. Query and author content, build and optimize GROQ queries, design schemas, and set up Visual Editing.",
+  "description": "Sanity plugin for Claude Code with MCP server, agent skills, agent rules, and slash commands.",
   "author": {
-    "name": "Sanity"
+    "url": "https://www.sanity.io",
+    "name": "Sanity",
+    "email": "support@sanity.io"
   },
-  "homepage": "https://www.sanity.io"
+  "homepage": "https://github.com/sanity-io/agent-toolkit",
+  "repository": "https://github.com/sanity-io/agent-toolkit",
+  "keywords": [
+    "sanity",
+    "cms",
+    "content-lake",
+    "groq",
+    "content",
+    "structured-content",
+    "visual-editing"
+  ],
+  "skills": "./skills/",
+  "mcpServers": {
+    "Sanity": {
+      "url": "https://mcp.sanity.io",
+      "type": "http"
+    }
+  }
 }

@@ -3,7 +3,10 @@
   "version": "1.0.0",
   "description": "Connect to Looker and interact with your data using LookML.",
   "author": {
-    "name": "Google LLC"
+    "name": "Google LLC",
+    "email": "data-cloud-ai-integrations@google.com"
   },
-  "homepage": "https://github.com/gemini-cli-extensions/looker"
+  "homepage": "https://cloud.google.com/looker",
+  "repository": "https://github.com/gemini-cli-extensions/looker",
+  "skills": "./skills/"
 }

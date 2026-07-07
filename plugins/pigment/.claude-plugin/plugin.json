@@ -1,11 +1,12 @@
 {
   "name": "pigment",
-  "version": "1.0.0",
-  "description": "Analyze business data and build custom Pigment models, metrics, and boards through natural language.",
+  "version": "1.0.8",
+  "description": "Analyze business data and build planning models in your Pigment workspace",
   "author": {
     "name": "Pigment"
   },
   "homepage": "https://www.pigment.com",
+  "skills": "./skills/",
   "mcpServers": {
     "pigment": {
       "url": "https://pigment.app/api/mcp/public/{your-mcp-id}",

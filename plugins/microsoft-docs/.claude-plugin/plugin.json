@@ -5,7 +5,7 @@
   "author": {
     "name": "Microsoft"
   },
-  "homepage": "https://github.com/microsoftdocs/mcp",
+  "homepage": "https://learn.microsoft.com",
   "repository": "https://github.com/microsoftdocs/mcp",
   "keywords": [
     "microsoft",
@@ -20,6 +20,7 @@
     "powerbi",
     "office"
   ],
+  "skills": "./skills/",
   "mcpServers": {
     "microsoft-learn": {
       "url": "https://learn.microsoft.com/api/mcp",

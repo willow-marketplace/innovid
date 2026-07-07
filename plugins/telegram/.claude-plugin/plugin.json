@@ -1,5 +1,25 @@
 {
   "name": "telegram",
   "version": "1.0.0",
-  "description": "Telegram messaging bridge with built-in access control. Manage pairing, allowlists, and policy via /telegram:access."
+  "description": "Telegram channel for Claude Code — messaging bridge with built-in access control. Manage pairing, allowlists, and policy via /telegram:access.",
+  "keywords": [
+    "telegram",
+    "messaging",
+    "channel",
+    "mcp"
+  ],
+  "skills": "./skills/",
+  "mcpServers": {
+    "telegram": {
+      "args": [
+        "run",
+        "--cwd",
+        "${CLAUDE_PLUGIN_ROOT}",
+        "--shell=bun",
+        "--silent",
+        "start"
+      ],
+      "command": "bun"
+    }
+  }
 }

@@ -5,5 +5,6 @@
   "author": {
     "name": "Oracle NetSuite"
   },
-  "homepage": "https://github.com/oracle/netsuite-suitecloud-sdk"
+  "homepage": "https://github.com/oracle/netsuite-suitecloud-sdk",
+  "skills": "./skills/"
 }
