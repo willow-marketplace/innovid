@@ -2470,7 +2470,7 @@
       "name": "resend",
       "source": "./plugins/resend",
       "description": "Send and receive emails, build with React Email, follow deliverability best practices",
-      "version": "1.0.1",
+      "version": "1.0.2",
       "author": {
         "url": "https://resend.com",
         "name": "Resend",
@@ -2826,7 +2826,7 @@
       "name": "42crunch-api-security-testing",
       "source": "./plugins/42crunch-api-security-testing",
       "description": "Catch API security issues during development: audit, scan, remediate, validate with AI guardrails in Claude Code.",
-      "version": "1.10.0",
+      "version": "1.11.0",
       "author": {
         "url": "https://github.com/42Crunch",
         "name": "42Crunch",
