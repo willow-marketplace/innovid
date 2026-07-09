@@ -2,6 +2,7 @@
   "name": "mercadopago",
   "version": "4.2.0",
   "description": "Mercado Pago full-product integration toolkit. One agent routes to four orchestration skills (mp-integrate, mp-webhooks, mp-test-setup, mp-review). Scaffolding works without MCP auth; live docs, credential lookup, and test-user creation require the official Mercado Pago MCP server.",
+  "updatedAt": "2026-07-09T15:04:48.705Z",
   "author": {
     "name": "Mercado Pago Developer Experience"
   },
@@ -28,13 +29,23 @@
   "hooks": {
     "UserPromptSubmit": [
       {
-        "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/check-version.sh"
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/check-version.sh"
+          }
+        ]
       }
     ],
     "PreToolUse": [
       {
-        "command": "python3 ${CLAUDE_PLUGIN_ROOT}/hooks/validate_mp_credentials.py",
-        "matcher": "Bash|Edit|Write|MultiEdit|Read"
+        "matcher": "Bash|Edit|Write|MultiEdit|Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ${CLAUDE_PLUGIN_ROOT}/hooks/validate_mp_credentials.py"
+          }
+        ]
       }
     ]
   },

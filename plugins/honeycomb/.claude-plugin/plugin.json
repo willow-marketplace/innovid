@@ -2,6 +2,7 @@
   "name": "honeycomb",
   "version": "1.1.0",
   "description": "Skills, agents, and workflows for Honeycomb observability — query patterns, production investigations, SLOs, OpenTelemetry instrumentation, and Beeline migration. Designed to complement the Honeycomb MCP server.",
+  "updatedAt": "2026-07-09T15:04:37.327Z",
   "author": {
     "url": "https://honeycomb.io",
     "name": "Honeycomb"
@@ -24,14 +25,24 @@
   "hooks": {
     "PostToolUse": [
       {
-        "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/cache-columns.sh",
-        "matcher": "mcp__.*__find_columns|mcp__.*__get_dataset_columns|mcp__.*__get_dataset"
+        "matcher": "mcp__.*__find_columns|mcp__.*__get_dataset_columns|mcp__.*__get_dataset",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/cache-columns.sh"
+          }
+        ]
       }
     ],
     "PreToolUse": [
       {
-        "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/validate-query.sh",
-        "matcher": "mcp__.*__run_query"
+        "matcher": "mcp__.*__run_query",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/validate-query.sh"
+          }
+        ]
       }
     ]
   }

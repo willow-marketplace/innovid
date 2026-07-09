@@ -2,8 +2,10 @@
   "name": "firecrawl",
   "version": "1.0.9",
   "description": "Scrape, search, crawl, and map the web with a single command.",
+  "updatedAt": "2026-07-09T15:04:31.280Z",
   "author": {
     "name": "Firecrawl"
   },
-  "skills": "./skills/"
+  "skills": "./skills/",
+  "commands": "./commands/"
 }

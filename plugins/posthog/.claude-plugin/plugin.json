@@ -1,7 +1,8 @@
 {
   "name": "posthog",
-  "version": "1.1.46",
+  "version": "1.1.48",
   "description": "Access PostHog analytics, feature flags, experiments, error tracking, and insights directly from your AI coding tool. Optionally capture Claude Code sessions to PostHog LLM Analytics.",
+  "updatedAt": "2026-07-09T15:05:33.744Z",
   "author": {
     "url": "https://posthog.com",
     "name": "PostHog",
@@ -20,6 +21,31 @@
     "llm-analytics"
   ],
   "skills": "./skills/",
+  "commands": "./commands/",
+  "agents": "./agents/",
+  "hooks": {
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ${CLAUDE_PLUGIN_ROOT:-$PLUGIN_ROOT}/hooks/session-end-llma.py"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "__exec$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT:-$PLUGIN_ROOT}/hooks/gate-exec-write.sh"
+          }
+        ]
+      }
+    ]
+  },
   "mcpServers": {
     "posthog": {
       "url": "https://mcp.posthog.com/mcp",

@@ -2,6 +2,7 @@
   "name": "vercel",
   "version": "1.0.0",
   "description": "Build and deploy web apps and agents",
+  "updatedAt": "2026-07-09T15:06:04.730Z",
   "author": {
     "url": "https://github.com/vercel",
     "name": "Vercel"
@@ -19,6 +20,39 @@
     "serverless"
   ],
   "skills": "./skills/",
+  "commands": "./commands/",
+  "agents": "./agents/",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/session-start-seen-skills.mjs\""
+          },
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/session-start-profiler.mjs\""
+          },
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/inject-claude-md.mjs\""
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/session-end-cleanup.mjs\""
+          }
+        ]
+      }
+    ]
+  },
   "mcpServers": {
     "vercel": {
       "url": "https://mcp.vercel.com",

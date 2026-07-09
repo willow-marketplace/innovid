@@ -2,6 +2,7 @@
   "name": "shopify",
   "version": "1.0.0",
   "description": "Shopify developer tools for Claude Code — search Shopify docs, generate and validate GraphQL, Liquid, and UI extension code",
+  "updatedAt": "2026-07-09T15:05:37.438Z",
   "author": {
     "name": "Shopify"
   },

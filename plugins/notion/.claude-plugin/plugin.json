@@ -2,12 +2,14 @@
   "name": "notion",
   "version": "1.0.0",
   "description": "Notion Skills + Notion MCP server packaged as a Claude Code plugin.",
+  "updatedAt": "2026-07-09T15:04:59.737Z",
   "author": {
     "url": "https://www.notion.so",
     "name": "Notion Labs"
   },
   "homepage": "https://github.com/makenotion/claude-code-notion-plugin",
   "repository": "https://github.com/makenotion/claude-code-notion-plugin",
+  "commands": "./commands/",
   "mcpServers": {
     "notion": {
       "url": "https://mcp.notion.com/mcp",

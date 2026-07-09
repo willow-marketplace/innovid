@@ -2,6 +2,7 @@
   "name": "remember",
   "version": "1.0.0",
   "description": "Continuous memory for Claude Code. Extracts, summarizes, and compresses conversations into tiered daily logs. Claude remembers what you did yesterday.",
+  "updatedAt": "2026-07-09T15:05:27.323Z",
   "author": {
     "name": "Digital Process Tools"
   },
@@ -13,5 +14,27 @@
     "persistence",
     "session"
   ],
-  "skills": "./skills/"
+  "skills": "./skills/",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/session-start-hook.sh\""
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/post-tool-hook.sh\""
+          }
+        ]
+      }
+    ]
+  }
 }

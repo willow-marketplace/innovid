@@ -2,6 +2,7 @@
   "name": "rootly",
   "version": "2.2.0",
   "description": "Full-lifecycle incident management from your IDE. Prevent incidents before deploy, respond in real-time, and learn from post-mortems -- powered by Rootly.",
+  "updatedAt": "2026-07-09T15:05:32.147Z",
   "author": {
     "url": "https://rootly.com",
     "name": "Rootly AI Labs",
@@ -19,6 +20,30 @@
     "rootly"
   ],
   "skills": "./skills/",
+  "agents": "./agents/",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/validate-token.sh"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/check-active-incidents.sh"
+          }
+        ]
+      }
+    ]
+  },
   "mcpServers": {
     "rootly": {
       "url": "https://mcp.rootly.com/mcp",

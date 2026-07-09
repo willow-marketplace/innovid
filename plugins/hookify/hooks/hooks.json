@@ -2,22 +2,42 @@
   "hooks": {
     "PreToolUse": [
       {
-        "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/pretooluse.py\""
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/pretooluse.py\""
+          }
+        ]
       }
     ],
     "PostToolUse": [
       {
-        "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/posttooluse.py\""
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/posttooluse.py\""
+          }
+        ]
       }
     ],
     "Stop": [
       {
-        "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/stop.py\""
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/stop.py\""
+          }
+        ]
       }
     ],
     "UserPromptSubmit": [
       {
-        "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/userpromptsubmit.py\""
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/userpromptsubmit.py\""
+          }
+        ]
       }
     ]
   }

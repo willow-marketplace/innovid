@@ -2,6 +2,7 @@
   "name": "code-review",
   "version": "1.0.0",
   "description": "Automated code review for pull requests using multiple specialized agents with confidence-based scoring",
+  "updatedAt": "2026-07-09T15:04:05.961Z",
   "author": {
     "name": "Anthropic",
     "email": "support@anthropic.com"

@@ -2,6 +2,7 @@
   "name": "cockroachdb",
   "version": "0.1.10",
   "description": "Connect Claude Code directly to your CockroachDB clusters for hands-on database work — explore schemas, write optimized SQL, debug queries, and manage distributed database clusters. This plugin provides tools across MCP backends (self-hosted MCP Toolbox and managed CockroachDB Cloud MCP Server), specialized agents (DBA, Developer, Operator), skills across operational domains, and built-in safety hooks.",
+  "updatedAt": "2026-07-09T15:04:09.437Z",
   "author": {
     "url": "https://github.com/cockroachdb",
     "name": "Cockroach Labs"
@@ -19,6 +20,31 @@
     "migration",
     "multi-region"
   ],
+  "agents": "./agents/",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "mcp__cockroachdb-toolbox__cockroachdb-execute-sql",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -c 'import sys, os, runpy; p = os.path.normpath(r\"${CLAUDE_PLUGIN_ROOT}/scripts/validate-sql.py\"); p = (\"\\\\?\\\\\" + p) if os.name == \"nt\" else p; runpy.run_path(p, run_name=\"__main__\")'; exit 0"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -c 'import sys, os, runpy; p = os.path.normpath(r\"${CLAUDE_PLUGIN_ROOT}/scripts/check-sql-files.py\"); p = (\"\\\\?\\\\\" + p) if os.name == \"nt\" else p; runpy.run_path(p, run_name=\"__main__\")'; exit 0"
+          }
+        ]
+      }
+    ]
+  },
   "mcpServers": {
     "cockroachdb-cloud": {
       "url": "https://cockroachlabs.cloud/mcp",

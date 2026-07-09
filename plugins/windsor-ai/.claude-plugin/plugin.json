@@ -2,6 +2,7 @@
   "name": "windsor-ai",
   "version": "1.0.0",
   "description": "Connect Claude Code to 325+ business data sources via Windsor.ai. Query marketing, sales, CRM, ecommerce, finance, and analytics data from Google Ads, Meta, HubSpot, Salesforce, Shopify, Stripe, and hundreds more — directly from your terminal.",
+  "updatedAt": "2026-07-09T15:05:55.689Z",
   "author": {
     "url": "https://windsor.ai",
     "name": "Windsor.ai",
@@ -25,5 +26,7 @@
     "stripe",
     "business-intelligence"
   ],
-  "skills": "./skills/"
+  "skills": "./skills/",
+  "commands": "./commands/",
+  "agents": "./agents/"
 }

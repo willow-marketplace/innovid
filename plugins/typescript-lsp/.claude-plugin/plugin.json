@@ -2,6 +2,7 @@
   "name": "typescript-lsp",
   "version": "1.0.0",
   "description": "TypeScript/JavaScript language server for enhanced code intelligence",
+  "updatedAt": "2026-07-09T15:05:45.428Z",
   "author": {
     "name": "Anthropic",
     "email": "support@anthropic.com"

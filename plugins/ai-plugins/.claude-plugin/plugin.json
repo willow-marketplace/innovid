@@ -2,6 +2,7 @@
   "name": "ai-plugins",
   "version": "2.1.0",
   "description": "Endor Labs Agent Kit setup and security workflow agents and skills for Cursor.",
+  "updatedAt": "2026-07-09T15:03:38.311Z",
   "author": {
     "url": "https://www.endorlabs.com/",
     "name": "Endor Labs",
@@ -20,6 +21,39 @@
     "AppSec"
   ],
   "skills": "./skills/",
+  "agents": "./agents/",
+  "hooks": {
+    "afterFileEdit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ./hooks/check-manifest-edit.sh afterFileEdit"
+          }
+        ]
+      }
+    ],
+    "beforeShellExecution": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ./hooks/check-dep-install.sh beforeShellExecution"
+          }
+        ]
+      }
+    ],
+    "beforeSubmitPrompt": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ./hooks/suggest-endor-tools.sh beforeSubmitPrompt"
+          }
+        ]
+      }
+    ]
+  },
   "mcpServers": {
     "endor-cli-tools": {
       "args": [

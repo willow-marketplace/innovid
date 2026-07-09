@@ -2,6 +2,7 @@
   "name": "cds-mcp",
   "version": "0.0.5",
   "description": "Model Context Protocol (MCP) server for AI-assisted development of CAP applications.",
+  "updatedAt": "2026-07-09T15:04:00.862Z",
   "author": {
     "name": "SAP SE"
   },

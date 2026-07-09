@@ -2,6 +2,7 @@
   "name": "learning-output-style",
   "version": "1.0.0",
   "description": "Interactive learning mode that requests meaningful code contributions at decision points (mimics the unshipped Learning output style)",
+  "updatedAt": "2026-07-09T15:04:40.255Z",
   "author": {
     "name": "Anthropic",
     "email": "support@anthropic.com"
@@ -10,7 +11,12 @@
   "hooks": {
     "SessionStart": [
       {
-        "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks-handlers/session-start.sh\""
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks-handlers/session-start.sh\""
+          }
+        ]
       }
     ]
   }

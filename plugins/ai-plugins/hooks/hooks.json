@@ -1,0 +1,34 @@
+{
+  "hooks": {
+    "afterFileEdit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ./hooks/check-manifest-edit.sh afterFileEdit"
+          }
+        ]
+      }
+    ],
+    "beforeShellExecution": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ./hooks/check-dep-install.sh beforeShellExecution"
+          }
+        ]
+      }
+    ],
+    "beforeSubmitPrompt": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ./hooks/suggest-endor-tools.sh beforeSubmitPrompt"
+          }
+        ]
+      }
+    ]
+  }
+}

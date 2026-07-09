@@ -2,6 +2,7 @@
   "name": "planetscale",
   "version": "1.0.0",
   "description": "An authenticated hosted MCP server that accesses your PlanetScale organizations, databases, branches, schema, and Insights data.",
+  "updatedAt": "2026-07-09T15:05:11.909Z",
   "author": {
     "name": "PlanetScale"
   },

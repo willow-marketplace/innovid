@@ -1,7 +1,8 @@
 {
   "name": "resend",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Send and receive emails, build with React Email, follow deliverability best practices",
+  "updatedAt": "2026-07-09T15:05:28.156Z",
   "author": {
     "url": "https://resend.com",
     "name": "Resend",
@@ -20,10 +21,7 @@
   "mcpServers": {
     "resend": {
       "url": "https://mcp.resend.com/mcp",
-      "type": "http",
-      "headers": {
-        "Authorization": "Bearer ${RESEND_API_KEY}"
-      }
+      "type": "http"
     }
   }
 }

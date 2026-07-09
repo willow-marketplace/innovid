@@ -1,7 +1,8 @@
 {
   "name": "confidence",
-  "version": "0.4.2",
+  "version": "0.5.0",
   "description": "Access Confidence feature flags, experiments, and migration tools directly from Claude Code.",
+  "updatedAt": "2026-07-09T15:04:13.638Z",
   "author": {
     "url": "https://confidence.spotify.com",
     "name": "Spotify Confidence"
@@ -16,6 +17,7 @@
     "openfeature"
   ],
   "skills": "./skills/",
+  "commands": "./commands/",
   "mcpServers": {
     "confidence-docs": {
       "url": "https://mcp.confidence.dev/mcp/docs",

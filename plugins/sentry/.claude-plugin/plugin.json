@@ -1,7 +1,8 @@
 {
   "name": "sentry",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Sentry Plugin for Claude Code to help with debugging including MCP, commands, and skill capabilities.",
+  "updatedAt": "2026-07-09T15:05:40.148Z",
   "author": {
     "name": "Sentry"
   },
@@ -14,6 +15,7 @@
     "error-tracking"
   ],
   "skills": "./skills/",
+  "commands": "./commands/",
   "mcpServers": {
     "sentry": {
       "url": "https://mcp.sentry.dev/mcp?utm_source=plugin",

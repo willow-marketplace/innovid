@@ -2,6 +2,7 @@
   "name": "ralph-loop",
   "version": "1.0.0",
   "description": "Continuous self-referential AI loops for interactive iterative development, implementing the Ralph Wiggum technique. Run Claude in a while-true loop with the same prompt until task completion.",
+  "updatedAt": "2026-07-09T15:05:16.988Z",
   "author": {
     "name": "Anthropic",
     "email": "support@anthropic.com"
@@ -11,7 +12,12 @@
   "hooks": {
     "Stop": [
       {
-        "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/stop-hook.sh\""
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/stop-hook.sh\""
+          }
+        ]
       }
     ]
   }

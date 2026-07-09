@@ -2,6 +2,7 @@
   "name": "coderabbit",
   "version": "1.1.1",
   "description": "AI-powered code review in Claude Code, powered by CodeRabbit",
+  "updatedAt": "2026-07-09T15:04:08.359Z",
   "author": {
     "url": "https://coderabbit.ai",
     "name": "CodeRabbit AI",
@@ -15,5 +16,7 @@
     "coderabbit",
     "claude-code"
   ],
-  "skills": "./skills/"
+  "skills": "./skills/",
+  "commands": "./commands/",
+  "agents": "./agents/"
 }

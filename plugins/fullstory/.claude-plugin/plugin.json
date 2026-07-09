@@ -2,6 +2,7 @@
   "name": "fullstory",
   "version": "0.1.0",
   "description": "Connect Claude to Fullstory to query behavioral analytics, session replays, and customer experience insights.",
+  "updatedAt": "2026-07-09T15:04:34.103Z",
   "author": {
     "name": "Fullstory"
   },
@@ -13,6 +14,7 @@
     "session-replay"
   ],
   "skills": "./skills/",
+  "agents": "./agents/",
   "mcpServers": {
     "fullstory": {
       "url": "https://api.fullstory.com/mcp/fullstory",

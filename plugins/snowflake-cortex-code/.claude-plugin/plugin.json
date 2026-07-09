@@ -1,7 +1,8 @@
 {
   "name": "snowflake-cortex-code",
-  "version": "3.2.2",
+  "version": "3.2.3",
   "description": "Automatically route Snowflake prompts from Claude Code to Cortex Code for execution.",
+  "updatedAt": "2026-07-09T15:05:39.476Z",
   "author": {
     "name": "Snowflake"
   },
@@ -14,5 +15,27 @@
     "sql",
     "data"
   ],
-  "skills": "./skills/"
+  "skills": "./skills/",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/router/discover_cortex.py\" || python \"${CLAUDE_PLUGIN_ROOT}/scripts/router/discover_cortex.py\""
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/router/prompt_filter.py\" || python \"${CLAUDE_PLUGIN_ROOT}/scripts/router/prompt_filter.py\""
+          }
+        ]
+      }
+    ]
+  }
 }

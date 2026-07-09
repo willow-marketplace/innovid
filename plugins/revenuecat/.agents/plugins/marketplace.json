@@ -1,0 +1,17 @@
+{
+  "name": "RevenueCat",
+  "plugins": [
+    {
+      "name": "RevenueCat",
+      "source": { "source": "local", "path": "./revenuecat" },
+      "policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" },
+      "category": "Productivity"
+    },
+    {
+      "name": "revenuecat-play-billing",
+      "source": { "source": "local", "path": "./revenuecat-play-billing" },
+      "policy": { "installation": "AVAILABLE" },
+      "category": "Productivity"
+    }
+  ]
+}

@@ -2,6 +2,7 @@
   "name": "hostinger",
   "version": "1.0.0",
   "description": "Deploy, manage and monitor Hostinger services — Websites, Domains, Ecommerce, Email Marketing, Subscriptions & Payments, and VPS. Authenticate via browser (OAuth) or API token.",
+  "updatedAt": "2026-07-09T15:04:36.155Z",
   "author": {
     "url": "https://www.hostinger.com",
     "name": "Hostinger"

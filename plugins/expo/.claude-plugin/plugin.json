@@ -1,7 +1,8 @@
 {
   "name": "expo",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "description": "Official Expo skills for building, deploying, upgrading, and debugging Expo apps",
+  "updatedAt": "2026-07-09T15:04:32.231Z",
   "author": {
     "name": "Expo Team",
     "email": "support@expo.dev"

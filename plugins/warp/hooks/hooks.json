@@ -2,34 +2,64 @@
   "hooks": {
     "Notification": [
       {
-        "command": "${CLAUDE_PLUGIN_ROOT}/scripts/on-notification.sh",
-        "matcher": "idle_prompt"
+        "matcher": "idle_prompt",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/on-notification.sh"
+          }
+        ]
       }
     ],
     "SessionStart": [
       {
-        "command": "${CLAUDE_PLUGIN_ROOT}/scripts/on-session-start.sh",
-        "matcher": "startup|resume"
+        "matcher": "startup|resume",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/on-session-start.sh"
+          }
+        ]
       }
     ],
     "Stop": [
       {
-        "command": "${CLAUDE_PLUGIN_ROOT}/scripts/on-stop.sh"
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/on-stop.sh"
+          }
+        ]
       }
     ],
     "PermissionRequest": [
       {
-        "command": "${CLAUDE_PLUGIN_ROOT}/scripts/on-permission-request.sh"
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/on-permission-request.sh"
+          }
+        ]
       }
     ],
     "UserPromptSubmit": [
       {
-        "command": "${CLAUDE_PLUGIN_ROOT}/scripts/on-prompt-submit.sh"
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/on-prompt-submit.sh"
+          }
+        ]
       }
     ],
     "PostToolUse": [
       {
-        "command": "${CLAUDE_PLUGIN_ROOT}/scripts/on-post-tool-use.sh"
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/on-post-tool-use.sh"
+          }
+        ]
       }
     ]
   }

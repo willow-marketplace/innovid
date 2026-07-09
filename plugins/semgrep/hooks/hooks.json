@@ -2,25 +2,45 @@
   "hooks": {
     "PreToolUse": [
       {
-        "command": "${CLAUDE_PLUGIN_ROOT}/scripts/hook.sh claude PreToolUse",
-        "matcher": "Write|Edit|Bash"
+        "matcher": "Write|Edit|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/hook.sh claude PreToolUse"
+          }
+        ]
       }
     ],
     "PostToolUse": [
       {
-        "command": "${CLAUDE_PLUGIN_ROOT}/scripts/hook.sh claude PostToolUse",
-        "matcher": "Write|Edit|Bash"
+        "matcher": "Write|Edit|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/hook.sh claude PostToolUse"
+          }
+        ]
       }
     ],
     "SessionStart": [
       {
-        "command": "${CLAUDE_PLUGIN_ROOT}/scripts/hook.sh claude SessionStart",
-        "matcher": "startup|resume|clear|compact"
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/hook.sh claude SessionStart"
+          }
+        ]
       }
     ],
     "UserPromptSubmit": [
       {
-        "command": "${CLAUDE_PLUGIN_ROOT}/scripts/hook.sh claude UserPromptSubmit"
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/hook.sh claude UserPromptSubmit"
+          }
+        ]
       }
     ]
   }

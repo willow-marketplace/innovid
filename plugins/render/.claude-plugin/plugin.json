@@ -2,6 +2,7 @@
   "name": "render",
   "version": "1.0.0",
   "description": "Deploy, debug, and monitor applications on Render. Includes skills, an agent, slash commands, and a render.yaml validation hook.",
+  "updatedAt": "2026-07-09T15:05:28.348Z",
   "author": {
     "url": "https://render.com",
     "name": "Render",
@@ -17,5 +18,20 @@
     "monitoring",
     "debugging"
   ],
-  "skills": "./skills/"
+  "skills": "./skills/",
+  "commands": "./commands/",
+  "agents": "./agents/",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/validate-render-yaml-hook.sh"
+          }
+        ]
+      }
+    ]
+  }
 }
