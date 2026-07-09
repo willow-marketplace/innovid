@@ -2,6 +2,6 @@
   "name": "atomic-agents",
   "version": "1.0.0",
   "description": "Comprehensive development workflow for building AI agents with the Atomic Agents framework. Includes specialized agents for schema design, architecture planning, code review, and tool development. Features guided workflows, progressive-disclosure skills, and best practice validation.",
-  "updatedAt": "2026-07-09T15:03:53.816Z",
+  "updatedAt": "2026-07-09T15:18:30.681Z",
   "homepage": "https://github.com/BrainBlend-AI/atomic-agents"
 }

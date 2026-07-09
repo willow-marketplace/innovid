@@ -2,7 +2,7 @@
   "name": "jdtls-lsp",
   "version": "1.0.0",
   "description": "Java language server (Eclipse JDT.LS) for code intelligence",
-  "updatedAt": "2026-07-09T15:04:36.614Z",
+  "updatedAt": "2026-07-09T15:19:10.553Z",
   "author": {
     "name": "Anthropic",
     "email": "support@anthropic.com"
