@@ -2,7 +2,7 @@
   "name": "render",
   "version": "1.0.0",
   "description": "Deploy, debug, and monitor applications on Render. Includes skills, an agent, slash commands, and a render.yaml validation hook.",
-  "updatedAt": "2026-07-12T12:00:49.668Z",
+  "updatedAt": "2026-07-12T12:02:09.489Z",
   "author": {
     "url": "https://render.com",
     "name": "Render",

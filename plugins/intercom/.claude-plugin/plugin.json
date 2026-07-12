@@ -2,7 +2,7 @@
   "name": "intercom",
   "version": "1.0.0",
   "description": "Intercom integration for Claude Code. Search conversations, analyze customer support patterns, look up contacts and companies, and install the Intercom Messenger. Connect your Intercom workspace to get real-time insights from customer data.",
-  "updatedAt": "2026-07-12T12:00:33.619Z",
+  "updatedAt": "2026-07-12T12:02:09.502Z",
   "author": {
     "url": "https://intercom.com",
     "name": "Intercom"
