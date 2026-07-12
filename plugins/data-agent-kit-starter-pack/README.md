@@ -61,7 +61,7 @@ agy plugin install https://github.com/gemini-cli-extensions/data-agent-kit-start
 
 Install the extension directly from GitHub:
 ```bash
-gemini extensions install https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack --ref 0.4.0
+gemini extensions install https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack --ref 0.6.1
 ```
 </details>
 
@@ -79,16 +79,30 @@ Run the `claude` command to start the agent, then follow these steps:
 <details>
 <summary><b>Codex</b></summary>
 
+#### Option 1: Marketplace Installation (Recommended)
+
+Codex utilizes a marketplace system for plugins. Install the Data Agent Kit Starter Pack marketplace to access the plugin:
+
+```bash
+# Step 1. Add marketplace
+codex plugin marketplace add https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack
+
+# Step 2. Add the plugin
+codex plugin add dak@data-agent-kit-starter-pack-marketplace
+```
+
+#### Option 2: Script Installation (Alternative)
+
 1. **Run the installation script in your terminal:**
 
 **macOS / Linux:**
 ```bash
-CODEX_TAG="0.4.0"; curl -sSL https://raw.githubusercontent.com/gemini-cli-extensions/data-agent-kit-starter-pack/$CODEX_TAG/codex-install.sh | bash -s -- $CODEX_TAG
+CODEX_TAG="0.6.1"; curl -sSL https://raw.githubusercontent.com/gemini-cli-extensions/data-agent-kit-starter-pack/$CODEX_TAG/codex-install.sh | bash -s -- $CODEX_TAG
 ```
 
 **Windows:**
 ```powershell
-$env:CODEX_TAG="0.4.0"; irm "https://raw.githubusercontent.com/gemini-cli-extensions/data-agent-kit-starter-pack/$env:CODEX_TAG/codex-install.ps1" | iex
+$env:CODEX_TAG="0.6.1"; irm "https://raw.githubusercontent.com/gemini-cli-extensions/data-agent-kit-starter-pack/$env:CODEX_TAG/codex-install.ps1" | iex
 ```
 
 2. **Install the plugin in Codex:**
@@ -139,19 +153,20 @@ Edit the configuration file:
 <summary><b>Claude Code</b></summary>
 
 Edit the configuration file:
-`~/.claude/plugins/cache/data-agent-kit-starter-pack-marketplace/data-agent-kit-starter-pack/0.4.0/.claude-mcp.json`
+`~/.claude/plugins/cache/claude-plugins-official/data-agent-kit-starter-pack/0.6.1/.claude-mcp.json`
 </details>
 
 <details>
 <summary><b>Codex</b></summary>
 
 1. Edit the configuration file:
-`~/.codex/plugins/cache/personal/data-agent-kit-starter-pack/0.4.0/.mcp.json`
+`~/.codex/plugins/cache/data-agent-kit-starter-pack-marketplace/dak/0.6.1/.mcp.json`
 
 2. Restart Codex.
 </details>
 
 <!-- {x-release-please-end} -->
+<!-- release-version-force-update: 0.6.1 -->
 
 ## Usage Examples
 

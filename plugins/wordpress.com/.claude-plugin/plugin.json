@@ -2,6 +2,6 @@
   "name": "wordpress.com",
   "version": "1.0.0",
   "description": "Uses Claude Code to create and edit WordPress sites with WordPress Studio before deploying changes to your WordPress.com site.",
-  "updatedAt": "2026-07-09T15:15:40.229Z",
+  "updatedAt": "2026-07-09T15:21:18.232Z",
   "homepage": "https://developer.wordpress.com/wordpress-com-claude-code-plugin/"
 }

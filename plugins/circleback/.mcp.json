@@ -1,7 +1,7 @@
 {
   "mcpServers": {
     "circleback": {
-      "url": "https://app.circleback.ai/api/mcp",
+      "url": "https://circleback.ai/api/mcp",
       "type": "http"
     }
   }

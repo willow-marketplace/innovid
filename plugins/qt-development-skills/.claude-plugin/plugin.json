@@ -2,7 +2,7 @@
   "name": "qt-development-skills",
   "version": "1.6.1",
   "description": "Agentic engineering skills for Qt software development, including Qt C++/QML code review, QML coding, and Qt C++/QML code documentation. Bundles the hosted Qt Documentation MCP server for live Qt API lookups. These skills use AI and can make mistakes. Always double-check the output carefully.",
-  "updatedAt": "2026-07-09T15:19:55.840Z",
+  "updatedAt": "2026-07-12T12:00:47.774Z",
   "author": {
     "name": "Qt Group"
   },

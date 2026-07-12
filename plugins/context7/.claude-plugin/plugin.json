@@ -2,7 +2,7 @@
   "name": "context7",
   "version": "1.0.0",
   "description": "Upstash Context7 MCP server for up-to-date documentation lookup. Pull version-specific documentation and code examples directly from source repositories into your LLM context.",
-  "updatedAt": "2026-07-09T15:18:44.840Z",
+  "updatedAt": "2026-07-12T12:00:23.365Z",
   "author": {
     "name": "Upstash"
   }
