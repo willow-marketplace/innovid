@@ -2,7 +2,7 @@
   "name": "chrome-devtools-mcp",
   "version": "1.5.0",
   "description": "Reliable automation, in-depth debugging, and performance analysis in Chrome using Chrome DevTools and Puppeteer",
-  "updatedAt": "2026-07-12T12:17:17.536Z",
+  "updatedAt": "2026-07-13T00:01:49.219Z",
   "skills": "./skills/",
   "mcpServers": {
     "chrome-devtools": {

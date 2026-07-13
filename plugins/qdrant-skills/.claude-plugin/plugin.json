@@ -2,7 +2,7 @@
   "name": "qdrant-skills",
   "version": "1.0.0",
   "description": "Agent skills for Qdrant vector search: scaling, performance optimization, search quality, monitoring, deployment, edge, model migration, version upgrades, and SDK usage",
-  "updatedAt": "2026-07-13T00:00:48.289Z",
+  "updatedAt": "2026-07-13T00:01:53.280Z",
   "author": {
     "name": "Qdrant"
   },
