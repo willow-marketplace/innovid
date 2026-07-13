@@ -2,7 +2,7 @@
   "name": "oz-harness-support",
   "version": "1.1.2",
   "description": "Warp terminal integration for Claude Code in Oz cloud agent environments, including parent-message delivery hooks",
-  "updatedAt": "2026-07-13T00:02:37.676Z",
+  "updatedAt": "2026-07-13T12:01:58.754Z",
   "author": {
     "url": "https://warp.dev",
     "name": "Warp"

@@ -2,7 +2,7 @@
   "name": "runway-api",
   "version": "2.1.0",
   "description": "Video generation at scale. Generate videos, images, and audio with Runway's API — batch ad campaigns, product videos, multishot stories, and creative iteration. Supports seedance2, gen4.5, veo3, Nano, Banana Pro, and more.",
-  "updatedAt": "2026-07-13T12:00:55.500Z",
+  "updatedAt": "2026-07-13T12:02:16.185Z",
   "author": {
     "name": "Runway",
     "email": "ops@runwayml.com"

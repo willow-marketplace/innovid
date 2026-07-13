@@ -2,7 +2,7 @@
   "name": "pinecone",
   "version": "1.5.0",
   "description": "Pinecone vector database integration. Streamline your Pinecone development with powerful tools for managing vector indexes, querying data, and rapid prototyping. Use slash commands like /quickstart to generate AGENTS.md files and initialize Python projects and /query to quickly explore indexes. Access the Pinecone MCP server for creating, describing, upserting and querying indexes with Claude. Perfect for developers building semantic search, RAG applications, recommendation systems, and other vector-based applications with Pinecone.",
-  "updatedAt": "2026-07-13T12:00:47.103Z",
+  "updatedAt": "2026-07-13T12:02:01.555Z",
   "author": {
     "name": "Pinecone"
   },

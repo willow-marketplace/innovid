@@ -2,7 +2,7 @@
   "name": "alloydb",
   "version": "0.2.0",
   "description": "Create, connect, and interact with an AlloyDB for PostgreSQL database and data.",
-  "updatedAt": "2026-07-13T12:01:13.104Z",
+  "updatedAt": "2026-07-13T12:01:58.855Z",
   "author": {
     "name": "Google LLC",
     "email": "data-cloud-ai-integrations@google.com"
