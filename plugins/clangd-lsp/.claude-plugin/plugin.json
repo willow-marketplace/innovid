@@ -2,7 +2,7 @@
   "name": "clangd-lsp",
   "version": "1.0.0",
   "description": "C/C++ language server (clangd) for code intelligence",
-  "updatedAt": "2026-07-12T12:02:09.397Z",
+  "updatedAt": "2026-07-13T00:00:21.507Z",
   "author": {
     "name": "Anthropic",
     "email": "support@anthropic.com"

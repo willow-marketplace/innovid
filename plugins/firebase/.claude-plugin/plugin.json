@@ -2,7 +2,7 @@
   "name": "firebase",
   "version": "1.0.0",
   "description": "Google Firebase MCP integration. Manage Firestore databases, authentication, cloud functions, hosting, and storage. Build and manage your Firebase backend directly from your development workflow.",
-  "updatedAt": "2026-07-12T12:02:09.538Z",
+  "updatedAt": "2026-07-13T00:00:32.134Z",
   "author": {
     "name": "Google"
   }

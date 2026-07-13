@@ -2,7 +2,7 @@
   "name": "mintlify",
   "version": "1.0.0",
   "description": "Build beautiful documentation sites with Mintlify. Convert non-markdown files into properly formatted MDX pages, add and modify content with correct component use, and automate documentation updates.",
-  "updatedAt": "2026-07-12T12:02:09.475Z",
+  "updatedAt": "2026-07-13T00:00:38.575Z",
   "homepage": "https://www.mintlify.com/",
   "skills": "./skills/",
   "mcpServers": {
