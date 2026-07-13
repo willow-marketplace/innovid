@@ -2,7 +2,7 @@
   "name": "gitlab",
   "version": "1.0.0",
   "description": "GitLab DevOps platform integration. Manage repositories, merge requests, CI/CD pipelines, issues, and wikis. Full access to GitLab's comprehensive DevOps lifecycle tools.",
-  "updatedAt": "2026-07-13T00:01:49.184Z",
+  "updatedAt": "2026-07-13T12:00:34.401Z",
   "author": {
     "name": "GitLab"
   },

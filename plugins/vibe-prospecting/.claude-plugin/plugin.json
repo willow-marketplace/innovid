@@ -2,7 +2,7 @@
   "name": "vibe-prospecting",
   "version": "1.0.0",
   "description": "Power your chat with B2B data to create lead lists, research companies, personalize your outreach, and more. Search any company or professional to access emails, phone numbers, roles, growth signals, tech stack details, business events, website changes, and more.",
-  "updatedAt": "2026-07-13T00:02:10.777Z",
+  "updatedAt": "2026-07-13T12:01:06.070Z",
   "author": {
     "url": "https://vibeprospecting.ai",
     "name": "vibeprospecting.ai",
@@ -19,5 +19,6 @@
     "companies",
     "contacts"
   ],
-  "skills": "./skills/"
+  "skills": "./skills/",
+  "commands": "./commands/"
 }

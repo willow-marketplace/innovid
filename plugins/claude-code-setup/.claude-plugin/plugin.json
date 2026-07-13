@@ -2,7 +2,7 @@
   "name": "claude-code-setup",
   "version": "1.0.0",
   "description": "Analyze codebases and recommend tailored Claude Code automations such as hooks, skills, MCP servers, and subagents.",
-  "updatedAt": "2026-07-13T00:01:49.194Z",
+  "updatedAt": "2026-07-13T12:00:21.135Z",
   "author": {
     "name": "Anthropic",
     "email": "support@anthropic.com"

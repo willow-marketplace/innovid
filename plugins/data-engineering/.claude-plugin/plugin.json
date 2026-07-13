@@ -2,7 +2,7 @@
   "name": "data-engineering",
   "version": "0.1.0",
   "description": "Data engineering plugin - warehouse exploration, pipeline authoring, Airflow integration",
-  "updatedAt": "2026-07-13T00:01:49.399Z",
+  "updatedAt": "2026-07-13T12:00:28.231Z",
   "skills": "./skills/",
   "hooks": {
     "SessionStart": [

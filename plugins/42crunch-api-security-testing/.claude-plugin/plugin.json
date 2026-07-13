@@ -2,7 +2,7 @@
   "name": "42crunch-api-security-testing",
   "version": "1.15.0",
   "description": "Catch API security issues during development: audit, scan, remediate, validate with AI guardrails in Claude Code.",
-  "updatedAt": "2026-07-13T00:01:49.353Z",
+  "updatedAt": "2026-07-13T12:01:10.032Z",
   "author": {
     "url": "https://github.com/42Crunch",
     "name": "42Crunch",

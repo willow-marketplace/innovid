@@ -1,62 +1,27 @@
-# Installing a Plugin from GitHub in Claude Cowork
+# Connect Vibe Prospecting in Claude Cowork
 
-Cowork's plugin installer works with `.plugin` files — a zip archive containing the plugin's skills, MCP config, and manifest. If a plugin is hosted on GitHub but not in the Cowork marketplace, you can package it yourself in a few steps.
+Vibe Prospecting runs in Cowork through its MCP connector. Cowork cannot run the vpai CLI, so connect it from the connector store—no GitHub clone, packaging, or command line is required.
 
-## Prerequisites
+## Connector setup
 
-- Git installed on your machine
-- Node.js (only needed if the plugin includes a CLI bundle)
-- A running Claude Cowork session
+Before doing any work, check whether Vibe Prospecting MCP connector tools are in your tool list (look for `mcp__*__fetch-entities`).
 
-## Steps
+If those tools are present, use them directly.
 
-### 1. Clone the repository
+If those tools are not present, ask Claude to search the connector store for **Vibe Prospecting** or **Explorium**, then suggest the official Vibe Prospecting connector:
 
-```bash
-git clone https://github.com/explorium-ai/vibeprospecting-plugin.git
-cd vibeprospecting-plugin
-```
+- If the connector is already installed but disabled for this session, select **Use** on the connector card.
+- Otherwise, select **Connect** on the connector card to install and authorize it.
 
-### 2. Package it as a `.plugin` file
+Re-check the tool list until `mcp__*__fetch-entities` appears. Do not start prospecting until the tools appear.
 
-A `.plugin` file is just a zip archive of the plugin directory. Run this from inside the cloned folder:
+If the suggested card fails, open the **connector / integrations UI** directly, connect Vibe Prospecting there, and re-check the tool list.
 
-```bash
-zip -r ../vpai.plugin . -x "*.DS_Store" -x ".git/*"
-```
+## Troubleshooting
 
-This creates `vpai.plugin` one level up from the cloned directory.
-
-### 3. Install in Cowork
-
-Open a Cowork session and ask Claude to install the file:
-
-> "Install this plugin: `/path/to/vpai.plugin`"
-
-Or just drag and drop the `.plugin` file into the Cowork chat window. Cowork will show a preview of the plugin's skills and a button to accept the installation.
-
-Alternatively, you can ask Claude to fetch and package the plugin directly from the GitHub URL — Claude can clone the repo in its sandbox, zip it, and deliver the `.plugin` file to your outputs folder for you to install.
-
-## What gets installed
-
-The Vibe Prospecting plugin (`vpai`) includes:
-
-- **vibe-prospecting skill** — guides Claude through building lead lists, searching companies, enriching contacts, matching CSV/JSON lists to Explorium IDs, and fetching business events
-- **MCP server** — connects to `https://vibeprospecting.explorium.ai/mcp` to handle authentication; Claude will call a `get-auth-token` tool before running any data commands
-
-## Authentication
-
-After install, follow **[Authenticate](../README.md#authenticate)** in the plugin README. For Cowork sandbox mount paths and polling, use [`skills/vibe-prospecting/references/login.md`](../skills/vibe-prospecting/references/login.md).
-
-## Updating
-
-To get the latest version, re-clone the repo, re-zip, and reinstall — Cowork will replace the existing installation.
-
-```bash
-rm -rf vibeprospecting-plugin
-git clone https://github.com/explorium-ai/vibeprospecting-plugin.git
-cd vibeprospecting-plugin
-zip -r ../vpai.plugin . -x "*.DS_Store" -x ".git/*"
-```
-
-Then install `vpai.plugin` again as in Step 3.
+| Problem | Fix |
+|---|---|
+| No `mcp__*__fetch-entities` in tool list | Search the connector store for Vibe Prospecting, suggest it, then re-check tools |
+| User asks to use CLI or `npx vpai` | Cowork cannot run the CLI; connector store is the only path |
+| Connector connect fails | Open connector store, connect Vibe Prospecting again, then re-check tools |
+| Auth / 401 on connector tools | Reconnect Vibe Prospecting from the connector or integrations UI |
