@@ -2,7 +2,7 @@
   "name": "youdotcom-agent-skills",
   "version": "1.0.0",
   "description": "You.com agent skills for web search, research with citations, and content extraction. Guided integrations for Vercel AI SDK, Claude Agent SDK, OpenAI Agents SDK, crewAI, LangChain, Microsoft Teams.ai, direct REST API, and bash CLI.",
-  "updatedAt": "2026-07-14T00:02:20.153Z",
+  "updatedAt": "2026-07-14T12:02:20.494Z",
   "author": {
     "url": "https://you.com",
     "name": "You.com",
