@@ -2,7 +2,7 @@
   "name": "claude-mem",
   "version": "13.3.0",
   "description": "Memory compression system for Claude Code - persist context across sessions",
-  "updatedAt": "2026-07-13T12:01:58.714Z",
+  "updatedAt": "2026-07-13T12:03:01.002Z",
   "author": {
     "name": "Alex Newman"
   },

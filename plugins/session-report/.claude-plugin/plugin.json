@@ -2,7 +2,7 @@
   "name": "session-report",
   "version": "1.0.0",
   "description": "Generate an explorable HTML report of Claude Code session usage — tokens, cache efficiency, subagents, skills, and the most expensive prompts — from local ~/.claude/projects transcripts.",
-  "updatedAt": "2026-07-13T12:02:16.980Z",
+  "updatedAt": "2026-07-14T00:00:52.766Z",
   "author": {
     "name": "Anthropic",
     "email": "support@anthropic.com"

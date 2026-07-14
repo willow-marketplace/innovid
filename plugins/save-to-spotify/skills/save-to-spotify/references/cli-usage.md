@@ -18,13 +18,13 @@ Pin a version or change the install directory:
 
 ```shell
 # Specific version
-curl -fsSL https://saveto.spotify.com/install.sh | bash -s -- --version 0.1.1
+curl -fsSL https://saveto.spotify.com/install.sh | bash -s -- --version 0.1.4
 
 # Custom directory
 curl -fsSL https://saveto.spotify.com/install.sh | bash -s -- --dir ~/.local/bin
 
 # Via environment variables
-SAVE_TO_SPOTIFY_VERSION=0.1.1 SAVE_TO_SPOTIFY_INSTALL_DIR=~/.local/bin \
+SAVE_TO_SPOTIFY_VERSION=0.1.4 SAVE_TO_SPOTIFY_INSTALL_DIR=~/.local/bin \
   curl -fsSL https://saveto.spotify.com/install.sh | bash
 ```
 
@@ -206,6 +206,10 @@ save-to-spotify --json shows delete <show_id>
 ```
 
 `save-to-spotify --json shows` should be the first show-management command you run. Check what already exists before creating a new show.
+
+### Playback control
+
+`shows create` accepts `--playback-control <mode>` (currently `chapter-skip`) to set a show's skip-forward behavior at creation time. The response includes `playback_control` only when the backend applied the setting — if the field is absent, the value was dropped and the show has default controls. For behavior, constraints, and when to enable it, defer to the `configure-chapter-skip` skill.
 
 ## Managing episodes
 

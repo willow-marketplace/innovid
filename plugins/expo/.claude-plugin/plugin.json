@@ -1,13 +1,36 @@
 {
   "name": "expo",
-  "version": "1.7.0",
+  "version": "1.8.0",
   "description": "Official Expo skills for building, deploying, upgrading, and debugging Expo apps",
-  "updatedAt": "2026-07-13T12:01:58.737Z",
+  "updatedAt": "2026-07-14T00:00:29.154Z",
   "author": {
     "name": "Expo Team",
     "email": "support@expo.dev"
   },
   "skills": "./skills/",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Skill",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/skills/expo-skill-feedback/scripts/skill-event.cjs\" --skill auto --initiator ai --plugin-root \"${CLAUDE_PLUGIN_ROOT}\" --detach --quiet"
+          }
+        ]
+      }
+    ],
+    "UserPromptExpansion": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/skills/expo-skill-feedback/scripts/skill-event.cjs\" --skill auto --initiator user --plugin-root \"${CLAUDE_PLUGIN_ROOT}\" --detach --quiet"
+          }
+        ]
+      }
+    ]
+  },
   "mcpServers": {
     "expo": {
       "url": "https://mcp.expo.dev/mcp",
