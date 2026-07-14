@@ -2,7 +2,7 @@
   "name": "spotify-ads-api",
   "version": "1.6.0",
   "description": "Manage Spotify ad campaigns with natural language. Create campaigns, ad sets, ads, pull reports, and handle OAuth — all through conversation.",
-  "updatedAt": "2026-07-14T00:00:56.985Z",
+  "updatedAt": "2026-07-14T00:02:10.104Z",
   "author": {
     "name": "Alex Murphy"
   },

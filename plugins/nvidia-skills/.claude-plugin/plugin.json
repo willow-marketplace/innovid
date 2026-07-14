@@ -2,7 +2,7 @@
   "name": "nvidia-skills",
   "version": "1.2.2",
   "description": "Skills for NVIDIAs ecosystem spans GPU acceleration, CUDA, AI agents, inference, robotics, Physical AI, Omniverse, and simulation. This plugin helps you understand the pieces, choose a path, validate your setup, and build practical NVIDIA-powered workflows.",
-  "updatedAt": "2026-07-14T00:00:48.315Z",
+  "updatedAt": "2026-07-14T00:02:05.504Z",
   "author": {
     "url": "https://github.com/NVIDIA/skills",
     "name": "NVIDIA"
