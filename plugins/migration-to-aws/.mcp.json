@@ -21,6 +21,10 @@
     "awsknowledge": {
       "url": "https://knowledge-mcp.global.api.aws",
       "type": "http"
+    },
+    "temporal-docs": {
+      "url": "https://temporal.mcp.kapa.ai",
+      "type": "http"
     }
   }
 }
