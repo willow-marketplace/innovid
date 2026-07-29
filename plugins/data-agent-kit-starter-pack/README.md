@@ -61,7 +61,7 @@ agy plugin install https://github.com/gemini-cli-extensions/data-agent-kit-start
 
 Install the extension directly from GitHub:
 ```bash
-gemini extensions install https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack --ref 0.6.1
+gemini extensions install https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack --ref 0.7.2
 ```
 </details>
 
@@ -97,12 +97,12 @@ codex plugin add dak@data-agent-kit-starter-pack-marketplace
 
 **macOS / Linux:**
 ```bash
-CODEX_TAG="0.6.1"; curl -sSL https://raw.githubusercontent.com/gemini-cli-extensions/data-agent-kit-starter-pack/$CODEX_TAG/codex-install.sh | bash -s -- $CODEX_TAG
+CODEX_TAG="0.7.2"; curl -sSL https://raw.githubusercontent.com/gemini-cli-extensions/data-agent-kit-starter-pack/$CODEX_TAG/codex-install.sh | bash -s -- $CODEX_TAG
 ```
 
 **Windows:**
 ```powershell
-$env:CODEX_TAG="0.6.1"; irm "https://raw.githubusercontent.com/gemini-cli-extensions/data-agent-kit-starter-pack/$env:CODEX_TAG/codex-install.ps1" | iex
+$env:CODEX_TAG="0.7.2"; irm "https://raw.githubusercontent.com/gemini-cli-extensions/data-agent-kit-starter-pack/$env:CODEX_TAG/codex-install.ps1" | iex
 ```
 
 2. **Install the plugin in Codex:**
@@ -153,20 +153,20 @@ Edit the configuration file:
 <summary><b>Claude Code</b></summary>
 
 Edit the configuration file:
-`~/.claude/plugins/cache/claude-plugins-official/data-agent-kit-starter-pack/0.6.1/.claude-mcp.json`
+`~/.claude/plugins/cache/claude-plugins-official/data-agent-kit-starter-pack/0.7.2/.claude-mcp.json`
 </details>
 
 <details>
 <summary><b>Codex</b></summary>
 
 1. Edit the configuration file:
-`~/.codex/plugins/cache/data-agent-kit-starter-pack-marketplace/dak/0.6.1/.mcp.json`
+`~/.codex/plugins/cache/data-agent-kit-starter-pack-marketplace/dak/0.7.2/.mcp.json`
 
 2. Restart Codex.
 </details>
 
 <!-- {x-release-please-end} -->
-<!-- release-version-force-update: 0.6.1 -->
+<!-- release-version-force-update: 0.7.2 -->
 
 ## Usage Examples
 
@@ -207,19 +207,46 @@ Cloud resources by enforcing **The Principle of Least Privilege** across all
 CLIs, MCP servers and other resources available to your agents.
 
 *   **Service Accounts:** Use
-    [service accounts](https://docs.cloud.google.com/docs/authentication/use-service-account-impersonation)
+    [service accounts](https://cloud.google.com/docs/authentication/use-service-account-impersonation)
     instead of end user credentials to access Google Cloud resources.
 *   **Limited Permissions:** Assign roles with
-    [limited permissions](https://docs.cloud.google.com/iam/docs/roles-overview)
+    [limited permissions](https://cloud.google.com/iam/docs/roles-overview)
     to the service account that you're using for authentication.
 *   **Principal Access Boundaries:** Prevent unwanted cross-org agent access by
     using
-    [Principal Access Boundary policies](https://docs.cloud.google.com/iam/docs/principal-access-boundary-policies#use-case-one-project)
+    [Principal Access Boundary policies](https://cloud.google.com/iam/docs/principal-access-boundary-policies#use-case-one-project)
     to scope your agent to projects you intend it to access.
-*   [Include a condition in the policy binding](https://docs.cloud.google.com/iam/docs/principal-access-boundary-policies#use-case-one-project)
+*   [Include a condition in the policy binding](https://cloud.google.com/iam/docs/principal-access-boundary-policies#use-case-one-project)
     to ensure that the policy only applies to the service accounts that you
     intend to restrict.
 
 You can read more
 [here](https://docs.cloud.google.com/data-cloud-extension/vs-code/prompt-injection-risk)
 on how to mitigate prompt injection attacks with Google Cloud MCP.
+
+## Usage Statistics
+
+The Data Agent Kit collects usage statistics (such as when the skills and
+MCP tools included in this kit are used) to improve the reliability and
+performance of the tool. No user code, file contents, or application data
+values are collected.
+
+### Opting Out
+
+You can opt out of usage statistics collection at any time using one of the
+following methods:
+
+#### 1. Environment Variable
+Set the `DO_NOT_TRACK` environment variable to `1` in your environment:
+```bash
+export DO_NOT_TRACK=1
+```
+
+#### 2. Configuration File
+Create or update your configuration file at `~/.data_agent_kit/config.json` to
+disable collection:
+```json
+{
+  "enableTelemetry": false
+}
+```

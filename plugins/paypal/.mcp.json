@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "paypal-sandbox": {
+      "url": "https://mcp.sandbox.paypal.com/sse",
+      "type": "sse",
+      "headers": {
+        "Authorization": "Bearer ${PAYPAL_SANDBOX_ACCESS_TOKEN}"
+      }
+    }
+  }
+}

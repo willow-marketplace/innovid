@@ -1,8 +1,8 @@
 {
   "name": "hunter",
   "version": "1.0.0",
-  "description": "Find and verify professional email addresses, search contacts by domain, and enrich company data -- directly in Claude.",
-  "updatedAt": "2026-07-14T12:01:38.841Z",
+  "description": "Find and verify professional email addresses, search contacts by domain, enrich company and person data, organize leads and lists, run outreach sequences, and push to your CRM -- directly in Claude.",
+  "updatedAt": "2026-07-29T12:06:03.295Z",
   "author": {
     "url": "https://hunter.io",
     "name": "Hunter.io"
@@ -17,7 +17,10 @@
     "prospecting",
     "sales",
     "enrichment",
-    "verification"
+    "verification",
+    "sequences",
+    "outreach",
+    "crm"
   ],
   "skills": "./skills/",
   "mcpServers": {

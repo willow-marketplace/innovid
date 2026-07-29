@@ -22,7 +22,17 @@
         },
         {
           "type": "json",
+          "path": ".kimi-plugin/plugin.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
           "path": ".github/plugin/plugin.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": ".plugin/plugin.json",
           "jsonpath": "$.version"
         },
         {
@@ -42,7 +52,17 @@
         },
         {
           "type": "json",
+          "path": ".kimi-plugin/plugin.json",
+          "jsonpath": "$.mcpServers.supabase.headers[\"X-Source-Version\"]"
+        },
+        {
+          "type": "json",
           "path": "agents/copilot/.mcp.json",
+          "jsonpath": "$.mcpServers.supabase.headers[\"X-Source-Version\"]"
+        },
+        {
+          "type": "json",
+          "path": "agents/open-plugin/.mcp.json",
           "jsonpath": "$.mcpServers.supabase.headers[\"X-Source-Version\"]"
         },
         {

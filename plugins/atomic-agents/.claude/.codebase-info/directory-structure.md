@@ -1,6 +1,6 @@
 # Directory Structure
 
-*Last Updated: 2026-07-05*
+*Last Updated: 2026-07-18*
 
 ## Root Layout
 
@@ -20,10 +20,14 @@ atomic-agents/                  # repo root (uv workspace)
 │   ├── tools/<tool>/           #   one folder per tool: tool/<tool>.py, tests/, pyproject.toml
 │   └── guides/                 #   tool authoring guides (e.g. tool_structure.md)
 ├── atomic-examples/            # 16 runnable example apps (each its own project)
+├── claude-plugin/atomic-agents/ # AI-assistant plugin: 7 skills + 2 subagents (Claude Code plugin,
+│                               #   also installable cross-tool via `npx skills add eigenwise/atomic-agents`)
+├── .claude-plugin/             # marketplace.json — plugin marketplace manifest (drives npx skills discovery)
 ├── docs/                       # Sphinx + MyST documentation (api/, guides/, examples/)
 ├── guides/                     # DEV_GUIDE.md and contributor guides
-├── scripts/                    # sync_version.py, generate_llms_files.py
+├── scripts/                    # generate_llms_files.py (llms.txt index + llms-*.txt bundles)
 ├── pyproject.toml              # package metadata, deps, [tool.black], uv workspace
+├── context7.json               # Context7 indexing config + v2 API rules for AI assistants
 ├── build_and_deploy.ps1        # version bump + uv build/publish
 ├── AGENTS.md                   # the project's own design philosophy (imported by CLAUDE.md)
 └── README.md

@@ -14,6 +14,8 @@ The Buildkite CLI (`bk`) provides terminal access to builds, jobs, pipelines, se
 
 ## Quick Start
 
+`bk job list --build` requires Buildkite CLI v3.53.0 or later. Run `bk update` if the flag is unavailable.
+
 ```bash
 # Install
 brew install buildkite/buildkite/bk
@@ -27,8 +29,9 @@ bk build create
 # Watch the most recent build run
 bk build watch
 
-# Inspect a build and read a failed job's log
-bk build view
+# Inspect build state, find failed jobs, and read a failed job's log
+bk build view 429 --summary
+bk job list --pipeline my-app --build 429 --state failed
 bk job log <job-uuid>
 ```
 
@@ -143,24 +146,25 @@ bk build create -w
 
 `bk build view` (and most build commands) default to the most recent build on the current branch.
 
+Use `--summary` for status checks, polling, scripts, and agent workflows. It excludes jobs and expanded pipeline information, and skips artifact and annotation requests.
+
 ```bash
-bk build view                  # most recent build on the current branch
-bk build view 429              # a specific build number
-bk build view -s failed,broken # only show failed/broken jobs
-bk build view --mine           # most recent build by the current user
-bk build view 429 -o json      # structured output
+bk build view --summary             # latest build metadata and state
+bk build view 429 --summary         # a specific build number
+bk build view 429 --summary -o json # compact structured output
+bk build view --mine --summary      # latest build by the current user
 ```
 
 ### List builds
 
 ```bash
-bk build list                                   # 50 most recent
-bk build list --state failed --branch main      # filter by state and branch
-bk build list --since 24h --duration ">20m"     # recent slow builds
-bk build list --meta-data env=production -o json
+bk build list --summary                              # 50 most recent build summaries
+bk build list --summary --state failed --branch main # filter by state and branch
+bk build list --summary --since 24h --duration ">20m" # slow builds from the last 24 hours
+bk build list --summary --meta-data env=production -o json
 ```
 
-Server-side filters (fast): `--pipeline`, `--since`, `--until`, `--state`, `--branch`, `--creator`, `--commit`, `--meta-data`. Client-side filters: `--duration`, `--message`. Valid states: `running`, `scheduled`, `passed`, `failed`, `blocked`, `canceled`, `canceling`, `skipped`, `not_run`. Pass `--state` and `--branch` as comma-separated lists. Use `--limit N` (default 50) or `--no-limit` to control paging. See `cli/references/command-reference.md` for the full filter table.
+Use `--summary` for metadata-only output; the API requests exclude jobs and expanded pipeline information. Server-side filters (fast): `--pipeline`, `--since`, `--until`, `--state`, `--branch`, `--creator`, `--commit`, `--meta-data`. Client-side filters: `--duration`, `--message`. Valid states: `running`, `scheduled`, `passed`, `failed`, `blocked`, `canceled`, `canceling`, `skipped`, `not_run`. Pass `--state` and `--branch` as comma-separated lists. Use `--limit N` (default 50) or `--no-limit` to control paging. See `cli/references/command-reference.md` for the full filter table.
 
 ### Watch a build
 
@@ -207,12 +211,25 @@ bk job log <job-uuid> --no-timestamps   # strip timestamp prefixes
 
 ### List jobs
 
-`bk job list` extracts jobs across recent builds, with server-side (`--pipeline`, `--since`, `--until`) and client-side (`--queue`, `--state`, `--duration`) filters.
+`--step-key` and `--group-key` require Buildkite CLI v3.54.0 or later. Run `bk update` if either flag is unavailable.
+
+When the build number is known, pass `--build` so `bk job list` uses the dedicated cursor-paginated List Jobs endpoint. The pipeline can be explicit or resolved from the current repository or configuration. `--state`, `--step-key`, and `--group-key` are applied server-side; `--queue` and `--duration` remain client-side. Use `--step-key` for every job in a step, including parallel jobs, and `--group-key` for every job in a group.
+
+```bash
+bk job list --pipeline my-app --build 429 --state failed
+bk job list --build 429 --state running # pipeline auto-detected
+bk job list --build 429 --step-key test
+bk job list --build 429 --group-key verification
+```
+
+Without `--build`, the command searches across recent builds and extracts their embedded jobs:
 
 ```bash
 bk job list --queue test-queue --state running
 bk job list --duration ">10m" --order-by duration --no-limit
 ```
+
+`--step-key` and `--group-key` require `--build` and can be combined. `--limit` caps the total jobs emitted, not the API page size. Use `--no-limit` to follow every cursor page; the CLI preserves all server-side filters across cursor pages. `--since` and `--until` cannot be combined with `--build`.
 
 ### Retry, cancel, unblock, reprioritize
 
@@ -227,9 +244,9 @@ bk job reprioritize <job-uuid> 10 # raise scheduling priority
 ### Debugging workflow
 
 ```bash
-bk build list --state failed -p my-app   # find failed builds
-bk build view 429 -p my-app -s failed    # identify the failed jobs
-bk job log <job-uuid>                     # read the failing log
+bk build list --summary --state failed -p my-app
+bk job list --pipeline my-app --build 429 --state failed
+bk job log <job-uuid>
 ```
 
 ## Pipelines
@@ -249,7 +266,7 @@ bk pipeline view my-app -w       # open in browser
 
 ```bash
 bk pipeline create "My App" -r "git@github.com:org/my-app.git" --cluster-name "Default"
-bk pipeline create "My App" -r "git@github.com:org/my-app.git" --dry-run   # preview only
+bk pipeline create "My App" -r "git@github.com:org/my-app.git" --dry-run   # synthetic non-mutating preview
 ```
 
 | Flag | Short | Default | Description |
@@ -259,8 +276,10 @@ bk pipeline create "My App" -r "git@github.com:org/my-app.git" --dry-run   # pre
 | `--description` | `-d` | — | Pipeline description |
 | `--cluster-uuid` | — | — | Cluster UUID to assign the pipeline to |
 | `--cluster-name` | — | — | Cluster name (resolved to UUID) |
-| `--create-webhook` | `-W` | `false` | Create an SCM webhook (GitHub / GitHub Enterprise only) |
-| `--dry-run` | — | `false` | Show what would be created without creating it |
+| `--create-webhook` | `-W` | `false` | Create a GitHub or GitHub Enterprise SCM webhook after pipeline creation |
+| `--dry-run` | — | `false` | Print a synthetic preview without creating the pipeline; may make read-only API calls |
+
+Treat pipeline creation and `--create-webhook` as non-atomic operations: pipeline creation can succeed while SCM webhook creation fails. An SCM webhook delivers repository events and is distinct from an outbound organization notification-service webhook.
 
 > For pipeline YAML configuration, step types, and plugins, see the **buildkite-pipelines** skill.
 
@@ -273,7 +292,7 @@ bk pipeline copy my-app --target "other-org/my-app"      # across orgs (cluster 
 
 ### Validate a pipeline
 
-`bk pipeline validate` checks YAML against the pipeline schema locally (no API token needed). Defaults to `.buildkite/pipeline.yaml` or `.yml`.
+`bk pipeline validate` checks YAML against the pipeline schema locally (no API token needed). It does not check repository access, source-control provider setup, permissions, or server-side pipeline creation constraints. Defaults to `.buildkite/pipeline.yaml` or `.yml`.
 
 ```bash
 bk pipeline validate
@@ -340,8 +359,6 @@ bk queue pause <cluster-uuid> <queue-uuid>     # stop dispatching to a queue
 
 Full CRUD exists for `bk cluster`, `bk queue`, and `bk maintainer`. See `cli/references/command-reference.md` for the command list.
 
-> For cluster/queue strategy, hosted agent shapes, agent tokens, and infrastructure provisioning, see the **buildkite-agent-infrastructure** skill.
-
 ## Local Agent
 
 `bk agent run` downloads the agent, creates a temporary cluster token, and runs an ephemeral `buildkite-agent` locally — useful for testing pipeline changes against your own machine. Everything is cleaned up on Ctrl+C.
@@ -372,9 +389,9 @@ bk skill add buildkite-api   # install a Buildkite skill into the current agent
 Make direct REST or GraphQL calls with `bk api`:
 
 ```bash
-bk api /pipelines/my-app/builds/429                    # REST GET (org inferred)
+bk api '/pipelines/my-app/builds/429?exclude_jobs=true&exclude_pipeline=true'
 bk api -X POST /pipelines --data '{"name":"New","repository":"git@..."}'
-bk api --file query.graphql                                      # GraphQL (file with a named operation)
+bk api --file query.graphql # GraphQL file with a named operation
 ```
 
 > For comprehensive REST and GraphQL documentation (endpoints, mutations, pagination, webhooks), see the **buildkite-api** skill.
@@ -386,7 +403,9 @@ When the Buildkite MCP server is available, prefer MCP tools for read operations
 | CLI Command | MCP Tool | Notes |
 |-------------|----------|-------|
 | `bk build create` | `create_build` | MCP handles auth automatically |
-| `bk build view` / `list` | `get_build` / `list_builds` | Same filters; structured output |
+| `bk build view --summary` / `list --summary` | `get_build` / `list_builds` | Metadata only; jobs and expanded pipeline information are excluded |
+| `bk job list --build` | `list_jobs` | List jobs without expanding the build response |
+| — | `get_job` | MCP-only single-job metadata lookup |
 | `bk job log` | `read_logs`, `tail_logs` | MCP supports streaming |
 | `bk pipeline list` / `view` / `create` | `list_pipelines`, `get_pipeline`, `create_pipeline` | |
 | `bk artifacts list` / `download` | `list_artifacts_for_build`, `get_artifact` | |
@@ -401,13 +420,15 @@ When the Buildkite MCP server is available, prefer MCP tools for read operations
 
 | Mistake | What happens | Fix |
 |---------|-------------|-----|
+| Using full build responses for status polling | Downloads jobs, pipeline details, artifacts, and annotations repeatedly | Use `bk build view --summary` or `bk build list --summary` |
+| Omitting `--build` when the build number is known | Scans recent build responses and extracts their embedded jobs | Use `bk job list --pipeline my-app --build 429`, or MCP `list_jobs` |
 | Running `bk` commands before authenticating | Commands fail with authentication errors | Run `bk auth login` (or `bk configure` with a token) first |
 | Running `bk auth login` in Docker/CI expecting a browser | Hangs — no browser or keychain available | Use `bk auth login --org my-org --token "$TOKEN"`, or `--device` for headless |
 | Passing `-p`/`-b` to `bk job log` | Flags are deprecated and ignored — job UUIDs are self-contained | Pass only the job UUID |
 | Retrying a job UUID that was already retried | API returns 422 — each UUID retries once | Use the new job UUID returned by the first retry |
 | Creating secrets with keys starting with `buildkite`/`bk` | Creation fails — reserved prefix | Choose another name (exception: `BUILDKITE_API_TOKEN`) |
 | Passing secret values literally in `--value` | Values persist in shell history and process list | Use env var references (`--value "$TOKEN"`) or the masked prompt |
-| Running `bk build cancel` on a finished build | API errors — only scheduled/running/failing builds cancel | Check state with `bk build view` first |
+| Running `bk build cancel` on a finished build | API errors — only scheduled/running/failing builds cancel | Check state with `bk build view --summary` first |
 | Assuming `bk artifacts upload` exists | No such command | Upload from a job with `buildkite-agent artifact upload` |
 | Confusing `bk` with `buildkite-agent` | `bk` runs locally against the API; `buildkite-agent` runs inside job steps | Use `bk` from a terminal, `buildkite-agent` inside pipeline commands |
 

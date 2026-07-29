@@ -4,7 +4,7 @@
       "args": [
         "--env-file",
         "${CLAUDE_PLUGIN_ROOT}/.env",
-        "zscaler-mcp@0.12.7"
+        "zscaler-mcp@0.14.0"
       ],
       "command": "uvx"
     }

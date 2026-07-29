@@ -19,6 +19,12 @@
  *     plugins:    { name: string, version: string }[]  — every active Carta plugin
  *     skills:     string[]  — union of loaded skills, namespaced "plugin:skill"
  *     session_id: string    — Claude Code session ID
+ *     prompt_id:  string    — UUID of the user prompt currently being processed
+ *     permission_mode: string — Claude Code's active permission mode
+ *     effort:     string    — Claude Code's active reasoning effort level
+ *     agent_id:   string    — subagent id; present only when the tool call originated inside a subagent
+ *     model:      string    — Claude model id, captured at SessionStart (see capture-model.js)
+ *     from_hook:  boolean   — always true; marks the payload as hook-emitted (vs the server's AI-generated fallback)
  *   }
  *
  * Part of the official Carta AI Agent Plugin.
@@ -63,12 +69,18 @@ function readSkills(sessionId) {
 // then read every plugin's record and fold them into one v2 payload. Each hook
 // emits the full union, so last-writer-wins never drops a plugin. Falls back to
 // this plugin alone if the registry is unavailable.
-function buildInstrumentationV2(sessionId, skills) {
+function buildInstrumentationV2(sessionId, skills, promptId, permissionMode, effort, agentId) {
     const namespaced = skills.map(s => `${PLUGIN}:${s}`);
     const selfOnly = {
         plugins: [{ name: PLUGIN, version: pluginVersion }],
         skills: namespaced,
         session_id: sessionId || null,
+        prompt_id: promptId || null,
+        permission_mode: permissionMode || null,
+        effort: effort || null,
+        agent_id: agentId || null,
+        model: null,
+        from_hook: true,
     };
     try {
         const base = process.env.CARTA_INSTRUMENTATION_REGISTRY_DIR
@@ -94,7 +106,27 @@ function buildInstrumentationV2(sessionId, skills) {
             } catch {}
         }
         if (!plugins.length) return selfOnly;
-        return { plugins, skills: mergedSkills, session_id: sessionId || null };
+        // Move the most-recently-invoked skill (the shared '.last-skill' marker written
+        // cross-plugin by track-active-skill.js) to the end, so the server's positional
+        // last_skill = skills[-1] signals recency, not alphabetical plugin order (KAF-2912).
+        let last = '';
+        try { last = fs.readFileSync(path.join(dir, '.last-skill'), 'utf8').trim(); } catch {}
+        const i = last ? mergedSkills.indexOf(last) : -1;
+        if (i > -1) mergedSkills.push(mergedSkills.splice(i, 1)[0]);
+        // model is captured at SessionStart by capture-model.js (not on PreToolUse stdin).
+        let model = null;
+        try { model = fs.readFileSync(path.join(dir, '.model'), 'utf8').trim() || null; } catch {}
+        return {
+            plugins,
+            skills: mergedSkills,
+            session_id: sessionId || null,
+            prompt_id: promptId || null,
+            permission_mode: permissionMode || null,
+            effort: effort || null,
+            agent_id: agentId || null,
+            model,
+            from_hook: true,
+        };
     } catch {
         return selfOnly;
     }
@@ -112,13 +144,15 @@ process.stdin.on('data', chunk => (inputData += chunk));
 process.stdin.on('end', () => {
     try {
         const input = JSON.parse(inputData);
-        const { tool_name, tool_input, session_id } = input;
+        const { tool_name, tool_input, session_id, prompt_id, permission_mode, effort, agent_id } = input;
 
         // Extract the short tool name from mcp__<server>__<tool>
         const parts = (tool_name || '').split('__');
         const shortName = parts.length >= 3 ? parts[parts.length - 1] : tool_name;
 
-        const instrumentation = buildInstrumentationV2(session_id, readSkills(session_id));
+        const instrumentation = buildInstrumentationV2(
+            session_id, readSkills(session_id), prompt_id, permission_mode, effort, agent_id,
+        );
 
         let updatedInput;
 
@@ -142,31 +176,6 @@ process.stdin.on('end', () => {
             updatedInput = { ...tool_input, _instrumentation_v2: instrumentation };
         }
 
-        // welcome ONLY (KAF-2841): also inject claude_plugins. welcome is the one tool
-        // matched by both this hook and the (now-removed) inject-welcome-plugins hook;
-        // since multiple hooks' updatedInput don't merge (last-writer-wins), we emit both
-        // keys from this single surviving hook so _instrumentation_v2 isn't clobbered. The
-        // claude_plugins registry logic below is copied verbatim from inject-welcome-plugins.js.
-        // Wrapped so a registry I/O failure never drops _instrumentation_v2.
-        if (shortName === 'welcome') {
-            try {
-                const base = process.env.CARTA_WELCOME_REGISTRY_DIR
-                    || path.join(os.tmpdir(), 'carta-welcome-plugins');
-                const dir = path.join(base, sanitize(session_id));
-                fs.mkdirSync(dir, { recursive: true });
-                fs.writeFileSync(path.join(dir, `carta-investors.json`), JSON.stringify(pluginVersion));
-
-                const claude_plugins = asObject(tool_input && tool_input.claude_plugins);
-                for (const f of fs.readdirSync(dir)) {
-                    if (!f.endsWith('.json')) continue;
-                    try {
-                        claude_plugins[f.slice(0, -5)] = String(JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8')));
-                    } catch {}
-                }
-                updatedInput.claude_plugins = claude_plugins;
-            } catch {}
-        }
-
         process.stdout.write(JSON.stringify({
             hookSpecificOutput: {
                 hookEventName: 'PreToolUse',
@@ -181,18 +190,6 @@ process.stdin.on('end', () => {
         allow();
     }
 });
-
-// Normalize a model-supplied claude_plugins value (object | JSON string | null | junk)
-// to {string: string}. Copied verbatim from inject-welcome-plugins.js.
-function asObject(v) {
-    if (typeof v === 'string') {
-        try { v = JSON.parse(v); } catch { return {}; }
-    }
-    if (!v || typeof v !== 'object' || Array.isArray(v)) return {};
-    const out = {};
-    for (const [k, val] of Object.entries(v)) out[k] = String(val);
-    return out;
-}
 
 function allow() {
     process.stdout.write(JSON.stringify({

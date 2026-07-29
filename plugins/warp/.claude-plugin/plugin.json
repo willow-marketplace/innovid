@@ -1,8 +1,8 @@
 {
   "name": "warp",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "Warp terminal integration for Claude Code - native notifications, and more to come",
-  "updatedAt": "2026-07-14T00:02:54.503Z",
+  "updatedAt": "2026-07-16T12:02:34.112Z",
   "author": {
     "url": "https://warp.dev",
     "name": "Warp"
@@ -67,6 +67,16 @@
           {
             "type": "command",
             "command": "${CLAUDE_PLUGIN_ROOT}/scripts/on-post-tool-use.sh"
+          }
+        ]
+      }
+    ],
+    "StopFailure": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/on-stop-failure.sh"
           }
         ]
       }

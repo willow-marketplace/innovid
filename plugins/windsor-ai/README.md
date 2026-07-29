@@ -1,6 +1,6 @@
 # Windsor.ai Plugin for Claude Code
 
-Connect Claude Code to 325+ business data sources. Query marketing, sales, CRM, finance, ecommerce, analytics, and more from Google Ads, Meta, TikTok, LinkedIn, GA4, HubSpot, Salesforce, Shopify, Stripe, QuickBooks, and hundreds more — directly from your terminal.
+Connect Claude Code to 350+ business data sources. Query marketing, sales, CRM, finance, ecommerce, analytics, and more from Google Ads, Meta, TikTok, LinkedIn, GA4, HubSpot, Salesforce, Shopify, Stripe, QuickBooks, and hundreds more — directly from your terminal.
 
 ## What This Plugin Does
 
@@ -42,7 +42,7 @@ The **Business Data Analyst** agent handles complex multi-step workflows: cross-
 
 ## Supported Data Sources
 
-325+ connectors across marketing, sales, CRM, ecommerce, finance, analytics, and more:
+350+ connectors across marketing, sales, CRM, ecommerce, finance, analytics, and more:
 
 **Marketing & Ads:** Google Ads · Meta (Facebook & Instagram) · TikTok · LinkedIn · Google Search Console · YouTube · Google My Business · Pinterest · Snapchat · Twitter/X · and more
 
@@ -54,7 +54,7 @@ The **Business Data Analyst** agent handles complex multi-step workflows: cross-
 
 **Finance & Operations:** QuickBooks · Xero · and more
 
-[Browse all 325+ connectors →](https://windsor.ai/connectors/)
+[Browse all 350+ connectors →](https://windsor.ai/connectors/)
 
 ## Examples
 

@@ -1,5 +1,17 @@
 {
   "mcpServers": {
+    "cloudwatch": {
+      "env": {
+        "AWS_REGION": "[your dsql cluster region, e.g. us-east-1 — must be a PromQL-enabled region]",
+        "AWS_PROFILE": "[your aws profile name, e.g. default]",
+        "FASTMCP_LOG_LEVEL": "ERROR"
+      },
+      "args": [
+        "awslabs.cloudwatch-mcp-server@latest"
+      ],
+      "command": "uvx",
+      "disabled": true
+    },
     "aurora-dsql": {
       "env": {
         "FASTMCP_LOG_LEVEL": "ERROR"

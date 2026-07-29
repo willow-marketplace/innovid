@@ -3,7 +3,8 @@ process.env.AGNOST_LOG_LEVEL = 'error';
 import { randomUUID } from 'node:crypto';
 import { createMcpHandler } from 'mcp-handler';
 import type { Implementation } from '@modelcontextprotocol/sdk/types.js';
-import { initializeMcpServer } from '../src/mcp-handler.js';
+import { initializeMcpServer, type McpConfig } from '../src/mcp-handler.js';
+import { DEFAULT_MCP_MAX_DURATION_SECONDS, parsePositiveInteger } from '../src/tools/agentRun.js';
 import { Ratelimit } from '@upstash/ratelimit';
 import { Redis } from '@upstash/redis';
 import { isJwtToken, verifyOAuthToken } from '../src/utils/auth.js';
@@ -326,7 +327,8 @@ async function checkRateLimits(ip: string | null, count: number, debug: boolean)
  * Other URL query parameters:
  * - ?tools=web_search_exa,web_fetch_exa - Enable specific tools
  * - ?debug=true - Enable debug logging
- * 
+ * - ?agentCallWindowMs=45000 - Set the agent_run call window in milliseconds
+ *
  * Also supports environment variables:
  * - EXA_API_KEY: Your Exa AI API key
  * - DEBUG: Enable debug logging (true/false)
@@ -373,6 +375,8 @@ interface RequestConfig {
   oauthAccessToken?: string;
   /** True when a Bearer token was a JWT but failed OAuth verification (expired, bad sig, wrong issuer/audience). */
   invalidOAuthJwt: boolean;
+  agentCallWindowMs?: number;
+  mcpMaxDurationSeconds?: number;
 }
 
 /**
@@ -388,6 +392,7 @@ async function getConfigFromRequest(request: Request): Promise<RequestConfig> {
   let defaultSearchType: 'auto' | 'fast' | 'instant' | undefined;
   let oauthAccessToken: string | undefined;
   let invalidOAuthJwt = false;
+  let agentCallWindowMs: number | undefined;
 
   // 1. Check x-api-key header (highest priority)
   const xApiKey = request.headers.get('x-api-key');
@@ -457,6 +462,9 @@ async function getConfigFromRequest(request: Request): Promise<RequestConfig> {
       debug = params.get('debug') === 'true';
     }
 
+    // Support ?agentCallWindowMs
+    agentCallWindowMs = parsePositiveInteger(params.get('agentCallWindowMs') ?? undefined);
+
     // Support ?defaultSearchType
     if (params.has('defaultSearchType')) {
       const dst = params.get('defaultSearchType');
@@ -491,7 +499,20 @@ async function getConfigFromRequest(request: Request): Promise<RequestConfig> {
   const exaSource = request.headers.get('x-exa-source') || undefined;
   const mcpSessionId = request.headers.get('MCP-Session-Id') || undefined;
 
-  return { exaApiKey, enabledTools, debug, userProvidedApiKey, authMethod, exaSource, mcpSessionId, defaultSearchType, oauthAccessToken, invalidOAuthJwt };
+  return {
+    exaApiKey,
+    enabledTools,
+    debug,
+    userProvidedApiKey,
+    authMethod,
+    exaSource,
+    mcpSessionId,
+    defaultSearchType,
+    oauthAccessToken,
+    invalidOAuthJwt,
+    mcpMaxDurationSeconds: parsePositiveInteger(process.env.MCP_MAX_DURATION_SECONDS),
+    agentCallWindowMs: agentCallWindowMs ?? parsePositiveInteger(process.env.AGENT_CALL_WINDOW_MS),
+  };
 }
 
 /**
@@ -500,7 +521,9 @@ async function getConfigFromRequest(request: Request): Promise<RequestConfig> {
  * configuration (tools and API key). This prevents API key leakage between
  * different users who might pass different keys via URL.
  */
-function createHandler(config: { exaApiKey?: string; enabledTools?: string[]; debug: boolean; userProvidedApiKey: boolean; exaSource?: string; mcpSessionId?: string; mcpClient?: McpClientMetadata; defaultSearchType?: 'auto' | 'fast' | 'instant'; oauthAccessToken?: string }) {
+function createHandler(config: McpConfig) {
+  const maxDuration = config.mcpMaxDurationSeconds ?? DEFAULT_MCP_MAX_DURATION_SECONDS;
+
   return createMcpHandler(
     (server: any) => {
       initializeMcpServer(server, config);
@@ -516,7 +539,7 @@ function createHandler(config: { exaApiKey?: string; enabledTools?: string[]; de
         ],
       } satisfies Implementation as { name: string; version: string },
     },
-    { basePath: '/api' } // Config - basePath for Vercel Functions
+    { basePath: '/api', maxDuration }
   );
 }
 
@@ -541,15 +564,15 @@ function hasAuth(request: Request): boolean {
  *                      client can distinguish "refresh/re-auth" from "start over from scratch" and trigger its
  *                      refresh-token exchange against the authorization server.
  */
-const PROTECTED_RESOURCE_METADATA_URL = 'https://mcp.exa.ai/.well-known/oauth-protected-resource/mcp';
-
-function create401Response(reason: 'missing' | 'invalid_token' = 'missing'): Response {
+function create401Response(reason: 'missing' | 'invalid_token' = 'missing', resourcePath: string = 'mcp'): Response {
   const params: string[] = [];
   if (reason === 'invalid_token') {
     params.push('error="invalid_token"');
     params.push('error_description="The access token is invalid or expired"');
   }
-  params.push(`resource_metadata="${PROTECTED_RESOURCE_METADATA_URL}"`);
+  // RFC 9728: metadata lives at /.well-known/oauth-protected-resource/<resource path>,
+  // and its `resource` field must exactly match the URL the client connected to.
+  params.push(`resource_metadata="https://mcp.exa.ai/.well-known/oauth-protected-resource/${resourcePath}"`);
 
   const message =
     reason === 'invalid_token'
@@ -577,7 +600,7 @@ function create401Response(reason: 'missing' | 'invalid_token' = 'missing'): Res
 }
 
 // Wrap so uncaught throws still return CORS headers — otherwise browsers see an opaque CORS error masking the real failure.
-async function handleRequest(request: Request, options?: { forceOAuth?: boolean }): Promise<Response> {
+async function handleRequest(request: Request, options?: { forceOAuth?: boolean; resourcePath?: string }): Promise<Response> {
   try {
     return await processRequest(request, options);
   } catch (error) {
@@ -597,7 +620,7 @@ async function handleRequest(request: Request, options?: { forceOAuth?: boolean 
  * Main request handler that extracts config from URL and creates
  * a fresh handler for each request
  */
-async function processRequest(request: Request, options?: { forceOAuth?: boolean }): Promise<Response> {
+async function processRequest(request: Request, options?: { forceOAuth?: boolean; resourcePath?: string }): Promise<Response> {
   const debug = process.env.DEBUG === 'true';
   const body = request.method === 'POST' ? await request.clone().text() : undefined;
   const isInitializeRequest = isInitializeMethod(body ?? '');
@@ -617,10 +640,17 @@ async function processRequest(request: Request, options?: { forceOAuth?: boolean
   const requestUrl = new URL(request.url);
   const isPluginClient = requestUrl.searchParams.get('client')?.includes('plugin') ?? false;
 
-  // Gate: require auth for /mcp/oauth endpoint, matching user agents, or plugin clients (unless bypassed)
-  const requireOAuth = options?.forceOAuth || userAgentMatchesOAuth || isPluginClient;
+  const loginParam = requestUrl.searchParams.get('login');
+  const wantsLogin =
+    loginParam !== null &&
+    (loginParam === '' || ['1', 'true', 'yes'].includes(loginParam.toLowerCase()));
+
+  // Gate: require auth for the dedicated /mcp/oauth endpoint, ?login opt-in,
+  // matching user agents, or plugin clients (unless bypassed).
+  const requireOAuth = options?.forceOAuth || userAgentMatchesOAuth || isPluginClient || wantsLogin;
+  const resourcePath = options?.resourcePath ?? 'mcp';
   if (!bypassRateLimit && requireOAuth && !hasAuth(request)) {
-    return create401Response();
+    return create401Response('missing', resourcePath);
   }
 
   // Extract configuration from request headers, URL, and env vars
@@ -633,11 +663,11 @@ async function processRequest(request: Request, options?: { forceOAuth?: boolean
   // Use the `invalid_token` reason so the WWW-Authenticate header carries the standard
   // OAuth error code that clients listen for when deciding to exchange a refresh token.
   if (config.invalidOAuthJwt) {
-    return create401Response('invalid_token');
+    return create401Response('invalid_token', resourcePath);
   }
 
   if (!config.userProvidedApiKey && config.enabledTools?.some(requiresUserProvidedApiKey)) {
-    return create401Response();
+    return create401Response('missing', resourcePath);
   }
 
   const storedMcpClient = isInitializeRequest ? undefined : await loadMcpClientMetadata(config.mcpSessionId, config.debug);

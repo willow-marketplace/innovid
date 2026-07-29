@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import contextlib
 import hashlib
+import itertools
 import importlib.util
 import json
+import logging
 import sys
 import types
 from pathlib import Path
@@ -107,11 +109,18 @@ class FakeOtelSpan:
         self.name = name
         self.start_time = start_time
         self.context = context
+        self.attributes: dict[str, Any] = {}
+
+    def set_attribute(self, key: str, value: Any) -> None:
+        self.attributes[key] = value
 
 
 class FakeTracer:
     def start_span(self, *, name: str, start_time: int | None = None, context: Any = None) -> FakeOtelSpan:
         return FakeOtelSpan(name, start_time, context)
+
+
+_fake_observation_counter = itertools.count(1)
 
 
 class FakeObservation:
@@ -122,6 +131,10 @@ class FakeObservation:
         self.kwargs = kwargs
         self.output: Any = None
         self.end_time: int | None = None
+        # Mirror the SDK's hex id/trace_id attributes (span.py sets both).
+        n = next(_fake_observation_counter)
+        self.id = f"{n:016x}"
+        self.trace_id = f"{n:032x}"
 
     def update(self, **kwargs: Any) -> None:
         if "output" in kwargs:
@@ -136,6 +149,12 @@ class FakeLangfuse:
     def __init__(self) -> None:
         self._otel_tracer = FakeTracer()
         self.observations: list[FakeObservation] = []
+
+    @staticmethod
+    def create_trace_id(*, seed: str | None = None) -> str:
+        # Mirrors SDK 4.x: sha256(seed).digest()[:16].hex()
+        assert seed, "tests always pass a seed"
+        return hashlib.sha256(seed.encode("utf-8")).digest()[:16].hex()
 
     def _create_observation_from_otel_span(
         self,
@@ -154,11 +173,29 @@ def fake_langfuse() -> FakeLangfuse:
     return FakeLangfuse()
 
 
-@pytest.fixture
-def isolated_hook_state(tmp_path: Path, hook_module: Any, monkeypatch: pytest.MonkeyPatch) -> Path:
+def _reset_hook_logger(hook_module: Any) -> None:
+    # The logger is cached twice (hook module global + Python's process-global
+    # registry), so a handler bound to a stale log path would survive across tests.
+    hook_module._logger = None
+    logger = logging.getLogger("langfuse_hook")
+    for handler in list(logger.handlers):
+        logger.removeHandler(handler)
+        with contextlib.suppress(Exception):
+            handler.close()
+
+
+@pytest.fixture(autouse=True)
+def _isolated_hook_env(tmp_path: Path, hook_module: Any, monkeypatch: pytest.MonkeyPatch) -> Iterator[Path]:
     state_dir = tmp_path / "claude-state"
     monkeypatch.setattr(hook_module, "STATE_DIR", state_dir)
     monkeypatch.setattr(hook_module, "STATE_FILE", state_dir / "langfuse_state.json")
     monkeypatch.setattr(hook_module, "LOCK_FILE", state_dir / "langfuse_state.lock")
     monkeypatch.setattr(hook_module, "LOG_FILE", state_dir / "langfuse_hook.log")
-    return state_dir
+    _reset_hook_logger(hook_module)
+    yield state_dir
+    _reset_hook_logger(hook_module)
+
+
+@pytest.fixture
+def isolated_hook_state(_isolated_hook_env: Path) -> Path:
+    return _isolated_hook_env

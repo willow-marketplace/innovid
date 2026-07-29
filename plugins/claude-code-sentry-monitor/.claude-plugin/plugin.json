@@ -1,0 +1,70 @@
+{
+  "name": "claude-code-sentry-monitor",
+  "version": "1.0.0",
+  "description": "Sentry AI Agent Monitoring for Claude Code — traces sessions and tool calls as OpenTelemetry spans in Sentry.",
+  "updatedAt": "2026-07-16T02:15:32.656Z",
+  "author": {
+    "name": "Sergiy Dybskiy"
+  },
+  "repository": "https://github.com/sergical/claude-code-sentry-monitor",
+  "keywords": [
+    "sentry",
+    "monitoring",
+    "observability",
+    "ai-agents",
+    "tracing"
+  ],
+  "skills": "./skills/",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/sentry-hook.sh"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/sentry-hook.sh"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/sentry-hook.sh"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/sentry-hook.sh"
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/sentry-hook.sh"
+          }
+        ]
+      }
+    ]
+  }
+}

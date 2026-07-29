@@ -69,7 +69,13 @@ try:
             break
     if val is None:
         sys.exit(0)
-    print(val if isinstance(val, (str, int, float, bool)) else json.dumps(val))
+    # jq -r prints strings raw and everything else in jq's JSON textual
+    # form — crucially "true"/"false" for booleans, not Python's capitalized
+    # str(True)/str(False). Getting this wrong silently breaks every caller
+    # that does `[ "$x" = "true" ]` against a boolean config key (e.g.
+    # git_backup.gpg_sign, allow_remote_change) whenever jq is absent: the
+    # comparison never matches, so the key always reads as false.
+    print(val if isinstance(val, str) else json.dumps(val))
 except Exception:
     sys.exit(0)
 PYEOF
@@ -83,25 +89,8 @@ export JQ
 # Earlier versions overrode safe_eval here as a Windows-CRLF patch — removed
 # now that log.sh carries the fix and is sourced after this file.
 
-# --- CRLF-safe session dir slug ---
-# Replaces all non-alphanumeric chars with dashes. Must match Claude Code's
-# own slug pattern for its ~/.claude/projects/<slug>/ session directories.
-#
-# Unix: Claude Code slugs the native path directly (e.g., /home/u/p → -home-u-p).
-#
-# Windows: Claude Code slugs the native Windows path with the drive letter
-# lowercased (e.g., D:\Users\p → d--Users-p). Hook scripts on Git Bash / MSYS
-# receive the path in Unix form (/d/Users/p), which would slug differently
-# (-d-Users-p). Convert back to the Windows form via cygpath before slugging
-# so we match the actual directory Claude Code created.
-session_dir_slug() {
-    local path="$1"
-    if command -v cygpath >/dev/null 2>&1; then
-        local winpath
-        winpath=$(cygpath -w "$path" 2>/dev/null) || winpath="$path"
-        # Lowercase the drive letter (first character) to match Claude Code.
-        path="${winpath:0:1}"
-        path="${path,,}${winpath:1}"
-    fi
-    echo "$path" | sed 's/[^a-zA-Z0-9]/-/g'
-}
+# --- Session dir slug ---
+# Moved to lib-slug.sh so lib-memory-dir.sh can reach it without sourcing this
+# file (which exits 1 when it finds no Python) and without keeping the naive
+# inline copy that drifted from it (#158).
+source "$(dirname "${BASH_SOURCE[0]}")/lib-slug.sh"

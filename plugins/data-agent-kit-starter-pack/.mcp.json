@@ -34,6 +34,22 @@
       ],
       "command": "npx"
     },
+    "bigtable": {
+      "env": {
+        "BIGTABLE_PROJECT": "$PROJECT_ID",
+        "BIGTABLE_INSTANCE": ""
+      },
+      "args": [
+        "-y",
+        "@toolbox-sdk/server@>=1.1.0",
+        "--prebuilt",
+        "bigtable",
+        "--stdio",
+        "--user-agent-metadata",
+        "datacloud.codex"
+      ],
+      "command": "npx"
+    },
     "dataproc": {
       "env": {
         "DATAPROC_REGION": "$GCP_REGION",

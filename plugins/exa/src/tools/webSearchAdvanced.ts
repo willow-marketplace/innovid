@@ -3,7 +3,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { API_CONFIG, createExaClient, integrationHeaders } from "./config.js";
 import { ExaAdvancedSearchRequest, ExaSearchResponse } from "../types.js";
 import { createRequestLogger } from "../utils/logger.js";
-import { retryWithBackoff, formatToolError } from "../utils/errorHandler.js";
+import { retryWithBackoff, formatToolError, withTimeout } from "../utils/errorHandler.js";
 import { sanitizeSearchResponse } from "../utils/exaResponseSanitizer.js";
 import { lenientString, lenientOptionalNumber, lenientOptionalPositiveNumber, lenientOptionalBoolean } from "./validation.js";
 import { checkpoint } from "agnost";
@@ -21,7 +21,7 @@ Returns: Search results with optional highlights, summaries, and subpage content
       numResults: lenientOptionalNumber().describe("Number of results (1-100, default: 10)"),
       type: z.enum(['auto', 'fast', 'instant']).optional().describe("Search type - 'auto': high quality and works with all filters (recommended), 'fast': quick results, 'instant': fastest results"),
 
-      category: z.enum(['company', 'research paper', 'news', 'pdf', 'github', 'personal site', 'people', 'financial report']).optional().describe("Filter results to a specific category"),
+      category: z.enum(['company', 'publication', 'news', 'pdf', 'github', 'personal site', 'people', 'financial report']).optional().describe("Filter results to a specific category"),
 
       includeDomains: z.array(z.string()).optional().describe("Only include results from these domains (e.g., ['arxiv.org', 'github.com'])"),
       excludeDomains: z.array(z.string()).optional().describe("Exclude results from these domains"),
@@ -161,13 +161,17 @@ Returns: Search results with optional highlights, summaries, and subpage content
         checkpoint('web_search_advanced_request_prepared');
         logger.log("Sending advanced search request to Exa API");
 
-        const response = await retryWithBackoff(() => exa.request<ExaSearchResponse>(
-          API_CONFIG.ENDPOINTS.SEARCH,
-          'POST',
-          searchRequest,
-          undefined,
-          integrationHeaders('web-search-advanced-mcp', config)
-        ));
+        const response = await withTimeout(
+          () => retryWithBackoff(() => exa.request<ExaSearchResponse>(
+            API_CONFIG.ENDPOINTS.SEARCH,
+            'POST',
+            searchRequest,
+            undefined,
+            integrationHeaders('web-search-advanced-mcp', config)
+          )),
+          API_CONFIG.TOOL_TIMEOUTS.ADVANCED_SEARCH_MS,
+          'web_search_advanced_exa',
+        );
 
         checkpoint('exa_advanced_search_response_received');
         logger.log("Received response from Exa API");

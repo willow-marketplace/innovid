@@ -2,7 +2,7 @@
   "name": "aws-core",
   "version": "1.1.0",
   "description": "Build, deploy, and operate applications on AWS. Skills to author infrastructure-as-code (CDK, CloudFormation), use core services (Lambda, API Gateway, Step Functions, ECS/Fargate, ECR, IAM, Amazon Bedrock with Knowledge Bases and Guardrails, AWS Blocks), select and operate databases across relational, key-value, document, wide-column, graph, time-series, and in-memory engines (Aurora PostgreSQL/MySQL, Aurora DSQL, RDS, Oracle Database@AWS, DynamoDB, DocumentDB, Keyspaces, Neptune, Timestream, ElastiCache, and MemoryDB), and complete common tasks across observability (CloudWatch, X-Ray, CloudTrail, ADOT), messaging and streaming (SQS, SNS, EventBridge, Kinesis, MSK), AWS SDKs (boto3, JS v3, Swift), and cost optimization.",
-  "updatedAt": "2026-07-14T12:01:19.687Z",
+  "updatedAt": "2026-07-29T12:05:00.831Z",
   "author": {
     "name": "Amazon Web Services"
   },
@@ -129,11 +129,11 @@
   "mcpServers": {
     "aws-mcp": {
       "args": [
-        "mcp-proxy-for-aws@1.6.3",
+        "mcp-proxy-for-aws@1.6.4",
         "https://aws-mcp.us-east-1.api.aws/mcp",
         "--skip-auth",
         "--metadata",
-        "INSTALL_SOURCE=agent-toolkit"
+        "INSTALL_SOURCE=agent-toolkit-core"
       ],
       "command": "uvx"
     }

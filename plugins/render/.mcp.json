@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "render": {
+      "url": "https://mcp.render.com/mcp",
+      "type": "http",
+      "oauth": {
+        "clientId": "claude"
+      }
+    }
+  }
+}

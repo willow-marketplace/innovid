@@ -1,8 +1,8 @@
 {
   "name": "carta-investors",
-  "version": "0.161.1",
-  "description": "Carta Investors plugin — skills for querying investors data, performance benchmarks, regulatory reporting, AGM deck generation, brand extraction, and more via the Carta MCP server",
-  "updatedAt": "2026-07-14T12:01:24.204Z",
+  "version": "2.12.3",
+  "description": "Carta Investors plugin — write-capable skills for querying and updating investors data, performance benchmarks, regulatory reporting, AGM deck generation, brand extraction, and more via the Carta MCP server",
+  "updatedAt": "2026-07-29T12:05:11.105Z",
   "author": {
     "name": "Carta",
     "email": "engineering@carta.com"
@@ -13,6 +13,8 @@
     "investors",
     "mcp",
     "carta",
+    "write",
+    "write-capable",
     "agm",
     "annual-general-meeting",
     "deck",
@@ -34,6 +36,10 @@
           {
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/hooks/init-data-dir.js\""
+          },
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/hooks/capture-model.js\""
           }
         ]
       }

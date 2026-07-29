@@ -1,6 +1,12 @@
 import { Exa } from 'exa-js';
 import { serializeMcpClientMetadata } from '../utils/mcpClientMetadata.js';
 
+function encodeIntegrationSource(source: string): string {
+  return Array.from(new TextEncoder().encode(source), byte =>
+    byte <= 127 ? String.fromCharCode(byte) : `%${byte.toString(16).toUpperCase().padStart(2, '0')}`,
+  ).join('');
+}
+
 // Build Exa reporting headers, appending x-exa-source if present
 export function integrationHeaders(tool: string, config?: Record<string, unknown>) {
   const source = config?.exaSource;
@@ -8,7 +14,7 @@ export function integrationHeaders(tool: string, config?: Record<string, unknown
   const mcpClient = serializeMcpClientMetadata(config?.mcpClient);
   const oauthAccessToken = config?.oauthAccessToken;
   const headers: Record<string, string> = {
-    'x-exa-integration': typeof source === 'string' ? `${tool}:${source}` : tool,
+    'x-exa-integration': typeof source === 'string' ? `${tool}:${encodeIntegrationSource(source)}` : tool,
   };
 
   if (typeof oauthAccessToken === 'string' && oauthAccessToken.length > 0) {
@@ -61,18 +67,14 @@ function applyClientHeaders(exa: Exa, headers: Record<string, string>) {
 
 // Configuration for API
 export const API_CONFIG = {
-  BASE_URL: 'https://api.exa.ai',
-  DEFAULT_POLL_INTERVAL_MS: 4000,
-  MIN_POLL_INTERVAL_MS: 1000,
-  DEFAULT_WAIT_TIMEOUT_SECONDS: 45,
-  MAX_WAIT_TIMEOUT_SECONDS: 50,
   ENDPOINTS: {
     SEARCH: '/search',
     RESEARCH: '/research/v1',
-    CONTEXT: '/context',
-    RUNS: '/agent/runs',
-    RUN_BY_ID: (id: string) => `/agent/runs/${encodeURIComponent(id)}`,
-    RUN_CANCEL: (id: string) => `/agent/runs/${encodeURIComponent(id)}/cancel`,
+  },
+  TOOL_TIMEOUTS: {
+    SEARCH_MS: 60_000,
+    FETCH_MS: 60_000,
+    ADVANCED_SEARCH_MS: 300_000,
   },
   DEFAULT_NUM_RESULTS: 10,
   DEFAULT_MAX_CHARACTERS: 3000

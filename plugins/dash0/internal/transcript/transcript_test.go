@@ -75,6 +75,81 @@ func TestReadTurnUsageAggregatesMultipleIterations(t *testing.T) {
 	assert.Equal(t, int64(60), usage.CacheReadInputTokens)
 }
 
+// fallbackUsage is a two-iteration usage payload modeled on a real fallback
+// request (Fable attempt, then Opus fallback): the top-level fields mirror only
+// the final iteration.
+const fallbackUsage = `{"input_tokens":5607,"output_tokens":698,"cache_creation_input_tokens":100,"cache_read_input_tokens":2000,"cache_creation":{"ephemeral_1h_input_tokens":100,"ephemeral_5m_input_tokens":0},"iterations":[{"type":"message","model":"claude-fable-5","input_tokens":5607,"output_tokens":2,"cache_creation_input_tokens":50,"cache_read_input_tokens":1000},{"type":"fallback_message","model":"claude-opus-4-8","input_tokens":5607,"output_tokens":698,"cache_creation_input_tokens":100,"cache_read_input_tokens":2000}]}`
+
+func TestReadTurnUsageSumsFallbackIterations(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "transcript.jsonl")
+	writeTranscript(t, path, []string{
+		`{"type":"user","message":{"role":"user","content":[{"type":"text","text":"hello"}]}}`,
+		`{"type":"assistant","requestId":"req_001","message":{"role":"assistant","content":[{"type":"text","text":"hi"}],"usage":` + fallbackUsage + `}}`,
+	})
+
+	usage, err := ReadTurnUsage(path)
+	require.NoError(t, err)
+	require.NotNil(t, usage)
+
+	// Both iterations are billed, so all fields are summed across them.
+	assert.Equal(t, int64(11214), usage.InputTokens)
+	assert.Equal(t, int64(700), usage.OutputTokens)
+	assert.Equal(t, int64(150), usage.CacheCreationInputTokens)
+	assert.Equal(t, int64(3000), usage.CacheReadInputTokens)
+}
+
+func TestReadTurnUsageSingleIterationMatchesTopLevel(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "transcript.jsonl")
+	writeTranscript(t, path, []string{
+		`{"type":"user","message":{"role":"user","content":[{"type":"text","text":"hello"}]}}`,
+		// The single iteration duplicates the top-level fields, as observed in
+		// real transcripts; behavior must be identical to no iterations at all.
+		`{"type":"assistant","requestId":"req_001","message":{"role":"assistant","content":[{"type":"text","text":"hi"}],"usage":{"input_tokens":100,"output_tokens":50,"cache_creation_input_tokens":200,"cache_read_input_tokens":300,"iterations":[{"type":"message","input_tokens":100,"output_tokens":50,"cache_creation_input_tokens":200,"cache_read_input_tokens":300}]}}}`,
+	})
+
+	usage, err := ReadTurnUsage(path)
+	require.NoError(t, err)
+	require.NotNil(t, usage)
+
+	assert.Equal(t, int64(100), usage.InputTokens)
+	assert.Equal(t, int64(50), usage.OutputTokens)
+	assert.Equal(t, int64(200), usage.CacheCreationInputTokens)
+	assert.Equal(t, int64(300), usage.CacheReadInputTokens)
+}
+
+func TestReadTurnUsageDeduplicatesFallbackIterations(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "transcript.jsonl")
+	writeTranscript(t, path, []string{
+		`{"type":"user","message":{"role":"user","content":[{"type":"text","text":"hello"}]}}`,
+		// Streaming split: both entries repeat the same usage incl. iterations.
+		`{"type":"assistant","requestId":"req_001","message":{"role":"assistant","content":[{"type":"thinking","thinking":"..."}],"usage":` + fallbackUsage + `}}`,
+		`{"type":"assistant","requestId":"req_001","message":{"role":"assistant","content":[{"type":"text","text":"hi"}],"usage":` + fallbackUsage + `}}`,
+	})
+
+	usage, err := ReadTurnUsage(path)
+	require.NoError(t, err)
+	require.NotNil(t, usage)
+
+	// Iterations are summed once per requestId, not once per entry.
+	assert.Equal(t, int64(11214), usage.InputTokens)
+	assert.Equal(t, int64(700), usage.OutputTokens)
+}
+
+func TestReadTurnUsageEmptyIterations(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "transcript.jsonl")
+	writeTranscript(t, path, []string{
+		`{"type":"user","message":{"role":"user","content":[{"type":"text","text":"hello"}]}}`,
+		`{"type":"assistant","requestId":"req_001","message":{"role":"assistant","content":[{"type":"text","text":"hi"}],"usage":{"input_tokens":100,"output_tokens":50,"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"iterations":[]}}}`,
+	})
+
+	usage, err := ReadTurnUsage(path)
+	require.NoError(t, err)
+	require.NotNil(t, usage)
+
+	assert.Equal(t, int64(100), usage.InputTokens)
+	assert.Equal(t, int64(50), usage.OutputTokens)
+}
+
 func TestReadTurnUsageIgnoresPreviousTurns(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "transcript.jsonl")
 	writeTranscript(t, path, []string{
@@ -157,6 +232,128 @@ func TestReadTurnUsageIgnoresToolResultUser(t *testing.T) {
 	// Both assistant entries aggregated.
 	assert.Equal(t, int64(300), usage.InputTokens)
 	assert.Equal(t, int64(130), usage.OutputTokens)
+}
+
+func TestReadTurnUsageIgnoresMetaUserMessage(t *testing.T) {
+	// The skill flow injects a meta user message (isMeta) mid-turn — e.g. the
+	// "Skill /x is already loaded above" relay between the tool_use call and the
+	// follow-up. It carries string content but is NOT a real prompt, so it must
+	// NOT reset the turn, otherwise the skill-invocation API call's usage (often
+	// the bulk of the turn) is discarded.
+	path := filepath.Join(t.TempDir(), "transcript.jsonl")
+	writeTranscript(t, path, []string{
+		`{"type":"user","message":{"role":"user","content":"/endpoint-test"}}`,
+		`{"type":"assistant","requestId":"req_001","message":{"role":"assistant","content":[{"type":"tool_use","name":"Skill","input":{"skill":"endpoint-test"}}],"usage":{"input_tokens":2,"output_tokens":87,"cache_creation_input_tokens":10513,"cache_read_input_tokens":20977}}}`,
+		`{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"tu1","content":"Launching skill: endpoint-test"}]}}`,
+		// Meta relay with string content — must NOT reset the turn.
+		`{"type":"user","isMeta":true,"message":{"role":"user","content":"Skill /endpoint-test is already loaded above; instructions unchanged."}}`,
+		`{"type":"assistant","requestId":"req_002","message":{"role":"assistant","content":[{"type":"text","text":"done"}],"usage":{"input_tokens":2,"output_tokens":75,"cache_creation_input_tokens":131,"cache_read_input_tokens":31490}}}`,
+	})
+
+	usage, err := ReadTurnUsage(path)
+	require.NoError(t, err)
+	require.NotNil(t, usage)
+
+	// Both API calls of the turn are summed; the meta message did not reset.
+	assert.Equal(t, int64(4), usage.InputTokens)
+	assert.Equal(t, int64(162), usage.OutputTokens)
+	assert.Equal(t, int64(10644), usage.CacheCreationInputTokens)
+	assert.Equal(t, int64(52467), usage.CacheReadInputTokens)
+}
+
+func TestReadTurnUsageSkillOnlyWithoutTrailingChat(t *testing.T) {
+	// A skill invoked with no follow-up assistant chat: the turn ends on the
+	// injected meta relay. If that meta message reset the turn, hasUsage would
+	// be false and usage would be lost entirely (the "no token usage" bug).
+	path := filepath.Join(t.TempDir(), "transcript.jsonl")
+	writeTranscript(t, path, []string{
+		`{"type":"user","message":{"role":"user","content":"/endpoint-test"}}`,
+		`{"type":"assistant","requestId":"req_001","message":{"role":"assistant","content":[{"type":"tool_use","name":"Skill","input":{"skill":"endpoint-test"}}],"usage":{"input_tokens":2,"output_tokens":87,"cache_creation_input_tokens":10513,"cache_read_input_tokens":20977}}}`,
+		`{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"tu1","content":"Launching skill: endpoint-test"}]}}`,
+		`{"type":"user","isMeta":true,"message":{"role":"user","content":"Skill /endpoint-test is already loaded above; instructions unchanged."}}`,
+	})
+
+	usage, err := ReadTurnUsage(path)
+	require.NoError(t, err)
+	require.NotNil(t, usage)
+
+	// The skill-invocation call's usage is retained rather than lost to nil.
+	assert.Equal(t, int64(2), usage.InputTokens)
+	assert.Equal(t, int64(87), usage.OutputTokens)
+	assert.Equal(t, int64(10513), usage.CacheCreationInputTokens)
+	assert.Equal(t, int64(20977), usage.CacheReadInputTokens)
+}
+
+func TestTurnCompleteTerminalAssistant(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "transcript.jsonl")
+	writeTranscript(t, path, []string{
+		`{"type":"user","message":{"role":"user","content":"do it"}}`,
+		`{"type":"assistant","requestId":"req_001","message":{"role":"assistant","stop_reason":"end_turn","content":[{"type":"text","text":"done"}],"usage":{"input_tokens":1,"output_tokens":2}}}`,
+	})
+	complete, err := TurnComplete(path)
+	require.NoError(t, err)
+	assert.True(t, complete)
+}
+
+func TestTurnCompleteMidToolUseIsIncomplete(t *testing.T) {
+	// The transcript ends at a mid-turn tool_use entry (the final assistant
+	// message has not been flushed yet). The turn is not complete, so the caller
+	// waits rather than reading a partial usage total.
+	path := filepath.Join(t.TempDir(), "transcript.jsonl")
+	writeTranscript(t, path, []string{
+		`{"type":"user","message":{"role":"user","content":"/skill"}}`,
+		`{"type":"assistant","requestId":"req_001","message":{"role":"assistant","stop_reason":"tool_use","content":[{"type":"tool_use","name":"Skill"}],"usage":{"input_tokens":2,"output_tokens":87}}}`,
+		`{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"tu1","content":"ok"}]}}`,
+	})
+	complete, err := TurnComplete(path)
+	require.NoError(t, err)
+	assert.False(t, complete)
+}
+
+func TestTurnCompleteScopesToCurrentTurn(t *testing.T) {
+	// A previous turn ended in end_turn, then a new prompt arrived but its
+	// assistant entries have not been flushed yet. The current turn has no
+	// assistant message, so it is not complete — the previous turn's terminal
+	// entry must not be mistaken for this turn's.
+	path := filepath.Join(t.TempDir(), "transcript.jsonl")
+	writeTranscript(t, path, []string{
+		`{"type":"user","message":{"role":"user","content":"first"}}`,
+		`{"type":"assistant","requestId":"req_001","message":{"role":"assistant","stop_reason":"end_turn","content":[{"type":"text","text":"a"}],"usage":{"input_tokens":1,"output_tokens":2}}}`,
+		`{"type":"user","message":{"role":"user","content":"second"}}`,
+	})
+	complete, err := TurnComplete(path)
+	require.NoError(t, err)
+	assert.False(t, complete)
+}
+
+func TestTurnCompleteIgnoresMetaBoundary(t *testing.T) {
+	// The injected meta relay (isMeta) must not be treated as a turn boundary,
+	// so the terminal assistant entry after it still counts as the current turn.
+	path := filepath.Join(t.TempDir(), "transcript.jsonl")
+	writeTranscript(t, path, []string{
+		`{"type":"user","message":{"role":"user","content":"/skill"}}`,
+		`{"type":"assistant","requestId":"req_001","message":{"role":"assistant","stop_reason":"tool_use","content":[{"type":"tool_use","name":"Skill"}],"usage":{"input_tokens":2,"output_tokens":87}}}`,
+		`{"type":"user","isMeta":true,"message":{"role":"user","content":"Skill /x is already loaded above; instructions unchanged."}}`,
+		`{"type":"assistant","requestId":"req_002","message":{"role":"assistant","stop_reason":"end_turn","content":[{"type":"text","text":"done"}],"usage":{"input_tokens":2,"output_tokens":74}}}`,
+	})
+	complete, err := TurnComplete(path)
+	require.NoError(t, err)
+	assert.True(t, complete)
+}
+
+func TestTurnCompleteNoAssistant(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "transcript.jsonl")
+	writeTranscript(t, path, []string{
+		`{"type":"user","message":{"role":"user","content":"hi"}}`,
+	})
+	complete, err := TurnComplete(path)
+	require.NoError(t, err)
+	assert.False(t, complete)
+}
+
+func TestTurnCompleteMissingFile(t *testing.T) {
+	_, err := TurnComplete(filepath.Join(t.TempDir(), "nope.jsonl"))
+	assert.Error(t, err)
 }
 
 func TestReadTurnUsageMissingFile(t *testing.T) {
@@ -256,6 +453,27 @@ func TestReadSessionTitleUsesLatest(t *testing.T) {
 	})
 
 	assert.Equal(t, "renamed session", ReadSessionTitle(path))
+}
+
+func TestReadSessionTitleFallsBackToAITitle(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "transcript.jsonl")
+	writeTranscript(t, path, []string{
+		`{"type":"user","message":{"role":"user","content":[{"type":"text","text":"hello"}]}}`,
+		`{"type":"ai-title","aiTitle":"first auto name","sessionId":"sess-1"}`,
+		`{"type":"ai-title","aiTitle":"refined auto name","sessionId":"sess-1"}`,
+	})
+
+	assert.Equal(t, "refined auto name", ReadSessionTitle(path))
+}
+
+func TestReadSessionTitlePrefersCustomOverAI(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "transcript.jsonl")
+	writeTranscript(t, path, []string{
+		`{"type":"ai-title","aiTitle":"auto name","sessionId":"sess-1"}`,
+		`{"type":"custom-title","customTitle":"renamed by user","sessionId":"sess-1"}`,
+	})
+
+	assert.Equal(t, "renamed by user", ReadSessionTitle(path))
 }
 
 func TestReadSessionTitleMissing(t *testing.T) {

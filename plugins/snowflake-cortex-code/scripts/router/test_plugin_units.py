@@ -25,7 +25,9 @@ from execute_cortex import (
     build_envelope_prompt,
     check_credential_paths,
     check_mcp_conflict,
+    check_cortex_cli,
     _check_deploy_allowed,
+    _cortex_cmd,
 )
 
 
@@ -714,6 +716,24 @@ def test_codex_plugin_manifest():
         results.append(expect("codex_manifest: name matches Claude plugin",
                               data["name"], claude_data["name"]))
 
+    # Version must match across all three locations
+    claude_manifest_path = plugin_root / ".claude-plugin" / "plugin.json"
+    skill_md_path = plugin_root / "skills" / "cortex-router" / "SKILL.md"
+    versions = {}
+    if claude_manifest_path.exists():
+        versions["claude-plugin"] = json.loads(claude_manifest_path.read_text())["version"]
+    versions["codex-plugin"] = data["version"]
+    if skill_md_path.exists():
+        for line in skill_md_path.read_text().splitlines():
+            stripped = line.strip()
+            if stripped.startswith("version:"):
+                versions["SKILL.md"] = stripped.split(":", 1)[1].strip()
+                break
+    unique_versions = set(versions.values())
+    results.append(expect(
+        f"version_sync: all 3 locations match ({versions})",
+        len(unique_versions), 1))
+
     return results
 
 
@@ -1038,6 +1058,118 @@ def test_codex_hooks_env_compat():
     return results
 
 
+def test_windows_cmd_compatibility():
+    """Test _cortex_cmd helper and check_cortex_cli on Windows .cmd scenarios."""
+    from unittest.mock import patch, MagicMock
+
+    results = []
+
+    WIN_PATH = r"C:\Users\user\AppData\Local\cortex.CMD"
+    UNIX_PATH = "/usr/local/bin/cortex"
+
+    # ── _cortex_cmd: platform-aware command building with resolved path ──
+
+    # On Windows, should prepend cmd.exe /c with resolved path
+    with patch("execute_cortex.platform.system", return_value="Windows"):
+        with patch("execute_cortex.shutil.which", return_value=WIN_PATH):
+            cmd = _cortex_cmd(["--version"])
+    results.append(expect(
+        "win_cmd: prepends cmd.exe /c with resolved path on Windows",
+        cmd, ["cmd.exe", "/c", WIN_PATH, "--version"]))
+
+    with patch("execute_cortex.platform.system", return_value="Windows"):
+        with patch("execute_cortex.shutil.which", return_value=WIN_PATH):
+            cmd = _cortex_cmd(["--output-format", "stream-json", "--input-format", "stream-json"])
+    results.append(expect(
+        "win_cmd: multi-arg command on Windows uses resolved path",
+        cmd, ["cmd.exe", "/c", WIN_PATH, "--output-format", "stream-json", "--input-format", "stream-json"]))
+
+    # On Linux/macOS, should use resolved path directly
+    with patch("execute_cortex.platform.system", return_value="Linux"):
+        with patch("execute_cortex.shutil.which", return_value=UNIX_PATH):
+            cmd = _cortex_cmd(["--version"])
+    results.append(expect(
+        "win_cmd: resolved path on Linux",
+        cmd, [UNIX_PATH, "--version"]))
+
+    with patch("execute_cortex.platform.system", return_value="Darwin"):
+        with patch("execute_cortex.shutil.which", return_value=UNIX_PATH):
+            cmd = _cortex_cmd(["--version"])
+    results.append(expect(
+        "win_cmd: resolved path on macOS",
+        cmd, [UNIX_PATH, "--version"]))
+
+    # Fallback to bare "cortex" when shutil.which returns None
+    with patch("execute_cortex.platform.system", return_value="Windows"):
+        with patch("execute_cortex.shutil.which", return_value=None):
+            cmd = _cortex_cmd([])
+    results.append(expect(
+        "win_cmd: falls back to bare 'cortex' when which returns None",
+        cmd, ["cmd.exe", "/c", "cortex"]))
+
+    # ── check_cortex_cli: Windows .cmd scenario ──
+
+    # Simulates Windows where shutil.which finds cortex.CMD
+    with patch("execute_cortex.shutil.which", return_value=WIN_PATH):
+        with patch("execute_cortex.platform.system", return_value="Windows"):
+            mock_result = MagicMock()
+            mock_result.returncode = 0
+            with patch("execute_cortex.subprocess.run", return_value=mock_result) as mock_run:
+                result = check_cortex_cli()
+                call_args = mock_run.call_args[0][0]
+    results.append(expect(
+        "win_cmd: check_cortex_cli passes on Windows with .CMD",
+        result, True))
+    results.append(expect(
+        "win_cmd: check_cortex_cli uses cmd.exe /c with resolved path on Windows",
+        call_args, ["cmd.exe", "/c", WIN_PATH, "--version"]))
+
+    # When shutil.which returns None (cortex not installed)
+    with patch("execute_cortex.shutil.which", return_value=None):
+        result = check_cortex_cli()
+    results.append(expect(
+        "win_cmd: check_cortex_cli returns False when not found",
+        result, False))
+
+    # When subprocess raises OSError (defensive)
+    with patch("execute_cortex.shutil.which", return_value=UNIX_PATH):
+        with patch("execute_cortex.platform.system", return_value="Linux"):
+            with patch("execute_cortex.subprocess.run", side_effect=OSError("exec failed")):
+                result = check_cortex_cli()
+    results.append(expect(
+        "win_cmd: check_cortex_cli handles OSError gracefully",
+        result, False))
+
+    # When subprocess returns non-zero (broken install)
+    with patch("execute_cortex.shutil.which", return_value=UNIX_PATH):
+        with patch("execute_cortex.platform.system", return_value="Linux"):
+            mock_result = MagicMock()
+            mock_result.returncode = 1
+            with patch("execute_cortex.subprocess.run", return_value=mock_result):
+                result = check_cortex_cli()
+    results.append(expect(
+        "win_cmd: check_cortex_cli returns False on non-zero exit",
+        result, False))
+
+    # ── discover_cortex: same pattern ──
+    import discover_cortex
+    with patch("discover_cortex.platform.system", return_value="Windows"):
+        with patch("discover_cortex.shutil.which", return_value=r"C:\bin\cortex.cmd"):
+            cmd = discover_cortex._cortex_cmd(["skill", "list"])
+    results.append(expect(
+        "win_cmd: discover_cortex._cortex_cmd on Windows with resolved path",
+        cmd, ["cmd.exe", "/c", r"C:\bin\cortex.cmd", "skill", "list"]))
+
+    with patch("discover_cortex.platform.system", return_value="Darwin"):
+        with patch("discover_cortex.shutil.which", return_value="/usr/local/bin/cortex"):
+            cmd = discover_cortex._cortex_cmd(["skill", "list"])
+    results.append(expect(
+        "win_cmd: discover_cortex._cortex_cmd on macOS with resolved path",
+        cmd, ["/usr/local/bin/cortex", "skill", "list"]))
+
+    return results
+
+
 def main():
     all_results = []
     all_results.extend(test_credential_paths())
@@ -1058,6 +1190,7 @@ def main():
     all_results.extend(test_host_detection_edge_cases())
     all_results.extend(test_codex_skill_namespace_consistency())
     all_results.extend(test_codex_hooks_env_compat())
+    all_results.extend(test_windows_cmd_compatibility())
 
     passed = sum(1 for r in all_results if r)
     total = len(all_results)

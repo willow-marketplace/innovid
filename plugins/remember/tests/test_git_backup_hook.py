@@ -7,6 +7,7 @@ lib-memory-dir.sh from overriding the REMEMBER_DIR we set explicitly.
 """
 
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -685,3 +686,205 @@ class TestGitBackupGpgSign:
 
         assert len(_commit_log(remember)) == 2
         assert _is_signed(remember), "gpg_sign=true must let the repo sign the commit"
+
+
+def _make_worktree_project(tmp_path: Path):
+    """Create a project repo with a linked worktree. Returns (main_checkout, worktree)."""
+    main = tmp_path / "project"
+    main.mkdir()
+    _git(main, ["init", "-q", "-b", "main"])
+    _git(main, ["config", "user.email", "t@t"])
+    _git(main, ["config", "user.name", "T"])
+    (main / "README.md").write_text("project\n")
+    _git(main, ["add", "README.md"])
+    _git(main, ["commit", "-q", "-m", "init"])
+    worktree = tmp_path / "project-wt"
+    _git(main, ["worktree", "add", "-q", "-b", "feature", str(worktree)])
+    return main, worktree
+
+
+class TestGitBackupNeverTouchesProjectRepo:
+    """The hook must never commit/push into the project's own repo (#138).
+
+    Since #127 a worktree session keeps PROJECT_DIR on the worktree while
+    REMEMBER_DIR is redirected into the main checkout, so the plain
+    ``REPO_ROOT == PROJECT_DIR`` legacy guard no longer matches and the hook
+    used to treat the project repo as an external backup repo.
+    """
+
+    def test_no_op_for_legacy_memory_in_worktree_session(self, tmp_path):
+        """Legacy mode + worktree session: project repo untouched, .gitignore kept."""
+        main, worktree = _make_worktree_project(tmp_path)
+        remember_dir = main / ".remember"
+        remember_dir.mkdir()
+        gitignore = remember_dir / ".gitignore"
+        gitignore.write_text("*\n")
+        (remember_dir / "now.md").write_text("## 10:00 | test\nMemory.\n")
+
+        commits_before = _commit_log(main)
+        cfg = _make_config(tmp_path, cooldown=0)
+
+        result = _run_hook(remember_dir, worktree, tmp_path / "home", config_path=cfg)
+
+        assert result.returncode == 0
+        assert _commit_log(main) == commits_before, "project repo must not be committed to"
+        assert gitignore.exists(), "protective .remember/.gitignore must survive"
+        assert not (main / ".git-backup.lock").exists()
+        assert not (main / ".last-git-backup-ts").exists()
+
+    def test_no_op_when_repo_root_is_a_sibling_worktree_of_the_project(self, tmp_path):
+        """Memory parked in another worktree of the same repo is still the project repo."""
+        main, worktree = _make_worktree_project(tmp_path)
+        remember_dir = worktree / ".remember"
+        remember_dir.mkdir()
+        (remember_dir / "now.md").write_text("## 10:00 | test\nMemory.\n")
+
+        commits_before = _commit_log(main)
+        cfg = _make_config(tmp_path, cooldown=0)
+
+        result = _run_hook(remember_dir, main, tmp_path / "home", config_path=cfg)
+
+        assert result.returncode == 0
+        assert _commit_log(main) == commits_before
+
+    def test_external_repo_still_activates_for_a_worktree_session(self, tmp_path):
+        """Guard must not over-fire: a dedicated memory repo still backs up normally."""
+        home, remember, _ = make_external_remember_repo(tmp_path)
+        _main, worktree = _make_worktree_project(tmp_path)
+        slug = "test-slug"
+        slug_dir = remember / slug
+        slug_dir.mkdir()
+        (slug_dir / "now.md").write_text("## 10:00 | test\nMemory.\n")
+        cfg = _make_config(tmp_path, cooldown=0)
+
+        result = _run_hook(slug_dir, worktree, home, config_path=cfg)
+        assert result.returncode == 0
+        wait_for_lock_release(remember / ".git-backup.lock")
+
+        commits = _commit_log(remember)
+        assert len(commits) == 2, "external backup must still commit for worktree sessions"
+        assert commits[0].split(" ", 1)[1].startswith(f"auto: {slug}")
+
+    def test_leaked_git_dir_does_not_disable_the_guard(self, tmp_path):
+        """A leaked GIT_DIR must not make every `git -C` resolve to the same repo.
+
+        `git -C DIR rev-parse` honours an exported GIT_DIR over `-C`, so without
+        sanitizing the environment first, both sides of the common-dir comparison
+        collapse onto the leaked repo, compare equal, and the hook skips every
+        backup — including legitimate external ones.
+        """
+        home, remember, _ = make_external_remember_repo(tmp_path)
+        _main, worktree = _make_worktree_project(tmp_path)
+        slug = "test-slug"
+        slug_dir = remember / slug
+        slug_dir.mkdir()
+        (slug_dir / "now.md").write_text("## 10:00 | test\nMemory.\n")
+        cfg = _make_config(tmp_path, cooldown=0)
+
+        leaked = tmp_path / "unrelated"
+        leaked.mkdir()
+        _git(leaked, ["init", "-q"])
+
+        result = _run_hook(
+            slug_dir, worktree, home, config_path=cfg,
+            extra_env={"GIT_DIR": str(leaked / ".git"), "GIT_WORK_TREE": str(leaked)},
+        )
+        assert result.returncode == 0
+        wait_for_lock_release(remember / ".git-backup.lock")
+
+        assert len(_commit_log(remember)) == 2, \
+            "leaked GIT_DIR must not suppress a legitimate external backup"
+        assert _commit_log(leaked) == [], "the leaked repo must never be committed to"
+
+
+class TestConfigIsReadBeforeBackgrounding:
+    """Every git_backup.* value must be read in the parent, not the subshell.
+
+    lib-memory-dir.sh installs an EXIT trap that deletes $REMEMBER_CONFIG. The
+    hook backgrounds its work and returns, so a read inside the subshell races
+    that deletion — and once the merged config is gone, config() quietly hands
+    back each caller's default (issue #135). A slow backup would push to the
+    wrong remote, or to nowhere with remote and branch emptied, and nothing
+    would say so: a missing config file is not itself reported.
+
+    This is asserted structurally rather than by running the race. The window
+    is a few microseconds wide, and the harness cannot even open it — it sets
+    _LIB_MEMORY_DIR_LOADED=1, so the trap that deletes the file never installs.
+    A timing test here would pass on the broken code most of the time, which is
+    worse than no test. What can be pinned exactly is the ordering the fix
+    depends on.
+    """
+
+    GIT_BACKUP_VARS = (
+        "GIT_BACKUP_REMOTE", "GIT_BACKUP_BRANCH",
+        "GIT_BACKUP_GPG_SIGN", "ALLOW_REMOTE_CHANGE",
+    )
+
+    @staticmethod
+    def _fork_line(lines):
+        """Index of the line opening the background subshell."""
+        forks = [i for i, line in enumerate(lines) if line.rstrip() == "("]
+        assert len(forks) == 1, f"expected exactly one top-level subshell, found {forks}"
+        return forks[0]
+
+    def test_no_config_read_of_any_kind_inside_the_subshell(self):
+        """Nothing may consult the config file after the fork.
+
+        Checked as "no config() call at all past the fork" rather than by
+        grepping for the git_backup keys: an earlier version of this test
+        matched the literal string `config ".git_backup.`, and a review beat
+        it in one move by putting the key in a variable — the race was back
+        and the test still passed.
+        """
+        lines = HOOK.read_text().splitlines()
+        fork = self._fork_line(lines)
+        late = [
+            (i + 1, line.strip())
+            for i, line in enumerate(lines)
+            if i > fork and re.search(r"(?<![\w-])config\s+[\"'$]", line)
+        ]
+        assert late == [], (
+            "these config reads happen after the fork, so they race the parent's "
+            f"EXIT trap deleting $REMEMBER_CONFIG (#135): {late}"
+        )
+
+    def test_every_git_backup_value_is_assigned_before_the_fork(self):
+        """Each value must be READ in the parent, not merely mentioned there.
+
+        Assignment sites, not substrings: the previous version was satisfied by
+        the key appearing anywhere in the file, so a dead comment above the
+        fork made it pass while the real read sat inside the subshell.
+        """
+        lines = HOOK.read_text().splitlines()
+        fork = self._fork_line(lines)
+        for var in self.GIT_BACKUP_VARS:
+            assigned = [
+                i for i, line in enumerate(lines)
+                if re.match(rf"\s*{var}=\$\(\s*config\s", line)
+            ]
+            assert assigned, f"{var} is never assigned from config()"
+            assert all(i < fork for i in assigned), (
+                f"{var} is read after the fork (lines {[i + 1 for i in assigned]}, "
+                f"fork at {fork + 1}) — it races the config file's deletion (#135)"
+            )
+
+    def test_the_subshell_still_uses_every_hoisted_value(self):
+        """A hoist that nothing consumes would pass the checks above and do
+        nothing — pin that what was read still crosses the fork.
+
+        gpg_sign is consumed in the parent to pick GPG_SIGN_FLAG, so that flag
+        is the value the subshell actually uses.
+        """
+        consumed_as = {
+            "GIT_BACKUP_REMOTE": "GIT_BACKUP_REMOTE",
+            "GIT_BACKUP_BRANCH": "GIT_BACKUP_BRANCH",
+            "GIT_BACKUP_GPG_SIGN": "GPG_SIGN_FLAG",
+            "ALLOW_REMOTE_CHANGE": "ALLOW_REMOTE_CHANGE",
+        }
+        lines = HOOK.read_text().splitlines()
+        fork = self._fork_line(lines)
+        body = "\n".join(lines[fork:])
+        for var, used in consumed_as.items():
+            assert f"${used}" in body or f"${{{used}" in body, (
+                f"{var} is read in the parent but {used} never reaches the backup"
+            )

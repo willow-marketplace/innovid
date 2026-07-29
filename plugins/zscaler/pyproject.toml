@@ -1,0 +1,110 @@
+[project]
+name = "zscaler-mcp"
+version = "0.14.0"
+description = "Official Zscaler Integrations MCP Server"
+readme = "README.md"
+requires-python = ">=3.11,<4.0"
+license = "MIT"
+authors = [
+  { name = "Zscaler, Inc.", email = "devrel@zscaler.com" }
+]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+]
+dependencies = [
+    # Transport / auth shim — UNCHANGED from v1. The SDK still does every
+    # API call, token exchange, pagination, and retry. v2 only changes the
+    # SHAPE of what the agent sees, not how we talk to Zscaler.
+    # Intentionally unconstrained so installs always pull the latest SDK
+    # (new Zscaler product/API support lands here first).
+    "zscaler-sdk-python",
+    # MCP server framework. FastMCP gives us the ASGI app factories
+    # (streamable_http_app / sse_app) that every piece of the auth /
+    # hardening layer wraps as middleware — same foundation as v1.
+    #
+    # Upper bounds are DELIBERATE, not lazy pinning. The MCP 2026-07-28 spec
+    # ships in `mcp` 2.x and `fastmcp` 4.x — a stateless-core rewrite
+    # (CallToolResult/InputRequiredResult return types, ServerRunner, native
+    # multi-round-trip elicitation). Those majors are a planned, staged
+    # migration (see docs/guides/mcp-protocol.md), NOT something a routine
+    # `uvx zscaler-mcp` / `uv sync` should pull in silently the day they GA.
+    # Lift the caps only together with that migration.
+    "mcp[cli]>=1.23.0,<2",
+    "fastmcp>=2.13.0,<4",
+    # Pydantic powers BOTH the input models and the output VIEWS. A view's
+    # model_json_schema() is the source of truth for the tool's outputSchema,
+    # so the curated view and the advertised schema can never drift.
+    "pydantic>=2.6.0",
+    "python-dotenv>=1.0.0",
+    # HTTP transport + auth middleware stack (parity with v1).
+    "uvicorn>=0.30.0",
+    "starlette>=0.40.0",
+    # JWT auth mode (external IdP via JWKS).
+    "PyJWT[crypto]>=2.8.0",
+    # Zscaler-mode credential validation against /oauth2/v1/token.
+    "requests>=2.31.0",
+    # Output sanitization (HTML / Markdown stripping).
+    "bleach>=6.2.0",
+    # Exact token accounting (o200k_base). Token usage is a NATIVE, always-on
+    # feature — the bridge logs a [TOKENS] line per call — so this is a runtime
+    # dependency, not dev-only. Without it the count degrades to a len/4 estimate.
+    "tiktoken>=0.7.0",
+    # Country-name/ISO-code → Zscaler COUNTRY_XX conversion (ZTW IP destination
+    # groups by-country, ZIA locations, …). Same dependency v1 uses.
+    "pycountry>=24.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.21.0",
+    "ruff>=0.6.0",
+]
+# GCP Secret Manager support (parity with v1's [gcp] extra; referenced by
+# the Dockerfile's final `uv sync --extra gcp`).
+gcp = [
+    "google-cloud-secret-manager>=2.18.0",
+]
+
+[project.scripts]
+zscaler-mcp = "zscaler_mcp.server:main"
+zscaler-mcp-tokens = "zscaler_mcp.common.token_comparison:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/zscaler_mcp"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+# local_dev/ is maintainer scratch material copied from the v1 tree; it is not
+# part of the v2 package and must never gate the v2 lint.
+extend-exclude = ["local_dev"]
+
+[tool.ruff.lint]
+# Pin the rule set EXPLICITLY. Ruff's default selection is not a stable API — it
+# widened in 0.16.0 (adding pyupgrade / flake8-simplify / tryceratops / … ), which
+# turned a routine lockfile refresh into ~1.8k new findings across untouched code
+# and broke CI with zero source changes. Naming the rules here means a ruff
+# upgrade can no longer move the goalposts on its own.
+#
+# This is the set the project has always enforced in practice:
+#   E4/E7/E9  pycodestyle errors (imports, statements, syntax)
+#   F         pyflakes (undefined names, unused imports/variables)
+#   I         isort (import ordering — also run standalone in CI)
+# Adopting a broader set (UP, SIM, …) is a deliberate, separate cleanup, not
+# something to inherit silently from a dependency bump.
+select = ["E4", "E7", "E9", "F", "I"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"

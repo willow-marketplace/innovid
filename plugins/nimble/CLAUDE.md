@@ -5,12 +5,12 @@
 **Nimble Web Search Skills** — agent skills that give any AI agent the ability to search, scrape, and extract structured data from any website using the Nimble CLI. Built following the [Agent Skills specification](https://agentskills.io/specification.md), compatible with Claude Code, Codex, Cursor, and any agent platform that supports the spec.
 
 Two layers of skills:
-- **Core data skills** (`skills/web-search-tools/`) — the raw capabilities: fetch a URL, run a search, build a reusable extraction agent
+- **Core data skill** (`skills/web-search-tools/nimble-web-expert/`) — the raw capabilities: fetch a URL, run a search, map/crawl a site, run Extraction Templates, and run Web Search Agents
 - **Business intelligence skills** (all other verticals) — one-command workflows that turn live web data into actionable reports
 
 See `.claude-plugin/marketplace.json` for the full list of published skills.
 
-Business skills are built on top of core skills — they call `nimble search` / `nimble extract` under the hood. The two core skills also form a feedback loop: web-expert runs agents built by agent-builder, and when a one-off lookup becomes recurring, agent-builder turns it into a reusable pipeline.
+Business skills are built on top of the core skill — they call `nimble search` / `nimble extract`, run Extraction Templates for structured site data, and run Web Search Agents for open-ended research, under the hood.
 
 ## Prerequisites
 
@@ -47,7 +47,17 @@ bash scripts/sync-shared.sh
 
 # Test a skill locally — trigger it by name in a Claude Code session
 claude "run competitor-intel for acme.com"
+
+# Routing eval — does nimble-web-expert pick the right capability per prompt?
+# Reads the routing text out of SKILL.md, so eval and doc can't drift. No
+# Nimble calls, no credits, no API key.
+python3 scripts/run-routing-eval.py --runs 3
 ```
+
+Run the routing eval after any change to `nimble-web-expert`'s Core principles
+or Analyze & Route sections. Cases live in `evals/nimble-web-expert-routing.json`;
+add one whenever a mis-route is found in the wild. A failing case is not
+automatically a doc bug — check whether the expectation is right first.
 
 ## Skill authoring
 
@@ -92,15 +102,25 @@ metadata:
 
 ### Data access
 - Use `nimble search` / `nimble extract` via Bash for web data access.
-- WSA names are dynamic — never hardcode them in skills or reference files, not even
-  Nimble-managed agents. Discover at runtime using 3 layers: (1) vertical search
-  (`nimble agent list --search "healthcare"`), (2) session-specific search (user's
-  specialty, directories they mention), (3) general tools (`google_maps`, `yelp`, `bbb`).
-  Validate with `nimble agent get --template-name {name}` before running.
+- Two structured-data families (CLI 1.2.0+): **Extraction Templates** (`extract:templates
+  list`/`get --extract-template-name`/`run --template`) for site-specific structured
+  scrapers, and **Web Search Agents** (`agents:templates`, `agents create`, `agents run`,
+  `agents:runs create`/`get`/`result`/`stream-events`) for open-ended research/enrichment
+  with trust/citations. The singular `nimble agent …` group is retired.
+- WSA runs have three modes — named create-or-reuse (`agents run --agent-name`, the
+  default), explicit agent ID (`agents:runs create --agent-id`, which *requires* the ID),
+  and caller-anonymous (`agents run` with neither). `use_case` (`research` / `enrichment` /
+  `dataset_building`) locks on agent creation; run-level `skill` overrides once. Full
+  contract: `skills/web-search-tools/nimble-web-expert/references/nimble-agents/SKILL.md`.
+- Template/agent names are dynamic — never hardcode them. `extract:templates list`,
+  `agents list`, and `agents:templates list` have no server-side search: list and filter
+  client-side (by domain, keyword, entity_type). Web Search Agents follow the
+  reuse-priority chain (existing agent → clone a template → from scratch). Validate a
+  template's `input_schema` before running.
 - WSA reference files must teach discovery strategy, not list known agents. The test:
-  if 10 new WSAs were added tomorrow, would the skill find them automatically?
+  if 10 new agents/templates were added tomorrow, would the skill find them automatically?
 - `--search-depth` valid values: `lite`, `fast`, `deep` (not `standard`). Use `lite` for discovery, `deep` for full content.
-- `nimble agent list --limit` max is 250.
+- All Nimble calls carry `--client-source nimble-agent-skills` (the stable integration attribution).
 - Always verify CLI commands with real data before writing them into SKILL.md — `--help` alone isn't enough.
 
 ### Agent definitions (`agents/`)

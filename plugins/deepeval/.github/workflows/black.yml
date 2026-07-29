@@ -1,0 +1,23 @@
+name: Lint Lint Lint
+
+on:
+  pull_request:
+    paths-ignore:
+      - 'typescript/**'
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+    steps:
+      - uses: actions/checkout@v3
+      - uses: psf/black@stable
+        with:
+          options: "--check --verbose"
+          src: "."
+          jupyter: true
+          # Match the version range pinned in pyproject.toml so CI and
+          # local formatting can't drift apart
+          version: "~= 25.1"

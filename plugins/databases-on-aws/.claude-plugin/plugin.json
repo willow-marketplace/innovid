@@ -1,8 +1,8 @@
 {
   "name": "databases-on-aws",
-  "version": "1.5.0",
+  "version": "1.6.1",
   "description": "Expert database guidance for the AWS database portfolio. Design schemas, execute queries, handle migrations, and choose the right database for your workload.",
-  "updatedAt": "2026-07-14T12:01:29.723Z",
+  "updatedAt": "2026-07-29T12:05:31.499Z",
   "author": {
     "name": "Amazon Web Services"
   },
@@ -25,6 +25,18 @@
   ],
   "skills": "./skills/",
   "mcpServers": {
+    "cloudwatch": {
+      "env": {
+        "AWS_REGION": "[your dsql cluster region, e.g. us-east-1 — must be a PromQL-enabled region]",
+        "AWS_PROFILE": "[your aws profile name, e.g. default]",
+        "FASTMCP_LOG_LEVEL": "ERROR"
+      },
+      "args": [
+        "awslabs.cloudwatch-mcp-server@latest"
+      ],
+      "command": "uvx",
+      "disabled": true
+    },
     "aurora-dsql": {
       "env": {
         "FASTMCP_LOG_LEVEL": "ERROR"

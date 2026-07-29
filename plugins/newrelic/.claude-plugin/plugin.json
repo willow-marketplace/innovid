@@ -1,0 +1,19 @@
+{
+  "name": "newrelic",
+  "version": "1.0.0",
+  "description": "New Relic observability intelligence for Claude Code. Investigate APM performance, analyze cloud costs, debug Kubernetes, write NRQL queries, and respond to alerts — all from your terminal using New Relic telemetry data.",
+  "updatedAt": "2026-07-29T12:06:40.415Z",
+  "author": {
+    "url": "https://newrelic.com",
+    "name": "New Relic"
+  },
+  "homepage": "https://newrelic.com/",
+  "repository": "https://github.com/newrelic/newrelic-claude-plugin",
+  "skills": "./skills/",
+  "mcpServers": {
+    "newrelic": {
+      "url": "https://mcp.newrelic.com/mcp/",
+      "type": "http"
+    }
+  }
+}

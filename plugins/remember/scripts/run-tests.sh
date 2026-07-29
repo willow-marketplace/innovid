@@ -143,7 +143,17 @@ if [ -f "$FIXTURES/sample-session.jsonl" ]; then
     # Create a temp project dir structure pointing to the fixture
     TMP_PROJECT=$(mktemp -d "$SYS_TMPDIR/remember-test-project-XXXXXX")
     cleanup_files+=("$TMP_PROJECT")
-    SESSION_DIR="$HOME/.claude/projects/$(echo "$TMP_PROJECT" | sed 's/[^a-zA-Z0-9]/-/g')"
+    # Same tree pipeline.shell reads (#166). Hardcoding $HOME/.claude here put
+    # the fixture somewhere the code no longer looks the moment a developer
+    # exports CLAUDE_CONFIG_DIR — which is the population this harness is most
+    # needed by. detect-tools.sh is not sourced in this script, so expand the
+    # variable the same way claude_projects_dir does.
+    # Ask the real implementation rather than restating it. This inline sed was
+    # safe only because mktemp -d yields ASCII — the same "agrees today, free to
+    # drift tomorrow" shape as the four copies of this rule #177 is about, and
+    # it would not survive a non-ASCII or over-200-character TMPDIR.
+    source "$(dirname "$0")/lib-slug.sh"
+    SESSION_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/projects/$(session_dir_slug "$TMP_PROJECT")"
     mkdir -p "$SESSION_DIR" "$(dirname "$TMP_PROJECT/.remember/tmp/last-save.json")"
     mkdir -p "$TMP_PROJECT/.remember/tmp"
     cp "$FIXTURES/sample-session.jsonl" "$SESSION_DIR/test-session.jsonl"
@@ -263,7 +273,13 @@ echo "7. Dry-run save (full flow, no Haiku)"
 DRY_OUT=$(cd "$PIPELINE_DIR" && CLAUDE_PROJECT_DIR="$PIPELINE_DIR" bash scripts/save-session.sh --dry 2>/dev/null) || true
 DRY_EXIT=$?
 if echo "$DRY_OUT" 2>/dev/null | grep -q "DRY RUN"; then
-    LINES=$(echo "$DRY_OUT" | grep -c '^\[' 2>/dev/null || echo 0)
+    # `grep -c` prints its count and *still* exits 1 when the count is zero, so
+    # `$(grep -c … || echo 0)` captures both and yields "0\n0" — the same
+    # stdout-contamination shape as #198's `stat` chain, here in a log line.
+    LINES=$(echo "$DRY_OUT" | grep -c '^\[' 2>/dev/null) || true
+    case "$LINES" in
+        ''|*[!0-9]*) LINES=0 ;;
+    esac
     pass "save-session.sh --dry ($LINES exchanges shown)"
 else
     fail "save-session.sh --dry" "exit $DRY_EXIT"

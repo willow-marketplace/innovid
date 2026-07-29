@@ -25,10 +25,23 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
+def _ambient_env() -> dict[str, str]:
+    """os.environ minus every GIT_* var.
+
+    conftest's _sanitize_ambient_git_env strips those per test, but the dicts
+    below are built at import time — before any fixture runs — so a GIT_DIR
+    leaked into the launching shell would be baked in and handed to every
+    subprocess these constants feed. Harmless while pipeline.shell never shells
+    out to git; a silent reopening of the bug the moment it does. Filter on the
+    prefix rather than restating conftest's list, so the two cannot drift.
+    """
+    return {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+
+
 # A non-UTF-8 locale that survives PEP 538 C-locale coercion — makes Python's
 # stdin/subprocess codec ascii+surrogateescape on any OS, mimicking cp1252.
 FORCED_NON_UTF8_ENV = {
-    **os.environ,
+    **_ambient_env(),
     "PYTHONUTF8": "0",
     "PYTHONCOERCECLOCALE": "0",
     "LC_ALL": "C",
@@ -285,3 +298,191 @@ def test_consolidate_tolerates_non_utf8_staging(tmp_path, capsys):
             archive_file=str(tmp_path / "a.md"),
         )  # must not raise
     assert "RECENT_OUT=" in capsys.readouterr().out
+
+
+def test_consolidate_staging_consumed_bytes_match_real_file_size(tmp_path, capsys):
+    """The consumed-byte count recorded for run-consolidation.sh must describe
+    the FILE on disk, not the decoded-and-re-encoded string (review of 8d2cdab).
+
+    The staging file used to be read with ``open(..., errors="replace")`` and
+    the consumed count taken from ``len(content.encode("utf-8"))``. Each
+    undecodable byte becomes one U+FFFD, which re-encodes to three bytes, so a
+    file with two stray non-UTF-8 bytes measured four bytes bigger than it
+    actually is (a 61-byte file measured 65). Overstated, run-consolidation.sh's
+    ``staging_now -gt staging_consumed`` reads false and it falls through to the
+    blind ``mv`` rename — sealing anything appended during consolidation inside
+    ``.done.md``, unreachable, which is exactly the loss this count exists to
+    prevent (#142's shape, one layer over).
+    """
+    sys.path.insert(0, str(REPO_ROOT))
+    from unittest.mock import patch
+    from pipeline.shell import cmd_consolidate
+    from pipeline.types import ConsolidationResult, TokenUsage
+
+    staging = tmp_path / "staging"
+    staging.mkdir()
+    staging_file = staging / "today-2020-01-01.md"
+    # \xff\xfe: two bytes, neither valid UTF-8 on its own. errors="replace"
+    # turns them into two U+FFFD (6 bytes when re-encoded) instead of 2.
+    raw_bytes = b"entry with two stray bytes \xff\xfe right here, then more text\n"
+    staging_file.write_bytes(raw_bytes)
+    real_size = os.path.getsize(staging_file)
+
+    res = ConsolidationResult(
+        recent="r", archive="a", tokens=TokenUsage(input=1, output=1, cache=0, cost_usd=0.0))
+    with patch("pipeline.consolidate.consolidate", return_value=res):
+        cmd_consolidate(
+            staging_dir=str(staging),
+            recent_file=str(tmp_path / "r.md"),
+            archive_file=str(tmp_path / "a.md"),
+        )
+    output = capsys.readouterr().out
+    staging_paths_file = next(
+        line.split("=", 1)[1]
+        for line in output.splitlines()
+        if line.startswith("STAGING_PATHS_FILE=")
+    )
+    raw = Path(staging_paths_file).read_bytes()
+    fields = [p for p in raw.split(b"\x00") if p]
+    paths_from_file, counts = fields[0::2], fields[1::2]
+    idx = next(i for i, p in enumerate(paths_from_file)
+               if p.decode().endswith("today-2020-01-01.md"))
+    consumed = int(counts[idx].decode())
+    assert consumed == real_size, (
+        f"consumed count {consumed} != real file size {real_size} bytes — "
+        "measured from the decoded-and-re-encoded string instead of the file, "
+        "so run-consolidation.sh's staging_now > staging_consumed check goes "
+        "false and seals appended entries inside .done.md"
+    )
+
+
+# ── Boundary 3: shell.py's own stdout, read back as a path by bash (#145)
+#
+# Every cmd_* prints KEY=value lines that bash captures by command substitution
+# and passes on as argv to the NEXT python call. On Windows that print() used
+# the console's ANSI codepage, so a temp path under a non-ASCII profile came
+# back mojibake and build-prompt died with FileNotFoundError on a file that was
+# right there on disk.
+#
+# Note this boundary needs a DIFFERENT stand-in from the two above. Forcing
+# LC_ALL=C would also make Python's filesystem encoding ascii, which mangles
+# the path before stdout is ever reached — that is not the bug, and it is not
+# what Windows does: there the filesystem is UTF-8 (PEP 529) and only the
+# console codec is wrong. So keep the locale alone and force just the io codec
+# to a real ANSI codepage, which is exactly the shape #145 reported.
+ANSI_STDOUT_ENV = {**_ambient_env(), "PYTHONIOENCODING": "cp1252"}
+ANSI_STDOUT_ENV.pop("PYTHONUTF8", None)
+
+
+def _run_shell_ansi_stdout(args: list[str], stdin_bytes: bytes, tmpdir: Path):
+    """Run pipeline.shell with an ANSI stdout codec and a non-ASCII TMPDIR."""
+    env = {**ANSI_STDOUT_ENV, "TMPDIR": str(tmpdir), "TEMP": str(tmpdir),
+           "TMP": str(tmpdir)}
+    return subprocess.run(
+        [sys.executable, "-m", "pipeline.shell", *args],
+        input=stdin_bytes, capture_output=True, cwd=str(REPO_ROOT),
+        env=env, timeout=30,
+    )
+
+
+def _haiku_payload(result: str) -> bytes:
+    return json.dumps(
+        {"result": result, "input_tokens": 1, "output_tokens": 1,
+         "cache_read_input_tokens": 0},
+        ensure_ascii=False,
+    ).encode("utf-8")
+
+
+# The two tests below put a non-ASCII directory on disk, so they need a
+# filesystem codec that can carry one. A runner under LANG=C cannot, and there
+# the path is mangled before stdout is ever involved — a different bug from
+# #145, and not one this stand-in can show. The unit guard below covers those
+# runners.
+requires_utf8_fs = pytest.mark.skipif(
+    sys.getfilesystemencoding().lower().replace("-", "") != "utf8",
+    reason="needs a UTF-8 filesystem codec to put a non-ASCII dir on disk; "
+           "test_main_reconfigures_both_output_streams covers this elsewhere",
+)
+
+
+@requires_utf8_fs
+def test_shell_stdout_emits_utf8_paths_under_ansi_codepage(tmp_path):
+    """A path printed for bash to re-consume must survive as UTF-8 (#145)."""
+    tmpdir = tmp_path / "ユーザー"
+    tmpdir.mkdir()
+    out = tmp_path / "haiku.txt"
+
+    result = _run_shell_ansi_stdout(["parse-haiku", str(out)], _haiku_payload("x"), tmpdir)
+
+    assert result.returncode == 0, (
+        "shell.py crashed printing a non-ASCII path under an ANSI stdout codec "
+        f"(#145).\nstderr:\n{result.stderr.decode('utf-8', 'replace')}"
+    )
+    line = next(
+        ln for ln in result.stdout.decode("utf-8").splitlines()
+        if ln.startswith("HAIKU_TEXT_FILE=")
+    )
+    assert "ユーザー" in line, f"path came back mangled: {line!r}"
+
+
+@requires_utf8_fs
+def test_shell_stdout_path_round_trips_into_a_second_process(tmp_path):
+    """The reporter's own check: the captured path must still open (#145).
+
+    Printing valid UTF-8 is only half of it — bash hands the captured string to
+    the next `python -m pipeline.shell` call as argv, so the path has to survive
+    the whole loop, not merely look right in a terminal.
+    """
+    tmpdir = tmp_path / "プロジェクト"
+    tmpdir.mkdir()
+    out = tmp_path / "haiku.txt"
+
+    captured = _run_shell_ansi_stdout(["parse-haiku", str(out)], _haiku_payload("y"), tmpdir)
+    assert captured.returncode == 0, captured.stderr.decode("utf-8", "replace")
+    path = next(
+        ln.split("=", 1)[1]
+        for ln in captured.stdout.decode("utf-8").splitlines()
+        if ln.startswith("HAIKU_TEXT_FILE=")
+    ).strip("'\"")
+
+    probe = subprocess.run(
+        [sys.executable, "-c",
+         "import os, sys; print(os.path.exists(sys.argv[1]))", path],
+        capture_output=True, cwd=str(REPO_ROOT), timeout=30,
+    )
+    assert probe.stdout.decode("utf-8").strip() == "True", (
+        f"captured path does not resolve in a second process: {path!r}"
+    )
+
+
+def test_main_reconfigures_both_output_streams():
+    """Cross-platform guard: the reconfigure must cover stderr too, not just
+    stdout — error text carries paths as well, and a crash there is what made
+    #145 undiagnosable in the first place."""
+    sys.path.insert(0, str(REPO_ROOT))
+    from unittest.mock import patch
+    import pipeline.shell as shell
+
+    class Recorder:
+        def __init__(self):
+            self.calls = []
+
+        def reconfigure(self, **kwargs):
+            self.calls.append(kwargs)
+
+        def write(self, *a, **k):
+            pass
+
+        def flush(self):
+            pass
+
+    out, err = Recorder(), Recorder()
+    with patch.object(sys, "stdout", out), patch.object(sys, "stderr", err), \
+            patch.object(sys, "argv", ["shell"]):
+        with pytest.raises(SystemExit):
+            shell.main()
+
+    for name, rec in (("stdout", out), ("stderr", err)):
+        assert rec.calls == [{"encoding": "utf-8", "errors": "replace"}], (
+            f"{name} was not reconfigured to UTF-8: {rec.calls!r}"
+        )

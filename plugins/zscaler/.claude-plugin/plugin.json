@@ -2,17 +2,18 @@
   "name": "zscaler",
   "version": "1.0.0",
   "description": "Manage Zscaler cloud security platform including ZPA (private access), ZIA (internet access), ZDX (digital experience), ZCC (client connector), EASM (attack surface), and Z-Insights (analytics). Create and manage policies, troubleshoot connectivity, audit security configurations, and investigate incidents across the full Zscaler ecosystem.",
-  "updatedAt": "2026-07-14T00:02:54.548Z",
+  "updatedAt": "2026-07-29T12:07:56.205Z",
   "author": {
     "name": "Zscaler"
   },
   "homepage": "https://github.com/zscaler/zscaler-mcp-server",
+  "commands": "./commands/",
   "mcpServers": {
     "zscaler-mcp-server": {
       "args": [
         "--env-file",
         "${CLAUDE_PLUGIN_ROOT}/.env",
-        "zscaler-mcp@0.12.7"
+        "zscaler-mcp@0.14.0"
       ],
       "command": "uvx"
     }

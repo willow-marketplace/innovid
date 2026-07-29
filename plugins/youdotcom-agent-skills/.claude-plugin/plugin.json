@@ -1,27 +1,29 @@
 {
   "name": "youdotcom-agent-skills",
   "version": "1.0.0",
-  "description": "You.com agent skills for web search, research with citations, and content extraction. Guided integrations for Vercel AI SDK, Claude Agent SDK, OpenAI Agents SDK, crewAI, LangChain, Microsoft Teams.ai, direct REST API, and bash CLI.",
-  "updatedAt": "2026-07-14T12:02:20.494Z",
+  "description": "You.com skills for search, contents, research, finance, and integration discovery with MCP, ARD, API-key, OAuth, and MPP/x402 payment guidance.",
+  "updatedAt": "2026-07-29T12:07:40.459Z",
   "author": {
     "url": "https://you.com",
     "name": "You.com",
     "email": "support@you.com"
   },
-  "homepage": "https://you.com",
+  "homepage": "https://docs.you.com",
   "repository": "https://github.com/youdotcom-oss/agent-skills",
   "keywords": [
     "you.com",
-    "web-search",
-    "research",
-    "content-extraction",
+    "claude-code",
+    "agent-skills",
     "mcp",
-    "ai-sdk",
-    "claude-agent-sdk",
-    "openai",
-    "crewai",
-    "langchain",
-    "teams-ai"
+    "web-search",
+    "content-extraction",
+    "research",
+    "finance",
+    "citations",
+    "ard",
+    "ai-catalog",
+    "x402",
+    "mpp"
   ],
   "skills": "./skills/"
 }

@@ -1,6 +1,6 @@
 {
   "name": "dak",
-  "version": "0.6.1",
+  "version": "0.7.2",
   "description": "This plugin provides a specialized suite of skills for data engineers and database practitioners working on Google Cloud. It acts as an expert assistant, allowing you to use natural language prompts in your preferred coding agent to architect complex data pipelines, transform data with dbt, write Spark and BigQuery SQL notebooks, and orchestrate end-to-end workflows across GCP's data ecosystem.",
   "mcpServers": {
     "notebook": {
@@ -169,6 +169,22 @@
       "env": {
         "SERVERLESS_SPARK_PROJECT": "$PROJECT_ID",
         "SERVERLESS_SPARK_LOCATION": "$GCP_REGION"
+      }
+    },
+    "bigtable": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@toolbox-sdk/server@>=1.1.0",
+        "--prebuilt",
+        "bigtable",
+        "--stdio",
+        "--user-agent-metadata",
+        "datacloud.gemini-cli"
+      ],
+      "env": {
+        "BIGTABLE_PROJECT": "$PROJECT_ID",
+        "BIGTABLE_INSTANCE": ""
       }
     }
   },

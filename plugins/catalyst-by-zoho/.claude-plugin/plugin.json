@@ -1,0 +1,45 @@
+{
+  "name": "catalyst-by-zoho",
+  "version": "0.0.2",
+  "description": "Official Claude Code plugin for Catalyst by Zoho — full-stack serverless cloud platform. With Skills that covers all services, SDKs, CLI, architecture patterns, pricing, migration guides, and Zoho MCP tool-based resource management.",
+  "updatedAt": "2026-07-29T12:05:10.455Z",
+  "author": {
+    "url": "https://catalyst.zoho.com/",
+    "name": "Catalyst by Zoho"
+  },
+  "homepage": "https://github.com/catalystbyzoho/claude-plugin",
+  "repository": "https://github.com/catalystbyzoho/claude-plugin.git",
+  "keywords": [
+    "catalyst",
+    "zoho",
+    "mcp",
+    "serverless",
+    "cloud",
+    "datastore",
+    "zcql",
+    "appsail",
+    "stratus",
+    "functions"
+  ],
+  "skills": "./skills/",
+  "commands": "./commands/",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/catalyst-context.js\" 2>/dev/null || true"
+          }
+        ]
+      }
+    ]
+  },
+  "mcpServers": {
+    "catalyst-by-zoho": {
+      "url": "https://catalyst.zohomcp.com/mcp/message",
+      "type": "streamable-http",
+      "_note": "This is the US data center endpoint. If your Catalyst account is on a different DC (EU, IN, AU, JP, SA, CA, UAE), ask the AI assistant to help you switch — it will guide you to the correct endpoint for your region."
+    }
+  }
+}

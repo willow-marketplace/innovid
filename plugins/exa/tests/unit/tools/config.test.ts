@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { integrationHeaders } from "../../../src/tools/config.js";
+import { createExaClient, integrationHeaders } from "../../../src/tools/config.js";
+
+function clientHeaders(client: unknown): Headers {
+  return (client as { headers: Headers }).headers;
+}
 
 describe("integrationHeaders", () => {
   it("includes the Exa integration header", () => {
@@ -68,5 +72,64 @@ describe("integrationHeaders", () => {
     ).toEqual({
       "x-exa-integration": "web-search-mcp",
     });
+  });
+
+  it("encodes non-ASCII client-controlled header values", () => {
+    const headers = integrationHeaders("web-search-mcp", {
+      exaSource: "你hao",
+      mcpClient: {
+        clientInfo: { name: "你🚀" },
+        userAgent: "agent/é",
+      },
+    });
+
+    expect(headers["x-exa-integration"]).toBe("web-search-mcp:%E4%BD%A0hao");
+    expect(headers["x-exa-mcp-client"]).toBe(
+      '{"clientInfo":{"name":"\\u4f60\\ud83d\\ude80"},"userAgent":"agent/\\u00e9"}',
+    );
+    expect(() => new Headers(headers)).not.toThrow();
+  });
+});
+
+describe("createExaClient", () => {
+  it("sets API key auth and Agent integration headers", () => {
+    const exa = createExaClient({
+      exaApiKey: "exa_test_key",
+      exaSource: "claude",
+      mcpSessionId: "session-123",
+    }, "agent-mcp");
+    const headers = clientHeaders(exa);
+
+    expect(headers.get("x-api-key")).toBe("exa_test_key");
+    expect(headers.get("x-exa-integration")).toBe("agent-mcp:claude");
+    expect(headers.get("x-exa-mcp-session-id")).toBe("session-123");
+  });
+
+  it("uses OAuth without falling back to x-api-key", () => {
+    const exa = createExaClient({ oauthAccessToken: "jwt-token" }, "agent-mcp");
+    const headers = clientHeaders(exa);
+
+    expect(headers.get("x-api-key")).toBeNull();
+    expect(headers.get("Authorization")).toBe("Bearer jwt-token");
+    expect(headers.get("x-exa-integration")).toBe("agent-mcp");
+  });
+
+  it("forwards MCP client metadata through shared header plumbing", () => {
+    const exa = createExaClient({
+      exaApiKey: "exa_test_key",
+      mcpClient: {
+        source: "claude-code",
+        sessionId: "session-123",
+        clientInfo: { name: "Claude Code", version: "1.0.0" },
+      },
+    }, "agent-mcp");
+    const headers = clientHeaders(exa);
+
+    expect(headers.get("x-exa-integration")).toBe("agent-mcp");
+    expect(headers.get("x-exa-mcp-client")).toBe(JSON.stringify({
+      source: "claude-code",
+      sessionId: "session-123",
+      clientInfo: { name: "Claude Code", version: "1.0.0" },
+    }));
   });
 });

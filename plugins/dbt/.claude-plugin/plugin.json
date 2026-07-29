@@ -1,8 +1,8 @@
 {
   "name": "dbt",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "Skills for analytics engineering with dbt — building models, writing tests, querying the semantic layer, troubleshooting jobs, and more.",
-  "updatedAt": "2026-07-14T00:02:54.536Z",
+  "updatedAt": "2026-07-25T00:03:44.069Z",
   "author": {
     "name": "dbt Labs"
   },

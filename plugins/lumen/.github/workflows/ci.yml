@@ -1,0 +1,181 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    if: github.actor != 'release-please[bot]'
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+          cache: true
+
+      - name: Setup ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: ${{ runner.os }}-go-cgo
+          max-size: 500M
+
+      - name: Test
+        run: |
+          # Use ccache to speed up repeated CGO (C) compilation of sqlite3/tree-sitter.
+          export CC="ccache gcc"
+          export CXX="ccache g++"
+          # Print a heartbeat every 60 s so GitHub Actions does not kill the
+          # runner during the silent CGO (sqlite3) compilation phase.
+          (while true; do echo "[ci] tests still running…"; sleep 60; done) &
+          HEARTBEAT=$!
+          trap "kill $HEARTBEAT 2>/dev/null || true" EXIT
+          CGO_ENABLED=1 go test -p 1 -tags=fts5 -timeout=30m \
+            -coverprofile=coverage.out -covermode=atomic ./...
+
+      - name: Upload coverage to Coveralls
+        uses: coverallsapp/github-action@v2
+        with:
+          file: coverage.out
+          format: golang
+
+      - name: Vet
+        run: go vet -tags=fts5 ./...
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    if: github.actor != 'release-please[bot]'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+          cache: false
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v8
+        with:
+          version: latest
+          args: --build-tags=fts5
+
+  e2e:
+    name: E2E
+    runs-on: ubuntu-latest
+    if: github.actor != 'release-please[bot]'
+    services:
+      ollama:
+        image: ollama/ollama:latest
+        ports:
+          - 11434:11434
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+          cache: true
+
+      - name: Wait for Ollama
+        run: |
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:11434/ && break
+            sleep 1
+          done
+
+      - name: Pull embedding model
+        run:
+          'curl -sf http://localhost:11434/api/pull -d ''{"name":"all-minilm"}'''
+
+      - name: E2E tests
+        run: make e2e
+        env:
+          OLLAMA_HOST: http://localhost:11434
+          LUMEN_EMBED_MODEL: all-minilm
+          LUMEN_EMBED_DIMS: '384'
+
+      - name: E2E lang tests
+        run: make e2e-lang
+        env:
+          OLLAMA_HOST: http://localhost:11434
+          LUMEN_EMBED_MODEL: all-minilm
+          LUMEN_EMBED_DIMS: '384'
+
+  build:
+    name: Build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    if: github.actor != 'release-please[bot]'
+    timeout-minutes: 30
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+          cache: true
+
+      - name: Build
+        run: |
+          VERSION=$(grep -o '"[0-9][^"]*"' .release-please-manifest.json | tr -d '"' | head -1)
+          CGO_ENABLED=1 go build -tags=fts5 \
+            -ldflags="-X github.com/ory/lumen/cmd.buildVersion=$VERSION" \
+            -o bin/lumen .
+
+      - name: Assert semver version output
+        run: |
+          VER=$(bin/lumen version)
+          echo "Binary reported version: $VER"
+          echo "$VER" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]' \
+            || { echo "ERROR: version output does not match semver pattern"; exit 1; }
+
+  scripts:
+    name: Script tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    if: github.actor != 'release-please[bot]'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+          cache: true
+
+      - name: Unix script tests
+        if: runner.os != 'Windows'
+        run: bash scripts/test_run.sh
+
+      - name: Windows dispatch test (cmd /c PATHEXT + clean stdout)
+        if: runner.os == 'Windows'
+        shell: cmd
+        run: call scripts\test_run_dispatch_windows.bat
+
+      - name: Windows launcher MCP handshake (run.cmd stdio)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: pwsh -File scripts/test_run_windows.ps1
+
+      - name: Setup Node.js for spawn-semantics test
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install cross-spawn for parallel transport test
+        working-directory: scripts
+        run: npm install --no-audit --no-fund
+
+      - name: Spawn-semantics regression guard
+        run: node scripts/test_run_spawn.js

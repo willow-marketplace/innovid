@@ -1,0 +1,18 @@
+{
+  "name": "growthbook",
+  "version": "1.0.0",
+  "description": "A suite of agent skills for the full GrowthBook feature flag and experimentation lifecycle.",
+  "updatedAt": "2026-07-29T12:06:01.714Z",
+  "author": {
+    "url": "https://growthbook.io",
+    "name": "GrowthBook"
+  },
+  "repository": "https://github.com/growthbook/skills",
+  "keywords": [
+    "growthbook",
+    "feature-flags",
+    "experimentation",
+    "ab-testing"
+  ],
+  "skills": "./skills/"
+}

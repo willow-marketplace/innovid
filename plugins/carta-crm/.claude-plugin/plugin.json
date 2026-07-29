@@ -1,8 +1,8 @@
 {
   "name": "carta-crm",
-  "version": "0.9.0",
+  "version": "1.1.1",
   "description": "Manage the Carta CRM conversationally — search, add, update, and enrich investors, companies, contacts, deals, notes, and fundraisings via the Carta CRM MCP Server",
-  "updatedAt": "2026-07-14T12:01:23.441Z",
+  "updatedAt": "2026-07-29T12:05:07.872Z",
   "author": {
     "name": "Carta",
     "email": "crm@carta.com"
@@ -19,7 +19,8 @@
     "notes",
     "fundraisings",
     "search",
-    "enrich"
+    "enrich",
+    "analytics"
   ],
   "skills": "./skills/",
   "hooks": {
@@ -33,6 +34,10 @@
           {
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/hooks/init-data-dir.js\""
+          },
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/hooks/capture-model.js\""
           }
         ]
       }
@@ -53,6 +58,16 @@
           {
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/hooks/inject-instrumentation.js\""
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/hooks/track-slash-skill.js\""
           }
         ]
       }

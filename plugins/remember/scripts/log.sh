@@ -60,13 +60,92 @@ fi
 config() {
     local key="$1"
     local default="$2"
-    if [ -f "$REMEMBER_CONFIG" ] && command -v jq >/dev/null 2>&1; then
-        local val
-        val=$(jq -r "$key // empty" "$REMEMBER_CONFIG" 2>/dev/null)
-        [ -n "$val" ] && echo "$val" || echo "$default"
-    else
+    if [ ! -f "$REMEMBER_CONFIG" ]; then
         echo "$default"
+        return
     fi
+    local val=""
+    if command -v jq >/dev/null 2>&1; then
+        # NOT `$key // empty`: jq's // treats false the same as null, so every
+        # boolean option set to false read back as its default and could never
+        # be switched off (#159). features.ndc_compression and features.recovery
+        # are both documented, both default true, and neither could be disabled.
+        # Ask for the value and treat only null — a genuinely absent key — as
+        # missing.
+        # Asking jq to map a genuinely absent key to "" and everything else to
+        # its string form. Two near misses this needs to avoid:
+        #   `$key // empty` treats FALSE like null, so no boolean set to false
+        #   could ever be read (#159);
+        #   testing the printed value against "null" cannot tell JSON null from
+        #   the string "null" — `jq -r` prints both as the same bare word.
+        val=$(jq -r "if $key == null then \"\" else ($key | tostring) end" \
+            "$REMEMBER_CONFIG" 2>/dev/null)
+    elif type _jq_fallback >/dev/null 2>&1; then
+        # No jq — detect-tools.sh already defined a Python-based fallback for
+        # exactly this (bare-key `jq -r '.key' file` reads). config() branched
+        # on `command -v jq` and fell straight to `echo "$default"` without
+        # ever trying it, so every user config override was silently ignored
+        # on any jq-less machine. Wire it in here, matching #159's null-vs-
+        # false semantics: an absent/null key falls through to `default`
+        # below; a present `false` prints as the string "false" (see
+        # detect-tools.sh's isinstance(val, str) fix for why that's not
+        # Python's "False").
+        val=$(_jq_fallback -r "$key" "$REMEMBER_CONFIG" 2>/dev/null)
+    else
+        # log.sh can be sourced directly without detect-tools.sh (some
+        # callers/tests do), so _jq_fallback may not exist. Same read,
+        # inlined, so config() never regresses to bundled-default-only just
+        # because of sourcing order. Same null-vs-false semantics as above:
+        # a genuinely absent/null key leaves $val empty (falls to $default
+        # below); a present `false` renders as jq's "false", not Python's
+        # str(False).
+        val=$("${PYTHON:-python3}" -c '
+import json, sys
+try:
+    data = json.load(open(sys.argv[2]))
+    keys = sys.argv[1].strip(".").split(".")
+    v = data
+    for k in keys:
+        if k and isinstance(v, dict):
+            v = v.get(k)
+        if v is None:
+            break
+    if v is not None:
+        # jq -r semantics: raw strings, JSON textual form otherwise
+        # (crucially "true"/"false", not Python str(True)/str(False)).
+        print(v if isinstance(v, str) else json.dumps(v))
+except Exception:
+    pass
+' "$key" "$REMEMBER_CONFIG" 2>/dev/null)
+    fi
+    [ -n "$val" ] && echo "$val" || echo "$default"
+}
+
+# Is verbose logging on? `debug` was documented in the README and shipped in
+# config.example.json but passed to config() NOWHERE, so setting it did nothing
+# (#176) — the same class as #159, where documented booleans could not be
+# switched off. The real switch was the REMEMBER_DEBUG env var, which a user
+# configuring the plugin through config.json has no obvious way to set.
+#
+# Precedence: the env var wins, then `debug` in config, then the caller's own
+# default. That last part matters: save-session.sh was verbose unless told
+# otherwise and 50-git-backup.sh was quiet unless told otherwise, and the README
+# documented only the first. Wiring one shared default would have silently
+# changed one of them for every existing install, so each keeps its own and the
+# option now overrides both — which is what setting it was supposed to do.
+#
+# Usage: debug_enabled <default 0|1> && log ...
+debug_enabled() {
+    local _default="${1:-0}"
+    if [ -n "${REMEMBER_DEBUG:-}" ]; then
+        [ "$REMEMBER_DEBUG" = "1" ]
+        return
+    fi
+    case "$(config '.debug' '')" in
+        true) return 0 ;;
+        false) return 1 ;;
+    esac
+    [ "$_default" = "1" ]
 }
 
 REMEMBER_TZ=$(config ".timezone" "")

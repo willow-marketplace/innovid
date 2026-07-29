@@ -73,8 +73,8 @@ For the latest version, check the [releases page][releases].
 <summary id="antigravity">Antigravity</summary>
 
 You can use either of these two agents for Antigravity:
-- [Antigravity CLI](https://github.com/google-gemini/gemini-cli) version **v0.3.7** or higher
-- [Antigravity 2.0](https://antigravity.google/product/antigravity-2) version **v0.3.7** or higher.
+- [Antigravity CLI](https://github.com/google-gemini/gemini-cli) version **v0.3.8** or higher
+- [Antigravity 2.0](https://antigravity.google/product/antigravity-2) version **v0.3.8** or higher.
 
 <blockquote>
 💡 <strong>Tip — Migrating from Gemini CLI?</strong><br>
@@ -85,7 +85,7 @@ If you previously installed this extension with <code>gemini extensions install<
     <pre><code class="language-bash">agy plugin import gemini</code></pre>
   </li>
 </ul>
-See <a href="https://antigravity.google/docs/gcli-migration">Migrating from Gemini CLI</a> for details on plugins, context files (<code>GEMINI.md</code> / <code>AGENTS.md</code>), and MCP server config differences.
+See <a href="https://antigravity.google/docs/cli/gcli-migration#migrating-from-gemini-cli">Migrating from Gemini CLI</a> for details on plugins, context files (<code>GEMINI.md</code> / <code>AGENTS.md</code>), and MCP server config differences.
 </blockquote>
 
 #### Antigravity 2.0 (IDE)
@@ -93,7 +93,7 @@ See <a href="https://antigravity.google/docs/gcli-migration">Migrating from Gemi
 **1. Clone the Repo:**
 
 ```bash
-git clone --branch 0.3.7 https://github.com/gemini-cli-extensions/looker.git
+git clone --branch 0.3.8 https://github.com/gemini-cli-extensions/looker.git
 ```
 
 **2. Install the skills:**
@@ -118,7 +118,7 @@ _(Tip: Antigravity 2.0 automatically discovers skills in these directories at th
 **1. Clone the Repo:**
 
 ```bash
-git clone --branch 0.3.7 https://github.com/gemini-cli-extensions/looker.git
+git clone --branch 0.3.8 https://github.com/gemini-cli-extensions/looker.git
 ```
 
 **2. Install the skills:**
@@ -192,7 +192,7 @@ You can install skills using the `npx skills` command.
 Run the following command in your terminal to automatically download and register the skills:
 
 ```bash
-npx skills add https://github.com/gemini-cli-extensions/looker/tree/0.3.7
+npx skills add https://github.com/gemini-cli-extensions/looker/tree/0.3.8
 ```
 
 For detailed info check out the [Skills npm package](https://www.npmjs.com/package/skills).

@@ -29,12 +29,57 @@ source "$PIPELINE_DIR/scripts/log.sh"
 REPO_ROOT=$(dirname "$REMEMBER_DIR")
 SLUG=$(basename "$REMEMBER_DIR")
 
+# Prevent outer git env vars from overriding git -C behaviour. This must happen
+# *before* the activation guards below, not just inside the worker subshell: a
+# leaked GIT_DIR (bare-repo dotfiles setups that export it, or invocation from
+# inside another git hook) makes every `git -C … rev-parse` resolve against the
+# leaked repo instead of the directory we asked about — collapsing both sides of
+# the #138 common-dir comparison onto the same wrong value. The guards are the
+# code that most needs the sanitization, so they get it first.
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE
+
 # Legacy mode (REMEMBER_DIR is inside PROJECT_DIR) → never run.
 [ "$REPO_ROOT" = "$PROJECT_DIR" ] && exit 0
 
 # REPO_ROOT must be the toplevel of a git repo, not just inside one.
 TOPLEVEL=$(git -C "$REPO_ROOT" rev-parse --show-toplevel 2>/dev/null) || exit 0
 [ "$TOPLEVEL" = "$REPO_ROOT" ] || exit 0
+
+# ── Never back up into the project's own repository (#138) ───────────────────
+# The equality check above only catches the plain legacy layout. Since #127,
+# a session run from a linked git worktree keeps PROJECT_DIR on the worktree
+# while REMEMBER_DIR is redirected into the *main checkout* — so REPO_ROOT is
+# the project repo, both guards above pass, and the hook would delete the
+# protective .remember/.gitignore, commit the whole memory tree onto whatever
+# branch the main checkout has out, and push it to the project's origin.
+#
+# Compare git *common dirs* instead of paths: every worktree of a repo shares
+# one common dir, so this covers the plain, worktree, and subdirectory cases at
+# once, while a repo dedicated to memory backup keeps a different common dir and
+# still activates. Old git without --path-format falls back to resolving the
+# relative form; if even that fails we leave the previous behaviour untouched.
+_gb_common_dir() {
+    local _d="$1" _out
+    [ -d "$_d" ] || return 1
+    _out=$(git -C "$_d" rev-parse --path-format=absolute --git-common-dir 2>/dev/null) || _out=""
+    if [ -z "$_out" ]; then
+        _out=$(git -C "$_d" rev-parse --git-common-dir 2>/dev/null) || return 1
+        [ -n "$_out" ] || return 1
+        case "$_out" in
+            /*|[A-Za-z]:/*|[A-Za-z]:\\*) ;;
+            *) _out="$_d/$_out" ;;
+        esac
+    fi
+    ( cd "$_out" 2>/dev/null && pwd -P ) || printf '%s' "$_out"
+}
+
+PROJECT_COMMON_DIR=$(_gb_common_dir "$PROJECT_DIR") || PROJECT_COMMON_DIR=""
+BACKUP_COMMON_DIR=$(_gb_common_dir "$REPO_ROOT") || BACKUP_COMMON_DIR=""
+if [ -n "$PROJECT_COMMON_DIR" ] && [ "$PROJECT_COMMON_DIR" = "$BACKUP_COMMON_DIR" ]; then
+    debug_enabled 0 && \
+        log "git-backup" "REPO_ROOT is the project repo (worktree/legacy), skip"
+    exit 0
+fi
 
 # ── Cooldown ─────────────────────────────────────────────────────────────────
 COOLDOWN_MARKER="$REPO_ROOT/.last-git-backup-ts"
@@ -43,7 +88,7 @@ if [ -f "$COOLDOWN_MARKER" ]; then
     LAST_MOD=$(cat "$COOLDOWN_MARKER" 2>/dev/null || echo 0)
     ELAPSED=$(( $(date +%s) - LAST_MOD ))
     if [ "$ELAPSED" -lt "$BACKUP_COOLDOWN" ]; then
-        [ "${REMEMBER_DEBUG:-0}" = "1" ] && log "git-backup" "cooldown ${ELAPSED}s < ${BACKUP_COOLDOWN}s, skip"
+        debug_enabled 0 && log "git-backup" "cooldown ${ELAPSED}s < ${BACKUP_COOLDOWN}s, skip"
         exit 0
     fi
 fi
@@ -60,7 +105,7 @@ if command -v flock >/dev/null 2>&1; then
     # non-blocking.  If another instance holds it, exit silently.
     exec 9>"$LOCK_FILE"
     if ! flock -n 9; then
-        [ "${REMEMBER_DEBUG:-0}" = "1" ] && log "git-backup" "flock held by another instance, skip"
+        debug_enabled 0 && log "git-backup" "flock held by another instance, skip"
         exit 0
     fi
     # Lock is held on fd 9 for the lifetime of this process.
@@ -70,7 +115,7 @@ else
     if ! ( set -o noclobber; echo $$ > "$LOCK_FILE" ) 2>/dev/null; then
         LOCK_PID=$(cat "$LOCK_FILE" 2>/dev/null)
         if kill -0 "$LOCK_PID" 2>/dev/null; then
-            [ "${REMEMBER_DEBUG:-0}" = "1" ] && log "git-backup" "locked by PID $LOCK_PID, skip"
+            debug_enabled 0 && log "git-backup" "locked by PID $LOCK_PID, skip"
             exit 0
         fi
         log "git-backup" "stale lock (PID $LOCK_PID dead), taking over"
@@ -80,29 +125,42 @@ else
     fi
 fi
 
+# ── Config snapshot — read BEFORE backgrounding ──────────────────────────────
+# Every git_backup.* value is read here, in the parent, and inherited by the
+# subshell as a plain variable. Read inside it instead and they race the parent's
+# exit: lib-memory-dir.sh installs an EXIT trap that deletes $REMEMBER_CONFIG,
+# and once the merged config is gone config() quietly returns each caller's
+# default (issue #135). A slow backup would then push to the wrong place — or to
+# nowhere, with remote and branch emptied — and nothing would say so, because a
+# missing config file is not itself reported.
+#
+# git_backup.remote / git_backup.branch let users with multiple remotes or a
+# non-standard tracking config pin exactly where memory is pushed. Both empty
+# (the default) → bare `git push`, relying on the branch's upstream tracking.
+GIT_BACKUP_REMOTE=$(config ".git_backup.remote" "")
+GIT_BACKUP_BRANCH=$(config ".git_backup.branch" "")
+REMOTE_NAME="${GIT_BACKUP_REMOTE:-origin}"
+
+# We pass --no-gpg-sign by default so background commits never hang on a
+# passphrase prompt. Users with non-interactive signing (e.g. a hardware key)
+# can set git_backup.gpg_sign=true to drop the flag and honour their own
+# commit.gpgSign config. Empty flag (unquoted) = no extra arg (#62).
+GIT_BACKUP_GPG_SIGN=$(config ".git_backup.gpg_sign" "false")
+GPG_SIGN_FLAG="--no-gpg-sign"
+if [ "$GIT_BACKUP_GPG_SIGN" = "true" ]; then
+    GPG_SIGN_FLAG=""
+fi
+
+# Read here too, though its default is the safe one: falling back to false only
+# aborts a push, where a stale true would let a changed remote through.
+ALLOW_REMOTE_CHANGE=$(config ".git_backup.allow_remote_change" "false")
+
 # ── Background subshell — never blocks save-session.sh ───────────────────────
 (
     trap 'rm -f "$LOCK_FILE"' EXIT
 
     # Prevent outer git env vars from overriding git -C behaviour.
     unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE
-
-    # ── Configurable push target (#63) ────────────────────────────────────────
-    # git_backup.remote / git_backup.branch let users with multiple remotes or a
-    # non-standard tracking config pin exactly where memory is pushed. Both empty
-    # (the default) → bare `git push`, relying on the branch's upstream tracking.
-    GIT_BACKUP_REMOTE=$(config ".git_backup.remote" "")
-    GIT_BACKUP_BRANCH=$(config ".git_backup.branch" "")
-    REMOTE_NAME="${GIT_BACKUP_REMOTE:-origin}"
-
-    # ── Configurable commit signing (#62) ─────────────────────────────────────
-    # We pass --no-gpg-sign by default so background commits never hang on a
-    # passphrase prompt. Users with non-interactive signing (e.g. a hardware key)
-    # can set git_backup.gpg_sign=true to drop the flag and honour their own
-    # commit.gpgSign config. Empty flag (unquoted) = no extra arg.
-    GIT_BACKUP_GPG_SIGN=$(config ".git_backup.gpg_sign" "false")
-    GPG_SIGN_FLAG="--no-gpg-sign"
-    [ "$GIT_BACKUP_GPG_SIGN" = "true" ] && GPG_SIGN_FLAG=""
 
     _push() {
         if [ -n "$GIT_BACKUP_REMOTE" ]; then
@@ -151,7 +209,6 @@ fi
     # override (e.g. when intentionally re-pointing to a new private repo).
     REMOTE_STATE_FILE="$REPO_ROOT/.git-backup-remote"
     CURRENT_REMOTE=$(git -C "$REPO_ROOT" remote get-url "$REMOTE_NAME" 2>/dev/null || true)
-    ALLOW_REMOTE_CHANGE=$(config ".git_backup.allow_remote_change" "false")
 
     if [ -z "$CURRENT_REMOTE" ]; then
         log "git-backup" "no remote configured, skipping push"

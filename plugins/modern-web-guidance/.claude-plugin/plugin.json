@@ -1,0 +1,10 @@
+{
+  "name": "modern-web-guidance",
+  "version": "0.0.178",
+  "description": "Keep your coding agent up to date with the latest web best practices",
+  "updatedAt": "2026-07-29T12:06:35.473Z",
+  "author": {
+    "name": "Google Chrome"
+  },
+  "skills": "./skills/"
+}

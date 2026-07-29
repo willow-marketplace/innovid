@@ -25,7 +25,7 @@ session and stick with it; don't re-probe on every command.
 
 | Check | If it works | What to use |
 |---|---|---|
-| `nimble --version` (>= 0.12.0) and `NIMBLE_API_KEY` is set | CLI is ready | Bash `nimble ...` commands |
+| `nimble --version` (>= 1.2.0) and `NIMBLE_API_KEY` is set | CLI is ready | Bash `nimble ...` commands |
 | `claude mcp list 2>/dev/null \| grep -q "nimble"` (or first `mcp__plugin_nimble_nimble__*` call succeeds) | Plugin MCP is connected | `mcp__plugin_nimble_nimble__*` tools |
 | `mcp__plugin_nimble_nimble__*` tools are listed, but a read-only `nimble_agents_list` probe returns an auth / not-connected error or an OAuth authorization URL | Plugin is installed but the **connector isn't connected** (typical Cowork / claude.ai state) | **Stop — guide connector connection (below). Never invent an auth-completion flow.** |
 | None of the above | Stop — guide install (below) | — |
@@ -117,25 +117,26 @@ vice versa) wastes a turn and confuses the user.
 
 ## Request Attribution
 
-All Nimble API calls must carry a `client_source` tag so usage can be tracked per skill.
-The value is always `skill-` followed by the exact SKILL.md `name` field
-(e.g. `skill-competitor-intel`, `skill-seo-intel`, `skill-nimble-web-expert`).
+All Nimble API calls carry a stable integration attribution so usage from this plugin
+can be tracked. The value is always `nimble-agent-skills`.
 
-**CLI path** — add `--client-source skill-{name}` as the global flag on every `nimble`
-command. Place it immediately after `nimble`, before the subcommand. No shell state
-persistence means this must be inlined on every individual call:
+**CLI path** — add `--client-source nimble-agent-skills` as the global flag on every
+`nimble` command. Place it immediately after `nimble`, before the subcommand. No shell
+state persistence means this must be inlined on every individual call (or set
+`CLIENT_SOURCE=nimble-agent-skills` in the environment, which the CLI reads automatically):
 
 ```bash
-nimble --client-source skill-{name} search --query "..."
-nimble --client-source skill-{name} extract --url "..."
-nimble --client-source skill-{name} agent run --agent <name> --params '{...}'
-nimble --client-source skill-{name} map --url "..."
-nimble --client-source skill-{name} crawl run --url "..."
+nimble --client-source nimble-agent-skills search --query "..."
+nimble --client-source nimble-agent-skills extract --url "..."
+nimble --client-source nimble-agent-skills extract:templates run --template <name> --params '{...}'
+nimble --client-source nimble-agent-skills agents:runs create --agent-id <id> --input "..."
+nimble --client-source nimble-agent-skills map --url "..."
+nimble --client-source nimble-agent-skills crawl run --url "..."
 ```
 
-**MCP path** — per-skill client source tracking is not yet supported by the MCP server
-(it currently sends `X-Client-Source: nimble_mcp_server` for all calls regardless of skill).
-This will be enabled once the MCP server adds `CLIENT_SOURCE` support — no action needed here until then.
+**MCP path** — integration attribution rides the CLI path via `--client-source`; MCP
+requests are attributed at the transport level. Use the CLI path when per-integration
+attribution matters. Don't add a header flag to override the MCP transport's attribution.
 
 ## Sibling Handoff
 
@@ -308,62 +309,143 @@ relevance before extracting.
 Each skill provides its own keyword/weight table in SKILL.md — the pattern here is
 the discover → score → filter → fallback flow.
 
-## Agents
+## Extraction Templates
 
-Pre-built extraction templates for structured data from specific sites (Amazon, LinkedIn,
-Google, etc.). Use when you need structured fields rather than raw page content.
-
-```bash
-# List available agents (search by domain or vertical)
-nimble agent list --limit 100
-nimble agent list --limit 100 --search "amazon"
-
-# Inspect an agent's schema (input params + output fields)
-nimble agent get --template-name <agent_name>
-
-# Run an agent (sync — waits for result)
-nimble agent run --agent <agent_name> --params '{"key": "value"}'
-
-# Run an agent (async — returns task_id, poll for results)
-nimble agent run-async --agent <agent_name> --params '{"key": "value"}' \
-  --callback-url "https://your.server/callback"
-```
-
-**Key flags for `run` / `run-async`:**
-- `--agent` — agent name from `nimble agent list` (required)
-- `--params` — JSON object with agent input parameters (required)
-- `--localization` — enable zip_code/store_id localization (agent-dependent)
-
-**Additional flags for `run-async`:**
-- `--callback-url` — POST callback when task completes
-- `--storage-type` — `s3` or `gs`
-- `--storage-url` — destination bucket URL
-- `--storage-compress` — gzip the stored output
-- `--storage-object-name` — custom filename instead of task_id
-
-**Response:** `data.parsing` contains the structured output. Shape depends on agent type:
-- **PDP** (product/profile/detail) → flat dict
-- **SERP / list** → array of objects
-- **Google Search** → `{"entities": {"OrganicResult": [...], ...}}`
-
-**Async task states:** `pending` → `success` or `error`. Poll with `nimble tasks results --task-id <task_id>`.
-
-**Fallback rule:** If no agent exists for the target domain, fall back to
-`nimble search` + `nimble extract`. Don't fail silently — log which domains
-lacked agent coverage so agent-builder can fill gaps later.
-
-### Agent batch
+Reusable, site-specific templates that return structured fields from a known site
+(Amazon products, Reddit threads, Google Maps, etc.) — the right tool when you can point
+directly at an item (by URL or identifier) and want clean parsed data, not raw page
+content. Use **existing** templates only; do not build new ones from these skills. If no
+template covers the site, fall back to `search` + `extract`, or use a Web Search Agent
+(below) when the data needs discovery or reasoning across pages.
 
 ```bash
-# Up to 1,000 agent requests in one call
-nimble agent run-batch \
-  --shared-inputs 'agent: amazon_serp' \
-  --input '{"params": {"keyword": "iphone 15"}}' \
-  --input '{"params": {"keyword": "iphone 16"}}'
+# List templates (paginated; scan display_name / name / metadata.domain)
+nimble extract:templates list --limit 100
+
+# Inspect a template's input_schema + output_schema before running
+nimble extract:templates get --extract-template-name <template_name>
+
+# Run a template (realtime). --params is a JSON/YAML mapping matching input_schema
+nimble extract:templates run --template <template_name> --params '{"key": "value"}'
+
+# Async (returns a task to poll) and batch (up to 1,000 items)
+nimble extract:templates async --template <template_name> --params '{"key": "value"}'
+nimble extract:templates batch --template <template_name> \
+  --input '{"params": {"key": "value-1"}}' \
+  --input '{"params": {"key": "value-2"}}'
 ```
 
-Returns a `batch_id`. Poll with `nimble batches progress --batch-id <id>`, then
-fetch individual results with `nimble tasks results --task-id <id>`.
+**Key flags:**
+- `--template` — template `name` from `extract:templates list` (required for run/async/batch)
+- `--extract-template-name` — template `name` (for `get`)
+- `--params` — JSON/YAML mapping of inputs, matching the template's `input_schema` (required)
+- `--localization` — enable zip_code/store_id localization (template-dependent)
+
+**Response:** the structured records defined by the template's `output_schema` — an array
+for list/SERP-style templates, an object for detail/PDP-style templates. Always read the
+`output_schema` from `extract:templates get` to know the shape before parsing. REST/SDK
+equivalent: `POST /v2/extract/templates/run` (and `/async`, `/batch`).
+
+**Async task states:** `pending` → `success` or `error`. Poll status with
+`nimble tasks get --task-id <task_id>` until terminal, then fetch with
+`nimble tasks results --task-id <task_id>`; batches with `nimble batches progress`.
+
+## Web Search Agents
+
+AI-driven agents for open-ended web work — **research, data enrichment, and dataset
+building** — where the source isn't fixed, data is scattered across pages, structure is
+inconsistent, or a synthesized answer is needed. Given a goal, an agent discovers where
+the information lives, navigates to it, and returns structured or written output with
+per-claim citations. This is the right tool when an Extraction Template doesn't fit
+because there's no single known page to parse (see the routing note above).
+
+**Reuse-priority — check in this order before creating a new agent:**
+1. An existing agent in the account already covers this (`agents list`).
+2. A close-match **agent template** worth materializing (`agents:templates list`).
+3. Only if neither fits, create one from scratch.
+
+Neither list command takes a server-side search term — list and filter client-side on
+`agent_name` / `template_name` / `description` / `use_case`. Never hardcode names.
+
+### Pick a run mode first
+
+The identity you pass decides the route, and the route decides the command:
+
+| Mode                          | Identity                    | Command                                     |
+| ----------------------------- | --------------------------- | ------------------------------------------- |
+| **1 — named create-or-reuse** | `--agent-name`, no agent ID | `nimble agents run --agent-name <name>`     |
+| **2 — explicit agent**        | `--agent-id`                | `nimble agents:runs create --agent-id <id>` |
+| **3 — caller-anonymous**      | neither                     | `nimble agents run`                         |
+
+**Mode 1 is the default for these skills** — derive a deterministic name (`{skill}-{purpose}`)
+so repeat sessions reuse the same agent instead of creating near-duplicates. A repeated name
+returns the **same `web_search_agent_id`**. `agents:runs create` **requires** `--agent-id`
+and ignores `--agent-name`; use `nimble agents run` for Modes 1 and 3. Mode 3 still returns a
+generated `web_search_agent_id` — keep it, `get` and `result` both need it.
+
+```bash
+# Discover pre-built agent templates, then inspect one
+nimble --client-source nimble-agent-skills agents:templates list
+nimble --client-source nimble-agent-skills agents:templates get --template-name <template_name>
+
+# Create an agent up front — from a template, or from scratch
+nimble --client-source nimble-agent-skills agents create --template <template_name>
+nimble --client-source nimble-agent-skills agents create \
+  --display-name "<name>" --goal "<goal>" --sources '{...}' \
+  --output-schema '{...}' --use-case research --effort high
+
+# Mode 1 run (async), then poll status and fetch the result
+nimble --client-source nimble-agent-skills agents run \
+  --agent-name "<skill>-<purpose>" --use-case research \
+  --input "<task or question>" --effort high
+nimble --client-source nimble-agent-skills agents:runs get    --agent-id <agent_id> --run-id <run_id>
+nimble --client-source nimble-agent-skills agents:runs result --agent-id <agent_id> --run-id <run_id>
+```
+
+**Run controls** (both run commands): `--input` (required), `--effort`
+(`low`/`medium`/`high`/`x-high`/`max` — default `high` once several fields need real digging),
+`--output-schema`, `--input-data`, `--sources`, `--enable-events`,
+`--previous-interaction-id`, plus `--skill` and `--use-case` per the rules below.
+
+- **`--sources`** has two shapes in one object: `allow` / `block` are arrays of groups
+  (`title` required, `domains`, optional `order` for priority); `prioritize` / `avoid` are
+  plain guidance strings.
+- **`--input-data`** carries the rows you already have; `--output-schema` describes the shape
+  of the answer. Enriching several rows needs an **array** schema — an object schema returns
+  one object. Carried-in fields come back with `confidence: "pre_existing"` and no citations;
+  never present them as sourced findings.
+
+### `use_case` locks; `skill` overrides once
+
+`use_case` is exactly `research`, `enrichment`, or `dataset_building`. It is stored when the
+agent is **created** (including a Mode 1 first call or a Mode 3 run). Against an existing
+agent the same value is a no-op and a different value is **rejected** — omit it, match it, or
+use a different agent. `dataset_building` additionally requires an `--output-schema` and
+effort `high` or above.
+
+`--skill` on a run against an **existing** agent applies to that run only and leaves stored
+config untouched. On the call that **creates** the agent, `--skill` and `--use-case` become
+its stored configuration instead.
+
+**Run lifecycle:** `queued` → poll `agents:runs get` until terminal (`completed`, `failed`,
+`cancelled`) → fetch output with `agents:runs result`. Calling `result` early returns `409`
+"Run still active" — go back to `get`, don't hammer `result`. The result's `output` is
+`type: "text"` (prose) or `type: "json"` (structured), plus `trust` metadata with per-claim
+citations. REST/SDK equivalent: `POST /v2/agents/*`.
+
+**Live progress:** on the CLI, create with `--enable-events` and consume
+`nimble agents:runs stream-events --agent-id <id> --run-id <id> [--max-items <n>]`. The stream
+closes on its own at a terminal state and never carries the output — still fetch `result`
+afterwards. **On MCP, use bounded status polling instead**: poll `nimble_agents_run_status`
+every ~15–30s with a capped total wait, and report a run as still active rather than hanging
+or calling it failed.
+
+> Full contract (mode table, source shapes, trust metadata, error table):
+> `skills/web-search-tools/nimble-web-expert/references/nimble-agents/SKILL.md`.
+
+**Fallback rule:** If neither an Extraction Template nor a Web Search Agent fits, fall
+back to `nimble search` + `nimble extract`. Don't fail silently — log which domains
+lacked coverage.
 
 ### Tasks & batches polling
 
@@ -379,58 +461,29 @@ nimble batches list --limit 20                # list all batches
 nimble tasks list --limit 20                  # list all tasks
 ```
 
-**Workflow:** Always `nimble agent get` before `nimble agent run` to understand the
-expected input params and output fields.
+**Workflow:** Always `extract:templates get` (or `agents:templates get`) before running,
+to understand the expected input params and output fields.
 
-## Agent Creation (generate → poll → iterate → publish)
-
-Create custom extraction agents for any website. The full lifecycle is available via CLI.
-
-```bash
-# Generate a new agent
-nimble agent generate \
-  --agent-name niche_store_pdp \
-  --prompt "Extract product name, price, rating, and first 5 reviews" \
-  --url "https://example.com/products/widget-pro"
-
-# Refine an existing agent (clone + apply new prompt)
-nimble agent generate \
-  --agent-name niche_store_pdp \
-  --from-agent niche_store_pdp \
-  --prompt "Add a discount_percentage field"
-
-# Poll generation status (async — typically 1-3 min)
-nimble agent get-generation --generation-id <generation_id>
-
-# Publish when satisfied
-nimble agent publish --agent-name niche_store_pdp --version-id <version_id>
-```
-
-**Key flags for `generate`:**
-- `--agent-name` — name for the agent (required)
-- `--prompt` — natural language description of what to extract (required)
-- `--url` — sample URL to analyze (required)
-- `--from-agent` — existing agent to clone and refine (for iteration)
-- `--input-schema` — custom input schema (optional, inferred if omitted)
-- `--output-schema` — custom output schema (optional, inferred if omitted)
-- `--metadata` — additional metadata (optional)
-
-**Generation response:** returns `id` (generation ID), `status` (`queued` → `in_progress`
-→ `success` / `failed`), and `generated_version_id` on success.
-
-**Workflow:** Generate → poll with `get-generation` until `success` → optionally iterate
-with `--from-agent` → publish with `version-id`.
-
-**Polling:** Generation takes 1-3 minutes. Run the generate → poll → publish loop as a
-background Task agent so the user isn't blocked waiting. The Task agent should poll
-`nimble agent get-generation` every 10 seconds until `status` is `success` or `failed`,
-then publish automatically (or report failure). Present results to the user when done.
+> **Out of scope:** Building or publishing new Extraction Templates / Web Search Agents is
+> not part of these skills — use **existing** templates and agents. Point users who need a
+> custom template or agent to the Nimble app.
 
 ## MCP Fallback (when CLI is not installed)
 
 If `nimble --version` returns "command not found", fall back to the Nimble MCP server.
 All CLI commands have MCP equivalents — discover them via the MCP tool list. MCP tools
 accept the same parameters as CLI flags, passed as tool arguments instead of flags.
+
+Two Web Search Agent controls are CLI-only, each with a documented MCP alternative:
+
+| CLI-only control          | MCP alternative                                                        |
+| ------------------------- | ---------------------------------------------------------------------- |
+| `--enable-events` + `agents:runs stream-events` | Bounded `nimble_agents_run_status` polling (~15–30s, capped total wait) |
+| `--previous-interaction-id` | Start a fresh run with the prior context restated in `input`          |
+| Mode 3 (no agent identity) | Pass an `agent_name` — `nimble_agents_run` requires `agent_id` or `agent_name` |
+
+Modes 1 and 2, `use_case`, `skill`, `sources`, `output_schema`, `input_data`, and `effort`
+work the same on both transports.
 
 ## Parallel Execution
 
@@ -655,7 +708,7 @@ from input size and operations per record.
 | Estimated calls | Strategy | How |
 |----------------|----------|-----|
 | **1–10** | Individual calls | Parallel Bash calls (max 4 concurrent) |
-| **11–100** | Single batch | `extract-batch` or `agent run-batch` — one API call, server-side parallelism, poll for results |
+| **11–100** | Single batch | `extract-batch` or `extract:templates batch` — one API call, server-side parallelism, poll for results |
 | **100–1,000** | Multiple batches | Split into batches of up to 1,000. Use sub-agents to prepare inputs and process results |
 | **>1,000** | Confirmation gate + batches | Show estimate, ask user to confirm before proceeding, then execute via batches |
 
@@ -675,10 +728,10 @@ nimble extract-batch \
 
 Add `--shared-inputs 'render: true'` if pages need JavaScript rendering.
 
-**For WSA/agent calls (11+ entities):**
+**For structured template calls (11+ entities):**
 ```bash
-nimble agent run-batch \
-  --shared-inputs 'agent: {agent_name}' \
+nimble extract:templates batch \
+  --template {template_name} \
   --input '{"params": {...}}' \
   --input '{"params": {...}}'
 ```
@@ -698,7 +751,7 @@ Batch API handles up to 1,000 requests per call with server-side orchestration.
 For >1,000 requests, split into multiple batch calls.
 
 **Sub-agents should also batch.** When spawning sub-agents for parallel work, tell
-each agent to use `extract-batch` or `agent run-batch` for its assigned items
+each agent to use `extract-batch` or `extract:templates batch` for its assigned items
 rather than making individual calls. One batch call per agent is faster and more
 reliable than 5-6 sequential calls.
 
@@ -715,7 +768,7 @@ Pattern: **estimate → display → gate → execute**
 
 ### Why batch over individual calls
 
-Individual `nimble agent run` calls each require a separate HTTP round-trip and
+Individual `nimble extract:templates run` calls each require a separate HTTP round-trip and
 Bash tool invocation. At scale (dozens+) this is slow, unreliable, and wasteful
 on a local machine. Batch APIs move orchestration server-side — one API call
 triggers all requests, and you poll for results. Always prefer batch when above

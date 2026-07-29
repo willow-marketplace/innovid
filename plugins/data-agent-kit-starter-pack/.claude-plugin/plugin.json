@@ -1,13 +1,26 @@
 {
   "name": "data-agent-kit-starter-pack",
-  "version": "0.6.1",
+  "version": "0.7.2",
   "description": "This plugin provides a specialized suite of skills for data engineers and database practitioners working on Google Cloud. It acts as an expert assistant, allowing you to use natural language prompts in your preferred coding agent to architect complex data pipelines, transform data with dbt, write Spark and BigQuery SQL notebooks, and orchestrate end-to-end workflows across GCP's data ecosystem.",
-  "updatedAt": "2026-07-14T12:01:31.411Z",
+  "updatedAt": "2026-07-29T12:05:34.723Z",
   "author": {
     "name": "Google LLC",
     "email": "data-cloud-ai-integrations@google.com"
   },
   "skills": "./skills/",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${extensionPath}${/}.agents${/}hooks${/}telemetry_hook.js\" --agent_name gemini --install_source data-agent-kit-starter-pack"
+          }
+        ]
+      }
+    ]
+  },
   "mcpServers": {
     "spanner": {
       "env": {
@@ -37,6 +50,22 @@
         "@toolbox-sdk/server@>=1.1.0",
         "--prebuilt",
         "bigquery",
+        "--stdio",
+        "--user-agent-metadata",
+        "datacloud.codex"
+      ],
+      "command": "npx"
+    },
+    "bigtable": {
+      "env": {
+        "BIGTABLE_PROJECT": "$PROJECT_ID",
+        "BIGTABLE_INSTANCE": ""
+      },
+      "args": [
+        "-y",
+        "@toolbox-sdk/server@>=1.1.0",
+        "--prebuilt",
+        "bigtable",
         "--stdio",
         "--user-agent-metadata",
         "datacloud.codex"

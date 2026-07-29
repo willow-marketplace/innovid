@@ -2,7 +2,7 @@
   "name": "migration-to-aws",
   "version": "1.5.0",
   "description": "This no-cost tool assesses your current cloud provider's usage, geography, and billing data to estimate and compare AWS services and pricing, and recommends migration or continued use of your current provider. Supports GCP and Heroku migrations. AWS pricing is based on current published pricing and may vary over time. The tool may generate a .migration folder containing comparison and migration execution data, which you may delete upon completion or use to migrate to AWS.",
-  "updatedAt": "2026-07-16T02:16:53.216Z",
+  "updatedAt": "2026-07-29T12:06:34.606Z",
   "author": {
     "name": "Amazon Web Services"
   },
@@ -87,6 +87,25 @@
     "temporal-docs": {
       "url": "https://temporal.mcp.kapa.ai",
       "type": "http"
+    },
+    "aws-pricing-calculator": {
+      "args": [
+        "-y",
+        "sample-aws-pricing-calculator-mcp@latest"
+      ],
+      "type": "stdio",
+      "command": "npx",
+      "timeout": 120000,
+      "autoApprove": [
+        "get_server_info",
+        "search_services",
+        "get_service_fields",
+        "create_estimate",
+        "add_service",
+        "validate_estimate",
+        "build_estimate",
+        "export_estimate"
+      ]
     }
   }
 }

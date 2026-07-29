@@ -27,7 +27,7 @@
 # REQUIRES
 #   PROJECT_DIR    — set by resolve-paths.sh
 #   PIPELINE_DIR   — set by resolve-paths.sh
-#   session_dir_slug — defined by detect-tools.sh
+#   session_dir_slug — sourced from lib-slug.sh (no longer needs detect-tools.sh)
 #
 # EXPORTS
 #   REMEMBER_DIR      — absolute path to memory data directory
@@ -38,6 +38,13 @@
 # Guard against double-sourcing. Use default-expansion so set -u callers don't error.
 [ -n "${_LIB_MEMORY_DIR_LOADED:-}" ] && return 0
 _LIB_MEMORY_DIR_LOADED=1
+
+# session_dir_slug, from the one file that defines it. This used to be a naive
+# inline fallback declared at the point of use — the pre-#144 implementation,
+# carrying every bug #156 fixed, and live for user-prompt-hook.sh, which reaches
+# here without sourcing detect-tools.sh (#158). Sourcing detect-tools.sh instead
+# is not an option: it exits 1 when it finds no Python, taking its caller down.
+source "$(dirname "${BASH_SOURCE[0]}")/lib-slug.sh"
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -55,6 +62,55 @@ _read_data_dir() {
     fi
 }
 
+# _resolve_memory_project_dir <project_dir>
+# Returns the directory memory should be keyed to. Normally this is PROJECT_DIR
+# itself. When PROJECT_DIR is a *linked git worktree*, Claude Code has set
+# CLAUDE_PROJECT_DIR to the worktree path — but memory should live with the main
+# checkout so it survives `git worktree remove` and is shared across worktrees
+# of the same repo (issue #56). A linked worktree is detected via git's common
+# dir differing from its git dir; the main checkout is the parent of the shared
+# common dir.
+#
+# Fail-safe by design: it only redirects when it positively identifies a linked
+# worktree whose main checkout is a real work tree. Ordinary checkouts, non-git
+# directories, bare-repo worktrees, and old git without --path-format all fall
+# through to PROJECT_DIR unchanged — identical to pre-fix behaviour. Only
+# REMEMBER_DIR is affected; PROJECT_DIR stays the worktree path so session
+# recovery still finds transcripts under the worktree slug.
+_resolve_memory_project_dir() {
+    local proj="$1"
+    command -v git >/dev/null 2>&1 || { echo "$proj"; return 0; }
+
+    # One rev-parse yields both paths (common-dir first, git-dir second).
+    # --path-format=absolute requires git >= 2.31; on older git this fails and
+    # we fall through to the unchanged PROJECT_DIR.
+    local _out _gcd _gd
+    _out=$(git -C "$proj" rev-parse --path-format=absolute \
+                --git-common-dir --git-dir 2>/dev/null) || _out=""
+    { IFS= read -r _gcd; IFS= read -r _gd; } <<EOF
+$_out
+EOF
+
+    # Not a git repo, unsupported flag, or an ordinary checkout (common == git):
+    # leave PROJECT_DIR untouched.
+    if [ -z "$_gcd" ] || [ -z "$_gd" ] || [ "$_gcd" = "$_gd" ]; then
+        echo "$proj"
+        return 0
+    fi
+
+    # Linked worktree: the main checkout is the parent of the shared git dir.
+    # Guard against bare-repo worktrees (parent is not a work tree) by only
+    # redirecting to a directory git confirms is inside a work tree.
+    local _main
+    _main=$(dirname "$_gcd")
+    if [ -d "$_main" ] && \
+       git -C "$_main" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+        echo "$_main"
+    else
+        echo "$proj"
+    fi
+}
+
 # _resolve_remember_dir <data_dir_value> <project_dir>
 # Resolves the final absolute REMEMBER_DIR.
 # If data_dir starts with / or ~ treat as absolute; expand ~ and {slug}.
@@ -69,16 +125,6 @@ _resolve_remember_dir() {
             # Drive-letter forms (C:/... and C:\...) are absolute on Windows /
             # Git Bash — without them a Windows data_dir is wrongly treated as
             # relative and prepended to PROJECT_DIR (path doubling).
-            # Guard: session_dir_slug may not be defined if detect-tools.sh was
-            # not sourced yet (e.g. log.sh sourced directly in tests). Define a
-            # minimal inline fallback so the slug is never silently empty.
-            if ! type session_dir_slug >/dev/null 2>&1; then
-                session_dir_slug() {
-                    local _p="$1"
-                    command -v cygpath >/dev/null 2>&1 && _p=$(cygpath -m "$_p")
-                    echo "$_p" | sed 's/[^a-zA-Z0-9]/-/g'
-                }
-            fi
             local slug
             slug=$(session_dir_slug "$proj")
             # shellcheck disable=SC2016  # we want literal ~ expansion here
@@ -112,7 +158,13 @@ done
 # Default to legacy layout if nothing found.
 _data_dir_raw="${_data_dir_raw:-.remember}"
 
-REMEMBER_DIR=$(_resolve_remember_dir "$_data_dir_raw" "$PROJECT_DIR")
+# Key memory to the main checkout when PROJECT_DIR is a linked worktree, so it
+# survives `git worktree remove` and is shared across worktrees (issue #56).
+# For non-worktree / non-git projects this is exactly PROJECT_DIR.
+MEMORY_PROJECT_DIR=$(_resolve_memory_project_dir "$PROJECT_DIR")
+export MEMORY_PROJECT_DIR
+
+REMEMBER_DIR=$(_resolve_remember_dir "$_data_dir_raw" "$MEMORY_PROJECT_DIR")
 export REMEMBER_DIR
 
 # ── Pass 2: layered config merge ─────────────────────────────────────────────
@@ -121,6 +173,14 @@ export REMEMBER_DIR
 _project_cfg="${REMEMBER_DIR}/config.json"
 SYS_TMPDIR="${TMPDIR:-/tmp}"
 _merged_cfg="${SYS_TMPDIR}/remember-config-$$.json"
+
+# Create it private BEFORE any layer is written into it. Every entry point
+# sources resolve-paths.sh (umask 077, #68) first, so this is belt-and-braces
+# there — but this file documents itself as sourceable on its own, and since
+# the merged config can carry `haiku.oauth_token` (a live OAuth credential) its
+# mode must not depend on the caller having set a umask. jq's `>`, the Python
+# fallback's open(), and `cp` all write into the existing file and keep its mode.
+(umask 077; : > "$_merged_cfg") 2>/dev/null || true
 
 # Build an array of files that actually exist.
 _cfg_sources=()
@@ -133,8 +193,39 @@ if [ "${#_cfg_sources[@]}" -gt 0 ] && command -v jq >/dev/null 2>&1; then
     # convention: `_*` are user-facing docs (_comments/_purpose/_notes), never runtime data.
     jq -s 'reduce .[] as $x ({}; . * $x) | with_entries(select(.key | startswith("_") | not))' "${_cfg_sources[@]}" > "$_merged_cfg" 2>/dev/null \
         || cp "$_bundled_cfg" "$_merged_cfg" 2>/dev/null
+elif [ "${#_cfg_sources[@]}" -gt 0 ]; then
+    # No jq — do the same deep-merge in Python instead of silently dropping
+    # the user-global/per-project layers and copying only the bundled
+    # defaults. Every override in ~/.remember/config.json or
+    # ${REMEMBER_DIR}/config.json (time_format, model, cooldowns.*,
+    # thresholds.*, git_backup.*) was previously invisible on any machine
+    # without jq — this made config() (log.sh) irrelevant to those users.
+    "${PYTHON:-python3}" - "$_merged_cfg" "${_cfg_sources[@]}" > /dev/null 2>&1 <<'PYMERGE' || cp "$_bundled_cfg" "$_merged_cfg" 2>/dev/null
+import json
+import sys
+
+
+def deep_merge(a, b):
+    if isinstance(a, dict) and isinstance(b, dict):
+        out = dict(a)
+        for k, v in b.items():
+            out[k] = deep_merge(out[k], v) if k in out else v
+        return out
+    return b
+
+
+out_path = sys.argv[1]
+merged = {}
+for path in sys.argv[2:]:
+    with open(path) as f:
+        merged = deep_merge(merged, json.load(f))
+# Strip `_`-prefixed doc keys, top-level only — same convention as the jq path.
+merged = {k: v for k, v in merged.items() if not str(k).startswith("_")}
+with open(out_path, "w") as f:
+    json.dump(merged, f)
+PYMERGE
 else
-    # No jq, or no config files — fall back to the bundled defaults.
+    # No config files at all — fall back to the bundled defaults.
     cp "$_bundled_cfg" "$_merged_cfg" 2>/dev/null || echo '{}' > "$_merged_cfg"
 fi
 

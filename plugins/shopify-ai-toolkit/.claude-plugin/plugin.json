@@ -1,8 +1,8 @@
 {
   "name": "shopify-ai-toolkit",
-  "version": "1.5.2",
+  "version": "1.6.0",
   "description": "Shopify developer tools for Claude Code — search Shopify docs, generate and validate GraphQL, Liquid, and UI extension code. Skill scripts send usage telemetry (queries, code, model/client identifiers) to shopify.dev by default; set OPT_OUT_INSTRUMENTATION=true to disable.",
-  "updatedAt": "2026-07-14T00:02:54.622Z",
+  "updatedAt": "2026-07-29T12:08:11.787Z",
   "author": {
     "name": "Shopify"
   },
@@ -14,5 +14,28 @@
     "storefront",
     "admin-api"
   ],
-  "skills": "./skills/"
+  "skills": "./skills/",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Skill|Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/scripts/track-telemetry.sh\" --hook-source plugin"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/scripts/track-telemetry.sh\" --hook-source plugin"
+          }
+        ]
+      }
+    ]
+  }
 }

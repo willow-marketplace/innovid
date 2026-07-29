@@ -1,5 +1,7 @@
 # Quarkus Agent MCP
 
+[![MCP Toplist](https://mcptoplist.com/badge/pulsemcp%2Fquarkus-agent-mcp.svg)](https://mcptoplist.com/server/pulsemcp%2Fquarkus-agent-mcp)
+
 <p align="center">
   <img src="logo.png" width="250" alt="Quarkus Agent MCP Logo">
 </p>
@@ -213,7 +215,7 @@ cd quarkus-agent-mcp
 This produces the uber-jar at `target/quarkus-agent-mcp-1.0.0-SNAPSHOT-runner.jar` (version may vary).
 
 ```bash
-claude mcp add -s user quarkus-agent -- java -jar /path/to/quarkus-agent-mcp/target/quarkus-agent-mcp-1.2.2-runner.jar
+claude mcp add -s user quarkus-agent -- java -jar /path/to/quarkus-agent-mcp/target/quarkus-agent-mcp-1.2.4-runner.jar
 ```
 
 #### Verify
@@ -234,7 +236,7 @@ Ask your agent to build a Quarkus application using natural language. The agent 
 
 > **You:** Create a Quarkus REST API with a greeting endpoint and a PostgreSQL database
 >
-> **Agent:** _(uses `quarkus_create` to scaffold the project with `rest-jackson,jdbc-postgresql,hibernate-orm-panache` extensions — the app starts automatically in dev mode, a `CLAUDE.md` is generated with project-specific workflow instructions, and a `.mcp.json` is created for automatic MCP server discovery)_
+> **Agent:** _(uses `quarkus_create` to scaffold the project with `rest-jackson,jdbc-postgresql,hibernate-orm-panache` extensions — the app starts automatically in dev mode and a `CLAUDE.md` is generated with project-specific workflow instructions)_
 >
 > **Agent:** _(calls `quarkus_skills` to learn the correct patterns for Panache, REST, and other extensions before writing any code)_
 >
@@ -251,7 +253,7 @@ NEW PROJECT                           EXISTING PROJECT
 
 1. quarkus_create                     1. quarkus_start
    → scaffolds + auto-starts             → starts dev mode
-   → generates CLAUDE.md + .mcp.json
+   → generates CLAUDE.md
                                       2. quarkus_skills
 2. quarkus_skills                        → learn extension patterns
    → learn extension patterns            → query 'quarkus-update' to check version
@@ -275,7 +277,6 @@ NEW PROJECT                           EXISTING PROJECT
 - **Tests via subagents** — if your agent supports subagents, test execution can be dispatched to one so the main conversation stays responsive.
 - **The MCP server survives crashes** — if the app crashes due to a code error, the agent can use `devui-exceptions_getLastException` to get structured exception details (class, message, stack trace, user code location) and fix it. Use `quarkus_logs` for broader context.
 - **CLAUDE.md** — every new project gets a `CLAUDE.md` with Quarkus-specific workflow instructions that guide the agent.
-- **`.mcp.json`** — every new project gets a `.mcp.json` for automatic MCP server discovery by agents that support the convention (Claude Code, Pi/pi.dev).
 
 ### What the agent can do with a running app
 
@@ -333,7 +334,7 @@ quarkus_searchDocs query="broadcasting messages" extension="quarkus-json-rpc"
 
 | Tool | Description | Parameters |
 |------|-------------|------------|
-| `quarkus_create` | Create a new Quarkus app, auto-start in dev mode, generate CLAUDE.md and `.mcp.json` | `outputDir` (required), `groupId`, `artifactId`, `extensions`, `buildTool`, `quarkusVersion`, `noCode`, `noWrapper`, `createInCurrentDir` |
+| `quarkus_create` | Create a new Quarkus app, auto-start in dev mode, generate CLAUDE.md | `outputDir` (required), `groupId`, `artifactId`, `extensions`, `buildTool`, `quarkusVersion`, `noCode`, `noWrapper`, `createInCurrentDir` |
 
 ### Extension Skills
 

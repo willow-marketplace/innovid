@@ -325,23 +325,7 @@ Use the npm package with your API key. [Get your API key](https://dashboard.exa.
 **[Exa Agent](https://exa.ai/docs/reference/agent-api-guide) Tools** (optional, OAuth or API key required):
 | Tool | Description |
 | ---- | ----------- |
-| `agent_create_run` | Start an async Exa Agent run for multi-step research, list-building, enrichment, or structured output |
-| `agent_wait_for_run` | Poll an Agent run until terminal status or timeout |
-| `agent_get_run_output` | Retrieve completed text, structured output, grounding, usage, and cost |
-| `agent_cancel_run` | Cancel a queued or running Agent run |
-
-**Deprecated** (still available for backwards compatibility):
-
-| Tool | Use instead |
-| ---- | ----------- |
-| `get_code_context_exa` | `web_search_exa` |
-| `company_research_exa` | `web_search_advanced_exa` |
-| `crawling_exa` | `web_fetch_exa` |
-| `people_search_exa` | `web_search_advanced_exa` |
-| `linkedin_search_exa` | `web_search_advanced_exa` |
-| `deep_researcher_start` | [Research API](https://docs.exa.ai/reference/research/create-a-task) |
-| `deep_researcher_check` | [Research API](https://docs.exa.ai/reference/research/get-a-task) |
-| `deep_search_exa` | `web_search_advanced_exa` |
+| `agent_run` | Run an Exa Agent for multi-step research, list-building, enrichment, or structured output |
 
 Enable additional tools with the `tools` parameter:
 
@@ -359,6 +343,27 @@ If you want both search and Exa Agent tools enabled:
 
 ```
 https://mcp.exa.ai/mcp?tools=web_search_exa,web_fetch_exa,agent_tools
+```
+
+### Force OAuth login
+
+To force the OAuth handshake so users sign in with their own Exa account (useful for shared Connectors, Skills, and Plugins), add the `login` parameter:
+
+```
+https://mcp.exa.ai/mcp?login
+```
+
+Or use the `/mcp/oauth` endpoint:
+
+```
+https://mcp.exa.ai/mcp/oauth
+```
+
+Both can be combined with the `tools` parameter:
+
+```
+https://mcp.exa.ai/mcp?tools=web_search_exa,web_fetch_exa,agent_tools&login
+https://mcp.exa.ai/mcp/oauth?tools=web_search_exa,web_fetch_exa,agent_tools
 ```
 
 ## Agent Skills (Claude Skills)
@@ -870,7 +875,7 @@ You should ask the user to restart Claude Code to have the config changes take e
 </details>
 
 <details>
-<summary><b>Research Paper Search</b></summary>
+<summary><b>Research Paper/Publication Search</b></summary>
 
 Copy the content below and paste it into Claude Code. It will set up the MCP connection and skill for you.
 
@@ -886,7 +891,7 @@ Step 2: Add this Claude skill
 
 ---
 name: web-search-advanced-research-paper
-description: Search for research papers and academic content using Exa advanced search. Full filter support including date ranges and text filtering. Use when searching for academic papers, arXiv preprints, or scientific research.
+description: Search for research papers, publications and other academic content using Exa advanced search. Full filter support including date ranges and text filtering. Use when searching for academic papers, arXiv preprints, or scientific research.
 context: fork
 ---
 
@@ -894,11 +899,11 @@ context: fork
 
 ## Tool Restriction (Critical)
 
-ONLY use `web_search_advanced_exa` with `category: "research paper"`. Do NOT use other categories or tools.
+ONLY use `web_search_advanced_exa` with `category: "publication"`. Do NOT use other categories or tools.
 
 ## Full Filter Support
 
-The `research paper` category supports ALL available parameters:
+The `publication` category supports ALL available parameters:
 
 ### Core
 - `query` (required)
@@ -934,7 +939,7 @@ The `research paper` category supports ALL available parameters:
 ## Token Isolation (Critical)
 
 Never run Exa searches in main context. Always spawn Task agents:
-- Agent calls `web_search_advanced_exa` with `category: "research paper"`
+- Agent calls `web_search_advanced_exa` with `category: "publication"`
 - Agent merges + deduplicates results before presenting
 - Agent returns distilled output (brief markdown or compact JSON)
 - Main context stays clean regardless of search volume
@@ -953,7 +958,7 @@ Recent papers on a topic:
 ```
 web_search_advanced_exa {
   "query": "transformer attention mechanisms efficiency",
-  "category": "research paper",
+  "category": "publication",
   "startPublishedDate": "2024-01-01",
   "numResults": 15,
   "type": "auto"
@@ -964,7 +969,7 @@ Papers from specific venues:
 ```
 web_search_advanced_exa {
   "query": "large language model agents",
-  "category": "research paper",
+  "category": "publication",
   "includeDomains": ["arxiv.org", "openreview.net"],
   "includeText": ["LLM"],
   "numResults": 20,

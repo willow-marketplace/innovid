@@ -96,6 +96,9 @@ func runMigrate(f *cmdutil.Factory, opts *migrateOptions) error {
 			return fmt.Errorf("scanning for CI configurations: %w", err)
 		}
 		configs = detected
+		for _, path := range migrate.DetectUnsupported(".") {
+			f.Printer.Warn("Detected unsupported CI configuration %s; it was not migrated", path)
+		}
 	}
 
 	if len(configs) == 0 {
@@ -382,27 +385,34 @@ func resolveSchema(client api.ClientInterface) []byte {
 	return schema
 }
 
-// resolveRunnerMap derives runner names from the validation schema's hosted-agent enum (so emitted runs-on passes that schema), then cloud images, then defaults (nil).
+// resolveRunnerMap uses server-reported hosted images when connected, falling back to the schema when offline.
 func resolveRunnerMap(client api.ClientInterface, schemaData []byte) map[string]string {
+	if m, known := resolveCloudRunners(client); known {
+		return m
+	}
 	if names := pipelineschema.HostedAgentNames(schemaData); len(names) > 0 {
 		if m := migrate.BuildRunnerMap(names); m != nil {
 			return m
 		}
 	}
-	return resolveCloudRunners(client)
+	return nil
 }
 
-func resolveCloudRunners(client api.ClientInterface) map[string]string {
+func resolveCloudRunners(client api.ClientInterface) (map[string]string, bool) {
 	if client == nil {
-		return nil
+		return nil, false
 	}
 	list, _, err := client.GetCloudImages(api.CloudImagesOptions{})
-	if err != nil || len(list.Images) == 0 {
-		return nil
+	if err != nil {
+		return nil, false
 	}
 	names := make([]string, 0, len(list.Images))
 	for _, img := range list.Images {
 		names = append(names, img.Name)
 	}
-	return migrate.BuildRunnerMap(names)
+	if m := migrate.BuildRunnerMap(names); m != nil {
+		return m, true
+	}
+	// No usable images (none, or none OS-classifiable): empty map omits runs-on instead of emitting agents the server doesn't have.
+	return map[string]string{}, true
 }

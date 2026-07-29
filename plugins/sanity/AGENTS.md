@@ -9,8 +9,8 @@ This is a Sanity-powered project. Use the Knowledge Router below to find Sanity 
 npx sanity@latest mcp configure  # Configure MCP for your AI editor
 
 # Schema & Types
-npx sanity schema deploy     # Deploy schema to Content Lake for MCP/editor access
-npx sanity schema extract    # Extract schema for TypeGen
+npx sanity schemas deploy     # Deploy schema to Content Lake for MCP/editor access
+npx sanity schemas extract    # Extract schema for TypeGen
 npx sanity typegen generate  # Generate TypeScript types
 
 # Development
@@ -63,7 +63,7 @@ If the Sanity MCP server (`https://mcp.sanity.io`) is available, use `list_sanit
 | **TypeGen** | `typegen`, `typescript`, `types`, `infer`, `satisfies`, `type generation` | `skills/sanity-best-practices/references/typegen.md` |
 | **App SDK** | `app sdk`, `custom app`, `useDocuments`, `useDocument`, `DocumentHandle`, `SanityApp`, `sdk-react` | `skills/sanity-best-practices/references/app-sdk.md` |
 | **Blueprints** | `blueprints`, `IaC`, `infrastructure`, `stack`, `defineBlueprint`, `sanity.blueprint.ts`, `blueprints deploy` | `skills/sanity-best-practices/references/blueprints.md` |
-| **Sanity Functions** | `functions`, `serverless`, `event handler`, `documentEventHandler`, `defineDocumentFunction`, `sanity.blueprint.ts` | `skills/sanity-best-practices/references/functions.md` |
+| **Sanity Functions & Webhooks** | `functions`, `webhook`, `serverless`, `event handler`, `documentEventHandler`, `defineDocumentFunction`, `sanity.blueprint.ts` | `skills/sanity-best-practices/references/functions.md` |
 
 ### Using the Knowledge Router
 
