@@ -1,8 +1,8 @@
 {
   "name": "apollo-skills",
-  "version": "1.2.8",
+  "version": "1.2.9",
   "description": "Agent skills for AI coding agents working with Apollo GraphQL tools and technologies",
-  "updatedAt": "2026-07-29T12:04:50.059Z",
+  "updatedAt": "2026-07-30T00:01:15.255Z",
   "author": {
     "name": "Apollo GraphQL",
     "email": "opensource@apollographql.com"

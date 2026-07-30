@@ -2,7 +2,7 @@
   "name": "packer-builders",
   "version": "1.0.0",
   "description": "Packer builder skills for AWS, Azure, and Windows image creation.",
-  "updatedAt": "2026-07-16T00:02:31.654Z",
+  "updatedAt": "2026-07-30T00:02:15.431Z",
   "author": {
     "url": "https://github.com/hashicorp",
     "name": "HashiCorp"

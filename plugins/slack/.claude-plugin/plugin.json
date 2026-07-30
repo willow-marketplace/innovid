@@ -1,13 +1,14 @@
 {
   "name": "slack",
   "version": "1.1.0",
-  "description": "Slack integration for searching messages, sending communications, managing canvases, and more",
-  "updatedAt": "2026-07-29T12:07:17.112Z",
+  "description": "Bring Slack into your AI tools with a Slack MCP server and Slack skills",
+  "updatedAt": "2026-07-30T00:01:51.424Z",
   "author": {
     "url": "https://slack.com",
     "name": "Slack"
   },
-  "homepage": "https://github.com/slackapi/slack-skills-plugin",
+  "homepage": "https://docs.slack.dev/ai/slack-skills-plugin",
+  "repository": "https://github.com/slackapi/slack-skills-plugin",
   "skills": "./skills/",
   "commands": "./commands/",
   "mcpServers": {
