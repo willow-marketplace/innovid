@@ -2,7 +2,7 @@
   "name": "sonatype-guide",
   "version": "1.0.0",
   "description": "Sonatype Guide MCP server for software supply chain intelligence and dependency security analysis. Scan dependencies for vulnerabilities, get version recommendations, and check component quality metrics.",
-  "updatedAt": "2026-07-30T00:01:52.190Z",
+  "updatedAt": "2026-07-30T12:05:57.680Z",
   "author": {
     "name": "Sonatype"
   },

@@ -70,6 +70,11 @@ elif cmd == "build-prompt":
     with open(sys.argv[6], "w") as f:
         f.write("a prompt with no placeholders\\n")
 elif cmd == "call-haiku":
+    if os.environ.get("STUB_HAIKU_DECLINE") == "1":
+        # The spawn guard refusing (#204) — exit 3, not 1. Distinct because the
+        # script must not count it against the span.
+        sys.stderr.write("call-haiku declined: stub: spawn cap reached\\n")
+        sys.exit(3)
     if os.environ.get("STUB_HAIKU_FAIL") == "1":
         sys.stderr.write("stub: simulated haiku failure\\n")
         sys.exit(1)
@@ -144,7 +149,7 @@ def _make_env(tmp_path: Path, *, exchanges: int, humans: int, position: int = 50
     (plugin / "pipeline" / "shell.py").write_text(STUB_SHELL)
     for script in ("save-session.sh", "resolve-paths.sh", "detect-tools.sh",
                    "bootstrap-dirs.sh", "log.sh", "lib-memory-dir.sh",
-                   "lib-lock.sh", "lib-slug.sh"):
+                   "lib-lock.sh", "lib-slug.sh", "lib-clock.sh"):
         (plugin / "scripts" / script).write_text((REPO_ROOT / "scripts" / script).read_text())
 
     cfg = {"cooldowns": {"save_seconds": 0, "ndc_seconds": 999999},
@@ -178,6 +183,21 @@ def _make_env(tmp_path: Path, *, exchanges: int, humans: int, position: int = 50
         "STUB_HUMAN_COUNT": str(humans),
         "STUB_EXCHANGE_COUNT": str(exchanges),
         "STUB_MEMORY_FILE": str(project / ".remember" / "now.md"),
+        # Keep the clock on `date`, where a PATH shim can still reach it (#227).
+        #
+        # lib-clock.sh resolves "now" with bash's `printf '%(FMT)T'` builtin when
+        # the shell has one, and a builtin is not on PATH — so a test that fakes
+        # time by putting its own `date` in front of PATH finds the fake silently
+        # ignored on bash >= 4.2 and asserts against the real clock. That is what
+        # went red on the ubuntu legs and nowhere else, because macOS bash 3.2
+        # has no builtin to bypass it with.
+        #
+        # Set here rather than in the one test that shims `date` today, because
+        # nothing in a time-faking test's own text warns its author about a seam
+        # that has moved. Every shell test built from this helper gets the
+        # interceptable clock; the builtin path is pinned directly, and against
+        # `date` byte for byte, in tests/test_prompt_hook_spawns.py.
+        "REMEMBER_NO_PRINTF_T": "1",
     }
     return env, project, plugin, calls_log, session_id
 
