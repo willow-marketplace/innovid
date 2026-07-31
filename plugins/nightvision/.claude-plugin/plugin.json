@@ -1,14 +1,14 @@
 {
   "name": "nightvision",
-  "version": "1.0.6",
+  "version": "1.1.0",
   "description": "Skills for working with NightVision, a DAST and API Discovery platform that finds exploitable vulnerabilities in web applications and REST APIs",
-  "updatedAt": "2026-07-30T12:05:19.980Z",
+  "updatedAt": "2026-07-31T00:02:29.990Z",
   "author": {
-    "url": "https://www.nightvision.net",
+    "url": "https://nightviz.ai",
     "name": "NightVision Engineering",
-    "email": "support@nightvision.net"
+    "email": "support@nightviz.ai"
   },
-  "homepage": "https://www.nightvision.net",
+  "homepage": "https://nightviz.ai",
   "repository": "https://github.com/nvsecurity/nightvision-skills",
   "keywords": [
     "dast",

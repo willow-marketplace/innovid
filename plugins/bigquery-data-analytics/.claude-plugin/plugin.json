@@ -2,7 +2,7 @@
   "name": "bigquery-data-analytics",
   "version": "0.2.1",
   "description": "Connect, query, and generate data insights for BigQuery datasets and data.",
-  "updatedAt": "2026-07-30T12:04:00.859Z",
+  "updatedAt": "2026-07-31T00:02:02.341Z",
   "author": {
     "name": "Google LLC",
     "email": "data-cloud-ai-integrations@google.com"

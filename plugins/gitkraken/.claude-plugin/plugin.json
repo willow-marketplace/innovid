@@ -2,7 +2,7 @@
   "name": "gitkraken",
   "version": "1.0.0",
   "description": "This plugin gives Claude access to your real Git and project context: commits, branches, pull requests, and issues across every repo you work in. Ask the agent a question about your work, and it answers from what's actually in your history and your trackers, not what it can guess from the open file.\n\nWorks with GitHub, GitLab, Azure DevOps, Bitbucket, and Jira.",
-  "updatedAt": "2026-07-30T12:04:44.934Z",
+  "updatedAt": "2026-07-31T00:02:13.429Z",
   "author": {
     "name": "GitKraken"
   }

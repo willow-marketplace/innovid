@@ -2,7 +2,7 @@
   "name": "shopify-ai-toolkit",
   "version": "1.6.0",
   "description": "Shopify developer tools for Claude Code — search Shopify docs, generate and validate GraphQL, Liquid, and UI extension code. Skill scripts send usage telemetry (queries, code, model/client identifiers) to shopify.dev by default; set OPT_OUT_INSTRUMENTATION=true to disable.",
-  "updatedAt": "2026-07-30T12:06:37.067Z",
+  "updatedAt": "2026-07-31T00:02:43.241Z",
   "author": {
     "name": "Shopify"
   },

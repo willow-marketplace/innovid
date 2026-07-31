@@ -2,7 +2,7 @@
   "name": "dataproc",
   "version": "0.1.0",
   "description": "Manage Dataproc clusters and jobs.",
-  "updatedAt": "2026-07-30T12:04:32.089Z",
+  "updatedAt": "2026-07-31T00:02:10.989Z",
   "author": {
     "name": "Google LLC",
     "email": "data-cloud-ai-integrations@google.com"

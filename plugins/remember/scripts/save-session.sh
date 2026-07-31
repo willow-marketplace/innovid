@@ -62,6 +62,7 @@ source "$(dirname "$0")/detect-tools.sh"
 source "$(dirname "$0")/bootstrap-dirs.sh"
 source "$(dirname "$0")/log.sh"
 source "$(dirname "$0")/lib-lock.sh"
+source "$(dirname "$0")/lib-staging-lock.sh"
 log "hook" "save-session: PROJECT_DIR=$PROJECT_DIR PIPELINE_DIR=$PIPELINE_DIR PYTHON=$PYTHON REMEMBER_DIR=$REMEMBER_DIR"
 
 LOCK_DIR="${REMEMBER_DIR}/tmp/save.lock"
@@ -431,8 +432,69 @@ fi
 if [ ! -s "$MEMORY_FILE" ]; then
     printf '%s\n' "$TODAY_DATE" > "$NOW_DAY_FILE" 2>/dev/null || true
 fi
-echo "" >> "$MEMORY_FILE" 2>/dev/null || { log "write" "ERROR: cannot write now.md"; exit 1; }
-cat "$HAIKU_TEXT_FILE" >> "$MEMORY_FILE"
+# Built beside now.md and renamed over it, not appended in two operations
+# (#247). The two appends — a separator, then the entry — are both under
+# save.lock, which is correct and which excludes other WRITERS. It excludes no
+# reader, and the reader that matters cannot take it: session-start-hook.sh
+# sources resolve-paths.sh, detect-tools.sh, bootstrap-dirs.sh, log.sh and
+# lib-env-cache.sh, never lib-lock.sh, so lock_acquire is not merely uncalled
+# there — it is undefined in that process. Its memory-injection loop is a bare
+# `cat "$MFILE"`, and between the two appends there is a whole fork+exec of
+# `cat` during which now.md ends in a separator whose entry has not arrived.
+# A session start landing there is handed a truncated final entry and has no
+# way to know it.
+#
+# Not a reader lock. #227 measured that hook path at a p50 of 8.7s, #230 exists
+# to cut its per-tool-call prefix, and #204 is a user reporting this plugin
+# blocking their prompts. Putting session start behind a lock held for the whole
+# of a save — including its summarize Haiku call — is a worse trade than the
+# tear. The writer carries the atomicity; the reader stays lean.
+#
+# Not one `cat` of separator-plus-entry either. That closes the process gap and
+# leaves the chunk boundaries inside a single write loop, which is a smaller
+# window, not no window. A rename has no window at any entry size: the reader
+# opens either the old inode or the new one, and both are whole. That is the
+# pattern already used four times here — lib-env-cache.sh:170-175 ("Rename, so
+# no reader ever parses a partial file"), post-tool-hook.sh:260-262, the NDC
+# commit (#245), the consolidation staging tail (#249). This was the call site
+# that had not adopted it.
+#
+# The cost is a full copy of now.md per save, on a path that has just spent
+# seconds in a model call. now.md is compressed by NDC and is kilobytes; the
+# copy is not measurable against the Haiku call it follows.
+#
+# A crash between mktemp and mv leaves a stray sibling. Inert — .remember's
+# .gitignore is '*', doctor.sh globs `now.md` exactly, and the name deliberately
+# does not end in .md so neither today-*.md nor session-start injection can see
+# it — but it would accumulate forever, so sweep first. Safe: this block is the
+# only thing that creates these, it runs under save.lock, and NDC's sweep uses a
+# different glob (now.md.ndc-*).
+append_failed() {
+    rm -f "$APPEND_TMP" 2>/dev/null
+    log "write" "ERROR: cannot write now.md — $1"
+    exit 1
+}
+rm -f "${MEMORY_FILE}".append-* 2>/dev/null
+APPEND_TMP=$(mktemp "${MEMORY_FILE}.append-XXXXXX") || {
+    log "write" "ERROR: cannot write now.md — no temp could be created beside it"
+    exit 1
+}
+# `2>&1 >file` — stderr to the capture, THEN stdout to the file, in that order.
+# A read error on now.md has to be fatal rather than silent: staging only the
+# new entry would commit a now.md holding nothing but it, which is the whole
+# file lost to fix a torn boundary.
+if [ -f "$MEMORY_FILE" ]; then
+    APPEND_ERR=$(cat "$MEMORY_FILE" 2>&1 > "$APPEND_TMP") \
+        || append_failed "could not copy the existing now.md: ${APPEND_ERR:-unknown error}"
+fi
+APPEND_ERR=$({ printf '\n' && cat "$HAIKU_TEXT_FILE"; } 2>&1 >> "$APPEND_TMP") \
+    || append_failed "could not stage the entry: ${APPEND_ERR:-unknown error}"
+# Checked, and fatal (#243). save-position runs a few lines below and is what
+# tells the next run this span is done; advancing it for an entry that never
+# reached now.md drops the span from every future extract, silently. Exiting
+# here keeps the position, so the span is summarized again next run.
+APPEND_ERR=$(mv "$APPEND_TMP" "$MEMORY_FILE" 2>&1) \
+    || append_failed "commit failed: ${APPEND_ERR:-unknown error}"
 log "write" "appended: $(head -1 "$HAIKU_TEXT_FILE" | cut -c1-80)"
 cd "$PIPELINE_DIR" && $PYTHON -m pipeline.shell save-position "$LAST_SAVE_FILE" "$SESSION_ID" "$POSITION"
 log "write" "position → $POSITION"
@@ -524,8 +586,32 @@ if [ "$RUN_NDC" = true ]; then
                     log "ndc" "REJECTED (not a summary — refusal or clarification): $(head -c 80 "$HAIKU_TEXT_FILE" 2>/dev/null)"
                     keep_rejected_text "$HAIKU_TEXT_FILE" "ndc"
                 elif [ -n "$NDC_TEXT" ]; then
-                    [ -s "$TODAY_FILE" ] && echo "" >> "$TODAY_FILE"
-                    cat "$HAIKU_TEXT_FILE" >> "$TODAY_FILE"
+                    # Under staging.lock, not save.lock and not nothing (#225).
+                    # today-*.md is the file run-consolidation.sh reads and then
+                    # retires to .done.md, and it holds a DIFFERENT lock while
+                    # doing it. Unlocked, this append could land between that
+                    # script's byte count of the file and its `mv`, and be
+                    # sealed inside the .done.md — which nothing globs again
+                    # and session start never injects. Written to disk, then
+                    # unreachable, with nothing logged: #142's signature one
+                    # file over. The append is also two operations, so a reader
+                    # landing between them sees a trailing blank line and no
+                    # summary. lib-staging-lock.sh explains why this is a third
+                    # lock rather than save.lock.
+                    #
+                    # Losing the wait skips the WHOLE round — no append, and
+                    # therefore no truncate below either. That is strictly
+                    # better than the commit-skip further down: now.md keeps
+                    # every byte, the next round re-summarizes the same span,
+                    # and today-*.md never sees the duplicate at all.
+                    if ! staging_lock_acquire "$STAGING_LOCK_TIMEOUT"; then
+                        NDC_STAGED=false
+                        log "ndc" "SKIPPED: staging.lock held for the whole ${STAGING_LOCK_TIMEOUT}s wait (a consolidation is retiring staging files) — today-${NDC_DAY}.md not appended and now.md left untouched, so the next round re-summarizes this span with no duplicate"
+                    else
+                        NDC_STAGED=true
+                        staging_append "$TODAY_FILE" "$HAIKU_TEXT_FILE"
+                        staging_lock_release
+                    fi
                     # Drop exactly the bytes that were compressed, not the whole
                     # file (#142). now.md was snapshotted before the Haiku call
                     # above, which can take up to 180s — and by then the parent
@@ -558,7 +644,7 @@ if [ "$RUN_NDC" = true ]; then
                     # It cannot steal the lock from a live save either — steal
                     # needs a dead pid, adoption needs no pid at all — so losing
                     # the wait means someone is genuinely holding it.
-                    if lock_acquire "$LOCK_DIR" "$NDC_COMMIT_LOCK_TIMEOUT"; then
+                    if [ "$NDC_STAGED" = true ] && lock_acquire "$LOCK_DIR" "$NDC_COMMIT_LOCK_TIMEOUT"; then
                         # Re-read the size under the lock. The offset stays valid as
                         # the START of the kept range no matter what happened during
                         # the Haiku call, but only while now.md still HAS that many
@@ -574,10 +660,67 @@ if [ "$RUN_NDC" = true ]; then
                         if [ "$NDC_LIVE_BYTES" -lt "$NDC_SRC_BYTES" ]; then
                             log "ndc" "SKIPPED commit: now.md is ${NDC_LIVE_BYTES}b, below the ${NDC_SRC_BYTES}b snapshot this offset was taken from — left untouched (today-${NDC_DAY}.md may now hold a duplicate of this span)"
                         else
-                            NDC_TAIL=$(mktemp "${TMPDIR:-/tmp}"/remember-ndc-tail-XXXXXX)
+                            # Beside now.md, not in $TMPDIR (#242). #142's whole
+                            # argument for why this commit is safe is "mv-over is
+                            # atomic on the same filesystem", and its own suggested
+                            # fix wrote "$MEMORY_FILE.tmp" — where that is true.
+                            # Shipping it under $TMPDIR kept the argument and lost
+                            # the property: across filesystems `mv` is not
+                            # rename(2), it is copy-then-unlink, so now.md is
+                            # destroyed and rewritten in place. $TMPDIR is a
+                            # different filesystem in ordinary configurations —
+                            # tmpfs /tmp on Fedora/Arch/RHEL, any devcontainer, WSL
+                            # with the project under /mnt/c, external data_dir mode
+                            # on any platform. Verified against a real second
+                            # filesystem with a genuine ENOSPC partway through: BSD
+                            # mv unlinks the partial destination, so a 1MB now.md
+                            # was gone entirely; GNU mv leaves the prefix instead.
+                            #
+                            # Same-directory also moves ENOSPC one step earlier,
+                            # into the `tail` step below, whose failure arm already
+                            # does the right thing (#173). The rename cannot fail
+                            # for want of space.
+                            #
+                            # A crash between mktemp and mv leaves a stray sibling.
+                            # It is inert — .remember/.gitignore is '*' and nothing
+                            # globs now.md.* (the name deliberately does not end in
+                            # .md, so today-*.md and session-start injection cannot
+                            # see it) — but it would accumulate forever, so sweep
+                            # first. Safe under the lock we already hold: this block
+                            # is the only thing that creates these, and it cannot
+                            # run without LOCK_DIR.
+                            rm -f "${MEMORY_FILE}".ndc-* 2>/dev/null
+                            NDC_TAIL=$(mktemp "${MEMORY_FILE}.ndc-XXXXXX")
                             if tail -c +$(( NDC_SRC_BYTES + 1 )) "$MEMORY_FILE" > "$NDC_TAIL" 2>/dev/null; then
                                 NDC_KEPT=$(wc -c < "$NDC_TAIL" | tr -d ' ')
-                                mv "$NDC_TAIL" "$MEMORY_FILE"
+                                # Same guard as NDC_LIVE_BYTES above. Unsanitized,
+                                # a non-numeric NDC_KEPT makes `[ -gt 0 ]` fail the
+                                # test rather than error out, which takes the else
+                                # arm and deletes the day marker — the exact damage
+                                # this whole block is being fixed for, arriving by
+                                # a different route.
+                                case "$NDC_KEPT" in
+                                    (''|*[!0-9]*) NDC_KEPT=0 ;;
+                                esac
+                                # The commit's result gates everything below it
+                                # (#243). It used to be unread, and under `set +e`
+                                # that meant a failed truncate still rewrote the day
+                                # stamp and still logged the success line: now.md
+                                # kept every byte it had, the #141 marker was moved
+                                # or deleted anyway, and the log said "kept Nb
+                                # appended during compression" — a byte count taken
+                                # off the temp file before the mv, so it prints
+                                # whether or not the commit landed. Memory misfiled,
+                                # log reads clean: the one class this file has been
+                                # hardened against three times (#142, #225, #235).
+                                #
+                                # Checked locally rather than by narrowing `set +e`.
+                                # The subshell is backgrounded, disowned and holding
+                                # LOCK_DIR; letting a non-zero kill it would skip
+                                # lock_release below and leak the lock until the
+                                # adoption timeout, which is strictly worse than the
+                                # failure it would be reacting to.
+                                if NDC_MV_ERR=$(mv "$NDC_TAIL" "$MEMORY_FILE" 2>&1); then
                                 # The stamped day is spent with the bytes it covered.
                                 # Anything kept was appended during this compression,
                                 # so stamp it with the day it is NOW — not $TODAY_DATE,
@@ -596,12 +739,24 @@ if [ "$RUN_NDC" = true ]; then
                                 # own day, which is the thing now.md does not have and
                                 # the reason this stamp exists — see #141 for the flush
                                 # design that would close it.
-                                if [ "$NDC_KEPT" -gt 0 ]; then
-                                    printf '%s\n' "$(_remember_date +%Y-%m-%d)" > "$NOW_DAY_FILE" 2>/dev/null || true
+                                    if [ "$NDC_KEPT" -gt 0 ]; then
+                                        printf '%s\n' "$(_remember_date +%Y-%m-%d)" > "$NOW_DAY_FILE" 2>/dev/null || true
+                                    else
+                                        rm -f "$NOW_DAY_FILE"
+                                    fi
+                                    [ "$NDC_KEPT" -gt 0 ] && log "ndc" "kept ${NDC_KEPT}b appended during compression"
                                 else
-                                    rm -f "$NOW_DAY_FILE"
+                                    # now.md still holds every byte it had, so the
+                                    # marker describing that content is still
+                                    # correct. Leaving it alone is the fix; moving
+                                    # it is the damage. Same trade as the tail arm
+                                    # below: the span already appended to
+                                    # $TODAY_FILE stays there and may be summarized
+                                    # again next round — a visible duplicate, which
+                                    # beats silently misfiled memory.
+                                    rm -f "$NDC_TAIL"
+                                    log "ndc" "ERROR: commit failed, now.md left untouched and the day stamp not changed (today-${NDC_DAY}.md may now hold a duplicate of this span): ${NDC_MV_ERR}"
                                 fi
-                                [ "$NDC_KEPT" -gt 0 ] && log "ndc" "kept ${NDC_KEPT}b appended during compression"
                             else
                                 # tail failed (disk, permissions, a full $TMPDIR — #173).
                                 # This branch used to be `: > "$MEMORY_FILE"`, the exact
@@ -630,7 +785,7 @@ if [ "$RUN_NDC" = true ]; then
                         # Released before the summary log line below —
                         # nothing past this point touches now.md.
                         lock_release "$LOCK_DIR" || true
-                    else
+                    elif [ "$NDC_STAGED" = true ]; then
                         log "ndc" "SKIPPED commit: another save held the lock for the whole ${NDC_COMMIT_LOCK_TIMEOUT}s wait, now.md left untouched (today-${NDC_DAY}.md now holds a duplicate of this span — the routine outcome of losing this race, not an error)"
                     fi
                     NDC_OUT_BYTES=$(wc -c < "$HAIKU_TEXT_FILE" | tr -d ' ')

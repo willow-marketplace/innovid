@@ -96,6 +96,17 @@ On session start, the `SessionStart` hook automatically injects into Claude's co
 
 No manual prompting, no "read this file" instructions. The agent begins every session with its memory already loaded. It just remembers.
 
+### How memory files are written
+
+Writers of `now.md` take `save.lock`. **Readers do not, by design** — the `SessionStart` hook that injects memory into a new session sources only what it needs (`resolve-paths.sh`, `detect-tools.sh`, `bootstrap-dirs.sh`, `log.sh`, `lib-env-cache.sh`) and never `lib-lock.sh`, so it *cannot* lock even if it wanted to. That is deliberate: it runs before your first prompt, and `save.lock` is held for the whole of a save including its `claude -p` call ([#227](https://github.com/Digital-Process-Tools/claude-remember/issues/227), [#230](https://github.com/Digital-Process-Tools/claude-remember/issues/230), [#204](https://github.com/Digital-Process-Tools/claude-remember/issues/204)). A hook that blocks your prompt behind a model call is a worse outcome than anything it would be protecting you from.
+
+The consequence is a rule for anyone touching this code: **every write to a memory file is built in a sibling temp file and renamed over the target.** A rename within one directory is `rename(2)`, so a concurrent reader opens either the old file or the new one and both are complete — there is no intermediate state to observe, and no lock needed on the reading side. Two things follow from "sibling":
+
+- The temp must be **in the same directory as the target**, not in `$TMPDIR`. Across filesystems `mv` is copy-then-unlink, not a rename, and a failure partway destroys or truncates the destination ([#242](https://github.com/Digital-Process-Tools/claude-remember/issues/242)). `$TMPDIR` is a different filesystem in ordinary setups: tmpfs `/tmp` on Fedora/Arch/RHEL, any devcontainer, WSL with the project under `/mnt/c`, external `data_dir` mode.
+- The `mv`'s **result must be checked**, and a failure must leave the file and the saved position alone so the next run retries ([#243](https://github.com/Digital-Process-Tools/claude-remember/issues/243)).
+
+Appending is not an exception to this. `>>` is not atomic for a reader at any size — the entry arrives one `write(2)` chunk at a time — so an appended entry is staged as `old + separator + entry` in a sibling temp and committed by rename like everything else ([#247](https://github.com/Digital-Process-Tools/claude-remember/issues/247)).
+
 ## Cost
 
 The pipeline uses Claude Haiku for summarization and compression. Haiku is the smallest, cheapest Claude model. A typical session save costs **< $0.01** — a few thousand input tokens (the session exchanges) and a few hundred output tokens (the summary). Daily compression and consolidation add a few more Haiku calls.
@@ -269,7 +280,42 @@ A few runtime overrides aren't in `config.json` because they're per-shell rather
 | `REMEMBER_MAX_CONCURRENT_SUMMARIZERS` | How many nested `claude -p` summarizers may run at once, host-wide. Default `4`. This is the depth bound too: a summarizer that re-entered the plugin runs *inside* its parent's call, so recursion appears as concurrency ([#204](https://github.com/Digital-Process-Tools/claude-remember/issues/204)). Not `1` on purpose — several projects saving at the same time is normal. When it fires, `DECLINED` appears in the daily log and the span is summarized on a later run. |
 | `REMEMBER_MAX_SUMMARIZERS_PER_MIN` | How many summarizers may be spawned in any 60-second window, host-wide. Default `12`. Covers the shape concurrency cannot see: a chain where each save spawns the next and no two ever overlap. A store saves at most once per `cooldowns.save_seconds`, so the default leaves room for roughly two dozen active projects. Same `DECLINED` log line when it fires. |
 | `REMEMBER_RUNTIME_DIR` | Where spawn records for the two caps above are kept. Default `~/.remember/run`. Derived from `HOME` alone so a child process that inherited no plugin environment still finds it — that is the point of the bound. Set it only to relocate the runtime state (a read-only home, a test harness); if it is unusable the caps stop applying and the daily log says the spawn was `UNBOUNDED`. |
+| `REMEMBER_LOCK_TIMING` | `1` records how long each lock is held and how long each acquire waited, so a timeout default can be set from a distribution instead of from intuition ([#226](https://github.com/Digital-Process-Tools/claude-remember/issues/226)). **Off by default and deliberately opt-in**: `save-session.sh` runs on a `PostToolUse` hook, where an extra spawn per lock use is paid on every machine forever ([#227](https://github.com/Digital-Process-Tools/claude-remember/issues/227)/[#230](https://github.com/Digital-Process-Tools/claude-remember/issues/230)/[#204](https://github.com/Digital-Process-Tools/claude-remember/issues/204)). Off, it costs one string comparison and writes nothing. See [Measuring lock hold times](#measuring-lock-hold-times). |
+| `REMEMBER_LOCK_TIMING_FILE` | Where those records go. Default `$REMEMBER_DIR/logs/lock-timing.tsv`. |
+| `REMEMBER_LOCK_TIMING_MAX` | Line cap on that file. Default `5000` (~350KB). At the cap recording **stops** and appends a `# CAPPED` line — it does not roll, because a rolled file silently drops the oldest records and the tail is the part a timeout is set from. |
 | `REMEMBER_TZ`      | Set automatically by `log.sh` from `config.json` → `timezone`. Don't set this manually unless you're debugging.                                                                                                                                                                                                                                                                       |
+
+## Measuring lock hold times
+
+The NDC commit waits up to `REMEMBER_NDC_COMMIT_LOCK_TIMEOUT` (default 30s) for `save.lock`, and [#226](https://github.com/Digital-Process-Tools/claude-remember/issues/226) points out that 30 is reasoned but never measured. `save-session.sh` holds that lock for the *whole* save, including its own summarize `claude -p` call, so if a save routinely holds it longer than the wait, the knob does less than its comment claims. The staging lock's 10s was set from real numbers ([#234](https://github.com/Digital-Process-Tools/claude-remember/pull/234)); `save.lock`'s 30s still is not.
+
+This is how to produce those numbers on a real machine. Nothing here changes a default — the measurement comes first.
+
+```bash
+export REMEMBER_LOCK_TIMING=1        # in the shell Claude Code launches hooks from
+# ...work normally for a day...
+scripts/lock-timing-report.sh
+```
+
+```
+lock-timing: ok  file=/Users/you/.remember/<slug>/logs/lock-timing.tsv  records=418
+
+lock            prec     n  held_p50  held_p90  held_p99  held_max  wait_p50  wait_p90  wait_p99  wait_max timeouts
+save.lock         us   197      4210      9840     21030     24118         0         1      2004     30001        1
+staging.lock      us   210        31        44        88       201         0         0         1        12        0
+```
+
+- **`held_*`** is acquire-to-release. `save.lock`'s tail is what the 30s has to cover.
+- **`timeouts`** counts waits that ran out. For `save.lock` each one is an NDC commit that skipped and duplicated a span into `today-*.md` — the outcome the bounded wait was chosen to avoid. A non-zero count here is the direct answer to #226.
+- **`prec`** is the clock resolution the rows were taken at, and it is not the same everywhere: `us` on bash ≥ 5 (`EPOCHREALTIME`, no spawn), `ms` with GNU `date`, `s` on macOS's `/bin/bash` 3.2 with BSD `date`. Do not read sub-second structure out of an `s` file — reading a number at a finer resolution than it was taken at is the false confidence this issue was filed about. One second is coarse for `staging.lock` and adequate for `save.lock`.
+
+The raw file is TSV, one row per lock use, so anything the report does not show is one `awk` away:
+
+```
+# ts_ms  lock  event  outcome  wait_ms  held_ms  precision  pid
+```
+
+The report says **`skipped`** (exit 2), with the reason, when there is no file or no records — an empty table on a file that was never written reads exactly like one taken on an idle machine, and those are the two answers worth telling apart.
 
 ## External storage mode
 
@@ -372,6 +418,47 @@ Integration tests (includes shell scripts and prompt validation):
 bash scripts/run-tests.sh          # without Haiku
 bash scripts/run-tests.sh --live   # with real Haiku call
 ```
+
+### The Python floor guard
+
+The supported floor is **Python 3.9** — the lowest interpreter in the CI matrix
+(`.github/workflows/tests.yml`). Syntax newer than the floor does not fail one
+test, it fails *collection*, which takes out a whole matrix leg before anything
+runs, and it is invisible on any machine with a newer Python (which is every
+machine here).
+
+`tests/test_pep604_floor_guard.py` catches that statically, on any interpreter,
+in about a second. It flags PEP 604 unions (`str | None`) everywhere Python
+evaluates them:
+
+- parameter, return, and module- or class-level variable annotations, in files
+  without `from __future__ import annotations`;
+- `isinstance()` / `issubclass()` arguments — which the future import does
+  *not* rescue, since those are ordinary runtime expressions;
+- the type arguments of `cast()`, `NewType()` and `TypeVar()` (constraints and
+  `bound=`), which are type positions by those callables' own contract;
+- **bare assignments** at module or class level — `Handler = str | None` — but
+  only when the discriminator below can tell them from bitwise arithmetic.
+
+It runs in the normal suite; no 3.9 interpreter needs to be installed.
+
+If it fails, the fix is `Optional[str]` from `typing`, or adding
+`from __future__ import annotations` when the union is only in annotations.
+
+**What it does not catch, and why.** `Handler = str | None` and
+`MASK = READ | WRITE` are the same AST node, and nothing separates them
+without type information. The guard flags an assignment only when some operand
+*cannot* be bitwise-or'd on any Python — `None`, a builtin type name, a name
+imported from `typing`, or a subscript of one. That is decided by the
+language, not guessed, so it does not produce false positives on real bitwise
+code. The price is the other direction: an alias over names it cannot resolve,
+such as `Ids = A | B`, is **not** flagged and will still break a 3.9 leg. That
+trade is deliberate — a guard people learn to ignore is worse than no guard.
+
+Those cases are not silent. They come back as `GuardReport.undecided` and are
+counted in the report's reason: seen, not classified, and not reported as
+clean. Function-local assignments and the bodies of `if TYPE_CHECKING:` are out
+of scope, because neither is evaluated when the module is imported.
 
 ## Architecture
 
