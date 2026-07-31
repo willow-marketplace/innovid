@@ -1,31 +1,42 @@
 {
   "hooks": {
-    "afterFileEdit": [
+    "PostToolUse": [
       {
+        "matcher": "Bash",
         "hooks": [
           {
             "type": "command",
-            "command": "bash ./hooks/check-manifest-edit.sh afterFileEdit"
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/check-dep-install.sh\""
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|MultiEdit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/check-manifest-edit.sh\""
           }
         ]
       }
     ],
-    "beforeShellExecution": [
+    "PreToolUse": [
       {
+        "matcher": "Bash",
         "hooks": [
           {
             "type": "command",
-            "command": "bash ./hooks/check-dep-install.sh beforeShellExecution"
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/enforce-agent-api.sh\""
           }
         ]
       }
     ],
-    "beforeSubmitPrompt": [
+    "UserPromptSubmit": [
       {
         "hooks": [
           {
             "type": "command",
-            "command": "bash ./hooks/suggest-endor-tools.sh beforeSubmitPrompt"
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/suggest-endor-tools.sh\""
           }
         ]
       }

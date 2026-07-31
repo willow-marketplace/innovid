@@ -1,54 +1,66 @@
 {
   "name": "ai-plugins",
-  "version": "2.1.0",
-  "description": "Endor Labs Agent Kit setup and security workflow agents and skills for Cursor.",
-  "updatedAt": "2026-07-31T00:01:58.503Z",
+  "version": "1.0.0",
+  "description": "Endor Labs workflow agents and setup for Claude Code.",
+  "updatedAt": "2026-07-31T12:03:13.961Z",
   "author": {
     "url": "https://www.endorlabs.com/",
-    "name": "Endor Labs",
-    "email": "support@endor.ai"
+    "name": "Endor Labs"
   },
-  "homepage": "https://endorlabs.com",
+  "homepage": "https://github.com/endorlabs/ai-plugins",
   "repository": "https://github.com/endorlabs/ai-plugins",
   "keywords": [
     "endor-labs",
     "security",
-    "dependencies",
-    "endorctl",
     "sca",
     "sast",
+    "claude-code",
     "agentic remediation",
-    "AppSec"
+    "SAST remediation",
+    "agentic AppSec",
+    "AppSec",
+    "OSS Upgrade Investigator"
   ],
   "skills": "./skills/",
   "agents": "./agents/",
   "hooks": {
-    "afterFileEdit": [
+    "PostToolUse": [
       {
+        "matcher": "Bash",
         "hooks": [
           {
             "type": "command",
-            "command": "bash ./hooks/check-manifest-edit.sh afterFileEdit"
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/check-dep-install.sh\""
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|MultiEdit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/check-manifest-edit.sh\""
           }
         ]
       }
     ],
-    "beforeShellExecution": [
+    "PreToolUse": [
       {
+        "matcher": "Bash",
         "hooks": [
           {
             "type": "command",
-            "command": "bash ./hooks/check-dep-install.sh beforeShellExecution"
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/enforce-agent-api.sh\""
           }
         ]
       }
     ],
-    "beforeSubmitPrompt": [
+    "UserPromptSubmit": [
       {
         "hooks": [
           {
             "type": "command",
-            "command": "bash ./hooks/suggest-endor-tools.sh beforeSubmitPrompt"
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/suggest-endor-tools.sh\""
           }
         ]
       }

@@ -2,7 +2,7 @@
   "name": "telegram",
   "version": "1.0.0",
   "description": "Telegram channel for Claude Code — messaging bridge with built-in access control. Manage pairing, allowlists, and policy via /telegram:access.",
-  "updatedAt": "2026-07-31T00:02:46.333Z",
+  "updatedAt": "2026-07-31T12:04:49.453Z",
   "keywords": [
     "telegram",
     "messaging",
