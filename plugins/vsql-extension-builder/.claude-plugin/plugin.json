@@ -2,7 +2,7 @@
   "name": "vsql-extension-builder",
   "version": "1.0.0",
   "description": "Builds a VillageSQL extension for MySQL end-to-end through a 7-phase persona-driven workflow. Commonly used to port PostgreSQL extensions to MySQL.",
-  "updatedAt": "2026-07-31T12:04:56.405Z",
+  "updatedAt": "2026-08-01T00:05:32.048Z",
   "author": {
     "name": "VillageSQL"
   },

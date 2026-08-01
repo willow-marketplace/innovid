@@ -37,13 +37,19 @@ To update later:
 
 Claude Remember is also available in the official Anthropic Marketplace. In Claude Code, type `/plugin` and search for "remember".
 
-**Known issue — stuck on v0.5.0:** The Anthropic marketplace is still serving v0.5.0, which has known bugs ([#54](https://github.com/Digital-Process-Tools/claude-remember/issues/54) hook stderr redirect fails on first session, [#14](https://github.com/Digital-Process-Tools/claude-remember/issues/14) NDC subshell killed by `set -e`). Anthropic takes a long time to roll updates to the official marketplace. All of these are fixed in v0.8.2 — install from the DPT marketplace above to get the current version.
+**Releases reach this route on the catalogue's schedule, not ours, and that schedule is not predictable from ours.** `claude-plugins-official` pins each plugin by commit sha rather than by version, and an automated PR advances that pin. Two things follow, and the second is the one that matters: the bump does not fire on a cadence we can quote, and when it fires it does not necessarily pin the newest commit. Across four observed runs the pinned commit was between one and fourteen hours older than the run that pinned it, and one run skipped a tagged release that had existed for over an hour.
 
-**Known issue — `plugin update`:** The official marketplace's `plugin update` command may report "already at latest version" even when it's not — it checks a stale local cache without pulling first ([#37252](https://github.com/anthropics/claude-code/issues/37252), [#38271](https://github.com/anthropics/claude-code/issues/38271)). Another reason to use our marketplace instead.
+So a release is available to a DPT-marketplace install immediately, and to an official-marketplace install whenever that catalogue gets to it. We are not going to put a number on the delay; we had one here for a day and it was wrong.
+
+**`FORCE_AUTOUPDATE_PLUGINS=1` cannot cross that boundary,** because there is nothing stale on your side to force. Against a catalogue pinned behind the current release, `claude plugin update remember@claude-plugins-official` correctly reports the plugin as already current at the pinned version. The CLI is right and the input is old ([#264](https://github.com/Digital-Process-Tools/claude-remember/issues/264)). Waiting for the next bump works; installing from the DPT marketplace above skips the wait.
+
+**Separately, `plugin update` can report "already at latest version" from a stale local cache** without pulling first ([#37252](https://github.com/anthropics/claude-code/issues/37252), [#38271](https://github.com/anthropics/claude-code/issues/38271)). That one is a client-side cache and is a different failure from the pin lag above, though both surface the same sentence.
 
 ### Check your version
 
-Look at the `version` field in `.claude-plugin/plugin.json`. The plugin location depends on your install type:
+Look at the `version` field in `.claude-plugin/plugin.json` — **not at the `<version>` directory name in the path below.** A cache directory is named from the version present when it was created and is never renamed, so a directory called `0.7.1` can hold a manifest saying `0.8.0`. The updater compares manifests, so the manifest is the answer and the directory name is a guess ([#204](https://github.com/Digital-Process-Tools/claude-remember/issues/204)).
+
+The plugin location depends on your install type:
 
 | Install type                       | Location                                                                          |
 | ---------------------------------- | --------------------------------------------------------------------------------- |
@@ -203,6 +209,8 @@ Available on plugin installs, which auto-discover `commands/`. If you set the pl
 
 Reach for it whenever memory is not appearing and nothing says why — the two silent failures it names outright are a slug mismatch ([#144](https://github.com/Digital-Process-Tools/claude-remember/issues/144)) and hooks that were never registered ([#200](https://github.com/Digital-Process-Tools/claude-remember/issues/200)).
 
+Its "Recent errors" section tails **`<your memory store>/logs/hook-errors.log`**. That file is where a hook's own stderr goes: `bootstrap-dirs.sh` points every Claude Code hook's stderr at it, and a hook that exits non-zero is reported there with its exit status and its own first lines ([#277](https://github.com/Digital-Process-Tools/claude-remember/issues/277)). It is the single most useful thing to attach to a bug report — most of what makes a plugin failure hard to diagnose from the outside is already written in it, and a report that includes it usually skips a whole round of questions.
+
 ## Handoff between sessions (`/remember`)
 
 Before clearing context or ending a session, type `/remember`. The agent writes a short handoff note to `.remember/remember.md` — what's done, what's next, any non-obvious context. The next session reads it and picks up where you left off. This is complementary to the automatic pipeline: the pipeline captures what happened, the handoff captures what matters next.
@@ -250,6 +258,8 @@ Put cross-project preferences (timezone, cooldowns) in `~/.remember/config.json`
 | `git_backup.remote`              | _(empty)_        | Remote to push memory backups to. Empty → bare `git push`, relying on the branch's upstream tracking (the standard `origin main` setup). Set this if you have multiple remotes or a non-standard tracking config.                      |
 | `git_backup.branch`              | _(empty)_        | Branch to push to. Only used when `git_backup.remote` is set; empty pushes the current branch. The resolved remote/branch is logged on the first push.                                                                                 |
 | `git_backup.reject_notice_after` | `3`              | Consecutive *permanently rejected* pushes before the backup interrupts you with a `systemMessage` on the next prompt, on top of the log line. A rejection never clears itself, so this only postpones a true report — it cannot swallow one. Transient failures (offline, no credentials) never count toward it. `0` disables the interruption and leaves the log line.                        |
+| `git_backup.commit_notice_after` | `3`              | Consecutive *failed commits* before the backup interrupts you with a `systemMessage`, on top of the log line. A failed commit is worse than a failed push — the memory is recorded in no git history at all, not even locally — and every cause is durable (no `user.email`, a full disk, a stale index lock, a pre-commit hook on the backup repo), so this only postpones a true report. git's own error is always in the log line. `0` disables the interruption. |
+| `git_backup.no_remote_notice_after` | `10`          | Consecutive saves with **no remote configured** before the backup says so once — and only once for the lifetime of the store. Unlike every other counter here the condition may be entirely intentional: a local-only history is a legitimate choice, and a notice that repeated on every save would cost the others their meaning. `0` disables it. |
 | `git_backup.gpg_sign`            | `false`          | Sign auto-backup commits. Default passes `--no-gpg-sign` so background commits never hang on a passphrase prompt. Set `true` only with non-interactive signing (e.g. a hardware key) to honour your global `commit.gpgSign`.            |
 | `git_backup.allow_remote_change` | `false`          | One-shot opt-in to accept a changed push remote. The backup hook records the remote URL on first push and aborts every later push if it changed, since a swapped URL can mean a poisoned `config.json` pointing at someone else's host. Set `true` only when you are deliberately re-pointing at a new repo, then set it back. See [`docs/git-backup-security.md`](docs/git-backup-security.md).                                     |
 | `git_restore.enabled`            | `false`          | **Off by default.** Fast-forward `~/.remember/` from the backup remote at session start, before memory is read into context — the read counterpart to git backup, for stores used from more than one machine ([#253](https://github.com/Digital-Process-Tools/claude-remember/issues/253)). Fast-forward only: a diverged store is refused and reported, never merged or rebased. The `git fetch` is detached and lands next session, so no network runs before your first prompt. See [Restoring on a second machine](#restoring-on-a-second-machine-off-by-default). |
@@ -380,15 +390,9 @@ Because `~/.remember/` lives outside any project repo it won't be accidentally c
 cd ~/.remember
 git init
 git remote add origin git@github.com:youruser/remember-backup.git  # private repo
-# Write .gitignore BEFORE any git add — this excludes runtime state and log files.
+# Write .gitignore BEFORE any git add — this excludes log and tmp dirs.
 # Running git add before this step will track log dirs you don't want committed.
 cat > .gitignore <<'EOF'
-.git-backup.lock
-.last-git-backup-ts
-.git-backup-remote
-.git-backup-rejected
-.git-restore-fetch
-.git-restore-diverged
 */logs/
 */tmp/
 EOF
@@ -396,6 +400,17 @@ git add .gitignore config.json
 git commit -m "init: remember config"
 git push -u origin main
 ```
+
+> **Where the hooks keep their own state.** Nothing is written to the store
+> root. The backup and restore hooks keep their lock, cooldown stamp, recorded
+> remote URL and failure counters inside the repository's git directory
+> (`.git/remember/`), which git never tracks, never merges and never reports —
+> so no `.gitignore` entry is needed and `git status` in your store stays clean.
+> Versions before this one wrote those files beside your memory as
+> `.git-backup-*` / `.git-restore-*` / `.last-git-backup-ts`; they are moved
+> automatically on the next backup, and a copy you had already committed is left
+> alone rather than deleted out of your repository. If you have those names in
+> an existing `.gitignore`, they are harmless and can be removed at your leisure.
 
 > **Note:** This first commit only tracks `.gitignore` and `config.json` — there's no memory in the backup yet. Per-project slug directories aren't tracked until the `after_save` hook runs after your next `/remember`. To confirm backup is working, run `/remember` once, then check `cd ~/.remember && git log` for an automatic commit. (If you already have memory to commit now, `git add <slug>/` it explicitly before the first push.)
 
@@ -418,6 +433,26 @@ A push can fail for two very different reasons, and the backup log tells them ap
 The rejection is deliberately **not** resolved for you. `recent.md` and `archive.md` are rewritten wholesale by consolidation rather than appended, so a conflict in them is real and an automatic merge or rebase could corrupt memory silently. The plugin never runs `fetch`, `pull`, `merge` or `rebase` on your store.
 
 After `git_backup.reject_notice_after` consecutive rejections (default 3), the next prompt also carries a one-line `systemMessage` in your terminal, because a stopped backup that only ever appears in a log file is a stopped backup nobody notices — the reporter of #253 lost twelve days of off-machine memory that way. A deferred push never triggers it.
+
+#### When a commit does not happen
+
+`nothing to commit for <slug>, skip` used to cover two states as well: the store
+really had nothing new, or the pathspec matched nothing git tracks. A Windows
+install ran twelve days on the second while being told the first
+([#263](https://github.com/Digital-Process-Tools/claude-remember/issues/263)) —
+its slug differed from the tracked one by the case of the drive letter, NTFS is
+case-insensitive so every layer above git was satisfied, and git's pathspecs are
+case-sensitive so `git add` matched nothing.
+
+| Log line | What it means | What to do |
+| --- | --- | --- |
+| `committed <slug>` | Memory is in the local store. | Nothing. |
+| `nothing to commit for <slug>, skip` | The store has nothing new since the last backup. | Nothing. |
+| `ERROR: this project's memory is tracked as '<other>/' but this session computed '<slug>/' …` | Git tracks this project's memory under a different spelling and cannot match the two. **No retry can fix this** — every save is being committed nowhere. | Rename the tracked directory, in two steps because a case-only rename is a no-op on a case-insensitive filesystem: `git -C ~/.remember mv -- '<other>' '<slug>.tmp' && git -C ~/.remember mv -- '<slug>.tmp' '<slug>'`, then commit. |
+
+As with a rejected push, the rename is deliberately **not** done for you, and it
+also carries a one-line `systemMessage` on the next prompt — the condition never
+clears itself, so a log line alone is what let the original go unnoticed.
 
 #### Restoring on a second machine (off by default)
 
@@ -446,12 +481,12 @@ Because that fetch is unattended, its outcome is recorded and reported: `could N
 | `ERROR: the memory store has DIVERGED …` | Commits on both sides. Nothing was restored and nothing will be merged or rebased for you. Resolve it by hand. |
 | `store busy (backup in progress), skip` | A backup held the lock. Retried next session. |
 
-Add the restore's state files to your `.gitignore` alongside the backup's:
-
-```
-.git-restore-fetch
-.git-restore-diverged
-```
+The restore's state files need no `.gitignore` entry — like the backup's, they
+live in `.git/remember/` rather than beside your memory. That is not only
+tidiness: `git merge --ff-only` refuses when an untracked file would be
+overwritten, so a state file at the store root is a name the restore collides
+with the day a remote carries it, and the thing that breaks is the
+fast-forward itself.
 
 ## Git worktrees
 

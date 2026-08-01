@@ -469,11 +469,101 @@ safe_eval() {
 # Usage:
 #   dispatch "after_save"
 REMEMBER_HOOKS_DIR="$PIPELINE_DIR/hooks.d"
+
+# How much of a failing hook's stderr reaches the report (#277).
+#
+# The bound exists because this loop runs on every tool call and a chatty hook
+# would otherwise write its whole output into the log each time. It is a bound
+# on the REPORT, not on the hook: the capture is a plain file, the hook writes
+# to it freely and is never sent a SIGPIPE by a reader that stopped listening —
+# a `head` in the pipeline would have changed the exit status of the very thing
+# being diagnosed.
+#
+# Five lines is where a shell diagnostic lives. `unbound variable`,
+# `command not found`, `Argument list too long` and a `set -x` trace's last
+# frames are all in the first few; nothing past them changed the diagnosis in
+# the #258 and #266 transcripts.
+#
+# WHAT IS DROPPED IS COUNTED AND SAID. A cap that shortens silently is another
+# instance of the defect this fixes, one layer down — the reader would have no
+# way to tell a hook that said three things from a hook that said three hundred.
+_DISPATCH_STDERR_LINES=5
+_DISPATCH_STDERR_LINE_CHARS=400
+
+# Render a captured stderr file as ONE log line, or say why it cannot.
+#
+# One line because `log()` is a line protocol and doctor.sh tails five lines of
+# hook-errors.log: a hook's three-line death turned into three entries would
+# push two other failures off the only report anybody reads.
+#
+# THREE outcomes, and the third is the point (#277):
+#   text        what the hook actually said, bounded and disclosed.
+#   no stderr   it exited without a word. A real, reportable fact.
+#   (caller)    the capture never happened — reported by the caller, which is
+#               the only one that knows, and never spelled like silence.
+#
+# No forks: read is a builtin, and the failure path is reached in a hook that
+# has already gone wrong.
+_dispatch_stderr_excerpt() {
+    local _file="$1"
+    local _line _kept=0 _dropped=0 _out=""
+    # `|| [ -n "$_line" ]` — a hook killed by a signal can leave a final line
+    # with no newline on it, and that is exactly the line that says why.
+    while IFS= read -r _line || [ -n "$_line" ]; do
+        [ -n "$_line" ] || continue
+        if [ "$_kept" -lt "$_DISPATCH_STDERR_LINES" ]; then
+            if [ "${#_line}" -gt "$_DISPATCH_STDERR_LINE_CHARS" ]; then
+                _line="${_line:0:$_DISPATCH_STDERR_LINE_CHARS} [line truncated]"
+            fi
+            _out="${_out:+$_out | }$_line"
+            _kept=$((_kept + 1))
+        else
+            _dropped=$((_dropped + 1))
+        fi
+    done < "$_file"
+    if [ "$_kept" -eq 0 ]; then
+        printf '%s' "no stderr — it exited without saying anything"
+        return 0
+    fi
+    [ "$_dropped" -eq 0 ] || _out="$_out [+$_dropped more line(s) not shown]"
+    printf '%s' "$_out"
+}
+
+# Report one failed hook, in both places a human looks.
+#
+# `log()` writes the daily narrative, which is where this failure belongs in
+# sequence. hook-errors.log is where `/remember:doctor` reports "Recent errors"
+# and what maintainers ask a reporter to paste — #252 is the demonstration that
+# the daily log ALONE is not read, and #260/#266 are the demonstration that
+# hook-errors.log is what gets looked at when something is wrong.
+#
+# Written by PATH, never by inherited stderr. The three Claude Code hooks have
+# already pointed their own stderr at this file (bootstrap-dirs.sh), so simply
+# dropping the `2>/dev/null` would land in the right place FOR THEM — and in the
+# agent's own stream for save-session.sh, run-consolidation.sh, and any hook
+# process whose bootstrap redirect was skipped on a read-only store. A hook must
+# never gain the ability to write into the session, so the destination is named
+# rather than inherited.
+_dispatch_report_failure() {
+    local _event="$1" _name="$2" _rc="$3" _why="$4"
+    local _msg="ERROR: hook failed: $_event/$_name (exit $_rc): $_why"
+    log "dispatch" "$_msg"
+    [ -d "$REMEMBER_DIR/logs" ] || return 0
+    printf '%s\n' "$(_remember_date +%H:%M:%S) [dispatch] $_msg" \
+        >> "$REMEMBER_DIR/logs/hook-errors.log" 2>/dev/null || true
+    return 0
+}
+
 dispatch() {
     local event="$1"
     local event_dir="$REMEMBER_HOOKS_DIR/$event"
     [ -d "$event_dir" ] || return 0
     local current_uid=""
+    # Both resolved on first use, like current_uid and for the same reason
+    # (#230): the shipped distribution's hooks.d/<event>/ holds a .gitkeep and
+    # nothing else, so the common case is a loop that finds nothing executable.
+    # Nothing below may cost that case a process, a directory or a file.
+    local _err_file="" _err_unavailable=""
     for hook in "$event_dir"/*; do
         [ -x "$hook" ] || continue
         # Resolved on first use, not on entry (#230). The distribution ships
@@ -496,16 +586,65 @@ dispatch() {
             log "dispatch" "WARNING: skipping world-writable hook: $event/$(basename "$hook")"
             continue
         fi
-        REMEMBER_PROJECT="${PROJECT_DIR:-.}" "$hook" 2>/dev/null \
-            || log "dispatch" "hook failed: $event/$(basename "$hook")"
+        # The capture file, prepared once and only once a hook is about to run.
+        # Overwritten per hook (`2>` truncates), removed when the loop ends.
+        if [ -z "$_err_file" ] && [ -z "$_err_unavailable" ]; then
+            _err_file="$REMEMBER_DIR/tmp/dispatch-stderr.$$"
+            # `|| true`, and it is load-bearing: `A || B` where BOTH fail is a
+            # failed compound command, and every caller of dispatch runs under
+            # `set -e`. Without it, a store whose tmp/ cannot be created aborts
+            # the save outright — the loud failure traded for the quiet one.
+            [ -d "$REMEMBER_DIR/tmp" ] || mkdir -p "$REMEMBER_DIR/tmp" 2>/dev/null || true
+            # Opened HERE rather than discovered at the redirect. The shell
+            # opens a redirection target before running the command and reports
+            # its own failure OUTSIDE the scope of that redirect — the #204
+            # lesson — so an unopenable `2>"$_err_file"` would both print to the
+            # caller's stderr and count as the hook failing when it never ran.
+            if ! : > "$_err_file" 2>/dev/null; then
+                _err_file=""
+                _err_unavailable="yes"
+            fi
+        fi
+
+        # `if`, not a bare command: save-session.sh and run-consolidation.sh
+        # both `set -e` around their dispatch calls, and the old `|| log` kept a
+        # failing hook non-fatal by accident of syntax. A bare invocation whose
+        # status is read afterwards would hand every third-party hook the power
+        # to abort a save.
+        local _rc=0
+        if [ -n "$_err_file" ]; then
+            if REMEMBER_PROJECT="${PROJECT_DIR:-.}" "$hook" 2>"$_err_file"; then
+                _rc=0
+            else
+                _rc=$?
+            fi
+        elif REMEMBER_PROJECT="${PROJECT_DIR:-.}" "$hook" 2>/dev/null; then
+            _rc=0
+        else
+            _rc=$?
+        fi
+        [ "$_rc" -eq 0 ] && continue
+
+        # Only a FAILING hook is reported. A hook that chatters and exits 0 is
+        # not an event, and this fires on every tool call — that noise is the
+        # one thing `2>/dev/null` was genuinely buying, and it is kept.
+        local _why
+        if [ -n "$_err_file" ]; then
+            _why=$(_dispatch_stderr_excerpt "$_err_file")
+        else
+            _why="stderr not captured — no writable $REMEMBER_DIR/tmp, so the reason is MISSING, not absent; rerun the hook by hand to see what it says"
+        fi
+        _dispatch_report_failure "$event" "${hook##*/}" "$_rc" "$_why"
     done
+    [ -z "$_err_file" ] || rm -f "$_err_file" 2>/dev/null
+    return 0
 }
 
 # Archive log files older than 7 days into monthly tar.gz bundles.
 #
 # Finds memory-*.log files with mtime > 7 days, compresses them into
-# logs-YYYY-MM.tar.gz, and removes the originals on success.
-# No-op if no old logs exist.
+# logs-YYYY-MM.tar.gz, and removes the originals once the archive is verified
+# to contain them. No-op if no old logs exist.
 #
 # Args:
 #   (none — operates on REMEMBER_LOG_DIR)
@@ -518,8 +657,9 @@ dispatch() {
 #      that was about to happen.
 #
 # Side effects:
-#   Creates logs-YYYY-MM.tar.gz in the log directory.
-#   Deletes archived .log files.
+#   Creates logs-YYYY-MM.tar.gz — or logs-YYYY-MM-partN.tar.gz — in the log
+#   directory. NEVER writes over an archive that is already there.
+#   Deletes archived .log files, and only those the new archive lists back.
 #   Writes/removes .rotate-failed (consecutive-failure breadcrumb for doctor.sh).
 # Consecutive failures before the log line stops repeating itself and starts
 # naming the consequence. #252's reporter watched ONE identical line a day for
@@ -565,6 +705,65 @@ _ROTATE_STATE_NAME=".rotate-failed"
 # archive with no directory prefix. A name with no slash has nowhere to put a
 # colon, no tar can read it as remote, and no flag is needed on any of them.
 # Verified against GNU tar 1.35 and bsdtar 3.5.3 — identical members.
+#
+# THE ARCHIVE IS NEVER A NAME THAT ALREADY EXISTS, AND THE ORIGINALS ARE NEVER
+# DELETED ON THE STRENGTH OF AN EXIT STATUS (#255). Both halves are one bug:
+# `tar -czf` opens with O_TRUNC, this function deletes what it archived, and the
+# name carried only a month — so the second rotation of a month replaced the
+# first one's archive with its own contents, and the logs that had been inside
+# it were deleted from disk when it was written. Nothing survived anywhere.
+#
+# The month can never be made exact enough to fix that, and it is worth being
+# precise about why, because "just name it correctly" is the obvious answer.
+# `-mtime +7` selects every log that has aged out since the last successful
+# rotation — an unbounded window, so one archive legitimately spans months, and
+# the label is anyway derived from `date -v-7d` (the month a week ago) rather
+# than from the logs. But even a per-month grouping, which the filenames do
+# support, collides: logs from the same June age out on different days, so a
+# rotation in July and another a week later both want `logs-2026-06.tar.gz`.
+# Month granularity is revisited by construction. The name has to be *claimed*,
+# not computed.
+#
+# So: claim the first unused name, and on the second and later archive of a
+# month add `-partN`. This scatters a month across several tarballs, which is
+# the cost, and it is paid deliberately. The alternative that keeps one archive
+# per month is extract-merge-recreate, and its worst moment is unacceptable
+# here — a crash or a full disk midway through recreating leaves a truncated
+# archive whose contents were deleted from disk weeks earlier. This design's
+# worst moment is a crash between a verified archive and the deletion of its
+# originals: the next rotation archives them a second time under a new name.
+# Duplicated, never lost — the same trade the failure branch below already
+# makes, where accumulation is preferred to deletion.
+#
+# The claim uses `set -C` in a subshell so it is atomic: the redirection fails
+# if the file appeared between the test and the create, so two rotations racing
+# cannot select the same name. The empty file it leaves behind is the one tar
+# then overwrites — its own, by construction, which is why the failure paths
+# below may remove it without asking what was in it.
+_ROTATE_MAX_PARTS=100
+
+# The names the new archive does not list back, as a readable string; empty
+# means it lists all of them.
+#
+# tar exiting 0 is not evidence that a file is inside the archive — it is
+# evidence that tar had no complaint, which is a different claim, and #255's
+# deletion was gated on the second while meaning the first. Asking the archive
+# what it contains is the only question whose answer justifies `rm`.
+_rotate_missing_members() {
+    local dir="$1" archive="$2"
+    shift 2
+    local listing member missing=""
+    if ! listing=$( { cd "$dir" && tar -tzf "$archive"; } 2>/dev/null ); then
+        printf '%s' "the archive cannot be read back"
+        return 0
+    fi
+    for member in "$@"; do
+        printf '%s\n' "$listing" | grep -Fqx -- "$member" \
+            || missing="${missing}${missing:+, }${member}"
+    done
+    printf '%s' "$missing"
+}
+
 rotate_logs() {
     local state="${REMEMBER_LOG_DIR}/${_ROTATE_STATE_NAME}"
 
@@ -581,7 +780,6 @@ rotate_logs() {
 
     local archive_month
     archive_month=$(date -v-7d +%Y-%m 2>/dev/null || date -d '7 days ago' +%Y-%m)
-    local archive_name="logs-${archive_month}.tar.gz"
     local count
     count=$(echo "$old_logs" | wc -l | tr -d ' ')
 
@@ -590,14 +788,46 @@ rotate_logs() {
         basenames+=("$(basename "$f")")
     done <<< "$old_logs"
 
+    # Claim a name nothing else holds. The claim is by creation, not by a test:
+    # `[ -e ]` first only saves a fork on the common repeat, and the `set -C`
+    # redirection is what actually decides.
+    local archive_name="" candidate part=1
+    while [ "$part" -le "$_ROTATE_MAX_PARTS" ]; do
+        if [ "$part" -eq 1 ]; then
+            candidate="logs-${archive_month}.tar.gz"
+        else
+            candidate="logs-${archive_month}-part${part}.tar.gz"
+        fi
+        if [ ! -e "${REMEMBER_LOG_DIR}/${candidate}" ] \
+           && ( set -C; : > "${REMEMBER_LOG_DIR}/${candidate}" ) 2>/dev/null; then
+            archive_name="$candidate"
+            break
+        fi
+        part=$((part + 1))
+    done
+
     # The whole group is captured, not just tar: a failing `cd` writes its own
     # diagnostic, and that is exactly the kind of reason this used to lose.
-    local err
-    if err=$( { cd "$REMEMBER_LOG_DIR" && tar -czf "$archive_name" "${basenames[@]}"; } 2>&1 ); then
-        while IFS= read -r f; do rm -f "$f"; done <<< "$old_logs"
-        rm -f "$state" 2>/dev/null || true
-        log "rotate" "archived ${count} logs → ${archive_name}"
-        return 0
+    local err=""
+    if [ -z "$archive_name" ]; then
+        err="no unused archive name for ${archive_month} after ${_ROTATE_MAX_PARTS} tries — the names are taken, or ${REMEMBER_LOG_DIR} is not writable. Refusing to overwrite an existing archive"
+    elif err=$( { cd "$REMEMBER_LOG_DIR" && tar -czf "$archive_name" "${basenames[@]}"; } 2>&1 ); then
+        local missing
+        missing=$(_rotate_missing_members "$REMEMBER_LOG_DIR" "$archive_name" "${basenames[@]}")
+        if [ -z "$missing" ]; then
+            while IFS= read -r f; do rm -f "$f"; done <<< "$old_logs"
+            rm -f "$state" 2>/dev/null || true
+            log "rotate" "archived ${count} logs → ${archive_name}"
+            return 0
+        fi
+        # The archive was claimed by this call and held nothing before it, so
+        # removing it loses nothing — and leaving an incomplete archive next to
+        # the originals it does not contain is how a later rotation, or a
+        # person, comes to trust it.
+        rm -f "${REMEMBER_LOG_DIR}/${archive_name}" 2>/dev/null || true
+        err="tar exited 0 but ${archive_name} does not list back: ${missing}"
+    else
+        rm -f "${REMEMBER_LOG_DIR}/${archive_name}" 2>/dev/null || true
     fi
 
     # --- Could not run. ------------------------------------------------------

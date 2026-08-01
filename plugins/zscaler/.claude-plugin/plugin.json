@@ -2,7 +2,7 @@
   "name": "zscaler",
   "version": "1.0.0",
   "description": "Manage Zscaler cloud security platform including ZPA (private access), ZIA (internet access), ZDX (digital experience), ZCC (client connector), EASM (attack surface), and Z-Insights (analytics). Create and manage policies, troubleshoot connectivity, audit security configurations, and investigate incidents across the full Zscaler ecosystem.",
-  "updatedAt": "2026-07-31T12:05:11.520Z",
+  "updatedAt": "2026-08-01T00:05:50.575Z",
   "author": {
     "name": "Zscaler"
   },
