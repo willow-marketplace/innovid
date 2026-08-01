@@ -2,7 +2,7 @@
   "name": "mcp-server-dev",
   "version": "1.0.0",
   "description": "Skills for designing and building MCP servers that work seamlessly with Claude — guides you through deployment models (remote HTTP, MCPB, local), tool design patterns, auth, and interactive MCP apps.",
-  "updatedAt": "2026-08-01T00:04:27.792Z",
+  "updatedAt": "2026-08-01T12:03:00.457Z",
   "author": {
     "name": "Anthropic",
     "email": "support@anthropic.com"

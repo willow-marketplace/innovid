@@ -2,7 +2,7 @@
   "name": "liquid-lsp",
   "version": "1.0.0",
   "description": "LSP integration for Shopify Liquid templates via the Shopify CLI theme language server",
-  "updatedAt": "2026-08-01T00:04:24.562Z",
+  "updatedAt": "2026-08-01T12:02:58.984Z",
   "author": {
     "name": "James Meng"
   },

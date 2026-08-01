@@ -2,7 +2,7 @@
   "name": "aws-agents-for-devsecops",
   "version": "1.0.0",
   "description": "Investigate incidents, review code and execute UAT for release readiness, scan code for vulnerabilities, and run penetration tests with AWS DevOps Agent and AWS Security Agent.",
-  "updatedAt": "2026-08-01T00:03:34.382Z",
+  "updatedAt": "2026-08-01T12:02:35.206Z",
   "author": {
     "name": "Amazon Web Services"
   },

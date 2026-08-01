@@ -24,8 +24,16 @@ const {
   const rateLimitInstances: Array<{ limit: ReturnType<typeof vi.fn> }> = [];
   const redisValues = new Map<string, string>();
   class RatelimitMock {
-    static slidingWindow = vi.fn((limit: number, window: string) => ({ limit, window, type: "sliding" }));
-    static fixedWindow = vi.fn((limit: number, window: string) => ({ limit, window, type: "fixed" }));
+    static slidingWindow = vi.fn((limit: number, window: string) => ({
+      limit,
+      window,
+      type: "sliding",
+    }));
+    static fixedWindow = vi.fn((limit: number, window: string) => ({
+      limit,
+      window,
+      type: "fixed",
+    }));
 
     constructor() {
       return rateLimitInstances.shift() ?? { limit: vi.fn().mockResolvedValue({ success: true }) };
@@ -38,7 +46,15 @@ const {
       redisValues.set(key, value);
       return "OK";
     });
-    get = vi.fn(async (key: string) => redisValues.get(key) ?? null);
+    get = vi.fn(async (key: string) => {
+      const value = redisValues.get(key);
+      if (value === undefined) return null;
+      try {
+        return JSON.parse(value) as unknown;
+      } catch {
+        return value;
+      }
+    });
   }
   const verifyOAuthTokenMock = vi.fn();
 
@@ -108,7 +124,10 @@ describe("api/mcp handler", () => {
     capturedRequests.length = 0;
     rateLimitInstances.length = 0;
     redisValues.clear();
-    isJwtTokenMock.mockImplementation((token: string) => token === "jwt-token" || token === "keyless-jwt" || token === "invalid-jwt");
+    isJwtTokenMock.mockImplementation(
+      (token: string) =>
+        token === "jwt-token" || token === "keyless-jwt" || token === "invalid-jwt",
+    );
     verifyOAuthTokenMock.mockResolvedValue(null);
     vi.spyOn(console, "log").mockImplementation(() => undefined);
     vi.spyOn(console, "error").mockImplementation(() => undefined);
@@ -464,9 +483,7 @@ describe("api/mcp handler", () => {
     );
 
     expect(config).toMatchObject({
-      enabledTools: [
-        "agent_run",
-      ],
+      enabledTools: ["agent_run"],
     });
   });
 
@@ -483,9 +500,7 @@ describe("api/mcp handler", () => {
       exaApiKey: "user-key",
       userProvidedApiKey: true,
       authMethod: "api_key",
-      enabledTools: [
-        "agent_run",
-      ],
+      enabledTools: ["agent_run"],
     });
     expect(forwardedRequest?.headers.get("x-api-key")).toBeNull();
   });
@@ -502,9 +517,7 @@ describe("api/mcp handler", () => {
     );
 
     expect(config).toMatchObject({
-      enabledTools: [
-        "agent_run",
-      ],
+      enabledTools: ["agent_run"],
     });
   });
 
@@ -726,6 +739,37 @@ describe("api/mcp handler", () => {
     expect(response.status).toBe(200);
     await expect(response.text()).resolves.toBe("ok");
     expectMcpCorsHeaders(response);
+  });
+
+  it("rejects unparsable JSON bodies before they reach the MCP handler", async () => {
+    const { response } = await callHandleRequest(
+      new Request("https://mcp.exa.ai/mcp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{jsonrpc:2.0,id:1,method:initialize}",
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      jsonrpc: "2.0",
+      error: { code: -32700, message: "Parse error" },
+    });
+    expectMcpCorsHeaders(response);
+    expect(createMcpHandlerMock).not.toHaveBeenCalled();
+  });
+
+  it("passes non-JSON content types through without parsing the body", async () => {
+    const { response } = await callHandleRequest(
+      new Request("https://mcp.exa.ai/mcp", {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: "not json",
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(createMcpHandlerMock).toHaveBeenCalled();
   });
 
   it("returns CORS headers for MCP preflight requests", async () => {

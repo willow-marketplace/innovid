@@ -2,7 +2,7 @@
   "name": "idmp-plugin",
   "version": "1.0.0",
   "description": "TDengine IDMP plugin with packaged skills for discovery, schema inspection, and safe operational workflows.",
-  "updatedAt": "2026-08-01T00:04:22.269Z",
+  "updatedAt": "2026-08-01T12:02:57.873Z",
   "author": {
     "name": "TaosData",
     "email": "it@taosdata.com"

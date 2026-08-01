@@ -14,9 +14,9 @@ function parseTools(value: string | undefined): string[] | undefined {
   if (!value) return undefined;
   const tools = expandToolSelection(
     value
-    .split(",")
-    .map(tool => tool.trim())
-    .filter(tool => tool.length > 0),
+      .split(",")
+      .map((tool) => tool.trim())
+      .filter((tool) => tool.length > 0),
   );
   return tools.length > 0 ? tools : undefined;
 }
@@ -47,7 +47,7 @@ export async function main(env: NodeJS.ProcessEnv = process.env): Promise<void> 
   const server = new McpServer({
     name: "exa-search-server",
     title: "Exa",
-    version: "3.2.1",
+    version: "3.4.0",
     websiteUrl: "https://exa.ai",
     icons: [
       { src: "https://exa.ai/images/favicon-32x32.png", mimeType: "image/png", sizes: ["32x32"] },

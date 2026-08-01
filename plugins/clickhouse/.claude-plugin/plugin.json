@@ -2,7 +2,7 @@
   "name": "clickhouse",
   "version": "1.0.0",
   "description": "ClickHouse Claude Code plugin: skills (ClickHouse best practices), rules and MCP.",
-  "updatedAt": "2026-08-01T00:03:50.151Z",
+  "updatedAt": "2026-08-01T12:02:41.734Z",
   "author": {
     "name": "ClickHouse",
     "email": "ai@clickhouse.com"
