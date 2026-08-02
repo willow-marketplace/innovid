@@ -129,7 +129,7 @@
         "best-practices",
         "workflows"
       ],
-      "updatedAt": "2026-08-02T00:03:25.585Z"
+      "updatedAt": "2026-08-02T00:02:53.983Z"
     },
     {
       "name": "warp",
@@ -172,7 +172,7 @@
         "name": "JetBrains"
       },
       "homepage": "https://www.jetbrains.com/teamcity/",
-      "updatedAt": "2026-08-02T00:03:29.997Z"
+      "updatedAt": "2026-08-02T00:02:59.426Z"
     },
     {
       "name": "typescript-lsp",
@@ -183,7 +183,7 @@
         "name": "Anthropic",
         "email": "support@anthropic.com"
       },
-      "updatedAt": "2026-08-02T00:03:24.901Z"
+      "updatedAt": "2026-08-02T00:02:53.158Z"
     },
     {
       "name": "php-lsp",
@@ -381,7 +381,7 @@
         "name": "HashiCorp"
       },
       "homepage": "https://github.com/anthropics/claude-plugins-public/tree/main/external_plugins/terraform",
-      "updatedAt": "2026-08-02T00:03:24.782Z"
+      "updatedAt": "2026-08-02T00:02:52.866Z"
     },
     {
       "name": "github",
@@ -590,7 +590,7 @@
         "team-chat",
         "mcp"
       ],
-      "updatedAt": "2026-08-02T00:03:38.892Z"
+      "updatedAt": "2026-08-02T00:03:11.286Z"
     },
     {
       "name": "microsoft-docs",
@@ -1069,7 +1069,7 @@
         "development-guidelines",
         "best-practices"
       ],
-      "updatedAt": "2026-08-02T00:03:27.976Z"
+      "updatedAt": "2026-08-02T00:02:55.053Z"
     },
     {
       "name": "ui5-modernization",
@@ -1089,7 +1089,7 @@
         "linter",
         "upgrade"
       ],
-      "updatedAt": "2026-08-02T00:03:28.186Z"
+      "updatedAt": "2026-08-02T00:02:55.131Z"
     },
     {
       "name": "vercel",
@@ -1112,7 +1112,7 @@
         "deployment",
         "serverless"
       ],
-      "updatedAt": "2026-08-02T00:03:33.434Z"
+      "updatedAt": "2026-08-02T00:03:03.144Z"
     },
     {
       "name": "valtown",
@@ -1130,7 +1130,7 @@
         "serverless",
         "typescript"
       ],
-      "updatedAt": "2026-08-02T00:03:28.629Z"
+      "updatedAt": "2026-08-02T00:02:56.455Z"
     },
     {
       "name": "vanta",
@@ -1180,7 +1180,7 @@
         "x402",
         "mpp"
       ],
-      "updatedAt": "2026-08-02T00:03:31.279Z"
+      "updatedAt": "2026-08-02T00:02:59.620Z"
     },
     {
       "name": "unreal-engine-skills-for-claude-code",
@@ -1192,7 +1192,7 @@
         "email": "thomas.mansencal@epicgames.com"
       },
       "homepage": "https://dev.epicgames.com/documentation/unreal-engine/unreal-mcp-in-unreal-editor",
-      "updatedAt": "2026-08-02T00:03:28.360Z"
+      "updatedAt": "2026-08-02T00:02:56.406Z"
     },
     {
       "name": "langfuse",
@@ -1213,7 +1213,7 @@
         "prompt-management",
         "evaluation"
       ],
-      "updatedAt": "2026-08-02T00:03:33.192Z"
+      "updatedAt": "2026-08-02T00:03:02.735Z"
     },
     {
       "name": "zscaler",
@@ -1224,7 +1224,7 @@
         "name": "Zscaler"
       },
       "homepage": "https://github.com/zscaler/zscaler-mcp-server",
-      "updatedAt": "2026-08-02T00:03:39.831Z"
+      "updatedAt": "2026-08-02T00:03:10.148Z"
     },
     {
       "name": "zoominfo",
@@ -1304,7 +1304,7 @@
         "website visitor identification",
         "mcp"
       ],
-      "updatedAt": "2026-08-02T00:03:33.310Z"
+      "updatedAt": "2026-08-02T00:03:01.901Z"
     },
     {
       "name": "windsor-ai",
@@ -1334,7 +1334,7 @@
         "stripe",
         "business-intelligence"
       ],
-      "updatedAt": "2026-08-02T00:03:29.739Z"
+      "updatedAt": "2026-08-02T00:02:57.318Z"
     },
     {
       "name": "wix",
@@ -1355,7 +1355,7 @@
         "cms",
         "wix-apps"
       ],
-      "updatedAt": "2026-08-02T00:03:35.106Z"
+      "updatedAt": "2026-08-02T00:03:05.315Z"
     },
     {
       "name": "sumup",
@@ -1366,7 +1366,7 @@
         "name": "SumUp"
       },
       "homepage": "https://www.sumup.com/",
-      "updatedAt": "2026-08-02T00:03:24.314Z"
+      "updatedAt": "2026-08-02T00:02:52.663Z"
     },
     {
       "name": "workos",
@@ -1379,7 +1379,7 @@
       },
       "homepage": "https://workos.com",
       "repository": "https://github.com/workos/skills",
-      "updatedAt": "2026-08-02T00:03:31.311Z"
+      "updatedAt": "2026-08-02T00:02:59.601Z"
     },
     {
       "name": "wordpress.com",
@@ -1398,7 +1398,7 @@
         "name": "VillageSQL"
       },
       "homepage": "https://villagesql.com",
-      "updatedAt": "2026-08-02T00:03:29.385Z"
+      "updatedAt": "2026-08-02T00:02:57.497Z"
     },
     {
       "name": "ui5-typescript-conversion",
@@ -1419,7 +1419,7 @@
         "typescript",
         "conversion"
       ],
-      "updatedAt": "2026-08-02T00:03:27.907Z"
+      "updatedAt": "2026-08-02T00:02:54.919Z"
     },
     {
       "name": "spotify-ads-api",
@@ -1440,7 +1440,7 @@
         "oauth",
         "reporting"
       ],
-      "updatedAt": "2026-08-02T00:03:24.388Z"
+      "updatedAt": "2026-08-02T00:02:52.480Z"
     },
     {
       "name": "tavily",
@@ -1464,7 +1464,7 @@
         "crawl",
         "extract"
       ],
-      "updatedAt": "2026-08-02T00:03:24.708Z"
+      "updatedAt": "2026-08-02T00:02:52.752Z"
     },
     {
       "name": "togetherai-skills",
@@ -1487,7 +1487,7 @@
         "video",
         "audio"
       ],
-      "updatedAt": "2026-08-02T00:03:27.420Z"
+      "updatedAt": "2026-08-02T00:02:54.994Z"
     },
     {
       "name": "zilliz",
@@ -1498,7 +1498,7 @@
         "name": "Zilliz"
       },
       "homepage": "https://docs.zilliz.com",
-      "updatedAt": "2026-08-02T00:03:31.435Z"
+      "updatedAt": "2026-08-02T00:03:01.608Z"
     },
     {
       "name": "zapier",
@@ -1524,7 +1524,7 @@
         "ai-tools",
         "productivity"
       ],
-      "updatedAt": "2026-08-02T00:03:30.642Z"
+      "updatedAt": "2026-08-02T00:02:59.304Z"
     },
     {
       "name": "supabase",
@@ -1550,7 +1550,7 @@
         "migrations",
         "rls"
       ],
-      "updatedAt": "2026-08-02T00:03:24.692Z"
+      "updatedAt": "2026-08-02T00:02:52.928Z"
     },
     {
       "name": "stripe",
@@ -1570,7 +1570,7 @@
         "api",
         "security"
       ],
-      "updatedAt": "2026-08-02T00:03:25.136Z"
+      "updatedAt": "2026-08-02T00:02:52.169Z"
     },
     {
       "name": "twilio-developer-kit",
@@ -1581,7 +1581,7 @@
         "name": "Twilio"
       },
       "homepage": "https://www.twilio.com",
-      "updatedAt": "2026-08-02T00:03:27.845Z"
+      "updatedAt": "2026-08-02T00:02:55.199Z"
     },
     {
       "name": "atomic-agents",
@@ -1600,7 +1600,7 @@
         "name": "Anthropic",
         "email": "support@anthropic.com"
       },
-      "updatedAt": "2026-08-02T00:03:23.975Z"
+      "updatedAt": "2026-08-02T00:02:52.295Z"
     },
     {
       "name": "zyte-web-data",
@@ -1612,7 +1612,7 @@
       },
       "homepage": "https://github.com/zytedata/claude-skills",
       "repository": "https://github.com/zytedata/claude-skills",
-      "updatedAt": "2026-08-02T00:03:34.533Z"
+      "updatedAt": "2026-08-02T00:03:03.739Z"
     },
     {
       "name": "telegram",
@@ -1625,7 +1625,7 @@
         "channel",
         "mcp"
       ],
-      "updatedAt": "2026-08-02T00:03:24.669Z"
+      "updatedAt": "2026-08-02T00:02:52.926Z"
     },
     {
       "name": "vanta-mcp-plugin",
@@ -1669,7 +1669,7 @@
         "companies",
         "contacts"
       ],
-      "updatedAt": "2026-08-02T00:03:29.188Z"
+      "updatedAt": "2026-08-02T00:02:57.285Z"
     },
     {
       "name": "idmp-plugin",
@@ -2025,7 +2025,7 @@
       },
       "homepage": "https://guide.sonatype.com",
       "repository": "https://github.com/sonatype/guide-claude-plugin",
-      "updatedAt": "2026-08-02T00:03:23.291Z"
+      "updatedAt": "2026-08-02T00:02:50.616Z"
     },
     {
       "name": "aikido",
@@ -2752,7 +2752,7 @@
       },
       "homepage": "https://cloud.google.com/spanner",
       "repository": "https://github.com/gemini-cli-extensions/spanner",
-      "updatedAt": "2026-08-02T00:03:23.765Z"
+      "updatedAt": "2026-08-02T00:02:51.771Z"
     },
     {
       "name": "qodo-skills",
@@ -2944,7 +2944,7 @@
         "mdk",
         "mcp"
       ],
-      "updatedAt": "2026-08-02T00:03:41.998Z"
+      "updatedAt": "2026-08-02T00:03:22.159Z"
     },
     {
       "name": "save-to-spotify",
@@ -3457,7 +3457,7 @@
         "storefront",
         "admin-api"
       ],
-      "updatedAt": "2026-08-02T00:03:43.248Z"
+      "updatedAt": "2026-08-02T00:03:08.069Z"
     },
     {
       "name": "shopify",
@@ -5551,7 +5551,7 @@
         "posture",
         "triage"
       ],
-      "updatedAt": "2026-08-02T00:03:23.810Z"
+      "updatedAt": "2026-08-02T00:02:51.908Z"
     },
     {
       "name": "stackhawk-hawkscan",
@@ -5574,7 +5574,7 @@
         "api-security",
         "vulnerability-scanning"
       ],
-      "updatedAt": "2026-08-02T00:03:23.881Z"
+      "updatedAt": "2026-08-02T00:02:52.034Z"
     },
     {
       "name": "ui-theme-designer",
@@ -5597,7 +5597,7 @@
         "fundamental-styles",
         "plugin"
       ],
-      "updatedAt": "2026-08-02T00:03:25.638Z"
+      "updatedAt": "2026-08-02T00:02:53.371Z"
     },
     {
       "name": "claude-security",
