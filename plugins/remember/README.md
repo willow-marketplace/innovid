@@ -205,6 +205,8 @@ Two of these events deliver their listeners' **stdout to the model**: `after_use
 - **The plugin frames your block** with an unprefixed `=== hooks.d: <event>/<script> … ===` line naming your script. A hook that prints nothing gets no frame and no marker, and costs the prompt nothing.
 - **Your stdout is capped at 200 lines and 2000 characters per line, and the cap announces itself** — a trailing frame line says how many lines were not shown. Nothing is ever shortened silently. If your listener needs to say more than 200 lines to the model on every prompt, the context window is the wrong channel for it.
 - **stdout is for the model; stderr is for the humans.** A listener that exits non-zero has its first five stderr lines written to `hook-errors.log` with its exit status ([#277](https://github.com/Digital-Process-Tools/claude-remember/issues/277)). A listener that exits 0 is not reported anywhere, by design — this runs on every tool call.
+- **A listener that does not return is stopped, and the stop is reported as an *unknown*, not a failure.** The budget is `hooks.dispatch_timeout_seconds` (15s for the events the agent waits on) or `hooks.dispatch_timeout_detached_seconds` (120s for the save and consolidate events, which nobody waits on), per listener rather than per dispatch. You get `SIGTERM` first and `SIGKILL` after `hooks.dispatch_kill_grace_seconds`, so a listener holding a lock or a temp file can unwind it from an `EXIT` trap — **anything it leaves half-done is its own to clean up**, since nothing here can know what a third-party listener was in the middle of. The report names the listener and the budget and says outright that whether it did its work is unknown; it is not given an exit status, because the one it died with is the signal the plugin sent, not an answer the listener gave.
+- **Your detached work is deliberately left alone.** The signal goes to your script's own PID, never its process group, so a `( … ) &` you disowned keeps running — that is how both shipped listeners do their git I/O, and killing it is how a timeout would turn an indefinite stall into a corrupt store. The cost is the other way round: a listener blocked in a *foreground* child leaks that child when the script is killed. Put anything slow in the background yourself.
 - **A listener that is not owned by you, or is group/world-writable, is refused** and never runs. That refusal is now written to `hook-errors.log` as well as the daily log, so `/remember:doctor` shows it instead of reporting OK.
 
 Nothing here bounds what a hook can *do* — it runs as you, with your environment. What it bounds is what a hook can *appear to be* once its output reaches the model.
@@ -280,6 +282,9 @@ Put cross-project preferences (timezone, cooldowns) in `~/.remember/config.json`
 | `git_restore.branch`             | _(empty)_        | Branch to restore from. Empty → `git_backup.branch`, then the branch currently checked out. With a detached HEAD and this unset, the restore refuses rather than guessing.                                                                                                             |
 | `git_restore.fetch_timeout_seconds` | `20`          | How long the detached background fetch may run before it is killed. It never blocks your prompt either way; the bound exists so a hung transport cannot leave a git process alive indefinitely, and so a fetch that never came back is reported as such next session rather than passing for "up to date". |
 | `git_restore.diverged_notice_after` | `3`           | Consecutive session starts finding a *diverged* store before the restore interrupts you with a `systemMessage`, on top of the log line. A divergence never clears itself, so this only postpones a true report — it cannot swallow one. A failed or unreachable fetch never counts toward it. `0` disables the interruption and leaves the log line. |
+| `hooks.dispatch_timeout_seconds` | `15`             | How long **one** `hooks.d/` listener may take before it is stopped, for the events the agent is waiting on: `after_post_tool`, `after_user_prompt`, `before_session_start`, `after_session_start`. Until [#286](https://github.com/Digital-Process-Tools/claude-remember/issues/286) nothing bounded them, so a listener that blocked stalled the agent for as long as it blocked and logged nothing — nothing had failed. Claude Code kills a hook at 60s of its own accord, so a budget at or above that is the host killing the process with no report from the plugin. The shipped listeners take 0.17–0.58s here. Per hook, not per dispatch: one slow listener never spends the next one's allowance. `0` disables the bound. |
+| `hooks.dispatch_timeout_detached_seconds` | `120`   | The same budget for `before_save`, `after_save`, `before_consolidate` and `after_consolidate`, which are dispatched from `save-session.sh` / `run-consolidation.sh` — started with `nohup … &`, so nobody is waiting on them. A listener doing real work there is doing it on its own time, and 15s would be a deadline no one is keeping. `0` disables the bound. |
+| `hooks.dispatch_kill_grace_seconds` | `5`           | Between `SIGTERM` and `SIGKILL`. bash runs an `EXIT` trap when it dies of an untrapped `SIGTERM` and does not on `SIGKILL`, and git removes its own `index.lock` on `SIGTERM` and cannot on `SIGKILL` — so this window is a listener's chance to release a lock or unwind a partial write. It is a courtesy, not a veto: one that traps `TERM` and keeps going is killed anyway. |
 | `thresholds.min_human_messages`  | `3`              | Minimum human messages before saving. Keeps greetings and one-liners out of memory.                                                                                                                                                    |
 | `thresholds.min_exchanges_without_human` | `30`     | Save anyway when the span has at least this many exchanges, even if the human count is below `min_human_messages`. Without it, an agentic session (many tool calls, few human turns) never clears the gate and never saves at all. `0` disables the fallback. |
 | `thresholds.max_summary_failures` | `3`             | Consecutive summarization failures on the *same* span before it is dropped and the position advanced past it. Keeping the position is right for a transient error (the span retries next run), but a persistent failure would otherwise retry forever and no later span could ever be saved. `0` retries forever. |
@@ -434,6 +439,36 @@ Once `~/.remember/` is a git repo, the `after_save` hook commits each project's 
 **What is not backed up:** each slug's `logs/` and `tmp/`. Those are per-machine — pipeline logs, lock files, cooldown markers, and the handoff delivery record — and sharing them between machines causes conflicts at best and wrong answers at worst ([#285](https://github.com/Digital-Process-Tools/claude-remember/issues/285)). The hook maintains these exclusions in your store's `.git/info/exclude`, which is per-clone and is never itself committed, so no `.gitignore` of yours is edited and nothing about your machine reaches the remote. Everything else under the slug — every memory file — is backed up.
 
 If you don't want automatic commits, leave `~/.remember/` as a plain directory and commit manually as before.
+
+#### Logs in a backup you made before this version
+
+The exclusion above is new. **0.12.3 and earlier staged each slug's whole subtree with nothing excluded**, on the assumption — written into the backup hook's own comment — that a root-level `.gitignore` covered `logs/` and `tmp/`. The plugin never created that file, and in external-store mode it deleted the only `.gitignore` it did write ([#285](https://github.com/Digital-Process-Tools/claude-remember/issues/285)). The setup snippet under [Back up your memory](#back-up-your-memory) has always told you to write one by hand; **if you did, none of this applies to you.** If you did not, this plugin's session logs were committed and pushed alongside your memory.
+
+Upgrading changes what happens next and nothing about what already happened. The first backup after upgrading untracks `logs/` and `tmp/` in a commit of its own — `untracked <slug>/logs and <slug>/tmp` in the backup log — so they leave the *current* state of the remote and stop being pushed. **They remain in every commit that already carried them.** Untracking a path does not rewrite the commits that hold it, and no later fix on our side can: anyone who clones your backup gets that history and can read the logs out of it.
+
+Whether that matters depends on what your sessions logged, which we cannot see and you can. **Nobody has counted how many stores are affected** — this is here so you can check your own, not as an estimate of anyone else's:
+
+```bash
+git -C ~/.remember log --oneline -- '*/logs/*'
+```
+
+Any output lists commits carrying log files. No output means there is nothing to decide.
+
+**If you want them gone, read the cost before you run anything.** Removing them means rewriting every commit that touched them and force-pushing the result. Every commit ID from the first affected one onward changes, so **every other clone of this store — your other machine, a mirror, anything that has ever fetched it — diverges permanently.** `git pull` there will refuse to fast-forward; each clone has to be replaced, and anything committed there but not yet pushed is lost with it. A rewrite is also not a guarantee of deletion: hosts keep unreachable objects for a while, and a fork, a cached view or a downstream backup of the remote may keep the old ones indefinitely. If this store lives on one machine and the remote is private and yours alone, the rewrite is cheap. If it does not, that is the trade you are making.
+
+With that understood, using [`git-filter-repo`](https://github.com/newren/git-filter-repo), on a throwaway clone rather than on `~/.remember` itself:
+
+```bash
+git clone ~/.remember /tmp/remember-purge
+cd /tmp/remember-purge
+git filter-repo --invert-paths --path-glob '*/logs/*' --path-glob '*/tmp/*' --force
+git remote add origin <your backup remote>   # filter-repo drops the remote deliberately
+git push --force origin main
+```
+
+Then **re-clone `~/.remember` on every machine that uses it** rather than pulling into it.
+
+Doing nothing is a legitimate answer — these are your own session logs in a repository you own. It should just be a decision rather than something nobody told you.
 
 #### When a push does not go through
 
