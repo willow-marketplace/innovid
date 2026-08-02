@@ -2,7 +2,7 @@
   "name": "swift-lsp",
   "version": "1.0.0",
   "description": "Swift language server (SourceKit-LSP) for code intelligence",
-  "updatedAt": "2026-08-02T00:02:52.295Z",
+  "updatedAt": "2026-08-02T12:02:50.215Z",
   "author": {
     "name": "Anthropic",
     "email": "support@anthropic.com"
