@@ -2,7 +2,7 @@
   "name": "railway",
   "version": "1.3.6",
   "description": "Railway agent skills and hosted MCP server for deploying, configuring, monitoring, and troubleshooting apps and infrastructure on Railway from Claude Code. Manage services, environments, deployments, databases, object storage, networking, and observability.",
-  "updatedAt": "2026-08-02T12:03:33.207Z",
+  "updatedAt": "2026-08-03T00:02:38.359Z",
   "author": {
     "name": "Railway",
     "email": "contact@railway.com"
