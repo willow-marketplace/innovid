@@ -1,7 +1,7 @@
 {
   "name": "datarobot-agent-skills",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "DataRobot skills for AI/ML workflows — model training, deployment, predictions, feature engineering, monitoring, explainability, data preparation, App Framework CI/CD, and external agent monitoring.",
-  "updatedAt": "2026-08-03T12:02:32.746Z",
+  "updatedAt": "2026-08-04T00:02:52.562Z",
   "skills": "./skills/"
 }
