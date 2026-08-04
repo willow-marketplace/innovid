@@ -2,7 +2,7 @@
   "name": "grafana-mcp",
   "version": "1.0.0",
   "description": "MCP server for AI-assisted Grafana dashboard, datasource, alerting, and incident management.",
-  "updatedAt": "2026-08-04T00:02:55.276Z",
+  "updatedAt": "2026-08-04T12:02:52.260Z",
   "author": {
     "name": "Grafana Labs",
     "email": "grafana-assistant@grafana.com"

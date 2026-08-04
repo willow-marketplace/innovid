@@ -2,7 +2,7 @@
   "name": "quarkus-agent",
   "version": "1.2.4",
   "description": "MCP server for AI coding agents to create, manage, and interact with Quarkus applications. Provides tools for project scaffolding, dev mode lifecycle, extension skills, Dev MCP proxy, and documentation search.",
-  "updatedAt": "2026-08-04T00:03:18.996Z",
+  "updatedAt": "2026-08-04T12:03:18.769Z",
   "author": {
     "url": "https://quarkus.io",
     "name": "Quarkus"
