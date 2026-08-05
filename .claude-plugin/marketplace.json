@@ -591,7 +591,7 @@
         "team-chat",
         "mcp"
       ],
-      "updatedAt": "2026-08-05T07:18:11.881Z"
+      "updatedAt": "2026-08-05T16:57:04.876Z"
     },
     {
       "name": "microsoft-docs",
@@ -1225,7 +1225,7 @@
         "name": "Zscaler"
       },
       "homepage": "https://github.com/zscaler/zscaler-mcp-server",
-      "updatedAt": "2026-08-05T07:18:11.285Z"
+      "updatedAt": "2026-08-05T16:57:03.764Z"
     },
     {
       "name": "zoominfo",
@@ -4163,7 +4163,7 @@
         "debugging",
         "instrumentation"
       ],
-      "updatedAt": "2026-08-05T16:56:54.230Z"
+      "updatedAt": "2026-08-05T16:57:17.426Z"
     },
     {
       "name": "agentforce-adlc",
