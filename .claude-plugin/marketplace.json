@@ -1356,7 +1356,7 @@
         "cms",
         "wix-apps"
       ],
-      "updatedAt": "2026-08-05T07:18:03.190Z"
+      "updatedAt": "2026-08-05T16:56:54.130Z"
     },
     {
       "name": "sumup",
@@ -1613,7 +1613,7 @@
       },
       "homepage": "https://github.com/zytedata/claude-skills",
       "repository": "https://github.com/zytedata/claude-skills",
-      "updatedAt": "2026-08-05T07:17:58.941Z"
+      "updatedAt": "2026-08-05T16:56:50.086Z"
     },
     {
       "name": "telegram",
@@ -4163,7 +4163,7 @@
         "debugging",
         "instrumentation"
       ],
-      "updatedAt": "2026-08-05T16:56:46.960Z"
+      "updatedAt": "2026-08-05T16:56:59.489Z"
     },
     {
       "name": "agentforce-adlc",
