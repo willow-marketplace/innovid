@@ -129,7 +129,7 @@
         "best-practices",
         "workflows"
       ],
-      "updatedAt": "2026-08-05T07:17:41.319Z"
+      "updatedAt": "2026-08-05T16:56:22.828Z"
     },
     {
       "name": "warp",
@@ -183,7 +183,7 @@
         "name": "Anthropic",
         "email": "support@anthropic.com"
       },
-      "updatedAt": "2026-08-05T07:17:38.825Z"
+      "updatedAt": "2026-08-05T16:56:21.315Z"
     },
     {
       "name": "php-lsp",
@@ -533,7 +533,7 @@
         "timeline",
         "activity-insights"
       ],
-      "updatedAt": "2026-08-05T16:56:10.898Z"
+      "updatedAt": "2026-08-05T16:56:21.922Z"
     },
     {
       "name": "sentry-cli",
@@ -1070,7 +1070,7 @@
         "development-guidelines",
         "best-practices"
       ],
-      "updatedAt": "2026-08-05T07:17:45.549Z"
+      "updatedAt": "2026-08-05T16:56:28.081Z"
     },
     {
       "name": "ui5-modernization",
@@ -1090,7 +1090,7 @@
         "linter",
         "upgrade"
       ],
-      "updatedAt": "2026-08-05T07:17:45.908Z"
+      "updatedAt": "2026-08-05T16:56:28.931Z"
     },
     {
       "name": "vercel",
@@ -1131,7 +1131,7 @@
         "serverless",
         "typescript"
       ],
-      "updatedAt": "2026-08-05T07:17:46.873Z"
+      "updatedAt": "2026-08-05T16:56:29.632Z"
     },
     {
       "name": "vanta",
@@ -1152,7 +1152,7 @@
         "grc",
         "risk"
       ],
-      "updatedAt": "2026-08-05T07:17:46.885Z"
+      "updatedAt": "2026-08-05T16:56:29.959Z"
     },
     {
       "name": "youdotcom-agent-skills",
@@ -1193,7 +1193,7 @@
         "email": "thomas.mansencal@epicgames.com"
       },
       "homepage": "https://dev.epicgames.com/documentation/unreal-engine/unreal-mcp-in-unreal-editor",
-      "updatedAt": "2026-08-05T07:17:46.450Z"
+      "updatedAt": "2026-08-05T16:56:29.083Z"
     },
     {
       "name": "langfuse",
@@ -1420,7 +1420,7 @@
         "typescript",
         "conversion"
       ],
-      "updatedAt": "2026-08-05T07:17:44.505Z"
+      "updatedAt": "2026-08-05T16:56:27.792Z"
     },
     {
       "name": "spotify-ads-api",
@@ -1488,7 +1488,7 @@
         "video",
         "audio"
       ],
-      "updatedAt": "2026-08-05T07:17:43.875Z"
+      "updatedAt": "2026-08-05T16:56:26.120Z"
     },
     {
       "name": "zilliz",
@@ -1582,7 +1582,7 @@
         "name": "Twilio"
       },
       "homepage": "https://www.twilio.com",
-      "updatedAt": "2026-08-05T07:17:44.780Z"
+      "updatedAt": "2026-08-05T16:56:26.993Z"
     },
     {
       "name": "atomic-agents",
@@ -1647,7 +1647,7 @@
         "grc",
         "risk"
       ],
-      "updatedAt": "2026-08-05T07:17:46.956Z"
+      "updatedAt": "2026-08-05T16:56:29.956Z"
     },
     {
       "name": "vibe-prospecting",
@@ -3714,7 +3714,7 @@
         "vector-search",
         "best-practices"
       ],
-      "updatedAt": "2026-08-05T16:56:21.143Z"
+      "updatedAt": "2026-08-05T16:56:27.470Z"
     },
     {
       "name": "alloydb-omni",
@@ -5599,7 +5599,7 @@
         "fundamental-styles",
         "plugin"
       ],
-      "updatedAt": "2026-08-05T07:17:41.671Z"
+      "updatedAt": "2026-08-05T16:56:24.358Z"
     },
     {
       "name": "claude-security",
