@@ -172,7 +172,7 @@
         "name": "JetBrains"
       },
       "homepage": "https://www.jetbrains.com/teamcity/",
-      "updatedAt": "2026-08-05T07:17:51.281Z"
+      "updatedAt": "2026-08-05T16:56:36.588Z"
     },
     {
       "name": "typescript-lsp",
@@ -1113,7 +1113,7 @@
         "deployment",
         "serverless"
       ],
-      "updatedAt": "2026-08-05T07:18:00.224Z"
+      "updatedAt": "2026-08-05T16:56:45.716Z"
     },
     {
       "name": "valtown",
@@ -1181,7 +1181,7 @@
         "x402",
         "mpp"
       ],
-      "updatedAt": "2026-08-05T07:17:52.362Z"
+      "updatedAt": "2026-08-05T16:56:40.730Z"
     },
     {
       "name": "unreal-engine-skills-for-claude-code",
@@ -1305,7 +1305,7 @@
         "website visitor identification",
         "mcp"
       ],
-      "updatedAt": "2026-08-05T07:17:54.803Z"
+      "updatedAt": "2026-08-05T16:56:44.609Z"
     },
     {
       "name": "windsor-ai",
@@ -1335,7 +1335,7 @@
         "stripe",
         "business-intelligence"
       ],
-      "updatedAt": "2026-08-05T07:17:49.046Z"
+      "updatedAt": "2026-08-05T16:56:33.201Z"
     },
     {
       "name": "wix",
@@ -1380,7 +1380,7 @@
       },
       "homepage": "https://workos.com",
       "repository": "https://github.com/workos/skills",
-      "updatedAt": "2026-08-05T07:17:52.816Z"
+      "updatedAt": "2026-08-05T16:56:40.755Z"
     },
     {
       "name": "wordpress.com",
@@ -1399,7 +1399,7 @@
         "name": "VillageSQL"
       },
       "homepage": "https://villagesql.com",
-      "updatedAt": "2026-08-05T07:17:49.100Z"
+      "updatedAt": "2026-08-05T16:56:33.662Z"
     },
     {
       "name": "ui5-typescript-conversion",
@@ -1499,7 +1499,7 @@
         "name": "Zilliz"
       },
       "homepage": "https://docs.zilliz.com",
-      "updatedAt": "2026-08-05T07:17:53.987Z"
+      "updatedAt": "2026-08-05T16:56:43.658Z"
     },
     {
       "name": "zapier",
@@ -1525,7 +1525,7 @@
         "ai-tools",
         "productivity"
       ],
-      "updatedAt": "2026-08-05T07:17:51.684Z"
+      "updatedAt": "2026-08-05T16:56:40.382Z"
     },
     {
       "name": "supabase",
@@ -1670,7 +1670,7 @@
         "companies",
         "contacts"
       ],
-      "updatedAt": "2026-08-05T07:17:49.114Z"
+      "updatedAt": "2026-08-05T16:56:33.018Z"
     },
     {
       "name": "idmp-plugin",
@@ -3322,7 +3322,7 @@
       "name": "sap-fiori-mcp-server",
       "source": "./plugins/sap-fiori-mcp-server",
       "description": "MCP server for SAP Fiori development tools for Claude Code. Build and modify SAP Fiori applications with AI assistance.",
-      "version": "1.11.5",
+      "version": "1.11.6",
       "author": {
         "url": "https://www.sap.com",
         "name": "SAP SE",
@@ -3338,7 +3338,7 @@
         "mcp",
         "fiori-elements"
       ],
-      "updatedAt": "2026-08-05T07:17:45.689Z"
+      "updatedAt": "2026-08-05T16:56:40.905Z"
     },
     {
       "name": "sourcegraph",
@@ -4163,7 +4163,7 @@
         "debugging",
         "instrumentation"
       ],
-      "updatedAt": "2026-08-05T16:54:45.558Z"
+      "updatedAt": "2026-08-05T16:56:45.990Z"
     },
     {
       "name": "agentforce-adlc",
@@ -4789,7 +4789,7 @@
         "AppSec",
         "OSS Upgrade Investigator"
       ],
-      "updatedAt": "2026-08-05T16:56:01.534Z"
+      "updatedAt": "2026-08-05T16:56:41.905Z"
     },
     {
       "name": "aws-data-analytics",

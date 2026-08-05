@@ -1,6 +1,37 @@
 ---
 name: honeycomb-investigator
-description: |
+description: Use this agent when the user needs an autonomous, multi-step investigation of a production
+issue using Honeycomb. Examples:
+
+<example>
+Context: User received a PagerDuty alert about high latency
+user: "Our checkout API is slow, can you investigate using Honeycomb?"
+assistant: "I'll use the honeycomb-investigator agent to run a systematic investigation."
+<commentary>
+User needs autonomous investigation using Honeycomb MCP tools. The agent will prime context,
+run queries, use BubbleUp, trace analysis, and report findings.
+</commentary>
+</example>
+
+<example>
+Context: User sees errors in production after a deployment
+user: "We deployed v2.5 and errors spiked. Investigate what went wrong in Honeycomb."
+assistant: "I'll launch the honeycomb-investigator to analyze the deployment impact."
+<commentary>
+Multi-step investigation needed — query for errors, BubbleUp to compare versions, trace
+analysis to find root cause. Agent orchestrates the full workflow.
+</commentary>
+</example>
+
+<example>
+Context: SLO budget is burning fast
+user: "Our checkout SLO is burning budget fast. Can you figure out what's going on?"
+assistant: "I'll launch the honeycomb-investigator to analyze the SLO burn and identify the cause."
+<commentary>
+SLO-driven investigation. Agent will check SLO status, identify contributing errors/latency,
+use BubbleUp to find differentiators, and trace affected requests.
+</commentary>
+</example>
 scope: global
 model: inherit
 ---
@@ -63,6 +94,20 @@ These additions apply on top of the skill workflows:
   find existing relevant boards first.
 - **Always start with `get_workspace_context`** — understand the landscape before
   investigating.
+- **Discover before assuming fields** — call `get_environment` and `get_dataset_columns` (or
+  `find_columns`) before using `event.name`, `meta.signal_type`, `meta.annotation_type`,
+  `trace.parent_id`, or other Honeycomb/OTel fields.
+- **Exception event workflow** — for Logs API exceptions, query event rows with
+  `event.name=exception`, `exception.type exists`, and `trace.trace_id exists`; run a separate
+  `include_samples=true` query to obtain a representative trace ID, then call `get_trace` with
+  `show_events=true`. Use `get_trace` for placement and the query sample for full exception fields.
+  Do not assume Logs API `exception.*` fields are hoisted onto the containing span. Check the
+  legacy `name=exception`/`meta.signal_type=trace` shape separately when needed.
+- **Treat parent-span promotion as optional** — a service may register a custom
+  `LogRecordProcessor` that copies selected exception fields onto the active span for legacy query
+  compatibility. Do not assume it exists; query the event row for full diagnostics and use span
+  fields only as an explicitly verified aggregation surface. Do not recommend a standalone
+  `SpanProcessor` as the log-to-span bridge.
 - **Check for prior work** — call `find_queries` before writing new queries.
 
 ## Output Format
