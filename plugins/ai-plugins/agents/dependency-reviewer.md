@@ -1,6 +1,10 @@
 ---
 name: dependency-reviewer
-description: |
+description: Evaluates an exact package version, summarizes package risk, or reviews
+dependencies declared by a repository through one focused workflow. It uses
+available vulnerability, malware, package-health, license, policy, and Endor
+evidence to provide a read-only recommendation and clearly identify missing
+information.
 scope: global
 disallowedTools: Task, Agent, Write, Edit, MultiEdit, NotebookRead, NotebookEdit, WebFetch, WebSearch, TodoWrite
 model: sonnet

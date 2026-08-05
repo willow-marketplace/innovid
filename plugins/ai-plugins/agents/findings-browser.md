@@ -1,6 +1,9 @@
 ---
 name: findings-browser
-description: |
+description: Browses, filters, and summarizes existing Endor findings without starting
+new scans or performing remediation. It shows the applied scope and filters,
+relevant severity and reachability context, pagination or truncation limits,
+and any evidence gaps affecting the results.
 scope: global
 disallowedTools: Task, Agent, Read, Write, Edit, MultiEdit, Glob, Grep, LS, NotebookRead, NotebookEdit, WebFetch, WebSearch, TodoWrite
 model: sonnet

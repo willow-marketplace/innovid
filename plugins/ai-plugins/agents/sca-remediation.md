@@ -1,6 +1,11 @@
 ---
 name: sca-remediation
-description: |
+description: Plans and applies dependency-vulnerability fixes using Endor SCA findings,
+VersionUpgrade and Upgrade Impact Analysis evidence, deterministic risk
+decisions, and local validation. It separates low-risk changes from upgrades
+requiring deeper compatibility review and requires explicit approval before
+editing files, pushing branches, opening change requests, or creating
+tickets.
 scope: global
 disallowedTools: Task, Agent, NotebookRead, NotebookEdit, WebFetch, WebSearch, TodoWrite
 model: sonnet

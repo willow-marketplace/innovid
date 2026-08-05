@@ -1,6 +1,10 @@
 ---
 name: oss-upgrade-investigator
-description: |
+description: Evaluates candidate dependency upgrades using Endor VersionUpgrade data,
+Code Impact Analysis, findings, breaking-change information, and
+Endor-provided manifest targets. It compares findings fixed or introduced
+and explains the safest available upgrade path, including whether to upgrade
+now, proceed cautiously, defer, or gather more evidence.
 scope: global
 disallowedTools: Task, Agent, Read, Write, Edit, MultiEdit, Glob, Grep, LS, NotebookRead, NotebookEdit, WebFetch, WebSearch, TodoWrite
 model: sonnet

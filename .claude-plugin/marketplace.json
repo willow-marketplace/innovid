@@ -318,7 +318,7 @@
       "name": "postman",
       "source": "./plugins/postman",
       "description": "Full API lifecycle management for Claude Code. Sync collections, generate client code, discover APIs, run tests, create mocks, publish docs, and audit security. Powered by the Postman MCP Server.",
-      "version": "1.3.0",
+      "version": "1.3.1",
       "author": {
         "url": "https://www.postman.com",
         "name": "Postman"
@@ -337,7 +337,7 @@
         "openapi",
         "agent-ready"
       ],
-      "updatedAt": "2026-08-05T07:17:13.302Z"
+      "updatedAt": "2026-08-05T16:55:48.907Z"
     },
     {
       "name": "notion",
@@ -424,7 +424,7 @@
         "email": "support@anthropic.com"
       },
       "homepage": "https://github.com/anthropics/claude-plugins-public/tree/main/plugins/ralph-loop",
-      "updatedAt": "2026-08-05T07:17:13.979Z"
+      "updatedAt": "2026-08-05T16:55:51.385Z"
     },
     {
       "name": "playwright",
@@ -1920,7 +1920,7 @@
         "ci-cd",
         "automation"
       ],
-      "updatedAt": "2026-08-05T07:17:13.489Z"
+      "updatedAt": "2026-08-05T16:55:50.011Z"
     },
     {
       "name": "pydantic-ai",
@@ -1943,7 +1943,7 @@
         "name": "Qdrant"
       },
       "homepage": "https://skills.qdrant.tech",
-      "updatedAt": "2026-08-05T07:17:17.098Z"
+      "updatedAt": "2026-08-05T16:55:52.537Z"
     },
     {
       "name": "pr-review-toolkit",
@@ -2787,7 +2787,7 @@
         "name": "Anthropic",
         "email": "support@anthropic.com"
       },
-      "updatedAt": "2026-08-05T07:17:12.477Z"
+      "updatedAt": "2026-08-05T16:55:47.160Z"
     },
     {
       "name": "qt-development-skills",
@@ -2929,7 +2929,7 @@
         "name": "Prisma"
       },
       "homepage": "https://prisma.io",
-      "updatedAt": "2026-08-05T07:17:12.752Z"
+      "updatedAt": "2026-08-05T16:55:47.628Z"
     },
     {
       "name": "sap-mdk-server",
@@ -3181,7 +3181,7 @@
         "dev-mode",
         "scaffolding"
       ],
-      "updatedAt": "2026-08-05T07:17:17.606Z"
+      "updatedAt": "2026-08-05T16:55:54.082Z"
     },
     {
       "name": "logfire",
@@ -3441,7 +3441,7 @@
       },
       "homepage": "https://docs.railway.com/agents",
       "repository": "https://github.com/railwayapp/railway-skills",
-      "updatedAt": "2026-08-05T07:17:17.865Z"
+      "updatedAt": "2026-08-05T16:55:52.979Z"
     },
     {
       "name": "shopify-ai-toolkit",
@@ -3800,7 +3800,7 @@
         "youtube",
         "reddit"
       ],
-      "updatedAt": "2026-08-05T07:17:12.844Z"
+      "updatedAt": "2026-08-05T16:55:48.793Z"
     },
     {
       "name": "exa",
@@ -5529,7 +5529,7 @@
         "standards",
         "pr-review"
       ],
-      "updatedAt": "2026-08-05T07:17:15.272Z"
+      "updatedAt": "2026-08-05T16:55:51.280Z"
     },
     {
       "name": "stackhawk-api",
@@ -5804,7 +5804,7 @@
         "AppSec",
         "OSS Upgrade Investigator"
       ],
-      "updatedAt": "2026-08-05T16:55:47.054Z"
+      "updatedAt": "2026-08-05T16:55:54.114Z"
     }
   ]
 }

@@ -1,6 +1,11 @@
 ---
 name: ai-sast-remediation
-description: |
+description: Triages Endor AI SAST findings using exploit-reproduction evidence,
+data-flow context, and remediation guidance to distinguish actionable
+vulnerabilities from noise. It can prepare targeted code fixes and, after
+explicit approval, edit files and open change requests. For exception
+workflows, it can create or update scoped Endor exception policies only
+after verified AppSec approval and explicit user confirmation.
 scope: global
 disallowedTools: Task, Agent, NotebookRead, NotebookEdit, WebFetch, WebSearch, TodoWrite
 model: sonnet

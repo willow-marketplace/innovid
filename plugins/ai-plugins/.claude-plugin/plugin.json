@@ -1,8 +1,8 @@
 {
   "name": "ai-plugins",
-  "version": "1.0.0",
-  "description": "Endor Labs workflow agents and setup for Claude Code.",
-  "updatedAt": "2026-08-04T12:02:28.375Z",
+  "version": "1.2.0",
+  "description": "Legacy Claude Code plugin id for Endor Labs Agent Kit workflows.",
+  "updatedAt": "2026-08-05T16:55:47.054Z",
   "author": {
     "url": "https://www.endorlabs.com/",
     "name": "Endor Labs"

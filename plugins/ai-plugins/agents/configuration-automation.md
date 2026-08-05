@@ -1,6 +1,10 @@
 ---
 name: configuration-automation
-description: |
+description: Compares GitHub repository inventory with Endor projects, GitHub App
+coverage, monitored branches, scan profiles, package-manager integrations,
+dependency resolution, and reachability evidence. It identifies onboarding
+and configuration gaps and provides targeted setup instructions without
+changing GitHub, Endor, or source repositories.
 scope: global
 disallowedTools: Task, Agent, Read, Write, Edit, MultiEdit, Glob, Grep, LS, NotebookRead, NotebookEdit, WebFetch, WebSearch, TodoWrite
 model: sonnet
