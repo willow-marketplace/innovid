@@ -693,7 +693,7 @@
         "kanban",
         "sync"
       ],
-      "updatedAt": "2026-08-05T00:02:54.353Z"
+      "updatedAt": "2026-08-05T07:16:42.160Z"
     },
     {
       "name": "huggingface-skills",
@@ -1884,7 +1884,7 @@
         "checkout",
         "workflow"
       ],
-      "updatedAt": "2026-08-05T00:02:54.110Z"
+      "updatedAt": "2026-08-05T07:16:42.621Z"
     },
     {
       "name": "playground",
@@ -5496,7 +5496,7 @@
         "name": "MLflow Team"
       },
       "homepage": "https://github.com/mlflow/skills",
-      "updatedAt": "2026-08-05T00:02:55.232Z"
+      "updatedAt": "2026-08-05T07:16:45.370Z"
     },
     {
       "name": "modern-web-guidance",
@@ -5778,7 +5778,7 @@
         "onboarding",
         "dashboard"
       ],
-      "updatedAt": "2026-08-05T07:16:41.983Z"
+      "updatedAt": "2026-08-05T07:16:46.199Z"
     }
   ]
 }
