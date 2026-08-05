@@ -446,7 +446,7 @@
         "name": "Anthropic",
         "email": "support@anthropic.com"
       },
-      "updatedAt": "2026-08-05T00:02:31.700Z"
+      "updatedAt": "2026-08-05T07:15:49.071Z"
     },
     {
       "name": "code-simplifier",
@@ -457,7 +457,7 @@
         "name": "Anthropic",
         "email": "support@anthropic.com"
       },
-      "updatedAt": "2026-08-05T00:02:31.685Z"
+      "updatedAt": "2026-08-05T07:15:49.554Z"
     },
     {
       "name": "claude-md-management",
@@ -490,7 +490,7 @@
         "name": "Anthropic",
         "email": "support@anthropic.com"
       },
-      "updatedAt": "2026-08-05T00:02:32.206Z"
+      "updatedAt": "2026-08-05T07:15:52.000Z"
     },
     {
       "name": "skill-creator",
@@ -785,7 +785,7 @@
         "optimization",
         "mcp"
       ],
-      "updatedAt": "2026-08-05T00:02:31.471Z"
+      "updatedAt": "2026-08-05T07:15:48.265Z"
     },
     {
       "name": "figma",
@@ -3496,7 +3496,7 @@
         "coderabbit",
         "claude-code"
       ],
-      "updatedAt": "2026-08-05T00:02:32.679Z"
+      "updatedAt": "2026-08-05T07:15:52.197Z"
     },
     {
       "name": "fullstory",
@@ -3649,7 +3649,7 @@
       },
       "homepage": "https://cloud.google.com/sql/docs/sqlserver",
       "repository": "https://github.com/gemini-cli-extensions/cloud-sql-sqlserver",
-      "updatedAt": "2026-08-05T00:02:31.456Z"
+      "updatedAt": "2026-08-05T07:15:48.831Z"
     },
     {
       "name": "dash0",
@@ -3758,7 +3758,7 @@
       },
       "homepage": "https://cloud.google.com/sql",
       "repository": "https://github.com/gemini-cli-extensions/cloud-sql-postgresql",
-      "updatedAt": "2026-08-05T00:02:31.729Z"
+      "updatedAt": "2026-08-05T07:15:49.159Z"
     },
     {
       "name": "cloud-sql-mysql",
@@ -3771,7 +3771,7 @@
       },
       "homepage": "https://cloud.google.com/sql",
       "repository": "https://github.com/gemini-cli-extensions/cloud-sql-mysql",
-      "updatedAt": "2026-08-05T00:02:31.507Z"
+      "updatedAt": "2026-08-05T07:15:48.408Z"
     },
     {
       "name": "postiz",
@@ -4414,7 +4414,7 @@
         "name": "Anthropic",
         "email": "support@anthropic.com"
       },
-      "updatedAt": "2026-08-05T00:02:31.983Z"
+      "updatedAt": "2026-08-05T07:15:51.034Z"
     },
     {
       "name": "fakechat",
@@ -5759,7 +5759,7 @@
         "url": "https://github.com/DietrichGebert",
         "name": "Dietrich Gebert"
       },
-      "updatedAt": "2026-08-05T07:15:47.744Z"
+      "updatedAt": "2026-08-05T07:15:52.482Z"
     }
   ]
 }
