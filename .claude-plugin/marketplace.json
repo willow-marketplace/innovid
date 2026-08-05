@@ -1113,7 +1113,7 @@
         "deployment",
         "serverless"
       ],
-      "updatedAt": "2026-08-05T16:56:45.716Z"
+      "updatedAt": "2026-08-05T16:56:46.323Z"
     },
     {
       "name": "valtown",
@@ -1214,7 +1214,7 @@
         "prompt-management",
         "evaluation"
       ],
-      "updatedAt": "2026-08-05T07:17:55.901Z"
+      "updatedAt": "2026-08-05T16:56:46.477Z"
     },
     {
       "name": "zscaler",
@@ -4163,7 +4163,7 @@
         "debugging",
         "instrumentation"
       ],
-      "updatedAt": "2026-08-05T16:56:45.990Z"
+      "updatedAt": "2026-08-05T16:56:46.960Z"
     },
     {
       "name": "agentforce-adlc",
