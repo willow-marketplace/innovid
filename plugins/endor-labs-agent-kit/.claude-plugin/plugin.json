@@ -1,0 +1,69 @@
+{
+  "name": "endor-labs-agent-kit",
+  "version": "2.2.1",
+  "description": "Endor Labs workflow agents and setup for Claude Code.",
+  "updatedAt": "2026-08-05T16:55:47.054Z",
+  "author": {
+    "url": "https://www.endorlabs.com/",
+    "name": "Endor Labs"
+  },
+  "homepage": "https://github.com/endorlabs/ai-plugins",
+  "repository": "https://github.com/endorlabs/ai-plugins",
+  "keywords": [
+    "endor-labs",
+    "security",
+    "sca",
+    "sast",
+    "claude-code",
+    "agentic remediation",
+    "SAST remediation",
+    "agentic AppSec",
+    "AppSec",
+    "OSS Upgrade Investigator"
+  ],
+  "skills": "./skills/",
+  "agents": "./agents/",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/check-dep-install.sh\""
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|MultiEdit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/check-manifest-edit.sh\""
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/enforce-agent-api.sh\""
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/suggest-endor-tools.sh\""
+          }
+        ]
+      }
+    ]
+  }
+}
