@@ -129,7 +129,7 @@
         "best-practices",
         "workflows"
       ],
-      "updatedAt": "2026-08-05T16:56:22.828Z"
+      "updatedAt": "2026-08-05T16:57:29.809Z"
     },
     {
       "name": "warp",
@@ -141,7 +141,7 @@
         "name": "Warp"
       },
       "homepage": "https://github.com/warpdotdev/claude-code-warp",
-      "updatedAt": "2026-08-04T12:13:33.014Z"
+      "updatedAt": "2026-08-05T16:57:27.412Z"
     },
     {
       "name": "asana",
@@ -591,7 +591,7 @@
         "team-chat",
         "mcp"
       ],
-      "updatedAt": "2026-08-05T07:18:11.881Z"
+      "updatedAt": "2026-08-05T16:57:04.876Z"
     },
     {
       "name": "microsoft-docs",
@@ -1012,7 +1012,7 @@
         "name": "Warp"
       },
       "homepage": "https://github.com/warpdotdev/claude-code-warp",
-      "updatedAt": "2026-08-04T12:13:33.030Z"
+      "updatedAt": "2026-08-05T16:57:27.463Z"
     },
     {
       "name": "forge-skills",
@@ -1225,7 +1225,7 @@
         "name": "Zscaler"
       },
       "homepage": "https://github.com/zscaler/zscaler-mcp-server",
-      "updatedAt": "2026-08-05T07:18:11.285Z"
+      "updatedAt": "2026-08-05T16:57:03.764Z"
     },
     {
       "name": "zoominfo",
@@ -1305,7 +1305,7 @@
         "website visitor identification",
         "mcp"
       ],
-      "updatedAt": "2026-08-05T16:56:44.609Z"
+      "updatedAt": "2026-08-05T16:57:33.462Z"
     },
     {
       "name": "windsor-ai",
@@ -2526,7 +2526,7 @@
         "company-research",
         "business-intelligence"
       ],
-      "updatedAt": "2026-08-05T16:55:29.717Z"
+      "updatedAt": "2026-08-05T16:57:33.463Z"
     },
     {
       "name": "plugin-dev",
@@ -2946,7 +2946,7 @@
         "mdk",
         "mcp"
       ],
-      "updatedAt": "2026-08-05T07:18:31.251Z"
+      "updatedAt": "2026-08-05T16:57:22.692Z"
     },
     {
       "name": "save-to-spotify",
@@ -3459,7 +3459,7 @@
         "storefront",
         "admin-api"
       ],
-      "updatedAt": "2026-08-05T07:18:27.955Z"
+      "updatedAt": "2026-08-05T16:57:26.136Z"
     },
     {
       "name": "shopify",
@@ -4163,7 +4163,7 @@
         "debugging",
         "instrumentation"
       ],
-      "updatedAt": "2026-08-05T16:56:59.489Z"
+      "updatedAt": "2026-08-05T16:57:17.426Z"
     },
     {
       "name": "agentforce-adlc",
@@ -5153,7 +5153,7 @@
         "import",
         "discovery"
       ],
-      "updatedAt": "2026-08-05T00:03:27.972Z"
+      "updatedAt": "2026-08-05T16:57:30.973Z"
     },
     {
       "name": "packer-builders",
@@ -5175,7 +5175,7 @@
         "image",
         "builder"
       ],
-      "updatedAt": "2026-08-05T00:03:28.216Z"
+      "updatedAt": "2026-08-05T16:57:31.075Z"
     },
     {
       "name": "packer-hcp",
@@ -5195,7 +5195,7 @@
         "metadata",
         "image-tracking"
       ],
-      "updatedAt": "2026-08-05T00:03:28.244Z"
+      "updatedAt": "2026-08-05T16:57:31.074Z"
     },
     {
       "name": "terraform-provider-development",
@@ -5215,7 +5215,7 @@
         "resources",
         "testing"
       ],
-      "updatedAt": "2026-08-05T00:03:28.217Z"
+      "updatedAt": "2026-08-05T16:57:31.108Z"
     },
     {
       "name": "terraform-module-generation",
@@ -5236,7 +5236,7 @@
         "stacks",
         "refactoring"
       ],
-      "updatedAt": "2026-08-05T00:03:27.986Z"
+      "updatedAt": "2026-08-05T16:57:31.044Z"
     },
     {
       "name": "deepeval",
@@ -5279,7 +5279,7 @@
         "tfpolicy",
         "enforcement"
       ],
-      "updatedAt": "2026-08-05T00:03:28.281Z"
+      "updatedAt": "2026-08-05T16:57:31.581Z"
     },
     {
       "name": "claude-code-sentry-monitor",
