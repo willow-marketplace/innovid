@@ -615,7 +615,7 @@
         "powerbi",
         "office"
       ],
-      "updatedAt": "2026-08-05T00:02:52.232Z"
+      "updatedAt": "2026-08-05T07:16:37.909Z"
     },
     {
       "name": "jfrog",
@@ -2307,7 +2307,7 @@
       "description": "Build beautiful documentation sites with Mintlify. Convert non-markdown files into properly formatted MDX pages, add and modify content with correct component use, and automate documentation updates.",
       "version": "1.0.0",
       "homepage": "https://www.mintlify.com/",
-      "updatedAt": "2026-08-05T00:02:52.197Z"
+      "updatedAt": "2026-08-05T07:16:38.106Z"
     },
     {
       "name": "neon",
@@ -5656,7 +5656,7 @@
         "domain-modeling",
         "productivity"
       ],
-      "updatedAt": "2026-08-05T00:02:50.667Z"
+      "updatedAt": "2026-08-05T07:16:35.985Z"
     },
     {
       "name": "paypal",
@@ -5778,7 +5778,7 @@
         "onboarding",
         "dashboard"
       ],
-      "updatedAt": "2026-08-05T07:16:35.456Z"
+      "updatedAt": "2026-08-05T07:16:38.580Z"
     }
   ]
 }
