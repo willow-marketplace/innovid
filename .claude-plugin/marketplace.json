@@ -216,7 +216,7 @@
         "name": "Anthropic",
         "email": "support@anthropic.com"
       },
-      "updatedAt": "2026-08-05T07:17:21.489Z"
+      "updatedAt": "2026-08-05T16:56:00.657Z"
     },
     {
       "name": "lua-lsp",
@@ -533,7 +533,7 @@
         "timeline",
         "activity-insights"
       ],
-      "updatedAt": "2026-08-05T16:55:56.976Z"
+      "updatedAt": "2026-08-05T16:56:06.387Z"
     },
     {
       "name": "sentry-cli",
@@ -1963,7 +1963,7 @@
       "description": "Configure RevenueCat projects, apps, products, entitlements, and offerings directly from Claude Code. Manage your in-app purchase backend without leaving your development workflow.",
       "version": "1.0.0",
       "homepage": "https://www.revenuecat.com",
-      "updatedAt": "2026-08-05T07:17:19.562Z"
+      "updatedAt": "2026-08-05T16:55:58.080Z"
     },
     {
       "name": "redis-development",
@@ -2002,7 +2002,7 @@
         "persistence",
         "session"
       ],
-      "updatedAt": "2026-08-05T07:17:25.254Z"
+      "updatedAt": "2026-08-05T16:56:02.599Z"
     },
     {
       "name": "semgrep",
@@ -2669,7 +2669,7 @@
         "notifications",
         "agent-inbox"
       ],
-      "updatedAt": "2026-08-05T07:17:22.686Z"
+      "updatedAt": "2026-08-05T16:56:00.703Z"
     },
     {
       "name": "runway-api",
@@ -2695,7 +2695,7 @@
         "batch",
         "runway-api"
       ],
-      "updatedAt": "2026-08-05T07:17:24.852Z"
+      "updatedAt": "2026-08-05T16:56:04.360Z"
     },
     {
       "name": "sanity",
@@ -2718,7 +2718,7 @@
         "structured-content",
         "visual-editing"
       ],
-      "updatedAt": "2026-08-05T07:17:26.599Z"
+      "updatedAt": "2026-08-05T16:56:05.901Z"
     },
     {
       "name": "security-guidance",
@@ -2730,7 +2730,7 @@
         "email": "dworken@anthropic.com"
       },
       "homepage": "https://github.com/anthropics/claude-plugins-official/tree/main/plugins/security-guidance",
-      "updatedAt": "2026-08-05T07:17:26.673Z"
+      "updatedAt": "2026-08-05T16:56:05.657Z"
     },
     {
       "name": "serena",
@@ -2798,7 +2798,7 @@
         "name": "Qt Group"
       },
       "homepage": "https://www.qt.io/",
-      "updatedAt": "2026-08-05T07:17:20.731Z"
+      "updatedAt": "2026-08-05T16:55:57.246Z"
     },
     {
       "name": "render",
@@ -2820,7 +2820,7 @@
         "monitoring",
         "debugging"
       ],
-      "updatedAt": "2026-08-05T07:17:23.041Z"
+      "updatedAt": "2026-08-05T16:56:01.140Z"
     },
     {
       "name": "revenuecat",
@@ -2828,7 +2828,7 @@
       "description": "Configure RevenueCat projects, apps, products, entitlements, and offerings directly from Claude Code. Manage your in-app purchase backend without leaving your development workflow.",
       "version": "1.0.0",
       "homepage": "https://www.revenuecat.com",
-      "updatedAt": "2026-08-05T07:17:20.980Z"
+      "updatedAt": "2026-08-05T16:55:59.525Z"
     },
     {
       "name": "rootly",
@@ -2851,7 +2851,7 @@
         "retrospectives",
         "rootly"
       ],
-      "updatedAt": "2026-08-05T07:17:24.190Z"
+      "updatedAt": "2026-08-05T16:56:01.356Z"
     },
     {
       "name": "oracle-ai-data-platform-workbench-databricks-migrator",
@@ -2918,7 +2918,7 @@
         "name": "Anthropic",
         "email": "support@anthropic.com"
       },
-      "updatedAt": "2026-08-05T07:17:23.268Z"
+      "updatedAt": "2026-08-05T16:56:01.210Z"
     },
     {
       "name": "prisma",
@@ -2967,7 +2967,7 @@
         "timeline",
         "save-to-spotify"
       ],
-      "updatedAt": "2026-08-05T07:17:26.871Z"
+      "updatedAt": "2026-08-05T16:56:05.954Z"
     },
     {
       "name": "servicenow-sdk",
@@ -3016,7 +3016,7 @@
         "cds",
         "mcp"
       ],
-      "updatedAt": "2026-08-05T07:17:24.680Z"
+      "updatedAt": "2026-08-05T16:56:02.456Z"
     },
     {
       "name": "circleback",
@@ -3244,7 +3244,7 @@
         "name": "Rill Data"
       },
       "homepage": "https://docs.rilldata.com/developers/build/ai-configuration",
-      "updatedAt": "2026-08-05T07:17:23.061Z"
+      "updatedAt": "2026-08-05T16:56:01.209Z"
     },
     {
       "name": "sagemaker-ai",
@@ -3267,7 +3267,7 @@
         "mlops",
         "aws"
       ],
-      "updatedAt": "2026-08-05T07:17:25.604Z"
+      "updatedAt": "2026-08-05T16:56:05.337Z"
     },
     {
       "name": "pagerduty",
@@ -3305,7 +3305,7 @@
         "backup",
         "security"
       ],
-      "updatedAt": "2026-08-05T07:17:26.325Z"
+      "updatedAt": "2026-08-05T16:56:03.395Z"
     },
     {
       "name": "pigment",
@@ -4789,7 +4789,7 @@
         "AppSec",
         "OSS Upgrade Investigator"
       ],
-      "updatedAt": "2026-08-05T16:55:55.256Z"
+      "updatedAt": "2026-08-05T16:56:01.534Z"
     },
     {
       "name": "aws-data-analytics",
@@ -5119,7 +5119,7 @@
         "name": "Duende Software"
       },
       "repository": "https://github.com/DuendeSoftware/duende-skills",
-      "updatedAt": "2026-08-05T07:17:26.540Z"
+      "updatedAt": "2026-08-05T16:56:00.983Z"
     },
     {
       "name": "build-with-wordpress",
