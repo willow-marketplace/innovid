@@ -533,7 +533,7 @@
         "timeline",
         "activity-insights"
       ],
-      "updatedAt": "2026-08-05T16:55:20.287Z"
+      "updatedAt": "2026-08-05T16:55:56.976Z"
     },
     {
       "name": "sentry-cli",
@@ -1984,7 +1984,7 @@
         "performance",
         "best-practices"
       ],
-      "updatedAt": "2026-08-05T07:17:18.922Z"
+      "updatedAt": "2026-08-05T16:55:55.611Z"
     },
     {
       "name": "remember",
@@ -4789,7 +4789,7 @@
         "AppSec",
         "OSS Upgrade Investigator"
       ],
-      "updatedAt": "2026-08-05T16:55:47.054Z"
+      "updatedAt": "2026-08-05T16:55:55.256Z"
     },
     {
       "name": "aws-data-analytics",
@@ -5320,7 +5320,7 @@
         "email": "support@anthropic.com"
       },
       "homepage": "https://github.com/anthropics/claude-plugins-official/tree/main/plugins/receipts",
-      "updatedAt": "2026-08-05T07:17:16.569Z"
+      "updatedAt": "2026-08-05T16:55:54.557Z"
     },
     {
       "name": "newrelic",
@@ -5804,7 +5804,7 @@
         "AppSec",
         "OSS Upgrade Investigator"
       ],
-      "updatedAt": "2026-08-05T16:55:54.114Z"
+      "updatedAt": "2026-08-05T16:55:55.256Z"
     }
   ]
 }
