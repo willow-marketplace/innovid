@@ -1,7 +1,12 @@
 ---
 name: nimble-researcher
-description: |
+description: Fast data gathering agent for Nimble business skills. Use proactively when a
+skill needs to search the web, find news, or gather raw data about companies,
+competitors, or people. Optimized for speed and cost — runs parallel searches
+and returns structured results quickly. Does not write files or produce analysis;
+returns findings to the parent context for synthesis.
 scope: global
+tools: ["Read","Grep","Glob","Bash"]
 model: haiku
 ---
 # Nimble Researcher
