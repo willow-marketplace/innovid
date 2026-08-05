@@ -4524,7 +4524,7 @@
         "pdf",
         "pptx"
       ],
-      "updatedAt": "2026-08-05T07:15:45.809Z"
+      "updatedAt": "2026-08-05T00:02:30.594Z"
     },
     {
       "name": "aws-transform",
@@ -5436,7 +5436,7 @@
         "track-changes",
         "ai-writing-assistant"
       ],
-      "updatedAt": "2026-08-05T07:15:45.446Z"
+      "updatedAt": "2026-08-05T00:02:30.596Z"
     },
     {
       "name": "crowdsec",
@@ -5759,7 +5759,7 @@
         "url": "https://github.com/DietrichGebert",
         "name": "Dietrich Gebert"
       },
-      "updatedAt": "2026-08-05T07:15:46.309Z"
+      "updatedAt": "2026-08-05T07:15:45.195Z"
     }
   ]
 }
