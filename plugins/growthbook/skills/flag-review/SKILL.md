@@ -2,6 +2,7 @@
 name: flag-review
 description: Request or submit an approval review on a GrowthBook feature flag draft revision. Use when the user says "request review for this draft", "approve this change", "reject this draft", "request changes on revision X", "I want to review flag Y's pending draft", "submit my approval", "mark this as needing changes", "who needs to approve this", or "check the review status". For creating and editing drafts, use the relevant flag-* write skill. For publishing an approved draft or resolving merge conflicts, use flag-publish. For listing all pending drafts across flags, use flag-revisions.
 ---
+
 # flag-review
 
 Request and submit approval reviews on GrowthBook feature flag draft revisions. Only needed when the org has approval workflows configured — if approvals aren't required, flag-publish handles the full flow without a review step.

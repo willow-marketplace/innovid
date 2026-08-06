@@ -1,7 +1,8 @@
 ---
 name: azuresql-db-ci
-description: >-
+description: ">-"
 ---
+
 # Azure SQL Developer in CI
 
 Run integration tests against the **Azure SQL Database engine** (Private Preview) as a CI

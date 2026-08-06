@@ -2,6 +2,7 @@
 name: remember
 description: Save session state for clean continuation next session.
 ---
+
 Write a handoff note so the next session can continue cleanly. Use your knowledge of the current session — you were here. Write in first person ("I").
 
 **Path:** Use the path from the most recent `=== HANDOFF ===` block in this session's context (e.g., `Write next handoff to: /home/user/.remember/myproject-slug/remember.md`). If no `=== HANDOFF ===` block is present, fall back to `{project_root}/.remember/remember.md`. This is at the PROJECT ROOT, NOT relative to this skill file.

@@ -2,6 +2,7 @@
 name: setup-security-agent
 description: Configure AWS Security Agent for the current workspace — provision or reuse an agent space, IAM service role, and S3 bucket. Use when the user asks to "set up security agent", "configure security scanner", "is security agent configured", or on first-time use before any scan or pentest.
 ---
+
 # AWS Security Agent — Setup
 
 This skill handles ONE thing: making sure the workspace has a working agent space, IAM service role, and S3 bucket linked together. Scans and pentests live in separate skills and assume this is done.

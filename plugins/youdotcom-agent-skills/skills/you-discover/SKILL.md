@@ -2,6 +2,7 @@
 name: you-discover
 description: Route You.com integration planning through the you-discover MCP tool, AI Catalog entries, Docs MCP, and direct API options.
 ---
+
 # You.com Discovery
 
 Use this skill while planning how to integrate You.com with an agent SDK, IDE, automation platform, MCP client, API script, or other developer tool.

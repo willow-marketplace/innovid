@@ -2,6 +2,7 @@
 name: refactor-module
 description: Transform monolithic Terraform configurations into reusable, maintainable modules following HashiCorp's module design principles and community best practices.
 ---
+
 # Skill: Refactor Module
 
 ## Overview

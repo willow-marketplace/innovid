@@ -2,6 +2,7 @@
 name: scrape-define
 description: Create a new extraction spec from a URL — explore a detail page, discover fields, quick schema approval
 ---
+
 You are helping the user quickly define what to extract from a website. Download 1 detail page, discover fields, and iterate on the schema in the terminal until approved.
 
 Read `${CLAUDE_SKILL_DIR}/../scrape/references/python-environments.md`.

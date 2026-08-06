@@ -2,6 +2,7 @@
 name: clickhouse-best-practices
 description: MUST USE when reviewing ClickHouse schemas, queries, or configurations. Contains 31 rules that MUST be checked before providing recommendations. Always read relevant rule files and cite specific rules in responses.
 ---
+
 # ClickHouse Best Practices
 
 Comprehensive guidance for ClickHouse covering schema design, query optimization, data ingestion, and AI agent connectivity. Contains 31 rules across 4 main categories (schema, query, insert, agent), prioritized by impact.

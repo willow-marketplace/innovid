@@ -2,6 +2,7 @@
 name: scrape-explore-site
 description: Explore a website to find and save diverse pages (start, list, detail) with classified links
 ---
+
 You are exploring a website to discover and save a diverse set of pages. Given a start URL, find start, list/category, and detail pages within its scope.
 
 Read `${CLAUDE_SKILL_DIR}/../scrape/references/python-environments.md`.

@@ -2,6 +2,7 @@
 name: video-sdk
 description: Reference skill for Zoom Video SDK. Use after routing to a custom-session workflow when the user needs full control over the video experience rather than an actual Zoom meeting.
 ---
+
 # /build-zoom-video-sdk-app
 
 Background reference for fully custom video-session products. Prefer `plan-zoom-product` first when the boundary between Meeting SDK and Video SDK is still unclear.

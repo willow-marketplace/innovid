@@ -1,7 +1,8 @@
 ---
 name: tavily-extract
-description: |
+description: "|"
 ---
+
 # tavily extract
 
 Extract clean markdown or text content from one or more URLs.

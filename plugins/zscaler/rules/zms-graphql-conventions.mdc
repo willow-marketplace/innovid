@@ -2,6 +2,7 @@
 description: ZMS uses GraphQL and is read-only. Every query requires ZSCALER_CUSTOMER_ID and uses specific pagination patterns.
 alwaysApply: true
 ---
+
 # ZMS GraphQL conventions
 
 1. All ZMS operations use GraphQL queries via `POST /zms/graphql`. There are no mutations — ZMS is read-only.

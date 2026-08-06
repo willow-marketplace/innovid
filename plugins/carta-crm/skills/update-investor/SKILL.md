@@ -1,7 +1,8 @@
 ---
 name: update-investor
-description: >
+description: ">"
 ---
+
 ## Overview
 
 Partially update an existing investor. Only fields provided are modified — this is

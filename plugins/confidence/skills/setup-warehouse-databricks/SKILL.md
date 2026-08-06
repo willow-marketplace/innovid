@@ -2,6 +2,7 @@
 name: setup-warehouse-databricks
 description: Set up Databricks as a data warehouse for Confidence. Use when the user chose Databricks for warehouse setup.
 ---
+
 # Setup Warehouse: Databricks
 
 Configure Databricks as the data warehouse for Confidence experimentation analytics. This skill handles the full end-to-end setup: collect Databricks connection details, set up an S3 staging bucket with IAM, configure the schema, create the warehouse, set up connectors, create the assignment table, and verify the pipeline.

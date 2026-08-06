@@ -2,7 +2,7 @@
   "name": "honeycomb",
   "version": "1.1.0",
   "description": "Skills, agents, and workflows for Honeycomb observability — query patterns, production investigations, SLOs, OpenTelemetry instrumentation, and Beeline migration. Designed to complement the Honeycomb MCP server.",
-  "updatedAt": "2026-08-06T00:02:22.625Z",
+  "updatedAt": "2026-08-06T06:56:19.247Z",
   "author": {
     "url": "https://honeycomb.io",
     "name": "Honeycomb"
@@ -21,7 +21,10 @@
   ],
   "skills": "./skills/",
   "commands": "./commands/",
-  "agents": "./agents/",
+  "agents": [
+    "./agents/honeycomb-investigator.md",
+    "./agents/instrumentation-advisor.md"
+  ],
   "hooks": {
     "PostToolUse": [
       {

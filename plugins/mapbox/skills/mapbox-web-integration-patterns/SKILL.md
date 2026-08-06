@@ -2,6 +2,7 @@
 name: mapbox-web-integration-patterns
 description: Official integration patterns for Mapbox GL JS across popular web frameworks (React, Vue, Svelte, Angular). Covers setup, lifecycle management, token handling, search integration, and common pitfalls. Based on Mapbox's create-web-app scaffolding tool.
 ---
+
 # Mapbox Integration Patterns Skill
 
 This skill provides official patterns for integrating Mapbox GL JS into web applications using React, Vue, Svelte, Angular, and vanilla JavaScript. These patterns are based on Mapbox's `create-web-app` scaffolding tool and represent production-ready best practices.

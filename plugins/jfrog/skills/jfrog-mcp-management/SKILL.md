@@ -1,7 +1,8 @@
 ---
 name: jfrog-mcp-management
-description: >-
+description: ">-"
 ---
+
 # Manage MCP servers via the JFrog Agent Guard
 
 Install, list, and remove MCP servers through the JFrog Agent Guard

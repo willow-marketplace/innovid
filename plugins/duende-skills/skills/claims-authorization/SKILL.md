@@ -2,6 +2,7 @@
 name: claims-authorization
 description: Claims transformation and profile service patterns for Duende IdentityServer — IProfileService, IClaimsTransformation, claim type mapping, token claim filtering, extension grant validators, and dynamic claims loading.
 ---
+
 # Claims Transformation & Profile Service
 
 ## When to Use This Skill

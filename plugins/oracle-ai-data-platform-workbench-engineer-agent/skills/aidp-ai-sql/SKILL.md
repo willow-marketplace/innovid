@@ -2,6 +2,7 @@
 name: aidp-ai-sql
 description: Run LLM functions inside Spark SQL on AIDP via ai_generate(). Use when the user wants to summarize/classify/extract/enrich rows with an LLM directly in SQL, generate narratives over aggregated results, or do grounded RAG-style analysis in the lakehouse. Signature is model-first; available models must be confirmed live before relying on it.
 ---
+
 # `aidp-ai-sql` — LLM-in-SQL with `ai_generate()`
 
 Call an LLM directly inside Spark SQL on AIDP — summarize, classify, extract, or narrate over lakehouse

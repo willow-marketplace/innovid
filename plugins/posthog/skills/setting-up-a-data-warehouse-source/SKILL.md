@@ -1,7 +1,8 @@
 ---
 name: setting-up-a-data-warehouse-source
-description: >
+description: ">"
 ---
+
 # Setting up a data warehouse source
 
 Use this skill when the user wants to connect an external data source to PostHog's data warehouse for the first time.

@@ -1,7 +1,8 @@
 ---
 name: qt-qml-test-run
-description: >-
+description: ">-"
 ---
+
 # Qt QML Test Runner Skill
 
 Build and run Qt Quick Test (TestCase / `qmltestrunner`) tests

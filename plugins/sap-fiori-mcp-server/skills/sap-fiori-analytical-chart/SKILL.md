@@ -2,6 +2,7 @@
 name: sap-fiori-analytical-chart
 description: Add analytical chart (chart + table hybrid) to SAP Fiori Elements List Report using aggregated data. Supports CAP and ABAP RAP (OData V4).
 ---
+
 # SAP Fiori Analytical Chart
 
 ## Purpose

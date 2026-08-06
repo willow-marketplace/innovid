@@ -1,7 +1,8 @@
 ---
 name: datarobot-discover
-description: >-
+description: ">-"
 ---
+
 # Discover DataRobot Resources
 
 Fetch DataRobot catalog and present matching resources for the user's

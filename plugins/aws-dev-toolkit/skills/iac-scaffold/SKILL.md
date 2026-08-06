@@ -2,6 +2,7 @@
 name: iac-scaffold
 description: Scaffold new AWS infrastructure-as-code projects using CDK, Terraform, SAM, or CloudFormation. Use when creating new IaC projects, adding new stacks/modules, or setting up deployment pipelines for AWS infrastructure.
 ---
+
 Scaffold a new AWS IaC project.
 
 **Framework**: $ARGUMENTS[0] (cdk, terraform, sam, or cfn)

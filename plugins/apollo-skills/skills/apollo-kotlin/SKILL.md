@@ -1,7 +1,8 @@
 ---
 name: apollo-kotlin
-description: >
+description: ">"
 ---
+
 # Apollo Kotlin Guide
 
 Apollo Kotlin is a strongly typed GraphQL client that generates Kotlin models from your GraphQL operations and schema, that can be used in Android, JVM, and Kotlin Multiplatform projects.

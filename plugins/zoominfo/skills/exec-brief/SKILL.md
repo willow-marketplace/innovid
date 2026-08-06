@@ -2,6 +2,7 @@
 name: exec-brief
 description: Produce a succinct one-pager for an executive dropping into a call with zero context. Blends account_research (who they are, deal state), conversation_intelligence (what has been discussed and what is open), and contact_research (who is in the room). Identify the account by ZoomInfo company ID (preferred) or name/domain (triggers a lookup); name the key attendees if known. Use when someone says "brief the VP for the Acme call", "exec one-pager for tomorrow", "my SVP is joining cold", or needs a tight pre-call brief for a senior stakeholder. Built to be read in two minutes.
 ---
+
 # Exec Brief
 
 One page an executive can absorb in the elevator: who, why now, where we stand, and the one thing to do in the room.

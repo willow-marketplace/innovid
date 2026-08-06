@@ -1,7 +1,8 @@
 ---
 name: agents-build
-description: >
+description: ">"
 ---
+
 # build
 
 Add capabilities to your AgentCore agent project.

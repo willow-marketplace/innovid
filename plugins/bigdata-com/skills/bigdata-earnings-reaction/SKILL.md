@@ -1,7 +1,8 @@
 ---
 name: bigdata-earnings-reaction
-description: >
+description: ">"
 ---
+
 # Bigdata Earnings Reaction
 
 The decision note after a print: what changed, what to revise, what to do. Use Bigdata.com plugin tools for every fact.

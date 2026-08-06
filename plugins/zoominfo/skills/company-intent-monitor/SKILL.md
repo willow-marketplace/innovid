@@ -2,6 +2,7 @@
 name: company-intent-monitor
 description: Monitor a company's buyer-intent signals and assess fit against your GTM context. Uses company signals scoped to intent for a single account, returns the recent topics it is researching, and analyzes which ones align with your offerings and ICP. Identify the company by ZoomInfo company ID (preferred) or name/domain (triggers a lookup). Use when someone asks "what is Acme researching", "are they showing intent on anything we sell", "monitor intent for this account", or wants an intent read before prioritizing an account.
 ---
+
 # Company Intent Monitor
 
 What is this account actively researching, and does any of it line up with what we sell?

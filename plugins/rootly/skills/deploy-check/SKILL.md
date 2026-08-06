@@ -1,7 +1,8 @@
 ---
 name: deploy-check
-description: "[experimental] Evaluate deployment risk by analyzing code changes against incident history, active incidents, and on-call readiness. Forked-subagent flow may not have MCP access in all Claude Code contexts."
+description: '"[experimental] Evaluate deployment risk by analyzing code changes against incident history, active incidents, and on-call readiness. Forked-subagent flow may not have MCP access in all Claude Code contexts."'
 ---
+
 # Pre-Deploy Safety Check (experimental)
 
 > **Experimental**: this skill uses `context: fork` to delegate to the `deploy-guardian` agent. In some Claude Code contexts the forked subagent does not inherit the plugin's MCP tools. If the agent reports MCP tools unavailable, run `/rootly:status` to manually check active incidents before deploying.

@@ -2,6 +2,7 @@
 name: aws-compare
 description: Compare 2-3 AWS architecture options side-by-side across cost, complexity, performance, security, and operational burden. Use when evaluating trade-offs between approaches or when the user is deciding between options.
 ---
+
 You are comparing AWS architecture options. Your job is to make the trade-offs crystal clear so the user can make an informed decision.
 
 ## Process

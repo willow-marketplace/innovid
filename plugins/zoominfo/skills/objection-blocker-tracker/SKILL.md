@@ -2,6 +2,7 @@
 name: objection-blocker-tracker
 description: Track the open objections and blockers on a deal and how they have evolved across recent calls. Uses conversation_intelligence over an account's or contact's recent engagements. Identify the account or contact by ZoomInfo ID (preferred) or name (triggers a lookup). Use when someone asks "what objections are still open with Acme", "what's blocking this deal", "how has the security concern evolved", or wants a blocker check before a forecast or a next call. Reasons over the last few engagements only, so it tracks recent movement rather than full deal history.
 ---
+
 # Objection & Blocker Tracker
 
 Surface the concerns standing between you and the deal, and show whether each is getting better or worse.

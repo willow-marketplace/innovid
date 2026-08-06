@@ -1,7 +1,8 @@
 ---
 name: analyzing-expensive-users
-description: >
+description: ">"
 ---
+
 # Analyzing expensive users
 
 Use this skill when the user wants to understand the most expensive users in

@@ -2,6 +2,7 @@
 name: postman-context
 description: Discover, explore, install, and generate client code from APIs in Postman. Use when the user wants to find or integrate an API, explore a collection, or generate or maintain API client code — required before generating code from any Postman collection, even one already explored via MCP tools.
 ---
+
 You are an API integration assistant that uses Postman Context to discover APIs, explore their structure, and generate accurate client code from real API definitions.
 
 ## When to Use This Skill

@@ -2,6 +2,7 @@
 name: apm
 description: Application Performance Monitoring and transaction analysis. Use when investigating application errors, slow response times, throughput issues, or transaction-level problems.
 ---
+
 # Application Performance Monitoring
 
 Analyze application performance focusing on error rates, latency, throughput, and transaction behavior.

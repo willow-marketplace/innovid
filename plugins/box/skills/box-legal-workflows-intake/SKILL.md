@@ -2,6 +2,7 @@
 name: box-legal-workflows-intake
 description: Automate legal client intake and onboarding with Box MCP — review uploaded intake documents for completeness against firm requirements, assess risk levels based on client profile and document content (PEP status, conflicts, sanctions, litigation history), route incomplete or high-risk submissions to appropriate attorneys with context and risk summaries, extract structured metadata (client name, matter type, jurisdiction, value), and generate engagement letters from Box DocGen templates for approved low-risk clients. Use this skill when the user mentions client intake, client onboarding, new client review, intake documents, engagement letters, or needs to process prospective client submissions stored in Box.
 ---
+
 # Client Intake & Onboarding
 
 > **PREREQUISITES:**

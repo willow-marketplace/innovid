@@ -2,6 +2,7 @@
 name: flag-create
 description: Create a new feature flag in GrowthBook via the REST API. Use when the user asks to "create a feature flag", "add a flag for X", "wrap this in a feature flag", "I need a flag to gate this", or "feature toggle for X". For adding rules to an existing flag, use flag-rules. For removing a flag, use flag-cleanup.
 ---
+
 # flag-create
 
 Create a new feature flag in GrowthBook. We always set `{enabled: false}` for every environment explicitly in the payload, so the flag ships disabled regardless of the org's default-state-for-new-environments setting — the user must enable it after creation. Feature keys are permanent; pick the name carefully.

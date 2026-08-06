@@ -1,7 +1,8 @@
 ---
 name: qt-figma-token-extraction
-description: >
+description: ">"
 ---
+
 # Figma Token Extraction Skill
 
 This skill extracts design tokens from a Figma file, maps them to QML types, and generates a ready-to-use QML design system with a unified `Theme` singleton.

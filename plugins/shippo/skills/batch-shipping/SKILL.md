@@ -2,6 +2,7 @@
 name: batch-shipping
 description: Process bulk shipments from CSV files, create and purchase batch labels, and generate end-of-day manifests via the Shippo API
 ---
+
 <!--
   ⚠️  DO NOT EDIT. Auto-generated from skills/batch-shipping/SKILL.md by scripts/sync.js
   Edits here will be overwritten on the next sync.

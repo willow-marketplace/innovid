@@ -2,6 +2,7 @@
 name: configuring-airflow-language-sdks
 description: Configures Airflow to run language SDK tasks (Go and future native SDKs) — register a coordinator, map a queue to it, ensure the runtime/artifact on workers, and tune coordinator options. Use when the user wants Airflow to route a queue to a native-language coordinator, asks about the `[sdk]` `coordinators`/`queue_to_coordinator` settings, `AIRFLOW__SDK__COORDINATORS`, `executables_root` or other coordinator `kwargs`, `ExecutableCoordinator`, `task_startup_timeout`, or why their native tasks aren't being picked up. Covers the shared routing mechanism plus per-coordinator options (e.g. ExecutableCoordinator).
 ---
+
 # Configuring Airflow for Language SDKs
 
 To run language SDK tasks, Airflow needs to know two things: which **coordinator** launches the native subprocess, and which **queue** routes to that coordinator. The mechanism is identical across every language SDK — only each coordinator's `classpath` and `kwargs` differ. This skill documents the shared wiring once, then the per-coordinator options. It is platform-neutral: the same settings apply on open-source Airflow and on managed platforms like Astro.

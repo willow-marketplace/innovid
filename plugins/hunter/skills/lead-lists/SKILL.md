@@ -2,6 +2,7 @@
 name: lead-lists
 description: Creates and organizes Hunter leads lists — build a list from contacts or a search, populate it, merge lists, favorite them, and group them into folders. Use when the user wants to build a lead list, save search results to Hunter, organize contacts into lists, or tidy up their lists and folders.
 ---
+
 # Lead Lists
 
 Create leads lists, populate them with contacts, and organize them into folders.

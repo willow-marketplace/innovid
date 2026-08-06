@@ -1,7 +1,8 @@
 ---
 name: bigdata-company-brief
-description: >
+description: ">"
 ---
+
 # Bigdata Company Brief
 
 Retrospective 30-day summary of material developments at a public company, with a "so what" on each. Use Bigdata.com plugin tools for every fact.

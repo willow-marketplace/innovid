@@ -2,6 +2,7 @@
 name: company-enrichment
 description: Retrieves detailed company information including industry, size, location, and description from a domain name. Use when the user asks about a company, wants company details, or says "tell me about [company]".
 ---
+
 # Company Enrichment
 
 Get a detailed profile of any company from its domain name.

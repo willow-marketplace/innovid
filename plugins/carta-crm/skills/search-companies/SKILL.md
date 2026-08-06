@@ -1,7 +1,8 @@
 ---
 name: search-companies
-description: >
+description: ">"
 ---
+
 ## Overview
 
 Search for companies in the Carta CRM. Choose the right tool based on what the user

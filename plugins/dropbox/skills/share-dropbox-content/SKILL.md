@@ -2,6 +2,7 @@
 name: share-dropbox-content
 description: Share Dropbox files or folders by creating shared links, inspecting existing shared links, or explaining current shared-link state. Use only when the user explicitly asks to create a shared link, check access, or inspect a Dropbox shared link.
 ---
+
 # Share Dropbox Content
 
 Use this skill to create or inspect Dropbox shared links and explain shared-link state.

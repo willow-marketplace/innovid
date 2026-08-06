@@ -2,6 +2,7 @@
 name: aidp-migrate-catalog
 description: Migrate Databricks Unity Catalog / HMS schemas + tables onto AIDP. Two-stage extract→rewrite→replay pipeline. The rewriter applies 18 DDL rules (3-part→2-part flatten, s3://→oci:// via bucket-map, source-format preserved (Delta stays Delta) with delta.* property scrub, MV/streaming rejection, CREATE SCHEMA COMMENT-colon strip). Batched single-WebSocket DDL replay works around AIDP's per-statement-discard quirk. Use BEFORE aidp-migrate-job — schemas must exist before notebook reads.
 ---
+
 # `aidp-migrate-catalog` — Unity Catalog / HMS → AIDP DDL migration
 
 The notebook migration (Pass-2) reads tables. If the schemas + tables don't exist on AIDP first, every read fails. This skill ports the metadata layer.

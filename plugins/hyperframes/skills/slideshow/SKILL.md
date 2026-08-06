@@ -1,7 +1,8 @@
 ---
 name: slideshow
-description: >
+description: ">"
 ---
+
 # Slideshow authoring contract
 
 A HyperFrames slideshow is a normal HyperFrames composition — scenes, clips, GSAP timelines — with one extra ingredient: a **JSON island** that declares which scenes are slides and how they connect. The player's `SlideshowController` reads the island and turns the continuous GSAP timeline into a discrete, navigable deck.

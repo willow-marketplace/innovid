@@ -2,6 +2,7 @@
 name: aidp-notebooks
 description: Create, edit, and execute AIDP notebooks and manage their kernel sessions. Use when the user wants to author a notebook, run cells/code on a cluster, attach/detach a kernel session, or build an interactive notebook (e.g. with widgets + Spark SQL + Plotly). Notebook FILE ops run via the Notebook contents REST API; CELL EXECUTION runs via scripts/aidp_sql.py.
 ---
+
 # `aidp-notebooks` — notebook authoring & kernel execution
 
 Author AIDP notebooks via the Notebook contents REST API, and run code on a Spark cluster via the

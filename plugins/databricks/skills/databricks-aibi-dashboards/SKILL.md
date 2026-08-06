@@ -1,7 +1,8 @@
 ---
 name: databricks-aibi-dashboards
-description: "Create Databricks AI/BI dashboards. Must use when creating, updating, or deploying Lakeview dashboards as Databricks Dashboard have a unique json structure. CRITICAL: You MUST test ALL SQL queries via CLI BEFORE deploying. Follow guidelines strictly."
+description: '"Create Databricks AI/BI dashboards. Must use when creating, updating, or deploying Lakeview dashboards as Databricks Dashboard have a unique json structure. CRITICAL: You MUST test ALL SQL queries via CLI BEFORE deploying. Follow guidelines strictly."'
 ---
+
 # AI/BI Dashboard Skill
 
 Create Databricks AI/BI dashboards (formerly Lakeview dashboards).

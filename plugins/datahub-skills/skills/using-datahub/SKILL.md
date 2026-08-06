@@ -1,7 +1,8 @@
 ---
 name: using-datahub
-description: |
+description: "|"
 ---
+
 # Using DataHub Skills
 
 You have access to 5 DataHub catalog interaction skills. Use this guide to route the user's request to the correct skill.

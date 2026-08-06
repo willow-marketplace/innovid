@@ -2,6 +2,7 @@
 name: campaigns
 description: List, create, get, or update Spotify Ads API campaigns.
 ---
+
 # Spotify Ads API — Campaign Management
 
 Manage campaigns via the Spotify Ads API. Read settings from the active platform settings file for credentials and configuration.

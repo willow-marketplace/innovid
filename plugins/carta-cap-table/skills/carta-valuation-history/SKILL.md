@@ -2,6 +2,7 @@
 name: carta-valuation-history
 description: Fetch 409A valuation history and current fair market value (FMV) for a company. Use when asked about 409A valuations, FMV, exercise prices, common stock price, or valuation expiration dates. Do NOT use for cross-portfolio FMV comparisons across companies — prefer a portfolio-benchmarks skill.
 ---
+
 <!-- Part of the official Carta AI Agent Plugin -->
 
 # 409A Valuation History

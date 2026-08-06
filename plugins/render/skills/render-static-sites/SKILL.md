@@ -1,7 +1,8 @@
 ---
 name: render-static-sites
-description: >-
+description: ">-"
 ---
+
 # Render Static Sites
 
 Deploys static frontends (React, Vue, Hugo, Gatsby, Docusaurus, Jekyll, etc.) to Render's global CDN with automatic TLS, Brotli compression, HTTP/2, and DDoS protection. Free tier available.

@@ -2,6 +2,7 @@
 name: aidp-observability
 description: Surface AIDP operational state — recently accessed resources and long-running async operations (status, completion, waiting). Use when the user asks "what happened recently", "what's running", "is that operation done yet", or needs to track/await an async AIDP operation (e.g. provisioning, large commits). Runs over the official `aidp` CLI.
 ---
+
 # `aidp-observability` — activity & async operations
 
 Show what's happening in the AIDP workspace: recent job runs and the state of long-running operations.

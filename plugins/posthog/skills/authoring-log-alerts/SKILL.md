@@ -1,7 +1,8 @@
 ---
 name: authoring-log-alerts
-description: >
+description: ">"
 ---
+
 # Authoring log alerts
 
 Authoring an alert is a _measurement_ problem, not a guessing problem. You are not trying to be exhaustive — you

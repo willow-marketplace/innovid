@@ -1,7 +1,8 @@
 ---
 name: auditing-endpoints
-description: >
+description: ">"
 ---
+
 # Auditing endpoints
 
 This skill produces a project-wide audit of the Endpoints product. Use it when the user wants to

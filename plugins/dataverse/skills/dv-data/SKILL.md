@@ -2,6 +2,7 @@
 name: dv-data
 description: Record-level CRUD and bulk operations via the Python SDK — create, update, delete, upsert, CSV import, multi-table foreign-key loads, AI-generated sample data. Use when the user wants to write, modify, seed, or import data records into Dataverse tables.
 ---
+
 # Skill: Data — Create, Update, Delete, and Bulk Import
 
 > **This skill uses Python exclusively.** Do not use Node.js, JavaScript, or any other language for Dataverse scripting. If you are about to run `npm install` or write a `.js` file, STOP — you are going off-rails. See the overview skill's Hard Rules.

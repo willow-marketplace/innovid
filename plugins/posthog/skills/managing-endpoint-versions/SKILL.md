@@ -1,7 +1,8 @@
 ---
 name: managing-endpoint-versions
-description: >
+description: ">"
 ---
+
 # Managing endpoint versions
 
 This skill is the practical guide to endpoint versioning. It covers the today-workflow, which

@@ -2,6 +2,7 @@
 name: aspnetcore-authentication
 description: ASP.NET Core authentication middleware configuration including OpenID Connect, JWT Bearer, cookie authentication, authentication schemes, challenge/forbid flows, and external identity provider integration.
 ---
+
 # ASP.NET Core Authentication
 
 ## When to Use This Skill

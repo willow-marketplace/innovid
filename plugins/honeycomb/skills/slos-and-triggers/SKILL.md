@@ -1,7 +1,8 @@
 ---
 name: slos-and-triggers
-description: >
+description: ">"
 ---
+
 # Honeycomb SLOs and Triggers
 
 Guidance for configuring and reasoning about reliability in Honeycomb. The `get_slos`

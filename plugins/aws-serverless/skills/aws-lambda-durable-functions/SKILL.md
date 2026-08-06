@@ -1,7 +1,8 @@
 ---
 name: aws-lambda-durable-functions
-description: >
+description: ">"
 ---
+
 # AWS Lambda durable functions
 
 Build resilient multi-step applications and AI workflows that can execute for up to 1 year while maintaining reliable progress despite interruptions.

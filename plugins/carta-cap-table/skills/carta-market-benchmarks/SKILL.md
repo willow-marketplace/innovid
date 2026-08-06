@@ -2,6 +2,7 @@
 name: carta-market-benchmarks
 description: Computed statistics across portfolio companies — median, average, typical, range — used as market benchmarks. Returns aggregate numbers and percentiles, not raw per-company listings.
 ---
+
 <!-- Part of the official Carta AI Agent Plugin -->
 
 # Market Benchmarks

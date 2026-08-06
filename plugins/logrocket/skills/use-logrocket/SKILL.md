@@ -2,6 +2,7 @@
 name: use-logrocket
 description: Query LogRocket for session replays, metrics, issues, and user behavior using natural language. Use when debugging issues, analyzing feature usage, investigating errors, triaging problems, or understanding how users interact with your app.
 ---
+
 # Use LogRocket
 
 ## When to use

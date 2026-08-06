@@ -2,6 +2,7 @@
 name: export
 description: Export Spotify Ads API campaign data to CSV — full campaign hierarchies with ad sets, ads, targeting, budgets, and performance metrics for offline review, campaign analysis, or budget reconciliation.
 ---
+
 # Spotify Ads API — Campaign Data Export
 
 Export campaign hierarchies to CSV for offline review, combining entity data with optional performance metrics.

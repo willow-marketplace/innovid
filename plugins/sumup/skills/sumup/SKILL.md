@@ -2,6 +2,7 @@
 name: sumup
 description: Implement SumUp checkout flows end-to-end. Use when writing or reviewing SumUp Checkouts API calls, Card Widget mounts, Hosted Checkout setup, recurring tokenization, Terminal SDK / Cloud API reader checkouts, or 3DS / webhook handling.
 ---
+
 # SumUp Checkout Integrations
 
 Knowledge and APIs can change. Always prefer the latest SumUp docs in markdown format over stale memory.

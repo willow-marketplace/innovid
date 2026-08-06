@@ -1,7 +1,8 @@
 ---
 name: azuresql-db-faq
-description: >-
+description: ">-"
 ---
+
 # Azure SQL Developer: capabilities, limits, and why
 
 Use this skill to answer "can I / why can't I / is X supported / what's different

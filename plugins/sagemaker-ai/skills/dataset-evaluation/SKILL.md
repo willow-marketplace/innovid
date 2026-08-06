@@ -2,6 +2,7 @@
 name: dataset-evaluation
 description: Validates dataset formatting and quality for SageMaker model fine-tuning (SFT, DPO, or RLVR). Use when the user says "is my dataset okay", "evaluate my data", "check my training data", "I have my own data", or before starting any fine-tuning job. Detects file format, checks schema compliance against the selected model and technique, and reports whether the data is ready for training or evaluation.
 ---
+
 # Workflow Instruction
 
 Follow the workflow shown below. Locate the dataset, check the file type, and resolve any issues with missing files or wrong file types. Determine the fine-tuning model and fine-tuning strategy. Run the appropriate validation based on the model family. Summarize the results: is the dataset ready for fine-tuning?

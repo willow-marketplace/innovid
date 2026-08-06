@@ -1,7 +1,8 @@
 ---
 name: sap-fiori-app-development
-description: 'Guidelines for SAP Fiori app development for CAP and standalone projects. Use this skill when creating or modifying SAP Fiori Elements applications.'
+description: "'Guidelines for SAP Fiori app development for CAP and standalone projects. Use this skill when creating or modifying SAP Fiori Elements applications.'"
 ---
+
 # SAP Fiori App Development Guidelines (CAP & Standalone Projects)
 
 ## General Guidelines (Applicable to CAP and Standalone Fiori Projects)

@@ -2,6 +2,7 @@
 name: mapbox-android-patterns
 description: Official integration patterns for Mapbox Maps SDK on Android. Covers installation, adding markers, user location, custom data, styles, camera control, and featureset interactions. Based on official Mapbox documentation.
 ---
+
 # Mapbox Android Integration Patterns
 
 Official patterns for integrating Mapbox Maps SDK v11 on Android with Kotlin, Jetpack Compose, and View system.

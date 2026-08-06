@@ -2,6 +2,7 @@
 name: use-amp-guides-surveys
 description: Lists Amplitude Guides and Surveys or reads one item's full configuration with `use_amp_guides_surveys`.
 ---
+
 # Use Amp Guides Surveys
 
 ## Choose an action

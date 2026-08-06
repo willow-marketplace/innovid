@@ -2,6 +2,7 @@
 name: miro-code-spec
 description: Use when the user wants to extract a Miro board's specs (documents, diagrams, prototypes, tables, frames, images) to local `.miro/specs/` files for AI-assisted planning and implementation — accepts a board URL or single-item URL.
 ---
+
 # Extract Miro Specs
 
 Extract specification content from a Miro board or item and save to `.miro/specs/` so it can be referenced during planning and implementation without repeated API calls.

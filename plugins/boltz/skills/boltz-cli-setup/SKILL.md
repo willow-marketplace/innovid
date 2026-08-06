@@ -2,6 +2,7 @@
 name: boltz-cli-setup
 description: Boltz CLI setup and auth. Use when installing, updating, verifying, or authenticating `boltz-api`, or fixing missing CLI, PATH, sandbox, browser login, or auth errors.
 ---
+
 # Boltz CLI Setup
 
 Use this skill for `boltz-api` installation, version, PATH, and authentication issues. The workflow skills assume `boltz-api` is already installed.

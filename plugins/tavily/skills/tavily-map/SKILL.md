@@ -1,7 +1,8 @@
 ---
 name: tavily-map
-description: |
+description: "|"
 ---
+
 # tavily map
 
 Discover URLs on a website without extracting content. Faster than crawling.

@@ -1,7 +1,8 @@
 ---
 name: live-research
-description: |
+description: "|"
 ---
+
 # Bright Data — Live Research
 
 Turn one research question into a **cited, synthesized brief** by fanning out

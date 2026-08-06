@@ -2,6 +2,7 @@
 name: hyperpod-issue-report
 description: Generate comprehensive issue reports from HyperPod clusters (EKS and Slurm) by collecting diagnostic logs and configurations for troubleshooting and AWS Support cases. Use when users need to collect diagnostics from HyperPod cluster nodes, generate issue reports for AWS Support, investigate node failures or performance problems, document cluster state, or create diagnostic snapshots. Triggers on requests involving issue reports, diagnostic collection, support case preparation, or cluster troubleshooting that requires gathering logs and system information from multiple nodes.
 ---
+
 # HyperPod Issue Report
 
 Collect diagnostic logs from HyperPod cluster nodes via SSM, store results in S3. Supports both EKS and Slurm clusters with auto-detection. Uses the bundled `scripts/hyperpod_issue_report.py` for reliable parallel collection.

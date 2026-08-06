@@ -1,7 +1,8 @@
 ---
 name: render-disks
-description: >-
+description: ">-"
 ---
+
 # Render Persistent Disks
 
 Persistent disks are high-performance SSDs you attach to a Render service to preserve filesystem changes across deploys and restarts. Without a disk, services have an **ephemeral filesystem**—all local file changes are lost on every deploy.

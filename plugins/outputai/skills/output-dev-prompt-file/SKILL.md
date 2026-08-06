@@ -2,6 +2,7 @@
 name: output-dev-prompt-file
 description: Create .prompt files for LLM operations in Output SDK workflows. Use when designing prompts, configuring LLM providers, or using Liquid.js templating.
 ---
+
 # Creating .prompt Files
 
 ## Overview

@@ -1,7 +1,8 @@
 ---
 name: discover-analytics-patterns
-description: >
+description: ">"
 ---
+
 # discover-analytics-patterns
 
 Your goal is to find out **how** this codebase sends analytics events — not which

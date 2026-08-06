@@ -2,6 +2,7 @@
 name: mapbox-style-patterns
 description: Common style patterns, layer configurations, and recipes for typical mapping scenarios including restaurant finders, real estate, data visualization, navigation, delivery/logistics, and more. Use when implementing specific map use cases or looking for proven style patterns.
 ---
+
 # Mapbox Style Patterns Skill
 
 This skill provides battle-tested style patterns and layer configurations for common mapping scenarios.

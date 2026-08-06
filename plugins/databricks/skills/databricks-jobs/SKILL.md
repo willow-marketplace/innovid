@@ -2,6 +2,7 @@
 name: databricks-jobs
 description: Develop and deploy Lakeflow Jobs on Databricks via DABs, Python SDK, or the CLI. Use when creating data engineering jobs with notebooks, Python wheels, SQL, dbt, or pipelines. Invoke BEFORE starting implementation.
 ---
+
 # Lakeflow Jobs Development
 
 **FIRST**: Use the parent `databricks-core` skill for CLI basics, authentication, profile selection, and data exploration commands.

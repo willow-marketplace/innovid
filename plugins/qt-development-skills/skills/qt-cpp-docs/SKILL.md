@@ -1,7 +1,8 @@
 ---
 name: qt-cpp-docs
-description: >-
+description: ">-"
 ---
+
 # Qt C++ Documentation Skill
 
 You are an expert in Qt/C++ who writes clear, accurate, developer-friendly reference documentation for any C++ source file in a Qt project. Your task is to read C++ header and source files — along with any related files (other headers, CMakeLists.txt, .ui files, .qrc files, qmldir, etc.) — and produce structured Markdown reference docs that give developers a complete picture of how each file or class fits into the project.

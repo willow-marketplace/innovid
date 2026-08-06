@@ -1,7 +1,8 @@
 ---
 name: local-ai-app-integration
-description: >-
+description: ">-"
 ---
+
 # Local AI App Integration (Embeddable Lemonade)
 
 Add a local AI mode to an existing app that already talks to a cloud AI API

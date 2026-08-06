@@ -2,6 +2,7 @@
 name: comparisons
 description: How to structure A vs B comparisons in Fullstory — when to use dimensionality (event/session properties) vs separate segments (user-level properties), and why the distinction matters for correctness.
 ---
+
 # Comparisons
 
 When the user asks to compare A vs B, the right mechanism depends on what the comparison axis is. Use the decision table below to classify it — the user doesn't need to know this distinction exists.

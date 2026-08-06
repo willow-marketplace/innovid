@@ -1,7 +1,8 @@
 ---
 name: ui-toolkit
-description: "Reference skill for Zoom Video SDK UI Toolkit. Use after routing to a web video workflow when you want prebuilt React UI instead of building a fully custom Video SDK interface."
+description: '"Reference skill for Zoom Video SDK UI Toolkit. Use after routing to a web video workflow when you want prebuilt React UI instead of building a fully custom Video SDK interface."'
 ---
+
 # Zoom Video SDK UI Toolkit
 
 Background reference for the prebuilt Zoom Video SDK UI Toolkit on web. Prefer `choose-zoom-approach` first when the user might still need Meeting SDK instead.

@@ -2,6 +2,7 @@
 name: sales-ops
 description: Set up and run Airtable-based sales operations and CRM workflows — pipeline management, account and renewal management, deal desk, RFP / tender pipelines, partner CRMs, sales forecasting, vertical CRMs (real estate, mortgage, brokerage, capital markets, public works, nonprofit), and AI-native lean stacks (Clay-equivalent enrichment, AI-assisted outbound, conversation-intel ingestion). Use when the user wants to track deals, manage accounts, build a pipeline, run a deal desk, coordinate partners, manage RFPs, or build an AI-forward GTM stack. Defaults to augmenting existing CRMs (Salesforce / HubSpot); also supports Airtable-as-CRM and AI-native stacks. Asks scope first. Commercial workflows only; post-sale support belongs to a future customer-success skill.
 ---
+
 # Sales operations and CRM workflows
 
 Set up and run sales operations workflows in Airtable — pipeline, accounts, renewals, deal desk, RFP tracking, partner CRMs, vertical sales-shaped systems. Adapts to team size, existing CRM, and industry. Ask scope before scaffolding; the same trigger can mean a 3-table pipeline for a 5-person team, a Salesforce-augmenting deal desk for a 200-person enterprise sales org, or a vertical-specific CRM for a mortgage broker / real estate firm / public-works contractor.

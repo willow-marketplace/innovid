@@ -1,7 +1,8 @@
 ---
 name: create-honeycomb-board
-description: >
+description: ">"
 ---
+
 # Create a Honeycomb Board
 
 Build a board (dashboard) in Honeycomb using the `create_board` MCP tool.

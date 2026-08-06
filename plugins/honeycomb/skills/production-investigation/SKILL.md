@@ -1,7 +1,8 @@
 ---
 name: production-investigation
-description: >
+description: ">"
 ---
+
 # Honeycomb Production Investigation
 
 Structured workflows for debugging production issues. The MCP tools document their

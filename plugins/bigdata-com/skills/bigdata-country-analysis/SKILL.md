@@ -1,7 +1,8 @@
 ---
 name: bigdata-country-analysis
-description: >
+description: ">"
 ---
+
 # Bigdata Country Analysis
 
 Analytical country economic profile with policy depth. Use Bigdata.com plugin tools for every fact.

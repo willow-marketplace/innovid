@@ -1,7 +1,8 @@
 ---
 name: bigdata-quick-take
-description: >
+description: ">"
 ---
+
 # Bigdata Quick Take
 
 One page, PM-style. Use Bigdata.com plugin tools for every fact.

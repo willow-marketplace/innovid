@@ -1,7 +1,8 @@
 ---
 name: tavily-cli
-description: |
+description: "|"
 ---
+
 # Tavily CLI
 
 Web search, content extraction, site crawling, URL discovery, and deep research. Returns JSON optimized for LLM consumption.

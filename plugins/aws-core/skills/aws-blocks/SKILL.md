@@ -2,6 +2,7 @@
 name: aws-blocks
 description: Guides building full-stack applications with AWS Blocks — an Infrastructure-from-Code framework. Applies when creating APIs, selecting Building Blocks (KVStore, DistributedTable, Database, AuthBasic, AuthCognito, Realtime, AsyncJob, FileBucket, etc.), running local development, or deploying AWS Blocks applications. Also covers AWS Blocks topics with validated, version-specific patterns that prevent common mistakes. Triggers when user mentions AWS Blocks; project has aws-blocks/ directory; code imports @aws-blocks packages.
 ---
+
 # AWS Blocks Application Development
 
 > **Package naming:** All packages are published under the `@aws-blocks` scope (e.g., `@aws-blocks/core`, `@aws-blocks/blocks`, `@aws-blocks/bb-kv-store`).

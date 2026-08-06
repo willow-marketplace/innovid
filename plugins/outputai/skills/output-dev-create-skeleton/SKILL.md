@@ -2,6 +2,7 @@
 name: output-dev-create-skeleton
 description: Generate workflow skeleton files using the Output SDK CLI. Use when starting a new workflow, scaffolding project structure, or understanding the generated file layout.
 ---
+
 # Generate Workflow Skeleton with Output SDK CLI
 
 ## Overview

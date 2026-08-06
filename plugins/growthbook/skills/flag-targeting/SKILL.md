@@ -2,6 +2,7 @@
 name: flag-targeting
 description: Add, edit, or remove force-value or percentage-rollout rules on a GrowthBook feature flag, including conditions, saved groups, and rule-level prerequisites. Use when the user says "add a rule to flag Y", "release this flag to 10% of users", "turn this on for beta testers", "target US users", "add a condition to rule X", "edit the targeting condition on flag Z", "disable this rule", "remove the rule", "only for logged-in users", or "target users matching attribute Y". For environment kill switches (enable/disable the whole flag in an env), use flag-toggle. For experiment rules, use flag-experiment. For ramp schedules, use flag-ramp. For monitored rollouts with guardrail metrics, use flag-monitoring. For feature-level prerequisites, use flag-prerequisites.
 ---
+
 # flag-targeting
 
 Add, edit, or remove targeting rules on an existing GrowthBook feature flag. Handles `force` (serve a specific value to matched users) and `rollout` (serve a value to a random percentage of users) rule types, with full support for conditions, saved groups, and rule-level prerequisites.

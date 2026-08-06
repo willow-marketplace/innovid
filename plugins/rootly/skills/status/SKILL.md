@@ -2,6 +2,7 @@
 name: status
 description: Show a compact service health overview including active incidents by severity. Use for a quick health check of your services.
 ---
+
 # Service Health Overview
 
 You are showing the user a compact view of current service health based on active incidents.

@@ -2,6 +2,7 @@
 name: bedrock
 description: Deep-dive into Amazon Bedrock — model selection, agents, knowledge bases, guardrails, prompt engineering, and cost modeling. This skill should be used when the user asks to "build with Bedrock", "select a Bedrock model", "design a Bedrock agent", "set up a knowledge base", "configure guardrails", "estimate Bedrock costs", "optimize Bedrock pricing", "use prompt caching", "compare Bedrock models", or mentions Amazon Bedrock, foundation models, RAG on AWS, or generative AI on AWS.
 ---
+
 Specialist guidance for Amazon Bedrock. Covers model selection, agent design, knowledge bases, guardrails, prompt engineering, batch inference, and cost optimization.
 
 ## Process

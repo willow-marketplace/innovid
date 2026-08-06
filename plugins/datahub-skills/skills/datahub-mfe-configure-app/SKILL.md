@@ -1,7 +1,8 @@
 ---
 name: datahub-mfe-configure-app
-description: >-
+description: ">-"
 ---
+
 # Configure an MFE in DataHub
 
 Walks through registering a Micro Frontend app with the DataHub frontend so it

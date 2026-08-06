@@ -2,6 +2,7 @@
 name: analyze-feedback
 description: Synthesizes customer feedback into actionable themes including feature requests, bugs, pain points, and praise. Use when planning product roadmap, understanding user sentiment, investigating specific issues, or preparing voice-of-customer reports.
 ---
+
 # Analyze Feedback
 
 Perform comprehensive feedback reviews, investigate specific feature requests, understand customer sentiment, then prepare concise but actionable voice-of-customer presentations

@@ -2,6 +2,7 @@
 name: agent-ready-apis
 description: Knowledge about AI agent API compatibility. Use when user asks about API readiness, agent compatibility, or wants to improve their API for AI consumption.
 ---
+
 # Agent-Ready APIs
 
 An "agent-ready" API is one that an AI agent can discover, understand, call correctly, and recover from errors without human intervention. Most APIs aren't there yet.

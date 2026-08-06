@@ -2,6 +2,7 @@
 name: carta-portfolio-alerts
 description: Time-bounded and threshold-bounded risk detection across portfolio companies — finds items that are expiring soon, maturing soon, running low, or otherwise at risk. Surfaces what needs attention now, not what the data looks like in general.
 ---
+
 <!-- Part of the official Carta AI Agent Plugin -->
 
 # Portfolio Alerts

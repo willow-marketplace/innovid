@@ -2,7 +2,7 @@
   "name": "understand-anything",
   "version": "2.9.4",
   "description": "AI-powered codebase understanding — analyze, visualize, and explain any project",
-  "updatedAt": "2026-08-05T16:45:47.134Z",
+  "updatedAt": "2026-08-06T06:56:19.365Z",
   "author": {
     "name": "Egonex"
   },
@@ -16,7 +16,18 @@
     "dashboard"
   ],
   "skills": "./skills/",
-  "agents": "./agents/",
+  "agents": [
+    "./agents/architecture-analyzer.md",
+    "./agents/article-analyzer.md",
+    "./agents/assemble-reviewer.md",
+    "./agents/design-analyzer.md",
+    "./agents/domain-analyzer.md",
+    "./agents/file-analyzer.md",
+    "./agents/graph-reviewer.md",
+    "./agents/knowledge-graph-guide.md",
+    "./agents/project-scanner.md",
+    "./agents/tour-builder.md"
+  ],
   "hooks": {
     "PostToolUse": [
       {

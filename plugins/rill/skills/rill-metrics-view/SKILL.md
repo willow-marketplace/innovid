@@ -2,6 +2,7 @@
 name: rill-metrics-view
 description: Detailed instructions and examples for developing metrics view resources in Rill
 ---
+
 # Instructions for developing a metrics view in Rill
 
 ## Introduction

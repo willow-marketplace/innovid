@@ -1,7 +1,8 @@
 ---
 name: qbr-prep
-description: Assemble a QBR prep pack for a business review — value moments, usage and adoption themes, risks, and open items, with a deal and relationship snapshot. Combines account_research for the account picture with conversation_intelligence over recent calls (scoped to individual engagements) for what the customer actually said. Identify the account by ZoomInfo company ID (preferred) or name/domain (triggers a lookup). Use when someone says "prep me for the Acme QBR", "build a QBR pack", "what should I cover in the business review", or needs a review-ready summary. Evidence-based: value moments, themes, and risks come from the conversations and CRM, not from assumption.
+description: 'Assemble a QBR prep pack for a business review — value moments, usage and adoption themes, risks, and open items, with a deal and relationship snapshot. Combines account_research for the account picture with conversation_intelligence over recent calls (scoped to individual engagements) for what the customer actually said. Identify the account by ZoomInfo company ID (preferred) or name/domain (triggers a lookup). Use when someone says "prep me for the Acme QBR", "build a QBR pack", "what should I cover in the business review", or needs a review-ready summary. Evidence-based: value moments, themes, and risks come from the conversations and CRM, not from assumption.'
 ---
+
 # QBR Prep Pack
 
 Everything to walk into a quarterly business review: what value landed, what the customer has been raising, where the risks are, and what to cover.

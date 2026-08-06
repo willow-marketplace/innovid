@@ -2,6 +2,7 @@
 name: email-verifier
 description: Verifies whether an email address is deliverable by checking DNS and SMTP records. Use when the user wants to check if an email is valid, verify an email address, or assess deliverability before sending.
 ---
+
 # Email Verifier
 
 Check whether an email address is deliverable before you send to it.

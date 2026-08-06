@@ -1,7 +1,8 @@
 ---
 name: bigdata-post-ipo-day1
-description: >
+description: ">"
 ---
+
 # Bigdata Post-IPO Day 1 — First-Trading-Day Reaction
 
 Assess the **first trading day** of a newly listed company: how price discovery played out against the offer, what demand and stabilization signals say, and how the stock is set up for the weeks ahead. Use Bigdata.com plugin tools plus web search for market data.

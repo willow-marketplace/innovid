@@ -1,5 +1,6 @@
 ---
 name: now-sdk
-description: 
+description: ""
 ---
+
 ../../../../../skills/now-sdk/SKILL.md

@@ -2,6 +2,7 @@
 name: scrape
 description: Scrape web content as clean markdown/HTML/JSON via the Bright Data CLI (`bdata scrape`). Use when the user wants to fetch a page, extract content from a list of URLs, or crawl paginated listings. Hands off to `data-feeds` for supported platforms (Amazon, LinkedIn, TikTok, Instagram, YouTube, Reddit, etc.) and to `search` when URLs must be discovered first. Requires the Bright Data CLI; proactively guides install + login if missing.
 ---
+
 # Bright Data — Scrape
 
 Get clean content (markdown, HTML, JSON, screenshot) from one or more URLs via the Bright Data CLI. This skill owns the "fetch raw or lightly-structured content" job. For platform-specific structured data (Amazon, LinkedIn, TikTok, etc.), **stop and use `data-feeds` instead** — you'll get clean JSON without selector logic.

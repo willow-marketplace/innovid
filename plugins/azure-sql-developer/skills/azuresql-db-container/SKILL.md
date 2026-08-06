@@ -1,7 +1,8 @@
 ---
 name: azuresql-db-container
-description: >-
+description: ">-"
 ---
+
 # Azure SQL Developer (local, Private Preview)
 
 This is the entry point for running the **Azure SQL Database engine** on your

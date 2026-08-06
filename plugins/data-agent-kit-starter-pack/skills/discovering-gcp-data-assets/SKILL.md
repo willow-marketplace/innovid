@@ -1,7 +1,8 @@
 ---
 name: discovering-gcp-data-assets
-description: |
+description: "|"
 ---
+
 # Instructions
 
 ## Step 1: Prioritize Assets from the Conversation

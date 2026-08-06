@@ -1,7 +1,8 @@
 ---
 name: agents-harden
-description: >
+description: ">"
 ---
+
 # harden
 
 Prepare your AgentCore agent for production — security, reliability, and performance.

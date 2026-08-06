@@ -1,7 +1,8 @@
 ---
 name: base44-remote-dev
-description: >-
+description: ">-"
 ---
+
 <!--
   Vendored from base44-dev/apper PR #11608
   (docs/features/bring-your-own-model/base44-remote-dev/SKILL.md).

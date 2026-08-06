@@ -2,6 +2,7 @@
 name: understand-chat
 description: Use when you need to ask questions about a codebase or understand code using a knowledge graph
 ---
+
 # /understand-chat
 
 Answer questions about this codebase using the knowledge graph in the project's data directory (`.ua/knowledge-graph.json`, or the legacy `.understand-anything/knowledge-graph.json` when that directory is present).

@@ -1,7 +1,8 @@
 ---
 name: graphql-operations
-description: >
+description: ">"
 ---
+
 # GraphQL Operations Guide
 
 This guide covers best practices for writing GraphQL operations (queries, mutations, subscriptions) as a client developer. Well-written operations are efficient, type-safe, and maintainable.

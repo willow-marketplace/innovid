@@ -2,6 +2,7 @@
 name: analyze-account-health
 description: Summarizes B2B account health by analyzing usage patterns, engagement trends, risk signals, and expansion opportunities. Use for customer success reviews, renewal preparation, QBRs, or account prioritization.
 ---
+
 # Analyze Account Health
 
 Deep-dive into a B2B account's product usage to prepare for QBRs, assess renewal risk, identify expansion opportunities, or prioritize CS outreach.

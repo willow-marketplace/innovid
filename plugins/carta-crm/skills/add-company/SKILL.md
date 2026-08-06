@@ -1,7 +1,8 @@
 ---
 name: add-company
-description: >
+description: ">"
 ---
+
 ## Overview
 
 Help the user create one or more company records in the Carta CRM using the

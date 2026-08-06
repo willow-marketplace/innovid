@@ -1,7 +1,8 @@
 ---
 name: generate-oas
-description: >
+description: ">"
 ---
+
 # Generate an OpenAPI Specification
 
 Produces a complete, valid **OpenAPI 3.0.x** specification file (`openapi.json`)

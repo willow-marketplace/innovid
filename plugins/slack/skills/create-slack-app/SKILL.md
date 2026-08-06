@@ -2,6 +2,7 @@
 name: create-slack-app
 description: Guide developers through creating a Slack app or agent using the Slack CLI and Bolt (JS or Python). Handles prerequisites, sandbox setup, authentication, project creation from templates, and local development.
 ---
+
 # Create Slack App
 
 Help the developer create a Slack app or agent using Bolt for **$0**.

@@ -1,7 +1,8 @@
 ---
 name: bigdata-thematic-research
-description: >
+description: ">"
 ---
+
 # Bigdata Thematic Research
 
 Cross-sector research on one macro theme, ending in implementable ideas. Use Bigdata.com plugin tools for every fact.

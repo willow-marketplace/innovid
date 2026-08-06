@@ -2,6 +2,7 @@
 name: sentry-snapshots-cocoa
 description: Full Sentry Snapshots setup for Apple/Cocoa projects. Use when asked to "setup SnapshotPreviews", "setup Apple snapshot testing", "upload Apple snapshots to Sentry", "setup Apple snapshot GitHub Actions", or "setup Apple selective snapshot testing".
 ---
+
 > [All Skills](../../SKILL_TREE.md) > [Feature Setup](../sentry-feature-setup/SKILL.md) > Sentry Snapshots
 
 # Sentry Snapshots for Apple/Cocoa

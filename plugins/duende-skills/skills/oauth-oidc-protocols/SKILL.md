@@ -2,6 +2,7 @@
 name: oauth-oidc-protocols
 description: OAuth 2.0 and OpenID Connect protocol fundamentals including authorization code flow with PKCE, client credentials, refresh tokens, discovery documents, JWKS, and token introspection. Protocol-level troubleshooting and compliance.
 ---
+
 # OAuth 2.0 & OpenID Connect Protocols
 
 ## When to Use This Skill

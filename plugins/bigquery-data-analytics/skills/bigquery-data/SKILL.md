@@ -2,6 +2,7 @@
 name: bigquery-data
 description: Use these skills when you need to handle large-scale data exploration and dataset management. Use when users need to find data assets or run SQL at scale. Provides metadata discovery and query execution across the data warehouse.
 ---
+
 ## Usage
 
 All scripts can be executed using Node.js. Replace `<param_name>` and `<param_value>` with actual values.

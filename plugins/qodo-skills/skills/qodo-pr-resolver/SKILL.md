@@ -1,7 +1,8 @@
 ---
 name: qodo-pr-resolver
-description: "Use when the user wants to review Qodo PR feedback or fix code review comments. Capabilities: view issues by severity, apply fixes interactively or in batch, reply to inline comments, post fix summaries (GitHub, GitLab, Bitbucket, Azure DevOps, Gerrit)"
+description: '"Use when the user wants to review Qodo PR feedback or fix code review comments. Capabilities: view issues by severity, apply fixes interactively or in batch, reply to inline comments, post fix summaries (GitHub, GitLab, Bitbucket, Azure DevOps, Gerrit)"'
 ---
+
 # Qodo PR Resolver
 
 Fetch Qodo review issues for your current branch's PR/MR, fix them interactively or in batch, and reply to each inline comment with the decision. Supports GitHub, GitLab, Bitbucket, Azure DevOps, and Gerrit.

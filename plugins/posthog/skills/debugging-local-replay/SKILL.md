@@ -1,7 +1,8 @@
 ---
 name: debugging-local-replay
-description: >
+description: ">"
 ---
+
 # Debugging local session replay
 
 When a developer says "local replay isn't working" or "recordings aren't showing up",

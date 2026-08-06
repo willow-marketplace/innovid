@@ -2,6 +2,7 @@
 name: mapbox-google-maps-migration
 description: Migration guide for developers moving from Google Maps Platform to Mapbox GL JS, covering API equivalents, pattern translations, and key differences
 ---
+
 # Mapbox Google Maps Migration Skill
 
 Comprehensive guidance for migrating from Google Maps Platform to Mapbox GL JS. Provides API equivalents, pattern translations, and strategies for successful migration.

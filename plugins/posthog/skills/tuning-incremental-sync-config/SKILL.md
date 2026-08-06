@@ -1,7 +1,8 @@
 ---
 name: tuning-incremental-sync-config
-description: >
+description: ">"
 ---
+
 # Tuning incremental sync config
 
 A sync's configuration lives on the `ExternalDataSchema` and can be changed any time via

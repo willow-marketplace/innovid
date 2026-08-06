@@ -1,7 +1,8 @@
 ---
 name: finding-data-lake-assets
-description: >-
+description: ">-"
 ---
+
 # Find Data Lake Assets
 
 ## Overview

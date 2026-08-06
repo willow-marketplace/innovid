@@ -1,7 +1,8 @@
 ---
 name: chdb-sql
-description: >-
+description: ">-"
 ---
+
 # chdb SQL — ClickHouse in Your Python Process
 
 Run ClickHouse SQL directly in Python — no server needed. Query local files, remote databases, and cloud storage with full ClickHouse SQL power.

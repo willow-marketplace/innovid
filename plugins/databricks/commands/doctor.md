@@ -1,6 +1,6 @@
 ---
 name: doctor
-description: "Read-only Databricks health check: CLI, profiles, auth validity via one API call. Pass `full` to also check compute and recent job failures."
+description: '"Read-only Databricks health check: CLI, profiles, auth validity via one API call. Pass `full` to also check compute and recent job failures."'
 ---
 
 # Databricks Doctor

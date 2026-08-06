@@ -1,7 +1,8 @@
 ---
 name: 42crunch-setup
-description: >
+description: ">"
 ---
+
 # 42Crunch Setup
 
 Prepares the environment for 42Crunch audit and scan workflows in two phases:

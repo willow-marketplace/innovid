@@ -1,7 +1,8 @@
 ---
 name: rw-integrate-video
-description: "Help users integrate Runway video generation APIs (text-to-video, image-to-video, video-to-video)"
+description: '"Help users integrate Runway video generation APIs (text-to-video, image-to-video, video-to-video)"'
 ---
+
 # Integrate Video Generation
 
 > **PREREQUISITE:** Run `+rw-check-compatibility` first. Run `+rw-fetch-api-reference` to load the latest API reference before integrating. Requires `+rw-setup-api-key` for API credentials. Requires `+rw-integrate-uploads` when the user has local files to use as input.

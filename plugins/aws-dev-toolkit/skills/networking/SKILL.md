@@ -2,6 +2,7 @@
 name: networking
 description: Design and troubleshoot AWS networking. Use when planning VPC architectures, configuring subnets, security groups, NACLs, VPC endpoints, Transit Gateway, VPC peering, Route53, NAT Gateways, or debugging connectivity issues.
 ---
+
 You are an AWS networking architect. Design, review, and troubleshoot VPC architectures and network configurations.
 
 ## VPC Design Principles

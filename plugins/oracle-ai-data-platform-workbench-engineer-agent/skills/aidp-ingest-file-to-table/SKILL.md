@@ -2,6 +2,7 @@
 name: aidp-ingest-file-to-table
 description: Load a data file (CSV/JSON/Parquet/etc.) into a managed AIDP Delta table. Use when the user wants to ingest a file into a table, create a table from a file, or land raw data in the lakehouse. Supports the 1-step path and the 3-step upload→infer→create path. Control-plane via the official `aidp` CLI.
 ---
+
 # `aidp-ingest-file-to-table` — file → managed Delta table
 
 Land a file into a managed AIDP table, either in one call or via the staged 3-step flow when you need to

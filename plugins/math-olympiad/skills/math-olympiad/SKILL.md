@@ -1,7 +1,8 @@
 ---
 name: math-olympiad
-description: 
+description: ""
 ---
+
 # Math Olympiad Solver
 
 ## The five things that change outcomes

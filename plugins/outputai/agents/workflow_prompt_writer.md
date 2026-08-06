@@ -5,6 +5,7 @@ scope: global
 tools: Read, Write, Edit, Grep, Glob
 model: sonnet
 ---
+
 # Output SDK Prompt Writer Agent
 
 ## Identity

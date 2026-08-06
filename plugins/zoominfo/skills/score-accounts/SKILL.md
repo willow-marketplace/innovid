@@ -2,6 +2,7 @@
 name: score-accounts
 description: Score and rank a list of accounts (mixed ZoomInfo company IDs, names, or domains) by ICP fit + buying intent + recent triggers. Returns per-account composite score (0–100), tier (A/B/C), explainable component breakdown (fit / intent / trigger / engagement), a specific "why now" sentence per account, and the working weight set as a saveable search filter set. Resolves name/domain inputs via search_companies with explicit confirmation for ambiguous matches. Iteratively refinable — adjust weights, swap axes, retier, or drill into a specific account. Use for account-based selling, ABM list prioritization, territory planning, sales prospecting prioritization, signal-based selling, buyer intent ranking, B2B prospecting. Triggers on phrases like "score these accounts", "prioritize this list", "rank by ICP fit and intent", "which accounts should I work first", "build a tiered account list".
 ---
+
 # Score Accounts
 
 Rank a list of accounts by ICP fit + intent + trigger signals. Calls `get_gtm_context(detailed: true)` unconditionally, resolves mixed-identifier inputs explicitly surfacing ambiguity, scores each account on four axes, and presents both the ranking and the weight set as iteratively-refinable artifacts.

@@ -1,6 +1,6 @@
 ---
 name: troubleshoot-user
-description: "Cross-product troubleshooting of user connectivity across ZCC, ZDX, ZPA, and ZIA."
+description: '"Cross-product troubleshooting of user connectivity across ZCC, ZDX, ZPA, and ZIA."'
 ---
 
 # Troubleshoot User Connectivity

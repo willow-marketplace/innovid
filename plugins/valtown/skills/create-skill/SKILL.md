@@ -2,6 +2,7 @@
 name: create-skill
 description: Use when the user wants to persist a preference, skill, or knowledge. Use when it would aid future val development to store a memory of how best to build something.
 ---
+
 Skills in Val Town instruct Townie and other AI agents using the Val Town MCP server how to write idiomatic vals that respect a user's preferences and knowledge.
 
 In any val, a user can create a `/skills/<name>/SKILL.md` file, e.g. `/skills/design/SKILL.md`. 

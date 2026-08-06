@@ -1,7 +1,8 @@
 ---
 name: identityserver-saml
-description: "Configuring Duende IdentityServer as a SAML 2.0 Identity Provider (IdP): service provider registration, SSO and SLO flows, claim mappings, extensibility interfaces, and production deployment patterns."
+description: '"Configuring Duende IdentityServer as a SAML 2.0 Identity Provider (IdP): service provider registration, SSO and SLO flows, claim mappings, extensibility interfaces, and production deployment patterns."'
 ---
+
 # SAML 2.0 Identity Provider
 
 ## When to Use This Skill

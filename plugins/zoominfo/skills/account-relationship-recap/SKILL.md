@@ -2,6 +2,7 @@
 name: account-relationship-recap
 description: Recap where things stand with a company across recent conversations, with emphasis on how the relationship is evolving. Identify the account by ZoomInfo company ID (preferred) or by name or domain (triggers a lookup). Blends account_research for deal and firmographic context with company-scoped conversation_intelligence for what has actually been said recently. Use when someone asks "where are we with Acme", "how is the relationship trending", "recap our recent conversations with this account", or wants a relationship read before a check-in. Reasons over the last few engagements only.
 ---
+
 # Account Relationship Recap
 
 Where we stand with an account, read from recent conversations: the current state, and the direction it is moving.

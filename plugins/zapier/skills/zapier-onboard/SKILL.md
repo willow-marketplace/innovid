@@ -2,6 +2,7 @@
 name: zapier-onboard
 description: Onboard a new user to Zapier MCP — introduce what it can do, walk through authentication, and route into the right flow based on the state of their setup. Use when getting started, troubleshooting connection issues, or when the user asks "what is Zapier MCP", "how do I get started with Zapier", "set me up", "what can I do with Zapier", or "tell me about Zapier".
 ---
+
 # Zapier onboard
 
 Introduce Zapier MCP, get the user authenticated, then guide them through the appropriate setup flow.

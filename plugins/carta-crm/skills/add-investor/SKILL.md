@@ -1,7 +1,8 @@
 ---
 name: add-investor
-description: >
+description: ">"
 ---
+
 ## Overview
 
 Help the user create one or more investor records in the Carta CRM using the

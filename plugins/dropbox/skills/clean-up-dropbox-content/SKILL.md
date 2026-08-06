@@ -2,6 +2,7 @@
 name: clean-up-dropbox-content
 description: Clean up Dropbox content by identifying obsolete, duplicate, temporary, or unwanted files and deleting only after explicit review. Use when the user explicitly asks to delete, remove, or clean up Dropbox files or folders.
 ---
+
 # Clean Up Dropbox Content
 
 Use this skill for careful deletion workflows in Dropbox.

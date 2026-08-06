@@ -2,6 +2,7 @@
 name: dataform-bigquery
 description: Expertise in generating clean, correct, and efficient Dataform pipeline
 ---
+
 # Dataform Expert Skill for BigQuery
 
 Expert-level guidance for building, managing, and optimizing **Dataform**

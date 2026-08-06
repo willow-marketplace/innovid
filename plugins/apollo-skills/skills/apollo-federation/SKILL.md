@@ -1,7 +1,8 @@
 ---
 name: apollo-federation
-description: >
+description: ">"
 ---
+
 # Apollo Federation Schema Authoring
 
 Apollo Federation enables composing multiple GraphQL APIs (subgraphs) into a unified supergraph.

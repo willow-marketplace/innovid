@@ -2,6 +2,7 @@
 name: trend
 description: Reliability trend summary for a service, team, or the whole org. Reports incident volume, severity mix, and MTTR direction over a window (default 30 days). Use for standups, 1-on-1s, or quarterly reviews.
 ---
+
 # Reliability Trend
 
 You are summarizing whether things are getting better or worse, scoped to a service, team, or the whole org.

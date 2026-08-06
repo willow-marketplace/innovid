@@ -2,6 +2,7 @@
 name: output-dev-types-file
 description: Create types.ts files with Zod schemas for Output SDK workflows. Use when defining input/output schemas, creating type definitions, or fixing schema-related errors.
 ---
+
 # Creating types.ts Files with Zod Schemas
 
 ## Overview

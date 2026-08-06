@@ -2,6 +2,7 @@
 name: threat-modeling-with-aws-security-agent
 description: Run an AWS Security Agent threat model review on spec/design documents. Use when the user asks to review a spec for security, run a threat model, check if a design introduces security risks, review requirements.md or design.md for security posture changes, or STRIDE analysis.
 ---
+
 # AWS Security Agent — Threat Model Review
 
 Analyze spec documents (`requirements.md`, `design.md`) against the source code to identify security-posture changes using STRIDE methodology. No prior scan needed.

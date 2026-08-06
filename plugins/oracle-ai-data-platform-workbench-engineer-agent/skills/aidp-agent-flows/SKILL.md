@@ -2,6 +2,7 @@
 name: aidp-agent-flows
 description: Discover, author, deploy, and run AIDP agent flows. Use when the user wants to list/inspect agent flows, or create/update/deploy/run a flow, manage sessions/guardrails, attach compute, or attach a remote MCP server to a flow (an MCP_TOOL node — AIDP's "Native MCP Client Support" LA feature, where the flow connects OUT to OAC/ADW/OIC/any MCP-compatible service). Everything runs over the Limited-Availability AgentFlows REST API via `oci raw-request`; verify live first. (An `aidp` MCP `list_agent_flows`, if configured, is an optional read accelerator only.)
 ---
+
 # `aidp-agent-flows` — agent flow lifecycle
 
 Discover, author, deploy, and run agent flows through the AIDP REST `AgentFlows` API via

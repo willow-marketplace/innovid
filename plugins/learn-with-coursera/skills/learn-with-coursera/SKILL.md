@@ -1,7 +1,8 @@
 ---
 name: learn-with-coursera
-description: >
+description: ">"
 ---
+
 # learn-with-coursera — Learning Companion for Enterprise Learners
 
 ## What This Skill Does

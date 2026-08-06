@@ -1,7 +1,8 @@
 ---
 name: otel-instrumentation
-description: >
+description: ">"
 ---
+
 # OpenTelemetry Instrumentation for Honeycomb
 
 SDK setup, custom spans, attributes, span events, sampling, and layered telemetry.

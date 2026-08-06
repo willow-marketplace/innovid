@@ -1,7 +1,8 @@
 ---
 name: search-contacts
-description: >
+description: ">"
 ---
+
 ## Overview
 
 Search for contacts in the Carta CRM. If the user provided an ID, fetch the single

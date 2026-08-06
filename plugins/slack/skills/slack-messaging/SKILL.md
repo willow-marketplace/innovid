@@ -2,6 +2,7 @@
 name: slack-messaging
 description: Guidance for composing well-formatted, effective Slack messages using standard markdown
 ---
+
 # Slack Messaging Best Practices
 
 This skill provides guidance for composing well-formatted, effective Slack messages.

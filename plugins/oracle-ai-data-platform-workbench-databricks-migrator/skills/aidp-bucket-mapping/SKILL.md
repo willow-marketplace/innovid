@@ -2,6 +2,7 @@
 name: aidp-bucket-mapping
 description: Configure the s3:// → oci:// bucket / namespace mapping the migrator uses to rewrite paths during notebook + catalog migration. Use when (a) the user has external tables / files at s3:// paths that need to land on OCI Object Storage, OR (b) check_data_availability reports "S3 bucket X not found in OCI bucket mapping", OR (c) DDL rewriter logs a missing-bucket warning.
 ---
+
 # `aidp-bucket-mapping` — wire up `s3://` ↔ `oci://`
 
 Several places in the migrator look up `s3://<bucket>/<path>` and rewrite to `oci://<bucket>@<namespace>/<path>`:

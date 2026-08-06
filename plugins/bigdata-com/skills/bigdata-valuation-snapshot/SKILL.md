@@ -1,7 +1,8 @@
 ---
 name: bigdata-valuation-snapshot
-description: >
+description: ">"
 ---
+
 # Bigdata Valuation Snapshot
 
 The lightweight answer path for "what is it worth" — no full memo, no standalone model build. Use Bigdata.com plugin tools for every fact.

@@ -1,7 +1,8 @@
 ---
 name: ui5-best-practices-smart-controls
-description: |
+description: "|"
 ---
+
 # UI5 Smart Controls Best Practices
 
 Apply these guidelines whenever generating, reviewing, or troubleshooting UI5 smart control code in freestyle applications using OData V2 services.

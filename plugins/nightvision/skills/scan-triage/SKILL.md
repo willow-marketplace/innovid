@@ -2,6 +2,7 @@
 name: scan-triage
 description: Guide for agents to help users interpret and act on NightVision DAST scan results. Use when reading SARIF/CSV findings, explaining vulnerabilities, locating vulnerable code, validating findings with curl, prioritizing by severity, suggesting remediations, or marking false positives.
 ---
+
 # NightVision Scan Triage
 
 Use this skill when helping users understand and act on NightVision scan results. NightVision produces findings from two scanning engines — ZAP (active and passive rules) and Nuclei (CVE and misconfiguration templates) — and exports them as SARIF or CSV.

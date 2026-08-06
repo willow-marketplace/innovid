@@ -2,6 +2,7 @@
 name: account-research
 description: Produce a full intelligence brief on a target company — firmographics, CRM/account context, intent signals, recent news, scoops, and competitive landscape — framed by your GTM context and led with a TL;DR summary. Identify the account by ZoomInfo account/company ID (preferred) or by company name, domain, or ticker (which triggers a lookup step). Include detailed context on why the brief is being pulled.
 ---
+
 # Account Research
 
 Produce a high-signal intelligence brief on a target company. Lead with a synthesized executive summary, suppress sections where data is thin, and tie next steps to specific people and concrete topics surfaced during research.

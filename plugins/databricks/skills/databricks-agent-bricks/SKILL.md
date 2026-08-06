@@ -1,7 +1,8 @@
 ---
 name: databricks-agent-bricks
-description: "Create Agent Bricks: Knowledge Assistants (KA) for document Q&A and Supervisor Agents for multi-agent orchestration (MAS)."
+description: '"Create Agent Bricks: Knowledge Assistants (KA) for document Q&A and Supervisor Agents for multi-agent orchestration (MAS)."'
 ---
+
 # Agent Bricks
 
 Agent Bricks are pre-built AI tiles in Databricks that provide conversational interfaces. This skill covers **Knowledge Assistants** and **Supervisor Agents**.

@@ -2,6 +2,7 @@
 name: experiment-stop
 description: Stop a running GrowthBook experiment via the REST API, optionally declaring a winning variation and rolling it out to 100% of eligible traffic. Use when the user says "stop this experiment", "end the A/B test", "declare a winner for X", "ship the winning variation", "roll back the test", or "we're done with this experiment". For interpreting results before deciding, use experiment-analyze first.
 ---
+
 # experiment-stop
 
 Stop a running experiment, optionally declaring a winning variation and ramping it to all eligible traffic via a temporary rollout. The endpoint is `POST /api/v1/experiments/<id>/stop` (a dedicated endpoint, not the generic update). All variation references are **variation ID strings** like `var_abc123`, not 0-based integer indexes.

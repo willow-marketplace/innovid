@@ -1,7 +1,8 @@
 ---
 name: federate-lakehouse-catalog
-description: >-
+description: ">-"
 ---
+
 # Federate Lakehouse Catalog via Cross-cloud Lakehouse
 
 This skill describes how to set up a federated catalog in BigQuery to query

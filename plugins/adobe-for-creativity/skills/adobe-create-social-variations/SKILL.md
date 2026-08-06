@@ -1,7 +1,8 @@
 ---
 name: adobe-create-social-variations
-description: >
+description: ">"
 ---
+
 # Adobe Create Social Variations
 
 Produces platform-ready images and videos from a single source file. Uses AI canvas expansion and subject-aware cropping to keep the subject in focus across all aspect ratios. Shows a lightweight 3-crop preview before a full-set run so framing issues are caught early — those crops are then reused in the final output.

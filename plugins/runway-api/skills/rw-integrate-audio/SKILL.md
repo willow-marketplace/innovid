@@ -1,7 +1,8 @@
 ---
 name: rw-integrate-audio
-description: "Help users integrate Runway audio APIs (TTS, sound effects, voice isolation, dubbing)"
+description: '"Help users integrate Runway audio APIs (TTS, sound effects, voice isolation, dubbing)"'
 ---
+
 # Integrate Audio Generation
 
 > **PREREQUISITE:** Run `+rw-check-compatibility` first. Run `+rw-fetch-api-reference` to load the latest API reference before integrating. Requires `+rw-setup-api-key` for API credentials. Requires `+rw-integrate-uploads` for local audio/video files.

@@ -1,7 +1,8 @@
 ---
 name: databricks-lakeflow-connect
-description: "Build managed ingestion pipelines into Databricks using Lakeflow Connect. Use when ingesting from SaaS apps (Salesforce, Workday Reports, ServiceNow, Google Analytics 4, HubSpot, Confluence) or databases (SQL Server cloud and on-prem; PostgreSQL/MySQL CDC in PuPr) into Unity Catalog with serverless pipelines."
+description: '"Build managed ingestion pipelines into Databricks using Lakeflow Connect. Use when ingesting from SaaS apps (Salesforce, Workday Reports, ServiceNow, Google Analytics 4, HubSpot, Confluence) or databases (SQL Server cloud and on-prem; PostgreSQL/MySQL CDC in PuPr) into Unity Catalog with serverless pipelines."'
 ---
+
 # Lakeflow Connect
 
 Build managed ingestion pipelines that pull from SaaS apps and databases into Unity Catalog Delta tables, governed end-to-end and powered by serverless Lakeflow Spark Declarative Pipelines (formerly Delta Live Tables / DLT).

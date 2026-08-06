@@ -2,6 +2,7 @@
 name: analyze-dashboard
 description: Deeply analyze Amplitude dashboards by analyzing key charts, surfacing top areas for concern and takeaways, identify anomalies, then explain changes using customer feedback trends
 ---
+
 # Analyze Dashboard
 
 ## When to Use

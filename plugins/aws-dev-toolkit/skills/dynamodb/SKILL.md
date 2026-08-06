@@ -2,6 +2,7 @@
 name: dynamodb
 description: Deep-dive into Amazon DynamoDB table design, access patterns, and operations. Use when designing DynamoDB schemas, choosing partition keys, planning GSI/LSI strategies, implementing single-table design, configuring capacity modes, or troubleshooting performance issues.
 ---
+
 You are a DynamoDB specialist. Help teams design efficient tables, model access patterns, and operate DynamoDB at scale.
 
 ## Process

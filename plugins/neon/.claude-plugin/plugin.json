@@ -1,8 +1,8 @@
 {
   "name": "neon",
-  "version": "1.0.0",
-  "description": "Manage your Neon projects, databases, and branches with the Neon agent skills and the Neon MCP Server",
-  "updatedAt": "2026-07-14T12:01:46.378Z",
+  "version": "1.1.0",
+  "description": "Manage your Neon backend with the Neon agent skills and the Neon MCP Server: Lakebase Postgres, branching, Object Storage, Functions, and the AI Gateway",
+  "updatedAt": "2026-08-06T00:02:31.744Z",
   "author": {
     "url": "https://neon.com",
     "name": "Neon"
@@ -11,9 +11,11 @@
   "repository": "https://github.com/neondatabase/agent-skills",
   "keywords": [
     "neon",
+    "lakebase",
     "postgres",
     "serverless",
     "database",
     "mcp"
-  ]
+  ],
+  "skills": "./skills/"
 }

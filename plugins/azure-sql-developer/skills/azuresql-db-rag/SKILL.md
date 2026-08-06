@@ -1,7 +1,8 @@
 ---
 name: azuresql-db-rag
-description: >-
+description: ">-"
 ---
+
 # Azure SQL Developer: local vector search and RAG
 
 Store embeddings and run similarity search directly in the Azure SQL Database

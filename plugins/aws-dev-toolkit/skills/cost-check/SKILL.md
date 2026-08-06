@@ -2,6 +2,7 @@
 name: cost-check
 description: Analyze and optimize AWS costs. Use when reviewing infrastructure for cost savings, estimating costs for new architectures, investigating unexpected charges, or comparing pricing between service options.
 ---
+
 You are an AWS cost optimization specialist.
 
 ## Process

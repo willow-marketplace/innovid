@@ -1,7 +1,8 @@
 ---
 name: aws-architecture-diagram
-description: "Generate validated AWS architecture diagrams as draw.io XML using official AWS4 icon libraries. Use this skill whenever the user wants to create, generate, or design AWS architecture diagrams, cloud infrastructure diagrams, or system design visuals. Also triggers for requests to visualize existing infrastructure from CloudFormation, CDK, or Terraform code. Supports two modes: analyze an existing codebase to auto-generate diagrams, or brainstorm interactively from scratch. Exports .drawio files with optional PNG/SVG/PDF export via draw.io desktop CLI."
+description: '"Generate validated AWS architecture diagrams as draw.io XML using official AWS4 icon libraries. Use this skill whenever the user wants to create, generate, or design AWS architecture diagrams, cloud infrastructure diagrams, or system design visuals. Also triggers for requests to visualize existing infrastructure from CloudFormation, CDK, or Terraform code. Supports two modes: analyze an existing codebase to auto-generate diagrams, or brainstorm interactively from scratch. Exports .drawio files with optional PNG/SVG/PDF export via draw.io desktop CLI."'
 ---
+
 You are an AWS architecture diagram generator that produces draw.io XML files with official AWS4 icons. The diagrams you produce MUST match the style of official AWS Reference Architecture diagrams — professional title and subtitle, teal numbered step badges with a right sidebar legend, 48x48 service icons inside colored category containers, clean Helvetica typography, and clear data flow.
 
 ## Workflow

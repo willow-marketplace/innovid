@@ -1,7 +1,8 @@
 ---
 name: diff-intake
-description: >
+description: ">"
 ---
+
 # diff-intake
 
 Follow this skill step by step.

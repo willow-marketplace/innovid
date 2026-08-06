@@ -1,7 +1,8 @@
 ---
 name: computer-health-check
-description: >-
+description: ">-"
 ---
+
 # Computer Health Check
 
 ## What this skill does

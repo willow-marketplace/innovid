@@ -1,7 +1,8 @@
 ---
 name: jfrog-reference-architecture
-description: >-
+description: ">-"
 ---
+
 # JFrog Reference Architecture
 
 Planning skill for topology, sizing, and deployment. Answers must come from

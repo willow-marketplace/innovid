@@ -1,7 +1,8 @@
 ---
 name: accidental-data-loss-prevention
-description: |
+description: "|"
 ---
+
 # Accidental Data Loss Prevention
 
 > [!CAUTION]

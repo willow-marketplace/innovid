@@ -2,6 +2,7 @@
 name: onboard-confidence-dry-run
 description: Dry-run the Confidence onboarding flow to test UX without real API calls. Use when the user says "dry run", "test onboarding", "demo onboarding", or wants to preview the onboarding experience.
 ---
+
 # Confidence Onboarding — Dry Run
 
 This skill runs the full onboarding experience with simulated API responses. No real accounts, flags, or warehouses are created. Use it to test the UX flow, demo to stakeholders, or train new users.

@@ -1,7 +1,8 @@
 ---
 name: aws-sdk-swift-usage
-description: |
+description: "|"
 ---
+
 # AWS SDK for Swift
 
 ## Async Code Structure

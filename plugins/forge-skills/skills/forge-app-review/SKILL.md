@@ -1,7 +1,8 @@
 ---
 name: forge-app-review
-description: >
+description: ">"
 ---
+
 # Forge App Review
 
 Run a general Forge release-readiness review. This skill is the front door for broad app review, not a replacement for specialist security, cost, or debugging skills.

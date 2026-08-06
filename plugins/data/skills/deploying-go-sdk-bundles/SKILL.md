@@ -2,6 +2,7 @@
 name: deploying-go-sdk-bundles
 description: Builds, packs, and deploys compiled Airflow Go SDK bundles so the ExecutableCoordinator can run them. Use when the user wants to compile a Go task bundle, asks about `go build`, `go tool airflow-go-pack`, the AFBNDL01 self-contained executable bundle, packing or inspecting a bundle, placing it under `executables_root`, cross-compiling a bundle for workers, `go-sdk` module versioning/tags/pseudo-versions, or getting the bundle onto an Airflow worker (Docker, Kubernetes, or Astro). For the task code see authoring-go-sdk-tasks; for the shared coordinator settings see configuring-airflow-language-sdks.
 ---
+
 # Deploying Go SDK Bundles
 
 A Go SDK deployment has one artifact: a **bundle**, a single self-contained native executable that also carries its embedded source and a manifest (the AFBNDL01 format, "the executable *is* the bundle"). You build and pack it with `go`, place it where Airflow's `ExecutableCoordinator` scans, and the Python task runner forks it once per task instance. This skill is platform-neutral: it shows the build, the coordinator wiring, then how to get the bundle onto a worker.

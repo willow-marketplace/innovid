@@ -2,6 +2,7 @@
 name: token-coach
 description: Context window coach. Proactive guidance for token-efficient Claude Code or Codex projects, multi-agent systems, and skill architecture.
 ---
+
 # Token Coach: Plan Token-Efficient Before You Build
 
 Interactive coaching for Claude Code or Codex architecture decisions. Analyzes your setup, identifies patterns (good and bad), and gives personalized advice with real numbers.

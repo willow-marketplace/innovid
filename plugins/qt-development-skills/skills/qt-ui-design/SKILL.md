@@ -1,7 +1,8 @@
 ---
 name: qt-ui-design
-description: >-
+description: ">-"
 ---
+
 # Qt UI Design
 Before producing UI output, confirm you know: target platform, screen geometry, design system, content priority, viewing distance, locale, and input methods. Run the seven items below as a check against the conversation and the project state; ask only the items that are genuinely missing. When the user cannot answer an item, choose a sensible Qt default and name it in your response so the user can correct it.
 

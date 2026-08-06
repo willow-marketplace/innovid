@@ -1,7 +1,8 @@
 ---
 name: catalyst-zia
-description: "Catalyst Zia Services and QuickML — OCR, Face Analytics, Text Analytics, Object Detection, Barcode Scanner, Content Moderation, and AutoML predictions. Trigger on 'Zia', 'QuickML', 'OCR', 'face detection', 'text analytics', 'AutoML', 'ML model', or 'train a model on Catalyst'. DC restrictions: Identity Scanner is IN DC only; AutoML/QuickML is not available in EU, AU, IN, JP, SA, CA, UAE data centers."
+description: "\"Catalyst Zia Services and QuickML — OCR, Face Analytics, Text Analytics, Object Detection, Barcode Scanner, Content Moderation, and AutoML predictions. Trigger on 'Zia', 'QuickML', 'OCR', 'face detection', 'text analytics', 'AutoML', 'ML model', or 'train a model on Catalyst'. DC restrictions: Identity Scanner is IN DC only; AutoML/QuickML is not available in EU, AU, IN, JP, SA, CA, UAE data centers.\""
 ---
+
 ## How It Works
 
 1. **Identify the capability** — OCR, Face Analytics, Text Analytics, Object Detection, Barcode Scanner, Content Moderation (Zia Services), or AutoML/predictions (QuickML).

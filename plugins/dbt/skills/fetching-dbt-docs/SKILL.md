@@ -2,6 +2,7 @@
 name: fetching-dbt-docs
 description: Retrieves and searches dbt documentation pages in LLM-friendly markdown format. Use when fetching dbt documentation, looking up dbt features, or answering questions about dbt Cloud, dbt Core, or the dbt Semantic Layer.
 ---
+
 # Fetch dbt Docs
 
 ## Overview

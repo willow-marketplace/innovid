@@ -2,6 +2,7 @@
 name: postman-cli
 description: Postman CLI reference and git sync file structure knowledge - provides context for CLI-based commands (send-request, generate-spec, run-collection, context)
 ---
+
 Reference knowledge for the Postman CLI and git sync file structure. This skill provides context used by the CLI commands.
 
 ## Postman CLI Overview

@@ -2,6 +2,7 @@
 name: flag-toggle
 description: Enable or disable a GrowthBook feature flag in a specific environment. Use when the user says "turn on flag X in production", "disable this flag in staging", "kill switch flag X", "turn this off everywhere", "enable the flag", "flip it off in prod", or "I need to disable this flag now". This is the environment-level kill switch — it controls whether the flag is evaluated at all in an environment, independent of its rules. Changes are review-gated and go through the standard draft → publish flow. For adding or editing targeting rules within an environment, use flag-targeting. For toggling a rule on or off without affecting the environment, use flag-rules.
 ---
+
 # flag-toggle
 
 Enable or disable a GrowthBook feature flag in a specific environment. Toggling an environment is the kill switch — when a flag is disabled in an environment, its rules don't evaluate and the SDK returns the default value for all users in that environment, regardless of what the rules say.

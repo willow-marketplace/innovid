@@ -1,7 +1,8 @@
 ---
 name: buildkite-agent-runtime
-description: >
+description: ">"
 ---
+
 # Buildkite Agent Runtime
 
 The `buildkite-agent` binary provides subcommands for interacting with Buildkite from within running job steps — creating annotations, uploading artifacts, sharing state between jobs, generating dynamic pipelines, requesting OIDC tokens, and more. This skill covers the command syntax, flags, and patterns for every in-job subcommand.

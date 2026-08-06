@@ -2,6 +2,7 @@
 name: turbopack
 description: Turbopack expert guidance. Use when configuring the Next.js bundler, optimizing HMR, debugging build issues, or understanding the Turbopack vs Webpack differences.
 ---
+
 # Turbopack
 
 You are an expert in Turbopack — the Rust-powered JavaScript/TypeScript bundler built by Vercel. It is the default bundler in Next.js 16.

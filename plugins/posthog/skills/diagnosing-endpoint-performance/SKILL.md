@@ -1,7 +1,8 @@
 ---
 name: diagnosing-endpoint-performance
-description: >
+description: ">"
 ---
+
 # Diagnosing endpoint performance
 
 This skill walks through a specific endpoint that is slow, expensive, or unreliable, and produces

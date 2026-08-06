@@ -2,6 +2,7 @@
 name: fiftyone-dataset-import
 description: Imports datasets into FiftyOne with automatic format detection. Supports all media types (images, videos, point clouds), label formats (COCO, YOLO, VOC, KITTI), multimodal grouped datasets, and Hugging Face Hub datasets. Use when importing datasets from local files or Hugging Face, loading autonomous driving data, or creating grouped datasets.
 ---
+
 # Universal Dataset Import for FiftyOne
 
 ## Key Directives

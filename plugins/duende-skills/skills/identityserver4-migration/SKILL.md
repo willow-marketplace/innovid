@@ -2,6 +2,7 @@
 name: identityserver4-migration
 description: Migrating from IdentityServer4 to Duende IdentityServer v8. Covers NuGet package replacement, namespace changes, API surface changes, EF Core database schema migrations, .NET target framework upgrade, license configuration, signing key migration, data protection, and UI template updates.
 ---
+
 # Migrating from IdentityServer4 to Duende IdentityServer
 
 > **Scope: IdentityServer4 only.** This skill covers migrating from **IdentityServer4** (v3.x and v4.x) to Duende IdentityServer. It does **not** cover migrating from **IdentityServer3** (the older Thinktecture/`IdentityServer3` NuGet package that ran on OWIN/Katana and .NET Framework). IdentityServer3 is a fundamentally different product with a different API surface, configuration model, and hosting stack. If you are on IdentityServer3, you must first port to IdentityServer4 on ASP.NET Core before using this guide.

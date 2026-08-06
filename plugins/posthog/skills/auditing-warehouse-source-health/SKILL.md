@@ -1,7 +1,8 @@
 ---
 name: auditing-warehouse-source-health
-description: >
+description: ">"
 ---
+
 # Auditing data warehouse source health
 
 This skill produces a project-wide audit of the **source and sync** side of the data warehouse pipeline — source

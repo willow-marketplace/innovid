@@ -2,6 +2,7 @@
 name: aidp-fusion-rest
 description: Pull data from Oracle Fusion ERP / HCM / SCM REST APIs into a Spark DataFrame from an AIDP notebook. Use when the user mentions Fusion ERP, Fusion REST API, FA REST, Cloud ERP, or wants live data from a Fusion pod. HTTP Basic auth only. For volumes >499 rows/page or bulk extracts, route to aidp-fusion-bicc.
 ---
+
 # `aidp-fusion-rest` — Fusion ERP / HCM / SCM REST → Spark
 
 ## When to use

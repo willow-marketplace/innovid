@@ -2,6 +2,7 @@
 description: Enforces correct Zapier MCP tool lifecycle, safety rules, and error handling. Governs all interactions with the Zapier MCP server.
 alwaysApply: true
 ---
+
 # Zapier MCP lifecycle
 
 This workspace uses Zapier MCP to connect your AI to external apps. These rules govern how you interact with Zapier tools.

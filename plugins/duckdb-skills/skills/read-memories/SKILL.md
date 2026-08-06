@@ -1,7 +1,8 @@
 ---
 name: read-memories
-description: >
+description: ">"
 ---
+
 Search past session logs silently — do NOT narrate the process. Absorb the results and continue with enriched context.
 
 `$0` is the keyword. Pass `--here` as `$1` to scope to the current project only.

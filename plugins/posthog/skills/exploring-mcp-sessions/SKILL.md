@@ -1,7 +1,8 @@
 ---
 name: exploring-mcp-sessions
-description: >
+description: ">"
 ---
+
 # Exploring MCP sessions
 
 An MCP session is one agent run, identified by `$session_id` on the

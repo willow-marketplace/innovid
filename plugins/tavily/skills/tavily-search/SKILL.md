@@ -1,7 +1,8 @@
 ---
 name: tavily-search
-description: |
+description: "|"
 ---
+
 # tavily search
 
 Web search returning LLM-optimized results with content snippets and relevance scores.

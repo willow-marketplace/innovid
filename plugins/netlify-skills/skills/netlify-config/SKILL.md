@@ -2,6 +2,7 @@
 name: netlify-config
 description: Reference for netlify.toml configuration. Use when configuring build settings, redirects, rewrites, headers, deploy contexts, environment variables, or any site-level configuration. Covers the complete netlify.toml syntax including redirects with splats/conditions, headers, deploy contexts, functions config, and edge functions config.
 ---
+
 # Netlify Configuration (netlify.toml)
 
 Place `netlify.toml` at the repository root (or at the base directory for monorepos).

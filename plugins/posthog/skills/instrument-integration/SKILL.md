@@ -1,7 +1,8 @@
 ---
 name: instrument-integration
-description: >-
+description: ">-"
 ---
+
 # Add PostHog SDK integration
 
 Use this skill to add the PostHog SDK to an application. Use it when setting up PostHog for the first time, or reviewing PRs that need PostHog initialization. Covers SDK installation, provider setup, and basic configuration. Supports any framework or language.

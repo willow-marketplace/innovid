@@ -1,6 +1,6 @@
 ---
 name: review-attack-surface
-description: "Review external attack surface using Zscaler EASM findings, exposed services, and lookalike domains."
+description: '"Review external attack surface using Zscaler EASM findings, exposed services, and lookalike domains."'
 ---
 
 # Review Attack Surface

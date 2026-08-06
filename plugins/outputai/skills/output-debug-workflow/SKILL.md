@@ -2,6 +2,7 @@
 name: output-debug-workflow
 description: Debug Output SDK workflow issues. Use when user reports a workflow failing, erroring, hanging, producing wrong results, or asks to debug, troubleshoot, or investigate a workflow execution.
 ---
+
 Your task is to systematically debug an Output SDK workflow issue in a local development environment.
 
 The arguments the user provided describe the problem they're experiencing, and may include a specific workflow ID.

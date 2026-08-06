@@ -2,6 +2,7 @@
 name: identity-security-hardening
 description: Security hardening for Duende IdentityServer deployments including signing key rotation, HTTPS enforcement, CORS configuration, CSP headers, rate limiting, token lifetime tuning, and security audit patterns.
 ---
+
 # Identity Security Hardening
 
 ## When to Use This Skill

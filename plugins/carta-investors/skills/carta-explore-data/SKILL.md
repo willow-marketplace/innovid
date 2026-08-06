@@ -1,7 +1,8 @@
 ---
 name: carta-explore-data
-description: >
+description: ">"
 ---
+
 <!-- Part of the official Carta AI Agent Plugin -->
 
 # Explore Data

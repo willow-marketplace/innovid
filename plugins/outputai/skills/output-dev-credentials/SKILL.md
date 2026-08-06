@@ -2,6 +2,7 @@
 name: output-dev-credentials
 description: Store and reference encrypted secrets in Output SDK workflows using @outputai/credentials. Use when integrating API keys, database passwords, or third-party tokens.
 ---
+
 # Encrypted Credentials Management
 
 ## Overview

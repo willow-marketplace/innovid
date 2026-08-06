@@ -2,6 +2,7 @@
 name: person-enrichment
 description: Retrieves detailed information about a person from their email address, including name, position, company, and social profiles. Use when the user asks about a person, wants to enrich a contact, or needs more details about someone whose email they have.
 ---
+
 # Person Enrichment
 
 Get a detailed profile of a person from their email address.

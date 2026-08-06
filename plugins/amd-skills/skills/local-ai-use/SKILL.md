@@ -1,7 +1,8 @@
 ---
 name: local-ai-use
-description: >-
+description: ">-"
 ---
+
 # Local AI Use (route image, TTS, STT through Lemonade)
 
 This is a **meta-skill**. You run it once. After that, every later request that

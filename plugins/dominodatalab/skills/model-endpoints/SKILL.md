@@ -2,6 +2,7 @@
 name: model-endpoints
 description: Deploy and monitor model API endpoints in Domino. Covers creating prediction endpoints, version management, Grafana dashboards for latency/errors/resources, alerting, and GPU inference with NVIDIA Triton. Use when deploying models as APIs, monitoring production endpoints, or debugging endpoint issues.
 ---
+
 # Domino Model Endpoints Skill
 
 This skill provides comprehensive knowledge for deploying and monitoring model API endpoints in Domino Data Lab.

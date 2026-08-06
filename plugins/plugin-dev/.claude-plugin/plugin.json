@@ -2,7 +2,7 @@
   "name": "plugin-dev",
   "version": "1.0.0",
   "description": "Plugin development toolkit with skills for creating agents, commands, hooks, MCP integrations, and comprehensive plugin structure guidance",
-  "updatedAt": "2026-08-06T00:02:38.416Z",
+  "updatedAt": "2026-08-06T06:56:19.151Z",
   "author": {
     "name": "Anthropic",
     "email": "support@anthropic.com"
@@ -10,5 +10,9 @@
   "homepage": "https://github.com/anthropics/claude-plugins-public/tree/main/plugins/plugin-dev",
   "skills": "./skills/",
   "commands": "./commands/",
-  "agents": "./agents/"
+  "agents": [
+    "./agents/agent-creator.md",
+    "./agents/plugin-validator.md",
+    "./agents/skill-reviewer.md"
+  ]
 }

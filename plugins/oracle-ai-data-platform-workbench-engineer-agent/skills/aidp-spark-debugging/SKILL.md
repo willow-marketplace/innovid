@@ -2,6 +2,7 @@
 name: aidp-spark-debugging
 description: Diagnose slow or failed AIDP Spark work using cluster logs, metrics, and the Spark UI REST API. Use when a job/query is slow or failed, the user asks "why did this fail / why is it slow", or you need stage/task timings, skew, shuffle/spill, executor, or SQL-execution details. Lightweight triage — for deep performance tuning (skew/spill/shuffle/joins/AQE/Delta) use the `aidp-spark-optimization` skill.
 ---
+
 # `aidp-spark-debugging` — logs + metrics + Spark UI triage
 
 Ground failure/slowness diagnosis in real execution data (never guess). Two engines, no MCP required:

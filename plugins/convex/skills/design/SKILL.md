@@ -1,7 +1,8 @@
 ---
 name: design
-description: "Design and build reactive, type-safe, production-grade backends on Convex. Covers schema, queries/mutations/actions, indexes, auth, file storage, scheduling, real-time multiplayer, mobile backends, and LLM/agent workflows on Convex's one-platform stack."
+description: "\"Design and build reactive, type-safe, production-grade backends on Convex. Covers schema, queries/mutations/actions, indexes, auth, file storage, scheduling, real-time multiplayer, mobile backends, and LLM/agent workflows on Convex's one-platform stack.\""
 ---
+
 # Convex Backend Skill
 
 Build reactive, type-safe, production-grade backends on **Convex** that avoid generic "AI slop" architecture. Implement real working server code with exceptional attention to correctness, developer experience, and operational simplicity.

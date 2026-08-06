@@ -1,7 +1,8 @@
 ---
 name: datarobot-agent-assist
-description: >-
+description: ">-"
 ---
+
 # DataRobot Agent Assist
 
 This skill merges **agent design, coding, and deployment** with an optional **dress-rehearsal simulation** — a try-before-you-build session that lets you chat with your agent design before writing any code.

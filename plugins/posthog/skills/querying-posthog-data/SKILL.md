@@ -1,7 +1,8 @@
 ---
 name: querying-posthog-data
-description: 'Required reading before writing any HogQL/SQL or calling execute-sql against PostHog. Use whenever the user wants to search, find, or do complex aggregations PostHog entities (insights, dashboards, cohorts, feature flags, experiments, surveys, hog flows, data warehouse, persons, etc.) and query analytics data (trends, funnels, retention, lifecycle, paths, stickiness, web analytics, error tracking, logs, sessions, LLM traces). Covers HogQL syntax differences from ClickHouse SQL, system table schemas (system.*), available functions, query examples, and the schema-discovery workflow.'
+description: "'Required reading before writing any HogQL/SQL or calling execute-sql against PostHog. Use whenever the user wants to search, find, or do complex aggregations PostHog entities (insights, dashboards, cohorts, feature flags, experiments, surveys, hog flows, data warehouse, persons, etc.) and query analytics data (trends, funnels, retention, lifecycle, paths, stickiness, web analytics, error tracking, logs, sessions, LLM traces). Covers HogQL syntax differences from ClickHouse SQL, system table schemas (system.*), available functions, query examples, and the schema-discovery workflow.'"
 ---
+
 # Querying data in PostHog
 
 The [guidelines](./references/guidelines.md) contain the same instructions as `posthog:execute-sql`. If you've already read `posthog:execute-sql`, you don't need to read them again.

@@ -2,6 +2,7 @@
 name: client-side-js
 description: Use when a val needs to ship JavaScript that runs in the browser — React apps, vanilla DOM scripts, canvas/games, htmx/Alpine, or any client-side module beyond a single inline snippet. Explains how Val Town serves transpiled .ts/.tsx/.jsx modules with no build step, how the browser resolves their imports, and how to load third-party deps.
 ---
+
 # Client-side JavaScript
 
 Val Town has **no build step and no bundler**. A client-side module is just a file

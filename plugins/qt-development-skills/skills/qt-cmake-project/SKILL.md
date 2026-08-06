@@ -1,7 +1,8 @@
 ---
 name: qt-cmake-project
-description: >-
+description: ">-"
 ---
+
 ## Overview
 
 Covers Qt CMake project setup by using Qt CMake API available via development installation of

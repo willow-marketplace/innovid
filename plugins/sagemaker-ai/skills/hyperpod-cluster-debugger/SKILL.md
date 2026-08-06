@@ -2,6 +2,7 @@
 name: hyperpod-cluster-debugger
 description: Diagnose and remediate cluster-wide HyperPod (EKS or Slurm) problems — creation / deployment failures (CloudFormation, EFA health check, lifecycle scripts, capacity), EKS access, node replacement, CloudFormation nested-stack errors, post-maintenance rollback state, dangling nodes, autoscaler conflicts. Includes `--validate` pre-flight. Read-only.
 ---
+
 # HyperPod Cluster Debugger
 
 **Operating policy.** Run read-only diagnostics yourself. Never run a command that changes cluster, node, or workload state — present each one as a **Suggested command (run this yourself)** block and wait for the customer to run it. Destructive order: **investigate → reboot → replace** (replace destroys root + secondary volumes; not supported on Slurm controller nodes).

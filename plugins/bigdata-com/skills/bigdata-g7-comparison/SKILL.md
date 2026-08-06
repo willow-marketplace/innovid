@@ -1,7 +1,8 @@
 ---
 name: bigdata-g7-comparison
-description: >
+description: ">"
 ---
+
 # Bigdata G7 Comparison
 
 Side-by-side benchmark of the seven G7 economies. Use Bigdata.com plugin tools for every fact.

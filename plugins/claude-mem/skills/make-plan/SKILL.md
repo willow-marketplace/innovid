@@ -2,6 +2,7 @@
 name: make-plan
 description: Create a detailed, phased implementation plan with documentation discovery. Use when asked to plan a feature, task, or multi-step implementation — especially before executing with do.
 ---
+
 # Make Plan
 
 You are an ORCHESTRATOR. Create an LLM-friendly plan in phases that can be executed consecutively in new chat contexts.

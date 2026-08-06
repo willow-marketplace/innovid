@@ -2,6 +2,7 @@
 name: assets
 description: Upload, list, and manage Spotify Ads API creative assets — audio, video, and images for ad campaigns.
 ---
+
 # Spotify Ads API — Asset Management
 
 Upload, list, retrieve, and archive creative assets (audio, video, images) for use in ads.

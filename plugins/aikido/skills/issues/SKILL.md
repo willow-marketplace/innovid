@@ -2,6 +2,7 @@
 name: issues
 description: List, count, summarize, or triage security issues from the Aikido security feed. Use when the user asks about Aikido findings, vulnerabilities, leaked secrets, SAST/IaC/SCA results, cloud or container security issues, or EOL/license/malware alerts surfaced by Aikido.
 ---
+
 When listing Aikido feed issues:
 
 1. Use **aikido-mcp:aikido_issues_list**

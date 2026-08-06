@@ -1,7 +1,8 @@
 ---
 name: bigdata-cross-sector
-description: >
+description: ">"
 ---
+
 # Bigdata Cross-Sector Comparison
 
 Relative value and rotation across sectors. Use Bigdata.com plugin tools for every fact.

@@ -1,7 +1,8 @@
 ---
 name: azuresql-db-feedback
-description: >-
+description: ">-"
 ---
+
 # Report a problem with the skills, or with the container
 
 The user should never have to assemble a bug report by hand. You are already holding what a good one needs:

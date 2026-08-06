@@ -2,6 +2,7 @@
 name: zapier-demo
 description: Walk a new user through setting up their first Zapier action and running it live — the smallest possible win. Asks what app they use, recommends one read action to enable, guides them to mcp.zapier.com to add it, then demonstrates it working in the same chat. Use when the user asks "show me how Zapier works", "set up my first action", "give me a quick demo", "I want to try it", "what's the fastest way to see this work", "minimal setup", "hello world", or "smallest example".
 ---
+
 # Zapier demo
 
 Walk a new user through the smallest possible first win — one app, one read action, one prompt that actually runs. The whole flow should feel quick: a few minutes from "I'm curious" to "oh, that worked."

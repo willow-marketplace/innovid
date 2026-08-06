@@ -1,7 +1,8 @@
 ---
 name: working-with-skills
-description: >-
+description: ">-"
 ---
+
 # Working with PostHog skills
 
 This skill teaches agents how to use the `skill-*` MCP tools well — minimum

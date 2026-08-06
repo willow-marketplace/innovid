@@ -1,7 +1,8 @@
 ---
 name: 42crunch-audit
-description: >
+description: ">"
 ---
+
 # 42Crunch Audit Skill
 
 Runs a single phase: **Audit** (static OAS analysis, SQG reporting, and

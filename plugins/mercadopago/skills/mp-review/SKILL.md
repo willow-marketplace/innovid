@@ -2,6 +2,7 @@
 name: mp-review
 description: Review a Mercado Pago integration against the official quality checklist and a fixed cross-cutting security checklist. Calls quality_checklist (and quality_evaluation when applicable) on the Mercado Pago MCP. Use after the integration is in place, or when /mp-review is invoked.
 ---
+
 # mp-review
 
 This skill audits a Mercado Pago integration. It does not duplicate the official quality criteria — it pulls them live from the MCP and verifies each one against the codebase.

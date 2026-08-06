@@ -2,6 +2,7 @@
 name: understand-dashboard
 description: Launch the interactive web dashboard to visualize a codebase's knowledge graph
 ---
+
 # /understand-dashboard
 
 Start the Understand Anything dashboard to visualize the knowledge graph for the current project.

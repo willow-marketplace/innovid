@@ -2,6 +2,7 @@
 name: mapbox-flutter-patterns
 description: Official integration patterns for the Mapbox Maps Flutter SDK. Covers installation, iOS/Android platform setup, access token configuration, MapWidget initialization, camera control, annotations with tap handling, user location, and loading GeoJSON. Based on official Mapbox documentation.
 ---
+
 # Mapbox Flutter Integration Patterns
 
 Official patterns for integrating the Mapbox Maps SDK for Flutter (mapbox_maps_flutter) on iOS and Android with Dart.

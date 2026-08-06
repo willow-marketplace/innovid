@@ -2,6 +2,7 @@
 name: clone
 description: Clone an existing Spotify Ads API campaign or ad set — duplicate the full hierarchy (campaign, ad sets, ads) with optional modifications to name, dates, budget, or targeting.
 ---
+
 # Spotify Ads API — Campaign & Ad Set Cloning
 
 Clone an existing campaign or ad set by reading its full hierarchy and recreating it with optional modifications.

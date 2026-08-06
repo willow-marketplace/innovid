@@ -2,6 +2,7 @@
 name: output-dev-skill-file
 description: Create .md skill files for Output framework's lazy-loaded instruction system. Use when adding skills to prompts, configuring skill loading, or debugging skill resolution.
 ---
+
 # Creating Skill Files
 
 ## Overview

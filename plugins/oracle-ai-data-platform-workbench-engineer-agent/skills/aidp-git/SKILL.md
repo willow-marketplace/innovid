@@ -2,6 +2,7 @@
 name: aidp-git
 description: Operate native Git in an AIDP workspace — branches, checkout, commit/push, pull, merge, rebase, reset, diff, and conflict resolution on workspace git repositories. Use when the user wants to version workspace notebooks/code in Git, manage branches, commit/push changes, or resolve conflicts inside AIDP. Preview GitService API via `oci raw-request`; verify live first.
 ---
+
 # `aidp-git` — native Git in the workspace (Preview)
 
 Drive AIDP's native Git integration over the REST `GitService` API. Self-contained — no MCP and no

@@ -2,6 +2,7 @@
 name: alert
 description: Triage a Rootly alert by short ID. Pulls the alert record, its event timeline, related alerts in the same group, and any incident the alert is attached to. Use when a page comes in and you want context before opening Rootly.
 ---
+
 # Alert Triage
 
 You are helping the user triage a Rootly alert. Alerts are the upstream signal that may or may not become incidents. The goal is to give the user enough context in one place that they can decide: ignore, acknowledge, escalate, or open an incident.

@@ -2,11 +2,14 @@
   "name": "agent-sdk-dev",
   "version": "1.0.0",
   "description": "Claude Agent SDK Development Plugin",
-  "updatedAt": "2026-08-06T00:02:04.223Z",
+  "updatedAt": "2026-08-06T06:56:19.302Z",
   "author": {
     "name": "Anthropic",
     "email": "support@anthropic.com"
   },
   "commands": "./commands/",
-  "agents": "./agents/"
+  "agents": [
+    "./agents/agent-sdk-verifier-py.md",
+    "./agents/agent-sdk-verifier-ts.md"
+  ]
 }

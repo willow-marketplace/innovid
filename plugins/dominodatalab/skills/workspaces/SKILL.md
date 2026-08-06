@@ -2,6 +2,7 @@
 name: workspaces
 description: Work with Domino Workspaces - interactive development environments including Jupyter, JupyterLab, VS Code, and RStudio. Covers launching workspaces, configuring hardware tiers, environment selection, volume mounting, SSH access, and package installation. Use when setting up development environments, configuring workspace settings, or troubleshooting IDE issues.
 ---
+
 # Domino Workspaces Skill
 
 ## Description

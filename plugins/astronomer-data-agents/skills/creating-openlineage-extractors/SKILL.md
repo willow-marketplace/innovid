@@ -2,6 +2,7 @@
 name: creating-openlineage-extractors
 description: Create custom OpenLineage extractors for Airflow operators. Use when the user needs lineage from unsupported or third-party operators, wants column-level lineage, or needs complex extraction logic beyond what inlets/outlets provide.
 ---
+
 # Creating OpenLineage Extractors
 
 This skill guides you through creating custom OpenLineage extractors to capture lineage from Airflow operators that don't have built-in support.

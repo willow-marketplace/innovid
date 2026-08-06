@@ -2,6 +2,7 @@
 name: output-dev-folder-structure
 description: Workflow folder structure conventions for Output SDK. Use when creating new workflows, organizing workflow files, or understanding the standard project layout.
 ---
+
 # Workflow Folder Structure Conventions
 
 ## Overview

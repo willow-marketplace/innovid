@@ -1,7 +1,8 @@
 ---
 name: catalyst-datastore
-description: "Catalyst Data Store — relational cloud database with ZCQL, CRUD operations, table permissions, and result pagination. Requires MCP connection — check for the ZohoMCP_* meta-tools before any operation. Trigger on 'Data Store', 'ZCQL', 'create table', 'executeZCQLQuery', 'table permissions', 'ROWID', 'boolean column', 'boolean always true', 'truthy string', 'boolean stored as string', or 'DataStore data types'. You MUST load this skill whenever writing code that reads or writes Data Store data — ZCQL result wrapping, boolean-as-string behavior, and App User permissions are non-obvious and cause silent bugs if skipped."
+description: "\"Catalyst Data Store — relational cloud database with ZCQL, CRUD operations, table permissions, and result pagination. Requires MCP connection — check for the ZohoMCP_* meta-tools before any operation. Trigger on 'Data Store', 'ZCQL', 'create table', 'executeZCQLQuery', 'table permissions', 'ROWID', 'boolean column', 'boolean always true', 'truthy string', 'boolean stored as string', or 'DataStore data types'. You MUST load this skill whenever writing code that reads or writes Data Store data — ZCQL result wrapping, boolean-as-string behavior, and App User permissions are non-obvious and cause silent bugs if skipped.\""
 ---
+
 ## ⚠️ PREREQUISITES — READ THIS FIRST
 
 **MCP gate (before ANY Data Store operation):** Confirm the `ZohoMCP_*` meta-tools (`ZohoMCP_getSchema`, `ZohoMCP_executeTool`, `ZohoMCP_listTools`, `ZohoMCP_getFeatures`) are present in your tool list — that is the "MCP connected" signal. (The `CatalystbyZoho_*` names never appear as tools; they are `tool_name` values passed to `ZohoMCP_executeTool`.) **If the meta-tools are NOT present → STOP:** do not write code, scaffold files, or instruct Console steps — load the `catalyst-zoho-mcp` skill, guide the user through MCP setup, and resume only once they appear.

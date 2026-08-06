@@ -2,6 +2,7 @@
 name: aidp-alh
 description: Connect from an AIDP notebook to Oracle AI Lakehouse (ALH), Autonomous Data Warehouse (ADW), or Autonomous Transaction Processing (ATP). Prefer the AIDP `aidataplatform` Spark format handler for wallet/password and catalog.id paths (`ORACLE_ALH` / `ORACLE_ATP`), but use raw Spark JDBC for IAM DB-token because the AIDP connector does not support DB-token auth yet.
 ---
+
 # `aidp-alh` — Oracle AI Lakehouse / ADW / ATP via AIDP `aidataplatform`
 
 This skill covers the **entire Oracle Autonomous Database family** using the official AIDP ingestion connectors. Use `ORACLE_ALH` for Oracle AI Lakehouse / ADW-style connections and `ORACLE_ATP` when the user specifically wants ATP.

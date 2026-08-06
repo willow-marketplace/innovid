@@ -2,6 +2,7 @@
 name: react-email
 description: Use when building HTML email templates with React components, adding a visual email editor to an application using the React Email visual editor, rendering emails to HTML, or sending emails with Resend. Covers welcome emails, password resets, notifications, order confirmations, newsletters, transactional emails, and the embeddable email editor component.
 ---
+
 # React Email
 
 Build and send HTML emails using React components. A modern, component-based approach to email development that works across all major email clients.

@@ -1,7 +1,8 @@
 ---
 name: tavily-research
-description: |
+description: "|"
 ---
+
 # tavily research
 
 AI-powered deep research that gathers sources, analyzes them, and produces a cited report. Takes 30-120 seconds.

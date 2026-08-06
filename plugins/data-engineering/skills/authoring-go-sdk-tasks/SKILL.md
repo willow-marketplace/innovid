@@ -2,6 +2,7 @@
 name: authoring-go-sdk-tasks
 description: Writes Airflow task logic in Go using the Airflow Go SDK. Use when the user wants to implement Airflow tasks in Go, asks about `BundleProvider`/`RegisterDags`, the `bundlev1` Registry/Dag interfaces, registering Go tasks (`AddTask`/`AddTaskWithName`), dependency injection by parameter type (`context.Context`, `sdk.TIRunContext`, `*slog.Logger`, `sdk.Client`), or reading connections/variables/XComs from Go. This skill covers the Go-specific native API; the shared Python-stub pattern and conceptual model live in authoring-language-sdk-tasks. For building/packing/shipping the bundle see deploying-go-sdk-bundles; for coordinator config see configuring-airflow-language-sdks.
 ---
+
 # Authoring Go SDK Tasks
 
 The Airflow Go SDK implements the language-SDK model for Go: your DAG stays in Python, and each task is a compiled Go function registered inside a **bundle** (a single native executable). This skill covers the **Go-specific** native API. The shared model (the Python `@task.stub` pattern, ID matching, the XCom-as-JSON contract) lives in **authoring-language-sdk-tasks**; read that first if you are new to language SDKs.

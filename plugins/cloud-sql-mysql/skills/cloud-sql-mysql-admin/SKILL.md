@@ -2,6 +2,7 @@
 name: cloud-sql-mysql-admin
 description: Use these skills when you need to provision new Cloud SQL for MySQL instances, create databases and users, clone existing environments, and monitor the progress of infrastructure operations.
 ---
+
 ## Usage
 
 All scripts can be executed using Node.js. Replace `<param_name>` and `<param_value>` with actual values.

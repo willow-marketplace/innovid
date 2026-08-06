@@ -2,6 +2,7 @@
 name: aidp-mysql
 description: Read or write MySQL or OCI MySQL HeatWave from an AIDP notebook via the AIDP `aidataplatform` Spark format handler. Use when the user mentions MySQL, HeatWave, MySQL Database Service, MDS, or has a MySQL host/port. Auth is host/port + user/password.
 ---
+
 # `aidp-mysql` — MySQL / OCI MySQL HeatWave via AIDP `aidataplatform`
 
 Covers both **on-prem / generic MySQL** (`type=MYSQL`) and **OCI MySQL HeatWave** (`type=MYSQL_HEATWAVE`). The option shape is identical; only the `type` differs. For most workloads pick `MYSQL` and the connector will route correctly. Choose `MYSQL_HEATWAVE` to get HeatWave-aware optimizations (the AIDP connector pushes down compatible ops to the HeatWave accelerator).

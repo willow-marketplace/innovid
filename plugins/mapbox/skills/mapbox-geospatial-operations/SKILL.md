@@ -2,6 +2,7 @@
 name: mapbox-geospatial-operations
 description: Expert guidance on choosing the right geospatial tool based on problem type, accuracy requirements, and performance needs
 ---
+
 # Mapbox Geospatial Operations Skill
 
 Expert guidance for AI assistants on choosing the right geospatial tools from the Mapbox MCP Server. Focuses on selecting tools based on **what the problem requires** - geometric calculations vs routing, straight-line vs road network, and accuracy needs.

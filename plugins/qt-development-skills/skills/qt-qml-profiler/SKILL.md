@@ -1,7 +1,8 @@
 ---
 name: qt-qml-profiler
-description: >-
+description: ">-"
 ---
+
 # Qt QML Profiler Skill
 
 Profile a QML application and analyze performance bottlenecks.

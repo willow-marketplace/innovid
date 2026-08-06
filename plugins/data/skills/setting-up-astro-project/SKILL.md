@@ -2,6 +2,7 @@
 name: setting-up-astro-project
 description: Initialize and configure Astro/Airflow projects. Use when the user wants to create a new project, set up dependencies, configure connections/variables, or understand project structure. For running the local environment, see managing-astro-local-env.
 ---
+
 # Astro Project Setup
 
 This skill helps you initialize and configure Airflow projects using the Astro CLI.

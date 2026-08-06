@@ -1,5 +1,6 @@
 ---
 name: postiz
-description: 
+description: ""
 ---
+
 ../../SKILL.md

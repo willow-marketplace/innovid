@@ -2,6 +2,7 @@
 name: flag-metadata
 description: Update the administrative metadata of an existing GrowthBook feature flag — description, owner, project, tags, custom fields, or JSON schema. Use when the user says "change the owner of flag X", "add tags to this flag", "move this flag to project Y", "update the description", "set a JSON schema on this flag", "rename the owner", or "tag this flag as payments". Goes through a draft revision and requires publishing to take effect. For changing the flag's default value, use flag-default-value. For creating a new flag, use flag-create. For archiving or deleting a flag, use flag-cleanup.
 ---
+
 # flag-metadata
 
 Update the administrative metadata of an existing GrowthBook feature flag. Metadata changes (description, owner, project, tags, custom fields, JSON schema) go through a draft revision like all other flag changes — they need to be published before they take effect.

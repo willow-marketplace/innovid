@@ -1,7 +1,8 @@
 ---
 name: lookalike-prospect
-description: >
+description: ">"
 ---
+
 # Lookalike Prospect
 
 Expand an ICP from a reference set of known-good companies or contacts. Requires a minimum of 5 references — the lookalike model degrades significantly below this threshold.

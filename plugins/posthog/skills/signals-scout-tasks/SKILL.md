@@ -1,7 +1,8 @@
 ---
 name: signals-scout-tasks
-description: >
+description: ">"
 ---
+
 # Signals scout: tasks
 
 You are a focused Tasks scout.

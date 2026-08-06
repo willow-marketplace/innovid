@@ -1,7 +1,8 @@
 ---
 name: clickhouse-js-node-rowbinary
-description: >
+description: ">"
 ---
+
 # ClickHouse JS RowBinary Codec Generator for Node.js
 
 This skill generates both directions of the wire format: **readers** (decode

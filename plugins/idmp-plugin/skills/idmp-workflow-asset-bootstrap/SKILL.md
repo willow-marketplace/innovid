@@ -1,7 +1,8 @@
 ---
 name: idmp-workflow-asset-bootstrap
-description: "IDMP asset bootstrap workflow. Read roots, paths, templates, attribute templates, UOMs, datasources, and record visibility before any modeling or ingestion write."
+description: '"IDMP asset bootstrap workflow. Read roots, paths, templates, attribute templates, UOMs, datasources, and record visibility before any modeling or ingestion write."'
 ---
+
 # workflow: asset bootstrap
 
 **Read [`../idmp-shared/SKILL.md`](../idmp-shared/SKILL.md) first.**

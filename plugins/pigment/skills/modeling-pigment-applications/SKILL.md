@@ -2,6 +2,7 @@
 name: modeling-pigment-applications
 description: Always use this skill when designing or modifying Pigment applications. Provides the mental model of a Pigment app (Application, Dimensions, Calendars, Metrics, Transaction Lists, Tables), the core concepts (dimension list vs property vs transaction list, metric vs table, sparsity, scope), the canonical order of architecture decisions, a minimal viable application pattern and pointers to deeper-dive docs (architecture, naming, hierarchies, calendars, principles, folders, subsets, performance).
 ---
+
 # Modeling Pigment Applications
 
 Core concepts and architecture for designing Pigment applications. Read first for any modeling task. Jump to the linked deep dives only when the task requires the detail.

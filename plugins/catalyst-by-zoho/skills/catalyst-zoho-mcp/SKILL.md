@@ -1,7 +1,8 @@
 ---
 name: catalyst-zoho-mcp
-description: "Catalyst Zoho MCP — manage Catalyst infrastructure (tables, buckets, cache) via CatalystbyZoho_* MCP tools using natural language. Trigger on 'Zoho MCP', 'MCP tools', 'catalyst MCP', 'CatalystbyZoho', 'create table with AI', 'MCP setup', 'MCP config', 'global MCP server', 'infrastructure as conversation', 'MCP first', 'avoid Catalyst console', or 'use MCP instead of console', 'switch DC', 'change data center'."
+description: "\"Catalyst Zoho MCP — manage Catalyst infrastructure (tables, buckets, cache) via CatalystbyZoho_* MCP tools using natural language. Trigger on 'Zoho MCP', 'MCP tools', 'catalyst MCP', 'CatalystbyZoho', 'create table with AI', 'MCP setup', 'MCP config', 'global MCP server', 'infrastructure as conversation', 'MCP first', 'avoid Catalyst console', or 'use MCP instead of console', 'switch DC', 'change data center'.\""
 ---
+
 ## How It Works
 
 1. **Check if MCP is connected** — Look for the `ZohoMCP_*` **meta-tools** (`ZohoMCP_getSchema`, `ZohoMCP_executeTool`, `ZohoMCP_listTools`, `ZohoMCP_getFeatures`) in your tool list. Their presence is the connectivity signal. The `CatalystbyZoho_*` names are **not** shown as tools — they are `tool_name` values passed to `ZohoMCP_executeTool`.

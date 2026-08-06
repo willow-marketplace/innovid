@@ -2,6 +2,7 @@
 name: buying-committee
 description: Map the buying committee at a target account. Identifies decision-makers, prioritizes who to engage, and surfaces gaps and multi-thread risks. Leads with a TL;DR (top 3 to engage, biggest gap, multi-thread risk), uses compact tables, and deep-researches top stakeholders to catch stale records. Identify the account by ZoomInfo account/company ID (preferred) or by company name, domain, or ticker (which triggers a lookup step). Include detailed context on the deal, situation, and persona priorities driving the map.
 ---
+
 # Buying Committee
 
 Map the buying group at a target account — who matters, what role they play, and who to engage first. Output is scannable: headline first, compact tables, deeper profiles only for the top 3-5.

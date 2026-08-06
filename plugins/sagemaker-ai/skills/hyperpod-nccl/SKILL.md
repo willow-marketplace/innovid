@@ -2,6 +2,7 @@
 name: hyperpod-nccl
 description: Diagnose NCCL failures and adjacent training-pod failures on HyperPod GPU clusters (EKS or Slurm) — training hangs, AllReduce / collective-op timeouts, EFA or libfabric errors, rendezvous failures, EFA TCP fallback, /dev/shm or memlock issues, NCCL version mismatch across pods, container OOM / exit-137 / OOMKilled, GPU OOM (CUDA out of memory), CrashLoopBackOff / Pending pods, MASTER_ADDR DNS, NetworkPolicy blocking. Not for single-node hardware faults (→ hyperpod-node-debugger § G) or cluster-creation EFA / SSM failures (→ hyperpod-cluster-debugger § A / § F).
 ---
+
 # HyperPod NCCL Debugger
 
 **Operating policy.** Run read-only diagnostics yourself. Never run a command that changes cluster, node, or workload state — present each one as a **Suggested command (run this yourself)** block and wait for the customer. Destructive order: **investigate → reboot → replace** (replace destroys root + secondary volumes; not supported on Slurm controller nodes). Never discard training state on speculation.

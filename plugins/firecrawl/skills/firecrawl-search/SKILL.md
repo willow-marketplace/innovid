@@ -1,7 +1,8 @@
 ---
 name: firecrawl-search
-description: |
+description: "|"
 ---
+
 # firecrawl search
 
 Web search with optional content scraping. Returns search results as JSON, optionally with full page content.

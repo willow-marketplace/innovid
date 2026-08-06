@@ -2,6 +2,7 @@
 name: product-ops
 description: Set up and run Airtable-based product operations workflows — roadmap management, customer feedback synthesis, launch coordination, OKR cascading, sprint planning, release tracking. Use when the user wants to track product work, manage feature requests, build a roadmap, set up a feedback intake portal, prioritize initiatives, run launch checklists, or align OKRs across teams. Adapts to org size (solo founder, small team, mid-size product org, enterprise product portfolio) and existing tooling (Jira / Linear / Productboard / Aha integration; Salesforce / Zendesk / Gong feedback ingestion). Can scaffold either as a pure-Airtable workspace or as Airtable backing a custom branded UI on Vercel for public-facing portals. Asks scope questions first; doesn't impose framework. Focuses on cross-functional product operations.
 ---
+
 # Product and roadmap management
 
 Set up and run product operations workflows in Airtable — roadmap, customer feedback, launches, OKRs, sprints, releases — adapting to the user's team size, sub-workflow priorities, and customer shape. Ask scope before scaffolding; the same trigger can mean a 3-table solo workspace or a multi-base enterprise portfolio, and the right schema depends on what the user is actually trying to coordinate.

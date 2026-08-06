@@ -2,6 +2,7 @@
 name: api-discovery
 description: Guide for agents to help users extract OpenAPI specs from source code using NightVision API Discovery. Use when running swagger extract, identifying framework support, troubleshooting extraction, handling unresolved variables, comparing API specs, or understanding Code Traceback.
 ---
+
 # NightVision API Discovery
 
 Use this skill when helping users generate OpenAPI specifications from their source code using `nightvision swagger extract`. API Discovery performs static analysis — no running application or compilation needed — and annotates the spec with source file paths and line numbers (Code Traceback) so that vulnerabilities found during DAST scans trace back to exact code locations.

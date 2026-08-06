@@ -1,7 +1,8 @@
 ---
 name: databricks-lakebase
-description: "Databricks Lakebase Postgres: projects, scaling, connectivity, Lakebase synced tables, and Data API. Use when asked about Lakebase databases, OLTP storage, or connecting apps to Postgres on Databricks."
+description: '"Databricks Lakebase Postgres: projects, scaling, connectivity, Lakebase synced tables, and Data API. Use when asked about Lakebase databases, OLTP storage, or connecting apps to Postgres on Databricks."'
 ---
+
 # Lakebase Postgres Autoscaling
 
 **FIRST**: Use the parent `databricks-core` skill for CLI basics, authentication, and profile selection.

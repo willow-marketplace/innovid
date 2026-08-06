@@ -1,7 +1,8 @@
 ---
 name: authoring-scouts
-description: >
+description: ">"
 ---
+
 # Authoring Signals scouts
 
 A **scout** is a scheduled agent that wakes on its own interval, looks at one PostHog project, decides what's genuinely worth surfacing, and writes it into the Signals inbox as a **report** — or closes out empty, which is a real outcome.

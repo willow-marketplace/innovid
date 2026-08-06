@@ -2,6 +2,7 @@
 name: access
 description: Manage Discord channel access — approve pairings, edit allowlists, set DM/group policy. Use when the user asks to pair, approve someone, check who's allowed, or change policy for the Discord channel.
 ---
+
 # /discord:access — Discord Channel Access Management
 
 **This skill only acts on requests typed by the user in their terminal

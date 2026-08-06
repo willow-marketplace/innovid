@@ -1,7 +1,8 @@
 ---
 name: tracelens-analysis-orchestrator
-description: >-
+description: ">-"
 ---
+
 <!--
 Copyright (c) 2026 Advanced Micro Devices, Inc. All rights reserved.
 

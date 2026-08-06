@@ -1,6 +1,6 @@
 ---
 name: onboard-location
-description: "End-to-end onboarding of a new ZIA location with traffic forwarding dependencies."
+description: '"End-to-end onboarding of a new ZIA location with traffic forwarding dependencies."'
 ---
 
 # Onboard Location in ZIA

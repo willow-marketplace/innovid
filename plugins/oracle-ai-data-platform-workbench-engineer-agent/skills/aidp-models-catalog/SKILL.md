@@ -2,6 +2,7 @@
 name: aidp-models-catalog
 description: List the models available/installed in the AIDP DataLake and inspect their parameters, and browse the MLOps model registry. Use when the user asks "what models are available", needs a model name for ai_generate()/agent flows, wants a model's parameters, or wants to list registered models / versions. Registry browse uses the official `aidp` CLI (folded into the `mlops` group); the LA `Models` platform-catalog API via `oci raw-request` is verified and the no-CLI fallback.
 ---
+
 # `aidp-models-catalog` — available models & parameters
 
 Two distinct surfaces:

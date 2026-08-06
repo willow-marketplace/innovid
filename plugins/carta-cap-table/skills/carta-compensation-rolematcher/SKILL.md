@@ -2,6 +2,7 @@
 name: carta-compensation-rolematcher
 description: Classify a job title or description into the CTC taxonomy (job area, focus, level, track). Use when the user wants to know how a role is categorized or mapped to the taxonomy structure — not to fetch salary, equity, or benchmark numbers. Do NOT use when the user is asking for "market rates", "benchmark data", "compensation ranges", "what does X pay", or "show me benchmarks" — use carta-compensation-benchmarks for that. Do NOT use for general career advice or job search queries unrelated to compensation benchmarking.
 ---
+
 # CTC RoleMatcher
 
 Map any job title or description to the Carta Total Compensation benchmark taxonomy — returning a standardized job area, focus, level, and track.

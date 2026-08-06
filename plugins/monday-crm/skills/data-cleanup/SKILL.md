@@ -2,6 +2,7 @@
 name: data-cleanup
 description: Check your CRM board's health and clean up messy data — run a scored health check (missing fields, stalled deals, abandoned columns, automation gaps) as a report, or fix data in bulk (phone formats, missing emails, country codes, unowned deals, stale dates). Use when someone says "clean my CRM", "fix my data", "normalize my phone numbers", "fill in missing owners", "run a board health check", "audit my CRM board", "what's broken in my CRM", "what are the data gaps on my board", "board is messy", or "clean up before my kickoff call".
 ---
+
 # Data Cleanup
 
 Two jobs in one skill for the recurring "my CRM is messy" pain (Sidekick's #1 negative-sentiment JTBD):

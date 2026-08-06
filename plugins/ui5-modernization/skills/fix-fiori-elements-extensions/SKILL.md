@@ -1,7 +1,8 @@
 ---
 name: fix-fiori-elements-extensions
-description: |
+description: "|"
 ---
+
 # Fix Fiori Elements Controller Extensions
 
 This skill handles Fiori Elements V2 controller extensions during UI5 modernization. There are two cases with different actions:

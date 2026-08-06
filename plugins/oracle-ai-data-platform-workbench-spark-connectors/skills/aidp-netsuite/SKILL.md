@@ -2,6 +2,7 @@
 name: aidp-netsuite
 description: Read NetSuite SuiteAnalytics Connect data from an AIDP notebook through the AIDP `aidataplatform` Spark format handler. Use when the user mentions NetSuite, SuiteAnalytics Connect, ns.account.id, ns.role.id, or ns.access.token. Supports username/password or OAuth access-token authentication. Read-only.
 ---
+
 # `aidp-netsuite` — NetSuite SuiteAnalytics Connect via AIDP `aidataplatform`
 
 Use the built-in `NETSUITE` connector for read-only SuiteAnalytics Connect ingestion. It supports either username/password authentication or a fresh OAuth 2.0 access token.

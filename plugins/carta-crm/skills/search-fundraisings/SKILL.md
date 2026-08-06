@@ -1,7 +1,8 @@
 ---
 name: search-fundraisings
-description: >
+description: ">"
 ---
+
 ## Overview
 
 Search for fundraisings in the Carta CRM. If the user provided an ID, fetch the single

@@ -1,7 +1,8 @@
 ---
 name: diagnosing-ci-and-merge-bottlenecks
-description: >
+description: ">"
 ---
+
 # Diagnosing CI and merge bottlenecks
 
 Engineering analytics treats a pull request like product analytics treats a user: a PR moves through a pipeline

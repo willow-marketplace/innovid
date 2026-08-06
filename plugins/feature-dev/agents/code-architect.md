@@ -5,6 +5,7 @@ scope: global
 tools: Glob, Grep, LS, Read, NotebookRead, WebFetch, TodoWrite, WebSearch, KillShell, BashOutput
 model: sonnet
 ---
+
 You are a senior software architect who delivers comprehensive, actionable architecture blueprints by deeply understanding codebases and making confident architectural decisions.
 
 ## Core Process

@@ -2,6 +2,7 @@
 name: brightdata-cli
 description: Guide for using the Bright Data CLI (`brightdata` / `bdata`) to scrape websites, search the web, extract structured data from 40+ platforms, manage proxy zones, and check account budget. Use this skill whenever the user wants to scrape a URL, search Google/Bing/Yandex, extract data from Amazon/LinkedIn/Instagram/TikTok/YouTube/Reddit or any other platform, check their Bright Data balance or zones, or do anything involving web data collection from the terminal. Also trigger when the user mentions brightdata, bdata, web scraping CLI, SERP API, or wants to install Bright Data skills into their coding agent.
 ---
+
 # Bright Data CLI
 
 The Bright Data CLI (`brightdata` or `bdata`) gives you full access to Bright Data's web data platform from the terminal. It handles authentication, proxy zones, anti-bot bypass, CAPTCHA solving, and JavaScript rendering automatically — the user just needs to log in once.

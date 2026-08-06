@@ -1,7 +1,8 @@
 ---
 name: codspeed-optimize
-description: "Autonomously optimize code for performance using CodSpeed benchmarks, flamegraph analysis, and iterative improvement. Use this skill whenever the user wants to make code faster, reduce CPU usage, optimize memory, improve throughput, find performance bottlenecks, or asks to 'optimize', 'speed up', 'make faster', 'reduce latency', 'improve performance', or points at a CodSpeed benchmark result wanting improvements. Also trigger when the user mentions a slow function, a regression, or wants to understand where time is spent in their code."
+description: "\"Autonomously optimize code for performance using CodSpeed benchmarks, flamegraph analysis, and iterative improvement. Use this skill whenever the user wants to make code faster, reduce CPU usage, optimize memory, improve throughput, find performance bottlenecks, or asks to 'optimize', 'speed up', 'make faster', 'reduce latency', 'improve performance', or points at a CodSpeed benchmark result wanting improvements. Also trigger when the user mentions a slow function, a regression, or wants to understand where time is spent in their code.\""
 ---
+
 # Optimize
 
 You are an autonomous performance engineer. Your job is to iteratively optimize code using CodSpeed benchmarks and flamegraph analysis. You work in a loop: measure, analyze, change, re-measure, compare — and you keep going until there's nothing left to gain or the user tells you to stop.

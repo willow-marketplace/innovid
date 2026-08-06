@@ -1,7 +1,8 @@
 ---
 name: bigdata-earnings-quality-screen
-description: >
+description: ">"
 ---
+
 # Bigdata Earnings Quality Screen
 
 Forensic check on whether reported earnings are backed by cash. Use Bigdata.com plugin tools for every fact.

@@ -1,7 +1,8 @@
 ---
 name: use-usdc
-description: "USDC is Circle's stablecoin deployed across multiple blockchain ecosystems including EVM chains (Ethereum, Base, Arbitrum, Polygon, Arc) and Solana. Use this skill to check balances, send transfers, approve spending, and verify transactions. Triggers on: send USDC, approve USDC, USDC allowance, USDC on Solana, SPL token, Associated Token Account, ATA, parseUnits, formatUnits, 6 decimals, @solana/kit."
+description: "\"USDC is Circle's stablecoin deployed across multiple blockchain ecosystems including EVM chains (Ethereum, Base, Arbitrum, Polygon, Arc) and Solana. Use this skill to check balances, send transfers, approve spending, and verify transactions. Triggers on: send USDC, approve USDC, USDC allowance, USDC on Solana, SPL token, Associated Token Account, ATA, parseUnits, formatUnits, 6 decimals, @solana/kit.\""
 ---
+
 ## Overview
 
 USDC is Circle's stablecoin deployed across multiple blockchain ecosystems. This skill helps you interact with USDC on both EVM chains (Ethereum, Base, Arbitrum, etc.) and Solana. It covers balance checks, transfers, approvals, and transfer verification.

@@ -2,6 +2,7 @@
 name: aidp-jdbc-custom
 description: Connect to ANY database that has a JDBC driver from an AIDP notebook using Spark's native `format("jdbc")`. Use when the user mentions a DB without a dedicated AIDP connector — SQLite, ClickHouse, DuckDB, generic JDBC URL — or wants to use a custom JDBC driver they uploaded. Auth is driver-specific.
 ---
+
 # `aidp-jdbc-custom` — Generic JDBC escape hatch
 
 The catch-all skill for any DB with a JDBC driver. Skips the AIDP `aidataplatform` format and uses native Spark JDBC. Useful for DBs like SQLite, ClickHouse, DuckDB, IBM DB2, SAP HANA, or any niche driver the user has uploaded.

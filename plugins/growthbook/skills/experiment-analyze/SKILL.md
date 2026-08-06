@@ -2,6 +2,7 @@
 name: experiment-analyze
 description: Fetch results for a GrowthBook experiment, refresh the snapshot only when the cached data is over 24 hours old, then interpret. Use when the user asks "what are the results of X", "analyze this experiment", "is X winning", "did the test work", "show me the results", or "dig into the dimensions". Reads only — does not stop or modify the experiment. For stopping after you've seen results, use experiment-stop.
 ---
+
 # experiment-analyze
 
 Fetch results, refresh the snapshot only when the cached data is over 24 hours old or the user wants a different phase/dimension cut, then interpret. This skill is the heaviest in the catalog because of the conditional polling loop and the statistical interpretation — slow down and do each step deliberately.

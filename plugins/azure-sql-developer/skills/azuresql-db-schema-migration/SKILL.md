@@ -1,7 +1,8 @@
 ---
 name: azuresql-db-schema-migration
-description: >-
+description: ">-"
 ---
+
 # Azure SQL Developer: schema migrations
 
 Apply schema migrations to the local **Azure SQL Database** container the same way

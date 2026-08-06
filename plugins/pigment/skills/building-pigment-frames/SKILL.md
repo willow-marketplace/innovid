@@ -2,6 +2,7 @@
 name: building-pigment-frames
 description: How to build Pigment Frames, custom full-page JavaScript visualisations that read Pigment data through the PigmentSDK inside a sandboxed iframe. Use when creating or editing a Frame.
 ---
+
 # Building Pigment Frames
 
 A **Frame** is a standalone, full-page custom visualisation rendered from author-supplied JavaScript that reads Pigment data through the PigmentSDK. Use a Frame only when native Views, Boards, and chart types cannot express the required visual.

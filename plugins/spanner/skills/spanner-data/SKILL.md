@@ -2,6 +2,7 @@
 name: spanner-data
 description: Use these skills when you need to explore the database structure, discover schema objects like tables and graphs, and execute custom SQL queries to interact with your data.
 ---
+
 ## Usage
 
 All scripts can be executed using Node.js. Replace `<param_name>` and `<param_value>` with actual values.

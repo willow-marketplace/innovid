@@ -2,6 +2,7 @@
 name: sumup-mcp
 description: Use the SumUp MCP server (https://mcp.sumup.com/mcp) from Cursor, Claude Code, Codex, or any MCP-capable client. Use when the user mentions SumUp MCP, needs to wire mcp.sumup.com, or wants tool-based access to SumUp APIs.
 ---
+
 # SumUp MCP Server Guide
 
 Use this skill when setup or usage of the SumUp MCP server is requested.

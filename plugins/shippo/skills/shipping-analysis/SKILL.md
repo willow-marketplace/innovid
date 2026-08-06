@@ -2,6 +2,7 @@
 name: shipping-analysis
 description: Analyze shipping costs, compare carriers, optimize package dimensions, and review historical shipping spend via the Shippo API
 ---
+
 <!--
   ⚠️  DO NOT EDIT. Auto-generated from skills/shipping-analysis/SKILL.md by scripts/sync.js
   Edits here will be overwritten on the next sync.

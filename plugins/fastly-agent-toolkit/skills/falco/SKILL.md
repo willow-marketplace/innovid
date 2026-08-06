@@ -1,7 +1,8 @@
 ---
 name: falco
-description: "Lints, tests, simulates, and formats Fastly VCL code using the falco tool. Also serves as the authoritative VCL reference via the falco Go source, which implements Fastly's full VCL dialect. Use when validating VCL syntax, running VCL linting, testing VCL locally, simulating VCL request handling, formatting VCL files, writing VCL unit tests with assertions, debugging VCL logic errors, looking up VCL function signatures or variable scopes, understanding VCL subroutine behavior, or running `falco lint`/`falco simulate`/`falco test`/`falco fmt`. Also applies when working with VCL syntax errors, type mismatches in VCL, choosing which VCL subroutine to use, or setting up a local VCL development and testing environment."
+description: "\"Lints, tests, simulates, and formats Fastly VCL code using the falco tool. Also serves as the authoritative VCL reference via the falco Go source, which implements Fastly's full VCL dialect. Use when validating VCL syntax, running VCL linting, testing VCL locally, simulating VCL request handling, formatting VCL files, writing VCL unit tests with assertions, debugging VCL logic errors, looking up VCL function signatures or variable scopes, understanding VCL subroutine behavior, or running `falco lint`/`falco simulate`/`falco test`/`falco fmt`. Also applies when working with VCL syntax errors, type mismatches in VCL, choosing which VCL subroutine to use, or setting up a local VCL development and testing environment.\""
 ---
+
 ## Trigger and scope
 
 Trigger on: VCL files, .vcl extensions, XVCL files, .xvcl extensions, falco CLI, VCL unit tests, VCL linting/simulation/formatting, VCL REPL, beresp/bereq/req.http variables, subroutine scopes, backend/ACL/director/table declarations, edge dictionaries, validating VCL in Terraform plans, or running/testing XVCL scripts locally.

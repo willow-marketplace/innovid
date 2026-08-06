@@ -2,6 +2,7 @@
 name: mapbox-search-patterns
 description: Expert guidance on choosing the right Mapbox search tool and parameters for geocoding, POI search, and location discovery
 ---
+
 # Mapbox Search Patterns Skill
 
 Expert guidance for AI assistants on using Mapbox search tools effectively. Covers tool selection, parameter optimization, and best practices for geocoding, POI search, and location discovery.

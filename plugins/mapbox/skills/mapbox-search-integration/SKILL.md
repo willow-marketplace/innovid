@@ -2,6 +2,7 @@
 name: mapbox-search-integration
 description: Complete workflow for implementing Mapbox search in applications - from discovery questions to production-ready integration with best practices
 ---
+
 # Mapbox Search Integration Skill
 
 Expert guidance for implementing Mapbox search functionality in applications. Covers the complete workflow from asking the right discovery questions, selecting the appropriate search product, to implementing production-ready integrations following best practices from the Mapbox search team.

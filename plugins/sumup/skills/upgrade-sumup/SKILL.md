@@ -2,6 +2,7 @@
 name: upgrade-sumup
 description: Guide for upgrading SumUp API versions and server/mobile SDKs (@sumup/sdk, sumup-go, sumup Python, PHP, Java, Rust, .NET, iOS Terminal, Android Reader, Swift Checkout, React Native). Use when bumping SumUp SDK versions or migrating off deprecated endpoints.
 ---
+
 # SumUp Upgrade and Migration Guide
 
 Knowledge and APIs can change. Always prefer current official docs and release notes.

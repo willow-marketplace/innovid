@@ -2,6 +2,7 @@
 name: rill-connector
 description: Detailed instructions and examples for developing connector resources in Rill
 ---
+
 # Instructions for developing a connector in Rill
 
 ## Introduction

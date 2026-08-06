@@ -2,6 +2,7 @@
 name: activity-insights
 description: Analyze CRM activity data — rep performance, call and email volume, team activity breakdowns, and engagement stats. Use when someone says "how many calls did the team make", "show me rep activity", "who's the most active rep", "activity breakdown this week", "how is the team performing", "what's our outreach volume", "compare rep activity", "call stats", "email volume by rep", "activity report", or "team engagement stats".
 ---
+
 # Activity Insights
 
 Flow: **Trigger → Connector check → Resolve board → Build query → Fetch insights → Synthesize**.

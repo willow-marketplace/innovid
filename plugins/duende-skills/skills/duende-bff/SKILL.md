@@ -2,6 +2,7 @@
 name: duende-bff
 description: Duende BFF (Backend for Frontend) security framework for securing SPAs. Covers session management, API endpoint proxying, token management, anti-forgery protection, and integration with React/Angular/Blazor frontends.
 ---
+
 # Duende BFF (Backend for Frontend)
 
 ## When to Use This Skill

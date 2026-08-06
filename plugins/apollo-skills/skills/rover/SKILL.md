@@ -1,7 +1,8 @@
 ---
 name: rover
-description: >
+description: ">"
 ---
+
 # Apollo Rover CLI Guide
 
 Rover is the official CLI for Apollo GraphOS. It helps you manage schemas, run composition locally, publish to GraphOS, and develop supergraphs on your local machine.

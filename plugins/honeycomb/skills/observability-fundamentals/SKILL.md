@@ -1,7 +1,8 @@
 ---
 name: observability-fundamentals
-description: >
+description: ">"
 ---
+
 # Observability Fundamentals
 
 First principles behind Honeycomb's approach to observability. Use this to ground

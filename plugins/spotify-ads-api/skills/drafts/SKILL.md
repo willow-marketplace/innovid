@@ -1,7 +1,8 @@
 ---
 name: drafts
-description: "Create, edit, validate, and publish draft campaigns, ad sets, and ads via the Spotify Ads API. Drafts let you build a full campaign hierarchy without going live — review and iterate before publishing. Use when the user wants to draft a campaign, validate before publishing, edit drafts, list drafts, or publish drafts."
+description: '"Create, edit, validate, and publish draft campaigns, ad sets, and ads via the Spotify Ads API. Drafts let you build a full campaign hierarchy without going live — review and iterate before publishing. Use when the user wants to draft a campaign, validate before publishing, edit drafts, list drafts, or publish drafts."'
 ---
+
 # Spotify Ads API — Draft Campaign Management
 
 Build, review, and publish campaign hierarchies using the draft workflow. Drafts are staging versions of campaigns, ad sets, and ads that can be created, edited, validated, and published as a batch — nothing goes live until you explicitly publish.

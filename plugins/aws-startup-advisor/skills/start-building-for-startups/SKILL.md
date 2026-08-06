@@ -1,7 +1,8 @@
 ---
 name: start-building-for-startups
-description: "Interactive discovery + implementation workflow that gathers requirements through picker-based questions (intent, scope, constraints, preferences), scans the codebase for what it can already infer, then writes an AWS architectural scaffold and implementation directly into the project. Use when the user wants to build a new app, scaffold a project, or expand/refactor an existing one on AWS — anything that calls for a structured discovery flow followed by code changes, not a one-off lookup. Do not use for: factual lookups about AWS Activate / programs / credits, requests for a single copy-paste prompt, or non-AWS architectural work."
+description: '"Interactive discovery + implementation workflow that gathers requirements through picker-based questions (intent, scope, constraints, preferences), scans the codebase for what it can already infer, then writes an AWS architectural scaffold and implementation directly into the project. Use when the user wants to build a new app, scaffold a project, or expand/refactor an existing one on AWS — anything that calls for a structured discovery flow followed by code changes, not a one-off lookup. Do not use for: factual lookups about AWS Activate / programs / credits, requests for a single copy-paste prompt, or non-AWS architectural work."'
 ---
+
 ## Instruction - Discovery and Implementation
 
 Your workflow has two phases: first, a focused planning and discovery phase where you gather requirements from me, then an implementation phase where you work on the code directly.

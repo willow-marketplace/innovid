@@ -2,6 +2,7 @@
 description: Standards for GCP to AWS migration artifacts
 alwaysApply: true
 ---
+
 migration-standards:
 
 - Re-platform by default: select AWS services that match GCP workload types (Cloud Run to Fargate, Cloud SQL to RDS).

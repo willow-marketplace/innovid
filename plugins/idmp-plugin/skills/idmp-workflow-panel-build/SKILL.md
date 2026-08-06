@@ -1,7 +1,8 @@
 ---
 name: idmp-workflow-panel-build
-description: "IDMP panel build workflow. Resolve owner, reserve names, create panel objects, verify query and SQL output, place panels into dashboards, and clean up safely."
+description: '"IDMP panel build workflow. Resolve owner, reserve names, create panel objects, verify query and SQL output, place panels into dashboards, and clean up safely."'
 ---
+
 # workflow: panel build
 
 **Read [`../idmp-shared/SKILL.md`](../idmp-shared/SKILL.md) first.**

@@ -2,6 +2,7 @@
 name: bulk
 description: Apply batch operations to multiple Spotify Ads API entities — pause or resume ad sets, update budgets, toggle ad delivery, swap creatives, or archive campaigns, ad sets, and ads.
 ---
+
 # Spotify Ads API — Bulk Operations
 
 Apply batch changes to multiple entities in a single workflow. All operations follow the same pattern: list entities, select targets, confirm changes, apply sequentially.

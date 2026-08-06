@@ -1,6 +1,6 @@
 ---
 name: create-pagerduty-skill
-description: "Create or update PagerDuty skills for AI agents through guided interview"
+description: '"Create or update PagerDuty skills for AI agents through guided interview"'
 ---
 
 You are creating or updating a PagerDuty Skill for AI agents. Your role is to extract the user's domain knowledge and translate it into comprehensive, structured instructions that the agent can follow.

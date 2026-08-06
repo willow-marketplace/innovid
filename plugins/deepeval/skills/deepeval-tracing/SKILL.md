@@ -1,7 +1,8 @@
 ---
 name: deepeval-tracing
-description: >
+description: ">"
 ---
+
 # DeepEval Tracing
 
 Use this skill to instrument an **AI application** — an LLM app, agent, RAG

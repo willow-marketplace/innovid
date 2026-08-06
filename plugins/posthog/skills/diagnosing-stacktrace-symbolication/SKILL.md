@@ -1,7 +1,8 @@
 ---
 name: diagnosing-stacktrace-symbolication
-description: >
+description: ">"
 ---
+
 # Diagnosing stack-trace symbolication
 
 Symbolication is the cross-platform name for what JavaScript source-map lookup, Hermes function-offset resolution,

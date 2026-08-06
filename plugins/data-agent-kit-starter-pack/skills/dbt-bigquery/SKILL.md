@@ -2,6 +2,7 @@
 name: dbt-bigquery
 description: Expert guidance for creating, modifying, and optimizing dbt pipelines
 ---
+
 # dbt Expert Skill for BigQuery
 
 Expert-level guidance for building, managing, and optimizing **dbt** (data build

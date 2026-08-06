@@ -2,6 +2,7 @@
 name: identityserver-configuration
 description: Configure Duende IdentityServer including client definitions, API resources, identity resources, scopes, signing credentials, and server-side sessions. Covers client types (M2M, interactive, SPA), grant types, API Scopes vs API Resources vs Identity Resources, secret management, and client authentication methods. Includes both in-memory and database-backed configuration.
 ---
+
 # Duende IdentityServer Configuration
 
 ## When to Use This Skill

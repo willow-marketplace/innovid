@@ -1,7 +1,8 @@
 ---
 name: apollo-router-plugin-creator
-description: >
+description: ">"
 ---
+
 # Apollo Router Plugin Creator
 
 Create native Rust plugins for Apollo Router.

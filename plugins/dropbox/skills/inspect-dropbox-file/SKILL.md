@@ -2,6 +2,7 @@
 name: inspect-dropbox-file
 description: Inspect a Dropbox file or folder by checking metadata, shared links, and file content when needed. Use when the user asks what a file is, whether it is shared, when it changed, what access links exist, or asks to read/analyze a Dropbox file.
 ---
+
 # Inspect Dropbox File
 
 Use this skill to understand a Dropbox file or folder before summarizing, comparing, sharing, restoring, or organizing it.

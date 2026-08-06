@@ -2,6 +2,7 @@
 name: ae-cs-handoff
 description: Produce an AE-to-CS handoff brief — everything the incoming CSM needs from the sales conversations. Builds an engagement timeline, then runs conversation_intelligence in parallel on the key engagements to pull requirements, success criteria, stakeholders and how they like to work, and the relationship state. Identify the account by ZoomInfo company ID (preferred) or name/domain (triggers a lookup). Use when someone says "build the handoff for Acme", "what does the CSM need to know", "prep the post-sale transition", or closes a deal that needs a clean handoff.
 ---
+
 # AE-to-CS Handoff Brief
 
 Capture what was promised, what success looks like, and who the people are — so the CSM starts from context, not a cold account.

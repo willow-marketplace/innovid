@@ -1,7 +1,8 @@
 ---
 name: fix-xml-globals
-description: |
+description: "|"
 ---
+
 # Fix XML Views/Fragments Global Access
 
 This skill fixes XML view and fragment issues that the UI5 linter detects but cannot auto-fix because they require understanding of module paths and handler locations.

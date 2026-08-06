@@ -1,7 +1,8 @@
 ---
 name: ui5-best-practices-qunit
-description: |
+description: "|"
 ---
+
 # QUnit Test Best Practices for UI5
 
 ## When to load each reference

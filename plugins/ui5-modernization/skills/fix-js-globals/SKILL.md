@@ -1,7 +1,8 @@
 ---
 name: fix-js-globals
-description: |
+description: "|"
 ---
+
 # Fix JavaScript Global Access (no-globals)
 
 This skill fixes `no-globals` errors in JavaScript files that the UI5 linter detects but cannot auto-fix. The linter's auto-fix only works for simple read-access patterns; this skill handles the complex cases.

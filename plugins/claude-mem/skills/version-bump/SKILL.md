@@ -2,6 +2,7 @@
 name: version-bump
 description: Automated semantic versioning and release workflow for Claude Code plugins. Handles version increments across package.json, marketplace.json, plugin.json manifests, npm publishing (so `npx claude-mem@X.Y.Z` resolves), build verification, git tagging, GitHub releases, and changelog generation.
 ---
+
 # Version Bump & Release Workflow
 
 **IMPORTANT:** Plan and write detailed release notes before starting.

@@ -2,6 +2,7 @@
 name: email-finder
 description: Finds a professional email address from a person's name and company domain. Use when the user asks to find someone's email, look up a contact's email address, or needs to reach a specific person at a company.
 ---
+
 # Email Finder
 
 Find the most likely email address for a person at a company using their name and domain.

@@ -2,6 +2,7 @@
 name: you-finance
 description: Route finance questions to an existing local script, a new You.com Finance Research API call, or an MCP payment-aware fallback.
 ---
+
 # You.com Finance Research
 
 Use this skill to decide how a local code agent should answer finance-specific questions. Prefer reusing or creating a small local script for You.com Finance Research API calls instead of directly invoking MCP for every finance question.

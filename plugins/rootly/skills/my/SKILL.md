@@ -2,6 +2,7 @@
 name: my
 description: Personal Rootly dashboard. Shows your open action items, your active incidents (where you're a responder), and your upcoming on-call shifts. Use to start the day or to context-switch back into incident work.
 ---
+
 # Your Rootly Dashboard
 
 You are building a personal status board for the current Rootly user. Read-only, focused, and quick to scan.

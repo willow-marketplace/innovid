@@ -2,6 +2,7 @@
 name: output-error-try-catch
 description: Fix try-catch anti-pattern in Output SDK workflows. Use when retries aren't working, errors are being swallowed, seeing unexpected FatalError wrapping, or when step failures don't trigger retry policies.
 ---
+
 # Fix Try-Catch Anti-Pattern
 
 ## Overview

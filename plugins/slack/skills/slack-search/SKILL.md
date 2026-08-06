@@ -2,6 +2,7 @@
 name: slack-search
 description: Guidance for effectively searching Slack to find messages, files, channels, and people
 ---
+
 # Slack Search
 
 This skill provides guidance for effectively searching Slack to find messages, files, and information.

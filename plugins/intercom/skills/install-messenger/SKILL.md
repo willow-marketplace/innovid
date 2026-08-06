@@ -1,7 +1,8 @@
 ---
 name: install-messenger
-description: >
+description: ">"
 ---
+
 # Install Intercom Messenger
 
 Help the user install the Intercom Messenger on their website or application with JWT-based identity verification. This is the secure default — it prevents user impersonation by cryptographically signing user identity on the server.

@@ -1,7 +1,8 @@
 ---
 name: exploring-mcp-tool-quality
-description: >
+description: ">"
 ---
+
 # Exploring MCP tool quality
 
 Any MCP server instrumented with PostHog's MCP analytics SDK emits a

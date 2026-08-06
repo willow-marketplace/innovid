@@ -2,6 +2,7 @@
 name: aidp-check-data
 description: Pre-migration data-availability scan. Reads every notebook in a migration manifest, extracts every spark.read.table / spark.read.parquet / saveAsTable reference, and probes whether each target schema/table/path exists on the AIDP cluster BEFORE you spend Pass-2 cluster time. Use after aidp-build-dag and before aidp-migrate-job, especially the first time you migrate against a target environment.
 ---
+
 # `aidp-check-data` — pre-migration data-availability scan
 
 Pass-2 of the migrator is expensive (live cluster time + Claude-with-tool-use tokens per cell). Running this scan first catches the "no source table" and "wrong bucket" failure modes in seconds instead of hours.

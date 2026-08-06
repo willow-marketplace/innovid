@@ -2,6 +2,7 @@
 name: proxy
 description: Generate working code that routes HTTP requests through Bright Data proxy networks (Datacenter, ISP, Residential, Mobile) and help users decide which network and IP pool type to use (shared pool, shared IPs, or dedicated IPs). Use this skill whenever the user mentions Bright Data, brightdata.com, BD proxies, brd.superproxy.io, geo.brdtest.com, a brd-customer- proxy username, a Bright Data zone, the superproxy host, or wants to scrape or route requests through Bright Data — including questions about proxy URL format, country or session or IP or sticky-session targeting, SSL certificate setup for residential or mobile proxies, KYC verification, ignoring SSL errors, choosing between shared pool and shared IPs and dedicated IPs, or integrating Bright Data into Python requests/httpx/aiohttp, Node fetch/axios, Playwright, Puppeteer, Selenium, or Scrapy.
 ---
+
 # Bright Data Proxy
 
 Generate working code and configuration for Bright Data's four proxy networks. This skill covers usage and integration — it does **not** walk users through control-panel UI setup. If the user hasn't created a zone yet, tell them to sign up at https://brightdata.com and use the in-app proxy creation helper (the control panel guides them through zone type, pool type, and credentials interactively — that's the right surface for setup, not this skill).

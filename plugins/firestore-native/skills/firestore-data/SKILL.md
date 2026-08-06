@@ -2,6 +2,7 @@
 name: firestore-data
 description: Handles NoSQL document operations and collection hierarchy exploration. Use for CRUD tasks and data retrieval. Provides flexible document manipulation and structured querying.
 ---
+
 ## Usage
 
 All scripts can be executed using Node.js. Replace `<param_name>` and `<param_value>` with actual values.

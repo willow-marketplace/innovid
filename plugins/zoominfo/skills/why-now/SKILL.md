@@ -2,6 +2,7 @@
 name: why-now
 description: Build a "why now" case for reaching out to a company — the timing thesis and the specific hooks to lead with — by combining company signals (intent, news, scoops), account_research, your GTM context, and web research. Identify the company by ZoomInfo company ID (preferred) or name/domain (triggers a lookup). Use when someone asks "why should I reach out to Acme now", "what's our angle into this account", "give me a reason to call", or is planning outbound and needs timely, evidence-based hooks. Each hook ties a real signal to one of your offerings.
 ---
+
 # Why Now
 
 Answer the question a seller actually has before reaching out: why this account, why now, and what to lead with.

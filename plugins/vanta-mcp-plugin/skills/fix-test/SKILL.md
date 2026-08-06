@@ -2,6 +2,7 @@
 name: fix-test
 description: Fix a failing Vanta compliance test by generating code changes and opening a pull request
 ---
+
 Fix the failing Vanta test specified in $ARGUMENTS.
 
 ## Steps

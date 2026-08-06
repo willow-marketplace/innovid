@@ -2,6 +2,7 @@
 name: live-data-forensics
 description: Investigates live product issues against Amplitude data — "is X firing today", "did the release break Y", "which users are affected by Z". Covers the verify-then-query loop, query_amplitude_data parameterization, and its common failure modes. Use for incident analysis, instrumentation checks, and affected-user discovery.
 ---
+
 # Live Data Forensics
 
 The most common multi-tool job on this MCP server: verify live event

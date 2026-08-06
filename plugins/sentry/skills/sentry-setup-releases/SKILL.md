@@ -2,6 +2,7 @@
 name: sentry-setup-releases
 description: Set up Sentry releases and deploy tracking — tag events with a version and environment, create the release in CI with its commits, and wire up suspect commits and code mappings, so Sentry can show which release introduced an issue, which commit is responsible, and release health. Use when asked to set up releases, track deploys, see what changed, or when issues show an unknown release or no suspect commit.
 ---
+
 # Set Up Sentry Releases
 
 Without a release, an issue tells you *what* broke but nothing about *when it started*

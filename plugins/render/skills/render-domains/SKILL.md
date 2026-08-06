@@ -1,7 +1,8 @@
 ---
 name: render-domains
-description: >-
+description: ">-"
 ---
+
 # Render Custom Domains
 
 Render automatically provisions and renews TLS certificates (via Let's Encrypt and Google Trust Services) for all custom domains. All HTTP traffic is redirected to HTTPS. Custom domains work on **web services** and **static sites** only.

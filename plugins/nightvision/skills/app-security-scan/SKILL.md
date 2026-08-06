@@ -2,6 +2,7 @@
 name: app-security-scan
 description: DAST-first NightVision scan for an app you just built or changed. Use when a user (or an org CLAUDE.md rule) wants a local, private, staging, or internal web app/API security-scanned. Drives the NightVision MCP `run-app-security-scan` harness.
 ---
+
 # NightVision App Security Scan
 
 Run a real DAST scan against an app you just built or changed. API Discovery runs first when the backend language is supported, because it improves coverage and lets findings trace back to a source file and line (Code Traceback). DAST is the expected outcome on every run, not just a generated spec.

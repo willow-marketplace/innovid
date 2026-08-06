@@ -2,6 +2,7 @@
 name: fiftyone-code-style
 description: Writes Python code following FiftyOne's official conventions. Use when contributing to FiftyOne, developing plugins, or writing code that integrates with FiftyOne's codebase.
 ---
+
 # FiftyOne Code Style
 
 ## Module Template

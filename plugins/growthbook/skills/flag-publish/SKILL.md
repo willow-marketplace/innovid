@@ -2,6 +2,7 @@
 name: flag-publish
 description: Publish a GrowthBook feature flag draft revision, resolve merge conflicts, revert to a prior revision, or discard a draft. Use when the user says "publish this draft", "push this live", "go live with revision X", "there's a merge conflict on my flag", "rebase my draft", "fix the merge conflict on flag X", "revert flag X to a previous version", "roll back this flag change", "discard this draft", or "abandon these changes". For requesting or submitting an approval review before publish, use flag-review. For listing and inspecting drafts, use flag-revisions.
 ---
+
 # flag-publish
 
 Get a GrowthBook feature flag draft revision live, or undo a change. Handles the full publish flow including the two common failure modes — approval-required (blocked) and merge conflict (stale base) — and the escape hatches: discard and revert.

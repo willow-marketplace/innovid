@@ -1,7 +1,8 @@
 ---
 name: agents-connect
-description: >
+description: ">"
 ---
+
 # connect
 
 Give your AgentCore agent access to external APIs, tools, and services via the AgentCore Gateway — and control what it can access with Cedar policies.

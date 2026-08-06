@@ -1,7 +1,8 @@
 ---
 name: bigdata-sector-playbook
-description: >
+description: ">"
 ---
+
 # Bigdata Sector Playbook
 
 The operating manual for a sector: what to measure, what is debated, what to own. Use Bigdata.com plugin tools for every fact.

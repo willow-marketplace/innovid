@@ -1,7 +1,8 @@
 ---
 name: managing-experiment-lifecycle
-description: "Guides experiment state transitions: launching, pausing, resuming, ending, shipping variants, archiving, resetting, duplicating, and copying to another project. Covers preconditions, implications for variant assignment and analysis, and the decision framework for when to use each action.\nTRIGGER when: user asks to launch, pause, resume, end, ship, archive, reset, duplicate, or copy an experiment to another project.\nDO NOT TRIGGER when: user is creating an experiment (use creating-experiments), configuring rollout (use configuring-experiment-rollout), or setting up metrics (use configuring-experiment-analytics)."
+description: '"Guides experiment state transitions: launching, pausing, resuming, ending, shipping variants, archiving, resetting, duplicating, and copying to another project. Covers preconditions, implications for variant assignment and analysis, and the decision framework for when to use each action.\nTRIGGER when: user asks to launch, pause, resume, end, ship, archive, reset, duplicate, or copy an experiment to another project.\nDO NOT TRIGGER when: user is creating an experiment (use creating-experiments), configuring rollout (use configuring-experiment-rollout), or setting up metrics (use configuring-experiment-analytics)."'
 ---
+
 # Managing experiment lifecycle
 
 This skill covers experiment state transitions — what each action does, when to use it, and how it affects variant assignment and analysis.

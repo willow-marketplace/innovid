@@ -2,6 +2,7 @@
 name: output-dev-scenario-file
 description: Create test scenario JSON files for Output SDK workflows. Use when creating test inputs, documenting expected behaviors, or setting up workflow testing.
 ---
+
 # Creating Scenario Files
 
 ## Overview

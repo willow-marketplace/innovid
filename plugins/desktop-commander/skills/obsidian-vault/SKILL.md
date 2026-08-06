@@ -1,7 +1,8 @@
 ---
 name: obsidian-vault
-description: >-
+description: ">-"
 ---
+
 # Obsidian Vault Assistant
 
 Help the user organize and maintain an Obsidian vault: build navigation with

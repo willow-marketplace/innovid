@@ -1,7 +1,8 @@
 ---
 name: render-web-services
-description: >-
+description: ">-"
 ---
+
 # Render Web Services
 
 This skill covers **Web Service** behavior on Render: how traffic reaches your process, how deploys go live, and how optional features (domains, disks, auto-deploy) interact. Use it alongside Blueprint and networking skills when wiring `render.yaml` or Dashboard settings.

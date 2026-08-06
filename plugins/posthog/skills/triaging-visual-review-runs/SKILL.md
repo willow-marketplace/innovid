@@ -1,7 +1,8 @@
 ---
 name: triaging-visual-review-runs
-description: >
+description: ">"
 ---
+
 # Triaging visual review runs
 
 Visual Review is PostHog's screenshot-regression product: CI captures storybook + playwright screenshots,

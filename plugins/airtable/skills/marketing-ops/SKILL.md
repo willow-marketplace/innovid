@@ -2,6 +2,7 @@
 name: marketing-ops
 description: Set up and run Airtable-based marketing operations workflows — request intake, campaign orchestration, creative production, content calendars, brand and compliance review, events, localization, budgets and ROI, capacity planning. Use when the user wants a marketing request "front door," to manage campaigns, coordinate briefs and assets, build a content calendar, plan launches or events, track budgets, measure ROI, or set up agency multi-client delivery. Adapts to org size (solo marketer to enterprise multi-brand or agency) and integrates with or displaces tools like HubSpot, Marketo, Mailchimp, Klaviyo, Workfront, Asana, Monday, and Wrike. Asks scope first.
 ---
+
 # Marketing operations
 
 Set up and run marketing operations workflows — request intake, campaign orchestration, creative production, content calendars, brand and compliance review, events, multi-market rollout, budgets and ROI, capacity planning — adapting to the user's team shape, sub-workflow priorities, and customer audience. The skill scaffolds these workflows in Airtable; ask scope before scaffolding, because the same trigger can mean a single marketer with a 3-table base, a 30-person MOps team consolidating 70+ spreadsheets, or an agency running 200+ client bases — and the right schema depends on what the user is actually trying to coordinate.

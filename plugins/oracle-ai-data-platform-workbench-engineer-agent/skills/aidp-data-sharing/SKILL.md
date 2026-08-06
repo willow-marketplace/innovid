@@ -2,6 +2,7 @@
 name: aidp-data-sharing
 description: Share AIDP data via Delta Sharing — create/manage shares, add data assets, manage recipients, and grant access/permissions. Use when the user wants to share a table/schema with another team or org, set up Delta Sharing, manage recipients, or control share permissions/token expiry. Primary engine is the official `aidp` CLI (`aidp delta-share …`); the same GA REST API via `oci raw-request` is the no-CLI fallback.
 ---
+
 # `aidp-data-sharing` — Delta Sharing (shares & recipients)
 
 Open data sharing over the Delta Sharing protocol via the AIDP `DeltaShare` API. A differentiator:

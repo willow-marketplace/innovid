@@ -2,6 +2,7 @@
 name: domino-data-sdk
 description: Use the domino-data Python SDK (dominodatalab-data) for programmatic data access in Domino. Covers DataSourceClient for SQL queries and object storage, DatasetClient for dataset files, TrainingSets for ML data versioning, Feature Store, and VectorDB (Pinecone) integration. Use when querying data sources, downloading datasets, managing training sets, or working with vector databases in Domino.
 ---
+
 # Domino Data SDK Skill
 
 This skill provides comprehensive knowledge for working with the `domino-data` Python SDK (`dominodatalab-data`) - the official library for Domino's Access Data features.

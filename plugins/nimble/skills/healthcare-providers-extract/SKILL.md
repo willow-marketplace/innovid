@@ -1,22 +1,24 @@
 ---
 name: healthcare-providers-extract
-description: Extracts structured practitioner data from healthcare practice websites.
-Returns names, credentials, specialties, contact info, and education for
-every provider on a practice's site.
+description: |-
+  Extracts structured practitioner data from healthcare practice websites.
+  Returns names, credentials, specialties, contact info, and education for
+  every provider on a practice's site.
 
-Use when user asks to extract, pull, or list doctors, providers, or staff
-from practice websites. Triggers: "extract doctors from", "pull providers
-from", "who are the providers at", "build a provider database", "list all
-doctors at", "scrape the team page", "get practitioner data from".
+  Use when user asks to extract, pull, or list doctors, providers, or staff
+  from practice websites. Triggers: "extract doctors from", "pull providers
+  from", "who are the providers at", "build a provider database", "list all
+  doctors at", "scrape the team page", "get practitioner data from".
 
-Accepts practice URLs (pasted, CSV, Google Sheet) or discovers practices
-via Google Maps when given specialty + location. Single sites or 100+ URLs.
+  Accepts practice URLs (pasted, CSV, Google Sheet) or discovers practices
+  via Google Maps when given specialty + location. Single sites or 100+ URLs.
 
-Do NOT use for filling data gaps — use healthcare-providers-enrich instead.
-Do NOT use for credential validation — use healthcare-providers-verify instead.
-Do NOT use for discovering practices — use market-finder or local-places instead.
-Do NOT use for general extraction — use nimble-web-expert instead.
+  Do NOT use for filling data gaps — use healthcare-providers-enrich instead.
+  Do NOT use for credential validation — use healthcare-providers-verify instead.
+  Do NOT use for discovering practices — use market-finder or local-places instead.
+  Do NOT use for general extraction — use nimble-web-expert instead.
 ---
+
 # Healthcare Providers Extract
 
 Structured practitioner extraction from healthcare practice websites, powered by

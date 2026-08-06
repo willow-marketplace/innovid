@@ -1,7 +1,8 @@
 ---
 name: setting-up-a-custom-rest-source
-description: >
+description: ">"
 ---
+
 # Setting up a Custom REST source
 
 A **Custom source** imports any HTTP REST API into queryable warehouse tables from a JSON **manifest** — no

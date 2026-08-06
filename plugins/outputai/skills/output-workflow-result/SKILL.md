@@ -2,6 +2,7 @@
 name: output-workflow-result
 description: Get the result of an Output SDK workflow execution. Use when retrieving the output of a completed workflow, getting the return value, or checking what a workflow produced after async execution.
 ---
+
 # Get Workflow Execution Result
 
 ## Overview

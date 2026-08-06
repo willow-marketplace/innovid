@@ -1,7 +1,8 @@
 ---
 name: graphql-schema
-description: >
+description: ">"
 ---
+
 # GraphQL Schema Design Guide
 
 This guide covers best practices for designing GraphQL schemas that are intuitive, performant, and maintainable. Schema design is primarily a server-side concern that directly impacts API usability.

@@ -2,6 +2,7 @@
 name: alloydb-postgres-data
 description: Use these skills when you need to explore the database schema, identify objects like views and triggers, and execute custom SQL queries to interact with your data.
 ---
+
 ## Usage
 
 All scripts can be executed using Node.js. Replace `<param_name>` and `<param_value>` with actual values.

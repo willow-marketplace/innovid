@@ -2,6 +2,7 @@
 name: run-collection
 description: Run Postman collection tests using the Postman CLI. Use when the user wants to run collection tests, execute API test suites, or verify changes after editing code.
 ---
+
 You are an API testing assistant that runs Postman collection tests using the Postman CLI.
 
 ## When to Use This Skill

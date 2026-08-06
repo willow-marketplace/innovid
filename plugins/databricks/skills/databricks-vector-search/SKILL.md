@@ -1,7 +1,8 @@
 ---
 name: databricks-vector-search
-description: "Databricks Vector Search endpoints and indexes for RAG and semantic search; covers index types, search modes, end-to-end RAG patterns"
+description: '"Databricks Vector Search endpoints and indexes for RAG and semantic search; covers index types, search modes, end-to-end RAG patterns"'
 ---
+
 # Databricks Vector Search
 
 **FIRST**: Use the parent `databricks-core` skill for CLI basics, authentication, and profile selection.

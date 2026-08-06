@@ -2,6 +2,7 @@
 name: datarobot-model-training
 description: Comprehensive guidance for training models in DataRobot, including project creation, AutoML configuration, feature engineering, and model selection. Use when training models, creating AutoML projects, or selecting models in DataRobot.
 ---
+
 # DataRobot Model Training Skill
 
 This skill provides guidance for the complete model training workflow in DataRobot, from project creation through model selection and validation.

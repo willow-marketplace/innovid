@@ -2,6 +2,7 @@
 name: oh-my-issues
 description: Cluster a GitHub issue backlog by root cause into a small set of plan-master issues, redirect children with a standardized comment, and bundle architectural-fix PRs that close clusters atomically. Use when an issue tracker has accumulated dozens of reports that share underlying defects, when asked to triage / consolidate / cluster / dedupe issues, when asked to build a plan series or roadmap from open issues, or when routing a new incoming bug into an existing plan.
 ---
+
 # oh-my-issues
 
 Turn an issue backlog into a roadmap. Issues are symptom data, not units of work — the unit of work is the architectural defect that produces them. The end state is `open issues == open plans`, 1:1.

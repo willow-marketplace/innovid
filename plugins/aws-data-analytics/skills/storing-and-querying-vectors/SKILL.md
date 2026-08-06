@@ -1,7 +1,8 @@
 ---
 name: storing-and-querying-vectors
-description: >-
+description: ">-"
 ---
+
 # Store and Query Vectors with Amazon S3 Vectors
 
 ## Overview

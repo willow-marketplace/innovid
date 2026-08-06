@@ -1,7 +1,8 @@
 ---
 name: mongodb-query-optimizer
-description: >-
+description: ">-"
 ---
+
 # MongoDB Query Optimizer
 
 ## When this skill is invoked

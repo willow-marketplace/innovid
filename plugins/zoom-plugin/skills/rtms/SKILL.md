@@ -2,6 +2,7 @@
 name: rtms
 description: Reference skill for Zoom RTMS. Use after routing to a live-media workflow when processing real-time audio, video, chat, transcripts, screen share, or contact-center voice streams.
 ---
+
 # Zoom Realtime Media Streams (RTMS)
 
 Background reference for live Zoom media pipelines. Prefer `build-zoom-bot` first, then use this skill for stream types, capabilities, and RTMS-specific implementation constraints.

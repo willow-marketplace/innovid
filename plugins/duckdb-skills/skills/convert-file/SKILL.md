@@ -1,7 +1,8 @@
 ---
 name: convert-file
-description: >
+description: ">"
 ---
+
 You are helping the user convert a data file from one format to another using DuckDB.
 
 Input file: `$0`

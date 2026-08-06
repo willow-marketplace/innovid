@@ -1,21 +1,23 @@
 ---
 name: brand-mention-monitor
-description: Scans Reddit, X, LinkedIn, Instagram, TikTok, YouTube, blogs, news, and review platforms
-for brand mentions — scoring each one across four dimensions (reach, velocity, sentiment,
-and risk-topic match) so marketing teams can respond before a mention spirals. Source
-selection is market- and company-specific: B2B SaaS brands get weighted coverage of
-LinkedIn, G2, HN, and trade press; consumer brands get TikTok, Instagram, X, and YouTube.
-Every mention is bucketed into Crisis / Watch / Engage / Log with a suggested owner and
-response window. Powered by Nimble.
+description: |-
+  Scans Reddit, X, LinkedIn, Instagram, TikTok, YouTube, blogs, news, and review platforms
+  for brand mentions — scoring each one across four dimensions (reach, velocity, sentiment,
+  and risk-topic match) so marketing teams can respond before a mention spirals. Source
+  selection is market- and company-specific: B2B SaaS brands get weighted coverage of
+  LinkedIn, G2, HN, and trade press; consumer brands get TikTok, Instagram, X, and YouTube.
+  Every mention is bucketed into Crisis / Watch / Engage / Log with a suggested owner and
+  response window. Powered by Nimble.
 
-Use when asked to "monitor brand mentions", "scan for brand mentions", "what are people
-saying about [brand]", "brand monitoring", "social listening", "run a brand sweep",
-"find high-risk mentions", or any variation of brand monitoring across web and social.
+  Use when asked to "monitor brand mentions", "scan for brand mentions", "what are people
+  saying about [brand]", "brand monitoring", "social listening", "run a brand sweep",
+  "find high-risk mentions", or any variation of brand monitoring across web and social.
 
-Do NOT use for one-time company research or due diligence — use company-deep-dive instead.
-Do NOT use for competitor messaging/positioning analysis — use competitor-positioning instead.
-Do NOT use for funding/hiring/business signals on a competitor — use competitor-intel instead.
+  Do NOT use for one-time company research or due diligence — use company-deep-dive instead.
+  Do NOT use for competitor messaging/positioning analysis — use competitor-positioning instead.
+  Do NOT use for funding/hiring/business signals on a competitor — use competitor-intel instead.
 ---
+
 # Brand Mention Monitor
 
 Scans the web and social media for brand mentions, scores each one on reach, velocity, sentiment, and risk-topic match, and surfaces the ones that need attention — bucketed into Crisis / Watch / Engage / Log with a suggested owner.

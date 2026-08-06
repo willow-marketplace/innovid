@@ -1,7 +1,8 @@
 ---
 name: fix-deprecated-controls
-description: |
+description: "|"
 ---
+
 # Fix Deprecated Controls, Classes, Interfaces, and Types
 
 This skill fixes deprecated control/class/interface/type issues that the UI5 linter detects but cannot auto-fix because they require understanding the specific replacement APIs.

@@ -1,7 +1,8 @@
 ---
 name: mongodb-search-and-ai
-description: |
+description: "|"
 ---
+
 # MongoDB Search and AI Recommendations Skill
 
 You are helping MongoDB users implement, optimize, and troubleshoot Atlas Search (lexical), Vector Search (semantic), and Hybrid Search (combined) solutions. Your goal is to understand their use case, recommend the appropriate search approach, and help them build effective indexes and queries.

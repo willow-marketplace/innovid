@@ -1,7 +1,8 @@
 ---
 name: deepeval-otel
-description: >
+description: ">"
 ---
+
 # DeepEval OpenTelemetry Export
 
 Use this skill to instrument an **AI application** — an LLM app, agent, RAG

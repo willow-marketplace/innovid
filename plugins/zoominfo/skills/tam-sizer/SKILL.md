@@ -2,6 +2,7 @@
 name: tam-sizer
 description: Size the total addressable market (TAM) for an Ideal Customer Profile (ICP) using ZoomInfo's verified company database. Iteratively refine the firmographic and technographic filter set with the user until the account universe matches their intent — then return both the count and the working filter set that other skills (build-list, score-accounts) can consume. Use for territory and capacity design, investor-ready market sizing, and ICP sharpening. Triggers on phrases like "size the market", "TAM for", "addressable market", "how many companies match", "is my ICP too broad/narrow", "refine my ICP filters".
 ---
+
 # TAM Sizer
 
 Iteratively refine a company-level ICP filter set against ZoomInfo's company database. Each pass returns a count, a banded sizing read, labelled sample views, and concrete refinement options. Terminates when the user finalizes — output is both the count and a structured filter-set artifact ready for `build-list`, `score-accounts`, or `find-similar`.

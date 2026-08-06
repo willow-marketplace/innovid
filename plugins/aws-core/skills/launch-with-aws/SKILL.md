@@ -1,7 +1,8 @@
 ---
 name: launch-with-aws
-description: "Migrates vibe-coded web applications to AWS. Handles the full workflow from analysis through migration to deployment, producing deployable AWS Blocks infrastructure code. Supports full-stack apps built with vibe-coding platforms (Lovable, Bolt.new, Replit) and frontend web applications and websites: React, Vue, Angular, Next.js, Nuxt, Astro, SvelteKit, Gatsby, Vite, Svelte, Solid, Docusaurus, and others (static sites, SPAs, and SSR frameworks with static export). Triggers on: launch with AWS, launch on AWS, deploy to AWS, migrate to AWS, host my app on AWS, move my app to AWS, transfer my app to AWS. Activates when the user wants to migrate a vibe-coded app or frontend web app to AWS, even if they don't say 'migrate' explicitly."
+description: "\"Migrates vibe-coded web applications to AWS. Handles the full workflow from analysis through migration to deployment, producing deployable AWS Blocks infrastructure code. Supports full-stack apps built with vibe-coding platforms (Lovable, Bolt.new, Replit) and frontend web applications and websites: React, Vue, Angular, Next.js, Nuxt, Astro, SvelteKit, Gatsby, Vite, Svelte, Solid, Docusaurus, and others (static sites, SPAs, and SSR frameworks with static export). Triggers on: launch with AWS, launch on AWS, deploy to AWS, migrate to AWS, host my app on AWS, move my app to AWS, transfer my app to AWS. Activates when the user wants to migrate a vibe-coded app or frontend web app to AWS, even if they don't say 'migrate' explicitly.\""
 ---
+
 # Launch with AWS
 
 Drives an AWS migration end-to-end using CLI scripts. Takes a user's web application, analyzes it, generates a migration plan with cost estimate, and delivers deployable [AWS Blocks](https://docs.aws.amazon.com/blocks/latest/devguide/what-is-blocks.html) infrastructure code.

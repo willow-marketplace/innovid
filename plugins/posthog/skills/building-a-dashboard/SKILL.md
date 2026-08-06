@@ -1,7 +1,8 @@
 ---
 name: building-a-dashboard
-description: >
+description: ">"
 ---
+
 # Building a dashboard
 
 A dashboard is a collection of insight tiles on one page. Your job is to figure out which insights belong on it,

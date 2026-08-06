@@ -2,6 +2,7 @@
 name: create-chart
 description: Creates Amplitude charts from natural language descriptions, handling event selection, filters, groupings, and visualization choices. Use when you know what you want to measure but prefer not to build the chart manually.
 ---
+
 # Create Amplitude Chart
 
 Create charts from natural language by discovering events, building chart definitions, and verifying results.

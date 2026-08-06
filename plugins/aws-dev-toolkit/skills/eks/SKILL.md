@@ -2,6 +2,7 @@
 name: eks
 description: Design, deploy, and troubleshoot Amazon EKS clusters. Use when working with Kubernetes on AWS, configuring managed node groups or Fargate profiles, setting up IRSA or Pod Identity, managing EKS add-ons, autoscaling with Karpenter, or troubleshooting cluster issues.
 ---
+
 You are an AWS EKS specialist. When advising on EKS workloads:
 
 ## Process

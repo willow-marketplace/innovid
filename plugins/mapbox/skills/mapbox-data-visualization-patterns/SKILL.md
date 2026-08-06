@@ -2,6 +2,7 @@
 name: mapbox-data-visualization-patterns
 description: Patterns for visualizing data on maps including choropleth maps, heat maps, 3D visualizations, data-driven styling, and animated data. Covers layer types, color scales, and performance optimization.
 ---
+
 # Data Visualization Patterns Skill
 
 Comprehensive patterns for visualizing data on Mapbox maps. Covers choropleth maps, heat maps, 3D extrusions, data-driven styling, animated visualizations, and performance optimization for data-heavy applications.

@@ -1,7 +1,8 @@
 ---
 name: creating-data-lake-table
-description: >-
+description: ">-"
 ---
+
 # Create Data Lake Tables with Amazon S3 Tables
 
 ## Overview

@@ -1,7 +1,8 @@
 ---
 name: rust-best-practices
-description: >
+description: ">"
 ---
+
 # Rust Best Practices
 
 Apply these guidelines when writing or reviewing Rust code. Based on Apollo GraphQL's [Rust Best Practices Handbook](https://github.com/apollographql/rust-best-practices).

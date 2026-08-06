@@ -1,7 +1,8 @@
 ---
 name: update-note
-description: >
+description: ">"
 ---
+
 ## Overview
 
 Notes in the Carta CRM MCP are accessible via `search_notes` but are edited as

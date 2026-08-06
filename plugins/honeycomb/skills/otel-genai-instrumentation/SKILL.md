@@ -1,7 +1,8 @@
 ---
 name: otel-genai-instrumentation
-description: >
+description: ">"
 ---
+
 # GenAI Instrumentation for Honeycomb
 
 Instrumenting LLM and agent applications using OTel Semantic Conventions for GenAI

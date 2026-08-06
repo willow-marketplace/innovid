@@ -2,6 +2,7 @@
 name: iot
 description: Deep-dive into AWS IoT architecture, device connectivity, edge computing, and fleet management. This skill should be used when the user asks to "design an IoT solution", "connect devices to AWS", "set up MQTT messaging", "configure IoT rules", "provision a device fleet", "use Greengrass at the edge", "build a device shadow", "set up IoT security", "manage OTA updates", "store telemetry data", "create IoT topic rules", "configure fleet provisioning", or mentions IoT Core, MQTT, Greengrass, Device Shadow, IoT Rules Engine, IoT Events, IoT SiteWise, fleet indexing, or device certificates.
 ---
+
 Specialist guidance for AWS IoT. Covers IoT Core (MQTT, shadows, rules engine), Greengrass v2 edge compute, fleet provisioning, security, data storage patterns, and fleet management.
 
 ## Process

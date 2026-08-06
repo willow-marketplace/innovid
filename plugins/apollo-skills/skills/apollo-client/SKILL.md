@@ -1,7 +1,8 @@
 ---
 name: apollo-client
-description: >
+description: ">"
 ---
+
 # Apollo Client 4.x Guide
 
 Apollo Client is a comprehensive state management library for JavaScript that enables you to manage both local and remote data with GraphQL. Version 4.x brings improved caching, better TypeScript support, and React 19 compatibility.

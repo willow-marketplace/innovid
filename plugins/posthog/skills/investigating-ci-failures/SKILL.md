@@ -1,7 +1,8 @@
 ---
 name: investigating-ci-failures
-description: >
+description: ">"
 ---
+
 # Investigating CI failures
 
 The job: take one failing test or one red run and get to a verdict a developer can act on —

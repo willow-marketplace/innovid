@@ -2,6 +2,7 @@
 name: migrate-statsig
 description: Migrate feature flags from Statsig to Confidence SDK. Use when the user says /migrate-statsig, asks to migrate Statsig gates/configs/experiments, or transform SDK code to Confidence.
 ---
+
 # Statsig to Confidence Migration
 
 REST-driven, self-sufficient migration from Statsig to Confidence. This

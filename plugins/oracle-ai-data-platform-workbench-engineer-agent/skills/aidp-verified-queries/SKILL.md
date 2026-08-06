@@ -2,6 +2,7 @@
 name: aidp-verified-queries
 description: Register and validate reusable question→Spark-SQL pairs in .aidp/verified-queries.md so the agent reuses trusted SQL before generating new SQL. Use when the user wants to save a working query as canonical, build a verified-query repository, or improve answer reliability for recurring questions. Validates each pair on the cluster before marking it verified.
 ---
+
 # `aidp-verified-queries` — the verified-query repository (VQR)
 
 Maintain `.aidp/verified-queries.md`: validated `question → Spark SQL` pairs that `aidp-analyzing-data`

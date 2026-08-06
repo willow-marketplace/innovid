@@ -2,6 +2,7 @@
 name: aidp-roles-access
 description: Manage AIDP roles and access — list roles, view permissions, create roles, add/remove members, and grant/revoke per-resource permissions on catalogs, schemas, tables, views, volumes, workspaces, workspace objects, and clusters. Also covers column masking/classification (restricted views + ontology sensitivity — no masking REST API exists). Use when the user asks about roles/RBAC, who can access what, granting/revoking access on any resource, adding someone to a role, or masking/classifying columns. Primary engine is the official `aidp` CLI; the same REST API via `oci raw-request` is the no-CLI fallback.
 ---
+
 # `aidp-roles-access` — roles, permissions, access (RBAC)
 
 Inspect and manage AIDP RBAC.

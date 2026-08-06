@@ -1,7 +1,8 @@
 ---
 name: pixeltable-skill
-description: >
+description: ">"
 ---
+
 ## What is Pixeltable?
 
 Open-source Python library for **declarative multimodal AI data infrastructure** — tables, computed columns, embedding indexes, and 25+ AI providers in one interface.

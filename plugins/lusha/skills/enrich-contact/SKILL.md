@@ -1,7 +1,8 @@
 ---
 name: enrich-contact
-description: >
+description: ">"
 ---
+
 # Enrich Contact
 
 Look up a person in Lusha and return a call-ready contact card. Phone numbers — direct line and mobile — lead the output.

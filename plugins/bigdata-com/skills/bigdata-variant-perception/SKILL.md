@@ -1,7 +1,8 @@
 ---
 name: bigdata-variant-perception
-description: >
+description: ">"
 ---
+
 # Bigdata Variant Perception
 
 The discipline of saying exactly where you differ from consensus — and how you'd know you were wrong. Use Bigdata.com plugin tools for every fact.

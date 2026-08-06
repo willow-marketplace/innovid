@@ -1,7 +1,8 @@
 ---
 name: provider-test-patterns
-description: >-
+description: ">-"
 ---
+
 # Provider Acceptance Test Patterns
 
 Patterns for writing acceptance tests using

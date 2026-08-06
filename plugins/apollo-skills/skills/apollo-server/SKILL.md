@@ -1,7 +1,8 @@
 ---
 name: apollo-server
-description: >
+description: ">"
 ---
+
 # Apollo Server 5.x Guide
 
 Apollo Server is an open-source GraphQL server that works with any GraphQL schema. Apollo Server 5 is framework-agnostic and runs standalone or integrates with Express, Fastify, and serverless environments.

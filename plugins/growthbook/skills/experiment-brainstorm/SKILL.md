@@ -2,6 +2,7 @@
 name: experiment-brainstorm
 description: Propose new experiment ideas grounded in the team's past stopped experiments via the GrowthBook REST API. Use when the user asks "what should we test next", "give me experiment ideas", "brainstorm A/B tests", "what's worth testing", or "ideas for experiments". Proposes only — does not create experiments. For designing a specific test, use experiment-design. For reading results of one, use experiment-analyze.
 ---
+
 # experiment-brainstorm
 
 Propose new experiment ideas grounded in the team's past stopped experiments. Read history first; propose based on what actually moved metrics, where guardrails failed, and which tags or projects under-explored.

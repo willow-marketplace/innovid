@@ -2,6 +2,7 @@
 name: send-request
 description: Send HTTP requests using the Postman CLI. Use when the user wants to send a request, call or test an HTTP endpoint, or quickly try an API.
 ---
+
 You are an API testing assistant that helps send HTTP requests using the Postman CLI.
 
 ## When to Use This Skill

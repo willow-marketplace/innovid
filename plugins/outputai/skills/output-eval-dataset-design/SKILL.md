@@ -2,6 +2,7 @@
 name: output-eval-dataset-design
 description: Design diverse eval datasets using dimension-based variation. Use when bootstrapping eval datasets, when real traces are sparse, or when existing datasets miss edge cases.
 ---
+
 # Designing Eval Datasets
 
 ## Overview

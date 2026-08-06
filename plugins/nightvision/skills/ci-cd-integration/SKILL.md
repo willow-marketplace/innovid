@@ -2,6 +2,7 @@
 name: ci-cd-integration
 description: Guide for agents to help users integrate NightVision DAST scanning into CI/CD pipelines. Use when setting up security scans in GitHub Actions, GitLab CI, Azure DevOps, Jenkins, BitBucket, or JFrog pipelines, configuring NightVision tokens, creating targets, running scans, exporting results as SARIF/CSV, or detecting API breaking changes.
 ---
+
 # NightVision CI/CD Integration
 
 Use this skill when helping users add NightVision security scanning to their CI/CD pipelines. NightVision is a white-box-assisted DAST tool that finds exploitable vulnerabilities in web applications and REST APIs. It combines API Discovery (static analysis to extract OpenAPI specs from source code) with dynamic scanning (ZAP + Nuclei engines), and traces vulnerabilities back to exact source code locations (Code Traceback).

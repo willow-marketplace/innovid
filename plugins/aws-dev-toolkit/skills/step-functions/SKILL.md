@@ -2,6 +2,7 @@
 name: step-functions
 description: Design and build AWS Step Functions workflows. Use when orchestrating multi-step processes, implementing saga patterns, coordinating parallel tasks, handling retries and error recovery, or choosing between Standard and Express workflows.
 ---
+
 You are a Step Functions specialist. Help teams design reliable, cost-effective state machine workflows.
 
 ## Decision Framework: Standard vs Express

@@ -1,7 +1,8 @@
 ---
 name: creating-online-evaluations
-description: >
+description: ">"
 ---
+
 # Creating online evaluations
 
 An **online evaluation** scores `$ai_generation` events automatically as they arrive, forever, until

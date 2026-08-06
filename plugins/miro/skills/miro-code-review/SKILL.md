@@ -2,6 +2,7 @@
 name: miro-code-review
 description: Use when the user wants to create a visual code review on a Miro board from a pull/merge request (GitHub, GitLab, or any forge), local uncommitted changes, or a branch comparison — produces a file-changes table, summary/architecture/security docs, and architecture diagrams, then links them back from the PR/MR.
 ---
+
 # Visual Code Review
 
 Generate a comprehensive visual code review on a Miro board from a pull/merge request, local changes, or a branch comparison. Includes architecture analysis, security review, and optionally enriches with enterprise documentation. After the artifacts are created, link them back from the PR/MR description so reviewers can find them without leaving their forge.

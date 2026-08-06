@@ -2,6 +2,7 @@
 name: workspace-builder
 description: Build a CRM workspace from scratch — describe your business and get boards, columns, and pipeline stages created in monday. Use when someone says "set up my CRM", "build me a CRM", "create CRM boards for me", "I need a new sales pipeline", "help me get started in monday", "I don't know how to set up my pipeline", or "build me a CRM from scratch". Do not use for questions about an existing board — those belong to daily-briefing or data-cleanup.
 ---
+
 # Workspace Builder
 
 Sets up a CRM workspace conversationally — turning "I don't know how to start" into a working board on day 1. Replaces the manual template-pick → column-rename → column-add → group-rename loop that gates 442 median days between CRM install and first MCP execution. **This is the single highest-leverage retention skill in the catalog.**

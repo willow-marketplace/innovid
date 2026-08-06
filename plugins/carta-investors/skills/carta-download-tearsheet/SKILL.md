@@ -1,7 +1,8 @@
 ---
 name: carta-download-tearsheet
-description: >
+description: ">"
 ---
+
 <!-- Part of the official Carta AI Agent Plugin -->
 
 # Download Tearsheet

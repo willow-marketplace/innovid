@@ -2,6 +2,7 @@
 name: tags-and-properties
 description: Manage Domino tags and properties via the Taxonomy API. Covers tags/namespaces (create, list, update, delete; tag entities — project, model, dataset, app, project_template, netapp_volume; query by tag; autocomplete; merge; CSV import/export) AND properties (typed metadata fields — text, number, date, boolean, url, user, organization, select, multi_select — with per-entity values, groups, and versioned entities like model_version/app_version). Use when organizing entities with tags, building hierarchical namespaces, defining typed metadata fields, setting property values on projects/models/apps, finding entities by tag, bulk-tagging during onboarding, or migrating taxonomy across environments.
 ---
+
 # Domino Tags and Properties Skill
 
 ## Description

@@ -2,6 +2,7 @@
 name: airtable-filters
 description: Builds Airtable filters parameters for the MCP tools that list or display records — field-type-aware comparison operators, choice and collaborator IDs, date ranges, and nested AND/OR logic. Use when the user wants to find, filter, narrow down, or search Airtable records by field values, even when they don't explicitly say "filter."
 ---
+
 # Airtable MCP Filters
 
 MCP tools that list or display records from tables or interface pages accept an optional `filters` parameter, using the same schema.

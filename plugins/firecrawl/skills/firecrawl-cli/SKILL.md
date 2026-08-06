@@ -1,7 +1,8 @@
 ---
 name: firecrawl-cli
-description: |
+description: "|"
 ---
+
 # Firecrawl CLI
 
 Search, scrape, and interact with the web. Returns clean markdown optimized for LLM context windows.

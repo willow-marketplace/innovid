@@ -1,7 +1,8 @@
 ---
 name: firecrawl-monitor
-description: |
+description: "|"
 ---
+
 # firecrawl monitor
 
 Detect when content on a website changes and get notified by webhook or email. Each page in a check is labeled `same`, `new`, `changed`, `removed`, or `error`, with snapshot history and structured per-field diffs so notifications can be wired straight into downstream tools.

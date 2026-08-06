@@ -2,6 +2,7 @@
 name: output-dev-agent-class
 description: Use the Agent class for multi-step tool loops, conversation history, and reusable LLM agents. Use when building agents with skills, structured output, or stateful conversations.
 ---
+
 # Using the Agent Class
 
 ## Overview

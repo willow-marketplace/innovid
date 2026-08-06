@@ -1,7 +1,8 @@
 ---
 name: add-fundraising
-description: >
+description: ">"
 ---
+
 ## Overview
 
 Help the user create one or more fundraising records in the Carta CRM using the

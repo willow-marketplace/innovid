@@ -4,6 +4,7 @@ description: Use this agent when you need expert guidance on Output SDK implemen
 scope: global
 model: sonnet
 ---
+
 # Output SDK Best Practices Agent
 
 ## Identity

@@ -2,6 +2,7 @@
 name: looker
 description: These skills are designed for data discovery and business intelligence.
 ---
+
 ## Usage
 
 All scripts can be executed using Node.js. Replace `<param_name>` and `<param_value>` with actual values.

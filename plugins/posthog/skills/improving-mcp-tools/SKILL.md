@@ -1,7 +1,8 @@
 ---
 name: improving-mcp-tools
-description: >
+description: ">"
 ---
+
 # Improving MCP tools
 
 An MCP server gets better only in ways you can measure. This skill is the

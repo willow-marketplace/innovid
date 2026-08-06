@@ -1,7 +1,8 @@
 ---
 name: ingesting-into-data-lake
-description: >-
+description: ">-"
 ---
+
 # Ingest into Data Lake
 
 Move data from a source into a queryable table in the data lake. This skill assumes the source connection (if one is needed) already exists. For Glue connection setup or troubleshooting, delegate to `connecting-to-data-source`.

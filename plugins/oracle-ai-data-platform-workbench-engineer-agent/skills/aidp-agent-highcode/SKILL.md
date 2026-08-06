@@ -2,6 +2,7 @@
 name: aidp-agent-highcode
 description: Build AIDP agents in high-code Python with aidputils + LangGraph (the code-first alternative to the low-code agent-flow canvas). Use when the user wants to write an agent in Python, use LangGraph / create_react_agent / StateGraph, call aidputils (OCIAIConf, AIDPToolConf, init_oci_llm, create_langgraph_tool), build a custom or multi-agent supervisor flow in code, or asks "how do I code an AIDP agent". For the low-code/REST node-graph path use aidp-agent-flows.
 ---
+
 # `aidp-agent-highcode` — code-first AIDP agents (aidputils + LangGraph)
 
 The GA high-code path: write a Python agent class using **`aidputils`** (pre-installed in AI Compute;

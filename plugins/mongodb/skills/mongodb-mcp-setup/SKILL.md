@@ -2,6 +2,7 @@
 name: mongodb-mcp-setup
 description: Guide users through configuring key MongoDB MCP server options. Use this skill when a user has the MongoDB MCP server installed but hasn't configured the required environment variables, or when they ask about connecting to MongoDB/Atlas and don't have the credentials set up.
 ---
+
 # MongoDB MCP Server Setup
 
 This skill guides users through configuring the MongoDB MCP server for use with an agentic client.

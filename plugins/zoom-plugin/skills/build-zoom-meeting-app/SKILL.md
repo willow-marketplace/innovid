@@ -2,6 +2,7 @@
 name: build-zoom-meeting-app
 description: Build or embed a Zoom meeting flow. Use when implementing Meeting SDK joins, web or mobile meeting embeds, meeting lifecycle flows, or when deciding between Meeting SDK and Video SDK.
 ---
+
 # /build-zoom-meeting-app
 
 Use this skill for embedded meeting experiences and meeting lifecycle implementation.

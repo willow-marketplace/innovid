@@ -2,6 +2,7 @@
 name: scrape-zyte-login
 description: Set up the user's Zyte account and credentials. Use when the user asks to set up, log in, sign up, or get an API key for Zyte; when ZYTE_API_KEY is missing; when a site is blocked; or before Scrapy Cloud deployment.
 ---
+
 API keys must never appear in the transcript. Do not echo, read, or write key values directly.
 
 Setup page: `${ZYTE_AGENT_SETUP_URL:-https://app.zyte.com/agent-setup}`

@@ -1,7 +1,8 @@
 ---
 name: instrument-product-analytics
-description: >-
+description: ">-"
 ---
+
 # Add PostHog product analytics events
 
 Use this skill to add product analytics events (capture calls) that track meaningful user actions in new or changed code. Use it after implementing features or reviewing PRs to ensure key user behaviors are captured. If PostHog is not yet installed, this skill also covers initial SDK setup. Supports any framework or language.

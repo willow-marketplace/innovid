@@ -5,6 +5,7 @@ scope: global
 tools: Glob, Grep, LS, Read, NotebookRead, WebFetch, TodoWrite, WebSearch, Write, Edit, MultiEdit
 model: opus
 ---
+
 # Output SDK Workflow Planner
 
 ## Identity

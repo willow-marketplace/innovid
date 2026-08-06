@@ -1,7 +1,8 @@
 ---
 name: together-audio
-description: "Text-to-speech and speech-to-text via Together AI, including REST, streaming, and realtime WebSocket TTS, plus transcription, translation, diarization, timestamps, and live STT. Reach for it whenever the user needs audio in or audio out on Together AI rather than chat generation, image or video creation, or model training."
+description: '"Text-to-speech and speech-to-text via Together AI, including REST, streaming, and realtime WebSocket TTS, plus transcription, translation, diarization, timestamps, and live STT. Reach for it whenever the user needs audio in or audio out on Together AI rather than chat generation, image or video creation, or model training."'
 ---
+
 # Together Audio
 
 ## Overview

@@ -1,7 +1,8 @@
 ---
 name: llm-to-bedrock
-description: "Use when the user wants to migrate code that calls OpenAI, Gemini/Google AI, or the Anthropic API to Amazon Bedrock — a pure model/SDK rewrite. End-to-end: assesses the codebase, then rewrites SDK calls, evaluates output quality against Bedrock, and delivers a ready-to-merge git branch. Not for: agent runtime selection, agentic architecture decisions, or agent migration planning — use agent-advisor for those. Not for standalone Bedrock cost estimates or infrastructure-only migration. The Assess phase is handled by this plugin's own gcp-to-aws skill."
+description: "\"Use when the user wants to migrate code that calls OpenAI, Gemini/Google AI, or the Anthropic API to Amazon Bedrock — a pure model/SDK rewrite. End-to-end: assesses the codebase, then rewrites SDK calls, evaluates output quality against Bedrock, and delivers a ready-to-merge git branch. Not for: agent runtime selection, agentic architecture decisions, or agent migration planning — use agent-advisor for those. Not for standalone Bedrock cost estimates or infrastructure-only migration. The Assess phase is handled by this plugin's own gcp-to-aws skill.\""
 ---
+
 # Migrate to Bedrock (Assess + Execute)
 
 Single-command AI migration: OpenAI / Gemini / Anthropic → Amazon Bedrock.

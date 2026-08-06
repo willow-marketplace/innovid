@@ -1,6 +1,6 @@
 ---
 name: onboard-app
-description: "End-to-end onboarding of a new application in ZPA with full dependency chain."
+description: '"End-to-end onboarding of a new application in ZPA with full dependency chain."'
 ---
 
 # Onboard Application in ZPA

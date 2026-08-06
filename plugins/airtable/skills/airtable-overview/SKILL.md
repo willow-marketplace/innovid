@@ -2,6 +2,7 @@
 name: airtable-overview
 description: Explains what Airtable is and how data is structured — bases, tables, fields, records, views, automations, and interfaces. Use when you need context about the Airtable data model.
 ---
+
 # Airtable Overview
 
 Airtable is a no-code platform where teams build custom applications and AI-powered workflows from structured data. Users organize their data into bases, define tables with typed fields, set up automations to act on changes, and create interfaces that give different audiences tailored views of the same data.

@@ -1,7 +1,8 @@
 ---
 name: render-env-vars
-description: >-
+description: ">-"
 ---
+
 # Environment Variables on Render
 
 Render exposes configuration to services as **environment variables**. Values are always **strings** at the platform layer—applications must parse numbers, booleans, and structured data explicitly.

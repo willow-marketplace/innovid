@@ -2,6 +2,7 @@
 name: miro-table
 description: Use when the user wants to create or update a structured table on a Miro board.
 ---
+
 # Miro Table
 
 Shortcut to the Miro MCP table tools.

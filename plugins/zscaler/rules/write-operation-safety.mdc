@@ -2,6 +2,7 @@
 description: Write operations are disabled by default and require explicit enablement. Delete operations use HMAC confirmation tokens.
 alwaysApply: true
 ---
+
 # Write operation safety
 
 1. Write tools are disabled by default. They must be enabled with `--write-tools` and an explicit allowlist.

@@ -1,21 +1,23 @@
 ---
 name: healthcare-providers-enrich
-description: Fills gaps in existing healthcare practitioner lists — adds missing phone numbers,
-credentials, specialties, contact info, education, reviews, and regulatory data.
+description: |-
+  Fills gaps in existing healthcare practitioner lists — adds missing phone numbers,
+  credentials, specialties, contact info, education, reviews, and regulatory data.
 
-Triggers: "enrich my provider list", "fill in missing data", "add phone numbers
-to these doctors", "complete this practitioner database", "enrich CRM export",
-"fill gaps in my provider data", "supplement this healthcare list".
+  Triggers: "enrich my provider list", "fill in missing data", "add phone numbers
+  to these doctors", "complete this practitioner database", "enrich CRM export",
+  "fill gaps in my provider data", "supplement this healthcare list".
 
-Accepts CSV, Google Sheet URL, or pasted data. Searches for each provider's
-practice website, extracts missing fields, and enriches with reviews, clinical
-trials, and accreditation via WSAs.
+  Accepts CSV, Google Sheet URL, or pasted data. Searches for each provider's
+  practice website, extracts missing fields, and enriches with reviews, clinical
+  trials, and accreditation via WSAs.
 
-Do NOT use for extracting providers from practice URLs — use healthcare-providers-extract instead.
-Do NOT use for validating credentials — use healthcare-providers-verify instead.
-Do NOT use for discovering practices — use market-finder or local-places instead.
-Do NOT use for general extraction — use nimble-web-expert instead.
+  Do NOT use for extracting providers from practice URLs — use healthcare-providers-extract instead.
+  Do NOT use for validating credentials — use healthcare-providers-verify instead.
+  Do NOT use for discovering practices — use market-finder or local-places instead.
+  Do NOT use for general extraction — use nimble-web-expert instead.
 ---
+
 # Healthcare Providers Enrich
 
 Fill gaps in existing practitioner lists with verified web data, powered by Nimble's

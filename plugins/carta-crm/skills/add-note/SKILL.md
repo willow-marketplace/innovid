@@ -1,7 +1,8 @@
 ---
 name: add-note
-description: >
+description: ">"
 ---
+
 ## Overview
 
 In the Carta CRM MCP, notes are added as comments on deal records using the

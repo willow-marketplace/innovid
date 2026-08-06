@@ -2,6 +2,7 @@
 name: tracking
 description: Track packages across carriers, view tracking history, and set up tracking webhooks via the Shippo API
 ---
+
 <!--
   ⚠️  DO NOT EDIT. Auto-generated from skills/tracking/SKILL.md by scripts/sync.js
   Edits here will be overwritten on the next sync.

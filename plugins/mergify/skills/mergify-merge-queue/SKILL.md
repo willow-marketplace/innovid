@@ -2,6 +2,7 @@
 name: mergify-merge-queue
 description: Use Mergify merge queue to queue/dequeue PRs and to monitor, inspect, pause, and manage the merge queue. ALWAYS use this skill when queuing or dequeuing a PR, checking queue status, investigating PR merge state, pausing/unpausing the queue, or debugging merge failures. Triggers on queue a PR, requeue, dequeue, merge queue, queue status, queue pause, queue show, pause, unpause, frozen, bisecting, batch, CI checks.
 ---
+
 # Mergify Merge Queue
 
 ## Overview

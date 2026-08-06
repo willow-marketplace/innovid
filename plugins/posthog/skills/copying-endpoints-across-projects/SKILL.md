@@ -1,7 +1,8 @@
 ---
 name: copying-endpoints-across-projects
-description: >
+description: ">"
 ---
+
 # Copying endpoints across projects
 
 This skill duplicates a PostHog **endpoint** — a saved HogQL or insight query exposed as a callable API route — either into another project in the same organization, or under a new name in the same project.

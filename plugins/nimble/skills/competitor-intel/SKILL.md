@@ -1,22 +1,24 @@
 ---
 name: competitor-intel
-description: Searches the live web via Nimble APIs to monitor competitors and produce a
-structured intelligence briefing. Runs parallel searches for news, product
-launches, hiring signals, and funding — then compares against previous
-findings to highlight only what's new.
+description: |-
+  Searches the live web via Nimble APIs to monitor competitors and produce a
+  structured intelligence briefing. Runs parallel searches for news, product
+  launches, hiring signals, and funding — then compares against previous
+  findings to highlight only what's new.
 
-Use this skill when the user asks about competitors, competitive intelligence,
-or what rival companies are doing. Common triggers: "what are my competitors
-doing", "competitor update", "competitor news", "competitive landscape",
-"market intel", "what's new with [company]", "track [company]", "competitor
-briefing", "who's making moves", "competitive analysis", "losing deals to
-[company]", "battlecard". Also use before board meetings or strategy sessions
-when the user wants competitive context.
+  Use this skill when the user asks about competitors, competitive intelligence,
+  or what rival companies are doing. Common triggers: "what are my competitors
+  doing", "competitor update", "competitor news", "competitive landscape",
+  "market intel", "what's new with [company]", "track [company]", "competitor
+  briefing", "who's making moves", "competitive analysis", "losing deals to
+  [company]", "battlecard". Also use before board meetings or strategy sessions
+  when the user wants competitive context.
 
-Requires the Nimble CLI (nimble search, nimble extract) for live web data.
-Do NOT use for single-company deep dives (use company-deep-dive), meeting
-prep with attendees (use meeting-prep), or non-business queries.
+  Requires the Nimble CLI (nimble search, nimble extract) for live web data.
+  Do NOT use for single-company deep dives (use company-deep-dive), meeting
+  prep with attendees (use meeting-prep), or non-business queries.
 ---
+
 # Competitor Intelligence
 
 Real-time competitive intelligence powered by Nimble's web data APIs.

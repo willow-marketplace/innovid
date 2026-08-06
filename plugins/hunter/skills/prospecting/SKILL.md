@@ -2,6 +2,7 @@
 name: prospecting
 description: Runs end-to-end B2B prospecting by chaining company discovery, contact search, email verification, and enrichment. Use when the user wants to build a prospect list, find and qualify leads, or run a full prospecting pipeline.
 ---
+
 # Prospecting
 
 Chain Hunter tools into a complete prospecting workflow. Discover companies, find contacts, verify emails, and enrich -- all in one go.

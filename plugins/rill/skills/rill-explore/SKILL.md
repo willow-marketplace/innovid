@@ -2,6 +2,7 @@
 name: rill-explore
 description: Detailed instructions and examples for developing explore dashboard resources in Rill
 ---
+
 # Instructions for developing an explore dashboard in Rill
 
 ## Introduction

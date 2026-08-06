@@ -1,7 +1,8 @@
 ---
 name: forge-cost-optimizer
-description: >
+description: ">"
 ---
+
 # Forge Cost Optimizer
 
 Optimize Forge apps for lower platform consumption while preserving correctness, security, and maintainability. This skill turns Atlassian's Forge cost optimization guidance into an actionable agent workflow.

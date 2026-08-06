@@ -1,7 +1,8 @@
 ---
 name: shopify-pos-ui
-description: "Build retail point-of-sale applications using Shopify's POS UI components. These components provide a consistent and familiar interface for POS applications. POS UI Extensions also supports scaffolding new POS extensions using Shopify CLI commands. Keywords: POS, Retail, smart grid"
+description: "\"Build retail point-of-sale applications using Shopify's POS UI components. These components provide a consistent and familiar interface for POS applications. POS UI Extensions also supports scaffolding new POS extensions using Shopify CLI commands. Keywords: POS, Retail, smart grid\""
 ---
+
 ## Required Tool Calls (do not skip)
 
 You have a `bash` tool. Every response must use it — in this order:

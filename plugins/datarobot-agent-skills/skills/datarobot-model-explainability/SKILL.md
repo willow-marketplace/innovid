@@ -1,7 +1,8 @@
 ---
 name: datarobot-model-explainability
-description: >
+description: ">"
 ---
+
 # DataRobot Model Explainability Skill
 
 This skill covers SHAP insights, XEMP prediction explanations, anomaly explanations, and model diagnostics.

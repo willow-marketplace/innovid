@@ -2,6 +2,7 @@
 name: flag-search
 description: Search, list, and audit GrowthBook feature flags. Use when the user asks "what flags do we have", "find flags tagged payments", "list flags in project X", "which flags are stale", "find flags owned by bryce@company.com", "show me all disabled flags in production", "audit our flags", "find flags with no rules", or "what can we clean up". Read-only — for actually removing flags, use flag-cleanup. For inspecting what depends on a specific flag, use flag-graph. For adding or changing rules, use flag-targeting or flag-rules.
 ---
+
 # flag-search
 
 Search, list, and audit GrowthBook feature flags. Three jobs share this skill: broad inventory listing, filtered search by criteria, and stale-flag auditing for cleanup candidates.

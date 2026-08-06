@@ -1,7 +1,8 @@
 ---
 name: clickhouse-js-node-troubleshooting
-description: >
+description: ">"
 ---
+
 # ClickHouse Node.js Client Troubleshooting
 
 Reference: https://clickhouse.com/docs/integrations/javascript

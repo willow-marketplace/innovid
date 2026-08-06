@@ -1,7 +1,8 @@
 ---
 name: hyperframes
-description: >
+description: ">"
 ---
+
 # HyperFrames — read this first
 
 **Start here for any HyperFrames task** — especially with no project agent config (`CLAUDE.md` / `AGENTS.md` / `.cursorrules`) present. Capability map + video router below.

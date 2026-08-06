@@ -2,6 +2,7 @@
 name: cli
 description: Appwrite CLI skill. Use when managing Appwrite projects from the command line. Covers installation, login, project initialization, deploying functions/sites/tables/buckets/teams/topics, managing resources, non-interactive CI/CD mode, and generating type-safe SDKs.
 ---
+
 # Appwrite CLI
 
 ## Installation

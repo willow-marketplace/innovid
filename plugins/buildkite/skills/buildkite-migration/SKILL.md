@@ -1,7 +1,8 @@
 ---
 name: buildkite-migration
-description: >
+description: ">"
 ---
+
 # Buildkite Migration
 
 Convert CI/CD pipelines from GitHub Actions, Jenkins, CircleCI, Bitbucket Pipelines, and GitLab CI to Buildkite using the `bk pipeline convert` command. The command sends the source file to a public conversion API — no Buildkite account or API token is required.

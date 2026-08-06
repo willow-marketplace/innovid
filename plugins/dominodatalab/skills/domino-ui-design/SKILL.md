@@ -2,6 +2,7 @@
 name: domino-ui-design
 description: Build Domino-styled web applications matching the Domino Design System. Use when creating or styling Domino apps (Dash, Streamlit, Flask, FastAPI+HTML), generating UI components, reviewing UX, or when the user mentions "Domino app", "Domino UI", "Domino dashboard", or "Domino design system". Covers the full stack — FastAPI backend, Ant Design 5.x frontend via CDN, Domino theme tokens (colors, typography, spacing), chart styling with Highcharts, Domino API authentication, proxy-safe routing, UX writing, error handling, empty states, form design, table patterns, and layout best practices. Also use for UX reviews of existing Domino app screenshots.
 ---
+
 # Domino UI Design System Skill
 
 ## Architecture

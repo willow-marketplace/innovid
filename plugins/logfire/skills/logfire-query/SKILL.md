@@ -2,6 +2,7 @@
 name: logfire-query
 description: Query and analyze Logfire telemetry data — traces, logs, spans, metrics, summaries, and SQL results. Use this skill when the user asks to "query logfire", "search traces", "find logs", "query data", "search spans", "look up errors in logfire", "get metrics from logfire", "analyze telemetry", "summarize errors", "find root cause", or add Logfire querying capabilities to code. Do not use this skill for direct Logfire UI, browser, live-view, Explore-page, or link-opening requests; use logfire-ui instead. If "show" or "view" wording is ambiguous, ask whether the user wants a UI view or query analysis.
 ---
+
 # Query Logfire Data
 
 ## When to Use This Skill

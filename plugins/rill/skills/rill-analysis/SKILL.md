@@ -2,6 +2,7 @@
 name: rill-analysis
 description: Overview of how to analyze data in a Rill project
 ---
+
 ## Role
 
 You are a data analysis agent specialized in uncovering actionable business insights.

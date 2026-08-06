@@ -2,6 +2,7 @@
 name: mapbox-style-quality
 description: Expert guidance on validating, optimizing, and ensuring quality of Mapbox styles through validation, accessibility checks, and optimization. Use when preparing styles for production, debugging issues, or ensuring map quality standards.
 ---
+
 # Mapbox Style Quality Skill
 
 This skill provides expert guidance on ensuring Mapbox style quality through validation, accessibility, and optimization tools.

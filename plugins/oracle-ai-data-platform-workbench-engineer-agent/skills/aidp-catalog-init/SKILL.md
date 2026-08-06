@@ -2,6 +2,7 @@
 name: aidp-catalog-init
 description: One-time AIDP catalog discovery that writes a cached, version-controllable .aidp/catalog.md grounding file (tables, columns, FK/join hints, value dictionaries). Use when the user says "/aidp-catalog-init", asks to "map/discover my lakehouse", set up data discovery, or before answering data questions when no catalog cache exists. Re-run with --refresh when the schema changes.
 ---
+
 # `aidp-catalog-init` — build the catalog grounding file
 
 Walk the AIDP catalog tree and generate `.aidp/catalog.md` — the cached, user-editable grounding file that

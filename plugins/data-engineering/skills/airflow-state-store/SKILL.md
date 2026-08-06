@@ -2,6 +2,7 @@
 name: airflow-state-store
 description: Persists task and asset state across retries and DAG runs using Airflow 3.3's AIP-103 key/value stores (`task_state_store`, `asset_state_store`) and the crash-safe `ResumableJobMixin`. Use when the user asks about task state store, checkpointing in tasks, persisting state across retries, job IDs surviving worker crashes, watermarks, asset metadata, resumable tasks, crash-safe operators, or "what's new in Airflow 3.3". Also use proactively when reading a DAG that uses Variables or XCom for intra-task coordination state — flag the anti-pattern and recommend task_state_store or asset_state_store instead. Requires Airflow 3.3+.
 ---
+
 # Airflow Task State Store (AIP-103)
 
 Airflow 3.3 ships two key/value stores and a crash-safety mixin for operators that submit external jobs.

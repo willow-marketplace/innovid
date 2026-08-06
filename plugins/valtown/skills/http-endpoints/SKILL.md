@@ -2,6 +2,7 @@
 name: http-endpoints
 description: Use when building an HTTP val — a web endpoint, API route, webhook receiver, or any val that responds to HTTP requests. Covers the handler signature, Hono usage, the endpoint URL, CORS behavior, redirects, and Val Town-specific limitations.
 ---
+
 # HTTP Endpoints
 
 HTTP vals (`fileType: "http"`) export a request handler and run on every incoming HTTP request. Each HTTP file is assigned a public live URL — never construct it yourself; read `links.endpoint` from `list_files` or `create_file` responses, or call `fetch_val_endpoint`.

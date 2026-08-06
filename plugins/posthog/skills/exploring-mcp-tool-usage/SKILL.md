@@ -1,7 +1,8 @@
 ---
 name: exploring-mcp-tool-usage
-description: >
+description: ">"
 ---
+
 # Exploring MCP tool usage
 
 Any MCP server instrumented with the `@posthog/mcp` SDK emits a `$mcp_tool_call`

@@ -1,7 +1,8 @@
 ---
 name: agents-debug
-description: >
+description: ">"
 ---
+
 # debug
 
 Diagnose why your AgentCore agent or environment isn't working correctly.

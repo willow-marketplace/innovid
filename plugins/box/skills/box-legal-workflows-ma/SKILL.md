@@ -2,6 +2,7 @@
 name: box-legal-workflows-ma
 description: Build and manage M&A Virtual Data Rooms with Box MCP — create secure folder structures with numbered prefixes for due diligence, assign role-based access to internal teams and external parties (counsel, auditors, buyers), validate permissions before sharing sensitive deal information, use Box AI for cross-document due diligence questions, and organize uploaded files by category. Use this skill when the user mentions M&A, deal rooms, data rooms, due diligence, VDR, mergers and acquisitions, or needs to set up a secure repository for deal documents with controlled external access.
 ---
+
 # M&A Deal Room Management
 
 > **PREREQUISITES:**

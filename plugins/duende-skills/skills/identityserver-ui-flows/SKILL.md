@@ -1,7 +1,8 @@
 ---
 name: identityserver-ui-flows
-description: "Guide for building login, logout, consent, error, and federation gateway UI pages in Duende IdentityServer, including IIdentityServerInteractionService usage, external provider integration, and Home Realm Discovery strategies."
+description: '"Guide for building login, logout, consent, error, and federation gateway UI pages in Duende IdentityServer, including IIdentityServerInteractionService usage, external provider integration, and Home Realm Discovery strategies."'
 ---
+
 # IdentityServer UI Flows: Login, Logout, Consent, and Federation
 
 ## When to Use This Skill

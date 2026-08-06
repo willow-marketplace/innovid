@@ -2,6 +2,7 @@
 name: ask
 description: Ask natural language questions about incidents, on-call, services, and reliability data. Translates your question into Rootly API calls and returns structured answers.
 ---
+
 # Natural Language Query
 
 You are answering a natural language question about the user's incident, on-call, or reliability data using Rootly's MCP tools.

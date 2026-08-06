@@ -2,6 +2,7 @@
 name: diff-scanning-with-aws-security-agent
 description: Run a fast AWS Security Agent diff scan on only the changed code since a git ref. Use when the user asks to scan changes, run a diff scan, check what changed for security issues, scan before committing, scan before PR, or any pre-commit/pre-push security check.
 ---
+
 # AWS Security Agent — Diff Scan
 
 Scan only the code that changed since a git ref. Faster than a full scan — focuses findings on the diff. No prior full scan needed.

@@ -2,6 +2,7 @@
 name: build-sequences
 description: Builds and runs email outreach sequences end to end — create a sequence, add follow-up steps and message templates, add recipients from your leads, then start, pause, resume, or check its stats. Use when the user wants to set up outreach, build an email sequence, add recipients, launch a drip, or check sequence performance.
 ---
+
 # Build Sequences
 
 Create, configure, and run Hunter email sequences from chat: create the sequence, add follow-up steps and message templates, add recipients, launch, and read stats. **One current limitation:** the sequence's introduction email (step 0) has no API yet, so its subject and body must be written once in the Hunter dashboard before the sequence can start.

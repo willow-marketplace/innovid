@@ -1,7 +1,8 @@
 ---
 name: gcp-data-pipelines
-description: 'Primary entry point for building, managing, and orchestrating data pipelines
+description: "'Primary entry point for building, managing, and orchestrating data pipelines"
 ---
+
 # GCP Data Pipelines Skill
 
 Expert guidance for navigating and building **data pipelines on Google Cloud

@@ -2,6 +2,7 @@
 name: aidp-engineer-overview
 description: Router + setup/auth troubleshooting for Oracle AI Data Platform (AIDP) data-engineering work. Use when the user mentions AIDP and isn't sure which skill applies, asks "what can you do with AIDP", describes a task by capability, or hits an AIDP auth/workspace/cluster error. Routes to the right aidp-* skill and carries the shared environment + auth-ladder rules.
 ---
+
 # `aidp-engineer-overview` — router & shared environment rules
 
 Pick the right skill for an AIDP task, and own the cross-cutting setup/auth rules every other skill relies on.

@@ -2,6 +2,7 @@
 name: modeling-assistant
 description: Enable AI-assisted model development within Domino by writing needed model and training code and using MCP (Model Context Protocol) servers to execute domino jobs. AI coding assistants like Cursor and GitHub Copilot can execute commands as Domino jobs, maintaining security, governance, and reproducibility. Use when setting up AI code assistants to work with Domino, configuring MCP servers, or enabling vibe modeling workflows.
 ---
+
 # Introduction
 
 This skill provides comprehensive knowledge for enabling modeling assistant within Domino Data Lab, allowing AI coding assistants to interact with the platform.

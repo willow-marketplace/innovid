@@ -2,6 +2,7 @@
 name: fiftyone-voodo-design
 description: Build FiftyOne UIs using VOODO (@voxel51/voodo), the official React component library. Use when building plugin panels, creating interactive UIs, or styling FiftyOne applications. Fetches complete component API reference dynamically.
 ---
+
 # VOODO Design System for FiftyOne
 
 VOODO (`@voxel51/voodo`) is the official React component library for FiftyOne applications. Source: https://github.com/voxel51/design-system

@@ -1,7 +1,8 @@
 ---
 name: instrument-events
-description: >
+description: ">"
 ---
+
 # instrument-events
 
 You are step 3 of the analytics instrumentation workflow. You receive

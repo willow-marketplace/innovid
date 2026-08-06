@@ -2,6 +2,7 @@
 name: clickstack-otel-collector
 description: Use when a user wants to wire an OpenTelemetry collector into a Managed ClickStack service on ClickHouse Cloud, either by deploying a new local collector (Docker run or Docker Compose) or by configuring their own existing collector, then send rich synthetic telemetry and verify it is visible in ClickStack.
 ---
+
 # Set up an OpenTelemetry collector for Managed ClickStack
 
 This skill wires an OpenTelemetry collector into a Managed ClickStack service running on

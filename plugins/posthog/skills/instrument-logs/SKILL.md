@@ -1,7 +1,8 @@
 ---
 name: instrument-logs
-description: >-
+description: ">-"
 ---
+
 # Add PostHog log capture
 
 Use this skill to add PostHog log capture for new or changed code. Use it after implementing features or reviewing PRs to ensure meaningful log events are captured with structured properties. If PostHog log export is not yet configured, this skill also covers initial OTLP exporter setup. Supports any platform or language.

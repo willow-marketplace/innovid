@@ -2,6 +2,7 @@
 name: run-sequence
 description: Manage CRM sequences end-to-end — list, create, enroll contacts, activate/deactivate, duplicate, and track performance. Use when someone says "what sequences do I have", "create a welcome sequence", "enroll this contact in a sequence", "add these leads to my nurture sequence", "deactivate the cold outreach sequence", "activate my new sequence", "how is my nurture sequence doing", "show me sequence analytics", "create a drip campaign", "who is enrolled in", "duplicate this sequence", "set up a new outreach flow", "check this contact's sequence history", or "what sequences is this lead in".
 ---
+
 # Run Sequence
 
 Flow: **Trigger → Detect intent → Resolve board/sequence/contact → Execute → Confirm + report**.

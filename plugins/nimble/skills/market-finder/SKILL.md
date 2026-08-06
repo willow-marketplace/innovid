@@ -1,22 +1,24 @@
 ---
 name: market-finder
-description: Discovers all businesses of a given type in any geography using Nimble
-WSAs. Two modes: Discovery finds businesses from scratch; Audit compares
-a user's existing list (Google Sheet, CSV, inline) against fresh
-discovery, categorizing entries as matched, discovered-only, or
-reference-only. Vertical presets (Healthcare, SaaS, Restaurants, Legal,
-Auto/Home) auto-select WSA routing.
+description: |-
+  Discovers all businesses of a given type in any geography using Nimble
+  WSAs. Two modes: Discovery finds businesses from scratch; Audit compares
+  a user's existing list (Google Sheet, CSV, inline) against fresh
+  discovery, categorizing entries as matched, discovered-only, or
+  reference-only. Vertical presets (Healthcare, SaaS, Restaurants, Legal,
+  Auto/Home) auto-select WSA routing.
 
-Triggers: "find all X in Y", "build a list of", "market sizing",
-"account universe", "how many X in Y", "TAM for", "discover all",
-"audit my list", "compare against", "what am I missing", "gap analysis",
-"verify my business list", "prospect list".
+  Triggers: "find all X in Y", "build a list of", "market sizing",
+  "account universe", "how many X in Y", "TAM for", "discover all",
+  "audit my list", "compare against", "what am I missing", "gap analysis",
+  "verify my business list", "prospect list".
 
-Do NOT use for competitor monitoring — use competitor-intel instead.
-Do NOT use for company deep dives — use company-deep-dive instead.
-Do NOT use for neighborhood-level exploration with social enrichment
-— use local-places instead.
+  Do NOT use for competitor monitoring — use competitor-intel instead.
+  Do NOT use for company deep dives — use company-deep-dive instead.
+  Do NOT use for neighborhood-level exploration with social enrichment
+  — use local-places instead.
 ---
+
 # Market Finder
 
 Market intelligence powered by Nimble Web Search Agents.

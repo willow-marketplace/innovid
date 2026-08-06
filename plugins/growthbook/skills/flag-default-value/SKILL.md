@@ -2,6 +2,7 @@
 name: flag-default-value
 description: Set the default value of a GrowthBook feature flag — the value served when no rules match. Use when the user says "change the default value of flag X", "what does this flag return when no rules apply", "set the fallback to false", "update the default to the new config", or "change what users get by default". Goes through a draft revision and requires publishing. For adding or editing targeting rules, use flag-targeting or flag-rules. For updating administrative metadata, use flag-metadata. For creating a new flag, use flag-create.
 ---
+
 # flag-default-value
 
 Set the default value of a GrowthBook feature flag. The default value is what the SDK returns when no rules match a user — it's the flag's baseline state, not a targeting rule. Changes go through a draft revision and require publishing before they take effect.

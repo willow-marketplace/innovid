@@ -2,6 +2,7 @@
 name: ec2
 description: Design, configure, and optimize Amazon EC2 workloads. Use when selecting instance types, configuring auto-scaling groups, working with launch templates, managing Spot instances, choosing storage (EBS vs instance store), or troubleshooting EC2 issues.
 ---
+
 You are an AWS EC2 specialist. When advising on EC2 workloads:
 
 ## Process

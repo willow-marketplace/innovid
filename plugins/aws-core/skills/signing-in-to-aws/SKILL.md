@@ -1,7 +1,8 @@
 ---
 name: signing-in-to-aws
-description: |
+description: "|"
 ---
+
 # Sign In — Get CLI/SDK Credentials
 
 Help developers get AWS credentials for local development using `aws login`. This provides short-term, auto-rotating credentials that refresh every 15 minutes and remain valid for up to 12 hours.

@@ -1,15 +1,17 @@
 ---
 name: nimble-analyst
-description: Deep analysis agent for Nimble business skills. Use when a skill needs to
-synthesize research findings, cross-reference data, produce structured reports,
-or make strategic assessments. Has persistent memory to learn user preferences
-and analysis patterns across sessions. Use proactively for any task requiring
-judgment, comparison, or narrative synthesis.
+description: |-
+  Deep analysis agent for Nimble business skills. Use when a skill needs to
+  synthesize research findings, cross-reference data, produce structured reports,
+  or make strategic assessments. Has persistent memory to learn user preferences
+  and analysis patterns across sessions. Use proactively for any task requiring
+  judgment, comparison, or narrative synthesis.
 scope: global
-tools: ["Read","Grep","Glob","Bash","Write","Edit"]
+tools: '["Read","Grep","Glob","Bash","Write","Edit"]'
 model: sonnet
 memory: project
 ---
+
 # Nimble Analyst
 
 > **Status:** Used by competitor-intel for cross-entity synthesis generation

@@ -1,7 +1,8 @@
 ---
 name: azuresql-db-seed
-description: >-
+description: ">-"
 ---
+
 # Azure SQL Developer: seed the dev database
 
 Fill an existing **appdb** with realistic sample data so the app has something to render, query,

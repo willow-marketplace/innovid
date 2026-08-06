@@ -2,6 +2,7 @@
 name: aidp-data-quality
 description: Run data-quality rule checks on AIDP tables — not-null, uniqueness, allowed ranges/sets, referential integrity, and freshness. Use when the user wants to validate data, check for nulls/duplicates/orphans, assert a column's domain, or gate a pipeline on quality. Expresses each rule as bounded Spark SQL and reports pass/fail with offending counts.
 ---
+
 # `aidp-data-quality` — rule checks via Spark SQL
 
 Validate AIDP tables against explicit data-quality rules, each compiled to bounded Spark SQL and executed

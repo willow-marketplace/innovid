@@ -2,6 +2,7 @@
 name: designing-views
 description: Always use this skill when creating or editing Views, or needing to pick a View.
 ---
+
 # How to Use This Skill
 
 **Progressive Disclosure Pattern**: This `SKILL.md` provides an overview. Most details live in supporting files.

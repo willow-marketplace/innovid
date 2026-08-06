@@ -1,7 +1,8 @@
 ---
 name: virtual-agent
-description: "Reference skill for Zoom Virtual Agent. Use after routing to a virtual-agent workflow when implementing web embeds, Android or iOS wrapper integrations, knowledge-base sync, lifecycle handling, or troubleshooting."
+description: '"Reference skill for Zoom Virtual Agent. Use after routing to a virtual-agent workflow when implementing web embeds, Android or iOS wrapper integrations, knowledge-base sync, lifecycle handling, or troubleshooting."'
 ---
+
 # /build-zoom-virtual-agent
 
 Background reference for Zoom Virtual Agent across:

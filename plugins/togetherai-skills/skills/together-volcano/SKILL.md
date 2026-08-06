@@ -2,6 +2,7 @@
 name: together-volcano
 description: Install and use the Volcano batch scheduler on a Together AI Kubernetes GPU cluster for gang scheduling. Covers installing Volcano, creating queues, submitting all-or-nothing gang-scheduled jobs (vcjobs), and verifying placement. Reach for it when a job on a Together cluster needs its pods scheduled all-at-once or not at all, such as distributed multi-node training, rather than per-pod best-effort scheduling. Pins Volcano v1.15.0.
 ---
+
 # Volcano on Together GPU clusters
 
 Volcano is a Kubernetes-native batch scheduler. Its key property is gang scheduling: a group of pods is placed all-at-once or not at all, so distributed training never starts with only some workers running. Use it when a job needs N pods to run together or not at all.

@@ -1,7 +1,8 @@
 ---
 name: testing-mcp-tools-locally
-description: >
+description: ">"
 ---
+
 # Testing managed migrations MCP tools locally
 
 ## Prerequisites

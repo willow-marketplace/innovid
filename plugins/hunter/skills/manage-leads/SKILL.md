@@ -2,6 +2,7 @@
 name: manage-leads
 description: Manages individual leads in Hunter — create, look up, update, or delete leads, tag them, and set custom attributes. Use when the user wants to add or edit a lead, tag contacts, organize leads with custom fields, or clean up their lead database.
 ---
+
 # Manage Leads
 
 Create, update, tag, and organize the leads in a Hunter account.

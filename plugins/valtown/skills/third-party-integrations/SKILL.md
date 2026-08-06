@@ -2,6 +2,7 @@
 name: third-party-integrations
 description: Use when a val talks to an external service — Slack, Discord, Telegram, Stripe, GitHub, Gmail, Google Sheets, Postgres/Supabase/Upstash/Neon, browser automation (Playwright, Browserbase, Kernel, Steel), web scraping, PDF generation, push notifications, RSS, or any other third-party API. Covers the required workflow (fetch the Val Town guide, get credentials, test, store secrets) and the catalog of available guides.
 ---
+
 # Third-Party Integrations
 
 When a val uses any external service, follow this order — do not skip steps and do not write integration code from training-data memory alone. Val Town's guides have platform-specific patterns and required workarounds that won't be in your training data.

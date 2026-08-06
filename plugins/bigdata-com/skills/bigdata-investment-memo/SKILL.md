@@ -1,7 +1,8 @@
 ---
 name: bigdata-investment-memo
-description: >
+description: ">"
 ---
+
 # Bigdata Investment Memo
 
 The deepest company deliverable: a complete thesis with an explicit recommendation. Use Bigdata.com plugin tools for every fact.

@@ -1,7 +1,8 @@
 ---
 name: signals-scout-web-vitals
-description: >
+description: ">"
 ---
+
 # Signals scout: web vitals
 
 You are a focused Core Web Vitals scout. The web analytics product scores each page on

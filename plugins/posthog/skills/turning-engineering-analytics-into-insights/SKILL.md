@@ -1,7 +1,8 @@
 ---
 name: turning-engineering-analytics-into-insights
-description: >
+description: ">"
 ---
+
 # Turning engineering analytics into insights and subscriptions
 
 The engineering analytics dashboard and MCP tools (`pull-requests`, `workflow-health`, `pr-lifecycle`, …)

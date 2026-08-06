@@ -1,7 +1,8 @@
 ---
 name: use-user-controlled-wallets
-description: "Build non-custodial wallets where end users retain control of their private keys via Circle's user-controlled wallets SDK. Supports Google, Apple, Facebook social login, email OTP, and PIN authentication with MPC-based key management. Covers wallet creation, token transfers, message signing, smart contract execution, and wallet management. Triggers on: user-controlled wallets, social login wallet, email OTP wallet, PIN wallet, w3s-pw-web-sdk, executeChallenge, MPC wallet, userToken, deviceToken, contract execution."
+description: "\"Build non-custodial wallets where end users retain control of their private keys via Circle's user-controlled wallets SDK. Supports Google, Apple, Facebook social login, email OTP, and PIN authentication with MPC-based key management. Covers wallet creation, token transfers, message signing, smart contract execution, and wallet management. Triggers on: user-controlled wallets, social login wallet, email OTP wallet, PIN wallet, w3s-pw-web-sdk, executeChallenge, MPC wallet, userToken, deviceToken, contract execution.\""
 ---
+
 ## Overview
 
 User-controlled wallets are non-custodial wallets where end users maintain control over their private keys and assets. Users authorize all sensitive operations (transactions, signing, wallet creation) through a challenge-response model that ensures user consent before execution. Multi-chain support includes EVM chains, Solana, and Aptos.

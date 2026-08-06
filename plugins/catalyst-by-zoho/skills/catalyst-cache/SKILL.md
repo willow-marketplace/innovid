@@ -1,7 +1,8 @@
 ---
 name: catalyst-cache
-description: "Catalyst Cache — in-memory key-value store with TTL for ephemeral session and temporary data. Trigger on 'Cache', 'cache segment', 'cache key', 'TTL', 'segment.put', 'segment.get', or 'temporary data Catalyst'."
+description: "\"Catalyst Cache — in-memory key-value store with TTL for ephemeral session and temporary data. Trigger on 'Cache', 'cache segment', 'cache key', 'TTL', 'segment.put', 'segment.get', or 'temporary data Catalyst'.\""
 ---
+
 ## How It Works
 
 > **Before any MCP call, establish context once per session** via the workspace readiness gate: `../catalyst-basics/references/preflight.md`. It resolves and reconciles the org/project so `CatalystbyZoho_List_All_Segments` targets the right project.

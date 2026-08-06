@@ -1,7 +1,8 @@
 ---
 name: shopify-app-store-review
-description: "Run a pre-submission compliance check against your Shopify app's codebase. Reviews App Store requirements and surfaces likely issues before you submit for official review."
+description: "\"Run a pre-submission compliance check against your Shopify app's codebase. Reviews App Store requirements and surfaces likely issues before you submit for official review.\""
 ---
+
 ## Required Tool Calls (do not skip)
 
 You have a `bash` tool. Every response must use it:

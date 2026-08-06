@@ -1,7 +1,8 @@
 ---
 name: bigdata-catalyst-monitor
-description: >
+description: ">"
 ---
+
 # Bigdata Catalyst Monitor
 
 Forward calendar of what could move the name, ranked by impact. Use Bigdata.com plugin tools for every fact.

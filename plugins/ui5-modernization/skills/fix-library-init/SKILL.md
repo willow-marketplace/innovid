@@ -1,7 +1,8 @@
 ---
 name: fix-library-init
-description: |
+description: "|"
 ---
+
 # Fix Library.init() Modernization
 
 This skill fixes `Library.init()` / `Lib.init()` calls that the UI5 linter detects as missing `apiVersion: 2`, and modernizes enum definitions to use `DataType.registerEnum` — which is required when using `apiVersion: 2`.

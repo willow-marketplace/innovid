@@ -2,6 +2,7 @@
 name: mapbox-mcp-devkit-patterns
 description: Integration patterns for Mapbox MCP DevKit Server in AI coding assistants. Covers setup, style management, token management, validation workflows, and documentation access through MCP. Use when building Mapbox applications with AI coding assistance.
 ---
+
 # Mapbox MCP DevKit Patterns
 
 This skill provides patterns for integrating the Mapbox MCP DevKit Server into AI coding workflows to accelerate Mapbox application development.

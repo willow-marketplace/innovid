@@ -1,7 +1,8 @@
 ---
 name: firecrawl-interact
-description: |
+description: "|"
 ---
+
 # firecrawl interact
 
 Interact with scraped pages in a live browser session. Scrape a page first, then use natural language prompts or code to click, fill forms, navigate, and extract data.

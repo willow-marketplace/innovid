@@ -1,7 +1,8 @@
 ---
 name: ml-best-practices
-description: |
+description: "|"
 ---
+
 # ML Best Practices
 
 I want to read a story about the data, not just run code. Ensure every code cell

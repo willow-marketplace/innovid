@@ -2,6 +2,7 @@
 name: desktop-commander-overview
 description: Use for Desktop Commander MCP capabilities — persistent shells and REPLs, long-running processes, filesystem beyond the workspace, structured files (.xlsx, .docx, .pdf, images) and large local data files such as CSVs, ripgrep search at scale, SSH, or cross-turn state.
 ---
+
 # Desktop Commander MCP
 
 Desktop Commander gives the agent reach across the user's actual computer — files, folders, terminals, processes, structured documents, and remote machines reachable over SSH. The tools' detailed schemas (parameters, return shapes, format-specific behavior) live in the MCP itself; this skill explains what they enable and how they compose into common workflows.

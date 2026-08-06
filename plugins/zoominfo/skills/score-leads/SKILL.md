@@ -2,6 +2,7 @@
 name: score-leads
 description: Score and prioritize leads or cold contacts (mixed ZoomInfo person IDs, emails, or name+company rows). Returns Hot / Warm / Cold tier per lead with a response-time SLA tuned to the use case (live inbound routing, MQL triage, event follow-up, PQL triage, content follow-up, SDR queue ordering), per-axis breakdown (person fit · account fit · source signal · trigger), a "why now" reasoning snippet per lead, and recommended next action with verified contact data. Resolution by email is deterministic; name+company surfaces verification when needed; typo'd emails fail explicitly rather than fall back. Iteratively refinable. Triggers on phrases like "score these leads", "which lead/contact should I call first", "prioritize my MQLs", "rank inbound", "who should I prioritize?", "tier this list".
 ---
+
 # Score Leads
 
 Tier leads as Hot / Warm / Cold with a response-time SLA tuned to the use case. Calls `get_gtm_context(detailed: true)` unconditionally, resolves leads by email (deterministic) or name+company (surface ambiguity), scores on four axes, and presents a **scannable** per-lead output with a specific "why now" reasoning snippet so the rep can trust the tier.

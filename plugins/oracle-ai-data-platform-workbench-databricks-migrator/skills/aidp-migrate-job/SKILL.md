@@ -2,6 +2,7 @@
 name: aidp-migrate-job
 description: Run the full Databricks→AIDP migration against a manifest. Pass-1 walks the %run dep tree and rewrites Databricks APIs in each dep notebook code-only. Pass-2 executes each task cell-by-cell on a live AIDP cluster, runs 4-way verify (exec error / stderr patterns / Spark logs / Opus eval), and re-attempts up to 10 times via Claude with tool use. Use when the user is ready to actually port the workload (not just plan it). Long-running — typical job takes 10–60 minutes per task depending on cell count.
 ---
+
 # `aidp-migrate-job` — execute the migration
 
 This is the main event. Pass-1 fixes the code, Pass-2 proves it runs.

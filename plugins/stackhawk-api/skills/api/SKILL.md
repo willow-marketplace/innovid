@@ -1,7 +1,8 @@
 ---
 name: api
-description: >
+description: ">"
 ---
+
 # StackHawk API Skill
 
 This skill enables Claude to act as a security reporting agent against the StackHawk

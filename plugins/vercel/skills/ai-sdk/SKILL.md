@@ -2,6 +2,7 @@
 name: ai-sdk
 description: Vercel AI SDK expert guidance. Use when building AI-powered features — chat interfaces, text generation, structured output, tool calling, agents, MCP integration, streaming, embeddings, reranking, image generation, or working with any LLM provider.
 ---
+
 ## Prerequisites
 
 Before searching docs, check if `node_modules/ai/docs/` exists. If not, install **only** the `ai` package using the project's package manager (e.g., `pnpm add ai`).

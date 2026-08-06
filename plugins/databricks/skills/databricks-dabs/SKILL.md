@@ -1,7 +1,8 @@
 ---
 name: databricks-dabs
-description: 'Create, configure, validate, deploy, run, and manage Declarative Automation Bundles (DABs, formerly Databricks Asset Bundles). Use when working with Databricks resources via DABs including dashboards, jobs, pipelines, alerts, volumes, and apps.'
+description: "'Create, configure, validate, deploy, run, and manage Declarative Automation Bundles (DABs, formerly Databricks Asset Bundles). Use when working with Databricks resources via DABs including dashboards, jobs, pipelines, alerts, volumes, and apps.'"
 ---
+
 # Declarative Automation Bundles (DABs)
 
 Use this skill for any bundle-related request including creating, configuring, validating, deploying, running, and managing Databricks resources through DABs.

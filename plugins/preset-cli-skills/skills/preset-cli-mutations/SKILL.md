@@ -1,7 +1,8 @@
 ---
 name: preset-cli-mutations
-description: "State-changing Preset `sup` CLI workflows: chart/dashboard/dataset push, user push/invite, destructive flags, and cross-workspace sync. Use only for CLI mutation workflows. Do not use for MCP-only work. Do not use for direct HTTP/SDK mutations."
+description: '"State-changing Preset `sup` CLI workflows: chart/dashboard/dataset push, user push/invite, destructive flags, and cross-workspace sync. Use only for CLI mutation workflows. Do not use for MCP-only work. Do not use for direct HTTP/SDK mutations."'
 ---
+
 # preset-cli-mutations
 
 Use for state-changing CLI operations: single-workspace writes (push, --force, --overwrite) and cross-workspace promotion (sync).

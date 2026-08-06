@@ -1,6 +1,6 @@
 ---
 name: compare-locations
-description: "Compare digital experience across locations, departments, or geolocations using ZDX."
+description: '"Compare digital experience across locations, departments, or geolocations using ZDX."'
 ---
 
 # Compare Location Experience

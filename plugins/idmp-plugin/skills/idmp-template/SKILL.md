@@ -1,7 +1,8 @@
 ---
 name: idmp-template
-description: "IDMP template skill for reading element templates, template attributes, sub-templates, trigger types, and create-safe names without mixing template mode with live element mode."
+description: '"IDMP template skill for reading element templates, template attributes, sub-templates, trigger types, and create-safe names without mixing template mode with live element mode."'
 ---
+
 # template
 
 **Read [`../idmp-shared/SKILL.md`](../idmp-shared/SKILL.md) first.**

@@ -2,6 +2,7 @@
 name: boltz-small-molecule-design
 description: Design new small-molecule binders with Boltz. Use when generating novel ligands or hits for a target without a fixed compound library. Not for screening existing molecules or one-off docking.
 ---
+
 ## Workflow
 
 If `boltz-api` is missing from `PATH`, use `boltz-cli-setup` for install/update guidance before retrying.

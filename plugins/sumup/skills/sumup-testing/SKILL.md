@@ -2,6 +2,7 @@
 name: sumup-testing
 description: Set up and run SumUp sandbox tests. Use when configuring a SumUp test merchant, picking test cards, triggering deliberate failure (`amount = 11`), or building a SumUp end-to-end test harness.
 ---
+
 # SumUp Sandbox Testing Guide
 
 Use this skill for test setup, scenario design, and verification of SumUp integrations.

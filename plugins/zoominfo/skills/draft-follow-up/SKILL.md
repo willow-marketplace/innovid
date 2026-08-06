@@ -2,6 +2,7 @@
 name: draft-follow-up
 description: Draft a follow-up email after a call by extracting the commitments and next steps that were actually agreed, then writing a compact, friendly-professional message. Name the call if you know it, or let the skill pull recent calls to pick from. Uses conversation_intelligence to read what was said and committed. Use when someone says "draft a follow-up to that call", "send a recap email", "write the follow-up for my Acme meeting", or needs a post-call note. Drafts only what the conversation supports — it does not invent commitments.
 ---
+
 # Draft Follow-Up
 
 Turn what was said on a call into a tight follow-up email: thank, recap, and confirm next steps.

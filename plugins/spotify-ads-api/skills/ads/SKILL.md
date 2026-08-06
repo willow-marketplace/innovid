@@ -2,6 +2,7 @@
 name: ads
 description: Manage Spotify Ads API ad sets and ads — list, create, get, or update.
 ---
+
 # Spotify Ads API — Ad Sets & Ads Management
 
 Manage ad sets and ads via the Spotify Ads API. Read settings from the active platform settings file.

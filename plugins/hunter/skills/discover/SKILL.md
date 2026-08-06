@@ -2,6 +2,7 @@
 name: discover
 description: Searches for companies matching specific criteria like industry, size, location, and technologies. Use when the user wants to find companies, build a target list, or search for businesses in a market segment. This is a free operation that does not consume credits.
 ---
+
 # Discover
 
 Search for companies matching any criteria. This is completely free -- no credits consumed.

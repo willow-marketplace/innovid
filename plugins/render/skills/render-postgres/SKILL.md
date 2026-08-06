@@ -1,7 +1,8 @@
 ---
 name: render-postgres
-description: >-
+description: ">-"
 ---
+
 # Render Managed PostgreSQL
 
 This skill covers **Managed Postgres on Render**: how to connect, what cannot change after creation, storage behavior, limits, HA, replicas, and safe deletion. Deep dives live under `references/`.

@@ -1,7 +1,8 @@
 ---
 name: feature-usage-feed
-description: >
+description: ">"
 ---
+
 # Building a feature usage feed via LLM evals
 
 Some PostHog features (group session summaries, single session summaries, replay AI search, error tracking AI debug, etc.) generate hundreds or thousands of LLM traces per week. Reading them by hand is not feasible. This skill covers the end-to-end pattern for turning that trace volume into a live Slack feed of canonical use cases — what users are actually doing with the feature.

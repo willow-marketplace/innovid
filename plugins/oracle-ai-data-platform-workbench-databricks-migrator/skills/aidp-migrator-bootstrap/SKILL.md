@@ -2,6 +2,7 @@
 name: aidp-migrator-bootstrap
 description: One-shot environment readiness check for the Oracle AIDP Databricks migrator. Verifies Python deps, OCI auth, AIDP cluster reachability, and your env-coords file. Use the first time the user invokes the migrator on a workstation, or when any other skill fails with an auth / connectivity error.
 ---
+
 # `aidp-migrator-bootstrap` — environment readiness check
 
 Confirms everything the migrator needs is in place before any of the other skills attempt real work. Idempotent — re-runnable whenever you suspect drift.

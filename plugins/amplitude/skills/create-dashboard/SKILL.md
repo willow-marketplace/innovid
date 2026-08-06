@@ -2,6 +2,7 @@
 name: create-dashboard
 description: Builds comprehensive Amplitude dashboards from requirements or goals, organizing charts into logical sections with appropriate layouts. Use when creating a complete dashboard from scratch or assembling existing charts into a cohesive view.
 ---
+
 # Create Dashboard
 
 Create new team or initiative dashboards, organize scattered charts, build executive reporting, or set up review cadence dashboards.

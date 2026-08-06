@@ -1,7 +1,8 @@
 ---
 name: fix-table-row-mode
-description: |
+description: "|"
 ---
+
 # Fix Table Row Mode (no-deprecated-api)
 
 This skill fixes deprecated row-related properties on `sap.ui.table.Table` that the UI5 linter detects but cannot auto-fix. The modernization replaces flat properties with a structured `rowMode` aggregation.

@@ -2,6 +2,7 @@
 name: aspnetcore-authorization
 description: ASP.NET Core authorization patterns including policy-based authorization, IAuthorizationHandler implementations, scope-based authorization for APIs, authorization middleware configuration, and minimal API authorization.
 ---
+
 # ASP.NET Core Authorization
 
 ## When to Use This Skill

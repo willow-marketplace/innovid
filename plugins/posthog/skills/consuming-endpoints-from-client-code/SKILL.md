@@ -1,7 +1,8 @@
 ---
 name: consuming-endpoints-from-client-code
-description: >
+description: ">"
 ---
+
 # Consuming endpoints from client code
 
 This skill is the **caller-side** counterpart to `creating-an-endpoint`. It helps integrate an

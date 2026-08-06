@@ -1,7 +1,8 @@
 ---
 name: jfrog-ai-catalog-skills
-description: >-
+description: ">-"
 ---
+
 # JFrog AI Catalog Skills
 
 Discover, install, and manage agent skills from the JFrog AI Catalog

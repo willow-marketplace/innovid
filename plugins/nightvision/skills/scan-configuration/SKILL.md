@@ -2,6 +2,7 @@
 name: scan-configuration
 description: Guide for agents to help users configure NightVision DAST scans. Use when creating targets, setting up authentication (Playwright, headers, cookies), recording HTTP traffic, managing projects, configuring scope exclusions, or preparing private network scans.
 ---
+
 # NightVision Scan Configuration
 
 Use this skill when helping users set up everything needed before running a NightVision DAST scan — targets, authentication, traffic recordings, projects, and scope control.

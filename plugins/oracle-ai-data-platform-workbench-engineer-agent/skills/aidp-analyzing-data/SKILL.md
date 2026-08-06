@@ -2,6 +2,7 @@
 name: aidp-analyzing-data
 description: Answer business questions over the AIDP lakehouse with Spark SQL. Use when the user asks a data question ("how many…", "top N…", "show me…", "trend of…", "revenue by…") or wants to run ad-hoc Spark SQL. Grounds in .aidp/catalog.md + .aidp/semantic.md and reuses validated verified queries before generating SQL, then executes via the bundled aidp_sql.py helper.
 ---
+
 # `aidp-analyzing-data` — natural language → Spark SQL
 
 Answer business questions by grounding in the catalog/semantic model, reusing verified queries when

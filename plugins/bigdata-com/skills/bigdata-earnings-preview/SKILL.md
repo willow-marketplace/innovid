@@ -1,7 +1,8 @@
 ---
 name: bigdata-earnings-preview
-description: >
+description: ">"
 ---
+
 # Bigdata Earnings Preview
 
 Forward-looking, pre-earnings research note on a public company. Use Bigdata.com plugin tools for every fact; apply the pre-synthesis filter below before writing.

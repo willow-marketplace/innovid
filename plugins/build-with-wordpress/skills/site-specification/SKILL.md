@@ -2,6 +2,7 @@
 name: site-specification
 description: Extract comprehensive site specifications from simple descriptions. Use when analyzing a user's theme request to determine site type, audience, tone, layout requirements, and typography.
 ---
+
 # Site Specification Skill
 
 Extract detailed site specifications from user descriptions to guide theme generation. If the user has provided images, image urls or other documents, analyze them for additional clues about the brand and design preferences - obviously things like an exising logo image can be very informative about the brand's aesthetic, tone, and values, and any written documents can contain explicit statements about the brand identity or design preferences.

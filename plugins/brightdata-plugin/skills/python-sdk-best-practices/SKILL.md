@@ -1,7 +1,8 @@
 ---
 name: python-sdk-best-practices
-description: |
+description: "|"
 ---
+
 # Bright Data SDK
 
 Access web data through a unified Python SDK. One client, eight service categories: platform scraping, platform search, web search (SERP), AI-powered discovery, datasets, web unlocking, browser automation, and scraper studio.

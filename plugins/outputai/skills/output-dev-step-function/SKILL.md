@@ -2,6 +2,7 @@
 name: output-dev-step-function
 description: Create step functions in steps.ts for Output SDK workflows. Use when implementing I/O operations, error handling, HTTP requests, or LLM calls.
 ---
+
 # Creating Step Functions
 
 ## Overview

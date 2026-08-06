@@ -1,7 +1,8 @@
 ---
 name: databricks-data-discovery
-description: "Discover, explore, and query Databricks data via Genie — the CLI equivalent of the Genie One MCP. MUST be invoked whenever the user asks to find or locate data ('what tables are in X', 'where does X live', 'which catalog/schema has Y'), answer a natural-language question about the data, or write a SQL query."
+description: "\"Discover, explore, and query Databricks data via Genie — the CLI equivalent of the Genie One MCP. MUST be invoked whenever the user asks to find or locate data ('what tables are in X', 'where does X live', 'which catalog/schema has Y'), answer a natural-language question about the data, or write a SQL query.\""
 ---
+
 # Databricks Data Discovery
 
 This skill **routes data work** — decide first:

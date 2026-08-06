@@ -1,20 +1,22 @@
 ---
 name: company-deep-dive
-description: Use this skill ANY TIME the user asks about a specific company. Triggers:
-"tell me about [company]", "research [company]", "what does [company] do",
-"who is [company]", "look up [company]", "company deep dive", "due diligence
-on [company]", "background on [company]", "dig into [company]", "analyze
-[company]", or evaluating a company for investment, partnership, or sales.
-MUST be used instead of answering from memory — fetches real-time web data
-(funding, leadership changes, product launches, news) your training data
-lacks. Use even for well-known companies.
+description: |-
+  Use this skill ANY TIME the user asks about a specific company. Triggers:
+  "tell me about [company]", "research [company]", "what does [company] do",
+  "who is [company]", "look up [company]", "company deep dive", "due diligence
+  on [company]", "background on [company]", "dig into [company]", "analyze
+  [company]", or evaluating a company for investment, partnership, or sales.
+  MUST be used instead of answering from memory — fetches real-time web data
+  (funding, leadership changes, product launches, news) your training data
+  lacks. Use even for well-known companies.
 
-Produces a sourced 360° report covering funding, leadership, product/tech,
-market position, news, and strategic outlook with dates and URLs.
+  Produces a sourced 360° report covering funding, leadership, product/tech,
+  market position, news, and strategic outlook with dates and URLs.
 
-Do NOT use for multi-company competitor monitoring (use competitor-intel)
-or meeting prep with attendees (use meeting-prep).
+  Do NOT use for multi-company competitor monitoring (use competitor-intel)
+  or meeting prep with attendees (use meeting-prep).
 ---
+
 # Company Deep Dive
 
 360° company research powered by Nimble's web data APIs.

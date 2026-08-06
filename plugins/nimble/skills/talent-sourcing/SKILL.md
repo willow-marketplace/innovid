@@ -1,21 +1,23 @@
 ---
 name: talent-sourcing
-description: Finds qualified candidates for a role by searching LinkedIn, Indeed, GitHub,
-and other professional platforms using Nimble Web Search Agents. Accepts a
-job description, role title, or freeform request and returns a ranked
-candidate list with profiles, skills, and contact signals.
+description: |-
+  Finds qualified candidates for a role by searching LinkedIn, Indeed, GitHub,
+  and other professional platforms using Nimble Web Search Agents. Accepts a
+  job description, role title, or freeform request and returns a ranked
+  candidate list with profiles, skills, and contact signals.
 
-Use this skill when the user wants to find, source, or recruit candidates for
-a role. Common triggers: "find candidates for", "source engineers in",
-"who can I hire for", "find me a [role]", "recruiting for", "talent search",
-"find a [role] in [city]", "build a candidate list", "sourcing for [role]",
-"who's available for", "find potential hires". Also triggers on a pasted job
-description followed by a sourcing request.
+  Use this skill when the user wants to find, source, or recruit candidates for
+  a role. Common triggers: "find candidates for", "source engineers in",
+  "who can I hire for", "find me a [role]", "recruiting for", "talent search",
+  "find a [role] in [city]", "build a candidate list", "sourcing for [role]",
+  "who's available for", "find potential hires". Also triggers on a pasted job
+  description followed by a sourcing request.
 
-Do NOT use for job market research or salary benchmarking — use
-market-finder instead. Do NOT use for researching a single known person
-— use company-deep-dive or meeting-prep instead.
+  Do NOT use for job market research or salary benchmarking — use
+  market-finder instead. Do NOT use for researching a single known person
+  — use company-deep-dive or meeting-prep instead.
 ---
+
 # Talent Sourcing
 
 Candidate discovery powered by Nimble Web Search Agents.

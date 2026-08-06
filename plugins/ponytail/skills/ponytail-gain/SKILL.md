@@ -1,7 +1,8 @@
 ---
 name: ponytail-gain
-description: >
+description: ">"
 ---
+
 # Ponytail Gain
 
 Display this scoreboard when invoked. One-shot: do NOT change mode, write flag

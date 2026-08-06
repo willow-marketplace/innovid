@@ -2,6 +2,7 @@
 name: company-lists
 description: Saves companies and organizes them into Hunter company lists — save a company, add/remove companies to lists, create and manage lists and folders, and bulk copy/move/delete companies. Use when the user wants to save companies from a search, build a target-account list, or organize companies into lists and folders.
 ---
+
 # Company Lists
 
 Save companies and organize them into lists and folders — the account-level counterpart to lead-lists.

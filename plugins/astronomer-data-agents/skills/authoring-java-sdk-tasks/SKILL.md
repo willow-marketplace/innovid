@@ -2,6 +2,7 @@
 name: authoring-java-sdk-tasks
 description: Writes Airflow task logic in Java, Kotlin, or any JVM language using the Airflow Java SDK. Use when the user wants to implement Airflow tasks in Java/JVM, asks about `@Builder.Dag`/`@Builder.Task`/`@Builder.XCom`, the `Task`/`BundleBuilder` interfaces, reading connections/variables/XComs from Java, the JSON-to-Java type mapping, or logging from Java tasks. This skill covers the Java-specific native API; the shared Python-stub pattern and conceptual model live in authoring-language-sdk-tasks. For building/shipping the bundle see deploying-java-sdk-bundles; for coordinator config see configuring-airflow-language-sdks.
 ---
+
 # Authoring Java SDK Tasks
 
 The Airflow Java SDK implements the language-SDK model for the JVM: your DAG stays in Python, and each task instance runs in a short-lived JVM subprocess. This skill covers the **Java-specific** native API. The shared model — the Python `@task.stub` pattern, ID matching, and the XCom-as-JSON contract — lives in **authoring-language-sdk-tasks**; read that first if you're new to language SDKs.

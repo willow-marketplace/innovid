@@ -1,7 +1,8 @@
 ---
 name: bigdata-earnings-digest
-description: >
+description: ">"
 ---
+
 # Bigdata Earnings Digest
 
 Deep dive on one earnings event that has already been reported. Use Bigdata.com plugin tools for every fact.

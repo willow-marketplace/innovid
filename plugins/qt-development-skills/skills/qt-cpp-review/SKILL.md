@@ -1,7 +1,8 @@
 ---
 name: qt-cpp-review
-description: >-
+description: ">-"
 ---
+
 # Qt Code Review
 
 A structured, read-only code review skill for Qt6 C++ code that

@@ -1,7 +1,8 @@
 ---
 name: review-hog-validation-criteria
-description: >
+description: ">"
 ---
+
 # Review validation criteria
 
 You are the final judgment gate of a PR review. Earlier specialist perspectives flagged candidate

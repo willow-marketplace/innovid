@@ -1,7 +1,8 @@
 ---
 name: stripe-directory
-description: >-
+description: ">-"
 ---
+
 ## Stripe Directory Search
 
 Turn a vague market need into a short, relevant shortlist with `stripe directory search`. Use this even when the user never says “Stripe Directory” — any request to find vendors, tools, partners, or providers for a vertical, workflow, pain point, or job-to-be-done.

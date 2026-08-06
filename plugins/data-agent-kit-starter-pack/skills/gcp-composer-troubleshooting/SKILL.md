@@ -1,7 +1,8 @@
 ---
 name: gcp-composer-troubleshooting
-description: 'Provides expert guidance for troubleshooting Cloud Composer (Apache
+description: "'Provides expert guidance for troubleshooting Cloud Composer (Apache"
 ---
+
 # Composer Troubleshooting Expert Skill
 
 This skill provides specialized instructions for troubleshooting Cloud Composer

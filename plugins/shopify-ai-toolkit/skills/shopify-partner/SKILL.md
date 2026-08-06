@@ -1,7 +1,8 @@
 ---
 name: shopify-partner
-description: "The Partner API lets you programmatically access data about your Partner Dashboard, including your apps, themes, and affiliate referrals."
+description: '"The Partner API lets you programmatically access data about your Partner Dashboard, including your apps, themes, and affiliate referrals."'
 ---
+
 ## Required Tool Calls (do not skip)
 
 You have a `bash` tool. Every response must use it — in this order:

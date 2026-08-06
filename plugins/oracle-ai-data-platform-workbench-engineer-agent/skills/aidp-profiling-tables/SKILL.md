@@ -2,6 +2,7 @@
 name: aidp-profiling-tables
 description: Profile an AIDP table — row count, per-column null %, distinct count, min/max/mean, and top-K values. Use when the user asks to profile a table, wants column statistics or a data-quality snapshot, or needs to understand a dataset's shape before using it. Runs bounded Spark SQL via the bundled aidp_sql.py helper.
 ---
+
 # `aidp-profiling-tables` — single-table profile
 
 Produce a column-level profile of an AIDP table via Spark SQL. Self-contained: control-plane lookups

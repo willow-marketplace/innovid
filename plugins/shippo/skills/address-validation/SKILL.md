@@ -2,6 +2,7 @@
 name: address-validation
 description: Validate, parse, and standardize shipping addresses via the Shippo API
 ---
+
 <!--
   ⚠️  DO NOT EDIT. Auto-generated from skills/address-validation/SKILL.md by scripts/sync.js
   Edits here will be overwritten on the next sync.

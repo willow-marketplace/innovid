@@ -2,6 +2,7 @@
 name: using-dbt-for-analytics-engineering
 description: Builds and modifies dbt models, writes SQL transformations using ref() and source(), creates tests, and validates results with dbt show. Use when doing any dbt work - building or modifying models, debugging errors, exploring unfamiliar data sources, writing tests, or evaluating impact of changes.
 ---
+
 # Using dbt for Analytics Engineering
 
 **Core principle:** Apply software engineering discipline (DRY, modularity, testing) to data transformation work through dbt's abstraction layer.

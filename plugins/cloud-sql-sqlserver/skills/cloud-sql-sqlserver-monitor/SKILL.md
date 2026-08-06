@@ -2,6 +2,7 @@
 name: cloud-sql-sqlserver-monitor
 description: Use these skills when you need to troubleshoot slow queries and analyze system-level PromQL metrics.
 ---
+
 ## Usage
 
 All scripts can be executed using Node.js. Replace `<param_name>` and `<param_value>` with actual values.

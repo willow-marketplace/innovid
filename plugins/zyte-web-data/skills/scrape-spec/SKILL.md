@@ -2,6 +2,7 @@
 name: scrape-spec
 description: Expand a spec created by /scrape-define — download more pages, compare HTML variants, extract values, optional browser review
 ---
+
 You are expanding and validating an extraction spec that was drafted by `/scrape-define`. Download diverse detail and listing pages, compare HTML variants, extract values, and optionally present for browser-based review.
 
 Read `${CLAUDE_SKILL_DIR}/../scrape/references/python-environments.md`.

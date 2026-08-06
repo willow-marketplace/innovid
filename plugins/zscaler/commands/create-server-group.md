@@ -1,6 +1,6 @@
 ---
 name: create-server-group
-description: "Create a ZPA server group with required app connector group dependency."
+description: '"Create a ZPA server group with required app connector group dependency."'
 ---
 
 # Create ZPA Server Group

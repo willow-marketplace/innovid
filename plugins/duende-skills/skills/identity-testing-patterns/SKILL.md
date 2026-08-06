@@ -2,6 +2,7 @@
 name: identity-testing-patterns
 description: Testing patterns for IdentityServer-based systems including integration testing with WebApplicationFactory, mock token issuance, test authority configuration, protocol response validation, and end-to-end authentication flow testing.
 ---
+
 # Identity Testing Patterns
 
 ## When to Use This Skill

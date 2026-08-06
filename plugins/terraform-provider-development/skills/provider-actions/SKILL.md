@@ -2,6 +2,7 @@
 name: provider-actions
 description: Implement Terraform Provider actions using the Plugin Framework. Use when developing imperative operations that execute at lifecycle events (before/after create, update, destroy).
 ---
+
 # Terraform Provider Actions Implementation Guide
 
 ## Overview

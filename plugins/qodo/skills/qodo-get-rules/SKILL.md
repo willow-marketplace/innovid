@@ -1,7 +1,8 @@
 ---
 name: qodo-get-rules
-description: "Loads coding rules from Qodo most relevant to the current coding task by generating a semantic search query from the assignment. Use when Qodo is configured and the user asks to write, edit, refactor, or review code, or when starting implementation planning. Skip if rules are already loaded."
+description: '"Loads coding rules from Qodo most relevant to the current coding task by generating a semantic search query from the assignment. Use when Qodo is configured and the user asks to write, edit, refactor, or review code, or when starting implementation planning. Skip if rules are already loaded."'
 ---
+
 # Get Qodo Rules Skill
 
 ## Description

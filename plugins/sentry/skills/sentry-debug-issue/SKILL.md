@@ -2,6 +2,7 @@
 name: sentry-debug-issue
 description: Debug and fix a Sentry issue — find it (by link, ID, or search), pull full context (stack trace, breadcrumbs, trace, logs), optionally run Seer root-cause / autofix, apply the code fix, and resolve it via a `Fixes PROJECT-NAME-12A` commit/PR. Use when working a known error or hunting one down to fix.
 ---
+
 # Sentry — Debug an Issue
 
 Take one Sentry issue from "here's a problem" to "here's the fix, shipped."

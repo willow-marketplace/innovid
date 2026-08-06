@@ -2,6 +2,7 @@
 name: preset-cli
 description: Drive Preset's `sup` CLI (PyPI package `superset-sup`) for shell, scripting, CI/CD, and agent-driven Preset workflows. Use only for CLI workflows; Do not use for MCP-only work or for direct HTTP/SDK code paths.
 ---
+
 # preset-cli
 
 Use as the foundation for shell, scripting, CI/CD, and agent-driven Preset workflows through the `sup` CLI.

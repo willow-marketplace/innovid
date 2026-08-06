@@ -1,7 +1,8 @@
 ---
 name: render-docker
-description: >-
+description: ">-"
 ---
+
 # Render Docker Deployments
 
 Render uses **BuildKit** for Docker builds. All compute service types that support custom runtimes can use **`runtime: docker`** (build from a Dockerfile in the repo) or **`runtime: image`** (pull a prebuilt image; no Dockerfile build on Render). Deeper patterns and copy-paste templates live under `references/`.

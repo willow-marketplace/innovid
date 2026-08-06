@@ -2,6 +2,7 @@
 name: how-it-works
 description: Explain how claude-mem captures observations, when memory injection kicks in, and where data lives. Use when the user asks "how does claude-mem work?" or "what is this thing doing?".
 ---
+
 # How claude-mem works
 
 ## What it does

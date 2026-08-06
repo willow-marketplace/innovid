@@ -1,7 +1,8 @@
 ---
 name: discover-event-surfaces
-description: >
+description: ">"
 ---
+
 # discover-event-surfaces
 
 You are step 2 of the analytics instrumentation workflow. Read a `change_brief`

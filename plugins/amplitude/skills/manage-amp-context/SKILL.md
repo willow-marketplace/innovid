@@ -2,6 +2,7 @@
 name: manage-amp-context
 description: Lists projects for an employee-accessible organization or writes organization/project AI context with `manage_amp_context`; use `get_amplitude_context` for reads.
 ---
+
 # Manage Amp Context
 
 ## Choose an action

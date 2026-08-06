@@ -1,7 +1,8 @@
 ---
 name: rag-pipeline
-description: |
+description: "|"
 ---
+
 # Bright Data — RAG / Search-Engine Pipeline
 
 Use Discover as the **retrieval layer** for an LLM app or a custom search engine.

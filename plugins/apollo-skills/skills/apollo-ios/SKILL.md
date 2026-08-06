@@ -1,7 +1,8 @@
 ---
 name: apollo-ios
-description: >
+description: ">"
 ---
+
 # Apollo iOS Guide
 
 Apollo iOS is a strongly-typed GraphQL client for Apple platforms. It generates Swift types from your GraphQL operations and schema, and ships an async/await client, a normalized cache (in-memory or SQLite-backed), a pluggable interceptor-based HTTP transport that handles queries, mutations, and multipart subscriptions, and an optional WebSocket transport (`graphql-transport-ws`) that can carry any operation type.

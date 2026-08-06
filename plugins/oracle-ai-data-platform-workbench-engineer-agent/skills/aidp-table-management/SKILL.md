@@ -2,6 +2,7 @@
 name: aidp-table-management
 description: Control-plane lifecycle for AIDP catalog objects — create/update/delete/refresh tables, views, schemas, and catalogs, and register an EXTERNAL catalog/connection (ALH/ADW/object-storage) as a persistent catalog object. Use when the user wants to create or drop a table/view/schema/catalog via the control plane (not a SELECT), register an external data source as a catalog, refresh catalog metadata, or test a connection. For SQL-native CREATE/ALTER/DROP use aidp-sql-ddl; for file→table ingestion use aidp-ingest-file-to-table; for browsing use aidp-catalog-explore.
 ---
+
 # `aidp-table-management` — catalog/schema/table/view lifecycle + external-catalog registration
 
 Manage the *metadata objects* of the AIDP catalog through the control plane. Two equivalent paths for table

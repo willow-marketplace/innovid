@@ -2,6 +2,7 @@
 name: aidp-fixup-cell
 description: Targeted rewind of a migrated notebook. Re-executes cells from history index N onwards (or a specific cell range) through the execute+verify+fix loop, with a 'why' reason injected so Claude knows what to fix. Use when aidp-migrate-job left a notebook at RESULT=PARTIAL or the user identifies a specific cell that is wrong post-migration.
 ---
+
 # `aidp-fixup-cell` — surgical re-execute of cells in a migrated notebook
 
 The full-job migrator (`job_migrate.py`) runs every cell linearly with up to 10 fix attempts each. `fixup_cell` is the per-cell escape hatch when those 10 attempts weren't enough OR when the user discovers a latent issue downstream.

@@ -1,7 +1,8 @@
 ---
 name: competitive-intel
-description: >
+description: ">"
 ---
+
 # Competitive Intelligence
 
 Real-time competitive intelligence powered by live web data. Combines Bright Data CLI (`bdata`) for data collection with strategic analysis frameworks to deliver actionable competitive insights — not stale training knowledge.

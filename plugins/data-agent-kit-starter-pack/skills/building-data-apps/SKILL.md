@@ -1,7 +1,8 @@
 ---
 name: building-data-apps
-description: |
+description: "|"
 ---
+
 # Building Data Applications
 
 Architect high-quality data dashboards and interactive reports. You MUST select

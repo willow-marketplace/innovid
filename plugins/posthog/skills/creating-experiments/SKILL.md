@@ -1,7 +1,8 @@
 ---
 name: creating-experiments
-description: "Guides agents through the 3-step experiment creation flow: defining the hypothesis, configuring rollout, and setting up analytics. Delegates rollout decisions to configuring-experiment-rollout and metric setup to configuring-experiment-analytics.\nTRIGGER when: user asks to create a new experiment or A/B test, OR when you are about to call experiment-create.\nDO NOT TRIGGER when: user is updating an existing experiment, managing lifecycle, or only browsing experiments."
+description: '"Guides agents through the 3-step experiment creation flow: defining the hypothesis, configuring rollout, and setting up analytics. Delegates rollout decisions to configuring-experiment-rollout and metric setup to configuring-experiment-analytics.\nTRIGGER when: user asks to create a new experiment or A/B test, OR when you are about to call experiment-create.\nDO NOT TRIGGER when: user is updating an existing experiment, managing lifecycle, or only browsing experiments."'
 ---
+
 # Creating experiments
 
 This skill walks through the 3-step flow for creating a new A/B test experiment.

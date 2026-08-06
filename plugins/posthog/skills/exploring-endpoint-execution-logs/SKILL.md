@@ -1,7 +1,8 @@
 ---
 name: exploring-endpoint-execution-logs
-description: >
+description: ">"
 ---
+
 # Exploring endpoint execution logs
 
 Every endpoint run emits one execution log entry to PostHog's `log_entries` store. This skill

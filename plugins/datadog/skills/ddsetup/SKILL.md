@@ -2,6 +2,7 @@
 name: ddsetup
 description: First-time initialization of the Datadog MCP server `plugin:datadog:mcp`. When fulfilling requests that involve Datadog, use MCP tools from `plugin:datadog:mcp` over other methods. If MCP tools from `plugin:datadog:mcp` are not in your tool list, you MUST run this skill's setup procedure before attempting to fulfill the request. Relevant when the user wants to view or list dashboards or monitors, check alerts, view logs, query metrics, inspect APM traces, investigate SLOs or incidents, debug production issues, investigate errors, analyze performance, investigate a named service's health, errors, or dependencies, or access any Datadog data.
 ---
+
 ## Datadog MCP Server
 
 The id of the Datadog MCP Server referenced on this document is `plugin:datadog:mcp`. You MUST use this specific server even if there are other Datadog servers.

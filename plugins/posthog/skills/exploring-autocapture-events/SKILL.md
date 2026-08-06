@@ -1,7 +1,8 @@
 ---
 name: exploring-autocapture-events
-description: >
+description: ">"
 ---
+
 # Exploring autocapture events
 
 if users opt in then posthog-js automatically captures clicks, form submissions, and page changes as `$autocapture` events.

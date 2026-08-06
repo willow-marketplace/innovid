@@ -2,6 +2,7 @@
 name: organize-dropbox-folder
 description: Organize Dropbox files and folders by creating folders, copying content, or moving content into a cleaner structure. Use when the user asks to organize, archive, consolidate, restructure, copy, or move Dropbox content.
 ---
+
 # Organize Dropbox Folder
 
 Use this skill to safely organize Dropbox content through folder creation, copying, and moving.

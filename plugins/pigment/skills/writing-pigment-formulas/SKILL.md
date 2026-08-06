@@ -2,6 +2,7 @@
 name: writing-pigment-formulas
 description: Always use this skill when writing, editing, or debugging Pigment formulas — including conditional logic, blank handling, date-range logic, aggregation, prior-period lookups, and dimensional transformations. Pigment uses a proprietary formula language — NEVER assume you know the syntax, and ALWAYS read the documentation before writing any formula. Covers data types, modifiers, functions, calculation patterns, and performance trade-offs (calibrated by formula complexity). This skill includes supporting files in this directory; explore as needed.
 ---
+
 # Writing Pigment Formulas
 
 This skill provides comprehensive guidance for writing formulas in Pigment's multidimensional formula language, including formula builder tools for validation and generation.

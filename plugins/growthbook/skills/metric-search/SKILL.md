@@ -2,6 +2,7 @@
 name: metric-search
 description: Search, list, and audit GrowthBook metrics and fact tables. Use when the user asks "what metrics do we have", "find our revenue metric", "what fact tables exist", "which metrics are official", "what can I chart", "show me metrics tagged growth", "what columns does the orders fact table have", or "audit our metrics". Read-only — for actually charting a metric, use analytics-explore. For designing an experiment around a metric, use experiment-design.
 ---
+
 # metric-search
 
 Search, list, and audit GrowthBook metrics and fact tables. Three jobs share this skill: inventory ("what do we have?"), lookup ("find the revenue metric and show me its definition"), and chartability triage ("what can I actually explore?"). It is the discovery front door for analytics-explore and experiment-design.

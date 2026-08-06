@@ -2,6 +2,7 @@
 name: reindex
 description: Refresh or rebuild the bundled Lumen index for the current project, preferring MCP-driven refreshes and using the CLI only for an explicit clean rebuild.
 ---
+
 # Lumen Reindex
 
 Refresh or rebuild the bundled Lumen index for the current project.

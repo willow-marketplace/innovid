@@ -2,6 +2,7 @@
 name: output-error-http-client
 description: Fix HTTP client misuse in Output SDK steps. Use when seeing untraced requests, missing error details, axios-related errors, or when HTTP calls aren't being properly logged and retried.
 ---
+
 # Fix HTTP Client Misuse
 
 ## Overview

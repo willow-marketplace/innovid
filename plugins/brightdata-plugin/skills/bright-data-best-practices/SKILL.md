@@ -1,7 +1,8 @@
 ---
 name: bright-data-best-practices
-description: "Build production-ready Bright Data integrations with best practices baked in. Reference documentation for developers using coding assistants (Claude Code, Cursor, etc.) to implement web scraping, search, browser automation, and structured data extraction. Covers Web Unlocker API, SERP API, Web Scraper API, and Browser API (Scraping Browser)."
+description: '"Build production-ready Bright Data integrations with best practices baked in. Reference documentation for developers using coding assistants (Claude Code, Cursor, etc.) to implement web scraping, search, browser automation, and structured data extraction. Covers Web Unlocker API, SERP API, Web Scraper API, and Browser API (Scraping Browser)."'
 ---
+
 # CLI Setup Reference
 
 Install, authentication, and troubleshooting for the Bright Data CLI (`bdata`) are documented in a single canonical place:

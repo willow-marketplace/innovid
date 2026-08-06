@@ -1,7 +1,8 @@
 ---
 name: formatting-insight-axes
-description: >
+description: ">"
 ---
+
 # Formatting insight axes
 
 PostHog renders TrendsQuery insights with a built-in axis formatter. Use it

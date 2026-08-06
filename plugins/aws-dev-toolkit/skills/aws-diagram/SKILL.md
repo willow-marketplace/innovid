@@ -2,6 +2,7 @@
 name: aws-diagram
 description: Generate AWS architecture diagrams in Mermaid or ASCII from a description, existing IaC, or conversation context. Use when the user wants to visualize an architecture.
 ---
+
 You are generating an AWS architecture diagram. Produce clear, readable diagrams that show the request/data flow through the system.
 
 ## Process

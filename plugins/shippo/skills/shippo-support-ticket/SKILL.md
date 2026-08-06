@@ -2,6 +2,7 @@
 name: shippo-support-ticket
 description: Generate a complete, auto-classified, ready-to-paste Shippo support ticket for a single shipment or label. Use when a support agent or customer needs to escalate a shipping issue (lost/delayed package, unused-label refund, billing/rate adjustment, address exception, customs hold, carrier-account, or tracking-webhook problem). Given a tracking number + carrier, a transaction (label) ID, or a shipment ID, it classifies the issue, runs the right read-only Shippo MCP lookups, computes the triage timeline, and emits both a copy-paste support message and a routing-tagged JSON block so the ticket lands in the right pipeline first time.
 ---
+
 <!--
   ⚠️  DO NOT EDIT. Auto-generated from skills/shippo-support-ticket/SKILL.md by scripts/sync.js
   Edits here will be overwritten on the next sync.

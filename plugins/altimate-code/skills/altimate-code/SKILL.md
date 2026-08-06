@@ -1,7 +1,8 @@
 ---
 name: altimate-code
-description: >-
+description: ">-"
 ---
+
 # altimate-code
 
 altimate-code is a CLI AI agent with 100+ purpose-built data engineering tools. **This skill exists for one purpose: delegate the user's task to altimate-code and pass the result back.** Native tools (Bash, Edit, Write, Read) are NOT a fallback path inside this skill — if altimate-code cannot complete the task, surface the failure to the user and STOP.

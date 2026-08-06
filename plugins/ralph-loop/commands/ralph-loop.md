@@ -1,6 +1,6 @@
 ---
 name: ralph-loop
-description: "Start Ralph Loop in current session"
+description: '"Start Ralph Loop in current session"'
 ---
 
 # Ralph Loop Command

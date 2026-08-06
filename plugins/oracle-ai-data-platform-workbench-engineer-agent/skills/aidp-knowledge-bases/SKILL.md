@@ -2,6 +2,7 @@
 name: aidp-knowledge-bases
 description: Build and manage AIDP Knowledge Bases for RAG — create a KB over catalog data, pick an embedding model + chunking, build an HNSW/IVF vector index, add data sources (volume/table), run ingestion jobs, and manage KB permissions. Use when the user wants RAG, a knowledge base, document/vector search, embeddings, semantic retrieval, or to feed a RAG_TOOL agent-flow node. This is the corpus/index layer; the agent that queries it is authored in aidp-agent-flows (RAG_TOOL) or aidp-agent-highcode.
 ---
+
 # `aidp-knowledge-bases` — RAG corpus + vector index
 
 A Knowledge Base is AIDP's managed RAG store: it embeds source data into a vector index you can retrieve from

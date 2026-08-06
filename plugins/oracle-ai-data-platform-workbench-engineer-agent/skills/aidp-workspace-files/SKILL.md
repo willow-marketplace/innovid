@@ -2,6 +2,7 @@
 name: aidp-workspace-files
 description: Manage files and notebooks in the AIDP workspace filesystem — list, upload, download, read, create, move, rename, delete files/folders/notebooks. Use when the user wants to put a script/notebook/config into the workspace, read or move workspace files, or organize Shared/ folders.
 ---
+
 # `aidp-workspace-files` — workspace filesystem & notebook CRUD
 
 Manage the AIDP workspace filesystem and Jupyter contents. **Primary engine: the official Oracle `aidp` CLI**

@@ -2,7 +2,7 @@
   "name": "hookify",
   "version": "1.0.0",
   "description": "Easily create hooks to prevent unwanted behaviors by analyzing conversation patterns",
-  "updatedAt": "2026-08-06T00:02:21.919Z",
+  "updatedAt": "2026-08-06T06:56:19.115Z",
   "author": {
     "name": "Anthropic",
     "email": "support@anthropic.com"
@@ -10,7 +10,9 @@
   "homepage": "https://github.com/anthropics/claude-plugins-public/tree/main/plugins/hookify",
   "skills": "./skills/",
   "commands": "./commands/",
-  "agents": "./agents/",
+  "agents": [
+    "./agents/conversation-analyzer.md"
+  ],
   "hooks": {
     "PreToolUse": [
       {

@@ -2,6 +2,7 @@
 name: fiftyone-eval-plugin
 description: Evaluates FiftyOne plugins for quality, security, and agent-readiness. Use when reviewing a plugin before installation, auditing an existing plugin, validating a plugin you just built, or assessing community plugins for safety. Produces a structured report with scores and actionable recommendations.
 ---
+
 # Evaluate FiftyOne Plugins
 
 ## Key Directives

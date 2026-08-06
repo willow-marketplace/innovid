@@ -1,7 +1,8 @@
 ---
 name: rivet-sdk
-description: "Reference skill for Zoom Rivet SDK. Use after routing to a Rivet-based server workflow when implementing auth handling, webhook consumers, API wrappers, multi-module composition, or Lambda receiver patterns."
+description: '"Reference skill for Zoom Rivet SDK. Use after routing to a Rivet-based server workflow when implementing auth handling, webhook consumers, API wrappers, multi-module composition, or Lambda receiver patterns."'
 ---
+
 # Zoom Rivet SDK
 
 Background reference for Zoom Rivet as a JavaScript and TypeScript server framework for Zoom integrations.

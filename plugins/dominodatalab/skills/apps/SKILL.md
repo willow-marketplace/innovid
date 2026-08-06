@@ -2,6 +2,7 @@
 name: apps
 description: Deploy web applications to Domino Data Lab with expertise in React apps (Vite) behind Domino's reverse proxy. Covers app.sh configuration, port configuration, base path handling for SPAs, CI/CD with GitHub Actions, and proxy troubleshooting. Use when deploying apps to Domino, setting up CI/CD pipelines, fixing broken routing, or configuring JavaScript frameworks for Domino's proxy.
 ---
+
 # Domino Apps Skill
 
 This skill provides comprehensive knowledge for deploying web applications to Domino Data Lab, with special focus on React applications using Vite.

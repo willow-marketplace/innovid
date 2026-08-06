@@ -1,7 +1,8 @@
 ---
 name: stripe-docs
-description: >-
+description: ">-"
 ---
+
 Use `stripe docs` instead of fetching [docs.stripe.com](https://docs.stripe.com/.md) content directly with `curl` or `WebFetch`.
 
 - Fetches Markdown automatically

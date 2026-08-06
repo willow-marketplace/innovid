@@ -2,6 +2,7 @@
 description: Non-negotiable safety and scope constraints for Box MCP tool usage
 alwaysApply: true
 ---
+
 # Box MCP guardrails
 
 These rules are mandatory. They override softer guidance from skills or conversation context.

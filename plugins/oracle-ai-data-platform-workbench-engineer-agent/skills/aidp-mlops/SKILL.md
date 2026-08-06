@@ -2,6 +2,7 @@
 name: aidp-mlops
 description: Track ML work in AIDP's MLflow-compatible MLOps — experiments, runs, metrics/params, registered models, and model versions. Use when the user wants to log/track experiments, list runs or metrics, register a model, transition a model-version stage, or query the model registry. Primary engine is the official `aidp` CLI (`aidp mlops …`); the same Preview MLflow REST API via `oci raw-request` is the no-CLI fallback. Verify live first.
 ---
+
 # `aidp-mlops` — MLflow experiments & model registry (Preview)
 
 Interact with AIDP's MLflow-compatible MLOps surface. This is AIDP-native MLOps — distinct from OCI Data

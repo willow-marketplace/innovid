@@ -2,6 +2,7 @@
 name: fiftyone-embeddings-visualization
 description: Visualizes datasets in 2D using embeddings with UMAP or t-SNE dimensionality reduction. Use when exploring dataset structure, finding clusters, identifying outliers, or understanding data distribution.
 ---
+
 # Embeddings Visualization in FiftyOne
 
 ## Key Directives

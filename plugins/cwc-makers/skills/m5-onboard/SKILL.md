@@ -2,6 +2,7 @@
 name: m5-onboard
 description: End-to-end onboarding for a freshly-plugged-in M5Stack ESP32 device (Cardputer, Cardputer-Adv, Core, CoreS3, Stick) — detect on USB, flash UIFlow 2.0 firmware, and install the Claude Buddy MicroPython app bundle. Use whenever the user plugs in or wants to flash/provision/reset an M5Stack or ESP32 board, or says "m5-onboard go".
 ---
+
 # M5Stack Onboarding
 
 This skill automates the full cold-start workflow for an M5Stack ESP32 device: detect on USB, identify model, flash UIFlow 2.0, and push a MicroPython app bundle onto `/flash/` so the device boots into user software. The apps we ship (Claude Buddy, Snake, Hello) talk over BLE or USB. The workflow runs on macOS, Linux, and Windows; the skill was developed against an M5Stack Basic v2.6 (CH9102 bridge, ESP32-D0WDQ6-V3, 16 MB flash) and generalized to cover the rest of the Core family, with the Cardputer-Adv (ESP32-S3, native USB) as the current default target.

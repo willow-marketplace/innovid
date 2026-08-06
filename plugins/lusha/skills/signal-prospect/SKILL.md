@@ -1,7 +1,8 @@
 ---
 name: signal-prospect
-description: >
+description: ">"
 ---
+
 # Signal-Prospect
 
 Start from a buying signal — company or contact level — and end with a call-ready list of enriched decision makers. This is Lusha's core differentiated workflow: trigger → identify → phone reveal.

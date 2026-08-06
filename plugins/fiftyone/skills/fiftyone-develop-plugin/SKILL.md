@@ -2,6 +2,7 @@
 name: fiftyone-develop-plugin
 description: Develops custom FiftyOne plugins (operators and panels) from scratch. Use when creating plugins, extending FiftyOne with custom operators, building interactive panels, or integrating external APIs.
 ---
+
 # Develop FiftyOne Plugins
 
 ## Key Directives

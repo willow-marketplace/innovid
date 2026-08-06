@@ -2,6 +2,7 @@
 name: datarobot-data-preparation
 description: Tools and guidance for data upload, dataset management, data validation, and preparing data for DataRobot projects. Use when uploading datasets, managing data, or validating data for DataRobot.
 ---
+
 # DataRobot Data Preparation Skill
 
 This skill provides guidance for preparing and managing data in DataRobot, including uploading datasets, validating data quality, and managing dataset versions.

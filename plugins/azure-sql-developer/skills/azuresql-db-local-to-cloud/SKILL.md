@@ -1,7 +1,8 @@
 ---
 name: azuresql-db-local-to-cloud
-description: >-
+description: ">-"
 ---
+
 # Azure SQL Developer to Azure SQL Database: same code, local to cloud
 
 Build and test against the local Azure SQL Developer, then deploy the

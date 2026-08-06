@@ -1,7 +1,8 @@
 ---
 name: bigquery-graph
-description: >-
+description: ">-"
 ---
+
 # BigQuery Graph Analytics
 
 BigQuery supports Graph Analytics through property graph queries (using GQL) and semantic graphs. Property graphs allow you to query topology, node/edge connections, and graph relationships directly in BigQuery SQL.

@@ -1,7 +1,8 @@
 ---
 name: signals
-description: >
+description: ">"
 ---
+
 # Querying Signals
 
 ## What Are Signals?

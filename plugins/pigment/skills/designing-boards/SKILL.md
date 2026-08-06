@@ -2,6 +2,7 @@
 name: designing-boards
 description: Always use when creating or editing a Board. This skill includes supporting files in this directory - explore as needed.
 ---
+
 # How to Use This Skill
 
 **Progressive Disclosure Pattern**: This `SKILL.md` provides an overview. Most details live in supporting files.

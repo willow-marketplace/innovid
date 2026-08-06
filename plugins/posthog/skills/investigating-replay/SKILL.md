@@ -1,7 +1,8 @@
 ---
 name: investigating-replay
-description: >
+description: ">"
 ---
+
 # Investigating a session recording
 
 When a user asks "what happened in this session?" or provides a recording/session ID

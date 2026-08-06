@@ -1,7 +1,8 @@
 ---
 name: price-comparison
-description: >
+description: ">"
 ---
+
 # Price Comparison
 
 Find the best place to actually buy a product — lowest price, in stock, from a

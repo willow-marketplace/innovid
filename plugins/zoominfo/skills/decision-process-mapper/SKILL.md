@@ -2,6 +2,7 @@
 name: decision-process-mapper
 description: Map a prospect's buying process as voiced on recent calls — their stated decision criteria, timeline, steps, and approvers. Uses conversation_intelligence over an account's recent engagements, with account_research for stakeholder context. Identify the account by ZoomInfo company ID (preferred) or name/domain (triggers a lookup). Use when someone asks "what's their buying process", "who actually signs off", "what's the timeline and what do they need to decide", or wants to qualify a deal against MEDDIC-style criteria. Captures only what was actually stated; gaps are marked as unknown rather than inferred.
 ---
+
 # Decision-Process Mapper
 
 Reconstruct how the prospect actually buys, from what they have told you: criteria, steps, timeline, and the people who decide.

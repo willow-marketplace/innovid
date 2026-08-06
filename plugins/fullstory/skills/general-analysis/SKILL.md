@@ -2,6 +2,7 @@
 name: general-analysis
 description: Fullstory analytics workflow. Use when answering a question that requires measuring user behavior — counts, rates, trends, breakdowns, or cohort comparisons. Builds segments and metrics, computes results, then investigates sessions to explain what the numbers mean.
 ---
+
 # Fullstory Analytics
 
 ## Mental Model

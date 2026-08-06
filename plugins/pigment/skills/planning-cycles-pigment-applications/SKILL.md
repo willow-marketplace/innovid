@@ -2,6 +2,7 @@
 name: planning-cycles-pigment-applications
 description: Always use this skill when the user mentions or implies versions, Actual, Actuals, Budget, Budgeting, Forecast, Reforecast, Rolling Forecast, Version, Versioning, Plan, switchover, scenarios, snapshots, planning cycles, Actual/Plan layering, plan vs actual, "create version dimension", "set up versioning", or asks for Actual Budget Forecast best practices — or when they extend realized data into a plan or budget (Actual/Budget/Plan layering, forward forecast from actuals) or need to combine or compare actual and plan versions and periods. Covers Version Dimensions (foundational to all planning applications), Native Scenarios (what-if), and Snapshots (freeze data).
 ---
+
 # Planning Cycles in Pigment
 
 Three features handle planning cycles, scenarios, and lifecycle in Pigment. They are **complementary, not alternatives**. Read first to pick the right one. Jump to the linked deep dives for the procedures.

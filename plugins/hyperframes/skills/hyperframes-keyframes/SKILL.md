@@ -1,7 +1,8 @@
 ---
 name: hyperframes-keyframes
-description: >
+description: ">"
 ---
+
 # HyperFrames Keyframes
 
 Keyframes are a pose contract: visible states, continuous subject identity, seek-safe runtime, verified pixels.

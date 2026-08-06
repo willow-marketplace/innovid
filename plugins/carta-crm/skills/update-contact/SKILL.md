@@ -1,7 +1,8 @@
 ---
 name: update-contact
-description: >
+description: ">"
 ---
+
 ## Overview
 
 Partially update an existing contact. Only fields provided are modified — this is

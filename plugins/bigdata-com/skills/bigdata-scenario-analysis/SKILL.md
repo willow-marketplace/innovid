@@ -1,7 +1,8 @@
 ---
 name: bigdata-scenario-analysis
-description: >
+description: ">"
 ---
+
 # Bigdata Scenario Analysis
 
 Three cases, honest probabilities, and the arithmetic. Use Bigdata.com plugin tools for every fact.

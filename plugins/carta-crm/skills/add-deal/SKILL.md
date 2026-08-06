@@ -1,7 +1,8 @@
 ---
 name: add-deal
-description: >
+description: ">"
 ---
+
 ## Overview
 
 Help the user create one or more deal records in the Carta CRM. First fetch available

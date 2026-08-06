@@ -1,7 +1,8 @@
 ---
 name: databricks-docs
-description: "Databricks documentation reference via llms.txt index. Use when other skills do not cover a topic, looking up unfamiliar Databricks features, or needing authoritative docs on APIs, configurations, or platform capabilities."
+description: '"Databricks documentation reference via llms.txt index. Use when other skills do not cover a topic, looking up unfamiliar Databricks features, or needing authoritative docs on APIs, configurations, or platform capabilities."'
 ---
+
 # Databricks Documentation Reference
 
 This skill provides access to the complete Databricks documentation index via llms.txt - use it as a **reference resource** to supplement other skills.

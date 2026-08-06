@@ -1,7 +1,8 @@
 ---
 name: agents-optimize
-description: >
+description: ">"
 ---
+
 # optimize
 
 Measure and improve your AgentCore agent's quality through evaluation, monitoring, and observability.

@@ -1,7 +1,8 @@
 ---
 name: carta-reporting-excel
-description: >-
+description: ">-"
 ---
+
 # Excel Export
 
 **Context expected from the calling skill (must be in session before this skill is invoked):**

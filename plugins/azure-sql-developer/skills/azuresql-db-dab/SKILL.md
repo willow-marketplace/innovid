@@ -1,7 +1,8 @@
 ---
 name: azuresql-db-dab
-description: >-
+description: ">-"
 ---
+
 # Azure SQL Developer: instant REST + GraphQL API with Data API Builder
 
 Generate a full REST **and** GraphQL API over the local **Azure SQL Developer**

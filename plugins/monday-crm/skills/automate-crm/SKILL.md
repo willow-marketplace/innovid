@@ -2,6 +2,7 @@
 name: automate-crm
 description: Set up, view, and manage automations on monday CRM boards using natural language — no block IDs or technical knowledge required. Use when someone says "set up an automation", "automate this", "when a deal is won notify me", "remind me when a date passes", "move deals automatically", "what automations do I have", "turn off automation", "create a workflow", "automate my pipeline", or "set up a rule".
 ---
+
 # Automate CRM
 
 Flow: **Detect intent → Resolve board → Describe automation → Create / List / Manage → Confirm**

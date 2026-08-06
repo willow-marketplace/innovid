@@ -1,7 +1,8 @@
 ---
 name: datahub-mfe-create-app
-description: >-
+description: ">-"
 ---
+
 # Create a DataHub MFE App
 
 Scaffolds a complete, working Micro Frontend app that integrates with DataHub

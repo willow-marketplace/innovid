@@ -1,7 +1,8 @@
 ---
 name: exploring-llm-evaluations
-description: >
+description: ">"
 ---
+
 # Exploring AI observability evaluations
 
 PostHog evaluations score `$ai_generation` events. Each evaluation is one of three

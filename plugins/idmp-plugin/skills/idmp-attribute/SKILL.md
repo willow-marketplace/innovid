@@ -1,7 +1,8 @@
 ---
 name: idmp-attribute
-description: "IDMP attribute skill for reading definitions and values, checking history, evaluating expressions, reserving names, and safely writing test data."
+description: '"IDMP attribute skill for reading definitions and values, checking history, evaluating expressions, reserving names, and safely writing test data."'
 ---
+
 # attribute
 
 **Read [`../idmp-shared/SKILL.md`](../idmp-shared/SKILL.md) first.**

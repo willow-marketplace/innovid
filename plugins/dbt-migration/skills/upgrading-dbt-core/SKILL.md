@@ -2,6 +2,7 @@
 name: upgrading-dbt-core
 description: Use when a user wants to upgrade, update, or migrate a dbt-core project to a newer or the latest version — e.g. "upgrade my dbt project," "migrate this off dbt-core 1.5," "get this project running on the latest dbt," "bump the dbt-core version." Upgrades a dbt-core v1 project (on 1.3, 1.4, 1.5, 1.6, or 1.7) all the way to 1.12, applying the required breaking, behavior, and deprecated changes from a data-driven issue corpus — replaying each pre-1.8 version boundary in order, then pinning post-1.8 behavior-change flags — running dbt-autofix first, then agentic and human-in-the-loop fixes, and verifying with dbt parse on dbt-core 1.12. Inputs — starting_version (the project's current dbt-core minor, one of 1.3/1.4/1.5/1.6/1.7) and adapter_type (snowflake/redshift/bigquery/databricks/spark); both are normally supplied by the caller (e.g. the dbt VS Code extension), with fallbacks described in the skill.
 ---
+
 # Migrate a dbt project to dbt-core 1.12
 
 You upgrade a dbt-core **v1** project all the way to **1.12** — not one minor

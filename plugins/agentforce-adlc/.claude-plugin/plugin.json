@@ -2,7 +2,7 @@
   "name": "agentforce-adlc",
   "version": "0.11.0",
   "description": "Agentforce Agent Development Life Cycle — author, discover, scaffold, deploy, test, secure, and optimize .agent files",
-  "updatedAt": "2026-08-06T00:02:04.081Z",
+  "updatedAt": "2026-08-06T06:56:19.246Z",
   "author": {
     "name": "SalesforceAIResearch"
   },
@@ -14,7 +14,12 @@
     "adlc"
   ],
   "skills": "./skills/",
-  "agents": "./agents/",
+  "agents": [
+    "./agents/adlc-author.md",
+    "./agents/adlc-engineer.md",
+    "./agents/adlc-orchestrator.md",
+    "./agents/adlc-qa.md"
+  ],
   "hooks": {
     "PreToolUse": [
       {

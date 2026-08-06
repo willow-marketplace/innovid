@@ -2,6 +2,7 @@
 name: gcloud-auth-verification
 description: Guidelines for identifying and resolving missing Google Cloud authentication
 ---
+
 # Handling Authentication Issues
 
 ## Common Error Messages

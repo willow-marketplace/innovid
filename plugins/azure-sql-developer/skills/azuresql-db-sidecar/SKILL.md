@@ -1,7 +1,8 @@
 ---
 name: azuresql-db-sidecar
-description: >-
+description: ">-"
 ---
+
 # Azure SQL Developer as a sidecar (Compose / Dev Container)
 
 Wire Azure SQL Developer into an existing Docker Compose stack or

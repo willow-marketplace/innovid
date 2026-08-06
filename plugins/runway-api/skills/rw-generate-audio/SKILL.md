@@ -1,7 +1,8 @@
 ---
 name: rw-generate-audio
-description: "Generate audio using the Runway API via runnable scripts. Supports TTS, sound effects, voice isolation, dubbing, and voice conversion."
+description: '"Generate audio using the Runway API via runnable scripts. Supports TTS, sound effects, voice isolation, dubbing, and voice conversion."'
 ---
+
 # Generate Audio
 
 Generate audio directly using the Runway API. Supports text-to-speech, sound effects, voice isolation, dubbing, and speech-to-speech voice conversion.

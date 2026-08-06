@@ -1,7 +1,8 @@
 ---
 name: aws-observability
-description: >-
+description: ">-"
 ---
+
 # AWS Observability
 
 ## Overview

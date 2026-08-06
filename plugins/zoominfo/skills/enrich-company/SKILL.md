@@ -1,7 +1,8 @@
 ---
 name: enrich-company
-description: >
+description: ">"
 ---
+
 ## Overview
 
 Enrich a company profile by fetching its website and extracting key business information.

@@ -2,6 +2,7 @@
 name: output-dev-upgrade-prompt-models
 description: Bulk-upgrade the model field across .prompt files to the latest version of each prompt's existing family. Use when prompt models have drifted (eg sonnet-4 → sonnet-4-6), after a long pause between framework updates, or as part of a periodic model-freshness pass. Within-family only — never changes provider or tier.
 ---
+
 # Upgrade Prompt Models In-Place
 
 Walks every `.prompt` file in a project (or scoped subtree), classifies each model into its provider+family bucket, looks up the latest stable model in that bucket via the [`output-dev-model-selection`](../output-dev-model-selection/SKILL.md) snapshot, and rewrites the `model:` line. Provider and family tier are preserved — a Haiku stays a Haiku, an Anthropic stays an Anthropic.

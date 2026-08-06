@@ -2,6 +2,7 @@
 name: scanning-with-aws-security-agent
 description: Run an AWS Security Agent scan on the workspace — uploads the source to AWS, scans it with the managed Security Agent service, and returns ranked, verified findings with code locations and remediations. Use when the user asks to scan code, find vulnerabilities, run a security scan or review, check security issues, check scan status, show findings, list recent scans, or stop a scan.
 ---
+
 # AWS Security Agent — Code Scans
 
 This skill handles full repository scans. Setup (agent space, role, bucket) is handled by the **`setup-security-agent`** skill — if `.security-agent/config.json` is missing, the scan workflow auto-runs setup inline first.

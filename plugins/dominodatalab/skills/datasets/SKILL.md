@@ -2,6 +2,7 @@
 name: datasets
 description: Work with Domino Datasets - high-performance, versioned filesystem storage. Covers dataset creation, snapshots for versioning, sharing across projects, mounting paths (/domino/datasets/), and performance optimization. Use when managing data storage, creating reproducible data versions, or sharing data between projects.
 ---
+
 # Domino Datasets Skill
 
 ## Description

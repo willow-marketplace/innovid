@@ -2,6 +2,7 @@
 name: rill-development
 description: Overview of how to develop a Rill project
 ---
+
 # Instructions for developing a Rill project
 
 This document is intended for data engineering agents specialized in developing projects in the Rill business intelligence platform.

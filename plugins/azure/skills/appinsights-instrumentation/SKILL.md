@@ -1,7 +1,8 @@
 ---
 name: appinsights-instrumentation
-description: "Guidance for instrumenting webapps with Azure Application Insights. Provides telemetry patterns, SDK setup, and configuration references. WHEN: how to instrument app, App Insights SDK, telemetry patterns, what is App Insights, Application Insights guidance, instrumentation examples, APM best practices."
+description: '"Guidance for instrumenting webapps with Azure Application Insights. Provides telemetry patterns, SDK setup, and configuration references. WHEN: how to instrument app, App Insights SDK, telemetry patterns, what is App Insights, Application Insights guidance, instrumentation examples, APM best practices."'
 ---
+
 # AppInsights Instrumentation Guide
 
 This skill provides **guidance and reference material** for instrumenting webapps with Azure Application Insights.

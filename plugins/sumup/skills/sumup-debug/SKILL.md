@@ -2,6 +2,7 @@
 name: sumup-debug
 description: Troubleshoot common SumUp integration failures. Use when SumUp HMAC signature checks fail, checkout sessions expire, scopes aren't activated, widget mount is blocked, affiliate keys don't match, or `checkout_reference` collides.
 ---
+
 # SumUp Troubleshooting Playbook
 
 Use this skill for diagnosis and remediation of failing SumUp integrations.

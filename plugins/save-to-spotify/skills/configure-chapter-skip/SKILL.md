@@ -2,6 +2,7 @@
 name: configure-chapter-skip
 description: Configure chapter-skip playback on a Save to Spotify show — the player's skip buttons jump between chapters instead of seeking 15 seconds. Must be explicitly invoked; use ONLY when the user explicitly says skip-to-topic, skip-to-chapter, chapter skipping, chapter skip, or an equivalent phrase. Never trigger proactively.
 ---
+
 # Chapter-Skip Playback
 
 Shows can opt into **chapter-skip playback**: in the Spotify player, the skip forward/back buttons jump to the next/previous chapter instead of seeking 15 seconds. The setting is per-show and applies to all of the show's episodes.

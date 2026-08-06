@@ -1,7 +1,8 @@
 ---
 name: catalyst-signals
-description: "Catalyst Signals — event-driven architecture platform for near-instantaneous communication between decoupled applications. Supports Zoho publishers, Catalyst publishers, custom publishers, webhooks, functions, circuits, event filtering, transformation, instant/batch dispatch, and retry policies. Trigger on 'Signals', 'event bus', 'publisher', 'event-driven', 'webhook target', 'dispatch policy', 'event transformation', 'rule filter', or 'event ordering'. Console-only service — no SDK or programmatic API."
+description: "\"Catalyst Signals — event-driven architecture platform for near-instantaneous communication between decoupled applications. Supports Zoho publishers, Catalyst publishers, custom publishers, webhooks, functions, circuits, event filtering, transformation, instant/batch dispatch, and retry policies. Trigger on 'Signals', 'event bus', 'publisher', 'event-driven', 'webhook target', 'dispatch policy', 'event transformation', 'rule filter', or 'event ordering'. Console-only service — no SDK or programmatic API.\""
 ---
+
 ## Prerequisites
 
 Before using Signals, activate it once per project in the console:

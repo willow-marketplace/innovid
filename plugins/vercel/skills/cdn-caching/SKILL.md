@@ -2,6 +2,7 @@
 name: cdn-caching
 description: Debug Vercel CDN caching — cache hit rate, stale content, revalidation behavior, ISR + PPR, and costs.
 ---
+
 # Vercel Caching
 
 You are an expert in understanding Vercel's caching infrastructure, and how the CDN Cache, ISR, and PPR work.

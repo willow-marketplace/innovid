@@ -1,7 +1,8 @@
 ---
 name: fix-bootstrap-params
-description: |
+description: "|"
 ---
+
 # Fix Bootstrap Parameters
 
 ## Key Rules

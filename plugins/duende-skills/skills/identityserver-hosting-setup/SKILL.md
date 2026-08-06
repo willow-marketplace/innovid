@@ -2,6 +2,7 @@
 name: identityserver-hosting-setup
 description: Setting up and hosting Duende IdentityServer in ASP.NET Core applications, including DI registration, middleware pipeline, hosting patterns, essential options, license configuration, and ASP.NET Identity integration.
 ---
+
 # Setting Up and Hosting IdentityServer
 
 ## When to Use This Skill

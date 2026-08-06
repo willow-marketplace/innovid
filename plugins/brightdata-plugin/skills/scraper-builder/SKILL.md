@@ -1,7 +1,8 @@
 ---
 name: scraper-builder
-description: "Build production-ready web scrapers for any website using Bright Data infrastructure. Guides you through site analysis, API selection, selector extraction, pagination handling, and complete scraper implementation. Use this skill whenever the user wants to build a scraper, create a crawler, extract data from a website, scrape product pages, handle pagination, build a data pipeline from a web source, or automate data collection from any site — even if they don't explicitly say 'scraper'. Triggers on phrases like 'build a scraper for', 'scrape data from', 'extract products from', 'crawl pages on', 'get data from [website]', or 'I need to pull data from'."
+description: "\"Build production-ready web scrapers for any website using Bright Data infrastructure. Guides you through site analysis, API selection, selector extraction, pagination handling, and complete scraper implementation. Use this skill whenever the user wants to build a scraper, create a crawler, extract data from a website, scrape product pages, handle pagination, build a data pipeline from a web source, or automate data collection from any site — even if they don't explicitly say 'scraper'. Triggers on phrases like 'build a scraper for', 'scrape data from', 'extract products from', 'crawl pages on', 'get data from [website]', or 'I need to pull data from'.\""
 ---
+
 # Scraper Builder
 
 You are building a production-ready web scraper for the user. Your job is to guide them from "I want data from site X" to a working, robust scraper that handles real-world challenges like pagination, dynamic content, anti-bot protection, and data parsing.

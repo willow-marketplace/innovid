@@ -2,6 +2,7 @@
 name: gb-setup
 description: Configure the GrowthBook plugin's API credentials so every other skill can run. Use when the user says "set up growthbook", "configure my api key", "growthbook isn't working", "where do I put my key", or when another skill emits an error pointing here ("GB_API_KEY is not set", "authentication failed"). Writes ~/.config/growthbook/.env with chmod 600 and validates against the live API. For listing flags or running experiments, the other skills handle that.
 ---
+
 # gb-setup
 
 One-skill onboarding for the GrowthBook plugin. Walks the user through `GB_API_KEY` and an optional `GB_API_URL` for self-hosted. Validates the credentials by hitting the live API, then writes `~/.config/growthbook/.env` with `chmod 600`.

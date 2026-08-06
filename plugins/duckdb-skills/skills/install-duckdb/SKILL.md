@@ -1,7 +1,8 @@
 ---
 name: install-duckdb
-description: >
+description: ">"
 ---
+
 Arguments: `$@`
 
 Each extension argument has the form `name` or `name@repo`.

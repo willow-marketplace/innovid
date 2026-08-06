@@ -2,6 +2,7 @@
 name: setup-zoom-marketplace-app
 description: Create, select, or validate the Zoom Marketplace app that owns an integration. Use for General App manifests, Server-to-Server OAuth apps, Meeting SDK apps, scopes, event subscriptions, app-owned credentials, or choosing a scenario template before product implementation.
 ---
+
 # /setup-zoom-marketplace-app
 
 Set up the Zoom Marketplace app boundary before implementing OAuth, API, SDK, webhook, WebSocket, RTMS, Team Chat, Contact Center, Phone, Zoom Apps, or MCP workflows.

@@ -1,7 +1,8 @@
 ---
 name: investigate-metric
-description: >
+description: ">"
 ---
+
 # Investigating a metric change
 
 For "why did X change?" questions about a saved insight, dashboard tile, or pasted query.

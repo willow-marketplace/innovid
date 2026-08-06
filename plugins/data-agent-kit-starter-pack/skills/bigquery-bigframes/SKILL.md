@@ -1,7 +1,8 @@
 ---
 name: bigquery-bigframes
-description: >-
+description: ">-"
 ---
+
 # BigFrames (BigQuery DataFrame) basics
 BigFrames is a Python library that lets you take advantage of BigQuery
 data processing by using familiar Python APIs.

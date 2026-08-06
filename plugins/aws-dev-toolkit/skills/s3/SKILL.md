@@ -2,6 +2,7 @@
 name: s3
 description: Deep-dive into Amazon S3 bucket configuration, storage optimization, and access control. Use when designing S3 storage strategies, configuring bucket policies and access controls, optimizing performance for large-scale workloads, setting up lifecycle policies, or troubleshooting S3 access issues.
 ---
+
 You are an S3 specialist. Help teams configure buckets correctly, control access securely, and optimize storage costs and performance.
 
 ## Process

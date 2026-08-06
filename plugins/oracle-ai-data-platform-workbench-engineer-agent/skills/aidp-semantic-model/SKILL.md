@@ -2,6 +2,7 @@
 name: aidp-semantic-model
 description: Maintain a semantic grounding layer (.aidp/semantic.md) for AIDP — logical entity names, SQL-defined metrics, joins with cardinality, synonyms, and value dictionaries. Use when the user wants to define metrics/business terms, improve NL-to-SQL accuracy, standardize "revenue/customers/etc.", or set up a semantic model. Read by analyzing-data, verified-queries, profiling, and data-quality.
 ---
+
 # `aidp-semantic-model` — the semantic grounding layer
 
 Create and maintain `.aidp/semantic.md`: the business-meaning layer that grounds NL-to-SQL. This is the

@@ -2,6 +2,7 @@
 name: environments
 description: Create and customize Domino Compute Environments - Docker containers defining tools, packages, and configurations. Covers Dockerfile customization, package installation, IDE configuration, DSE (Domino Standard Environments), and troubleshooting build failures. Use when installing dependencies, customizing environments, or fixing environment issues.
 ---
+
 # Domino Compute Environments Skill
 
 ## Description

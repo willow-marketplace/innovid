@@ -2,6 +2,7 @@
 name: oauth
 description: Reference skill for Zoom authentication. Use after routing to an auth workflow when choosing app credentials, grant types, scopes, token refresh behavior, or debugging Zoom OAuth failures.
 ---
+
 # Zoom OAuth
 
 Background reference for Zoom auth and token lifecycle behavior. Prefer `setup-zoom-oauth` first, then use this skill for the exact flow, scope, and error details.

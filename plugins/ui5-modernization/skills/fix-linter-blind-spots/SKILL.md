@@ -1,7 +1,8 @@
 ---
 name: fix-linter-blind-spots
-description: |
+description: "|"
 ---
+
 # Fix Linter Blind Spots
 
 This skill fixes patterns that cause runtime failures but are **not reported by the UI5 linter**. The linter's `no-globals` rule only checks `sap.*` namespaces in JS files. App-specific global namespace patterns in JavaScript — assignments, cross-module references, QUnit 1.x assertions, and sinon mocking via global chains — are invisible to it.

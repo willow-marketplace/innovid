@@ -2,6 +2,7 @@
 name: output-migrate
 description: Upgrade a project between versions of the Output framework. Use when the user asks to upgrade, migrate, or move to a newer Output version. Detects the current @outputai/* version in the project, fetches the matching migration guide from docs.output.ai, applies the changes, and verifies the project still type-checks.
 ---
+
 # Migrate an Output Project
 
 ## Overview

@@ -2,6 +2,7 @@
 name: nextjs
 description: Next.js App Router expert guidance. Use when building, debugging, or architecting Next.js applications — routing, Server Components, Server Actions, Cache Components, layouts, middleware/proxy, data fetching, rendering strategies, and deployment on Vercel.
 ---
+
 # Next.js Best Practices
 
 Apply these rules when writing or reviewing Next.js code.

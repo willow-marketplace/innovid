@@ -1,7 +1,8 @@
 ---
 name: paypal-best-practices
-description: >-
+description: ">-"
 ---
+
 # PayPal Best Practices
 
 Before answering, read the relevant reference file from the table below. The reference files contain current documentation URLs, country availability, and verified code examples.

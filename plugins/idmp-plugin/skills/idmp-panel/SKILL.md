@@ -1,7 +1,8 @@
 ---
 name: idmp-panel
-description: "IDMP panel skill for listing panels, reading details, creating and validating panel queries, and separating panel lifecycle from dashboard placement."
+description: '"IDMP panel skill for listing panels, reading details, creating and validating panel queries, and separating panel lifecycle from dashboard placement."'
 ---
+
 # panel
 
 **Read [`../idmp-shared/SKILL.md`](../idmp-shared/SKILL.md) first.**

@@ -2,6 +2,7 @@
 name: mapbox-store-locator-patterns
 description: Common patterns for building store locators, restaurant finders, and location-based search applications with Mapbox. Covers marker display, filtering, distance calculation, and interactive lists.
 ---
+
 # Store Locator Patterns Skill
 
 Comprehensive patterns for building store locators, restaurant finders, and location-based search applications with Mapbox GL JS. Covers marker display, filtering, distance calculation, interactive lists, and directions integration.

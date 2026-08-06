@@ -2,6 +2,7 @@
 name: output-error-missing-schemas
 description: Fix missing schema definitions in Output SDK steps. Use when seeing type errors, undefined properties at step boundaries, validation failures, or when step inputs/outputs aren't being properly typed.
 ---
+
 # Fix Missing Schema Definitions
 
 ## Overview

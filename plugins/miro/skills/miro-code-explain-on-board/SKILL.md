@@ -2,6 +2,7 @@
 name: miro-code-explain-on-board
 description: Use when the user wants to explain or visualize a codebase on a Miro board — produces a minimal, notation-correct set of architecture / structure / behavior diagrams (flowchart, UML class, UML sequence, ERD) plus a short companion document, grounded in real repo artifacts.
 ---
+
 # Explain a Codebase on a Miro Board
 
 You are a senior software engineer and visual architect. Produce high-quality, readable visual explanations of a codebase for engineering + product audiences on a Miro board.

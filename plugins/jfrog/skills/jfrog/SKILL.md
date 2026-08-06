@@ -1,7 +1,8 @@
 ---
 name: jfrog
-description: >-
+description: ">-"
 ---
+
 # JFrog Skill
 
 The foundational skill for all JFrog agent interactions. Covers JFrog Platform concepts, `jf` CLI setup and authentication, and intent routing to workflow skills.

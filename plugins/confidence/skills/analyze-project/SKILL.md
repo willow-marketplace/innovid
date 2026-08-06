@@ -2,6 +2,7 @@
 name: analyze-project
 description: Analyze a user's project and propose a meaningful feature flag change using Confidence. Use when the user says /analyze-project, asks what to flag, wants flag suggestions, or asks "what should I feature-flag in my project?"
 ---
+
 # Analyze Project
 
 Analyze the user's project and propose a meaningful, immediately demonstrable feature flag change using Confidence.

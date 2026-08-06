@@ -2,6 +2,7 @@
 name: boltz-protein-screen
 description: Screen existing protein binders with Boltz. Use when ranking a supplied protein, peptide, antibody, nanobody, or binder library against a target. Not for designing new proteins or screening small molecules.
 ---
+
 ## Workflow
 
 If `boltz-api` is missing from `PATH`, use `boltz-cli-setup` for install/update guidance before retrying.

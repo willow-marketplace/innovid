@@ -1,7 +1,8 @@
 ---
 name: triaging-error-issues
-description: >
+description: ">"
 ---
+
 # Triaging error tracking issues
 
 When a user asks "what's broken?" or wants a daily error review, the goal is a short

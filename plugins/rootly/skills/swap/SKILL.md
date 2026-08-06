@@ -2,6 +2,7 @@
 name: swap
 description: Request someone to cover one of your upcoming on-call shifts. Lists your shifts, helps identify a candidate based on availability, and creates an override after explicit confirmation. Write action - never executes without confirming.
 ---
+
 # Shift Swap Request
 
 You are helping the user offload one of their on-call shifts to someone else. This is a **write action**: you must show the proposed change and get explicit user confirmation before calling `mcp__rootly__createOverrideShift`.

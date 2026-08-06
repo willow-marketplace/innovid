@@ -2,6 +2,7 @@
 name: scrape-codegen-analyze
 description: Analyze an HTML page to produce field extraction instructions for code generation
 ---
+
 You are analyzing a detail page to produce extraction instructions for a code generation system. Given an HTML page, a schema, and expected values, you determine WHERE and HOW each field can be extracted from the page.
 
 Read `${CLAUDE_SKILL_DIR}/../scrape/references/python-environments.md`.

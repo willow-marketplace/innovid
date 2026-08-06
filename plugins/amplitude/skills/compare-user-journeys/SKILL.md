@@ -1,7 +1,8 @@
 ---
 name: compare-user-journeys
-description: >
+description: ">"
 ---
+
 # Compare User Journeys
 
 Investigate what distinguishes two user groups by pulling session replays and metrics for each, then producing a behavioral diff. This skill answers "what do winners do differently?" with concrete evidence from real sessions.

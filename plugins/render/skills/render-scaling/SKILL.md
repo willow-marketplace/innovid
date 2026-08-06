@@ -1,7 +1,8 @@
 ---
 name: render-scaling
-description: >-
+description: ">-"
 ---
+
 # Render Scaling
 
 This skill covers how to scale **Web Services**, **Private Services**, and **Background Workers** on Render: manual instance counts, **Professional+** autoscaling, plan (instance type) choices, and platform limits. Deeper tables and tuning guidance live under `references/`.

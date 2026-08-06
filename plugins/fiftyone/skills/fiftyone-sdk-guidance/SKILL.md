@@ -2,6 +2,7 @@
 name: fiftyone-sdk-guidance
 description: Answers FiftyOne Python SDK questions with accurate, runnable code. Use when the user asks how to do something in the FiftyOne Python SDK, asks a docs question, no skill or operator covers their goal, or the agent is unsure of the correct FiftyOne method, argument, or field path while writing code — e.g. "how do I do X in Python", "show me the SDK for filtering", "there's no operator for this, can I do it in code", "what's the API for embeddings", "write me a Python script to do Y".
 ---
+
 # FiftyOne SDK Guidance
 
 Answers FiftyOne SDK and docs questions by searching live documentation and returning accurate, runnable Python code. Covers two scenarios: direct SDK questions and fallback guidance when no operator or skill exists for the user's goal.

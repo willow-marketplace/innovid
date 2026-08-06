@@ -2,6 +2,7 @@
 name: flag-graph
 description: Trace the dependency relationships around a GrowthBook feature flag — what it depends on (prerequisites), what depends on it (reverse lookup), which experiments link to it, and any holdout associations. Use when the user asks "what depends on flag X", "what flags does flag X require", "will deleting this flag break anything", "show me the dependency graph", "what experiments are linked to this flag", "find everything that uses flag X", or "is it safe to clean up this flag". Read-only — for making changes to prerequisites, use flag-prerequisites. For cleanup, use flag-cleanup.
 ---
+
 # flag-graph
 
 Trace the dependency relationships around a GrowthBook feature flag. Use this skill before making structural changes to a flag (renaming, archiving, deleting) to understand the blast radius, or when building a mental model of how flags depend on each other.

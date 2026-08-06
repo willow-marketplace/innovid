@@ -2,6 +2,7 @@
 name: cloud-sql-postgres-vectorassist
 description: Use these skills to set up and optimize production-ready vector workloads by simply expressing your intent and performance requirements.
 ---
+
 ## Usage
 
 All scripts can be executed using Node.js. Replace `<param_name>` and `<param_value>` with actual values.

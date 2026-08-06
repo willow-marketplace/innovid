@@ -2,6 +2,7 @@
 name: beneficiary-creation
 description: Extract bank details from supplier invoices or documents, validate per-country requirements, and create beneficiaries in Airwallex. Use when the user says "set up this supplier", "onboard these vendors", "create beneficiary from invoice", "add a payee", or uploads supplier documents with bank details. Do NOT use for creating invoices, checking balances or FX rates, or provisioning cards.
 ---
+
 # Beneficiary Creation
 
 Reads supplier invoices or documents, extracts bank details, validates against country-specific schemas, and creates beneficiaries in Airwallex. **This skill creates beneficiaries only — money movement (transfers) is not in scope.**

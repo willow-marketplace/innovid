@@ -1,7 +1,8 @@
 ---
 name: managing-python-dependencies
-description: |
+description: "|"
 ---
+
 # Python Dependency Management Rule
 
 > [!CAUTION]

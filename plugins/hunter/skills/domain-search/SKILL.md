@@ -2,6 +2,7 @@
 name: domain-search
 description: Finds all publicly available email addresses and contacts at a company domain. Use when the user asks who works at a company, wants to find contacts at a domain, or needs email addresses for an organization.
 ---
+
 # Domain Search
 
 Find all contacts and email addresses associated with a company domain.

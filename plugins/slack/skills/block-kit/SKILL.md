@@ -1,7 +1,8 @@
 ---
 name: block-kit
-description: 'Help developers build and validate Block Kit layouts for Slack messages, modals, and Home tabs. Provides authoritative block references and validates with the blocks.validate API. Use this skill whenever the developer wants to compose Slack message layouts, build modals/forms/dialogs, design Home tab interfaces, create interactive messages with buttons or menus, modify existing Block Kit JSON, or asks about any Slack UI component (sections, actions, inputs, headers, alerts, tables, carousels). Also trigger when they mention "blocks", "Block Kit Builder", or paste JSON containing block structures like `"type": "section"`.'
+description: "'Help developers build and validate Block Kit layouts for Slack messages, modals, and Home tabs. Provides authoritative block references and validates with the blocks.validate API. Use this skill whenever the developer wants to compose Slack message layouts, build modals/forms/dialogs, design Home tab interfaces, create interactive messages with buttons or menus, modify existing Block Kit JSON, or asks about any Slack UI component (sections, actions, inputs, headers, alerts, tables, carousels). Also trigger when they mention \"blocks\", \"Block Kit Builder\", or paste JSON containing block structures like `\"type\": \"section\"`.'"
 ---
+
 # Block Kit
 
 Help the developer build a rich Block Kit layout. If `$0` is provided, it specifies the target surface (`message`, `modal`, or `home-tab`).

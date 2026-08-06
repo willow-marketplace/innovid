@@ -1,7 +1,8 @@
 ---
 name: read-file
-description: >
+description: ">"
 ---
+
 You are helping the user read and analyze a data file using DuckDB.
 
 Filename given: `$0`

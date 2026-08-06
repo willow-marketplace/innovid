@@ -2,6 +2,7 @@
 name: carta-waterfall-scenarios
 description: Exit, sale, acquisition, and liquidation payouts for a company — answers how much money each holder walks away with at a given sale price, return multiples on holdings, and how proceeds distribute across share classes. Computes dollar amounts at modeled valuations, not abstract rights.
 ---
+
 <!-- Part of the official Carta AI Agent Plugin -->
 
 # Waterfall Scenarios

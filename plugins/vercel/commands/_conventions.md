@@ -1,6 +1,6 @@
 ---
 name: _conventions
-description: 
+description: ""
 ---
 
 # Command Conventions

@@ -1,7 +1,8 @@
 ---
 name: jfrog-package-safety-and-download
-description: >-
+description: ">-"
 ---
+
 # JFrog Package Safety and Download
 
 ## Prerequisites

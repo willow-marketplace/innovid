@@ -1,7 +1,8 @@
 ---
 name: debugging-surveys
-description: >-
+description: ">-"
 ---
+
 # Debugging surveys
 
 PostHog Surveys is a no-code in-app form builder. A customer creates a survey in the

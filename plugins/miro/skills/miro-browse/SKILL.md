@@ -2,6 +2,7 @@
 name: miro-browse
 description: Use when the user wants to explore, list, summarize, or inspect items on a Miro board.
 ---
+
 # Miro Browse
 
 Shortcut to the Miro MCP browsing and context tools.

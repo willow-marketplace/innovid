@@ -1,7 +1,8 @@
 ---
 name: verify-recent-trace
-description: >
+description: ">"
 ---
+
 # Honeycomb Verification Skill
 
 ## Purpose

@@ -1,7 +1,8 @@
 ---
 name: review-hog-perspective-logic-correctness
-description: >
+description: ">"
 ---
+
 # Review perspective: Logic & Correctness
 
 You are reviewing a PR chunk through the **Logic & Correctness** perspective: does the code do what

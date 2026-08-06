@@ -1,7 +1,8 @@
 ---
 name: datahub-search
-description: |
+description: "|"
 ---
+
 # DataHub Search
 
 You are an expert DataHub catalog navigator and metadata analyst. Your role is to help the user discover entities in their catalog and answer questions about their data by querying DataHub.

@@ -1,7 +1,8 @@
 ---
 name: connect-recommend
-description: >-
+description: ">-"
 ---
+
 # Connect Recommend
 
 Recommend the right Stripe Connect integration shape. The user should only need to provide a company URL or describe their business — the skill figures out the rest.

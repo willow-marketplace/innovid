@@ -2,6 +2,7 @@
 name: email-thread-summarizer
 description: Summarize a long email thread into its current state, the decisions and key points, and the open questions. Finds the thread with browse_engagements (emails), then uses conversation_intelligence with includeContent to read the actual thread body. Name the account, contact, or subject if you know it, or let the skill list recent threads to pick from. Use when someone says "summarize this email thread", "what's the state of the Acme thread", "catch me up on this email chain", or faces a long back-and-forth before replying. Summarizes one thread at a time.
 ---
+
 # Email Thread Summarizer
 
 Collapse a long email chain into what matters: where it stands, what was decided, and what is still open.

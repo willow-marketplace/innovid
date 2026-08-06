@@ -1,7 +1,8 @@
 ---
 name: ckeditor
-description: >-
+description: ">-"
 ---
+
 # CKEditor 5 — install & configure
 
 Take a project from "I want a rich-text editor" to a **working, configured,

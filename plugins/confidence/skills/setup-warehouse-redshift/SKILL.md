@@ -2,6 +2,7 @@
 name: setup-warehouse-redshift
 description: Set up Redshift as a data warehouse for Confidence. Use when the user chose Redshift for warehouse setup.
 ---
+
 # Setup Warehouse: Redshift
 
 Configure Redshift as the data warehouse for Confidence experimentation analytics. This skill handles the full end-to-end setup: set up or connect a Redshift cluster, create an S3 staging bucket with IAM, configure the schema, create the warehouse, set up connectors, create the assignment table, and verify the pipeline.

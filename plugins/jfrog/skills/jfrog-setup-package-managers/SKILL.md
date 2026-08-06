@@ -1,7 +1,8 @@
 ---
 name: jfrog-setup-package-managers
-description: >-
+description: ">-"
 ---
+
 # JFrog — Setup Package Managers for Artifactory
 
 Apply the session hook's repo pick via [`jf setup`](references/jf-setup-command.md),

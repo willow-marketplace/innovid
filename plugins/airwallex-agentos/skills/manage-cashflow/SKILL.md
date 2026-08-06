@@ -1,7 +1,8 @@
 ---
 name: manage-cashflow
-description: >
+description: ">"
 ---
+
 # Manage Cashflow
 
 ## HARD GATE — money movement requests (overrides everything below)

@@ -2,6 +2,7 @@
 name: command-development
 description: This skill should be used when the user asks to "create a slash command", "add a command", "write a custom command", "define command arguments", "use command frontmatter", "organize commands", "create command with file references", "interactive command", "use AskUserQuestion in command", or needs guidance on slash command structure, YAML frontmatter fields, dynamic arguments, bash execution in commands, user interaction patterns, or command development best practices for Claude Code.
 ---
+
 # Command Development for Claude Code
 
 > **Note:** The `.claude/commands/` directory is a legacy format. For new skills, use the `.claude/skills/<name>/SKILL.md` directory format. Both are loaded identically — the only difference is file layout. See the `skill-development` skill for the preferred format.

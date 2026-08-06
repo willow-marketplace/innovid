@@ -2,6 +2,7 @@
 name: analyzing-pigment-data
 description: Always use this skill when querying, exploring, or analyzing existing data in a Pigment workspace. Covers the analysis workflow, query formulation, data concepts, analysis patterns, ambiguity handling, and result interpretation.
 ---
+
 # How to Use This Skill
 
 This `SKILL.md` is self-contained. Read it fully before performing any data analysis.

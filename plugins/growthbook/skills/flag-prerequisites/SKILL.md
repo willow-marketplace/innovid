@@ -2,6 +2,7 @@
 name: flag-prerequisites
 description: Add, remove, or inspect feature-level prerequisites on a GrowthBook feature flag. Use when the user says "gate flag X on flag Y being enabled", "add a prerequisite", "flag X should only evaluate if flag Y is on", "remove the prerequisite on flag X", "what does this flag depend on", or "this flag should require the new-checkout flag to be true first". Feature-level prerequisites gate the entire flag — when the prerequisite flag is off, this flag returns its default value for every user. The prerequisite must be a boolean flag. For prerequisites scoped to a single rule (not the whole flag), use flag-targeting. For tracing the full dependency graph, use flag-graph.
 ---
+
 # flag-prerequisites
 
 Add, remove, or inspect feature-level prerequisites on a GrowthBook feature flag. A feature-level prerequisite is a boolean gate: if the specified prerequisite flag is off for a user, the current flag skips all its rules and returns its `defaultValue` for that user.

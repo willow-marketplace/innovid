@@ -1,7 +1,8 @@
 ---
 name: chrome-extensions
-description: >
+description: ">"
 ---
+
 # Chrome Extensions
 
 Build production-quality Chrome extensions using Manifest V3 and publish them to the Chrome Web Store.

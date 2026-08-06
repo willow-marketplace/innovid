@@ -1,7 +1,8 @@
 ---
 name: identityserver-token-lifecycle
-description: "Guide for implementing token types, refresh token management, token exchange (RFC 8693), extension grants, IProfileService claims customization, and token lifetime best practices in Duende IdentityServer."
+description: '"Guide for implementing token types, refresh token management, token exchange (RFC 8693), extension grants, IProfileService claims customization, and token lifetime best practices in Duende IdentityServer."'
 ---
+
 # IdentityServer Token Types, Refresh Tokens, and Token Exchange
 
 ## When to Use This Skill

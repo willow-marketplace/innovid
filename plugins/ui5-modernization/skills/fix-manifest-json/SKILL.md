@@ -1,7 +1,8 @@
 ---
 name: fix-manifest-json
-description: |
+description: "|"
 ---
+
 # Fix manifest.json
 
 This skill fixes manifest.json issues that the UI5 linter detects but cannot auto-fix because they may require understanding of the application's dependencies and structure.

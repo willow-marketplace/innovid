@@ -2,6 +2,7 @@
 name: aidp-sql-ddl
 description: Write-side Spark SQL on the AIDP lakehouse — DDL (CREATE/ALTER/DROP table·view·schema), DML (INSERT/UPDATE/DELETE/MERGE upsert), and Delta maintenance (OPTIMIZE, VACUUM, time travel, RESTORE, schema evolution, liquid clustering). Use when the user wants to create/alter/drop a table or view, insert/update/delete/merge rows, upsert, compact/optimize/vacuum a Delta table, query an old version (time travel), restore, evolve a schema, or run any non-SELECT SQL. For read-only analytics use aidp-analyzing-data; for control-plane (CLI/REST) table lifecycle use aidp-table-management.
 ---
+
 # `aidp-sql-ddl` — lakehouse write SQL (DDL / DML / Delta maintenance)
 
 AIDP runs **Spark 3.5 + Delta Lake 3.2** (platform-ref §39), so the full write grammar works through the

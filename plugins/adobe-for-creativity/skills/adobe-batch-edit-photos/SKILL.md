@@ -1,7 +1,8 @@
 ---
 name: adobe-batch-edit-photos
-description: >
+description: ">"
 ---
+
 # Adobe Batch Edit Photos
 
 A batch editing pipeline focused on **visual cohesion** — making a set of

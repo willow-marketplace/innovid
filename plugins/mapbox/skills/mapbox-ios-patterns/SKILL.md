@@ -2,6 +2,7 @@
 name: mapbox-ios-patterns
 description: Official integration patterns for Mapbox Maps SDK on iOS. Covers installation, adding markers, user location, custom data, styles, camera control, and featureset interactions. Based on official Mapbox documentation.
 ---
+
 # Mapbox iOS Integration Patterns
 
 Official patterns for integrating Mapbox Maps SDK v11 on iOS with Swift, SwiftUI, and UIKit.

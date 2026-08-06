@@ -2,6 +2,7 @@
 name: content-experimentation-best-practices
 description: Content experimentation and A/B testing guidance covering experiment design, hypotheses, metrics, sample size, statistical foundations, CMS-managed variants, and common analysis pitfalls. Use this skill when planning experiments, setting up variants, choosing success metrics, interpreting statistical results, or building experimentation workflows in a CMS or frontend stack.
 ---
+
 # Content Experimentation Best Practices
 
 Principles and patterns for running effective content experiments to improve conversion rates, engagement, and user experience.

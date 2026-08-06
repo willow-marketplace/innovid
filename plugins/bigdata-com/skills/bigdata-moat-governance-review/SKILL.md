@@ -1,7 +1,8 @@
 ---
 name: bigdata-moat-governance-review
-description: >
+description: ">"
 ---
+
 # Bigdata Moat & Governance Review
 
 Two questions that decide long-run returns: is the advantage durable, and are the stewards any good? Use Bigdata.com plugin tools for every fact.

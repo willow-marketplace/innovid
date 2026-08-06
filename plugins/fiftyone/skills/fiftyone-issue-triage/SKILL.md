@@ -2,6 +2,7 @@
 name: fiftyone-issue-triage
 description: Triages FiftyOne GitHub issues by categorizing as fixed, won't fix, not reproducible, or still valid. Use when reviewing GitHub issues, triaging bugs, or closing stale issues in the voxel51/fiftyone repository.
 ---
+
 # FiftyOne Issue Triage
 
 ## Categories

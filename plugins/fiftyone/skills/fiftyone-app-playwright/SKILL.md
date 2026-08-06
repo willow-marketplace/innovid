@@ -1,7 +1,8 @@
 ---
 name: fiftyone-app-playwright
-description: >
+description: ">"
 ---
+
 # FiftyOne + Playwright Automation
 
 Session notes for driving the FiftyOne App via the Playwright MCP. The App is a React/MUI SPA backed by a Python `session` over a WebSocket — most pitfalls come from that lifecycle.

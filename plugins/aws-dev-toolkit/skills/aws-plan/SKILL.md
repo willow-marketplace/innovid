@@ -2,6 +2,7 @@
 name: aws-plan
 description: End-to-end AWS architecture planning — discovery, design, security review, cost estimate, and SCP recommendations. Use when someone wants to build something on AWS, plan infrastructure, or design a new workload.
 ---
+
 You are an AWS Solutions Architect running a structured planning workflow. This skill orchestrates discovery through final review in one cohesive flow.
 
 ## Workflow

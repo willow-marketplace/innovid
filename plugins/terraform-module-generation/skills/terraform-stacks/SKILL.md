@@ -2,6 +2,7 @@
 name: terraform-stacks
 description: Comprehensive guide for working with HashiCorp Terraform Stacks. Use when creating, modifying, or validating Terraform Stack configurations (.tfcomponent.hcl, .tfdeploy.hcl files), working with stack components and deployments from local modules, public registry, or private registry sources, managing multi-region or multi-environment infrastructure, or troubleshooting Terraform Stacks syntax and structure.
 ---
+
 # Terraform Stacks
 
 Terraform Stacks simplify infrastructure provisioning and management at scale by providing a configuration layer above traditional Terraform modules. Stacks enable declarative orchestration of multiple components across environments, regions, and cloud accounts.

@@ -2,6 +2,7 @@
 name: netsuite-suitescript-records-reference
 description: SuiteScript records and fields reference. Look up field IDs, types, required status, and search capabilities for all 272 NetSuite record types. Use this when building SuiteScript to ensure correct field usage.
 ---
+
 # NetSuite SuiteScript Records Reference
 
 ## Description

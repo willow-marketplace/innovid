@@ -1,7 +1,8 @@
 ---
 name: buildkite-preflight
-description: "Runs Buildkite CI builds against changes in the local working tree. Use when asked to run preflight or run CI."
+description: '"Runs Buildkite CI builds against changes in the local working tree. Use when asked to run preflight or run CI."'
 ---
+
 # Buildkite Preflight
 
 Preflight runs CI builds against changes in the local working tree. It's intended to provide a feedback loop for evaluating local changes in CI by providing a single command to run the entire commit/push/run loop.

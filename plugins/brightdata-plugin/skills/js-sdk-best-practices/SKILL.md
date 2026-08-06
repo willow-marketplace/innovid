@@ -1,7 +1,8 @@
 ---
 name: js-sdk-best-practices
-description: |
+description: "|"
 ---
+
 # Bright Data JavaScript SDK
 
 Access web data through a unified Node.js/TypeScript SDK (`@brightdata/sdk`). One

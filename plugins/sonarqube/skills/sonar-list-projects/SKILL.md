@@ -2,6 +2,7 @@
 name: sonar-list-projects
 description: List SonarQube projects accessible to the current user
 ---
+
 # SonarQube — List Projects
 
 List SonarQube projects accessible to the authenticated user. Useful for discovering project keys before running other skills.

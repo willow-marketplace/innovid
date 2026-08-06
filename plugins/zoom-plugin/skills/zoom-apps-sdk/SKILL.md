@@ -2,6 +2,7 @@
 name: zoom-apps-sdk
 description: Reference skill for Zoom Apps SDK. Use after routing to an in-client app workflow when building web apps that run inside Zoom meetings, webinars, the main client, or Zoom Phone.
 ---
+
 # Zoom Apps SDK
 
 Background reference for web apps that run inside the Zoom client. Prefer `choose-zoom-approach` first, then route here for Layers API, Collaborate Mode, in-client OAuth, and runtime constraints.

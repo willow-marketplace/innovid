@@ -1,7 +1,8 @@
 ---
 name: aws-lambda-managed-instances
-description: >
+description: ">"
 ---
+
 # AWS Lambda Managed Instances (LMI)
 
 Run Lambda functions on current-generation EC2 instances in your account while AWS manages provisioning, patching, scaling, routing, and load balancing. Combines Lambda's developer experience with EC2's pricing and hardware options.

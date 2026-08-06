@@ -2,6 +2,7 @@
 name: setup-devops-agent
 description: Setup and diagnostics for the AWS DevOps Agent MCP connection. Triggers when aws-devops-agent is missing from .mcp.json, when the connection is broken, or when the user says "set up devops agent" / "configure agent". Does NOT trigger if the MCP is already connected and working.
 ---
+
 # AWS DevOps Agent — Claude Setup
 
 The instructions below are specifically for setting up the AWS DevOps Agent plugin for Claude applications. For other clients, use this as a reference, but adjust the instructions based on the client's specific requirements.

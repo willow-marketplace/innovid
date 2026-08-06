@@ -2,6 +2,7 @@
 name: flag-rules
 description: Entry point for working with rules on a GrowthBook feature flag. Use when the user asks "what rules does flag X have", "show me the rules on this flag", "add a rule", "delete a rule", "reorder the rules", or describes a flag operation without specifying the rule type. Routes to specialized skills for creating and editing specific rule types. Also handles listing, reordering, and deleting rules directly. For specific rule types, use flag-targeting for force/rollout rules, flag-experiment for experiment-ref rules, flag-schedule for timed activation, flag-ramp for progressive rollouts, flag-monitoring for monitored rollouts, flag-prerequisites for feature-level prerequisite gates.
 ---
+
 # flag-rules
 
 Entry point for rule operations on a GrowthBook feature flag. Use this skill to inspect rules, delete a rule, or reorder rules. For creating or editing rules, this skill identifies the right rule type and routes to the specialized skill.

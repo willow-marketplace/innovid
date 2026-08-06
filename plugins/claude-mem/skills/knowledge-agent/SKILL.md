@@ -2,6 +2,7 @@
 name: knowledge-agent
 description: Build and query AI-powered knowledge bases from claude-mem observations. Use when users want to create focused "brains" from their observation history, ask questions about past work patterns, or compile expertise on specific topics.
 ---
+
 # Knowledge Agent
 
 Build and query AI-powered knowledge bases from claude-mem observations.

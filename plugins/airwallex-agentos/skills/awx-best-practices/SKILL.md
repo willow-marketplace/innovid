@@ -2,6 +2,7 @@
 name: awx-best-practices
 description: Fallback Airwallex skill — works with the Airwallex CLI or the Airwallex MCP server. Use ONLY when no dedicated workflow skill matches the task. Covers ad-hoc operations (list, get, update, delete, void, cancel), general Airwallex API questions, troubleshooting, and domains not covered by a workflow skill (payment links, refunds, disputes, spend management, financial reports). Do NOT load this skill alongside a workflow skill — each workflow skill is self-contained. For invoices/billing/coupons/meters/credit notes use contract-to-billing, for suppliers/beneficiaries use beneficiary-creation, for cards use card-provisioning, for balances/FX/cashflow use manage-cashflow.
 ---
+
 # Airwallex Best Practices
 
 Fallback skill for Airwallex tasks. **Use only when no dedicated workflow skill fits.** Each workflow skill (beneficiary-creation, card-provisioning, contract-to-billing, manage-cashflow) is self-contained — do NOT load this skill alongside them.

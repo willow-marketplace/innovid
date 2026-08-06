@@ -2,6 +2,7 @@
 name: log-activity
 description: Log calls, meetings, notes, and other activities to CRM item timelines — structured records with attendees, outcomes, and follow-ups. Use when someone says "log my call with", "add a note to the deal", "what activities happened on", "record this meeting", "update my note on", "track a call with", "log a meeting with", "what's the activity history for", "add meeting notes to", "I just spoke with", "note on the account", or "update the activity I logged".
 ---
+
 # Log Activity
 
 Flow: **Trigger → Detect intent (log / read / update) → Resolve CRM item → Gather activity details → Execute → Confirm**.

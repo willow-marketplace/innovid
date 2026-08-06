@@ -2,6 +2,7 @@
 name: general
 description: Cross-product Zoom reference skill. Use after the workflow is clear when you need shared platform guidance, app-model comparisons, authentication context, scopes, marketplace considerations, or API-vs-MCP routing.
 ---
+
 # Zoom General (Cross-Product Skills)
 
 Background reference for cross-product Zoom questions. Prefer the workflow skills first, then use this file for shared platform guidance and routing detail.

@@ -1,7 +1,8 @@
 ---
 name: modernize-test-starter
-description: |
+description: "|"
 ---
+
 # Modernize to Test Starter
 
 This skill modernizes a UI5 project's entire test infrastructure — both unit tests and OPA5 integration tests — to the [Test Starter concept](https://ui5.sap.com/#/topic/032be2cb2e1d4115af20862673bedcdb).

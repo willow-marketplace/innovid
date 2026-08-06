@@ -2,6 +2,7 @@
 name: you-web
 description: Use You.com MCP tools for current web search, URL content extraction, cited web synthesis, and x402-aware web access.
 ---
+
 # You.com Web MCP
 
 Use You.com MCP tools when the answer depends on current web information, source comparison, cited synthesis, or reading specific URLs.

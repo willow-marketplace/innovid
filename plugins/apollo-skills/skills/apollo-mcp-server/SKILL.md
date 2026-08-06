@@ -1,7 +1,8 @@
 ---
 name: apollo-mcp-server
-description: >
+description: ">"
 ---
+
 # Apollo MCP Server Guide
 
 Apollo MCP Server exposes GraphQL operations as MCP tools, enabling AI agents to interact with GraphQL APIs through the Model Context Protocol.

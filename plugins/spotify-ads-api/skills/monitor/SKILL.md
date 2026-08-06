@@ -2,6 +2,7 @@
 name: monitor
 description: Check Spotify Ads API campaign health — pacing, delivery issues, budget burn rate, stalled campaigns, and underpacing alerts. Use for one-shot health checks or recurring monitoring when the host supports scheduled automations.
 ---
+
 # Spotify Ads API — Campaign Health Monitor
 
 Diagnose delivery problems across active campaigns. Goes beyond the dashboard by running diagnostic checks and recommending specific actions.

@@ -2,6 +2,7 @@
 name: miro-doc
 description: Use when the user wants to create or edit a Google-Docs-style markdown document on a Miro board.
 ---
+
 # Miro Doc
 
 Shortcut to the Miro MCP document tools.

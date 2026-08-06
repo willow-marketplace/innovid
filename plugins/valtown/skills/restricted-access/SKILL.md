@@ -2,6 +2,7 @@
 name: restricted-access
 description: Use when a val's HTTP endpoints should not be open to the whole internet — limiting an app to a team, understanding why an endpoint redirects to a login page, letting a webhook through, or identifying which Val Town user is viewing an app. Covers app access (`httpPrivacy`), org grants, bypass tokens for automation, and the `X-Val-Town-User` identity header. For building your own login flow inside a val, see the `oauth` skill instead.
 ---
+
 # Restricted App Access
 
 A val has two independent access settings. Changing one does not change the other:

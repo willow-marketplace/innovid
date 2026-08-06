@@ -1,7 +1,8 @@
 ---
 name: skills-store
-description: >-
+description: ">-"
 ---
+
 # PostHog Skills Store
 
 Skills are reusable agent workflows stored in PostHog following the [Agent Skills specification](https://agentskills.io/specification) — a body of instructions (SKILL.md) plus optional bundled files (scripts, references, assets), structured metadata, and an `allowed_tools` list.

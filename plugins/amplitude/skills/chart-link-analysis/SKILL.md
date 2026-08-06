@@ -2,6 +2,7 @@
 name: chart-link-analysis
 description: Answers questions from an Amplitude chart or dashboard link — fetch the definition, pull the data, explain or adapt it. Use when the user pastes an Amplitude URL, asks "what does this chart show", wants a report refreshed from a dashboard, or wants to clone/adapt an existing analysis.
 ---
+
 # Chart Link Analysis
 
 Second most common job: the user pastes a link and wants the analysis

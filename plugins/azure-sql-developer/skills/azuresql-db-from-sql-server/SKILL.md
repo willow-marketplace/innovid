@@ -1,7 +1,8 @@
 ---
 name: azuresql-db-from-sql-server
-description: >-
+description: ">-"
 ---
+
 # Migrate from the SQL Server image to Azure SQL Developer
 
 This skill converts an existing local SQL Server setup (the SQL Server image

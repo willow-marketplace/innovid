@@ -2,6 +2,7 @@
 name: aidp-volumes
 description: Work with AIDP volumes — list volumes, browse files inside a volume, upload/download via the PAR flow, and create directories. Use when the user mentions volumes, needs to stage large/binary files, or move data in/out of a volume (distinct from the workspace filesystem). Control-plane via the official `aidp` CLI.
 ---
+
 # `aidp-volumes` — volume files & PAR transfers
 
 Manage AIDP volumes and their contents — the staging area for larger/binary data, distinct from the

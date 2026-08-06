@@ -2,6 +2,7 @@
 name: render-debug
 description: Debug failed Render deployments by analyzing logs, metrics, and database state. Identifies errors (missing env vars, port binding, OOM, etc.) and suggests fixes. Use when deployments fail, services won't start, or users mention errors, logs, or debugging.
 ---
+
 # Debug Render Deployments
 
 Analyze deployment failures using logs, metrics, and database queries. Identify root causes and apply fixes.

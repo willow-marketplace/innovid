@@ -1,7 +1,8 @@
 ---
 name: diagnosing-sdk-health
-description: >
+description: ">"
 ---
+
 # Diagnosing SDK health
 
 Outdated PostHog SDKs surface through the project's generic **health issues** — the same

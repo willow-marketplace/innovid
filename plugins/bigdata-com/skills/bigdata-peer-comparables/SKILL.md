@@ -1,7 +1,8 @@
 ---
 name: bigdata-peer-comparables
-description: >
+description: ">"
 ---
+
 # Bigdata Peer Comparables
 
 Relative screen against a defensible peer set. Use Bigdata.com plugin tools for every fact.

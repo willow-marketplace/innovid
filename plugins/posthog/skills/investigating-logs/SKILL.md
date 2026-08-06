@@ -1,7 +1,8 @@
 ---
 name: investigating-logs
-description: >
+description: ">"
 ---
+
 # Investigating logs
 
 Investigation is a narrowing problem: **summarize before you read**.

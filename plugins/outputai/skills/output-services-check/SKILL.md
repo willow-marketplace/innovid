@@ -2,6 +2,7 @@
 name: output-services-check
 description: Verify Output SDK development services are running. Use when debugging workflows, starting development, encountering connection errors, services may be down, or when you see "ECONNREFUSED" or timeout errors.
 ---
+
 # Output Services Health Check
 
 ## Overview

@@ -1,7 +1,8 @@
 ---
 name: carta-interaction-reference
-description: >-
+description: ">-"
 ---
+
 <!-- Part of the official Carta AI Agent Plugin -->
 
 # Carta AI Agent Interaction Reference

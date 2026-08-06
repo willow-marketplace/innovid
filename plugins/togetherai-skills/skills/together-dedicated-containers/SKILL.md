@@ -1,7 +1,8 @@
 ---
 name: together-dedicated-containers
-description: "Custom Dockerized inference workers on Together AI's managed GPU infrastructure. Build with Sprocket SDK, configure with Jig CLI, submit async queue jobs, and poll results. Reach for it whenever the user needs container-level control rather than a standard model endpoint or raw cluster."
+description: "\"Custom Dockerized inference workers on Together AI's managed GPU infrastructure. Build with Sprocket SDK, configure with Jig CLI, submit async queue jobs, and poll results. Reach for it whenever the user needs container-level control rather than a standard model endpoint or raw cluster.\""
 ---
+
 # Together Dedicated Containers
 
 ## Overview

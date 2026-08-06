@@ -1,7 +1,8 @@
 ---
 name: nvidia-skill-finder
-description: >-
+description: ">-"
 ---
+
 # NVIDIA Skill Finder
 
 ## Purpose

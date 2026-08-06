@@ -1,7 +1,8 @@
 ---
 name: aws-lambda-microvms
-description: >
+description: ">"
 ---
+
 # AWS Lambda MicroVMs
 
 > The AWS MCP server is recommended for sandboxed execution and audit logging.

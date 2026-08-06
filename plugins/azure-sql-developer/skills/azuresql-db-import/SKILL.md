@@ -1,7 +1,8 @@
 ---
 name: azuresql-db-import
-description: >-
+description: ">-"
 ---
+
 # Azure SQL Developer: import a database
 
 Bring an existing database INTO the local Azure SQL Developer from a

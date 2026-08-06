@@ -1,7 +1,8 @@
 ---
 name: querying-noibu-data
-description: >
+description: ">"
 ---
+
 # Noibu MCP routing guide
 
 Noibu is an ecommerce analytics platform that tracks sessions, page visits, and

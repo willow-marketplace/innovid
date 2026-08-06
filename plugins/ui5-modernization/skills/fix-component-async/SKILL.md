@@ -1,7 +1,8 @@
 ---
 name: fix-component-async
-description: |
+description: "|"
 ---
+
 # Fix Component.js Async Configuration
 
 This skill fixes Component.js async configuration issues that the UI5 linter detects but cannot auto-fix because they may require understanding of the component's loading behavior.

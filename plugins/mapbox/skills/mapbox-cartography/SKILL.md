@@ -2,6 +2,7 @@
 name: mapbox-cartography
 description: Expert guidance on map design principles, color theory, visual hierarchy, typography, and cartographic best practices for creating effective and beautiful maps with Mapbox. Use when designing map styles, choosing colors, or making cartographic decisions.
 ---
+
 # Mapbox Cartography Skill
 
 This skill provides expert cartographic knowledge to help you design effective, beautiful, and functional maps using Mapbox.

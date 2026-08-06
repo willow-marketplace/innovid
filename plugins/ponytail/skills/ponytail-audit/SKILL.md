@@ -1,7 +1,8 @@
 ---
 name: ponytail-audit
-description: >
+description: ">"
 ---
+
 ponytail-review, repo-wide. Scan the whole tree instead of a diff. Rank
 findings biggest cut first.
 

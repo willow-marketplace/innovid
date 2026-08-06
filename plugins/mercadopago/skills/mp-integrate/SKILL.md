@@ -2,6 +2,7 @@
 name: mp-integrate
 description: Wizard that scaffolds a complete Mercado Pago integration for any product. Asks the developer the minimum questions needed (country, product, variant, SDK, mode), queries the MCP server for live docs, and produces a ready-to-paste code bundle. Use whenever the developer wants to add or migrate a Mercado Pago payment flow.
 ---
+
 # mp-integrate
 
 This skill is the single entry point for building a Mercado Pago integration. It collects the minimum context from the developer and assembles a ready-to-paste bundle using curated reference files and, as fallback, the MCP server.

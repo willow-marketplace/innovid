@@ -1,7 +1,8 @@
 ---
 name: bigdata-country-sector-analysis
-description: >
+description: ">"
 ---
+
 # Bigdata Country-Sector Analysis
 
 Sector view anchored to one country or region. Use Bigdata.com plugin tools for every fact.

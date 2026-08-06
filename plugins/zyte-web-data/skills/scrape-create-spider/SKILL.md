@@ -2,6 +2,7 @@
 name: scrape-create-spider
 description: Generate a Scrapy spider that wires page objects together
 ---
+
 You are generating a Scrapy spider that wires together web-poet page objects (item
 extraction + navigation) into a working crawler.
 

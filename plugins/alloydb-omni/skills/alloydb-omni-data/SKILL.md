@@ -2,6 +2,7 @@
 name: alloydb-omni-data
 description: Use these skills when you need to explore the database structure, identify schema objects like views and triggers, and execute SQL queries to interact with your data.
 ---
+
 ## Usage
 
 All scripts can be executed using Node.js. Replace `<param_name>` and `<param_value>` with actual values.

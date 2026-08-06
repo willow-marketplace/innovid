@@ -2,6 +2,7 @@
 name: fiftyone-create-notebook
 description: Creates Jupyter notebooks for FiftyOne workflows including getting-started guides, tutorials, recipes, and full ML pipelines. Use when creating notebooks, writing tutorials, building demos, or generating FiftyOne walkthroughs covering data loading, exploration, inference, evaluation, and export.
 ---
+
 # Create FiftyOne Notebooks
 
 ## Contents

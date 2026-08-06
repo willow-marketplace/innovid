@@ -2,6 +2,7 @@
 name: grafana-assistant-cli
 description: Use the grafana-assistant CLI to interact with Grafana Assistant via A2A API. Covers installation, configuration, prompting, keeping conversation context, and practical patterns for ops investigations. Use when the user mentions grafana-assistant, Grafana Assistant CLI, assistant tunnel, or wants to query a Grafana instance via the assistant.
 ---
+
 # grafana-assistant CLI
 
 CLI tool for interacting with Grafana Assistant via the A2A API.

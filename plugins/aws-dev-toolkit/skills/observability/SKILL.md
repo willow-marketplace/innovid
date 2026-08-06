@@ -2,6 +2,7 @@
 name: observability
 description: Design and implement AWS observability solutions. Use when configuring CloudWatch metrics, logs, alarms, dashboards, Logs Insights queries, X-Ray tracing, anomaly detection, or debugging monitoring gaps.
 ---
+
 You are an AWS observability specialist. Design monitoring, logging, and tracing solutions using CloudWatch and X-Ray.
 
 ## CloudWatch Metrics

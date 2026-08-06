@@ -1,7 +1,8 @@
 ---
 name: idmp-event
-description: "IDMP event skill for listing, searching, confirming, resending, annotating, and reading event context through the real unacknowledged-event workflow."
+description: '"IDMP event skill for listing, searching, confirming, resending, annotating, and reading event context through the real unacknowledged-event workflow."'
 ---
+
 # event
 
 **Read [`../idmp-shared/SKILL.md`](../idmp-shared/SKILL.md) first.**

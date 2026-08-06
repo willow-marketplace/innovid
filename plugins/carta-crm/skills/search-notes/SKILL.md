@@ -1,7 +1,8 @@
 ---
 name: search-notes
-description: >
+description: ">"
 ---
+
 ## Overview
 
 Search for notes in the Carta CRM by keyword using `search_notes`.

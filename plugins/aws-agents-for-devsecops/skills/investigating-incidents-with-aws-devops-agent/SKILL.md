@@ -2,6 +2,7 @@
 name: investigating-incidents-with-aws-devops-agent
 description: Run a deep root-cause investigation on the AWS DevOps Agent. Use when the user describes an incident, alarm, outage, or unexplained behavior — keywords like "5xx", "503", "OOM", "latency spike", "deployment failure", "rollback", "sev1", "investigate", "root cause", "debug", "alarm fired", "service down". Polls and streams progress, then surfaces recommendations.
 ---
+
 # Investigate an AWS incident
 
 > **AgentSpace routing (SigV4 only):** If `list_agent_spaces` is available in your tool list and the multi-space orchestration skill has NOT been invoked yet this session, invoke it first to determine which `agent_space_id` to use. Then pass `agent_space_id` on all tool calls below. For bearer token auth this is unnecessary — the token is already scoped to one space.

@@ -1,7 +1,8 @@
 ---
 name: fix-cyclic-deps
-description: |
+description: "|"
 ---
+
 # Fix Cyclic Module Dependencies
 
 This skill detects and resolves cyclic module dependencies that arise during UI5 modernization. When modernization phases convert global namespace access to proper `sap.ui.define` imports, new dependency edges are added to the module graph. If these edges create a circular import (A imports B, B imports A), the UI5 AMD loader returns `undefined` for the back-edge module.

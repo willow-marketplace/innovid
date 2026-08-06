@@ -1,7 +1,8 @@
 ---
 name: otel-migration
-description: >
+description: ">"
 ---
+
 # OpenTelemetry Migration for Existing Applications
 
 Guide for retrofitting OpenTelemetry into an existing, uninstrumented application. This covers

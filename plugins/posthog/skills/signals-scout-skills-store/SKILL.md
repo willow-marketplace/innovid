@@ -1,7 +1,8 @@
 ---
 name: signals-scout-skills-store
-description: >
+description: ">"
 ---
+
 # Signals scout: skills store
 
 You are a focused skills-store hygiene scout.

@@ -2,6 +2,7 @@
 name: authoring-language-sdk-tasks
 description: The language-neutral foundation for Airflow language SDKs — implement task logic in a non-Python language while the DAG stays in Python. Use when the user wants to run an Airflow task in another language (Go or other native languages), asks how the Python `@task.stub` pairs with native task code, how task/DAG IDs must match across the two sides, how data passes via XCom as JSON, or which language SDKs exist. This skill owns the shared Python-stub pattern and conceptual model; for a specific language's native API, build, and runtime, use that language's skill (e.g. authoring-go-sdk-tasks).
 ---
+
 # Authoring Language SDK Tasks (Shared Foundation)
 
 Airflow language SDKs let you implement task logic in a language other than Python while the DAG and its scheduling stay in Python. This skill describes the parts that are identical across every language SDK. Each language has its own companion skill for the native API, build tooling, and runtime — see [Per-language skills](#per-language-skills).

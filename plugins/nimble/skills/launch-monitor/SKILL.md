@@ -1,22 +1,24 @@
 ---
 name: launch-monitor
-description: Monitors press, social, developer communities, and competitor channels from any point around
-a product launch — tracking sentiment, flagging mischaracterizations, surfacing competitor
-responses, and recommending actions in real time. Nimble reaches sources that block standard
-agents — including paywalled press, Reddit, LinkedIn, JavaScript-heavy pages, and live
-community forums — while Claude triages every signal by urgency. Delivers a Response War Room
-dashboard with a live signal feed, mischaracterization tracker, competitor response panel,
-and sentiment velocity chart.
+description: |-
+  Monitors press, social, developer communities, and competitor channels from any point around
+  a product launch — tracking sentiment, flagging mischaracterizations, surfacing competitor
+  responses, and recommending actions in real time. Nimble reaches sources that block standard
+  agents — including paywalled press, Reddit, LinkedIn, JavaScript-heavy pages, and live
+  community forums — while Claude triages every signal by urgency. Delivers a Response War Room
+  dashboard with a live signal feed, mischaracterization tracker, competitor response panel,
+  and sentiment velocity chart.
 
-Use when asked to "monitor this launch", "track the launch", "what's being said about the
-launch", "flag any mischaracterizations", "competitor response to the launch", "post-launch
-coverage", "check press coverage for the launch", or "what's the reaction to the
-announcement".
+  Use when asked to "monitor this launch", "track the launch", "what's being said about the
+  launch", "flag any mischaracterizations", "competitor response to the launch", "post-launch
+  coverage", "check press coverage for the launch", or "what's the reaction to the
+  announcement".
 
-Do NOT use for ongoing brand monitoring unrelated to a launch — use brand-mention-monitor
-instead. Do NOT use for ongoing competitor intelligence unrelated to a specific launch
-window — use competitor-intel instead.
+  Do NOT use for ongoing brand monitoring unrelated to a launch — use brand-mention-monitor
+  instead. Do NOT use for ongoing competitor intelligence unrelated to a specific launch
+  window — use competitor-intel instead.
 ---
+
 # Launch Monitor
 
 Monitors press, social, and community forums from launch day — tracking sentiment, flagging mischaracterizations, surfacing competitor responses, and recommending actions so you can respond fast.

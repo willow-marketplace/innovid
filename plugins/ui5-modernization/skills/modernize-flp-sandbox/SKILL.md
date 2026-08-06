@@ -1,7 +1,8 @@
 ---
 name: modernize-flp-sandbox
-description: >
+description: ">"
 ---
+
 # New Sandbox Migration Skill
 
 Migrate a UI5 application from the legacy FLP sandbox to New Sandbox.

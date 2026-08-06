@@ -1,7 +1,8 @@
 ---
 name: phone
-description: "Reference skill for Zoom Phone. Use after routing to a phone workflow when implementing OAuth, Phone APIs, webhooks, Smart Embed events, URI schemes, CRM or CTI dialers, or call handling automation."
+description: '"Reference skill for Zoom Phone. Use after routing to a phone workflow when implementing OAuth, Phone APIs, webhooks, Smart Embed events, URI schemes, CRM or CTI dialers, or call handling automation."'
 ---
+
 # /build-zoom-phone-integration
 
 Background reference for Zoom Phone integrations across API, webhook, Smart Embed, and URI-launch workflows.

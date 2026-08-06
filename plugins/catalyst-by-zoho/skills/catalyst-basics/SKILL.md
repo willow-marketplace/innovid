@@ -1,7 +1,8 @@
 ---
 name: catalyst-basics
-description: "Core Catalyst project setup — directory structure, environments, CLI commands, and all Catalyst IDs (Project ID, ZAID, Table ID, Segment ID, Org ID). Trigger on 'start a Catalyst project', 'what is .catalystrc', 'where do I find my Table ID', 'difference between Development and Production', or any Catalyst ID or CLI question."
+description: "\"Core Catalyst project setup — directory structure, environments, CLI commands, and all Catalyst IDs (Project ID, ZAID, Table ID, Segment ID, Org ID). Trigger on 'start a Catalyst project', 'what is .catalystrc', 'where do I find my Table ID', 'difference between Development and Production', or any Catalyst ID or CLI question.\""
 ---
+
 > **⚠️ PRE-FLIGHT CHECK:** Before creating any project files, confirm that `.catalystrc` and
 > `catalyst.json` exist in the project directory. If they don't:
 > 1. Use MCP (`CatalystbyZoho_List_All_Organizations` → `CatalystbyZoho_List_All_Projects`) to *list* orgs/projects.

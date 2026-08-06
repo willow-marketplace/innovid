@@ -2,6 +2,7 @@
 name: sonar-quality-gate
 description: Show SonarQube quality gate status for a project — pass/fail and each condition (metric key, threshold, actual value). Project key optional when MCP integration already defines the default project.
 ---
+
 # SonarQube — Quality gate
 
 Report **only** the quality gate evaluation for a SonarQube project: overall status and every **condition** returned by the API. Do not pull a broad measures dashboard here — for numeric metrics beyond the gate (coverage %, issue counts, ratings as measures, and so on), use **`mcp__sonarqube__get_component_measures`** afterward with the `metricKeys` you care about.

@@ -1,7 +1,8 @@
 ---
 name: bigdata-post-ipo-day14
-description: >
+description: ">"
 ---
+
 # Bigdata Post-IPO Day 14 — NASDAQ-100 Fast-Track Inclusion
 
 A major IPO can qualify for **fast-track inclusion** in the NASDAQ-100 after a short minimum trading period, with inclusion effective around day 15. Run this note around **day 14** to capture the stock's status and the potential impact **before** inclusion takes effect. Use Bigdata.com plugin tools plus web search.

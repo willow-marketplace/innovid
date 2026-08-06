@@ -2,6 +2,7 @@
 name: using-dbt-state
 description: Use when a user is enabling, configuring, optimizing, or debugging dbt State (the server-backed reuse mechanism that clones or skips nodes instead of rebuilding them). Use when they conflate dbt State with the `state:modified` selector or `--state` deferral. Use when asked about models rebuilding unexpectedly, views with `select *` rebuilding, volatile SQL (`current_timestamp()`, `random()`) rebuilding or not, cross-developer cloning, lag_tolerance.
 ---
+
 # Using dbt State
 
 dbt State is a **server-backed reuse mechanism**. It should not be conflated with dbt's `state:modified` selector or `--state` deferral.

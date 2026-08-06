@@ -1,7 +1,8 @@
 ---
 name: azuresql-db-auth
-description: >-
+description: ">-"
 ---
+
 # Azure SQL Developer: connect securely (least-privilege user, auth, secrets)
 
 `sa` is a bootstrap/admin login for provisioning, not what your application should

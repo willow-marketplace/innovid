@@ -2,6 +2,7 @@
 name: output-dev-model-selection
 description: Pick the right LLM model for an Output SDK prompt file. Use when writing a new .prompt file, reviewing a model choice, or upgrading a stale model. Walks through priority (reasoning/balance/speed/cost), provider selection, and a live lookup against the Vercel AI Gateway model index.
 ---
+
 # Picking a Model for an Output SDK Prompt
 
 This skill is the single source of truth for model selection across Output SDK skills and agents. Other skills link here instead of pinning specific model IDs, because model rosters drift faster than docs.

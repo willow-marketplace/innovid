@@ -1,7 +1,8 @@
 ---
 name: auditing-warehouse-view-health
-description: >
+description: ">"
 ---
+
 # Auditing data warehouse view health
 
 This skill produces a project-wide audit of **materialized views** (materialized saved queries) in the data warehouse

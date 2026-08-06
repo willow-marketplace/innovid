@@ -2,6 +2,7 @@
 name: mp-test-setup
 description: Create test users and add funds to them for Mercado Pago testing. Wraps create_test_user and add_money_test_user from the MCP. Clarifies that credentials come in APP_USR- (Orders API, Checkout Pro, Point, QR) and TEST- (Checkout API, Bricks, Payments API) formats — both are valid and actively issued.
 ---
+
 # mp-test-setup
 
 This skill is the only place test users get created. It exists because the testing model is a frequent source of confusion — there are two distinct types of test credentials with different prefixes.

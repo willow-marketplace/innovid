@@ -1,7 +1,8 @@
 ---
 name: exploring-llm-costs
-description: >
+description: ">"
 ---
+
 # Exploring LLM costs
 
 PostHog attaches per-call cost metadata to every `$ai_generation` and `$ai_embedding`

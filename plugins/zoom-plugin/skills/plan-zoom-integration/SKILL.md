@@ -2,6 +2,7 @@
 name: plan-zoom-integration
 description: Turn a Zoom integration idea into an implementation plan with architecture, auth, and delivery milestones. Use when you need a practical build plan, phased delivery sequence, risk list, and next-step recommendation.
 ---
+
 # /plan-zoom-integration
 
 > If you see unfamiliar placeholders or need to check which tools are connected, see [CONNECTORS.md](../../CONNECTORS.md).

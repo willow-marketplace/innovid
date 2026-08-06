@@ -1,7 +1,8 @@
 ---
 name: bigquery-sql
-description: >-
+description: ">-"
 ---
+
 # BigQuery SQL Optimization
 
 Performance and efficiency guidelines for BigQuery SQL queries. Includes rules

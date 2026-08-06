@@ -1,7 +1,8 @@
 ---
 name: bigdata-risk-assessment
-description: >
+description: ">"
 ---
+
 # Bigdata Risk Assessment
 
 Comprehensive, evidence-rated risk profile of a public company. Use Bigdata.com plugin tools for every fact.

@@ -2,6 +2,7 @@
 name: aidp-azuresql
 description: Read or write Azure SQL Database from an AIDP notebook through the AIDP `aidataplatform` Spark format handler. Use when the user mentions Azure SQL, Azure SQL Database, AZURE_SQLSERVER, or a database.windows.net endpoint. Auth is SQL username/password.
 ---
+
 # `aidp-azuresql` — Azure SQL Database via AIDP `aidataplatform`
 
 Use the dedicated Azure SQL connector type, `AZURE_SQLSERVER`. It supports ingestion reads and writes, external-catalog access, `catalog.id`, and SQL pushdown.

@@ -2,6 +2,7 @@
 name: claude-code-sentry-monitor
 description: Set up Sentry observability for Claude Code sessions. Use when someone says "set up Sentry monitoring", "add observability to Claude Code", "configure claude-code-sentry-monitor", "trace Claude Code sessions", "monitor Claude Code with Sentry", or "instrument Claude Code". Interactively collects DSN and preferences, then writes the config file.
 ---
+
 # claude-code-sentry-monitor Setup Wizard
 
 You are setting up the `claude-code-sentry-monitor` plugin, which instruments Claude Code sessions as distributed traces in Sentry. This is a developer-level tool — the config is global (per-machine), not per-project.

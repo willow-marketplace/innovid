@@ -2,6 +2,7 @@
 name: aidp-tools
 description: Create and manage standalone reusable AIDP agent Tools — SQL, Prompt, RAG, HTTP, Custom, and MCP tools that can be shared across agent flows by key. Use when the user wants to define a reusable tool (not inline in one flow), list/create/update/delete a tool, test a tool, or build a tool an agent/agent-flow node will reference. For attaching a tool inside a single flow as a node, see aidp-agent-flows + references/agent-flow-nodes.md.
 ---
+
 # `aidp-tools` — standalone reusable agent tools
 
 A **standalone Tool** is a reusable tool object an agent or an agent-flow node references by `toolKey`,

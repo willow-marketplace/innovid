@@ -1,7 +1,8 @@
 ---
 name: fix-partially-deprecated-apis
-description: |
+description: "|"
 ---
+
 # Fix Partially Deprecated APIs
 
 This skill fixes partially deprecated API usage that the UI5 linter detects but cannot auto-fix because they require understanding the specific deprecated variant being used.

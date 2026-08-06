@@ -1,7 +1,8 @@
 ---
 name: general-video
-description: >
+description: ">"
 ---
+
 # general-video — general composition authoring
 
 > **Confirm the route before you build.** This is the **fallback** for custom composition authoring. If the input clearly fits a specialized workflow, prefer it: marketed product → `/product-launch-video`; general site → `/website-to-video`; topic explainer → `/faceless-explainer`; GitHub PR → `/pr-to-video`; existing footage → `/embedded-captions` · `/graphic-overlays`; short unnarrated motion graphic → `/motion-graphics`; Remotion port → `/remotion-to-hyperframes`. **Out of scope**: live / at-render-time data, NLE-style editing of a finished video, or producing footage HyperFrames can't capture. Unsure? **Read `/hyperframes` first.**

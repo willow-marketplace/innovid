@@ -2,6 +2,7 @@
 name: mlops
 description: End-to-end MLOps guidance on AWS — platform selection, training, inference, pipelines, monitoring, and cost optimization. This skill should be used when the user asks to "build an ML pipeline", "deploy a model on SageMaker", "set up MLOps", "configure SageMaker Pipelines", "choose between SageMaker and Bedrock", "deploy ML models to production", "set up model monitoring", "use MLflow on AWS", "train a model with Spot instances", "configure inference endpoints", "set up distributed training", or mentions SageMaker, MLflow, Kubeflow, ML pipelines, model registry, model monitoring, hyperparameter tuning, inference endpoints, or MLOps on AWS.
 ---
+
 Specialist guidance for MLOps on AWS. Covers platform selection, training job configuration, inference deployment patterns, CI/CD for ML, experiment tracking, model monitoring, and cost optimization.
 
 ## Process

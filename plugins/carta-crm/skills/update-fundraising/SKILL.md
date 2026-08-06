@@ -1,7 +1,8 @@
 ---
 name: update-fundraising
-description: >
+description: ">"
 ---
+
 ## Overview
 
 Partially update an existing fundraising. Only fields provided are modified — this is

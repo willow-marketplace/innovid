@@ -2,6 +2,7 @@
 name: aidp-cluster-ops
 description: Manage AIDP Spark compute clusters — list, status, start/stop/restart, installed libraries (JARs/Python), provision/scale a new cluster (driver/worker shapes, autoscale, GPU/RAPIDS, AI Compute), and connect external BI tools (JDBC/ODBC). Use when the user asks about clusters, needs to start/stop compute, create or scale a cluster, install libraries, set up a GPU cluster, use AI Compute for agent flows, connect Tableau/Power BI/DBeaver, or pick a cluster before running data work.
 ---
+
 # `aidp-cluster-ops` — cluster lifecycle & libraries
 
 Inspect and control AIDP Spark clusters. Most data skills depend on a RUNNING cluster, so this is the

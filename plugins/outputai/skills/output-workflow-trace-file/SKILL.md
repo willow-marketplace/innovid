@@ -2,6 +2,7 @@
 name: output-workflow-trace-file
 description: Read and render the output of a local Output SDK workflow trace file as clean readable markdown. Use when the user wants to view what a recent workflow produced, see the result from a local trace file, or render trace output as a document.
 ---
+
 Show just the final output of an Output.ai workflow trace — the actual result, rendered as readable markdown.
 
 The argument the user provided is either a workflow name (e.g. `context_competitors`) or a workflow run ID. If no argument is provided, use the most recent trace across all workflows.

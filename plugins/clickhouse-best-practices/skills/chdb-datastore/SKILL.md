@@ -1,7 +1,8 @@
 ---
 name: chdb-datastore
-description: >-
+description: ">-"
 ---
+
 # chdb DataStore — It's Just Faster Pandas
 
 ## The Key Insight

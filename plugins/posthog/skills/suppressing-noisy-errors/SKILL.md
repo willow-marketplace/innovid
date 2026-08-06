@@ -1,7 +1,8 @@
 ---
 name: suppressing-noisy-errors
-description: >
+description: ">"
 ---
+
 # Suppressing noisy errors
 
 Suppression is destructive in spirit: matching events are dropped at ingestion and

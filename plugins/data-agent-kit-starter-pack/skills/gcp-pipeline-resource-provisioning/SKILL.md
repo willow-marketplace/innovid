@@ -1,7 +1,8 @@
 ---
 name: gcp-pipeline-resource-provisioning
-description: |
+description: "|"
 ---
+
 ## How to use this skill
 
 Create or update existing `deployment.yaml` file and deploy resources. All

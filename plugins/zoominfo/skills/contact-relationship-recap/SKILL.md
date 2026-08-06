@@ -2,6 +2,7 @@
 name: contact-relationship-recap
 description: Recap where things stand with a specific person across recent conversations, with emphasis on how the relationship is evolving. Identify the contact by ZoomInfo contact ID (preferred) or by name plus company (triggers a lookup). Blends contact-scoped conversation_intelligence for what this person has actually said recently with contact_research for their role and background. Use when someone asks "where are we with Jane", "is this person still our champion", "recap my conversations with this contact", or wants a read on an individual relationship before reaching out. Reasons over the last few engagements only.
 ---
+
 # Contact Relationship Recap
 
 Where we stand with one person, read from recent conversations: their posture toward us, and how it is changing.

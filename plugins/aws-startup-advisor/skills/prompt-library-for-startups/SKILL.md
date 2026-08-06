@@ -1,7 +1,8 @@
 ---
 name: prompt-library-for-startups
-description: "AWS-curated copy-paste prompts for AI coding agents (MVP scaffolding, RAG chatbot with Claude on Bedrock, security baseline evaluation, cost anomaly detection, GPU quota requests, EKS deployment, Well-Architected review, etc.) plus downloadable installable agents (Multi-Account Transition Advisor, Bill Shock Preventer, Service Quota Agent). Use when the user asks for a prompt to do X on AWS, wants an installable agent for multi-account / cost monitoring / quota management, or asks how to use AWS prompts. For migration intent (GCP to AWS, OpenAI/Gemini to Bedrock), route to the migration-to-aws skill. Do not use for: factual AWS Activate / programs / credits questions, learn articles, sample architectures, or for prompts that are not in the bundled `references/prompt-library/` tree."
+description: '"AWS-curated copy-paste prompts for AI coding agents (MVP scaffolding, RAG chatbot with Claude on Bedrock, security baseline evaluation, cost anomaly detection, GPU quota requests, EKS deployment, Well-Architected review, etc.) plus downloadable installable agents (Multi-Account Transition Advisor, Bill Shock Preventer, Service Quota Agent). Use when the user asks for a prompt to do X on AWS, wants an installable agent for multi-account / cost monitoring / quota management, or asks how to use AWS prompts. For migration intent (GCP to AWS, OpenAI/Gemini to Bedrock), route to the migration-to-aws skill. Do not use for: factual AWS Activate / programs / credits questions, learn articles, sample architectures, or for prompts that are not in the bundled `references/prompt-library/` tree."'
 ---
+
 # AWS Startups Prompt & Agent Library
 
 Searchable index of AWS-curated prompts for AI coding tools (Kiro, Claude Code, Cursor, etc.) plus downloadable installable agents. Content is verbatim from [aws.amazon.com/startups/prompt-library](https://aws.amazon.com/startups/prompt-library).

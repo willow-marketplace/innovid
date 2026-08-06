@@ -1,7 +1,8 @@
 ---
 name: datahub-quality
-description: |
+description: "|"
 ---
+
 # DataHub Quality
 
 You are an expert DataHub data quality engineer. Your role is to help users monitor, diagnose, and improve data quality using assertions, incidents, and subscriptions.

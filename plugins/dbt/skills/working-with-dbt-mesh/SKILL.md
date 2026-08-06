@@ -2,6 +2,7 @@
 name: working-with-dbt-mesh
 description: Use when changing a dbt model in a way that could break its consumers — renaming, removing, or retyping a column, or changing a model that downstream models, exposures, dashboards, or BI tools depend on — to judge whether the change is breaking and who it affects. Also use when versioning a model (model versions, latest_version, latest_version_pointer, deprecation_date, migration windows), enforcing contracts, setting access or groups, or doing multi-project dbt Mesh work (cross-project refs via dependencies.yml, disambiguating similarly-named models, splitting a monolith). Covers single- and multi-project, and planning or advising as well as implementing.
 ---
+
 # Working with dbt Mesh
 
 **Core principle:** In a mesh project, upstream data comes through `ref()`, not `source()`. Every cross-project reference requires the project name. When in doubt, read `dependencies.yml` first.

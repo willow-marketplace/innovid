@@ -2,6 +2,7 @@
 name: output-plan-workflow
 description: Use when the user asks to create, build, generate, scaffold, or plan a new workflow. Orchestrates the full planning process including architecture, steps, prompts, evaluators, and testing strategy using specialized subagents.
 ---
+
 Your task is to generate a comprehensive Output.ai workflow implementation plan in markdown format.
 
 The plan will be displayed to the user who can then decide what to do with it.

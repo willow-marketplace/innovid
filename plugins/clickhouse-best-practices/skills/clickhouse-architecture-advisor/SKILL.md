@@ -2,6 +2,7 @@
 name: clickhouse-architecture-advisor
 description: MUST USE when designing ClickHouse architectures, selecting between ingestion or modeling patterns, or translating best practices into workload-specific system designs. Complements clickhouse-best-practices with decision frameworks and explicit provenance labels.
 ---
+
 # ClickHouse Architecture Advisor
 
 This skill adds workload-aware architecture decisioning on top of `clickhouse-best-practices`.

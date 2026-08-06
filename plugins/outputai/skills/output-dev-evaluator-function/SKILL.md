@@ -2,6 +2,7 @@
 name: output-dev-evaluator-function
 description: Create evaluator functions in evaluators.ts for Output SDK workflows. Use when implementing quality assessment, validation logic, or content evaluation.
 ---
+
 # Creating Evaluator Functions
 
 ## Overview

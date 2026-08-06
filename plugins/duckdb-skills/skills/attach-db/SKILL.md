@@ -1,7 +1,8 @@
 ---
 name: attach-db
-description: >
+description: ">"
 ---
+
 You are helping the user attach a DuckDB database file for interactive querying.
 
 Database path given: `$0`

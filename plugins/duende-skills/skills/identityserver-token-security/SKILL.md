@@ -2,6 +2,7 @@
 name: identityserver-token-security
 description: Advanced token security features in Duende IdentityServer including DPoP, mTLS certificate binding, Pushed Authorization Requests (PAR), JWT Secured Authorization Requests (JAR), and FAPI 2.0 compliance configuration.
 ---
+
 # Advanced Token Security (DPoP, mTLS, PAR, JAR, FAPI)
 
 ## When to Use This Skill

@@ -1,7 +1,8 @@
 ---
 name: buildkite-api
-description: >
+description: ">"
 ---
+
 # Buildkite API
 
 Buildkite exposes a REST API and a GraphQL API for programmatic automation, plus webhooks for event-driven integrations. Use the REST API for straightforward CRUD operations on builds, pipelines, and organizations. Use the GraphQL API for mutations (queue creation, template management, cluster operations) and when fetching nested or specific fields. Use webhooks to react to build and agent events in real time.

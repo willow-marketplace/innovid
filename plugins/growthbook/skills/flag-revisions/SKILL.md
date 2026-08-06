@@ -2,6 +2,7 @@
 name: flag-revisions
 description: List, inspect, and manage draft revisions for a GrowthBook feature flag. Use when the user asks "what drafts are open for flag X", "show me pending approvals", "who owns this draft", "discard this draft", "start a new draft", "what revision is my flag on", "list all my pending changes", "what's waiting for review", or any question about the state of in-progress changes to a flag. Every flag write operation — rules, metadata, default value, toggles — works through a draft revision; use this skill to see what's in flight before making changes. For requesting or submitting an approval review, use flag-review. For publishing a draft live or resolving merge conflicts, use flag-publish. For making flag changes, use the relevant flag-* write skill.
 ---
+
 # flag-revisions
 
 Inspect and manage draft revisions on GrowthBook feature flags. Every flag change goes through a draft revision before going live — this is the "what's in flight?" skill. Use it to see open drafts, understand their status, and manage their lifecycle (create, discard). Making actual flag changes (rules, metadata, toggles, default value) is handled by the relevant flag-* write skills, which create and manage drafts automatically.

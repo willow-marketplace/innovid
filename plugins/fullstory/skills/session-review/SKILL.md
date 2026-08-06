@@ -2,6 +2,7 @@
 name: session-review
 description: Use when diagnosing user-reported issues, investigating bugs, analyzing user behavior, or validating UI correctness using Fullstory session recordings.
 ---
+
 # Session Review
 
 Review Fullstory sessions to understand what happened — whether diagnosing a customer-reported bug or validating UI changes during development.

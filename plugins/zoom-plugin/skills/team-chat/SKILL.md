@@ -1,7 +1,8 @@
 ---
 name: team-chat
-description: "Reference skill for Zoom Team Chat. Use after routing to a chat workflow when building user-scoped messaging integrations, chatbot experiences, rich cards, buttons, slash commands, or chat webhooks."
+description: '"Reference skill for Zoom Team Chat. Use after routing to a chat workflow when building user-scoped messaging integrations, chatbot experiences, rich cards, buttons, slash commands, or chat webhooks."'
 ---
+
 # /build-zoom-team-chat-app
 
 Background reference for Zoom Team Chat integrations. Use this after the workflow is clear, especially when the Team Chat API versus Chatbot API distinction matters.

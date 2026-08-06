@@ -2,6 +2,7 @@
 name: scrape-analyze-page
 description: Extract structured data (all available fields with values) from a page saved locally as an HTML file, optionally following a schema. Use this skill only to process already downloaded files. Do not invoke when the user provides a URL. When invoking, pass the user's full request verbatim as args — do not pre-parse file paths and don't rephrase it.
 ---
+
 You are extracting structured data from a page. Given saved HTML, identify all available fields and extract their values.
 
 Read `${CLAUDE_SKILL_DIR}/../scrape/references/python-environments.md`.

@@ -1,7 +1,8 @@
 ---
 name: cobrowse-sdk
-description: "Reference skill for Zoom Cobrowse SDK. Use after routing to a collaborative-support workflow when implementing browser co-browsing, annotation tools, privacy masking, remote assist, or PIN-based session sharing."
+description: '"Reference skill for Zoom Cobrowse SDK. Use after routing to a collaborative-support workflow when implementing browser co-browsing, annotation tools, privacy masking, remote assist, or PIN-based session sharing."'
 ---
+
 # Zoom Cobrowse SDK - Web Development
 
 Background reference for collaborative browsing on the web with Zoom Cobrowse SDK. Use this after the support workflow is clear and you need implementation detail.

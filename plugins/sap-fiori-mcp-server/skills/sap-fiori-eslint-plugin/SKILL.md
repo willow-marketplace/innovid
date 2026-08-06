@@ -1,7 +1,8 @@
 ---
 name: sap-fiori-eslint-plugin
-description: >
+description: ">"
 ---
+
 # SAP Fiori ESLint Plugin
 
 Work with `@sap-ux/eslint-plugin-fiori-tools` on SAP Fiori projects: set up ESLint from scratch, migrate from a legacy configuration, or run and fix lint issues.

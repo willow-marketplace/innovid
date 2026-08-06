@@ -1,7 +1,8 @@
 ---
 name: product-launch-video
-description: >
+description: ">"
 ---
+
 # product-launch-video - dispatch entry
 
 > **Confirm the route before Step 0.** This skill makes a video for a **product being marketed / launched / promoted**. If it's really a **general (non-launch) site → video** (site tour / showcase, not selling a product) → `/website-to-video`; a **topic / concept with no product** → `/faceless-explainer`; a **GitHub PR** → `/pr-to-video`; an **existing video to caption / package** → `/embedded-captions` · `/graphic-overlays`. **Out of scope** (decline, don't fake): live / at-render-time data (every value is baked in at author time), or footage / screenshots / an avatar that doesn't exist yet (HyperFrames can't record or capture). Routed here on a vague "make a video", or unsure product-vs-topic / launch-vs-general-site? **Read `/hyperframes` first.**

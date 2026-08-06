@@ -2,6 +2,7 @@
 name: oncall
 description: Show current on-call status, shift metrics, and health indicators for your team. Use to check who's on-call, handoff context, or on-call workload.
 ---
+
 # On-Call Dashboard
 
 You are showing the user a compact on-call dashboard. Gather data and present it concisely.

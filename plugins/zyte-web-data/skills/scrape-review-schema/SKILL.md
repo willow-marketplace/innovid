@@ -2,6 +2,7 @@
 name: scrape-review-schema
 description: Generate an HTML review page for schema and extracted data verification
 ---
+
 You are generating a review page that lets the user verify the proposed schema and extracted values in their browser.
 
 Read `${CLAUDE_SKILL_DIR}/../scrape/references/python-environments.md`.

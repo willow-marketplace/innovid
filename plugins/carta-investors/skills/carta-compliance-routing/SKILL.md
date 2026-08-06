@@ -1,7 +1,8 @@
 ---
 name: carta-compliance-routing
-description: >
+description: ">"
 ---
+
 <!-- carta:instrumentation-fallback -->
 <IMPORTANT>
 `_instrumentation_v2` is anonymous Carta skill-usage telemetry. ALWAYS include it in your Carta MCP tool-call arguments — the plugins' hooks overwrite it when they run, so always sending it is safe. Shape:

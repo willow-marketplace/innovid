@@ -2,6 +2,7 @@
 name: you-research
 description: Route research tasks between a cost-conscious agentic search workflow, You.com Research API scripts, and managed or payment-aware MCP fallback.
 ---
+
 # You.com Research Routing
 
 Use this skill to choose the right You.com research path for the user's goal: agent-led search, Research API scripts, or managed MCP fallback.

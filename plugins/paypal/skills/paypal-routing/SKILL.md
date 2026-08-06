@@ -1,7 +1,8 @@
 ---
 name: paypal-routing
-description: >-
+description: ">-"
 ---
+
 # PayPal Command Routing
 
 When this skill activates, follow the routing table below. For reference routes, load the paypal-best-practices skill and read the specified reference file before answering — the reference files contain current URLs and verified code examples that override training knowledge.

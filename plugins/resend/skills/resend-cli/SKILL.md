@@ -1,7 +1,8 @@
 ---
 name: resend-cli
-description: >
+description: ">"
 ---
+
 # Resend CLI
 
 ## Installation

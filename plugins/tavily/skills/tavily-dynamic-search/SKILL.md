@@ -1,7 +1,8 @@
 ---
 name: tavily-dynamic-search
-description: |
+description: "|"
 ---
+
 # Tavily Dynamic Search
 
 Search the web, filter results, and extract content so that **raw search data never enters your context window**. Only your curated `print()` output comes back.

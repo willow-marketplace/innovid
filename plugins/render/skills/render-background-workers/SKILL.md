@@ -1,7 +1,8 @@
 ---
 name: render-background-workers
-description: >-
+description: ">-"
 ---
+
 # Render Background Workers
 
 This skill explains **worker** services on Render: processes that **consume jobs from a queue** instead of serving HTTP. Pair with **render-blueprints**, **render-env-vars**, and **render-networking** when wiring `render.yaml` and private connectivity.

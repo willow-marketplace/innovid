@@ -1,7 +1,8 @@
 ---
 name: finding-replay-for-issue
-description: >
+description: ">"
 ---
+
 # Finding the best replay for an error tracking issue
 
 When a user says "show me a replay for this error" or "find a recording for issue X",

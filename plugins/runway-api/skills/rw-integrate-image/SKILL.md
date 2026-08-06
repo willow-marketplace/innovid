@@ -1,7 +1,8 @@
 ---
 name: rw-integrate-image
-description: "Help users integrate Runway image generation APIs (text-to-image with reference images)"
+description: '"Help users integrate Runway image generation APIs (text-to-image with reference images)"'
 ---
+
 # Integrate Image Generation
 
 > **PREREQUISITE:** Run `+rw-check-compatibility` first. Run `+rw-fetch-api-reference` to load the latest API reference before integrating. Requires `+rw-setup-api-key` for API credentials. Requires `+rw-integrate-uploads` when the user has local reference images.

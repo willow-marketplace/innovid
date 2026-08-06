@@ -1,7 +1,8 @@
 ---
 name: rw-generate-image
-description: "Generate images directly using the Runway API via runnable scripts. Supports text-to-image with optional reference images."
+description: '"Generate images directly using the Runway API via runnable scripts. Supports text-to-image with optional reference images."'
 ---
+
 # Generate Image
 
 Generate images directly using the Runway API. This skill runs Python scripts that call the API, poll for completion, and download the result.

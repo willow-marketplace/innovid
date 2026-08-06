@@ -2,6 +2,7 @@
 name: netapp-volumes
 description: Work with Domino Volumes for NetApp ONTAP - enterprise-grade, multi-terabyte storage with near-instant snapshots. Covers volume creation, snapshot versioning with commit messages, cross-project sharing, mount paths (/mnt/netapp-volumes/ or /domino/netapp-volumes/), and the NetApp Volumes REST API. Use when managing large-scale data storage, needing fast no-copy snapshots, or integrating existing NetApp ONTAP infrastructure with Domino.
 ---
+
 # Domino NetApp Volumes Skill
 
 ## Description

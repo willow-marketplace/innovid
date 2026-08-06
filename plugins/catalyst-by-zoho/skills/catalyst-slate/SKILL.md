@@ -1,7 +1,8 @@
 ---
 name: catalyst-slate
-description: "Catalyst Slate — Git-based frontend hosting for React, Next.js, Vue, Angular, Svelte, Astro, SolidJS, Preact and other frameworks with preview deploys. Trigger on 'Slate', 'frontend hosting', 'slate-config.toml', 'deploy React app', or 'cross-domain Slate to function'. Do NOT use for backend APIs or server-side logic — use catalyst-appsail or catalyst-functions instead."
+description: "\"Catalyst Slate — Git-based frontend hosting for React, Next.js, Vue, Angular, Svelte, Astro, SolidJS, Preact and other frameworks with preview deploys. Trigger on 'Slate', 'frontend hosting', 'slate-config.toml', 'deploy React app', or 'cross-domain Slate to function'. Do NOT use for backend APIs or server-side logic — use catalyst-appsail or catalyst-functions instead.\""
 ---
+
 ## How It Works
 
 > **Before the MCP calls below, establish context once per session** via the workspace readiness gate: `../catalyst-basics/references/preflight.md`. It resolves and reconciles the org/project so `CatalystbyZoho_List_All_Slate_Apps` uses the correct project ID.

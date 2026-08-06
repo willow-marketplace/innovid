@@ -2,6 +2,7 @@
 name: scrape-codegen
 description: Generate web-poet page object code from an extraction spec
 ---
+
 You are generating a web-poet page object from an extraction spec. The spec contains
 a schema, saved HTML pages, and expected values. It may describe any data type —
 product details, navigation links, article content, etc. Codegen doesn't need to

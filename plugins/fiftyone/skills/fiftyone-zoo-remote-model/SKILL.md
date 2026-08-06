@@ -2,6 +2,7 @@
 name: fiftyone-zoo-remote-model
 description: Use when integrating a model into FiftyOne's remote model zoo — detection, classification, segmentation, embedding, keypoint, or vision-language (VLM) models loaded via `register_zoo_model_source` and `load_zoo_model`, then applied with `dataset.apply_model`. Also for debugging zoo registration, `manifest.json` issues, custom `fom.Model` / `TorchModelMixin` subclasses, DataLoader pickle errors, or worker `ModuleNotFoundError` from spawned DataLoader workers.
 ---
+
 # FiftyOne Remote Model Zoo — Integration Guide
 
 ## When to use

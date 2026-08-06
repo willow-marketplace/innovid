@@ -2,6 +2,7 @@
 name: email
 description: Use when a val sends email, receives email, or is triggered by an incoming email. Covers email-type vals (the Email handler shape, attachment limits, the assigned val email address) and sending mail via std/email.
 ---
+
 # Email
 
 Val Town supports both directions: vals can be **triggered by** incoming mail (email-type vals) and can **send** mail via `std/email`.

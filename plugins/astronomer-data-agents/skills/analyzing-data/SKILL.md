@@ -2,6 +2,7 @@
 name: analyzing-data
 description: Queries the data warehouse with SQL and answers business questions about data. Use when answering anything that needs warehouse data - counts, metrics, trends, aggregations, joins across tables, data lookups, or ad-hoc SQL analysis (for example "who uses X", "how many Y", "show me Z", "find customers", "what is the count").
 ---
+
 # Data Analysis
 
 Answer business questions by querying the data warehouse. The kernel auto-starts on first `exec` call.

@@ -2,6 +2,7 @@
 name: cover
 description: Offer to cover someone else's on-call shift. Lists upcoming shifts on a team or schedule and creates an override placing you on the chosen one after explicit confirmation. Write action - never executes without confirming.
 ---
+
 # Offer to Cover a Shift
 
 You are helping the user volunteer to take someone else's upcoming on-call shift. This is the inverse of `/rootly:swap`. **Write action — explicit confirmation required.**

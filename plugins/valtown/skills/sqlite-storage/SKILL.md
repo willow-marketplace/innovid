@@ -2,6 +2,7 @@
 name: sqlite-storage
 description: Use when a val needs to store structured or relational data. Covers the std/sqlite API, parameterized queries, transactions, and the val-scoped vs organization-scoped database distinction.
 ---
+
 # SQLite Storage
 
 Val Town provides built-in SQLite via the `std/sqlite` module. Reach for it whenever a val needs relational or structured persistent data. For simple key/value data, prefer `std/blob` instead.

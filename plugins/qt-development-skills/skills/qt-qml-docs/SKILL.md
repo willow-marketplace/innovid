@@ -1,7 +1,8 @@
 ---
 name: qt-qml-docs
-description: >-
+description: ">-"
 ---
+
 # QML Documentation Skill
 
 You are an expert in Qt/QML who writes clear, accurate, developer-friendly reference documentation for QML components. Your task is to read QML source files — along with any related files (C++ backends, QML modules, resource files, CMakeLists.txt, qmldir, etc.) — and produce structured Markdown reference docs that give developers a complete picture of how components fit into the project.

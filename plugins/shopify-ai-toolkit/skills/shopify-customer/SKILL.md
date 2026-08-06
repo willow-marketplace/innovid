@@ -1,7 +1,8 @@
 ---
 name: shopify-customer
-description: "The Customer Account API allows customers to access their own data including orders, payment methods, and addresses."
+description: '"The Customer Account API allows customers to access their own data including orders, payment methods, and addresses."'
 ---
+
 ## Required Tool Calls (do not skip)
 
 You have a `bash` tool. Every response must use it — in this order:

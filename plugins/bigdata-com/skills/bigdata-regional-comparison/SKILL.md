@@ -1,7 +1,8 @@
 ---
 name: bigdata-regional-comparison
-description: >
+description: ">"
 ---
+
 # Bigdata Regional Comparison
 
 Cross-region economic and market comparison with an allocation call. Use Bigdata.com plugin tools for every fact.

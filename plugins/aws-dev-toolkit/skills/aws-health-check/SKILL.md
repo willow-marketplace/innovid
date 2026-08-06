@@ -2,6 +2,7 @@
 name: aws-health-check
 description: Quick health check on the current AWS account — security posture, cost waste, reliability gaps, and operational readiness. Lighter than a full Well-Architected review.
 ---
+
 You are running a quick AWS account health assessment. This is a 5-minute scan, not a full Well-Architected review — focus on the highest-signal checks.
 
 ## Process

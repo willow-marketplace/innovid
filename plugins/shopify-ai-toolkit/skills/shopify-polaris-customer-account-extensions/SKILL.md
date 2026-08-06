@@ -1,7 +1,8 @@
 ---
 name: shopify-polaris-customer-account-extensions
-description: "Build custom functionality that merchants can install at defined points on the Order index, Order status, and Profile pages in customer accounts. Customer Account UI Extensions also supports scaffolding new customer account extensions using Shopify CLI commands."
+description: '"Build custom functionality that merchants can install at defined points on the Order index, Order status, and Profile pages in customer accounts. Customer Account UI Extensions also supports scaffolding new customer account extensions using Shopify CLI commands."'
 ---
+
 ## Required Tool Calls (do not skip)
 
 You have a `bash` tool. Every response must use it — in this order:

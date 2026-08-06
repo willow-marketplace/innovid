@@ -2,6 +2,7 @@
 name: aidp-resume-migration
 description: Resume an interrupted migration. The migrator caches already-migrated notebooks (in-memory + on-cluster) so subsequent runs skip them. Use when a prior aidp-migrate-job run was killed mid-flight (Ctrl-C, cluster restart, network drop) or when resuming after a manual fix to a specific dep notebook.
 ---
+
 # `aidp-resume-migration` — pick up where you left off
 
 The migrator is designed to be resumable. Each successful Pass-1 dep migration is cached in two places:

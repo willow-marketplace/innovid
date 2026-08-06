@@ -1,7 +1,8 @@
 ---
 name: diagnose-errors
-description: >
+description: ">"
 ---
+
 # Error Diagnosis & Triage
 
 Investigate product errors by triaging across three auto-captured event types — `[Amplitude] Network Request`, `[Amplitude] Error Logged`, and `[Amplitude] Error Click` — to identify what's broken, which users are affected, and what's causing it. This skill cross-references all three signals to surface causal chains (failed request → JS error → user frustration) rather than treating each in isolation.

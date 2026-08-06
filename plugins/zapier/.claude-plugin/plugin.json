@@ -2,7 +2,7 @@
   "name": "zapier",
   "version": "1.0.0",
   "description": "Connect 9,000+ apps to your AI workflow. Discover, enable, and execute Zapier actions directly from your client.",
-  "updatedAt": "2026-08-06T00:02:55.410Z",
+  "updatedAt": "2026-08-06T06:56:19.070Z",
   "author": {
     "name": "Zapier",
     "email": "support@zapier.com"
@@ -23,7 +23,9 @@
     "productivity"
   ],
   "skills": "./skills/",
-  "agents": "./agents/",
+  "agents": [
+    "./agents/zapier-mcp.agent.md"
+  ],
   "mcpServers": {
     "zapier": {
       "url": "https://mcp.zapier.com/api/v1/connect",

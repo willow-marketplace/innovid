@@ -1,7 +1,8 @@
 ---
 name: duckdb-docs
-description: >
+description: ">"
 ---
+
 You are helping the user find relevant DuckDB or DuckLake documentation.
 
 Query: `$@`

@@ -2,6 +2,7 @@
 name: sumup-best-practices
 description: Pick the right SumUp integration path and apply security best practices. Use when deciding between Hosted Checkout, Card Widget, Checkouts API, mobile SDKs, terminal SDKs, or Cloud API; choosing API key vs OAuth vs restricted keys; or reviewing SumUp integration security.
 ---
+
 # SumUp Integration Decisions and Best Practices
 
 Knowledge and APIs can change. Always prefer the latest SumUp docs in markdown format over stale memory.

@@ -2,6 +2,7 @@
 name: assistant
 description: Create, manage, and chat with Pinecone Assistants for document Q&A with citations. Handles all assistant operations - create, upload, sync, chat, context retrieval, and list. Recognizes natural language like "create an assistant from my docs", "ask my assistant about X", or "upload my docs to Pinecone".
 ---
+
 # Pinecone Assistant
 
 Pinecone Assistant is a fully managed RAG service. Upload documents, ask questions, get cited answers. No embedding pipelines or infrastructure required.

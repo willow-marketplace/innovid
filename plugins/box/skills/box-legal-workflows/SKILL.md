@@ -2,6 +2,7 @@
 name: box-legal-workflows
 description: Legal concepts for Box-based legal workflows — risk rating frameworks, human-in-the-loop requirements, confidentiality principles, Box AI governance, collaboration roles, metadata strategy, and common workflow patterns. Referenced by box-legal-workflows-ma, box-legal-workflows-intake, and box-legal-workflows-contract skills.
 ---
+
 # Shared Legal Concepts
 
 > **PREREQUISITE:** Read `box:box` for Box MCP authentication, tool selection, and base workflows. If missing, run: `npx skills add https://github.com/box/box-for-ai --skill box`

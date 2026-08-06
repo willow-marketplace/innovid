@@ -1,7 +1,8 @@
 ---
 name: enrich-lead
-description: "Instant lead enrichment. Drop a name, company, LinkedIn URL, or email and get the full contact card with email, phone, title, company intel, and next actions."
+description: '"Instant lead enrichment. Drop a name, company, LinkedIn URL, or email and get the full contact card with email, phone, title, company intel, and next actions."'
 ---
+
 # Enrich Lead
 
 Turn any identifier into a full contact dossier. The user provides identifying info via "$ARGUMENTS".

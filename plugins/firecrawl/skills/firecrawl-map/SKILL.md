@@ -1,7 +1,8 @@
 ---
 name: firecrawl-map
-description: |
+description: "|"
 ---
+
 # firecrawl map
 
 Discover URLs on a site. Use `--search` to find a specific page within a large site.

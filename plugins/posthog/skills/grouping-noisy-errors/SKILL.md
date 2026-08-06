@@ -1,7 +1,8 @@
 ---
 name: grouping-noisy-errors
-description: >
+description: ">"
 ---
+
 # Grouping noisy errors
 
 The same error can be reported as dozens of separate issues when stack frames or

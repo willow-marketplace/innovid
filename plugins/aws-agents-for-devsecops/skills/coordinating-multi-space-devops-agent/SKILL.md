@@ -2,6 +2,7 @@
 name: coordinating-multi-space-devops-agent
 description: Coordinate the AWS DevOps Agent across multiple AgentSpaces from one Claude Code session — route questions to the right space (prod vs staging vs knowledge), query several spaces in parallel and synthesize, or compare findings across accounts. Use whenever the user has more than one AgentSpace configured, mentions multiple AWS accounts, or asks something like "check both prod and staging", "compare across accounts", or "ask the knowledge space".
 ---
+
 # Querying multiple AgentSpaces
 
 ## Pre-flight

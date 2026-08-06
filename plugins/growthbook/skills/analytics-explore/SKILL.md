@@ -2,6 +2,7 @@
 name: analytics-explore
 description: Build and run a GrowthBook Product Analytics chart via the REST API — visualize a metric over time, aggregate a fact table, or chart a raw warehouse table, then return the numbers plus a deep link to the chart. Use when the user asks "show me signups by country", "chart daily active users", "how many orders last week", "plot revenue over time", "break that down by plan", or any "show me / chart / plot / how many" question about product data. For discovering what metrics and fact tables exist first, use metric-search. For experiment results, use experiment-analyze — this skill is for general analytics, not A/B test readouts.
 ---
+
 # analytics-explore
 
 Build and run a Product Analytics exploration — GrowthBook's ad-hoc charting surface — and report the numbers with a deep link to the rendered chart. Three dataset types are supported: an existing fact metric, a fact table aggregation, or a raw warehouse table. This skill runs warehouse queries but never changes GrowthBook configuration; it does not create metrics, fact tables, or dashboards.

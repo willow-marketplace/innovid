@@ -1,7 +1,8 @@
 ---
 name: databricks-dbsql
-description: >-
+description: ">-"
 ---
+
 # Databricks SQL (DBSQL) - Advanced Features
 
 ## Quick Reference

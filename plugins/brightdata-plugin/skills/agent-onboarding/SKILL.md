@@ -1,7 +1,8 @@
 ---
 name: agent-onboarding
-description: |
+description: "|"
 ---
+
 # Bright Data — Agent Onboarding
 
 Bright Data gives agents reliable access to the open web: SERP results

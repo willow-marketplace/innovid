@@ -2,6 +2,7 @@
 name: understand
 description: Analyze a codebase to produce an interactive knowledge graph for understanding architecture, components, and relationships
 ---
+
 # /understand
 
 Analyze the current codebase and produce a `knowledge-graph.json` file in the project's data directory (`.ua/`, or the legacy `.understand-anything/` when it already exists). This file powers the interactive dashboard for exploring the project's architecture.

@@ -2,6 +2,7 @@
 name: boltz-structure-and-binding
 description: Predict structures and binding for one defined complex with Boltz. Use when folding a protein, RNA, DNA, or ligand complex, docking one ligand, predicting an interface, or scoring binding. Not for screening libraries or design.
 ---
+
 ## Workflow
 
 If `boltz-api` is missing from `PATH`, use `boltz-cli-setup` for install/update guidance before retrying.

@@ -1,7 +1,8 @@
 ---
 name: deepeval
-description: >
+description: ">"
 ---
+
 # DeepEval
 
 Use this skill to add an end-to-end eval loop to AI applications:

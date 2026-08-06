@@ -2,6 +2,7 @@
 name: securing-pigment-applications
 description: Always use this skill when designing, applying, or debugging Access Rights and security in Pigment applications. Provides the AR mental model (User, Role, dimension axis, AR Metric, Apply rule), the canonical decision order, mandatory formula patterns (IFDEFINED guard, BLANK over FALSE), multi-app AR, debugging "why can this user see / not see this data?", and security governance. AR is part of model architecture, not an afterthought.
 ---
+
 # Securing Pigment Applications
 
 Access Rights design, application, and debugging in Pigment. Read first to get the mental model and non-negotiable rules. Jump to the deep dive for procedures, formulas, and debugging recipes.

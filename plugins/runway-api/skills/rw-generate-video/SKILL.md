@@ -1,7 +1,8 @@
 ---
 name: rw-generate-video
-description: "Generate videos directly using the Runway API via runnable scripts. Supports text-to-video, image-to-video, and video-to-video with seedance2, gen4.5, veo3, and more."
+description: '"Generate videos directly using the Runway API via runnable scripts. Supports text-to-video, image-to-video, and video-to-video with seedance2, gen4.5, veo3, and more."'
 ---
+
 # Generate Video
 
 Generate videos directly using the Runway API. This skill runs Python scripts that call the API, poll for completion, and download the result.

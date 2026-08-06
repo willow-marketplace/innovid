@@ -2,6 +2,7 @@
 name: output-meta-pre-flight
 description: Pre-flight validation checks for Output SDK workflow operations. Ensures conventions are followed, requirements are gathered, and quality gates are passed before workflow execution.
 ---
+
 # Pre-Flight Rules for Output SDK Workflows
 
 ## Execution Requirements

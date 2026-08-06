@@ -2,6 +2,7 @@
 name: rate-shopping
 description: Compare multi-carrier shipping rates, find cheapest/fastest options, and get shipping recommendations via the Shippo API
 ---
+
 <!--
   ⚠️  DO NOT EDIT. Auto-generated from skills/rate-shopping/SKILL.md by scripts/sync.js
   Edits here will be overwritten on the next sync.

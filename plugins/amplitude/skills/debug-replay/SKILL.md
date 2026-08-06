@@ -1,7 +1,8 @@
 ---
 name: debug-replay
-description: >
+description: ">"
 ---
+
 # Debug Replay
 
 Investigate bugs by finding session replays where the error occurred, extracting the interaction timeline, and distilling it into numbered reproduction steps an engineer can follow. This skill bridges the gap between "a user reported a bug" and "here's exactly how to reproduce it."

@@ -1,7 +1,8 @@
 ---
 name: rw-integrate-uploads
-description: "Help users upload local files to Runway for use as inputs to generation models"
+description: '"Help users upload local files to Runway for use as inputs to generation models"'
 ---
+
 # Integrate Uploads
 
 > **PREREQUISITE:** Run `+rw-check-compatibility` first. Run `+rw-fetch-api-reference` to load the latest API reference before integrating. Requires `+rw-setup-api-key` for API credentials.

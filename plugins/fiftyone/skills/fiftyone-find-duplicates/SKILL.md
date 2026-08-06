@@ -2,6 +2,7 @@
 name: fiftyone-find-duplicates
 description: Finds duplicate or near-duplicate images in FiftyOne datasets using brain similarity computation. Use when deduplicating datasets, finding similar images, or removing redundant samples.
 ---
+
 # Find Duplicates in FiftyOne Datasets
 
 ## Key Directives

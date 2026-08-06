@@ -2,6 +2,7 @@
 name: cron-and-intervals
 description: Use when building a val that runs on a schedule — periodic jobs, recurring tasks, polling, cron jobs, monitoring, alerting. Covers the interval handler signature, cron expressions, the UTC timezone constraint, and the `lastRunAt` pattern for detecting new items since the previous run.
 ---
+
 # Cron / Interval Vals
 
 Interval vals (`fileType: "interval"`) run on a recurring schedule defined by a cron expression. Use them for polling external APIs, sending reminders, running cleanups, generating reports, or any work that should happen on a clock rather than in response to a request.

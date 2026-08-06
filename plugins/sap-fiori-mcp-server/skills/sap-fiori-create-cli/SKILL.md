@@ -2,6 +2,7 @@
 name: sap-fiori-create-cli
 description: Run, invoke, and test the @sap-ux/create CLI — generate, add, convert, remove, update, change, list, get commands for SAP Fiori projects. Use when asked to run sap-ux, invoke create CLI, add config to a project, generate adaptation-project, or test any sap-ux/create subcommand.
 ---
+
 ## How to use this CLI
 
 - Always invoke via `npx -y @sap-ux/create@latest` — never suggest a global install.

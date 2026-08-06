@@ -1,7 +1,8 @@
 ---
 name: 42crunch-scan
-description: >
+description: ">"
 ---
+
 # 42Crunch Scan Skill
 
 Runs a single phase: **Scan** (live conformance + authorization testing and

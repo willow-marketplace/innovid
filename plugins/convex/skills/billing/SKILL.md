@@ -1,7 +1,8 @@
 ---
 name: billing
-description: "Add Stripe billing/payments/subscriptions to a Convex app via @convex-dev/stripe — checkout action, auto-verified webhook, server-side subscription gating. TRIGGER when the user wants payments/billing/subscriptions/a paywall/Stripe."
+description: '"Add Stripe billing/payments/subscriptions to a Convex app via @convex-dev/stripe — checkout action, auto-verified webhook, server-side subscription gating. TRIGGER when the user wants payments/billing/subscriptions/a paywall/Stripe."'
 ---
+
 # Add billing / payments
 
 Wire Stripe to Convex using @convex-dev/stripe: a checkout action, an httpAction webhook registered by the component (signature-verified automatically), subscription state stored in the component's tables, and server-side gating via a query.

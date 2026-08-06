@@ -1,7 +1,8 @@
 ---
 name: azuresql-db-testing
-description: >-
+description: ">-"
 ---
+
 # Azure SQL Developer: integration tests with Testcontainers
 
 Write integration tests that start a **real Azure SQL Developer** (Private Preview)

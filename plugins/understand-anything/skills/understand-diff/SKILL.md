@@ -2,6 +2,7 @@
 name: understand-diff
 description: Use when you need to analyze git diffs or pull requests to understand what changed, affected components, and risks
 ---
+
 # /understand-diff
 
 Analyze the current code changes against the knowledge graph in the project's data directory (`.ua/knowledge-graph.json`, or the legacy `.understand-anything/knowledge-graph.json` when that directory is present).

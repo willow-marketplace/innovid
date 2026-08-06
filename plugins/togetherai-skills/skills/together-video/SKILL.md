@@ -1,7 +1,8 @@
 ---
 name: together-video
-description: "Text-to-video and image-to-video generation via Together AI, including keyframe control, model and dimension selection, asynchronous job polling, and video downloads. Reach for it whenever the user wants motion generation on Together AI rather than still-image generation or text-only inference."
+description: '"Text-to-video and image-to-video generation via Together AI, including keyframe control, model and dimension selection, asynchronous job polling, and video downloads. Reach for it whenever the user wants motion generation on Together AI rather than still-image generation or text-only inference."'
 ---
+
 # Together Video
 
 ## Overview

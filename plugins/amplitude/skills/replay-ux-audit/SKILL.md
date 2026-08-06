@@ -1,7 +1,8 @@
 ---
 name: replay-ux-audit
-description: >
+description: ">"
 ---
+
 # Replay UX Audit
 
 Watch 5-10 session replays for a specific feature, page, or flow, then synthesize patterns into a ranked friction map. This skill turns hours of manual replay watching into a structured UX report grounded in real user behavior.

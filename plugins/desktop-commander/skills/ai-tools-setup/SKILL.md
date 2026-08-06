@@ -1,7 +1,8 @@
 ---
 name: ai-tools-setup
-description: >-
+description: ">-"
 ---
+
 # AI Tools Setup Assistant
 
 Help users install, configure, and repair AI tooling on their own machine using

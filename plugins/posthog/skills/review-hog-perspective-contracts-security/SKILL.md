@@ -1,7 +1,8 @@
 ---
 name: review-hog-perspective-contracts-security
-description: >
+description: ">"
 ---
+
 # Review perspective: Contracts & Security
 
 You are reviewing a PR chunk through the **Contracts & Security** perspective: is the code safe, and

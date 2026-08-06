@@ -2,6 +2,7 @@
 name: hyperpod-performance-debugger
 description: Diagnose performance issues on Amazon SageMaker HyperPod clusters — uneven NCCL bandwidth across nodes and poor filesystem throughput. Read-only. Surfaces host-side signals (Xid, ECC, NVLink, EFA reachability, FSx saturation) and routes to the appropriate sibling skill (hyperpod-node-debugger, hyperpod-nccl, hyperpod-version-checker, hyperpod-issue-report) for any remediation. Triggers on uneven NCCL across nodes, straggler node, FSx slow, checkpoint slow, dataloader slow, filesystem bottleneck, FSx throughput, cross-AZ latency, topology mismatch.
 ---
+
 # HyperPod Performance Debugger
 
 1. **Uneven NCCL performance across nodes** — workload faster on some node sets than others, pairwise bandwidth variance, suspected straggler.

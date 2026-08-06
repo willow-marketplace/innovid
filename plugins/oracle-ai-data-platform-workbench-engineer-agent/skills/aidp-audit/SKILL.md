@@ -2,6 +2,7 @@
 name: aidp-audit
 description: Manage and search AIDP audit logs — enable/disable auditing, set retention, and query audit-log entries for a DataLake. Use when the user asks about audit logging, who did what, compliance/retention of AIDP activity, or wants to search audit events. Self-contained — official `aidp audit` CLI preferred, `oci raw-request` fallback.
 ---
+
 # `aidp-audit` — audit logs (enable, retention, search)
 
 Manage AIDP Workbench audit logging and search audit entries. Self-contained: no MCP / `ai-data-engineer-agent`

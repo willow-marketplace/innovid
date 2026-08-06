@@ -1,7 +1,8 @@
 ---
 name: notebook-guidance
-description: |-
+description: "|-"
 ---
+
 # Notebook Guidance
 
 ## When to Use a Notebook

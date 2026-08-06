@@ -2,6 +2,7 @@
 name: flag-ramp
 description: Create or manage a multi-step ramp schedule for a GrowthBook feature flag rule — progressively increasing traffic exposure over time with defined intervals between steps. Use when the user says "gradually roll this out", "increase traffic from 5% to 100% over a week", "set up a ramp schedule", "advance to the next ramp step", "pause the rollout", "roll back the ramp", or "set a cutoff date on this rollout". For rollouts that also need guardrail metric monitoring and automatic signals, use flag-monitoring — it builds on this skill with monitoring configuration. For simple on/off time windows, use flag-schedule.
 ---
+
 # flag-ramp
 
 Create and manage multi-step ramp schedules for a GrowthBook feature flag rule. A ramp schedule progressively increases (or decreases) a rule's traffic coverage over time, with defined hold intervals between steps. Steps can be manual (operator advances them) or time-gated (auto-advance after an interval).

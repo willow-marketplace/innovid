@@ -2,6 +2,7 @@
 name: domino-governance
 description: Manage model risk governance in Domino using policies, bundles, and evidence. Covers creating governance bundles, attaching model artifacts and MLflow results as evidence, progressing through policy stages, and documenting findings. Use when the user mentions governance, compliance, bundles, policies, model risk management, SR 11-7, NIST AI RMF, or audit trails.
 ---
+
 # Domino Governance Skill
 
 This skill provides knowledge for managing model risk governance in Domino Data Lab using the Governance API.

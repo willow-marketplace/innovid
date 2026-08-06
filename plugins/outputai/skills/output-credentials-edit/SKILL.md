@@ -2,6 +2,7 @@
 name: output-credentials-edit
 description: View and edit encrypted credentials in an Output.ai project. Use when adding secrets, updating API keys, verifying credential values, or retrieving a specific credential.
 ---
+
 # Viewing and Editing Credentials
 
 ## When to Use This Skill

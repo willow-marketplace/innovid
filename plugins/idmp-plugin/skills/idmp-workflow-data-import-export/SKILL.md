@@ -1,7 +1,8 @@
 ---
 name: idmp-workflow-data-import-export
-description: "IDMP data import and export workflow. Separate package import or export from datasource CSV import, read first, write carefully, and reread records after every write."
+description: '"IDMP data import and export workflow. Separate package import or export from datasource CSV import, read first, write carefully, and reread records after every write."'
 ---
+
 # workflow: data import export
 
 **Read [`../idmp-shared/SKILL.md`](../idmp-shared/SKILL.md) first.**

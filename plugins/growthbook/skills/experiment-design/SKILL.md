@@ -2,6 +2,7 @@
 name: experiment-design
 description: Help the user design a well-formed GrowthBook experiment before it's launched. Use when the user asks to "design an A/B test", "set up an experiment", "test X vs Y", "configure an experiment", or "what should we measure". Produces a complete spec — hypothesis, variations, primary metric, guardrails, sample size — ready to hand off. Does not create the experiment in GrowthBook. For launching, use experiment-launch. For ideas grounded in past results, use experiment-brainstorm first.
 ---
+
 # experiment-design
 
 Help the user produce an experiment spec that's actually launchable. Walk them through hypothesis, variations, metrics, and sample-size sanity. This skill does **not** write to GrowthBook — it ends with a ready-to-launch spec that `experiment-launch` consumes.

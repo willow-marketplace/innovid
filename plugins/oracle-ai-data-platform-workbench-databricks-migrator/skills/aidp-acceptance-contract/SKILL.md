@@ -2,6 +2,7 @@
 name: aidp-acceptance-contract
 description: YAML-driven acceptance contract for batch and streaming pipelines that need convergence verification, not just "no exceptions". Declares PASS only after K consecutive zero-result windows (consecutive-zero-window convergence). Use for streaming jobs, slowly-draining backfills, or any pipeline whose success is "the pending queue is empty".
 ---
+
 # `aidp-acceptance-contract` — convergence verification for batch/streaming jobs
 
 A "no exception" pass is not enough for streaming or backfill pipelines. They might still be processing rows that haven't drained yet. This skill wires up a YAML-driven contract: PASS only after K consecutive empty-pending windows.

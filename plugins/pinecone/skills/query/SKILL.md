@@ -1,7 +1,8 @@
 ---
 name: query
-description: >
+description: ">"
 ---
+
 You are helping the user query data using DuckDB.
 
 Input: `$@`

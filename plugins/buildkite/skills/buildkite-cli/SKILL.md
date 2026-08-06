@@ -1,7 +1,8 @@
 ---
 name: buildkite-cli
-description: >
+description: ">"
 ---
+
 # Buildkite CLI
 
 The Buildkite CLI (`bk`) provides terminal access to builds, jobs, pipelines, secrets, artifacts, clusters, queues, and packages. Use it to trigger builds, tail logs, manage secrets, run a local agent, and automate CI/CD workflows without leaving the command line.

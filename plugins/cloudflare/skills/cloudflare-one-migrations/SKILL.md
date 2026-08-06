@@ -2,6 +2,7 @@
 name: cloudflare-one-migrations
 description: Plans migrations from Zscaler ZIA/ZPA, Palo Alto, legacy VPN, SWG, or SASE stacks to Cloudflare One. Use for migration assessments, policy mapping, rollout plans, and parity/gap analysis.
 ---
+
 # Cloudflare One Migrations
 
 Retrieve current Cloudflare docs, Cloudflare API schemas, and source-vendor export docs before generating exact configuration.

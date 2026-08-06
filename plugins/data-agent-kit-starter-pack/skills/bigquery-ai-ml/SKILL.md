@@ -1,7 +1,8 @@
 ---
 name: bigquery-ai-ml
-description: |
+description: "|"
 ---
+
 # Skill: bigquery-ai-ml
 
 This skill defines the usage and rules for BigQuery AI/ML functions,

@@ -1,7 +1,8 @@
 ---
 name: accept-agent-payments
-description: "Use when a developer wants to monetize an API, endpoint, service, model, dataset, tool, or agent-facing resource with Circle USDC pay-per-call payments, Gateway Nanopayments, x402, HTTP 402, or Agent Marketplace listing. Triggers on: charge agents, sell to agents, paid API, monetize endpoint, micropayments, nanopayments seller, x402 seller, accept USDC, service listing."
+description: '"Use when a developer wants to monetize an API, endpoint, service, model, dataset, tool, or agent-facing resource with Circle USDC pay-per-call payments, Gateway Nanopayments, x402, HTTP 402, or Agent Marketplace listing. Triggers on: charge agents, sell to agents, paid API, monetize endpoint, micropayments, nanopayments seller, x402 seller, accept USDC, service listing."'
 ---
+
 # Accept Agent Payments
 
 ## Overview

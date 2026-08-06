@@ -2,6 +2,7 @@
 name: react-ui
 description: Use when building any val with a user interface — dashboards, web apps, landing pages, forms, admin tools, anything users see in a browser. Covers JSX/React conventions, Twind/Tailwind styling, React version pinning, the view-source link requirement, and what to avoid (template-string HTML, external assets).
 ---
+
 # React UI
 
 For any val that renders a UI, prefer to build it with React components in `.tsx` files, unless the user states otherwise. The `templates/react-hono-starter` template is set up for this — start there with `remix_val` instead of building from scratch.

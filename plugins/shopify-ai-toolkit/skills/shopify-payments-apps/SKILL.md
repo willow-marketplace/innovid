@@ -1,7 +1,8 @@
 ---
 name: shopify-payments-apps
-description: "The Payments Apps API enables payment providers to integrate their payment solutions with Shopify's checkout."
+description: "\"The Payments Apps API enables payment providers to integrate their payment solutions with Shopify's checkout.\""
 ---
+
 ## Required Tool Calls (do not skip)
 
 You have a `bash` tool. Every response must use it — in this order:

@@ -2,6 +2,7 @@
 name: call-coaching
 description: Coach a rep on how they handled a specific call — discovery quality, objection handling, talk dynamics, and next-call focus. Name the call if you know it, or let the skill pull recent calls and identify the most likely candidate to confirm. Uses conversation_intelligence to read how the conversation actually went. Use when someone asks "how did I do on the Acme call", "coach me on my last discovery call", "where did I lose them", or wants actionable feedback before the next conversation. Analyzes one call at a time.
 ---
+
 # Call Coaching
 
 Give a rep specific, actionable feedback on a single call: what worked, what to improve, and what to focus on next time.

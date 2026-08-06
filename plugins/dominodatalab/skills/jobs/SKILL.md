@@ -2,6 +2,7 @@
 name: jobs
 description: Create, run, and manage Domino Jobs - batch executions for scripts, training, and data processing. Covers job configuration, hardware tiers, scheduled jobs (cron), monitoring status, viewing logs, and API-driven execution. Use when running batch workloads, scheduling recurring tasks, or automating training pipelines.
 ---
+
 # Domino Jobs Skill
 
 ## Description

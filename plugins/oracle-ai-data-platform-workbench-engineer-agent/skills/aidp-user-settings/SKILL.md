@@ -2,6 +2,7 @@
 name: aidp-user-settings
 description: Manage AIDP user settings / preferences — list, get, create, update, delete a user's settings for the DataLake. Use when the user wants to view or change their AIDP workbench preferences/settings, or manage stored user-setting entries. Self-contained — official `aidp user-setting` CLI preferred, `oci raw-request` fallback.
 ---
+
 # `aidp-user-settings` — user settings & preferences
 
 Read and manage AIDP user-setting entries. Self-contained: no MCP / `ai-data-engineer-agent` required.

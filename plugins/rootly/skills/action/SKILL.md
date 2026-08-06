@@ -2,6 +2,7 @@
 name: action
 description: Manage incident action items from the terminal. Subcommands - list (default - your open action items) or add <incident> "<summary>" (create one on an incident). Use to capture follow-ups during or after an incident without opening the Rootly UI.
 ---
+
 # Action Items
 
 You are helping the user view or update incident action items in Rootly.

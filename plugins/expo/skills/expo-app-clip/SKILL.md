@@ -2,6 +2,7 @@
 name: expo-app-clip
 description: Framework (OSS). Add an iOS App Clip target to an Expo app. Use when the user mentions App Clip, AASA, apple-app-site-association, appclips, smart app banner, or wants to ship a lightweight iOS Clip invoked from a URL alongside their parent app.
 ---
+
 # Add an App Clip to an Expo App
 
 > **Requirements.** Adding the App Clip target is open source. Shipping one requires an Apple Developer Program membership and App Store review, and the AASA file must be served over HTTPS on your domain (any HTTPS host works; EAS Hosting is one option). Building via EAS Build or `bunx testflight` uses your EAS plan's build minutes. See https://expo.dev/pricing and https://developer.apple.com/app-clips/.

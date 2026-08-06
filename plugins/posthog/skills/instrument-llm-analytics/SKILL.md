@@ -1,7 +1,8 @@
 ---
 name: instrument-llm-analytics
-description: >-
+description: ">-"
 ---
+
 # Add PostHog LLM analytics
 
 Use this skill to add PostHog LLM analytics that trace AI model usage in new or changed code. Use it after implementing LLM features or reviewing PRs to ensure all generations are captured with token counts, latency, and costs. If PostHog is not yet installed, this skill also covers initial SDK setup. Supports any provider or framework.

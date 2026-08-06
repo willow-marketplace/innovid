@@ -2,6 +2,7 @@
 name: token-dashboard
 description: Open the Token Optimizer dashboard. Collects latest session data, regenerates the dashboard, and opens it in your browser.
 ---
+
 # Token Optimizer Dashboard
 
 Opens an up-to-date dashboard showing your context usage trends, quality scores, session history, and skill management.

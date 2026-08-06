@@ -2,6 +2,7 @@
 name: meeting-prep
 description: Prepare for an upcoming meeting with a company. Identify the account by ZoomInfo account/company ID (preferred) or by company name, domain, or ticker (which triggers a lookup step). Provide attendee names or emails and rich context on the meeting purpose, stakes, and known dynamics to get a tight, decision-ready brief — headline, relationship posture per attendee, ranked talking points, discovery questions, suggested agenda, and what NOT to do. Optimized for a 30-min slot.
 ---
+
 # Meeting Prep
 
 Produce a tight, decision-ready brief for a ~30-minute meeting. Lead with a TL;DR (top 3 to know plus an opener), then back it with company, relationship, attendee, and conversation context.

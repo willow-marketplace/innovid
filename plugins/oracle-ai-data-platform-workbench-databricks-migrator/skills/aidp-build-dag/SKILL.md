@@ -2,6 +2,7 @@
 name: aidp-build-dag
 description: Build a migration manifest (the execution DAG) from a Databricks workspace path or workflow ID. Walks %run dependency chains, captures dbutils.notebook.run invocations, and emits reports/<job>_manifest.json — the input every other execute-skill consumes. Use when the user wants to see what would migrate, or before invoking aidp-migrate-job for the first time on a new workload.
 ---
+
 # `aidp-build-dag` — build the migration manifest
 
 The execution DAG is what the migrator reads to know which notebooks to migrate, in what order, with what dependencies. Build it once per workload.

@@ -1,22 +1,24 @@
 ---
 name: local-places
-description: Discovers, enriches, and scores local businesses in any neighborhood using
-Nimble Web Search Agents (WSAs) and web data. Returns a structured, ranked
-list with confidence scores, reviews, social presence, and an interactive map.
+description: |-
+  Discovers, enriches, and scores local businesses in any neighborhood using
+  Nimble Web Search Agents (WSAs) and web data. Returns a structured, ranked
+  list with confidence scores, reviews, social presence, and an interactive map.
 
-Use this skill when the user asks about local businesses, places, or
-neighborhood discovery. Common triggers: "find all coffee shops in",
-"map every bar in", "local businesses in", "discover gyms near",
-"what restaurants are in", "neighborhood guide for", "local places in",
-"find places near", "list all [business type] in [area]", "best [type]
-near [location]", "build a neighborhood guide", "local place search".
+  Use this skill when the user asks about local businesses, places, or
+  neighborhood discovery. Common triggers: "find all coffee shops in",
+  "map every bar in", "local businesses in", "discover gyms near",
+  "what restaurants are in", "neighborhood guide for", "local places in",
+  "find places near", "list all [business type] in [area]", "best [type]
+  near [location]", "build a neighborhood guide", "local place search".
 
-Requires the Nimble CLI (nimble extract:templates run, nimble search, nimble extract)
-for live web data via WSAs and fallback search.
-Do NOT use for competitor analysis or monitoring (use competitor-intel),
-company research or deep dives (use company-deep-dive), general web search
-or extraction (use nimble-web-expert).
+  Requires the Nimble CLI (nimble extract:templates run, nimble search, nimble extract)
+  for live web data via WSAs and fallback search.
+  Do NOT use for competitor analysis or monitoring (use competitor-intel),
+  company research or deep dives (use company-deep-dive), general web search
+  or extraction (use nimble-web-expert).
 ---
+
 # Local Places
 
 Location intelligence powered by Nimble Web Search Agents and web data APIs.

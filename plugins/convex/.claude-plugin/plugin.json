@@ -2,7 +2,7 @@
   "name": "convex",
   "version": "1.10.0",
   "description": "Bundled design + quickstart skills, code-writing and code-review subagents, lint guard + end-of-turn verify hooks, runtime-error and OCC-insights monitors, and MCP server for live deployment introspection. The quickstart scaffolds a running app from one sentence and builds it live LOCALLY, narrated in chat; the convex-reviewer subagent audits Convex functions for auth, validators, and performance. Build reactive, type-safe backends on one platform — schema, real-time, file storage, scheduled jobs, and AI agents.",
-  "updatedAt": "2026-08-06T00:02:14.922Z",
+  "updatedAt": "2026-08-06T06:56:19.248Z",
   "author": {
     "url": "https://convex.dev",
     "name": "Convex"
@@ -28,7 +28,10 @@
   ],
   "skills": "./skills/",
   "commands": "./commands/",
-  "agents": "./agents/",
+  "agents": [
+    "./agents/convex-expert.md",
+    "./agents/convex-reviewer.md"
+  ],
   "hooks": {
     "SessionStart": [
       {

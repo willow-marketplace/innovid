@@ -1,7 +1,8 @@
 ---
 name: agents-deploy
-description: >
+description: ">"
 ---
+
 # deploy
 
 Deploy your AgentCore agent to AWS, or diagnose why a deploy failed.

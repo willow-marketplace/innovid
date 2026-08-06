@@ -1,7 +1,8 @@
 ---
 name: resolving-ingestion-warnings
-description: >
+description: ">"
 ---
+
 # Resolving ingestion warnings
 
 Ingestion warnings record problems PostHog hit while ingesting a project's events.

@@ -2,6 +2,7 @@
 name: alloydb-omni-replication
 description: Use these skills when you need to monitor the health of database replication, manage sync states between nodes, and audit publication tables for distributed setups.
 ---
+
 ## Usage
 
 All scripts can be executed using Node.js. Replace `<param_name>` and `<param_value>` with actual values.

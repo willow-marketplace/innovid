@@ -2,6 +2,7 @@
 name: datarobot-external-agent-monitoring
 description: Instrument any external or existing AI agent with OpenTelemetry to send traces, logs, and metrics to DataRobot for monitoring, observability, and governance. Use when the user says "add tracing/observability/monitoring to my agent", wants to instrument an existing agent project in their IDE, or wants to send agent traces, logs, or metrics to DataRobot.
 ---
+
 # DataRobot External Agent Monitoring Skill
 
 This skill helps you instrument any AI agent — regardless of framework or deployment environment — to send OpenTelemetry telemetry (traces, logs, metrics) to DataRobot. It also creates a shell deployment in DataRobot as the telemetry routing target.

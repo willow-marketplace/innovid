@@ -1,7 +1,8 @@
 ---
 name: render-mcp
-description: >-
+description: ">-"
 ---
+
 # Render MCP Server
 
 The Render MCP server lets AI coding tools manage Render services, databases, deploys, logs, and metrics directly. This skill covers **setup**, **authentication**, **workspace selection**, the **tool catalog**, and **troubleshooting**.

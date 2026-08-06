@@ -2,6 +2,7 @@
 name: contract-to-billing
 description: Extract billing details from purchase orders, contracts, or quotes, then set up Airwallex Billing by creating invoices and/or subscriptions — matching existing customers, products, and prices to avoid duplicates. Use when the user says "create invoice from this PO", "set up billing from this contract", "create a subscription from this agreement", "invoice this quote", "bill this customer", or attaches a document and asks to set up one-time, recurring, or mixed billing. Do NOT use for paying suppliers, provisioning cards, or checking FX rates.
 ---
+
 # Contract to Billing
 
 Reads a customer document (PO, contract, quote), extracts line items with AI, and creates a fully populated invoice in Airwallex Billing.

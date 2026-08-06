@@ -1,7 +1,8 @@
 ---
 name: adobe-retouch-portraits
-description: >
+description: ">"
 ---
+
 # Adobe Retouch Portraits
 
 A walk-away bulk retouching pipeline for photographers. The user selects their

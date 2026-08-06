@@ -1,7 +1,8 @@
 ---
 name: firecrawl-download
-description: |
+description: "|"
 ---
+
 # firecrawl download
 
 > **Experimental.** Convenience command that combines `map` + `scrape` to save an entire site as local files.

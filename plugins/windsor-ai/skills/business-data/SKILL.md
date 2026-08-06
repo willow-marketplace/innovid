@@ -1,7 +1,8 @@
 ---
 name: business-data
-description: 
+description: ""
 ---
+
 # Windsor.ai Business Data Skill
 
 Use this skill whenever the user needs business data — marketing analytics, sales metrics, CRM data, ecommerce transactions, financial data, or any other data available through Windsor.ai's 325+ connectors.

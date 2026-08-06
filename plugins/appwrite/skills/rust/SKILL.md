@@ -2,6 +2,7 @@
 name: rust
 description: Appwrite Rust SDK skill. Use when building server-side Rust applications with Appwrite. Covers async client setup with API keys, user management, TablesDB database/table/row operations, file storage, function executions, permissions, queries, and error handling. Uses the crates.io `appwrite` package and Tokio.
 ---
+
 # Appwrite Rust SDK
 
 ## Installation

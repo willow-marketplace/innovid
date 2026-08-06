@@ -2,6 +2,7 @@
 name: aidp-credentials
 description: Manage the AIDP credential store (secrets) — list, get, create, update, delete credentials used by AIDP workflows. Use when the user wants to store/rotate a secret centrally instead of embedding it, or manage connection credentials. Primary engine is the official `aidp` CLI (`aidp credentials …`); the same Preview REST API via `oci raw-request` is the no-CLI fallback. Verify the endpoint live before relying on it.
 ---
+
 # `aidp-credentials` — credential store (Preview)
 
 Manage centrally-stored AIDP credentials/secrets.

@@ -1,7 +1,8 @@
 ---
 name: adobe-edit-quick-cut
-description: >
+description: ">"
 ---
+
 # Adobe Edit Quick Cut
 
 Produces 3 AI-edited sizzle reel variations from a source video, all at the same duration and

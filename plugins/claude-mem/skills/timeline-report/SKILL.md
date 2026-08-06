@@ -2,6 +2,7 @@
 name: timeline-report
 description: Generate a "Journey Into [Project]" narrative report analyzing a project's entire development history from claude-mem's timeline. Use when asked for a timeline report, project history analysis, development journey, or full project report.
 ---
+
 # Timeline Report
 
 Generate a comprehensive narrative analysis of a project's entire development history using claude-mem's persistent memory timeline.

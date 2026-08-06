@@ -2,6 +2,7 @@
 name: change-history
 description: View a timeline of changes made to campaigns, ad sets, creatives, and other entities in an ad account — who changed what, when, and how.
 ---
+
 # Spotify Ads API — Change History
 
 Retrieve a paginated timeline of changes made to campaigns, ad sets, creatives, and other entities within an ad account. Useful for auditing who changed what, tracking budget modifications, reviewing status changes, and understanding campaign activity over time.

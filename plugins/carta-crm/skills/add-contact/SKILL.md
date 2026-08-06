@@ -1,7 +1,8 @@
 ---
 name: add-contact
-description: >
+description: ">"
 ---
+
 ## Overview
 
 Help the user create one or more contact records in the Carta CRM using the

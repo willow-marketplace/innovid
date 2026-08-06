@@ -1,21 +1,23 @@
 ---
 name: competitor-positioning
-description: Tracks how competitors position themselves online — scrapes homepages,
-features, pricing, and blogs to extract messaging, value props, CTAs, and
-pricing models. Compares against previous snapshots to surface positioning
-shifts with before/after tracking. Produces messaging matrices, content gap
-analysis, white space maps, and battlecard inputs.
+description: |-
+  Tracks how competitors position themselves online — scrapes homepages,
+  features, pricing, and blogs to extract messaging, value props, CTAs, and
+  pricing models. Compares against previous snapshots to surface positioning
+  shifts with before/after tracking. Produces messaging matrices, content gap
+  analysis, white space maps, and battlecard inputs.
 
-Use when anyone asks about competitor messaging, positioning, website copy,
-content strategy, or how competitors present themselves. Triggers: "competitor
-positioning", "messaging comparison", "content gap", "what changed on their
-site", "competitor homepage", "landing page teardown", "marketing battlecard",
-"how do they describe their product", "share of voice", "counter-messaging".
+  Use when anyone asks about competitor messaging, positioning, website copy,
+  content strategy, or how competitors present themselves. Triggers: "competitor
+  positioning", "messaging comparison", "content gap", "what changed on their
+  site", "competitor homepage", "landing page teardown", "marketing battlecard",
+  "how do they describe their product", "share of voice", "counter-messaging".
 
-Do NOT use for business signals like funding/hiring (use competitor-intel),
-single-company deep dives (use company-deep-dive), or meeting prep (use
-meeting-prep).
+  Do NOT use for business signals like funding/hiring (use competitor-intel),
+  single-company deep dives (use company-deep-dive), or meeting prep (use
+  meeting-prep).
 ---
+
 # Competitor Positioning
 
 Marketing-focused competitive positioning analysis powered by Nimble's web data APIs.

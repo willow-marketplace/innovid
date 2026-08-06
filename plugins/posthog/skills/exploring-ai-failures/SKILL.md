@@ -1,7 +1,8 @@
 ---
 name: exploring-ai-failures
-description: >
+description: ">"
 ---
+
 # Exploring AI failures
 
 The highest-value thing you can do with production AI traffic is look at where it fails and name the

@@ -1,7 +1,8 @@
 ---
 name: render-networking
-description: >-
+description: ">-"
 ---
+
 # Render private networking
 
 Render’s **private network** lets services talk to each other without exposing traffic on the public internet. Use this skill when users need internal connectivity, discovery across scaled instances, or correct URL/port behavior for Blueprints and the Dashboard.

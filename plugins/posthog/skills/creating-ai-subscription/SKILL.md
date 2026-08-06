@@ -1,7 +1,8 @@
 ---
 name: creating-ai-subscription
-description: >
+description: ">"
 ---
+
 # Creating a prompt subscription
 
 ## When to use this

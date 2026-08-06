@@ -2,6 +2,7 @@
 description: Best practices for using Grafana MCP tools effectively
 alwaysApply: true
 ---
+
 grafana-assistant:
 
 - Use `get_dashboard_summary` instead of `get_dashboard_by_uid` to avoid consuming the context window with full dashboard JSON.

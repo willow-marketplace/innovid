@@ -1,7 +1,8 @@
 ---
 name: idmp-datasource
-description: "IDMP datasource skill. Use it to list and inspect connections, verify connectivity before deeper metadata reads, and diagnose database or table visibility issues instead of stopping at the connection list."
+description: '"IDMP datasource skill. Use it to list and inspect connections, verify connectivity before deeper metadata reads, and diagnose database or table visibility issues instead of stopping at the connection list."'
 ---
+
 # datasource
 
 **Read [`../idmp-shared/SKILL.md`](../idmp-shared/SKILL.md) first.**

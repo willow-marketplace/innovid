@@ -1,7 +1,8 @@
 ---
 name: use-smart-contract-platform
-description: "Deploy, import, interact with, and monitor smart contracts using Circle Smart Contract Platform APIs. Supports bytecode deployment, template contracts (ERC-20/721/1155/Airdrop), ABI-based read/write calls, and webhook event monitoring. Keywords: contract deployment, smart contract, ABI interactions, template contracts, event monitoring, contract webhooks, bytecode, ERC-1155, ERC-20, ERC-721."
+description: '"Deploy, import, interact with, and monitor smart contracts using Circle Smart Contract Platform APIs. Supports bytecode deployment, template contracts (ERC-20/721/1155/Airdrop), ABI-based read/write calls, and webhook event monitoring. Keywords: contract deployment, smart contract, ABI interactions, template contracts, event monitoring, contract webhooks, bytecode, ERC-1155, ERC-20, ERC-721."'
 ---
+
 ## Overview
 
 Circle Smart Contract Platform (SCP) provides APIs and SDKs for deploying, importing, interacting with, and monitoring smart contracts across supported networks. Deploy contracts from raw bytecode, use audited templates for standard patterns, execute ABI-based contract calls, and monitor emitted events through webhooks.

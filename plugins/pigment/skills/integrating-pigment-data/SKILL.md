@@ -2,6 +2,7 @@
 name: integrating-pigment-data
 description: Use this skill when integrating external data into Pigment - importing an attached CSV file, deciding whether to import into dimensions vs transaction lists, mapping source columns to properties, configuring cross-application (P2P) imports, or troubleshooting data imports. For the step-by-step CSV file import, read data_import_csv.md. Do NOT use this skill for formula updates or list creation unrelated to a data import. This skill includes supporting files in this directory - explore as needed.
 ---
+
 # Integrating Pigment Data
 
 This skill provides guidance for importing external data into Pigment applications efficiently.

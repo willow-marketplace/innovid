@@ -1,7 +1,8 @@
 ---
 name: diagnosing-missing-recordings
-description: >
+description: ">"
 ---
+
 # Diagnosing missing session recordings
 
 When a user asks "why wasn't this session recorded?" or "why don't I have any recordings?",

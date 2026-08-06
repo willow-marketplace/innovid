@@ -1,7 +1,8 @@
 ---
 name: amplify-workflow
-description: 'Build and deploy full-stack web and mobile apps with AWS Amplify Gen2
+description: "'Build and deploy full-stack web and mobile apps with AWS Amplify Gen2"
 ---
+
 # AWS Amplify Gen2
 
 Build and deploy full-stack applications using AWS Amplify Gen2's TypeScript

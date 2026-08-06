@@ -1,7 +1,8 @@
 ---
 name: gcp-spark
-description: |
+description: "|"
 ---
+
 # Spark on Dataproc
 
 > [!IMPORTANT]

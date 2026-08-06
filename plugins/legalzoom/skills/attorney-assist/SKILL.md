@@ -2,6 +2,7 @@
 name: attorney-assist
 description: Connects the user with a LegalZoom attorney for legal consultation. Use when a user asks about attorneys, lawyers, or legal help, or when contract review reveals high risks or low-confidence findings.
 ---
+
 # /attorney-assist -- Connect with a LegalZoom Attorney
 
 > When you need actual legal advice and AI analysis isn't enough, connect with an experienced LegalZoom attorney. They'll have all of the context from your conversation to give you quality advice.

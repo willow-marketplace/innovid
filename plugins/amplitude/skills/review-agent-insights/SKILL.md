@@ -1,7 +1,8 @@
 ---
 name: review-agent-insights
-description: >
+description: ">"
 ---
+
 # Review Agent Insights
 
 Surface everything Amplitude's AI agents have found recently. Query **every available agent type** in `get_agent_results`, validate for staleness, and synthesize into a unified narrative ranked by impact with concrete follow-up actions.

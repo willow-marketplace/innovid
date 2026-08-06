@@ -1,7 +1,8 @@
 ---
 name: aws-lambda
-description: "Design, build, deploy, test, and debug serverless applications with AWS Lambda. Triggers on phrases like: Lambda function, event source, serverless application, API Gateway, EventBridge, Step Functions, serverless API, event-driven architecture, Lambda trigger. For deploying non-serverless apps to AWS, use deploy-on-aws plugin instead."
+description: '"Design, build, deploy, test, and debug serverless applications with AWS Lambda. Triggers on phrases like: Lambda function, event source, serverless application, API Gateway, EventBridge, Step Functions, serverless API, event-driven architecture, Lambda trigger. For deploying non-serverless apps to AWS, use deploy-on-aws plugin instead."'
 ---
+
 # AWS Lambda Serverless Development
 
 Design, build, deploy, and debug serverless applications with AWS serverless services. This skill provides access to serverless development guidance through the AWS Serverless MCP Server, helping you to build production-ready serverless applications with best practices built-in.

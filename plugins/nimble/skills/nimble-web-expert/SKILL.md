@@ -1,20 +1,22 @@
 ---
 name: nimble-web-expert
-description: Get web data now — fast, incremental, immediately responsive to what the user needs.
-The only way Claude can access live websites.
+description: |-
+  Get web data now — fast, incremental, immediately responsive to what the user needs.
+  The only way Claude can access live websites.
 
-USE FOR:
-- Fetching any URL or reading any webpage
-- Scraping prices, listings, reviews, jobs, stats, docs from any site
-- Running Extraction Templates — reusable, site-specific structured scrapers
-- Running Web Search Agents — open-ended research, enrichment, and dataset building with citations
-- Discovering URLs on a site before bulk extraction
-- Calling public REST/XHR API endpoints
-- Web search and research (8 focus modes)
-- Bulk crawling website sections
+  USE FOR:
+  - Fetching any URL or reading any webpage
+  - Scraping prices, listings, reviews, jobs, stats, docs from any site
+  - Running Extraction Templates — reusable, site-specific structured scrapers
+  - Running Web Search Agents — open-ended research, enrichment, and dataset building with citations
+  - Discovering URLs on a site before bulk extraction
+  - Calling public REST/XHR API endpoints
+  - Web search and research (8 focus modes)
+  - Bulk crawling website sections
 
-Must be pre-installed and authenticated. Run `nimble --version` to verify (>= 1.2.0).
+  Must be pre-installed and authenticated. Run `nimble --version` to verify (>= 1.2.0).
 ---
+
 # Nimble Web Expert
 
 Web extraction, search, and URL discovery using the Nimble CLI. Returns clean structured data from any website.

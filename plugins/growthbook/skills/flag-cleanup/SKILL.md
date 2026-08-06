@@ -2,6 +2,7 @@
 name: flag-cleanup
 description: Archive or delete a stale GrowthBook feature flag, walking the user through inlining the flag's effective value at call sites in the codebase before removal. Use when the user says "delete this flag", "remove this stale flag", "clean up flag X", "archive this flag", "we don't need this flag anymore", or "get rid of this flag and its experiment-ref rule". For finding stale flags first, use flag-search. For editing rules instead of removing the flag, use flag-targeting. For stopping an experiment that uses the flag, use experiment-stop.
 ---
+
 # flag-cleanup
 
 Archive or delete a stale feature flag. Two paths: **archive** (reversible, soft-disable) or **delete** (permanent; always goes through archive first as a safety gate). The skill coordinates code-cleanup with the agent's general Read/Edit tools, surfacing call sites from GrowthBook's Code References API (when configured) or falling back to Grep against the user's current directory.

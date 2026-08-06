@@ -2,6 +2,7 @@
 name: dashboard
 description: Quick performance overview of all active Spotify ad campaigns — impressions, spend, reach, clicks, and pacing at a glance.
 ---
+
 # Spotify Ads API — Campaign Dashboard
 
 Quick performance overview with metrics, spend, and pacing for active campaigns.

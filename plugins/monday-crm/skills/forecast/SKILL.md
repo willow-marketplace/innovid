@@ -2,6 +2,7 @@
 name: forecast
 description: Build a forecast dashboard in monday — committed, best-case, and pipeline views by close month, rendered as real dashboard widgets. Use when someone says "build me a forecast", "show me Q2 pipeline", "Salesforce-style forecast", "forecast dashboard", "commit vs best-case", "what's our number this quarter", "how are we tracking to quota", "weighted pipeline", "deal rollup", "Clari-style", "pipeline by month", or "what's in commit".
 ---
+
 # Forecast Dashboard
 
 Builds a native monday dashboard that renders the pipeline as a forecast — committed / best-case / pipeline / closed-won, grouped by stage × close month. Replaces the "export to CSV and pivot it" pattern that sales ops leaders do manually every Monday.

@@ -2,6 +2,7 @@
 name: token-management
 description: Token management patterns using Duende.AccessTokenManagement. Covers client credential token caching, user token refresh, token storage, HttpClientFactory integration, DPoP support, and common configuration pitfalls. Also includes Blazor Server token management.
 ---
+
 # Token Management
 
 ## When to Use This Skill

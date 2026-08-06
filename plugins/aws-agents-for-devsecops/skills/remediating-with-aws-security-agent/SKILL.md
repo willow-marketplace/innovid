@@ -1,7 +1,8 @@
 ---
 name: remediating-with-aws-security-agent
-description: >-
+description: ">-"
 ---
+
 # Security Agent Remediation
 
 AWS Security Agent is a frontier agent that runs on-demand penetration tests and code

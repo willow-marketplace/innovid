@@ -1,7 +1,8 @@
 ---
 name: discover-api
-description: |
+description: "|"
 ---
+
 # Bright Data — Discover API
 
 Discover is **intent-ranked semantic web search**. You give it a `query` plus an

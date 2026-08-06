@@ -1,7 +1,8 @@
 ---
 name: diagnosing-failed-warehouse-syncs
-description: >
+description: ">"
 ---
+
 # Diagnosing failed data warehouse syncs
 
 Work top-down when a data warehouse source or table is failing, stuck, or producing bad data: source → schema →

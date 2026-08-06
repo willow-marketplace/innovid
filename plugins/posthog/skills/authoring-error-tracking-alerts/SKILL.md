@@ -1,7 +1,8 @@
 ---
 name: authoring-error-tracking-alerts
-description: >
+description: ">"
 ---
+
 # Authoring error tracking alerts
 
 Authoring an error tracking alert is a _routing_ problem, not a measurement problem. The trigger events

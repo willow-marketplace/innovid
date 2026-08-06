@@ -1,7 +1,8 @@
 ---
 name: fix-pseudo-modules
-description: |
+description: "|"
 ---
+
 # Fix Pseudo Modules and Implicit Globals
 
 This skill fixes pseudo module access and implicit global issues that the UI5 linter detects but cannot auto-fix because they require understanding proper module import patterns.

@@ -2,6 +2,7 @@
 name: agent-activity-log
 description: Scaffold and operate an opt-in `Agent activity log` table that records what the agent did, decided, and got blocked on across a long-running or multi-session Airtable workflow. Use whenever a workflow skill (product-ops, sales-ops, marketing-ops, etc.) is being set up for an agent-driven motion (recurring triage, multi-step plan, automated monitoring, agentic workflow), or when the user explicitly asks for "agent activity tracking," "audit log of agent decisions," "agent memory," "track what the agent did," or similar. The pattern is opt-in (front-load the offer, frame as auditability for the user's benefit, not surveillance). Composes into workflow skills the same way `show-airtable-link` does — workflow skills point at this skill rather than re-implementing the schema inline.
 ---
+
 # Agent activity log
 
 A typed audit log of agent decisions, blockers, and outcomes — opt-in for users who are explicitly building an agent-driven workflow. The selling point: humans (and the next agent session) can read back what the agent did and why, without trusting a context-window summary that may be gone tomorrow. Pairs naturally with Airtable's role as a persistent agent substrate.

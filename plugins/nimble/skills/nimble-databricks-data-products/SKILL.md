@@ -1,17 +1,19 @@
 ---
 name: nimble-databricks-data-products
-description: Builds Databricks data products from live web data, end to end: discovers the right Nimble
-web-data agents, scrapes into Delta tables, and produces an AI/BI dashboard and/or a deployed
-Databricks App — a table → dashboard → app workflow, for production data products or quick demos.
-Use whenever a request pairs live or scraped web data WITH a Databricks destination — e.g. "scrape
-Amazon/Walmart prices into a Delta table and build a dashboard", "load Zillow/Instagram/Maps/search
-results into Databricks and build a dashboard or app", "showcase Nimble + Databricks to a prospect".
-Prefer it over nimble-web-expert or competitor-intel when the data lands in Databricks. Do NOT use
-for one-off web fetches or CSV exports with no Databricks destination — use nimble-web-expert
-instead. Do NOT use for competitor or company research briefings — use competitor-intel or
-company-deep-dive instead. Do NOT use for generic Databricks work with no Nimble/web-data angle —
-use the official databricks-* skills instead.
+description: |-
+  Builds Databricks data products from live web data, end to end: discovers the right Nimble
+  web-data agents, scrapes into Delta tables, and produces an AI/BI dashboard and/or a deployed
+  Databricks App — a table → dashboard → app workflow, for production data products or quick demos.
+  Use whenever a request pairs live or scraped web data WITH a Databricks destination — e.g. "scrape
+  Amazon/Walmart prices into a Delta table and build a dashboard", "load Zillow/Instagram/Maps/search
+  results into Databricks and build a dashboard or app", "showcase Nimble + Databricks to a prospect".
+  Prefer it over nimble-web-expert or competitor-intel when the data lands in Databricks. Do NOT use
+  for one-off web fetches or CSV exports with no Databricks destination — use nimble-web-expert
+  instead. Do NOT use for competitor or company research briefings — use competitor-intel or
+  company-deep-dive instead. Do NOT use for generic Databricks work with no Nimble/web-data angle —
+  use the official databricks-* skills instead.
 ---
+
 # Nimble on Databricks — data products builder
 
 Turn a natural-language brief like

@@ -2,6 +2,7 @@
 name: output-workflow-run
 description: Execute an Output SDK workflow synchronously and wait for the result. Use when running a workflow and needing immediate results, testing workflow execution, or getting the output directly in the terminal.
 ---
+
 # Run Workflow Synchronously
 
 ## Overview

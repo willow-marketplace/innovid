@@ -1,7 +1,8 @@
 ---
 name: install-cli
-description: >
+description: ">"
 ---
+
 # Install Intercom CLI
 
 Install the [`@intercom/cli`](https://www.npmjs.com/package/@intercom/cli) package globally and authenticate it against the user's workspace. The CLI complements this plugin: the plugin is for in-conversation MCP usage, while the CLI is for shell access, scripting, and workspace provisioning.

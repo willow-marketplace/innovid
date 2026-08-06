@@ -1,7 +1,8 @@
 ---
 name: exploring-apm-traces
-description: >
+description: ">"
 ---
+
 # Exploring APM traces (OpenTelemetry spans)
 
 PostHog captures distributed traces from OpenTelemetry. Each trace is a tree of spans representing a request's path through services.

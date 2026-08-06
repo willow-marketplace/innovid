@@ -1,7 +1,8 @@
 ---
 name: render-cli
-description: >-
+description: ">-"
 ---
+
 # Render CLI
 
 The Render CLI manages services, databases, and deployments from the terminal. Supports interactive use, non-interactive scripting, and CI/CD automation.

@@ -2,6 +2,7 @@
 name: label-purchase
 description: Purchase domestic and international shipping labels, handle customs declarations, return labels, and void/refund labels via the Shippo API
 ---
+
 <!--
   ⚠️  DO NOT EDIT. Auto-generated from skills/label-purchase/SKILL.md by scripts/sync.js
   Edits here will be overwritten on the next sync.

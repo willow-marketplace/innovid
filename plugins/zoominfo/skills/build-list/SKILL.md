@@ -2,6 +2,7 @@
 name: build-list
 description: Build a list of contacts or companies matching specific criteria. Describe what you're looking for in natural language and get a structured, tabular list you can export. Supports filtering by title, seniority, department, industry, company size, location, tech stack, growth rate, and more. Outputs a clean table artifact.
 ---
+
 # Build List
 
 Build a targeted list of contacts or companies from ZoomInfo and output as a structured table.

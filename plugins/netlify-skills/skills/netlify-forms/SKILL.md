@@ -2,6 +2,7 @@
 name: netlify-forms
 description: Guide for using Netlify Forms for HTML form handling. Use when adding contact forms, feedback forms, file upload forms, or any form that should be collected by Netlify. Covers the data-netlify attribute, spam filtering, AJAX submissions, file uploads, notifications, and the submissions API.
 ---
+
 # Netlify Forms
 
 Netlify Forms collects HTML form submissions without server-side code. Form detection must be enabled in the Netlify UI (Forms section).

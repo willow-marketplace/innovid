@@ -2,6 +2,7 @@
 name: grafana-cloud-mcp-tools
 description: Connect to and use the Grafana Cloud MCP server effectively. Covers setup, OAuth authorization, tool categories, read/write access scopes, and best practices for context window management. Use when the user wants to set up Grafana Cloud MCP, needs guidance on which tool to use, or wants to understand access scopes.
 ---
+
 # Grafana Cloud MCP Server
 
 Hosted MCP server providing 60+ Grafana Cloud tools via Streamable HTTP transport with OAuth 2.1 authorization.

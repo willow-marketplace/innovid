@@ -1,7 +1,8 @@
 ---
 name: fix-csp-compliance
-description: |
+description: "|"
 ---
+
 # Fix CSP Compliance - Unsafe Inline Scripts
 
 ## Key Rules

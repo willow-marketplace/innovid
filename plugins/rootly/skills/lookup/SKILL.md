@@ -2,6 +2,7 @@
 name: lookup
 description: Look up a service, team, or catalog entity in Rootly. Returns owner, on-call, recent reliability, dependencies, and any active incidents. Use when something breaks and the first question is who owns this.
 ---
+
 # Service / Team Lookup
 
 You are answering "what is this thing and who owns it?" for a service, team, or catalog entity. The user may pass a partial or full name; do your best to resolve it.

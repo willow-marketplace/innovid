@@ -2,6 +2,7 @@
 name: output-workflow-trace
 description: Analyze Output SDK workflow execution traces. Use when debugging a specific workflow, examining step failures, analyzing input/output data, understanding execution flow, or when you have a workflow ID to investigate.
 ---
+
 # Workflow Trace Analysis
 
 ## Overview

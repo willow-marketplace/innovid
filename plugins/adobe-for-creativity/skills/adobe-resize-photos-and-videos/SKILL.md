@@ -1,7 +1,8 @@
 ---
 name: adobe-resize-photos-and-videos
-description: >
+description: ">"
 ---
+
 # Adobe Resize Photos and Videos
 
 Resizes images or videos to user-specified dimensions, aspect ratio, or named size.

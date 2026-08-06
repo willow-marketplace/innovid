@@ -1,7 +1,8 @@
 ---
 name: azuresql-db-functions
-description: >-
+description: ">-"
 ---
+
 # Azure SQL Developer: serverless API + event-driven with Azure Functions
 
 Build HTTP CRUD endpoints and change-driven handlers over the local **Azure SQL

@@ -1,7 +1,8 @@
 ---
 name: render-private-services
-description: >-
+description: ">-"
 ---
+
 # Render Private Services
 
 Private services are identical to web services except they have **no public URL**. They are reachable only by other Render services on the same **private network** (same region + workspace). Use them for internal APIs, microservices, gRPC servers, sidecar processes, and anything that should never face the internet.

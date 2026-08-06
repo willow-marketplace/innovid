@@ -1,7 +1,8 @@
 ---
 name: aws-sdk-python-usage
-description: |
+description: "|"
 ---
+
 > Do not use emojis in any code, comments, or output when this skill is active.
 
 # AWS SDK for Python (boto3)

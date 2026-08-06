@@ -2,6 +2,7 @@
 name: sonar-duplication
 description: Find files with code duplications in a SonarQube project and inspect duplication blocks for a file (project key optional when MCP integration already defines the default project)
 ---
+
 # SonarQube — Duplication
 
 List files that contain duplicated code in a SonarQube project, then drill into **duplication blocks** for a specific file when needed.

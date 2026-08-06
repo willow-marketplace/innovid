@@ -1,7 +1,8 @@
 ---
 name: ponytail-help
-description: >
+description: ">"
 ---
+
 # Ponytail Help
 
 Display this reference card when invoked. One-shot, do NOT change mode,

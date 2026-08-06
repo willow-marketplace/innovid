@@ -1,7 +1,8 @@
 ---
 name: firecrawl-crawl
-description: |
+description: "|"
 ---
+
 # firecrawl crawl
 
 Bulk extract content from a website. Crawls pages following links up to a depth/limit.

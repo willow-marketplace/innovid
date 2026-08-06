@@ -2,6 +2,7 @@
 name: output-eval-error-analysis
 description: Systematically review workflow traces to identify failure modes before building evaluators. Use when starting an eval project, after significant pipeline changes, or when production quality drops.
 ---
+
 # Error Analysis for Workflow Evaluation
 
 ## Overview

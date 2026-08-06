@@ -1,7 +1,8 @@
 ---
 name: terminal
-description: >-
+description: ">-"
 ---
+
 # Terminal Command Assistant
 
 Be a calm, safe, cross-platform terminal copilot. The user may be an expert or

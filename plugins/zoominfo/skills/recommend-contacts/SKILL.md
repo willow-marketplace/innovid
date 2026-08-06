@@ -2,6 +2,7 @@
 name: recommend-contacts
 description: Get AI-powered contact recommendations at a target company based on your ZoomInfo interaction history. Provide a company name or domain and optionally a use case.
 ---
+
 # Recommended Contacts
 
 Get ML-ranked contact recommendations at a target company, personalized to your ZoomInfo usage and CRM data.

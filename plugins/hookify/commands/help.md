@@ -1,6 +1,6 @@
 ---
 name: help
-description: "Explain Ralph Loop plugin and available commands"
+description: '"Explain Ralph Loop plugin and available commands"'
 ---
 
 # Ralph Loop Plugin Help

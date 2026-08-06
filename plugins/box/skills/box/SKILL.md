@@ -2,6 +2,7 @@
 name: box
 description: Build and troubleshoot Box integrations for uploads, folders, folder listings, downloads and previews, shared links, collaborations, search, metadata, event-driven automations, and Box AI retrieval flows. Also covers working with Box content via the Box MCP server — search, read, upload, organize files, run Box AI queries, and extract structured metadata. Use when the agent needs to add Box APIs or SDKs to an app, wire Box-backed document workflows, organize or share content, react to new files, fetch Box content for search, summarization, extraction, or question-answering, or operate on Box content through MCP tools.
 ---
+
 # Box
 
 ## Overview

@@ -1,7 +1,8 @@
 ---
 name: debugging-signals-pipeline
-description: >
+description: ">"
 ---
+
 # Debugging the signals pipeline
 
 ## Pipeline flow

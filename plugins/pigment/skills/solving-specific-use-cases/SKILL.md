@@ -2,6 +2,7 @@
 name: solving-specific-use-cases
 description: Always use this skill when building or extending models for specific planning domains — FP&A, Workforce Planning, Sales Performance Management, Supply Chain Planning, or Financial Consolidation. Covers proven modeling patterns and domain-specific best practices. This skill includes supporting files in this directory - explore as needed.
 ---
+
 # Pigment Use Cases — Introduction
 
 Pigment is a business planning platform used across multiple domains. Each domain has its own modeling patterns, dimensions, and reporting needs, but they all share Pigment's core building blocks: lists, metrics, formulas, tables, and boards.

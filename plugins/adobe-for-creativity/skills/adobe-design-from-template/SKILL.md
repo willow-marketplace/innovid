@@ -1,7 +1,8 @@
 ---
 name: adobe-design-from-template
-description: >
+description: ">"
 ---
+
 # Adobe Design from Template
 
 Helps users find an Adobe Express template and customize it — updating text,

@@ -2,6 +2,7 @@
 name: show-airtable-link
 description: Provides a clickable Airtable link whenever the agent has touched user-visible Airtable content. Use after every MCP call that creates, updates, lists, searches, or returns records, schema, or interface pages — bases, tables, fields, records, or pages. Hand off the most-specific URL the agent's tool calls have proven access to — prefer single-record URLs over table URLs, table URLs over base URLs, and interface page URLs when the user's access is restricted to pages. Format as a markdown link with a descriptive label. Construct URLs only from IDs the tools actually returned — never synthesize IDs to round out a URL. Compose this skill from any workflow skill that affects Airtable content.
 ---
+
 # Show Airtable link
 
 After any MCP call that affects user-visible Airtable content, return a clickable link to the most-specific surface the call's results give the user access to. The link is how the user reviews the agent's work — without it, the work is invisible until they go hunting for it.

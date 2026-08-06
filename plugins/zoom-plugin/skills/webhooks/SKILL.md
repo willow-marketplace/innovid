@@ -2,6 +2,7 @@
 name: webhooks
 description: Reference skill for Zoom webhooks. Use after routing to an event-driven workflow when implementing subscriptions, signature verification, delivery handling, retries, or event-type selection.
 ---
+
 # /setup-zoom-webhooks
 
 Background reference for Zoom event delivery over HTTP. Prefer workflow skills first, then use this file for verification, subscription, and delivery details.

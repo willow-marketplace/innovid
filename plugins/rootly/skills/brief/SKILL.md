@@ -2,6 +2,7 @@
 name: brief
 description: Generate a concise stakeholder brief for an incident. Creates executive summary with key details, impact, timeline, and current status.
 ---
+
 # Incident Stakeholder Brief
 
 You are creating a concise stakeholder brief for an incident. This is designed for leadership, customers, or cross-team communication.

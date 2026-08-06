@@ -2,6 +2,7 @@
 name: airflow-hitl
 description: Builds human-in-the-loop (HITL) Airflow workflows - approval gates, form input, and human-driven branching. Use when a DAG needs a human in the loop - an approval or reject step, sign-off before a task runs, a decision or approval UI, branching on a human choice, or collecting form input mid-run; also on mentions of ApprovalOperator, HITLOperator, HITLBranchOperator, HITLEntryOperator, or HITLTrigger. Requires Airflow 3.1+. Not for AI/LLM task calls (see migrating-ai-sdk-to-common-ai).
 ---
+
 # Airflow Human-in-the-Loop Operators
 
 Pause a DAG until a human responds via the Airflow UI or REST API. HITL operators are deferrable — they release their worker slot while waiting.

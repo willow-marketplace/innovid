@@ -1,7 +1,8 @@
 ---
 name: codspeed-setup-harness
-description: "Set up performance benchmarks and CodSpeed harness for a project. Use this skill whenever the user wants to create benchmarks, add performance tests, set up CodSpeed, configure codspeed.yml, integrate a benchmarking framework (criterion, divan, pytest-benchmark, vitest bench, go test -bench, google benchmark), or when the user says 'add benchmarks', 'set up perf tests', 'create a benchmark', 'benchmark this', or wants to measure performance of their code for the first time. Also trigger when the optimize skill needs benchmarks that don't exist yet."
+description: "\"Set up performance benchmarks and CodSpeed harness for a project. Use this skill whenever the user wants to create benchmarks, add performance tests, set up CodSpeed, configure codspeed.yml, integrate a benchmarking framework (criterion, divan, pytest-benchmark, vitest bench, go test -bench, google benchmark), or when the user says 'add benchmarks', 'set up perf tests', 'create a benchmark', 'benchmark this', or wants to measure performance of their code for the first time. Also trigger when the optimize skill needs benchmarks that don't exist yet.\""
 ---
+
 # Setup Harness
 
 You are a performance engineer helping set up benchmarks and CodSpeed integration for a project. Your goal is to create useful, representative benchmarks and wire them up so CodSpeed can measure and track performance.

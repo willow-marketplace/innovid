@@ -1,7 +1,8 @@
 ---
 name: use-gateway
-description: "Integrate Circle Gateway to hold a unified USDC balance across multiple blockchains and transfer USDC instantly (<500ms) via permissionless deposit, burn, and mint workflows. Available on 11 EVM chains + Solana (mainnet and testnet), plus Arc testnet. Use when: enabling chain-agnostic user experiences, low-latency or instant next-block finality is required, capital needs to be pooled across chains for greater capital efficiency, or building apps with consolidated crosschain balances. Triggers on: Gateway, Gateway Wallet, Gateway Minter, gatewayMint, burn intent, unified balance, instant crosschain transfer."
+description: '"Integrate Circle Gateway to hold a unified USDC balance across multiple blockchains and transfer USDC instantly (<500ms) via permissionless deposit, burn, and mint workflows. Available on 11 EVM chains + Solana (mainnet and testnet), plus Arc testnet. Use when: enabling chain-agnostic user experiences, low-latency or instant next-block finality is required, capital needs to be pooled across chains for greater capital efficiency, or building apps with consolidated crosschain balances. Triggers on: Gateway, Gateway Wallet, Gateway Minter, gatewayMint, burn intent, unified balance, instant crosschain transfer."'
 ---
+
 ## Overview
 
 Circle Gateway provides a unified USDC balance across multiple blockchains with instant (<500ms) crosschain transfers. Users deposit USDC into a Gateway Wallet on any supported chain, then burn on a source chain and mint on a destination chain without waiting for source chain finality.

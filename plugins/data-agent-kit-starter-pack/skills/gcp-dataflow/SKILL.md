@@ -1,7 +1,8 @@
 ---
 name: gcp-dataflow
-description: >
+description: ">"
 ---
+
 # Apache Beam Pipelines on Cloud Dataflow
 
 ## Pipeline authoring

@@ -1,6 +1,6 @@
 ---
 name: troubleshoot-connector
-description: "Troubleshoot ZPA App Connector issues -- enrollment, connectivity, upgrades, and resource utilization."
+description: '"Troubleshoot ZPA App Connector issues -- enrollment, connectivity, upgrades, and resource utilization."'
 ---
 
 # Troubleshoot App Connector

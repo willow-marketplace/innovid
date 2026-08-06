@@ -2,6 +2,7 @@
 name: output-workflow-stop
 description: Stop a running Output SDK workflow execution. Use when cancelling a workflow, stopping a long-running process, terminating a stuck workflow, or when you need to abort a workflow in progress.
 ---
+
 # Stop Running Workflow
 
 ## Overview

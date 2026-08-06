@@ -1,7 +1,8 @@
 ---
 name: firecrawl-parse
-description: |
+description: "|"
 ---
+
 # firecrawl parse
 
 Turn a local document into clean markdown on disk. Supports **PDF, DOCX, DOC, ODT, RTF, XLSX, XLS, HTML/HTM/XHTML**.

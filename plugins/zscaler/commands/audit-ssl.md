@@ -1,6 +1,6 @@
 ---
 name: audit-ssl
-description: "Audit ZIA SSL inspection rules -- list rules by action (INSPECT, DO_NOT_INSPECT, DO_NOT_DECRYPT, BLOCK), identify bypasses, and assess risk."
+description: '"Audit ZIA SSL inspection rules -- list rules by action (INSPECT, DO_NOT_INSPECT, DO_NOT_DECRYPT, BLOCK), identify bypasses, and assess risk."'
 ---
 
 # Audit SSL Inspection Rules

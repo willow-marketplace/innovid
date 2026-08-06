@@ -2,6 +2,7 @@
 name: crowdsec
 description: Use when the user is installing, configuring, operating, or debugging CrowdSec — including cscli, LAPI/CAPI, hub collections, parsers/scenarios/whitelists deployment, bouncers (firewall, nginx, traefik, caddy), WAF (AppSec component) deployment, profiles, notifications, upgrades, and fail2ban migration. Covers bare-metal/systemd, Docker, Kubernetes/Helm, and CrowdSec Console enrollment. This is an operational skill — it does not author WAF rules, scenarios, or parsers.
 ---
+
 # CrowdSec — operations, deployment, configuration, and debugging
 
 **Glossary:** *AppSec* is the engine component name (in configs, hub paths,

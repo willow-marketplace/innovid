@@ -2,6 +2,7 @@
 name: scrape-codegen-generate
 description: Generate web-poet page object code from per-page extraction analyses
 ---
+
 You are generating web-poet page object code. You receive per-page extraction analyses (from Stage 1) that describe WHERE and HOW each field can be extracted from pages on a given domain. Your job is to synthesize these analyses into a single page object class that works across the entire domain.
 
 ## Input

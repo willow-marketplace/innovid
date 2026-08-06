@@ -1,7 +1,8 @@
 ---
 name: catalyst-nosql
-description: "Catalyst NoSQL — key-value table store with typed items built via NoSQLItem builder. Partition key required. Trigger on 'NoSQL', 'nosql.table', 'insertItems', 'fetchItem', 'updateItems', 'deleteItems', 'queryTable', 'NoSQLItem', 'document storage', 'flexible schema', or 'Catalyst document database'. Do NOT use when you need SQL joins, ZCQL queries, or a fixed relational schema — use catalyst-datastore instead."
+description: "\"Catalyst NoSQL — key-value table store with typed items built via NoSQLItem builder. Partition key required. Trigger on 'NoSQL', 'nosql.table', 'insertItems', 'fetchItem', 'updateItems', 'deleteItems', 'queryTable', 'NoSQLItem', 'document storage', 'flexible schema', or 'Catalyst document database'. Do NOT use when you need SQL joins, ZCQL queries, or a fixed relational schema — use catalyst-datastore instead.\""
 ---
+
 ## How It Works
 
 1. **NoSQL vs Data Store** — Choose NoSQL for flexible/evolving per-item attributes, nested maps/arrays, and high-write-throughput key-value access; choose Data Store for a fixed relational schema, joins, or ACID/ZCQL access. Full comparison table in `references/nosql-basics.md`. **Rule:** if the user says "ZCQL", "join", "relational", or "fixed schema" — stop and load `catalyst-datastore` instead.

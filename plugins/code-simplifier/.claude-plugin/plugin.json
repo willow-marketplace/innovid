@@ -2,10 +2,12 @@
   "name": "code-simplifier",
   "version": "1.0.0",
   "description": "Agent that simplifies and refines code for clarity, consistency, and maintainability while preserving functionality",
-  "updatedAt": "2026-08-06T00:02:13.050Z",
+  "updatedAt": "2026-08-06T06:56:19.002Z",
   "author": {
     "name": "Anthropic",
     "email": "support@anthropic.com"
   },
-  "agents": "./agents/"
+  "agents": [
+    "./agents/code-simplifier.md"
+  ]
 }

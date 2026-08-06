@@ -1,7 +1,8 @@
 ---
 name: instrument-feature-flags
-description: >-
+description: ">-"
 ---
+
 # Add PostHog feature flags
 
 Use this skill to add PostHog feature flags that gate new or changed functionality. Use it after implementing features or reviewing PRs to ensure safe rollouts with feature flag controls. If PostHog is not yet installed, this skill also covers initial SDK setup. Supports any platform or language.

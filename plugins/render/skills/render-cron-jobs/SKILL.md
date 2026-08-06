@@ -1,7 +1,8 @@
 ---
 name: render-cron-jobs
-description: >-
+description: ">-"
 ---
+
 # Render Cron Jobs
 
 This skill covers **Cron Job** services on Render: how schedules run, what the platform guarantees, and how they differ from workers and workflows. Pair it with Blueprint and deploy skills when authoring `render.yaml` or Dashboard settings.

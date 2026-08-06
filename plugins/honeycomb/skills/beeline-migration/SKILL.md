@@ -1,7 +1,8 @@
 ---
 name: beeline-migration
-description: >
+description: ">"
 ---
+
 # Beeline to OpenTelemetry Migration
 
 Step-by-step guide for migrating from Honeycomb Beelines (now End of Life)

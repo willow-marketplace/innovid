@@ -1,7 +1,8 @@
 ---
 name: serving-llms-on-instinct
-description: >-
+description: ">-"
 ---
+
 # Serving LLMs on AMD Instinct
 
 Get a vLLM endpoint running on AMD Instinct GPU hardware.

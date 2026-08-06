@@ -1,7 +1,8 @@
 ---
 name: stripe-best-practices
-description: >-
+description: ">-"
 ---
+
 Latest Stripe API version: **2026-06-24.dahlia**. Always use the latest API version and SDK unless the user specifies otherwise.
 
 If you do not have a Stripe account, you can call a CLI command to generate working API keys with no registration required. You can install the Stripe CLI (`npm i -g @stripe/cli`) and run the command `stripe sandbox create` to get started.

@@ -2,6 +2,7 @@
 name: deploying-java-sdk-bundles
 description: Builds and deploys compiled Airflow Java SDK bundles so workers can run them. Use when the user wants to package a JVM task bundle into a JAR, asks about the `org.apache.airflow.sdk` Gradle plugin, `./gradlew bundle`, the Maven shade/BOM setup, fat vs thin JARs, the logging integration artifacts (JPL, SLF4J, Log4j 2, JUL), preview/snapshot builds, or getting the JAR onto an Airflow worker (Docker, Kubernetes, or Astro). For the task code see authoring-java-sdk-tasks; for the Airflow coordinator settings see configuring-airflow-language-sdks.
 ---
+
 # Deploying Java SDK Bundles
 
 A Java SDK deployment has one artifact: a **bundle** — your compiled task classes plus the SDK, packaged as a JAR (or a thin JAR alongside its dependency JARs). You build it with Gradle or Maven, then place it in a directory that the `JavaCoordinator` scans (`jars_root`) on every worker. This skill is platform-neutral; it shows the build once, then both an open-source and an Astro deployment path.

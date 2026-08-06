@@ -2,6 +2,7 @@
 name: flag-schedule
 description: Add a timed activation window to a GrowthBook feature flag rule — automatically enable it at a start time and/or disable it at an end time. Use when the user says "turn this on at 9am", "schedule the flag to go live Friday at noon", "disable the rule after the sale ends", "set an end date on this rule", "run this rule during the promotion window", or "time-gate this rule". Applies to force and rollout rules. For multi-step progressive rollouts with intervals between steps, use flag-ramp. For the broader campaign of rules around this schedule, use flag-targeting first.
 ---
+
 # flag-schedule
 
 Add a timed activation window to a GrowthBook feature flag rule. A scheduled rule activates automatically at a start time and/or deactivates automatically at an end time, without requiring a manual publish each time.

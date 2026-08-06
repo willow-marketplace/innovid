@@ -2,6 +2,7 @@
 name: aidp-catalog-explore
 description: Browse the AIDP data catalog live — list catalogs, schemas, tables, and volumes, inspect a table's columns/properties, and resolve a human name to its catalog key. Use when the user asks "what catalogs/schemas/tables exist", "describe table X", "what columns does Y have", or needs a catalog/schema/table key for another operation.
 ---
+
 # `aidp-catalog-explore` — live catalog browsing
 
 Browse and inspect the AIDP catalog directly via the control-plane — no SQL, no compute, no MCP required.

@@ -1,7 +1,8 @@
 ---
 name: finding-sessions-to-watch
-description: >
+description: ">"
 ---
+
 # Finding sessions to watch
 
 Most people open session replay with a goal ("why are signups dropping?") but no idea which of

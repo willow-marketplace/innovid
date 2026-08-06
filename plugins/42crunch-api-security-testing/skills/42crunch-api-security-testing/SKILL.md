@@ -1,7 +1,8 @@
 ---
 name: 42crunch-api-security-testing
-description: >
+description: ">"
 ---
+
 # 42Crunch API Security Skill
 
 Orchestrates two phases: **Audit** (static OAS analysis and SQG fix loop) and

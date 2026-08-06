@@ -1,7 +1,8 @@
 ---
 name: choosing-trend-or-slope-view
-description: >
+description: ">"
 ---
+
 # Choosing a trend line vs a slope view
 
 "How did X change between A and B?" is ambiguous. Two charts answer two different

@@ -2,6 +2,7 @@
 name: data-feeds
 description: Extract structured data from 40+ supported platforms (Amazon, LinkedIn, Instagram, TikTok, Facebook, YouTube, Reddit, and more) via the Bright Data CLI (`bdata pipelines`). Use when the user wants clean JSON from a known platform URL rather than raw HTML. Hands off to `scrape` for unsupported URLs and to `search` when target URLs must be discovered first. Requires the Bright Data CLI; proactively guides install + login if missing.
 ---
+
 # Bright Data — Data Feeds (Pipelines)
 
 Extract structured data from supported platforms via `bdata pipelines`. One call, clean JSON, no scraping logic. For unsupported URLs, hand off to `scrape`. To find target URLs first, hand off to `search`.

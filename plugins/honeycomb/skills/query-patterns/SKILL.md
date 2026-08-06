@@ -1,7 +1,8 @@
 ---
 name: query-patterns
-description: >
+description: ">"
 ---
+
 # Honeycomb Query Patterns
 
 Opinionated guidance for writing effective Honeycomb queries. The MCP tools already

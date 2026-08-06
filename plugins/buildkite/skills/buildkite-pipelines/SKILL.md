@@ -1,7 +1,8 @@
 ---
 name: buildkite-pipelines
-description: >
+description: ">"
 ---
+
 # Buildkite Pipelines
 
 Pipeline YAML is the core of Buildkite CI/CD. This skill covers writing, optimizing, and troubleshooting `.buildkite/pipeline.yml` — step types, caching, parallelism, annotations, retry, dynamic pipelines, matrix builds, plugins, notifications, artifacts, and concurrency.

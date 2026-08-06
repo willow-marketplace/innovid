@@ -2,6 +2,7 @@
 name: aidp-migrator-overview
 description: Router skill. Read this first whenever the user mentions migrating a Databricks workload (notebooks, jobs, catalogs, schedules) onto Oracle AI Data Platform (AIDP). Lays out the toolkit, the two-pass migration architecture, and which of the other aidp-* skills handles each phase. Compose those skills; this one adds no API surface.
 ---
+
 # `aidp-migrator-overview` — router
 
 Migrating a Databricks workload onto AIDP is a multi-phase operation. This skill picks the right next skill based on what the user asks.

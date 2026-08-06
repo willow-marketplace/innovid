@@ -1,7 +1,8 @@
 ---
 name: rw-recipe-full-setup
-description: "Complete Runway API setup: check compatibility, configure API key, and integrate generation endpoints"
+description: '"Complete Runway API setup: check compatibility, configure API key, and integrate generation endpoints"'
 ---
+
 # Full Runway API Setup
 
 > **PREREQUISITE:** Run `+rw-check-compatibility` first to ensure the project has server-side capability.

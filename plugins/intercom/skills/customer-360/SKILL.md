@@ -1,7 +1,8 @@
 ---
 name: customer-360
-description: >
+description: ">"
 ---
+
 # Customer 360
 
 Produce a comprehensive customer profile by aggregating data from across the Intercom workspace.

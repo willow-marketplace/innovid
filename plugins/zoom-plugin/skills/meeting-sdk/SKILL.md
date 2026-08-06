@@ -2,6 +2,7 @@
 name: meeting-sdk
 description: Reference skill for Zoom Meeting SDK. Use after routing to a meeting-embed workflow when implementing real Zoom meeting joins, platform-specific SDK behavior, auth and join flows, waiting room issues, or meeting bot patterns.
 ---
+
 # /build-zoom-meeting-sdk-app
 
 Background reference for embedded Zoom meetings across web, mobile, desktop, and Linux bot environments. Prefer `build-zoom-meeting-app` or `build-zoom-bot` first, then route here for platform detail.

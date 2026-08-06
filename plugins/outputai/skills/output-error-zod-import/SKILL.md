@@ -2,6 +2,7 @@
 name: output-error-zod-import
 description: Fix Zod schema import issues in Output SDK workflows. Use when seeing "incompatible schema" errors, type errors at step boundaries, schema validation failures, or when schemas don't match between steps.
 ---
+
 # Fix Zod Import Source Issues
 
 ## Overview

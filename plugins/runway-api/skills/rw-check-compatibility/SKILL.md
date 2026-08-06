@@ -1,7 +1,8 @@
 ---
 name: rw-check-compatibility
-description: "Analyze a user's codebase to verify it can use Runway's public API (server-side requirement)"
+description: "\"Analyze a user's codebase to verify it can use Runway's public API (server-side requirement)\""
 ---
+
 # Check Compatibility
 
 Analyze the user's project to determine whether it is compatible with Runway's public API.

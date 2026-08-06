@@ -2,7 +2,7 @@
   "name": "stripe",
   "version": "1.0.0",
   "description": "Stripe development plugin for Claude",
-  "updatedAt": "2026-08-06T00:02:50.341Z",
+  "updatedAt": "2026-08-06T06:56:19.071Z",
   "author": {
     "url": "https://stripe.com",
     "name": "Stripe"
@@ -18,7 +18,9 @@
   ],
   "skills": "./skills/",
   "commands": "./commands/",
-  "agents": "./agents/",
+  "agents": [
+    "./agents/company-researcher.md"
+  ],
   "mcpServers": {
     "stripe": {
       "url": "https://mcp.stripe.com",

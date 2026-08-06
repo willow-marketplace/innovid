@@ -1,7 +1,8 @@
 ---
 name: bigdata-post-ipo-day179
-description: >
+description: ">"
 ---
+
 # Bigdata Post-IPO Day 179 — 180-Day Lock-Up Expiry
 
 The standard **180-day lock-up** is about to release insider, employee, and pre-IPO investor shares. Run this note around **day 179** to size the potential supply overhang and how the stock is set up into the unlock. Use Bigdata.com plugin tools plus web search.

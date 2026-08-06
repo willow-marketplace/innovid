@@ -1,7 +1,8 @@
 ---
 name: fix-xml-native-html
-description: |
+description: "|"
 ---
+
 # Fix Native HTML and SVG in XML Views/Fragments
 
 This skill fixes native HTML and SVG usage in XML views/fragments that the UI5 linter detects but cannot auto-fix because they require understanding the appropriate UI5 control replacements.

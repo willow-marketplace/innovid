@@ -1,7 +1,8 @@
 ---
 name: qt-qml-test
-description: >-
+description: ">-"
 ---
+
 # Qt Quick Test Skill
 
 Generate a Qt Quick Test unit test (`tst_*.qml`) for one or more

@@ -1,7 +1,8 @@
 ---
 name: brand-listening
-description: >
+description: ">"
 ---
+
 # Brand Listening
 
 Find out what people are *actually* saying about a brand across social platforms, news, and reviews — powered by live web data, not stale training knowledge. Combines the Bright Data CLI (`bdata`) for collection with a sentiment + theme analysis layer to deliver a cited, actionable digest.

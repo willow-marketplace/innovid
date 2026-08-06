@@ -2,6 +2,7 @@
 name: fiftyone-generate-data-lens-connector
 description: Generate a Data Lens connector from an external database schema. Use when users want to connect an external data source (PostgreSQL, BigQuery, Databricks, MySQL, etc.) to FiftyOne Data Lens, or when they have a database schema and want to browse/import that data through the FiftyOne App.
 ---
+
 # Generate Data Lens Connector
 
 Generate a fully functional `DataLensOperator` plugin from a user-provided

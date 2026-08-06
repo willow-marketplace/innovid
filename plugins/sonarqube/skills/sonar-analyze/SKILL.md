@@ -2,6 +2,7 @@
 name: sonar-analyze
 description: Analyze a file or code snippet for quality and security issues using SonarQube
 ---
+
 # SonarQube — Code Analysis
 
 Analyze code for quality and security issues using the SonarQube MCP Server.

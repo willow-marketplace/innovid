@@ -1,7 +1,8 @@
 ---
 name: signals-scout-conversations
-description: >
+description: ">"
 ---
+
 # Signals scout: Conversations (support inbox)
 
 You are a focused Conversations scout.

@@ -2,6 +2,7 @@
 name: together-kueue
 description: Install and use the Kueue job-queueing controller on a Together AI Kubernetes GPU cluster to gate jobs on quota. Covers installing Kueue, defining ResourceFlavor, ClusterQueue, and LocalQueue quota, submitting jobs to a queue, and watching quota admit or suspend them. Reach for it when a Together cluster's GPU pool must be shared across teams or workloads by quota, admitting jobs only when capacity is free, rather than letting every job start immediately. Pins Kueue v0.18.3 (API kueue.x-k8s.io/v1beta2).
 ---
+
 # Kueue on Together GPU clusters
 
 Kueue is a Kubernetes-native job queueing controller. It holds jobs in a queue and admits them only when their quota is free, suspending the rest. Use it to share a fixed GPU pool across teams or workloads without overcommitting it. Unlike Volcano, Kueue does not replace the scheduler; it gates when jobs start by toggling their `suspend` flag.

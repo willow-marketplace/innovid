@@ -2,6 +2,7 @@
 name: mapbox-web-performance-patterns
 description: Performance optimization patterns for Mapbox GL JS web applications. Covers initialization waterfalls, bundle size, rendering performance, memory management, and web optimization. Prioritized by impact on user experience.
 ---
+
 # Mapbox Performance Patterns Skill
 
 This skill provides performance optimization guidance for building fast, efficient Mapbox applications. Patterns are prioritized by impact on user experience, starting with the most critical improvements.

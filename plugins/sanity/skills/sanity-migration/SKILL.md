@@ -2,6 +2,7 @@
 name: sanity-migration
 description: Plans, implements, and reviews migrations from other CMSes and content systems into Sanity. Use when migrating or replatforming to Sanity from AEM, Adobe Experience Manager, Contentful, Strapi, Webflow, WordPress, Payload, Drupal, Markdown/MDX/frontmatter files, WXR/XML exports, CMS APIs, database dumps, static HTML, or when designing extraction, transformation, Portable Text conversion, asset migration, redirects, validation, and cutover workflows.
 ---
+
 # Sanity Migration
 
 Use this skill for CMS-to-Sanity migration work. Treat migration as a content strategy and ETL project, not a blind lift-and-shift.

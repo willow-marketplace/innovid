@@ -1,7 +1,8 @@
 ---
 name: inbox-exploration
-description: >
+description: ">"
 ---
+
 # Exploring the Inbox
 
 The **Inbox** is where PostHog surfaces signal reports — clusters of related observations

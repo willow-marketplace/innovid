@@ -2,6 +2,7 @@
 name: zoom-mcp
 description: Guidance for the bundled Zoom MCP connectors. Use after routing to an MCP workflow when planning or troubleshooting tool-based access to meetings, recordings, meeting assets, transcripts, Zoom-wide search, or Zoom Docs. Route Whiteboard-specific requests to `zoom-mcp/whiteboard` and write-capable Team Chat MCP requests to `zoom-mcp/team-chat`.
 ---
+
 # Zoom MCP
 
 Guidance for the bundled Zoom MCP connector in this Claude plugin. Prefer `design-mcp-workflow` or [setup-zoom-mcp](../setup-zoom-mcp/SKILL.md) first, then route here for tool-surface details, auth expectations, and MCP-specific constraints.

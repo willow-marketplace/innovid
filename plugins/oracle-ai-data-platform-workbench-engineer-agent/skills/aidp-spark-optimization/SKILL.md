@@ -2,6 +2,7 @@
 name: aidp-spark-optimization
 description: Use when a Spark job/notebook is slow, missing an SLA, spilling, OOMing, generating too many small files, or shuffling/skewing heavily; when reviewing Spark/PySpark code or a Spark UI for performance; or before running a large Spark workload. Covers open-source Apache Spark 3.5.0 (+ Delta Lake) tuning -- partitions, shuffle, joins, skew, file layout, memory, codegen, caching, AQE, compression, and configuration.
 ---
+
 # Spark Optimization
 
 Field-tested techniques for optimizing **open-source Apache Spark 3.5.0** (and open-source Delta Lake) workloads. Every technique lists what it does, why it matters, **patterns** (when it helps), **anti-patterns** (when it does not help or hurts), the exact config/code, and impact evidence from real reproductions.

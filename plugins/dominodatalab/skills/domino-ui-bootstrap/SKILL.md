@@ -2,6 +2,7 @@
 name: domino-ui-bootstrap
 description: Bootstrap or retrofit a Vite + React 18 + TypeScript project so it uses the Domino design system (`@dominodatalab/extensions-tools`). Scoped to projects that are (or will be) a **fully standalone SPA frontend for a Domino application or extension** — not snippets, library additions, or work inside an existing Domino monorepo package. Use this skill whenever the user wants to create, build, scaffold, start, refactor, retrofit, or set up such an SPA — a React app, web app, frontend, UI, or extension that should "look like Domino", use Domino components, follow the Domino design system, or integrate with the Domino platform — even when they don't say the word "Domino" explicitly but mention Domino-flavored terms like DominoThemeProviderDecorator, extensions-tools, or base-components. Also use when the user points at an existing standalone React/Vite project and asks to make it "Domino-styled", wire it up to the Domino component library, add Domino theming, or migrate it. The skill handles version pinning (React 18, react-router 5), MCP registration for the Storybook component reference, theme provider wiring, and a verification step — all things that are easy to get wrong otherwise.
 ---
+
 # Domino UI Bootstrap
 
 This skill makes a project use the Domino design system correctly. It works in three contexts:

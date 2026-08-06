@@ -1,7 +1,8 @@
 ---
 name: intercom-analysis
-description: >
+description: ">"
 ---
+
 # Intercom Analysis
 
 Use the Intercom MCP server to analyze customer conversations, look up contacts and companies, identify support patterns, and investigate customer issues.

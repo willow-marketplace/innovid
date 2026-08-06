@@ -2,6 +2,7 @@
 name: collect-files-with-request
 description: Create, inspect, and manage Dropbox file requests for collecting uploads from other people. Use when the user asks to collect files, request uploads, create an upload portal, check a file request, or list existing file requests.
 ---
+
 # Collect Files With Request
 
 Use this skill to help users collect files from others through Dropbox file requests.

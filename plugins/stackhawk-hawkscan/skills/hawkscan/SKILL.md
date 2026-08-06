@@ -1,7 +1,8 @@
 ---
 name: hawkscan
-description: >
+description: ">"
 ---
+
 # HawkScan Skill
 
 This skill enables Claude to act as the security testing orchestrator in an agentic

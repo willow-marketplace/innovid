@@ -1,7 +1,8 @@
 ---
 name: firecrawl-agent
-description: |
+description: "|"
 ---
+
 # firecrawl agent
 
 AI-powered autonomous extraction. The agent navigates sites and extracts structured data (takes 2-5 minutes).

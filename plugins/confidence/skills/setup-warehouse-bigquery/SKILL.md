@@ -2,6 +2,7 @@
 name: setup-warehouse-bigquery
 description: Set up BigQuery as a data warehouse for Confidence. Use when the user chose BigQuery for warehouse setup.
 ---
+
 # Setup Warehouse: BigQuery
 
 Configure BigQuery as the data warehouse for Confidence experimentation analytics. This skill handles the full end-to-end setup: collect GCP config, validate permissions, create the warehouse, set up connectors, create the assignment table, and verify the pipeline.

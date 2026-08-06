@@ -2,6 +2,7 @@
 name: python
 description: Appwrite Python SDK skill. Use when building server-side Python applications with Appwrite, including Django, Flask, and FastAPI integrations. Covers user management, database/table CRUD, file storage, and functions via API keys.
 ---
+
 # Appwrite Python SDK
 
 ## Installation

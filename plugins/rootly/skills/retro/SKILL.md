@@ -1,7 +1,8 @@
 ---
 name: retro
-description: "[experimental] Generate a structured post-incident retrospective from incident data. Forked-subagent flow may not have MCP access in all Claude Code contexts."
+description: '"[experimental] Generate a structured post-incident retrospective from incident data. Forked-subagent flow may not have MCP access in all Claude Code contexts."'
 ---
+
 # Retrospective Generator (experimental)
 
 > **Experimental**: this skill uses `context: fork` to delegate to the `retro-analyst` agent. In some Claude Code contexts the forked subagent does not inherit the plugin's MCP tools. If the agent reports MCP tools unavailable, use `/rootly:brief <incident>` for a basic incident summary instead.

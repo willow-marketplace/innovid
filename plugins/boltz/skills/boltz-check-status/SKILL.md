@@ -2,6 +2,7 @@
 name: boltz-check-status
 description: Boltz job status and result recovery. Use when listing jobs, checking progress, resuming downloads, recovering results, or downloading an existing job ID. Not for starting new jobs.
 ---
+
 ## Workflow
 
 If `boltz-api` is missing from `PATH`, use `boltz-cli-setup` for install/update guidance before retrying.

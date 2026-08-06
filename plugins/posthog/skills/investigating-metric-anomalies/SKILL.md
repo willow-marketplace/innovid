@@ -2,6 +2,7 @@
 name: investigating-metric-anomalies
 description: Investigates server/infrastructure metric anomalies in PostHog Metrics — from "this metric is rising/dropping/spiking" or a fired alert to a probable cause with evidence. Use when asked why a metric looks wrong (ingestion lag rising, error rate spiking, latency degrading, queue depth growing, throughput dropping), when an alert fires on an OTel/Prometheus metric, or for any incident triage that starts from a metric symptom. Composes characterize-metric-anomaly, query-metrics, and metric-names-list with logs (query-logs) and traces (APM span tools) for cross-signal root-cause correlation.
 ---
+
 # Investigating metric anomalies
 
 The job: go from a metric symptom ("ingestion lag is rising") to a probable cause with evidence, fast. The metric tells you _what_ and _when_; logs and traces tell you _why_. Follow the loop below — it front-loads the cheap, high-information calls and only fans out when the blast radius is unclear.

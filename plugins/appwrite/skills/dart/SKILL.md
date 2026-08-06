@@ -2,6 +2,7 @@
 name: dart
 description: Appwrite Dart SDK skill. Use when building Flutter apps (mobile, web, desktop) or server-side Dart applications with Appwrite. Covers client-side auth (email, OAuth), database queries, file uploads with native file handling, real-time subscriptions, and server-side admin via API keys for user management, database administration, storage, and functions.
 ---
+
 # Appwrite Dart SDK
 
 ## Installation

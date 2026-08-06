@@ -1,8 +1,9 @@
 ---
 name: company-researcher
-description: "Research a company from its URL or description to infer Stripe Connect integration shape"
+description: '"Research a company from its URL or description to infer Stripe Connect integration shape"'
 scope: global
 ---
+
 # Company Researcher Agent
 
 Research a company using its website URL or a text description, then map findings to the Stripe Connect decision matrix. Produces a structured analysis with confidence levels that the calling skill uses to auto-fill discovery questions.

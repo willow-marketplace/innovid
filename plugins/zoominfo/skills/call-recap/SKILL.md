@@ -2,6 +2,7 @@
 name: call-recap
 description: Recap a recent call with a tight summary, the decisions made, action items, and open questions. Name the call (account and/or date) if you know it, or let the skill pull your most recent calls and offer a shortlist to pick from. Uses conversation_intelligence to read what was actually said, with light account_research for deal context. Use when someone says "recap my last call", "what came out of the Acme meeting", "summarize yesterday's call", or needs a post-call writeup. The output adapts to the request — for example decisions-only or action-items-only.
 ---
+
 # Call Recap
 
 Turn a just-finished call into a compact, high-signal recap: what was discussed, what was decided, who owns what, and what is still open.

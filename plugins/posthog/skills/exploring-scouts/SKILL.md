@@ -1,7 +1,8 @@
 ---
 name: exploring-scouts
-description: >
+description: ">"
 ---
+
 # Exploring Signals scouts
 
 A **scout** is a scheduled agent that wakes on its own interval, looks at one PostHog project, decides what's genuinely worth surfacing, and either writes it into the Signals inbox as a **report** or closes out empty (a real, valid outcome).

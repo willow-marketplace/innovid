@@ -2,6 +2,7 @@
 name: bigquery-data-transfer-service
 description: Discovers and inspects BigQuery Data Transfer Service (DTS) configurations.
 ---
+
 # BigQuery Data Transfer Service (DTS)
 
 ## Mandatory Guidelines

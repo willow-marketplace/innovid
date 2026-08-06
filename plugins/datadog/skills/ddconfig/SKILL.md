@@ -2,6 +2,7 @@
 name: ddconfig
 description: Configures or troubleshoots the Datadog MCP server `plugin:datadog:mcp`. Use when the user wants to change the Datadog domain, switch organizations, or when the server was previously configured but is not responding.
 ---
+
 ## Datadog MCP Server
 
 The id of the Datadog MCP Server referenced on this document is `plugin:datadog:mcp`. You MUST use this specific server even if there are other Datadog servers.

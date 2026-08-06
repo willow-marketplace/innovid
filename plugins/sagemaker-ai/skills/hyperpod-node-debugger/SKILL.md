@@ -2,6 +2,7 @@
 name: hyperpod-node-debugger
 description: Diagnose and remediate per-node issues on a HyperPod cluster (EKS or Slurm) — a specific node is unhealthy, unresponsive, stuck, or needs replacing. Covers on-node EFA, GPU / accelerator hardware (XID, ECC, NVLink, row-remap, DCGM), Slurm node down/drained, disk and memory pressure, per-node lifecycle-script failures, SSM agent, container runtime, kernel panics, pod networking. Read-only. Not for cluster-wide provisioning (→ hyperpod-cluster-debugger), NCCL (→ hyperpod-nccl), or MFU (→ hyperpod-mfu-debugger).
 ---
+
 # HyperPod Node Debugger
 
 **Operating policy.** Run read-only diagnostics yourself. Never run a command that changes cluster, node, or workload state — present each one as a **Suggested command (run this yourself)** block and wait for the customer. Destructive order: **investigate → reboot → replace** (replace destroys root + secondary volumes; not supported on Slurm controller nodes). Never discard training state, logs, or caches on speculation.

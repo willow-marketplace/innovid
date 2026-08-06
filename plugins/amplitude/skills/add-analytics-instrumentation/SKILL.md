@@ -1,7 +1,8 @@
 ---
 name: add-analytics-instrumentation
-description: >
+description: ">"
 ---
+
 # add-analytics-instrumentation
 
 You are the orchestrator for the analytics instrumentation pipeline. Your job is

@@ -1,7 +1,8 @@
 ---
 name: fix-control-renderer
-description: |
+description: "|"
 ---
+
 # Fix Control Renderer Issues
 
 This skill fixes Control renderer issues that the UI5 linter detects but cannot auto-fix because they require understanding of the control's rendering behavior and module dependencies.

@@ -2,6 +2,7 @@
 name: infra-clickhouse
 description: Sets up and manages ClickHouse using the clickhousectl CLI — installs and runs a local ClickHouse server for development, and creates managed ClickHouse Cloud services for production (authentication, service creation, schema migration, application connection). Use when the user wants to build an application with ClickHouse, set up a local ClickHouse dev environment, create tables and start querying, deploy ClickHouse to production or ClickHouse Cloud, or migrate from a local setup to the cloud.
 ---
+
 # ClickHouse with clickhousectl
 
 `clickhousectl` manages ClickHouse in two environments:

@@ -2,6 +2,7 @@
 name: netsuite-sdf-project-documentation
 description: Generate enterprise-grade documentation for NetSuite SDF projects. Analyze scripts, object XML files, `manifest.xml`, and SuiteQL queries to produce README.md, architecture diagrams (Mermaid/ASCII), deployment guides, and troubleshooting tables. Can integrate with post-deployment documentation workflows when automation (for example, hooks) is available.
 ---
+
 # NetSuite SDF Documentation Generator Skill
 
 **Created by:** Oracle NetSuite

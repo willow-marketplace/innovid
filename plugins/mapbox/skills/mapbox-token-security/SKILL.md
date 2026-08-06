@@ -2,6 +2,7 @@
 name: mapbox-token-security
 description: Security best practices for Mapbox access tokens, including scope management, URL restrictions, rotation strategies, and protecting sensitive data. Use when creating, managing, or advising on Mapbox token security.
 ---
+
 # Mapbox Token Security Skill
 
 This skill provides security expertise for managing Mapbox access tokens safely and effectively.

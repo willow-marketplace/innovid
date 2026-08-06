@@ -1,7 +1,8 @@
 ---
 name: bigdata-post-ipo-day365
-description: >
+description: ">"
 ---
+
 # Bigdata Post-IPO Day 365 — Founder Lock-Up & Float Expansion
 
 A later **366-day lock-up** tranche releases founder and significant-investor shares, potentially expanding free float toward **15–20%**. Run this note around **day 365** to prepare for the supply increase and the offsetting mechanical demand. Use Bigdata.com plugin tools plus web search.

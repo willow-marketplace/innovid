@@ -1,7 +1,8 @@
 ---
 name: building-workflows
-description: 'Build, edit, test, enable, and monitor PostHog workflows over MCP. Author the action/edge graph so it runs and opens cleanly in the visual editor, then change drafts surgically with patch operations. Use when asked to build, set up, automate, change, fix, or debug a workflow, campaign, broadcast, drip sequence, or event-triggered automation in the workflows product.'
+description: "'Build, edit, test, enable, and monitor PostHog workflows over MCP. Author the action/edge graph so it runs and opens cleanly in the visual editor, then change drafts surgically with patch operations. Use when asked to build, set up, automate, change, fix, or debug a workflow, campaign, broadcast, drip sequence, or event-triggered automation in the workflows product.'"
 ---
+
 # Building workflows
 
 A PostHog **workflow** is a directed graph: a list of **action nodes** (`actions`) wired by **edges** (`edges`), with exactly one `trigger` node that starts every run. You author that graph as JSON and ship it over MCP. Always call it a "workflow" to the user. "Hog flow" is the internal code name (`HogFlow`), not a user-facing term.

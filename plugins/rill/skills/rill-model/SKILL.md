@@ -2,6 +2,7 @@
 name: rill-model
 description: Detailed instructions and examples for developing model resources in Rill
 ---
+
 # Instructions for developing a model in Rill
 
 ## Introduction

@@ -1,7 +1,8 @@
 ---
 name: elastic-beanstalk
-description: "Deploy to AWS Elastic Beanstalk. Triggers on: elastic beanstalk, EB, managed EC2 platform, web app with managed patching, worker on EC2, Heroku alternative, don't want to manage servers or container orchestration, migrate from Heroku, managed operational lifecycle. Covers Elastic Beanstalk on EC2 for web and worker applications."
+description: "\"Deploy to AWS Elastic Beanstalk. Triggers on: elastic beanstalk, EB, managed EC2 platform, web app with managed patching, worker on EC2, Heroku alternative, don't want to manage servers or container orchestration, migrate from Heroku, managed operational lifecycle. Covers Elastic Beanstalk on EC2 for web and worker applications.\""
 ---
+
 # Elastic Beanstalk
 
 Deploy web and worker applications to production on AWS with full lifecycle

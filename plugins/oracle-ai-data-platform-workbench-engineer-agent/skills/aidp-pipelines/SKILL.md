@@ -2,6 +2,7 @@
 name: aidp-pipelines
 description: Author, schedule, run, and monitor AIDP Jobs (task DAGs of notebooks/python with cron). Use when the user wants to build a pipeline, create/update/run a Job, schedule a recurring run, check a run's status, read a task's output, or cancel a run.
 ---
+
 # `aidp-pipelines` — AIDP Jobs (build, schedule, run, monitor)
 
 Author and operate AIDP Jobs — task DAGs over notebooks/python with optional cron — and watch their runs.

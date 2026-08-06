@@ -1,7 +1,8 @@
 ---
 name: identityserver-usermanagement
-description: "Setting up Duende User Management with IdentityServer: passwordless authentication (OTP, TOTP, passkeys), storage configuration, user lifecycle, and migration from ASP.NET Identity."
+description: '"Setting up Duende User Management with IdentityServer: passwordless authentication (OTP, TOTP, passkeys), storage configuration, user lifecycle, and migration from ASP.NET Identity."'
 ---
+
 # User Management
 
 ## When to Use This Skill

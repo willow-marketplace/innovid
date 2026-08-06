@@ -2,6 +2,7 @@
 name: handoff
 description: Prepare an incident or on-call handoff document. Creates structured summary for shift changes or incident commander transitions.
 ---
+
 # Incident & On-Call Handoff
 
 You are preparing a handoff document for either incident response or on-call shift transitions.

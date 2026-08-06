@@ -2,6 +2,7 @@
 name: tech-stack-snapshot
 description: Produce a technology-stack snapshot for one or more companies — what CRM, marketing automation, sales engagement, data warehouse, analytics, conversation intelligence, and other tools they have tagged in ZoomInfo's database. Groups detected products by category, surfaces displacement plays for competitive tools, integration angles for partner tools, and coverage gaps honestly. Resolves mixed-identifier inputs (IDs / names / domains) with explicit ambiguity surfacing. Useful for sales prospecting, account-based selling, competitive battle-card prep, integration partner research, technographic signal analysis, B2B prospecting. Triggers on phrases like "what tech does X use", "tech stack for", "technographic snapshot", "what's in their stack", "do they use Salesforce", "competitive displacement angle".
 ---
+
 # Tech Stack Snapshot
 
 Per-company tech-stack snapshot grouped by category, with displacement angles for competitive tools and integration angles for partner tools — anchored on the user's GTM context. Resolves mixed-identifier inputs, queries `search_companies` with `techAttributeTagList` to check each product in a curated universe, and presents both the detected stack and the gaps honestly.

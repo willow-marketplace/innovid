@@ -2,6 +2,7 @@
 name: genai-tracing
 description: Trace and evaluate GenAI applications including LLM calls, agents, RAG pipelines, and multi-step AI systems in Domino. Uses the Domino SDK (@add_tracing decorator, DominoRun context) with MLflow 3.2.0. Captures token usage, latency, cost, tool calls, and errors. Supports LLM-as-judge evaluators and custom metrics. Use when building agents, debugging LLM applications, or needing audit trails for GenAI systems.
 ---
+
 # Domino GenAI Tracing Skill
 
 This skill provides comprehensive knowledge for tracing and evaluating GenAI applications in Domino Data Lab, including LLM calls, agents, RAG pipelines, and multi-step AI systems.

@@ -2,6 +2,7 @@
 name: pr-to-video
 description: pr-to-video workflow - a GitHub pull request (URL like github.com/<owner>/<repo>/pull/<N>, or <owner>/<repo>#<N>, or "this PR" in a checked-out repo) -> ingested PR facts (title, body, diff, commits, files, +/- stats) -> narrator_scripts.json + audio (voice + BGM) + section_plan.md -> code-diff / before-after / impact explainer video. Input is a CODE CHANGE. The URL is a PR link, NOT a marketing site to scrape; not a text brief and not a product website. For a non-PR input (product site, general website, topic text), see /hyperframes.
 ---
+
 # pr-to-video - dispatch entry
 
 Input is a **GitHub pull request** (a code change), supplied as a PR URL, an `<owner>/<repo>#<N>` ref, or "this PR" while a repo with an open PR is checked out. Output is a **code-change explainer**: what shipped, why, and how it works — rendered from the diff/commits as before-after, diff-highlight, file-tree, and impact scenes. Default length **up to ~3 min** (sweet spot ~30-90s); a genuinely longer or exhaustive every-file walkthrough (5 min+) is a different register → `/general-video`. There is **no website scrape and no headless Chrome for ingest** — ingest is the `gh` CLI. The shipped style preset is always **claude** (warm editorial; signature navy code window).

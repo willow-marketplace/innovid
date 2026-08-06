@@ -2,6 +2,7 @@
 name: ai-gateway
 description: Access external LLM providers through Domino AI Gateway - a secure proxy with centralized API key management, usage monitoring, and compliance. Supports OpenAI, AWS Bedrock, Azure OpenAI, Anthropic, and more. Use when calling LLMs from Domino, configuring AI Gateway endpoints, or monitoring LLM usage and costs.
 ---
+
 # Domino AI Gateway Skill
 
 ## Description

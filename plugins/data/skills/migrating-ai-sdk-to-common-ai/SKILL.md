@@ -2,6 +2,7 @@
 name: migrating-ai-sdk-to-common-ai
 description: Migrates Airflow projects from airflow-ai-sdk to apache-airflow-providers-common-ai 0.4.0+. Use when replacing airflow-ai-sdk with the official Airflow AI provider - migrating LLM decorators (@task.llm, @task.agent, @task.llm_branch, @task.embed), switching from model strings/objects to connection-based LLM configuration, updating imports from airflow_ai_sdk to the new provider, or upgrading an existing common-ai 0.1.x setup to 0.4.x (multimodal prompts, toolsets, embedding operators); also when common-ai provider, AIP-99, a pydanticai connection or migrating away from airflow-ai-sdk come up.
 ---
+
 # Migrate airflow-ai-sdk to apache-airflow-providers-common-ai
 
 This skill migrates Airflow projects from `airflow-ai-sdk` to `apache-airflow-providers-common-ai` (target **0.4.0+**), the official Airflow AI provider built on PydanticAI. It also covers upgrading projects already on common-ai 0.1.x, since several capabilities (multimodal prompts, `toolsets`, embedding operators, structured-output XCom behavior) changed between 0.1.0 and 0.4.0.

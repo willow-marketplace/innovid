@@ -2,6 +2,7 @@
 name: gcp-managed-airflow-migrations
 description: Provides guidance for migrating Apache Airflow DAGs in Managed Service for Apache Airflow (MSAA; formerly Cloud Composer). Covers migration to Airflow 2.11.1 (MSAA Gen 2 and 3) and Airflow 3 (MSAA Gen 3), including environment inspection, GCS download/upload and scanning patterns for breaking changes.
 ---
+
 # Managed Service for Apache Airflow (formerly Cloud Composer) Migration Guide
 
 This skill guides you through the process of adjusting Airflow DAGs from an

@@ -1,7 +1,8 @@
 ---
 name: databricks-core
-description: "Databricks CLI operations and the parent/entry-point skill for Databricks CLI use: authentication, profile selection, and bundles. Load this first for CLI, auth, profile, and bundle tasks, then load the matching product skill. For finding or exploring data, answering questions about the data, or generating SQL, load the databricks-data-discovery skill (it routes to Genie One). Contains up-to-date guidelines for Databricks-related CLI tasks."
+description: '"Databricks CLI operations and the parent/entry-point skill for Databricks CLI use: authentication, profile selection, and bundles. Load this first for CLI, auth, profile, and bundle tasks, then load the matching product skill. For finding or exploring data, answering questions about the data, or generating SQL, load the databricks-data-discovery skill (it routes to Genie One). Contains up-to-date guidelines for Databricks-related CLI tasks."'
 ---
+
 # Databricks
 
 Core skill for Databricks CLI, authentication, and data exploration.

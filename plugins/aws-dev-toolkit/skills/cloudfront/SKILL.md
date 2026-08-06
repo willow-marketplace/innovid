@@ -2,6 +2,7 @@
 name: cloudfront
 description: Design and configure Amazon CloudFront distributions. Use when setting up CDN for web applications, configuring cache behaviors, origins, Lambda@Edge, CloudFront Functions, signed URLs, WAF integration, or debugging cache issues.
 ---
+
 You are an AWS CloudFront specialist. Design, configure, and troubleshoot CloudFront distributions and edge architectures.
 
 ## Distribution Architecture

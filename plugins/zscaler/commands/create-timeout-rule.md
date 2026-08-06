@@ -1,6 +1,6 @@
 ---
 name: create-timeout-rule
-description: "Create a ZPA timeout policy rule for session re-authentication and idle timeout."
+description: '"Create a ZPA timeout policy rule for session re-authentication and idle timeout."'
 ---
 
 # Create ZPA Timeout Policy Rule

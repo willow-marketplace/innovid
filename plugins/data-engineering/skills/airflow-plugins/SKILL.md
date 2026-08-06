@@ -2,6 +2,7 @@
 name: airflow-plugins
 description: Builds Airflow 3.1+ plugins that embed FastAPI apps, custom UI pages, React components, middleware, macros, and operator links directly into the Airflow UI. Use when building anything custom inside Airflow 3.1+ that involves Python and a browser-facing interface - creating an Airflow plugin, adding a custom UI page or nav entry, building FastAPI-backed endpoints inside Airflow, serving static assets from a plugin, embedding a React app, adding middleware to the API server, creating custom operator extra links, or calling the Airflow REST API from inside a plugin; also when AirflowPlugin, fastapi_apps, external_views, react_apps, or plugin registration come up.
 ---
+
 # Airflow 3 Plugins
 
 Airflow 3 plugins let you embed FastAPI apps, React UIs, middleware, macros, operator buttons, and custom timetables directly into the Airflow process. No sidecar, no extra server.

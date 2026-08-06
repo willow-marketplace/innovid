@@ -1,7 +1,8 @@
 ---
 name: qt-qml-review
-description: >-
+description: ">-"
 ---
+
 # Qt QML Code Review
 
 A structured, read-only code review skill for Qt6 QML code that

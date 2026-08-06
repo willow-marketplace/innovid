@@ -2,6 +2,7 @@
 name: store-pulse
 description: An instant, at-a-glance read on your store's health from the last 24 hours — with the option to save it as a live Cowork dashboard artifact or schedule a recurring report. Use to check on how the overall store is doing, save a live dashboard, or schedule a recurring summary.
 ---
+
 # Store Pulse
 
 Daily-driver ecommerce snapshot. Every invocation leads with a fresh inline answer (24h

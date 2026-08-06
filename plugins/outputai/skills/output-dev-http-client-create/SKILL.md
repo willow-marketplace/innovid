@@ -2,6 +2,7 @@
 name: output-dev-http-client-create
 description: Create shared HTTP clients in src/shared/clients/ for Output SDK workflows. Use when integrating external APIs, creating service wrappers, or standardizing HTTP operations.
 ---
+
 # Creating HTTP Clients
 
 ## Overview

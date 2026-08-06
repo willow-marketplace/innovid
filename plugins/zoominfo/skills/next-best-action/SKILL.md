@@ -2,6 +2,7 @@
 name: next-best-action
 description: Recommend the next best action on a deal or relationship, grounded in the current conversation state. Uses conversation_intelligence as the primary source, with account_research for deal context. Identify the account or contact by ZoomInfo ID (preferred) or name (triggers a lookup), or point it at a specific engagement. Use when someone asks "what should I do next with Acme", "what's my next move here", "how do I advance this deal", or wants an evidence-based recommendation rather than a generic playbook. Reasons over the last few engagements only.
 ---
+
 # Next-Best-Action
 
 Read the current state of the conversation and recommend the one or two moves most likely to advance it.

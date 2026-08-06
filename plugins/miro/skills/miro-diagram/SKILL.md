@@ -2,6 +2,7 @@
 name: miro-diagram
 description: Use when the user wants to create or update a diagram on a Miro board.
 ---
+
 # Miro Diagram
 
 Shortcut to the Miro MCP diagramming tools.

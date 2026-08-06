@@ -2,6 +2,7 @@
 name: sonar-coverage
 description: Find files with low test coverage and inspect uncovered lines in a SonarQube project (project key optional when MCP integration already defines the default project)
 ---
+
 # SonarQube — Coverage
 
 Identify files with insufficient test coverage and pinpoint the exact lines that need tests.

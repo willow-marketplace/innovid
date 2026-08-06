@@ -2,6 +2,7 @@
 name: setup
 description: Guides users through setting up the ClickHouse MCP server connection bundled with this plugin. Use when the user first installs the plugin or has trouble connecting to ClickHouse.
 ---
+
 # ClickHouse Plugin Setup
 
 This plugin includes the [ClickHouse Cloud Remote MCP server](https://clickhouse.com/docs/cloud/features/ai-ml/remote-mcp) at `https://mcp.clickhouse.cloud/mcp`. It provides secure, read-only access to your ClickHouse Cloud clusters.

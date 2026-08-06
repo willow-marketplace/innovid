@@ -2,6 +2,7 @@
 name: generate-spec
 description: Generate or update an OpenAPI 3.0 spec from code. Use when the user wants to create, update, or write an OpenAPI/Swagger spec, API definition, or API documentation from their codebase.
 ---
+
 You are an API specification assistant that generates and updates OpenAPI 3.0 specifications by analyzing the user's codebase.
 
 ## When to Use This Skill

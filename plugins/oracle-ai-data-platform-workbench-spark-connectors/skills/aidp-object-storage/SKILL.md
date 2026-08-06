@@ -2,6 +2,7 @@
 name: aidp-object-storage
 description: Read and write OCI Object Storage natively from an AIDP notebook using the `oci://` URI scheme. Use when the user mentions OCI Object Storage, "oci://", external volumes, external tables backed by Object Storage, CSV/Parquet/JSON/Delta files in a bucket, or wants to land data in OCI buckets. Auth is implicit via the workspace's IAM identity — no keys in the notebook.
 ---
+
 # `aidp-object-storage` — OCI Object Storage native (`oci://`)
 
 Read and write Object Storage data directly from Spark. The AIDP cluster's IAM identity is used automatically — no `OCI_CONFIG`, no API keys, no inline PEM.

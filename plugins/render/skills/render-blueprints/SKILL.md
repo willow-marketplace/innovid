@@ -1,7 +1,8 @@
 ---
 name: render-blueprints
-description: >-
+description: ">-"
 ---
+
 # Render Blueprints (render.yaml)
 
 Blueprints define Render infrastructure as YAML (commonly `render.yaml` at the repo root). This skill focuses on **authoring**, **wiring**, **projects/environments**, **previews**, **validation**, and **immutable fields**. Heavy detail lives under `references/`.

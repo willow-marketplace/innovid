@@ -3,6 +3,7 @@ name: error-analyzer
 description: Analyze multiple PostHog errors in parallel to identify patterns, root causes, and prioritize fixes based on user impact.
 scope: global
 ---
+
 # PostHog Error Analyzer Agent
 
 Analyze multiple errors from PostHog to identify patterns and prioritize fixes.

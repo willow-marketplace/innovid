@@ -2,6 +2,7 @@
 name: migrate-optimizely
 description: Migrate feature flags from Optimizely to Confidence SDK. Use when the user says /migrate-optimizely, asks to migrate Optimizely flags/rollouts/experiments, or transform Optimizely SDK code to Confidence.
 ---
+
 # Optimizely to Confidence Migration
 
 REST-driven, self-sufficient migration from Optimizely Feature

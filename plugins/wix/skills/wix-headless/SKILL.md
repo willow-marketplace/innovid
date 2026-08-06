@@ -1,7 +1,8 @@
 ---
 name: wix-headless
-description: "Connect Wix business services (Stores, Bookings, CMS, Blog, Events, Forms, and more) to a Wix Headless frontend — infer the needed capabilities, install the apps, seed backend content, and produce an SDK-integration guide. For managed (Wix-hosted) projects it can also build the frontend: scaffold a new site (create) or wire an existing/brought-in design (connect), then build and release. Works across managed, self-managed, and stripe project types. Triggers: set up a Wix Headless backend, add Wix business features to my app, build or host a Wix site, connect/implement this design with Wix."
+description: '"Connect Wix business services (Stores, Bookings, CMS, Blog, Events, Forms, and more) to a Wix Headless frontend — infer the needed capabilities, install the apps, seed backend content, and produce an SDK-integration guide. For managed (Wix-hosted) projects it can also build the frontend: scaffold a new site (create) or wire an existing/brought-in design (connect), then build and release. Works across managed, self-managed, and stripe project types. Triggers: set up a Wix Headless backend, add Wix business features to my app, build or host a Wix site, connect/implement this design with Wix."'
 ---
+
 # Wix Headless
 
 This skill connects **Wix business services** to a **Wix Headless frontend**. Its core job is to **configure the Wix backend**: infer the needed capabilities, **install the Wix apps**, **seed the backend content**, and produce an SDK-integration guide describing how to call Wix from the frontend.

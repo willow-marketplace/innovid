@@ -2,6 +2,7 @@
 name: mp-webhooks
 description: Configure and validate Mercado Pago webhooks. Wraps the MCP webhook tools (save_webhook, notifications_history) and provides the HMAC-SHA256 signature validation pattern that every receiver must implement. Use when adding, debugging, or hardening notification handling.
 ---
+
 # mp-webhooks
 
 This skill is for everything notifications. It is the only place where the HMAC validation pattern lives — every other skill defers here.

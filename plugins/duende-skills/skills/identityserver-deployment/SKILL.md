@@ -1,7 +1,8 @@
 ---
 name: identityserver-deployment
-description: "Guide for deploying Duende IdentityServer to production, covering reverse proxy configuration, data protection, health checks, distributed caching, multi-instance deployment, OpenTelemetry integration, logging, and common deployment pitfalls."
+description: '"Guide for deploying Duende IdentityServer to production, covering reverse proxy configuration, data protection, health checks, distributed caching, multi-instance deployment, OpenTelemetry integration, logging, and common deployment pitfalls."'
 ---
+
 # IdentityServer Deployment, Proxies, and Production Readiness
 
 ## When to Use This Skill

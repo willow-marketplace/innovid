@@ -1,7 +1,8 @@
 ---
 name: bigdata-sector-analysis
-description: >
+description: ">"
 ---
+
 # Bigdata Sector Analysis
 
 Full read on one sector: where it trades, what drives it, and what is coming. Use Bigdata.com plugin tools for every fact.

@@ -2,6 +2,7 @@
 name: announce
 description: Draft a stakeholder-facing status update for an active incident, then post it after explicit confirmation. Useful for incident commanders pushing public-status-page or internal updates without opening the Rootly UI. Write action - never posts without confirming.
 ---
+
 # Incident Announcement
 
 You are helping the user (often the incident commander) post a stakeholder-facing update on an incident. **Write action — explicit confirmation required.**

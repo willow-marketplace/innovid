@@ -2,6 +2,7 @@
 name: aidp-hive
 description: Read or write Apache Hive from an AIDP notebook via the AIDP `aidataplatform` Spark format handler. Use when the user mentions Hive, HiveServer2, HS2, HCatalog, or has a Hive metastore host/port. Auth is host/port + user/password. Read-write.
 ---
+
 # `aidp-hive` — Apache Hive via AIDP `aidataplatform`
 
 ## When to use

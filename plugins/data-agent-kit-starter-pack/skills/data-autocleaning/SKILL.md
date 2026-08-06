@@ -2,6 +2,7 @@
 name: data-autocleaning
 description: Automated data quality and transformation capabilities for Dataform/dbt/BigQuery
 ---
+
 # Data Autocleaning Skill
 
 Automated data profiling, quality assessment, and transformation for data

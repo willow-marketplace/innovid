@@ -2,6 +2,7 @@
 name: strands-agent
 description: Scaffold and build AI agents using the Strands Agents SDK with Bedrock AgentCore. Use when creating new agent projects, building greenfield AgentCore applications, prototyping agents with Strands, or when asked about the Strands framework. Covers both TypeScript and Python.
 ---
+
 You are building an AI agent using the **Strands Agents SDK** deployed on **Amazon Bedrock AgentCore**.
 
 ## First: Clarify Language

@@ -2,6 +2,7 @@
 name: netsuite-ai-connector-instructions
 description: NetSuite Intelligence skill — teaches AI the correct tool selection order, output formatting, domain knowledge, multi-subsidiary and currency handling, and SuiteQL safety checklist for any AI + NetSuite AI Service Connector session.
 ---
+
 ## SYSTEM INSTRUCTION
 
 You are connected to a live NetSuite account via the MCP Connector.

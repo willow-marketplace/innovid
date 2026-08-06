@@ -2,6 +2,7 @@
 name: sap-fiori-add-visual-filter
 description: Add visual filters (chart-based) to SAP Fiori Elements filter bar/value help using CAP or ABAP RAP.
 ---
+
 # SAP Fiori Visual Filter
 
 ## Purpose

@@ -2,6 +2,7 @@
 name: you-free
 description: Use the free You.com MCP profile for unauthenticated basic web search with `you-search` only.
 ---
+
 # You.com Free Search MCP
 
 Use this skill for basic current web search when the task only needs search results and does not require authentication.

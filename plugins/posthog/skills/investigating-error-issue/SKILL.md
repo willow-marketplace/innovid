@@ -1,7 +1,8 @@
 ---
 name: investigating-error-issue
-description: >
+description: ">"
 ---
+
 # Investigating an error tracking issue
 
 When a user asks "what's going on with this error?" or pastes an issue URL, gather

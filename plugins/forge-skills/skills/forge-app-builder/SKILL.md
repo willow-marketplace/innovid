@@ -2,6 +2,7 @@
 name: forge-app-builder
 description: Guides building, deploying, troubleshooting, and installing Atlassian Forge apps — custom extensions built with the Forge CLI (forge create, forge deploy, forge install). Use when the user wants to create a Forge app (issue panels, dashboard gadgets, Confluence macros, global pages), is encountering Forge CLI errors or deployment issues (e.g. forge install failures, environment errors), or needs help with Forge-specific concepts like resolvers, UI Kit, manifest scopes, or developer spaces. Do not use for general Jira configuration, automation rules, JQL queries, or Atlassian REST API usage outside of a Forge app context.
 ---
+
 # Forge App Builder
 
 **When building a Forge app, the agent MUST complete this workflow in order. Do not skip steps. Do not substitute manual instructions for running the scripts below.**

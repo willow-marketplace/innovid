@@ -2,6 +2,7 @@
 name: data-connectivity
 description: Connect Domino workloads to external data sources including AWS S3 (via Mountpoint CSI driver), credential propagation with AWS IRSA and Azure Entra ID, and External Data Volumes. Use when configuring S3 access, setting up credential propagation, or connecting to cloud data sources from Domino.
 ---
+
 # Domino Data Connectivity Skill
 
 This skill provides comprehensive knowledge for connecting Domino workloads to external data sources, including AWS S3, Azure storage, and credential propagation.

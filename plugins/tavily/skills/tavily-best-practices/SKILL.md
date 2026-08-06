@@ -1,7 +1,8 @@
 ---
 name: tavily-best-practices
-description: "Build production-ready Tavily integrations with best practices baked in. Reference documentation for developers using coding assistants (Claude Code, Cursor, etc.) to implement web search, content extraction, crawling, and research in agentic workflows, RAG systems, or autonomous agents."
+description: '"Build production-ready Tavily integrations with best practices baked in. Reference documentation for developers using coding assistants (Claude Code, Cursor, etc.) to implement web search, content extraction, crawling, and research in agentic workflows, RAG systems, or autonomous agents."'
 ---
+
 # Tavily
 
 Tavily is a search API designed for LLMs, enabling AI applications to access real-time web data.

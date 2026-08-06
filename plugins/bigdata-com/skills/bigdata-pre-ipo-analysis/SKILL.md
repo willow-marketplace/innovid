@@ -1,7 +1,8 @@
 ---
 name: bigdata-pre-ipo-analysis
-description: >
+description: ">"
 ---
+
 # Bigdata Pre-IPO Analysis
 
 Institutional-style research note on an **upcoming** listing. Use Bigdata.com plugin tools plus web search for filings and market data.

@@ -1,7 +1,8 @@
 ---
 name: idmp-dashboard
-description: "IDMP dashboard skill for listing dashboards, reading details, updating layout and order, templating stable dashboards, and keeping dashboard lifecycle separate from panel lifecycle."
+description: '"IDMP dashboard skill for listing dashboards, reading details, updating layout and order, templating stable dashboards, and keeping dashboard lifecycle separate from panel lifecycle."'
 ---
+
 # dashboard
 
 **Read [`../idmp-shared/SKILL.md`](../idmp-shared/SKILL.md) first.**

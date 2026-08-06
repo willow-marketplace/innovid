@@ -1,7 +1,8 @@
 ---
 name: ui5-best-practices
-description: |
+description: "|"
 ---
+
 # UI5 Best Practices and Coding Standards
 
 ## Overview

@@ -2,6 +2,7 @@
 name: sonar-fix-issue
 description: Fix a specific SonarQube issue in code by rule key and location
 ---
+
 # SonarQube — Fix Issue
 
 Fix a code quality or security issue identified by SonarQube.

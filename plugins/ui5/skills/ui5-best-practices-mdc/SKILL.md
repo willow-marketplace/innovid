@@ -1,7 +1,8 @@
 ---
 name: ui5-best-practices-mdc
-description: |
+description: "|"
 ---
+
 # UI5 MDC Controls Best Practices
 
 Apply these guidelines whenever generating, reviewing, or troubleshooting MDC control code in freestyle applications using OData V4 services.

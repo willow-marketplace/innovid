@@ -1,7 +1,8 @@
 ---
 name: forge-security-review
-description: >
+description: ">"
 ---
+
 # Forge Security Review
 
 Runs a Forge-focused white-box security review and reports validated findings with exploitability, impact, evidence, and remediation guidance.

@@ -2,6 +2,7 @@
 name: commitment-ledger
 description: Build a ledger of what we promised versus what they promised, and what is still outstanding, across the last few engagements with an account or contact. Uses conversation_intelligence as the primary source. Identify the account or contact by ZoomInfo ID (preferred) or name (triggers a lookup), or point it at specific calls. Use when someone asks "what did we commit to", "what are they supposed to send us", "what's still outstanding with this account", or wants an accountability check before a follow-up. Covers the last few engagements only, not full history.
 ---
+
 # Commitment Ledger
 
 A two-sided accounting of promises across recent conversations: ours, theirs, and what is still open.

@@ -1,7 +1,8 @@
 ---
 name: idmp-uom
-description: "IDMP unit-of-measure skill. Use it to inspect UOM classes, class-scoped units, free UOM lookup, search, and conversion, while keeping `get` and `get-get` clearly separated."
+description: '"IDMP unit-of-measure skill. Use it to inspect UOM classes, class-scoped units, free UOM lookup, search, and conversion, while keeping `get` and `get-get` clearly separated."'
 ---
+
 # uom
 
 **Read [`../idmp-shared/SKILL.md`](../idmp-shared/SKILL.md) first.**

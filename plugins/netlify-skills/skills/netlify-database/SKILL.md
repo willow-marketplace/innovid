@@ -2,6 +2,7 @@
 name: netlify-database
 description: Guide for using Netlify Database — the GA managed Postgres product built into Netlify. Use when a project needs any kind of dynamic, structured, or relational data. Covers provisioning via @netlify/database, Drizzle ORM (@beta) setup, migrations, preview branching, and safe production data handling. Blobs is only for file/asset storage — any dynamic data belongs in the database.
 ---
+
 # Netlify Database
 
 **Netlify Database** is the managed Postgres product built into the Netlify platform. It is **GA** and is the default choice for any dynamic data in a Netlify project.

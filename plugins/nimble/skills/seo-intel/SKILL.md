@@ -1,21 +1,23 @@
 ---
 name: seo-intel
-description: SEO intelligence toolkit covering the full lifecycle via live web data:
-keyword research, rank tracking, site audits, content gap analysis,
-competitor keyword reverse-engineering, AI visibility across five platforms
-(ChatGPT, Perplexity, Google AI, Gemini, Grok), and GitHub repo SEO.
-Crawls real sites and SERPs via Nimble CLI — no fabricated metrics.
+description: |-
+  SEO intelligence toolkit covering the full lifecycle via live web data:
+  keyword research, rank tracking, site audits, content gap analysis,
+  competitor keyword reverse-engineering, AI visibility across five platforms
+  (ChatGPT, Perplexity, Google AI, Gemini, Grok), and GitHub repo SEO.
+  Crawls real sites and SERPs via Nimble CLI — no fabricated metrics.
 
-Triggers: "SEO", "keywords", "rank tracker", "site audit", "content gap",
-"competitor keywords", "AI visibility", "GitHub SEO", "SERP analysis",
-"keyword research", "technical SEO", "keyword difficulty", "topic
-clusters", "ranking delta", "on-page SEO", "AI citation audit".
+  Triggers: "SEO", "keywords", "rank tracker", "site audit", "content gap",
+  "competitor keywords", "AI visibility", "GitHub SEO", "SERP analysis",
+  "keyword research", "technical SEO", "keyword difficulty", "topic
+  clusters", "ranking delta", "on-page SEO", "AI citation audit".
 
-Do NOT use for competitor business signals — use `competitor-intel`
-instead. Do NOT use for competitor messaging — use
-`competitor-positioning` instead. Do NOT use for general web scraping
-— use `nimble-web-expert` instead.
+  Do NOT use for competitor business signals — use `competitor-intel`
+  instead. Do NOT use for competitor messaging — use
+  `competitor-positioning` instead. Do NOT use for general web scraping
+  — use `nimble-web-expert` instead.
 ---
+
 # SEO Intelligence Toolkit
 
 All-in-one SEO intelligence: keyword discovery, rank tracking, technical audits,

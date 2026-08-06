@@ -2,6 +2,7 @@
 name: aidp-workspace-admin
 description: Provision and inspect AIDP DataLake instances and workspaces, including private-network workspaces attached to a customer VCN/subnet. Use when the user wants to create/list/get a workspace or DataLake instance, set up a new (e.g. private) AIDP environment, or replicate a customer setup. Create/delete are guarded — confirm before any provisioning.
 ---
+
 # `aidp-workspace-admin` — instance & workspace provisioning
 
 Provision and inspect AIDP DataLake instances and workspaces via the AIDP control-plane. Covers the

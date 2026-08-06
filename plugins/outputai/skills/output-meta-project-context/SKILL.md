@@ -2,6 +2,7 @@
 name: output-meta-project-context
 description: Comprehensive guide to Output.ai Framework for building durable, LLM-powered workflows orchestrated by Temporal. Covers project structure, workflow patterns, steps, LLM integration, HTTP clients, CLI commands, and the full inventory of available agents and skills.
 ---
+
 # Output.ai Framework - Complete Project Context
 
 ## What is Output.ai?

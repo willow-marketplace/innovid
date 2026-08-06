@@ -2,6 +2,7 @@
 name: rill-canvas
 description: Detailed instructions and examples for developing canvas dashboard resources in Rill
 ---
+
 # Instructions for developing a canvas dashboard in Rill
 
 ## Introduction

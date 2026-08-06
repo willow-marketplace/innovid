@@ -1,7 +1,8 @@
 ---
 name: aws-iam
-description: >
+description: ">"
 ---
+
 # AWS IAM — Common Pitfalls
 
 ## About This Skill

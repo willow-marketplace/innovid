@@ -1,7 +1,8 @@
 ---
 name: checkout-analysis
-description: "Analyze checkout performance and health using Noibu data. Use when you want to know where shoppers drop off in the checkout funnel, what payment or delivery methods customers are using, why completion rates are low, what priority errors are hurting checkout, or how cart and order values benchmark."
+description: '"Analyze checkout performance and health using Noibu data. Use when you want to know where shoppers drop off in the checkout funnel, what payment or delivery methods customers are using, why completion rates are low, what priority errors are hurting checkout, or how cart and order values benchmark."'
 ---
+
 # Noibu Checkout Performance & Health Analysis
 
 Surfaces where shoppers drop off in checkout and what to do about it, as a ranked

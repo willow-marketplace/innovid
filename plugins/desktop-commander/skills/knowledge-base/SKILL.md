@@ -1,7 +1,8 @@
 ---
 name: knowledge-base
-description: >-
+description: ">-"
 ---
+
 # Knowledge Base (Markdown, agent-readable)
 
 A knowledge base (KB) here is a folder of Markdown files designed so **any** AI

@@ -1,7 +1,8 @@
 ---
 name: setting-up-support-slack-locally
-description: >
+description: ">"
 ---
+
 # Setting up Support Slack locally
 
 Slack is SaaS-only, so "local" means a throwaway Slack workspace + app whose OAuth and events reach your

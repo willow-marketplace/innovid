@@ -1,6 +1,6 @@
 ---
 name: troubleshoot-experience
-description: "Troubleshoot a user's digital experience using ZDX scores, metrics, and network path data."
+description: "\"Troubleshoot a user's digital experience using ZDX scores, metrics, and network path data.\""
 ---
 
 # Troubleshoot User Experience (ZDX)

@@ -2,6 +2,7 @@
 name: ruby
 description: Appwrite Ruby SDK skill. Use when building server-side Ruby applications with Appwrite, including Rails and Sinatra integrations. Covers user management, database/table CRUD, file storage, and functions via API keys.
 ---
+
 # Appwrite Ruby SDK
 
 ## Installation

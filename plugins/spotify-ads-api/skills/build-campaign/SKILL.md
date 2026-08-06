@@ -2,6 +2,7 @@
 name: build-campaign
 description: Create a full campaign (campaign + ad sets + ads) from a plain-text description. Parses natural language into structured API calls. Prefers the draft workflow for safer creation with batch validation.
 ---
+
 # Spotify Ads API — Full Campaign Builder
 
 Given a plain-text description of an advertising campaign, parse it into structured API

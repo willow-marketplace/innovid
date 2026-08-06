@@ -2,6 +2,7 @@
 name: datarobot-setup
 description: Sets up DataRobot for local development including Python SDK, dr-cli, Agent Assist, and all required dependencies. Use when the user has not yet worked with DataRobot on this machine, OR when any DataRobot task fails due to missing or invalid credentials. Covers first-time setup, re-authentication, and credential recovery.
 ---
+
 # DataRobot Local Development Setup
 
 You are helping set up DataRobot for local development. Before installing anything, audit what is already present and only install what is missing. Follow these steps in order.

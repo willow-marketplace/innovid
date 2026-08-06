@@ -2,6 +2,7 @@
 name: find-similar
 description: Find companies or contacts similar to a given reference. Provide a company name/domain or a person's name/email and get a ranked list of lookalikes scored by similarity. Useful for territory expansion, TAM analysis, competitive mapping, expanding buyer networks, and building targeted prospecting lists.
 ---
+
 # Find Similar
 
 Find companies or contacts similar to a reference entity using ZoomInfo's ML-powered similarity model.

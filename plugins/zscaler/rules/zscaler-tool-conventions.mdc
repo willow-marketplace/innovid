@@ -2,6 +2,7 @@
 description: Zscaler MCP tool naming, discovery, and usage conventions for the Zero Trust Exchange.
 alwaysApply: true
 ---
+
 # Zscaler MCP tool conventions
 
 When working with Zscaler MCP tools:

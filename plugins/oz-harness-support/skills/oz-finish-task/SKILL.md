@@ -2,6 +2,7 @@
 name: oz-finish-task
 description: Report task completion or failure back to the Oz platform when done with a task.
 ---
+
 When your task is complete, report the outcome by running:
 
 ```sh

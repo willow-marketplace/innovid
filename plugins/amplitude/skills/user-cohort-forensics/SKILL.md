@@ -2,6 +2,7 @@
 name: user-cohort-forensics
 description: Investigates individual users and user populations in Amplitude — resolve users by email/ID, read profiles, batch-analyze event timelines, spot-check cohort membership. Use for "what did user X do", attribution audits, population sampling, and email-to-user-ID resolution.
 ---
+
 # User & Cohort Forensics
 
 ## The arcs

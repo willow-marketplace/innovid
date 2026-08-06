@@ -1,7 +1,8 @@
 ---
 name: search-deals
-description: >
+description: ">"
 ---
+
 ## Overview
 
 Search for deals in the Carta CRM. If the user provided an ID, fetch that deal

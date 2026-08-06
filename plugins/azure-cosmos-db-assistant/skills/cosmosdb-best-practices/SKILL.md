@@ -1,7 +1,8 @@
 ---
 name: cosmosdb-best-practices
-description: |
+description: "|"
 ---
+
 # Azure Cosmos DB Best Practices
 
 Comprehensive performance optimization guide for Azure Cosmos DB applications, containing

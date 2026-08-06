@@ -2,6 +2,7 @@
 name: grafana-mcp-tools
 description: Install, configure, and use the Grafana MCP server effectively. Covers setup via Docker or binary, environment variables, tool categories, RBAC, and best practices for context window management. Use when the user wants to set up mcp-grafana, configure Grafana MCP tools, or needs guidance on which MCP tool to use.
 ---
+
 # Grafana MCP Server
 
 MCP server exposing 50+ Grafana API tools. Supports Grafana 9.0+ (local and Grafana Cloud).

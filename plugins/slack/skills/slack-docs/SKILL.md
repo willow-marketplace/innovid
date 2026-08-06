@@ -1,7 +1,8 @@
 ---
 name: slack-docs
-description: "Search and read the official Slack platform documentation at docs.slack.dev. Use this skill to answer conceptual or how-to questions about Slack features. You can also use it to look up, fetch, or summarize specific guide pages from provided docs.slack.dev links."
+description: '"Search and read the official Slack platform documentation at docs.slack.dev. Use this skill to answer conceptual or how-to questions about Slack features. You can also use it to look up, fetch, or summarize specific guide pages from provided docs.slack.dev links."'
 ---
+
 # Slack Platform Documentation
 
 Help the developer **find** the right page on the official Slack documentation site (`https://docs.slack.dev`) and **read** it as clean markdown, so answers come from the live docs rather than memory. The site exposes three machine-readable surfaces an agent can use directly, with no authentication and no Slack workspace:

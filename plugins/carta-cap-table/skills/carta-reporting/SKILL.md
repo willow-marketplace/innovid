@@ -1,7 +1,8 @@
 ---
 name: carta-reporting
-description: >-
+description: ">-"
 ---
+
 # Custom Reports
 
 <!-- [PATTERN carta-writing-style v0.0.2] [PATTERN etiquette v0.0.6] [PATTERN text v0.0.8] [PATTERN tables v0.0.12] [PATTERN carta-watermark v0.0.10] -->

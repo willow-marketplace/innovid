@@ -2,6 +2,7 @@
 description: ZDX is a read-only monitoring service. The since parameter is in hours, not timestamps.
 alwaysApply: true
 ---
+
 # ZDX read-only and query conventions
 
 1. ZDX tools only query data. There are no create, update, or delete operations except `zdx_start_deep_trace`.

@@ -2,6 +2,7 @@
 name: engagement-timeline
 description: Build a timeline of engagements (meetings and emails) with an account or contact over a date range. Identify the account or contact by ZoomInfo ID (preferred), or by name or domain (triggers a lookup), or omit both to time-line your own recent engagements. Defaults to the last 90 days and can slide the window further back for a longer history. Returns a chronological timeline, a breakdown by engagement type, and a participant list with per-person engagement counts — and keeps each engagement's ID in context so you can immediately double-click any one to ask what was discussed. Use when someone asks "when did we last meet with X", "how often have we engaged this account", "show me the history with this contact", or wants a relationship timeline before a call.
 ---
+
 # Engagement Timeline
 
 Build a timeline of meetings and emails with an account or contact, then let the user double-click any engagement to see what was discussed.

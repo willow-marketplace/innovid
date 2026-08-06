@@ -2,6 +2,7 @@
 name: rill-theme
 description: Detailed instructions and examples for developing theme resources in Rill
 ---
+
 # Instructions for developing a theme in Rill
 
 ## Introduction

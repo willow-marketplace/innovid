@@ -1,7 +1,8 @@
 ---
 name: quickstart
-description: "Scaffold a brand-new Convex app from a one-sentence idea and build it live in front of the user — a running Next.js + shadcn app backed by `convex dev` + `next dev` with error watchers already armed. Use this to go from idea → running app in under a minute (it runs locally), then iterate, narrating each step in chat."
+description: '"Scaffold a brand-new Convex app from a one-sentence idea and build it live in front of the user — a running Next.js + shadcn app backed by `convex dev` + `next dev` with error watchers already armed. Use this to go from idea → running app in under a minute (it runs locally), then iterate, narrating each step in chat."'
 ---
+
 # Convex Quickstart — scaffold and build live
 
 This skill takes a one-sentence app idea and stands up a **running** Convex app the user can watch build in real time. The scaffold is a Next.js + shadcn app with `convex dev` + `next dev` started and error watchers armed. The app runs **locally** at the URL the bootstrap prints.

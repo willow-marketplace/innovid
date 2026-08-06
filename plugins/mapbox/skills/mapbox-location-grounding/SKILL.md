@@ -2,6 +2,7 @@
 name: mapbox-location-grounding
 description: Compose Mapbox MCP tools to produce grounded, cited location-aware responses from live data instead of training data
 ---
+
 # Mapbox Location Grounding Skill
 
 Teaches AI assistants how to ground location-aware responses in live Mapbox data by composing MCP tools into a structured, cited answer. Use this instead of relying on training data for place names, POIs, ratings, or travel times — which are stale and prone to hallucination.

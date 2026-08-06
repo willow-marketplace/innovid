@@ -2,6 +2,7 @@
 name: sentry-fix-stack-traces
 description: Make Sentry stack traces readable — upload source maps for JavaScript/TypeScript, or debug files for native and mobile (dSYM, ProGuard/R8, NDK symbols, Dart obfuscation maps, .NET PDBs). Use when frames in Sentry show minified names, bundled paths, hex addresses, "unknown", or method names with no file/line, instead of your original source.
 ---
+
 # Fix Unreadable Stack Traces
 
 An event whose frames read `chunk-4f2a.js:1:28471` or `0x00000001045a2f10` costs you the thing Sentry

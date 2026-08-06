@@ -1,7 +1,8 @@
 ---
 name: catalyst-appsail
-description: "Catalyst AppSail — persistent backend PaaS with managed runtimes (Node.js, Java, Python) and custom Docker containers. Trigger on 'AppSail', 'persistent server', 'Docker on Catalyst', 'X_ZOHO_CATALYST_LISTEN_PORT', or 'long-running process on Catalyst'. Do NOT use for stateless request/response handlers, event-driven functions, or scheduled jobs — use catalyst-functions instead."
+description: "\"Catalyst AppSail — persistent backend PaaS with managed runtimes (Node.js, Java, Python) and custom Docker containers. Trigger on 'AppSail', 'persistent server', 'Docker on Catalyst', 'X_ZOHO_CATALYST_LISTEN_PORT', or 'long-running process on Catalyst'. Do NOT use for stateless request/response handlers, event-driven functions, or scheduled jobs — use catalyst-functions instead.\""
 ---
+
 ## How It Works
 
 1. **Identify the runtime** — Managed runtime (Node.js, Java, Python) or custom Docker container.

@@ -1,7 +1,8 @@
 ---
 name: qt-figma-component-generation
-description: >
+description: ">"
 ---
+
 # Figma Component Generation Skill
 
 This skill reads component definitions from a Figma file via MCP and generates production-ready QML control files that consume the design-system singletons produced by the token-extraction skill.

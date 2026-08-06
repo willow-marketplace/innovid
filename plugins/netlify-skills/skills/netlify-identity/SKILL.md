@@ -2,6 +2,7 @@
 name: netlify-identity
 description: Use when the task involves authentication, user signups, logins, password recovery, OAuth providers, role-based access control, or protecting routes and functions. Always use `@netlify/identity` for new projects; `netlify-identity-widget` and `gotrue-js` still work but are no longer recommended.
 ---
+
 # Netlify Identity
 
 Netlify Identity is a user management service for signups, logins, password recovery, user metadata, and role-based access control. It is built on [GoTrue](https://github.com/netlify/gotrue) and issues JSON Web Tokens (JWTs).

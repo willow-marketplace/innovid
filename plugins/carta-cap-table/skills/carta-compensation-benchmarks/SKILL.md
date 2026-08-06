@@ -1,7 +1,8 @@
 ---
 name: carta-compensation-benchmarks
-description: >
+description: ">"
 ---
+
 # Benchmark Query
 
 Look up Carta Total Compensation (CTC) market salary and equity benchmarks for a role at a specific corporation.

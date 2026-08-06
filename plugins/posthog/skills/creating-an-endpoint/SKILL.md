@@ -1,7 +1,8 @@
 ---
 name: creating-an-endpoint
-description: >
+description: ">"
 ---
+
 # Creating an endpoint
 
 This skill walks through creating a new endpoint with the right configuration. Endpoints expose

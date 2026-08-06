@@ -1,7 +1,8 @@
 ---
 name: ui5-best-practices-tables
-description: |
+description: "|"
 ---
+
 # UI5 Table Best Practices
 
 Apply these guidelines whenever generating, reviewing, or troubleshooting UI5 table code in freestyle applications.

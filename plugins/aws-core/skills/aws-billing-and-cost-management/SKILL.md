@@ -1,7 +1,8 @@
 ---
 name: aws-billing-and-cost-management
-description: |
+description: "|"
 ---
+
 # Billing and Cost Management
 
 ## Overview

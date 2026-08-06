@@ -1,7 +1,8 @@
 ---
 name: together-batch-inference
-description: "High-volume, asynchronous offline inference at up to 50% lower cost via Together AI's Batch API. Prepare JSONL inputs, upload files, create jobs, poll status, and download outputs. Reach for it whenever the user needs non-interactive bulk inference rather than real-time chat or evaluation jobs."
+description: "\"High-volume, asynchronous offline inference at up to 50% lower cost via Together AI's Batch API. Prepare JSONL inputs, upload files, create jobs, poll status, and download outputs. Reach for it whenever the user needs non-interactive bulk inference rather than real-time chat or evaluation jobs.\""
 ---
+
 # Together Batch Inference
 
 ## Overview

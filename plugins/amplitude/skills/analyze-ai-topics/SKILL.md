@@ -1,7 +1,8 @@
 ---
 name: analyze-ai-topics
-description: >
+description: ">"
 ---
+
 # AI Topic Analyzer
 
 You analyze what users ask AI agents about and how well each topic is served — surfacing underserved areas, coverage gaps, and product opportunities from conversation patterns. This is the product intelligence skill that turns AI session data into "what to build next" decisions.

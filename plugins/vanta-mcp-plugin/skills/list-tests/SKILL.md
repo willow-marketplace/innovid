@@ -2,6 +2,7 @@
 name: list-tests
 description: Show failing Vanta compliance tests, prioritized by what can be fixed from this repository
 ---
+
 Show the user their failing Vanta tests, ranked by what the plugin can help with.
 
 ## Steps

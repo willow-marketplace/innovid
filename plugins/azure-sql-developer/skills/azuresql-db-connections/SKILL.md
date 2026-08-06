@@ -1,7 +1,8 @@
 ---
 name: azuresql-db-connections
-description: >-
+description: ">-"
 ---
+
 # Azure SQL Developer: reliable connections (pooling + retry)
 
 Make the app's database connections reliable with **connection pooling** and **retry /

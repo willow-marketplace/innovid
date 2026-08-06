@@ -1,7 +1,8 @@
 ---
 name: modern-web-guidance
-description: |
+description: "|"
 ---
+
 # Modern Web Guidance
 
 A skill to search for specific web development use cases and retrieve their corresponding best practice guides.

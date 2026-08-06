@@ -1,7 +1,8 @@
 ---
 name: formatting-and-highlighting
-description: "Best practices for metric default formatting. Covers: decimals, prefix, suffix, currency ($/€), percent (%), K/M/bp/thousand/million scaling, thousand separator, sign / zero / negative handling, text mode (Text / Rich Text / URL / Image / LocaleDateTime), boolean display (checkbox / button). Load when setting or changing a metric's default format. Trigger phrases: format as, display as, show as percent, in millions, two decimals, no decimals, prefix with $, add currency, as K / M / bp, rich text, checkbox, ratio, url, multiplier."
+description: "\"Best practices for metric default formatting. Covers: decimals, prefix, suffix, currency ($/€), percent (%), K/M/bp/thousand/million scaling, thousand separator, sign / zero / negative handling, text mode (Text / Rich Text / URL / Image / LocaleDateTime), boolean display (checkbox / button). Load when setting or changing a metric's default format. Trigger phrases: format as, display as, show as percent, in millions, two decimals, no decimals, prefix with $, add currency, as K / M / bp, rich text, checkbox, ratio, url, multiplier.\""
 ---
+
 # How to Use This Skill
 
 **Progressive Disclosure Pattern**: This `SKILL.md` is the entry point. As more formatting topics land (conditional formatting, highlighting), they will live as sibling files in this directory.

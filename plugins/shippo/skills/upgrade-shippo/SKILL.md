@@ -1,7 +1,8 @@
 ---
 name: upgrade-shippo
-description: >-
+description: ">-"
 ---
+
 <!--
   ⚠️  DO NOT EDIT. Auto-generated from skills/upgrade-shippo/SKILL.md by scripts/sync.js
   Edits here will be overwritten on the next sync.

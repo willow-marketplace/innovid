@@ -1,7 +1,8 @@
 ---
 name: taxonomy
-description: >
+description: ">"
 ---
+
 # Taxonomy Generation & Data Auditing
 
 ## When to Use

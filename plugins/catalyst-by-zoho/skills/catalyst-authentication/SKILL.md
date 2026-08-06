@@ -1,7 +1,8 @@
 ---
 name: catalyst-authentication
-description: "Catalyst Authentication — user login/signup, ZAID, Web SDK auth flows, and OAuth token management via Connections. Trigger on 'authentication', 'login', 'signup', 'getCurrentUser', 'ZAID', 'isUserAuthenticated', 'signOut', 'Connections', or 'getAccessToken'. You MUST load this skill whenever implementing user login or protecting data — ZAID differs between Development and Production and is the #1 cause of auth failures after environment promotion. For Security Rules (function invocation control), route to catalyst-functions."
+description: "\"Catalyst Authentication — user login/signup, ZAID, Web SDK auth flows, and OAuth token management via Connections. Trigger on 'authentication', 'login', 'signup', 'getCurrentUser', 'ZAID', 'isUserAuthenticated', 'signOut', 'Connections', or 'getAccessToken'. You MUST load this skill whenever implementing user login or protecting data — ZAID differs between Development and Production and is the #1 cause of auth failures after environment promotion. For Security Rules (function invocation control), route to catalyst-functions.\""
 ---
+
 ## How It Works
 
 1. **Identify flow type** — Hosted login (redirect to Catalyst login page), embedded login (custom UI), or backend `getCurrentUser` check.

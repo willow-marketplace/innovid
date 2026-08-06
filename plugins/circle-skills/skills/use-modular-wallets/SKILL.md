@@ -1,7 +1,8 @@
 ---
 name: use-modular-wallets
-description: "Build crypto wallets using Circle Modular Wallets SDK with passkey authentication, gasless transactions, and extensible module architecture. Use when: creating crypto wallets with passkey-based (WebAuthn) registration and login, sending gasless transactions using Circle Gas Station paymaster, batching multiple transactions into a single user operation, implementing passkey recovery using BIP-39 mnemonic phrases, building advanced onchain wallets with custom modules (multisig, subscriptions, session keys). Triggers on: MSCA, passkey authentication, WebAuthn, paymaster, Gas Station, ERC-4337, ERC-6900, toCircleSmartAccount, toModularTransport, sendUserOperation, 2D nonce, passkey recovery, EIP-1193 provider."
+description: '"Build crypto wallets using Circle Modular Wallets SDK with passkey authentication, gasless transactions, and extensible module architecture. Use when: creating crypto wallets with passkey-based (WebAuthn) registration and login, sending gasless transactions using Circle Gas Station paymaster, batching multiple transactions into a single user operation, implementing passkey recovery using BIP-39 mnemonic phrases, building advanced onchain wallets with custom modules (multisig, subscriptions, session keys). Triggers on: MSCA, passkey authentication, WebAuthn, paymaster, Gas Station, ERC-4337, ERC-6900, toCircleSmartAccount, toModularTransport, sendUserOperation, 2D nonce, passkey recovery, EIP-1193 provider."'
 ---
+
 ## Overview
 
 Modular Wallets are flexible smart contract accounts (MSCAs) that extend functionality through installable modules. Built on ERC-4337 (account abstraction) and ERC-6900 (modular smart contract framework), they support passkey authentication, gasless transactions, batch operations, and custom logic modules (multisig, subscriptions, session keys). MSCAs are lazily deployed -- gas fees for account creation are deferred until the first outbound transaction.

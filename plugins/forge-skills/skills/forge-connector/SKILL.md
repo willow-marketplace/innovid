@@ -1,7 +1,8 @@
 ---
 name: forge-connector
-description: >
+description: ">"
 ---
+
 # Forge Connector
 
 Builds a `graph:connector` Forge app that ingests external data into Atlassian's Teamwork Graph so it appears in **Rovo Search** and **Rovo Chat**.

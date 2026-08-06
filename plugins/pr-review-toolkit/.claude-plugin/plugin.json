@@ -2,12 +2,19 @@
   "name": "pr-review-toolkit",
   "version": "1.0.0",
   "description": "Comprehensive PR review agents specializing in comments, tests, error handling, type design, code quality, and code simplification",
-  "updatedAt": "2026-08-06T00:02:38.335Z",
+  "updatedAt": "2026-08-06T06:56:19.111Z",
   "author": {
     "name": "Anthropic",
     "email": "support@anthropic.com"
   },
   "homepage": "https://github.com/anthropics/claude-plugins-public/tree/main/plugins/pr-review-toolkit",
   "commands": "./commands/",
-  "agents": "./agents/"
+  "agents": [
+    "./agents/code-simplifier.md",
+    "./agents/code-reviewer.md",
+    "./agents/comment-analyzer.md",
+    "./agents/pr-test-analyzer.md",
+    "./agents/silent-failure-hunter.md",
+    "./agents/type-design-analyzer.md"
+  ]
 }

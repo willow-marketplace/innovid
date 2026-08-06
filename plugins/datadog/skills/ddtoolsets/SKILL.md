@@ -2,6 +2,7 @@
 name: ddtoolsets
 description: Manages toolsets for the Datadog MCP server `plugin:datadog:mcp`. Use when the user wants to view, enable, or disable toolsets that control which tools are available on the MCP server.
 ---
+
 ## Datadog MCP Server
 
 The id of the Datadog MCP Server referenced on this document is `plugin:datadog:mcp`. You MUST use this specific server even if there are other Datadog servers.

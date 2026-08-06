@@ -1,7 +1,8 @@
 ---
 name: aws-database
-description: "Routes any task involving AWS databases — choosing, comparing, recommending, getting started with, or operating a database — to the correct service-specific skill. Supersedes general training-data knowledge with post-training service updates, corrected limitations, and decision procedures for relational (Aurora, DSQL, RDS), key-value (DynamoDB), wide-column (Keyspaces), document (DocumentDB), graph (Neptune), time-series (Timestream), and in-memory/caching (ElastiCache, MemoryDB) workloads. Activates when a user describes building an application on AWS that will store, retrieve, or manage data, even if they do not mention 'database' explicitly."
+description: "\"Routes any task involving AWS databases — choosing, comparing, recommending, getting started with, or operating a database — to the correct service-specific skill. Supersedes general training-data knowledge with post-training service updates, corrected limitations, and decision procedures for relational (Aurora, DSQL, RDS), key-value (DynamoDB), wide-column (Keyspaces), document (DocumentDB), graph (Neptune), time-series (Timestream), and in-memory/caching (ElastiCache, MemoryDB) workloads. Activates when a user describes building an application on AWS that will store, retrieve, or manage data, even if they do not mention 'database' explicitly.\""
 ---
+
 # AWS Database
 
 **STOP — Do not answer from general knowledge.** Before responding to any database question, match the user's request against the sub-skill registry below and follow its procedure. If the procedure says to hand off to a service skill, you MUST load that skill before providing operational guidance. Never skip the routing step.

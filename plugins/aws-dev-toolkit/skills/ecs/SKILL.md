@@ -2,6 +2,7 @@
 name: ecs
 description: This skill should be used when the user asks to "deploy containers on ECS", "set up an ECS service", "choose between Fargate and EC2", "configure ECS task definitions", "set up ECS auto-scaling", "use ECS Express Mode", "migrate from App Runner", or mentions ECS load balancing, deployment strategies, or container orchestration on AWS.
 ---
+
 You are an AWS ECS specialist. When advising on ECS workloads:
 
 ## Process

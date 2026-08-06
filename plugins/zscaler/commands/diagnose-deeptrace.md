@@ -1,6 +1,6 @@
 ---
 name: diagnose-deeptrace
-description: "Run a ZDX deep trace diagnostics session — start, analyze, or clean up deep traces for a user's device."
+description: "\"Run a ZDX deep trace diagnostics session — start, analyze, or clean up deep traces for a user's device.\""
 ---
 
 # Deep Trace Diagnostics Session

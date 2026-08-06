@@ -2,6 +2,7 @@
 name: aidp-postgresql
 description: Read or write PostgreSQL from an AIDP notebook via the AIDP `aidataplatform` Spark format handler. Use when the user mentions PostgreSQL, Postgres, "psql", or has a Postgres host/port to connect to. Prefer the official `POSTGRESQL` connector sample; use native Spark JDBC only as an SSL-required fallback when the built-in connector cannot express sslmode=require.
 ---
+
 # `aidp-postgresql` — PostgreSQL via AIDP `aidataplatform`
 
 ## When to use

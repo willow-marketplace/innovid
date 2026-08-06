@@ -1,10 +1,11 @@
 ---
 name: spotify-ads-request-builder
-description: "Use this agent when the user describes an advertising task in natural language and needs it translated into Spotify Ads API calls."
+description: '"Use this agent when the user describes an advertising task in natural language and needs it translated into Spotify Ads API calls."'
 scope: global
-tools: ["Read", "Bash", "Grep", "Glob", "AskUserQuestion"]
+tools: '["Read", "Bash", "Grep", "Glob", "AskUserQuestion"]'
 model: inherit
 ---
+
 <example>
 Context: User wants to create a campaign using plain English
 user: "Create a campaign called Summer Sale with a reach objective"

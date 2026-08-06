@@ -2,6 +2,7 @@
 name: aidp-migration
 description: Guide a migration of notebooks/jobs from another platform (e.g. Databricks) into AIDP. Use when the user wants to port Databricks notebooks/jobs to AIDP, move workloads onto the AIDP lakehouse, or plan a migration. Orchestration-only — it composes the other self-contained aidp-* skills; it adds no new API surface.
 ---
+
 # `aidp-migration` — guided migration into AIDP
 
 Plan and execute a migration of notebooks/jobs onto AIDP by composing the other skills. Adds no new API

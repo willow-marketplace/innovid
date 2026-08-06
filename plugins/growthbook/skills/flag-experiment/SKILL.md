@@ -2,6 +2,7 @@
 name: flag-experiment
 description: Add an experiment-ref rule to a GrowthBook feature flag to run an A/B test through that flag. Use when the user says "run an experiment through this flag", "add an A/B test to flag X", "link experiment Y to this flag", "set up variations on this flag for an experiment", "add an experiment-ref rule", or "wire up this experiment to the flag". For launching a full new experiment end-to-end, use experiment-launch. For editing the targeting conditions or scope of an existing experiment rule, use flag-targeting. For stopping an experiment and cleaning up its rule, use experiment-stop then flag-rules.
 ---
+
 # flag-experiment
 
 Add an `experiment-ref` rule to a GrowthBook feature flag. This links a flag rule to a separately-managed GrowthBook experiment object — the experiment is the source of truth for variations, metrics, and analysis.

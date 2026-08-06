@@ -1,7 +1,8 @@
 ---
 name: exploring-live-traffic
-description: 'Inspects PostHog Web analytics Live tab data — current users online, last-30-minutes pageviews, top pages, referrers, devices, browsers, countries, bot traffic, and the per-minute bot/users charts. Use when the user asks "who is on my site right now?", "what is happening live?", "what bots are crawling me?", asks about the "live tab" / "live dashboard", wants live numbers (last 30 min), or wants help filtering or drilling into the live view. Also covers building product-analytics insights that mirror what the tiles show.'
+description: "'Inspects PostHog Web analytics Live tab data — current users online, last-30-minutes pageviews, top pages, referrers, devices, browsers, countries, bot traffic, and the per-minute bot/users charts. Use when the user asks \"who is on my site right now?\", \"what is happening live?\", \"what bots are crawling me?\", asks about the \"live tab\" / \"live dashboard\", wants live numbers (last 30 min), or wants help filtering or drilling into the live view. Also covers building product-analytics insights that mirror what the tiles show.'"
 ---
+
 # Exploring Web analytics live traffic
 
 The Web analytics Live tab (`/web/live`) shows real-time activity over a 30-minute sliding

@@ -2,6 +2,7 @@
 name: scrape-add-page-object
 description: Add an empty web-poet page object to a Scrapy project
 ---
+
 You are adding an empty web-poet page object to a Scrapy project.
 
 Read `${CLAUDE_SKILL_DIR}/../scrape/references/python-environments.md`.

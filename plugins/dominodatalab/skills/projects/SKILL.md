@@ -2,6 +2,7 @@
 name: projects
 description: Work with Domino Projects including Git integration, DFS vs Git-based projects, collaboration, and version control. Covers project creation, Git provider setup (GitHub, GitLab, Bitbucket), branch management, collaborator permissions, and project settings. Use when creating projects, setting up Git repos, or managing team collaboration.
 ---
+
 # Domino Projects and Git Skill
 
 ## Description

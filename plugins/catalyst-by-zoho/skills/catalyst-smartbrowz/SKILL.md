@@ -1,7 +1,8 @@
 ---
 name: catalyst-smartbrowz
-description: "Catalyst SmartBrowz — browser automation and document generation service. Includes Headless (connect to a remote Chrome browser with Puppeteer/Playwright/Selenium), Browser Logic (serverless functions for browser tasks in Java/Node.js), PDF & Screenshot (generate visual documents from HTML/URL/Template), Templates (design dynamic content templates), Browser Grid (parallel headless browsers with auto-scaling, Early Access), and Dataverse (data scraping APIs). Trigger on 'SmartBrowz', 'headless browser', 'Headless Browser', 'Puppeteer', 'Selenium', 'Playwright', 'Browser Logic', 'PDF generation', 'screenshot', 'PDF/Screenshot generation', 'PDF & Screenshot', 'browser automation', 'Browser Grid', or 'web scraping'. Console + SDK (Java/Node.js/Python for PDF/Screenshot + Browser Grid) + CLI (for Browser Logic functions)."
+description: "\"Catalyst SmartBrowz — browser automation and document generation service. Includes Headless (connect to a remote Chrome browser with Puppeteer/Playwright/Selenium), Browser Logic (serverless functions for browser tasks in Java/Node.js), PDF & Screenshot (generate visual documents from HTML/URL/Template), Templates (design dynamic content templates), Browser Grid (parallel headless browsers with auto-scaling, Early Access), and Dataverse (data scraping APIs). Trigger on 'SmartBrowz', 'headless browser', 'Headless Browser', 'Puppeteer', 'Selenium', 'Playwright', 'Browser Logic', 'PDF generation', 'screenshot', 'PDF/Screenshot generation', 'PDF & Screenshot', 'browser automation', 'Browser Grid', or 'web scraping'. Console + SDK (Java/Node.js/Python for PDF/Screenshot + Browser Grid) + CLI (for Browser Logic functions).\""
 ---
+
 ## Prerequisites
 
 Before using SmartBrowz, activate it once per project in the console:

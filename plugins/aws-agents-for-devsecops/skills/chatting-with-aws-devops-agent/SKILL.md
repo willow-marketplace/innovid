@@ -1,7 +1,8 @@
 ---
 name: chatting-with-aws-devops-agent
-description: >-
+description: ">-"
 ---
+
 # Chat with the AWS DevOps Agent
 
 > **AgentSpace routing (SigV4 only):** If `list_agent_spaces` is available in your tool list and the multi-space orchestration skill has NOT been invoked yet this session, invoke it first to determine which `agent_space_id` to use. Then pass `agent_space_id` on all tool calls below. For bearer token auth this is unnecessary — the token is already scoped to one space.

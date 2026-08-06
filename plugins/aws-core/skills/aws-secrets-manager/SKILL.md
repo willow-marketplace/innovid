@@ -1,7 +1,8 @@
 ---
 name: aws-secrets-manager
-description: >
+description: ">"
 ---
+
 # Using Secrets Safely with Agents
 
 ## Overview

@@ -2,6 +2,7 @@
 name: check-usage
 description: Reports the Hunter account's plan, remaining credits, and usage. Use when the user asks how many credits they have left, what plan they're on, or how much of their quota they've used.
 ---
+
 # Check Usage
 
 Read-only view of the account's plan, credits, and usage. No credits consumed, no changes made.

@@ -1,7 +1,8 @@
 ---
 name: stripe-projects
-description: >
+description: ">"
 ---
+
 ## Stripe Projects — Service Provisioning
 
 Provision third-party services (databases, auth, hosting, analytics, caching, AI, observability) and retrieve API keys/tokens using the Stripe Projects CLI plugin.

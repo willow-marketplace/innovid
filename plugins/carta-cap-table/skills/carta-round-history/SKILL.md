@@ -2,6 +2,7 @@
 name: carta-round-history
 description: Financing round history for a company — each priced round with its date, share class issued, price per share, total cash raised, and the investors who participated. Covers what was raised and from whom across the company's funding history.
 ---
+
 <!-- Part of the official Carta AI Agent Plugin -->
 
 # Round History

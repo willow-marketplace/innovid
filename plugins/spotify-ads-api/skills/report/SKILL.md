@@ -2,6 +2,7 @@
 name: report
 description: Pull Spotify Ads API reporting data — aggregate metrics, audience insights, or async CSV reports.
 ---
+
 # Spotify Ads API — Reporting
 
 Pull reporting data from the Spotify Ads API. Read settings from the active platform settings file.

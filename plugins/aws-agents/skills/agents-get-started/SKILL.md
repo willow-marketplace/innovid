@@ -1,7 +1,8 @@
 ---
 name: agents-get-started
-description: >
+description: ">"
 ---
+
 # get-started
 
 Walk a developer from zero to a running agent on AWS.

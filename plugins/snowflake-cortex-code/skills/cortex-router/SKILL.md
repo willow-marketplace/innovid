@@ -1,7 +1,8 @@
 ---
 name: cortex-router
-description: "Auto-routing skill loaded by the prompt filter hook. Routes Snowflake-related operations to Cortex Code CLI. Not for direct invocation — use $cortex-run instead."
+description: '"Auto-routing skill loaded by the prompt filter hook. Routes Snowflake-related operations to Cortex Code CLI. Not for direct invocation — use $cortex-run instead."'
 ---
+
 # Cortex Code Router
 
 Route Snowflake operations to Cortex Code CLI, which has specialized bundled skills

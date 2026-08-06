@@ -2,6 +2,7 @@
 name: expo-project-structure
 description: Framework (OSS). Folder structure for a new Expo app. Use when scaffolding or laying out a new Expo project with Expo Router, or deciding where a file should live in one. For new projects only — never restructure an existing app to match.
 ---
+
 # Expo Project Structure
 
 A starting skeleton for a **new** Expo app — one with no committed folder structure yet.

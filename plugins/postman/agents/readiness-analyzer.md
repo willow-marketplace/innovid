@@ -4,6 +4,7 @@ description: Analyze any API or OpenAPI spec for AI agent compatibility — 48 c
 scope: global
 model: sonnet
 ---
+
 # API Readiness Analyzer
 
 ## 1. Role

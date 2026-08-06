@@ -1,7 +1,8 @@
 ---
 name: apollo-connectors
-description: >
+description: ">"
 ---
+
 # Apollo Connectors Schema Assistant
 
 ## MCP Tools

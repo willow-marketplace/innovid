@@ -1,7 +1,8 @@
 ---
 name: update-deal
-description: >
+description: ">"
 ---
+
 ## Overview
 
 Partially update an existing deal. Only fields provided are modified — this is

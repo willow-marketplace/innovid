@@ -1,7 +1,8 @@
 ---
 name: downloading-batch-export-files
-description: >
+description: ">"
 ---
+
 # Downloading batch export files
 
 Use this skill when a user wants a one-off downloadable export of PostHog data.

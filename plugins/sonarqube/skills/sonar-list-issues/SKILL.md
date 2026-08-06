@@ -2,6 +2,7 @@
 name: sonar-list-issues
 description: Search and filter SonarQube issues for a project, branch, or pull request via sonarqube-cli (`-p` is always required on the CLI; resolve the key from user arguments or sonar-project.properties)
 ---
+
 # SonarQube — List Issues
 
 Search for issues in a SonarQube project using the `sonarqube-cli`.

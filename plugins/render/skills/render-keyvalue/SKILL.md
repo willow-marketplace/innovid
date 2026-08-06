@@ -1,7 +1,8 @@
 ---
 name: render-keyvalue
-description: >-
+description: ">-"
 ---
+
 # Render Key Value
 
 Render Key Value provides low-latency, Redis-compatible in-memory storage running **Valkey 8**. Use it as a shared cache, session store, or job queue backend. Compatible with virtually all Redis client libraries.

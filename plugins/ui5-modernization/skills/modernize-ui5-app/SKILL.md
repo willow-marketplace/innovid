@@ -1,7 +1,8 @@
 ---
 name: modernize-ui5-app
-description: |
+description: "|"
 ---
+
 # UI5 Modernization Workflow
 
 This skill modernizes a UI5 application in **five phases**, each followed by a **verification gate**. The user picks the gate behavior **once at the start** — full autonomous, half autonomous, or manual — and the orchestrator applies that choice at every phase boundary.

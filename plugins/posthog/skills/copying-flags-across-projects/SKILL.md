@@ -1,7 +1,8 @@
 ---
 name: copying-flags-across-projects
-description: 'Copy a feature flag from one PostHog project to one or more target projects in the same organization. Use when the user wants to duplicate a flag, promote a flag from staging to production, sync flags across projects, or replicate a flag configuration in a different workspace. Covers cohort remapping, scheduled-change handling, encrypted payloads, and the safe defaults (disabled in target, no scheduled changes).'
+description: "'Copy a feature flag from one PostHog project to one or more target projects in the same organization. Use when the user wants to duplicate a flag, promote a flag from staging to production, sync flags across projects, or replicate a flag configuration in a different workspace. Covers cohort remapping, scheduled-change handling, encrypted payloads, and the safe defaults (disabled in target, no scheduled changes).'"
 ---
+
 # Copying feature flags across projects
 
 This skill guides you through duplicating a feature flag from a source project into one or more target projects within the same PostHog organization.

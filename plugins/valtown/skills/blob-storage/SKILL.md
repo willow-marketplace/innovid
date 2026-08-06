@@ -2,6 +2,7 @@
 name: blob-storage
 description: Use when a val needs simple key/value persistence — JSON documents, cached responses, uploaded files, or binary assets. Covers the std/blob API, listing and deleting keys, account-global or val scoping, and storage limits.
 ---
+
 # Blob Storage
 
 Val Town provides built-in key/value blob storage via the `std/blob` module. Reach for it whenever a val needs to persist simple values — JSON documents, cached API responses, uploaded files, or binary assets — keyed by a string. For relational or structured data you query with SQL, prefer `std/sqlite` instead.

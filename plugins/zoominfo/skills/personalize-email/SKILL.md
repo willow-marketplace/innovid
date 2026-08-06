@@ -2,6 +2,7 @@
 name: personalize-email
 description: Generate 1-3 personalized email variants for a single prospect. The composition bar adapts to the use case — cold_outbound demands a signal → pain → positioning chain; follow-ups / recaps / renewals lean on prior context and next-step framing. Supports cold_outbound, discovery_follow_up, demo_recap, re_engagement, renewal, expansion, objection_handling. Returns subject lines and mobile-readable bodies with a rationale chain. Use for sales prospecting, lead generation, account-based selling, buyer-intent-driven outreach, B2B prospecting. Triggers on phrases like "write a cold email", "personalize an email", "draft outreach", "follow up on this prospect", "email this prospect", "outbound to X", "send a chaser".
 ---
+
 # Personalize Email
 
 Generate personalized email variants. Calls `get_gtm_context(detailed: true)` unconditionally, resolves the prospect, runs a relationship-context pre-flight, pulls signals + CRM context, and composes 1-3 variants tuned to the chosen use case. Iteratively refinable.

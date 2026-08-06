@@ -1,7 +1,8 @@
 ---
 name: clickhouse-js-node-coding
-description: >
+description: ">"
 ---
+
 # ClickHouse Node.js Client — Coding
 
 Reference: https://clickhouse.com/docs/integrations/javascript

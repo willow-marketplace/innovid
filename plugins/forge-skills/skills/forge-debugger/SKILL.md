@@ -2,6 +2,7 @@
 name: forge-debugger
 description: Diagnoses and fixes issues in Atlassian Forge apps. Use this skill whenever a Forge app has errors, crashes, shows blank UI, fails to deploy, doesn't appear after installation, has permission issues, or produces unexpected output. Trigger on any mention of forge logs, forge deploy errors, resolver errors, blank panels, missing scopes, Custom UI not rendering, production vs dev discrepancies, or any Jira/Confluence app that "stopped working". Also trigger when the user asks to debug, troubleshoot, investigate, or fix a Forge app issue — even if they haven't used the word "Forge" but describe a Jira panel or Confluence macro acting up.
 ---
+
 # Forge App Debugger
 
 Diagnose and fix issues in Atlassian Forge apps. Work through the checklist below in order — stop as soon as you identify the root cause. Every step after the root cause wastes tokens and context.

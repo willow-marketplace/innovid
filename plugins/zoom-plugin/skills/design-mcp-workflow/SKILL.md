@@ -2,6 +2,7 @@
 name: design-mcp-workflow
 description: Design a Zoom MCP workflow for Claude. Use when deciding whether Zoom MCP fits a task, when planning tool-based AI workflows, or when separating MCP responsibilities from REST API responsibilities.
 ---
+
 # Design MCP Workflow
 
 Use this skill when the user wants Claude or another MCP-capable client to interact with Zoom via tool calls instead of only deterministic API code.

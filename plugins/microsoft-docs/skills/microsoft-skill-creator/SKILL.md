@@ -2,6 +2,7 @@
 name: microsoft-skill-creator
 description: Create agent skills for Microsoft technologies using official documentation. Use whenever the user wants to build, generate, or scaffold a skill for any Microsoft technology (Azure, .NET, M365, VS Code, Bicep, etc.)—even phrased casually like "make a skill for Cosmos DB." Investigates the topic via official docs, then generates a hybrid skill with essential knowledge stored locally and dynamic lookups for depth.
 ---
+
 # Microsoft Skill Creator
 
 Create hybrid skills for Microsoft technologies that store essential knowledge locally while enabling dynamic Learn MCP lookups for deeper details.

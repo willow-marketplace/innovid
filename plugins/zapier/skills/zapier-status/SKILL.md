@@ -2,6 +2,7 @@
 name: zapier-status
 description: Check the health of your Zapier MCP setup. Three modes — health check (dashboard view), audit (find waste and duplicates), diagnose (systematic troubleshooting). Use when asking "is my MCP working?", "check my tools", "audit my setup", "what's broken?", or "zapier status".
 ---
+
 # Zapier status
 
 Three modes for monitoring and maintaining a Zapier MCP setup. Determine the mode from context, or ask if unclear.

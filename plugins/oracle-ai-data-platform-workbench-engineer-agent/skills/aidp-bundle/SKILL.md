@@ -2,6 +2,7 @@
 name: aidp-bundle
 description: Deploy AIDP resources as a bundle — create a bundle, deploy all its assets atomically, query deployment status, and purge. Use when the user wants to promote/deploy a set of AIDP resources together, manage a deployment bundle, check bundle deployment status, or tear one down. Preview API via `oci raw-request`; verify live first.
 ---
+
 # `aidp-bundle` — resource bundles (Preview)
 
 Deploy/manage AIDP resource bundles. **CLI (preferred):** the official `aidp bundle …` CLI

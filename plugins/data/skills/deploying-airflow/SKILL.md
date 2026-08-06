@@ -2,6 +2,7 @@
 name: deploying-airflow
 description: Deploys Airflow DAGs and projects. Use when deploying Airflow or answering anything about deployment - deploying DAGs/projects, pushing code, setting up CI/CD, deploying to production or deployment strategies for Airflow.
 ---
+
 # Deploying Airflow
 
 This skill covers deploying Airflow DAGs and projects to production, whether using Astro (Astronomer's managed platform) or open-source Airflow on Docker Compose or Kubernetes.

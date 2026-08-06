@@ -1,7 +1,8 @@
 ---
 name: idmp-notification
-description: "IDMP notification skill. Use it to inspect global notification config, contact points, templates, delivery history, template-level rules, and test-send behavior."
+description: '"IDMP notification skill. Use it to inspect global notification config, contact points, templates, delivery history, template-level rules, and test-send behavior."'
 ---
+
 # notification
 
 **Read [`../idmp-shared/SKILL.md`](../idmp-shared/SKILL.md) first.**

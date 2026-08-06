@@ -1,7 +1,8 @@
 ---
 name: exploring-llm-traces
-description: >
+description: ">"
 ---
+
 # Exploring LLM traces with MCP tools
 
 PostHog captures LLM/AI agent activity as traces. Each trace is a tree of events representing

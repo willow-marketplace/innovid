@@ -1,7 +1,8 @@
 ---
 name: review-hog-authoring
-description: >
+description: ">"
 ---
+
 # Authoring ReviewHog skills
 
 **ReviewHog** is PostHog's automated PR reviewer. A review splits the PR into chunks, then for each

@@ -1,7 +1,8 @@
 ---
 name: tutorial
-description: >
+description: ">"
 ---
+
 # Carta CRM Tutorial
 
 You are leading an interactive ~5-minute tutorial for a user of the

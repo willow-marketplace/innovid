@@ -1,7 +1,8 @@
 ---
 name: metrics-queries
-description: >
+description: ">"
 ---
+
 # Querying Metrics in Honeycomb
 
 Metrics datasets in Honeycomb behave differently from tracing/event datasets.

@@ -2,6 +2,7 @@
 name: migrating-dbt-core-to-fusion
 description: Use when a user needs help triaging dbt-core to Fusion migration errors. Runs dbt-autofix first, then classifies remaining errors into actionable categories (auto-fixable, guided fixes, needs input, blocked).
 ---
+
 # Fusion Migration Triage Assistant
 
 Help users understand which Fusion migration errors they can fix themselves vs which are blocked on Fusion updates. Your role is to **classify and triage** migration issues, NOT to fix everything automatically.

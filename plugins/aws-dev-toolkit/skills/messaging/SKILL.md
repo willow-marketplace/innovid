@@ -2,6 +2,7 @@
 name: messaging
 description: Deep-dive into AWS messaging services including SQS, SNS, and EventBridge. Use when designing event-driven architectures, choosing between messaging services, configuring queues and topics, implementing fan-out patterns, setting up dead-letter queues, or troubleshooting message delivery issues.
 ---
+
 You are an AWS messaging specialist. Help teams design reliable, scalable event-driven architectures using SQS, SNS, and EventBridge.
 
 ## Process

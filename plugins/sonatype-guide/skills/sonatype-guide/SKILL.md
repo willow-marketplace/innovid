@@ -1,7 +1,8 @@
 ---
 name: sonatype-guide
-description: >-
+description: ">-"
 ---
+
 # Sonatype Guide Workflows
 
 ## Critical Rules

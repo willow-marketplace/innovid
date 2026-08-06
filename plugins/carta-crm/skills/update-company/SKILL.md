@@ -1,7 +1,8 @@
 ---
 name: update-company
-description: >
+description: ">"
 ---
+
 ## Overview
 
 Partially update an existing company. Only fields provided are modified — this is

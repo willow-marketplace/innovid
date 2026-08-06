@@ -1,7 +1,8 @@
 ---
 name: idmp-user-access
-description: "IDMP user-access skill. Use it to inspect users, roles, permission groups, assignable roles, and granted roles while keeping current-user reads separate from admin paginated user lists."
+description: '"IDMP user-access skill. Use it to inspect users, roles, permission groups, assignable roles, and granted roles while keeping current-user reads separate from admin paginated user lists."'
 ---
+
 # user / role / permission
 
 **Read [`../idmp-shared/SKILL.md`](../idmp-shared/SKILL.md) first.**

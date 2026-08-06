@@ -2,6 +2,7 @@
 name: setup-warehouse-snowflake
 description: Set up Snowflake as a data warehouse for Confidence. Use when the user chose Snowflake for warehouse setup.
 ---
+
 # Setup Warehouse: Snowflake
 
 Configure Snowflake as the data warehouse for Confidence experimentation analytics. This skill handles the full end-to-end setup: collect Snowflake config, create a crypto key, register the key in Snowflake, validate, create the warehouse, set up connectors, create the assignment table, and verify the pipeline.

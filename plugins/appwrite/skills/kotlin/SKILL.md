@@ -2,6 +2,7 @@
 name: kotlin
 description: Appwrite Kotlin SDK skill. Use when building native Android apps or server-side Kotlin/JVM backends with Appwrite. Covers client-side auth (email, OAuth with Activity integration), database queries, file uploads, real-time subscriptions with coroutine support, and server-side admin via API keys for user management, database administration, storage, and functions.
 ---
+
 # Appwrite Kotlin SDK
 
 ## Installation

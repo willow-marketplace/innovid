@@ -2,6 +2,7 @@
 name: go
 description: Appwrite Go SDK skill. Use when building server-side Go applications with Appwrite. Covers user management, database/table CRUD, file storage, and functions via API keys. Uses per-service packages and functional options pattern.
 ---
+
 # Appwrite Go SDK
 
 ## Installation

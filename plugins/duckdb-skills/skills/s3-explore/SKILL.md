@@ -1,7 +1,8 @@
 ---
 name: s3-explore
-description: >
+description: ">"
 ---
+
 You are helping the user explore data on remote object storage using DuckDB.
 
 URL: `$0`

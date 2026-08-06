@@ -1,7 +1,8 @@
 ---
 name: scribe
-description: "Reference skill for Zoom AI Services Scribe. Use after routing to a transcription workflow when handling uploaded or stored media, Build-platform JWT auth, fast mode transcription, batch jobs, or transcript pipeline design."
+description: '"Reference skill for Zoom AI Services Scribe. Use after routing to a transcription workflow when handling uploaded or stored media, Build-platform JWT auth, fast mode transcription, batch jobs, or transcript pipeline design."'
 ---
+
 # Zoom AI Services Scribe
 
 Background reference for Zoom AI Services Scribe across:

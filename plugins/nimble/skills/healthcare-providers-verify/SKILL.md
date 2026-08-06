@@ -1,20 +1,22 @@
 ---
 name: healthcare-providers-verify
-description: Validates practitioner credentials and license status against the NPI registry.
-Cross-references specialties, credentials, and practice addresses against
-official records. Returns Verified / Partially Verified / Unverified / Flagged
-per practitioner with mismatch details and source URLs.
+description: |-
+  Validates practitioner credentials and license status against the NPI registry.
+  Cross-references specialties, credentials, and practice addresses against
+  official records. Returns Verified / Partially Verified / Unverified / Flagged
+  per practitioner with mismatch details and source URLs.
 
-Triggers: "verify these doctors", "check provider credentials", "validate
-licenses", "verify NPI numbers", "cross-check credentials against NPI",
-"compliance audit on providers", "are these practitioners still licensed",
-"validate my provider list". Accepts CSV, Google Sheet URL, or pasted data.
+  Triggers: "verify these doctors", "check provider credentials", "validate
+  licenses", "verify NPI numbers", "cross-check credentials against NPI",
+  "compliance audit on providers", "are these practitioners still licensed",
+  "validate my provider list". Accepts CSV, Google Sheet URL, or pasted data.
 
-Do NOT use for extracting providers from practice URLs — use healthcare-providers-extract instead.
-Do NOT use for filling data gaps — use healthcare-providers-enrich instead.
-Do NOT use for discovering practices — use market-finder or local-places instead.
-Do NOT use for general extraction — use nimble-web-expert instead.
+  Do NOT use for extracting providers from practice URLs — use healthcare-providers-extract instead.
+  Do NOT use for filling data gaps — use healthcare-providers-enrich instead.
+  Do NOT use for discovering practices — use market-finder or local-places instead.
+  Do NOT use for general extraction — use nimble-web-expert instead.
 ---
+
 # Healthcare Providers Verify
 
 Validate practitioner credentials against the NPI registry and authoritative

@@ -2,6 +2,7 @@
 name: campaign-strategy
 description: Generate Spotify Ads campaign strategy from a landing page, product or business page, brand brief, location page, uploaded creative assets, existing Spotify Ads assets, or a natural-language business goal. Use when the user asks for the best campaign structure, targeting plan, audience plan, budget split, creative rotation, API-ready campaign plan, or pre-build recommendations before creating Spotify campaigns.
 ---
+
 # Spotify Ads API - Campaign Strategy
 
 Plan campaign structure and targeting before creating entities. This skill researches the offer, checks current Spotify Advertising guidance, validates targetability through the Ads API, and returns an API-ready plan. Do not create campaigns, ad sets, ads, assets, or audiences unless the user explicitly asks to execute after reviewing the plan.

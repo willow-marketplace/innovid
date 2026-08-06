@@ -1,7 +1,8 @@
 ---
 name: ui5-best-practices-accessibility
-description: |
+description: "|"
 ---
+
 # Accessibility Review
 
 Accessibility in UI5 is incorporated in two levels: framework and application.

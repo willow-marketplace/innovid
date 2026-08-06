@@ -2,14 +2,20 @@
   "name": "outputai",
   "version": "1.0.0",
   "description": "Workflow development tools",
-  "updatedAt": "2026-08-06T00:02:37.796Z",
+  "updatedAt": "2026-08-06T06:56:19.109Z",
   "author": {
     "name": "Output.ai",
     "email": "oss@growthx.ai"
   },
   "homepage": "https://output.ai",
   "skills": "./skills/",
-  "agents": "./agents/",
+  "agents": [
+    "./agents/workflow_context_fetcher.md",
+    "./agents/workflow_debugger.md",
+    "./agents/workflow_planner.md",
+    "./agents/workflow_prompt_writer.md",
+    "./agents/workflow_quality.md"
+  ],
   "hooks": {
     "SessionStart": [
       {

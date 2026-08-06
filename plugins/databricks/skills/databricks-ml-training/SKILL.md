@@ -1,7 +1,8 @@
 ---
 name: databricks-ml-training
-description: "Train ML or custom-agent models on Databricks with MLflow tracking and Unity Catalog registration. Use when asked to: train classification/regression or deep-learning models (XGBoost, scikit-learn, LightGBM, PyTorch, etc.) with Optuna tuning, register to UC and promote `@prod`/`@challenger` aliases, batch-score via `spark_udf`, build custom PyFunc models, author a custom `ResponsesAgent` with UC Function/Vector Search tools, or submit a training notebook as a serverless one-time job. NOT for: endpoint ops (databricks-model-serving), Knowledge Assistants/Supervisor Agents (databricks-agent-bricks), MLflow evaluation (databricks-mlflow-evaluation)."
+description: '"Train ML or custom-agent models on Databricks with MLflow tracking and Unity Catalog registration. Use when asked to: train classification/regression or deep-learning models (XGBoost, scikit-learn, LightGBM, PyTorch, etc.) with Optuna tuning, register to UC and promote `@prod`/`@challenger` aliases, batch-score via `spark_udf`, build custom PyFunc models, author a custom `ResponsesAgent` with UC Function/Vector Search tools, or submit a training notebook as a serverless one-time job. NOT for: endpoint ops (databricks-model-serving), Knowledge Assistants/Supervisor Agents (databricks-agent-bricks), MLflow evaluation (databricks-mlflow-evaluation)."'
 ---
+
 # ML Training on Databricks
 
 **FIRST**: Use the parent `databricks-core` skill for CLI basics, authentication, and profile selection.

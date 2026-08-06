@@ -1,7 +1,8 @@
 ---
 name: adobe-create-pdfs-from-data
-description: >
+description: ">"
 ---
+
 # InDesign Data Merge Skill
 
 Orchestrates the complete InDesign data merge pipeline. The naive path — calling

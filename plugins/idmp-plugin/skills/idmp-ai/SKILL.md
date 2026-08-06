@@ -1,7 +1,8 @@
 ---
 name: idmp-ai
-description: "IDMP AI skill. Use it to confirm AI availability and usable data, inspect chat sessions, generate recommended questions or panels, create analyses or panels from prompts, and decide when `record` should persist the session."
+description: '"IDMP AI skill. Use it to confirm AI availability and usable data, inspect chat sessions, generate recommended questions or panels, create analyses or panels from prompts, and decide when `record` should persist the session."'
 ---
+
 # ai
 
 **Read [`../idmp-shared/SKILL.md`](../idmp-shared/SKILL.md) first.**

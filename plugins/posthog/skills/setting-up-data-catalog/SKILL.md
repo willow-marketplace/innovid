@@ -1,7 +1,8 @@
 ---
 name: setting-up-data-catalog
-description: >
+description: ">"
 ---
+
 # Setting up and maintaining the data catalog
 
 The data catalog is a per-project inventory of three things that otherwise live only in people's

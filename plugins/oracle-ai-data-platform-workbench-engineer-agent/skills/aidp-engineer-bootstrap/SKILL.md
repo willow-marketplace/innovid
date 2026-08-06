@@ -2,6 +2,7 @@
 name: aidp-engineer-bootstrap
 description: First-run setup for the self-contained AIDP plugin. Verifies the oci CLI + a DEFAULT api_key profile, installs the bundled Python deps, discovers region + DataLake OCID + workspace, then smoke-tests both engines (a control-plane GET /catalogs via oci raw-request and a trivial SELECT 1 cell via scripts/aidp_sql.py). Use on first run, when the user asks to "set up / configure / install / bootstrap AIDP", or when control-plane or SQL calls fail with auth/config errors. No MCP install required.
 ---
+
 # `aidp-engineer-bootstrap` — get a new terminal to a working agent
 
 Take a brand-new terminal to a working AIDP agent. The plugin is **fully self-contained** — no dependency on

@@ -1,7 +1,8 @@
 ---
 name: exploring-data-catalog
-description: >-
+description: ">-"
 ---
+
 Structured inventory and cataloging across your AWS data landscape: Glue Data Catalog with S3 Tables, Redshift-federated, and remote Iceberg catalogs.
 
 ## Overview

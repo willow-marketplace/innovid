@@ -1,7 +1,8 @@
 ---
 name: exploring-mcp-intent-clusters
-description: >
+description: ">"
 ---
+
 # Exploring MCP intent clusters
 
 Intent clustering takes the free-text `$mcp_intent` values agents attach to

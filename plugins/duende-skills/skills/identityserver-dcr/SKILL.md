@@ -1,7 +1,8 @@
 ---
 name: identityserver-dcr
-description: "Configuring Dynamic Client Registration (DCR) in Duende IdentityServer: endpoint setup, authorization policies, custom validation with DynamicClientRegistrationValidator, software statement validation, IClientConfigurationStore, and separate DCR hosting."
+description: '"Configuring Dynamic Client Registration (DCR) in Duende IdentityServer: endpoint setup, authorization policies, custom validation with DynamicClientRegistrationValidator, software statement validation, IClientConfigurationStore, and separate DCR hosting."'
 ---
+
 # Dynamic Client Registration (DCR)
 
 ## When to Use This Skill

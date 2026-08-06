@@ -2,6 +2,7 @@
 name: meeting-to-deal
 description: Turn meeting transcripts into deal updates — key points, commitments, and next steps posted to matching CRM deals automatically. Auto-creates contacts for new attendees. Use when someone says "log my meetings to deals", "update CRM from calls", "what did I commit to in meetings", "sync notetaker", "log this meeting", "I just had a call with [company]", "what did I promise in that meeting", "add notes from today's calls", or "update the deal after my call".
 ---
+
 # Meeting to Opportunity
 
 Flow: **Trigger → Pull meetings → Match → Synthesize → Publish (α) → Auto-contact (β, opt-in) → Proactive next-step nudges (opt-in)**.

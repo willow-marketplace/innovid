@@ -2,6 +2,7 @@
 name: fiftyone-troubleshoot
 description: Diagnose and fix common FiftyOne issues automatically. Use when a dataset disappeared, the App won't open, changes aren't saving, MongoDB errors occur, video codecs fail, notebook connectivity breaks, operators are missing, or any recurring FiftyOne pain point needs solving.
 ---
+
 # FiftyOne Troubleshoot
 
 ## Overview

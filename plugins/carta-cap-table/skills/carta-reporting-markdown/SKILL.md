@@ -1,7 +1,8 @@
 ---
 name: carta-reporting-markdown
-description: >-
+description: ">-"
 ---
+
 # Transform Configuration
 
 Called from `carta-reporting` step 4d (Claude Code / MARKDOWN path). Use values resolved earlier in this session: data file path, `corporation_id`, `user_report_pk`.

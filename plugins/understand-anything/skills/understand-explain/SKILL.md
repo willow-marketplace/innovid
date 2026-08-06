@@ -2,6 +2,7 @@
 name: understand-explain
 description: Use when you need a deep-dive explanation of a specific file, function, or module in the codebase
 ---
+
 # /understand-explain
 
 Provide a thorough, in-depth explanation of a specific code component.

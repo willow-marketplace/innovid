@@ -1,7 +1,8 @@
 ---
 name: qt-qml
-description: >-
+description: ">-"
 ---
+
 # QML Coding Skill
 
 ## How to apply this skill

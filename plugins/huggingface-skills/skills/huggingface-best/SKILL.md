@@ -1,7 +1,8 @@
 ---
 name: huggingface-best
-description: >
+description: ">"
 ---
+
 # HuggingFace Best Model Finder
 
 Finds the best models for a task by querying official HF benchmark leaderboards, enriching

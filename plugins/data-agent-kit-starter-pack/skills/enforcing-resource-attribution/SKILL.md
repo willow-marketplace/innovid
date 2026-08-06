@@ -1,7 +1,8 @@
 ---
 name: enforcing-resource-attribution
-description: |
+description: "|"
 ---
+
 # Resource Attribution Enforcement
 
 To track resources created or manipulated by AI agents, you **MUST** ensure

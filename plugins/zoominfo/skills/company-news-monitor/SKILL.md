@@ -2,6 +2,7 @@
 name: company-news-monitor
 description: Monitor recent news and business events for a company and deliver a quick digest. Uses company signals scoped to news and scoops for a single account, grouped by type and recency, with a "so what" for each. Identify the company by ZoomInfo company ID (preferred) or name/domain (triggers a lookup). Use when someone asks "what's the latest news on Acme", "any recent developments at this account", "catch me up on what's happening there", or wants a news digest before a touchpoint.
 ---
+
 # Company News Monitor
 
 A fast read on what has happened at an account lately, and which of it is worth acting on.

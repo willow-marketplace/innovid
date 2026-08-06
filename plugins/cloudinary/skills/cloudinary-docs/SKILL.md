@@ -2,6 +2,7 @@
 name: cloudinary-docs
 description: Looks up implementation details in the latest Cloudinary docs via llms.txt. Use when building code or answering questions relating to image or video uploads, optimization, or transformations, and for Cloudinary SDKs, APIs, webhooks, or integrations.
 ---
+
 # Cloudinary Documentation
 
 Helps developers integrate Cloudinary into their applications by providing documentation and code examples retrieved directly from the optimized markdown files in the Cloudinary documentation.

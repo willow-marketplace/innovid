@@ -1,7 +1,8 @@
 ---
 name: firecrawl-scrape
-description: |
+description: "|"
 ---
+
 # firecrawl scrape
 
 Scrape one or more URLs. Returns clean, LLM-optimized markdown. Multiple URLs are scraped concurrently.

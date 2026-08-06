@@ -2,6 +2,7 @@
 name: output-dev-code-style
 description: Code style conventions for Output SDK workflow projects. Use when writing or reviewing any TypeScript/JavaScript code. Discovers the project's own linting rules first; falls back to Output SDK conventions when no linter is configured.
 ---
+
 # Code Style Conventions
 
 ## Overview

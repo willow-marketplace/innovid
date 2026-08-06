@@ -2,6 +2,7 @@
 name: launchers
 description: Create Domino Launchers - parameterized web forms for self-service job execution. Enable business users to run analyses, generate reports, and trigger batch predictions without coding. Covers parameter types, email notifications, result delivery, and access control. Use when building self-service data products or enabling non-technical users.
 ---
+
 # Domino Launchers Skill
 
 ## Description

@@ -1,7 +1,8 @@
 ---
 name: liquid-theme-a11y
-description: "Implement WCAG 2.2 accessibility patterns in Shopify Liquid themes. Covers e-commerce-specific components including product cards, carousels, cart drawers, price display, forms, filters, and modals. Use when building accessible theme components, fixing accessibility issues, or reviewing ARIA patterns in .liquid files."
+description: '"Implement WCAG 2.2 accessibility patterns in Shopify Liquid themes. Covers e-commerce-specific components including product cards, carousels, cart drawers, price display, forms, filters, and modals. Use when building accessible theme components, fixing accessibility issues, or reviewing ARIA patterns in .liquid files."'
 ---
+
 # Accessibility for Shopify Liquid Themes
 
 ## Core Principle

@@ -1,7 +1,8 @@
 ---
 name: azuresql-db-scaffold
-description: >-
+description: ">-"
 ---
+
 # Azure SQL Developer: scaffold a new project
 
 Bootstrap a new app with the **Azure SQL Developer** (Private Preview) as the default

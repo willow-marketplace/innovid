@@ -2,6 +2,7 @@
 name: aidp-federate
 description: Federate across multiple data sources in one AIDP Spark session — read from several connectors (Oracle ADB/ExaCS, Fusion, Snowflake, S3, lakehouse tables, …) and join them in a single notebook. Use when the user wants to combine/join data from more than one source, blend an external system with the lakehouse, or do cross-source analysis. Composes the spark-connectors plugin; does not duplicate connectors.
 ---
+
 # `aidp-federate` — cross-source federation in one Spark session
 
 Blend multiple sources by reading each into one Spark session and joining them — a signature differentiator

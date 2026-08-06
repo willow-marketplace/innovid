@@ -2,6 +2,7 @@
 name: card-provisioning
 description: Provision virtual or physical corporate cards in Airwallex Issuing — create cardholders, issue cards with spend limits, and manage card spending. Use when the user says "create a card for", "spin up a virtual card", "set up a card for Adobe", "provision a card", or needs to manage corporate card spending. Do NOT use for bank transfers, creating invoices, or checking FX rates.
 ---
+
 # Card Provisioning
 
 Creates virtual or physical corporate cards in Airwallex Issuing — one workflow to set up a cardholder, issue a card with spend limits, and optionally manage ongoing spend.

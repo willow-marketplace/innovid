@@ -2,6 +2,7 @@
 name: creating-mermaid-dbt-dag
 description: Generates a Mermaid flowchart diagram of dbt model lineage using MCP tools, manifest.json, or direct code parsing as fallbacks. Use when visualizing dbt model lineage and dependencies as a Mermaid diagram in markdown format.
 ---
+
 # Create Mermaid Diagram in Markdown from dbt DAG
 
 ## How to use this skill

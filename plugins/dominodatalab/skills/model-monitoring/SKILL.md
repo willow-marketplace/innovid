@@ -2,6 +2,7 @@
 name: model-monitoring
 description: Monitor deployed models in Domino including drift detection, model quality tracking, and alerting. Covers data drift analysis, prediction capture, baseline comparison, alert configuration, and remediation workflows. Use when monitoring production models, detecting drift, or setting up model health alerts.
 ---
+
 # Domino Model Monitoring Skill
 
 ## Description

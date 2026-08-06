@@ -2,6 +2,7 @@
 name: flag-monitoring
 description: Set up a monitored progressive rollout ("safe rollout") for a GrowthBook feature flag — combining a ramp schedule with guardrail metric monitoring, automated signals, and optional auto-rollback. Use when the user says "roll this out safely", "monitor the rollout with guardrail metrics", "set up a safe rollout", "I want to ramp this with automatic rollback if metrics regress", "configure monitoring on the ramp", "check the monitoring status of this rollout", "approve the next monitored step", or "roll back because guardrails are failing". For unmonitored ramps (just progressive coverage, no metrics), use flag-ramp directly. For simple on/off time windows, use flag-schedule.
 ---
+
 # flag-monitoring
 
 Set up and manage a monitored progressive rollout (also called a "safe rollout") for a GrowthBook feature flag. A safe rollout is a standard `rollout` rule with a multi-step ramp schedule and `monitoringConfig` attached — the monitoring watches guardrail metrics at each step and can signal or automatically trigger a rollback if regressions are detected.

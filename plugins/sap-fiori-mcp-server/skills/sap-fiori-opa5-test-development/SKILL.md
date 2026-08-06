@@ -2,6 +2,7 @@
 name: sap-fiori-opa5-test-development
 description: Use this skill whenever writing, fixing, extending, or reviewing OPA5 integration tests for SAP Fiori elements (OData V4) applications.
 ---
+
 # SAP Fiori OPA5 Development Skill
 
 A reference guide for writing OPA5 integration tests against SAP Fiori elements for OData V4 applications using the `sap.fe.test` test library.

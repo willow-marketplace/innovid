@@ -2,6 +2,7 @@
 name: new-terraform-provider
 description: Use this when scaffolding a new Terraform provider.
 ---
+
 To scaffold a new Terraform provider with Plugin Framework:
 
 1. If I am already in a Terraform provider workspace, then confirm that I want

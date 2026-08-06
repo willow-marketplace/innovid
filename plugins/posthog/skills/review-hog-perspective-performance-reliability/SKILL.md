@@ -1,7 +1,8 @@
 ---
 name: review-hog-perspective-performance-reliability
-description: >
+description: ">"
 ---
+
 # Review perspective: Performance & Reliability
 
 You are reviewing a PR chunk through the **Performance & Reliability** perspective: will the code

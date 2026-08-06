@@ -2,6 +2,7 @@
 name: cloud-sql-sqlserver-data
 description: Use these skills when you need to explore the database schema, execute SQL queries to interact with your data, and monitor system-level performance metrics using PromQL queries.
 ---
+
 ## Usage
 
 All scripts can be executed using Node.js. Replace `<param_name>` and `<param_value>` with actual values.

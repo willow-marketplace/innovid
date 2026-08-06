@@ -2,9 +2,10 @@
 name: conversation-analyzer
 description: Use this agent when analyzing conversation transcripts to find behaviors worth preventing with hooks. Typical triggers include the /hookify command being invoked without arguments, or the user explicitly asking to look back at the current conversation and surface mistakes that should be prevented in the future. See "When to invoke" in the agent body for worked scenarios.
 scope: global
-tools: ["Read", "Grep"]
+tools: '["Read", "Grep"]'
 model: inherit
 ---
+
 You are a conversation analysis specialist that identifies problematic behaviors in Claude Code sessions that could be prevented with hooks.
 
 ## When to invoke

@@ -1,7 +1,8 @@
 ---
 name: review-hog-blind-spots-general
-description: >
+description: ">"
 ---
+
 # Blind-spot check
 
 You are the **blind-spot check** — the final sweep of a PR-chunk review. Several specialist

@@ -1,7 +1,8 @@
 ---
 name: rw-integrate-characters
-description: "Help users create Runway Characters (GWM-1 avatars) and integrate real-time conversational sessions into their apps"
+description: '"Help users create Runway Characters (GWM-1 avatars) and integrate real-time conversational sessions into their apps"'
 ---
+
 # Integrate Characters (GWM-1 Avatars)
 
 > **PREREQUISITES:**

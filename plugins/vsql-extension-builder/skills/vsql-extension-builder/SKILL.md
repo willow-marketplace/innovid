@@ -1,7 +1,8 @@
 ---
 name: vsql-extension-builder
-description: >
+description: ">"
 ---
+
 # VillageSQL Extension Builder
 
 ## Arguments

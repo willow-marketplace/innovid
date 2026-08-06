@@ -1,7 +1,8 @@
 ---
 name: querying-data-lake
-description: >-
+description: ">-"
 ---
+
 # Query Data Lake
 
 Execute SQL queries on Amazon Athena across default and federated catalogs (Glue, S3 Tables, Redshift) with workgroup selection, statement classification, and error recovery.

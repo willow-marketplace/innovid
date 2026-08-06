@@ -2,6 +2,7 @@
 name: scheduled-report-refresh
 description: Refreshes recurring reports (daily briefings, WBRs, experiment briefs) from saved Amplitude content — fetch the dashboard, re-pull its charts, fill gaps with ad hoc queries, summarize deltas. Use for "run the daily/weekly report", "refresh this dashboard's numbers", or scheduled custom-agent report runs.
 ---
+
 # Scheduled Report Refresh
 
 The dominant *automated* job on this MCP server: custom agents and

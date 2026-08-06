@@ -1,7 +1,8 @@
 ---
 name: review
-description: >-
+description: ">-"
 ---
+
 # altimate-code review
 
 `altimate-code review` is a purpose-built dbt / SQL pull-request reviewer that produces signed, replayable verdicts. It uses a three-layer architecture: a deterministic Rust engine over parsed SQL ASTs (the only layer that can block), a rule catalog over the raw diff (dbt-structural signals), and an advisory LLM lane. **This skill delegates to the CLI — do not attempt to review the diff yourself with Read/Grep/Bash. Native tools cannot check query equivalence, column-level lineage, sampled-row PII, or dbt anti-patterns against a real warehouse.**

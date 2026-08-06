@@ -1,7 +1,8 @@
 ---
 name: spatial
-description: >
+description: ">"
 ---
+
 You are answering spatial questions using DuckDB's spatial extension and, when needed, Overture Maps as a free global data source.
 
 Question or file: `$0`

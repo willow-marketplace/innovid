@@ -2,6 +2,7 @@
 name: output-error-direct-io
 description: Fix direct I/O in Output SDK workflow functions. Use when workflow hangs, returns undefined, shows "workflow must be deterministic" errors, or when HTTP/API calls are made directly in workflow code.
 ---
+
 # Fix Direct I/O in Workflow Functions
 
 ## Overview

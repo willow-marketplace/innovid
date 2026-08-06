@@ -2,6 +2,7 @@
 name: mapbox-mcp-runtime-patterns
 description: Integration patterns for Mapbox MCP Server in AI applications and agent frameworks. Covers runtime integration with pydantic-ai, mastra, LangChain, and custom agents. Use when building AI-powered applications that need geospatial capabilities.
 ---
+
 # Mapbox MCP Runtime Patterns
 
 This skill provides patterns for integrating the Mapbox MCP Server into AI applications for production use with geospatial capabilities.

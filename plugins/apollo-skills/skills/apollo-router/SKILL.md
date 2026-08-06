@@ -1,7 +1,8 @@
 ---
 name: apollo-router
-description: >
+description: ">"
 ---
+
 # Apollo Router Config Generator
 
 Apollo Router is a high-performance graph router written in Rust for running Apollo Federation 2 supergraphs. It sits in front of your subgraphs and handles query planning, execution, and response composition.
