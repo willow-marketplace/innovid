@@ -1,6 +1,6 @@
 ---
 name: design-analyzer
-description: |
+description: Analyzes Figma structural nodes (pages, screens, components, instances, tokens) from a deterministic manifest and adds semantic enrichment — concise summaries, tags, and a screen's purpose — plus conservative `related` edges. Does NOT invent structural nodes or edges.
 scope: global
 ---
 # Design Analyzer Agent

@@ -1,6 +1,7 @@
 ---
 name: assemble-reviewer
-description: |
+description: Reviews the output of merge-batch-graphs.py for semantic issues the script
+cannot catch. Recovers dropped nodes/edges and fills cross-batch gaps.
 scope: global
 ---
 # Assemble Reviewer

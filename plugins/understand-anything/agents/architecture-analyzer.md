@@ -1,6 +1,7 @@
 ---
 name: architecture-analyzer
-description: |
+description: Analyzes a codebase's file structure, summaries, and import relationships to identify
+logical architectural layers and assign every file to exactly one layer.
 scope: global
 ---
 # Architecture Analyzer

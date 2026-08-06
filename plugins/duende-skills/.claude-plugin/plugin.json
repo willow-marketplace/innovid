@@ -2,7 +2,7 @@
   "name": "duende-skills",
   "version": "0.1.0",
   "description": "Duende development skills and agents for Claude Code — covering OAuth/OIDC protocols, IdentityServer, token management, ASP.NET Core authentication/authorization, BFF patterns, and secure identity architecture",
-  "updatedAt": "2026-08-04T12:03:17.363Z",
+  "updatedAt": "2026-08-06T00:02:44.779Z",
   "author": {
     "url": "https://github.com/DuendeSoftware",
     "name": "Duende Software"

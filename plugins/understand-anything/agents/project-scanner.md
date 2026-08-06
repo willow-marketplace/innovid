@@ -1,6 +1,7 @@
 ---
 name: project-scanner
-description: |
+description: Scans a codebase directory to produce a structured inventory of all project files,
+detected languages, frameworks, import maps, and estimated complexity.
 scope: global
 ---
 # Project Scanner

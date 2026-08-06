@@ -2,7 +2,7 @@
   "name": "terraform-policy-code",
   "version": "1.0.0",
   "description": "Terraform Policy skills for authoring .policy.hcl files, writing .policytest.hcl tests, and converting Sentinel policies to Terraform Policy.",
-  "updatedAt": "2026-08-04T00:15:28.359Z",
+  "updatedAt": "2026-08-05T16:57:31.581Z",
   "author": {
     "url": "https://github.com/hashicorp",
     "name": "HashiCorp"

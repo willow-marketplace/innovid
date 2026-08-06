@@ -22,10 +22,10 @@ def test_emit_turn_observations_creates_generation_tool_and_subagent_observation
     )
 
     names = [observation.name for observation in fake_langfuse.observations]
-    assert "LLM Call 1" in names
+    assert "LLM Call" in names
     assert "Tool: Agent" in names
     assert "Subagent: Summarize docs" in names
-    assert "Subagent LLM Call 1" in names
+    assert "Subagent LLM Call" in names
     assert "Tool: ToolSearch" in names
     assert latest_end_timestamp.isoformat() == "2026-01-01T00:02:06+00:00"
 

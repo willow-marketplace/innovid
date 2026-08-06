@@ -1,5 +1,35 @@
 # Changelog
 
+## [0.3.10](https://github.com/gemini-cli-extensions/looker/compare/0.3.9...0.3.10) (2026-08-05)
+
+
+### Features
+
+* **plugin:** support agent plugin spec ([#158](https://github.com/gemini-cli-extensions/looker/issues/158)) ([28e53e6](https://github.com/gemini-cli-extensions/looker/commit/28e53e6da4e91f84d8a9cccf46eae638c50a727e))
+
+## [0.3.9](https://github.com/gemini-cli-extensions/looker/compare/0.3.8...0.3.9) (2026-08-04)
+
+
+### Features
+
+* **prebuilt:** Migrate skills-repo toolsets to `kind: group` with descriptions ([mcp-toolbox#​3595](https://redirect.github.com/googleapis/mcp-toolbox/issues/3595)) ([b895b36](https://redirect.github.com/googleapis/mcp-toolbox/commit/b895b36b10eb81dc609216fc5f76ae800d1c65f4)) ([47cc435](https://github.com/gemini-cli-extensions/looker/commit/47cc435cdbd2f70f095cf138a80b14bc659b59c6))
+* **server:** Add `/healthz` endpoint for container health checks ([mcp-toolbox#​3060](https://redirect.github.com/googleapis/mcp-toolbox/issues/3060)) ([d5aefbc](https://redirect.github.com/googleapis/mcp-toolbox/commit/d5aefbc9e9bd914042224daaf0d4f9257ac01c88)) ([47cc435](https://github.com/gemini-cli-extensions/looker/commit/47cc435cdbd2f70f095cf138a80b14bc659b59c6))
+* **skills:** Add `--group` flag to generate a skill from one group ([mcp-toolbox#​3585](https://redirect.github.com/googleapis/mcp-toolbox/issues/3585)) ([c1abd4f](https://redirect.github.com/googleapis/mcp-toolbox/commit/c1abd4fc4fcdfa52ba20aaf7d92424ca189c7282)) ([47cc435](https://github.com/gemini-cli-extensions/looker/commit/47cc435cdbd2f70f095cf138a80b14bc659b59c6))
+* **skills:** Default `--name` to `--group`, `--toolset`, or single `--prebuilt` name ([mcp-toolbox#​3586](https://redirect.github.com/googleapis/mcp-toolbox/issues/3586)) ([2b33b08](https://redirect.github.com/googleapis/mcp-toolbox/commit/2b33b08c3a220657c8ab6a3e0ce1274badc2fe15)) ([47cc435](https://github.com/gemini-cli-extensions/looker/commit/47cc435cdbd2f70f095cf138a80b14bc659b59c6))
+* **skills:** Make description optional during skills gen ([mcp-toolbox#​3584](https://redirect.github.com/googleapis/mcp-toolbox/issues/3584)) ([d0a8f14](https://redirect.github.com/googleapis/mcp-toolbox/commit/d0a8f14cbec1f9770da7f82a07b4e480f5a4c6a7)) ([47cc435](https://github.com/gemini-cli-extensions/looker/commit/47cc435cdbd2f70f095cf138a80b14bc659b59c6))
+* **tool/looker:** Add `get_field_value_suggestions` tool ([mcp-toolbox#​3696](https://redirect.github.com/googleapis/mcp-toolbox/issues/3696)) ([3debe81](https://redirect.github.com/googleapis/mcp-toolbox/commit/3debe8113fe2c9af012a7369658bb7a9e64f40f4)) ([47cc435](https://github.com/gemini-cli-extensions/looker/commit/47cc435cdbd2f70f095cf138a80b14bc659b59c6))
+* Add `groups` support ([mcp-toolbox#​3605](https://redirect.github.com/googleapis/mcp-toolbox/issues/3605)) ([e75ec3b](https://redirect.github.com/googleapis/mcp-toolbox/commit/e75ec3b5c84dfad5b69f2d42ec2d3408f22e2463)) ([47cc435](https://github.com/gemini-cli-extensions/looker/commit/47cc435cdbd2f70f095cf138a80b14bc659b59c6))
+* Update draft specs to 2026-07-28 ([mcp-toolbox#​3699](https://redirect.github.com/googleapis/mcp-toolbox/issues/3699)) ([cf128ff](https://redirect.github.com/googleapis/mcp-toolbox/commit/cf128ff94c4d39aea1eb17caa706ff0b73d8c780)) ([47cc435](https://github.com/gemini-cli-extensions/looker/commit/47cc435cdbd2f70f095cf138a80b14bc659b59c6))
+
+
+### Bug Fixes
+
+* **server:** Sort default toolset alphabetically for stable ordering ([mcp-toolbox#​3539](https://redirect.github.com/googleapis/mcp-toolbox/issues/3539)) ([e5da24c](https://redirect.github.com/googleapis/mcp-toolbox/commit/e5da24c5dfd2208c7e947a20e58a2e2c82236241)) ([47cc435](https://github.com/gemini-cli-extensions/looker/commit/47cc435cdbd2f70f095cf138a80b14bc659b59c6))
+* **tools/looker:** Enhance looker-run-dashboard to handle result maker structures and merge queries ([mcp-toolbox#​3698](https://redirect.github.com/googleapis/mcp-toolbox/issues/3698)) ([7666bc0](https://redirect.github.com/googleapis/mcp-toolbox/commit/7666bc08debdc4f81e1c6f95f41a1dbd9db3b365)) ([47cc435](https://github.com/gemini-cli-extensions/looker/commit/47cc435cdbd2f70f095cf138a80b14bc659b59c6))
+* **tools/looker:** Log request/response traces at debug, not error ([mcp-toolbox#​3552](https://redirect.github.com/googleapis/mcp-toolbox/issues/3552)) ([c3ad445](https://redirect.github.com/googleapis/mcp-toolbox/commit/c3ad4451e8592606ce686d042623f9aa8142317f)) ([47cc435](https://github.com/gemini-cli-extensions/looker/commit/47cc435cdbd2f70f095cf138a80b14bc659b59c6))
+* Re-add name validation to tools name ([mcp-toolbox#​3654](https://redirect.github.com/googleapis/mcp-toolbox/issues/3654)) ([944f6ce](https://redirect.github.com/googleapis/mcp-toolbox/commit/944f6ce97bc77a92a052de92b88f0fc09ac7578c)) ([47cc435](https://github.com/gemini-cli-extensions/looker/commit/47cc435cdbd2f70f095cf138a80b14bc659b59c6))
+* Re-add tool validation during startup ([mcp-toolbox#​3705](https://redirect.github.com/googleapis/mcp-toolbox/issues/3705)) ([25ce953](https://redirect.github.com/googleapis/mcp-toolbox/commit/25ce953559a201183f066f566dca5fb597efca39)) ([47cc435](https://github.com/gemini-cli-extensions/looker/commit/47cc435cdbd2f70f095cf138a80b14bc659b59c6))
+
 ## [0.3.8](https://github.com/gemini-cli-extensions/looker/compare/0.3.7...0.3.8) (2026-07-21)
 
 
@@ -58,7 +88,7 @@
 * **server:** Fail if MCP auth is enabled together with enable-api ([mcp-toolbox#​3435](https://redirect.github.com/googleapis/mcp-toolbox/issues/3435)) ([a6ff910](https://redirect.github.com/googleapis/mcp-toolbox/commit/a6ff910a602adece11f0a6581d6211e5927f7182)) ([6371c61](https://github.com/gemini-cli-extensions/looker/commit/6371c616c0eebff20e5621cab855fa4ecbcb9c20))
 * **server:** Return errors instead of panicking in InitializeConfigs ([mcp-toolbox#​3397](https://redirect.github.com/googleapis/mcp-toolbox/issues/3397)) ([f48b01d](https://redirect.github.com/googleapis/mcp-toolbox/commit/f48b01dc1775e4583a06689a2e67fb06e5dd3c68)) ([6371c61](https://github.com/gemini-cli-extensions/looker/commit/6371c616c0eebff20e5621cab855fa4ecbcb9c20))
 * Bound MCP HTTP body size ([mcp-toolbox#​3216](https://redirect.github.com/googleapis/mcp-toolbox/issues/3216)) ([d4f4342](https://redirect.github.com/googleapis/mcp-toolbox/commit/d4f434251392fb597779a90a12c63d21533ea187)) ([6371c61](https://github.com/gemini-cli-extensions/looker/commit/6371c616c0eebff20e5621cab855fa4ecbcb9c20))
-* Escape delimiter characters in applyEscape to prevent SQL injection ([mcp-toolbox#​2811](https://redirect.github.com/googleapis/mcp-toolbox/issues/2811)) ([932519a](https://redirect.github.com/googleapis/mcp-toolbox/commit/932519a9551861bf5f18787dc43b20d06350343f)) ([6371c61](https://github.com/gemini-cli-extensions/looker/commit/6371c616c0eebff20e5621cab855fa4ecbcb9c20))
+* Escape delimiter characters in applyEscape to prevent SQL injection ([932519a](https://redirect.github.com/googleapis/mcp-toolbox/commit/932519a9551861bf5f18787dc43b20d06350343f)) ([6371c61](https://github.com/gemini-cli-extensions/looker/commit/6371c616c0eebff20e5621cab855fa4ecbcb9c20))
 
 ## [0.3.5](https://github.com/gemini-cli-extensions/looker/compare/0.3.4...0.3.5) (2026-06-05)
 

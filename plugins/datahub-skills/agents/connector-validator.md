@@ -1,7 +1,26 @@
 ---
 name: connector-validator
-description: |
+description: Run provided validation scripts, analyze their output, and report results for DataHub connector verification steps. Handles extraction verification, capability checks, code quality gates, source connectivity, ingestion runs, and CLI verification.
+
+<example>
+Context: Workflow needs to verify that extraction output contains expected entities.
+user: "Run the verify-extraction script on the output file"
+assistant: "I'll use the connector-validator agent to run the verification script and analyze the results."
+<commentary>
+Extraction verification is a procedural script-running task that triggers this agent.
+</commentary>
+</example>
+
+<example>
+Context: Workflow needs to check that declared capabilities produce actual output.
+user: "Run the capability check on the connector"
+assistant: "I'll use the connector-validator agent to run the capability check script and report coverage."
+<commentary>
+Capability validation is a script-based check that triggers this agent.
+</commentary>
+</example>
 scope: global
+tools: ["Bash(python3 *extract_aspects.py*), Bash(python3 *verify-extraction*), Bash(python3 *check-capabilities*), Bash(python3 *run-code-quality*), Bash(bash *verify-extraction*), Bash(bash *check-capabilities*), Bash(bash *run-code-quality*), Bash(datahub ingest *), Bash(datahub *), Bash(test -f *), Bash(ls *)","Read","Grep","Glob","TaskCreate","TaskUpdate"]
 model: haiku
 ---
 # DataHub Connector Validator Agent

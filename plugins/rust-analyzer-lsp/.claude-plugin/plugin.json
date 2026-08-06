@@ -2,7 +2,7 @@
   "name": "rust-analyzer-lsp",
   "version": "1.0.0",
   "description": "Rust language server for code intelligence and analysis",
-  "updatedAt": "2026-08-04T12:03:20.152Z",
+  "updatedAt": "2026-08-06T00:02:43.469Z",
   "author": {
     "name": "Anthropic",
     "email": "support@anthropic.com"

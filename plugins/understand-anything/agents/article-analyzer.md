@@ -1,6 +1,6 @@
 ---
 name: article-analyzer
-description: |
+description: Analyzes markdown files using pre-parsed structural data and LLM inference to extract knowledge graph nodes and edges (entities, claims, implicit relationships, topic clustering).
 scope: global
 ---
 # Article Analyzer Agent

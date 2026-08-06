@@ -2,7 +2,7 @@
   "name": "explanatory-output-style",
   "version": "1.0.0",
   "description": "Adds educational insights about implementation choices and codebase patterns (mimics the deprecated Explanatory output style)",
-  "updatedAt": "2026-08-04T12:02:49.229Z",
+  "updatedAt": "2026-08-06T00:02:19.249Z",
   "author": {
     "name": "Anthropic",
     "email": "support@anthropic.com"

@@ -1,7 +1,26 @@
 ---
 name: comment-resolution-checker
-description: |
+description: Use this agent when you need to verify whether a PR author has genuinely addressed previous review comments before re-review. This agent fetches review comments, classifies them by type (code change request vs. discussion vs. question), and checks whether each was substantively addressed — not just marked as resolved.
+
+<example>
+Context: A PR has been updated after review and the author is requesting re-review.
+user: "Check if the author addressed all review comments on PR #1234"
+assistant: "I'll use the comment-resolution-checker agent to verify whether all review comments on PR #1234 have been substantively addressed."
+<commentary>
+PR re-review readiness check triggers this agent.
+</commentary>
+</example>
+
+<example>
+Context: User wants to know what's still outstanding on a PR before approving.
+user: "What review comments are still unaddressed on this PR?"
+assistant: "I'll use the comment-resolution-checker agent to analyze the PR's review comments and identify any that haven't been addressed."
+<commentary>
+Checking for unaddressed comments triggers this agent.
+</commentary>
+</example>
 scope: global
+tools: ["Bash(gh api repos/*/pulls/*/comments *), Bash(gh api repos/*/pulls/*/reviews *), Bash(gh api repos/*/pulls/*/commits *), Bash(gh api repos/*/pulls/*/files *), Bash(gh api repos/*/issues/*/comments *), Bash(gh pr view *), Bash(gh pr diff *)","Read","Glob","Grep"]
 model: sonnet
 ---
 # Comment Resolution Checker

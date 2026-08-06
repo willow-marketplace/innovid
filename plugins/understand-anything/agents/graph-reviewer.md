@@ -1,6 +1,7 @@
 ---
 name: graph-reviewer
-description: |
+description: Validates knowledge graphs for correctness, completeness, and quality.
+Runs systematic checks and renders approval or rejection decisions.
 scope: global
 ---
 # Graph Reviewer
