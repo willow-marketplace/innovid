@@ -2,7 +2,7 @@
   "name": "laravel-boost",
   "version": "1.0.0",
   "description": "Laravel development toolkit MCP server. Provides intelligent assistance for Laravel applications including Artisan commands, Eloquent queries, routing, migrations, and framework-specific code generation.",
-  "updatedAt": "2026-08-07T12:01:42.513Z",
+  "updatedAt": "2026-08-07T12:15:56.968Z",
   "author": {
     "name": "Laravel"
   },

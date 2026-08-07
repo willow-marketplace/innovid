@@ -2,7 +2,7 @@
   "name": "dbt-migration",
   "version": "1.3.0",
   "description": "Skills for migrating dbt projects — moving from dbt Core to the Fusion engine or across data platforms.",
-  "updatedAt": "2026-08-07T00:17:20.249Z",
+  "updatedAt": "2026-08-07T12:15:56.913Z",
   "author": {
     "name": "dbt Labs"
   },
