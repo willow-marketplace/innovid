@@ -2,7 +2,7 @@
   "name": "zscaler",
   "version": "1.0.0",
   "description": "Manage Zscaler cloud security platform including ZPA (private access), ZIA (internet access), ZDX (digital experience), ZCC (client connector), EASM (attack surface), and Z-Insights (analytics). Create and manage policies, troubleshoot connectivity, audit security configurations, and investigate incidents across the full Zscaler ecosystem.",
-  "updatedAt": "2026-08-07T00:05:28.836Z",
+  "updatedAt": "2026-08-07T12:02:14.046Z",
   "author": {
     "name": "Zscaler"
   },
@@ -13,7 +13,7 @@
       "args": [
         "--env-file",
         "${CLAUDE_PLUGIN_ROOT}/.env",
-        "zscaler-mcp@0.14.0"
+        "zscaler-mcp@0.15.0"
       ],
       "command": "uvx"
     }

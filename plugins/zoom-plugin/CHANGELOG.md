@@ -4,7 +4,13 @@ All notable changes to this plugin are documented in this file.
 
 ## Unreleased
 
-- no unreleased changes
+- added Zoom AI Services Scribe Live Mode guidance for authenticated WebSocket transcription,
+  PCM16 streaming, browser relay architecture, event handling, limits, and graceful shutdown
+- updated the Zoom MCP catalog for the seven current official product servers, including current Chat, Canvas, Tasks, Revenue Accelerator, Meetings, and Whiteboard endpoints and scopes
+- synced the canonical Marketplace template catalog, including Meetings, Canvas, Tasks, Revenue Accelerator, Chat, and Whiteboard MCP manifests plus legacy Docs compatibility
+- added the machine-readable template index and safe full-replacement workflow for updating existing General App manifests
+- updated product and MCP routing to distinguish General App manifests from native S2S and Meeting SDK create requests
+- chained Marketplace app workflows through the helper automatically with confirmation and read-back verification
 
 ## 1.2.0
 

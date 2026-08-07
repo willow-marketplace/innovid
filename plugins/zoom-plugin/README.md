@@ -15,9 +15,17 @@ For Claude Code, export the bearer tokens before using the bundled MCP servers:
 
 ```bash
 export ZOOM_MCP_ACCESS_TOKEN="your_zoom_user_oauth_access_token"
-export ZOOM_DOCS_MCP_ACCESS_TOKEN="your_zoom_docs_mcp_access_token"
+export ZOOM_MEETINGS_MCP_ACCESS_TOKEN="your_zoom_user_oauth_access_token"
+export ZOOM_CANVAS_MCP_ACCESS_TOKEN="your_zoom_user_oauth_access_token"
+export ZOOM_CHAT_MCP_ACCESS_TOKEN="your_zoom_user_oauth_access_token"
+export ZOOM_TASKS_MCP_ACCESS_TOKEN="your_zoom_user_oauth_access_token"
+export ZOOM_REVENUE_ACCELERATOR_MCP_ACCESS_TOKEN="your_zoom_user_oauth_access_token"
 export ZOOM_WHITEBOARD_MCP_ACCESS_TOKEN="your_zoom_user_oauth_access_token"
 ```
+
+The same access token can be assigned to each variable when the General App includes the
+scopes required by all selected MCP servers. Use separate tokens if you want to keep server
+permissions isolated.
 
 ## Slash Workflows
 
@@ -26,7 +34,7 @@ Explicit slash workflows implemented as skills under `skills/`:
 | Workflow | Description |
 |---|---|
 | [`/start`](skills/start/SKILL.md) | Start with a Zoom app idea and get routed to the right product and build path |
-| [`/setup-zoom-marketplace-app`](skills/setup-zoom-marketplace-app/SKILL.md) | Select, create, or validate the app model, manifest, scopes, events, and credentials for a Zoom integration |
+| [`/setup-zoom-marketplace-app`](skills/setup-zoom-marketplace-app/SKILL.md) | Select, create, update, or validate the app model, manifest, scopes, events, and credentials for a Zoom integration |
 | [`/setup-zoom-oauth`](skills/setup-zoom-oauth/SKILL.md) | Choose the auth model, scopes, and redirect flow for a Zoom app |
 | [`/build-zoom-meeting-app`](skills/build-zoom-meeting-app/SKILL.md) | Build an embedded or managed Zoom meeting flow |
 | [`/build-zoom-bot`](skills/build-zoom-bot/SKILL.md) | Build bots, recorders, and real-time meeting processors |
@@ -70,6 +78,8 @@ The plugin also keeps the original Zoom product-specific reference library under
 - [`skills/translator/`](skills/translator/)
 - [`skills/zoom-mcp/`](skills/zoom-mcp/)
 - [`skills/zoom-mcp/team-chat/`](skills/zoom-mcp/team-chat/)
+- [`skills/zoom-mcp/whiteboard/`](skills/zoom-mcp/whiteboard/)
+- [`skills/zoom-mcp/references/servers.md`](skills/zoom-mcp/references/servers.md)
 
 ## Example Workflows
 
@@ -91,6 +101,68 @@ The plugin also keeps the original Zoom product-specific reference library under
 /setup-zoom-marketplace-app Create the minimum user-managed General App manifest for a meeting API workflow with webhooks
 ```
 
+For programmatic Marketplace app creation from Claude Code, register the separately hosted helper
+MCP server first:
+
+```bash
+claude mcp add --transport http \
+  zoom-marketplace-helper \
+  https://marketplacehelper.asdc.cc/mcp
+```
+
+Then run `/setup-zoom-marketplace-app`. When the helper tools are connected, the skill selects
+`zoom-marketplace-helper` automatically, previews the intended account change, asks for
+confirmation, and verifies the resulting app after the write.
+The helper is external to this plugin and its MCP endpoint must already be reachable by Claude Code.
+If the helper endpoint changes, re-register the Claude Code MCP server with the new `/mcp` URL.
+This helper URL only connects Claude Code to the helper. Never use it, the helper operator's
+OAuth client ID, or the helper operator's OAuth callback in a Marketplace app created for a user.
+That app must use the user's own credentials and HTTPS endpoints.
+
+#### Test a new app without deploying it
+
+If you do not have an existing HTTPS server for the app yet, expose your local app with a
+temporary tunnel before creating the Marketplace app. This lets you test the OAuth redirect,
+Zoom App home URL, and webhook endpoints through the app you are running locally.
+
+Start the app locally, for example on port `3000`, then choose one tunnel:
+
+```bash
+# ngrok
+ngrok http 3000
+
+# Or Cloudflare Tunnel
+cloudflared tunnel --url http://localhost:3000
+```
+
+Use the HTTPS tunnel URL in the app configuration, with the actual routes implemented by your
+local server. For example:
+
+```text
+Home URL:              https://YOUR_TUNNEL_HOST/
+OAuth redirect URL:    https://YOUR_TUNNEL_HOST/oauth/callback
+Webhook endpoint URL:  https://YOUR_TUNNEL_HOST/webhooks/zoom
+```
+
+If the user already has a hosted HTTPS service, use its routes instead. Build the OAuth
+authorization URL with the client ID Zoom issues for the user's app and the exact redirect URL
+configured for that app. Do not copy a maintainer, helper, sample, or previous user's OAuth URL.
+
+The tunnel only forwards requests; it does not create these routes or handle OAuth and webhook
+validation for you. Free or ephemeral tunnel URLs can change, so update the Marketplace app
+configuration and any generated manifest values whenever the tunnel hostname changes. Use a
+deployed HTTPS service or a reserved tunnel hostname when the URL must remain stable.
+
+Before asking `zoom-marketplace-helper` to create or update the app, provide the current tunnel
+host and route paths. After every tunnel restart, update the development OAuth redirect URL and
+OAuth allow list, development home URL, and development webhook URL before testing. Keep the
+production URLs unchanged unless you intentionally want to test the tunnel as production.
+
+The app tunnel and the helper MCP endpoint are separate concerns and their URLs are not
+interchangeable. If both are running locally,
+each service needs a publicly reachable HTTPS URL, or the helper can be deployed while only the
+app uses a local tunnel.
+
 ### Debugging a broken webhook
 
 ```text
@@ -107,7 +179,11 @@ The plugin also keeps the original Zoom product-specific reference library under
 
 See [CONNECTORS.md](CONNECTORS.md). The plugin works standalone from the bundled skills, and gets supercharged when Claude can use the bundled Zoom MCP servers from [`.mcp.json`](.mcp.json).
 
-The bundled MCP servers are the main Zoom MCP server, Zoom Docs MCP server, and Zoom Whiteboard MCP server. Team Chat MCP is documented as an optional child skill under [`skills/zoom-mcp/team-chat/`](skills/zoom-mcp/team-chat/), but is not registered in [`.mcp.json`](.mcp.json) by default.
+The current official Zoom MCP catalog contains the main Zoom MCP, Meetings, Canvas, Chat, Tasks,
+Revenue Accelerator, and Whiteboard servers. All 7 current server definitions are bundled in
+[`.mcp.json`](.mcp.json); the complete inventory and current endpoints are in
+[`skills/zoom-mcp/references/servers.md`](skills/zoom-mcp/references/servers.md).
+For new document workflows, prefer Zoom Canvas MCP. For new chat workflows, prefer Zoom Chat MCP.
 
 ## Cross-Platform Notes
 
