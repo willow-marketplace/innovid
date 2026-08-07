@@ -1381,6 +1381,7 @@ dependencies = [
  "mergify-ci",
  "mergify-config",
  "mergify-core",
+ "mergify-events",
  "mergify-freeze",
  "mergify-queue",
  "mergify-stack",
@@ -1434,6 +1435,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "mergify-events"
+version = "0.0.0"
+dependencies = [
+ "chrono",
+ "mergify-core",
+ "mergify-test-support",
+ "mergify-tui",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+ "url",
+ "wiremock",
+]
+
+[[package]]
 name = "mergify-freeze"
 version = "0.0.0"
 dependencies = [
@@ -1456,6 +1473,7 @@ dependencies = [
  "anstyle",
  "chrono",
  "mergify-core",
+ "mergify-events",
  "mergify-test-support",
  "mergify-tui",
  "serde",
@@ -1479,6 +1497,7 @@ dependencies = [
  "tempfile",
  "terminal_size",
  "tokio",
+ "tracing",
  "unicode-width",
  "url",
  "wiremock",

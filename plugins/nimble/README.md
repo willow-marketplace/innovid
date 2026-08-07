@@ -1,7 +1,7 @@
 # Nimble Web Search Skills & Plugin
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-1.1.0-green)](https://github.com/Nimbleway/agent-skills)
+[![Version](https://img.shields.io/badge/version-1.3.0-green)](https://github.com/Nimbleway/agent-skills)
 
 Unlock the web for your AI agents — search, scrape, extract structured data, and run business intelligence workflows, all powered by Nimble's web data infrastructure. One plugin for Claude Code, Cursor, and any platform that supports the [Agent Skills spec](https://agentskills.io/specification.md).
 
@@ -9,18 +9,20 @@ Unlock the web for your AI agents — search, scrape, extract structured data, a
 
 ## Skills
 
-| Category | What you get |
-| -------- | ------------ |
-| **[Business Research](skills/business-research/)** | Competitor monitoring, 360° company research, and market discovery — find all businesses of a given type in any geography with multi-source verification |
-| **[Marketing](skills/marketing/)** | Track how competitors position themselves — messaging shifts, pricing changes, content gaps, battlecard inputs |
-| **[SEO](skills/seo/)** | All-in-one SEO intelligence (`seo-intel`) — keyword research, rank tracking, technical site audits with JS rendering, content gap analysis, competitor on-page teardowns, AI visibility across 5 platforms, and GitHub repo SEO. Single entry point with intent-based routing |
-| **[Productivity](skills/productivity/)** | Walk into any meeting fully briefed — attendee backgrounds, company context, talking points, relationship mapping. Discover and score local businesses in any neighborhood with interactive maps |
-| **[Web Data Toolkit](skills/web-search-tools/)** | Search, scrape, extract, map, and crawl any website — run site-specific Extraction Templates for clean structured data, and Web Search Agents for open-ended research with citations |
-| **[Data Platforms](skills/data-platforms/)** | Turn live web data into Databricks data products — discover Nimble agents, scrape into Delta tables, and build an AI/BI dashboard and/or a deployed Databricks App (`nimble-databricks-data-products`) |
+| Category | Skills | What you get |
+| -------- | ------ | ------------ |
+| **Business Research** | [competitor-intel](skills/competitor-intel/) · [company-deep-dive](skills/company-deep-dive/) · [market-finder](skills/market-finder/) | Competitor monitoring, 360° company research, and market discovery — find all businesses of a given type in any geography with multi-source verification |
+| **Marketing** | [competitor-positioning](skills/competitor-positioning/) · [brand-mention-monitor](skills/brand-mention-monitor/) · [launch-monitor](skills/launch-monitor/) | Track how competitors position themselves — messaging shifts, pricing changes, content gaps, battlecard inputs |
+| **SEO** | [seo-intel](skills/seo-intel/) | All-in-one SEO intelligence — keyword research, rank tracking, technical site audits with JS rendering, content gap analysis, competitor on-page teardowns, AI visibility across 5 platforms, and GitHub repo SEO. Single entry point with intent-based routing |
+| **Productivity** | [meeting-prep](skills/meeting-prep/) · [local-places](skills/local-places/) | Walk into any meeting fully briefed — attendee backgrounds, company context, talking points, relationship mapping. Discover and score local businesses in any neighborhood with interactive maps |
+| **Healthcare** | [healthcare-providers-extract](skills/healthcare-providers-extract/) · [enrich](skills/healthcare-providers-enrich/) · [verify](skills/healthcare-providers-verify/) | Extract structured practitioner data from practice websites, enrich provider lists with missing fields, and verify credentials against the NPI registry |
+| **Human Resources** | [talent-sourcing](skills/talent-sourcing/) | Source and shortlist candidates from live web data. More skills (comp analysis, interview prep, onboarding) planned |
+| **Web Data Toolkit** | [nimble-web-expert](skills/nimble-web-expert/) | Search, scrape, extract, map, and crawl any website — run site-specific Extraction Templates for clean structured data, and Web Search Agents for open-ended research with citations |
+| **Data Platforms** | [nimble-databricks-data-products](skills/nimble-databricks-data-products/) | Turn live web data into Databricks data products — discover Nimble agents, scrape into Delta tables, and build an AI/BI dashboard and/or a deployed Databricks App |
 
-**Business Research**, **Marketing**, and **Productivity** skills are one-command workflows. They spawn parallel sub-agents, gather live web data via Nimble APIs, synthesize findings, and deliver structured reports with dates and source URLs. They learn from previous runs and only surface what's new.
+**Business Research**, **Marketing**, **Productivity**, and **Healthcare** skills are one-command workflows. They spawn parallel sub-agents, gather live web data via Nimble APIs, synthesize findings, and deliver structured reports with dates and source URLs. They learn from previous runs and only surface what's new.
 
-These skills also extend into specific industries — starting with **[Healthcare](skills/healthcare/)**: extract structured practitioner data from practice websites, enrich provider lists with missing fields, and verify credentials against the NPI registry. The **[Human Resources](skills/human-resources/)** vertical covers talent sourcing with more skills (comp analysis, interview prep, onboarding) planned.
+Every skill lives directly under `skills/`. The category above is recorded as `metadata.category` in each skill's `SKILL.md` frontmatter — the plugin platforms require a flat skills tree, so categories are metadata rather than folders. See [CLAUDE.md](CLAUDE.md#skills-must-stay-flat).
 
 **Web Data Toolkit** skills expose Nimble's raw capabilities for any web task and power the business skills under the hood — search and extract for raw data, Extraction Templates for reusable site-specific scraping, and Web Search Agents for open-ended research, enrichment, and dataset building.
 
@@ -125,14 +127,20 @@ Every finding carries a verified event date and source URL. Stale signals are dr
 
 ### Platform Compatibility
 
-| Aspect | Claude Code | Cursor | npx skills |
-| ------ | ----------- | ------ | ---------- |
-| Plugin config | `.claude-plugin/` | `.cursor-plugin/` | N/A (reads `skills/`) |
-| MCP config | `.mcp.json` | `mcp.json` | Manual setup |
-| Rules | N/A | `rules/*.mdc` | N/A |
-| Skills | `skills/` (shared) | `skills/` (shared) | `skills/` (shared) |
+| Aspect | Claude Code | Cursor | Codex | npx skills |
+| ------ | ----------- | ------ | ----- | ---------- |
+| Plugin config | `.claude-plugin/` | `.cursor-plugin/` | `.codex-plugin/` | N/A (reads `skills/`) |
+| MCP config | `.mcp.json` | `mcp.json` | `.mcp.json` (shared) | Manual setup |
+| Rules | N/A | `rules/*.mdc` | N/A | N/A |
+| Skills | `skills/` (shared) | `skills/` (shared) | `skills/` (shared) | `skills/` (shared) |
 
 All platforms read the same `skills/` directory. Platform-specific files coexist without interference.
+
+Every skill directory is an immediate child of `skills/`, with its vertical recorded as
+`metadata.category` in the frontmatter. Reference documents inside a skill's `references/`
+directory are named `reference.md` — never `SKILL.md`, which would register them as skills on
+platforms that discover recursively. `bash scripts/check-plugin-structure.sh` enforces both
+rules, and `python3 scripts/check-plugin-manifests.py` validates the per-platform manifests.
 
 ### CLI Commands
 
@@ -162,3 +170,7 @@ Have a web data workflow that should be one command? We'd love new skills — wh
 ## License
 
 MIT License — see [LICENSE](LICENSE) for details.
+
+The MIT license covers the code, skills, and documentation in this repository. It does not
+grant rights to Nimble's trademarks or brand assets: the Nimble name, the Nimble logo, and
+the brand marks under `assets/` remain the property of Nimble and are not licensed for reuse.

@@ -2,7 +2,7 @@
   "name": "logfire",
   "version": "1.0.0",
   "description": "Add Logfire observability to Python applications with auto-instrumentation for FastAPI, httpx, asyncpg, SQLAlchemy, and more",
-  "updatedAt": "2026-08-06T06:56:19.195Z",
+  "updatedAt": "2026-08-07T00:04:13.611Z",
   "author": {
     "name": "Pydantic",
     "email": "support@pydantic.dev"
@@ -12,7 +12,7 @@
   "commands": "./commands/",
   "mcpServers": {
     "logfire": {
-      "url": "https://logfire-us.pydantic.dev/mcp",
+      "url": "${LOGFIRE_MCP_URL:-https://logfire-us.pydantic.dev/mcp}",
       "type": "http"
     }
   }

@@ -2,7 +2,7 @@
   "name": "sonarqube",
   "version": "2.3.0",
   "description": "SonarQube is the AI code quality and security verification platform used by millions of developers to catch bugs, vulnerabilities, and leaked secrets. This plugin enforces those standards in the agent coding loop: 7,500+ distinct issue types, secrets scanning, agentic analysis, and quality gates across 40+ languages.",
-  "updatedAt": "2026-08-06T06:56:18.991Z",
+  "updatedAt": "2026-08-07T00:04:59.007Z",
   "author": {
     "url": "https://www.sonarsource.com/",
     "name": "Sonar"

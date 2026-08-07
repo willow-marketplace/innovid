@@ -2,7 +2,7 @@
   "name": "ui5",
   "version": "1.0.0",
   "description": "SAPUI5 / OpenUI5 plugin for coding agents. Creates and validates UI5 projects, accesses API documentation, runs UI5 linter, retrieves development guidelines and best practices for UI5 development.",
-  "updatedAt": "2026-08-06T06:56:19.060Z",
+  "updatedAt": "2026-08-07T00:05:10.572Z",
   "author": {
     "name": "SAP SE"
   },

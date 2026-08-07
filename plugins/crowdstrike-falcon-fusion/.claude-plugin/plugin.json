@@ -1,0 +1,60 @@
+{
+  "name": "crowdstrike-falcon-fusion",
+  "version": "1.0.0",
+  "description": "CrowdStrike Falcon Fusion skills for authoring, deploying, and executing Fusion workflows. Includes live action discovery, YAML authoring with schema validation, workflow import and release, execution monitoring, and Falcon Next-Gen SIEM lookup files.",
+  "updatedAt": "2026-08-07T00:03:52.697Z",
+  "author": {
+    "name": "CrowdStrike"
+  },
+  "keywords": [
+    "crowdstrike",
+    "falcon",
+    "fusion",
+    "soar",
+    "workflow",
+    "automation",
+    "security"
+  ],
+  "skills": "./skills/",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/bootstrap.sh"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/fusion-skill-router.sh"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/fusion-skill-router.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Skill",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/fusion-foundry-bridge.sh"
+          }
+        ]
+      }
+    ]
+  }
+}

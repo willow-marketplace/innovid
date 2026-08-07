@@ -2,7 +2,7 @@
   "name": "lumen",
   "version": "1.0.0",
   "description": "Precise local semantic code search via MCP. Indexes your codebase with Go AST parsing, embeds with Ollama or LM Studio, and exposes vector search to Claude through an MCP server — no cloud, no npm.",
-  "updatedAt": "2026-08-06T06:56:19.147Z",
+  "updatedAt": "2026-08-07T00:04:34.672Z",
   "author": {
     "url": "https://github.com/ory",
     "name": "Ory Corp"
@@ -25,7 +25,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"${CLAUDE_PLUGIN_ROOT}/scripts/run\" hook session-start lumen --host claude"
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/scripts/run\" hook session-start lumen --host claude --plugin-name lumen"
           }
         ]
       }
@@ -36,7 +36,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"${CLAUDE_PLUGIN_ROOT}/scripts/run\" hook pre-tool-use lumen"
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/scripts/run\" hook pre-tool-use lumen --plugin-name lumen"
           }
         ]
       }

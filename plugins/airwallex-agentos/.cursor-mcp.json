@@ -1,7 +1,7 @@
 {
   "mcpServers": {
     "airwallex-dev": {
-      "url": "https://mcp-demo.airwallex.com/developer"
+      "url": "https://mcp.sandbox.airwallex.com/developer"
     },
     "airwallex-agentos": {
       "url": "https://mcp.airwallex.com/mcp"
