@@ -2,7 +2,7 @@
   "name": "logrocket",
   "version": "1.0.0",
   "description": "Connect Claude Code to LogRocket to query session replays, metrics, issues, and user behavior using natural language.",
-  "updatedAt": "2026-08-07T12:15:56.996Z",
+  "updatedAt": "2026-08-08T00:01:38.604Z",
   "author": {
     "name": "LogRocket",
     "email": "support@logrocket.com"

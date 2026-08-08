@@ -2,7 +2,7 @@
 
 # Falcon Fusion Skills
 
-[![Version](https://img.shields.io/badge/version-1.0.0-blue)](https://github.com/CrowdStrike/fusion-skills/releases/tag/v1.0.0)
+[![Version](https://img.shields.io/badge/version-1.0.1-blue)](https://github.com/CrowdStrike/fusion-skills/releases/tag/v1.0.1)
 [![CI](https://github.com/CrowdStrike/fusion-skills/actions/workflows/main.yml/badge.svg)](https://github.com/CrowdStrike/fusion-skills/actions/workflows/main.yml)
 
 AI coding assistant skills for building [CrowdStrike Falcon Fusion](https://www.crowdstrike.com/en-us/platform/next-gen-siem/falcon-fusion/) workflows. Go from a natural language prompt to a working Fusion workflow — discover real action IDs from the live API, author the YAML, validate it against the platform schema, import it to a CID, and trigger and monitor its execution.
@@ -151,7 +151,7 @@ The skills include hooks that ensure the right skills get used:
 
 3. **`PreToolUse` hook (cross-plugin bridge)** — Advisory only. If a request needs a Foundry app (UI, functions, collections, `manifest.yml`), it suggests the sibling [`crowdstrike-falcon-foundry`](https://github.com/CrowdStrike/foundry-skills) plugin. It never blocks a skill.
 
-The `workflows` orchestrator is the entry point: you say what you want, and it routes to `authoring` (discover actions, write and validate YAML), `deploy` (import and release to a CID), and `execution` (trigger and monitor). Hooks observe prompts and tool I/O to keyword-match Fusion actions; no data leaves the session.
+The `workflows` orchestrator is the entry point: you say what you want, and it routes to `authoring` (discover actions, write and validate YAML), `deployment` (import and release to a CID), and `execution` (trigger and monitor). Hooks observe prompts and tool I/O to keyword-match Fusion actions; no data leaves the session.
 
 ## Skills
 
@@ -161,7 +161,7 @@ One plugin provides five skills: an orchestrator plus four focused sub-skills.
 |-------|---------|
 | `workflows` | Primary orchestrator — routes intent and coordinates the full workflow lifecycle |
 | `authoring` | Action discovery (`action_search.py`), YAML authoring, CEL expressions, schema validation (`validate.py`) |
-| `deploy` | Duplicate check, import to CID, release, version management |
+| `deployment` | Duplicate check, import to CID, release, version management |
 | `execution` | Trigger workflows with payloads, monitor status, tail logs, debug failures |
 | `lookup-files` | Manage Falcon Next-Gen SIEM lookup files (CSV/JSON/TXT) for CQL `match()` queries |
 
@@ -185,7 +185,7 @@ graph TD
     style LF fill:#f59e0b,stroke:#d97706,color:#fff
 ```
 
-A typical lifecycle: `authoring` produces a validated YAML file → `deploy` imports it and returns a `definition_id` → `execution` triggers it and returns an `execution_id`. Each phase depends on the previous one's output.
+A typical lifecycle: `authoring` produces a validated YAML file → `deployment` imports it and returns a `definition_id` → `execution` triggers it and returns an `execution_id`. Each phase depends on the previous one's output.
 
 ```
 skills/

@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "synthflow": {
+      "url": "https://mcp.synthflow.ai/mcp",
+      "type": "http"
+    },
+    "synthflow-docs": {
+      "url": "https://docs.synthflow.ai/_mcp/server",
+      "type": "http"
+    }
+  }
+}

@@ -1,8 +1,8 @@
 {
   "name": "crowdstrike-falcon-foundry",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "CrowdStrike Falcon Foundry development skills for building cybersecurity applications on the Falcon platform. Includes UI development, collections, functions, workflows, API integration, security patterns, and debugging workflows. Swagger 2.0 specs are auto-converted to OpenAPI 3.0 via npx swagger2openapi (requires Node.js; network call to npm registry).",
-  "updatedAt": "2026-08-07T12:15:57.032Z",
+  "updatedAt": "2026-08-08T00:01:29.211Z",
   "author": {
     "name": "CrowdStrike"
   },
