@@ -2,7 +2,7 @@
   "name": "sourcegraph",
   "version": "1.0.0",
   "description": "Use Sourcegraph MCP from Claude Code for code search, navigation, history, and Deep Search.",
-  "updatedAt": "2026-08-08T12:05:14.126Z",
+  "updatedAt": "2026-08-08T12:10:48.167Z",
   "author": {
     "name": "Sourcegraph Community"
   },
