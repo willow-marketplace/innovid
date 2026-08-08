@@ -2,7 +2,7 @@
   "name": "astronomer-data-agents",
   "version": "0.1.0",
   "description": "Data engineering plugin - warehouse exploration, pipeline authoring, Airflow integration",
-  "updatedAt": "2026-08-08T00:01:20.211Z",
+  "updatedAt": "2026-08-08T00:17:36.479Z",
   "skills": "./skills/",
   "hooks": {
     "SessionStart": [
