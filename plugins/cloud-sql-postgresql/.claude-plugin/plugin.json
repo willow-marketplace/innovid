@@ -2,7 +2,7 @@
   "name": "cloud-sql-postgresql",
   "version": "0.4.0",
   "description": "Create, connect, and interact with a Cloud SQL for PostgreSQL database and data.",
-  "updatedAt": "2026-08-08T00:17:36.473Z",
+  "updatedAt": "2026-08-08T12:03:57.433Z",
   "author": {
     "name": "Google LLC",
     "email": "data-cloud-ai-integrations@google.com"

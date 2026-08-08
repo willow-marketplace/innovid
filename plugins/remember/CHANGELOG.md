@@ -5,7 +5,53 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.17.0] — Markers that were trusted to be numbers
+
+Two of this repo's own state files are read straight into contexts that treat their contents as
+code rather than as data. A cooldown marker is a timestamp until the day it is not, and neither of
+the two readers in `save-session.sh` checked. Reported and fixed by an outside contributor, which
+is the first time that has happened here.
+
+The other half of the release is the auth-marker scan learning to say when it looked somewhere and
+found nothing, instead of letting an empty read stand in for a clean one.
+
+Manifest bumped per [#133](https://github.com/Digital-Process-Tools/claude-remember/issues/133) —
+the updater compares manifest versions and nothing else, so a release without that bump ships to
+nobody.
+
+**Known and not fixed here.** The guards added below validate a marker's *syntax* and not its
+*range*, so a digits-only value that is ahead of the current clock still passes, and on that path
+the marker rewrite is unreachable — the throttle sticks on, permanently and silently. Four sites,
+tracked in [#326](https://github.com/Digital-Process-Tools/claude-remember/issues/326). `10#`
+also landed in `save-session.sh` only; `50-git-backup.sh` still takes the octal path, tracked in
+[#327](https://github.com/Digital-Process-Tools/claude-remember/issues/327). Both predate this
+release and neither loses data that is not still on the machine.
+
+### Fixed
+
+- **Two cooldown markers were read straight into `$(( ))`, where bash evaluates file content as an arithmetic expression** ([#322](https://github.com/Digital-Process-Tools/claude-remember/issues/322)) — `tmp/last-save-ts` and `tmp/last-ndc.ts`. [#258](https://github.com/Digital-Process-Tools/claude-remember/issues/258) fixed this exact read in `50-git-backup.sh`; these two were missed. A marker holding `1786158837;` is a syntax error rather than a bad number, and bash's response is to abandon the **entire if/then body** and resume after `fi` — so `[ "$ELAPSED" -lt … ]` is never reached, `RUN_NDC=false` never runs, and the save skips its cooldown with one stderr line as the only trace.
+
+  **Smaller than it first looks, and the issue says so.** `date +%s > "$COOLDOWN_MARKER"` sits below the `fi` and `date +%s > "$NDC_MARKER"` runs on precisely the path a corrupt marker allows, so both gates **self-heal on this path**: the cost is one skipped cooldown per corruption event, not a throttle stuck off. Scope that claim to the *syntax-error* case, which is the one fixed here — a digits-only marker that is ahead of the clock passes the guard, engages the cooldown, and exits **above** the rewrite, so there the throttle does stick off. That is [#326](https://github.com/Digital-Process-Tools/claude-remember/issues/326) and it is not fixed by this release. Nothing dies either — `set -e` plays no part, and `$ELAPSED` lives inside the abandoned body, so the `set -u` in `50-git-backup.sh` never sees an unbound variable there. The issue was filed claiming both, and both are wrong; the corrected mechanism is measured on bash 3.2.57 and 5.2.37.
+
+  **`case` and `10#`, not one or the other.** `08` and `09` are all digits, so they clear a digits-only guard and are then read as octal (`value too great for base`) — the identical abandonment from a marker that looks clean. Only reachable through a corrupt marker, which is the premise. `10#` goes after the guard, never instead of it, since `10#` on an empty string is itself an error on bash 5. The guard also rejects a space-padded value that arithmetic would have accepted; deliberate, and the same call #258 already made.
+
+  What this buys is narrow and worth stating plainly: an unexplained diagnostic stops appearing in `hook-errors.log` (visible to users since [#277](https://github.com/Digital-Process-Tools/claude-remember/issues/277)), and unvalidated file content stops reaching an arithmetic evaluator — the sink BashPitfalls #7 names, and the reason `case` was the answer in #258. ShellCheck does not flag this class at all, even with `-o all`; the standing request is koalaman/shellcheck#2679, open and unassigned since 2023.
+
+  Pinned by `tests/test_save_session_marker_arithmetic_322.py`, which asserts on the diagnostic rather than on whether a save happened — falling back to `0` makes a corrupt marker read as "very old", so corrupt and clean-but-ancient reach the same decision and only the stderr separates broken from fixed.
+
+  **A third reader of the same marker, in `scripts/post-tool-hook.sh`.** It has carried the digits-only `case` since [#230](https://github.com/Digital-Process-Tools/claude-remember/issues/230) and carried no `10#`, so `08`/`09` reached its arithmetic as octal at both of its file-sourced operands — `tmp/last-save-ts` at the fork throttle and `tmp/no-transcript-notice` at the once-an-hour report. The abandoned body there swallows an `exit 0`, so the hook ran on past it and the line below the `fi` deleted the notice marker on the assumption a transcript had been found. Both are pinned on behaviour rather than on the diagnostic alone: the diagnostic goes to `hook-errors.log` and not to stderr, so a stderr-only assertion is green against the unfixed hook. `SAVE_COOLDOWN` on the next line looks identical and was left alone — it is the right-hand operand of `[ … -lt … ]`, and `test` parses base 10 without evaluating (`[ 9 -lt 010 ]` is true), so a `10#` there would advertise a gap that does not exist.
+
+  Still open, deliberately and named rather than left silent: the same missing `10#` in `50-git-backup.sh`'s #258 guard and in `50-git-restore.sh`'s fetch-state read. Neither is this issue's marker, and `test_a_corrupt_cooldown_marker_does_not_kill_the_hook` currently writes `<store>/.last-git-backup-ts` while the hook reads the state dir under the git common dir — so that regression cannot be pinned until the test is pointed at the path the hook uses.
+
+- **The marker scan's list of field names was assumed exhaustive, and the assumption failed silently** ([#320](https://github.com/Digital-Process-Tools/claude-remember/issues/320)) — [#318](https://github.com/Digital-Process-Tools/claude-remember/issues/318) narrowed `_failure_haystack` to the fields the CLI itself authors (`error` / `result` / `message`, the `errors` list, stderr) and kept the raw-stdout fallback behind `if not authored`. That guard needs **every** recognised field to be empty. So a terminal record reporting an auth failure in some field this does not read, while a field it does read holds something benign, is scanned, found clean, and reported as "not an isolation problem" — the un-isolated retry never runs, capture fails permanently, and nothing says why. [#316](https://github.com/Digital-Process-Tools/claude-remember/issues/316)'s outage exactly, reached through the field set instead of through the spelling list.
+
+  **Not a present defect, and it is fixed anyway.** Every input that reproduces it names a field the measured CLI does not emit. The point is that no test asserted the set was exhaustive and no comment recorded it as an assumption, so the day it stopped being true it would have stopped being true in silence — which is the one property this repo keeps paying for.
+
+  **The haystack is deliberately NOT widened.** Scanning the raw blob whenever the authored text holds no marker sounds like the fix and is a different bug: on a failing call the authored fields hold no marker in the ordinary case, so that branch would hand the retry decision back to arbitrary conversation content for essentially every non-auth failure — the whole of what #318 closed, reinstated. Three states instead of two: a marker in a field the CLI authors retries un-isolated, no marker anywhere is silence, and **a marker in the terminal record but outside the scanned set declines and says so**, naming the token, the field it sat in, the fields that were read, and what to do about it. The verdict is unchanged; the silence is what stops.
+
+  **Scoped to the terminal record, not the whole payload.** `_marker_missed_by_the_scan` reads only the last element of the CLI v2 array and only its unrecognised keys. Assistant content is what #318 removed from this decision, and a session that merely discusses an auth failure would otherwise put this notice in front of every ordinary network failure — a warning that fires on the common case is read as noise and stops carrying information.
+
+  Pinned by `tests/test_auth_marker_blind_spot_320.py`, which also holds the field set itself against a literal, so a schema change breaks a test rather than a user's capture. `unknown option` is covered alongside the auth markers: it decides the same retry through the same scan and goes blind the same way.
 
 ## [0.16.0] — When the checker cannot answer
 
