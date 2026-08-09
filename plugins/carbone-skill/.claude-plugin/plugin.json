@@ -2,7 +2,7 @@
   "name": "carbone-skill",
   "version": "1.5.0",
   "description": "Official Carbone skill — complete templating language reference covering tags, loops, conditions, formatters, aggregators, and all output formats (DOCX, XLSX, PPTX, ODT, HTML, Markdown, PDF)",
-  "updatedAt": "2026-08-09T12:01:35.846Z",
+  "updatedAt": "2026-08-09T12:16:29.507Z",
   "author": {
     "name": "Carbone",
     "email": "support@carbone.io"

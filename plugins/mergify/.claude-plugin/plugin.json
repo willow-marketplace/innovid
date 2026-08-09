@@ -2,7 +2,7 @@
   "name": "mergify",
   "version": "1.0.0",
   "description": "Skills for the Mergify CLI: manage merge queues, stacked pull requests, Test Insights (flaky tests, quarantine), merge protections, and Mergify configuration directly from the terminal.",
-  "updatedAt": "2026-08-09T12:01:59.591Z",
+  "updatedAt": "2026-08-09T12:16:29.122Z",
   "author": {
     "name": "Mergify"
   },

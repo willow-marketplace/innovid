@@ -2,7 +2,7 @@
   "name": "playground",
   "version": "1.0.0",
   "description": "Creates interactive HTML playgrounds — self-contained single-file explorers with visual controls, live preview, and prompt output with copy button",
-  "updatedAt": "2026-08-09T12:02:08.966Z",
+  "updatedAt": "2026-08-09T12:16:29.122Z",
   "author": {
     "name": "Anthropic",
     "email": "support@anthropic.com"
