@@ -29,5 +29,13 @@
       "rollback_on_fail": false,
       "timeout": 10
     }
+  },
+  "builtin-ops": {
+    "batch": {
+      "syntax": "batch:@file.json",
+      "description": "Run array of ops in one call. Mix read+edit+grep in one round-trip. Payload: array of {op,...} or {continue_on_error, ops}. A call carries one @- payload, so without this N edits cost N calls.",
+      "example": "batch:@.max/ops.json",
+      "hint": true
+    }
   }
 }

@@ -563,6 +563,109 @@ class TestCouldNotCheckIsItsOwnState:
             "from one that returned nothing new\n--- log ---\n" + log
         )
 
+    def test_a_leading_zero_start_time_is_read_as_decimal(self, tmp_path):
+        """#327, the restore half. `started=08` is all digits, so it clears the
+        digits-only guard in `_fetch_health` and is then read as OCTAL.
+
+        The arithmetic fails, bash abandons the whole `if [ -z "$_f" ]` body,
+        and control falls through to the `rc` branch with `_rc` empty — so a
+        fetch that never came back is reported as one that FAILED with an
+        unknown status. The same three-state vocabulary, the wrong state, and
+        the remedy the user is handed ("run git fetch to see git's own error")
+        is for a failure that did not happen.
+
+        `date +%s` never emits a leading zero, so this is reachable only through
+        a corrupt or truncated state file — which is that guard's whole premise.
+        """
+        home, remember, remote, slug_dir, project = _store(tmp_path)
+        _fetch_now(remember)
+        (hook_state(remember, FETCH_STATE, create_dir=True)).write_text(
+            "started=08\n", encoding="utf-8"
+        )
+
+        result = _run(slug_dir, project, home, _config(tmp_path, enabled=True))
+
+        for phrase in ("syntax error", "invalid arithmetic operator",
+                       "value too great for base", "unbound variable"):
+            assert phrase not in result.stderr, (
+                "the state file reached the arithmetic evaluator — bash said "
+                f"{phrase!r}: {result.stderr.strip()}"
+            )
+        log = _log_text(slug_dir)
+        assert "never completed" in log, (
+            "a fetch with a leading-zero start time was not reported as "
+            "abandoned — the octal read fell through to the FAILED branch, so "
+            "the session is told a fetch failed when none did\n--- log ---\n" + log
+        )
+
+    def test_a_future_dated_start_time_does_not_stick_the_fetch_in_flight(self, tmp_path):
+        """#326's fifth site, found reviewing PR #336 rather than by the issue.
+
+        #326 enumerates four cooldown gates and stops. The fetch state file has
+        the identical shape and was not on the list: `started=` is read through
+        the same digits-only `case`, which bounds its SYNTAX and not its RANGE.
+
+        A `started` ahead of now makes `_age` negative, `-lt "$FETCH_TIMEOUT"`
+        is then true, and `_fetch_health` answers `in-flight` — the one state
+        that means "wait, something is already running". Nothing is running.
+
+        And it compounds the way the four named sites do: `_spawn_fetch` runs
+        the same comparison and takes its `return 0`, so the replacement fetch
+        is never started — and the ONLY writers of the state file are inside
+        the subshell that early return skips. The self-heal is unreachable from
+        the path that needs it, exactly as at the other four.
+        """
+        home, remember, remote, slug_dir, project = _store(tmp_path)
+        _fetch_now(remember)
+        (hook_state(remember, FETCH_STATE, create_dir=True)).write_text(
+            f"started={int(time.time()) + 3600}\n", encoding="utf-8"
+        )
+
+        _run(slug_dir, project, home, _config(tmp_path, enabled=True))
+
+        log = _log_text(slug_dir)
+        assert "never completed" in log, (
+            "a fetch whose start time is an hour in the future was reported as "
+            "IN-FLIGHT. Nothing is in flight; the clock moved. The session is "
+            "told to wait for a process that does not exist, and will be told "
+            "the same thing every session until the wall clock catches up."
+            "\n--- log ---\n" + log
+        )
+
+    def test_a_future_dated_start_time_is_replaced_by_a_real_fetch(self, tmp_path):
+        """The structural half: the state file has to become writable again.
+
+        Reporting the right state is not enough. `_spawn_fetch` must decline to
+        treat a future `started` as a live claim on the job, or nothing ever
+        rewrites the file and the wrong state is permanent.
+        """
+        home, remember, remote, slug_dir, project = _store(tmp_path)
+        _fetch_now(remember)
+        state = hook_state(remember, FETCH_STATE, create_dir=True)
+        future = int(time.time()) + 3600
+        state.write_text(f"started={future}\n", encoding="utf-8")
+
+        _run(slug_dir, project, home, _config(tmp_path, enabled=True))
+
+        deadline = time.monotonic() + 60
+        started = future
+        while time.monotonic() < deadline:
+            body = dict(
+                line.split("=", 1)
+                for line in state.read_text(encoding="utf-8").splitlines()
+                if "=" in line
+            )
+            started = int(body.get("started", future))
+            if started != future:
+                break
+            time.sleep(0.2)
+
+        assert started <= int(time.time()) + 2, (
+            f"the fetch state file still holds a future start time ({started}) "
+            "— _spawn_fetch took its early return, so no fetch was spawned, so "
+            "nothing rewrote the file. The store never fetches again."
+        )
+
 
 # ── The detached fetch ───────────────────────────────────────────────────────
 
