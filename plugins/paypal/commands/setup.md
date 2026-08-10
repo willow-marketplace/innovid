@@ -1,141 +1,51 @@
 ---
 name: setup
-description: Set up Postman MCP Server. Authenticate via OAuth or API key, verify connection, select workspace.
+description: "Set up Databricks CLI auth: install check, then an OAuth / PAT / service-principal profile (workspace or account-level), then verify."
 ---
 
-# First-Run Configuration
+# Databricks Setup
 
-Walk the user through Postman setup for Claude Code. Validate everything works before they use other commands.
+Guide the user through Databricks CLI authentication. Use the **databricks-core**
+skill for the authoritative auth details; this command is the step-by-step
+wrapper around it.
 
-## Workflow
+1. **CLI present?** `databricks --version`. If it's missing,
+   follow the install steps in the databricks-core skill
+   (`databricks-cli-install.md`). In sandboxed environments (Cursor, containers),
+   print the install command and ask the user to run it in their own terminal.
+   Don't try to install into the sandbox.
+2. **Existing profiles?** `databricks auth profiles`. Show what's already
+   configured. If a working profile exists, ask whether to reuse it or add a new
+   one.
+3. **Pick an auth method** (ask the user; `$1` may be a workspace or account console URL):
+   - **OAuth U2M** (default, interactive):
+     `databricks auth login --host <workspace-url> --profile <name>`. Opens a
+     browser. Best for laptops. If the user doesn't know their workspace URL,
+     plain `databricks auth login --profile <name>` opens login.databricks.com
+     to sign in and pick a workspace. URLs copied from the browser may carry
+     `?w=<workspace-id>` or `account_id=` query params; the CLI accepts them,
+     but quote the URL so the shell doesn't interpret the `?`.
+   - **Account-level**: when the host is an account console URL
+     (`accounts.cloud.databricks.com`, `accounts.azuredatabricks.net`,
+     `accounts.gcp.databricks.com`), also pass the account ID:
+     `databricks auth login --host <account-url> --account-id <uuid> --profile <name>`.
+     Ask for the account ID if it isn't in the URL (it's the UUID shown in the
+     account console address bar).
+   - **PAT**: `databricks configure --token --profile <name>`; the user pastes
+     a personal access token. This command prompts on stdin, so don't run it
+     yourself (it hangs without a TTY): ask the user to run it in their own
+     terminal, then continue once it's done. The same applies to
+     `databricks auth login` when no browser can open (headless or sandboxed
+     sessions).
+   - **Service principal (M2M)**: client id/secret via profile or env. Use for
+     CI/automation; never a personal PAT in CI.
+   - **In-platform** (notebook/cluster): `DATABRICKS_HOST`/`DATABRICKS_TOKEN`
+     are already injected, so no setup is needed.
+4. **Confirm before writing** any profile; auth writes to `~/.databrickscfg`.
+5. **Verify**: `databricks current-user me --profile <name>` returns the
+   expected user. For account-level profiles, `current-user me` doesn't exist;
+   use `databricks auth describe --profile <name>` and check the resolved host
+   and account ID.
 
-### Step 1: Check MCP Connection
-
-Verify the Postman MCP Server is available by calling `getAuthenticatedUser`.
-
-**If it works:** Skip to Step 4 (workspace verification).
-
-**If it fails:** Check whether `mcp__postman__authenticate` is available.
-- Available → offer the user a choice: **OAuth (recommended)** or **API key**. Default to OAuth unless they ask for API key.
-- Not available → the MCP server isn't loaded. Show the "MCP tools not available" error below and stop.
-
-### Step 2: OAuth Authentication (Recommended)
-
-Present:
-```
-Let's connect your Postman account via OAuth — no key copying required.
-
-I'll generate an authorization URL. Open it in your browser, sign in, and paste the callback URL back here.
-```
-
-1. Call `mcp__postman__authenticate` — it returns an authorization URL.
-2. Show the URL:
-   ```
-   Open this URL in your browser:
-   <authorization URL>
-
-   After you authorize, your browser will redirect to a localhost URL.
-   The page may not load — that's expected. Copy the full URL from the address bar and paste it here.
-   ```
-3. Wait for the user to paste the callback URL.
-4. Call `mcp__postman__complete_authentication` with the pasted URL as `callback_url`.
-5. The MCP server may restart after saving the OAuth token, temporarily dropping the connection. This is expected.
-   - Wait a few seconds, then retry `getAuthenticatedUser` up to 3 times with short pauses between attempts.
-   - If tools become unavailable (server disconnected), tell the user:
-     ```
-     The MCP server is restarting after saving your credentials — this is normal.
-     Give it a moment and I'll retry the connection...
-     ```
-   - If tools are still unavailable after retries:
-     ```
-     The server hasn't reconnected yet. Restart Claude Code and run /postman:setup again.
-     Your OAuth token is already saved — you won't need to re-authorize.
-     ```
-6. Once `getAuthenticatedUser` succeeds, proceed to Step 4.
-
-**If OAuth fails:** "OAuth didn't complete. You can try again or use an API key instead — just say 'use API key'." → offer Step 3.
-
-### Step 3: API Key Authentication (Alternative)
-
-Present:
-```
-Let's set up Postman using an API key.
-
-1. Go to: https://go.postman.co/settings/me/api-keys
-2. Click "Generate API Key"
-3. Name it "Claude Code"
-4. Copy the key (starts with PMAK-)
-
-Then set it as an environment variable:
-
-  export POSTMAN_API_KEY=PMAK-your-key-here
-
-Add it to your shell profile (~/.zshrc or ~/.bashrc) to persist across sessions.
-When done, let me know and I'll verify the connection.
-```
-
-Wait for the user to confirm they've set the key. Then verify with `getAuthenticatedUser`.
-
-**If 401:** "API key was rejected. Check for extra spaces or generate a new one at https://go.postman.co/settings/me/api-keys"
-
-**If timeout:** "Can't reach the Postman MCP Server. Check your network and https://status.postman.com"
-
-### Step 4: Workspace Verification
-
-After successful connection (either auth method):
-
-1. Call `getWorkspaces` to list workspaces.
-2. Call `getCollections` with the first workspace ID to count collections.
-3. Call `getAllSpecs` with the workspace ID to count specs.
-
-Present:
-```
-Connected as: <user name>
-
-Your workspaces:
-  - My Workspace (personal) — 12 collections, 3 specs
-  - Team APIs (team) — 8 collections, 5 specs
-
-You're all set.
-```
-
-If workspace is empty:
-```
-Your workspace is empty. You can:
-  /postman:sync     — Push a local OpenAPI spec to Postman
-  /postman:search   — Search for APIs across your org's resources or the public Postman network
-```
-
-### Step 5: Suggest First Command
-
-Based on what the user has:
-
-**Has collections:**
-```
-Try one of these:
-  /postman:search   — Find APIs across your workspace
-  /postman:test     — Run collection tests
-```
-
-**Has specs but no collections:**
-```
-Try this:
-  /postman:sync — Generate a collection from one of your specs
-```
-
-**Empty workspace:**
-```
-Try this:
-  /postman:sync — Import an OpenAPI spec from your project
-```
-
-## Error Handling
-
-- **MCP tools not available:** "The Postman MCP Server isn't loaded. Make sure the plugin is installed and restart Claude Code."
-- **OAuth callback invalid:** "That URL doesn't look right — make sure you copied the full address bar URL including `?code=` and `&state=`."
-- **OAuth flow expired:** "The authorization URL has expired. Run `/postman:setup` again to get a fresh one."
-- **MCP server disconnected after OAuth:** The server restarts after saving credentials. Retry `getAuthenticatedUser` up to 3 times. If still unavailable, tell the user to restart Claude Code — the token is saved, no re-auth needed.
-- **API key not set:** Walk through Step 3 above.
-- **401 Unauthorized:** "Authentication failed. Try `/postman:setup` to re-authenticate via OAuth, or generate a new API key at https://go.postman.co/settings/me/api-keys"
-- **Network timeout:** "Can't reach the Postman MCP Server. Check your network and https://status.postman.com for outages."
-- **Plan limitations:** "Some features (team workspaces, monitors) require a paid Postman plan. Core commands work on all plans."
+Never echo tokens or secrets back. Never auto-select a profile. When done,
+suggest `/databricks:doctor` for a full health check.

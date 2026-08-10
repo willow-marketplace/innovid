@@ -1,8 +1,8 @@
 {
   "name": "dash0",
-  "version": "0.1.22",
+  "version": "0.1.23",
   "description": "OpenTelemetry observability for Claude Code sessions. Captures tool calls, LLM invocations, token usage, and errors as OTel traces.",
-  "updatedAt": "2026-08-10T00:03:05.153Z",
+  "updatedAt": "2026-08-10T12:01:53.979Z",
   "author": {
     "name": "Dash0"
   },

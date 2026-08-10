@@ -1,8 +1,8 @@
 {
   "name": "auth0",
-  "version": "2.0.1",
+  "version": "2.1.0",
   "description": "A single unified Auth0 skill that detects your framework, feature, and tooling, then loads the right reference guides for adding authentication — login, MFA, Organizations, ACUL, custom domains, branding, JWT validation, migration, and debugging — to any app.",
-  "updatedAt": "2026-08-10T00:02:43.760Z",
+  "updatedAt": "2026-08-10T12:02:50.303Z",
   "author": {
     "name": "Auth0",
     "email": "support@auth0.com"

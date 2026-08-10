@@ -1,6 +1,6 @@
 ---
 name: neon-functions
-description: Long-running, serverless Node.js HTTP functions deployed onto your Neon branch, with DATABASE_URL injected automatically and compute that runs next to your data. Use when a user wants to host an API, an AI agent with long streaming responses, a WebSocket or server-sent-events (SSE) server, a webhook handler, a Discord bot, an MCP server, or any request/response workload that risks timing out on short, lambda-style serverless functions — and wants it to branch with their database. Triggers include "serverless function", "deploy an API", "long-running function", "streaming agent", "SSE server", "WebSocket server", "webhook handler", "MCP server", "run code next to my database", "function that won't time out", "Neon Functions", and "Neon Compute".
+description: Long-running, serverless Node.js HTTP functions deployed onto your Neon branch, with DATABASE_URL injected automatically and compute that runs next to your data. Use when a user wants to host an API, an AI agent with long streaming responses, a WebSocket or server-sent-events (SSE) server, a webhook handler, a Discord bot, an MCP server, or any request/response workload that risks timing out on short, lambda-style serverless functions — and wants it to branch with their database. Triggers include "serverless function", "deploy an API", "long-running function", "streaming agent", "SSE server", "WebSocket server", "webhook handler", "MCP server", "run code next to my database", "function that won't time out", "function logs", "Neon Functions", and "Neon Compute".
 ---
 
 **FIRST**: Use the parent `neon` skill for a Neon overview, getting started with Neon, Neon development best practices, and more.
@@ -491,6 +491,16 @@ app.all("/mcp", async (c) => {
 Because the function's URL is public, **authenticate before connecting the transport** — [Better Auth](https://better-auth.com) covers both OAuth (its MCP plugin makes your app the authorization server so third-party clients self-authorize per the MCP spec) and a simpler API-key / session-JWT check for your own callers. [references/mcp.md](https://neon.com/docs/ai/skills/neon-functions/references/mcp.md) has the full pattern — server with Postgres-backed tools via Drizzle, both Better Auth auth options, and testing with `mcporter` / `add-mcp`.
 
 ## Integrations and Observability
+
+### Built-in branch logs
+
+```bash
+neon logs query --branch production --source function --since 1h
+```
+
+Functions is one of the two sources branch logs cover today, alongside Object Storage. Logs are scoped to a single branch, so pass `--branch` when the deployed function isn't on the branch you're checked out on. Everything else about logs — the required CLI version, filters, the SDK, and the Loki-compatible read API — is in the parent `neon` skill's **Observability** section.
+
+### Application instrumentation
 
 A function is a long-lived Node.js process running a web-standard request/response handler, so standard Node integration SDKs work unchanged. Initialize them once at module load, gated on an env var so local dev and unconfigured branches stay a no-op, and pass secrets via `--env` or `neon.ts` `env`.
 

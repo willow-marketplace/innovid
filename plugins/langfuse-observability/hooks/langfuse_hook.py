@@ -26,17 +26,14 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 
-# ----------------- Paths -----------------
-STATE_DIR = Path.home() / ".claude" / "state"
-LOG_FILE = STATE_DIR / "langfuse_hook.log"
-STATE_FILE = STATE_DIR / "langfuse_state.json"
-LOCK_FILE = STATE_DIR / "langfuse_state.lock"
-
-
 # ----------------- Configuration -----------------
 def _opt(name: str) -> str:
-    """Read a plugin userConfig value (CLAUDE_PLUGIN_OPTION_<NAME>) with a fallback to a plain env var."""
-    return os.environ.get(f"CLAUDE_PLUGIN_OPTION_{name}") or os.environ.get(name) or ""
+    """Read a config value: plain env var first, plugin userConfig (CLAUDE_PLUGIN_OPTION_<NAME>) as fallback.
+
+    Claude Code stores plugin userConfig at machine scope only, while `env` blocks
+    are per-repo — so the repo-level env var must win, wizard as fallback.
+    """
+    return os.environ.get(name) or os.environ.get(f"CLAUDE_PLUGIN_OPTION_{name}") or ""
 
 DEBUG = _opt("CC_LANGFUSE_DEBUG").lower() == "true"
 SKILL_TAGS = (_opt("CC_LANGFUSE_SKILL_TAGS") or "true").lower() == "true"
@@ -48,6 +45,59 @@ except ValueError:
 
 # Bound for unresolved task notifications kept in the state file between runs.
 MAX_PENDING_TASK_NOTIFICATIONS = 50
+
+
+# ----------------- Paths -----------------
+def _resolve_state_dir() -> Tuple[Path, str]:
+    """Resolve the state directory, taking CC_LANGFUSE_STATE_DIR into account.
+
+    Multi-installation setups (CLAUDE_CONFIG_DIR) point each installation at
+    its own directory so installations stop sharing one log, state file and
+    lock. The historical default is ~/.claude/state, which is used when the 
+    override is unset or invalid. 
+
+    Returns (directory, warning). A non-empty warning means the override was
+    rejected and the default is in use.
+    """
+    default = Path.home() / ".claude" / "state"
+    override = _opt("CC_LANGFUSE_STATE_DIR")
+    if not override:
+        return default, ""
+    try:
+        # expanduser raises RuntimeError for '~unknownuser/...' paths
+        candidate = Path(override).expanduser()
+    except Exception as e:
+        return default, (
+            f"CC_LANGFUSE_STATE_DIR {override!r} is unusable ({type(e).__name__}: {e}); "
+            f"falling back to {default}"
+        )
+    if not candidate.is_absolute():
+        return default, (
+            f"CC_LANGFUSE_STATE_DIR {override!r} is not an absolute path; "
+            f"falling back to {default}"
+        )
+    try:
+        candidate.mkdir(parents=True, exist_ok=True)
+    except Exception as e:
+        return default, (
+            f"CC_LANGFUSE_STATE_DIR {override!r} is unusable ({type(e).__name__}: {e}); "
+            f"falling back to {default}"
+        )
+    # mkdir(exist_ok=True) passes for a pre-existing dir the user cannot write
+    # to (root-owned, read-only volume); accepting it would kill log, lock and
+    # state at once — the one failure mode with no channel left to report itself.
+    if not os.access(candidate, os.W_OK | os.X_OK):
+        return default, (
+            f"CC_LANGFUSE_STATE_DIR {override!r} is unusable (directory exists but is not writable); "
+            f"falling back to {default}"
+        )
+    return candidate, ""
+
+STATE_DIR, _STATE_DIR_WARNING = _resolve_state_dir()
+LOG_FILE = STATE_DIR / "langfuse_hook.log"
+STATE_FILE = STATE_DIR / "langfuse_state.json"
+LOCK_FILE = STATE_DIR / "langfuse_state.lock"
+
 
 @dataclass
 class LangfuseConfig:
@@ -115,11 +165,26 @@ def get_parent_trace_context_from_env() -> Tuple[Optional[str], Optional[str]]:
         return None, None
     return parent_trace_id, parent_span_id
 
+def _core_opt(name: str) -> Tuple[str, str]:
+    """Resolve NAME/CC_NAME source-first — any env spelling beats any wizard
+    spelling — returning (value, source) for mixed-source detection."""
+    for source, key in (
+        ("env", name),
+        ("env", f"CC_{name}"),
+        ("wizard", f"CLAUDE_PLUGIN_OPTION_{name}"),
+        ("wizard", f"CLAUDE_PLUGIN_OPTION_CC_{name}"),
+    ):
+        value = os.environ.get(key)
+        if value:
+            return value, source
+    return "", ""
+
 def get_langfuse_config() -> Optional[LangfuseConfig]:
-    public_key = _opt("LANGFUSE_PUBLIC_KEY") or _opt("CC_LANGFUSE_PUBLIC_KEY")
-    secret_key = _opt("LANGFUSE_SECRET_KEY") or _opt("CC_LANGFUSE_SECRET_KEY")
-    host = _opt("LANGFUSE_BASE_URL") or _opt("CC_LANGFUSE_BASE_URL") or "https://us.cloud.langfuse.com"
-    user_id = _opt("LANGFUSE_USER_ID") or _opt("CC_LANGFUSE_USER_ID") or None
+    public_key, public_key_source = _core_opt("LANGFUSE_PUBLIC_KEY")
+    secret_key, secret_key_source = _core_opt("LANGFUSE_SECRET_KEY")
+    host, host_source = _core_opt("LANGFUSE_BASE_URL")
+    host = host or "https://cloud.langfuse.com"
+    user_id = _core_opt("LANGFUSE_USER_ID")[0] or None
     trace_seed = _opt("CC_LANGFUSE_TRACE_SEED") or None
     parent_trace_id, parent_span_id = get_parent_trace_context_from_env()
     if parent_trace_id is not None and trace_seed is not None:
@@ -130,6 +195,17 @@ def get_langfuse_config() -> Optional[LangfuseConfig]:
 
     if not public_key or not secret_key:
         return None
+
+    # Export auth failures are swallowed downstream (capped background flush),
+    # so this is the only place a torn key/host pair is still diagnosable.
+    sources = {s for s in (public_key_source, secret_key_source, host_source) if s}
+    if len(sources) > 1:
+        info(
+            "Langfuse config is mixed-source: public_key from "
+            f"{public_key_source}, secret_key from {secret_key_source}, "
+            f"base_url from {host_source or 'default'} — mismatched key/host "
+            "pairs fail with 401 and traces are dropped."
+        )
 
     return LangfuseConfig(
         public_key=public_key,
@@ -143,9 +219,9 @@ def get_langfuse_config() -> Optional[LangfuseConfig]:
 
 def _missing_langfuse_keys() -> List[str]:
     missing = []
-    if not (_opt("LANGFUSE_PUBLIC_KEY") or _opt("CC_LANGFUSE_PUBLIC_KEY")):
+    if not _core_opt("LANGFUSE_PUBLIC_KEY")[0]:
         missing.append("LANGFUSE_PUBLIC_KEY")
-    if not (_opt("LANGFUSE_SECRET_KEY") or _opt("CC_LANGFUSE_SECRET_KEY")):
+    if not _core_opt("LANGFUSE_SECRET_KEY")[0]:
         missing.append("LANGFUSE_SECRET_KEY")
     return missing
 
@@ -2629,6 +2705,9 @@ def flush_and_shutdown_langfuse_client(langfuse: Optional[Langfuse]) -> None:
 def main() -> int:
     start = time.time()
     debug("Hook started")
+
+    if _STATE_DIR_WARNING:
+        info(_STATE_DIR_WARNING)
 
     config = get_langfuse_config()
     if config is None:

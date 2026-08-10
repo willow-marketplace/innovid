@@ -34,6 +34,8 @@ load_settings() {
   [[ -n "$val" ]] && export DASH0_OMIT_IO="$val"
   val=$(echo "$frontmatter" | grep '^omit_user_info:' | sed 's/omit_user_info: *//' | sed 's/^"\(.*\)"$/\1/' || true)
   [[ -n "$val" ]] && export DASH0_OMIT_USER_INFO="$val"
+  val=$(echo "$frontmatter" | grep '^omit_identity_fallback:' | sed 's/omit_identity_fallback: *//' | sed 's/^"\(.*\)"$/\1/' || true)
+  [[ -n "$val" ]] && export DASH0_OMIT_IDENTITY_FALLBACK="$val"
 
   return 0
 }
@@ -47,7 +49,7 @@ load_settings "$PROJECT_SETTINGS" || load_settings "$GLOBAL_SETTINGS" || true
 PLUGIN_DATA="${CLAUDE_PLUGIN_DATA:?CLAUDE_PLUGIN_DATA not set}"
 BIN_DIR="$PLUGIN_DATA/bin"
 REPO="dash0hq/dash0-agent-plugin"
-VERSION="0.1.22"
+VERSION="0.1.23"
 
 # Detect OS and architecture.
 OS=$(uname -s | tr '[:upper:]' '[:lower:]')

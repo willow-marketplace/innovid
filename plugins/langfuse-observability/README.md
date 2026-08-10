@@ -41,6 +41,7 @@ The plugin requires or accepts:
 | `CC_LANGFUSE_MAX_CHARS` | Truncate captured inputs/outputs to this many characters (default 20000).                          |
 | `CC_LANGFUSE_SKILL_TAGS` | Tag traces with `skill:<name>` for every skill invoked in the turn (default true).                 |
 | `CC_LANGFUSE_CAPTURE_SKILL_CONTENT` | Include injected skill instruction text in the Skill tool span output (default false).  |
+| `CC_LANGFUSE_STATE_DIR` | Optional. Absolute directory (`~` is expanded) for the hook's state, lock and log files (default `~/.claude/state`) — set per `CLAUDE_CONFIG_DIR` installation to keep them separate. Unusable values fall back to the default with a logged warning. |
 | `CC_LANGFUSE_TRACE_SEED` | Optional. Opt-in seed for deterministic trace IDs — see [Deterministic trace IDs](#deterministic-trace-ids). |
 | `CC_LANGFUSE_TRACEPARENT` | Optional, per run (env var, not plugin config). W3C traceparent of an existing trace to attach to — see [Attach runs to an existing trace](#attach-runs-to-an-existing-trace). |
 | `CC_LANGFUSE_PARENT_TRACE_ID` / `CC_LANGFUSE_PARENT_SPAN_ID` | Optional, per run. Explicit alternative to `CC_LANGFUSE_TRACEPARENT` (32-hex trace id + 16-hex span id). |
@@ -209,7 +210,7 @@ claude plugin uninstall langfuse-observability
 
 ## Troubleshooting
 
-Nearly every failure explains itself in `~/.claude/state/langfuse_hook.log`. Send one message, then match the newest lines against this table:
+Nearly every failure explains itself in `~/.claude/state/langfuse_hook.log` (with a usable `CC_LANGFUSE_STATE_DIR` override the log lives there instead; a rejected override logs to the default path). Send one message, then match the newest lines against this table:
 
 | What the log shows | Meaning | What to do |
 | --- | --- | --- |

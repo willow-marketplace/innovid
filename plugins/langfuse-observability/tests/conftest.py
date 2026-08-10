@@ -6,6 +6,7 @@ import itertools
 import importlib.util
 import json
 import logging
+import os
 import sys
 import types
 from pathlib import Path
@@ -16,6 +17,11 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 FIXTURE_ROOT = REPO_ROOT / "tests" / "fixtures" / "transcripts"
+
+# A CC_LANGFUSE_STATE_DIR from the developer's real environment would leak into
+# the hook's import-time path resolution; tests that need it set it per test.
+os.environ.pop("CC_LANGFUSE_STATE_DIR", None)
+os.environ.pop("CLAUDE_PLUGIN_OPTION_CC_LANGFUSE_STATE_DIR", None)
 
 
 def _install_langfuse_stubs() -> None:

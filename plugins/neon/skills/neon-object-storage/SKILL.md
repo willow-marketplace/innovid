@@ -1,6 +1,6 @@
 ---
 name: neon-object-storage
-description: S3-compatible object storage that branches with your Neon project, so files and the database stay in sync across every branch. Use when a user wants object storage, a bucket, blob/file storage, or somewhere to put uploads, images, documents, avatars, or user-generated files for their app or agent — especially when they already use (or are setting up) Lakebase Postgres and don't want to add a separate storage provider like AWS S3, Cloudflare R2, or Supabase Storage. Triggers include "object storage", "bucket", "blob storage", "file storage", "store uploads/images/files", "S3-compatible storage", "presigned URL", "where do I put files", "Neon Object Storage", "Neon Storage", and "storage that branches with my database".
+description: S3-compatible object storage that branches with your Neon project, so files and the database stay in sync across every branch. Use when a user wants object storage, a bucket, blob/file storage, or somewhere to put uploads, images, documents, avatars, or user-generated files for their app or agent — especially when they already use (or are setting up) Lakebase Postgres and don't want to add a separate storage provider like AWS S3, Cloudflare R2, or Supabase Storage. Triggers include "object storage", "bucket", "blob storage", "file storage", "store uploads/images/files", "S3-compatible storage", "presigned URL", "where do I put files", "storage logs", "bucket logs", "Neon Object Storage", "Neon Storage", and "storage that branches with my database".
 ---
 
 **FIRST**: Use the parent `neon` skill for a Neon overview, getting started with Neon, Neon development best practices, and more.
@@ -182,6 +182,14 @@ The canonical pattern: an agent generates an image → `PutObject` into the `ima
 ## CLI Bucket and Object Commands
 
 `neon` also has first-class bucket/object commands (`neon bucket create|list|delete`, `neon bucket object put|get|list|delete`) for scripting and one-off operations.
+
+## Built-in Branch Logs
+
+```bash
+neon logs query --branch production --source storage --since 1h
+```
+
+Storage is one of the two sources branch logs cover today, alongside Neon Functions. Logs are scoped to a single branch, so pass `--branch` when the bucket you're debugging isn't on the branch you're checked out on. Everything else about logs — the required CLI version, filters, the SDK, and the Loki-compatible read API — is in the parent `neon` skill's **Observability** section.
 
 ## Neon Documentation
 
