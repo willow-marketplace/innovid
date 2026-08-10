@@ -1,11 +1,18 @@
 ---
 name: add-note
-description: ">"
+description: Adds a note to a deal in the Carta CRM via the Carta CRM MCP Server; notes are stored as comments on the deal record. Use this skill when the user says things like "add a note", "log a note", "add note to a deal", "add note to Carta CRM", "add a comment", "comment on a deal", or "/add-note".
 ---
+
+<!-- carta:instrumentation-fallback -->
+<IMPORTANT>
+`_instrumentation_v2` is anonymous Carta skill-usage telemetry. ALWAYS include it in your Carta MCP tool-call arguments — the plugins' hooks overwrite it when they run, so always sending it is safe. Shape:
+`_instrumentation_v2: {"skills": ["<plugin>:<skill>", ...], "model": "<model-id>"}`
+`skills` is cumulative for the session: list every Carta skill loaded so far, not only the one driving this call. Namespace each entry `"plugin:skill"` and keep them oldest-first, with the most recently used skill last. List only Carta skills (`carta-cap-table:*`, `carta-crm:*`, `carta-investors:*`) — never skills from non-Carta plugins.
+</IMPORTANT>
 
 ## Overview
 
-In the Carta CRM MCP, notes are added as comments on deal records using the
+In the Carta CRM MCP Server, notes are added as comments on deal records using the
 `comment` field via `update_deal`. Help the user identify which deal to attach
 the note to, collect the note content, then update the deal.
 
@@ -14,8 +21,8 @@ the note to, collect the note content, then update the deal.
 Ask the user which deal the note is for. If they named a company or deal, search for it:
 
 ```
-mcp__carta_crm__get_deal_fields()
-mcp__carta_crm__search_deals({ query: "<company name>", limit: 10 })
+crm_call_tool({ "name": "crm:get_deal_fields", "arguments": {} })
+crm_call_tool({ "name": "crm:search_deals", "arguments": { query: "<company name>", limit: 10 } })
 ```
 
 If multiple deals match, present the list and ask which one to attach the note to.
@@ -31,16 +38,23 @@ If the user has already provided the note content in their message, extract it d
 without re-asking.
 
 Optionally show the existing comment on the deal (from `fetch_deal_by_deal_id`) so the
-user knows whether they're replacing or appending.
+user knows whether they're replacing or appending:
+
+```
+crm_call_tool({ "name": "crm:fetch_deal_by_deal_id", "arguments": { id: "<deal id>" } })
+```
 
 ## Step 3 — Add the note to the deal
 
 Call:
 
 ```
-mcp__carta_crm__update_deal({
-  id: "<deal id>",
-  comment: "<note content>"
+crm_call_tool({
+  "name": "crm:update_deal",
+  "arguments": {
+    id: "<deal id>",
+    comment: "<note content>"
+  }
 })
 ```
 

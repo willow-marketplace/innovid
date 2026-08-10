@@ -1,6 +1,6 @@
 ---
 name: upgrade-shippo
-description: ">-"
+description: Guide for Shippo API version changes, webhook payload versioning, and how the hosted MCP server handles updates. Use when reasoning about backward compatibility, handling new fields in webhook payloads or API responses, troubleshooting OAuth/version-mismatch errors against the hosted MCP, or auditing an existing Shippo integration before a change.
 ---
 
 <!--

@@ -1,6 +1,6 @@
 ---
 name: verify-recent-trace
-description: ">"
+description: Find a recent trace in Honeycomb, to see what happened in a recent test. Use when asked to "verify in Honeycomb", "find the most recent trace", or "show me the trace".
 ---
 
 # Honeycomb Verification Skill

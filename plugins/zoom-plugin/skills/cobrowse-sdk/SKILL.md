@@ -1,6 +1,6 @@
 ---
 name: cobrowse-sdk
-description: '"Reference skill for Zoom Cobrowse SDK. Use after routing to a collaborative-support workflow when implementing browser co-browsing, annotation tools, privacy masking, remote assist, or PIN-based session sharing."'
+description: Reference skill for Zoom Cobrowse SDK. Use after routing to a collaborative-support workflow when implementing browser co-browsing, annotation tools, privacy masking, remote assist, or PIN-based session sharing.
 ---
 
 # Zoom Cobrowse SDK - Web Development
@@ -126,6 +126,11 @@ If a demo only has one generic "session" user, it is incomplete for real cobrows
 3. **Cobrowse SDK Credentials** from the app's Cobrowse tab
 
 **Note**: Cobrowse SDK is a **feature of Video SDK** (not a separate product).
+
+> **Need to create the Video SDK app first?** Use
+> [Marketplace app management](../rest-api/references/marketplace-apps.md) for app creation,
+> manifest validation, Video SDK credential shape, and app-type quirks before generating
+> Cobrowse JWTs.
 
 ### Credentials Overview
 

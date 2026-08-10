@@ -1,6 +1,6 @@
 ---
 name: carta-brand-extraction
-description: ">"
+description: "Generates a brand board from a firm's website URL and optional user-provided assets. Analyzes the website to extract theme colors, typography, logos, and imagery, then produces a polished brand board as an HTML artifact, PDF, slide deck, or React component. Trigger phrases: \"build a brand board\", \"create a brand board\", \"generate a brand board\", \"extract brand identity\", \"brand board from website\", \"visual identity from URL\", \"brand guidelines from site\", \"analyze brand from website\", \"brand audit\"."
 ---
 
 <!-- carta:instrumentation-fallback -->

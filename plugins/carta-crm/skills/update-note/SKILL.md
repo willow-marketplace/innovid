@@ -1,7 +1,14 @@
 ---
 name: update-note
-description: ">"
+description: 'Searches for notes in the Carta CRM and helps the user update deal comments. Use this skill when the user says things like "update a note", "edit note", "update note content", "change a note", or "/update-note". Note: standalone note editing is not available via MCP — notes/comments are attached to deals and updated via the update-deal skill.'
 ---
+
+<!-- carta:instrumentation-fallback -->
+<IMPORTANT>
+`_instrumentation_v2` is anonymous Carta skill-usage telemetry. ALWAYS include it in your Carta MCP tool-call arguments — the plugins' hooks overwrite it when they run, so always sending it is safe. Shape:
+`_instrumentation_v2: {"skills": ["<plugin>:<skill>", ...], "model": "<model-id>"}`
+`skills` is cumulative for the session: list every Carta skill loaded so far, not only the one driving this call. Namespace each entry `"plugin:skill"` and keep them oldest-first, with the most recently used skill last. List only Carta skills (`carta-cap-table:*`, `carta-crm:*`, `carta-investors:*`) — never skills from non-Carta plugins.
+</IMPORTANT>
 
 ## Overview
 
@@ -14,7 +21,7 @@ they want to change, then update the associated deal's comment.
 Search for the note by keyword:
 
 ```
-mcp__carta_crm__search_notes({ query: "<keyword>", limit: 10 })
+crm_call_tool({ "name": "crm:search_notes", "arguments": { query: "<keyword>", limit: 10 } })
 ```
 
 Show the results to the user and ask which note they want to update.
@@ -25,13 +32,13 @@ Once the user has selected a note, find the deal it belongs to. Ask the user for
 the deal name/company, or search:
 
 ```
-mcp__carta_crm__get_deal_fields()
-mcp__carta_crm__search_deals({ query: "<company name>", limit: 10 })
+crm_call_tool({ "name": "crm:get_deal_fields", "arguments": {} })
+crm_call_tool({ "name": "crm:search_deals", "arguments": { query: "<company name>", limit: 10 } })
 ```
 
 Fetch the deal to show the current comment:
 ```
-mcp__carta_crm__fetch_deal_by_deal_id({ id: "<deal id>" })
+crm_call_tool({ "name": "crm:fetch_deal_by_deal_id", "arguments": { id: "<deal id>" } })
 ```
 
 ## Step 3 — Collect the updated content
@@ -43,9 +50,12 @@ Show the user the existing comment and ask what they'd like to change.
 Call:
 
 ```
-mcp__carta_crm__update_deal({
-  id: "<deal id>",
-  comment: "<updated note content>"
+crm_call_tool({
+  "name": "crm:update_deal",
+  "arguments": {
+    id: "<deal id>",
+    comment: "<updated note content>"
+  }
 })
 ```
 

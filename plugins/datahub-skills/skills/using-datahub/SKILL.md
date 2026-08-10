@@ -1,6 +1,6 @@
 ---
 name: using-datahub
-description: "|"
+description: This skill provides routing guidance for all DataHub interaction skills. It is injected at session start and helps map user intent to the correct skill. Do not invoke this skill directly — it is loaded automatically.
 ---
 
 # Using DataHub Skills

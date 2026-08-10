@@ -1,6 +1,6 @@
 ---
 name: duckdb-docs
-description: ">"
+description: Search DuckDB and DuckLake documentation and blog posts. Returns relevant doc chunks for a question or keyword using full-text search against a locally cached index.
 ---
 
 You are helping the user find relevant DuckDB or DuckLake documentation.

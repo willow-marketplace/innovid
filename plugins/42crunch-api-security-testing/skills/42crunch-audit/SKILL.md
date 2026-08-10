@@ -1,6 +1,6 @@
 ---
 name: 42crunch-audit
-description: ">"
+description: Run a 42Crunch API Security Audit and fix SQG-blocking issues in an OpenAPI Specification file. Use this skill whenever the user wants to audit an OAS file for security issues, fix SQG-blocking issues, score an API, apply data dictionary enrichment, or remediate audit findings. Triggers on phrases like "run audit", "audit only", "fix audit issues", "SQG audit", "42crunch audit", "audit score", or any request focused on static OAS analysis and remediation without running a live scan.
 ---
 
 # 42Crunch Audit Skill
@@ -63,8 +63,8 @@ Audit Complete
   Score change:   <initial-score> → <score>  (<delta>)  |  Data: <initial-data> → <data-score>  (<data-delta>)   ← omit if no fixes applied
   SQG:            PASSED  (<sqg-name> — your org's security quality gate is met)    ← platform mode, passed
   SQG:            FAILED  (<sqg-name> — the quality gate is not met; fixes above are required)    ← platform mode, failed
-  SQG:            N/A  (Free Trial — no automated gate; user-defined thresholds applied this session)    ← free trial mode
-  Mode:           Platform / Free Trial
+  SQG:            N/A  (Token mode — no automated gate; user-defined thresholds applied this session)    ← token mode
+  Mode:           Platform / Token
   Tag:            <category>:<tagname>             ← platform mode only, when a tag is assigned; omit this row if no tag
   Issues fixed:   2 SQG-blocking  (0 security · 2 data validation)
   OAS updated:    <path/to/openapi.json>

@@ -1,6 +1,6 @@
 ---
 name: agents-harden
-description: ">"
+description: 'Use when preparing your agent for production — IAM scoping, inbound auth (JWT, SigV4), secrets management, cold start optimization, session lifecycle, rate limiting, input validation, and quota guidance. Triggers on: "production checklist", "harden agent", "production ready", "secure agent", "inbound auth", "going live", "cold start optimization", "session lifecycle", "StopRuntimeSession", "quota", "throttling", "maxVms", "rate limit", "security audit of outbound API calls", "gateway target audit for production", "restrict who can call", "lock down endpoint", "only our app can call". Not for Cedar tool-restriction policies — use agents-connect. Not for quality measurement — use agents-optimize. Not for outbound credential storage or API key wiring — use agents-connect. Not for A2A agent-to-agent auth — use agents-build. Cold start observation and diagnosis (not optimization) routes to agents-debug.'
 ---
 
 # harden

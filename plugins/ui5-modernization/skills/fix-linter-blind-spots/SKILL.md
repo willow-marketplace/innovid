@@ -1,6 +1,16 @@
 ---
 name: fix-linter-blind-spots
-description: "|"
+description: |-
+  Fix runtime-breaking patterns in JS files that the UI5 linter does NOT report. Use this skill when:
+  - Tests fail after modernization with "ReferenceError", "TypeError: Cannot read properties of undefined", or "X is not defined"
+  - The linter shows zero remaining errors but tests still crash at runtime
+  - Phase 3, Step 3.2 of the modernize-ui5-app workflow (runs after the parallel globals batch, before fix-cyclic-deps)
+  - User mentions "runtime errors after modernization", "test failures after modernization", "global namespace still used"
+  - After running fix-js-globals and fix-cyclic-deps, but tests STILL fail
+  - User sees "X is not a constructor" or module loading errors in test output
+  The linter only checks sap.* globals in JS. App-specific namespace patterns (e.g., com.example.app.utils.Module)
+  are invisible to it. This skill detects and fixes those across ALL JS files — app source AND test.
+  NOTE: App-namespace globals in XML files are handled by `fix-xml-globals` — NOT by this skill.
 ---
 
 # Fix Linter Blind Spots

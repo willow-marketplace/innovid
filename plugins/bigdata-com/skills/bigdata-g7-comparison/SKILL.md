@@ -1,6 +1,6 @@
 ---
 name: bigdata-g7-comparison
-description: ">"
+description: 'Benchmark the seven G7 economies side by side using Bigdata.com data — the United States, Japan, Germany, the United Kingdom, France, Italy, and Canada. Produces a like-for-like indicator table (GDP, inflation, unemployment, policy rate, fiscal position), central bank stance and rate-path divergence across the Fed, BoJ, ECB, BoE and BoC, relative market positioning across equities, rates and currencies, the divergence and convergence themes running through the bloc, and a ranked allocation view — optionally focused on equities, rates, FX or credit. Triggers: "compare G7 economies", "G7 comparison", "G7 outlook", "how do the G7 economies compare", "G7 growth and inflation", "G7 central bank divergence".'
 ---
 
 # Bigdata G7 Comparison

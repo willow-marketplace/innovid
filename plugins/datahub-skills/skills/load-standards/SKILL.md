@@ -1,6 +1,6 @@
 ---
 name: load-standards
-description: "|"
+description: 'Loads all 22 DataHub connector golden standards into context. Use before starting connector development or review work to ensure the full set of standards is available for reference. Triggers on: "load standards", "show standards", "what are the connector standards", "load golden standards", "review standards", or any request to load DataHub connector development guidelines.'
 ---
 
 # Load DataHub Connector Golden Standards

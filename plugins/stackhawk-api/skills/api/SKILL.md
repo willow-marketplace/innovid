@@ -1,6 +1,6 @@
 ---
 name: api
-description: ">"
+description: 'Use this skill when a user or agent needs to query the StackHawk platform for security reporting, findings analysis, or app management. Triggers include: "stackhawk api", "security posture", "findings report", "show me findings", "untriaged findings", "which apps", "scan history", "security dashboard", "triage", "what needs attention". Uses the hawk CLI (`hawk op` subcommand) for all platform queries. Do NOT use for running scans (use the hawkscan skill for "scan my app", "hawkscan", "stackhawk.yml", "DAST") or for fixing/remediating code or vulnerabilities — this skill only reads and reports platform data.'
 ---
 
 # StackHawk API Skill

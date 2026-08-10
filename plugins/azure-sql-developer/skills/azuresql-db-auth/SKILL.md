@@ -1,6 +1,6 @@
 ---
 name: azuresql-db-auth
-description: ">-"
+description: Connects an app to Azure SQL Developer securely, with a least-privilege database user instead of the sa login, the right auth method per environment, and safe handling of the connection secret. Use when a user asks "don't use sa in my app", "create a least-privilege database user", "app login for SQL", "which authentication should my app use", "secure the connection string", "Encrypt / TrustServerCertificate", "store the connection string in Key Vault", "dotnet user-secrets", "managed identity for Azure SQL", or "grant only the roles my app needs". SQL auth locally, Microsoft Entra or managed identity in the cloud, changing only the connection string. Reach for this before wiring an app to connect as sa, or before committing a connection string to source.
 ---
 
 # Azure SQL Developer: connect securely (least-privilege user, auth, secrets)

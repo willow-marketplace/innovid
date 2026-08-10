@@ -1,6 +1,6 @@
 ---
 name: idmp-annotation
-description: '"IDMP annotation skill. Use it to read and write element annotations while keeping element annotations separate from event annotations."'
+description: IDMP annotation skill. Use it to read and write element annotations while keeping element annotations separate from event annotations.
 ---
 
 # annotation

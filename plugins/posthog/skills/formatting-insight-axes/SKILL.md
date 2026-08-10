@@ -1,6 +1,6 @@
 ---
 name: formatting-insight-axes
-description: ">"
+description: Pick the right y-axis unit when creating or updating a TrendsQuery insight via `posthog:insight-create` or `posthog:insight-update`. Use when the agent is about to add a `formula` purely to convert units (e.g. dividing seconds by 60 to display minutes), when a `math_property` is a duration, currency, ratio, or large count, or whenever the user mentions "format the y-axis", "duration", "seconds", "minutes", "hours", "milliseconds", "ms", "percentage", "currency", "decimals", "axis label", or "axis unit" in the context of a graph insight.
 ---
 
 # Formatting insight axes

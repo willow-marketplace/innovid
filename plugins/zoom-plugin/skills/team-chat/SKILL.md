@@ -1,6 +1,6 @@
 ---
 name: team-chat
-description: '"Reference skill for Zoom Team Chat. Use after routing to a chat workflow when building user-scoped messaging integrations, chatbot experiences, rich cards, buttons, slash commands, or chat webhooks."'
+description: Reference skill for Zoom Team Chat. Use after routing to a chat workflow when building user-scoped messaging integrations, chatbot experiences, rich cards, buttons, slash commands, or chat webhooks.
 ---
 
 # /build-zoom-team-chat-app
@@ -86,6 +86,7 @@ If you choose the wrong type early, auth/scopes/endpoints all mismatch and imple
 ### Chatbot API (Bot-Level)
 - Messages appear as sent by your **bot**
 - Requires **Client Credentials** grant
+- Do not use an authorization-code grant or user OAuth access token for chatbot messages
 - Endpoint: `POST https://api.zoom.us/v2/im/chat/messages`
 - Scopes: `imchat:bot` (auto-added)
 - **Rich cards**: buttons, forms, dropdowns, images
@@ -104,7 +105,15 @@ If you choose the wrong type early, auth/scopes/endpoints all mismatch and imple
 2. Click **Develop** → **Build App**
 3. Select **General App** (OAuth)
 
-> ⚠️ **Do NOT use Server-to-Server OAuth** - S2S apps don't have the Chatbot/Team Chat feature. Only General App (OAuth) supports chatbots.
+> ⚠️ **Do NOT use Server-to-Server OAuth for a chatbot.** S2S apps cannot enable the
+> Team Chat chatbot/subscription feature. S2S can still call supported Team Chat admin REST APIs.
+
+> **Need to create the General App by API or manifest?** Use
+> [Marketplace app management](../rest-api/references/marketplace-apps.md) first. It covers
+> Team Chat manifest requirements such as `imchat:bot`, `team_chat_subscription`,
+> `slash_command.development_message_url`, shortcut `action_types`, and app-owned
+> `client_credentials` scopes. Select the user, admin, S2S, or chatbot variant from the
+> [Marketplace template selector](../rest-api/references/marketplace-app-templates.md).
 
 ### Required Credentials
 
@@ -180,6 +189,7 @@ const response = await fetch('https://api.zoom.us/v2/im/chat/messages', {
   body: JSON.stringify({
     robot_jid: process.env.ZOOM_BOT_JID,
     to_jid: payload.toJid,           // From webhook
+    user_jid: payload.userJid,       // From bot_notification webhook
     account_id: payload.accountId,   // From webhook
     content: {
       head: {
@@ -206,7 +216,20 @@ const response = await fetch('https://api.zoom.us/v2/im/chat/messages', {
     }
   })
 });
+
+const responseBody = await response.json().catch(() => null);
+console.log('Zoom chatbot response', {
+  status: response.status,
+  body: responseBody
+});
+if (!response.ok) {
+  throw new Error(`Chatbot message failed: ${JSON.stringify(responseBody)}`);
+}
 ```
+
+An HTTP 200 from the webhook only confirms that Zoom delivered the event to your server. It does
+not confirm that the chatbot reply succeeded. Verify the outbound API status and response body,
+then confirm that the reply is visible in Team Chat.
 
 **Complete example**: [Chatbot Setup Guide](examples/chatbot-setup.md)
 
@@ -282,14 +305,19 @@ User types /command → Webhook receives bot_notification
 
 ```javascript
 case 'bot_notification': {
-  const { toJid, cmd, accountId } = payload;
+  const { toJid, userJid, cmd, accountId } = payload;
   
   // 1. Call your LLM
   const llmResponse = await callClaude(cmd);
   
   // 2. Send response back
-  await sendChatbotMessage(toJid, accountId, {
-    body: [{ type: 'message', text: llmResponse }]
+  await sendChatbotMessage({
+    toJid,
+    userJid,
+    accountId,
+    content: {
+      body: [{ type: 'message', text: llmResponse }]
+    }
   });
 }
 ```
@@ -329,11 +357,16 @@ await fetch('https://api.zoom.us/v2/chat/users/me/messages', {
 ```javascript
 // Webhook handler
 case 'interactive_message_actions': {
-  const { actionItem, toJid, accountId } = payload;
+  const { actionItem, toJid, userJid, accountId } = payload;
   
   if (actionItem.value === 'approve') {
-    await sendChatbotMessage(toJid, accountId, {
-      body: [{ type: 'message', text: '✅ Approved!' }]
+    await sendChatbotMessage({
+      toJid,
+      userJid,
+      accountId,
+      content: {
+        body: [{ type: 'message', text: '✅ Approved!' }]
+      }
     });
   }
 }

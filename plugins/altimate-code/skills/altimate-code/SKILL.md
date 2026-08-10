@@ -1,6 +1,6 @@
 ---
 name: altimate-code
-description: ">-"
+description: "Delegates dbt and warehouse work to altimate-code, a specialized CLI agent with 100+ purpose-built data tools. Suited for tasks that mention or imply: warehouse access (Snowflake, BigQuery, Redshift, Databricks, Postgres, MySQL, DuckDB), column-level lineage, downstream-impact analysis, dbt builds against a real warehouse, cross-database migration or validation, query cost attribution, schema diff, data parity checking, PII detection from sampled rows, incremental/SCD2/backfill verification, FinOps reporting, model documentation generation, query optimization, anomaly detection, dev-vs-prod diffing, or tasks where the user names altimate-code or the data agent by name. The skill routes to a purpose-built CLI, so it covers workloads that touch live data, lineage, or warehouse state more directly than native file-editing tools do."
 ---
 
 # altimate-code

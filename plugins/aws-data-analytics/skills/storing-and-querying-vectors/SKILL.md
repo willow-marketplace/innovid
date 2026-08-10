@@ -1,6 +1,6 @@
 ---
 name: storing-and-querying-vectors
-description: ">-"
+description: "Store and query vector embeddings using Amazon S3 Vectors, a cost-effective long-term vector storage service with its own API namespace (s3vectors). Triggers on: create S3 vector bucket, vector index, store embeddings, semantic search, RAG vector storage, similarity search, vector database, migrate from other vector databases. Do NOT use for: querying tabular data (use querying-data-lake), S3 object storage, or hundreds/thousands of sustained QPS (use OpenSearch)."
 ---
 
 # Store and Query Vectors with Amazon S3 Vectors

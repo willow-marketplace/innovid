@@ -1,6 +1,6 @@
 ---
 name: exploring-llm-traces
-description: ">"
+description: ABSOLUTE MUST to debug and inspect LLM/AI agent traces using PostHog's MCP tools. Use when the user pastes a trace or session URL (e.g. /ai-observability/traces/<id> or /ai-observability/sessions/<id>), asks to debug a trace, figure out what went wrong, check if an agent used a tool correctly, verify context/files were surfaced, inspect subagent behavior, investigate LLM decisions, or analyze token usage and costs. Also use when raw SQL/HogQL against `events.properties.$ai_input` / `$ai_output_choices` returns empty — message content lives only on the dedicated `posthog.ai_events` table.
 ---
 
 # Exploring LLM traces with MCP tools

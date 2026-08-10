@@ -72,7 +72,7 @@ Amplitude:search with entity_types=['EVENT', 'CUSTOM_EVENT']
 
 **Get properties:**
 ```
-Amplitude:get_event_properties for exact property names/values
+Amplitude:get_properties for exact property names/values
 ```
 
 **Find cohorts:**
@@ -190,6 +190,15 @@ Amplitude:get_cohorts to get full definitions
 }]
 ```
 
+> `group_type` here is the **counting entity** ("User", or a group like
+> "org id") — not the scope of the property. To filter on an account-level
+> property, set `subprop_type` to `"group"` and `group_type` to the group type
+> that owns it, using the exact name from
+> `get_properties({propertyType: 'group', groupType: '<type>'})`. Never prefix
+> the property name with `grp:`. If the response is
+> `Invalid group property … for group type …`, that pair is not queryable in
+> this project — do not retry variants; use a user- or event-level equivalent.
+
 **User segments (conditions AND logic):**
 ```json
 "segments": [{
@@ -223,7 +232,7 @@ Search for cohort, get ID, then:
 
 1. **Get context:**
 ```
-Amplitude:get_context (for projectId)
+Amplitude:get_amplitude_context (for projectId)
 ```
 
 2. **Discover events** (BROAD search first):
@@ -247,7 +256,7 @@ Amplitude:get_charts to see definition structure
 
 5. **Get properties if needed:**
 ```
-Amplitude:get_event_properties
+Amplitude:get_properties
 ```
 
 6. **Build definition** using discovered names
@@ -293,7 +302,7 @@ Amplitude:save_chart_edits with editId from query_dataset
 **Verification:**
 - Always verify event exists before using
 - Check similar charts to understand event usage
-- Confirm properties with get_event_properties
+- Confirm properties with get_properties
 
 **Comparisons:**
 - Use segments for comparing user groups on same chart

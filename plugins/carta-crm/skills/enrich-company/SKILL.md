@@ -1,94 +1,68 @@
 ---
 name: enrich-company
-description: ">"
+description: Look up a company's full profile. Provide a company name, domain, ticker symbol, or ZoomInfo company ID. Returns firmographics, financials, corporate structure, growth signals, and contact counts.
 ---
 
-## Overview
+# Enrich Company
 
-Enrich a company profile by fetching its website and extracting key business information.
-The result is returned as structured JSON and saved locally for auditing.
+Look up a single company's full profile in ZoomInfo.
 
-## Step 1 — Normalize the target URL
+## Input
 
-Take the `target` input and produce a clean `https://` URL:
-- If it already starts with `http://` or `https://`, use it as-is.
-- If it looks like a bare domain (e.g., `acme.com`), prepend `https://`.
-- Strip any trailing paths — use only the root URL (e.g., `https://acme.com`).
+The user will provide via `$ARGUMENTS` one of:
+- A domain or website (e.g., `stripe.com` or `https://stripe.com`)
+- A company name (e.g., `Stripe`)
+- A stock ticker (e.g., `SNOW`)
+- A ZoomInfo company ID
 
-Also extract the bare domain (e.g., `acme.com`) — you'll need it for the output filename.
+## Workflow
 
-## Step 2 — Fetch the company website
+1. **Lookup metadata first** — before calling any other MCP tool, use `lookup` to load reference data for any fields relevant to the request. Use the returned `id` values (not display names) in all subsequent API calls. This ensures accurate parameter resolution, especially if a fallback search is needed.
 
-Use WebFetch to retrieve the homepage. Look for:
-- Page `<title>` and `<meta name="description">` content
-- `<h1>` / `<h2>` headings and hero/tagline text
-- Any "About", "What we do", or "Our mission" sections
+2. **Identify the best match key** from the user's input:
+   - URL or domain → use `domain` or `companyWebsite` parameter
+   - Company name → use `companyName`
+   - Ticker → use `companyTicker`
+   - Company ID → use `companyId`
 
-If the homepage returns insufficient content (e.g., a login wall, placeholder, or very sparse text),
-also try fetching `[root-url]/about` as a fallback.
+3. **Enrich the company** using `enrich_companies` with the identified parameters.
 
-## Step 3 — Supplement with web search if needed
+4. **If no match**, try a fallback:
+   - Use `search_companies` with `companyName` for fuzzy matching — use lookup `id` values for any filters
+   - Suggest alternatives from the search results
 
-If the website alone doesn't clearly reveal the company's industry or what it does,
-run a WebSearch for:
+## Output Format
 
-```
-"[company name]" company what does it do
-```
+**[Company Name]** — [One-line description]
 
-Use the top 2–3 results to fill in gaps — especially for `industry` and `description`.
+| Field | Value |
+|-------|-------|
+| Website | |
+| Industry | |
+| Sub-Industries | |
+| Employee Count | |
+| Revenue | |
+| Founded | |
+| HQ Location | |
+| Company Type | (Public/Private/etc.) |
+| Ticker | |
+| Business Model | (B2B/B2C/B2G) |
+| Phone | |
+| SIC Codes | |
+| NAICS Codes | |
+| ZoomInfo Company ID | |
 
-## Step 4 — Extract structured data
+**Corporate Structure**
+- Ultimate Parent: [if applicable]
+- Parent: [if applicable]
+- Subsidiaries: [count if available]
 
-From the gathered content, produce the following fields:
+**Growth Signals**
+- 1-Year Employee Growth: X%
+- 2-Year Employee Growth: X%
+- Recent Funding: [if available]
 
-| Field | Type | Notes |
-|-------|------|-------|
-| `name` | string | Official company name (not the domain) |
-| `industry` | string | Primary industry, e.g. "FinTech", "SaaS", "Healthcare IT", "Climate Tech" |
-| `tags` | array of strings | 3–6 short topic tags, e.g. `["payments", "B2B", "API", "embedded finance"]` |
-| `description` | string | 1–2 sentence plain-English summary of what the company does |
-| `website` | string | Canonical root URL, e.g. `https://acme.com` |
+**ZoomInfo Coverage**
+- Contacts in Database: [count]
 
-Use specific, meaningful tags — avoid generic ones like "technology" or "software" on their own.
-
-## Step 5 — Save the enrichment record
-
-Write the JSON to a local audit file:
-
-```bash
-mkdir -p ~/.carta-crm/enriched-companies
-cat > ~/.carta-crm/enriched-companies/[domain].json << 'ENDJSON'
-{
-  "name": "...",
-  "industry": "...",
-  "tags": [...],
-  "description": "...",
-  "website": "..."
-}
-ENDJSON
-```
-
-Replace `[domain]` with the bare domain (e.g., `acme.com`).
-Confirm the file was written with `echo $?` (should be 0).
-
-## Step 6 — Return the result
-
-Return the enrichment record as a JSON block, followed by the save path:
-
-```json
-{
-  "name": "...",
-  "industry": "...",
-  "tags": [...],
-  "description": "...",
-  "website": "..."
-}
-```
-
-State: `Saved to ~/.carta-crm/enriched-companies/[domain].json`
-
-## Handling multiple companies
-
-If the user provides multiple targets, repeat Steps 1–5 for each one, then return all
-results together and summarize: `Enriched N companies — saved to ~/.carta-crm/enriched-companies/`
+Include the ZoomInfo Company ID — users will need it for follow-up commands like `/zoominfo:find-buyers` or `/zoominfo:find-similar`.

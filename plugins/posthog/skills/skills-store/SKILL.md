@@ -1,6 +1,6 @@
 ---
 name: skills-store
-description: ">-"
+description: Discover and use shared team skills stored in PostHog. Use when the user asks to list, browse, load, or manage "shared skills", "team skills", or references the "skills store" / "skill store".
 ---
 
 # PostHog Skills Store

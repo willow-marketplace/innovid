@@ -1,6 +1,6 @@
 ---
 name: bigdata-investment-memo
-description: ">"
+description: 'Write a full institutional investment memo on a public company using Bigdata.com data — thesis, variant perception versus consensus, valuation, risks, catalysts, and an explicit recommendation with conviction. Runs the complete workflow: EPIC-filtered primary drivers, FaVeS variant perception, earnings quality and moat assessment, valuation by the method that fits the business with a secondary cross-check, bull/base/bear scenarios with probabilities and a probability-weighted value, key risks and what would change the view. Triggers: "investment memo for X", "full analysis of X", "should I buy X", "build the bull case for X", "write up X as an investment", "deep dive on X", "thesis on X", "DCF thesis for X".'
 ---
 
 # Bigdata Investment Memo

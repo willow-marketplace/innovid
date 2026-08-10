@@ -1,6 +1,6 @@
 ---
 name: deepeval-tracing
-description: ">"
+description: Instrument an AI application with DeepEval's native tracing so its behavior is visible in Confident AI. TRIGGER when the user wants to add DeepEval tracing or @observe to an LLM app, agent, RAG pipeline, or chatbot; wire a framework, model-provider, or vector-database integration (LangGraph, LangChain, OpenAI Agents, LlamaIndex, Pydantic AI, CrewAI, and others); choose between a native integration and manual instrumentation; set span types, tags, or metadata; or send DeepEval-SDK traces to Confident AI's Observatory. DO NOT TRIGGER for building DeepEval pytest eval suites, datasets, goldens, metrics, or deepeval test run (use the `deepeval` skill), or for raw OpenTelemetry / OTLP export without the deepeval package (use the `deepeval-otel` skill). This skill is purely DeepEval-SDK instrumentation — producing well-formed traces, not running evals.
 ---
 
 # DeepEval Tracing

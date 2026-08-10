@@ -1,6 +1,6 @@
 ---
 name: databricks-execution-compute
-description: '"Execute code and manage compute on Databricks: run Python/Scala/SQL/R via serverless, classic, or interactive clusters, and create/resize/delete clusters and SQL warehouses."'
+description: "Execute code and manage compute on Databricks: run Python/Scala/SQL/R via serverless, classic, or interactive clusters, and create/resize/delete clusters and SQL warehouses."
 ---
 
 # Databricks Execution & Compute

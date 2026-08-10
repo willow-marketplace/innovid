@@ -1,6 +1,6 @@
 ---
 name: idmp-data
-description: '"IDMP data import/export skill. Use it to inspect exportable root elements, review import/export records, download artifacts, and distinguish package export, artifact download, and import flows."'
+description: IDMP data import/export skill. Use it to inspect exportable root elements, review import/export records, download artifacts, and distinguish package export, artifact download, and import flows.
 ---
 
 # data

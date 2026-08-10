@@ -1,6 +1,6 @@
 ---
 name: qt-ui-design
-description: ">-"
+description: Design or audit UI for Qt/QML, Qt projects, web, or embedded MPU or MCU targets. Use when creating screens, layouts, navigation, or auditing UX.
 ---
 
 # Qt UI Design

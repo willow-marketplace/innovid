@@ -1,6 +1,18 @@
 ---
 name: ml-best-practices
-description: "|"
+description: |-
+  CRITICAL RULE: You MUST use this skill whenever the task involves any machine learning tasks or data analysis.
+  Use this skill if the user's prompt or requirements mention any of the following:
+    * Clustering
+    * Classification
+    * Regression
+    * Time series forecasting
+    * Statistical testing
+    * Model comparison
+    * ML
+    * Data analysis
+
+  SQL/BigQuery ML HANDOFF: If the user requires a SQL solution, use this skill to dictate the ANALYSIS STEPS (e.g., markdown analysis cells, visualization logic), but defer to `bigquery` for all SQL syntax.
 ---
 
 # ML Best Practices

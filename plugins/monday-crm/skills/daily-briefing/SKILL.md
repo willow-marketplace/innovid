@@ -1,6 +1,6 @@
 ---
 name: daily-briefing
-description: "\"Start your day with a prioritized CRM briefing — works for any monday CRM setup: pipeline, contacts, accounts, leads, or no board at all. Use when someone says 'morning briefing', 'daily brief', 'what's on my plate today', 'catch me up on my deals', 'what needs attention', 'what needs my attention', 'anything urgent in my deals', 'what's hot in my pipeline', 'pipeline summary', 'start my day', or 'daily standup prep'.\""
+description: "Start your day with a prioritized CRM briefing — works for any monday CRM setup: pipeline, contacts, accounts, leads, or no board at all. Use when someone says 'morning briefing', 'daily brief', 'what's on my plate today', 'catch me up on my deals', 'what needs attention', 'what needs my attention', 'anything urgent in my deals', 'what's hot in my pipeline', 'pipeline summary', 'start my day', or 'daily standup prep'."
 ---
 
 # Morning Briefing

@@ -1,6 +1,6 @@
 ---
 name: setting-up-support-slack-locally
-description: ">"
+description: 'Connect a real Slack workspace to local PostHog Conversations (the SupportHog Slack app) so Slack messages become support tickets and replies post back. Use when the user wants to test the conversations Slack integration locally, hits "Support Slack OAuth client ID is not configured", gets a white screen or "Network error" on the OAuth callback, or asks how to set SUPPORT_SLACK_APP_CLIENT_ID / a tunnel for supporthog Slack events. Covers the Slack app + scopes, the SUPPORT_SLACK_* dynamic settings, and the key split: localhost for OAuth and the UI, a public tunnel only for inbound events.'
 ---
 
 # Setting up Support Slack locally
@@ -20,7 +20,7 @@ low-volume event POSTs rather than the entire SPA.
 
 This is the conversations/SupportHog variant of the general
 [Slack local setup guide](../../../../docs/internal/slack-local-setup-guide.md); that guide covers the
-PostHog Code / notifications Slack app (`SLACK_APP_*`, `/integrations/slack/callback`). Conversations uses
+PostHog Desktop / notifications Slack app (`SLACK_APP_*`, `/integrations/slack/callback`). Conversations uses
 its own `SUPPORT_SLACK_*` credentials and `/api/conversations/v1/slack/*` routes, but the tunnel and
 `SITE_URL` mechanics are identical.
 
@@ -62,10 +62,11 @@ At [api.slack.com/apps](https://api.slack.com/apps), create an app in a throwawa
 
 1. **App Home** → enable a **bot user** (give it a display name). Without this, install fails with "requesting
    permission to install a bot ... but it's not currently configured with a bot".
-2. **OAuth & Permissions → Bot Token Scopes** — the flow requests these (from `SUPPORTHOG_SLACK_SCOPE` in
+2. **OAuth & Permissions → Bot Token Scopes** — the flow requests these (from `SUPPORTHOG_SLACK_SCOPES` in
    `products/conversations/backend/api/slack_oauth.py`): `channels:history`, `channels:read`, `chat:write`,
-   `chat:write.customize`, `groups:history`, `groups:read`, `reactions:read`, `users:read`,
-   `users:read.email`.
+   `chat:write.customize`, `files:read`, `files:write`, `groups:history`, `groups:read`, `reactions:read`,
+   `users:read`, `users:read.email`. Attachments need the two `files:` scopes in both directions, so a
+   workspace installed without them shows a "reconnect" banner in support settings.
 3. **OAuth & Permissions → Redirect URLs** — add `http://localhost:8010/api/conversations/v1/slack/callback`
    and Save. If Slack refuses a plain-http localhost URL, use the tunnel URL for the callback too and log in
    once on the tunnel origin (see [references/troubleshooting.md](references/troubleshooting.md)).

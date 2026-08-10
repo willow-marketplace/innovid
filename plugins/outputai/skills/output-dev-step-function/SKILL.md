@@ -93,7 +93,7 @@ import { z } from 'zod';
 
 ```typescript
 // CORRECT - Use @outputai/http wrapper
-import { httpClient } from '@outputai/http';
+import { createKyClient } from '@outputai/http';
 
 // WRONG - Never use axios directly
 import axios from 'axios';
@@ -128,7 +128,7 @@ import { InputSchema, OutputSchema } from './types';
 
 ```typescript
 import { step, z, FatalError, ValidationError } from '@outputai/core';
-import { httpClient } from '@outputai/http';
+import { createKyClient } from '@outputai/http';
 import { generateText, Output } from '@outputai/llm';
 
 import { StepInputSchema, StepOutputSchema } from './types.js';
@@ -193,13 +193,13 @@ fn: async input => {
 ### Creating an HTTP Client
 
 ```typescript
-import { httpClient } from '@outputai/http';
+import { createKyClient } from '@outputai/http';
 import { FatalError, ValidationError } from '@outputai/core';
 
 const RETRY_STATUS_CODES = [ 408, 429, 500, 502, 503, 504 ];
 const FATAL_STATUS_CODES = [ 401, 403, 404 ];
 
-const httpClientInstance = httpClient( {
+const client = createKyClient( {
   timeout: 30000,
   retry: {
     limit: 3,
@@ -207,7 +207,7 @@ const httpClientInstance = httpClient( {
   },
   hooks: {
     beforeError: [
-      error => {
+      ( { error } ) => {
         const status = error.response?.status;
         const message = error.message;
 
@@ -230,16 +230,16 @@ const httpClientInstance = httpClient( {
 
 ```typescript
 // GET request
-const response = await httpClientInstance.get( 'https://api.example.com/data' );
+const response = await client.get( 'https://api.example.com/data' );
 const data = await response.json();
 
 // POST request with JSON body
-const response = await httpClientInstance.post( 'https://api.example.com/submit', {
+const response = await client.post( 'https://api.example.com/submit', {
   json: { field: 'value' }
 } );
 
 // HEAD request (check URL accessibility)
-const response = await httpClientInstance.head( url );
+const response = await client.head( url );
 const contentType = response.headers.get( 'content-type' );
 ```
 
@@ -247,7 +247,7 @@ When a non-`HEAD` request only uses response metadata, such as `response.url`, `
 unused body in a `finally` block. Responses read with `.json()`, `.text()`, etc. are already consumed.
 
 ```typescript
-const response = await httpClientInstance.get( url );
+const response = await client.get( url );
 
 try {
   return response.url;
@@ -387,7 +387,7 @@ if ( response.status === 503 ) {
 
 // Network errors
 try {
-  const response = await httpClientInstance.get( url );
+  const response = await client.get( url );
 } catch ( error ) {
   throw new ValidationError( `Network error: ${error.message}` );
 }
@@ -406,7 +406,7 @@ Based on a real workflow step:
 
 ```typescript
 import { step, z, FatalError, ValidationError } from '@outputai/core';
-import { httpClient } from '@outputai/http';
+import { createKyClient } from '@outputai/http';
 import { generateText, Output } from '@outputai/llm';
 
 import { GeminiImageService } from '../../shared/clients/gemini_client.js';
@@ -419,7 +419,7 @@ import {
 const RETRY_STATUS_CODES = [ 408, 429, 500, 502, 503, 504 ];
 const FATAL_STATUS_CODES = [ 401, 403, 404 ];
 
-const httpClientInstance = httpClient( {
+const client = createKyClient( {
   timeout: 30000,
   retry: {
     limit: 3,
@@ -427,7 +427,7 @@ const httpClientInstance = httpClient( {
   },
   hooks: {
     beforeError: [
-      error => {
+      ( { error } ) => {
         const status = error.response?.status;
         const message = error.message;
 
@@ -503,7 +503,7 @@ export const validateReferenceImages = step( {
     }
 
     for ( const [ index, url ] of referenceImageUrls.entries() ) {
-      const response = await httpClientInstance.head( url );
+      const response = await client.head( url );
       const contentType = response.headers.get( 'content-type' );
 
       if ( contentType && !contentType.startsWith( 'image/' ) ) {
@@ -555,7 +555,7 @@ fn: async input => {
     throw new FatalError( 'URL must use HTTPS protocol' );
   }
 
-  const response = await httpClientInstance.get( input.url );
+  const response = await client.get( input.url );
   // ...
 }
 ```
@@ -563,7 +563,7 @@ fn: async input => {
 ## Verification Checklist
 
 - [ ] `step`, `z`, `FatalError`, `ValidationError` imported from `@outputai/core`
-- [ ] `httpClient` imported from `@outputai/http` (not axios)
+- [ ] `createKyClient` imported from `@outputai/http` (not axios)
 - [ ] `generateText` and `Output` imported from `@outputai/llm` (not direct provider)
 - [ ] Structured output uses `Output.object()` with `.describe()` (not `.min()/.max()/.length()`) on number and array schemas
 - [ ] Schemas for `Output.object()` are defined in `types.ts` and imported, not inline

@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
-import { FS, mono, sans, MICRO } from "../ui/theme.js";
+import { FS, inkNum, sans, MICRO } from "../ui/theme.js";
 import { fmt$, fmtM, fmtX, fmtPct, fmtAsOf, fmtOwn } from "../ui/format.js";
-import { Num, SourceNote, H1, H3, SectionChips, Segmented, Badge, Bubble, fundNameOnly, MultiFundPicker } from "../ui/components.jsx";
+import { Num, SourceNote, H1, H3, SectionChips, Segmented, Badge, Bubble, Avatar, fundNameOnly, MultiFundPicker } from "../ui/components.jsx";
 import { TableHead, useTableSort, TableScroll } from "../ui/table.jsx";
 import { firmRollup } from "../model/funds.js";
 import { fundAvgOwnership } from "../model/ownership.js";
@@ -9,6 +9,7 @@ import { quarterlySeries, trailingAvg } from "../model/pacing.js";
 import { concentrationAcrossAll } from "../model/concentration.js";
 import { recentActivity } from "../model/activity.js";
 import { useFirmData } from "../state/FirmData.jsx";
+import { trackClick } from "../analytics.js";
 
 // ── pacing chart (lifted from the former Pacing view) ──
 // Categorical fund palette using Ink data-viz token hex values. SVG fill attributes
@@ -42,7 +43,7 @@ function CadenceChart({ quarters, trail, FUNDS, FUND_TINT }) {
       {[3, 6, 9].filter((n) => n < yMax).map((n) => (
         <g key={n}>
           <line x1={PL} x2={W - PR} y1={y(n)} y2={y(n)} style={{ stroke: "var(--ink-color-global-border-subtle)" }} strokeWidth="1" />
-          <text x={PL - 7} y={y(n) + 3} textAnchor="end" style={{ ...mono, fontSize: FS.micro, fill: MICRO }}>{n}</text>
+          <text x={PL - 7} y={y(n) + 3} textAnchor="end" style={{ ...inkNum, fontSize: FS.micro, fill: MICRO }}>{n}</text>
         </g>
       ))}
       <line x1={PL} x2={W - PR} y1={y(0)} y2={y(0)} style={{ stroke: "var(--ink-color-global-border-subtle)" }} strokeWidth="1" />
@@ -76,7 +77,7 @@ function CadenceChart({ quarters, trail, FUNDS, FUND_TINT }) {
             <circle cx={cx} cy={cy} r="5" style={{ fill: "var(--ink-color-global-surface-background-default)", stroke: "var(--ink-color-global-text-default)" }} strokeWidth="2" />
             <rect x={Math.min(cx + 9, W - PR - lw)} y={Math.max(cy - 25, PT)} width={lw} height="19" rx="9.5" style={{ fill: "var(--ink-color-global-text-default)" }} />
             <text x={Math.min(cx + 9, W - PR - lw) + lw / 2} y={Math.max(cy - 25, PT) + 13} textAnchor="middle"
-              style={{ ...mono, fontSize: FS.micro, fontWeight: 600, fill: "var(--ink-color-global-surface-background-default)" }}>{label}</text>
+              style={{ ...inkNum, fontSize: FS.micro, fontWeight: 600, fill: "var(--ink-color-global-surface-background-default)" }}>{label}</text>
           </g>
         );
       })()}
@@ -170,7 +171,7 @@ function ConcentrationCard({ snapshot, portfolio, mixed }) {
             <div key={h.id} data-datum-id={h.id} data-datum-type="company" data-datum-label={h.name}
               style={{ display: "flex", alignItems: "center", gap: 14, padding: "11px 0",
               borderBottom: last ? "none" : `1px solid var(--ink-color-global-border-subtle)` }}>
-              <span style={{ ...mono, fontSize: FS.small, fontWeight: 600, color: "var(--ink-color-global-text-subtle)", flex: "none",
+              <span style={{ ...inkNum, fontSize: FS.small, fontWeight: 600, color: "var(--ink-color-global-text-subtle)", flex: "none",
                 width: 26, height: 26, borderRadius: "50%", border: `1px solid var(--ink-color-global-border-subtle)`, background: "var(--ink-color-global-surface-background-default)",
                 display: "flex", alignItems: "center", justifyContent: "center" }}>{i + 1}</span>
               <span style={{ ...sans, fontSize: FS.bodyLg, fontWeight: i < 5 ? 600 : 500, color: h.defunct ? "var(--ink-color-global-text-subtle)" : "var(--ink-color-global-text-default)",
@@ -182,14 +183,14 @@ function ConcentrationCard({ snapshot, portfolio, mixed }) {
                 <div style={{ width: `${Math.max(2, (h.fv / maxFv) * 100)}%`, height: "100%", borderRadius: 2,
                   background: i < 5 ? "var(--ink-button-background-color-primary-base-default)" : "var(--ink-color-global-surface-lightgray-active)" }} />
               </div>
-              <span style={{ ...mono, fontSize: FS.small, color: irrById[h.id] == null ? "var(--ink-color-global-text-subtle)" : irrById[h.id] >= 0 ? "var(--ink-color-global-feedback-positive-strong)" : "var(--ink-color-global-feedback-negative-strong)", width: 52, textAlign: "right", flex: "none" }}
+              <span style={{ ...inkNum, fontSize: FS.small, color: irrById[h.id] == null ? "var(--ink-color-global-text-subtle)" : irrById[h.id] >= 0 ? "var(--ink-color-global-feedback-positive-strong)" : "var(--ink-color-global-feedback-negative-strong)", width: 52, textAlign: "right", flex: "none" }}
                 title="Deal IRR">
                 {irrById[h.id] == null ? "—" : fmtPct(irrById[h.id])}
               </span>
-              <span style={{ ...mono, fontSize: FS.body, fontWeight: 700, color: "var(--ink-color-global-text-default)", width: 54, textAlign: "right", flex: "none" }}>
+              <span style={{ ...inkNum, fontSize: FS.body, fontWeight: 700, color: "var(--ink-color-global-text-default)", width: 54, textAlign: "right", flex: "none" }}>
                 {((h.fv / c.total) * 100).toFixed(1)}%
               </span>
-              <span style={{ ...mono, fontSize: FS.small, color: "var(--ink-color-global-text-subtle)", width: 58, textAlign: "right", flex: "none" }}>{fmtM(h.fv)}</span>
+              <span style={{ ...inkNum, fontSize: FS.small, color: "var(--ink-color-global-text-subtle)", width: 58, textAlign: "right", flex: "none" }}>{fmtM(h.fv)}</span>
             </div>
           );
         })}
@@ -246,6 +247,36 @@ const initialsOf = (name) => {
   return words.slice(0, 2).map((w) => w[0]).join("").toUpperCase();
 };
 
+// Deterministic pick of an initials-avatar color per company, so a feed of many
+// different companies doesn't render as a wall of identical gray circles — the
+// same company always lands on the same color. Drawn from PALETTE (above) —
+// the same categorical data-viz hues the fund charts use — skipping index 0
+// (brand-black, the charts' "lead fund" special case) and the trailing
+// brand-gray-30 fallback slot, neither of which is a real data-viz color.
+const INITIALS_COLORS = PALETTE.slice(1, 9);
+const colorFor = (name) => {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) | 0;
+  return INITIALS_COLORS[Math.abs(h) % INITIALS_COLORS.length];
+};
+
+// Feed-row avatar: Ink's real Avatar (see ui/components.jsx) at its standard
+// 38px size, always the round circle — a real logo renders via `imageUrl`,
+// never Ink's separate non-circular `variant="company"` box. Avatar itself
+// degrades to `initials` if the logo is missing or fails to load (a corrupt/
+// truncated file fetch_logos.py's own validation makes rare, not impossible),
+// so a non-empty `initials` is always passed here even when a logo is present.
+function FeedAvatar({ logo, name }) {
+  return (
+    <Avatar imageUrl={logo || undefined}
+      initials={initialsOf(name) || name.slice(0, 2).toUpperCase() || "?"} initialsColor={colorFor(name)}
+      // nudge down to the company-name text's visual top (its 28px line-height
+      // has ~6px of leading above the actual glyph-cap top) rather than the
+      // row's box top, which sits a few px above where the name text starts
+      style={{ marginTop: 6 }} />
+  );
+}
+
 // The per-lane context line under the fund/security chips. Valuation rows
 // match the design spec's "Multiplier" row exactly: "{moic}× MOIC" in the inherited
 // subtle/regular tone, gap-12, then an arrow + colored medium-weight delta
@@ -268,7 +299,7 @@ function ActivityContext({ r }) {
   } else if (r.type === "exit") {
     content = <>Realized <strong style={{ color: "var(--ink-color-global-text-default)", fontWeight: 600 }}>{fmtX(r.moic)}</strong> on {fmtM(r.cost)} cost</>;
   } else if (r.round) {
-    content = <>Latest round: <strong style={{ color: "var(--ink-color-global-text-default)", fontWeight: 600 }}>{roundLabel(r.round)}</strong>{r.postMoney ? ` · ${fmtM(r.postMoney)} post` : ""}</>;
+    content = <>Latest round: <strong style={{ color: "var(--ink-color-global-text-default)", fontWeight: 600 }}>{roundLabel(r.round)}</strong>{r.postMoney ? ` · ${fmtM(r.postMoney)} post-money valuation` : ""}</>;
   }
   if (!content) return null;
   return <div style={{ ...sans, fontSize: FS.body, lineHeight: "20px", color: "var(--ink-color-global-text-subtle)" }}>{content}</div>;
@@ -299,11 +330,7 @@ function RecentActivityCard({ rows, mixed }) {
           return (
           <div key={r.key} style={{ display: "flex", gap: 12, alignItems: "flex-start",
             padding: "16px 0", borderBottom: last ? "none" : "1px solid var(--ink-color-global-border-subtle)" }}>
-            <div style={{ width: 32, height: 32, flex: "none", borderRadius: "50%", overflow: "hidden",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              background: "var(--ink-color-global-surface-lightgray-default)" }}>
-              <span style={{ ...sans, fontSize: FS.micro, fontWeight: 700, color: "var(--ink-color-global-text-subtle)" }}>{initialsOf(r.name)}</span>
-            </div>
+            <FeedAvatar logo={r.logo} name={r.name} />
             <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 8 }}>
               <div style={{ display: "flex", flexDirection: "column" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -319,7 +346,6 @@ function RecentActivityCard({ rows, mixed }) {
               <div style={{ display: "flex", flexDirection: "column" }}>
                 <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
                   <span style={{ ...sans, fontSize: FS.value, lineHeight: "24px", fontWeight: 500, color: "var(--ink-color-global-text-default)" }}>{fmtM(activityAmount(r))}</span>
-                  {r.round && <span style={{ ...sans, fontSize: FS.value, lineHeight: "24px", color: "var(--ink-color-global-text-subtle)" }}>{roundLabel(r.round)}</span>}
                   {r.securities && r.securities.length > 0 && (
                     <span style={{ ...sans, fontSize: FS.value, lineHeight: "24px", color: "var(--ink-color-global-text-subtle)" }}>{r.securities.join(", ")}</span>
                   )}
@@ -419,7 +445,7 @@ function TrendCard({ snapshot, fundStates, firmNow }) {
         <MultiFundPicker funds={fundList} selected={shownIds} onChange={setShownIds} colorOf={colorOf} />
       </div>
       <div style={{ position: "relative" }}>
-        <svg viewBox={`0 0 ${TW} ${TH}`} style={{ width: "100%", display: "block" }} role="img" aria-label="LP NAV by fund and TVPI over time">
+        <svg viewBox={`0 0 ${TW} ${TH}`} style={{ width: "100%", display: "block", overflow: "visible" }} role="img" aria-label="LP NAV by fund and TVPI over time">
           <line x1={TPL} x2={TW - TPR} y1={y0} y2={y0} style={{ stroke: "var(--ink-color-global-border-subtle)" }} strokeWidth="1" />
           {yearTicks.map((t) => (
             <text key={t.yr + t.i} x={cx(t.i)} y={TH - TPB + 22} textAnchor="middle" style={lab}>{t.yr}</text>
@@ -448,10 +474,10 @@ function TrendCard({ snapshot, fundStates, firmNow }) {
           <path d={tvpiLine} fill="none" style={{ stroke: "var(--ink-color-global-text-default)" }} strokeWidth="2" strokeDasharray="5 3" strokeLinejoin="round" opacity="0.9" />
           {lastC.tvpi != null && <circle cx={cx(n - 1)} cy={yTvpi(lastC.tvpi)} r="3.5" style={{ fill: "var(--ink-color-global-text-default)" }} />}
           {/* endpoint labels */}
-          <text x={TW - TPR + 8} y={navLblY + 4} style={{ ...mono, fontSize: LBL_FS, fontWeight: 700, fill: "var(--ink-color-global-text-default)" }}>
+          <text x={TW - TPR + 8} y={navLblY + 4} style={{ ...inkNum, fontSize: LBL_FS, fontWeight: 700, fill: "var(--ink-color-global-text-default)" }}>
             {fmtM(lastC.firmNav)}{allShown && repriced && Math.abs(navDelta) > 0.5 && <tspan style={{ fill: navDelta >= 0 ? "var(--ink-color-global-feedback-positive-strong)" : "var(--ink-color-global-feedback-negative-strong)" }}> {navDelta >= 0 ? "▲" : "▼"}</tspan>}
           </text>
-          {lastC.tvpi != null && <text x={TW - TPR + 8} y={tvpiLblY + 4} style={{ ...mono, fontSize: LBL_FS, fontWeight: 700, fill: "var(--ink-color-global-text-default)" }}>
+          {lastC.tvpi != null && <text x={TW - TPR + 8} y={tvpiLblY + 4} style={{ ...inkNum, fontSize: LBL_FS, fontWeight: 700, fill: "var(--ink-color-global-text-default)" }}>
             {fmtX(lastC.tvpi)}{repriced && Math.abs(tvpiDelta) > 0.005 && <tspan style={{ fill: tvpiDelta >= 0 ? "var(--ink-color-global-feedback-positive-strong)" : "var(--ink-color-global-feedback-negative-strong)" }}> {tvpiDelta >= 0 ? "▲" : "▼"}</tspan>}
           </text>}
         </svg>
@@ -459,8 +485,8 @@ function TrendCard({ snapshot, fundStates, firmNow }) {
           <div style={{ position: "absolute", top: 0, left: `${tipLeft}%`, transform: "translateX(-50%)", pointerEvents: "none",
             background: "var(--ink-color-global-surface-background-default)", border: `1px solid var(--ink-color-global-border-subtle)`, borderRadius: 8, padding: "8px 12px", boxShadow: "0 6px 18px rgba(16,24,40,.14)", whiteSpace: "nowrap" }}>
             <div style={{ ...sans, fontSize: FS.small, color: "var(--ink-color-global-text-subtle)", marginBottom: 3 }}>{hc.date}</div>
-            <div style={{ ...mono, fontSize: FS.bodyLg, fontWeight: 700, color: "var(--ink-color-global-text-default)" }}>{fmtM(hc.firmNav)} <span style={{ ...sans, fontSize: FS.micro, color: "var(--ink-color-global-text-subtle)", fontWeight: 500 }}>LP NAV</span></div>
-            <div style={{ ...mono, fontSize: FS.bodyLg, fontWeight: 700, color: "var(--ink-color-global-text-default)" }}>{hc.tvpi == null ? "—" : fmtX(hc.tvpi)} <span style={{ ...sans, fontSize: FS.micro, color: "var(--ink-color-global-text-subtle)", fontWeight: 500 }}>TVPI</span></div>
+            <div style={{ ...inkNum, fontSize: FS.bodyLg, fontWeight: 700, color: "var(--ink-color-global-text-default)" }}>{fmtM(hc.firmNav)} <span style={{ ...sans, fontSize: FS.micro, color: "var(--ink-color-global-text-subtle)", fontWeight: 500 }}>LP NAV</span></div>
+            <div style={{ ...inkNum, fontSize: FS.bodyLg, fontWeight: 700, color: "var(--ink-color-global-text-default)" }}>{hc.tvpi == null ? "—" : fmtX(hc.tvpi)} <span style={{ ...sans, fontSize: FS.micro, color: "var(--ink-color-global-text-subtle)", fontWeight: 500 }}>TVPI</span></div>
             {hc.segs.length > 0 && (
               <div style={{ marginTop: 6, paddingTop: 6, borderTop: `1px solid var(--ink-color-global-border-subtle)`, display: "flex", flexDirection: "column", gap: 3 }}>
                 {[...hc.segs].sort((a, b) => b.v - a.v).map((s) => (
@@ -469,7 +495,7 @@ function TrendCard({ snapshot, fundStates, firmNow }) {
                       <span style={{ width: 8, height: 8, borderRadius: 2, background: colorOf[s.id], display: "inline-block", flex: "none" }} />
                       {shortFund(nameOf[s.id])}
                     </span>
-                    <span style={{ ...mono, fontSize: FS.micro, fontWeight: 600, color: "var(--ink-color-global-text-default)" }}>{fmtM(s.v)}</span>
+                    <span style={{ ...inkNum, fontSize: FS.micro, fontWeight: 600, color: "var(--ink-color-global-text-default)" }}>{fmtM(s.v)}</span>
                   </div>
                 ))}
               </div>
@@ -496,7 +522,7 @@ function TrendCard({ snapshot, fundStates, firmNow }) {
   );
 }
 
-const RT = { ...mono, textAlign: "right", fontSize: FS.value };
+const RT = { ...inkNum, textAlign: "right", fontSize: FS.value };
 
 // Fund-table columns — label + a value accessor for sorting. Text columns sort
 // ascending-first, numeric columns descending-first (useTableSort's naturalDir);
@@ -616,7 +642,9 @@ export default function Overview({ fundStates, snapshot, portfolio, onOpenFund }
               {sortedFunds.map((f) => {
                 const fundName = fundNameOnly(f.name);
                 return (
-                <tr key={f.id} data-datum-id={f.id} data-datum-type="fund" data-datum-label={fundName} onClick={() => onOpenFund(f.id)} style={{ cursor: "pointer" }} title="Open scenarios">
+                <tr key={f.id} data-datum-id={f.id} data-datum-type="fund" data-datum-label={fundName}
+                  onClick={() => { trackClick("FundModeling.Overview.OpenFund"); onOpenFund(f.id); }}
+                  style={{ cursor: "pointer" }} title="Open scenarios">
                   <td style={{ minWidth: 220, maxWidth: 320 }}
                     title={fundName}>
                     <span style={{ ...sans, fontWeight: 400, fontSize: FS.value, color: "var(--ink-color-global-text-default)", lineHeight: 1.25, whiteSpace: "normal", wordBreak: "break-word" }}>{fundName}</span>

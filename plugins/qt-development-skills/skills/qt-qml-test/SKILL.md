@@ -1,6 +1,6 @@
 ---
 name: qt-qml-test
-description: ">-"
+description: Generates Qt Quick Test cases (TestCase, SignalSpy, tryCompare) for QML components. Use for "write QML tests", "qml test", "qt quick test".
 ---
 
 # Qt Quick Test Skill

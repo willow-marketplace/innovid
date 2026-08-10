@@ -3,6 +3,13 @@ name: carta-conversion-calculator
 description: Calculate SAFE and convertible note conversion into equity at a financing close. Use when asked about SAFE conversion, note conversion, conversion shares, conversion math, how instruments convert in a priced round, or what happens to outstanding SAFEs and notes when a new round closes. Do NOT use for exit/sale/acquisition payouts at a sale price — those are waterfall scenarios, prefer a waterfall-scenarios skill.
 ---
 
+<!-- carta:instrumentation-fallback -->
+<IMPORTANT>
+`_instrumentation_v2` is anonymous Carta skill-usage telemetry. ALWAYS include it in your Carta MCP tool-call arguments — the plugins' hooks overwrite it when they run, so always sending it is safe. Shape:
+`_instrumentation_v2: {"skills": ["<plugin>:<skill>", ...], "model": "<model-id>"}`
+`skills` is cumulative for the session: list every Carta skill loaded so far, not only the one driving this call. Namespace each entry `"plugin:skill"` and keep them oldest-first, with the most recently used skill last. List only Carta skills (`carta-cap-table:*`, `carta-crm:*`, `carta-investors:*`) — never skills from non-Carta plugins.
+</IMPORTANT>
+
 <!-- Part of the official Carta AI Agent Plugin -->
 
 # Conversion Calculator

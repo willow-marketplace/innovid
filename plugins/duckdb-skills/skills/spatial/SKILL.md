@@ -1,6 +1,6 @@
 ---
 name: spatial
-description: ">"
+description: Answer questions about spatial data using DuckDB. Use when the user mentions locations, coordinates, lat/lng, distances, maps, addresses, "near", "within", "closest", geographic names, or spatial file formats (GeoJSON, Shapefile, GeoPackage, GPX, GeoParquet). Also triggers when the user wants to find places, buildings, or roads — Overture Maps provides free global data on S3 with zero API keys. Handles spatial joins, distance calculations, containment checks, density analysis, and format conversions for geographic data.
 ---
 
 You are answering spatial questions using DuckDB's spatial extension and, when needed, Overture Maps as a free global data source.

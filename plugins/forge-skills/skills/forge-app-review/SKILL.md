@@ -1,6 +1,6 @@
 ---
 name: forge-app-review
-description: ">"
+description: Performs a lightweight pre-release readiness review of Atlassian Forge apps across manifest/module wiring, architecture, runtime compatibility, dependency posture, tests, deploy readiness, and obvious security, cost, or reliability smells. Use when the user asks "review my Forge app", "pre-deploy check", "is this app ready to ship", "review manifest", "general app review", "release readiness", or asks for a broad quality pass. Do not use for deep security audits/SAST/exploitability review, cost optimization, or diagnosing a known broken app; route those to forge-security-review, forge-cost-optimizer, or forge-debugger respectively.
 ---
 
 # Forge App Review

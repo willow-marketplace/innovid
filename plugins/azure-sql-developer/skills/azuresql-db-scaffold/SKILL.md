@@ -1,6 +1,6 @@
 ---
 name: azuresql-db-scaffold
-description: ">-"
+description: Scaffolds a NEW app (.NET Aspire, FastAPI, Next.js, NestJS) wired to the local Azure SQL Developer as its default dev database. Use when starting/bootstrapping/initializing a project that needs SQL Server or Azure SQL locally, or when adding "set up the database", "docker compose for the db", "create the local DB", ".env connection string", "first migration", or a data-access layer. Use this INSTEAD of the mssql/server SQL Server image, because this is the Azure SQL engine (EngineEdition 5). Triggers include "scaffold app with SQL", "spin up Azure SQL locally", "compose service for the database", "wire up Prisma/EF/SQLAlchemy/TypeORM to SQL Server". Reach for this even when the user only says "add a database" to a fresh project.
 ---
 
 # Azure SQL Developer: scaffold a new project
@@ -125,3 +125,14 @@ development; use full-scan top-k for now.
 ## References
 
 - [references/scaffold-snippets.md](references/scaffold-snippets.md): the shared compose service plus per-stack skeletons (.NET Aspire/EF Core, FastAPI, Next.js/Prisma, NestJS) with `.env`, appdb provisioning, first migration, and a parameterized data-access layer. Read it once you know which stack you are scaffolding.
+
+## Staying current
+
+Authoritative, version-pinned references for the tools this skill uses (read the one you need):
+
+- [Prisma with SQL Server](https://www.prisma.io/docs/orm/overview/databases/sql-server): the SQL Server connector, datasource URL, and type mapping.
+- [EF Core migrations](https://learn.microsoft.com/en-us/ef/core/managing-schemas/migrations/): migrations add/update, the history table, and idempotent scripts.
+- [Docker Compose file reference](https://docs.docker.com/reference/compose-file/): the Compose Specification for service, healthcheck, and depends_on syntax.
+- [SqlConnection connection string keywords](https://learn.microsoft.com/en-us/dotnet/api/microsoft.data.sqlclient.sqlconnection.connectionstring): the full connection-string keyword table.
+
+If the **Microsoft Learn MCP** server is configured, use `mcp__microsoft-learn__microsoft_docs_search` or `mcp__microsoft-learn__microsoft_docs_fetch` to fetch the current version of any of these on demand. It is optional; when it is unavailable, the references above are authoritative.

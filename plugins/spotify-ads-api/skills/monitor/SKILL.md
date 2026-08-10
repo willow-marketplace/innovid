@@ -9,14 +9,14 @@ Diagnose delivery problems across active campaigns. Goes beyond the dashboard by
 
 ## Setup
 
-1. Read `access_token`, `ad_account_id`, and `auto_execute` from the active platform settings file:
-   - Codex: prefer `.codex/spotify-ads-api.local.md`, then fall back to `.claude/spotify-ads-api.local.md`, then `.gemini/spotify-ads-api.local.md`.
-   - Claude: prefer `.claude/spotify-ads-api.local.md`, then fall back to `.codex/spotify-ads-api.local.md`, then `.gemini/spotify-ads-api.local.md`.
-   - Gemini: prefer `.gemini/spotify-ads-api.local.md`, then fall back to `.claude/spotify-ads-api.local.md`, then `.codex/spotify-ads-api.local.md`.
-2. Base URL: `https://api-partner.spotify.com/ads/v3`
-3. If no settings file exists, instruct the user to run the configure skill first (`/spotify-ads-api:configure` on Claude/Codex, `/configure` on Gemini).
-4. Read the active platform manifest for the plugin `version`: `.codex-plugin/plugin.json` on Codex, `.claude-plugin/plugin.json` on Claude, or `gemini-extension.json` (extension root) on Gemini.
-5. Set `SDK_PRODUCT` to `codex-plugin` on Codex, `claude-code-plugin` on Claude, or `gemini-cli-extension` on Gemini. Set `SDK_HEADER="X-Spotify-Ads-Sdk: $SDK_PRODUCT/$PLUGIN_VERSION"` and include `-H "$SDK_HEADER"` on all API requests.
+Set the plugin root and define the request wrapper:
+
+```bash
+PLUGIN_ROOT="${CODEX_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-.}}"
+api() { "$PLUGIN_ROOT/scripts/api-request.sh" monitor "$@"; }
+```
+
+To retrieve settings values (TOKEN, AD_ACCOUNT_ID, AUTO_EXECUTE, BASE_URL) for use outside API calls, run `api --env`.
 
 ## Parsing Arguments
 
@@ -35,25 +35,19 @@ Execute these calls to gather the data needed for diagnostics:
 #### 1. Active campaigns
 
 ```bash
-curl -s -w "\nHTTP_STATUS:%{http_code}" -H "Authorization: Bearer $TOKEN" \
-  -H "$SDK_HEADER" \
-  "$BASE_URL/ad_accounts/$AD_ACCOUNT_ID/campaigns?statuses=ACTIVE&limit=50&sort_direction=DESC"
+api GET "ad_accounts/{ad_account_id}/campaigns?statuses=ACTIVE&limit=50&sort_direction=DESC"
 ```
 
 #### 2. Active ad sets
 
 ```bash
-curl -s -w "\nHTTP_STATUS:%{http_code}" -H "Authorization: Bearer $TOKEN" \
-  -H "$SDK_HEADER" \
-  "$BASE_URL/ad_accounts/$AD_ACCOUNT_ID/ad_sets?statuses=ACTIVE&limit=50&sort_direction=DESC"
+api GET "ad_accounts/{ad_account_id}/ad_sets?statuses=ACTIVE&limit=50&sort_direction=DESC"
 ```
 
 #### 3. Today's campaign metrics
 
 ```bash
-curl -s -w "\nHTTP_STATUS:%{http_code}" -H "Authorization: Bearer $TOKEN" \
-  -H "$SDK_HEADER" \
-  "$BASE_URL/ad_accounts/$AD_ACCOUNT_ID/aggregate_reports?\
+api GET "ad_accounts/{ad_account_id}/aggregate_reports?\
 entity_type=CAMPAIGN&\
 fields=IMPRESSIONS&fields=SPEND&fields=REACH&fields=CLICKS&fields=CTR&fields=FREQUENCY&\
 granularity=DAY&\
@@ -67,9 +61,7 @@ limit=50"
 #### 4. Lifetime campaign metrics (for pacing)
 
 ```bash
-curl -s -w "\nHTTP_STATUS:%{http_code}" -H "Authorization: Bearer $TOKEN" \
-  -H "$SDK_HEADER" \
-  "$BASE_URL/ad_accounts/$AD_ACCOUNT_ID/aggregate_reports?\
+api GET "ad_accounts/{ad_account_id}/aggregate_reports?\
 entity_type=CAMPAIGN&\
 fields=IMPRESSIONS&fields=SPEND&fields=REACH&fields=CLICKS&\
 granularity=LIFETIME&\
@@ -150,25 +142,19 @@ All 3 active campaigns are healthy. No issues detected.
 #### 1. Campaign details
 
 ```bash
-curl -s -w "\nHTTP_STATUS:%{http_code}" -H "Authorization: Bearer $TOKEN" \
-  -H "$SDK_HEADER" \
-  "$BASE_URL/ad_accounts/$AD_ACCOUNT_ID/campaigns/$CAMPAIGN_ID"
+api GET "ad_accounts/{ad_account_id}/campaigns/$CAMPAIGN_ID"
 ```
 
 #### 2. All ad sets under the campaign
 
 ```bash
-curl -s -w "\nHTTP_STATUS:%{http_code}" -H "Authorization: Bearer $TOKEN" \
-  -H "$SDK_HEADER" \
-  "$BASE_URL/ad_accounts/$AD_ACCOUNT_ID/ad_sets?campaign_ids=$CAMPAIGN_ID&limit=50"
+api GET "ad_accounts/{ad_account_id}/ad_sets?campaign_ids=$CAMPAIGN_ID&limit=50"
 ```
 
 #### 3. All ads under the campaign
 
 ```bash
-curl -s -w "\nHTTP_STATUS:%{http_code}" -H "Authorization: Bearer $TOKEN" \
-  -H "$SDK_HEADER" \
-  "$BASE_URL/ad_accounts/$AD_ACCOUNT_ID/ads?campaign_ids=$CAMPAIGN_ID&limit=50"
+api GET "ad_accounts/{ad_account_id}/ads?campaign_ids=$CAMPAIGN_ID&limit=50"
 ```
 
 Extract active and paused ad set IDs from Step 2 and build repeated query parameters before fetching ad set metrics:
@@ -182,9 +168,7 @@ Use the ad set IDs directly because non-`LIFETIME` aggregate reports require `en
 #### 4. Today's ad set metrics
 
 ```bash
-curl -s -w "\nHTTP_STATUS:%{http_code}" -H "Authorization: Bearer $TOKEN" \
-  -H "$SDK_HEADER" \
-  "$BASE_URL/ad_accounts/$AD_ACCOUNT_ID/aggregate_reports?\
+api GET "ad_accounts/{ad_account_id}/aggregate_reports?\
 entity_type=AD_SET&\
 fields=IMPRESSIONS&fields=SPEND&fields=CLICKS&fields=REACH&fields=CTR&fields=FREQUENCY&fields=COMPLETES&\
 granularity=DAY&\
@@ -199,9 +183,7 @@ limit=50"
 #### 5. Lifetime ad set metrics
 
 ```bash
-curl -s -w "\nHTTP_STATUS:%{http_code}" -H "Authorization: Bearer $TOKEN" \
-  -H "$SDK_HEADER" \
-  "$BASE_URL/ad_accounts/$AD_ACCOUNT_ID/aggregate_reports?\
+api GET "ad_accounts/{ad_account_id}/aggregate_reports?\
 entity_type=AD_SET&\
 fields=IMPRESSIONS&fields=SPEND&fields=CLICKS&fields=REACH&fields=FREQUENCY&\
 granularity=LIFETIME&\
@@ -277,8 +259,8 @@ To monitor automatically, schedule a recurring run of:
 
 ## Formatting Rules
 
-- **Spend from `aggregate_reports`**: Already in dollars — display directly as `$X.XX`.
-- **Budget `micro_amount` from entity details**: In micro-units — divide by 1,000,000 to get dollars.
+- **Spend from `aggregate_reports`**: Already in the ad account's billing currency — display directly as `$X.XX`.
+- **Budget `micro_amount` from entity details**: In micro-units — divide by 1,000,000 to get the billing currency amount.
 - **Impressions/Reach/Clicks**: Format with thousands separators (e.g., `156,234`).
 - **CTR**: Display as percentage with 2 decimal places (e.g., `0.79%`).
 - **Frequency**: Display with 1 decimal place.

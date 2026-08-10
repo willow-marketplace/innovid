@@ -1,6 +1,6 @@
 ---
 name: outreach-research
-description: ">"
+description: Build a portable outreach positioning brief (what you sell, to whom, how you differentiate) before drafting multi-touch B2B sequences. Use when the user says "help me draft outreach", "build my positioning brief", "outreach research", "what should I say to prospects", "lusha outreach brief", or any request to capture positioning before outreach copy. Stage 1 only — not for drafting sequences (use outreach-sequence once a brief exists).
 ---
 
 # Outreach Research

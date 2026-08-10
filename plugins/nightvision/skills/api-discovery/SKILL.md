@@ -152,4 +152,4 @@ This is why using NightVision-generated specs (vs. hand-written ones) significan
 | Extraction fails entirely | Syntax errors in source, missing files | Use `--diagnostics` to get language-level error details |
 | Spec missing sub-routes | Code in subdirectories not scanned | Pass multiple paths: `nightvision swagger extract ./src ./lib` |
 
-For unsupported frameworks or components, contact support@nightvision.net.
+For unsupported frameworks or components, contact support@nightviz.ai.

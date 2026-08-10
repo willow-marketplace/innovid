@@ -1,6 +1,6 @@
 ---
 name: bigdata-cross-sector
-description: ">"
+description: 'Compare two or more sectors using Bigdata.com data — relative valuations, earnings growth, analyst sentiment, and where each sits in the economic cycle — and turn that into a rotation call with overweight and underweight recommendations. Includes bellwether-level fundamentals per sector and a profitability/ROIC-versus-history read that says whether current valuations sit on peak, mid-cycle, or trough earnings power. Triggers: "compare X vs Y sectors", "which sectors look attractive", "sector rotation", "cyclicals vs defensives", "relative value across sectors", "should I rotate out of X into Y".'
 ---
 
 # Bigdata Cross-Sector Comparison

@@ -7,7 +7,7 @@ description: Fix HTTP client misuse in Output SDK steps. Use when seeing untrace
 
 ## Overview
 
-This skill helps diagnose and fix issues caused by using axios, fetch, or other HTTP clients directly instead of Output SDK's `httpClient` from `@outputai/http`. The Output SDK client provides tracing, automatic retries, and better error handling.
+This skill helps diagnose and fix issues caused by using axios, fetch, or other HTTP clients directly instead of Output SDK's `createKyClient` from `@outputai/http`. The Output SDK client provides tracing, automatic retries, and better error handling.
 
 ## When to Use This Skill
 
@@ -58,13 +58,13 @@ export const fetchData = step( {
 
 ## Solution
 
-Use `httpClient` from `@outputai/http`:
+Use `createKyClient` from `@outputai/http`:
 
 ### Basic Usage
 
 ```typescript
 import { z, step } from '@outputai/core';
-import { httpClient } from '@outputai/http';
+import { createKyClient } from '@outputai/http';
 
 export const fetchData = step( {
   name: 'fetchData',
@@ -75,8 +75,8 @@ export const fetchData = step( {
     data: z.unknown()
   } ),
   fn: async input => {
-    const client = httpClient( {
-      prefixUrl: 'https://api.example.com'
+    const client = createKyClient( {
+      prefix: 'https://api.example.com'
     } );
 
     const data = await client.get( input.endpoint ).json();
@@ -88,10 +88,10 @@ export const fetchData = step( {
 ### With Full Configuration
 
 ```typescript
-import { httpClient } from '@outputai/http';
+import { createKyClient } from '@outputai/http';
 
-const client = httpClient( {
-  prefixUrl: 'https://api.example.com',
+const client = createKyClient( {
+  prefix: 'https://api.example.com',
   timeout: 30000,  // 30 second timeout
   retry: {
     limit: 3,      // Retry up to 3 times
@@ -197,11 +197,11 @@ export const createUser = step( {
 } );
 ```
 
-### After (Correct - using httpClient)
+### After (Correct - using createKyClient)
 
 ```typescript
 import { z, step } from '@outputai/core';
-import { httpClient } from '@outputai/http';
+import { createKyClient } from '@outputai/http';
 import { credentials } from '@outputai/credentials';
 
 export const createUser = step( {
@@ -216,8 +216,8 @@ export const createUser = step( {
     email: z.string()
   } ),
   fn: async input => {
-    const client = httpClient( {
-      prefixUrl: 'https://api.example.com',
+    const client = createKyClient( {
+      prefix: 'https://api.example.com',
       timeout: 30000,
       retry: { limit: 3 },
       headers: {
@@ -239,20 +239,20 @@ export const createUser = step( {
 
 ## Error Handling
 
-The httpClient provides structured error handling:
+The Ky client provides structured error handling:
 
 ```typescript
-import { httpClient, HTTPError } from '@outputai/http';
+import { createKyClient, ky } from '@outputai/http';
 
 export const fetchData = step( {
   name: 'fetchData',
   fn: async input => {
-    const client = httpClient( { prefixUrl: 'https://api.example.com' } );
+    const client = createKyClient( { prefix: 'https://api.example.com' } );
 
     try {
       return await client.get( 'data' ).json();
     } catch ( error ) {
-      if ( error instanceof HTTPError ) {
+      if ( error instanceof ky.HTTPError ) {
         // Access response details
         const status = error.response.status;
         const body = await error.response.json();
@@ -279,7 +279,7 @@ grep -rn "await fetch(" src/
 grep -rn "got\|node-fetch\|request\|superagent" src/
 ```
 
-## Benefits of httpClient
+## Benefits of createKyClient
 
 1. **Tracing**: Requests appear in workflow traces with timing
 2. **Automatic Retries**: Configurable retry logic for transient failures
@@ -291,7 +291,7 @@ grep -rn "got\|node-fetch\|request\|superagent" src/
 
 | Option | Description | Default |
 |--------|-------------|---------|
-| `prefixUrl` | Base URL for all requests | (required) |
+| `prefix` | Base URL for all requests | (required) |
 | `timeout` | Request timeout in ms | 10000 |
 | `retry.limit` | Max retry attempts | 2 |
 | `retry.methods` | HTTP methods to retry | ['GET', 'PUT', 'HEAD', 'DELETE', 'OPTIONS', 'TRACE'] |
@@ -300,7 +300,7 @@ grep -rn "got\|node-fetch\|request\|superagent" src/
 
 ## Verification
 
-After migrating to httpClient:
+After migrating to createKyClient:
 
 1. **Run the workflow**: `npx output workflow run <name> --input '<input>'`
 2. **Check the trace**: `npx output workflow debug <id> --json`

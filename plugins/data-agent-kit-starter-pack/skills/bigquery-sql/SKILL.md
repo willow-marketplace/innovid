@@ -1,6 +1,6 @@
 ---
 name: bigquery-sql
-description: ">-"
+description: Provides BigQuery SQL query optimization techniques, execution best practices, and performance tuning rules for high-efficiency querying. Use when optimizing BigQuery SQL queries, reducing query costs, or designing performant SQL transformations.
 ---
 
 # BigQuery SQL Optimization

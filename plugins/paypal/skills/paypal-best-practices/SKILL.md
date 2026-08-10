@@ -1,6 +1,6 @@
 ---
 name: paypal-best-practices
-description: ">-"
+description: PayPal integration guidance, code examples, and best practices. Use for checkout, card fields, BNPL, Pay Later, Venmo, subscriptions, invoicing, disputes, payouts, webhooks, APMs, JS SDK v5, JS SDK v6, createInstance, payment sessions, web components, Fastlane, payment links, donations, 3D Secure, vaulting, iDEAL, bank redirects, agentic commerce, or any PayPal architecture decision or code generation question.
 ---
 
 # PayPal Best Practices

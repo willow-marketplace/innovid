@@ -1,6 +1,6 @@
 ---
 name: review-hog-blind-spots-general
-description: ">"
+description: The general blind-spot check for ReviewHog — the final sweep that runs after every enabled review perspective has reviewed a chunk. Hunts for real, high-value issues that ALL of the perspectives missed, conditioned on what they actually found; returns an empty list over padding.
 ---
 
 # Blind-spot check

@@ -1,6 +1,6 @@
 ---
 name: idmp-workflow-alert-create
-description: '"IDMP alert creation workflow. Prepare the event template, create the Event-trigger analysis, and treat reread plus Running as success without actively triggering alerts."'
+description: IDMP alert creation workflow. Prepare the event template, create the Event-trigger analysis, and treat reread plus Running as success without actively triggering alerts.
 ---
 
 # workflow: alert create

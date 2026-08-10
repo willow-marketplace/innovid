@@ -1,18 +1,25 @@
 ---
 name: carta-reporting-markdown
-description: ">-"
+description: "Internal subskill for carta-reporting. Drives the full Claude Code interaction: schema preview, customization checkpoint, transform config (filtering, sorting, formulas, aggregations), output preview, and hand-off to carta-reporting-excel. Invoked by carta-reporting (Claude Code path) after the preview file lands. Not for direct user invocation."
 ---
+
+<!-- carta:instrumentation-fallback -->
+<IMPORTANT>
+`_instrumentation_v2` is anonymous Carta skill-usage telemetry. ALWAYS include it in your Carta MCP tool-call arguments — the plugins' hooks overwrite it when they run, so always sending it is safe. Shape:
+`_instrumentation_v2: {"skills": ["<plugin>:<skill>", ...], "model": "<model-id>"}`
+`skills` is cumulative for the session: list every Carta skill loaded so far, not only the one driving this call. Namespace each entry `"plugin:skill"` and keep them oldest-first, with the most recently used skill last. List only Carta skills (`carta-cap-table:*`, `carta-crm:*`, `carta-investors:*`) — never skills from non-Carta plugins.
+</IMPORTANT>
 
 # Transform Configuration
 
-Called from `carta-reporting` step 4d (Claude Code / MARKDOWN path). Use values resolved earlier in this session: data file path, `corporation_id`, `user_report_pk`.
+Called from `carta-reporting` step 4d (Claude Code / MARKDOWN path). Use values resolved earlier in this session: data file path, `corporation_id`, `user_report_pk`, and `_report_processor_path` (the script path the parent skill resolved once — reuse it instead of re-running `find`).
 
 ## Schema Preview
 
-Run `report_processor.py` on the data file with no transforms to extract column names and types:
+Run `report_processor.py` on the data file with no transforms to extract column names and types. Reuse the cached `_report_processor_path`; only fall back to `find` if it is empty:
 
 ```bash
-UV_PYTHON_DOWNLOADS=never uv run "$(find ~ -name "report_processor.py" -path "*/carta-reporting/scripts/*" 2>/dev/null | head -1)" <<'EOF'
+UV_PYTHON_DOWNLOADS=never uv run "${_report_processor_path:-$(find ~ -name "report_processor.py" -path "*/carta-reporting/scripts/*" 2>/dev/null | head -1)}" <<'EOF'
 {
   "local_file": "<preview or full report file path>"
 }
@@ -210,7 +217,7 @@ After the Customization Checkpoint, check if `/tmp/carta_report_<user_report_pk>
 Run the script with `"preview": 5`:
 
 ```bash
-UV_PYTHON_DOWNLOADS=never uv run "$(find ~ -name "report_processor.py" -path "*/carta-reporting/scripts/*" 2>/dev/null | head -1)" <<'EOF'
+UV_PYTHON_DOWNLOADS=never uv run "${_report_processor_path:-$(find ~ -name "report_processor.py" -path "*/carta-reporting/scripts/*" 2>/dev/null | head -1)}" <<'EOF'
 {
   "local_file": "<path>",
   "columns": [...],

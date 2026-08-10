@@ -1,6 +1,6 @@
 ---
 name: bigdata-post-ipo-day365
-description: ">"
+description: 'Write a day-365 post-IPO note on the 366-day founder and significant-investor lock-up expiry and float expansion toward 15-20%, using Bigdata.com data plus filings and market data. Covers the staggered lock-up structure from the prospectus, float expansion math and days-to-trade, the offsetting float-adjusted index reweight demand netted against new supply, a realistic read on whether founders actually sell, the dual-class governance angle, and a two-sided setup. Balanced, no buy/avoid call. Triggers: "366-day lock-up for X", "founder lock-up expiry", "float expansion for X", "post-IPO one year lockup", "index reweight after float increase", "founder selling after IPO".'
 ---
 
 # Bigdata Post-IPO Day 365 — Founder Lock-Up & Float Expansion

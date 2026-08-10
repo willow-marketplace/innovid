@@ -1,6 +1,6 @@
 ---
 name: rw-check-org-details
-description: '"Query the Runway API for organization details: rate limits, credit balance, usage tier, and daily generation counts"'
+description: "Query the Runway API for organization details: rate limits, credit balance, usage tier, and daily generation counts"
 ---
 
 # Check Organization Details

@@ -1,6 +1,6 @@
 ---
 name: together-embeddings
-description: '"Dense vector embeddings, semantic search, RAG pipelines, and reranking via Together AI. Generate embeddings with open-source models and rerank results behind dedicated endpoints. Reach for it whenever the user needs vector representations or retrieval quality improvements rather than direct text generation."'
+description: Dense vector embeddings, semantic search, RAG pipelines, and reranking via Together AI. Generate embeddings with open-source models and rerank results behind dedicated endpoints. Reach for it whenever the user needs vector representations or retrieval quality improvements rather than direct text generation.
 ---
 
 # Together Embeddings & Reranking
@@ -27,7 +27,7 @@ This skill is for retrieval plumbing, not for the final language-model response 
 
 - Use `together-chat-completions` for the final answer-generation step
 - Use `together-batch-inference` for very large offline embedding backfills
-- Use `together-dedicated-endpoints` when reranking requires a dedicated deployment
+- Use `together-dedicated-model-inference` when reranking requires a dedicated deployment
 
 ## Quick Routing
 

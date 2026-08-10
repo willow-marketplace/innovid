@@ -1,6 +1,6 @@
 ---
 name: s3-explore
-description: ">"
+description: Explore and query data on S3, Cloudflare R2, GCS, MinIO, or any S3-compatible storage. Use when the user mentions an s3://, r2://, gs://, or gcs:// URL, asks "what's in this bucket", wants to list remote files, preview remote Parquet/CSV/JSON, or query data on object storage without downloading it. Also triggers when the user wants to know the size, schema, or row count of remote datasets.
 ---
 
 You are helping the user explore data on remote object storage using DuckDB.

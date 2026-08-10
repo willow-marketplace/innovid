@@ -1,6 +1,6 @@
 ---
 name: rest-api
-description: '"Reference skill for Zoom REST API. Use after choosing an API-based workflow when you need endpoint selection, resource-management patterns, OAuth requirements, rate-limit awareness, or API error debugging."'
+description: Reference skill for Zoom REST API. Use after choosing an API-based workflow when you need endpoint selection, resource-management patterns, OAuth requirements, rate-limit awareness, or API error debugging.
 ---
 
 # /build-zoom-rest-api-app
@@ -146,6 +146,16 @@ The `api_url` field in OAuth token responses indicates the user's region. Use re
 - OAuth credentials (Server-to-Server OAuth or User OAuth)
 - Appropriate scopes for target endpoints
 
+> **Need to create or validate the app first?** Use
+> [Marketplace app management](references/marketplace-apps.md) before implementing REST calls.
+> It covers General App manifests, S2S rollout quirks, app-owned `client_credentials` scopes,
+> event subscription setup, credential response shapes, and the requirement to manually create
+> a first bootstrap app before the app-creation API can authorize creation of later apps.
+> For automation, select from the machine-readable
+> [Marketplace template index](assets/marketplace-apps/marketplace-manifest-template-index.json)
+> and follow the [manifest update workflow](references/marketplace-manifest-update-workflow.md)
+> when changing an existing General App.
+
 > **Need help with authentication?** See the **[zoom-oauth](../oauth/SKILL.md)** skill for complete OAuth flow implementation.
 
 ## Critical Gotchas and Best Practices
@@ -278,6 +288,9 @@ This skill includes comprehensive guides organized by category:
 - **[references/video-management.md](references/video-management.md)** - Video management APIs
 - **[references/video-sdk-api.md](references/video-sdk-api.md)** - Video SDK REST APIs
 - **[references/marketplace-apps.md](references/marketplace-apps.md)** - Marketplace app management
+- **[references/marketplace-app-templates.md](references/marketplace-app-templates.md)** - Select and customize POST-ready Marketplace app templates by scenario
+- **[references/marketplace-manifest-update-workflow.md](references/marketplace-manifest-update-workflow.md)** - Full-replacement updates for existing General App manifests
+- **[assets/marketplace-apps/marketplace-manifest-template-index.json](assets/marketplace-apps/marketplace-manifest-template-index.json)** - Machine-readable app-type and template compatibility catalog
 - **[references/commerce.md](references/commerce.md)** - Commerce and billing APIs
 - **[references/contact-center.md](references/contact-center.md)** - Contact Center APIs
 - **[references/quality-management.md](references/quality-management.md)** - Quality management APIs

@@ -1,6 +1,6 @@
 ---
 name: bigdata-catalyst-monitor
-description: ">"
+description: "Map the dated events that could move a public company over the next few quarters, using Bigdata.com data (events calendar, filings, news, tearsheet). Covers scheduled catalysts — earnings, investor days, index reviews, lock-up and patent expiries, regulatory decision dates — and foreseeable unscheduled ones — litigation milestones, product cycles, contract renewals, refinancings. Each catalyst carries a date or window, likely direction, magnitude, confidence, and what to watch, ranked by expected impact rather than by date alone. Triggers: \"catalyst monitor for X\", \"what's coming up for X\", \"upcoming catalysts for X\", \"what could move X\", \"key dates for X\", \"event calendar for X\", \"what should I watch on X\"."
 ---
 
 # Bigdata Catalyst Monitor

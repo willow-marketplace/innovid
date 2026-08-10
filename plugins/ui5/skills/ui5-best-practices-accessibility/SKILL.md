@@ -1,6 +1,20 @@
 ---
 name: ui5-best-practices-accessibility
-description: "|"
+description: |-
+  This skill should be used when the user asks to audit, fix, check, review, or
+  improve accessibility, a11y, ARIA, WCAG compliance, landmarks, labeling, heading
+  levels, focus handling, keyboard navigation, keyboard shortcuts, screen reader
+  support, invisible messaging, reading order, or touch / target size in UI5
+  application files (views, fragments, controllers). Also use when the user
+  creates a new UI5 view, fragment, or controller and wants it to be accessible,
+  or asks whether a specific control (Dialog, Table, Panel, etc.) meets
+  accessibility requirements.
+
+  Keywords: accessibility, a11y, ARIA, WCAG, screen reader, NVDA, JAWS, VoiceOver,
+  landmark, landmarkInfo, accessibleRole, ariaLabelledBy, ariaDescribedBy,
+  labelFor, tooltip, alt text, decorative, heading level, initialFocus, F6,
+  fast nav, fastnavgroup, tabindex, CommandExecution, keyboard shortcut,
+  InvisibleMessage, announce, reading order, reactiveAreaMode, target size.
 ---
 
 # Accessibility Review

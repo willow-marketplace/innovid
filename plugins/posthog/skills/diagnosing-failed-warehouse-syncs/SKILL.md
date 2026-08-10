@@ -1,6 +1,6 @@
 ---
 name: diagnosing-failed-warehouse-syncs
-description: ">"
+description: Diagnose why a data warehouse sync is failing and recommend the right recovery action. Use when the user asks "why isn't my Stripe/Postgres/Hubspot sync working?", "this table has been stuck for hours", "the data in the warehouse looks wrong", or wants to troubleshoot a specific source or schema. Covers source-level vs schema-level failures, stuck Running states, credential and schema-drift errors, incremental-field misconfig, CDC prerequisite failures, and the cancel / reload / resync / delete-data recovery actions.
 ---
 
 # Diagnosing failed data warehouse syncs

@@ -1,6 +1,15 @@
 ---
 name: fix-manifest-json
-description: "|"
+description: |-
+  Fix manifest.json issues that UI5 linter reports but cannot auto-fix. Use this skill when linter outputs these rules:
+  - `no-outdated-manifest-version` - For _version not being 2.x
+  - `no-legacy-ui5-version-in-manifest` - For minUI5Version below 1.136
+  - `no-deprecated-library` - For deprecated libraries in dependencies
+  - `no-deprecated-component` - For deprecated components in dependencies
+  - `no-deprecated-api` - For deprecated view types, resources/js, deprecated model types
+  - `no-removed-manifest-property` - For async flags in manifest v2
+  Trigger on manifest.json files with errors about version, libraries, components, view types.
+  Automatically updates manifest.json to be modern UI5 compatible.
 ---
 
 # Fix manifest.json

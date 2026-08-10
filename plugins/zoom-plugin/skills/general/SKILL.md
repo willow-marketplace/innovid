@@ -278,6 +278,14 @@ Both receive event notifications, but differ in approach:
 2. App created in [Zoom App Marketplace](https://marketplace.zoom.us/)
 3. OAuth credentials (Client ID and Secret)
 
+> **Need to create the Marketplace app first?** Use
+> [Marketplace app management](../rest-api/references/marketplace-apps.md) for API-driven
+> app creation, manifest validation, app-type quirks, and credential response shapes before
+> continuing with product-specific skills. For automated app selection, read the
+> [Marketplace template index](../rest-api/assets/marketplace-apps/marketplace-manifest-template-index.json)
+> and use the [manifest update workflow](../rest-api/references/marketplace-manifest-update-workflow.md)
+> for existing General Apps.
+
 ## References
 
 - [Known Limitations & Quirks](references/known-limitations.md)
@@ -296,6 +304,9 @@ Both receive event notifications, but differ in approach:
 - **[references/app-types.md](references/app-types.md)** - Decision guide for app types
 - **[references/scopes.md](references/scopes.md)** - OAuth scopes reference
 - **[references/marketplace.md](references/marketplace.md)** - Marketplace portal navigation
+- **[../rest-api/references/marketplace-apps.md](../rest-api/references/marketplace-apps.md)** - API-driven Marketplace app creation, manifest validation, app-owned scopes, and app credential shapes
+- **[../rest-api/references/marketplace-app-templates.md](../rest-api/references/marketplace-app-templates.md)** - Scenario selector for General, S2S, Meeting SDK, and MCP app setup
+- **[../rest-api/assets/marketplace-apps/marketplace-manifest-template-index.json](../rest-api/assets/marketplace-apps/marketplace-manifest-template-index.json)** - Machine-readable app-type compatibility catalog
 - **[references/query-routing-playbook.md](references/query-routing-playbook.md)** - Route complex queries to the right specialized skills
 - **[references/interview-answer-routing.md](references/interview-answer-routing.md)** - Short interview-ready answer pattern for zoom-general routing
 - **[references/routing-implementation.md](references/routing-implementation.md)** - Concrete TypeScript query classification and skill handoff contract

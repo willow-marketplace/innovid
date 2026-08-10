@@ -1,6 +1,12 @@
 ---
 name: fix-control-renderer
-description: "|"
+description: |-
+  Fix Control renderer issues that UI5 linter reports but cannot auto-fix. Use this skill when linter outputs these rules:
+  - `no-deprecated-control-renderer-declaration` - For missing renderer declaration, string-based renderer declaration, implicit renderer auto-discovery (removed in modern UI5)
+  - `no-deprecated-api` - For missing apiVersion:2 in renderer objects, missing IconPool import when using oRm.icon(), deprecated rerender() override. NOTE: For Library.init() apiVersion errors, use fix-library-init instead.
+  - `ui5-class-declaration` - For non-static renderer property in ES6 classes
+  Trigger on: "missing a renderer declaration", "Deprecated declaration of renderer", "deprecated renderer", "apiVersion" (in renderer context), "IconPool", "rerender", "renderer must be a static property"
+  Converts legacy renderer patterns to modern apiVersion: 2 format with proper module imports.
 ---
 
 # Fix Control Renderer Issues

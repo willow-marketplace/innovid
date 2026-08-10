@@ -25,6 +25,7 @@ The browser NEVER calls the Carta MCP — it only reads JSON the skill produced.
 
 Usage:
   uv run serve.py --data-dir <dir> [--web-dir <webapp>] [--port N] [--no-open]
+                  [--user-id <carta_user_id>]
 """
 
 import argparse
@@ -37,6 +38,7 @@ import os
 import re
 import secrets
 import socketserver
+import sys
 import threading
 import time
 import webbrowser
@@ -44,6 +46,7 @@ from pathlib import Path
 from urllib.parse import urlparse, parse_qs
 
 import chat_session
+import fm_paths
 
 DATA_DIR = None
 WEB_DIR = None
@@ -240,6 +243,17 @@ class Handler(http.server.BaseHTTPRequestHandler):
         _touch_heartbeat()
         if path == "/api/heartbeat":
             return self._send(200, {"ok": True})
+        if path == "/api/telemetry-context":
+            # Read per request, not at startup: a refresh rewrites snapshot.json, and a
+            # firmId it resolves late should reach the tracker without a relaunch.
+            return self._send(
+                200,
+                {
+                    "environment": _read_carta_environment(DATA_DIR),
+                    "firmId": _read_firm_id(DATA_DIR),
+                    "userId": _read_user_id(DATA_DIR),
+                },
+            )
         if path == "/api/models":
             return self._send(200, {"models": chat_session.CLAUDE_MODELS,
                                     "default": chat_session.DEFAULT_MODEL})
@@ -305,17 +319,50 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self.end_headers()
         self.close_connection = True   # ensure the client's read() terminates at stream end
 
+    def _read_json_body(self):
+        """Parsed request body, or None when it isn't JSON (caller sends the 400)."""
+        length = int(self.headers.get("Content-Length", 0) or 0)
+        try:
+            return json.loads(self.rfile.read(length) or b"{}")
+        except ValueError:
+            return None
+
+    def _chat_interrupt(self, u):
+        """Stop the turn in flight without tearing the session down.
+
+        Deliberately does NOT take the session's turn lock: that lock is held for
+        the entire in-flight turn, so waiting on it would block in exactly the
+        case this endpoint exists to serve. It only needs the registry, which is
+        guarded briefly.
+        """
+        if not self._token_ok(parse_qs(u.query)):
+            return self._send(401, {"error": "unauthorized"})
+        _touch_heartbeat()
+        body = self._read_json_body()
+        if body is None:
+            return self._send(400, {"error": "bad_json"})
+        sid = body.get("sessionId") or "default"
+        with _SESSIONS_LOCK:
+            entry = _CHAT_SESSIONS.get(sid)
+        # A turn that ended between the click and this request has already been
+        # evicted, so there is nothing to stop and nothing went wrong.
+        if entry is None:
+            return self._send(404, {"error": "no_session"})
+        if not entry["session"].interrupt():
+            return self._send(409, {"error": "not_interruptible"})
+        return self._send(200, {"ok": True})
+
     def do_POST(self):
         u = urlparse(self.path)
+        if u.path == "/api/chat/interrupt":
+            return self._chat_interrupt(u)
         if u.path != "/api/chat":
             return self._send(404, {"error": "not_found"})
         if not self._token_ok(parse_qs(u.query)):
             return self._send(401, {"error": "unauthorized"})
         _touch_heartbeat()
-        length = int(self.headers.get("Content-Length", 0) or 0)
-        try:
-            body = json.loads(self.rfile.read(length) or b"{}")
-        except ValueError:
+        body = self._read_json_body()
+        if body is None:
             return self._send(400, {"error": "bad_json"})
         prompt = body.get("prompt")
         prompt = str(prompt).strip() if prompt is not None else ""
@@ -400,6 +447,59 @@ def _load_or_make_token(token_file):
     return secrets.token_urlsafe(18)
 
 
+def _read_carta_environment(data_dir):
+    """This firm's cached snapshot.source.cartaEnvironment ("production" or
+    "nonprod"), served to the browser so the tracker knows which Snowplow
+    collector to use. Defaults to "production" on any
+    read/parse failure or on an older cache built before this field existed —
+    this is a customer-facing plugin, so an unclassified build is far more
+    likely real production usage than a staff test session; staff noise is
+    filterable downstream."""
+    try:
+        data = json.loads((data_dir / "snapshot.json").read_text())
+        return data.get("source", {}).get("cartaEnvironment") or "production"
+    except (OSError, ValueError):
+        return "production"
+
+
+def _read_firm_id(data_dir):
+    """Served to the browser so Snowplow events key on the real Carta id, not a slugified firm
+    name. None when the cache has no usable id — the context is dropped, never faked."""
+    try:
+        data = json.loads((data_dir / "snapshot.json").read_text())
+        firm_id = int((data.get("source") or {}).get("firmId"))
+    except (OSError, ValueError, TypeError, AttributeError):
+        return None
+    return firm_id if firm_id > 0 else None
+
+
+def _user_id_file(data_dir):
+    return data_dir / ".user-id"
+
+
+def _read_user_id(data_dir):
+    """The launching user's integer Carta id, so events name a person rather than a device."""
+    try:
+        user_id = int(_user_id_file(data_dir).read_text().strip())
+    except (OSError, ValueError):
+        return None
+    return user_id if user_id > 0 else None
+
+
+def _write_user_id(data_dir, raw):
+    """Record the launching user. No id means no MCP, not a new person — so keep the last one."""
+    try:
+        user_id = int(str(raw).strip())
+    except (TypeError, ValueError):
+        return
+    if user_id <= 0:
+        return
+    try:
+        _user_id_file(data_dir).write_text(str(user_id))
+    except OSError:
+        pass
+
+
 def _get_previously_used_port(port_file):
     """The port this firm last bound (persisted in its data dir), or 0 if none/unreadable/out of range."""
     try:
@@ -458,6 +558,13 @@ def main():
     ap.add_argument("--src-dir", default=None, help="canonical source tree served at /src/* (default: <web-dir>/../app/src)")
     ap.add_argument("--port", type=int, default=int(os.environ.get("PORT", "0")))
     ap.add_argument("--no-open", action="store_true")
+    # Not type=int: a malformed id must degrade to "no user", not fail the launch.
+    ap.add_argument(
+        "--user-id",
+        default=None,
+        help="integer Carta id of the launching user, for the browser's Snowplow tracker; "
+        "omit when unknown",
+    )
     ap.add_argument(
         "--detach", action="store_true",
         help="Run as a background daemon that outlives the launching process and returns "
@@ -470,10 +577,25 @@ def main():
     )
     args = ap.parse_args()
 
+    # Defense-in-depth backstop for the SKILL.md Gate 0 surface check. serve.py
+    # binds 127.0.0.1 and opens a local browser — neither reaches the user from a
+    # sandboxed session (Cowork, or a Claude Code cloud session) — so refuse to
+    # start rather than hand back a dead URL.
+    surface, _signals = fm_paths.detect_surface()
+    if surface == "sandboxed":
+        print(
+            "[serve] Fund Modeling runs a local web app (localhost server + browser) and only "
+            "works in a Claude Code session running on your machine. It can't run in a sandboxed "
+            "session (Cowork, or a Claude Code cloud session) — switch to a local session and re-run.",
+            file=sys.stderr, flush=True)
+        raise SystemExit(2)
+
     DATA_DIR = Path(args.data_dir).resolve()
     WEB_DIR = Path(args.web_dir).resolve()
     SRC_DIR = Path(args.src_dir).resolve() if args.src_dir else (WEB_DIR.parent / "app" / "src")
     DATA_DIR.mkdir(parents=True, exist_ok=True)
+    # Before the reuse probe: a relaunch onto a live daemon must still refresh the id it serves.
+    _write_user_id(DATA_DIR, args.user_id)
 
     port_file = DATA_DIR / ".port"
     token_file = DATA_DIR / ".token"

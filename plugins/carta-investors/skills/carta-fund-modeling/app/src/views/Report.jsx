@@ -6,11 +6,12 @@
 // while hiding the app chrome.
 import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { tightSans, sans, mono, FS, MICRO } from "../ui/theme.js";
+import { tightSans, sans, inkNum, FS, MICRO } from "../ui/theme.js";
 import { fmtM, fmtX, fmtPct, fmtAsOf, displayCurrency } from "../ui/format.js";
 import { H1, H3, Btn, Eyebrow, MethodNote, SourceNote, LockIcon, fundLabel, MultiFundPicker } from "../ui/components.jsx";
 import { buildReport } from "../model/report.js";
 import { BASELINE_ID } from "../model/slices.js";
+import { trackClick } from "../analytics.js";
 
 // Comparison metric rows. `delta:true` → show the vs-Baseline change beneath the
 // value (skipped for the Baseline column). `money` rows blank to "—" for a
@@ -71,7 +72,7 @@ function ScenarioHead({ s }) {
 function ReportBody({ report, funds, metrics }) {
   const { summaries, diffs, fundOrder } = report;
   const mixed = summaries.some((s) => s.mixedCurrency);
-  const numTd = { ...mono, textAlign: "right", fontSize: FS.value, whiteSpace: "nowrap" };
+  const numTd = { ...inkNum, textAlign: "right", fontSize: FS.value, whiteSpace: "nowrap" };
   // fall back to the full set when the caller doesn't drive the selectors (e.g. tests)
   const showFunds = funds ?? fundOrder;
   const showMetrics = metrics ?? FUND_METRICS.filter((m) => DEFAULT_FUND_METRICS.includes(m.key));
@@ -101,7 +102,7 @@ function ReportBody({ report, funds, metrics }) {
                   <td key={s.id} style={numTd}>
                     <div style={{ fontWeight: 600 }}>{fmtVal(s[m.key], m.kind, mixed)}</div>
                     {showD && (
-                      <div style={{ ...mono, fontSize: FS.micro, fontWeight: 600, color: d >= 0 ? "var(--ink-color-global-feedback-positive-strong)" : "var(--ink-color-global-feedback-negative-strong)" }}>{fmtDelta(d, m.kind)}</div>
+                      <div style={{ ...inkNum, fontSize: FS.micro, fontWeight: 600, color: d >= 0 ? "var(--ink-color-global-feedback-positive-strong)" : "var(--ink-color-global-feedback-negative-strong)" }}>{fmtDelta(d, m.kind)}</div>
                     )}
                   </td>
                 );
@@ -206,7 +207,10 @@ export default function Report({ doc, snapshot, baseSlice }) {
 
   const [selected, setSelected] = useState(() => new Set(slices.map((s) => s.id))); // default: all
   const chosen = slices.filter((s) => selected.has(s.id));
-  const toggle = (id) => setSelected((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const toggle = (id) => {
+    trackClick("FundModeling.Export.ToggleScenario");
+    setSelected((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  };
   const allOn = chosen.length === slices.length;
 
   const report = useMemo(
@@ -230,7 +234,7 @@ export default function Report({ doc, snapshot, baseSlice }) {
 
   return (
     <div>
-      <H1>Scenario report</H1>
+      <H1>Export scenarios</H1>
       <MethodNote>
         Compare scenarios side by side and export a PDF. Pick the scenarios to include, then <strong>Download PDF</strong> (choose “Save as PDF” in the print dialog). Metrics are computed per scenario from Carta Fund Admin data; deltas are vs the Baseline.
       </MethodNote>
@@ -240,13 +244,13 @@ export default function Report({ doc, snapshot, baseSlice }) {
         <Eyebrow color={MICRO} style={{ marginRight: 2 }}>Scenarios</Eyebrow>
         {slices.map((s) => <ScenarioChip key={s.id} s={s} on={selected.has(s.id)} onClick={() => toggle(s.id)} />)}
         {!allOn && (
-          <Btn kind="link" onClick={() => setSelected(new Set(slices.map((s) => s.id)))}
+          <Btn kind="link" onClick={() => { trackClick("FundModeling.Export.SelectAllScenarios"); setSelected(new Set(slices.map((s) => s.id))); }}
             style={{ fontSize: FS.small, color: "var(--ink-button-background-color-primary-base-default)" }}>
             Select all
           </Btn>
         )}
         <span style={{ flex: 1 }} />
-        <Btn kind="primary" onClick={() => window.print()} data-testid="download-pdf"
+        <Btn kind="primary" onClick={() => { trackClick("FundModeling.Export.DownloadPdfClick"); window.print(); }} data-testid="download-pdf"
           disabled={!report}>Download PDF</Btn>
       </div>
 
@@ -271,7 +275,7 @@ export default function Report({ doc, snapshot, baseSlice }) {
       {report && createPortal(
         <div id="print-report">
           <div style={{ marginBottom: 14, borderBottom: `2px solid var(--ink-color-global-text-default)`, paddingBottom: 10 }}>
-            <div style={{ ...tightSans, fontSize: FS.h2, fontWeight: 700, color: "var(--ink-color-global-text-default)" }}>{firmName} — Scenario Report</div>
+            <div style={{ ...tightSans, fontSize: FS.h2, fontWeight: 700, color: "var(--ink-color-global-text-default)" }}>{firmName} — Fund modeling</div>
             <div style={{ ...sans, fontSize: FS.body, color: "var(--ink-color-global-text-subtle)", marginTop: 3 }}>
               Data as of {asOf} · {chosen.length} scenario{chosen.length === 1 ? "" : "s"}: {chosen.map((s) => s.name).join(", ")}
             </div>

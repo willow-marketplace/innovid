@@ -1,7 +1,14 @@
 ---
 name: carta-compensation-benchmarks
-description: ">"
+description: "Retrieves Carta Total Compensation market benchmarks (salary, equity, total cash) for a role. Output to chat or CSV. Market benchmarks are triggered by queries like: \"sales benchmarks\", \"comp benchmarks\", \"market rate\", \"what does a [role] pay\", \"put benchmarks in a CSV\", \"get benchmarks\", \"get carta's market benchmarks\", \"show me benchmarks for [role]\", \"compensation ranges for [role]\", \"p25/p50/p75 for [role]\". Do NOT use for job classification or role mapping — use carta-compensation-rolematcher for that. Do NOT use for \"how is OUR company positioned vs market\", \"who at our company is below market\", or \"our internal pay bands vs benchmarks\" — those are roster-level positioning, use carta-compensation-scorecard. Do NOT use for fund performance benchmarks (use carta-performance-benchmarks) or portfolio structural metrics like SAFE terms and option pool sizes (use carta-market-benchmarks)."
 ---
+
+<!-- carta:instrumentation-fallback -->
+<IMPORTANT>
+`_instrumentation_v2` is anonymous Carta skill-usage telemetry. ALWAYS include it in your Carta MCP tool-call arguments — the plugins' hooks overwrite it when they run, so always sending it is safe. Shape:
+`_instrumentation_v2: {"skills": ["<plugin>:<skill>", ...], "model": "<model-id>"}`
+`skills` is cumulative for the session: list every Carta skill loaded so far, not only the one driving this call. Namespace each entry `"plugin:skill"` and keep them oldest-first, with the most recently used skill last. List only Carta skills (`carta-cap-table:*`, `carta-crm:*`, `carta-investors:*`) — never skills from non-Carta plugins.
+</IMPORTANT>
 
 # Benchmark Query
 
@@ -32,7 +39,24 @@ Look up Carta Total Compensation (CTC) market salary and equity benchmarks for a
 >
 > Every output (chat reply, CSV, JSON) MUST include all three rating types: salary, equity, AND total cash. Don't stop at salary.
 >
-> ### Chat reply format (single role)
+> ### Cowork vs everywhere else — pick ONE chat surface, not both
+>
+> Where the benchmark numbers actually appear depends on the client:
+>
+> | Client | Chat reply | Live artifact panel |
+> |---|---|---|
+> | **Cowork** (`mcp__cowork__create_artifact` callable) | One-line acknowledgement + the data-source attribution line. NO markdown percentile tables. | ✅ Renders the percentile tables |
+> | **Claude Code, Claude Desktop, claude.ai** | ✅ Renders the markdown tables (the "Chat reply format" below) + the attribution line | Not available — skip the artifact path |
+>
+> **Anti-patterns:**
+> - ❌ In Cowork, rendering the markdown percentile tables AND the artifact panel — the data appears twice, the chat reply is noise.
+> - ❌ In Claude Code / Desktop / claude.ai, skipping the markdown tables on the assumption an artifact will pick up the slack — the artifact doesn't render there, so the user gets nothing.
+>
+> The Excel / CSV export paths are unchanged — both clients can request a file export and it works the same way regardless.
+>
+> ### Chat reply format (single role) — Claude Code / Desktop / claude.ai only
+>
+> Skip this entire section when running in Cowork — the artifact panel renders the same percentile data and a markdown duplicate is noise. Use the one-line acknowledgement format from the "Live artifact" section below instead.
 >
 > Three small tables, one per rating type. Each has 4 columns: P25, P50, P75, P90.
 >
@@ -56,17 +80,15 @@ Look up Carta Total Compensation (CTC) market salary and equity benchmarks for a
 > | Shares | 18,620 | 24,745 | 30,870 | 88,444 |
 > | Notional value | $100,000 | $133,000 | $165,000 | $474,000 |
 >
-> The 4-year grant view is the default — it matches the "Equity (4 year award)" columns in the CTC Total Compensation product UI (set by passing `equity_quantity=FOUR_YEAR_GRANT` to `compensation:get:benchmark`; see Step 4). If the user explicitly asks for "annual" / "NTM" / "next-twelve-months" equity, pass `equity_quantity=NTM_VESTING` instead and rename this header to **Equity (Annual NTM Vesting)**.
->
 > (For peer groups ≥ $500M post money — `peer_group.notional_available: true` — put **Notional value** as the first row instead.)
 >
 > **Geo Adjustment:** [location] (X.XX× salary, X.XX× equity)
 >
 > ---
 > *Data source: Companies with [peer_group_dimension_phrase] [peer_group_label]. Benchmarks released [Month YYYY].*
->
-> The `[peer_group_dimension_phrase]` placeholder is required and varies by dimension — see the "Required attribution" block below for the three exact phrasings. Do NOT hardcode `post money valuations between` here regardless of what corp you're looking at; the phrase depends on `peer_group.dimension`.
 > ```
+>
+> The `[peer_group_dimension_phrase]` varies by `peer_group.dimension` — see "Required attribution" below for the three exact phrasings. Do NOT hardcode `post money valuations between`.
 >
 > ### CSV format (bulk)
 >
@@ -105,6 +127,135 @@ Look up Carta Total Compensation (CTC) market salary and equity benchmarks for a
 > - ❌ Salary-only output. The user asked for "benchmarks" — show all three rating types.
 > - ❌ Skipping TCC because "the user said sales benchmarks" — TCC IS a benchmark.
 
+> **CRITICAL — Excel exports MUST use the branded export script**
+>
+> When the user asks for an Excel (.xlsx) file, you MUST call the export script below. Do **not** write openpyxl code yourself. Do **not** choose colors, fonts, or layout — the script applies Carta's official brand guidelines automatically (teal headers, alternating rows, "Powered by Carta" logo, attribution row). Any hand-rolled Excel output will have incorrect branding.
+>
+> **Anti-patterns:**
+> - ❌ Writing `from openpyxl import Workbook` and styling cells yourself
+> - ❌ Choosing your own header colors (navy, blue, or anything else)
+> - ❌ Skipping the logo — the script embeds it automatically from the plugin's assets
+> - ❌ Omitting `--notional-first` when `peer_group.notional_available` is true
+
+### Excel export — exact steps
+
+**Step 1 — Build a JSON array of row objects** (one dict per `(job, ladder, level)`). Use `null` for missing values, never `0` or empty string.
+
+```json
+{
+  "job": "ENGINEER", "ladder": "IC", "level": "SENIOR1", "currency": "USD",
+  "salary_p25": 145000, "salary_p50": 164000, "salary_p75": 186000, "salary_p90": 210000,
+  "tcc_p25": 164000, "tcc_p50": 185000, "tcc_p75": 210000, "tcc_p90": 237000,
+  "equity_fd_pct_p25": 0.0003, "equity_fd_pct_p50": 0.0004, "equity_fd_pct_p75": 0.0005, "equity_fd_pct_p90": 0.00144,
+  "equity_shares_p25": 18620, "equity_shares_p50": 24745, "equity_shares_p75": 30870, "equity_shares_p90": 88444,
+  "equity_notional_p25": 100000, "equity_notional_p50": 133000, "equity_notional_p75": 165000, "equity_notional_p90": 474000
+}
+```
+
+**Step 2 — Write the rows to a temp JSON file** (avoids shell argument length limits):
+```
+Write /tmp/benchmarks_export.json  ← the JSON array
+```
+
+**Step 3 — Run the export script**:
+```bash
+uv run ${CLAUDE_PLUGIN_ROOT}/skills/carta-compensation-benchmarks/scripts/export_benchmarks.py \
+  --data @/tmp/benchmarks_export.json \
+  --output <output_path>.xlsx \
+  --attribution "<full attribution string>" \
+  [--notional-first]   # required when peer_group.notional_available is true
+```
+
+The script handles all branding automatically — do not modify its output styling. The attribution string must also appear in the chat reply per the attribution rules above.
+
+### Live artifact — exact steps
+
+> **The live artifact panel is an enhancement, not a replacement for the chat experience.** Every surface (Cowork, Claude Code, Claude Desktop, claude.ai) gets the same data and the same Excel export path. The artifact only changes HOW that data is presented:
+>
+> - **In Cowork** — render the artifact panel for every benchmark query, no opt-in trigger required. Words like "interactive", "visualize", "explore" are no longer needed. The chat reply that accompanies the panel MUST be a one-line acknowledgement (e.g. *"Opened the benchmark panel for <Role> at <Company> — see the side panel."*) **plus the standard data-source attribution line** (see "Required attribution" below) — and **NOTHING ELSE**. No markdown percentile tables, no per-rating-type sub-tables, no salary/TCC/equity numbers in chat. The artifact panel owns those numbers; duplicating them in chat is noise. The attribution stays in chat because the panel doesn't render it.
+> - **In Claude Code, Claude Desktop, claude.ai** — the artifact tools (`mcp__cowork__create_artifact`) are not available. Present the same data inline using the "Chat reply format (single role)" or CSV/Excel export paths. Skip the artifact steps below.
+>
+> Why no Claude Desktop / `preview_start` path? The artifact's interactive controls (corp search, refetch, Download Excel) call `window.cowork.callMcpTool` — a bridge that only exists inside Cowork's iframe. In `preview_start`, the panel would render but the buttons would silently fail to make MCP calls. Cowork is the only surface where the artifact functions correctly today; the chat-only path covers everywhere else equivalently.
+
+**Step 0 — Pick the rendering path**
+
+- **Cowork** (`mcp__cowork__create_artifact` is callable) → use the artifact panel path below (Steps 1, 2, 4). Default for every benchmark query — no trigger phrase needed.
+- **Anywhere else** → skip the artifact steps; present the data inline per "Chat reply format (single role)" + offer the Excel export when appropriate.
+
+**Step 1 — Build the benchmark payload JSON**
+
+Serialize the fetched benchmark results into this shape:
+```json
+{
+  "company": { "id": 7, "name": "Acme Corp" },
+  "results": [ /* array of row objects — see the per-row shape below */ ],
+  "version": "v3.1",
+  "benchmark_version_id": 51,
+  "peer_group": { "dimension": "post_money", "code": "ONE_HUNDRED_MILLION", "label": "$100M-$250M" },
+  "fetchedAt": "2026-05-27T10:00:00Z"
+}
+```
+
+> **`benchmark_version_id` is REQUIRED in the payload** (the numeric `benchmark_version.id` from `compensation:get:plan` / the benchmark response — NOT the `"v21.0"` display string). The artifact's interactive controls (changing level, location, adding a row) re-fetch via `compensation:get:benchmark` and must pin the same benchmark version the pre-seed used; omitting it causes those re-fetches to fail. The top-level `version` string is display-only.
+
+> **`peer_group` is REQUIRED in the payload** — the same `{dimension, code, label}` you captured from `compensation:get:plan` in Step 3b. The artifact's interactive re-fetches pass `<dimension>_bucket: <code>` on every call so the panel's numbers match the corp's plan-configured peer group (and the CTC product UI). Omitting it makes those re-fetches fall back to a default comparable set whose values diverge from the FE — the exact mismatch users report. `code` is the bucket enum (e.g. `ONE_HUNDRED_MILLION`), NOT the `label` display string.
+
+**The artifact's `results[]` row shape is NESTED — NOT the flat CSV shape.** The engine's `renderTable` reads `r.salary.p25`, `r.equity.p50.notional`, etc. Pre-seeding flat rows (e.g. `r.salary_p25`) makes every cell render as `—`. Use this shape per row:
+
+```json
+{
+  "job": "ENGINEER", "level": "SENIOR1",
+  "ladder": "IC",
+  "currency": "USD",
+  "location": "San Francisco,CA,USA",
+  "geo": "San Francisco-Oakland-Hayward, CA",
+  "version": "v24.9",
+  "error": null,
+  "salary": { "p25": 145000, "p50": 164000, "p75": 186000, "p90": 210000 },
+  "tcc":    { "p25": 164000, "p50": 185000, "p75": 210000, "p90": 237000 },
+  "equity": {
+    "p25": { "notional": 100000, "shares": 18620, "fdpct": 0.0003 },
+    "p50": { "notional": 133000, "shares": 24745, "fdpct": 0.0004 },
+    "p75": { "notional": 165000, "shares": 30870, "fdpct": 0.0005 },
+    "p90": { "notional": 474000, "shares": 88444, "fdpct": 0.00144 }
+  }
+}
+```
+
+Field mapping from the `compensation:get:benchmark` response:
+- `salary.p*` ← `salary_benchmarks.percentiles.p*` (numeric)
+- `tcc.p*` ← `tcc_benchmarks.percentiles.p*` (numeric)
+- `equity.p*.notional` ← `equity_benchmarks.percentiles.p*.as_notional_value`
+- `equity.p*.shares` ← `equity_benchmarks.percentiles.p*.as_shares`
+- `equity.p*.fdpct` ← `equity_benchmarks.percentiles.p*.as_fd_percentage`
+- `ladder` ← `benchmarks[i].ladder` (`"IC"` or `"LEADER"`). The artifact derives the row's track from this + the level: `IC` → IC track; `LEADER` with level rank ≤8 → Manager track; `LEADER` with level rank ≥9 (VP1+) → Executive track. This is what makes the displayed track and per-track level name (e.g. VP1 shows as "Distinguished" on IC but "Vice President" on Executive) match the CTC product UI — pass `ladder` through verbatim.
+- `currency` ← `salary_benchmarks.currency_code` (fall back to `tcc_benchmarks.currency_code`; surface `null` if neither is present — do NOT default to `"USD"`)
+- `location` ← the **API location string** you passed as the `location` param to `compensation:get:benchmark` (the `"City,ST,USA"` form, e.g. `"San Francisco,CA,USA"`; `",,US"` for national). This is what pre-seeds the artifact's per-row location dropdown — it must be the API value, NOT the display label. Omit or set `null` when you queried without a location (the dropdown then seeds to "Any").
+- `geo` ← `geo_adjustment.label` (the MSA *display* label, e.g. `"San Francisco-Oakland-Hayward, CA"`). Display-only — drives the read-only "Location:" line, NOT the dropdown selection. Keep it distinct from `location`: the label is not a valid API value and must never be sent back as the `location` param.
+- `version` ← `benchmark_version.version_major` and `version_minor` concatenated as `"v<major>.<minor>"`
+- `error` ← `null` for successful rows; populate with a short string when a per-job/level fetch failed so the table can render an explicit error cell instead of fabricating zeros
+
+Use `null` for any percentile value the API didn't return — never `0` or `""`.
+
+> ⚠ **Do not confuse this with the Excel export's row shape.** The Excel export script (`export_benchmarks.py`) consumes a *flat* row shape (`salary_p25`, `equity_shares_p50`, etc., documented in the Excel section above). The artifact engine consumes the *nested* shape documented here. Keep them separate — they are two independent contracts with different consumers.
+
+Write the payload to `/tmp/benchmark_payload_<corp_id>.json`.
+
+**Step 2 — Render the artifact panel (Cowork)**
+
+Read the engine HTML and inject the payload as a `<script>` block before the engine's own JavaScript runs, then create the artifact via Cowork:
+
+```
+Read ${CLAUDE_PLUGIN_ROOT}/skills/carta-compensation-benchmarks/assets/artifact_engine.html
+```
+
+Then call `mcp__cowork__create_artifact` with:
+- `html` = `<script>window._BENCHMARK_PAYLOAD = <payload JSON>;</script>` + engine HTML  *(the script tag MUST appear in the document before the engine's main `<script>` block; injecting after the engine's own boot IIFE runs is too late — the engine will treat the panel as interactive-only and skip the pre-seed)*
+- `id` = `comp-benchmarks-<company-slug>`  *(stable per company so re-renders update the existing artifact in place via the auto-retry to `mcp__cowork__update_artifact`)*
+- `description` = `Compensation benchmarks for <Company Name>`
+
+If `mcp__cowork__create_artifact` returns "already exists" (or equivalent), immediately retry with `mcp__cowork__update_artifact` using the same arguments. Re-invocations for the same company produce the same artifact id, so the update branch is the common case after the first render.
+
 > **CRITICAL — Required attribution on every benchmark response**
 >
 > Whenever you surface ANY Carta Total Compensation benchmark data (single lookup, bulk table, comparison, follow-up answer, CSV, Markdown, JSON export — anything that contains target $, percentile, compa-ratio, score, or per-role/level numbers), you MUST include the attribution string in EVERY output channel — chat reply AND every file you generate.
@@ -117,25 +268,25 @@ Look up Carta Total Compensation (CTC) market salary and equity benchmarks for a
 >
 > Three placeholders, all required:
 >
-> 1. **`<peer_group_dimension_phrase>`** — depends on which peer-group dimension the corp's plan uses (`peer_group.dimension` from `compensation:get:plan`). The skill chooses one of three exact phrasings:
+> 1. **`<peer_group_dimension_phrase>`** — depends on which peer-group dimension the corp's plan uses (`peer_group.dimension` from `compensation:get:plan`). Pick one of three exact phrasings — do NOT hardcode `post money valuations between` regardless of the corp:
 >    - `post_money` → *"post money valuations between"*
 >    - `capital_raised` → *"capital raised between"*
 >    - `headcount` → *"headcount of"*
-> 2. **`<peer_group_label>`** — `peer_group.label` from the same response (e.g. `"$50M-$100M"`, `"$1M-$10M"`, `"100-500 employees"`).
-> 3. **`<Month> <YYYY>`** — a calendar date derived from `benchmark_version.created`. **NOT a version number.**
+> 2. **`<peer_group_label>`** — comes from `compensation:get:plan` → `peer_group.label` (e.g. `"$50M-$100M"`, `"$1M-$10M"`, `"100-500 employees"`). This identifies the band the corp is benchmarked against. Always include it — the citation is incomplete without it.
+> 3. **`<Month> <YYYY>`** — a calendar date derived from the benchmark version's `created` ISO timestamp. **NOT a version number.**
 >
 > Examples of correct values:
 >
 > | `peer_group.dimension` | `peer_group.label` | `benchmark_version.created` | Correct attribution |
 > |---|---|---|---|
-> | `post_money` | `"$50M-$100M"` | `"2026-05-06T14:42:41Z"` | `Data source: Companies with post money valuations between $50M-$100M. Benchmarks released May 2026.` |
+> | `post_money` | `"$50M-$100M"` | `"2026-05-06T14:42:41.646134Z"` | `Data source: Companies with post money valuations between $50M-$100M. Benchmarks released May 2026.` |
 > | `post_money` | `"$500M-$1B"` | `"2026-02-15T08:00:00Z"` | `Data source: Companies with post money valuations between $500M-$1B. Benchmarks released February 2026.` |
 > | `capital_raised` | `"$1M-$10M"` | `"2025-06-26T21:19:22Z"` | `Data source: Companies with capital raised between $1M-$10M. Benchmarks released June 2025.` |
 > | `capital_raised` | `"$10M-$25M"` | `"2025-11-30T23:59:59Z"` | `Data source: Companies with capital raised between $10M-$25M. Benchmarks released November 2025.` |
 > | `headcount` | `"100-500 employees"` | `"2026-01-15T08:00:00Z"` | `Data source: Companies with headcount of 100-500 employees. Benchmarks released January 2026.` |
 >
 > **Anti-patterns — do NOT do these:**
-> - ❌ Hardcoding "post money valuations" when the corp's plan actually uses capital-raised or headcount — that misrepresents the comparison set
+> - ❌ Hardcoding `post money valuations between` for a `capital_raised` or `headcount` corp — the phrase MUST track `peer_group.dimension`
 > - ❌ Omitting the peer-group sentence — the citation must always name the comparison set
 > - ❌ `Data source: ... released v24.6` — that's the version number, not the date
 > - ❌ `Data source: ... released benchmark v24.6 (May 2026)` — drop the version, just use the month + year
@@ -153,9 +304,11 @@ Look up Carta Total Compensation (CTC) market salary and equity benchmarks for a
 > | CSV file | Final row, e.g. `Data source,Companies with capital raised between $1M-$10M. Benchmarks released June 2025.` (use 1 cell or split across 2; both work) |
 > | JSON export | Top-level `"_source": "Companies with capital raised between $1M-$10M. Benchmarks released June 2025."` field |
 >
+> (The examples above use `capital_raised` phrasing as a reminder that the dimension phrase is not always "post money valuations between" — swap in the phrase that matches the corp's `peer_group.dimension`.)
+>
 > ### Pre-send checklist (run before every response that touches benchmark data)
 >
-> 1. Did I read `peer_group.dimension` from the `compensation:get:plan` response and pick the right phrase (`post money valuations between` / `capital raised between` / `headcount of`)?
+> 1. Did I read `peer_group.dimension` from the `compensation:get:plan` response and pick the matching phrase (`post money valuations between` / `capital raised between` / `headcount of`) — NOT a hardcoded "post money"?
 > 2. Did I read `peer_group.label` and put it in the citation?
 > 3. Did I derive the date from the benchmark version's `created` ISO timestamp? (Not from `version`, `version_major`, `version_minor`.)
 > 4. Did I format it as `<Month name> <YYYY>` with no version number?
@@ -228,6 +381,16 @@ Do **not** show the user a raw JSON dump of accounts. Do **not** attempt any com
 >
 > Picking a corp the user didn't authorize would return data for the wrong company. There is no recovery from that mistake.
 
+**Path 5 — No corporations at all (Fund-Admin-only user — STOP, do not ask)**
+
+If Paths 2/3/4 returned **zero** `corporation_pk:` entries, the user may have no cap table access at all — a Fund Admin user whose access is fund accounting only. Confirm before doing anything else:
+
+1. `call_tool({"name": "context_tools__get__profile", "arguments": {}})` — returns `corporations[]`, the corporations the user holds a cap-table role on (it excludes `NO_ACCESS` roles, and returns `[]` for a user with no corporation roles).
+2. If `corporations[]` is **empty** → the user has no cap table. Send the **no-cap-table CTC message** from *Subscription gating* below (the "your firm" variant) and **STOP**. Do **not** ask them to name a corporation — they don't have one. Do **not** call any compensation endpoint.
+3. If `corporations[]` is **non-empty** → the user does have cap tables; the name search just missed. Do **not** send an upsell. Ask them to confirm the exact company name or numeric corp ID (same handling as a Path 2 miss) and re-resolve.
+
+> Why `profile` and not `list_accounts` for this check: `list_accounts` groups corporations *and funds* under the same `corporation_pk:` prefix, so a Fund Admin user's funds can read as cap table access. `context_tools:get:profile` returns corporations only.
+
 **Note:** `list_contexts` / `set_context` are for Fund Admin firms — they do not return corporations. Always use `list_accounts` for corporation lookup.
 
 Extract the numeric `corporation_pk` (the integer after `corporation_pk:`) for all subsequent calls.
@@ -283,7 +446,7 @@ Capture the output:
 - `level` — must be one of (low to high seniority): `ENTRY`, `MID1`, `MID2`, `SENIOR1`, `SENIOR2`, `STAFF1`, `STAFF2`, `PRINCIPAL`, `VP1`, `VP2`, `C_LEVEL`, `CEO`
 - `track` — the value returned by the rolematcher (`ic`, `manager`, `executive`, or `UNKNOWN`). Map to `is_leader`: `manager` or `executive` → `true`, `ic` → `false`. If `UNKNOWN`, stop and ask the user before calling the API — see Error Handling.
 
-If the rolematcher returns a value not in these enums (e.g. `LEAD1`, `PRODUCT_MANAGER`), map it to the closest valid value before calling the API. If unsure, call `search_tools({"query": "compensation get benchmark"})` to re-read the valid enum list, or ask the user.
+If the rolematcher returns a value not in these enums (e.g. `LEAD1`, `PRODUCT_MANAGER`), map it to the closest valid value before calling the API. If unsure, read the valid enum list from `search_tools({"query": "compensation get benchmark"})` — do NOT guess a plausible-looking name or invent a `compensation:list:*` command to look it up. Ask the user if still ambiguous.
 
 If the user provides only a job title, that is sufficient minimum input for the rolematcher.
 
@@ -299,10 +462,32 @@ call_tool({"name": "compensation__get__plan", "arguments": {"corporation_id": <c
 
 Capture three things from the response:
 - `benchmark_version.id` — use as `benchmark_version_id` in the next step.
-- `peer_group` — `{code, label, dimension, notional_available}`. The `label` (e.g. `"$50M-$100M"`, `"$1M-$10M"`, `"100-500 employees"`) is required for the data-source footnote. The `notional_available` boolean tells you the equity column order (see Step 5).
-- `peer_group.dimension` — one of `post_money` / `capital_raised` / `headcount`. This tells you **which bucket param to pass** in Step 4 (`post_money_bucket` / `capital_raised_bucket` / `headcount_bucket`) AND which phrasing to use in the data-source attribution. Many corps default to `capital_raised` — do not assume `post_money`.
+- `peer_group` — `{code, label, dimension, notional_available}`. The `label` (e.g. `"$50M-$100M"`) is required for the data-source footnote. The `dimension` — one of `post_money` / `capital_raised` / `headcount` — selects BOTH the data-source attribution phrase (see "Required attribution") AND which bucket param to pass in Step 4. Many corps default to `capital_raised`, NOT `post_money` — do not assume. The `notional_available` boolean tells you the equity column order (see Step 5).
+- If `peer_group.dimension` is missing or not one of those three values, follow Step 4a (STOP).
 
 ### Step 4 — Fetch the benchmark
+
+> **CRITICAL — Valid enum values: read them, don't guess them. Two failure modes to avoid.**
+>
+> Every filter param on `compensation:get:benchmark` (`job`, `level`, `focus`, the three `*_bucket` params, `equity_quantity`) takes a fixed **UPPER_SNAKE_CASE enum value**. The API validates by exact enum name and returns **HTTP 400** for anything else. Two things burn retries:
+>
+> **1. There is NO `compensation:list:*` command for these enums. Do not invent one.**
+> `compensation:list:job_types`, `list:jobs`, `list:peer_groups`, `list:post_money_buckets`, `list:capital_raised_buckets`, `list:headcount_buckets` — **none of these exist.** Calling them returns `Unknown command` and wastes a turn. The only `compensation:list:*` command is `compensation:list:benchmark_versions`. To see the valid filter values, **read the `compensation:get:benchmark` command help** — it enumerates every `job`, `level`, and bucket value:
+> ```
+> search_tools({"query": "compensation get benchmark"})
+> ```
+> Read the enum lists from that help; never self-discover via a guessed `list:` command.
+>
+> **2. Pass the enum NAME, not the human display label.**
+> The API wants `MARKETING`, not `"Marketing"`; `CUSTOMER_SUCCESS`, not `"Customer Success"` or `"Customer Support"`; `SENIOR1`, not `"Senior 1"`. For buckets, pass the enum name (`TWENTY_FIVE_MILLION`), not the dollar label (`"$25M-$50M"`). The Title-Case forms are for **user-facing text only** (see the casing rule at the top of this file) — they are never valid API values. If you only have a free-text role, that's what the `carta-compensation-rolematcher` in Step 3a is for; it returns canonical enum names. Do not hand-translate a display label into a guessed enum.
+>
+> **Anti-patterns (all observed in real failures):**
+> - ❌ `call_tool({"name": "compensation__list__job_types"})` → `Unknown tool`. Read `search_tools({"query": "compensation get benchmark"})` instead.
+> - ❌ `job: "Marketing"` / `job: "Engineering"` / `job: "Customer Support"` → HTTP 400. Use `MARKETING` / `ENGINEER` / `CUSTOMER_SUCCESS`.
+> - ❌ `job: "PRODUCT_MANAGER"` → HTTP 400 (invented). The value is `PRODUCT`. When unsure, read the help — don't guess a plausible-looking name.
+> - ❌ `capital_raised_bucket: "$250M-$500M"` (a label) or a fabricated name → HTTP 400. Pass a real `CapitalRaisedBuckets` name from the help.
+>
+> Bucketing across many job functions? Iterate over the valid `job` enum names from the help — do **not** loop over display labels.
 
 ```
 call_tool({"name": "compensation__get__benchmark", "arguments": {
@@ -342,22 +527,11 @@ call_tool({"name": "compensation__get__benchmark", "arguments": {
   #     "capital_raised_bucket": "ONE_HUNDRED_MILLION"   ← 400 Bad Request
   #     (also wrong: passing both — only one bucket param per call)
 
-  # --- Match the CTC product UI's defaults so the skill's numbers tie out
-  #     against what HR users see at /benchmarks/employee?corporationId=N
-  "equity_quantity": "FOUR_YEAR_GRANT",          # The default in the CTC UI's "Equity (4 year award)"
-                                                  # columns. Pass "NTM_VESTING" only when the user
-                                                  # explicitly asks for "annual" / "NTM" equity.
-  "equity_competitiveness_percentile": 50,        # Market median. Overrides the plan's per-job-area
-  "salary_competitiveness_percentile": 50,        # competitiveness target. Pass a different integer
-                                                  # (e.g. 75) if the user asks for a different posture.
-  "industry": "all"                               # No industry filter; pass an industry enum if the
-                                                  # user explicitly scopes the query to one vertical.
+  "equity_quantity": "FOUR_YEAR_GRANT"      # REQUIRED — match the CTC product UI default
 }})
 ```
 
-**No input pay required.** This command returns raw market bands (salary, equity, total cash) directly.
-
-**Why all those defaults?** The skill's output is most useful when its numbers tie out against the CTC product UI's "Employee Benchmarks" page. The frontend defaults to `equity_quantity=FOUR_YEAR_GRANT`, `equity_competitiveness_percentile=50`, `salary_competitiveness_percentile=50`, `industry=all`, plus the corp's plan-default peer group dimension. Sending the same params produces matching numbers; omitting them returns plan-derived bands instead of the percentile data HR users compare against.
+> **`equity_quantity` defaults to `NTM_VESTING` on the MCP side, but the CTC product UI defaults to `FOUR_YEAR_GRANT`.** Always pass `FOUR_YEAR_GRANT` explicitly so the skill's numbers tie out against the in-product UI. If you omit it, you'll return ~25% of the value HR users expect — that's a hard tie-out failure, not a stylistic preference. Applies to every benchmark call: single role, bulk CSV, live artifact panel, Excel export.
 
 **Peer-group override (user-driven sensitivity analysis).** When the user explicitly asks to see a different peer group than the corp's plan default (*"show me $10M-$25M benchmarks instead"* or *"what would this look like for a 100-500 person company"*), **DROP the plan-default bucket param entirely and replace it with the override**. Do not include both — the API's behavior when more than one bucket is non-null is undefined and may change.
 
@@ -391,7 +565,7 @@ User-phrasing → override mapping:
 
 Do NOT "fix" `post_money_bucket: "TEN_MILLION"` to `post_money_bucket: "TEN_TO_TWENTY_FIVE_MILLION"` thinking it's a typo. The post-money enum has no `_TO_` form — passing `TEN_TO_TWENTY_FIVE_MILLION` returns HTTP 400.
 
-Reference for the full enum sets is in `compensation:get:benchmark`'s description (run `search_tools({"query": "compensation get benchmark"})` if you need to verify a specific value).
+Reference for the full enum sets is in `compensation:get:benchmark`'s help (run `search_tools({"query": "compensation get benchmark"})` to verify a specific value). There is no `compensation:list:*` command for bucket enums — read them from the command help.
 
 ### Step 4a — Unknown / missing `peer_group.dimension` (STOP)
 
@@ -407,9 +581,9 @@ If the dimension is one of the three known values, continue to Step 4 above.
 
 ### Step 4 — bulk-fetch nuances
 
-**Single-job bulk:** omit `level` to get every level for one job in one call (~17 rows, fits well under the response budget).
+**Single-job bulk:** omit `level` to get every level for one job in one call (~17 rows, fits well under the gateway response budget).
 
-**Multi-job bulk (CSV across all functions):** issue **one call per job area** in parallel — do **not** omit both `job` and `level`. The unfiltered query returns ~22 jobs × ~17 levels in a single payload that exceeds the 40K-char response budget and will be rejected with `"response too large"`. Iterating per-job stays inside the budget and parallelizes cleanly.
+**Multi-job bulk (CSV across all functions):** issue **one fetch per job area** in parallel — do **not** omit both `job` and `level`. The unfiltered query returns ~22 jobs × ~17 levels in a single payload that exceeds the 40K-char gateway budget and will be rejected with `"response too large"`. Iterating per-job stays inside the budget and parallelizes cleanly.
 
 ### Step 5 — Present results
 
@@ -498,13 +672,21 @@ Once you have resolved the corporation (Step 1), call `compensation:get:subscrip
 **Single-corp query:**
 1. `call_tool({"name": "compensation__get__subscription_status", "arguments": {"corporation_id": <id>}})`
 2. If `is_subscribed` is `false`:
-   - Tell the user: *"Compensation benchmarks require a Carta Total Compensation subscription. Visit this page to request a demo: https://carta.com/demo/total-comp/?&utm_medium=product&utm_source=carta-web&utm_campaign=ctc-plugin-inq-amer-q2-26"*
+   - Determine whether the user has cap table access: `call_tool({"name": "context_tools__get__profile", "arguments": {}})` and check whether `corporations[]` is non-empty. Treat a **non-empty** list as "has cap table access" — the endpoint already excludes `NO_ACCESS` roles, so presence is the signal. Do **not** match on the `role` label: those strings are raw and unnormalized (`'Admin'` and `'Administrator'` both occur), so an allowlist would misclassify real admins. Do **not** test whether *this specific corp* is in the list — the list is capped server-side, so a large-portfolio admin can be a false negative.
+   - If `corporations[]` is **non-empty**, tell the user:
+     > *"That's a Carta Total Compensation (CTC) question — CTC runs on Carta's private market salary and equity data. The data can be segmented by level, function, stage, and geography, directly in Claude. It's not active for your company yet. Reach out to your account team or [request a demo](https://carta.com/demo/total-comp/?&utm_medium=product&utm_source=carta-web&utm_campaign=ctc-plugin-inq-amer-q2-26) to unlock it.*
+     >
+     > *I can pull cap table data — grants, vesting, round history — in the meantime."*
+   - If `corporations[]` is **empty** — a Fund-Admin-only user, or the corp came from a hand-typed numeric ID (Path 1) that they hold no cap-table role on — tell the user:
+     > *"That's a Carta Total Compensation (CTC) question — CTC runs on Carta's private market salary and equity data. The data can be segmented by level, function, stage, and geography, directly in Claude. It's not active for your firm yet. Reach out to your account team or [request a demo](https://carta.com/demo/total-comp/?&utm_medium=product&utm_source=carta-web&utm_campaign=ctc-plugin-inq-amer-q2-26) to unlock it."*
+   - If the profile call errors or returns an unreadable response, use the **"your firm"** variant — it promises nothing you can't deliver. Do not retry it.
    - **STOP.** Do not call `plans/`, `benchmark/`, `benchmark_versions`, or any other compensation endpoint for this corp.
    - Do not generate a CSV/JSON file for this corp. No "framework" file. No "structure-only" file. Nothing.
    - Do not "try the benchmark to see if it works anyway". The answer is no.
 3. If `is_subscribed` is `true` → proceed with the benchmark workflow.
 
 **Multi-corp / bulk query:**
+0. If any corp turns out to be unsubscribed, call `context_tools__get__profile` **once** for the whole batch and reuse the result. The cap-table-access branch is per-**user**, not per-corp — never re-fetch it inside the loop.
 1. Call `compensation:get:subscription_status` for each corp up front. Partition them into `subscribed` and `unsubscribed` lists.
 2. Run benchmark queries (`plans/`, `benchmark/`) **only** for corps in the `subscribed` list. Never query the API for corps in `unsubscribed`.
 3. In the chat reply, list unsubscribed corps separately: *"The following corporations don't have an active CTC subscription and were excluded: [Corp A], [Corp B]."*

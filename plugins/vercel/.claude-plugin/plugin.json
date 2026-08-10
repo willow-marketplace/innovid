@@ -2,7 +2,7 @@
   "name": "vercel",
   "version": "1.0.0",
   "description": "Build and deploy web apps and agents",
-  "updatedAt": "2026-08-09T12:16:28.982Z",
+  "updatedAt": "2026-08-10T00:04:05.912Z",
   "author": {
     "url": "https://github.com/vercel",
     "name": "Vercel"
@@ -33,15 +33,15 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/session-start-seen-skills.mjs\""
-          },
-          {
-            "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/session-start-profiler.mjs\""
           },
           {
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/inject-claude-md.mjs\""
+          },
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/session-start-seen-skills.mjs\""
           }
         ]
       }

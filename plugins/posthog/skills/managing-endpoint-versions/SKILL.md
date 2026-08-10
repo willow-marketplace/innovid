@@ -1,6 +1,6 @@
 ---
 name: managing-endpoint-versions
-description: ">"
+description: "Work safely with endpoint versions — preview a draft in the playground, roll back to an older version, update settings on one version without bumping query history, deactivate a specific version. Use when the user asks \"how do I roll back my endpoint\", \"preview my changes before publishing\", \"I want to fix v5 without bumping the version\", or anything involving the version history. Calls out today's limitations honestly: there is no pointer flip; \"rollback\" means forking the old query into a new top version."
 ---
 
 # Managing endpoint versions

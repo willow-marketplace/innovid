@@ -1,6 +1,6 @@
 ---
 name: ui-toolkit
-description: '"Reference skill for Zoom Video SDK UI Toolkit. Use after routing to a web video workflow when you want prebuilt React UI instead of building a fully custom Video SDK interface."'
+description: Reference skill for Zoom Video SDK UI Toolkit. Use after routing to a web video workflow when you want prebuilt React UI instead of building a fully custom Video SDK interface.
 ---
 
 # Zoom Video SDK UI Toolkit
@@ -59,6 +59,11 @@ npm install -D @types/jsrsasign
 ```
 
 **Note**: React support depends on the UI Toolkit version. Check the package peer dependencies for your installed version (React 18 is commonly required).
+
+> **Need Video SDK credentials first?** Use
+> [Marketplace app management](../rest-api/references/marketplace-apps.md) for creating or
+> validating the Video SDK Marketplace app and credential shape, then return here to generate
+> the UI Toolkit `videoSDKJWT`.
 
 ## Quick Start
 

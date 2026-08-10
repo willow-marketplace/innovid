@@ -1,6 +1,6 @@
 ---
 name: review-hog-perspective-performance-reliability
-description: ">"
+description: The Performance & Reliability review perspective for ReviewHog. Verifies that changed code will perform and hold up in production — resource efficiency, error handling and recovery, scalability, and operational readiness. Reports performance and reliability issues only.
 ---
 
 # Review perspective: Performance & Reliability

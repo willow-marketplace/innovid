@@ -25,6 +25,10 @@ The `olap_connector` property sets the default OLAP database for the project. Mo
 
 Common values are `duckdb` or `clickhouse`. If not specified, Rill initializes a managed DuckDB database and uses it as the default OLAP connector. 
 
+### Default AI connector
+
+The `ai_connector` property selects the connector powering AI features (developer agent, AI charts, chat). Point it to an AI connector defined in the project, such as `openai`, `claude`, or `gemini`. Defaults to Rill's built-in AI service.
+
 ### Mock users for security testing
 
 The `mock_users` property defines test users for validating security policies during local development. Each mock user can have:
@@ -78,6 +82,9 @@ display_name: Sales Analytics
 description: Sales performance dashboards with partner access controls
 
 olap_connector: duckdb
+
+# Use a project-defined Claude connector to power AI features
+ai_connector: claude
 
 # Non-sensitive environment variables
 env:
@@ -169,13 +176,13 @@ allOf:
         In `rill.yaml`, project-wide defaults can be specified for a resource type within a project. Unless otherwise specified, _individual resources will inherit any defaults_ that have been specified in `rill.yaml`. For available properties that can be configured, please refer to the YAML specification for each individual resource type - [model](models.md), [metrics_view](metrics-views.md), and [explore](explore-dashboards.md)
 
         :::note Use plurals when specifying project-wide defaults
-        In your `rill.yaml`, the top level property for the resource type needs to be **plural**, such as `models`, `metrics_views` and `explores`.
+        In your `rill.yaml`, the top-level property for the resource type needs to be **plural**, such as `models`, `metrics_views`, and `explores`.
         :::
 
         :::info Hierarchy of inheritance and property overrides
-        As a general rule of thumb, properties that have been specified at a more _granular_ level will supercede or override higher level properties that have been inherited. Therefore, in order of inheritance, Rill will prioritize properties in the following order:
-        1. Individual [models](models.md)/[metrics_views](metrics-views.md)/[explore](explore-dashboards.md) object level properties (e.g. `models.yaml` or `explore-dashboards.yaml`)
-        2. [Environment](/developers/build/models/templating) level properties (e.g. a specific property that have been set for `dev`)
+        As a general rule of thumb, properties that have been specified at a more _granular_ level will supersede or override higher-level properties that have been inherited. Therefore, in order of inheritance, Rill will prioritize properties in the following order:
+        1. Individual [models](models.md)/[metrics_views](metrics-views.md)/[explore](explore-dashboards.md) object-level properties (e.g. `models.yaml` or `explore-dashboards.yaml`)
+        2. [Environment](/developers/build/models/templating) level properties (e.g. a specific property that has been set for `dev`)
         3. [Project-wide defaults](#project-wide-defaults) for a specific property and resource type
         :::
       properties:
@@ -216,7 +223,21 @@ allOf:
             type: object
       title: Project-wide defaults
       type: object
-    - description: "Primarily useful for [templating](/developers/build/connectors/templating), variables can be set in the `rill.yaml` file directly. This allows variables to be set for your projects deployed to Rill Cloud while still being able to use different variable values locally if you prefer. \n:::info Overriding variables locally\nVariables also follow an order of precedence and can be overridden locally. By default, any variables defined will be inherited from `rill.yaml`. However, if you manually pass in a variable when starting Rill Developer locally via the CLI, this value will be used instead for the current instance of your running project:\n```bash\nrill start --env numeric_var=100 --env string_var=\"different_value\"\n```\n:::\n:::tip Setting variables through `.env`\nVariables can also be set through your project's `<RILL_PROJECT_HOME>/.env` file (or using the `rill env set` CLI command), such as:\n```bash\nvariable=xyz\n```\nSimilar to how [connector credentials can be pushed / pulled](/developers/build/connectors/credentials#pulling-credentials-and-variables-from-a-deployed-project-on-rill-cloud) from local to cloud or vice versa, project variables set locally in Rill Developer can be pushed to Rill Cloud and/or pulled back to your local instance from your deployed project by using the `rill env push` and `rill env pull` commands respectively.\n:::\n"
+    - description: |
+        Primarily useful for [templating](/developers/build/connectors/templating), variables can be set in the `rill.yaml` file directly. This allows variables to be set for your projects deployed to Rill Cloud while still being able to use different variable values locally if you prefer.
+        :::info Overriding variables locally
+        Variables also follow an order of precedence and can be overridden locally. By default, any variables defined will be inherited from `rill.yaml`. However, if you manually pass in a variable when starting Rill Developer locally via the CLI, this value will be used instead for the current instance of your running project:
+        ```bash
+        rill start --env numeric_var=100 --env string_var="different_value"
+        ```
+        :::
+        :::tip Setting variables through `.env`
+        Variables can also be set through your project's `<RILL_PROJECT_HOME>/.env` file (or using the `rill env set` CLI command), such as:
+        ```bash
+        variable=xyz
+        ```
+        Similar to how [connector credentials can be pushed / pulled](/developers/build/connectors/credentials#pulling-credentials-and-variables-from-a-deployed-project-on-rill-cloud) from local to cloud or vice versa, project variables set locally in Rill Developer can be pushed to Rill Cloud and/or pulled back to your local instance from your deployed project by using the `rill env push` and `rill env pull` commands respectively.
+        :::
       properties:
         env:
             description: |
@@ -307,7 +328,7 @@ allOf:
     - description: |
         The public_paths and ignore_paths properties in the rill.yaml file provide control over which files and directories are processed or exposed by Rill. The public_paths property defines a list of file or directory paths to expose over HTTP. By default, it includes ['./public']. The ignore_paths property specifies a list of files or directories that Rill excludes during ingestion and parsing. This prevents unnecessary or incompatible content from affecting the project.
         :::tip
-        Don't forget the leading `/` when specifying the path for `ignore_paths` and this path is also assuming the relative path from your project root.
+        Don't forget the leading `/` when specifying the path for `ignore_paths`. This path is relative to your project root.
         :::
       properties:
         ignore_paths:
@@ -326,7 +347,11 @@ allOf:
             type: array
       title: Managing Paths in Rill
       type: object
-    - description: "During development, it is always a good idea to check if your [access policies](/developers/build/metrics-view/security) are behaving the way you designed them to before pushing these changes into production. You can set mock users which enables a drop down in the dashboard preview to view as a specific user. \n:::info The View as selector is not visible in my dashboard, why?\nThis feature is _only_ enabled when you have set a security policy on the dashboard. By default, the dashboard and it's contents is viewable by every user.\n:::\n"
+    - description: |
+        During development, it is always a good idea to check if your [access policies](/developers/build/metrics-view/security) are behaving the way you designed them to before pushing these changes into production. You can set mock users, which enables a drop-down in the dashboard preview to view as a specific user.
+        :::info The View as selector is not visible in my dashboard, why?
+        This feature is _only_ enabled when you have set a security policy on the dashboard. By default, the dashboard and its contents are viewable by every user.
+        :::
       properties:
         mock_users:
             description: A list of mock users used to test dashboard security policies within the project

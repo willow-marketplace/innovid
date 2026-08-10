@@ -1,6 +1,6 @@
 ---
 name: deepeval
-description: ">"
+description: DeepEval evaluation workflow for AI agents and LLM applications. TRIGGER when the user wants to evaluate or improve an AI agent, tool-using workflow, multi-turn chatbot, RAG pipeline, or LLM app; add evals; generate datasets or goldens; use deepeval generate; use deepeval test run; send results to Confident AI; monitor production; run online evals; inspect traces; or iterate on prompts, tools, retrieval, or agent behavior from eval failures. AI agents are the primary use case. Covers Python SDK, pytest eval suites, CLI generation, traced evals, Confident AI reporting, and agent-driven improvement loops. DO NOT TRIGGER for unrelated generic pytest, non-AI test setup, or non-DeepEval observability work unless the user asks to compare or migrate to DeepEval; for instrumenting an app with DeepEval tracing, @observe, or framework integrations (use the `deepeval-tracing` skill); or for raw OpenTelemetry / OTLP export without the deepeval package (use the `deepeval-otel` skill).
 ---
 
 # DeepEval

@@ -1,6 +1,6 @@
 ---
 name: aws-sdk-swift-usage
-description: "|"
+description: AWS SDK for Swift development patterns. Use when writing Swift code that uses AWS services via aws-sdk-swift package.
 ---
 
 # AWS SDK for Swift

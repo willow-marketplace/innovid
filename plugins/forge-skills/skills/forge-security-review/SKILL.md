@@ -1,6 +1,6 @@
 ---
 name: forge-security-review
-description: ">"
+description: Performs a white-box security review of Atlassian Forge apps using structured, Forge-specific security rules and evidence-driven reporting. Use when the user asks for a Forge security review, security audit, vuln assessment, pentest-style code review, authz review, tenant isolation analysis, web trigger hardening, or static analysis execution for a Forge app.
 ---
 
 # Forge Security Review

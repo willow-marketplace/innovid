@@ -1,6 +1,6 @@
 ---
 name: agentforce-generate
-description: '"Build, modify, debug, and deploy agents with Agentforce Agent Script. TRIGGER when: user creates, modifies, or asks about .agent files or aiAuthoringBundle metadata; changes agent behavior, responses, or conversation logic; designs agent actions, tools, subagents, or flow control; writes or reviews an Agent Spec; previews, debugs, deploys, publishes, or tests agents; uses Agent Script CLI commands (sf agent generate/preview/publish/test). DO NOT TRIGGER when: Apex development, Flow building, Prompt Template authoring, Experience Cloud configuration, or general Salesforce CLI tasks unrelated to Agent Script."'
+description: "Build, modify, optimize, debug, and deploy agents with Agentforce Agent Script. TRIGGER when: user creates, modifies, optimizes, or asks about .agent files or aiAuthoringBundle metadata; changes agent behavior, responses, or conversation logic; designs agent actions, tools, subagents, or flow control; writes or reviews an Agent Spec; wants to optimize, improve, or refactor an agent; previews, debugs, deploys, publishes, or tests agents; uses Agent Script CLI commands (sf agent generate/preview/publish/test); registers/creates/lists/updates/deletes MCP servers, whitelists/approves MCP tools, fetches MCP assets, or configures MCP authentication (sf agent mcp). DO NOT TRIGGER when: Apex development, Flow building, Prompt Template authoring, Experience Cloud configuration, or general Salesforce CLI tasks unrelated to Agent Script."
 ---
 
 # Agent Script Skill
@@ -9,7 +9,10 @@ description: '"Build, modify, debug, and deploy agents with Agentforce Agent Scr
 
 This skill is for developing Agentforce agents, primarily with Agent Script, Salesforce's scripting language for AI agents.
 
-**⚠️CRITICAL:** Agent Script is NOT AppleScript, JavaScript, Python, or any other
+Org-backed workflows require an Agentforce license, API v66.0 or later, and an
+Einstein Agent User. Static authoring and review can proceed without org access.
+
+**CRITICAL:** Agent Script is NOT AppleScript, JavaScript, Python, or any other
 language. Do NOT confuse Agent Script syntax or semantics with any other
 language you have been trained on.
 
@@ -23,7 +26,10 @@ publishing, and testing.
 
 This file maps user intent to task domains and relevant reference files in `references/`. Treat this file as the execution router for end-to-end agent development, and use references for deep detail.
 
-Identify user intent from task descriptions. ALWAYS read indicated reference files BEFORE starting work.
+Identify user intent from task descriptions. Read only the reference explicitly
+required by the active step or needed for the current decision. Every
+**Reference Files** section is a lookup index, not a preload list; do not load
+files for later or inapplicable steps.
 
 ## Rules That Always Apply
 
@@ -57,17 +63,35 @@ Identify user intent from task descriptions. ALWAYS read indicated reference fil
    explicit release actions that require the user to confirm they are ready to
    commit the current draft to metadata and expose it to end users.
 
-7. **Default agentic, pin with cause.** Use the most agentic posture that meets
-   each subagent's requirement, and add deterministic controls only for
-   regulation/trust gates or observed failures. For detailed posture rules, see
-   [Posture & Determinism](references/posture-and-determinism.md).
+7. **Start with one execution block and no mutable state.** A focused agent puts
+   reasoning and actions directly in `start_agent`. Add a subagent only for a
+   real objective, instruction, action, authority, or escalation boundary. Add
+   persistent state only for a named deterministic consumer and give it a
+   complete lifecycle. Ordinary continuity stays in surviving history. Apply
+   the concrete checks in [The Zen of AgentScript](references/zen-of-agentscript.md)
+   and [Posture & Determinism](references/posture-and-determinism.md).
 
-8. **No nested `if` or `else if`.** Agent Script only supports flat `if`/`else` blocks. No `else if`, no `if` inside `else`, no `if` inside `if`. For multi-branch logic, use sequential `if` statements or compound conditions (`if A and B:`). Nested structures cause silent compile failures.
+8. **Use supported control flow.** Use the canonical conditional forms and
+   never generate a nested `if`, which Agentforce lint rejects. See
+   [Conditional Control Flow Syntax](references/agent-script-core-language.md#conditional-control-flow-syntax),
+   then run full bundle validation.
 
 9. **Action implementation is a user decision.** During planning/spec work,
    default new actions to `NEEDS STUB` placeholders. Always ask the user whether
    they want to scan org/project for existing implementations and/or generate
    new Apex/Flow/Prompt implementations before taking either path.
+
+10. **Give each reachable branch one next outcome.** Choose exactly one primary
+    outcome: answer, ask, invoke an action, transition, refuse, or escalate.
+    The compiler selects a subagent `system.instructions` override instead of
+    the global value, and the current runtime assembles effective system and
+    resolved reasoning text for the model. Keep authoring constructs out of
+    model-facing text. See
+    [Instruction Resolution](references/instruction-resolution.md).
+
+11. **Use portable structural indentation.** Generate new `.agent` files with
+    4 spaces per level. Preserve a consistently indented legacy file during a
+    surgical edit, or normalize the whole file as a separate validated change.
 
 ## Task Domains
 
@@ -79,7 +103,9 @@ User wants to build new agent from scratch. ALWAYS use Agent Script. Work with U
 
 #### Required Steps
 
-Read [CLI for Agents](references/salesforce-cli-for-agents.md) for exact command syntax.
+Before running an `sf` command, read only the applicable command section in
+[CLI for Agents](references/salesforce-cli-for-agents.md). Do not preload the
+CLI reference during design-only work.
 
 1. **Design** — Read [Design & Agent Spec](references/agent-design-and-spec-creation.md) to draft an Agent Spec. Default all new actions to `NEEDS STUB` placeholders during planning. Ask the user which implementation path they want before implementation work:
    - Path A: Keep placeholders only (no implementation now)
@@ -87,16 +113,18 @@ Read [CLI for Agents](references/salesforce-cli-for-agents.md) for exact command
    - Path C: Generate new actions
    Only run scans (reading `sfdx-project.json`, searching `@InvocableMethod`, `AutoLaunchedFlow`, prompt templates, external service registrations, standard invocable actions, and custom objects) if the user explicitly chooses Path B or C.
    **If the agent's purpose involves answering from documents** (e.g., "answer customer questions from our product manual", "respond based on a policy guide", "FAQ from a PDF"), ask the user: *"Will this agent answer questions from a document corpus (PDF/DOCX/TXT)? If so, what file path?"* Capture the path in the Spec under a **"Knowledge Grounding"** section. Asking now — during requirements capture — is critical: ADL indexing takes minutes, so we want the file path captured pre-Spec-approval and provisioning kicked off as early as possible.
+   **If the agent will handle voice/telephony** (e.g., "phone agent", "voice bot", "IVR replacement", "call center agent"), confirm it's a voice agent and capture a **"Voice Configuration"** section in the Spec. **Do not ask the user for a voice_id** — there is no reliable way to enumerate voice IDs and tuning values from the CLI. Always start with the platform default voice (`UgBBYS2sOqTuMpoF3BR0` — "Mark", en_US; `outbound_speed: 1`, `outbound_stability: 0.65`, `outbound_similarity: 0.75`) and tell the user they can customize the voice later in the Agent Builder UI (open the agent → **Connections → Voice**, click **Continue** to pick a different voice and tune speed/stability). See [Voice Modality Reference](references/voice-modality-reference.md) for the `modality voice:` block syntax and voice-specific authoring guidance.
+   **Voice service agents are almost always knowledge-backed** (callers ask FAQ/policy/troubleshooting questions). When you detect a voice agent, proactively ask the Knowledge Grounding question above — do not wait for the user to mention documents. This pairing (voice + knowledge grounding) is the Project Codey "Steel Thread 2" shape, and grounding on an ADL/Salesforce Knowledge corpus is what keeps a voice agent from hallucinating spoken answers. If the user has a document corpus, capture the file path and provision the ADL as usual; the `assets/agents/voice-knowledge-grounded.agent` template shows the combined wiring.
    **Always save Agent Spec as file.**
 2. **STOP for user approval of Agent Spec.** Present to user (including the Knowledge Grounding section if present). Ask for approval or feedback. **Do not proceed** without approval. Once approved, proceed without stopping unless a step fails.
 3. **Validate environment prerequisites** — Read [Design & Agent Spec](references/agent-design-and-spec-creation.md), Section 3 (Environment Prerequisites). Based on agent type from design, validate org environment:
-   - **Employee agent**: Confirm config block does NOT include `connection messaging:` or MessagingSession linked variables. Remove if present. **Exception:** If the agent has a `knowledge:` block (uses `AnswerQuestionsWithKnowledge`), `default_agent_user` IS required even for employee agents — the platform treats knowledge-grounded agents as requiring an Einstein Agent User context at runtime. Query for the agent user and include it. See [Examples](references/examples.md) for a complete employee agent example.
+   - **Employee agent**: Confirm the file normally omits `access.default_agent_user`, `connection messaging:`, and MessagingSession linked variables. Remove them if present. **Exception:** If the agent has a `knowledge:` block (uses `AnswerQuestionsWithKnowledge`), `access.default_agent_user` IS required even for employee agents — the platform treats knowledge-grounded agents as requiring an Einstein Agent User context at runtime. Query for the agent user and include it. See [Examples](references/examples.md) for a complete employee agent example.
    - **Service agent**: Query org for Einstein Agent User. If one exists, confirm username with user. If none, guide user through creation. See [CLI for Agents](references/salesforce-cli-for-agents.md), Section 12 for creation steps and [Agent User Setup](references/agent-user-setup.md) for required permissions.
-   **3b. Kick off ADL provisioning (only if the Spec has a Knowledge Grounding section).** Read [Data Library Reference](references/data-library-reference.md). Run the Step 0 preflight: `SELECT COUNT() FROM DataKnowledgeSpace` (DC provisioned check), then `sf agent adl list` (ADL service health check). If DC is not provisioned, present the A/B choice from that reference. If DC is provisioned but the ADL service returns `400 INTERNAL_ERROR`, surface the "DC up, ADL broken" path and skip grounding for this run. If both checks pass, run `sf agent adl create` (reference Step 1) to capture `libraryId`. Compute `rag_feature_config_id = "ARFPC_<libraryId>"` from the `libraryId` alone — that's enough to author the bundle. Then start the upload + indexing flow (reference Steps 2–6) **in the background** while authoring continues. Per Rule 5, do not block on async indexing; `retrieverId` is only needed for runtime queries (gated in Step 8). Also kick off the Data Cloud permset assignment for the agent user — see [Agent User Setup](references/agent-user-setup.md), Step 3b for the discovery-then-assign procedure.
+   **3b. Kick off ADL provisioning (only if the Spec has a Knowledge Grounding section).** Read [Data Library Reference](references/data-library-reference.md). Run the Step 0 preflight: `SELECT COUNT() FROM DataKnowledgeSpace` (DC provisioned check), then `sf agent adl list` (ADL service health check). If DC is not provisioned, present the A/B choice from that reference. If DC is provisioned but the ADL service returns `400 INTERNAL_ERROR`, surface the "DC up, ADL broken" path and skip grounding for this run. If both checks pass, run `sf agent adl create` (reference Step 1) to capture `libraryId`. Compute `rag_feature_config_id = "ARFPC_<libraryId>"` from the `libraryId` alone — that's enough to author the bundle. Then start the upload + indexing flow (reference Steps 2–6) **in the background** while authoring continues. Per Rule 5, do not block on async indexing; `retrieverId` is only needed for runtime queries (gated in Step 8). Also kick off the Data Cloud permset assignment for the agent user — see [Agent User Setup](references/agent-user-setup.md), Step 3b for the discovery-then-assign procedure, which now ends with Step 3b.5 pinned post-assignment verification (against the resolved running-user and Einstein Agent User IDs) so callers can treat "Step 3b passed" as an authoritative Data Cloud grounding gate without re-running inline SOQL.
    **Do not proceed to code generation until environment is validated** (ADL provisioning may continue running in background).
 4. **Generate authoring bundle** —
    `sf agent generate authoring-bundle --json --no-spec --name "<Label>" --api-name <Developer_Name>`
-5. **Write code** — Read [Core Language](references/agent-script-core-language.md) for syntax, block structure, and anti-patterns. Read [Instruction Resolution](references/instruction-resolution.md) for instruction patterns, recommended instruction order, and anti-patterns (especially Anti-Pattern 7: prose-based conditional logic). Edit generated `.agent` file using reference files and templates. Do not create `.agent` or `bundle-meta.xml` files manually. If Step 3b produced a `libraryId`, include the top-level `knowledge:` block and the `AnswerQuestionsWithKnowledge` action wiring per [Data Library Reference](references/data-library-reference.md), section "Wiring the ADL into Agent Script". The template at `assets/agents/knowledge-grounded.agent` is a copy-modify starting point.
+5. **Write code** — Read [Core Language](references/agent-script-core-language.md) for syntax, block structure, and anti-patterns. Read [Instruction Resolution](references/instruction-resolution.md) for instruction patterns, recommended instruction order, and anti-patterns (especially Anti-Pattern 7: prose-based conditional logic). Edit generated `.agent` file using reference files and templates. Do not create `.agent` or `bundle-meta.xml` files manually. If Step 3b produced a `libraryId`, include the top-level `knowledge:` block and the `AnswerQuestionsWithKnowledge` action wiring per [Data Library Reference](references/data-library-reference.md), section "Wiring the ADL into Agent Script". The template at `assets/agents/knowledge-grounded.agent` is a copy-modify starting point. **If the Spec has a Voice Configuration section**, include the `modality voice:` block (using the default `voice_id` and tuning values) and `language:` block per [Voice Modality Reference](references/voice-modality-reference.md). Keep the standard `agent_type` (e.g. `AgentforceServiceAgent`) — do NOT set an `Atlas__VoiceAgent` template in the bundle; that is a runtime planner_type, not an authored field. Also add the `VoiceCallId: linked string` variable bound to `@VoiceCall.Id` and add `connection customer_web_client:` (ECv2 — the voice-capable surface) with `adaptive_response_allowed: True`. Keep the `modality voice:` block minimal (voice_id + speed/stability/similarity); advanced settings (filler-word detection, speak-up, endpointing) are optional — add only if the Spec calls for them. `connection messaging:` is additive — include it only if the agent escalates to a human (`@utils.escalate`). Write concise voice instructions with the high-value guards: read back critical data (IDs/amounts/dates) before acting, and never read out URLs/citations/visual formatting. Also add the spoken-delivery instruction rules from [Voice Modality Reference](references/voice-modality-reference.md) "Instructions for Voice Agents" — ack/filler phrases before slow actions, spoken-form numbers, ASR repair prompts, and empty-result fallbacks. When wiring actions into a voice agent, apply the voice-safe action rules in [actions-reference.md](references/actions-reference.md) "Voice-Safe Action Authoring" (plain-English descriptions, speakable parameter names, enums, lookup-step for internal IDs, voice-friendly error shapes) and check the actions against [voice-latency-heuristics.md](references/voice-latency-heuristics.md) — flag (don't silently rewrite) sync writes, bulky retrieval, and chained callouts on the live-call path. The template at `assets/agents/voice-service-agent.agent` is a copy-modify starting point. **If the Spec has both a Voice Configuration and a Knowledge Grounding section**, start from `assets/agents/voice-knowledge-grounded.agent` instead — it combines `modality voice:`, the voice wiring, and the `knowledge:` block + `AnswerQuestionsWithKnowledge` action with spoken-answer anti-hallucination guards.
 6. **Validate compilation** —
    `sf agent validate authoring-bundle --json --api-name <Developer_Name>`
    If validation fails, read [Validation & Debugging](references/agent-validation-and-debugging.md) to diagnose and fix, then re-validate. ALWAYS fix syntax and structural errors before generating action implementations.
@@ -219,7 +247,7 @@ Read [CLI for Agents](references/salesforce-cli-for-agents.md) for exact command
 3. **STOP for user approval of updated Agent Spec.** Present to user (including the Knowledge Grounding section if present). Ask for approval or feedback. **Do not proceed** without approval. Once approved, proceed without stopping unless a step fails.
 4. **Kick off ADL provisioning (only if the Spec has a Knowledge Grounding section).**
    - If the `.agent` already has a `knowledge:` block with a populated `rag_feature_config_id` AND the user is keeping the same library, reuse it. Skip provisioning. (No need to confirm `retrieverId` here — that gate moves to Step 8.)
-   - If a new ADL is needed, follow the same flow as the create workflow: read [Data Library Reference](references/data-library-reference.md), run the Step 0 preflight (`sf agent adl list`), and (if DC is ready) run `sf agent adl create` (Step 1) to capture `libraryId`. Compute `rag_feature_config_id = "ARFPC_<libraryId>"` from `libraryId` alone — that's enough to author the bundle. Start the upload + indexing flow (reference Steps 2–6) **in the background** while you continue to Step 5 (Edit code). Per Rule 5, do not block on async indexing. Also kick off the Data Cloud permset assignment for the agent user — see [Agent User Setup](references/agent-user-setup.md), Step 3b.
+   - If a new ADL is needed, follow the same flow as the create workflow: read [Data Library Reference](references/data-library-reference.md), run the Step 0 preflight (`sf agent adl list`), and (if DC is ready) run `sf agent adl create` (Step 1) to capture `libraryId`. Compute `rag_feature_config_id = "ARFPC_<libraryId>"` from `libraryId` alone — that's enough to author the bundle. Start the upload + indexing flow (reference Steps 2–6) **in the background** while you continue to Step 5 (Edit code). Per Rule 5, do not block on async indexing. Also kick off the Data Cloud permset assignment for the agent user — see [Agent User Setup](references/agent-user-setup.md), Step 3b, which now ends with Step 3b.5 pinned post-assignment verification (against the resolved running-user and Einstein Agent User IDs) so callers can treat "Step 3b passed" as an authoritative Data Cloud grounding gate without re-running inline SOQL.
    - If grounding is not part of the modification, skip this step.
 5. **Edit code** — Read [Core Language](references/agent-script-core-language.md) for syntax and anti-patterns. Edit `.agent` file to implement approved changes. If Step 4 produced a `libraryId`, include or update the `knowledge:` block and the `AnswerQuestionsWithKnowledge` action per [Data Library Reference](references/data-library-reference.md).
 6. **Validate compilation** —
@@ -453,12 +481,13 @@ Read [CLI for Agents](references/salesforce-cli-for-agents.md) for exact command
 
 1. **Establish coverage baseline** — Read Agent Spec. If no Agent Spec exists, reverse-engineer first by following Comprehend steps. Map every subagent, action, and flow control path to identify what needs test coverage.
 2. **Design test scenarios** — For test design methodology, expectations, metrics, test spec YAML format, and templates, use **agentforce-test** skill. That skill owns all testing content. For each coverage target, write one or more test scenarios: user utterance, expected subagent routing, expected action invocations, and expected agent response. Include both happy paths and edge cases.
-3. **Write test spec YAML** — Use template and reference files from **agentforce-test** skill. Save to `specs/<Agent_API_Name>-testSpec.yaml` in SFDX project.
-4. **Create test metadata** — Generate `AiEvaluationDefinition` from test spec using CLI.
-5. **Deploy test** — Deploy `AiEvaluationDefinition` to org.
-6. **Run tests** — Execute test run using CLI. Capture results.
-7. **Analyze results** — Compare actual outcomes against expectations. For failures, identify whether issue is in agent code, action implementations, or test spec itself.
-8. **Iterate** — Fix agent code or test spec as needed, redeploy, and re-run until coverage targets are met.
+3. **Offer security coverage** — Security testing is part of the ADLC test flow, not a separate step. Treat OWASP LLM Top 10 resistance as a first-class coverage dimension alongside functional scenarios. **Confirm with the user before generating security test cases**, then use **agentforce-test** skill **Mode C1-author** to write a Testing Center security suite from the agent's own `.agent` file (method: `skills/agentforce-test/references/security-test-design.md`) that ships alongside the functional test spec. `C1-author` validates the spec locally with `sf agent test create --preview` and deploys nothing; deploying and running it (`C1-run`) is a separate decision the user makes in `/agentforce-test`, because `sf agent test run` has no simulated-action mode and executes the agent's real actions. Skip only if the user declines.
+4. **Write test spec YAML** — Use template and reference files from **agentforce-test** skill. Save to `specs/<Agent_API_Name>-testSpec.yaml` in SFDX project.
+5. **Create test metadata** — Generate `AiEvaluationDefinition` from test spec using CLI.
+6. **Deploy test** — Deploy `AiEvaluationDefinition` to org.
+7. **Run tests** — Execute test run using CLI. Capture results.
+8. **Analyze results** — Compare actual outcomes against expectations. For failures, identify whether issue is in agent code, action implementations, or test spec itself.
+9. **Iterate** — Fix agent code or test spec as needed, redeploy, and re-run until coverage targets are met.
 
 #### Reference Files
 
@@ -470,6 +499,51 @@ Read [CLI for Agents](references/salesforce-cli-for-agents.md) for exact command
    Agent Spec as test coverage baseline
 4. **agentforce-test** skill — test spec YAML format, expectations,
    metrics, test design methodology, and test spec template
+
+### Optimize an Agent
+
+User wants to improve an existing Agent Script agent by scanning for common optimization patterns and applying fixes. May say "optimize my agent", "improve my agent", "clean up this agent", "refactor agent", or mention the agent feels inefficient or has redundancies. Also appropriate to suggest proactively after complex editing sessions with many incremental changes.
+
+#### Required Steps
+
+1. **Read and analyze the agent file** — Read the current `.agent` file. Read [Core Language](references/agent-script-core-language.md) for syntax rules and valid constructs as validation reference during optimization.
+2. **Scan for optimization patterns** — For EACH subagent, systematically apply patterns 1–4 (and Pattern 5 if the agent has a `modality voice:` block). Each pattern's reference file has the detection heuristics and detailed fix instructions — read the ones that apply:
+   - **Pattern 1 — Wire action outputs to deterministic consumers.** [Data Flow](references/optimization-pattern-1-data-flow.md). Persist a producer output only when a later deterministic consumer needs that exact trusted value; do not replace `...` slot filling that legitimately draws from the current turn.
+   - **Pattern 2 — Extract requirement-backed deterministic logic.** [Deterministic Logic](references/optimization-pattern-2-deterministic-logic.md). Extract only when the condition is machine-known and protects regulation, authorization, an irreversible consequence, ordering, exact data flow, or an observed trace failure. Leave unstructured judgment to the model.
+   - **Pattern 3 — Fix variable/action reference syntax in instructions.** [Reference Syntax](references/optimization-pattern-3-reference-syntax.md). `{!@variables.X}` and `{!@actions.X}` instead of bare `@variables.X` / use-case phrasing.
+   - **Pattern 4 — Repair promised human handoff.** [Human Handoff](references/optimization-pattern-4-escalation.md). Apply only when requirements specify live handoff; never add escalation as default boilerplate.
+   - **Pattern 5 — Voice-readiness (voice agents only).** Instructional fixes are auto-apply candidates; voice-unsafe action authoring and latency issues are flag-only. See [Voice Modality Reference](references/voice-modality-reference.md) "Instructions for Voice Agents", [Actions Reference](references/actions-reference.md) "Voice-Safe Action Authoring", and [Voice Latency Heuristics](references/voice-latency-heuristics.md). **Never auto-change** escalation numbers/queues, SLA/pricing/legal wording, or PII handling — surface a suggested rewrite and require explicit approval.
+3. **Report findings** — Present all findings as a concise `## Optimization Report` with per-improvement, actionable edit instructions (subagent + line, the variable/`set`/binding or logic-extraction change to make), then ask: *"Would you like me to apply these [N] improvements?"*
+4. **STOP for user approval.** Do not apply changes without explicit approval.
+5. **Apply improvements (if approved)** — Edit the `.agent` file directly for each approved improvement. Track successes and failures.
+6. **Validate compilation** — `sf agent validate authoring-bundle --json --api-name <Developer_Name>`. If validation fails, fix introduced errors and re-validate.
+7. **Report results** — Summarize which improvements were applied and which failed (with the reason).
+
+#### Reference Files
+
+- [Core Language](references/agent-script-core-language.md) — validation reference during optimization
+- [Optimization Pattern 1–4](references/optimization-pattern-1-data-flow.md) — data flow, [deterministic logic](references/optimization-pattern-2-deterministic-logic.md), [reference syntax](references/optimization-pattern-3-reference-syntax.md), [human handoff](references/optimization-pattern-4-escalation.md) (detection heuristics + fix instructions per pattern)
+- [Voice Modality Reference](references/voice-modality-reference.md) + [Voice Latency Heuristics](references/voice-latency-heuristics.md) + [Actions Reference](references/actions-reference.md) "Voice-Safe Action Authoring" — Pattern 5 voice-readiness
+- [Validation & Debugging](references/agent-validation-and-debugging.md) — compilation validation after applying optimizations
+
+### Manage MCP Servers
+
+User wants to register, configure, or manage Model Context Protocol (MCP) servers in the Salesforce API Catalog so their assets (tools, prompts, resources) become available as agent actions. May say "register an MCP server", "create MCP server", "list MCP servers", "whitelist MCP tools", "approve tools", "fetch MCP assets", "update MCP server", "delete MCP server", or mention MCP authentication. Uses `sf agent mcp` CLI commands. This is distinct from general MCP development or MCP protocol design.
+
+#### Required Steps
+
+Read [MCP Server Management](references/mcp-management-reference.md) for exact command syntax, response structures, the interactive whitelisting flow, security best practices, error handling, and complete examples. In brief:
+
+1. **Verify target org** — `sf config get target-org --json` (Rule 2). If none is set, ask the user to set one first.
+2. **Identify the operation** and map it to a workflow in the reference (register, list, get details, fetch + whitelist assets, list assets, update, delete). Gather any missing required inputs; handle client secrets via **stdin piping, never on the command line**.
+3. **Execute the `sf agent mcp` command** with `--json` (Rule 1). After create, read the server ID from `result.server.id` (not `result.id`). These commands are developer preview, so every response carries a `warnings` preview notice.
+4. **Whitelist interactively** — display each asset's metadata and wait for explicit yes/no/skip per tool. `sf agent mcp asset replace` is a FULL replacement — send the complete desired state.
+5. **Apply security review before activating** — flag destructive, broadly-scoped, or auth-requiring tools; warn on production orgs; require explicit confirmation for destructive operations and deletions.
+6. **Confirm results** and clean up any temp allowlist files.
+
+#### Reference Files
+
+- [MCP Server Management](references/mcp-management-reference.md) — `sf agent mcp` command reference, response structures, interactive whitelisting flow, security best practices, error handling, and complete examples
 
 ## The Agent Spec
 
@@ -489,7 +563,7 @@ The `assets/` directory contains templates and examples. Read when you need a st
 
 - **`assets/agents/local-info-agent-annotated.agent`** — Complete annotated example based on Local Info Agent, showing all major Agent Script constructs in context with inline comments explaining why each construct is used. Read when you need concrete reference for how concepts compose into working agent, or as fallback when focused examples in reference files aren't sufficient.
 
-- **`assets/agents/template-single-subagent.agent`** — Minimal agent with one subagent. Copy and modify for simple agents.
+- **`assets/agents/template-single-subagent.agent`** — Compatibility-named focused starter with one `start_agent` execution block and no router or subagent blocks.
 
 - **`assets/agents/template-multi-subagent.agent`** — Minimal agent with multiple subagents and transitions. Copy and modify for complex agents.
 
@@ -509,7 +583,7 @@ The `assets/` directory contains templates and examples. Read when you need a st
 **`Internal Error, try again later` during publish:**
 Server-side compile failure. The 500 doesn't tell you which check failed — walk all four causes in order before asking the user what's wrong. Do NOT stop at cause 1.
 
-1. **Agent type mismatch on `default_agent_user`.** Employee agent must NOT have `default_agent_user`; service agent MUST have it (and the user must hold an Einstein Agent license). See [Design & Agent Spec](references/agent-design-and-spec-creation.md), Section 3. Re-run the query — do not invent the username.
+1. **Agent type mismatch on `access.default_agent_user`.** Employee agents normally omit `access.default_agent_user`; service agents MUST have it (and the user must hold an Einstein Agent license). See [Design & Agent Spec](references/agent-design-and-spec-creation.md), Section 3. Re-run the query — do not invent the username.
 2. **Action definition missing `outputs:` block.** If any action has `target:` and `inputs:` but no `outputs:`, the server-side compiler can't generate return bindings. CLI `validate` and LSP both PASS — only publish fails. See [Known Issues](references/known-issues.md), Issue 15.
 3. **Other structural drift in the `.agent` file.** Diff against a known-good bundle in the same org:
    `sf project retrieve start --metadata "AiAuthoringBundle:<known-working-agent>" --output-dir /tmp/diff-bundle --json`
@@ -538,6 +612,7 @@ The Einstein Agent User lacks Data Cloud access. Two things to check, in order:
 - Syntax and execution model: [Core Language](references/agent-script-core-language.md)
 - Agent design/spec process: [Design & Agent Spec](references/agent-design-and-spec-creation.md)
 - Posture dial (agentic vs deterministic): [Posture & Determinism](references/posture-and-determinism.md)
+- Concrete authoring invariants: [The Zen of AgentScript](references/zen-of-agentscript.md)
 - Pattern selection by scenario: [Patterns by Requirement](references/patterns-by-requirement.md)
 - Architecture mechanics and migration: [Architecture Patterns](references/architecture-patterns.md)
 - Validation, preview, and traces: [Validation & Debugging](references/agent-validation-and-debugging.md)
@@ -545,5 +620,8 @@ The Einstein Agent User lacks Data Cloud access. Two things to check, in order:
 - Metadata lifecycle and publish troubleshooting: [Metadata & Lifecycle](references/agent-metadata-and-lifecycle.md)
 - ADL provisioning and wiring: [Data Library Reference](references/data-library-reference.md)
 - Agent access and permissions: [Agent Access Guide](references/agent-access-guide.md), [Agent User Setup](references/agent-user-setup.md)
+- Voice modality and telephony agents: [Voice Modality Reference](references/voice-modality-reference.md)
 - Safety review framework: [Safety Review](references/safety-review-reference.md)
 - Rubric and review scoring: [Scoring Rubric](references/scoring-rubric.md)
+- Optimization patterns: [Pattern 1 — Data Flow](references/optimization-pattern-1-data-flow.md), [Pattern 2 — Deterministic Logic](references/optimization-pattern-2-deterministic-logic.md), [Pattern 3 — Reference Syntax](references/optimization-pattern-3-reference-syntax.md), [Pattern 4 — Escalation](references/optimization-pattern-4-escalation.md)
+- MCP server registration and tool whitelisting: [MCP Server Management](references/mcp-management-reference.md)

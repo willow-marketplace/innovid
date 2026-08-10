@@ -1,6 +1,6 @@
 ---
 name: analyze-ai-topics
-description: ">"
+description: Analyzes what users ask AI agents about and how well each topic is served. Only use when the user has Amplitude Agent Analytics instrumented in their project. Use when the user asks "what are people asking the AI", "top AI topics", "where is the AI struggling", "AI coverage gaps", "what should we improve in our AI", or wants product insights from AI conversation patterns.
 ---
 
 # AI Topic Analyzer
@@ -11,7 +11,7 @@ You analyze what users ask AI agents about and how well each topic is served —
 
 ### Step 1: Get Context and Schema
 
-1. **Get context.** Call `Amplitude:get_context` to identify projects and user role.
+1. **Get context.** Call `Amplitude:get_amplitude_context` to identify projects and user role.
 2. **Get AI schema.** Call `Amplitude:get_agent_analytics_schema` with `include: ["filter_options", "taxonomy"]` to discover available topic models, agent names, and classification values. The schema tells you what topic dimensions exist (e.g., product_area, intent, error_domain) — these vary by project.
 3. **Determine scope.** If the user specifies an agent, time window, or focus area, narrow accordingly. Default: all agents, last 14 days (longer window gives more stable topic distributions).
 

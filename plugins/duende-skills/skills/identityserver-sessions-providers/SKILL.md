@@ -1,6 +1,6 @@
 ---
 name: identityserver-sessions-providers
-description: '"Guide for configuring server-side sessions, session management and querying, inactivity timeout, dynamic identity providers, and CIBA (Client Initiated Backchannel Authentication) in Duende IdentityServer."'
+description: Guide for configuring server-side sessions, session management and querying, inactivity timeout, dynamic identity providers, and CIBA (Client Initiated Backchannel Authentication) in Duende IdentityServer.
 ---
 
 # IdentityServer Sessions, Dynamic Providers, and CIBA

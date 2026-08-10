@@ -1,6 +1,6 @@
 ---
 name: analyzing-release-readiness
-description: ">-"
+description: Trigger a pre-merge release readiness review on a GitHub PR, GitLab MR, or local branch. Use when the user wants to analyze code changes for risk, correctness, and potential rollback issues before merging. Trigger words include release readiness, analyze PR, analyze MR, review PR, risk analysis, pre-merge, safe to ship, ready to merge, ready to commit, any risks, before merging, validate changes, release management.
 ---
 
 # Release Readiness Review

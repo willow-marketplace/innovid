@@ -1,6 +1,6 @@
 ---
 name: audit-software
-description: '"Audit software inventory across devices using ZDX data for compliance and vulnerability assessment."'
+description: Audit software inventory across devices using ZDX data for compliance and vulnerability assessment.
 ---
 
 # Audit Software Inventory

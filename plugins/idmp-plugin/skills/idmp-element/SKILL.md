@@ -1,6 +1,6 @@
 ---
 name: idmp-element
-description: '"IDMP element skill for locating elementId, resolving business-root paths, browsing children, and preparing downstream analysis or panel work."'
+description: IDMP element skill for locating elementId, resolving business-root paths, browsing children, and preparing downstream analysis or panel work.
 ---
 
 # element

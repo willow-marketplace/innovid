@@ -1,6 +1,6 @@
 ---
 name: diagnosing-missing-recordings
-description: ">"
+description: Diagnoses why a session recording is missing or was not captured. Use when a user asks why a session has no replay, why recordings aren't appearing, or wants to troubleshoot session replay capture issues for a specific session ID or across their project. Covers SDK diagnostic signals, project settings, sampling, triggers, ad blockers, and quota/billing scenarios.
 ---
 
 # Diagnosing missing session recordings

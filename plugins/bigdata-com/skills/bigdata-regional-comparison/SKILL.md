@@ -1,6 +1,6 @@
 ---
 name: bigdata-regional-comparison
-description: ">"
+description: 'Compare regions or blocs using Bigdata.com data — economic indicators, market performance, and cross-asset views — and turn that into an allocation recommendation. Covers growth, inflation, policy and labor per region, comparative developed-versus-emerging analysis, regional equity valuations, and fixed income and currency views for each. Triggers: "compare US vs Europe vs Asia", "which regions look attractive", "regional allocation", "developed vs emerging markets", "Europe vs US equities", "global allocation view".'
 ---
 
 # Bigdata Regional Comparison

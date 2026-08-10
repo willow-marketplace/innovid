@@ -1,6 +1,10 @@
 ---
 name: fix-table-row-mode
-description: "|"
+description: |-
+  Fix deprecated `sap.ui.table.Table` row properties that UI5 linter reports but cannot auto-fix. Use this skill when linter outputs:
+  - `no-deprecated-api` with messages about `visibleRowCountMode`, `visibleRowCount`, `rowHeight`, `fixedRowCount`, `fixedBottomRowCount`, or `minAutoRowCount`
+  Trigger on: deprecated row-related properties on sap.ui.table.Table in JS or XML, modernization to rowMode aggregation.
+  Converts deprecated flat properties to a structured `rowMode` aggregation using `sap.ui.table.rowmodes.Fixed`, `Interactive`, or `Auto`.
 ---
 
 # Fix Table Row Mode (no-deprecated-api)

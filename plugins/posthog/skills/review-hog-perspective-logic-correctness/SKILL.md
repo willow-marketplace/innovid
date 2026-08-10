@@ -1,6 +1,6 @@
 ---
 name: review-hog-perspective-logic-correctness
-description: ">"
+description: The Logic & Correctness review perspective for ReviewHog. Verifies that changed code does what it is supposed to do — business logic, edge cases, data transformations, and query / data-access correctness. Reports correctness issues only; security and performance are separate perspectives.
 ---
 
 # Review perspective: Logic & Correctness

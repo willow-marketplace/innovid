@@ -19,6 +19,7 @@ Use this as the default entry skill for the plugin.
 | If the user wants to... | Route to |
 |---|---|
 | Choose the right Zoom surface for a new project | [plan-zoom-product](../plan-zoom-product/SKILL.md) |
+| Create, select, or validate a Zoom Marketplace app or manifest | [setup-zoom-marketplace-app](../setup-zoom-marketplace-app/SKILL.md) |
 | Set up OAuth, tokens, scopes, or app credentials | [setup-zoom-oauth](../setup-zoom-oauth/SKILL.md) |
 | Embed or customize a Zoom meeting flow | [build-zoom-meeting-app](../build-zoom-meeting-app/SKILL.md) |
 | Build a bot, recorder, or real-time meeting processor | [build-zoom-bot](../build-zoom-bot/SKILL.md) |
@@ -36,6 +37,7 @@ Use these only after selecting the workflow:
 - [webhooks](../webhooks/SKILL.md)
 - [websockets](../websockets/SKILL.md)
 - [oauth](../oauth/SKILL.md)
+- [Marketplace app management](../rest-api/references/marketplace-apps.md)
 - [zoom-mcp](../zoom-mcp/SKILL.md)
 
 ## Operating Rules
@@ -44,3 +46,6 @@ Use these only after selecting the workflow:
 2. Ask a short clarifier only when the route is genuinely ambiguous.
 3. Keep the first response architectural and actionable, then go deep.
 4. Pull in deeper references only when they directly help the current decision or implementation.
+5. When a requested integration needs a Marketplace app created, updated, or validated, chain
+   through [setup-zoom-marketplace-app](../setup-zoom-marketplace-app/SKILL.md) before OAuth or
+   product implementation, then resume the originating workflow.

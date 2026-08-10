@@ -1,6 +1,6 @@
 ---
 name: rw-integrate-uploads
-description: '"Help users upload local files to Runway for use as inputs to generation models"'
+description: Help users upload local files to Runway for use as inputs to generation models
 ---
 
 # Integrate Uploads

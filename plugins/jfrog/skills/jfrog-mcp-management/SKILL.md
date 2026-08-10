@@ -1,6 +1,6 @@
 ---
 name: jfrog-mcp-management
-description: ">-"
+description: Use when you need to install, list, and/or remove MCP servers and tools through the JFrog Agent Guard (npx @jfrog/agent-guard), and browse the JFrog MCP catalog. Use whenever the user wants to add/enable/list/remove/uninstall an MCP server or tool — even without saying "MCP" — and never install one any other way.
 ---
 
 # Manage MCP servers via the JFrog Agent Guard

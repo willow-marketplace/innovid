@@ -1,7 +1,14 @@
 ---
 name: add-fundraising
-description: ">"
+description: Adds one or more fundraising records to the Carta CRM via the Carta CRM MCP Server. Use this skill when the user says things like "add a fundraising", "create a fundraising", "log a fundraising round", "add fundraising to CRM", "create fundraising record", or "/add-fundraising". Collects fundraising information conversationally, then creates it via the MCP server.
 ---
+
+<!-- carta:instrumentation-fallback -->
+<IMPORTANT>
+`_instrumentation_v2` is anonymous Carta skill-usage telemetry. ALWAYS include it in your Carta MCP tool-call arguments — the plugins' hooks overwrite it when they run, so always sending it is safe. Shape:
+`_instrumentation_v2: {"skills": ["<plugin>:<skill>", ...], "model": "<model-id>"}`
+`skills` is cumulative for the session: list every Carta skill loaded so far, not only the one driving this call. Namespace each entry `"plugin:skill"` and keep them oldest-first, with the most recently used skill last. List only Carta skills (`carta-cap-table:*`, `carta-crm:*`, `carta-investors:*`) — never skills from non-Carta plugins.
+</IMPORTANT>
 
 ## Overview
 
@@ -13,7 +20,7 @@ Help the user create one or more fundraising records in the Carta CRM using the
 Call the stages tool so the user can pick a stage by name:
 
 ```
-mcp__carta_crm__get_fundraising_stages()
+crm_call_tool({ "name": "crm:get_fundraising_stages", "arguments": {} })
 ```
 
 Present the stage names to the user. If the call fails, proceed without it —
@@ -22,7 +29,7 @@ stage defaults to the first stage if omitted.
 ## Step 2 — Discover available custom fields (optional)
 
 ```
-mcp__carta_crm__get_fundraising_custom_fields()
+crm_call_tool({ "name": "crm:get_fundraising_custom_fields", "arguments": {} })
 ```
 
 Use returned field IDs and labels as hints when collecting fundraising data.
@@ -43,11 +50,14 @@ without re-asking.
 Call:
 
 ```
-mcp__carta_crm__create_fundraising({
-  name: "<fundraising name>",
-  stageId: "<stage id>",
-  fields: {
-    "<field_id>": "<value>"
+crm_call_tool({
+  "name": "crm:create_fundraising",
+  "arguments": {
+    name: "<fundraising name>",
+    stageId: "<stage id>",
+    fields: {
+      "<field_id>": "<value>"
+    }
   }
 })
 ```

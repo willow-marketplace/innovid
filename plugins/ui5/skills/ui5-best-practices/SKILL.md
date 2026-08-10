@@ -1,6 +1,9 @@
 ---
 name: ui5-best-practices
-description: "|"
+description: |-
+  UI5 development best practices and coding standards derived exclusively from official SAP UI5 guidelines. Use when writing UI5 applications to ensure modern, maintainable code following SAP standards. Covers: async module loading (sap.ui.define, ES6 imports, core:require), ComponentSupport initialization, data binding with OData types, i18n management, CSP compliance (no inline scripts), TypeScript event types (UI5 >= 1.115.0), MCP tooling (get_api_reference, run_ui5_linter), CAP integration patterns, and form creation rules (never SimpleForm, always Form with ColumnLayout).
+
+  Keywords: ui5 coding standards, async loading, sap.ui.define, data binding, odata types, i18n translation, CSP no inline scripts, TypeScript event handlers, Button$PressEvent, ui5 linter, API reference, ComponentSupport, form layout, ColumnLayout, CAP integration, cds watch
 ---
 
 # UI5 Best Practices and Coding Standards
@@ -34,7 +37,7 @@ sap.ui.require(["sap/m/MessageBox"], function(MessageBox) {
 ```
 
 #### TypeScript
-```typescript
+```ts
 // ❌ WRONG - Global namespace
 const button: sap.m.Button;
 
@@ -271,7 +274,7 @@ For **UI5 1.115.0 and above**, import and use the specific event type from the c
 
 **Pattern**: `<ControlName>$<EventName>Event` (notice the "Event" suffix)
 
-```typescript
+```ts
 // ✅ CORRECT - Import specific event type
 import { Button$PressEvent } from "sap/m/Button";
 import { Table$RowSelectionChangeEvent } from "sap/ui/table/Table";
@@ -295,7 +298,7 @@ export default class MainController extends Controller {
 
 **UI5 < 1.115.0**: Control-specific event types are **NOT available**. Use the generic Event type:
 
-```typescript
+```ts
 import Event from "sap/ui/base/Event";
 import Controller from "sap/ui/core/mvc/Controller";
 
@@ -315,63 +318,25 @@ export default class MainController extends Controller {
 
 ### API Lookup
 
-**ALWAYS** use the `get_api_reference` tool to get information on UI5 controls and APIs. This provides direct access to the official UI5 API Reference for the UI5 version in use.
-
-```
-Usage: get_api_reference with project path
-Returns: Official API documentation for controls, classes, and namespaces
-```
+**ALWAYS** use the `get_api_reference` tool to get information on UI5 controls and APIs. Returns official API documentation for controls, classes, and namespaces for the UI5 version in use.
 
 ### Code Validation
 
-**ALWAYS** use the `run_ui5_linter` tool to identify issues. It detects deprecated APIs, accessibility issues, and other potential bugs.
-
-```
-Usage: run_ui5_linter with project path
-Returns: List of issues with severity levels
-```
+**ALWAYS** use the `run_ui5_linter` tool to identify issues (deprecated APIs, accessibility issues, bugs).
 
 ### Code Fixes
 
-To apply fixes suggested by the linter:
 1. **ALWAYS** confirm with the user first
 2. Use the `fix` parameter of the `run_ui5_linter` tool
-3. The tool automatically corrects some identified issues
-4. Manually fix remaining issues using the context information provided
+3. Manually fix remaining issues using the context information provided
 
 ### Local Server Behavior
 
-When interacting with the UI5 CLI's development server:
-
-**CRITICAL**: The server does **NOT** serve a default index file.
-
-```bash
-# ❌ WRONG - Will not work
-http://localhost:8080/
-
-# ✅ CORRECT - Must reference files by full path
-http://localhost:8080/index.html
-```
+**CRITICAL**: The UI5 CLI dev server does **NOT** serve a default index file. Use full paths: `http://localhost:8080/index.html`
 
 ### Code Quality Checks
 
-After making code changes, **ALWAYS** run the project's linter if available:
-
-```bash
-npm run lint           # Standard
-npm run eslint         # Alternative
-eslint .               # Direct ESLint call
-npm run ui5-lint       # UI5 Linter if configured
-ui5lint .              # UI5 Linter if available as CLI tool
-```
-
-**Why**: Linters catch common issues before committing:
-- Missing imports or type errors
-- Formatting inconsistencies
-- Deprecated API usage
-- Code style violations
-
-Fix all linting errors before committing.
+After making changes, run the project's linter (`npm run lint`, `eslint .`, or `ui5lint .`). Fix all errors before committing.
 
 ---
 

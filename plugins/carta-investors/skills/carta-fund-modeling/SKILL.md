@@ -1,6 +1,6 @@
 ---
 name: carta-fund-modeling
-description: ">"
+description: 'Spin up an interactive local web console for FIRM-LEVEL scenario modeling over Carta Fund Admin data — a React app to reprice portfolio companies and model exits ACROSS MULTIPLE COMPANIES, with five tabs: Overview (fund-family rollup, investment pacing, concentration), Companies (per-company repricing + LP make-whole waterfall + carry banking), Exit & IRR (exit scenarios, XIRR, GP & LP returns, plus a per-fund DPI/RVPI/TVPI glidepath in the LP Returns view), Reserves (per-fund dry-powder planning), and Cohort Standing (peer-cohort + S&P-equivalent benchmarking). Scenarios persist locally. Invoke with a firm name, e.g. "fund modeling for Demo Capital" or "model portfolio scenarios for <firm>". Fund Admin only. NOT Tactyc/Fund Forecasting — use carta-fund-forecasting for Tactyc funds. NOT for single-exit waterfalls on one company. NOT read-only fund data queries — use carta-explore-data.'
 ---
 
 <!-- carta:instrumentation-fallback -->
@@ -25,6 +25,11 @@ Builds a firm's baseline from Carta Fund Admin data, writes it to a local data d
 never calls the Carta MCP** — this skill fetches the data; the server only serves JSON + the built app. The
 repricing/waterfall/IRR is a **transparent estimate** (the ported `model/`), not Carta's official engine.
 
+> **Runs locally only.** Because it starts a localhost web server and opens your browser, this skill works only
+> in a Claude Code session running on your machine (a local terminal, or Claude Desktop set to run locally). It
+> can't run in a **sandboxed** session — **Cowork**, or a Claude Code **cloud** session — where that server is
+> unreachable and no local browser exists. Gate 0 stops early and tells the user to switch.
+
 ## No demo data — real firm required
 **Never** fabricate, synthesize, sample, or fall back to demo/placeholder data, and never launch against an
 empty or partial data dir. Every dashboard runs against **one real Carta firm's** Fund Admin data — either
@@ -36,6 +41,30 @@ answer. A missing or unresolved firm is a graceful exit, not a reason to invent 
 Building a dashboard needs the Carta MCP; **launching a warm cache does not.** Resolve the firm **name** and
 check the local cache *before* touching any MCP — a fresh cache launches with **no MCP call**. Only a
 build/refresh (Step 1 onward) identifies the MCP and resolves the firm over it.
+
+## Gate 0 — Surface check (run first, before anything else)
+
+Step 4 launches `serve.py`, which binds `127.0.0.1` and opens the user's default browser. That only works when
+Claude Code runs on the user's own machine (a local terminal, or Claude Desktop set to run locally). In a
+**sandboxed** session — **Cowork**, or a Claude Code **cloud** session (Claude Desktop can run sessions in the
+cloud, which is the default) — the server runs in a remote container the user can't reach and there is no local
+browser to open, so the dashboard URL goes nowhere. The skill must not run there.
+
+**Before Step 0 — before any cache scan, MCP call, or greeting — run this once and route on it:**
+```bash
+uv run "${CLAUDE_PLUGIN_ROOT}/skills/carta-fund-modeling/scripts/fm_paths.py" detect-surface
+```
+- Output contains **`surface=sandboxed`** → **stop immediately.** Do **not** scan caches, resolve a firm, touch
+  the MCP, or launch `serve.py`. Reply with this message (substance verbatim), then end the turn:
+  > Fund Modeling launches an interactive web app on your own machine — a local server plus your browser — so it
+  > only works in a Claude Code session running locally. It can't run in a sandboxed session: Cowork, or a Claude
+  > Code cloud session (in Claude Desktop, running in the cloud is the default — switch it to run locally).
+  > Please re-run from a local session, e.g. "fund modeling for \<firm\>".
+
+  This is a graceful exit. Do **not** retry `detect-surface`, do **not** try to launch anyway, and do **not**
+  fall back to another surface or tool — a sandboxed verdict will not change on retry.
+- Otherwise (**`surface=local`**, the normal case) → continue to **Step 0** silently. Say nothing about this
+  check — it stays quiet, like the rest of Step 0.
 
 ## Step 0 — Resolve identity + check the local cache
 
@@ -162,6 +191,14 @@ warm-cache launch skips this step entirely — no MCP.
 **Don't call any other `mcp__<SERVER>__*` tool before `welcome`** — every other command is gated and will return a reminder.
 **Fund Admin only — never `fund_forecasting:*`.**
 
+**Classify the environment from `<SERVER>`'s name.** A name containing `test`/`sandbox`/`demo`/`preprod`/
+`preproduction` (case-insensitive) → `cartaEnvironment = "nonprod"`. Everything else — `carta`,
+`carta_production`, any other name, or an opaque UUID (some connectors expose one instead of a name, per
+`carta-home-build/SKILL.md`'s Step 0) — → `"production"`. This is a customer-facing plugin, so the common
+case by volume is real production usage; an unrecognized identifier is far more likely to be a production
+connector we haven't named yet than a staff test session, and staff noise is filterable downstream (the
+server already knows `is_staff` per request). Carry `cartaEnvironment` to Step 3's `meta.json`.
+
 **Resolve the firm via `list_contexts`.** Call `list_contexts {firm_name: "<typed firm name>"}` — **always pass
 the typed name; never call it bare** (bare can return an already-active firm instead of the one asked for).
 
@@ -187,9 +224,18 @@ duplicate. (When the typed name already equals the canonical name, this slug mat
 refresh.) Persist `carta_id`/`firm_uuid` as `firmId`/`firmUuid` in the snapshot (Step 3) so a later URL/UUID
 invocation finds this cache via `find-by-id` (Step 0) without a fetch.
 
+Tell the user: "✅ Resolved <canonical name>. Starting data fetch..." — this is the only checkpoint between
+Step 1 and Step 2 the user sees before the (potentially multi-wave, multi-minute) fetch below begins.
+
 ## Step 2 — Fetch the baseline (Fund Admin) → raw query files
 
 > **What's happening:** Fetching the firm's fund holdings, partner data, valuations, and financials from Carta's data warehouse in parallel waves. Results land as raw JSON files in the local cache — nothing is sent back to Carta.
+
+**Preflight, before issuing any query:** confirm the Carta MCP connection is live (Step 1's `welcome` call
+already did this), the cache dir is writable (`fm_paths.py resolve` from Step 0/1 already created it), and the
+firm UUID is resolved (Step 1's `set_context`). All three are already true by the time this step starts — no
+extra call needed — but if the firm resolution above ended in a `zero firms matched`/ambiguous state, do not
+proceed into the fetch; surface that to the user first.
 
 Read `${CLAUDE_PLUGIN_ROOT}/skills/carta-fund-modeling/references/queries.md`. Substitute the **Step-1 canonical
 `raw_dir`** for `<raw_dir>` in every command below. The dir is created on demand by the first writer that
@@ -404,24 +450,69 @@ Cohort may also fail with `Error in secure object` for some firm roles — if so
 missing cohort file is a hard build failure (the fetch gate treats it as "never run"). Scenario-focused
 console: do **not** fetch tearsheets, schedule of investments, or cash-flow statements.
 
+### Step 2b — Company logos (optional — best-effort, never blocks the build)
+
+> **What's happening:** Fetching each portfolio company's real logo (if Carta has one on file) to replace the initials placeholder on the Overview activity feed.
+
+This is **not** a DWH stem and has no fetch gate — a firm with no logos, or a portco-logo call that errors,
+degrades silently to the initials avatar every company already falls back to. It needs no `fund_uuid`/
+`corporation_id` IN-list (the tool is firm-scoped) and no DWH output, so issue its `call_tool` in the **same
+message** as Wave 1's `dwh__execute__queries` batches rather than waiting for Wave 1 to finish first — the two
+have no ordering dependency, and serializing them only adds wall-clock time to every build:
+
+1. Call the bulk list tool for the firm:
+   ```
+   call_tool({"name": "fa__list__portco_logos", "arguments": {"firm_uuid": "<firm_uuid from Step 1>"}})
+   ```
+   Each row carries **both** `corporation_id` (integer) and `corporation_uuid` — `fetch_logos.py` keys its
+   output filenames on `corporation_uuid`, since that's what `build_datadir.py`'s `load_logos()` matches
+   against (every company object carries a `corpUuid`, never the integer id). The row also carries a
+   **presigned** image URL; presigned URLs expire, so this result is only ever used once, immediately, to
+   download the bytes — never store the URL itself in the app's JSON (see step 3 below for why).
+2. Capture the result to `<raw_dir>/portco_logos.json`: a small firm's list returns inline — **Write** it
+   verbatim (same "capture immediately, don't defer" rule as the DWH stems in Step 2: a compaction between the
+   call and the write loses it). A large firm's list may instead come back as a persisted-result envelope (the
+   "Output has been saved to …" message, same shape as an oversized DWH stem) — in that case pass the printed
+   path straight to `fetch_logos.py` in step 3 instead of hand-copying/re-Writing it.
+3. Download every image into `<raw_dir>/logos/` (clearing it first, so a stale file from a prior run never
+   lingers alongside a fresh one for the same company):
+   ```bash
+   uv run "${CLAUDE_PLUGIN_ROOT}/skills/carta-fund-modeling/scripts/fetch_logos.py" \
+     "<raw_dir>/portco_logos.json" "<raw_dir>"
+   ```
+   Fetches run concurrently (a small thread pool, not one round-trip at a time). Intentionally best-effort per
+   row: a broken/expired URL, a network error, a row whose id isn't UUID-shaped (only `corporation_uuid` can
+   ever match a company — see step 1), an oversized download (>500KB — this is a 32px avatar, never a
+   multi-MB asset), or a download that doesn't sniff as a real image all just skip that one company (logged to
+   stderr) rather than failing the run. `build_datadir.py`'s `load_logos()` reads `<raw_dir>/logos/` and embeds
+   each image as a `data:` URI on its matching company by corporation UUID — the browser never re-fetches from
+   Carta, so an expired presigned URL after this point doesn't matter.
+
+If `fa__list__portco_logos` isn't available on the connected MCP (older environments), skip this step entirely
+— do not substitute `fa__get__portco_logo` in a per-company loop as a fallback; that's one round-trip per
+company on a firm that may hold hundreds, for a cosmetic enhancement.
+
 ## Step 3 — Build the data dir (deterministic — do NOT hand-write the JSON)
 
 > **What's happening:** Transforming the raw query files into the structured JSON the React app consumes — portfolio companies, fund metrics, LP data, and benchmarks. A script handles this deterministically; no manual JSON writing.
 
 Write `<raw_dir>/meta.json` = `{"name":"<canonical name>","slug":"<slug printed by Step-1 resolve>","navAsOf":"<latest month_end_date, ISO>",
-"mark":{"text":"<≤3-char initials>","bg":"<hex>","fg":"<hex>"},"firmId":<carta_id from Step 1, or null if absent>,"firmUuid":"<firm_uuid from Step 1>"}`
+"mark":{"text":"<≤3-char initials>","bg":"<hex>","fg":"<hex>"},"firmId":<carta_id from Step 1, or null if absent>,"firmUuid":"<firm_uuid from Step 1>","cartaEnvironment":"<production|nonprod from Step 1>"}`
 (optional `"carryRate"`, default 0.20). **`name` and `slug` are both the canonical firm identity from Step 1
 (`slug` = the canonical-name slug, the cache key; `name` = the canonical `name`), and `firmId`/`firmUuid` are
-the canonical ids** — the builder writes them to `snapshot.source` so a later URL/UUID invocation finds this
-cache via `find-by-id` without a fetch (Step 0). Then
+the canonical ids** — the builder writes them (and `cartaEnvironment`) to `snapshot.source` so a later
+URL/UUID invocation finds this cache via `find-by-id` without a fetch (Step 0), and `serve.py` can serve
+them to the browser's Snowplow tracker (`/api/telemetry-context`). Then
 run the firm-agnostic generator — it transforms the `<raw_dir>` files into every console-schema file the app needs:
 ```bash
 uv run "${CLAUDE_PLUGIN_ROOT}/skills/carta-fund-modeling/scripts/build_datadir.py" \
   --raw "<raw_dir>" --out "<dashboard_dir>" --meta "<raw_dir>/meta.json"
 ```
 It writes `firms.json`, `snapshot.json`, `portfolio.json`, `pacing.json`, and — when the inputs exist —
-`company-ownership.json` + `lp-base.json`, in the exact shapes `src/model/*` consume. In particular it emits
-**`snapshot.source` as an object** (`{firm,firmId,firmUuid,navAsOf,marksAsOf,marksPulledAt,currency,mixedCurrency}`); the app
+`company-ownership.json` + `lp-base.json`, in the exact shapes `src/model/*` consume. It also embeds a
+`logoDataUri` on any company matched against `<raw_dir>/logos/` (Step 2b) — omitted entirely when that
+company has no logo, in which case the app falls back to its initials avatar. In particular it emits
+**`snapshot.source` as an object** (`{firm,firmId,firmUuid,navAsOf,marksAsOf,marksPulledAt,currency,mixedCurrency,cartaEnvironment}`); the app
 runs `source.navAsOf.slice(0,4)`, so a `source` written as a bare string blanks the **Companies** and
 **Exit & IRR** tabs. The generator resolves the firm's real reporting currency (never hardcoded USD), keeps
 realized companies inert (`realized:true, includeInNav:false, cartaFv:0`), reads ownership from the
@@ -447,6 +538,9 @@ user-facing dashboard.)
 uv run "${CLAUDE_PLUGIN_ROOT}/skills/carta-fund-modeling/scripts/serve.py" --data-dir "<dashboard_dir>" \
   --web-dir "${CLAUDE_PLUGIN_ROOT}/skills/carta-fund-modeling/webapp" --detach
 ```
+**Only when the session already carries `pk`** from `get_current_user` (a connected Carta MCP has it from
+bootstrap), append `--user-id <pk>` so telemetry names a real user. Never call the MCP to get it — that
+needs `welcome` first, and this path stays MCP-free. Never substitute the email or a placeholder.
 Run with **Bash run_in_background**; read `<dashboard_dir>/.port` + the printed `http://127.0.0.1:<port>/?t=<token>`
 and give the user that URL. Tell them it **opens in their default browser automatically** — if it doesn't,
 they can paste the URL into the address bar. `webapp/` is the committed prebuilt React app, served
@@ -469,10 +563,27 @@ run `npm run build` after editing source** — there is no build step for source
 `app/src/`, refresh, done. `npm run build` only rebuilds `webapp/vendor/*` and is needed **only** on a
 React/Sucrase version bump.
 
+## Analytics
+New interactive elements: call `trackClick(elementId)` (or `trackRender(elementId)` for view/dialog mounts)
+(import from `../analytics.js` or the correct relative path) at the top of the handler, IDs as
+`FundModeling.<Area>.<Specific>` (e.g.
+`FundModeling.Overview.ExportClick`) — skip sort clicks, keystrokes, dropdown changes. The tracker bundle at
+`webapp/vendor/mcp-ui-tracker.global.js` is vendored from `@carta/mcp-ui-tracker`'s `build:browser` output — if
+the upstream library changes, rebuild and overwrite that file.
+
+Every event carries a firm context (`{firmId}`) so telemetry joins on the real Carta id instead of a
+slugified firm name. The envelope (firm + environment) comes from `GET /api/telemetry-context`, which
+reads `snapshot.source` per request; `mountWithAuth` awaits it before rendering, so both documents
+have it before any event fires. So **capture `firmId` in Step 1 whenever the `#<digits>` token is
+there** — when it is absent the context is dropped (that firm's events land with no firm attribution),
+and a placeholder id is never substituted. A refresh that resolves a previously missing `firmId` is
+picked up without a relaunch.
+
 ## Common failure modes
 
 | Situation | What to do |
 |---|---|
+| Running in a sandboxed session (`detect-surface` → `surface=sandboxed`) | Gate 0 stops before any work: tell the user to re-run in a **local** Claude Code session (a terminal, or Claude Desktop set to run locally — not Cowork or a cloud session). Do not retry or launch. |
 | No Carta MCP connected | Exit: "No Carta MCP is connected — please connect one and try again." Do not proceed. |
 | Firm name given but unresolvable | Prompt with `AskUserQuestion`: show any cache suggestions or "Build fresh from Carta" option. |
 | No firm given and no local cache | Exit: ask the user to name a firm before doing anything else. |

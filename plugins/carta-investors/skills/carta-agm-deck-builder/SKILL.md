@@ -1,6 +1,6 @@
 ---
 name: carta-agm-deck-builder
-description: ">"
+description: "End-to-end AGM deck generator. Extracts a firm's brand identity from their website, pulls live fund data from the Carta MCP (NAV, TVPI, portfolio, capital activity, benchmarks, fees, balance sheet, LP base), generates a branded HTML presentation with built-in slide navigation, and applies the \"Powered by Carta\" badge to every slide. Supports an optional past-deck reference for style matching. Trigger phrases: \"AGM deck\", \"generate AGM deck\", \"create AGM presentation\", \"build AGM slides\", \"annual general meeting deck\", \"investor meeting deck\", \"LP meeting deck\", \"fund presentation\", \"branded fund deck\", \"build an AGM deck\"."
 ---
 
 <!-- carta:instrumentation-fallback -->

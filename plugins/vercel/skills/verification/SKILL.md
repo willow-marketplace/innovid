@@ -1,6 +1,6 @@
 ---
 name: verification
-description: "\"Full-story verification — infers what the user is building, then verifies the complete flow end-to-end: browser → API → data → response. Triggers on dev server start and 'why isn't this working' signals.\""
+description: "Full-story verification — infers what the user is building, then verifies the complete flow end-to-end: browser → API → data → response. Triggers on dev server start and 'why isn't this working' signals."
 ---
 
 # Full-Story Verification

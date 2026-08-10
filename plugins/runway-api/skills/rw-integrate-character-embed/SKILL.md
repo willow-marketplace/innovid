@@ -1,6 +1,6 @@
 ---
 name: rw-integrate-character-embed
-description: '"Help users embed Runway Character avatar calls in React apps using the @runwayml/avatars-react SDK"'
+description: Help users embed Runway Character avatar calls in React apps using the @runwayml/avatars-react SDK
 ---
 
 # Embed Characters in React (Avatars React SDK)

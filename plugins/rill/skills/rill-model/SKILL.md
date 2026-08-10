@@ -139,6 +139,15 @@ Available template variables:
 
 By default, `glob:` matches files only, but you can pass `partition: directory` to have it emit leaf directory names instead. When you use `partition: directory`, the partition's URI will not include an asterisk, so you have to append that in the SQL query, e.g. `{{ .partition.uri }}/*.parquet`.
 
+Narrow which partitions are matched with `start`/`end` (inclusive/exclusive path bounds) or `last` (keep only the N highest paths; not allowed with `transform_sql`):
+
+```yaml
+partitions:
+  glob:
+    path: s3://bucket/year=*/month=*/day=*
+    last: 180   # Most recent 180 partitions
+```
+
 ### SQL-based partitions
 
 Generate partitions using a SQL query:
@@ -462,6 +471,22 @@ connector: https
 uri: https://example.com/public/dataset.parquet
 ```
 
+### Iceberg / Delta Lake table via DuckDB
+
+Read Iceberg or Delta tables with DuckDB's `iceberg_scan()` / `delta_scan()`. `create_secrets_from_connectors` reuses an object store connector's credentials (GCS requires `key_id`/`secret` HMAC keys):
+
+```yaml
+# models/iceberg_data.yaml
+type: model
+connector: duckdb
+create_secrets_from_connectors: s3
+materialize: true
+
+sql: |
+  SELECT * FROM iceberg_scan('s3://my-bucket/path/to/iceberg_table')
+  -- or: FROM delta_scan('s3://my-bucket/path/to/delta_table')
+```
+
 ### Partition-based incremental S3 to DuckDB
 
 Assuming DuckDB is the default OLAP and there is a `s3.yaml` connector in the project:
@@ -763,7 +788,7 @@ allOf:
             type: string
         connector:
             const: connector
-            description: Refers to the resource type and is needed if setting an explicit OLAP engine. IE `clickhouse`
+            description: Refers to the resource type and is needed when setting an explicit OLAP engine, e.g. `clickhouse`
             type: string
         create_secrets_from_connectors:
             description: List of connector names for which temporary secrets should be created before executing the SQL. This allows DuckDB-based models to access cloud storage (S3, GCS, Azure) using credentials from named connectors.
@@ -843,10 +868,10 @@ allOf:
                                 - VIEW
                                 - DICTIONARY
                             type: string
-            description: to define the properties of output
+            description: Defines the output properties.
             properties:
                 connector:
-                    description: Refers to the connector type for the output table. Can be `clickhouse` or `duckdb` and their named connector
+                    description: Refers to the connector type for the output table. Can be `clickhouse` or `duckdb` and their named connectors.
                     type: string
                 create_secrets_from_connectors:
                     description: List of connector names for which temporary secrets should be created on the output OLAP engine before executing the SQL. Only applies when the output connector is DuckDB. This allows DuckDB-based models to access cloud storage (S3, GCS, Azure) using credentials from named connectors.
@@ -868,7 +893,7 @@ allOf:
                         - partition_overwrite
                     type: string
                 materialize:
-                    description: Whether to materialize the model as a table or view
+                    description: Whether to materialize the model as a table or view.
                     type: boolean
                 partition_by:
                     description: Column or expression to partition the table by
@@ -894,7 +919,7 @@ allOf:
             type: object
         partitions:
             $ref: '#/definitions/data_properties'
-            description: Refers to the how your data is partitioned, cannot be used with state. (optional)
+            description: Refers to how your data is partitioned; cannot be used with state. (optional)
             examples:
                 - partitions:
                     glob: gcs://my_bucket/y=*/m=*/d=*/*.parquet

@@ -81,6 +81,13 @@ The image is in a private registry; the shared, pull-only username and password 
 provided when you sign up for the Private Preview at https://aka.ms/sqldbcontainerpreview-signup
 and may be rotated during the preview.
 
+**Why is my container missing a recent engine fix?** `:latest` is a moving tag and the image
+is rebuilt almost daily, but Docker's default pull policy for `docker run` is `missing`: once a
+`:latest` is on disk it reuses that cached copy and never re-checks the registry, so you can
+silently keep running a stale build. Refresh with `docker pull sqldbpreview-dpgaeqhmgphzd4bk.azurecr.io/azure-sql/db-dev:latest`,
+then recreate the container. Prefer an explicit pull over `docker run --pull always` so offline
+work still works after the first pull.
+
 ## Tooling
 
 **Why does SSMS or the VS Code MSSQL extension UI throw errors?** Graphical tooling is
@@ -91,42 +98,40 @@ example the schema designer or natural-language SQL): https://aka.ms/vscode-mssq
 
 ## Parity with the cloud
 
-**Is Microsoft Entra ID (Azure AD) authentication supported?** It does not work on the
-container today. Use SQL authentication locally: the `sa` login, or a contained user you
-create.
+**Is Microsoft Entra ID (Azure AD) authentication supported?** Yes. Configure it
+with `MSSQL_AAD_CLIENT_ID`, `MSSQL_AAD_PRIMARY_TENANT`, and
+`MSSQL_AAD_CERTIFICATE_FILE_PATH` plus a mounted `.pfx` (export password empty).
+Optionally set `MSSQL_AAD_SERVER_ADMIN_NAME`, `MSSQL_AAD_SERVER_ADMIN_TYPE`
+(`0` for user, `1` for group), and `MSSQL_AAD_SERVER_ADMIN_SID` (object ID) to
+create an Entra server admin when the container starts, so you do not need a
+post-init `CREATE LOGIN` / `sp_addsrvrolemember`.
 
-**Do not say "the variables are ignored". They are not, and that matters.** Reproduced on
-the preview image: the container accepts `MSSQL_AAD_CLIENT_ID`,
-`MSSQL_AAD_PRIMARY_TENANT`, and `MSSQL_AAD_CERTIFICATE_FILE_PATH`; it exposes the full set
-of `network.aad*` settings in `mssql-conf`; and it loads the mounted `.pfx`. The log
-reports success and then fails:
+SQL authentication (`sa`) remains the pragmatic local default. Use Entra locally
+when you want closer parity with Azure SQL Database in the cloud. Full recipe:
+the `azuresql-db-container` skill (`references/entra-auth.md`). Learn tutorial:
+https://learn.microsoft.com/sql/linux/security/authentication/container-kubernetes-microsoft-entra-deployment
 
-```
-Microsoft Entra ID authentication is enabled.
-Successfully loaded the AAD first party principal certificate.
-JSONWebTokenService::MiseInitForFirstPartyApplications:Error: Could not retrieve ...
-Azure Active Directory authentication manager initialization failed.
-  AAD authentication will be disabled, failure: 0x80004005
-```
-
-Entra is then silently off while the engine keeps running and SQL auth keeps working, so
-the only evidence is in the container log. That is why someone following the
-[SQL Server container Entra guidance](https://learn.microsoft.com/sql/linux/security/authentication/container-kubernetes-microsoft-entra-deployment)
-sees a "failure in the log" rather than a clean "not supported" message.
-
-Tell the user to check `docker logs <container>` for those lines, and to file a bug at
-https://aka.ms/azuresql-developer-bug with them attached.
-
-It does not break the local-to-cloud story. Azure SQL Database in the cloud supports
-Entra, so the intended pattern is SQL auth locally and Entra in the cloud, with only the
-connection string changing (see the `azuresql-db-local-to-cloud` skill). Do not promise a
-date for local Entra support.
+Also see
+https://microsoft.github.io/azure-sql-database-container/getting-started.html#microsoft-entra-id-authentication
 
 **My query works locally but fails when I deploy to Azure SQL Database.** Some PaaS
 restrictions enforced in the cloud are not yet enforced by the container, so an
 invalid statement can succeed locally. Validate against a real Azure SQL Database
 once before declaring readiness; the `azuresql-db-local-to-cloud` skill can provision
 a target database for a one-shot validation pass.
+
+**How do I create a least-privilege app user, and why does `CREATE USER ... WITH
+PASSWORD` fail?** On the container, a SQL **contained** user
+(`CREATE USER appuser WITH PASSWORD = '...'`) fails with **Msg 15007**, and trying
+to enable it with `ALTER DATABASE appdb SET CONTAINMENT = PARTIAL` fails with
+**Msg 12824**. Create the app identity as a **server login mapped to a database
+user** instead: `CREATE LOGIN applogin WITH PASSWORD = '...'` on a `master`
+connection, then `CREATE USER appuser FOR LOGIN applogin` plus role grants
+(`db_datareader` / `db_datawriter`) on the `appdb` connection. This is the inverse
+of Azure SQL Database in the cloud, where a contained user is preferred and server
+logins are limited; the app code and connection string are identical either way.
+Microsoft Entra contained users (`CREATE USER [name] FROM EXTERNAL PROVIDER`) do
+work on the container once Entra is enabled. Full recipes: the `azuresql-db-auth` skill.
 
 **Are session/database defaults identical to the cloud?** Mostly. Some defaults
 (collation, transaction isolation, ANSI settings) do not match the cloud exactly and

@@ -1,6 +1,6 @@
 ---
 name: create-access-rule
-description: '"Create a ZPA access policy rule with v2 conditions for application access control."'
+description: Create a ZPA access policy rule with v2 conditions for application access control.
 ---
 
 # Create ZPA Access Policy Rule

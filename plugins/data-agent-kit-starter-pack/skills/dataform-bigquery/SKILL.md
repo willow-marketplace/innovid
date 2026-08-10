@@ -1,6 +1,6 @@
 ---
 name: dataform-bigquery
-description: Expertise in generating clean, correct, and efficient Dataform pipeline
+description: Expertise in generating clean, correct, and efficient Dataform pipeline code for BigQuery ELT. Use this when creating or modifying Dataform pipelines, actions, or source declarations, when Dataform, SQLX, or BigQuery are mentioned in a transformation, when data needs to be ingested from GCS into BigQuery via Dataform, or when setting up a new Dataform project or configuring workflow_settings.yaml.
 ---
 
 # Dataform Expert Skill for BigQuery
@@ -104,8 +104,7 @@ Follow these steps when fulfilling Dataform-related requests:
     -   If cleaning is not applied, provide **strong evidence** in the response.
     -   Include an **"Automatic Cleaning Summary"** section in every response.
 -   **SQL Optimizations:**
-    -   Follow the optimization protocol in **@skill:bigquery**
-        strictly.
+    -   Follow the optimization protocol in **@skill:bigquery-sql** strictly.
     -   Include an **"Optimization Summary"** section when applied.
 
 ### 4. Planning guidelines

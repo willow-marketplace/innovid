@@ -1,6 +1,6 @@
 ---
 name: agents-connect
-description: ">"
+description: "Use when connecting your agent to external APIs, tools, or services via Gateway, or restricting tool access with Cedar policies. Handles gateway setup, target types, outbound auth (OAuth, API key, IAM), credentials, and Cedar policy authoring. Triggers on: \"connect to API\", \"add gateway\", \"connect to MCP server\", \"Lambda tools\", \"OpenAPI\", \"gateway target\", \"Cedar policy\", \"restrict tools\", \"policy engine\", \"gateway auth error\", \"store API key\", \"outbound credential\", \"env var API key\", \"API key None after deploy\", \"credential not available after deploy\", \"should this be a gateway target\", \"give my agent tools\", \"add tools to agent\". Not for inbound auth (who can call your agent) — use agents-harden. Not for debugging agent behavior — use agents-debug. Not for VPC networking errors (agent can't reach APIs due to VPC) — use agents-build. Not for creating or hosting a new MCP server project — use agents-get-started."
 ---
 
 # connect

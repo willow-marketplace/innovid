@@ -1,6 +1,6 @@
 ---
 name: debugging-signals-pipeline
-description: ">"
+description: Debug the signals pipeline locally end-to-end. Covers emitting test signals from fixtures, monitoring Temporal workflows via the REST API, reading sandbox agent logs from object storage, inspecting Docker sandbox containers, and diagnosing common failures (stale ClickHouse embeddings, agentsh network denials, inactivity timeouts). Use when a signal isn't reaching the inbox, a signal-report-summary workflow fails, or a sandbox task run times out.
 ---
 
 # Debugging the signals pipeline

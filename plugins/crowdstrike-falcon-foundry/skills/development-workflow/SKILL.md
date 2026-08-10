@@ -52,7 +52,52 @@ Implement a known pattern (pagination, enrichment, ingestion, etc.)
 Debug / troubleshoot      → debugging-workflows
 Security review           → security-patterns
 E2E testing / Playwright  → e2e-testing
+
+Standalone Fusion workflow (no app — trigger + existing actions only)
+└── Advise the Falcon Fusion plugin — see Cross-Plugin Advisory
 ```
+
+## Cross-Plugin Advisory (Fusion vs. Foundry)
+
+A Falcon Fusion workflow can be authored **standalone** (no app wrapper) when it
+only needs a trigger plus actions that already exist in the CID. That is the
+sibling **Falcon Fusion** plugin's job (`crowdstrike-falcon-fusion`), not this one.
+
+| Situation | Action |
+|-----------|--------|
+| Just a workflow: trigger + existing actions, no UI/function/collection/manifest | **Advise the Falcon Fusion plugin** — see the required response below. Do NOT scaffold a Foundry app. |
+| Workflow needs a UI, function, collection, or custom API integration to be BUILT | **Proceed here** — that's a Foundry app; use the App Creation Flow. |
+| A workflow *inside* an app you're already building | **Proceed here** — use `workflows-development`. |
+
+> **⚠️ MUST NOT silently do the Fusion plugin's job.** The common failure is to
+> recognize no app is needed, then hand the user workflow YAML anyway without
+> ever telling them a better-suited plugin exists. Declining to scaffold is only
+> half the redirect — **naming the plugin is required output.**
+
+When redirecting, your response MUST contain all three:
+
+1. A statement that this needs no Foundry app
+2. The plugin name **`crowdstrike-falcon-fusion`** written out
+3. How to get it: `/plugin install crowdstrike-falcon-fusion` or
+   https://claude.com/plugins/crowdstrike-falcon-fusion
+
+Name the plugin, not a GitHub repo — most users install from the marketplace and
+a repo link is a detour.
+
+**Do not hand-write the workflow YAML in a redirect.** Producing the artifact
+yourself defeats the purpose: the Fusion plugin discovers real action IDs from
+the live API, validates against the platform schema, and imports and releases to
+the CID. A YAML block with placeholder action IDs is strictly worse than sending
+the user somewhere that can finish the job. Offer a one-line sketch of the shape
+if it helps, then redirect.
+
+A negated capability is not a request for it. "no UI", "without a function",
+"I don't need a collection" all mean the request is *smaller*, not larger — so
+they push **toward** redirecting, never away. If every action already exists and
+there's no UI/function/collection to build, redirect. The routing decision is
+yours; `scripts/detect_fusion_redirect.py` is available as a heuristic
+cross-check and never blocks.
+
 
 ## App Creation Flow
 
@@ -68,6 +113,8 @@ Map user requests to Foundry capabilities:
 | "extension", "sidebar", "widget" | UI Extension | `foundry ui extensions create` |
 | "function", "serverless", "backend" | Function | `foundry functions create` |
 | "store data", "collection", "database" | Collection | `foundry collections create` |
+
+> **⚠️ "Summarize/list alerts, detections, or incidents" (a population the workflow doesn't already have) implies a source-of-truth fetch.** A request like "a workflow that emails a summary of high-severity alerts" needs the *set* of alerts, which is not reliably in NG-SIEM (Event Query can silently return nothing — repo contents are connector-dependent). Fetch it from the source of truth: a native platform action (e.g. Cases → Search Cases) first, or a FalconPy `Alerts`/`Detects` function when none fits — so the app needs BOTH that capability (plan the `alerts:read` scope) AND a workflow to schedule it and send email. **Exception:** *enriching* a detection the workflow was already triggered on (query by its ID) stays an Event Query and needs no function. See [functions-falcon-api](../functions-falcon-api/SKILL.md) and [workflows-development event-query-vs-api](../workflows-development/references/event-query-vs-api.md).
 
 ### Step 1b: Check for Known Patterns
 
@@ -137,19 +184,28 @@ foundry ui navigation add --name "My Page" --path / --ref pages.my-page
 foundry ui extensions create --name "my-ext" --description "desc" --from-template React --sockets "activity.detections.details" --no-prompt
 ```
 
-**Fail fast:** Validate right after API integrations and collections. `foundry apps validate` is a dry-run of deploy validation — it checks specs and schemas in seconds without building artifacts. It does NOT check workflow semantics or app name uniqueness (those are only checked on deploy). Don't validate right before deploy — deploy runs the same validation plus more. Don't manually fix spec issues — improve `adapt-spec-for-foundry.py` instead.
+**Fail fast:** Validate right after API integrations and collections. `foundry apps validate` is a dry-run of deploy validation — it checks specs and schemas in seconds without building artifacts. It does NOT check workflow semantics or app name uniqueness (those are only checked on deploy). Don't validate right before deploy — deploy runs the same validation plus more. Don't manually fix spec issues — improve `adapt_spec_for_foundry.py` instead.
 
 ### Step 6: Write Domain-Specific Content
 
 The CLI scaffolds structure but cannot generate app logic. Delegate to sub-skills:
 
 - **OpenAPI spec** → api-integrations
-- **Workflow YAML** → workflows-development **(MUST load before writing ANY workflow YAML)**
+- **Workflow YAML** → workflows-development
 - **UI components** → ui-development
 - **Function handlers** → functions-development
 - **Collection schemas** → collections-development
 
-> **⚠️ MANDATORY: Load `workflows-development` before writing workflow YAML.** The workflow format is `trigger` + `actions` with `version_constraint` on every action. If you attempt workflow YAML without loading the sub-skill, you WILL hallucinate an incorrect format (`definition/node_types/sdk_type`) that does not exist and causes deploy failures. This is a known failure mode. ALWAYS load the sub-skill first.
+> **⚠️ MANDATORY: Load the relevant sub-skill BEFORE writing any domain-specific code.** Without the sub-skill loaded, you WILL hallucinate incorrect formats and nonexistent APIs. Known failure modes:
+>
+> | Writing... | MUST load | Hallucination without it |
+> |---|---|---|
+> | Workflow YAML | `workflows-development` | Invented `definition/node_types/sdk_type` format instead of correct `trigger` + `actions` with `version_constraint` |
+> | Function code calling Falcon APIs | `functions-falcon-api` | Invented `request.falcon_client.api_request(url='/foundry/entities/...')` instead of FalconPy SDK classes (`from falconpy import Hosts`) |
+> | Function code calling a third-party API (Slack, Jira, PagerDuty, etc.) | `functions-falcon-api` + check `use-cases/` | Invented `falcon.command("createNotification")` or raw HTTP calls instead of `APIIntegrations().execute_command(definition_id="...", operation_id="...")`. The app MUST have an API integration (OpenAPI spec) for the service, then call it from the function via FalconPy `APIIntegrations` class. See foundry-sample-functions-python for reference. |
+> | Function code accessing collections | `collections-development` | Invented REST endpoints for collection CRUD instead of FalconPy `CustomStorage` service class |
+>
+> ALWAYS load the sub-skill first. This is not optional.
 
 ### Step 7: Final Build and Deploy
 

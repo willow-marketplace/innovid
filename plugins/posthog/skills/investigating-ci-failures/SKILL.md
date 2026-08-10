@@ -1,6 +1,6 @@
 ---
 name: investigating-ci-failures
-description: ">"
+description: "Investigates a specific CI failure to a verdict: whose fault, which commit, who wrote it, and whether it's fixed. Use for \"who broke master\", \"why did this test fail in CI\", \"is this failure my PR's fault or everyone's\", \"is this test flaky or actually broken\", \"when did this failure start\". Works from the engineering_analytics warehouse views (engineering_analytics_ci_failures, engineering_analytics_ci_job_history) plus the CI failure logs. Not for aggregate CI health, cost, or merge bottlenecks (use diagnosing-ci-and-merge-bottlenecks) and not for building saved insights (use turning-engineering-analytics-into-insights)."
 ---
 
 # Investigating CI failures
@@ -16,12 +16,23 @@ Two warehouse views are the substrate (both non-materialized — always current,
   pre-fingerprinted (`fingerprint` = test id + digit/hex-normalized error). Group by `fingerprint`
   to get first/last seen, occurrence count, and branch spread.
 - **`engineering_analytics_ci_job_history`** — one row per job attempt with `conclusion` AND commit
-  attribution: `head_sha`, `commit_author_name`, `commit_message`, `commit_pr_number` (parsed from
-  the squash-merge suffix — the only PR attribution a master push run has). This is where greens
+  attribution: `head_sha`, `commit_author_name`, `commit_message`, `commit_pr_number` (the merged PR
+  that produced the commit, the only PR attribution a master push run has). This is where greens
   live; the logs are failure-only, so every "when did it turn red / green again" question must come
   from here, never from the logs.
 
 Copy-ready SQL for every step is in [references/investigation-queries.md](./references/investigation-queries.md).
+
+## Start wide: what's broken right now
+
+For "what CI failures should I care about right now" (before you have a specific test in hand), the
+`engineering-analytics-broken-tests` MCP tool does the shape classification below across _all_ live
+failures at once: it groups the last 2 days of failures by fingerprint and labels each
+`breaking_master` / `novel_burst` / `potentially_resolved` / `flaky` / `pr_only`, most urgent first,
+plus `breaking_master_jobs` (default-branch jobs whose latest run is red). Use it as the triage entry
+point, then drop into the per-failure workflow below to reach a culprit. It is the automated
+counterpart to fingerprinting by hand; the manual queries stay the way to pin a specific failure to a
+boundary and author.
 
 ## The three failure shapes
 
@@ -78,7 +89,7 @@ threshold aren't recorded, so there is no honest denominator.
   arrive via webhook sync and can lag. During a live incident, start from `ci_failures` and check
   the warehouse's `max(created_at)` before trusting a boundary (query 5). A boundary computed
   against a stale warehouse names the wrong commit.
-- **A run's `conclusion` can be stale** until the `workflow_run` webhook settles it (SPEC §9) —
+- **A run's `conclusion` can be stale** until the `workflow_run` webhook settles it (SPEC §7) —
   treat a very recent "failure-free" tail with suspicion.
 - **Retries:** `run_attempt > 1` rows are the same job re-run. A failure that clears on attempt 2
   is flake signal; one that fails through attempt 5+ is deterministic.
@@ -95,6 +106,7 @@ threshold aren't recorded, so there is no honest denominator.
 
 | Question                               | Use                                                                    |
 | -------------------------------------- | ---------------------------------------------------------------------- |
+| "What's broken across CI right now?"   | `engineering-analytics-broken-tests` MCP tool (triaged, classified)    |
 | "Why did MY PR's CI fail?"             | `engineering-analytics-ci-failure-logs` MCP tool (PR-scoped, grouped)  |
 | "Who broke master / when did X start?" | The two views, workflow above                                          |
 | "Is X flaky?"                          | Shape from `ci_failures` + the flaky-tests tool                        |

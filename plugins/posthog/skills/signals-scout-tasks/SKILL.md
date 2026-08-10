@@ -1,6 +1,6 @@
 ---
 name: signals-scout-tasks
-description: ">"
+description: "Signals scout for PostHog Tasks, the agent work items a project runs. Two lenses: delivery health (runs failing, clustered by repository and error class, and retry storms) every run, and on a slower rotation demand (recurring asks across human-authored tasks that point at a product gap). Skips the scout fleet's own run rows."
 ---
 
 # Signals scout: tasks

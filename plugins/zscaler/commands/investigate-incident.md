@@ -1,6 +1,6 @@
 ---
 name: investigate-incident
-description: '"Investigate security incidents using Z-Insights analytics -- threats, firewall actions, shadow IT, and web traffic."'
+description: Investigate security incidents using Z-Insights analytics -- threats, firewall actions, shadow IT, and web traffic.
 ---
 
 # Investigate Security Incident

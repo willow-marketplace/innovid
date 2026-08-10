@@ -1,6 +1,6 @@
-import { useState, useRef, useEffect, Fragment } from "react";
+import { useState, useRef, Fragment } from "react";
 import { createPortal } from "react-dom";
-import { tightSans, sans, mono, FS, MICRO, NOTICE, EYEBROW_TRACKING, SMALL_1 } from "../ui/theme.js";
+import { tightSans, sans, inkNum, FS, MICRO, NOTICE, SMALL_1, SMALL_2 } from "../ui/theme.js";
 import { fmt$, fmtM, fmtB, fmtX, fmtPct, fmtAsOf, fmtOwn } from "../ui/format.js";
 
 // pretty round name: "seed" → "Seed", "a" → "Series A", "pre-seed" → "Pre-seed"
@@ -12,20 +12,33 @@ const roundLabel = (r) => {
   if (/^[a-z]\d?$/i.test(s)) return "Series " + s.toUpperCase();
   return s.charAt(0).toUpperCase() + s.slice(1);
 };
-import { H1, Btn, Toggle, Num, ChevronIcon, ChevronDownIcon, HelpCircleIcon, FundPicker, Dropdown, Badge, Eyebrow, MenuItem, useDismissable, ALL_FUNDS, MethodNote, SourceNote, fundLabel, POPOVER_SHADOW, GlobalFilter, SearchInput, DeltaCaret } from "../ui/components.jsx";
-import { useTableSort, SortIcon, useStickyHeader, TableScroll } from "../ui/table.jsx";
+import { H1, Btn, Toggle, Num, ChevronDownIcon, HelpCircleIcon, FundPicker, Dropdown, Badge, Eyebrow, MenuItem, useDismissable, ALL_FUNDS, MethodNote, SourceNote, fundLabel, POPOVER_SHADOW, GlobalFilter, SearchInput, DeltaCaret, Modal, EmptyState } from "../ui/components.jsx";
+import { useTableSort, SortIcon, useStickyHeader, TableScroll, TableHead } from "../ui/table.jsx";
 import RepriceControl from "../ui/RepriceControl.jsx";
 import ConfirmDialog from "../ui/ConfirmDialog.jsx";
 import { repricePosition, positionReprice, carryRateFor, companyRepriceState, exitHorizonFor,
-  companyIsWaterfall, companyHasCapTable, companyReferenceExit, companyExitValueAbs, quarterOffsetDate } from "../model/reprice.js";
-import { fundExitProceeds, fundProceedsCurve, preferenceSummary, normClass } from "../model/liqpref.js";
-import { scenarioDealIrr, entryLegsFor, anchorIrrByRatio } from "../model/dealIrr.js";
-import { xirr } from "../model/xirr.js";
+  companyIsWaterfall, companyHasCapTable, companyReferenceExit, companyExitValueAbs, quarterOffsetDate, quartersBetween } from "../model/reprice.js";
+import { fundExitProceeds, fundProceedsCurve, normClass } from "../model/liqpref.js";
+import { scenarioDealIrr } from "../model/dealIrr.js";
 import { isStaleMark, daysBetween, fundIdsOf } from "../model/funds.js";
 import { zeroOutFund, resetFundToCarta, zeroOutAll, resetAllToCarta, companiesInFund, crossFundCompanies, applyReserveDilution } from "../model/slices.js";
-import { FULL_RESERVE_DILUTION } from "../model/reserves.js";
+import { FULL_RESERVE_DILUTION, companyBaseReserve } from "../model/reserves.js";
 import { useFirmData } from "../state/FirmData.jsx";
 import { companyOwnership } from "../model/ownership.js";
+import { trackClick } from "../analytics.js";
+import { ReturnsPreviewContent } from "../ui/PerformanceSidebarV2.jsx";
+
+// Rounds a fraction to the SAME decimal precision fmtOwn will display it at
+// (1 decimal place as a percent when ≥1%, else 2) — so subtracting two
+// ownership fractions AFTER rounding gives a delta that matches what the two
+// visible endpoint labels imply, instead of a raw-difference delta that can
+// round to a different figure than "displayed A" − "displayed B".
+function roundToOwnDisplay(p) {
+  if (p == null || !Number.isFinite(p)) return p;
+  const decimals = p >= 0.01 ? 1 : 2;
+  const scale = 10 ** (decimals + 2);
+  return Math.round(p * scale) / scale;
+}
 
 // Derive a company's display status as a filterable key. Approximates the
 // StatusChip logic in CompanyRow without the full per-position reprice model.
@@ -73,6 +86,16 @@ function prefDescriptor(cl) {
 
 // The share-class stack + fund holdings for a company's Carta cap table. Preferred
 // shown senior→junior, then common/other. Amounts in the cap table's own currency.
+// Plain (unsortable) columns for PrefStackTable — same col shape TableHead takes
+// everywhere else in the app (label/align), just with no `get` accessor.
+const CAP_TABLE_COLS = [
+  { label: "Share class", align: "left" },
+  { label: "Rank" },
+  { label: "Liquidation preference", align: "left" },
+  { label: "Invested" },
+  { label: "Fund holds" },
+];
+
 function PrefStackTable({ company }) {
   const entry = company.capTable;
   const ccy = entry.currency;
@@ -80,36 +103,23 @@ function PrefStackTable({ company }) {
   for (const h of entry.fundHoldings || []) holdBy[normClass(h.className)] = h;
   const rank = (c) => (c.seniority != null ? c.seniority : String(c.kind || "").toLowerCase() === "preferred" ? 1 : 999);
   const classes = [...entry.classes].sort((a, b) => rank(a) - rank(b) || String(a.name).localeCompare(String(b.name)));
-  // dense inline overrides (scoped to this popover table — not the global .ledger CSS):
-  // small font, tight rows, quiet uppercase headers.
-  const cell = { fontSize: FS.small, lineHeight: 1.3, padding: "2px 8px" };
-  const th = { ...sans, ...cell, fontSize: FS.micro, fontWeight: 600, color: MICRO, textTransform: "uppercase", letterSpacing: EYEBROW_TRACKING };
-  const numCell = { ...mono, ...cell, textAlign: "right", whiteSpace: "nowrap" };
   return (
-    <table className="ledger sheet" style={{ fontSize: FS.small }}>
-      <thead>
-        <tr>
-          <th style={{ ...th, textAlign: "left" }}>Share class</th>
-          <th style={{ ...th, textAlign: "right" }}>Rank</th>
-          <th style={{ ...th, textAlign: "left" }}>Liquidation preference</th>
-          <th style={{ ...th, textAlign: "right" }}>Invested</th>
-          <th style={{ ...th, textAlign: "right" }}>Fund holds</th>
-        </tr>
-      </thead>
+    <table className="ledger">
+      <TableHead cols={CAP_TABLE_COLS} />
       <tbody>
         {classes.map((cl, i) => {
           const h = holdBy[normClass(cl.name)];
           const isPref = String(cl.kind || "").toLowerCase() === "preferred" && cl.multiplier != null;
           return (
             <tr key={i}>
-              <td style={{ ...cell, whiteSpace: "nowrap" }}>
+              <td style={{ whiteSpace: "nowrap" }}>
                 {cl.name}
                 {cl.kind && <span style={{ ...sans, fontSize: FS.micro, color: MICRO, marginLeft: 6 }}>{cl.kind}</span>}
               </td>
-              <td style={numCell}>{cl.seniority != null ? cl.seniority : "—"}</td>
-              <td style={{ ...sans, ...cell, color: isPref ? "var(--ink-color-global-text-default)" : "var(--ink-color-global-text-subtle)" }}>{prefDescriptor(cl)}</td>
-              <td style={numCell}>{fmtMoney(cl.cashRaised, ccy)}</td>
-              <td style={{ ...numCell, color: h ? "var(--ink-color-global-text-default)" : "var(--ink-color-global-text-subtle)" }}>{h && h.shares > 0 ? fmtShares(h.shares) : "—"}</td>
+              <td style={{ ...inkNum, textAlign: "right" }}>{cl.seniority != null ? cl.seniority : "—"}</td>
+              <td style={{ color: isPref ? "var(--ink-color-global-text-default)" : "var(--ink-color-global-text-subtle)" }}>{prefDescriptor(cl)}</td>
+              <td style={{ ...inkNum, textAlign: "right" }}>{fmtMoney(cl.cashRaised, ccy)}</td>
+              <td style={{ ...inkNum, textAlign: "right", color: h ? "var(--ink-color-global-text-default)" : "var(--ink-color-global-text-subtle)" }}>{h && h.shares > 0 ? fmtShares(h.shares) : "—"}</td>
             </tr>
           );
         })}
@@ -118,46 +128,139 @@ function PrefStackTable({ company }) {
   );
 }
 
-// Compact fund-proceeds-vs-exit-value curve — shows the preference floor at low
-// exits and the convergence to as-converted pro-rata at high exits. The vertical
-// marker is the current scenario exit value. X in the company's exit valuation
-// ($B), Y = the fund's proceeds. Reuses the MetricTrend SVG idiom.
-const WC_W = 640, WC_H = 150, WC_PL = 8, WC_PR = 12, WC_PT = 12, WC_PB = 22;
+// Fund-proceeds-vs-exit-value curve — shows the preference floor at low exits
+// and the convergence to as-converted pro-rata at high exits, plus a dashed
+// linear-ownership reference and a marker at the current scenario exit value.
+// X is the company's exit valuation ($B), Y is the fund's proceeds ($B). Sized
+// to fill the trailing column width (viewBox scales via width: 100%). Axis
+// titles (not just tick numbers) so the two dashed lines' meaning — the
+// vertical "you are here" guide vs. the diagonal linear-ownership reference —
+// reads from the chart itself rather than needing the legend explained.
+const WC_W = 640, WC_H = 170, WC_PL = 62, WC_PR = 12, WC_PT = 14, WC_PB = 40;
+// One step below FS.micro (the app's existing floor, 10px) — chart tick labels
+// are the smallest text in the app, smaller than the eyebrows/footnotes micro covers.
+const WC_TICK_FS = 9;
+// A run of consecutive curve points whose proceeds are flat (within `eps` of
+// each other) — the regions where dragging company valuation further doesn't
+// move fund proceeds at all, because the liquidation-preference stack ahead of
+// this holding (or, at the top, a participation cap) absorbs the difference.
+// Only worth shading if the run spans a meaningful slice of the domain — a
+// couple of adjacent samples matching by chance isn't a real flat region.
+function flatRegions(pts, maxExit) {
+  const eps = Math.max(1, Math.max(...pts.map((p) => p.y)) * 0.001);
+  const regions = [];
+  let start = 0;
+  for (let i = 1; i <= pts.length; i++) {
+    const brokeRun = i === pts.length || Math.abs(pts[i].y - pts[start].y) > eps;
+    if (brokeRun) {
+      const end = i - 1;
+      if (pts[end].x - pts[start].x > maxExit * 0.03) regions.push({ x0: pts[start].x, x1: pts[end].x, y: pts[start].y });
+      start = i;
+    }
+  }
+  return regions;
+}
+
 function WaterfallCurve({ company }) {
   const entry = company.capTable;
-  const refExit = companyReferenceExit(company);
+  const refExitB = companyReferenceExit(company) / 1e9; // billions
+  // Mirrors repriceConfig's waterfall-mode slider max EXACTLY (reprice.js) — a
+  // stable, company-intrinsic domain, never the currently-dragged exit value.
+  // Keeps the marker tracking the slider correctly, same principle as
+  // reprice.js's `ref` computation.
+  const maxExit = Math.max(1, (refExitB || 1) * 8) * 1e9;
   const curExit = companyExitValueAbs(company);
-  const maxExit = Math.max(refExit * 4, curExit * 1.4, 1);
   const pts = fundProceedsCurve(entry, maxExit, 48);
+  const [hoverFlatIdx, setHoverFlatIdx] = useState(null);
   if (pts.length < 2) return null;
   const maxY = Math.max(...pts.map((p) => p.y), 1);
   const x = (v) => WC_PL + (v / maxExit) * (WC_W - WC_PL - WC_PR);
   const y = (v) => WC_PT + (1 - v / maxY) * (WC_H - WC_PT - WC_PB);
   const path = pts.map((p, i) => `${i ? "L" : "M"}${x(p.x).toFixed(1)} ${y(p.y).toFixed(1)}`).join(" ");
   const cur = fundExitProceeds(entry, curExit).proceeds;
-  const tick = (frac) => maxExit * frac;
+  const ticks = [0, 0.25, 0.5, 0.75, 1];
+  const flats = flatRegions(pts, maxExit);
   return (
-    <svg viewBox={`0 0 ${WC_W} ${WC_H}`} style={{ width: "100%", display: "block", overflow: "visible" }}
-      role="img" aria-label="Fund proceeds vs company valuation">
-      <line x1={WC_PL} x2={WC_W - WC_PR} y1={y(0)} y2={y(0)} style={{ stroke: "var(--ink-color-global-border-subtle)" }} strokeWidth="1" />
-      {/* linear ownership reference (dashed) for contrast: cur proceeds scaled linearly from 0 */}
-      <path d={`M${x(0)} ${y(0)} L${x(maxExit)} ${y((cur / (curExit || 1)) * maxExit)}`}
-        fill="none" style={{ stroke: "var(--ink-color-global-text-subtle)" }} strokeWidth="1" strokeDasharray="3 3" opacity="0.6" />
-      <path d={path} fill="none" style={{ stroke: "var(--ink-color-global-link-default)" }} strokeWidth="2" strokeLinejoin="round" />
-      {/* current exit marker */}
-      <line x1={x(curExit)} x2={x(curExit)} y1={WC_PT} y2={y(0)} style={{ stroke: "var(--ink-button-background-color-primary-base-default)" }} strokeWidth="1" strokeDasharray="2 2" />
-      <circle cx={x(curExit)} cy={y(cur)} r="3.2" style={{ fill: "var(--ink-button-background-color-primary-base-default)" }} />
-      {[0, 0.25, 0.5, 0.75, 1].map((f, i) => (
-        <text key={i} x={x(tick(f))} y={WC_H - 6} textAnchor={i === 0 ? "start" : f === 1 ? "end" : "middle"}
-          style={{ ...sans, fontSize: FS.micro, fill: MICRO }}>{fmtB(tick(f) / 1e9)}</text>
-      ))}
-    </svg>
+    <div style={{ position: "relative" }}>
+      <svg viewBox={`0 0 ${WC_W} ${WC_H}`} style={{ width: "100%", display: "block", overflow: "visible" }}
+        role="img" aria-label={`Fund proceeds vs company valuation — currently ${fmtB(curExit / 1e9)}`}>
+        {/* Flat regions — no proceeds movement as valuation moves through here — get a
+            light gray band so the "why isn't this changing" spans are obvious at a glance,
+            not just discoverable by dragging the slider back and forth. The hover
+            explanation renders as an HTML overlay below (anchored in chart-percentage
+            space, not viewport space — SVG has no room for a real tooltip, and the usual
+            viewport-relative tooltip math fights the fixed-size modal this chart lives in). */}
+        {flats.map((f, i) => (
+          <rect key={`flat${i}`} x={x(f.x0)} y={WC_PT} width={Math.max(1, x(f.x1) - x(f.x0))} height={y(0) - WC_PT}
+            style={{ fill: i === hoverFlatIdx ? "var(--ink-color-global-surface-lightgray-hover)" : "var(--ink-color-global-surface-lightgray-default)" }}
+            onMouseEnter={() => setHoverFlatIdx(i)} onMouseLeave={() => setHoverFlatIdx(null)} />
+        ))}
+        <line x1={WC_PL} x2={WC_W - WC_PR} y1={y(0)} y2={y(0)} style={{ stroke: "var(--ink-color-global-border-subtle)" }} strokeWidth="1" />
+        <line x1={WC_PL} x2={WC_PL} y1={WC_PT} y2={y(0)} style={{ stroke: "var(--ink-color-global-border-subtle)" }} strokeWidth="1" />
+        {/* Y-axis ticks + title ("Fund proceeds") — the vertical axis this curve rises on */}
+        {ticks.map((f, i) => (
+          <line key={`yt${i}`} x1={WC_PL - 4} x2={WC_PL} y1={y(maxY * f)} y2={y(maxY * f)} style={{ stroke: "var(--ink-color-global-border-subtle)" }} strokeWidth="1" />
+        ))}
+        {ticks.map((f, i) => (
+          <text key={`y${i}`} x={WC_PL - 10} y={y(maxY * f) + 3} textAnchor="end"
+            style={{ ...sans, fontSize: WC_TICK_FS, fill: MICRO }}>{fmtB((maxY * f) / 1e9)}</text>
+        ))}
+        <text x={10} y={(WC_PT + y(0)) / 2} textAnchor="middle"
+          transform={`rotate(-90 10 ${(WC_PT + y(0)) / 2})`}
+          style={{ ...sans, fontSize: FS.micro, fill: MICRO }}>Fund proceeds</text>
+        {/* X-axis ticks + title ("Company valuation") — the horizontal axis you drag the slider along */}
+        {ticks.map((f, i) => (
+          <line key={`xt${i}`} x1={x(maxExit * f)} x2={x(maxExit * f)} y1={y(0)} y2={y(0) + 4} style={{ stroke: "var(--ink-color-global-border-subtle)" }} strokeWidth="1" />
+        ))}
+        {ticks.map((f, i) => (
+          <text key={`x${i}`} x={x(maxExit * f)} y={WC_H - WC_PB + 14} textAnchor={i === 0 ? "start" : f === 1 ? "end" : "middle"}
+            style={{ ...sans, fontSize: WC_TICK_FS, fill: MICRO }}>{fmtB((maxExit * f) / 1e9)}</text>
+        ))}
+        <text x={WC_PL + (WC_W - WC_PL - WC_PR) / 2} y={WC_H - 6} textAnchor="middle"
+          style={{ ...sans, fontSize: FS.micro, fill: MICRO }}>Company valuation</text>
+        {/* data-viz turquoise, not the link-blue — this curve isn't a clickable/interactive
+            element, and blue here would visually imply otherwise. */}
+        <path d={path} fill="none" style={{ stroke: "var(--ink-color-global-data-viz-turquoise-3)" }} strokeWidth="2" strokeLinejoin="round" />
+        {/* current exit marker — the moving dot is enough to show where on the curve
+            we're looking; a vertical guide down to the axis was redundant with it. */}
+        <circle cx={x(curExit)} cy={y(cur)} r="3.2" style={{ fill: "var(--ink-color-global-data-viz-turquoise-3)" }} />
+      </svg>
+      {/* Anchored in chart-percentage space (not viewport space, unlike InfoTip's portal
+          mode) so it tracks the SVG's responsive scaling and stays put regardless of where
+          the modal sits on screen. Sits to the right of the shaded region, vertically
+          centered on it, with a left-pointing caret per the design spec — not a downward
+          caret over the region itself. */}
+      {hoverFlatIdx != null && flats[hoverFlatIdx] && (() => { const f = flats[hoverFlatIdx]; return (
+        <div role="tooltip" style={{ ...sans, position: "absolute", pointerEvents: "none", zIndex: 200,
+          left: `${(x(f.x1) / WC_W) * 100}%`, top: `${((WC_PT + y(0)) / 2 / WC_H) * 100}%`,
+          transform: "translate(12px, -50%)",
+          width: 220, background: "var(--ink-color-global-brand-black)", color: "var(--ink-color-global-brand-white)",
+          fontSize: FS.body, lineHeight: "16px", padding: "10px 14px", borderRadius: "var(--ink-size-global-radius-subtle)",
+          boxShadow: "var(--shadow-hover)" }}>
+          {f.y <= 0.01
+            ? "Liquidation preferences ahead of this position absorb these proceeds — the fund receives nothing here."
+            : "Proceeds are capped in this range — participation limits absorb any further upside."}
+          <span style={{ position: "absolute", left: -6, top: "50%", transform: "translateY(-50%)",
+            borderTop: "6px solid transparent", borderBottom: "6px solid transparent",
+            borderRight: "6px solid var(--ink-color-global-brand-black)" }} />
+        </div>
+      ); })()}
+    </div>
   );
 }
 
+// Seeds valuationB when switching a company into waterfall mode: reuse an
+// existing positive exit value, or fall back to the company's reference exit.
+// A written-off company (valuationB: 0) must NOT reuse that 0 — it would zero
+// out the waterfall's exit input and collapse every position's FV instantly.
+// Shared by the waterfall Toggle and ValuationModeChange's dropdown so both
+// switch-to-waterfall paths seed identically, always from the latest company
+// state (callers pass this straight to updateCompany's functional form).
+const waterfallSeed = (c) => ({ waterfallMode: true, includeInNav: true, valuationB: c.valuationB > 0 ? c.valuationB : companyReferenceExit(c) / 1e9 });
+
 // ── Exit-timing (realized positions): the marked value is the exit proceeds, but
 // the exit DATE stays a lever — the same proceeds received later annualize to a
-// lower IRR. The control drags the exit quarter; the curve plots deal IRR at each.
+// lower IRR. The control drags the exit quarter to set it.
 const EXIT_Q_MAX = 24; // up to 6 years of quarterly exit timing
 
 const addQuarters = quarterOffsetDate; // shared so slider, chart, and horizon derivation agree
@@ -169,104 +272,34 @@ function exitQLabel(navAsOf, q) {
   return `Q${Math.floor(((m || 1) - 1) / 3) + 1} '${String(y).slice(2)}`;
 }
 
-// Realized deal IRR at an exit date: entry legs + one terminal = marked value + proceeds.
-function realizedIrrAt(company, curFv, proceeds, exitDate) {
-  const entryLegs = entryLegsFor(company.positions);
-  if (!entryLegs.length) return null;
-  const terminal = (curFv || 0) + (proceeds || 0);
-  if (terminal <= 0) return -1;
-  return xirr([...entryLegs, { date: exitDate, amount: terminal }]);
-}
-
-// This curve anchors across a varying holding period (Q0 vs. Q-offset exit), so it
-// uses the ratio anchor, not dealIrr.js's additive one — see anchorIrr's comment.
-const anchorExitIrr = anchorIrrByRatio;
-
-// Deal IRR (Y) vs exit quarter (X), marker at the selected quarter. Mirrors the WaterfallCurve SVG idiom.
-const ET_W = 640, ET_H = 168, ET_PL = 34, ET_PR = 12, ET_PT = 12, ET_PB = 22;
-function ExitIrrCurve({ company, totalFv, curFv, proceeds, navAsOf, selectedQ }) {
-  const cartaIrr = company.dealIrr ?? null;
-  // Base is Carta's OWN marked value (unrepriced), exited today — a fixed
-  // reference point, not the live curFv. Anchoring against the live value here
-  // would make the reprice's effect cancel out of the curve (see anchorIrrByRatio's
-  // comment on dealIrr.js): base and every "now" would move together, so raising
-  // the mark barely shifts the readout at any exit quarter near today.
-  const baseRaw = realizedIrrAt(company, totalFv, proceeds, addQuarters(navAsOf, 0));
-  const pts = [];
-  for (let q = 0; q <= EXIT_Q_MAX; q++) {
-    const irr = anchorExitIrr(cartaIrr, baseRaw, realizedIrrAt(company, curFv, proceeds, addQuarters(navAsOf, q)));
-    if (irr != null && Number.isFinite(irr)) pts.push({ q, irr });
-  }
-  if (pts.length < 2) return null;
-  const irrs = pts.map((p) => p.irr);
-  const lo = Math.min(0, ...irrs), hi = Math.max(0, ...irrs), span = hi - lo || 1;
-  const x = (q) => ET_PL + (q / EXIT_Q_MAX) * (ET_W - ET_PL - ET_PR);
-  const y = (v) => ET_PT + (1 - (v - lo) / span) * (ET_H - ET_PT - ET_PB);
-  const path = pts.map((p, i) => `${i ? "L" : "M"}${x(p.q).toFixed(1)} ${y(p.irr).toFixed(1)}`).join(" ");
-  const sel = pts.reduce((best, p) => (Math.abs(p.q - selectedQ) < Math.abs(best.q - selectedQ) ? p : best), pts[0]);
-  const gridV = [lo, lo + span / 2, hi];
-  return (
-    <svg viewBox={`0 0 ${ET_W} ${ET_H}`} style={{ width: "100%", display: "block", overflow: "visible" }}
-      role="img" aria-label="Deal IRR vs exit quarter">
-      {gridV.map((v, i) => (
-        <g key={i}>
-          <line x1={ET_PL} x2={ET_W - ET_PR} y1={y(v)} y2={y(v)}
-            style={{ stroke: "var(--ink-color-global-border-subtle)" }} strokeWidth="1" strokeDasharray={Math.abs(v) < 1e-9 ? undefined : "3 3"} opacity={Math.abs(v) < 1e-9 ? 1 : 0.6} />
-          <text x={ET_PL - 5} y={y(v) + 3} textAnchor="end" style={{ ...sans, fontSize: FS.micro, fill: MICRO }}>{fmtPct(v)}</text>
-        </g>
-      ))}
-      <path d={path} fill="none" style={{ stroke: "var(--ink-color-global-link-default)" }} strokeWidth="2" strokeLinejoin="round" />
-      {/* selected exit-quarter marker */}
-      <line x1={x(sel.q)} x2={x(sel.q)} y1={ET_PT} y2={y(lo)} style={{ stroke: "var(--ink-button-background-color-primary-base-default)" }} strokeWidth="1" strokeDasharray="2 2" />
-      <circle cx={x(sel.q)} cy={y(sel.irr)} r="3.4" style={{ fill: "var(--ink-button-background-color-primary-base-default)" }} />
-      {[0, 0.25, 0.5, 0.75, 1].map((f, i) => {
-        const q = Math.round(EXIT_Q_MAX * f);
-        return (
-          <text key={i} x={x(q)} y={ET_H - 6} textAnchor={i === 0 ? "start" : f === 1 ? "end" : "middle"}
-            style={{ ...sans, fontSize: FS.micro, fill: MICRO }}>{exitQLabel(navAsOf, q)}</text>
-        );
-      })}
-    </svg>
-  );
-}
-
-// Slider + IRR-over-time line for a realized company; persists the offset as `company.exitTimingQ`.
-function ExitTimingSection({ company, totalFv, curFv, proceeds, navAsOf, locked, updateCompany, onDragStart, onDragEnd }) {
+// Dropdown for a realized company's assumed exit quarter; persists the offset as
+// `company.exitTimingQ`. Until the user picks one, it defaults to the fund-wide
+// exit horizon (the "Exit: +N years" master strategy), not today — `defaultExitQ`
+// carries that (computed at the call site from `exitHorizonFor`).
+function ExitTimingSection({ company, navAsOf, locked, updateCompany, defaultExitQ = 0, onDragStart, onDragEnd }) {
   if (!navAsOf) {
     return (
       <div style={{ marginBottom: 14 }}>
-        <SubLabel>Exit timing · deal IRR over time</SubLabel>
+        <PlainLabel>Exit timing</PlainLabel>
         <div style={{ ...sans, fontSize: FS.small, color: "var(--ink-color-global-text-subtle)" }}>
           Unavailable — this fund has no NAV-as-of date in the data pull, so exit timing can't be computed.
         </div>
       </div>
     );
   }
-  const selectedQ = Math.round(company.exitTimingQ ?? 0);
-  const cfg = {
-    value: selectedQ, min: 0, max: EXIT_Q_MAX, step: 1,
-    fmtVal: (q) => exitQLabel(navAsOf, Math.round(q)),
-    onChange: (q) => updateCompany(company.id, { exitTimingQ: Math.round(q) }),
-  };
-  const baseRaw = realizedIrrAt(company, totalFv, proceeds, addQuarters(navAsOf, 0));
-  const selIrr = anchorExitIrr(company.dealIrr ?? null, baseRaw,
-    realizedIrrAt(company, curFv, proceeds, addQuarters(navAsOf, selectedQ)));
+  const selectedQ = Math.round(company.exitTimingQ ?? defaultExitQ);
+  // A dropdown of all 25 quarters (Q0-Q24) instead of a drag slider — the exit
+  // quarter is a discrete pick, not a continuous value, so a list reads more
+  // directly than dragging to the right tick.
+  const options = Array.from({ length: EXIT_Q_MAX + 1 }, (_, q) => ({ id: q, label: exitQLabel(navAsOf, q) }));
   return (
-    <div style={{ marginBottom: 14 }}>
-      <SubLabel>Exit timing · deal IRR over time</SubLabel>
-      <RepriceControl {...cfg} locked={locked} hidePresets onDragStart={onDragStart} onDragEnd={onDragEnd} />
-      <div style={{ ...sans, fontSize: FS.small, color: "var(--ink-color-global-text-subtle)", margin: "6px 0 8px" }}>
-        Exit at <strong style={{ ...mono, color: "var(--ink-color-global-text-default)" }}>{exitQLabel(navAsOf, selectedQ)}</strong>
-        {" · deal IRR "}
-        <strong style={{ ...mono, color: selIrr == null ? "var(--ink-color-global-text-subtle)" : selIrr >= 0 ? "var(--ink-color-global-feedback-positive-strong)" : "var(--ink-color-global-feedback-negative-strong)" }}>
-          {selIrr == null ? "—" : fmtPct(selIrr)}
-        </strong>
-      </div>
-      <ExitIrrCurve company={company} totalFv={totalFv} curFv={curFv} proceeds={proceeds} navAsOf={navAsOf} selectedQ={selectedQ} />
-      <span style={{ ...sans, fontSize: FS.small, color: "var(--ink-color-global-text-subtle)", display: "block", marginTop: 2 }}>
-        Same marked proceeds, exited later → lower annualized IRR. Drag to set the exit quarter; the marker tracks the deal IRR at that exit.
-      </span>
-    </div>
+    <Dropdown options={options} value={selectedQ} triggerLabel="Exit timing" locked={locked} minWidth={0} maxWidth={220}
+      onChange={(q) => {
+        onDragStart?.();
+        trackClick("FundModeling.Companies.SetExitQuarter");
+        updateCompany(company.id, { exitTimingQ: q });
+        onDragEnd?.();
+      }} />
   );
 }
 
@@ -300,37 +333,14 @@ function PositionsTable({ company, refDate, staleDays }) {
   const rows = company.positions.map((p) => ({ ...p, ...positionReprice(company, p, { live }) }));
   const { sorted: posRows, sort: posSort, onSort: onPosSort } = useTableSort(rows, POS_COLS);
   const tot = (k) => rows.reduce((s, r) => s + (r[k] || 0), 0);
-  // dense inline overrides (scoped to this popover — matches the cap-table popover):
-  // small font, tight rows, quiet uppercase headers. Kept out of the global .ledger CSS.
-  const cell = { fontSize: FS.small, lineHeight: 1.3, padding: "2px 8px" };
-  const th = { ...sans, ...cell, fontSize: FS.micro, fontWeight: 600, color: MICRO, textTransform: "uppercase", letterSpacing: EYEBROW_TRACKING };
-  const numCell = { ...mono, ...cell, textAlign: "right" };
+  const numCell = { ...inkNum, textAlign: "right" };
   return (
-    <table className="ledger sheet" style={{ fontSize: FS.small }}>
-      <thead>
-        <tr>
-          {POS_COLS.map((c, i) => {
-            const sortable = typeof c.get === "function";
-            const align = c.align ?? "right";
-            const active = sortable && posSort?.i === i;
-            return (
-              <th key={c.label} style={{ ...th, textAlign: align }}
-                aria-sort={sortable ? (active ? (posSort.dir === "asc" ? "ascending" : "descending") : "none") : undefined}>
-                {sortable ? (
-                  <button type="button" className="ink-sort-btn" onClick={() => onPosSort(i)}
-                    aria-label={`Sort by ${c.label}`} style={{ color: MICRO }}>
-                    {align === "right" ? <><SortIcon />{c.label}</> : <>{c.label}<SortIcon /></>}
-                  </button>
-                ) : c.label}
-              </th>
-            );
-          })}
-        </tr>
-      </thead>
+    <table className="ledger">
+      <TableHead cols={POS_COLS} sort={posSort} onSort={onPosSort} />
       <tbody>
         {posRows.map((r) => (
           <tr key={r.id}>
-            <td style={{ ...cell, whiteSpace: "nowrap" }}>{r.security || "Equity"}</td>
+            <td style={{ whiteSpace: "nowrap" }}>{r.security || "Equity"}</td>
             <td style={numCell}>{fmt$(r.cost)}</td>
             <td style={numCell}>{fmt$(r.cartaFv)}</td>
             <td style={{ ...numCell, color: "var(--ink-color-global-text-subtle)", whiteSpace: "nowrap" }}>
@@ -344,7 +354,7 @@ function PositionsTable({ company, refDate, staleDays }) {
         ))}
         {rows.length > 1 && (
           <tr className="totrow">
-            <td style={cell}>Total</td>
+            <td>Total</td>
             <td style={numCell}>{fmt$(tot("cost"))}</td>
             <td style={numCell}>{fmt$(tot("cartaFv"))}</td>
             <td colSpan={2} />
@@ -360,145 +370,124 @@ function PositionsTable({ company, refDate, staleDays }) {
 // A delineated block inside the company expander — a shaded, bordered panel with
 // a small uppercase label — so fundamentals / scenario controls read as distinct
 // sections rather than one run-on stack of margins.
-function Section({ label, children, style }) {
-  return (
-    <div style={{ background: "var(--ink-color-global-surface-lightgray-default)", border: `1px solid var(--ink-color-global-border-subtle)`, padding: "12px 14px", marginBottom: 12, ...style }}>
-      {label && <Eyebrow color={MICRO} style={{ marginBottom: 10 }}>{label}</Eyebrow>}
-      {children}
-    </div>
-  );
-}
-
 // Small uppercase sub-label inside a Section (e.g. "Company valuation").
 const SubLabel = ({ children, style }) => (
   <Eyebrow color={MICRO} style={{ marginBottom: 8, ...style }}>{children}</Eyebrow>
 );
 
-// Hover-triggered popover — a Btn-link trigger with a trailing chevron that
-// reveals a portal-rendered panel below it (position:fixed off the trigger's
-// own rect, so it escapes the Companies table's `overflow:auto` clip).
-// Staying on either the trigger or the panel keeps it open; leaving both
-// closes it after a short grace period. Single source for "See positions"
-// and "Cap table & preferences" below, which used to be two copy-pasted
-// show/hide/position-tracking implementations differing only in label, max
-// width, panel padding, and body content.
-function HoverPopover({ label, maxWidth, panelPadding, children }) {
+// Sentence-case sub-label matching the accordion stat strip's own label style
+// (StatTile's "plain" tone) — for sub-labels sitting right below that strip,
+// where the SubLabel eyebrow's small-caps would read as a style mismatch.
+const PlainLabel = ({ children, style }) => (
+  <div style={{ ...sans, fontSize: FS.body, fontWeight: 400, color: "var(--ink-color-global-text-subtle)", marginBottom: 8, ...style }}>{children}</div>
+);
+
+// Ink dark hover tooltip — reusable for any trigger element. Defaults match the
+// Reserves toolbar's "Partial" usage (own HelpCircleIcon button, in-flow, opens
+// downward); pass `trigger` + `portal` for triggers that live inside an
+// overflow-clipped ancestor, e.g. a table row (see HoverPopover above for why
+// table-row popovers need portaling to escape the Companies table's overflow clip).
+function InfoTip({ label, children, width = 300, trigger, portal = false, placement = "bottom" }) {
   const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false); // stays true after first show so opacity can transition back to 0 on hide
   const [pos, setPos] = useState(null);
   const triggerRef = useRef(null);
-  const timer = useRef(null);
   const show = () => {
-    clearTimeout(timer.current);
-    const r = triggerRef.current?.getBoundingClientRect();
-    if (r) {
-      const w = Math.min(maxWidth, window.innerWidth - 24);
-      setPos({ left: Math.max(12, Math.min(r.left, window.innerWidth - w - 12)), top: r.bottom + 6, width: w });
-    }
+    setMounted(true);
     setOpen(true);
+    if (portal) {
+      const r = triggerRef.current?.getBoundingClientRect();
+      if (r) {
+        const w = Math.min(width, window.innerWidth - 24);
+        const top = placement === "top" ? r.top - 8 : r.bottom + 8;
+        setPos({ left: Math.max(w / 2 + 12, Math.min(r.left + r.width / 2, window.innerWidth - w / 2 - 12)), top, width: w });
+      }
+    }
   };
-  const hide = () => { clearTimeout(timer.current); timer.current = setTimeout(() => setOpen(false), 150); };
-  useEffect(() => () => clearTimeout(timer.current), []);
-  return (
-    <>
-      <Btn ref={triggerRef} kind="link" onMouseEnter={show} onMouseLeave={hide} onFocus={show} onBlur={hide}
-        onClick={(e) => e.stopPropagation()} aria-expanded={open}
-        style={{ fontSize: FS.bodyLg, cursor: "default" }}>
-        <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-          {label} <ChevronDownIcon size={14} strokeWidth={1.5} />
-        </span>
-      </Btn>
-      {open && pos && createPortal(
-        <div className="popin" onMouseEnter={show} onMouseLeave={hide}
-          style={{ ...sans, position: "fixed", left: pos.left, top: pos.top, width: pos.width, zIndex: 60,
-            background: "var(--ink-color-global-surface-background-default)", border: `1px solid var(--ink-color-global-border-subtle)`, boxShadow: "var(--shadow-hover)",
-            padding: panelPadding, maxHeight: "60vh", overflow: "auto" }}>
-          {children}
-        </div>, document.body)}
-    </>
-  );
-}
-
-// A blue help-circle icon that reveals Ink's dark hover tooltip above it — the
-// on-demand explainer for a toolbar control whose selected value (e.g. "Partial")
-// isn't self-explanatory. Lives in-flow (not portaled) since the filter ribbon
-// itself has no overflow clip, unlike HoverPopover's table-row triggers above.
-function InfoTip({ label, children, width = 300 }) {
-  const [open, setOpen] = useState(false);
-  const show = () => setOpen(true);
   const hide = () => setOpen(false);
+
+  const triggerEl = trigger ?? (
+    <button type="button" aria-label={label} style={{ display: "flex", background: "none", border: "none", padding: 0, cursor: "default", color: "var(--ink-color-global-feedback-info-strong)" }}>
+      <HelpCircleIcon size={16} strokeWidth={1.6} />
+    </button>
+  );
+
+  const caret = (
+    <span style={{ position: "absolute", left: "50%", transform: "translateX(-50%)",
+      ...(placement === "top"
+        ? { top: "100%", borderLeft: "6px solid transparent", borderRight: "6px solid transparent", borderTop: "6px solid var(--ink-color-global-brand-black)" }
+        : { bottom: "100%", borderLeft: "6px solid transparent", borderRight: "6px solid transparent", borderBottom: "6px solid var(--ink-color-global-brand-black)" }) }} />
+  );
+
+  // Ink's canonical recipe fades the tooltip in/out (transition: opacity 0.1s) rather than
+  // mount/unmount — stay mounted once shown (see `mounted`) so hide() can animate to opacity 0
+  // instead of disappearing instantly. The global prefers-reduced-motion reset (see EASE usage
+  // elsewhere in this file) neutralizes this transition automatically for users who need it.
+  // Font size/leading and radius match theme-with-ink's canonical Tooltip recipe
+  // (components.md: 12px/16px, radius-subtle) — that skill is the styling target for this
+  // app, not the live @carta/ink package's own token values.
+  const tooltipBody = (
+    <div role="tooltip"
+      style={{ ...sans, background: "var(--ink-color-global-brand-black)", color: "var(--ink-color-global-brand-white)",
+        fontSize: FS.body, lineHeight: "16px", padding: "10px 14px", borderRadius: "var(--ink-size-global-radius-subtle)",
+        boxShadow: "var(--shadow-hover)", zIndex: portal ? 200 : 60, textAlign: "left",
+        opacity: open ? 1 : 0, transition: "opacity 0.1s", pointerEvents: "none",
+        ...(portal
+          ? { position: "fixed", left: pos?.left, top: pos?.top, width: pos?.width, transform: `translate(-50%, ${placement === "top" ? "-100%" : "0"})` }
+          : { position: "absolute", [placement === "top" ? "bottom" : "top"]: "calc(100% + 8px)", left: "50%", transform: "translateX(-50%)", width }) }}>
+      {children}
+      {caret}
+    </div>
+  );
+
   return (
-    <span style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
-      <button type="button" aria-label={label} onMouseEnter={show} onMouseLeave={hide} onFocus={show} onBlur={hide}
-        style={{ display: "flex", background: "none", border: "none", padding: 0, cursor: "default", color: "var(--ink-color-global-feedback-info-strong)" }}>
-        <HelpCircleIcon size={16} strokeWidth={1.6} />
-      </button>
-      {open && (
-        // Opens downward (toward the table), not upward — this trigger sits right
-        // under the page header, where an upward tooltip has nowhere to grow and
-        // clips against the viewport top. Every other popover in this toolbar
-        // (Dropdown, GlobalFilter) already opens downward for the same reason.
-        <div role="tooltip"
-          style={{ ...sans, position: "absolute", top: "calc(100% + 8px)", left: "50%", transform: "translateX(-50%)",
-            width, background: "var(--ink-color-global-brand-black)", color: "var(--ink-color-global-brand-white)",
-            fontSize: FS.body, lineHeight: 1.5, padding: "10px 12px", borderRadius: "var(--ink-size-global-radius-subtle)",
-            boxShadow: "var(--shadow-hover)", zIndex: 60, textAlign: "left" }}>
-          {children}
-          <span style={{ position: "absolute", bottom: "100%", left: "50%", transform: "translateX(-50%)",
-            width: 0, height: 0, borderLeft: "6px solid transparent", borderRight: "6px solid transparent",
-            borderBottom: "6px solid var(--ink-color-global-brand-black)" }} />
-        </div>
-      )}
+    <span ref={triggerRef} style={{ position: portal ? undefined : "relative", display: "inline-flex", alignItems: "center" }}
+      onMouseEnter={show} onMouseLeave={hide} onFocus={show} onBlur={hide}>
+      {triggerEl}
+      {mounted && (portal ? (pos && createPortal(tooltipBody, document.body)) : tooltipBody)}
     </span>
   );
 }
 
-// "See positions" hover popover — the positions ledger is reference detail, so it
-// stays tucked away and appears on hover of the trigger.
-function PositionsPopover({ company, refDate, staleDays }) {
+// Circular badge shell for a small Ink icon glyph — shared by the row-level InfoTip
+// triggers below (financials/cap-table). Circle fill + icon color follow Bubble's
+// info tone; `path`/`fillRule`/`clipRule` are the one thing each glyph varies.
+function IconBadge({ label, path, fillRule, clipRule }) {
   return (
-    <HoverPopover label="See positions" maxWidth={680} panelPadding="6px 14px 10px">
-      <PositionsTable company={company} refDate={refDate} staleDays={staleDays} />
-    </HoverPopover>
+    <span aria-label={label} tabIndex={0} style={{ flex: "none", display: "inline-flex", alignItems: "center",
+      justifyContent: "center", width: 20, height: 20, borderRadius: "50%", background: "var(--ink-color-global-feedback-info-subtle)",
+      color: "var(--ink-color-global-feedback-info-strong)" }}>
+      <svg width="12" height="12" viewBox="0 0 22 22" aria-hidden="true">
+        <path fill="currentColor" fillRule={fillRule} clipRule={clipRule} d={path} />
+      </svg>
+    </span>
   );
 }
 
 // Cap-table detail body — the preference summary line, the share-class stack and
-// the source caveat. Rendered inside the hover popover below (kept out of the
-// always-open expander so it doesn't hog vertical space).
+// the source caveat. Rendered inside the Cap table modal (see CompanyRow) so it
+// doesn't occupy the always-open expander by default.
 function CapTableDetail({ company }) {
-  const s = preferenceSummary(company.capTable);
-  const ccy = company.capTable.currency;
   return (
-    <>
-      <div style={{ ...sans, fontSize: FS.small, color: "var(--ink-color-global-text-subtle)", marginBottom: 8 }}>
-        {s.hasPrefTerms ? (
-          <>
-            <strong style={{ color: "var(--ink-color-global-text-default)" }}>{fmtMoney(s.totalPreference, ccy)}</strong> total liquidation preference senior to common
-            {s.multMin != null && <> · {s.multMin === s.multMax ? intX(s.multMin) : `${intX(s.multMin)}–${intX(s.multMax)}`}</>}
-            {s.anyParticipating ? " · participating" : " · non-participating"}
-          </>
-        ) : (
-          <>Share classes on file; no preferred-preference terms (common / no multiple).</>
-        )}
-        {s.fundInvested > 0 && (
-          <span style={{ marginLeft: 8 }}>· fund invested <strong style={{ color: "var(--ink-color-global-text-default)" }}>{fmtMoney(s.fundInvested, ccy)}</strong>, held at <strong style={{ color: "var(--ink-color-global-text-default)" }}>{fmtMoney(s.fundFmv, ccy)}</strong></span>
-        )}
-      </div>
+    <TableScroll>
+      {company.lastRound && (
+        <div style={{ ...sans, fontSize: FS.body, color: "var(--ink-color-global-text-subtle)", marginBottom: 12 }}>
+          Last priced round: <strong style={{ color: "var(--ink-color-global-text-default)" }}>{roundLabel(company.lastRound.round)}</strong>
+          {company.lastRound.postMoney ? ` · ${fmtM(company.lastRound.postMoney)} post-money` : ""}
+          {company.lastRound.date ? ` · ${company.lastRound.date}` : ""}
+        </div>
+      )}
       <PrefStackTable company={company} />
-      <span style={{ ...sans, fontSize: FS.micro, color: MICRO, display: "block", marginTop: 8 }}>
-        Source: Carta cap-table records. The liquidation waterfall (in Scenario controls) is a transparent pragmatic estimate from these terms — not Carta's official waterfall engine.
-      </span>
-    </>
-  );
-}
-
-// "Cap table & preferences" hover popover — same tucked-away treatment as
-// "See positions", so the share-class stack doesn't occupy the expander by default.
-function CapTablePopover({ company }) {
-  return (
-    <HoverPopover label="Cap table & preferences" maxWidth={720} panelPadding="10px 14px 12px">
-      <CapTableDetail company={company} />
-    </HoverPopover>
+      {/* Explains why the Company-valuation dropdown doesn't show on Scenario
+          inputs for this company (see companyReferenceExit) — the cap table is
+          where a reader can actually see the missing data (no lastRound above,
+          every class's OIP blank below), so the explanation lives here. */}
+      {companyReferenceExit(company) <= 0 && (
+        <SourceNote>
+          No priced round or original issue price (OIP) data — you won't be able to reprice this company based on company valuation.
+        </SourceNote>
+      )}
+    </TableScroll>
   );
 }
 
@@ -513,7 +502,7 @@ const StatusChip = ({ variant, children }) => (
 // compresses on resize instead of collapsing; no-op for Invested/MOIC/Deal IRR.
 const NUM_COL_MIN_W = 88;
 // nowrap: a wrapped value would break the fixed two-line cellStack height.
-const numTd = { ...mono, textAlign: "right", fontSize: FS.value, whiteSpace: "nowrap", minWidth: NUM_COL_MIN_W };
+const numTd = { ...inkNum, textAlign: "right", fontSize: FS.value, whiteSpace: "nowrap", minWidth: NUM_COL_MIN_W };
 // FV/MOIC/Deal IRR cells can show a second (change) line when repriced — see
 // StackedValue below for how the value stays centred and the row height stays
 // fixed (no mid-drag jitter).
@@ -629,7 +618,7 @@ function MetricTrend({ financials }) {
           {hv != null && (() => {
             const pv = pts[hv].v, col = pv < 0 ? "var(--ink-color-global-feedback-negative-strong)" : "var(--ink-button-background-color-primary-base-default)";
             const ly = Math.max(MT_PT - 4, Math.min(MT_H - 4, pv < 0 ? y(pv) + 15 : y(pv) - 7));
-            return <text x={bx(hv)} y={ly} textAnchor="middle" style={{ ...mono, fontSize: FS.body, fontWeight: 700, fill: col }}>{fmtV(pv)}</text>;
+            return <text x={bx(hv)} y={ly} textAnchor="middle" style={{ ...inkNum, fontSize: FS.body, fontWeight: 700, fill: col }}>{fmtV(pv)}</text>;
           })()}
         </svg>
       )}
@@ -664,7 +653,19 @@ function dealIrrOf(company, assumptions, snapshot, updateCompany) {
   });
 }
 
-function CompanyRow({ company, updateCompany, refDate, staleDays, assumptions, snapshot, readOnly, onOpenCompany, reload, flush, expanded, onToggle, ownership, onHoverChange, onDragStart, onDragEnd }) {
+function CompanyRow({ company, updateCompany, refDate, staleDays, assumptions, portfolio, snapshot, readOnly, onOpenCompany, reload, flush, expanded, onToggle, ownership, onHoverChange, onDragStart, onDragEnd, fundStates, firmAgg, firmLpDelta, firmGpCarry, sliceName, fundScope, onOpenFundSection }) {
+  // which detail sub-modal is open — 'captable' | 'financials' | 'positions' | null
+  const [openModal, setOpenModal] = useState(null);
+  // Which scenario slider (if any) is actively being dragged — "mark" | "dilution" |
+  // null. Real pointer-down through pointer-up only (RepriceControl's
+  // `onDraggingChange`, distinct from onDragStart/onDragEnd, which also fire on
+  // instant chip/reset clicks). Drives the Returns-preview panel's fade treatment:
+  // NOT by watching whether a row's value visibly moved (a slow drag can take many
+  // renders to cross a rounding boundary even though it IS affecting the metric —
+  // that read the fade as "unaffected" when it was really just "hasn't ticked over
+  // yet"), but from a precomputed affects-map of which slider touches which row
+  // (see ReturnsPreviewContent/FundCard's `dim` props in PerformanceSidebarV2.jsx).
+  const [draggingSlider, setDraggingSlider] = useState(null);
   const { cfg, dilutionCfg, uplift, canReprice } = companyRepriceState(company, updateCompany);
   // FV aggregates + curFv from the shared helper so this row and dealIrrOf agree
   const { live, totalFv, totalCost, totalProceeds, curFv } = companyFvState(company, { uplift, canReprice });
@@ -674,14 +675,25 @@ function CompanyRow({ company, updateCompany, refDate, staleDays, assumptions, s
   const dilutionDefended = Math.max(0, FULL_RESERVE_DILUTION - (company.futureDilution ?? 0));
   const markFvGross = company.positions.reduce((s, p) => s + positionReprice(company, p, { live: true, dilution: 0 }).repricedFv, 0);
   const companyReserve = dilutionDefended * markFvGross;
+  // Baseline counterpart for the Company-impact delta — shares its formula
+  // with reserves.js's baseReservesEarmarked via companyBaseReserve, so the
+  // two never drift apart.
+  const companyReserveBase = companyBaseReserve(company);
   // marginal split per fund — exact while the fund is above its LP make-whole line
-  let lpSplit = 0, carrySplit = 0;
+  let lpSplit = 0, carrySplit = 0, baseLp = 0, baseCarry = 0;
   for (const p of company.positions) {
     const u = positionReprice(company, p, { live }).uplift;
     const c = carryRateFor(assumptions, p.fundId);
     lpSplit += u * (1 - c);
     carrySplit += u * c;
+    baseLp += (p.cartaFv || 0) * (1 - c);
+    baseCarry += (p.cartaFv || 0) * c;
   }
+  // Company's LP NAV / carry, split from the same marginal per-fund carry rate as
+  // lpSplit/carrySplit above — an approximation (ignores the fund's preferred-return
+  // hurdle) that ties out to FV exactly: curLp + curCarry === curFv.
+  const curLp = baseLp + lpSplit;
+  const curCarry = baseCarry + carrySplit;
   const hasBasis = company.positions.some((p) => p.markBasisB);
   // Firm fully-diluted ownership + the forward "dilution guard" (ownership after
   // the company's modeled future dilution). ownInfo.pct is null when Carta has no
@@ -689,7 +701,60 @@ function CompanyRow({ company, updateCompany, refDate, staleDays, assumptions, s
   const ownInfo = companyOwnership(company, ownership);
   const ownDiluted = ownInfo.pct != null && (company.futureDilution ?? 0) > 0;
   const repriced = canReprice && !company.archived && Math.abs(uplift) > 0.5;
-  const N = 9;
+
+  // ── Accordion summary strip: FV / LP NAV / Carry, each a current (scenario)
+  //    value + its change vs the Carta mark (same StatBar the firm-level
+  //    MetricBar uses), plus ownership when a detailed Carta cap table is on
+  //    file. Ownership's headline is the post-dilution figure — the same
+  //    "current scenario value" convention as the other three tiles — with the
+  //    pre-dilution Carta-on-file pct as the reference delta (signed negative,
+  //    since dilution only ever reduces ownership).
+  // Feeds the modal's Returns-preview sidebar (Company impact section) — raw
+  // numeric value + fmt fn, matching the Row component Firm/Fund impact
+  // already use there, rather than the pre-formatted strings a StatBar needs.
+  //
+  // Company impact's own Deal IRR row (below) prioritizes THIS company's exit
+  // timing over the fund-wide horizon when it's been set (Realize toggled on,
+  // with its own exit-timing slider) — the table's dealIrr (further down)
+  // always uses the fund-wide horizon, matching its column-wide comparability.
+  // Falls back to the same fund-wide horizon dealIrrOf uses when no
+  // per-company timing exists, so an un-realized company shows the same
+  // figure either way.
+  const companyExitDate = company.exited && company.exitTimingQ != null
+    ? quarterOffsetDate(snapshot?.source?.navAsOf, company.exitTimingQ)
+    : exitHorizonFor(assumptions, snapshot, company.fundId);
+  const companyDealIrr = scenarioDealIrr({
+    positions: company.positions, exitDate: companyExitDate,
+    cartaIrr: company.dealIrr ?? null, baseValue: totalFv, repricedValue: curFv,
+    proceeds: totalProceeds, realized: company.realized,
+  });
+  const companyDealIrrDelta = company.dealIrr != null && companyDealIrr != null
+    ? companyDealIrr - company.dealIrr : null;
+  const companyImpactRows = [
+    { key: "fv", label: "Fair value", value: company.realized ? null : curFv, fmt: fmtM,
+      delta: company.realized ? null : uplift, eps: 0.5 },
+    { key: "lpnav", label: "LP NAV", value: company.realized ? null : curLp, fmt: fmtM,
+      delta: company.realized ? null : lpSplit, eps: 0.5 },
+    { key: "carry", label: "Carry", value: company.realized ? null : curCarry, fmt: fmtM,
+      delta: company.realized ? null : carrySplit, eps: 0.5 },
+    { key: "dealIrr", label: `Deal IRR · exit ${companyExitDate ? companyExitDate.slice(0, 4) : "—"}`,
+      value: companyDealIrr, fmt: fmtPct, delta: companyDealIrrDelta, eps: 0.001 },
+    // The delta is computed from pct/postDilution rounded to fmtOwn's OWN display
+    // precision first, not the raw difference — otherwise "3.6% → 2.5%" (each
+    // independently rounded) can show a delta like "▼1.0%" instead of the "1.1%"
+    // the two visible endpoints imply, since the underlying unrounded values
+    // (e.g. 3.55% and 2.55%) round differently on their own than their exact
+    // difference does. Rounding first keeps the displayed numbers self-consistent.
+    companyHasCapTable(company) && { key: "own", label: "Fully-diluted ownership",
+      value: ownInfo.pct == null ? null : ownInfo.postDilution, fmt: fmtOwn,
+      delta: ownInfo.pct == null ? null : -(roundToOwnDisplay(ownInfo.pct) - roundToOwnDisplay(ownInfo.postDilution)), eps: 0.0001 },
+    { key: "reserve", label: "Reserves earmarked",
+      value: company.realized || company.defunct || company.archived ? null : companyReserve, fmt: fmtM,
+      delta: company.realized || company.defunct || company.archived ? null : companyReserve - companyReserveBase, eps: 0.5 },
+  ].filter(Boolean);
+  // gates the Financials button — same "usable reported-metric series" check the
+  // trend chart itself applies inside the modal
+  const hasFinancials = (company.financials?.series || []).some((sr) => sr.points && sr.points.length);
   const markDate = company.positions.reduce((m, p) => ((p.markDate || "") > m ? p.markDate : m), "");
 
   const status = company.realized
@@ -700,7 +765,7 @@ function CompanyRow({ company, updateCompany, refDate, staleDays, assumptions, s
     ? <StatusChip variant="flex-yellow-light">Repriced</StatusChip>
     : company.exited && live
     ? <StatusChip variant="fb-info">Exited · in DPI</StatusChip>
-    : <span style={{ ...mono, color: "var(--ink-color-global-text-subtle)" }}>—</span>;
+    : <span style={{ ...inkNum, color: "var(--ink-color-global-text-subtle)" }}>—</span>;
 
   // ── unified FV / MOIC: the CURRENT (slider-driven) values, with the change
   //    vs the Carta mark shown as a green/red increment when the slider's moved.
@@ -719,58 +784,42 @@ function CompanyRow({ company, updateCompany, refDate, staleDays, assumptions, s
   const irrDelta = (!company.realized && repriced && company.dealIrr != null && dealIrr != null)
     ? dealIrr - company.dealIrr : null;
 
-  // repriced rows get a left-edge stripe (Ink NewTable.Stripe pattern) instead of a
-  // full-row tint; only the expanded state still washes the whole row
-  const rowBg = expanded ? "var(--ink-color-global-surface-lightgray-default)" : undefined;
-
   return (
     <Fragment>
+      {/* repriced rows get a left-edge stripe (Ink NewTable.Stripe pattern) instead
+          of a full-row tint. Clicking the row opens the company's detail in a
+          modal (see `expanded &&` further down) rather than expanding inline. */}
       <tr onClick={onToggle} data-testid={`co-row-${company.slug}`}
         data-datum-id={company.id} data-datum-type="company" data-datum-label={company.name}
         onMouseEnter={() => onHoverChange?.(company.id)} onMouseLeave={() => onHoverChange?.(null)}
-        style={{ cursor: "pointer", background: rowBg, opacity: company.defunct ? 0.6 : 1 }}>
+        style={{ cursor: "pointer", opacity: company.defunct ? 0.6 : 1 }}>
         <td style={{ position: "relative", paddingLeft: 10 }}>
           {repriced && (
             <span aria-hidden title="Repriced" style={{ position: "absolute", left: 0, top: 0, bottom: -1, width: 4, background: "var(--stripe-repriced)" }} />
           )}
           <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-            <span aria-hidden style={{ color: "var(--ink-color-global-text-subtle)", flex: "none", display: "inline-flex",
-              transform: expanded ? "rotate(90deg)" : "none", transition: "transform .12s" }}>
-              {/* Ink's real NewTable.Twiddle chevron renders in a 14×14 icon box.
-                  strokeWidth=1.6 matches Ink's documented disclosure-chevron weight
-                  (same idea as the Dropdown carat at 1.5) rather than ChevronIcon's
-                  generic 1.8 default, which was never tuned for this expand/collapse
-                  context. This used to override down to size=11/strokeWidth=2.4, reading
-                  visibly smaller than prod; dropped that override to match Ink's 14px box. */}
-              <ChevronIcon strokeWidth={1.6} />
-            </span>
             <span title={`${companyFundIds(company).join(" · ")} · ${company.positions.length} pos`}
               style={{ ...sans, fontSize: FS.value, fontWeight: 400, color: "var(--ink-color-global-text-default)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 200 }}>
               {company.name}
             </span>
             {company.financials?.series?.length > 0 && (
-              <span title="Reported financials collected (Carta Data Collection) — expand to see the trend"
-                aria-label="Has reported financials" style={{ flex: "none", display: "inline-flex", alignItems: "center",
-                  justifyContent: "center", width: 15, height: 15, borderRadius: "50%", background: "var(--accent-soft)", color: "var(--ink-color-global-link-default)" }}>
-                <svg width="9" height="9" viewBox="0 0 12 12" aria-hidden="true">
-                  <path d="M2.5 6.3 L5 8.7 L9.5 3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </span>
+              <InfoTip portal placement="top" trigger={
+                <IconBadge label="Has reported financials" fillRule="evenodd" clipRule="evenodd"
+                  path="M11.8 2.65q1.13.1 2.07.52 1.26.59 2.03 1.62t.88 2.4v.42h-1.66l-.03-.21-.02-.15a3 3 0 0 0-.62-1.62 3.4 3.4 0 0 0-1.4-1.06 5 5 0 0 0-1.25-.3v5.9l.47.1q2.5.55 3.65 1.6l.27.25-.04.02q.9 1.02.9 2.63 0 1.38-.75 2.44-.75 1.04-2.09 1.6-1.08.46-2.42.53v1.68h-1.55v-1.7a8 8 0 0 1-2.18-.5 5 5 0 0 1-1.94-1.35l-.2-.26A4.6 4.6 0 0 1 5 14.78v-.41h1.65l.03.2.02.15v.01q.11.93.67 1.6.57.69 1.54 1.08l.18.06q.54.18 1.16.24v-6.2l-.18-.04a7.5 7.5 0 0 1-3.5-1.58 3.7 3.7 0 0 1-1.15-2.83v-.02q0-1.3.74-2.31a5 5 0 0 1 2-1.57 7 7 0 0 1 2.1-.51V.97h1.54zm.01 15.1q.91-.06 1.61-.33l.23-.1a3 3 0 0 0 1.2-.95q.51-.67.51-1.56v-.01q0-1.15-.77-1.8a6.5 6.5 0 0 0-2.75-1.15h-.03zM10.27 4.26q-.75.08-1.33.3-.86.38-1.34 1v.01q-.47.6-.47 1.46 0 1.09.77 1.75.74.64 2.37 1.05z" />
+              }>
+                Financials available through Carta Data Collection
+              </InfoTip>
             )}
             {company.capTable?.available && (
-              <span title={company.capTable.hasPrefTerms
-                ? "Detailed cap table available — liquidation preferences modeled (expand the row, then hover “Cap table & preferences”; incorporate the liquidation waterfall in Scenario controls)"
-                : "Detailed cap table available (expand the row, then hover “Cap table & preferences”)"}
-                aria-label={company.capTable.hasPrefTerms ? "Detailed cap table with liquidation preferences" : "Detailed cap table available"}
-                style={{ flex: "none", display: "inline-flex", alignItems: "center", justifyContent: "center",
-                  width: 15, height: 15, borderRadius: 3, border: `1px solid var(--ink-color-global-link-default)`, color: "var(--ink-color-global-link-default)",
-                  background: company.capTable.hasPrefTerms ? "var(--blue-soft, transparent)" : "transparent" }}>
-                {/* stacked-layers glyph = the preference stack */}
-                <svg width="9" height="9" viewBox="0 0 12 12" aria-hidden="true">
-                  <path d="M6 1 L11 3.5 L6 6 L1 3.5 Z M1 6 L6 8.5 L11 6 M1 8.5 L6 11 L11 8.5"
-                    fill="none" stroke="currentColor" strokeWidth="1.1" strokeLinejoin="round" strokeLinecap="round" />
-                </svg>
-              </span>
+              <InfoTip portal placement="top" trigger={
+                <IconBadge label={company.capTable.hasPrefTerms ? "Detailed cap table with liquidation preferences" : "Detailed cap table available"}
+                  fillRule="evenodd" clipRule="evenodd"
+                  path="M13.8 2a.7.7 0 0 0-1-.7l-10.4 2c-.4 0-.6.3-.6.7v16c0 .4.3.8.7.8H20c.4 0 .8-.4.8-.8v-9.7c0-.4-.3-.7-.7-.8l-6.4-.8V2Zm0 8.2v9h5.4V11l-5.4-.7Zm-1.6-7.3-9 1.7v14.7h2V12h1.5v7.3h2V7h1.6v12.3h2V2.9Z" />
+              }>
+                {company.capTable.hasPrefTerms
+                  ? "Cap table and liquidation preferences available"
+                  : "Cap table available"}
+              </InfoTip>
             )}
           </div>
         </td>
@@ -806,143 +855,297 @@ function CompanyRow({ company, updateCompany, refDate, staleDays, assumptions, s
             {ownInfo.pct == null ? "—" : fmtOwn(ownInfo.pct)}
           </StackedValue>
         </td>
-        <td style={{ padding: "6px 12px", minWidth: 112 }} onClick={(e) => e.stopPropagation()}>
-          {cfg && <RepriceControl {...cfg} uplift={uplift} locked={readOnly} compact hideReadout onDragStart={onDragStart} onDragEnd={onDragEnd} />}
-        </td>
         <td style={{ textAlign: "left", width: STATUS_COL_W }}>{status}</td>
       </tr>
 
       {expanded && (
-        <tr onMouseEnter={() => onHoverChange?.(company.id)} onMouseLeave={() => onHoverChange?.(null)}>
-          <td colSpan={N} style={{ background: "var(--ink-color-global-surface-background-default)", padding: 0 }}>
-            <div style={{ padding: "10px 20px 20px" }}>
-              {/* headline: repriced split + ownership + details link */}
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 14, flexWrap: "wrap", marginBottom: 12 }}>
-                <div style={{ ...sans, fontSize: FS.body, color: "var(--ink-color-global-text-subtle)" }}>
-                  {repriced && (
-                    <span style={{ ...mono, fontSize: FS.bodyLg, fontWeight: 700, color: uplift >= 0 ? "var(--ink-color-global-feedback-positive-strong)" : "var(--ink-color-global-feedback-negative-strong)" }}>
-                      {uplift >= 0 ? "+" : "−"}{fmtM(Math.abs(uplift))} company FV
-                      <span style={{ ...sans, fontSize: FS.small, color: "var(--ink-color-global-text-subtle)", fontWeight: 500, marginLeft: 8 }}>→ LP NAV {fmtM(lpSplit)} · carry {fmtM(carrySplit)}</span>
-                    </span>
+        <Modal title={company.name} subtitle={sliceName && `Scenario: ${sliceName}`} width="xlarge"
+          onClose={() => { setOpenModal(null); onToggle(); }}>
+          <div style={{ display: "flex", gap: 28 }}>
+          <div style={{ flex: "1 1 auto", minWidth: 0 }}>
+              {/* headline: last-round context + details link (the FV/LP NAV/Carry/
+                  ownership figures live in the sidebar's Company impact section) */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 14, flexWrap: "wrap", marginBottom: 12 }}>
+                <div style={{ flex: "1 1 420px" }}>
+                  {/* last-round context lives in the Cap table tab (cap-table data belongs
+                      there, not in the modal headline) */}
+                  {(company.realized || company.defunct) && (
+                    <div style={{ ...sans, fontSize: FS.body, color: "var(--ink-color-global-text-subtle)" }}>
+                      {company.realized && <>Crystallized exit · counts in DPI, not modeled · proceeds {fmtM(totalProceeds)} · {totalCost > 0 && totalProceeds > 0 ? fmtX(totalProceeds / totalCost, 1) : "—"} realized</>}
+                      {company.defunct && <>Out of business · held at Carta marks</>}
+                    </div>
                   )}
-                  {company.realized && <>Crystallized exit · counts in DPI, not modeled · proceeds {fmtM(totalProceeds)} · {totalCost > 0 && totalProceeds > 0 ? fmtX(totalProceeds / totalCost, 1) : "—"} realized</>}
-                  {company.defunct && <>Out of business · held at Carta marks</>}
-                  {ownInfo.pct != null && <span style={{ marginLeft: repriced ? 10 : 0 }}>{fmtOwn(ownInfo.pct)} fully-diluted ownership</span>}
                 </div>
                 {onOpenCompany && company.corpUuid && (
-                  <Btn kind="link" onClick={(e) => { e.stopPropagation(); onOpenCompany(company.corpUuid); }} title="Open company page">
+                  <Btn kind="link" onClick={(e) => { e.stopPropagation(); trackClick("FundModeling.Companies.OpenDetailsClick"); onOpenCompany(company.corpUuid); }} title="Open company page">
                     Details ↗
                   </Btn>
                 )}
               </div>
 
-              {/* ── Fundamentals: reported financials, trend, last round, positions ── */}
-              <Section label="Fundamentals">
-                {(fin => (fin?.series || []).some((sr) => sr.points && sr.points.length) ? (
-                  <MetricTrend financials={fin} />
-                ) : (
-                  // No usable reported-metric series (no financials at all, or a
-                  // financials object with no plottable points) — make the absence
-                  // explicit rather than silently omitting the metrics area.
-                  <div style={{ ...sans, fontSize: FS.body, color: "var(--ink-color-global-text-subtle)", marginBottom: 10 }}>
-                    No reported financials <span style={{ color: MICRO }}>(Carta Data Collection)</span>
-                  </div>
-                ))(company.financials)}
+              {/* Tabs switch what renders below, in place, rather than opening a
+                  separate stacked modal — same shell, same size, just a different
+                  peer view of this company. Ink's standard underline Tab recipe
+                  (theme-with-ink components.md "## Tab" — see the .ink-tabs/
+                  .ink-tab rules in theme.js's GLOBAL_CSS), not a bespoke style. */}
+              <nav className="ink-tabs" role="tablist" style={{ marginBottom: 16 }}>
+                {[
+                  { id: null, label: "Scenario inputs" },
+                  { id: "positions", label: "Positions" },
+                  { id: "captable", label: "Cap table" },
+                  { id: "financials", label: "Financials" },
+                ].map((t) => {
+                  const active = openModal === t.id;
+                  return (
+                    <button key={t.label} type="button" role="tab" aria-selected={active}
+                      className={`ink-tab${active ? " is-active" : ""}`}
+                      onClick={(e) => { e.stopPropagation(); setOpenModal(t.id); }}>
+                      {t.label}
+                    </button>
+                  );
+                })}
+              </nav>
 
-                {company.lastRound && (
-                  <div style={{ ...sans, fontSize: FS.body, color: "var(--ink-color-global-text-subtle)", marginBottom: 10 }}>
-                    Last priced round: <strong style={{ color: "var(--ink-color-global-text-default)" }}>{roundLabel(company.lastRound.round)}</strong>
-                    {company.lastRound.postMoney ? ` · ${fmtM(company.lastRound.postMoney)} post-money` : ""}
-                    {company.lastRound.date ? ` · ${company.lastRound.date}` : ""}
-                  </div>
-                )}
-
-                <div style={{ display: "flex", alignItems: "center", gap: 18, flexWrap: "wrap" }}>
-                  <PositionsPopover company={company} refDate={refDate} staleDays={staleDays} />
-                  {companyHasCapTable(company) && <CapTablePopover company={company} />}
-                </div>
-              </Section>
+              {openModal === "captable" && (
+                companyHasCapTable(company)
+                  ? <CapTableDetail company={company} />
+                  : <EmptyState type="page" icon="setup" text="No detailed cap table on file for this company." />
+              )}
+              {openModal === "financials" && (
+                hasFinancials
+                  ? <MetricTrend financials={company.financials} />
+                  : <EmptyState type="page" icon="pending" text="No reported financials on file for this company (Carta Data Collection)." />
+              )}
+              {openModal === "positions" && (
+                <TableScroll><PositionsTable company={company} refDate={refDate} staleDays={staleDays} /></TableScroll>
+              )}
 
               {/* ── Scenario controls: valuation, dilution, realize ── */}
-              {cfg && (
-                <Section label="Scenario controls">
-                  {/* compact toggle cluster — liquidation waterfall + realize, side by side */}
-                  <div style={{ marginBottom: 14 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 18, flexWrap: "wrap", rowGap: 6 }}>
-                      {companyHasCapTable(company) && !company.realized && !company.defunct && (
-                        <Toggle small checked={!!company.waterfallMode}
-                          onChange={(val) => updateCompany(company.id, val
-                            ? { waterfallMode: true, includeInNav: true, valuationB: company.valuationB ?? companyReferenceExit(company) / 1e9 }
-                            : { waterfallMode: false })}
-                          labels={["Liquidation waterfall applied", "Incorporate liquidation waterfall"]} locked={readOnly}
-                          title="Values the fund's stake through the preference stack at the slider valuation — floors the downside, converges to ownership × value. Independent of Realize." />
-                      )}
-                      <Toggle small checked={!!company.exited}
-                        onChange={(val) => updateCompany(company.id, { exited: val, includeInNav: true })}
-                        labels={["Realized at this mark", "Realize at this mark"]} locked={readOnly}
-                        title="Crystallize this holding's marked value into LP distributions (DPI) — runs the make-whole waterfall; LP NAV drops by the realized amount." />
+              {!openModal && cfg && (
+                <div>
+                  <div>
+                    {/* Realize + its Exit-timing dropdown float top-right, OUT of normal
+                        flow (position: absolute) — a flex sibling column would shrink the
+                        slider's own width to "remaining space" (it no longer reaches the
+                        full content width, unlike the Dilution slider below), and would
+                        still grow the shared row's height when the dropdown appears,
+                        pushing the value down. Absolute positioning avoids both: the label
+                        + RepriceControl block below renders at full width, undisturbed. */}
+                    <div style={{ position: "relative", marginBottom: 24 }}>
+                      <div style={{ position: "absolute", top: 0, right: 0, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <Toggle small checked={!!company.exited}
+                            onChange={(val) => {
+                              trackClick("FundModeling.Companies.ToggleRealize");
+                              updateCompany(company.id, { exited: val, includeInNav: true });
+                            }}
+                            labels={Array(2).fill(`Realize at ${cfg.fmtVal(cfg.value)} ${companyIsWaterfall(company) || hasBasis ? "valuation" : "MOIC"}`)}
+                            locked={readOnly} textColor="var(--ink-color-global-text-default)"
+                            title="Crystallize this holding's marked value into LP distributions (DPI) — runs the make-whole waterfall; LP NAV drops by the realized amount." />
+                          <InfoTip label="What does Realize mean?" width={320}>
+                            <div>Realize crystallizes this holding's marked value into LP distributions (DPI) — runs the make-whole waterfall; LP NAV drops by the realized amount.</div>
+                            {companyHasCapTable(company) && !company.realized && !company.defunct && (
+                              <div style={{ marginTop: 6 }}>Independent of <strong>Waterfall</strong>, which values the stake through the preference stack at the slider valuation instead of the flat mark.</div>
+                            )}
+                          </InfoTip>
+                        </div>
+                        {/* Realize is a toggle, not a checkbox — reads as "flip this on to
+                            crystallize" like the other mark-adjacent switches (e.g. Waterfall).
+                            Its label names the actual lever being pulled (MOIC vs. dollar
+                            valuation) rather than the generic "this mark" — GPs/CFOs talk
+                            about an exit in terms of company valuation, not MOIC (a per-fund
+                            derived return, not the deal itself), so waterfall/hasBasis's $
+                            slider reads "valuation" and the plain multiple slider reads "MOIC". */}
+                        {company.exited && !company.realized && (
+                          <ExitTimingSection company={company}
+                            navAsOf={snapshot?.source?.navAsOf} locked={readOnly} updateCompany={updateCompany}
+                            defaultExitQ={Math.max(0, Math.min(EXIT_Q_MAX,
+                              quartersBetween(snapshot?.source?.navAsOf, exitHorizonFor(assumptions, snapshot, company.fundId))))}
+                            onDragStart={onDragStart} onDragEnd={onDragEnd} />
+                        )}
+                      </div>
+                      {/* MOIC and Company valuation (liquidation waterfall) share one label
+                          row — a caret dropdown swaps between them instead of a separate
+                          toggle switch below. hasBasis companies (a $-basis mark on file)
+                          keep the old plain label; that's a different, data-driven slider
+                          mode this control doesn't apply to. The dropdown itself doesn't
+                          render at all (falls back to the plain label below) when there's no
+                          priced round or OIP on file — switching to Company valuation would
+                          otherwise seed a $0 reference exit, and a control with nothing
+                          reachable behind it reads better absent than shown-but-greyed-out. */}
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+                        {!hasBasis && companyHasCapTable(company) && !company.realized && !company.defunct && companyReferenceExit(company) > 0 ? (
+                          <ValuationModeChange company={company} updateCompany={updateCompany}
+                            locked={readOnly}
+                            label={companyIsWaterfall(company) ? "Company valuation" : "MOIC"}
+                            infoTip={companyIsWaterfall(company) && (
+                              <InfoTip label="What does Company valuation mean?" width={320}>
+                                Values the fund's stake through the preference stack (see Cap table) at the slider valuation — floors the downside, converges to ownership × value. Independent of Realize. A transparent pragmatic estimate from the cap table's terms — not Carta's official waterfall engine.
+                              </InfoTip>
+                            )} />
+                        ) : (
+                          <PlainLabel style={{ marginBottom: 0 }}>
+                            {hasBasis ? (companyIsWaterfall(company) ? "Company valuation (liquidation waterfall)" : "Company valuation")
+                              : (companyIsWaterfall(company) ? "Company valuation" : "MOIC")}
+                          </PlainLabel>
+                        )}
+                      </div>
+                      <RepriceControl {...cfg} uplift={uplift} locked={readOnly} hidePresets showTick resetLabel="Carta mark"
+                        trackId="FundModeling.Reprice.SetValue"
+                        onReset={() => {
+                          trackClick("FundModeling.Companies.ResetRepriceClick");
+                          updateCompany(company.id, (c) => {
+                            // Resets the MARK back to Carta — not Realize (one of the mark chips
+                            // itself, so it must behave like any other mark change: never flips
+                            // Realize off), and not the valuation MODE either — flipping the mode
+                            // on reset would silently switch a company back to MOIC from Company
+                            // valuation mode when "Carta mark" is clicked. In dollar mode (waterfall
+                            // or hasBasis) reset valuationB to
+                            // cfg.resetValue — the same reference exit / cartaRef repriceConfig
+                            // already computed for THIS mode — instead of the MOIC-mode-only
+                            // `defaultValuationB`. Preserve `exited`, and keep includeInNav/
+                            // exitTimingQ consistent with whatever that stays.
+                            const inDollarMode = companyIsWaterfall(c) || hasBasis;
+                            return {
+                              valuationB: inDollarMode ? (cfg.resetValue ?? null) : (c.defaultValuationB ?? null),
+                              markMultiple: 1,
+                              includeInNav: !!c.exited, exitTimingQ: c.exited ? c.exitTimingQ : 0,
+                              futureDilution: 0,
+                            };
+                          });
+                        }}
+                        onDragStart={onDragStart} onDragEnd={onDragEnd} onDraggingChange={(d) => setDraggingSlider(d ? "mark" : null)} />
                     </div>
-                    <span style={{ ...sans, fontSize: FS.micro, color: MICRO, display: "block", marginTop: 5, lineHeight: 1.45, maxWidth: 560 }}>
-                      {companyHasCapTable(company) && !company.realized && !company.defunct
-                        ? <><strong style={{ color: "var(--ink-color-global-text-subtle)" }}>Waterfall</strong> values the stake through the preference stack at the slider valuation (floors downside). <strong style={{ color: "var(--ink-color-global-text-subtle)" }}>Realize</strong> crystallizes it into DPI. Independent.</>
-                        : <>Realize crystallizes this holding's marked value into DPI (make-whole waterfall; LP NAV drops by the realized amount).</>}
-                    </span>
-                  </div>
-                  {company.exited && !company.realized && (
-                    <ExitTimingSection company={company} totalFv={totalFv} curFv={curFv} proceeds={totalProceeds}
-                      navAsOf={snapshot?.source?.navAsOf} locked={readOnly} updateCompany={updateCompany}
-                      onDragStart={onDragStart} onDragEnd={onDragEnd} />
-                  )}
-                  <div style={{ marginBottom: 14 }}>
-                    <SubLabel>{companyIsWaterfall(company) ? "Company valuation (liquidation waterfall)" : hasBasis ? "Company valuation" : "Mark · multiple of invested cost (MOIC)"}</SubLabel>
-                    <RepriceControl {...cfg} uplift={uplift} locked={readOnly} showTick
-                      onReset={() => updateCompany(company.id, (c) => ({
-                        valuationB: c.defaultValuationB ?? null, markMultiple: 1,
-                        includeInNav: false, exited: false, exitTimingQ: 0, futureDilution: 0, waterfallMode: false,
-                      }))}
-                      onDragStart={onDragStart} onDragEnd={onDragEnd} />
+                    {/* Waterfall toggle + curve run below the full-width slider */}
+                    {hasBasis && companyHasCapTable(company) && !company.realized && !company.defunct && (() => {
+                      const hasReferenceExit = companyReferenceExit(company) > 0;
+                      return (
+                        <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 10 }}>
+                          <Toggle small checked={!!company.waterfallMode} disabled={!hasReferenceExit}
+                            onChange={(val) => {
+                              trackClick("FundModeling.Companies.ToggleWaterfall");
+                              updateCompany(company.id, val ? waterfallSeed : { waterfallMode: false });
+                            }}
+                            labels={["Liquidation waterfall applied", "Incorporate liquidation waterfall"]} locked={readOnly}
+                            title={hasReferenceExit
+                              ? "Values the fund's stake through the preference stack at the slider valuation — floors the downside, converges to ownership × value. Independent of Realize."
+                              : "No priced round or OIP data available for Company valuation mode"} />
+                          <InfoTip label="What does the liquidation waterfall toggle do?" width={320}>
+                            Values the fund's stake through the preference stack (see Cap table) at the slider valuation — floors the downside, converges to ownership × value. Independent of Realize. A transparent pragmatic estimate from the cap table's terms — not Carta's official waterfall engine.
+                          </InfoTip>
+                        </div>
+                      );
+                    })()}
                     {companyIsWaterfall(company) && (
                       <div style={{ marginTop: 10 }}>
                         <WaterfallCurve company={company} />
-                        <span style={{ ...sans, fontSize: FS.small, color: "var(--ink-color-global-text-subtle)", display: "block", marginTop: 2 }}>
-                          Fund proceeds vs company valuation (solid) vs a flat ownership × value line (dashed). Marker = the current valuation.
-                        </span>
                       </div>
                     )}
                   </div>
                   {dilutionCfg && (
                     <div style={{ marginBottom: 14 }}>
-                      <SubLabel>Expected future dilution</SubLabel>
-                      <RepriceControl {...dilutionCfg} locked={readOnly} hidePresets onDragStart={onDragStart} onDragEnd={onDragEnd} />
-                      <span style={{ ...sans, fontSize: FS.small, color: "var(--ink-color-global-text-subtle)", display: "block", marginTop: 6 }}>
-                        Haircuts this company's value to the fund by the % you expect future rounds to dilute the stake — lowers TVPI and DPI.
-                      </span>
-                      {ownInfo.pct != null && (
-                        <span style={{ ...sans, fontSize: FS.small, color: "var(--ink-color-global-text-subtle)", display: "block", marginTop: 4 }}>
-                          Ownership <strong style={{ ...mono, color: "var(--ink-color-global-text-default)" }}>{fmtOwn(ownInfo.pct)}</strong>
-                          {" → "}
-                          <strong style={{ ...mono, color: ownDiluted ? "var(--ink-color-global-feedback-negative-strong)" : "var(--ink-color-global-text-default)" }}>{fmtOwn(ownInfo.postDilution)}</strong>
-                          {ownDiluted ? ` after ${fmtPct(company.futureDilution)} expected dilution` : " — no dilution modeled"}
-                        </span>
-                      )}
-                      {companyReserve > 0.5 && (
-                        <span style={{ ...sans, fontSize: FS.small, color: "var(--ink-color-global-text-subtle)", display: "block", marginTop: 4 }}
-                          title={`Estimated pro-rata follow-on to defend this stake ≈ (dilution defended) × current marked FV. Dilution defended = ${fmtPct(FULL_RESERVE_DILUTION)} baseline − ${fmtPct(company.futureDilution ?? 0)} = ${fmtPct(dilutionDefended)}; marked FV (pre-dilution) = ${fmtM(markFvGross)}.`}>
-                          Reserve earmarked: <strong style={{ ...mono, color: "var(--ink-color-global-text-default)" }}>{fmtM(companyReserve)}</strong>
-                          {" "}<span style={{ color: MICRO }}>— {fmtPct(dilutionDefended)} of dilution defended × {fmtM(markFvGross)} marked FV</span>
-                        </span>
-                      )}
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <PlainLabel style={{ marginBottom: 0 }}>Expected future dilution</PlainLabel>
+                        <InfoTip label="What does expected future dilution mean?" width={300}>
+                          Haircuts this company's value to the fund by the % you expect future rounds to dilute the stake — lowers TVPI and DPI.
+                        </InfoTip>
+                      </div>
+                      <div style={{ marginTop: 8 }}>
+                        <RepriceControl {...dilutionCfg} locked={readOnly} hidePresets hideTick
+                          trackId="FundModeling.Companies.SetFutureDilution"
+                          onDragStart={onDragStart} onDragEnd={onDragEnd} onDraggingChange={(d) => setDraggingSlider(d ? "dilution" : null)} />
+                      </div>
+                      {/* Reserve-earmarked readout now sits below the (full-width) slider
+                          instead of beside it — no more trailing column to share. */}
+                      <div style={{ marginTop: 8 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <div style={{ ...sans, fontSize: FS.value, color: "var(--ink-color-global-text-subtle)" }}>
+                            <strong style={{ ...inkNum, fontSize: FS.value, color: "var(--ink-color-global-text-default)" }}>{fmtM(companyReserve)}</strong> reserve earmarked
+                          </div>
+                          <InfoTip label="What does reserve earmarked mean?" width={320}>
+                            {fmtPct(dilutionDefended)} of dilution defended × {fmtM(markFvGross)} marked FV
+                          </InfoTip>
+                        </div>
+                        {ownInfo.pct != null && (
+                          <div style={{ ...sans, fontSize: FS.small, color: "var(--ink-color-global-text-subtle)", marginTop: 4 }}>
+                            Ownership <strong style={{ ...inkNum, color: "var(--ink-color-global-text-default)" }}>{fmtOwn(ownInfo.pct)}</strong>
+                            {" → "}
+                            <strong style={{ ...inkNum, color: ownDiluted ? "var(--ink-color-global-feedback-negative-strong)" : "var(--ink-color-global-text-default)" }}>{fmtOwn(ownInfo.postDilution)}</strong>
+                            {ownDiluted ? ` after ${fmtPct(company.futureDilution)} expected dilution` : " — no dilution modeled"}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   )}
-                </Section>
+                </div>
               )}
 
-              {company.notes && <p style={{ ...sans, fontSize: FS.body, color: "var(--ink-color-global-text-subtle)", lineHeight: 1.6, marginTop: 4 }}>{company.notes}</p>}
+              {!openModal && company.notes && <p style={{ ...sans, fontSize: FS.body, color: "var(--ink-color-global-text-subtle)", lineHeight: 1.6, marginTop: 4 }}>{company.notes}</p>}
+          </div>
+          {fundStates && firmAgg && (
+            <div style={{ flex: "0 0 300px" }}>
+              <ReturnsPreviewContent fundStates={fundStates} firmAgg={firmAgg} firmLpDelta={firmLpDelta} firmGpCarry={firmGpCarry}
+                fundScope={fundScope} snapshot={snapshot} portfolio={portfolio}
+                onOpenFundSection={onOpenFundSection} activeFundIds={companyFundIds(company)}
+                companyImpact={companyImpactRows} draggingSlider={draggingSlider}
+                distributionsAffected={!!company.exited && !company.realized} />
             </div>
-          </td>
-        </tr>
+          )}
+          </div>
+        </Modal>
       )}
     </Fragment>
+  );
+}
+
+/** Caret trigger beside the Mark label — lets MOIC and Company valuation
+ *  (liquidation waterfall) share one control instead of a label plus a
+ *  separate toggle switch. Selecting "Company valuation" does exactly what
+ *  the old waterfall Toggle's onChange did (same valuationB seeding logic);
+ *  selecting "MOIC" turns waterfallMode back off. */
+function ValuationModeChange({ company, updateCompany, locked, label, infoTip }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useDismissable(open, setOpen, ref);
+  const isWaterfall = companyIsWaterfall(company);
+  const select = (waterfall) => {
+    setOpen(false);
+    if (locked || waterfall === isWaterfall) return;
+    updateCompany(company.id, waterfall ? waterfallSeed : { waterfallMode: false });
+  };
+  const toggle = () => setOpen((o) => !o);
+  const linkColor = locked ? "var(--ink-color-global-text-disabled)" : "var(--ink-color-global-link-default)";
+  return (
+    // Label and caret are two separate buttons (both toggle the same dropdown) so
+    // `infoTip` — a hover tooltip, not a dropdown trigger — can sit visually
+    // between them ("Company valuation (?) ⌄") without living inside either
+    // button (a nested button would eat its own click as a toggle). The
+    // popover's `left: 0` is relative to THIS span, so it aligns with the
+    // label's own left edge rather than the caret's (well to the label's right).
+    <span ref={ref} style={{ position: "relative", display: "inline-flex", alignItems: "center", gap: 4 }}>
+      <button onClick={toggle} disabled={locked} aria-haspopup="menu" aria-expanded={open}
+        title={locked ? undefined : "Change valuation mode"}
+        style={{ display: "inline-flex", alignItems: "center", background: "none", border: "none", padding: 0,
+          cursor: locked ? "not-allowed" : "pointer" }}>
+        <span style={{ ...sans, fontSize: FS.body, fontWeight: 400, color: linkColor }}>{label}</span>
+      </button>
+      {infoTip}
+      <button onClick={toggle} disabled={locked} aria-haspopup="menu" aria-expanded={open}
+        title={locked ? undefined : "Change valuation mode"}
+        style={{ display: "inline-flex", alignItems: "center", background: "none", border: "none", padding: 0,
+          cursor: locked ? "not-allowed" : "pointer" }}>
+        <ChevronDownIcon size={16} strokeWidth={1.5}
+          style={{ color: linkColor, transition: "transform .12s ease", transform: open ? "rotate(180deg)" : "rotate(0deg)" }} />
+      </button>
+      {open && (
+        <div role="menu" className="popin" style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, background: "var(--ink-color-global-surface-background-default)",
+          border: `1px solid var(--ink-color-global-border-subtle)`, borderRadius: 6, minWidth: 190, zIndex: 50,
+          boxShadow: POPOVER_SHADOW }}>
+          <MenuItem role="menuitem" selected={!isWaterfall} checkmark onClick={() => select(false)}>MOIC</MenuItem>
+          <MenuItem role="menuitem" selected={isWaterfall} checkmark onClick={() => select(true)}>Company valuation</MenuItem>
+        </div>
+      )}
+    </span>
   );
 }
 
@@ -962,8 +1165,8 @@ function ResetMenu({ onZeroOut, onReset }) {
         <div role="menu" className="popin" style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, background: "var(--ink-color-global-surface-background-default)",
           border: `1px solid var(--ink-color-global-border-subtle)`, borderRadius: 6, minWidth: 190, zIndex: 50,
           boxShadow: POPOVER_SHADOW }}>
-          <MenuItem role="menuitem" tint={false} onClick={() => { setOpen(false); onZeroOut(); }}>Zero out companies</MenuItem>
-          <MenuItem role="menuitem" tint={false} onClick={() => { setOpen(false); onReset(); }}>Reset to Carta marks</MenuItem>
+          <MenuItem role="menuitem" tint={false} onClick={() => { setOpen(false); trackClick("FundModeling.Companies.ZeroOutClick"); onZeroOut(); }}>Zero out companies</MenuItem>
+          <MenuItem role="menuitem" tint={false} onClick={() => { setOpen(false); trackClick("FundModeling.Companies.ResetToCartaClick"); onReset(); }}>Reset to Carta marks</MenuItem>
         </div>
       )}
     </span>
@@ -1009,42 +1212,27 @@ function CompaniesHeaderRow({ sortBy, sortDir, onSort, colWidths, hidden }) {
   const w = (i) => (colWidths ? { width: colWidths[i] } : undefined);
   return (
     <tr>
-      {/* paddingLeft 33 = td's own 10px + the row's chevron (14px, Ink's real
-          NewTable.Twiddle size) + its 9px gap, so "Company" lines up with the
-          name text, not the chevron/stripe at the cell edge */}
-      <SortableTh id="az" label="Company" align="left" sortBy={sortBy} sortDir={sortDir} onSort={onSort} style={{ paddingLeft: 33, ...w(0) }} hidden={hidden} />
+      {/* paddingLeft 10 matches the row's own td paddingLeft, so "Company" lines
+          up with the name text, not the repriced-stripe at the cell edge */}
+      <SortableTh id="az" label="Company" align="left" sortBy={sortBy} sortDir={sortDir} onSort={onSort} style={{ paddingLeft: 10, ...w(0) }} hidden={hidden} />
       <SortableTh id="invested" label="Invested" sortBy={sortBy} sortDir={sortDir} onSort={onSort} style={w(1)} hidden={hidden} />
       <SortableTh id="value" label="FV" sortBy={sortBy} sortDir={sortDir} onSort={onSort} style={w(2)} hidden={hidden} />
       <SortableTh id="stale" label="Mark" sortBy={sortBy} sortDir={sortDir} onSort={onSort} style={w(3)} hidden={hidden} />
       <SortableTh id="mark" label="MOIC" sortBy={sortBy} sortDir={sortDir} onSort={onSort} style={w(4)} hidden={hidden} />
       <SortableTh id="irr" label="Deal IRR" sortBy={sortBy} sortDir={sortDir} onSort={onSort} style={w(5)} hidden={hidden} />
       <SortableTh id="own" label="Own %" sortBy={sortBy} sortDir={sortDir} onSort={onSort} style={w(6)} hidden={hidden} />
-      <th style={{ ...sans, textAlign: "left", ...w(7) }}>Reprice</th>
-      <th style={{ ...sans, textAlign: "left", width: colWidths ? colWidths[8] : STATUS_COL_W }}>Status</th>
+      <th style={{ ...sans, textAlign: "left", width: colWidths ? colWidths[7] : STATUS_COL_W }}>Status</th>
     </tr>
   );
 }
 
-export default function Companies({ portfolio, snapshot, exitHorizonOverrides, updateCompany, updateSlice, setAssumption, readOnly, onOpenCompany, reload, flush, holdingsPulled, fundScope, setFundScope, onActiveFundsChange }) {
+export default function Companies({ portfolio, snapshot, exitHorizonOverrides, updateCompany, updateSlice, setAssumption, readOnly, onOpenCompany, reload, flush, holdingsPulled, fundScope, setFundScope, fundStates, firmAgg, firmLpDelta, firmGpCarry, sliceName, onOpenFundSection }) {
   // fund filter is the GLOBAL scope (driven by the header picker): "all" ⇔ ALL_FUNDS
   const fundFilter = fundScope === ALL_FUNDS ? "all" : fundScope;
   const [confirm, setConfirm] = useState(null); // {title, message, confirmLabel, danger, onConfirm} or null
   const [query, setQuery] = useState("");
-  const [expandedId, setExpandedId] = useState(null); // accordion: one company open at a time
-  const [hoverId, setHoverId] = useState(null); // which row the pointer is over — beats expandedId when set
-  // tell the Performance sidebar v2 which fund(s) the hovered/expanded company
-  // touches, so it can grey out the rest while you're comparing a reprice
-  const activeId = hoverId ?? expandedId;
-  // a company's fund membership never changes from a reprice edit (only its
-  // valuation/multiple does), so this only needs to re-run when the active
-  // company changes — not on every portfolio.companies reference from a drag
-  const companiesRef = useRef(portfolio.companies);
-  companiesRef.current = portfolio.companies;
-  useEffect(() => {
-    const c = companiesRef.current.find((c) => c.id === activeId);
-    onActiveFundsChange?.(c ? companyFundIds(c) : null);
-    return () => onActiveFundsChange?.(null); // leaving the tab shouldn't leave funds dimmed behind
-  }, [activeId, onActiveFundsChange]);
+  const [expandedId, setExpandedId] = useState(null); // which company's detail modal is open, if any
+  const [hoverId, setHoverId] = useState(null); // which row the pointer is over
   const [sortBy, setSortBy] = useState("value");
   const [sortDir, setSortDir] = useState("desc");
   const tableRef = useRef(null);
@@ -1189,14 +1377,27 @@ export default function Companies({ portfolio, snapshot, exitHorizonOverrides, u
     .filter((c) => globalFilters.statuses.length === 0 || globalFilters.statuses.includes(companyStatus(c)))
     .filter((c) => !query || c.name.toLowerCase().includes(query.toLowerCase()));
 
-  const companies = frozenOrder
-    ? frozenOrder.map((id) => filtered.find((c) => c.id === id)).filter(Boolean)
-    : [...filtered].sort((a, b) => SORTS[sortBy](a, b) * (sortDir === "asc" ? 1 : -1));
+  const bySort = (a, b) => SORTS[sortBy](a, b) * (sortDir === "asc" ? 1 : -1);
+  // A freeze pins the order of the rows it captured and nothing more: a company
+  // it never saw (a different fund scope, a search since cleared) still sorts in
+  // normally. Letting the freeze pick the rows instead would blank the table
+  // whenever the scope moved to a fund sharing none of the frozen companies.
+  const companies = (() => {
+    if (!frozenOrder) return [...filtered].sort(bySort);
+    const rank = new Map(frozenOrder.map((id, i) => [id, i]));
+    return [...filtered].sort((a, b) => {
+      const ra = rank.get(a.id);
+      const rb = rank.get(b.id);
+      if (ra != null && rb != null) return ra - rb;
+      if (ra != null) return -1;
+      if (rb != null) return 1;
+      return bySort(a, b);
+    });
+  })();
 
   const onSliderDragStart = () => {
     if (frozenOrder) return; // already frozen
-    const sorted = [...filtered].sort((a, b) => SORTS[sortBy](a, b) * (sortDir === "asc" ? 1 : -1));
-    setFrozenOrder(sorted.map((c) => c.id));
+    setFrozenOrder([...filtered].sort(bySort).map((c) => c.id));
   };
   const onSliderDragEnd = () => {}; // order stays frozen until the user clicks a column header
 
@@ -1237,11 +1438,12 @@ export default function Companies({ portfolio, snapshot, exitHorizonOverrides, u
       <H1 actions={
         <FundPicker funds={snapshot.funds} value={fundScope} onChange={(v) => {
           setFundScope(v);
+          setFrozenOrder(null); // a new scope is a new set of rows — sort them fresh
           setGlobalFilters((f) => f.statuses.length ? { ...f, statuses: [] } : f);
         }} />
       }>Companies</H1>
       <MethodNote>
-        Every portfolio company at this scenario's marks. Drag <strong>Reprice</strong> to mark a company up or down; click a row to expand its tape, positions and fund impact.
+        Every portfolio company at this scenario's marks. Click a row to open its tape, positions and fund impact.
       </MethodNote>
       {/* filter ribbon: search · reserve strategy · exit horizon · global filter · reset */}
       <div style={{ display: "flex", gap: 16, marginTop: 8, marginBottom: 24, flexWrap: "wrap", alignItems: "center" }}>
@@ -1303,12 +1505,18 @@ export default function Companies({ portfolio, snapshot, exitHorizonOverrides, u
             {companies.map((c) => (
               <CompanyRow key={c.id} company={c} ownership={ownership}
                 updateCompany={updateCompany} refDate={refDate} staleDays={staleDays}
-                assumptions={portfolio.assumptions} snapshot={snapshot} readOnly={readOnly} onOpenCompany={onOpenCompany} reload={reload} flush={flush}
-                expanded={expandedId === c.id} onToggle={() => setExpandedId(expandedId === c.id ? null : c.id)}
-                onHoverChange={setHoverId} onDragStart={onSliderDragStart} onDragEnd={onSliderDragEnd} />
+                assumptions={portfolio.assumptions} portfolio={portfolio} snapshot={snapshot} readOnly={readOnly} onOpenCompany={onOpenCompany} reload={reload} flush={flush}
+                expanded={expandedId === c.id} onToggle={() => {
+                  const next = expandedId === c.id ? null : c.id;
+                  if (next) trackClick("FundModeling.Companies.ExpandCompany");
+                  setExpandedId(next);
+                }}
+                onHoverChange={setHoverId} onDragStart={onSliderDragStart} onDragEnd={onSliderDragEnd}
+                fundStates={fundStates} firmAgg={firmAgg} firmLpDelta={firmLpDelta} firmGpCarry={firmGpCarry}
+                sliceName={sliceName} fundScope={fundScope} onOpenFundSection={onOpenFundSection} />
             ))}
             {companies.length === 0 && (
-              <tr><td colSpan={9} style={{ ...sans, color: "var(--ink-color-global-text-subtle)", padding: "16px 12px" }}>No companies match.</td></tr>
+              <tr><td colSpan={8} style={{ ...sans, color: "var(--ink-color-global-text-subtle)", padding: "16px 12px" }}>No companies match.</td></tr>
             )}
           </tbody>
         </table>

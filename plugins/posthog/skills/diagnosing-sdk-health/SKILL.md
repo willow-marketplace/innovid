@@ -1,6 +1,6 @@
 ---
 name: diagnosing-sdk-health
-description: ">"
+description: Diagnoses the health of a project's PostHog SDK integrations — which SDKs are out of date and how to fix them. Use when a user asks about PostHog SDK versions, outdated SDKs, upgrade recommendations, "SDK health", "SDK doctor" (the former name), or when events or features seem off and it might be due to an old SDK.
 ---
 
 # Diagnosing SDK health

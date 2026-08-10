@@ -1,6 +1,6 @@
 ---
 name: sonar-integrate
-description: '"Installs sonarqube-cli if not already installed, authenticates, and integrates SonarQube with the current agent (installs analysis hooks & SonarQube MCP Server). Use when the user wants to set up SonarQube integration or asks to configure SonarQube."'
+description: Installs sonarqube-cli if not already installed, authenticates, and integrates SonarQube with the current agent (installs analysis hooks & SonarQube MCP Server). Use when the user wants to set up SonarQube integration or asks to configure SonarQube.
 ---
 
 # Integrate SonarQube
@@ -15,18 +15,23 @@ Interaction rule: for every finite decision, always present predefined selector 
 
 Check if `sonar` is available on the PATH by running `which sonar` (macOS/Linux) or `Get-Command sonar` (Windows) yourself.
 
-**If found:**
+**If found:** first determine how it was installed, because the upgrade path differs:
 
-1. Run **`sonar self-update`** yourself and wait for it to finish.
-   - **If it succeeds:** briefly tell the user the CLI is up to date (or was upgraded), then go to Step 2.
-   - **If it fails:** show the relevant output, suggest they run `sonar self-update` manually (e.g. offline or network issues), then **still continue** to Step 2 if `sonar` remains usable — do not block the rest of the flow unless the binary is missing or broken.
+- **Managed by a package or version manager** (e.g. installed via Homebrew or mise — the binary lives under the manager's prefix rather than `~/.local/share/sonarqube-cli/bin`): do **not** run `sonar self-update`, as it conflicts with the manager. Run the manager's upgrade command yourself instead (Homebrew: `brew upgrade --cask sonarqube-cli`; mise: `mise upgrade aqua:SonarSource/sonarqube-cli`), then go to Step 2. If the upgrade fails, show the output but **still continue** to Step 2 as long as `sonar` remains usable.
+- **Installed via the shell/PowerShell script, or unsure:** run **`sonar self-update`** yourself and wait for it to finish.
+  - **If it succeeds:** briefly tell the user the CLI is up to date (or was upgraded), then go to Step 2.
+  - **If it fails:** show the relevant output, suggest they run `sonar self-update` manually (e.g. offline or network issues), then **still continue** to Step 2 if `sonar` remains usable — do not block the rest of the flow unless the binary is missing or broken.
 
-**If not found:** pick the platform-appropriate install command from the table below, show it to the user, and ask for explicit confirmation **before running it**. Do **not** execute the command until the user confirms.
+**If not found:** pick an install command from the table below, show it to the user, and ask for explicit confirmation **before running it**. Do **not** execute the command until the user confirms.
 
-| Platform      | Install command                                                                                                          |
-| ------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| macOS / Linux | `curl -o- https://raw.githubusercontent.com/SonarSource/sonarqube-cli/refs/heads/master/user-scripts/install.sh \| bash` |
-| Windows (PS)  | `irm https://raw.githubusercontent.com/SonarSource/sonarqube-cli/refs/heads/master/user-scripts/install.ps1 \| iex`      |
+The shell/PowerShell script is the default and works everywhere. If the user already manages CLIs with **Homebrew** or **mise**, prefer that route so future upgrades stay managed by the tool — the Step 1 update above then defers to the manager.
+
+| Platform / method        | Install command                                                                                                          |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
+| macOS / Linux (script)   | `curl -o- https://raw.githubusercontent.com/SonarSource/sonarqube-cli/refs/heads/master/user-scripts/install.sh \| bash` |
+| macOS / Linux (Homebrew) | `brew install --cask sonarqube-cli`                                                                                      |
+| Any OS (mise)            | `mise use -g aqua:SonarSource/sonarqube-cli`                                                                             |
+| Windows (PowerShell)     | `irm https://raw.githubusercontent.com/SonarSource/sonarqube-cli/refs/heads/master/user-scripts/install.ps1 \| iex`      |
 
 **If the user confirms:** run the command yourself using a shell command. After it finishes, re-run the PATH check (`which sonar` or `Get-Command sonar`) yourself to verify before continuing.
 
@@ -85,6 +90,8 @@ verify before continuing.
 
 ### Step 4 — Agent-specific integration
 
+> **Container runtime requirement:** The SonarQube MCP Server runs inside a container, started via `sonar run mcp` (which detects Docker, Podman, or Nerdctl). A container runtime must be **installed and running** for the MCP tools to load — otherwise integration can complete successfully yet no `mcp__sonarqube__*` tools appear in the session. **Verify this yourself:** run `docker ps` (falling back to `podman ps` / `nerdctl ps`). If one succeeds, the runtime is up — proceed. If none do, tell the user their container runtime is not running and ask them to start it, then note they must restart the agent session afterward for the tools to load (starting the daemon and restarting the session are the only parts you cannot do for them).
+
 Pick exactly one branch below based on which agent you are. Do not run the other branches.
 
 - Claude Code -> **4.a**
@@ -98,7 +105,7 @@ Pick exactly one branch below based on which agent you are. Do not run the other
 
 Run **`sonar integrate claude`**, which configures the **SonarQube MCP Server**, **secrets-scanning hooks**, and any other supported integration the CLI applies.
 
-It wires **MCP** (for skills like sonar-quality-gate, sonar-analyze, sonar-coverage, sonar-duplication, sonar-dependency-risks) and **secrets-scanning hooks** into the user’s Claude Code config. When available, SonarQube Agentic Analysis hooks are also installed.
+It wires **MCP** (for skills like sonar-quality-gate, sonar-analyze, sonar-coverage, sonar-duplication, sonar-dependency-risks) and **secrets-scanning hooks** into the user’s Claude Code config. When available, SonarQube Vortex agentic analysis hooks are also installed.
 
 Ask the user using a single-choice selector with these options:
 
@@ -136,7 +143,7 @@ Then run the appropriate command yourself using a shell command, and adding `--n
 
 #### 4.c — Codex (`sonar integrate codex`)
 
-Run **`sonar integrate codex`**, which configures the **SonarQube MCP Server**, **secrets-scanning hooks**, and—when your SonarQube Cloud org has Agentic Analysis—a **PostToolUse** hook on **`apply_patch`** that surfaces findings inline after edits.
+Run **`sonar integrate codex`**, which configures the **SonarQube MCP Server**, **secrets-scanning hooks**, and—when your SonarQube Cloud org has Vortex agentic analysis—a **PostToolUse** hook on **`apply_patch`** that surfaces findings inline after edits.
 
 Ask the user using a single-choice selector with these options:
 
@@ -156,7 +163,7 @@ If the project key is not already known from `sonar-project.properties` or prior
 
 #### 4.d — Cursor (`sonar integrate cursor`)
 
-Run **`sonar integrate cursor`**, which configures **secrets-scanning hooks** (`beforeSubmitPrompt`, `beforeReadFile`, and `preToolUse`), **MCP**, **Context Augmentation** (when entitled), and **Agentic Analysis instructions** (when entitled, project scope only).
+Run **`sonar integrate cursor`**, which configures **secrets-scanning hooks** (`beforeSubmitPrompt`, `beforeReadFile`, and `preToolUse`), **MCP**, **Context Augmentation** (when entitled), and **Vortex agentic analysis instructions** (when entitled, project scope only).
 
 Ask the user using a single-choice selector with these options:
 
@@ -174,11 +181,11 @@ Then run the appropriate command yourself using a shell command, adding **`--non
 
 If the project key is not already known from `sonar-project.properties` or prior context, add **`--project <key>`** to the project-only command.
 
-After integrate completes, tell the user to enable the MCP server manually in Cursor: open **Settings → MCP**, find the `sonarqube` entry, and toggle it on. A Cursor session restart may be needed for the tools to appear.
+After integrate completes, tell the user to enable the MCP server manually in Cursor: open **Settings → MCP**, find the `sonarqube` entry, and toggle it on. Also tell the user to ensure a container runtime (Docker, Podman, or Nerdctl) is running. A Cursor session restart may be needed for the tools to appear.
 
 #### 4.e — Antigravity (`sonar integrate antigravity`)
 
-Run **`sonar integrate antigravity`**, which configures **secrets-scanning hooks**, **prompt-secrets and Agentic Analysis instructions**, **Context Augmentation** (when entitled), and **MCP** in the Antigravity harness.
+Run **`sonar integrate antigravity`**, which configures **secrets-scanning hooks**, **prompt-secrets and Vortex agentic analysis instructions**, **Context Augmentation** (when entitled), and **MCP** in the Antigravity harness.
 
 Ask the user using a single-choice selector with these options:
 
@@ -196,7 +203,7 @@ Then run the appropriate command yourself using a shell command, adding **`--non
 
 If the project key is not already known from `sonar-project.properties` or prior context, add **`--project <key>`** to the project-only command.
 
-Tell the user to restart the Antigravity session if MCP tools do not appear after integrate completes.
+Tell the user to ensure a container runtime (Docker, Podman, or Nerdctl) is running, and to restart the Antigravity session if MCP tools do not appear after integrate completes.
 
 #### 4.f — Gemini CLI *(legacy)*
 
@@ -204,7 +211,7 @@ Gemini CLI starts the SonarQube MCP Server via `sonar run mcp`, which handles co
 
 Confirm that integration is ready — the MCP server will start automatically when Gemini CLI reads **`gemini-extension.json`**.
 
-Recommend migrating to **Antigravity** (**4.e**): run **`agy plugin import gemini`**, then **`sonar integrate antigravity`**. Gemini CLI did not support SonarQube hooks or Agentic Analysis wiring.
+Recommend migrating to **Antigravity** (**4.e**): run **`agy plugin import gemini`**, then **`sonar integrate antigravity`**. Gemini CLI did not support SonarQube hooks or Vortex agentic analysis wiring.
 
 ---
 
@@ -215,9 +222,9 @@ After all steps complete, print a summary:
 ```
 ✅ SonarQube integration is ready.
 
-  sonarqube-cli:     updated via sonar self-update
+  sonarqube-cli:     up to date
   Authentication:    token stored in system keychain
-  MCP Server:        configured (restart the agent session if tools do not appear)
+  MCP Server:        configured (ensure a container runtime (Docker, Podman, or Nerdctl) is running, then restart the agent session if tools do not appear)
 
 You can verify at any time with:  sonar auth status
 To refresh CLI + wiring later:    invoke the sonar-integrate skill again
@@ -245,7 +252,7 @@ If path **4.d** (Cursor) was taken, add these lines to the summary:
 
 ```
   CLI integrate:     wired via sonar integrate cursor
-  MCP Server:        enable manually in Cursor Settings → MCP (restart may be needed)
+  MCP Server:        enable manually in Cursor Settings → MCP (ensure a container runtime (Docker, Podman, or Nerdctl) is running; restart may be needed)
 ```
 
 And **omit** the default `MCP Server` line (it is replaced by the Cursor-specific one above).

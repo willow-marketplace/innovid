@@ -1,6 +1,6 @@
 ---
 name: auditing-endpoints
-description: ">"
+description: Audit every endpoint in a PostHog project for staleness, failed materialisations, and unused materialised versions. Use when the user asks "what endpoints can I clean up?", "are any of my endpoints broken?", "which materialised versions are still being called?", or wants a one-shot cleanup pass over the Endpoints product. Produces a prioritised report grouped by issue type, with recommended actions but does not modify anything without explicit confirmation.
 ---
 
 # Auditing endpoints

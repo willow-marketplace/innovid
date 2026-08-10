@@ -80,7 +80,7 @@ src/
 | Rule | Correct | Incorrect |
 |------|---------|-----------|
 | Zod import | `import { z } from '@outputai/core'` | `import { z } from 'zod'` |
-| HTTP client | `import { httpClient } from '@outputai/http'` | `import axios from 'axios'` |
+| HTTP client | `import { createKyClient } from '@outputai/http'` | `import axios from 'axios'` |
 | HTTP bodies | Read with `.json()`/`.text()` or cancel unused non-HEAD bodies | Read only `response.url`/`status` and leave body open |
 | Credentials | `import { credentials } from '@outputai/credentials'` | `process.env.SECRET` |
 | LLM calls | `import { generateText, Output } from '@outputai/llm'` | Direct provider SDK |
@@ -143,7 +143,7 @@ src/
 |-------|---------|
 | `output-error-zod-import` | Wrong zod import source |
 | `output-error-nondeterminism` | Date.now, Math.random in workflows |
-| `output-error-try-catch` | Missing error handling in steps |
+| `output-error-try-catch` | Workflow try/catch patterns and typed step-error checks |
 | `output-error-missing-schemas` | Incomplete Zod schema exports |
 | `output-error-direct-io` | I/O operations in workflow files |
 | `output-error-http-client` | Using axios instead of @outputai/http |
@@ -273,12 +273,12 @@ See `output-dev-workflow-function` for comprehensive patterns.
 ### Step Pattern
 ```typescript
 import { step, z } from '@outputai/core';
-import { httpClient } from '@outputai/http';
+import { createKyClient } from '@outputai/http';
 
 export const fetchData = step(
   { name: 'fetchData', inputSchema: z.string(), outputSchema: z.any() },
   async url => {
-    const client = httpClient( { prefixUrl: url } );
+    const client = createKyClient( { prefix: url } );
     const response = await client.get( '' );
     return response.json();
   }
@@ -294,13 +294,13 @@ Clients live in `src/shared/clients/` and are shared across all workflows.
 ```typescript
 // src/shared/clients/example.ts
 import { FatalError, ValidationError } from '@outputai/core';
-import { httpClient } from '@outputai/http';
+import { createKyClient } from '@outputai/http';
 import { credentials } from '@outputai/credentials';
 
 const API_KEY = credentials.require( 'example.api_key' );
 
-const client = httpClient( {
-  prefixUrl: 'https://api.example.com',
+const client = createKyClient( {
+  prefix: 'https://api.example.com',
   headers: { Authorization: `Bearer ${API_KEY}` },
   timeout: 30000,
   retry: { limit: 3, statusCodes: [ 408, 429, 500, 502, 503, 504 ] }

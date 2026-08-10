@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, forwardRef } from "react";
 import { createPortal } from "react-dom";
-import { FS, SANS, serif, tightSans, sans, mono, MICRO, NOTICE, NOTICE_TINT, EASE, GRAD_DARK, EYEBROW_TRACKING } from "./theme.js";
+import { FS, SANS, serif, tightSans, sans, inkNum, MICRO, NOTICE, NOTICE_TINT, EASE, GRAD_DARK, EYEBROW_TRACKING } from "./theme.js";
 
 // SVG/text fontFamily attributes need a plain string (not a style object) —
 // reuse theme.js's own SANS constant rather than hand-duplicating it.
@@ -67,6 +67,73 @@ export const SwitchIcon = icon(["M16 3l4 4-4 4", "M20 7H8a4 4 0 00-4 4v1", "M8 2
 // stroked-outline weight of the other topbar glyphs (no fill, no emoji).
 export const ChatIcon = icon(["M21 11.5a8.5 8.5 0 01-8.5 8.5H8l-4 3v-4.6A8.5 8.5 0 1121 11.5z"]);
 export const CloseIcon = icon(["M18 6L6 18", "M6 6l12 12"]);
+// Stop affordance in the chat composer. Filled rather than stroked like the
+// icons above — at 11px an outlined square reads as an empty checkbox.
+export const StopIcon = ({ size = 11, style }) => (
+  <svg width={size} height={size} viewBox="0 0 12 12" aria-hidden
+    style={{ flex: "none", display: "block", ...style }}>
+    <rect x="1.5" y="1.5" width="9" height="9" rx="1.5" fill="currentColor" />
+  </svg>
+);
+
+// Ink's real Modal width tiers (carta-frontend-platform: libs/ink/ink-containers/
+// library/Modal/Modal.tsx MODAL_MAX_WIDTH) — a 1280px/11-gutter grid, 68px per
+// column + 32px gutters: mini = 4 cols, small = 6, medium = 8 (Ink's own default
+// for the classic, non-`enableNewStyles` Modal this app's chrome matches), large = 10.
+// `large` is the biggest NAMED tier Ink's real Modal ships (its `width` prop docs
+// list only mini/small/medium/large) — `xlarge` continues the same +2-column/
+// +200px progression to the full 12-column row width Ink's Grid caps at, via the
+// Modal's own documented support for a custom pixel width beyond its presets.
+export const MODAL_WIDTH = { mini: 432, small: 632, medium: 832, large: 1032, xlarge: 1232 };
+
+/** Generic content modal, matching Ink's real Modal/Dialog/Modal.Header recipe
+ *  (carta-frontend-platform: libs/ink/ink-containers/library/Modal, ink-foundations'
+ *  Dialog, and ink-tokens' Modal/tokens.ts) rather than this app's older hand-rolled
+ *  ConfirmDialog/ScenarioDialog chrome — backdrop is Ink's real
+ *  `surface-background-overlay` token (no blur; Ink's own Dialog has none), the card
+ *  is Ink's exact container recipe (8px radius, shadow-large, 24/32/32/32 desktop
+ *  padding), and the header matches Modal.Header's title (serif, 24px/36px,
+ *  baseline-aligned) + offset close-icon button (-12px/-16px margin so the icon's
+ *  hit target, not its optical box, sits flush with the card's padding edge).
+ *  Escape or a backdrop click dismisses, same as Ink's Dialog. Portaled to
+ *  document.body so a trigger living inside an overflow-clipped ancestor (a table
+ *  row) can still open it full-screen.
+ *  `width` is one of Ink's real named tiers ("mini"|"small"|"medium"|"large",
+ *  default "medium" — Ink's own default) or a raw px number for a one-off. */
+export function Modal({ title, subtitle, onClose, width = "medium", maxWidth, children }) {
+  const resolvedWidth = maxWidth ?? MODAL_WIDTH[width] ?? MODAL_WIDTH.medium;
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
+  return createPortal(
+    // `sans` explicitly set: portaled to document.body, outside the app root div
+    // that otherwise carries the app's font-family — without it, this (and every
+    // descendant, e.g. a `.ledger` table's rows) falls back to the browser's
+    // default serif. Same fix table.jsx's sticky-clone header needs for the same
+    // reason. Title still opts into `serif` explicitly below (that one IS supposed
+    // to be serif — Ink's real Modal.Header spec).
+    <div role="dialog" aria-modal="true" aria-label={title} onMouseDown={onClose}
+      style={{ ...sans, position: "fixed", inset: 0, zIndex: 100, background: "var(--ink-color-global-surface-background-overlay)",
+        overflowY: "auto", display: "flex", justifyContent: "center", padding: "64px 20px" }}>
+      <div onMouseDown={(e) => e.stopPropagation()}
+        style={{ width: `min(${resolvedWidth}px, 100%)`, height: "fit-content", boxSizing: "border-box",
+          background: "var(--ink-color-global-surface-background-default)", border: `1px solid var(--ink-color-global-border-subtle)`, borderRadius: "var(--ink-size-global-radius-default)",
+          boxShadow: "var(--ink-elevation-global-shadow-large)", padding: "24px 32px 32px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: subtitle ? "flex-start" : "baseline", gap: 12, marginBottom: 20 }}>
+          <div>
+            <h2 style={{ ...serif, fontSize: 24, fontWeight: 400, lineHeight: "36px", position: "relative", top: -2, margin: 0, color: "var(--ink-color-global-text-default)" }}>{title}</h2>
+            {subtitle && <div style={{ ...sans, fontSize: FS.small, color: "var(--ink-color-global-text-subtle)", marginTop: 2 }}>{subtitle}</div>}
+          </div>
+          <button onClick={onClose} aria-label="Close" style={{ display: "inline-flex", flex: "none", marginTop: -12, marginRight: -16, background: "none", border: "none", cursor: "pointer", padding: 10, color: "var(--ink-color-global-text-subtle)" }}>
+            <CloseIcon size={20} strokeWidth={1.6} />
+          </button>
+        </div>
+        {children}
+      </div>
+    </div>, document.body);
+}
 // Solid delta-direction triangle — the plain Unicode glyph, matching the
 // design spec's delta caret exactly, same as Overview.jsx's own fund
 // table/NAV-chart delta carets. Centralized so every vs-baseline/vs-prior
@@ -243,10 +310,31 @@ export const Num = ({ value, fmt, style }) => {
   return <span style={{ fontVariantNumeric: "tabular-nums", ...style }}>{fmt(v)}</span>;
 };
 
+/** Ink's real NewCheckbox (see the `.ink-chk` rules in theme.js's GLOBAL_CSS for
+ *  the exact recipe: 20px/4px-radius box, white in both themes, Gray-90 check
+ *  glyph, 8px gap to the label). `locked` mirrors Toggle's convention — the
+ *  control stays interactive so the parent's setter can no-op + warn, rather
+ *  than going truly inert like `disabled`. */
+export function Checkbox({ checked, onChange, label, disabled, locked, title }) {
+  const muted = disabled || locked;
+  return (
+    <label className="ink-chk" title={muted ? "Locked — duplicate into a scenario to edit" : title}
+      style={{ opacity: muted ? 0.45 : 1, cursor: locked ? "not-allowed" : disabled ? "default" : "pointer" }}
+      onClick={(e) => e.stopPropagation()}>
+      <input type="checkbox" checked={checked} disabled={disabled}
+        onChange={() => { if (!disabled) onChange(!checked); }} />
+      <span className="box">
+        <svg viewBox="0 0 12 12" fill="none"><path d="M2 6.2l2.6 2.6L10 3.4" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" /></svg>
+      </span>
+      {label}
+    </label>
+  );
+}
+
 /** iOS-style switch. `disabled` is truly inert; `locked` keeps the control
  *  interactive-but-muted so the click still fires onChange — the parent's setter
  *  then no-ops and surfaces a "read-only" warning (used on the Baseline scenario). */
-export function Toggle({ checked, onChange, labels = ["On", "Off"], disabled, locked, small, title }) {
+export function Toggle({ checked, onChange, labels = ["On", "Off"], disabled, locked, small, title, textColor }) {
   const muted = disabled || locked;
   // `small` = a denser switch for tight control clusters (fund-modeling scenario toggles)
   const tw = small ? 30 : 38, th = small ? 18 : 22, kn = small ? 14 : 18;
@@ -256,9 +344,9 @@ export function Toggle({ checked, onChange, labels = ["On", "Off"], disabled, lo
       role="switch"
       aria-checked={checked}
       disabled={disabled}
-      title={muted ? "Locked — duplicate into a scenario to edit" : title}
+      title={locked ? "Locked — duplicate into a scenario to edit" : title}
       style={{ ...sans, display: "inline-flex", alignItems: "center", gap: small ? 6 : 8, fontSize: small ? FS.small : FS.body, fontWeight: 500,
-        border: "none", background: "transparent", color: checked ? "var(--ink-color-global-text-default)" : "var(--ink-color-global-text-subtle)",
+        border: "none", background: "transparent", color: textColor ?? (checked ? "var(--ink-color-global-text-default)" : "var(--ink-color-global-text-subtle)"),
         cursor: locked ? "not-allowed" : disabled ? "default" : "pointer", opacity: muted ? 0.45 : 1, padding: 0, whiteSpace: "nowrap" }}
     >
       <span style={{ position: "relative", width: tw, height: th, borderRadius: th / 2, flex: "none",
@@ -313,7 +401,10 @@ export const Btn = forwardRef(({ children, onClick, kind = "ghost", size = "smal
         ...sans, fontSize: FS.body, fontWeight: isLink ? 600 : 500,
         cursor: locked ? "not-allowed" : disabled ? "default" : "pointer",
         boxShadow: "none",
-        opacity: disabled || locked ? 0.45 : 1,
+        // Ghost/secondary disabled now gets Ink's real muted-token look (see
+        // `.btn-ghost:disabled` in theme.js) instead of opacity-dimming on top
+        // of it; every other kind/`locked` keeps the existing opacity treatment.
+        opacity: locked || (disabled && kind !== "ghost") ? 0.45 : 1,
         whiteSpace: "nowrap",
         ...(isLink
           ? { height: "auto", padding: 0, borderRadius: 0, border: "none", background: "none" }
@@ -662,7 +753,7 @@ export function Slider({ label, value, min, max, step, onChange, fmt, accent, va
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 4 }}>
         <span style={{ ...sans, fontSize: FS.small, fontWeight: labelKind === "strong" ? 600 : 400,
           color: labelKind === "strong" ? "var(--ink-color-global-text-default)" : "var(--ink-color-global-text-subtle)" }}>{label}</span>
-        <span style={{ ...mono, fontSize: valueSize, fontWeight: 700, color: valueColor ?? accent ?? "var(--ink-color-global-text-default)" }}>{fmt(value)}</span>
+        <span style={{ ...inkNum, fontSize: valueSize, fontWeight: 700, color: valueColor ?? accent ?? "var(--ink-color-global-text-default)" }}>{fmt(value)}</span>
       </div>
       <input className="tape" type="range" min={min} max={max} step={step} value={value} disabled={disabled}
         aria-label={label} title={locked ? lockedTitle : title}
@@ -684,7 +775,7 @@ export function Slider({ label, value, min, max, step, onChange, fmt, accent, va
  *  (node rendered below, e.g. a vs-baseline delta). Optional — color (value color),
  *  labelPos "top" (label above value — the eyebrow scorecard look) | "bottom"
  *  (value above label — the display-figure look), size "display" (default) | "h3"
- *  (compact), serif (tight-tracked sans display look instead of tabular mono —
+ *  (compact), serif (tight-tracked sans display look instead of tabular-nums —
  *  see `tightSans` in theme.js; NOT the real serif, which is `H1`-only), labelTone
  *  "eyebrow" (uppercase micro, default for top) | "strong" (600-weight default-text)
  *  | "muted" (micro subtle) | "plain" (12px/400 sentence-case, Ink's real Tile
@@ -695,7 +786,7 @@ export function StatTile({ label, value, sub, color = "var(--ink-color-global-te
   const tone = labelTone ?? (labelPos === "top" ? "eyebrow" : "strong");
   const valStyle = useSerif
     ? { ...tightSans, fontSize: size === "h3" ? FS.h3 : FS.display, fontWeight: 700, color, letterSpacing: "0", lineHeight: 1.1, fontVariantNumeric: "tabular-nums" }
-    : { ...mono, fontSize: size === "h3" ? FS.h3 : FS.display, fontWeight: 700, color, letterSpacing: "0", lineHeight: 1.05 };
+    : { ...inkNum, fontSize: size === "h3" ? FS.h3 : FS.display, fontWeight: 700, color, letterSpacing: "0", lineHeight: 1.05 };
   const labelEl = tone === "eyebrow"
     ? <Eyebrow color={MICRO} style={{ whiteSpace: "nowrap" }}>{label}</Eyebrow>
     : <div style={tone === "muted"
@@ -750,8 +841,11 @@ export function StatTile({ label, value, sub, color = "var(--ink-color-global-te
  *  gap (real CSS gap on the row, default 0 — every call site spaces stats via
  *  each StatTile's own padding instead; set `gap` explicitly if a caller
  *  zeroes that padding, e.g. GpEconomics' `bare` waterfall row, so removing
- *  padding doesn't leave stats with no separation at all). */
-export function StatBar({ stats, title, bare, style, itemStyle, labelPos = "top", labelTone = "plain", serif = true, size, basis = 150, gap = 0 }) {
+ *  padding doesn't leave stats with no separation at all), footer (optional
+ *  node rendered below the stat row, inside the card — e.g. Companies.jsx's
+ *  "Last priced round" line; no divider rule above it, per the no-decorative-
+ *  dividers convention — spacing alone separates it from the stats). */
+export function StatBar({ stats, title, bare, style, itemStyle, labelPos = "top", labelTone = "plain", serif = true, size, basis = 150, gap = 0, footer }) {
   const row = (
     <div style={{ display: "flex", flexWrap: "wrap", gap, ...(bare ? style : undefined) }}>
       {stats.map((s, i) => (
@@ -761,11 +855,13 @@ export function StatBar({ stats, title, bare, style, itemStyle, labelPos = "top"
       ))}
     </div>
   );
-  if (bare) return row;
+  const footerEl = footer && <div style={{ marginTop: 14 }}>{footer}</div>;
+  if (bare) return <>{row}{footerEl}</>;
   return (
     <div className="card stat-bar" style={{ padding: "18px 8px", ...style }}>
       {title && <Heading2 style={{ margin: "2px 12px 16px" }}>{title}</Heading2>}
       {row}
+      {footerEl}
     </div>
   );
 }
@@ -843,6 +939,69 @@ export function Bubble({ children, variant = "positive", style }) {
       borderRadius: 999, color: t.fg, background: t.bg, border: `1px solid ${t.border}`, ...style }}>
       {children}
     </span>
+  );
+}
+
+/** Ink's real Avatar — "Shows thumbnails for people and company logos."
+ *  Mirrors carta-frontend-platform's libs/ink/ink-foundations/library/Avatar
+ *  (Avatar.tsx + styles.ts) exactly, not just visually: the load-bearing detail
+ *  is that `variant="company"` is NOT a circular crop — it's a fixed
+ *  80px-wide, border-radius:0 rectangle sized to the real company-logo artwork's
+ *  native aspect ratio (Ink's own default company glyph is an 80x38 viewBox).
+ *  Cropping a company logo into a circle (this app's first attempt) looks wrong
+ *  for exactly that reason; the person/initials circle is a separate, deliberately
+ *  different shape (`size`, round). `imageUrl` renders as a real `<img>` (not a
+ *  CSS background-image, so a broken/corrupt logo can be caught with a plain
+ *  `onError` and degrade to `initials` right here, instead of every caller
+ *  re-implementing its own preload-and-check) with `object-fit: contain` — a
+ *  departure from Ink's own `cover` — because portfolio-company logos are often
+ *  wide wordmarks (5:1+ aspect ratios); `cover` zooms in to fill the circle and
+ *  crops most of the mark off, leaving only an unrecognizable sliver. `contain`
+ *  letterboxes the whole logo inside the circle instead.
+ *  Docs: https://ink.carta.com/components/Avatar/usage
+ *
+ *  `initialsColor` is a deliberate departure from Ink's own `initialsVariant`
+ *  (primary|secondary|tertiary, a fixed 3-color enum baked into the component):
+ *  Ink's own docs don't prescribe an algorithm for picking one of the three, and
+ *  "primary" is a brand purple that doesn't appear anywhere in this app's own
+ *  categorical data-viz palette (the same hues the fund charts use) — so callers
+ *  here pass a raw color already drawn from that palette instead of reaching for
+ *  a fixed enum that doesn't line up with the rest of the dashboard.
+ *
+ *  Props: imageUrl, initials, initialsColor (CSS color for the initials
+ *  background — any hex/var, not Ink's 3-value enum), variant ("company" for the
+ *  wide logo box; omit for the round person/initials circle), size (px, default
+ *  38 — Ink's --ink-avatar-size-base), style. */
+export function Avatar({ imageUrl, initials, initialsColor, variant, size = 38, style }) {
+  const company = variant === "company";
+  const [broken, setBroken] = useState(false);
+  useEffect(() => { setBroken(false); }, [imageUrl]);
+  const showImage = imageUrl && !broken;
+  const hasInitials = !showImage && !!initials;
+  return (
+    <div
+      style={{
+        display: "flex", alignItems: "center", justifyContent: "center", position: "relative", overflow: "hidden",
+        flex: "none", boxSizing: "content-box",
+        height: size, width: company ? 80 : size, minWidth: company ? 80 : size,
+        borderRadius: company ? 0 : "var(--ink-avatar-border-radius)",
+        border: company ? "var(--ink-avatar-border-width) solid transparent" : "none",
+        background: hasInitials
+          ? (initialsColor || "var(--ink-avatar-background-color-initials-default)")
+          : "var(--ink-avatar-background-color-base)",
+        color: hasInitials
+          ? (initialsColor ? "var(--ink-avatar-font-color-white)" : "var(--ink-avatar-font-color-initials-default)")
+          : "var(--ink-avatar-font-color-default)",
+        fontWeight: "var(--ink-avatar-font-weight)", fontSize: 14, lineHeight: 1,
+        ...style,
+      }}
+    >
+      {showImage && (
+        <img src={imageUrl} alt="" onError={() => setBroken(true)}
+          style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+      )}
+      {hasInitials && initials}
+    </div>
   );
 }
 
@@ -1070,6 +1229,123 @@ export function SearchInput({ placeholder, value, onChange, style, ...props }) {
             background: "transparent", color: "var(--ink-color-global-text-subtle)",
             cursor: "pointer", fontSize: 14, lineHeight: 1 }}>×</button>
       )}
+    </div>
+  );
+}
+
+// Ink's real Vignette/EmptyState components aren't importable here (micro-apps
+// can't pull in @carta/ink) — this reproduces the two illustrations this app
+// actually uses ("setup", "pending") from Ink's own SVG source (ink-foundations
+// Vignette/components/{Setup,Pending}Md.tsx), at the "md" (80px) size IconWithText
+// maps EmptyState's "block" type to. Only those two — add more paths here if a
+// future empty state needs a different vignette. Colors follow Ink's own
+// light/dark token split (vignette.json5 / vignette.dark.json5): fill and stroke
+// swap with the theme, the orange accent stays constant.
+const VIGNETTE_PATHS = {
+  setup: (
+    <g>
+      <path strokeLinejoin="bevel" d="M0 0h44.89v44.89H0z" transform="matrix(.866 .5 -.866 .5 39.88 29.84)" />
+      <path strokeLinejoin="bevel" d="M0 0h44.89v3.27H0z" transform="matrix(.866 .5 0 1 1 52.29)" />
+      <path strokeLinejoin="bevel" d="M0 0h44.89v3.27H0z" transform="matrix(.866 -.5 0 1 39.88 74.73)" />
+      <path d="M0 0h4.22v28.11H0z" transform="matrix(0 -1 .866 .5 15.52 52.87)" />
+      <path d="M0 0h4.22v28.11H0z" transform="matrix(0 -1 .866 -.5 39.87 66.93)" />
+      <path d="M0 0h28.11v28.11H0z" transform="matrix(-.866 -.5 .866 -.5 39.87 62.71)" />
+      <path d="M21.88 53.05h35.99v4.28H21.88zm.54-13.87h34.9l.55 13.87h-36z" />
+      <path d="M0 0h4.22v28.11H0z" transform="matrix(0 -1 .866 .5 15.52 35.3)" />
+      <path d="M0 0h4.22v28.11H0z" transform="matrix(0 -1 .866 -.5 39.87 49.36)" />
+      <path d="M0 0h28.11v28.11H0z" transform="matrix(-.866 -.5 .866 -.5 39.87 45.14)" />
+      <mask id="ink-vignette-setup" width="27" height="16" x="27" y="23" maskUnits="userSpaceOnUse" style={{ maskType: "alpha" }}>
+        <path d="M0 0h14.51v14.51H0z" transform="matrix(-.866 -.5 .866 -.5 40.23 38.12)" />
+      </mask>
+      <g mask="url(#ink-vignette-setup)">
+        <path d="M0 0h5.42v14.51H0z" transform="matrix(0 -1 .866 -.5 27.67 36.28)" />
+        <path className="accent-fill-color" d="M0 0h14.51v5.42H0z" transform="matrix(-.866 -.5 0 -1 52.8 36.3)" />
+        <path d="M0 0h14.51v14.51H0z" transform="matrix(-.866 -.5 .866 -.5 40.23 52.63)" />
+      </g>
+      <path fill="none" d="M0 0h14.51v14.51H0z" transform="matrix(.866 .5 .866 -.5 27.67 30.87)" />
+    </g>
+  ),
+  pending: (
+    <g>
+      <path strokeLinejoin="bevel" d="M0 0h44.9v44.9H0z" transform="matrix(.866 .5 -.866 .5 39.88 29.77)" />
+      <path strokeLinejoin="bevel" d="M0 0h44.9v3.27H0z" transform="matrix(.866 .5 0 1 1 52.22)" />
+      <path strokeLinejoin="bevel" d="M0 0h44.9v3.27H0z" transform="matrix(.866 -.5 0 1 39.88 74.67)" />
+      <path strokeLinejoin="bevel" d="M0 0h29.3v2.93H0z" transform="matrix(-.866 .5 .866 .5 45.42 11)" />
+      <path strokeLinejoin="bevel" d="M0 0h29.3v29.3H0z" transform="matrix(-.866 .5 0 1 47.95 12.47)" />
+      <mask id="ink-vignette-pending-a" width="12" height="19" x="29" y="25" maskUnits="userSpaceOnUse" style={{ maskType: "alpha" }}>
+        <path d="M0 0h11.69v11.69H0z" transform="matrix(.866 -.5 0 1 30.21 31.5)" />
+      </mask>
+      <g mask="url(#ink-vignette-pending-a)">
+        <path d="M0 0h11.69v11.69H0z" transform="matrix(.866 .5 0 1 30.21 19.81)" />
+        <path d="M0 0h11.69v11.69H0z" transform="matrix(.866 -.5 .866 .5 20.1 37.34)" />
+        <path d="M0 0h11.69v11.69H0z" transform="matrix(.866 -.5 0 1 20.1 25.66)" />
+      </g>
+      <path fill="none" strokeLinejoin="bevel" d="M0 0h11.72v11.72H0z" transform="matrix(-.866 .5 0 1 40.34 25.66)" />
+      <path className="accent-fill-color" strokeLinejoin="bevel" d="M0 0h2.93v29.3H0z" transform="matrix(-.866 -.5 0 1 22.58 27.12)" />
+      <mask id="ink-vignette-pending-b" width="11" height="19" x="42" y="32" maskUnits="userSpaceOnUse" style={{ maskType: "alpha" }}>
+        <path d="M0 0h11.69v11.69H0z" transform="matrix(.866 -.5 0 1 42.52 38.53)" />
+      </mask>
+      <g mask="url(#ink-vignette-pending-b)">
+        <path d="M0 0h11.69v11.69H0z" transform="matrix(.866 .5 0 1 42.52 26.84)" />
+        <path d="M0 0h11.69v11.69H0z" transform="matrix(.866 -.5 .866 .5 32.4 44.38)" />
+        <path d="M0 0h11.69v11.69H0z" transform="matrix(.866 -.5 0 1 32.4 32.69)" />
+      </g>
+      <path fill="none" strokeLinejoin="bevel" d="M0 0h11.72v11.72H0z" transform="matrix(-.866 .5 0 1 52.65 32.7)" />
+      <path strokeLinejoin="bevel" d="M0 0h29.3v2.93H0z" transform="matrix(-.866 .5 .866 .5 51.57 14.52)" />
+      <path strokeLinejoin="bevel" d="M0 0h29.3v29.3H0z" transform="matrix(-.866 .5 0 1 54.1 15.98)" />
+      <mask id="ink-vignette-pending-c" width="11" height="20" x="36" y="28" maskUnits="userSpaceOnUse" style={{ maskType: "alpha" }}>
+        <path d="M0 0h11.69v11.69H0z" transform="matrix(.866 -.5 0 1 36.37 35.02)" />
+      </mask>
+      <g mask="url(#ink-vignette-pending-c)">
+        <path d="M0 0h11.69v11.69H0z" transform="matrix(.866 .5 0 1 36.37 23.33)" />
+        <path d="M0 0h11.69v11.69H0z" transform="matrix(.866 -.5 .866 .5 26.25 40.86)" />
+        <path d="M0 0h11.69v11.69H0z" transform="matrix(.866 -.5 0 1 26.25 29.17)" />
+      </g>
+      <path fill="none" strokeLinejoin="bevel" d="M0 0h11.72v11.72H0z" transform="matrix(-.866 .5 0 1 46.5 29.17)" />
+      <path strokeLinejoin="bevel" d="M0 0h2.93v29.3H0z" transform="matrix(-.866 -.5 0 1 28.73 30.63)" />
+      <path strokeDasharray="2.5 2.5" strokeLinejoin="bevel" d="M0 0h29.3v2.93H0z" transform="matrix(-.866 .5 .866 .5 57.72 18.03)" />
+      <path strokeDasharray="2.5 2.5" strokeLinejoin="bevel" d="M0 0h29.3v29.3H0z" transform="matrix(-.866 .5 0 1 60.26 19.5)" />
+      <mask id="ink-vignette-pending-d" width="11" height="19" x="42" y="32" maskUnits="userSpaceOnUse" style={{ maskType: "alpha" }}>
+        <path d="M0 0h11.69v11.69H0z" transform="matrix(.866 -.5 0 1 42.52 38.53)" />
+      </mask>
+      <g strokeDasharray="2.5 2.5" mask="url(#ink-vignette-pending-d)">
+        <path d="M0 0h3.59v11.69H0z" transform="matrix(.866 .5 0 1 49.54 30.9)" />
+        <path d="M0 0h11.69v3.5H0z" transform="matrix(.866 -.5 .866 .5 39.49 48.47)" />
+        <path d="M0 0h11.69v11.69H0z" transform="matrix(.866 -.5 0 1 32.4 32.69)" />
+      </g>
+      <path fill="none" strokeDasharray="2.5 2.5" strokeLinejoin="bevel" d="M0 0h11.72v11.72H0z" transform="matrix(-.866 .5 0 1 52.65 32.7)" />
+      <path strokeDasharray="2.5 2.5" strokeLinejoin="bevel" d="M0 0h2.93v29.3H0z" transform="matrix(-.866 -.5 0 1 34.88 34.15)" />
+    </g>
+  ),
+};
+
+/** Ink's EmptyState (see the comment on VIGNETTE_PATHS above for why this is a
+ *  reproduction, not an import). `type` follows Ink's own size scale — "page"
+ *  (lg, a whole-page empty state), "block" (md, the default — a panel/tab body),
+ *  "mini" (sm, a single list row) — and `icon` picks the illustration
+ *  ("setup" | "pending"; extend VIGNETTE_PATHS to add more). `children` is an
+ *  optional Btn/Dropdown call-to-action, per Ink's guidance ("highly
+ *  recommended" when the user actually has an action available — omit it when
+ *  they don't, e.g. waiting on a Carta data pipeline they can't kick off themselves). */
+export function EmptyState({ type = "block", icon = "pending", text, children }) {
+  const px = type === "page" ? 150 : type === "mini" ? 48 : 80;
+  const pad = type === "page" ? 110 : type === "mini" ? 14 : 55;
+  const headingSize = type === "mini" ? FS.small : FS.value;
+  const headingLeading = type === "mini" ? "20px" : "28px";
+  return (
+    <div style={{ textAlign: "center", padding: `${pad}px 0` }}>
+      <svg viewBox="0 0 80 80" width={px} height={px} aria-hidden="true"
+        style={{ display: "block", margin: "0 auto 12px",
+          fill: "light-dark(var(--ink-color-global-brand-white), var(--ink-color-global-surface-background-default))",
+          stroke: "light-dark(var(--ink-color-global-brand-black), var(--ink-color-global-text-default))", strokeWidth: 0.5 }}>
+        <style>{".accent-fill-color { fill: var(--ink-color-global-brand-orange-60); }"}</style>
+        {VIGNETTE_PATHS[icon] || VIGNETTE_PATHS.pending}
+      </svg>
+      <div style={{ ...sans, fontSize: headingSize, lineHeight: headingLeading, fontWeight: type === "mini" ? 400 : 500,
+        color: "var(--ink-color-global-text-default)" }}>
+        {text}
+      </div>
+      {children && <div style={{ marginTop: 16 }}>{children}</div>}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 ---
 name: adobe-create-pdfs-from-data
-description: ">"
+description: 'Perform a full InDesign data merge from a CSV/TSV and an .indd template (or a PDF that gets converted to .indd automatically). Use this skill whenever the user wants to merge a data file with a layout template — including visiting cards, certificates, badges, catalogs, mailers, labels, invoices, or any per-row personalisation. Triggers on: "data merge", "InDesign merge", "merge my CSV with InDesign", "batch export PDF from template", "variable data InDesign", "personalise each row", or any request combining an .indd / PDF template with a data file. Use this skill even when only two of the three inputs (template, data, images) are mentioned — and even when the user never uses the phrase "data merge".'
 ---
 
 # InDesign Data Merge Skill

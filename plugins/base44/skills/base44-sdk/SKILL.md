@@ -1,6 +1,6 @@
 ---
 name: base44-sdk
-description: '"The base44 SDK is the library to communicate with base44 services. In projects, you use it to communicate with remote resources (entities, backend functions, ai agents) and to write backend functions. This skill is the place for learning about available modules and types. When you plan or implement a feature, you must learn this skill"'
+description: The base44 SDK is the library to communicate with base44 services. In projects, you use it to communicate with remote resources (entities, backend functions, ai agents) and to write backend functions. This skill is the place for learning about available modules and types. When you plan or implement a feature, you must learn this skill
 ---
 
 # Base44 Coder
@@ -114,6 +114,8 @@ Base44 SDK has unique method names. Do NOT assume patterns from Firebase, Supaba
 | `uploadFile(file)` | `integrations.Core.UploadFile({file})` |
 | `storage.upload(file)` | `integrations.Core.UploadFile({file})` |
 
+> **Exception:** an OpenAI-compatible client (e.g. the Vercel AI SDK) **is** correct when pointed at `base44.aiGateway.connection()` — that's how you build code agents (agent loops with tools). Use `InvokeLLM` only for a single call with no tools. See [ai-gateway.md](references/ai-gateway.md).
+
 ### Entities - WRONG vs CORRECT
 
 | ❌ WRONG (hallucinated) | ✅ CORRECT |
@@ -133,6 +135,7 @@ Base44 SDK has unique method names. Do NOT assume patterns from Firebase, Supaba
 | `agents` | AI conversations and messages | [base44-agents.md](references/base44-agents.md) |
 | `functions` | Backend function invocation | [functions.md](references/functions.md) |
 | `integrations` | AI, email, file uploads, custom APIs | [integrations.md](references/integrations.md) |
+| `aiGateway` | Connect an OpenAI-compatible SDK to Base44's AI gateway | [ai-gateway.md](references/ai-gateway.md) |
 | `analytics` | Track custom events and user activity | [analytics.md](references/analytics.md) |
 | `appLogs` | Log user activity in app | [app-logs.md](references/app-logs.md) |
 | `users` | Invite users to the app | [users.md](references/users.md) |
@@ -212,6 +215,7 @@ const base44 = createClient({
 - Manage conversations → `agents.getConversations()`
 - Generate text/JSON with AI → `integrations.Core.InvokeLLM()`
 - Generate images → `integrations.Core.GenerateImage()`
+- Build a custom agent with tools (backend, agent SDK on the AI gateway) → `aiGateway` (see [ai-gateway.md](references/ai-gateway.md))
 
 **Custom backend logic?**
 - Run server-side code → `functions.invoke()`
@@ -263,16 +267,16 @@ const res = await base44.functions.invoke("processOrder", {
 });
 const result = res.data; // ✅ e.g. res.data.success  (res itself is { data, status, headers, … })
 
-// Backend function (Deno)
+// Backend function
 import { createClientFromRequest } from "npm:@base44/sdk";
 
-Deno.serve(async (req) => {
+export default async function (req) {
   const base44 = createClientFromRequest(req);
   const { orderId, action } = await req.json();
   // Process with service role for admin access
   const order = await base44.asServiceRole.entities.Orders.get(orderId);
   return Response.json({ success: true });
-});
+}
 ```
 
 ### Service Role Access
@@ -298,6 +302,7 @@ const token = await base44.asServiceRole.connectors.getAccessToken("slack");
 | `functions.invoke()` | Yes | Yes |
 | `functions.fetch()` | Yes | Yes |
 | `integrations` | Yes | Yes |
+| `aiGateway` | No | Yes |
 | `analytics` | Yes | Yes |
 | `appLogs` | Yes | Yes |
 | `users` | Yes | Yes |
@@ -305,4 +310,4 @@ const token = await base44.asServiceRole.connectors.getAccessToken("slack");
 | `asServiceRole.connectors` (app OAuth) | No | Yes |
 | `asServiceRole.sso` | No | Yes |
 
-Backend functions use `Deno.serve()` and `createClientFromRequest(req)` to get a properly authenticated client.
+Backend functions `export default` an async request handler and use `createClientFromRequest(req)` to get a properly authenticated client.

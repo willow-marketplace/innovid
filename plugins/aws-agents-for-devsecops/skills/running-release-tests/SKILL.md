@@ -1,6 +1,6 @@
 ---
 name: running-release-tests
-description: ">-"
+description: Run automated release testing (UI or API) via the AWS DevOps Agent using a pre-configured test profile. Use when the user wants to validate multi-step workflows, verify features, check for regressions, or test API endpoints. Trigger words include run tests, UAT, test my app, test profile, UI test, API test, automated testing, regression test, QA, end-to-end test, run the QA agent.
 ---
 
 # Release Testing

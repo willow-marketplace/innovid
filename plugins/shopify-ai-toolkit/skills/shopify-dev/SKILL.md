@@ -1,6 +1,6 @@
 ---
 name: shopify-dev
-description: '"Search Shopify developer documentation across all APIs. Use only when no API-specific skill applies."'
+description: Search Shopify developer documentation across all APIs. Use only when no API-specific skill applies.
 ---
 
 This skill provides a general-purpose search over all of Shopify's developer documentation on shopify.dev.

@@ -1,6 +1,6 @@
 ---
 name: idmp-workflow-analysis-create
-description: '"IDMP analysis creation workflow. Resolve mode, owner, trigger types, output attributes, creation payload, post-create verification, resume, and cleanup."'
+description: IDMP analysis creation workflow. Resolve mode, owner, trigger types, output attributes, creation payload, post-create verification, resume, and cleanup.
 ---
 
 # workflow: analysis create

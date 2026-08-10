@@ -1,7 +1,14 @@
 ---
 name: update-deal
-description: ">"
+description: Updates an existing deal record in the Carta CRM. Use this skill when the user says things like "update a deal", "move deal to [stage]", "change deal stage", "edit deal", "update deal fields", "add a tag to deal", "assign deal lead", "update company info on deal", "link contacts to deal", or "/update-deal". Accepts a deal ID or company name (will search if no ID provided). Only the fields explicitly provided are changed — all other fields are left untouched.
 ---
+
+<!-- carta:instrumentation-fallback -->
+<IMPORTANT>
+`_instrumentation_v2` is anonymous Carta skill-usage telemetry. ALWAYS include it in your Carta MCP tool-call arguments — the plugins' hooks overwrite it when they run, so always sending it is safe. Shape:
+`_instrumentation_v2: {"skills": ["<plugin>:<skill>", ...], "model": "<model-id>"}`
+`skills` is cumulative for the session: list every Carta skill loaded so far, not only the one driving this call. Namespace each entry `"plugin:skill"` and keep them oldest-first, with the most recently used skill last. List only Carta skills (`carta-cap-table:*`, `carta-crm:*`, `carta-investors:*`) — never skills from non-Carta plugins.
+</IMPORTANT>
 
 ## Overview
 
@@ -16,8 +23,8 @@ If the user provided a deal ID directly, use it and skip to Step 3.
 If only a company name was given, call `get_deal_fields` first, then search:
 
 ```
-mcp__carta_crm__get_deal_fields()
-mcp__carta_crm__search_deals({ query: "<company name>", limit: 10 })
+crm_call_tool({ "name": "crm:get_deal_fields", "arguments": {} })
+crm_call_tool({ "name": "crm:search_deals", "arguments": { query: "<company name>", limit: 10 } })
 ```
 
 If multiple deals match, present the list and ask the user to confirm which one
@@ -43,12 +50,12 @@ Ask the user what they want to change:
 
 If the user wants to move to a stage by name, fetch pipelines first:
 ```
-mcp__carta_crm__get_deal_pipelines_with_stages()
+crm_call_tool({ "name": "crm:get_deal_pipelines_with_stages", "arguments": {} })
 ```
 
 If updating custom fields by label rather than ID:
 ```
-mcp__carta_crm__get_deal_custom_fields()
+crm_call_tool({ "name": "crm:get_deal_custom_fields", "arguments": {} })
 ```
 
 **Important:** Only include fields that are explicitly being changed. Omit everything else.
@@ -58,19 +65,22 @@ mcp__carta_crm__get_deal_custom_fields()
 Call:
 
 ```
-mcp__carta_crm__update_deal({
-  id: "<deal id>",
-  stageId: "<stage id>",
-  company: { name: "<name>", url: "<url>" },
-  comment: "<updated comment>",
-  tags: ["<tag1>", "<tag2>"],
-  dealLead: "<user id>",
-  addedAt: "<ISO 8601 date>",
-  fields: { "<field_id>": "<value>" },
-  people: {
-    advisers: ["<contact id>"],
-    introducer: ["<contact id>"],
-    management: ["<contact id>"]
+crm_call_tool({
+  "name": "crm:update_deal",
+  "arguments": {
+    id: "<deal id>",
+    stageId: "<stage id>",
+    company: { name: "<name>", url: "<url>" },
+    comment: "<updated comment>",
+    tags: ["<tag1>", "<tag2>"],
+    dealLead: "<user id>",
+    addedAt: "<ISO 8601 date>",
+    fields: { "<field_id>": "<value>" },
+    people: {
+      advisers: ["<contact id>"],
+      introducer: ["<contact id>"],
+      management: ["<contact id>"]
+    }
   }
 })
 ```

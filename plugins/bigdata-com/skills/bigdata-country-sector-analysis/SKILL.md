@@ -1,6 +1,6 @@
 ---
 name: bigdata-country-sector-analysis
-description: ">"
+description: 'Analyze a specific sector inside a specific country or region using Bigdata.com data — combining the macroeconomic backdrop (GDP, inflation, rates, policy), country-specific sector trends and valuations, fundamentals of country-domiciled sector leaders confirmed by geographic revenue exposure, the policy and regulatory environment including subsidies, tariffs and foreign-investment rules, and valuation versus global sector peers. Use whenever a request names BOTH a sector AND a country or region. Triggers: "macro analysis of X in Y", "European financials outlook", "US technology sector view", "India consumer sector", "China EV sector", "Japanese semiconductor industry", "[sector] in [country]".'
 ---
 
 # Bigdata Country-Sector Analysis

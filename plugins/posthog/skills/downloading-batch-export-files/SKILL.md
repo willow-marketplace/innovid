@@ -1,6 +1,6 @@
 ---
 name: downloading-batch-export-files
-description: ">"
+description: Export PostHog events, persons, or sessions on demand and download the resulting files. Use when the user asks to download/export raw PostHog data, create a one-off file export, fetch a Parquet or JSONLines export, or use the file_download_batch_exports API. Covers starting the export with MCP, polling completion, and downloading via the existing REST redirect endpoint.
 ---
 
 # Downloading batch export files

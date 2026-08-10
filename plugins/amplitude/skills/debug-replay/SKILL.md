@@ -1,6 +1,6 @@
 ---
 name: debug-replay
-description: ">"
+description: Turns bug reports into reproducible steps by finding error sessions in Amplitude Session Replay, extracting interaction timelines, and identifying the common action sequence that precedes the failure. Use when a user reports a bug, an error event spikes, someone says "how do I reproduce this", "what happened to user X", "repro steps", or you need to understand what a user did before an error occurred.
 ---
 
 # Debug Replay
@@ -20,7 +20,7 @@ This skill operates on three Amplitude Session Replay tools. Use them in this or
 Supporting tools used in this skill:
 - **`Amplitude:get_users`** — Look up users by email, user ID, or other identifiers.
 - **`Amplitude:get_events`** — Discover valid event names before filtering. Never guess event names.
-- **`Amplitude:get_event_properties`** — Discover properties available on an event for filtering.
+- **`Amplitude:get_properties`** — Discover properties available on an event for filtering.
 - **`Amplitude:get_deployments`** — Check if error aligns with a recent deploy.
 
 ---
@@ -40,7 +40,7 @@ If the report is vague (e.g., "something is broken in checkout"), ask one clarif
 
 ### Step 2: Get Context and Find the Error Event
 
-1. Call `Amplitude:get_context`. If multiple projects, ask which to investigate.
+1. Call `Amplitude:get_amplitude_context`. If multiple projects, ask which to investigate.
 2. Call `Amplitude:get_events` to confirm the error event name exists in the project. Common patterns:
    - `[Amplitude] Error Logged` — auto-captured JS errors
    - `[Amplitude] Network Request` with status code filters — API failures

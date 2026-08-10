@@ -1,6 +1,6 @@
 ---
 name: read-file
-description: ">"
+description: Read any data file (CSV, JSON, Parquet, Avro, Excel, spatial, SQLite) or remote URL (S3, HTTPS). Use when user references a data file, asks "what's in this file", or wants to preview/profile a dataset. Not for source code.
 ---
 
 You are helping the user read and analyze a data file using DuckDB.

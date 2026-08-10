@@ -1,6 +1,12 @@
 ---
 name: fix-bootstrap-params
-description: "|"
+description: |-
+  Fix HTML bootstrap parameter issues that UI5 linter reports but cannot auto-fix. Use this skill when linter outputs these rules:
+  - `no-deprecated-api` - For missing/deprecated bootstrap parameters (async, compat-version, animation, binding-syntax, etc.)
+  - `no-deprecated-theme` - For deprecated theme values in data-sap-ui-theme
+  - `no-deprecated-library` - For deprecated libraries in data-sap-ui-libs
+  Trigger on error messages containing: "Missing bootstrap parameter", "Abandoned bootstrap parameter", "Redundant bootstrap parameter", "deprecated value", "bootstrap"
+  Automatically applies safe fixes to HTML files containing UI5 bootstrap script tags.
 ---
 
 # Fix Bootstrap Parameters

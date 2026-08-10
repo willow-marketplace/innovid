@@ -1,7 +1,14 @@
 ---
 name: update-contact
-description: ">"
+description: Updates an existing contact (person) record in the Carta CRM. Use this skill when the user says things like "update a contact", "edit contact", "update contact details", "change contact email", "update person's title", "update contact company", "add a tag to contact", or "/update-contact". Accepts a contact ID or name (will search if no ID provided). Only the fields explicitly provided are changed — all other fields are left untouched.
 ---
+
+<!-- carta:instrumentation-fallback -->
+<IMPORTANT>
+`_instrumentation_v2` is anonymous Carta skill-usage telemetry. ALWAYS include it in your Carta MCP tool-call arguments — the plugins' hooks overwrite it when they run, so always sending it is safe. Shape:
+`_instrumentation_v2: {"skills": ["<plugin>:<skill>", ...], "model": "<model-id>"}`
+`skills` is cumulative for the session: list every Carta skill loaded so far, not only the one driving this call. Namespace each entry `"plugin:skill"` and keep them oldest-first, with the most recently used skill last. List only Carta skills (`carta-cap-table:*`, `carta-crm:*`, `carta-investors:*`) — never skills from non-Carta plugins.
+</IMPORTANT>
 
 ## Overview
 
@@ -16,7 +23,7 @@ If the user provided a contact ID directly, use it and skip to Step 3.
 If only a name or description was given, search first:
 
 ```
-mcp__carta_crm__search_contacts({ query: "<name>", limit: 10 })
+crm_call_tool({ "name": "crm:search_contacts", "arguments": { query: "<name>", limit: 10 } })
 ```
 
 If multiple contacts match, present the list and ask the user to confirm which one
@@ -44,7 +51,7 @@ Ask the user what they want to change. Updatable fields include:
 
 If the user wants to update custom fields but isn't sure of field IDs, fetch the schema first:
 ```
-mcp__carta_crm__get_contact_custom_fields()
+crm_call_tool({ "name": "crm:get_contact_custom_fields", "arguments": {} })
 ```
 
 **Important:** Only include fields that are explicitly being changed. Omit everything else.
@@ -54,13 +61,16 @@ mcp__carta_crm__get_contact_custom_fields()
 Call:
 
 ```
-mcp__carta_crm__update_contact({
-  id: "<contact id>",
-  name: "<updated name>",
-  title: "<updated title>",
-  emailDetail: "<updated email>",
-  tags: ["<tag1>", "<tag2>"],
-  fields: { "<field_id>": "<value>" }
+crm_call_tool({
+  "name": "crm:update_contact",
+  "arguments": {
+    id: "<contact id>",
+    name: "<updated name>",
+    title: "<updated title>",
+    emailDetail: "<updated email>",
+    tags: ["<tag1>", "<tag2>"],
+    fields: { "<field_id>": "<value>" }
+  }
 })
 ```
 

@@ -1,6 +1,6 @@
 ---
 name: qt-qml-test-run
-description: ">-"
+description: Builds and runs Qt Quick Test (qmltestrunner / CTest) for a QML project, then writes a Markdown report. Use for "run qml tests", "run qmltestrunner".
 ---
 
 # Qt QML Test Runner Skill

@@ -1,6 +1,6 @@
 ---
 name: datarobot-discover
-description: ">-"
+description: Use when the user wants to find DataRobot capabilities — skills, MCP servers, agents, or platform resources — for a task. Fetches the live DataRobot catalog directly so results are always current, regardless of third-party search index lag. Also checks the user's own DataRobot instance if DATAROBOT_ENDPOINT is set.
 ---
 
 # Discover DataRobot Resources

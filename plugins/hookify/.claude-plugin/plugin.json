@@ -2,7 +2,7 @@
   "name": "hookify",
   "version": "1.0.0",
   "description": "Easily create hooks to prevent unwanted behaviors by analyzing conversation patterns",
-  "updatedAt": "2026-08-09T12:16:29.168Z",
+  "updatedAt": "2026-08-10T00:03:46.239Z",
   "author": {
     "name": "Anthropic",
     "email": "support@anthropic.com"
@@ -14,16 +14,6 @@
     "./agents/conversation-analyzer.md"
   ],
   "hooks": {
-    "PreToolUse": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/pretooluse.py\""
-          }
-        ]
-      }
-    ],
     "PostToolUse": [
       {
         "hooks": [
@@ -50,6 +40,16 @@
           {
             "type": "command",
             "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/userpromptsubmit.py\""
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/pretooluse.py\""
           }
         ]
       }

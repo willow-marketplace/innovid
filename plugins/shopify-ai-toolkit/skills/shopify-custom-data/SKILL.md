@@ -1,6 +1,6 @@
 ---
 name: shopify-custom-data
-description: '"MUST be used first when prompts mention Metafields or Metaobjects. Use Metafields and Metaobjects to model and store custom data for your app. Metafields extend built-in Shopify data types like products or customers, Metaobjects are custom data types that can be used to store bespoke data structures. Metafield and Metaobject definitions provide a schema and configuration for values to follow."'
+description: MUST be used first when prompts mention Metafields or Metaobjects. Use Metafields and Metaobjects to model and store custom data for your app. Metafields extend built-in Shopify data types like products or customers, Metaobjects are custom data types that can be used to store bespoke data structures. Metafield and Metaobject definitions provide a schema and configuration for values to follow.
 ---
 
 ## Required Tool Calls (do not skip)
@@ -105,11 +105,8 @@ mutation {
   metaobjectUpsert(handle: {
     type: "$app:author",
     handle: "my-metaobject",
-  }, metaobject: {
-    fields: [{
-      key: "example",
-      value: "Hello, world!"
-    }]
+  }, values: {
+    example: "Hello, world!"
   }) { ... }
 }
 ```
@@ -150,9 +147,7 @@ query {
   metaobjects(type: "$app:author", first: 10) {
     nodes {
       handle
-      example: field(key: "example") {
-        jsonValue
-      }
+      values
     }
   }
 }

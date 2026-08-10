@@ -1,6 +1,6 @@
 ---
 name: respond
-description: '"[experimental] Investigate and respond to a production incident. Pulls context, finds similar past incidents, suggests solutions, and enables coordination. Forked-subagent flow may not have MCP access in all Claude Code contexts -- prefer /rootly:status + /rootly:brief for now."'
+description: "[experimental] Investigate and respond to a production incident. Pulls context, finds similar past incidents, suggests solutions, and enables coordination. Forked-subagent flow may not have MCP access in all Claude Code contexts -- prefer /rootly:status + /rootly:brief for now."
 ---
 
 # Incident Response (experimental)

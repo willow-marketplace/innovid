@@ -1,6 +1,6 @@
 ---
 name: signals
-description: ">"
+description: How to query the document_embeddings table for raw signal data using HogQL. Use when you need to perform semantic search over signals, fetch every signal that contributed to a specific report, or list signal types. For browsing the curated report layer (the Inbox) — listing reports, filtering by status/source, drilling into a single report by ID — use the `inbox-exploration` skill first; drop into this skill afterwards if the user wants the underlying observations.
 ---
 
 # Querying Signals

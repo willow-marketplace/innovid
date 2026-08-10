@@ -1,6 +1,6 @@
 ---
 name: migrate
-description: '"Safely migrate the schema + backfill data on a deployed Convex app with @convex-dev/migrations. TRIGGER when changing the schema on a live app, backfilling data, or after a schema-validation error from a change. SKIP a fresh local app."'
+description: Safely migrate the schema + backfill data on a deployed Convex app with @convex-dev/migrations. TRIGGER when changing the schema on a live app, backfilling data, or after a schema-validation error from a change. SKIP a fresh local app.
 ---
 
 # Migrate the schema / data on a live app

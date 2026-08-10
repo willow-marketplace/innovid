@@ -1,6 +1,6 @@
 ---
 name: app-health
-description: '"Analyze application health across the organization using ZDX scores and metrics."'
+description: Analyze application health across the organization using ZDX scores and metrics.
 ---
 
 # Analyze Application Health

@@ -1,6 +1,6 @@
 ---
 name: bigdata-scenario-analysis
-description: ">"
+description: "Build bull, base, and bear cases for a public company using Bigdata.com data — with explicit line-item assumptions, justified probability weights summing to 100%, a value or price per scenario with the bridge shown, a probability-weighted expected value and expected return versus spot, the upside/downside skew and risk-reward ratio, and what would move probability between the cases. Triggers: \"scenario analysis for X\", \"bull base bear for X\", \"what's the upside and downside on X\", \"expected value for X\", \"probability-weighted view on X\", \"risk reward on X\", \"model out the cases for X\"."
 ---
 
 # Bigdata Scenario Analysis

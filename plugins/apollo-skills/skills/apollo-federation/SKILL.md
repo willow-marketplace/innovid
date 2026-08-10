@@ -1,6 +1,6 @@
 ---
 name: apollo-federation
-description: ">"
+description: "Guide for authoring Apollo Federation subgraph schemas. Use this skill when: (1) creating new subgraph schemas for a federated supergraph, (2) defining or modifying entities with @key, (3) sharing types/fields across subgraphs with @shareable, (4) working with federation directives (@external, @requires, @provides, @override, @inaccessible), (5) troubleshooting composition errors, (6) any task involving federation schema design patterns."
 ---
 
 # Apollo Federation Schema Authoring
@@ -17,7 +17,13 @@ extend schema
         import: ["@key", "@shareable", "@external", "@requires", "@provides"])
 ```
 
-Import only the directives your subgraph uses.
+Import only the directives your subgraph uses. The version shown (`v2.12`) is
+illustrative — check the [Federation changelog](https://www.apollographql.com/docs/graphos/schema-design/federated-schemas/reference/versions)
+for currently supported versions before copying it verbatim.
+
+> A subgraph's `@link` version is a floor, not the composition version — see
+> [Federation versions](references/composition.md#federation-versions-floor-vs-composition)
+> for the full explanation.
 
 ## Core Directives Quick Reference
 

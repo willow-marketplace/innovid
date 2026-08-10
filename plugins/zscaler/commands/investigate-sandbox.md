@@ -1,6 +1,6 @@
 ---
 name: investigate-sandbox
-description: '"Investigate ZIA Sandbox file analysis -- check sandbox reports, quota, SSL prerequisite, and diagnose file block/quarantine issues."'
+description: Investigate ZIA Sandbox file analysis -- check sandbox reports, quota, SSL prerequisite, and diagnose file block/quarantine issues.
 ---
 
 # Investigate Sandbox

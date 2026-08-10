@@ -1,6 +1,6 @@
 ---
 name: aws-messaging-and-streaming
-description: ">"
+description: Guides general use of AWS messaging and streaming services. Covers Amazon SQS, Amazon SNS, Amazon EventBridge, Amazon MQ, Amazon Kinesis Data Streams, Amazon Data Firehose, Amazon Managed Service for Apache Flink, and Amazon Managed Streaming for Apache Kafka (MSK).  Use when reasoning about messaging and streaming patterns.  In general, use specific skills or documentation searches for detailed service-specific questions. Do NOT use for MSK or Managed Service for Apache Flink questions, prefer specific skills.
 ---
 
 # AWS Messaging & Streaming Services

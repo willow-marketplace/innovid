@@ -1,6 +1,6 @@
 ---
 name: intercom-analysis
-description: ">"
+description: Analyze Intercom conversations to identify support patterns, investigate customer issues, and look up contacts and companies. Use when the user asks to "analyze conversations", "find support patterns", "search Intercom", "look up a customer", "investigate a customer issue", "check contact info", or asks questions about their Intercom data.
 ---
 
 # Intercom Analysis

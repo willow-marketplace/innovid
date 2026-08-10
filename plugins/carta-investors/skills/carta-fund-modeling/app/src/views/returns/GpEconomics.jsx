@@ -1,10 +1,11 @@
 import { useState, useMemo } from "react";
-import { FS, sans, mono, MICRO } from "../../ui/theme.js";
+import { FS, sans, inkNum, MICRO } from "../../ui/theme.js";
 import { fmtM, fmtX, fmtPct, fmt$ } from "../../ui/format.js";
 import { H1, H2, Btn, Eyebrow, MethodNote, SourceNote, FundPicker, Slider, StatTile, StatBar, Badge, fundLabel, SectionChips } from "../../ui/components.jsx";
 import { TableHead, useTableSort, TableScroll } from "../../ui/table.jsx";
 import { useFirmData } from "../../state/FirmData.jsx";
 import { useScenarioModel } from "./useScenarioModel.js";
+import { trackClick } from "../../analytics.js";
 
 // GP returns per exit multiple. Net TVPI sorts on the exit multiple (the row key).
 const GP_RET_COLS = [
@@ -48,7 +49,7 @@ function GpPartnerCarry({ gpEntry, todayGpCarry, fsName }) {
   if (!gpEntry || !partners.length) return null;
   const shareBasis = partners.some((p) => p.carryShare != null) || totalCommit > 0;
   const c$ = (n) => (n == null ? "—" : n === 0 ? "$0" : fmtM(n));
-  const money = (n) => ({ ...mono, textAlign: "right", fontSize: FS.value, color: n != null && n < 0 ? "var(--ink-color-global-feedback-negative-strong)" : "var(--ink-color-global-text-default)" });
+  const money = (n) => ({ ...inkNum, textAlign: "right", fontSize: FS.value, color: n != null && n < 0 ? "var(--ink-color-global-feedback-negative-strong)" : "var(--ink-color-global-text-default)" });
   return (
     <>
       <H2>GP partner carry</H2>
@@ -72,16 +73,16 @@ function GpPartnerCarry({ gpEntry, todayGpCarry, fsName }) {
                     )}
                   </td>
                   <td style={money(p.accruedCarry)}>{c$(p.accruedCarry)}</td>
-                  <td style={{ ...mono, textAlign: "right", fontSize: FS.value, color: "var(--ink-color-global-text-subtle)" }}>{share != null ? fmtPct(share, 1) : "—"}</td>
+                  <td style={{ ...inkNum, textAlign: "right", fontSize: FS.value, color: "var(--ink-color-global-text-subtle)" }}>{share != null ? fmtPct(share, 1) : "—"}</td>
                   <td style={{ ...money(scenarioOf(p)), fontWeight: 700 }}>{c$(scenarioOf(p))}</td>
                 </tr>
               );
             })}
             <tr className="totrow">
               <td style={{ ...sans, color: "var(--ink-color-global-text-default)" }}>Count: {sortedPartners.length}</td>
-              <td style={{ ...mono, textAlign: "right" }}>{c$(gpEntry.totalAccruedCarry)}</td>
-              <td style={{ ...mono, textAlign: "right", color: "var(--ink-color-global-text-subtle)" }}>{shareBasis ? "100.0%" : "—"}</td>
-              <td style={{ ...mono, textAlign: "right" }}>{c$(todayGpCarry)}</td>
+              <td style={{ ...inkNum, textAlign: "right" }}>{c$(gpEntry.totalAccruedCarry)}</td>
+              <td style={{ ...inkNum, textAlign: "right", color: "var(--ink-color-global-text-subtle)" }}>{shareBasis ? "100.0%" : "—"}</td>
+              <td style={{ ...inkNum, textAlign: "right" }}>{c$(todayGpCarry)}</td>
             </tr>
           </tbody>
         </table>
@@ -141,7 +142,7 @@ export default function GpEconomics(props) {
             Pre-set based on Carta configuration.
             {!readOnly && !editWaterfall && (
               <>{" "}
-                <Btn kind="link" onClick={() => setEditWaterfall(true)} style={{ fontSize: FS.small }}>
+                <Btn kind="link" onClick={() => { trackClick("FundModeling.GpEconomics.EditWaterfall"); setEditWaterfall(true); }} style={{ fontSize: FS.small }}>
                   Edit Waterfall
                 </Btn>
               </>
@@ -162,10 +163,10 @@ export default function GpEconomics(props) {
                 Overrides this fund's terms for the active scenario. Preferred return is a hurdle on paid-in (LPs recover capital + this return before catch-up/carry); set catch-up to 0 to disable.
               </p>
               <div style={{ display: "flex", gap: 16, alignItems: "center", marginTop: 2 }}>
-                <Btn kind="link" onClick={() => setEditWaterfall(false)} style={{ fontSize: FS.small }}>
+                <Btn kind="link" onClick={() => { trackClick("FundModeling.GpEconomics.CloseWaterfallEdit"); setEditWaterfall(false); }} style={{ fontSize: FS.small }}>
                   Close
                 </Btn>
-                <Btn kind="link" onClick={m.revertWaterfall} style={{ fontSize: FS.small, color: "var(--ink-color-global-text-subtle)" }}>
+                <Btn kind="link" onClick={() => { trackClick("FundModeling.GpEconomics.RevertWaterfall"); m.revertWaterfall(); }} style={{ fontSize: FS.small, color: "var(--ink-color-global-text-subtle)" }}>
                   Revert to Carta configuration
                 </Btn>
               </div>
@@ -202,10 +203,10 @@ export default function GpEconomics(props) {
                     `${r.multiple}×`
                   )}
                 </td>
-                <td style={{ ...mono, textAlign: "right", fontSize: FS.value, color: "var(--ink-color-global-text-subtle)" }}>{r.gpCommit == null ? "—" : c$(r.gpCommit)}</td>
-                <td style={{ ...mono, textAlign: "right", fontSize: FS.value }}>{r.gpCapital == null ? "—" : c$(r.gpCapital)}</td>
-                <td style={{ ...mono, textAlign: "right", fontSize: FS.value, fontWeight: 700 }}>{c$(r.gpCarry)}</td>
-                <td style={{ ...mono, textAlign: "right", fontSize: FS.value, fontWeight: 700 }}>{c$(r.gpTotal)}</td>
+                <td style={{ ...inkNum, textAlign: "right", fontSize: FS.value, color: "var(--ink-color-global-text-subtle)" }}>{r.gpCommit == null ? "—" : c$(r.gpCommit)}</td>
+                <td style={{ ...inkNum, textAlign: "right", fontSize: FS.value }}>{r.gpCapital == null ? "—" : c$(r.gpCapital)}</td>
+                <td style={{ ...inkNum, textAlign: "right", fontSize: FS.value, fontWeight: 700 }}>{c$(r.gpCarry)}</td>
+                <td style={{ ...inkNum, textAlign: "right", fontSize: FS.value, fontWeight: 700 }}>{c$(r.gpTotal)}</td>
               </tr>
             ))}
           </tbody>

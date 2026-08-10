@@ -1,6 +1,6 @@
 ---
 name: bigdata-country-analysis
-description: ">"
+description: "Produce a deep country economic analysis using Bigdata.com data — GDP, inflation, monetary policy, labor markets, debt mechanics, and investment implications. Goes beyond a point-in-time snapshot: structural and historical context (sector transformation, labor productivity), debt composition and servicing, tax-to-GDP and public financial management, a substantive macro-and-micro labor section, market implications across equities, rates, currency and FDI, and a dedicated sourced policy-recommendations section. Suits institutional, multilateral, and academic audiences. Triggers: \"economic outlook for X\", \"analyze X's economy\", \"country analysis of X\", \"how is X's economy doing\", \"X GDP inflation outlook\", \"X fiscal position\", \"X monetary policy outlook\"."
 ---
 
 # Bigdata Country Analysis

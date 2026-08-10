@@ -1,6 +1,6 @@
 ---
 name: apollo-server
-description: ">"
+description: "Guide for building GraphQL servers with Apollo Server 5.x. Use this skill when: (1) setting up a new Apollo Server project, (2) writing resolvers or defining GraphQL schemas, (3) implementing authentication or authorization, (4) creating plugins or custom data sources, (5) troubleshooting Apollo Server errors or performance issues."
 ---
 
 # Apollo Server 5.x Guide

@@ -1,6 +1,6 @@
 ---
 name: bigdata-peer-comparables
-description: ">"
+description: "Compare a public company against its peer set using Bigdata.com data — valuation multiples, growth, profitability, returns, leverage, and sentiment — to judge relative attractiveness. Builds the peer set with an explicit rationale for inclusion and exclusion, tabulates like-for-like metrics with peer median and quartile positioning, decomposes any premium or discount into what fundamentals justify versus what they do not, and closes with a relative verdict. Triggers: \"compare X to its peers\", \"peer comparables for X\", \"how does X screen vs competitors\", \"is X cheap relative to peers\", \"comps table for X\", \"relative valuation of X\", \"who are X's peers\"."
 ---
 
 # Bigdata Peer Comparables

@@ -1,6 +1,6 @@
 ---
 name: fastly-fiddle
-description: '"Use when testing VCL against real Fastly edge infrastructure, writing assertion-based Fiddle tests, producing shareable fiddle URLs for bug reproductions, running VCL integration tests in CI, linting VCL remotely via the Fiddle API, or working with clientFetch/events/originFetches test expressions."'
+description: Use when testing VCL against real Fastly edge infrastructure, writing assertion-based Fiddle tests, producing shareable fiddle URLs for bug reproductions, running VCL integration tests in CI, linting VCL remotely via the Fiddle API, or working with clientFetch/events/originFetches test expressions.
 ---
 
 # Fastly Fiddle — Real-Edge VCL Testing

@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { renderMarkdown } from "./markdown.jsx";
-import { CloseIcon } from "./components.jsx";
+import { CloseIcon, StopIcon } from "./components.jsx";
 import { FS, SANS } from "./theme.js";
+import { trackClick } from "../analytics.js";
 
 // Built-in fallback catalog, used when the outer shell's /api/models fetch
 // hasn't resolved (or failed) — keeps the model picker usable offline. This
@@ -28,10 +29,14 @@ function injectChatKeyframes() {
   document.head.appendChild(style);
 }
 
-function Thinking() {
+// Shown for the whole turn, not just the wait before the first token: with
+// streaming, dots that stop at the first token read as "finished" while text is
+// still arriving. `hasText` keeps it clear of the text it trails.
+function Thinking({ hasText }) {
   return (
-    <span data-testid="chat-thinking" aria-label="Claude is thinking"
-          style={{ display: "inline-flex", gap: 4, alignItems: "center" }}>
+    <span data-testid="chat-thinking" aria-label="Claude is responding"
+          style={{ display: "inline-flex", gap: 4, alignItems: "center",
+                   marginTop: hasText ? 4 : 0 }}>
       {[0, 1, 2].map((n) => (
         <span key={n} style={{
           width: 6, height: 6, borderRadius: "50%",
@@ -44,7 +49,24 @@ function Thinking() {
   );
 }
 
-function SendSpinner() {
+// terminal_reason values the CLI stamps on the `result` frame of a turn that was
+// interrupted. Such a turn also carries is_error:true, so it must be recognised
+// BEFORE the generic error branch or a user pressing Stop sees a failure and
+// loses the text they just watched stream in.
+const ABORTED_REASONS = ["aborted_streaming", "aborted_tools"];
+
+function StoppedMark({ hadText }) {
+  return (
+    <div data-testid="chat-stopped" style={{
+      fontSize: FS.small, marginTop: hadText ? 4 : 0,
+      color: "var(--ink-color-global-text-subtle)",
+    }}>
+      ⏹ Stopped{hadText ? "" : " before Claude replied"}
+    </div>
+  );
+}
+
+function ButtonSpinner() {
   return (
     <span aria-hidden="true" style={{
       display: "inline-block", width: 12, height: 12, borderRadius: "50%",
@@ -123,6 +145,7 @@ export default function ChatPanel({ sessionId, onTurnStart, onTurnEnd, anchor, o
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
+  const [stopping, setStopping] = useState(false);
   injectChatKeyframes();
 
   const modelList = (models && models.length) ? models : FALLBACK_MODELS;
@@ -137,9 +160,57 @@ export default function ChatPanel({ sessionId, onTurnStart, onTurnEnd, anchor, o
   }, [initialModel]);
   const locked = messages.length > 0;
 
+  // Keep the transcript pinned to the newest text. `messages` gets a new identity
+  // on every streamed chunk, so this runs per frame while a reply arrives.
+  const logRef = useRef(null);
+  // Follow the tail only while the reader is already there: yanking the view down
+  // mid-stream would fight someone scrolled up reading earlier answers.
+  const stickToBottom = useRef(true);
+
+  function onLogScroll() {
+    const el = logRef.current;
+    if (!el) return;
+    // A few px of slack so sub-pixel rounding doesn't read as "scrolled away".
+    stickToBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight <= 24;
+  }
+
+  useEffect(() => {
+    const el = logRef.current;
+    if (el && stickToBottom.current) el.scrollTop = el.scrollHeight;
+  }, [messages]);
+
+  // Ask the server to abort the turn, then keep reading: the stream is NOT
+  // aborted here. Claude answers an interrupt with a real `result` frame, and
+  // draining to it is what leaves the session reusable for the next prompt —
+  // tearing down the fetch early would strand buffered frames and get the
+  // session evicted. busy/stopping are reset by send()'s finally.
+  async function stop() {
+    if (!busy || stopping) return;
+    trackClick("FundModeling.Chat.StopTurn");
+    setStopping(true);
+    try {
+      // The /api token is not passed per call: installApiAuth() patches
+      // window.fetch to stamp X-Dash-Token onto every /api request, so this
+      // matches send() and every other endpoint. Adding it here would fork that
+      // single source of truth.
+      await fetch("/api/chat/interrupt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId }),
+      });
+    } catch (e) {
+      // Nothing to surface: the turn's own result frame is the source of truth
+      // for how it ended, and a failed interrupt just means it ends normally.
+    }
+  }
+
   async function send() {
     const prompt = input.trim();
     if (!prompt || busy) return;
+    trackClick("FundModeling.Chat.SendMessage");
+    // Submitting is an explicit "show me what happens next", so re-follow the
+    // tail even if the reader had scrolled up before sending.
+    stickToBottom.current = true;
     const pin = anchor ? pinLabel(anchor) : null;
     setMessages((m) => [...m, { role: "user", text: prompt, pin }, { role: "assistant", text: "" }]);
     setInput(""); setBusy(true);
@@ -159,32 +230,57 @@ export default function ChatPanel({ sessionId, onTurnStart, onTurnEnd, anchor, o
       }
       const reader = res.body.getReader();
       let buf = "";
+      // Once we've seen a partial text_delta, the CLI's terminal full-message
+      // `assistant` frame merely restates what we already streamed — ignore it.
+      // If no delta ever arrives (older CLI / unexpected shape), sawDelta stays
+      // false and we append whole `assistant` blocks as before.
+      let sawDelta = false;
+      let sawStop = false;
       for (;;) {
         const { value, done } = await reader.read();
         if (done) break;
         buf += decoder.decode(value, { stream: true });
         let events;
         [events, buf] = parseSSE(buf);
+        // Coalesce every appended token from this network chunk into one render.
+        let chunkText = "";
+        let errorText = null;
         for (const ev of events) {
-          if (ev.type === "assistant") {
-            const text = (ev.message?.content || [])
+          if (ev.type === "stream_event"
+              && ev.event?.type === "content_block_delta"
+              && ev.event.delta?.type === "text_delta") {
+            sawDelta = true;
+            chunkText += ev.event.delta.text || "";
+          } else if (ev.type === "assistant" && !sawDelta) {
+            chunkText += (ev.message?.content || [])
               .filter((b) => b.type === "text").map((b) => b.text).join("");
-            if (text) setMessages((m) => {
-              const copy = m.slice();
-              copy[copy.length - 1] = { role: "assistant", text: copy[copy.length - 1].text + text };
-              return copy;
-            });
+          } else if (ev.type === "result" && ABORTED_REASONS.includes(ev.terminal_reason)) {
+            sawStop = true;   // user pressed Stop — keep the partial text as-is
           } else if (ev.type === "result" && (ev.is_error || ev.subtype === "error")) {
-            // Claude-side failure (not a transport error): the turn ended, but the
-            // pending assistant bubble is empty/partial — surface it instead of a
-            // silent blank line.
-            setMessages((m) => {
-              const copy = m.slice();
-              copy[copy.length - 1] = { role: "assistant", text: "⚠️ " + (ev.error || "claude reported an error") };
-              return copy;
-            });
+            errorText = "⚠️ " + (ev.error || "claude reported an error");
           }
         }
+        if (errorText !== null) {
+          setMessages((m) => {
+            const copy = m.slice();
+            copy[copy.length - 1] = { role: "assistant", text: errorText };
+            return copy;
+          });
+        } else if (chunkText) {
+          setMessages((m) => {
+            const copy = m.slice();
+            copy[copy.length - 1] = { role: "assistant", text: copy[copy.length - 1].text + chunkText };
+            return copy;
+          });
+        }
+      }
+      if (sawStop) {
+        setMessages((m) => {
+          const copy = m.slice();
+          const last = copy[copy.length - 1];
+          if (last && last.role === "assistant") copy[copy.length - 1] = { ...last, stopped: true };
+          return copy;
+        });
       }
     } catch (err) {
       setMessages((m) => {
@@ -194,6 +290,7 @@ export default function ChatPanel({ sessionId, onTurnStart, onTurnEnd, anchor, o
       });
     } finally {
       setBusy(false);
+      setStopping(false);
       onTurnEnd?.();
     }
   }
@@ -212,7 +309,8 @@ export default function ChatPanel({ sessionId, onTurnStart, onTurnEnd, anchor, o
           </button>
         </div>
       )}
-      <div className="fm-chat-log" style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 8, padding: "4px 0" }}>
+      <div className="fm-chat-log" ref={logRef} onScroll={onLogScroll}
+           style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 8, padding: "4px 10px 4px 0" }}>
         {messages.length === 0 && <EmptyState />}
         {messages.map((m, i) => (
           <div key={i} className={"fm-msg fm-" + m.role}
@@ -229,7 +327,16 @@ export default function ChatPanel({ sessionId, onTurnStart, onTurnEnd, anchor, o
               <div style={{ fontSize: FS.small, opacity: 0.7 }}>📍 {m.pin}</div>
             )}
             {m.role === "assistant"
-              ? (busy && i === messages.length - 1 && m.text === "" ? <Thinking /> : renderMarkdown(m.text))
+              ? (
+                  <>
+                    {m.text !== "" && renderMarkdown(m.text)}
+                    {m.stopped && <StoppedMark hadText={m.text !== ""} />}
+                    {/* Trails the partial text for the whole turn — the dots are
+                        "still going", not "waiting to start". */}
+                    {busy && i === messages.length - 1 && !m.stopped
+                      && <Thinking hasText={m.text !== ""} />}
+                  </>
+                )
               : m.text}
           </div>
         ))}
@@ -249,11 +356,11 @@ export default function ChatPanel({ sessionId, onTurnStart, onTurnEnd, anchor, o
         </select>
         {onTogglePinMode && (
           <button data-testid="pinpoint-toggle" onClick={onTogglePinMode} aria-pressed={!!pinMode}
-            style={{ fontSize: FS.body, padding: "4px 8px", borderRadius: 6,
+            style={{ fontSize: FS.body, padding: "4px 8px", borderRadius: 6, whiteSpace: "nowrap",
                      border: "1px solid var(--ink-color-global-border-subtle)",
                      background: pinMode ? "var(--ink-color-global-surface-lightgray-default)" : "transparent",
                      color: "var(--ink-color-global-text-default)", cursor: "pointer" }}>
-            📍 {pinMode ? "Pinpointing… (Esc to cancel)" : "Pinpoint"}
+            📍 {pinMode ? "Esc to cancel" : "Pinpoint"}
           </button>
         )}
       </div>
@@ -288,17 +395,28 @@ export default function ChatPanel({ sessionId, onTurnStart, onTurnEnd, anchor, o
             outline: "none",
           }}
         />
-        <button onClick={send} disabled={busy} style={{
-          background: "var(--ink-button-background-color-primary-base-default)",
-          color: "var(--ink-button-font-color-primary-base)",
-          border: "none",
-          borderRadius: 8,
-          padding: "8px 14px",
-          cursor: "pointer",
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 6,
-        }}>{busy && <SendSpinner />}Send</button>
+        {/* One button, two jobs: while a turn is in flight it becomes Stop, so
+            the composer never shows a dead disabled Send. */}
+        <button onClick={busy ? stop : send}
+          disabled={stopping}
+          data-testid={busy ? "chat-stop" : "chat-send"}
+          title={busy ? "Stop this response" : undefined}
+          aria-label={busy ? "Stop this response" : undefined}
+          style={{
+            background: "var(--ink-button-background-color-primary-base-default)",
+            color: "var(--ink-button-font-color-primary-base)",
+            border: "none",
+            borderRadius: 8,
+            padding: "8px 14px",
+            cursor: stopping ? "default" : "pointer",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            whiteSpace: "nowrap",
+          }}>
+          {stopping ? <ButtonSpinner /> : busy ? <StopIcon /> : null}
+          {stopping ? "Stopping…" : busy ? "Stop" : "Send"}
+        </button>
       </div>
     </div>
   );

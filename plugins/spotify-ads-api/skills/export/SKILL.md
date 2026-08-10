@@ -9,14 +9,14 @@ Export campaign hierarchies to CSV for offline review, combining entity data wit
 
 ## Setup
 
-1. Read `access_token`, `ad_account_id`, and `auto_execute` from the active platform settings file:
-   - Codex: prefer `.codex/spotify-ads-api.local.md`, then fall back to `.claude/spotify-ads-api.local.md`, then `.gemini/spotify-ads-api.local.md`.
-   - Claude: prefer `.claude/spotify-ads-api.local.md`, then fall back to `.codex/spotify-ads-api.local.md`, then `.gemini/spotify-ads-api.local.md`.
-   - Gemini: prefer `.gemini/spotify-ads-api.local.md`, then fall back to `.claude/spotify-ads-api.local.md`, then `.codex/spotify-ads-api.local.md`.
-2. Base URL: `https://api-partner.spotify.com/ads/v3`
-3. If no settings file exists, instruct the user to run the configure skill first (`/spotify-ads-api:configure` on Claude/Codex, `/configure` on Gemini).
-4. Read the active platform manifest for the plugin `version`: `.codex-plugin/plugin.json` on Codex, `.claude-plugin/plugin.json` on Claude, or `gemini-extension.json` (extension root) on Gemini.
-5. Set `SDK_PRODUCT` to `codex-plugin` on Codex, `claude-code-plugin` on Claude, or `gemini-cli-extension` on Gemini. Set `SDK_HEADER="X-Spotify-Ads-Sdk: $SDK_PRODUCT/$PLUGIN_VERSION"` and include `-H "$SDK_HEADER"` on all API requests.
+Set the plugin root and define the request wrapper:
+
+```bash
+PLUGIN_ROOT="${CODEX_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-.}}"
+api() { "$PLUGIN_ROOT/scripts/api-request.sh" export "$@"; }
+```
+
+To retrieve settings values (TOKEN, AD_ACCOUNT_ID, AUTO_EXECUTE, BASE_URL) for use outside API calls, run `api --env`.
 
 ## Parsing Arguments
 
@@ -44,25 +44,19 @@ Fetch all entity data with full pagination. Unlike other skills that show the fi
 ### Fetch campaigns
 
 ```bash
-curl -s -w "\nHTTP_STATUS:%{http_code}" -H "Authorization: Bearer $TOKEN" \
-  -H "$SDK_HEADER" \
-  "$BASE_URL/ad_accounts/$AD_ACCOUNT_ID/campaigns?limit=50&offset=0"
+api GET "ad_accounts/{ad_account_id}/campaigns?limit=50&offset=0"
 ```
 
 Check `paging.total_results` in the response. If `total_results > 50`, make additional requests incrementing `offset` by 50 until all campaigns are fetched. For a single-campaign export, use:
 
 ```bash
-curl -s -w "\nHTTP_STATUS:%{http_code}" -H "Authorization: Bearer $TOKEN" \
-  -H "$SDK_HEADER" \
-  "$BASE_URL/ad_accounts/$AD_ACCOUNT_ID/campaigns/$CAMPAIGN_ID"
+api GET "ad_accounts/{ad_account_id}/campaigns/$CAMPAIGN_ID"
 ```
 
 ### Fetch ad sets
 
 ```bash
-curl -s -w "\nHTTP_STATUS:%{http_code}" -H "Authorization: Bearer $TOKEN" \
-  -H "$SDK_HEADER" \
-  "$BASE_URL/ad_accounts/$AD_ACCOUNT_ID/ad_sets?limit=50&offset=0"
+api GET "ad_accounts/{ad_account_id}/ad_sets?limit=50&offset=0"
 ```
 
 For a single campaign: add `&campaign_ids=$CAMPAIGN_ID`. Paginate with `offset` until all ad sets are fetched.
@@ -70,9 +64,7 @@ For a single campaign: add `&campaign_ids=$CAMPAIGN_ID`. Paginate with `offset` 
 ### Fetch ads
 
 ```bash
-curl -s -w "\nHTTP_STATUS:%{http_code}" -H "Authorization: Bearer $TOKEN" \
-  -H "$SDK_HEADER" \
-  "$BASE_URL/ad_accounts/$AD_ACCOUNT_ID/ads?limit=50&offset=0"
+api GET "ad_accounts/{ad_account_id}/ads?limit=50&offset=0"
 ```
 
 For a single campaign: add `&campaign_ids=$CAMPAIGN_ID`. Paginate with `offset` until all ads are fetched.
@@ -86,9 +78,7 @@ When metrics are included, fetch aggregate reports at each entity level. For a s
 ### Campaign-level metrics
 
 ```bash
-curl -s -w "\nHTTP_STATUS:%{http_code}" -H "Authorization: Bearer $TOKEN" \
-  -H "$SDK_HEADER" \
-  "$BASE_URL/ad_accounts/$AD_ACCOUNT_ID/aggregate_reports?\
+api GET "ad_accounts/{ad_account_id}/aggregate_reports?\
 entity_type=CAMPAIGN&\
 fields=IMPRESSIONS&fields=SPEND&fields=CLICKS&fields=REACH&fields=FREQUENCY&fields=CTR&fields=COMPLETES&\
 granularity=LIFETIME&\
@@ -103,9 +93,7 @@ Paginate with `continuation_token` if present in the response.
 ### Ad set-level metrics
 
 ```bash
-curl -s -w "\nHTTP_STATUS:%{http_code}" -H "Authorization: Bearer $TOKEN" \
-  -H "$SDK_HEADER" \
-  "$BASE_URL/ad_accounts/$AD_ACCOUNT_ID/aggregate_reports?\
+api GET "ad_accounts/{ad_account_id}/aggregate_reports?\
 entity_type=AD_SET&\
 fields=IMPRESSIONS&fields=SPEND&fields=CLICKS&fields=REACH&fields=FREQUENCY&fields=COMPLETES&fields=COMPLETION_RATE&\
 granularity=LIFETIME&\
@@ -119,9 +107,7 @@ For a single-campaign export, add `&entity_ids=$CAMPAIGN_ID&entity_ids_type=CAMP
 ### Ad-level metrics
 
 ```bash
-curl -s -w "\nHTTP_STATUS:%{http_code}" -H "Authorization: Bearer $TOKEN" \
-  -H "$SDK_HEADER" \
-  "$BASE_URL/ad_accounts/$AD_ACCOUNT_ID/aggregate_reports?\
+api GET "ad_accounts/{ad_account_id}/aggregate_reports?\
 entity_type=AD&\
 fields=IMPRESSIONS&fields=SPEND&fields=CLICKS&fields=REACH&\
 granularity=LIFETIME&\
@@ -151,9 +137,9 @@ The CSV is **denormalized** — one row per ad, with campaign and ad set data re
 
 ### Data transformations
 
-- **Budget/bid amounts**: Divide `micro_amount` by 1,000,000 to display in dollars (e.g., `50000000` → `50.00`).
-- **Metric SPEND**: Values from `aggregate_reports` are already in dollars — display directly.
-- **Geo targeting**: Flatten to `ad_set_geo_country` = country code string, `ad_set_geo_regions` = comma-separated region/DMA/city names if available (IDs if names are not in the response).
+- **Budget/bid amounts**: Divide `micro_amount` by 1,000,000 to display in the billing currency (e.g., `50000000` → `50.00`).
+- **Metric SPEND**: Values from `aggregate_reports` are already in the billing currency — display directly.
+- **Geo targeting**: Flatten to `ad_set_geo_country` = country code string, `ad_set_geo_regions` = comma-separated region/DMA/city names if available (IDs if names are not in the response). Note: DMA-level targeting (`dma_ids`) is no longer available for new ad sets, but older campaigns may still contain DMA data in their geo targets.
 - **Age ranges**: Extract first range's `min` and `max` into `ad_set_age_min` and `ad_set_age_max`.
 - **Arrays** (platforms, placements, genders): Join with commas (e.g., `"ANDROID,DESKTOP,IOS"`).
 - **CSV quoting**: Wrap values containing commas, quotes, or newlines in double quotes. Escape internal double quotes by doubling them (`""`).

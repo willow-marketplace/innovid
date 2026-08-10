@@ -1,65 +1,84 @@
 ---
 name: setup
-description: Guides users through setting up the ClickHouse MCP server connection bundled with this plugin. Use when the user first installs the plugin or has trouble connecting to ClickHouse.
+description: Set up the Rootly plugin. Verifies MCP server connection via OAuth2 or API token and guides through configuration. Run this after installing the plugin.
 ---
 
-# ClickHouse Plugin Setup
+# Rootly Plugin Setup
 
-This plugin includes the [ClickHouse Cloud Remote MCP server](https://clickhouse.com/docs/cloud/features/ai-ml/remote-mcp) at `https://mcp.clickhouse.cloud/mcp`. It provides secure, read-only access to your ClickHouse Cloud clusters.
+You are running the first-time setup for the Rootly Claude plugin. Follow these steps in order:
 
-## Setup Steps
+## Step 1: Verify MCP Connection
 
-1. **Verify the MCP server is connected**: Check that the ClickHouse MCP server appears in your available tools. If it does, you're ready to go.
+First, test the MCP server connection by calling `mcp__rootly__get_server_version`.
 
-2. **Authenticate via OAuth**: The MCP server uses OAuth with your ClickHouse Cloud credentials. Follow the prompts when first connecting to authorize access.
+- **Succeeds**: The MCP server is reachable. Continue to Step 2.
+- **Fails with 401 / OAuth prompt**: Claude should automatically start the OAuth2 flow -- a browser window will open for you to log in to Rootly and grant access. Once authorized, retry `mcp__rootly__get_server_version`.
+- **Fails with other error**: MCP server connection issue. Check network connectivity to `https://mcp.rootly.com`.
 
-3. **Test the connection**: Try listing databases or running a simple SELECT query to confirm everything works.
+## Step 2: Verify Authentication
 
-## Troubleshooting
+Call `mcp__rootly__getCurrentUser` to confirm your identity.
 
-- **Server not appearing**: Run `/reload-plugins` to reload plugin MCP servers.
-- **Authentication errors**: Re-authenticate by following the OAuth flow when prompted.
-- **Connection timeouts**: Verify your network can reach `https://mcp.clickhouse.cloud`. The MCP server is a remote HTTP endpoint and requires internet access.
+- **Succeeds**: Authentication is working. Report the authenticated user and team, then continue to Step 3.
+- **Fails**: Authentication issue. Provide troubleshooting:
 
-## Claude Code Timeout Limitation
+> **Authentication Troubleshooting**
+>
+> This plugin uses **OAuth2** by default -- Claude handles the login flow automatically when it connects to the MCP server. No API token is needed for MCP commands.
+>
+> If OAuth2 is not working:
+> 1. Ensure your Rootly organization has OAuth2 enabled
+> 2. Try disconnecting and reconnecting the MCP server: `/mcp` > find Rootly > disconnect > reconnect
+> 3. Check that your browser can reach `https://rootly.com/oauth/authorize`
+>
+> **Fallback: API Token (for hook scripts or environments without browser access)**
+>
+> Hook scripts (active-incident warnings on commit/push) still need an API token:
+> 1. Go to your Rootly dashboard: **Settings > API Keys**
+> 2. Create a new API key
+> 3. Provide the token through the plugin's userConfig prompt, or `export ROOTLY_API_TOKEN="..."`
+>
+> API tokens are optional for MCP commands -- OAuth2 is the recommended auth method.
 
-Claude Code enforces a **30-second timeout** on all MCP tool calls. This cannot be changed by the user or the MCP server. While the `run_select_query` tool accepts a `timeoutSeconds` parameter (default 300s, max 3600s), Claude Code will kill the connection after 30 seconds regardless of this setting.
+Then stop here -- no further steps possible without working authentication.
 
-**Implications:**
-- Keep queries simple and fast — complex analytical queries that take longer than 30 seconds will fail
-- Use `LIMIT` clauses to bound result sets
-- Prefer querying materialized views or pre-aggregated tables over raw scans of large tables
-- If a query times out, break it into smaller, faster queries rather than increasing `timeoutSeconds`
+## Step 3: Service Mapping Configuration
 
-## What the MCP Server Provides
+Check if `.claude/rootly-config.json` exists in the current project directory.
 
-Once connected, the ClickHouse MCP server provides these tools:
+**If the file does NOT exist**, offer to create it:
 
-### Organization & Service Management
-- **get_organizations** — list all accessible ClickHouse Cloud organizations
-- **get_organization_details** — details of a single organization
-- **get_services_list** — list all services in an organization
-- **get_service_details** — details of a single service
+1. Ask the user which Rootly service(s) correspond to this repository
+2. Ask which team owns this service (optional)
+3. Create `.claude/rootly-config.json` with the format:
+   ```json
+   {
+     "services": ["service-name-1", "service-name-2"],
+     "team": "team-name"
+   }
+   ```
 
-### Database Exploration
-- **list_databases** — list all databases in a service
-- **list_tables** — list tables in a database (supports `like`/`notLike` filtering)
-- **run_select_query** — execute read-only SELECT queries (⚠️ subject to 30s Claude Code timeout)
+**If the file exists**, read and display its current configuration.
 
-### ClickPipes
-- **list_clickpipes** — list all ClickPipes for a service
-- **get_clickpipe** — details of a specific ClickPipe
+## Step 4: Show Quick-Start Guide
 
-### Backups
-- **list_service_backups** — list all backups for a service
-- **get_service_backup_details** — details of a specific backup
-- **get_service_backup_configuration** — backup schedule and retention settings
+Once setup is complete, display:
 
-### Billing
-- **get_organization_cost** — billing and usage cost data (max 31-day window)
-
-All tools are read-only. See the [ClickHouse MCP docs](https://clickhouse.com/docs/use-cases/AI/MCP/remote_mcp) for details.
-
-## Best Practices Skill
-
-This plugin also includes the `clickhouse-best-practices` skill with 28 rules covering schema design, query optimization, and insert strategy. That skill activates automatically when you work with ClickHouse -- no setup needed.
+> **Rootly plugin is ready!**
+>
+> **Authentication**: OAuth2 (logged in as {user name})
+>
+> | Command | Description |
+> |---------|-------------|
+> | `/rootly:deploy-check` | Check deployment safety before pushing |
+> | `/rootly:respond [incident-id]` | Investigate and respond to an incident |
+> | `/rootly:oncall` | View on-call dashboard |
+> | `/rootly:retro [incident-id]` | Generate post-incident retrospective |
+> | `/rootly:status` | Service health overview |
+> | `/rootly:ask [question]` | Ask questions about your incident data |
+> | `/rootly:brief [incident-id]` | Generate stakeholder brief for executives |
+> | `/rootly:handoff [incident-id]` | Prepare incident or on-call handoff docs |
+>
+> Hooks are active:
+> - **Session start**: Connection validation (already ran)
+> - **Pre-commit/push**: Active critical incident warnings (requires API token in plugin config)

@@ -1,6 +1,11 @@
 ---
 name: fix-partially-deprecated-apis
-description: "|"
+description: |-
+  Fix partially deprecated API usage that UI5 linter reports but cannot auto-fix. Use this skill when linter outputs:
+  - `no-deprecated-api` for Parameters.get, JSONModel.loadData, Mobile.init, ODataModel.v2.createEntry, View.create, Fragment.load, Router constructor
+  - `unsupported-api-usage` for string formatter in JS bindings
+  Trigger on: Parameters.get without object param, JSONModel.loadData with bAsync=false, Mobile.init with homeIcon, createEntry with batchGroupId, View.create/Fragment.load with non-XML type, Router without async:true, formatter as string in JS.
+  Provides specific fix patterns for each partially deprecated API variant.
 ---
 
 # Fix Partially Deprecated APIs

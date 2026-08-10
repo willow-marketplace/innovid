@@ -1,6 +1,6 @@
 ---
 name: bigdata-earnings-quality-screen
-description: ">"
+description: "Screen a public company's reported earnings for quality and accounting red flags using Bigdata.com data and filings. Covers cash conversion (OCF/NI, FCF/NI across periods), accruals and the balance-sheet accrual ratio, working-capital signals (DSO, DIO, DPO versus revenue growth), revenue-recognition and capitalization flags, the GAAP versus non-GAAP gap and the nature of the add-backs, and an optional Beneish M-Score with inputs shown — closing with a verdict on how far the reported numbers can be trusted. Triggers: \"earnings quality screen for X\", \"are X's earnings real\", \"accounting red flags at X\", \"is X manipulating earnings\", \"cash conversion at X\", \"check X's accruals\", \"quality of earnings on X\"."
 ---
 
 # Bigdata Earnings Quality Screen

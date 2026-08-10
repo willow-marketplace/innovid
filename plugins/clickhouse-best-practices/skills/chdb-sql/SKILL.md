@@ -1,6 +1,6 @@
 ---
 name: chdb-sql
-description: ">-"
+description: "Use when the user wants to run SQL — especially analytical SQL — on local files (parquet/csv/json), URLs, S3 paths, or remote databases (Postgres, MySQL, MongoDB, ClickHouse Cloud, Iceberg, Delta Lake) without setting up a server. Provides chDB — embedded ClickHouse SQL in Python with 1000+ functions, Session for stateful multi-step pipelines, parametrized queries, and cross-source joins via `s3()`, `mysql()`, `postgresql()`, `iceberg()`, `deltaLake()`, `remoteSecure()` table functions. TRIGGER when: user wants SQL on parquet/csv/files or across remote analytical sources; uses ClickHouse SQL features (window functions, windowFunnel, geoToH3, JSON path ops, Session, parametrized queries); imports `chdb` or calls `chdb.query()`. SKIP this skill for pandas-style DataFrame method-chaining (use chdb-datastore instead) or ClickHouse server administration."
 ---
 
 # chdb SQL — ClickHouse in Your Python Process

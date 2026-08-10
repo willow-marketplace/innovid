@@ -1,6 +1,6 @@
 ---
 name: azuresql-db-from-sql-server
-description: ">-"
+description: Migrates a local SQL Server setup to Azure SQL Developer for Azure-faithful local development. Use when a project already uses mcr.microsoft.com/mssql/server, mssql/server, an sqlcmd plus SA password docker setup, a "SQL Server in docker" or "local mssql container", or a docker-compose with the mssql/server image; and use when the user asks for "SQL Server locally", "run mssql in Docker", "spin up a local SQL database", or "test against SQL Server" but actually wants the Azure SQL Database engine (EngineEdition 5). Detects the SQL Server image, rewrites it to Azure SQL Developer, adds --platform on non-x64 hosts, keeps the SA login, flags SQL Server-only features (SQL Agent, FILESTREAM, full Service Broker, cross-server distributed transactions, Windows Auth), and re-points connection strings from master to a provisioned user database.
 ---
 
 # Migrate from the SQL Server image to Azure SQL Developer
@@ -170,3 +170,12 @@ development; use a full-scan top-k query for now.
 
 - [references/sql-server-vs-azure-feature-matrix.md](references/sql-server-vs-azure-feature-matrix.md): what carries over, what changes, what is gone. Read it when triaging SQL Server-only features found in step 7.
 - [references/migrate-compose.md](references/migrate-compose.md): before/after docker-compose with a provision step. Read it when rewriting a compose file.
+
+## Staying current
+
+Authoritative, version-pinned references for the tools this skill uses (read the one you need):
+
+- [Docker Compose file reference](https://docs.docker.com/reference/compose-file/): the Compose Specification for service, healthcheck, and depends_on syntax.
+- [SqlConnection connection string keywords](https://learn.microsoft.com/en-us/dotnet/api/microsoft.data.sqlclient.sqlconnection.connectionstring): the full connection-string keyword table.
+
+If the **Microsoft Learn MCP** server is configured, use `mcp__microsoft-learn__microsoft_docs_search` or `mcp__microsoft-learn__microsoft_docs_fetch` to fetch the current version of any of these on demand. It is optional; when it is unavailable, the references above are authoritative.

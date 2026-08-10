@@ -1,6 +1,6 @@
 ---
 name: gcp-data-pipelines
-description: "'Primary entry point for building, managing, and orchestrating data pipelines"
+description: Primary entry point for building, managing, and orchestrating data pipelines on Google Cloud. Guides users to the appropriate skill for dbt, Dataflow (Apache Beam), Dataform, Spark (Dataproc Serverless), BigQuery Data Transfer Service (DTS) or orchestration pipeline using Cloud Composer. Clarify requirements and resolve ambiguity for creating, updating and running data pipelines.
 ---
 
 # GCP Data Pipelines Skill

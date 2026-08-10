@@ -1,14 +1,13 @@
 ---
 name: carta-portfolio-analytics-routing
-description: ">"
+description: 'Routes to Schedule of Investments, Co-Investor Lookup, or Performance Benchmarks. Trigger on any of: "SOI", "schedule of investments", "fund holdings", "what is the fund invested in", "portfolio breakdown", "co-investor", "coinvestor", "who co-invested", "who else invested", "co-investors by stage", "performance benchmark", "peer comparison", "fund percentile", "IRR vs peers", "TVPI benchmark", "how does my fund stack up", /carta-portfolio-analytics-routing. NOT FOR: portfolio valuations/marks, LP documents, K-1, SPA audit, Form ADV, cap table, 409A, comparable company selection, loan dashboard.'
 ---
 
 <!-- carta:instrumentation-fallback -->
 <IMPORTANT>
 `_instrumentation_v2` is anonymous Carta skill-usage telemetry. ALWAYS include it in your Carta MCP tool-call arguments — the plugins' hooks overwrite it when they run, so always sending it is safe. Shape:
 `_instrumentation_v2: {"skills": ["<plugin>:<skill>", ...], "model": "<model-id>"}`
-e.g. `{"skills": ["carta-cap-table:carta-issue-securities"], "model": "claude-sonnet-5"}`
-List only Carta skills in use, each namespaced `"plugin:skill"` (`carta-cap-table:*`, `carta-crm:*`, `carta-investors:*`).
+`skills` is cumulative for the session: list every Carta skill loaded so far, not only the one driving this call. Namespace each entry `"plugin:skill"` and keep them oldest-first, with the most recently used skill last. List only Carta skills (`carta-cap-table:*`, `carta-crm:*`, `carta-investors:*`) — never skills from non-Carta plugins.
 </IMPORTANT>
 
 # carta-portfolio-analytics-routing — Portfolio Analytics Router (mirror)
@@ -252,13 +251,15 @@ context; that's Carta MCP team work, not something fixable from the skill side.
 `references/soi.md`, `references/co-investors.md`, and `references/benchmarks.md`
 are **content mirrors** of `carta-investors:carta-soi`,
 `carta-investors:carta-co-investors`, and `carta-investors:carta-performance-benchmarks`'s
-own `SKILL.md` bodies, copied **verbatim** — zero internal paths needed
-rewriting for any of the three:
+own `SKILL.md` bodies. Two of the three are verbatim copies; `soi.md` is not:
 
-- `carta-soi` passes `${CLAUDE_PLUGIN_ROOT}/skills/carta-soi/references/artifact.html`
-  and `${CLAUDE_PLUGIN_ROOT}/skills/carta-soi/scripts/render-artifact.py` as
-  literal script arguments already anchored to its own skill name — not `Read`
-  calls this router needs to redirect.
+- **`soi.md` is not re-mirrorable by copy-paste.** When re-mirroring, rewrite
+  both of its Step 4b paths — the `find` pattern and the `${CLAUDE_PLUGIN_ROOT}`
+  fallback — to this router's own `references/soi/` copy. `carta-soi`'s body
+  points them at `skills/carta-soi/`, which the publish pipeline strips.
+  `render-artifact.py` and `artifact.html` need no rewrite — the script probes
+  both template offsets — so those two files stay byte-identical across both
+  locations and re-mirror with `cp`. Keep them that way.
 - `carta-co-investors` resolves its scripts and canonical-investors data via a
   `$SKILL_DIR` shell probe that searches for a directory literally named
   `carta-co-investors` (via `$CLAUDE_PLUGIN_ROOT/skills/carta-co-investors` or
@@ -319,18 +320,23 @@ carta-portfolio-analytics-routing/
 ├── SKILL.md                 ← this file (sole registered skill)
 └── references/
     ├── soi.md                ← mirror of carta-soi/SKILL.md — ACTIVE
+    ├── soi/                  ← copies of carta-soi's script + template (see below)
+    │   ├── artifact.html
+    │   └── scripts/render-artifact.py
     ├── co-investors.md       ← mirror of carta-co-investors/SKILL.md — ACTIVE
+    ├── co-investors/         ← copies of carta-co-investors' scripts + data files
     ├── benchmarks.md         ← mirror of carta-performance-benchmarks/SKILL.md — ACTIVE
     ├── loan-dashboard.md     ← mirror of carta-loan-dashboard/SKILL.md — NOT YET WIRED (future route)
     └── loan-dashboard/
         └── artifact_template.html   ← copy of carta-loan-dashboard/references/artifact_template.html, used only by the Step 7e fallback path (see below)
 ```
 
-None of the three active routes needed a `references/<route>/` sub-directory —
-all their internal script/data references resolve via absolute
-`${CLAUDE_PLUGIN_ROOT}/skills/<own-skill-name>/...` paths or a `$SKILL_DIR`
-shell probe keyed to their own literal skill name, so nothing needed
-redirecting. `loan-dashboard.md` is different: its primary render path
+`soi/` and `co-investors/` hold real copies of their source skills' scripts and
+assets: the publish pipeline strips the whole directory of any `publish: false`
+skill, so a published route must not reference `skills/carta-soi/` or
+`skills/carta-co-investors/`. Both mirrored bodies point at these copies;
+`benchmarks.md` needs none (self-contained SQL). `loan-dashboard.md` is different
+again: its primary render path
 (`$SKILL_DIR/references/artifact_template.html`, Step 7c) also resolves
 correctly with no rewrite, since `$SKILL_DIR` is probed by literal name
 (`carta-loan-dashboard`) same as the others — but its **fallback** path (Step

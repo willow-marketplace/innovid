@@ -1,6 +1,6 @@
 ---
 name: agents-deploy
-description: ">"
+description: 'Use when deploying your agent to AWS, or when a deploy has failed. Handles pre-flight validation, CDK/IAM/quota error diagnosis, version management, rollback, and canary deployments. Triggers on: "deploy my agent", "agentcore deploy", "deploy failed", "CDK error", "rollback", "canary deploy", "pin version", "redeploy", "deploy stuck". Not for production hardening — use agents-harden. Not for adding capabilities before deploy — use agents-build or agents-connect. Not for VPC configuration errors — use agents-build.'
 ---
 
 # deploy

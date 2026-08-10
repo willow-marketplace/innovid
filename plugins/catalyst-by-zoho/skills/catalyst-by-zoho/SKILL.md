@@ -1,6 +1,6 @@
 ---
 name: catalyst-by-zoho
-description: "\"Expert coding assistant for Catalyst by Zoho — Zoho's full-stack serverless cloud platform. Use for any question about Catalyst services, CLI, SDKs, architecture, pricing, or Zoho MCP tool-based infrastructure management.\""
+description: Expert coding assistant for Catalyst by Zoho — Zoho's full-stack serverless cloud platform. Use for any question about Catalyst services, CLI, SDKs, architecture, pricing, or Zoho MCP tool-based infrastructure management.
 ---
 
 # Catalyst by Zoho — Skill Index

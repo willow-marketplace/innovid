@@ -229,12 +229,13 @@ function runPrereqChecks(root) {
   }
 
   // 2. Catalyst CLI presence + version.
-  const cliRaw = runCmd('catalyst -v', 6000) || runCmd('zcatalyst -v', 6000);
+  // The zcatalyst-cli package ships exactly one binary: `catalyst`.
+  const cliRaw = runCmd('catalyst -v', 6000);
   const cliVer = parseSemver(cliRaw);
   if (cliRaw === null) {
     // Distinguish "not installed" from "installed but the binary won't run"
     // (e.g. a corrupt install) — the fixes differ (install vs. reinstall).
-    const cliPath = runCmd('command -v catalyst', 4000) || runCmd('command -v zcatalyst', 4000);
+    const cliPath = runCmd('command -v catalyst', 4000);
     if (cliPath) {
       const where = cliPath.split('\n')[0];
       issues.push({
@@ -272,7 +273,7 @@ function runPrereqChecks(root) {
   //    to fail transiently) rather than raising a false alarm. Note that both
   //    states exit 0, so detection is by message content, not exit code.
   if (cliRaw !== null) {
-    const who = runCmd('catalyst whoami 2>&1', 8000) || runCmd('zcatalyst whoami 2>&1', 8000);
+    const who = runCmd('catalyst whoami 2>&1', 8000);
     // Check the negative signal FIRST: "not logged in" contains the substring
     // "logged in", so a naive positive match would misread a logged-out state.
     const loggedOut = who && /(not\s+logged|please\s+log\s?in|log\s?in\s+required|no\b[^.]*\bcredential|run\s+[^.]*\blogin)/i.test(who);

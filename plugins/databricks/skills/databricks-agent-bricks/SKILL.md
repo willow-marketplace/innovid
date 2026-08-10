@@ -1,6 +1,6 @@
 ---
 name: databricks-agent-bricks
-description: '"Create Agent Bricks: Knowledge Assistants (KA) for document Q&A and Supervisor Agents for multi-agent orchestration (MAS)."'
+description: "Create Agent Bricks: Knowledge Assistants (KA) for document Q&A and Supervisor Agents for multi-agent orchestration (MAS)."
 ---
 
 # Agent Bricks
@@ -42,7 +42,7 @@ databricks knowledge-assistants get-knowledge-assistant "knowledge-assistants/{k
 
 # List/manage
 databricks knowledge-assistants list-knowledge-assistants
-databricks knowledge-assistants delete-knowledge-assistant "knowledge-assistants/{ka_id}"
+databricks knowledge-assistants delete-knowledge-assistant "knowledge-assistants/{ka_id}"  # destructive & irreversible — confirm the id first
 ```
 
 **Source types:** `files` (Volume path) or `index` (Vector Search: `index.index_name`, `index.text_col`, `index.doc_uri_col`)
@@ -53,7 +53,7 @@ databricks knowledge-assistants delete-knowledge-assistant "knowledge-assistants
 
 ## Supervisor Agent
 
-Native CLI: `databricks supervisor-agents` (Beta, requires CLI ≥ 0.299.2). Resource paths look like `supervisor-agents/{id}` — every command takes either that full path or a `PARENT` of that shape. `list-supervisor-agents` and `list-examples`/`list-tools` return bare JSON arrays.
+Native CLI: `databricks supervisor-agents` (Beta, requires CLI ≥ v1.0.0). Resource paths look like `supervisor-agents/{id}` — every command takes either that full path or a `PARENT` of that shape. `list-supervisor-agents` and `list-examples`/`list-tools` return bare JSON arrays.
 
 ```bash
 # Create the supervisor agent (display name positional, description/instructions as flags)
@@ -72,7 +72,7 @@ databricks supervisor-agents update-supervisor-agent supervisor-agents/<id> \
     "display_name,description,instructions" "My Supervisor (v2)" \
     --description "..." --instructions "..."
 
-# Delete
+# Delete (destructive & irreversible — confirm the id first)
 databricks supervisor-agents delete-supervisor-agent supervisor-agents/<id>
 ```
 

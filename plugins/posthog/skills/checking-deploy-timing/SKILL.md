@@ -1,6 +1,6 @@
 ---
 name: checking-deploy-timing
-description: "'Determine when a PostHog code change reached a given environment by reading the hidden GIT deploy annotations in the project and correlating them with the merge commit on GitHub. Use when PostHog staff ask \"when was X deployed\", \"is my change live in the US/EU yet\", \"has my PR shipped\", \"did the fix roll out to prod-us\", or otherwise want to know whether/when a commit, PR, or feature went out to a region. Do not answer deploy-timing questions from event/data volume alone — that only shows when data changed, not when code shipped.'"
+description: Determine when a PostHog code change reached a given environment by reading the hidden GIT deploy annotations in the project and correlating them with the merge commit on GitHub. Use when PostHog staff ask "when was X deployed", "is my change live in the US/EU yet", "has my PR shipped", "did the fix roll out to prod-us", or otherwise want to know whether/when a commit, PR, or feature went out to a region. Do not answer deploy-timing questions from event/data volume alone — that only shows when data changed, not when code shipped.
 ---
 
 # Checking when something was deployed

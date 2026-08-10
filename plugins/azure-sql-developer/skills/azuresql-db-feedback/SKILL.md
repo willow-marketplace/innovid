@@ -1,6 +1,6 @@
 ---
 name: azuresql-db-feedback
-description: ">-"
+description: 'Reports a bug or files feedback about the azuresql-db-* agent skills themselves, or about Azure SQL Developer (the local Azure SQL Database engine in a container, Private Preview). Use when the user says a skill or the container "did not work", hit an error, behaved unexpectedly, or is missing something; and when they say "report a bug", "file an issue", "open a GitHub issue", "request a feature", "give feedback", or "tell the team". Also use when you, the agent, had to deviate from an azuresql-db-* skill or work around a defect in one to finish a task: that is a bug in the skill and it is worth reporting, even if the task ultimately succeeded. Decides whether the problem belongs to the SKILL or to the CONTAINER, since they use different issue templates, then builds a complete prefilled GitHub issue from context you already have. Never submits anything without explicit confirmation from the user.'
 ---
 
 # Report a problem with the skills, or with the container
@@ -112,3 +112,11 @@ dropdown values, and worked examples for all three templates are in
 ## References
 
 - [references/issue-fields.md](references/issue-fields.md): the exact field ids for all three templates, the verbatim dropdown values, URL construction and its length limit, and worked examples. Read this before building a prefilled URL.
+
+## Staying current
+
+Authoritative, version-pinned references for the tools this skill uses (read the one you need):
+
+- [GitHub issue-form schema syntax](https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/syntax-for-githubs-form-schema): the form-schema fields (input, textarea, dropdown) the prefill maps to.
+
+If the **Microsoft Learn MCP** server is configured, use `mcp__microsoft-learn__microsoft_docs_search` or `mcp__microsoft-learn__microsoft_docs_fetch` to fetch the current version of any of these on demand. It is optional; when it is unavailable, the references above are authoritative.

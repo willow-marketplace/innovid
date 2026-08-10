@@ -1,6 +1,6 @@
 ---
 name: agents-build
-description: ">"
+description: "Use to extend an existing agent project with memory, app integration, VPC, multi-agent, migration, model, browser, code interpreter, payments, or resource removal. Triggers: \"add memory\", \"remember across sessions\", \"call agent from app\", \"invoke agent from code\", \"agent auth\", \"streaming\", \"VPC\", \"VPC connectivity\", \"can't reach from VPC\", \"multi-agent\", \"A2A\", \"A2A auth\", \"orchestrator not delegating\", \"specialist not called\", \"migrate Bedrock Agent\", \"migration issue\", \"change model\", \"browser tool\", \"code interpreter\", \"delete agent\", \"tear down\", \"agentcore remove\", \"cross-account memory\", \"add payments capability to my agent\", \"wire payments plugin\", \"payments middleware for my agent\", \"integrate x402 payments with the agent I'm building\", \"enable my agent project with x402 payments\". External APIs via Gateway: use agents-connect. New project: use agents-get-started. CLI/dev-server errors: use agents-debug. Runtime x402 payments: use agents-pay. Migration-specific Strands vs LangGraph routes here."
 ---
 
 # build

@@ -1,14 +1,13 @@
 ---
 name: carta-compensation-scorecard
-description: ">"
+description: "Carta Total Compensation scorecard — shows how a corporation's employees compare to market. Two lenses: corporation-level rollup (band distribution — what % of employees are below / at / above market) and per-employee scorecard (each employee's compa-ratio + percentile + market band). Triggered by queries like: \"scorecard\", \"how is our comp positioned\", \"who's below market\", \"which employees are below P50\", \"show me the roster\", \"are we paying market\", \"comp posture\", \"employee compa-ratios\", \"is [employee] underpaid\", \"pay adjustment analysis\", \"our internal pay bands vs benchmarks\", \"score these employees\". Operates on the corporation's already-ingested CTC roster (HRIS-synced employees). Do NOT use for market-rate lookups for a role (use carta-compensation-benchmarks). Do NOT use for job classification (use carta-compensation-rolematcher). Do NOT use for fund performance scorecards or portfolio-level metrics."
 ---
 
 <!-- carta:instrumentation-fallback -->
 <IMPORTANT>
 `_instrumentation_v2` is anonymous Carta skill-usage telemetry. ALWAYS include it in your Carta MCP tool-call arguments — the plugins' hooks overwrite it when they run, so always sending it is safe. Shape:
 `_instrumentation_v2: {"skills": ["<plugin>:<skill>", ...], "model": "<model-id>"}`
-e.g. `{"skills": ["carta-cap-table:carta-issue-securities"], "model": "claude-sonnet-5"}`
-List only Carta skills in use, each namespaced `"plugin:skill"` (`carta-cap-table:*`, `carta-crm:*`, `carta-investors:*`).
+`skills` is cumulative for the session: list every Carta skill loaded so far, not only the one driving this call. Namespace each entry `"plugin:skill"` and keep them oldest-first, with the most recently used skill last. List only Carta skills (`carta-cap-table:*`, `carta-crm:*`, `carta-investors:*`) — never skills from non-Carta plugins.
 </IMPORTANT>
 
 # CTC Scorecard
@@ -129,6 +128,16 @@ Do **not** show the user a raw JSON dump of accounts. Do **not** attempt any com
 > If the user closed the prompt, said "cancel", "never mind", or otherwise did not select an option — **STOP**. Do not guess a corp. Do not call any compensation endpoint. Reply:
 >
 > > *"No problem — let me know which corporation's scorecard to look up (name or numeric ID) when you're ready. If there's something else I can help with in the meantime, just ask."*
+
+**Path 5 — No corporations at all (Fund-Admin-only user — STOP, do not ask)**
+
+If Paths 2/3/4 returned **zero** `corporation_pk:` entries, the user may have no cap table access at all — a Fund Admin user whose access is fund accounting only. Confirm before doing anything else:
+
+1. `call_tool({"name": "context_tools__get__profile", "arguments": {}})` — returns `corporations[]`, the corporations the user holds a cap-table role on (it excludes `NO_ACCESS` roles, and returns `[]` for a user with no corporation roles).
+2. If `corporations[]` is **empty** → the user has no cap table. Send the **no-cap-table CTC message** from *Subscription gating* below (the "your firm" variant) and **STOP**. Do **not** ask them to name a corporation — they don't have one. Do **not** call any compensation endpoint.
+3. If `corporations[]` is **non-empty** → the user does have cap tables; the name search just missed. Do **not** send an upsell. Ask them to confirm the exact company name or numeric corp ID and re-resolve.
+
+> Why `profile` and not `list_accounts` for this check: `list_accounts` groups corporations *and funds* under the same `corporation_pk:` prefix, so a Fund Admin user's funds can read as cap table access. `context_tools:get:profile` returns corporations only.
 
 Extract the numeric `corporation_pk` (the integer after `corporation_pk:`) for all subsequent calls.
 
@@ -511,11 +520,21 @@ This is the same citation contract as carta-compensation-benchmarks — keep it 
 
 ## Subscription gating
 
-If `compensation:get:subscription_status` returns `is_subscribed: false`, OR a scorecard call returns HTTP 403, OR `compensation:get:plan` returns 403, stop and reply with this exact message (substitute the company name):
+If `compensation:get:subscription_status` returns `is_subscribed: false`, OR a scorecard call returns HTTP 403, OR `compensation:get:plan` returns 403, stop and reply with one of the two messages below.
 
-> **No CTC subscription for [Company Name].**
+Choose between them by whether the user has cap table access: `call_tool({"name": "context_tools__get__profile", "arguments": {}})` and check whether `corporations[]` is non-empty. Treat a **non-empty** list as "has cap table access" — the endpoint already excludes `NO_ACCESS` roles, so presence is the signal. Do **not** match on the `role` label: those strings are raw and unnormalized (`'Admin'` and `'Administrator'` both occur), so an allowlist would misclassify real admins. Do **not** test whether *this specific corp* is in the list — the list is capped server-side, so a large-portfolio admin can be a false negative.
+
+This call runs only on this failure path, after the gate has already decided to stop — it costs nothing on the happy path. If it errors or returns an unreadable response, use the **"your firm"** variant (it promises nothing you can't deliver) and do not retry.
+
+If `corporations[]` is **non-empty**:
+
+> *"That's a Carta Total Compensation (CTC) question — CTC runs on Carta's private market salary and equity data. The data can be segmented by level, function, stage, and geography, directly in Claude. It's not active for your company yet. Reach out to your account team or [request a demo](https://carta.com/demo/total-comp/?&utm_medium=product&utm_source=carta-web&utm_campaign=ctc-plugin-inq-amer-q2-26) to unlock it.*
 >
-> This corporation doesn't have an active Carta Total Compensation subscription, so we can't generate a scorecard. Reach out to the CTC team to get set up, then run this again once the subscription is active.
+> *I can pull cap table data — grants, vesting, round history — in the meantime."*
+
+If `corporations[]` is **empty** — a Fund-Admin-only user, or the corp came from a hand-typed numeric ID (Path 1) that they hold no cap-table role on:
+
+> *"That's a Carta Total Compensation (CTC) question — CTC runs on Carta's private market salary and equity data. The data can be segmented by level, function, stage, and geography, directly in Claude. It's not active for your firm yet. Reach out to your account team or [request a demo](https://carta.com/demo/total-comp/?&utm_medium=product&utm_source=carta-web&utm_campaign=ctc-plugin-inq-amer-q2-26) to unlock it."*
 
 Do not retry. Do not surface the raw HTTP status, stack trace, or error body. Do not list workarounds — there are none at the MCP layer; this is a billing/subscription gate.
 
@@ -548,9 +567,16 @@ Do not retry. Do not surface the raw HTTP status, stack trace, or error body. Do
 
 ## What this skill does NOT cover
 
+Two categories here — read carefully, they behave differently at the routing layer:
+
+**Route to a different skill** (the router should pick these up, not this one):
 - **Market-rate lookups for a hypothetical role** (e.g. "what's the market rate for a Senior 1 engineer?") — that's `carta-compensation-benchmarks`.
-- **Fresh-CSV roster scoring** (e.g. "score these 200 employees from this spreadsheet") — not supported in Phase 0. Coming in a later phase.
-- **Adjustment-range suggestions** ("to reach P50, increase by $X") — not in Phase 0.
 - **Job classification** for a free-text title — use `carta-compensation-rolematcher`.
 
-If the user asks for any of those, route them to the right skill in one sentence and stop — don't try to approximate it here.
+If the user asks for either of those, route them to the right skill in one sentence and stop.
+
+**In-scope by routing intent, but not yet implemented** (this skill IS the right skill; it just tells the user the feature isn't ready):
+- **Fresh-CSV roster scoring** (e.g. "score these 200 employees from this spreadsheet") — not supported in Phase 0. Coming in a later phase.
+- **Adjustment-range suggestions** ("to reach P50, increase by $X") — not in Phase 0.
+
+For these, load the skill, acknowledge the ask, explain the Phase 0 limit, and offer the closest supported alternative (e.g. per-employee scorecard for an existing HRIS-synced roster). Do NOT bounce them to a different skill — nothing else covers roster-level pay positioning.

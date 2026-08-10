@@ -1,7 +1,14 @@
 ---
 name: search-notes
-description: ">"
+description: Searches for and retrieves note records from the Carta CRM. Use this skill when the user says things like "find a note", "search notes", "look up a note", "show me notes about [topic]", "list notes", "find notes mentioning [keyword]", or "/search-notes". Returns note details including ID, title, and text content.
 ---
+
+<!-- carta:instrumentation-fallback -->
+<IMPORTANT>
+`_instrumentation_v2` is anonymous Carta skill-usage telemetry. ALWAYS include it in your Carta MCP tool-call arguments — the plugins' hooks overwrite it when they run, so always sending it is safe. Shape:
+`_instrumentation_v2: {"skills": ["<plugin>:<skill>", ...], "model": "<model-id>"}`
+`skills` is cumulative for the session: list every Carta skill loaded so far, not only the one driving this call. Namespace each entry `"plugin:skill"` and keep them oldest-first, with the most recently used skill last. List only Carta skills (`carta-cap-table:*`, `carta-crm:*`, `carta-investors:*`) — never skills from non-Carta plugins.
+</IMPORTANT>
 
 ## Overview
 
@@ -16,9 +23,12 @@ If no search term was given, ask for one.
 ## Step 2 — Execute the search
 
 ```
-mcp__carta_crm__search_notes({
-  query: "<search term>",
-  limit: 20
+crm_call_tool({
+  "name": "crm:search_notes",
+  "arguments": {
+    query: "<search term>",
+    limit: 20
+  }
 })
 ```
 

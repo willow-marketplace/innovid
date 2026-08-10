@@ -1,6 +1,6 @@
 ---
 name: install-duckdb
-description: ">"
+description: Install or update DuckDB extensions. Each argument is either a plain extension name (installs from core) or name@repo (e.g. magic@community). Pass --update to update extensions instead of installing.
 ---
 
 Arguments: `$@`

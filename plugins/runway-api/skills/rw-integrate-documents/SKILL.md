@@ -1,6 +1,6 @@
 ---
 name: rw-integrate-documents
-description: '"Help users add knowledge base documents to Runway Characters for domain-specific conversations"'
+description: Help users add knowledge base documents to Runway Characters for domain-specific conversations
 ---
 
 # Integrate Documents (Knowledge Base)

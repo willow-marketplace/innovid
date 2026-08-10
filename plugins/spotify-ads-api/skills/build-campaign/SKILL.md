@@ -25,14 +25,14 @@ Only use the direct creation flow below if the user explicitly asks to skip draf
 
 ## Setup
 
-1. Read `access_token`, `ad_account_id`, and `auto_execute` from the active platform settings file:
-   - Codex: prefer `.codex/spotify-ads-api.local.md`, then fall back to `.claude/spotify-ads-api.local.md`, then `.gemini/spotify-ads-api.local.md`.
-   - Claude: prefer `.claude/spotify-ads-api.local.md`, then fall back to `.codex/spotify-ads-api.local.md`, then `.gemini/spotify-ads-api.local.md`.
-   - Gemini: prefer `.gemini/spotify-ads-api.local.md`, then fall back to `.claude/spotify-ads-api.local.md`, then `.codex/spotify-ads-api.local.md`.
-2. Base URL: `https://api-partner.spotify.com/ads/v3`
-3. If no settings file exists, instruct the user to run the configure skill first (`/spotify-ads-api:configure` on Claude/Codex, `/configure` on Gemini).
-4. Read the active platform manifest for the plugin `version`: `.codex-plugin/plugin.json` on Codex, `.claude-plugin/plugin.json` on Claude, or `gemini-extension.json` (extension root) on Gemini.
-5. Set `SDK_PRODUCT` to `codex-plugin` on Codex, `claude-code-plugin` on Claude, or `gemini-cli-extension` on Gemini. Set `SDK_HEADER="X-Spotify-Ads-Sdk: $SDK_PRODUCT/$PLUGIN_VERSION"` and include `-H "$SDK_HEADER"` on all API requests.
+Set the plugin root and define the request wrapper:
+
+```bash
+PLUGIN_ROOT="${CODEX_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-.}}"
+api() { "$PLUGIN_ROOT/scripts/api-request.sh" build-campaign "$@"; }
+```
+
+To retrieve settings values (TOKEN, AD_ACCOUNT_ID, AUTO_EXECUTE, BASE_URL) for use outside API calls, run `api --env`.
 
 ## Step 1: Parse the Campaign Description
 
@@ -55,7 +55,7 @@ Valid objectives: `REACH`, `CLICKS`, `VIDEO_VIEWS`, `CONVERSIONS`, `LEAD_GEN`, `
 | name | yes | — | 2-200 chars |
 | start_time | yes | — | ISO 8601 UTC |
 | end_time | required if LIFETIME | — | ISO 8601 UTC |
-| budget.micro_amount | yes | — | Dollar amount x 1,000,000 |
+| budget.micro_amount | yes | — | Amount (in ad account's billing currency) x 1,000,000 |
 | budget.type | yes | DAILY | `DAILY` or `LIFETIME` |
 | asset_format | yes | AUDIO | `AUDIO`, `VIDEO`, `IMAGE`, or `CATALOG` |
 | category | yes | — | Valid `ADV_X_Y` code (fetch from `GET /ad_categories` if needed) |
@@ -75,7 +75,7 @@ Valid objectives: `REACH`, `CLICKS`, `VIDEO_VIEWS`, `CONVERSIONS`, `LEAD_GEN`, `
 - Do not send `cost_model`, `skippable`, `is_skippable`, or `ad_platforms` in ad set create payloads.
 - Only use `ANDROID`, `DESKTOP`, and `IOS` in `targets.platforms`; never use `WEB`, `MOBILE`, or `CONNECTED_DEVICE`.
 - Use `min >= 18` for age ranges unless the user explicitly confirms a market/category that allows minors.
-- When geo refinements are present (`city_ids`, `dma_ids`, `postal_code_ids`, `region_ids`), include `country_code` in the same `geo_targets` object.
+- When geo refinements are present (`city_ids`, `postal_code_ids`, `region_ids`), include `country_code` in the same `geo_targets` object.
 - If `bid_strategy=UNSET`, omit `bid_micro_amount` unless the API response or user-provided source explicitly requires it.
 
 ### Ad-level fields (one or more per ad set)
@@ -83,13 +83,13 @@ Valid objectives: `REACH`, `CLICKS`, `VIDEO_VIEWS`, `CONVERSIONS`, `LEAD_GEN`, `
 | Field | Required | Notes |
 |-------|----------|-------|
 | name | yes | 2-200 chars |
-| tagline | yes | 2-40 chars |
+| tagline | yes (optional for drafts) | 2-40 chars |
 | advertiser_name | yes | 2-25 chars |
-| assets.asset_id | yes | UUID — prompt user to select |
+| assets.asset_id | yes (optional for drafts) | UUID — prompt user to select |
 | assets.logo_asset_id | yes | UUID — prompt user to select |
 | assets.companion_asset_id | yes (audio) | UUID — required for AUDIO format ads |
 | call_to_action.key | yes | e.g. `SHOP_NOW`, `LEARN_MORE`, `LISTEN_NOW`, `SIGN_UP` |
-| call_to_action.clickthrough_url | yes | Landing page URL |
+| call_to_action.clickthrough_url | yes (optional for drafts) | Landing page URL |
 | delivery | no | `ON` (default) or `OFF` |
 
 ## Step 2: Confirm the Parsed Plan
@@ -114,10 +114,8 @@ You can fetch valid categories from `GET /ad_categories` to present options.
 After the user confirms the plan but before executing API calls, run an audience estimate for each ad set's targeting:
 
 ```bash
-curl -s -w "\nHTTP_STATUS:%{http_code}" -X POST -H "Authorization: Bearer $TOKEN" \
-  -H "$SDK_HEADER" \
-  -H "Content-Type: application/json" \
-  -d '{
+api POST "estimates/audience" \
+  '{
     "ad_account_id": "<AD_ACCOUNT_ID>",
     "start_date": "<start_time>",
     "asset_format": "<AUDIO|VIDEO|IMAGE|CATALOG>",
@@ -126,8 +124,7 @@ curl -s -w "\nHTTP_STATUS:%{http_code}" -X POST -H "Authorization: Bearer $TOKEN
     "bid_micro_amount": <bid>,
     "budget": {"micro_amount": <budget>, "type": "<DAILY|LIFETIME>", "currency": "USD"},
     "targets": { <same targets object as the ad set> }
-  }' \
-  "https://api-partner.spotify.com/ads/v3/estimates/audience"
+  }'
 ```
 
 **Important:** This endpoint is NOT scoped under `/ad_accounts/{id}/` — it's at the top level: `POST /estimates/audience`. Use the base URL directly followed by `/estimates/audience`.
@@ -143,7 +140,7 @@ Audience Estimate for "Ad Set A":
   Likely to deliver budget: Yes
 ```
 
-Convert any CPM micro-amounts to dollars for display.
+Convert any CPM micro-amounts to the ad account's billing currency for display.
 
 **If the audience is too small** (very low `projected_unique_users` or the API returns a 400 error indicating audience too small), warn the user and suggest:
 - Broadening the age range
@@ -164,9 +161,7 @@ Run the estimate for each ad set in the plan before proceeding to Step 3.
 For each ad, fetch available assets from the account:
 
 ```bash
-curl -s -w "\nHTTP_STATUS:%{http_code}" -H "Authorization: Bearer $TOKEN" \
-  -H "$SDK_HEADER" \
-  "$BASE_URL/ad_accounts/$AD_ACCOUNT_ID/assets?limit=50&sort_direction=DESC"
+api GET "ad_accounts/{ad_account_id}/assets?limit=50&sort_direction=DESC"
 ```
 
 Present audio/video assets and image assets separately in tables, and ask the user to pick:
@@ -181,11 +176,8 @@ Execute each step in order, passing IDs forward from each response.
 ### 4a. Create Campaign
 
 ```bash
-curl -s -w "\nHTTP_STATUS:%{http_code}" -X POST -H "Authorization: Bearer $TOKEN" \
-  -H "$SDK_HEADER" \
-  -H "Content-Type: application/json" \
-  -d '{"name":"...","objective":"..."}' \
-  "$BASE_URL/ad_accounts/$AD_ACCOUNT_ID/campaigns"
+api POST "ad_accounts/{ad_account_id}/campaigns" \
+  '{"name":"...","objective":"..."}'
 ```
 
 Extract the campaign `id` from the response.
@@ -195,10 +187,8 @@ Extract the campaign `id` from the response.
 For each ad set:
 
 ```bash
-curl -s -w "\nHTTP_STATUS:%{http_code}" -X POST -H "Authorization: Bearer $TOKEN" \
-  -H "$SDK_HEADER" \
-  -H "Content-Type: application/json" \
-  -d '{
+api POST "ad_accounts/{ad_account_id}/ad_sets" \
+  '{
     "name": "...",
     "campaign_id": "<from step 4a>",
     "start_time": "...",
@@ -216,8 +206,7 @@ curl -s -w "\nHTTP_STATUS:%{http_code}" -X POST -H "Authorization: Bearer $TOKEN
     "bid_micro_amount": ...,
     "pacing": "PACING_EVEN",
     "delivery": "ON"
-  }' \
-  "$BASE_URL/ad_accounts/$AD_ACCOUNT_ID/ad_sets"
+  }'
 ```
 
 Extract each ad set `id` for use in ad creation.
@@ -227,10 +216,8 @@ Extract each ad set `id` for use in ad creation.
 For each ad:
 
 ```bash
-curl -s -w "\nHTTP_STATUS:%{http_code}" -X POST -H "Authorization: Bearer $TOKEN" \
-  -H "$SDK_HEADER" \
-  -H "Content-Type: application/json" \
-  -d '{
+api POST "ad_accounts/{ad_account_id}/ads" \
+  '{
     "name": "...",
     "ad_set_id": "<from step 4b>",
     "tagline": "...",
@@ -245,8 +232,7 @@ curl -s -w "\nHTTP_STATUS:%{http_code}" -X POST -H "Authorization: Bearer $TOKEN
       "clickthrough_url": "https://..."
     },
     "delivery": "ON"
-  }' \
-  "$BASE_URL/ad_accounts/$AD_ACCOUNT_ID/ads"
+  }'
 ```
 
 ## Step 5: Summary
@@ -280,5 +266,5 @@ These are non-obvious API requirements that MUST be followed:
 5. **`end_time`** is required when budget type is `LIFETIME`
 6. **`companion_asset_id`** is required when creating ads for AUDIO ad sets
 7. **`call_to_action`** uses field name `key` (not `type`) and `clickthrough_url` (not `url`)
-8. Budget amounts must be in **micro-units** (multiply dollar amount by 1,000,000)
+8. Budget amounts must be in **micro-units** (multiply amount by 1,000,000)
 9. **Min audience thresholds** apply — VIDEO format may require broader targeting than AUDIO. If you get a "Min audience threshold was not met" error, suggest expanding the age range or switching format.

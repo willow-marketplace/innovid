@@ -1,6 +1,6 @@
 ---
 name: bigdata-earnings-reaction
-description: ">"
+description: "Write a tight post-earnings reaction note using Bigdata.com data — headline numbers versus consensus with beat/miss magnitude, what mattered on both sides, a prior-versus-new guidance table, an explicit thesis check (Intact / Strengthened / Weakened / Broken) with evidence, the estimate and price-target revisions the print forces, a pre-versus-post valuation update, quality signals for the quarter, and an action with the next key date. Shorter and more decision-focused than a full earnings digest. Triggers: \"earnings reaction for X\", \"how should I react to X's results\", \"does X's quarter change the thesis\", \"X print reaction\", \"revise my numbers after X earnings\", \"was X's quarter good enough\"."
 ---
 
 # Bigdata Earnings Reaction

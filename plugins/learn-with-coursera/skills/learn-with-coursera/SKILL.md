@@ -1,6 +1,6 @@
 ---
 name: learn-with-coursera
-description: ">"
+description: "Turns a learning intent or an intent to practice a skill into a personalized experience: asks 3 questions (topic, familiarity, modality), searches the catalog, delivers the right learning experience (course, project, video, or roleplay), then acts as a path finder connecting users to the right Coursera learning path. Trigger when a user manifests a learning intent. Some examples of users manifesting a learning intent or a skill practice intent are: \"teach me\", \"I want to learn X\", \"I need to get better at X\", \"upskill in\", \"prepare for an interview\", \"I keep searching this but I don't get it\", \"I get by but don't understand it\", \"I use AI for this but want a real foundation\", \"my team uses X and I'm lost\", \"I need to practice how to X\", \"help me prepare for X conversation\". Covers technical topics (SQL, Python, data, cloud), professional interpersonal skills (negotiation, communication, leadership), certification prep, interview prep, professional tools, and new skills."
 ---
 
 # learn-with-coursera — Learning Companion for Enterprise Learners

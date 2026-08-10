@@ -1,6 +1,6 @@
 ---
 name: render-web-services
-description: ">-"
+description: Configures Render web services—port binding, TLS, health checks, custom domains, auto-deploy, PR previews, persistent disks, and deploy lifecycle. Use when the user needs to set up a web service, fix health check failures, add a custom domain, configure zero-downtime deploys, or troubleshoot port binding issues.
 ---
 
 # Render Web Services

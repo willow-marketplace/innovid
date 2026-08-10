@@ -1,6 +1,6 @@
 ---
 name: databricks-apps
-description: '"Build apps on Databricks Apps platform. Use when asked to create data apps, analytics tools, or custom interactive visualizations. A plain \"create a dashboard\" request means a managed AI/BI (Lakeview) dashboard → use databricks-aibi-dashboards, not this skill. Evaluates data access patterns (analytics vs Lakebase synced tables) before scaffolding. Invoke BEFORE starting implementation."'
+description: Build apps on Databricks Apps platform. Use when asked to create data apps, analytics tools, or custom interactive visualizations. A plain "create a dashboard" request means a managed AI/BI (Lakeview) dashboard → use databricks-aibi-dashboards, not this skill. Evaluates data access patterns (analytics vs Lakebase synced tables) before scaffolding. Invoke BEFORE starting implementation.
 ---
 
 # Databricks Apps Development

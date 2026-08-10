@@ -517,7 +517,7 @@ If user wants to **design a new experiment**, guide them through:
 3. **Estimate sample size:**
    - Typical: 1-2 weeks minimum, 1000+ users per variant
    - Higher variance metrics need more data
-   - Use `Amplitude:query_chart` to check metric's historical variance
+   - Use `Amplitude:query_charts` to check metric's historical variance
 
 4. **Create experiment:**
    - Use `Amplitude:create_experiment` with projectIds, variants, and metrics

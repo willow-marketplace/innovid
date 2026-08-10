@@ -1,6 +1,6 @@
 ---
 name: jfrog
-description: ">-"
+description: Interact with the JFrog Platform via the JFrog CLI, JFrog MCP server and REST/GraphQL APIs. Use this skill when the user wants to manage Artifactory repositories, upload or download artifacts, manage builds, configure permissions, manage users and groups, work with access tokens, configure JFrog CLI servers, search artifacts, manage properties, set up replication, manage JFrog Projects, run security audits or scans, look up CVE details, query exposures scan results from JFrog Advanced Security, manage release bundles and lifecycle operations, aggregate or export platform data, or perform any JFrog Platform administration task. Also use when the user mentions jf, jfrog, artifactory, xray, distribution, evidence, apptrust, onemodel, graphql, workers, mission control, curation, advanced security, exposures, or any JFrog product name. Do NOT use this skill to install, add, remove, list, or manage MCP servers.
 ---
 
 # JFrog Skill
@@ -12,6 +12,12 @@ Interact with the JFrog Platform through three tool tiers — see
 `<skill_path>` refers to this skill's directory and is resolved automatically
 by the agent. If the agent does not resolve it, determine the path by locating
 this SKILL.md file and using its parent directory.
+
+> **Out of scope: MCP server management.** Installing, listing, removing, or
+> configuring MCP servers (e.g. "install an MCP", "what MCPs can I install",
+> "list my MCPs", "which MCP servers can I use", "what's in my approved MCP
+> catalog") is handled by the JFrog Agent Guard workflow
+> (`@jfrog/agent-guard`) — a separate workflow, not this skill.
 
 ## Tool selection strategy
 
@@ -69,12 +75,11 @@ bash <skill_path>/scripts/check-environment.sh <model-slug>
 # stderr: JSON state (cached 24h at ${JFROG_CLI_HOME_DIR:-$HOME/.jfrog}/skills-cache/jfrog-skill-state.json)
 ```
 
-Pass the precise underlying-model slug with version: `opus-4.7`,
-`sonnet-4.5`, `gpt-5-codex`, `gemini-2.5-pro`, `composer-2-fast`. Cursor's
-Composer product slug **is** the canonical id — use it as-is. Do **not**
-pass harness/role names (`subagent`, `agent`, `assistant`) or bare family
-names (`claude`, `gpt`); subagents inherit the parent's slug. If genuinely
-unknown, pass `unknown`.
+Pass your own model slug, lowercased, with version (e.g. `opus-4.7`,
+`gpt-5.6-sol`, `gemini-2.5-pro`, `composer-2-fast`). Examples, not an
+allowlist — emit a new/unlisted name verbatim, not `unknown`. Not
+harness/role (`subagent`, `agent`) or bare family (`claude`, `gpt`);
+subagents inherit the parent's slug. `unknown` only if truly unidentifiable.
 
 ### Export `JFROG_CLI_USER_AGENT` once per bash invocation
 
@@ -88,9 +93,12 @@ jf api /artifactory/api/system/version
 ```
 
 Do **not** repeat the assignment per `jf` call (`JFROG_CLI_USER_AGENT='<UA>' jf …`
-on every line). Examples elsewhere in this skill and in `references/*.md`
-omit the export for readability — the rule is global. When launching a
-subagent, pass `<UA>` in its prompt; subagents do not re-run the script.
+on every line). This is a **session-global invariant**: it applies to *every*
+`jf` invocation in the session, including `jf` calls you make while following
+any workflow skill that builds on this base skill. Examples elsewhere in this
+skill and in `references/*.md` omit the export for readability — the rule is
+global. When launching a subagent, pass `<UA>` in its prompt; subagents do not
+re-run the script.
 
 | Exit | Meaning |
 |------|---------|

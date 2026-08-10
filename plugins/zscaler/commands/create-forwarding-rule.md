@@ -1,6 +1,6 @@
 ---
 name: create-forwarding-rule
-description: '"Create a ZPA client forwarding policy rule to bypass or intercept traffic."'
+description: Create a ZPA client forwarding policy rule to bypass or intercept traffic.
 ---
 
 # Create ZPA Forwarding Policy Rule

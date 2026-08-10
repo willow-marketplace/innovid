@@ -1,6 +1,6 @@
 ---
 name: contact-center
-description: '"Reference skill for Zoom Contact Center. Use after routing to a contact-center workflow when implementing app, web, or native integrations; engagement context and state handling; campaigns; callbacks; or version-drift troubleshooting."'
+description: Reference skill for Zoom Contact Center. Use after routing to a contact-center workflow when implementing app, web, or native integrations; engagement context and state handling; campaigns; callbacks; or version-drift troubleshooting.
 ---
 
 # /build-zoom-contact-center-app
@@ -84,6 +84,14 @@ contact-center/
 2. Build a channel item (`entryId` for chat/video/ZVA, `apiKey` for scheduled callback and campaign flows).
 3. Get service/client instance.
 4. Register listeners/delegates before user interaction.
+
+> **Need to create/configure the Marketplace app first?** Use
+> [Marketplace app management](../rest-api/references/marketplace-apps.md) for app creation,
+> General App surfaces, Contact Center product selection, OAuth scopes, event subscriptions,
+> and credential response shapes before implementing Contact Center SDK/API workflows. Start
+> from the [General App Contact Center template](../rest-api/assets/marketplace-apps/marketplace-manifest-template-for-general-admin-contact-center-api.json)
+> or [S2S Contact Center template](../rest-api/assets/marketplace-apps/marketplace-app-creation-template-for-s2s-contact-center-api.json).
+
 5. Start flow (`fetchUI`, `startVideo`, or web SDK open/show path).
 6. Handle engagement state changes (`start`, `hold`, `resume`, `end`) and context switching.
 7. End flow and release resources (`endChat`/`endVideo`, `logout/logoff`, uninitialize/release).

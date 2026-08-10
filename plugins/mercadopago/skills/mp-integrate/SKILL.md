@@ -131,6 +131,20 @@ For every dimension, attempt these resolution sources **in order**:
 
 **Concrete order of operations for the wizard (INFER FIRST, ASK LAST):**
 
+0. **Check for legacy Instore APIs in repo (before any question).** Run `Grep` for legacy QR/Point patterns:
+   - `/mpmobile/instore/qr` (QR Instore)
+   - `/instore/qr/seller/collectors` (QR Instore V2)
+   - `/instore/orders/qr/seller/collectors` (QR Dinámico)
+   - `/point/integration-api/devices/.*/payment-intents` (Point PDV + Self Service)
+
+   If any found AND the project is not already fully on `/v1/orders`, ask **once** via `AskUserQuestion`:
+   - header: `"Existing integration"`
+   - Question: *"I found an existing legacy Instore integration in your project at {file}:{line}. Before scaffolding, would you like to migrate it to the Orders API first?"*
+   - Options: `"Yes, migrate first (/mp-integrate migrate)"` / `"No, scaffold the new integration"`
+   - If "Yes" → stop and instruct: *"Run `/mp-integrate migrate` to migrate the existing integration, then come back to scaffold the new one."*
+   - If "No" → continue normally. Do NOT suggest migration again in this session.
+   - **Skip this check entirely** if `$ARGUMENTS` already contains `migrate`.
+
 1. **Check agent inference** — if the agent's Step 1.a resolved `product=` and/or `country=` from the developer's message, those dimensions are already resolved. Do NOT ask for them.
 2. Read `.mp-integrate-progress.md` if it exists — pull any previously-resolved values.
 3. **Do NOT grep for country.** Country is asked via `AskUserQuestion` unless already resolved by steps 1–2. No locale-string grep, no `mercadopago.com.<tld>` grep, no `currency_id` grep — they cost tokens and produce wrong matches.
@@ -158,7 +172,7 @@ Example block to render:
 ```
 I auto-detected the following from your repo:
 
-  ✓ App:    Villa mco (157134683642259) — from application_list
+  ✓ App:    My Store (123456789012345) — from application_list
   ✓ SDK:    node — from backend/package.json (mercadopago v2.12.0 already installed)
   ✓ Client: react — from frontend/package.json
 
@@ -251,7 +265,7 @@ Now I need a few details to scaffold the right integration:
 Right:
 
 ```
-✓ App: Villa mco (157134683642259) — from application_list
+✓ App: My Store (123456789012345) — from application_list
 ✓ SDK: node — from package.json
 (Country will be asked next — not auto-detected.)
 ```
@@ -276,7 +290,7 @@ Fields to persist (write after each is resolved, do not wait until the end):
 - client: react
 - lang: es
 - credential_type: test
-- application_id: 157134683642259
+- application_id: 123456789012345
 - brick: card-payment
 - qr_mode: dynamic
 - recurrent: no
@@ -520,7 +534,7 @@ Immediately after rendering the bundle, **before listing next steps**, call `Ask
 1. **Install the SDK** — run `npm install mercadopago` (or the equivalent for the detected SDK) in the directory that contains the server-side manifest. Report any non-zero exit code and stop.
 2. **Write the server snippet** — create or edit the server file (e.g., `backend/index.js`, `backend/src/routes/mercadopago.js`) inserting the snippet from Step 4. If the file already exists, inject the new route after existing routes rather than overwriting.
 3. **Write the client component** — create `frontend/src/components/CheckoutButton.{jsx|tsx|vue|…}` (or the framework-appropriate path/extension) with the client snippet from Step 4. If the file already exists, warn and ask the developer before overwriting.
-4. **Create `.env.example`** — write the template vars (MP_ACCESS_TOKEN, MP_PUBLIC_KEY, MP_WEBHOOK_SECRET, APP_URL) to `.env.example`. Never touch or create `.env` directly — the developer must fill in their credentials.
+4. **Create `.env.example`** — write the template vars (MP_ACCESS_TOKEN, MP_PUBLIC_KEY, MP_WEBHOOK_SECRET, APP_URL) to `.env.example`. Only create `.env` with real values if credentials were already fetched via `get_credentials` in Step 0.b (State A) — in that case `.env` already exists; do NOT overwrite it. In State B (no MCP), never create `.env` — the developer must fill in their own credentials.
 5. **Update `.gitignore`** — add `.env`, `.env.*.local`, `.mp-integrate-progress.md` if not already present.
 6. After all writes, print a short summary:
 

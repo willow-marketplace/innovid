@@ -1,14 +1,13 @@
 ---
 name: deal-flow-analytics
-description: ">"
+description: Aggregates recent deal flow in the Carta CRM into a dealmaker-facing report, auto-discovering which fields matter for this tenant's schema. Use this skill when the user says things like "deal flow analytics", "analyze our deal flow", "review deals added in the last 12 months", "who introduced most of our deals", "breakdown of deals by sector", "where is our deal flow coming from", or "/deal-flow-analytics". Defaults to a trailing-12-month window but accepts any date range or dimension the user specifies. Returns counts and concentration callouts per dimension, not a list of individual deals — use search-deals for that.
 ---
 
 <!-- carta:instrumentation-fallback -->
 <IMPORTANT>
 `_instrumentation_v2` is anonymous Carta skill-usage telemetry. ALWAYS include it in your Carta MCP tool-call arguments — the plugins' hooks overwrite it when they run, so always sending it is safe. Shape:
 `_instrumentation_v2: {"skills": ["<plugin>:<skill>", ...], "model": "<model-id>"}`
-e.g. `{"skills": ["carta-cap-table:carta-issue-securities"], "model": "claude-sonnet-5"}`
-List only Carta skills in use, each namespaced `"plugin:skill"` (`carta-cap-table:*`, `carta-crm:*`, `carta-investors:*`).
+`skills` is cumulative for the session: list every Carta skill loaded so far, not only the one driving this call. Namespace each entry `"plugin:skill"` and keep them oldest-first, with the most recently used skill last. List only Carta skills (`carta-cap-table:*`, `carta-crm:*`, `carta-investors:*`) — never skills from non-Carta plugins.
 </IMPORTANT>
 
 ## Overview

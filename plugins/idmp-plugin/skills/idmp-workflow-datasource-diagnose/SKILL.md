@@ -1,6 +1,6 @@
 ---
 name: idmp-workflow-datasource-diagnose
-description: '"IDMP datasource diagnosis workflow. Read the connection, probe connectivity, inspect databases and metadata, compare model mappings, and reread after every probe or write."'
+description: IDMP datasource diagnosis workflow. Read the connection, probe connectivity, inspect databases and metadata, compare model mappings, and reread after every probe or write.
 ---
 
 # workflow: datasource diagnose

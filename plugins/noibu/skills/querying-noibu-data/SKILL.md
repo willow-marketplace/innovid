@@ -1,6 +1,6 @@
 ---
 name: querying-noibu-data
-description: ">"
+description: Required reference for calling `noibu_*` tools — field and measure semantics,   query constraints (the `orderBy` requirement, row caps,   unique-measure rule), the `rationale` argument convention, and domain   resolution. Also covers parsing of pasted `console.noibu.com` URLs and   third-party integration management. Loads alongside topical Noibu skills   (e.g., `checkout-analysis`, `tech-diagnosis`), not instead of them — they   own routing for their respective domains.
 ---
 
 # Noibu MCP routing guide

@@ -1,6 +1,6 @@
 ---
 name: triaging-visual-review-runs
-description: ">"
+description: Inspects PostHog Visual Review (VR) runs that gate PR merges with screenshot regression checks. Use when the user mentions "visual review", "VR", "snapshot diff", "screenshot test", "storybook regression", "playwright snapshot", asks why a PR is blocked or what changed visually, wants to triage the VR backlog, decide whether a snapshot diff is real vs flaky, or check whether a story has been changing across runs. Also invoke when a PR has a failing `visual-review` status check, when a PR comment mentions "Visual review", or when the user is on a branch with an open VR run.
 ---
 
 # Triaging visual review runs

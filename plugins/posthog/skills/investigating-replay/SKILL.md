@@ -1,6 +1,6 @@
 ---
 name: investigating-replay
-description: ">"
+description: Investigates a session recording by gathering metadata, person profile, same-session events, and linked error tracking issues in one pass. Use when a user provides a recording or session ID and wants to understand what happened — who the user was, what they did, what errors occurred, and whether there are related error tracking issues. Replaces the manual chain of session-recording-get, persons-retrieve, execute-sql, and query-error-tracking-issues-list.
 ---
 
 # Investigating a session recording
@@ -75,8 +75,8 @@ SELECT
     timestamp,
     event,
     properties.$current_url AS url,
-    if(event = '$exception', properties.$exception_message, null) AS exception_message,
-    if(event = '$exception', properties.$exception_type, null) AS exception_type
+    if(event = '$exception', properties.$exception_values[1], null) AS exception_message,
+    if(event = '$exception', properties.$exception_types[1], null) AS exception_type
 FROM events
 WHERE $session_id = '<session_id>'
     AND event IN ('$pageview', '$pageleave', '$autocapture', '$exception', '$rageclick')
@@ -92,8 +92,8 @@ If the recording has console errors or exceptions, find related error tracking i
 posthog:execute-sql
 SELECT DISTINCT
     properties.$exception_fingerprint AS fingerprint,
-    properties.$exception_type AS type,
-    properties.$exception_message AS message,
+    properties.$exception_types[1] AS type,
+    properties.$exception_values[1] AS message,
     count() AS occurrences
 FROM events
 WHERE $session_id = '<session_id>'
@@ -192,7 +192,7 @@ with a throwaway scanner — but **ask the user's permission before creating any
        "prompt": "Summarize what the user was trying to do, whether they succeeded, and any friction they hit."
      },
      "query": { "kind": "RecordingsQuery" },
-     "model": "gemini-3-flash-preview",
+     "model": "gemini-3.6-flash",
      "enabled": false
    }
    ```

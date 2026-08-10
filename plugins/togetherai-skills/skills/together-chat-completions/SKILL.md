@@ -1,6 +1,6 @@
 ---
 name: together-chat-completions
-description: "\"Real-time and streaming text generation via Together AI's OpenAI-compatible chat/completions API, including multi-turn conversations, tool and function calling, structured JSON outputs, and reasoning models. Reach for it whenever the user wants to build or debug text generation on Together AI, unless they specifically need batch jobs, embeddings, fine-tuning, dedicated endpoints, dedicated containers, or GPU clusters.\""
+description: Real-time and streaming text generation via Together AI's OpenAI-compatible chat/completions API, including multi-turn conversations, tool and function calling, structured JSON outputs, and reasoning models. Reach for it whenever the user wants to build or debug text generation on Together AI, unless they specifically need batch jobs, embeddings, fine-tuning, dedicated endpoints, dedicated containers, or GPU clusters.
 ---
 
 # Together Chat Completions
@@ -33,8 +33,9 @@ clearly offline batch processing, vector retrieval, model training, or infrastru
 - Use `together-batch-inference` for large offline runs, backfills, or lower-cost asynchronous jobs
 - Use `together-embeddings` for vector search, semantic retrieval, or reranking
 - Use `together-fine-tuning` when the user wants to train or adapt a model
-- Use `together-dedicated-endpoints` when the user needs always-on single-tenant hosting
+- Use `together-dedicated-model-inference` when the user needs always-on single-tenant hosting
 - Use `together-dedicated-containers` or `together-gpu-clusters` for custom infrastructure
+- For production stock-model workloads that need a defined SLA (committed throughput and reliability) without managing hardware, point users to Together's [provisioned throughput](https://docs.together.ai/docs/inference/provisioned-throughput) tier (reserved PTU capacity, one-month minimum term, contact sales; uses the same chat/completions API surface)
 
 ## Quick Routing
 
@@ -83,6 +84,8 @@ clearly offline batch processing, vector retrieval, model training, or infrastru
 - Tool names must not contain spaces, periods, or dashes. Branch on `finish_reason` (`"tool_calls"` vs `"stop"`) instead of assuming a tool was called, and parse `function.arguments` as JSON inside a try/except.
 - Prefer `json_schema` over looser JSON modes when the user needs stable machine-readable output.
 - Use reasoning models only when the task benefits from deeper deliberation; otherwise prefer cheaper standard models.
+- Preserved thinking uses the `reasoning` key on both output and input (the field is symmetric). When you pass a prior assistant turn back to the API, include `"reasoning": ...` on the assistant message; `reasoning_content` is still accepted on input for backward compatibility but prefer `reasoning` in new code.
+- Reasoning models nest extra token counts OpenAI-style (`usage.completion_tokens_details.reasoning_tokens`, `usage.prompt_tokens_details.cached_tokens`), but some non-reasoning models return `cached_tokens` flat at the top of `usage`. Read both locations defensively — clients that only check one shape will silently return `0`. See [references/reasoning-models.md](references/reasoning-models.md) for the defensive-read pattern.
 - To combine tool calling with structured output, use a two-phase approach: Phase 1 sends `tools` (no `response_format`), Phase 2 sends `response_format` (no `tools`) after tool results are appended.
 - Streaming works with `response_format`; accumulate chunks and parse the final concatenated string as JSON.
 - If the user needs many independent requests, combine this skill with `async_parallel.py` or hand off to batch inference.

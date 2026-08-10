@@ -1,6 +1,6 @@
 ---
 name: mp-test-cards
-description: '"Returns test card numbers for a given country. No MCP authentication required."'
+description: Returns test card numbers for a given country. No MCP authentication required.
 ---
 
 # /mp-test-cards

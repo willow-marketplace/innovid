@@ -1,6 +1,6 @@
 ---
 name: jfrog-package-safety-and-download
-description: ">-"
+description: Check JFrog Public Catalog and stored packages for a version, interpret catalog security signals, and download through Artifactory (JFrog Platform locations, remote cache, curation-aware package managers, or repo proxy). Use when the user asks whether a package is safe, allowed, curated, or wants to download npm, Maven, PyPI, Go, or similar packages via JFrog. Do NOT use for pure CVE or vulnerability lookups (e.g. "details on CVE-2021-23337") — those are handled by the jfrog skill's Public security domain queries without this workflow.
 ---
 
 # JFrog Package Safety and Download
@@ -9,17 +9,6 @@ description: ">-"
 
 - Read `../jfrog/SKILL.md` for JFrog Platform concepts, domain model, CLI setup, and API patterns.
 - **OneModel shapes drift by server version.** Before inventing GraphQL fields or `where` filters, read `../jfrog/references/onemodel-graphql.md` (schema fetch workflow) and `../jfrog/references/onemodel-query-examples.md` (**Public packages**, **Stored packages**). Regenerate or verify queries against `GET "$JFROG_URL/onemodel/api/v1/supergraph/schema"` when examples fail validation.
-
-## Workflow
-
-# Package safety check and download workflow
-
-When to read this file:
-
-- User asks to **check if a package is safe** and/or **download** it.
-- User asks to **download a package** from Artifactory.
-- User mentions checking a package for **curation** approval.
-- User wants to know if a package is **allowed** or **approved** for use.
 
 ## Workflow overview
 

@@ -1,6 +1,6 @@
 ---
 name: rw-integrate-video
-description: '"Help users integrate Runway video generation APIs (text-to-video, image-to-video, video-to-video)"'
+description: Help users integrate Runway video generation APIs (text-to-video, image-to-video, video-to-video)
 ---
 
 # Integrate Video Generation

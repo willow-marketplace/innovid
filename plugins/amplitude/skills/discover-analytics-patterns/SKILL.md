@@ -1,6 +1,6 @@
 ---
 name: discover-analytics-patterns
-description: ">"
+description: Discovers how analytics tracking calls are actually written in this codebase — the concrete SDK calls, function signatures, and import patterns used to send events. Use this skill whenever you need to understand the existing analytics instrumentation patterns before adding new tracking, when someone asks "how do we track events here?", "show me the analytics setup", "what's the analytics pattern in this codebase?", or any time the instrument-events or discover-event-surfaces skills are about to run and you need to know the correct coding style to follow. Outputs a deduplicated list of patterns with generalized examples and the file paths where each pattern appears, plus the dominant event and property naming conventions inferred from those call sites. Always use this skill before writing any analytics instrumentation code.
 ---
 
 # discover-analytics-patterns
@@ -12,9 +12,22 @@ rest of the codebase. It should also tell downstream skills how event names and
 property names are typically written in code here.
 
 When determining naming conventions in this skill, use the following sources in strict order of preference:
-1. Events and properties observed from the Amplitude MCP server
-2. Real tracking call sites in the codebase
-3. The `taxonomy` skill at `../taxonomy/SKILL.md`
+1. Customer directives in `.amplitude/instrumentation-agent-context.md` (and any files it references), if present — explicit conventions the customer wants followed, so they override everything below.
+2. Events and properties observed from the Amplitude MCP server
+3. Real tracking call sites in the codebase
+4. The `taxonomy` skill at `../taxonomy/SKILL.md`
+
+---
+
+## Step 0: Read repo instrumentation context
+
+Before anything else, check for `.amplitude/instrumentation-agent-context.md`
+(repo root, or the subdirectory you're instrumenting). If it exists, read it and
+any repo-relative files it references. Any naming conventions, property
+standards, or SDK/wrapper patterns it states are **customer directives** — they
+take precedence over everything you infer below; record them and skip inference
+for whatever they cover. If it's absent, just continue — the `instrument-events`
+skill owns prompting the user to add one.
 
 ---
 
@@ -25,9 +38,13 @@ Use two approaches based on what's available.
 ### If the Amplitude MCP is connected
 
 Call `get_events` (or equivalent) to fetch a sample of event names from the
-project. Use those results to choose a few representative non-system product
-events, then call `get_event_properties` for those events to inspect real
-property names. This is your primary naming reference.
+project. If its input schema accepts `_client`, every `get_events` call made by
+this skill MUST include the top-level argument
+`"_client": { "type": "skill", "skill_name": "discover-analytics-patterns" }`
+in the tool arguments; otherwise, omit `_client`. Use those results to choose a
+few representative non-system product events, then call `get_properties`
+for those events to inspect real property names. This is your primary naming
+reference.
 
 Do not infer naming conventions from bracket-prefixed Amplitude system names
 such as `[Amplitude], [Guides-Surveys], [Assistant], [Experiment]` for either events or properties. Exclude those from
@@ -107,15 +124,20 @@ Resolve two conventions separately:
 
 Use this precedence order:
 
-1. **Amplitude MCP first.** If the observed `eventType` values and
-   property names returned by `get_event_properties` for a few representative
+1. **Repo instrumentation context first.** If
+   `.amplitude/instrumentation-agent-context.md` (from Step 0) states an explicit
+   event or property naming convention, it wins outright — record it and skip
+   inference for whatever it specifies. Only fall through when the file is absent
+   or silent on naming.
+2. **Amplitude MCP second.** If the observed `eventType` values and
+   property names returned by `get_properties` for a few representative
    non-system events show a clear dominant convention, use that. Do not use
    bracket-prefixed Amplitude system names as naming evidence.
-2. **Codebase second.** If the MCP evidence is unavailable, sparse, or
+3. **Codebase third.** If the MCP evidence is unavailable, sparse, or
    inconsistent, infer the dominant convention from nearby, real tracking call
    sites in the repository. If the codebase shows multiple conventions, call
    out the dominant one and note meaningful local exceptions.
-3. **Taxonomy fallback last.** If neither MCP nor codebase evidence is
+4. **Taxonomy fallback last.** If none of the above is
    clear enough, fall back to the `taxonomy` skill at `../taxonomy/SKILL.md`.
 
 Do not guess. If one or both conventions remain unclear even after checking
@@ -128,8 +150,8 @@ those sources, say so explicitly.
 Start with a short conventions section, then list each unique pattern.
 
 ```yaml
-event_naming_convention: "<from MCP if clear, otherwise codebase, otherwise taxonomy skill, or 'insufficient evidence'>"
-property_naming_convention: "<from MCP if clear, otherwise codebase, otherwise taxonomy skill, or 'insufficient evidence'>"
+event_naming_convention: "<from repo context file if it specifies one, else MCP if clear, else codebase, else taxonomy skill, or 'insufficient evidence'>"
+property_naming_convention: "<from repo context file if it specifies one, else MCP if clear, else codebase, else taxonomy skill, or 'insufficient evidence'>"
 ```
 
 Then, for each unique pattern, output a section in this format:

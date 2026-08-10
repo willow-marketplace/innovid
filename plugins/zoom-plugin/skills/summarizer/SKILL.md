@@ -1,6 +1,6 @@
 ---
 name: summarizer
-description: '"Reference skill for Zoom AI Services Summarizer. Use after routing to transcript summarization, meeting recap, action item extraction, Build-platform JWT auth, fast mode summarization, batch jobs, or summary pipeline design."'
+description: Reference skill for Zoom AI Services Summarizer. Use after routing to transcript summarization, meeting recap, action item extraction, Build-platform JWT auth, fast mode summarization, batch jobs, or summary pipeline design.
 ---
 
 # Zoom AI Services Summarizer

@@ -1,6 +1,6 @@
 ---
 name: bigdata-earnings-digest
-description: ">"
+description: "Analyze a public company's latest reported earnings — a cited post-print digest using Bigdata.com data (results, consensus and surprise, transcript, analyst reactions, tearsheet financials). Breaks down revenue and margins, segment and operating KPIs, management guidance, cash flow and balance sheet, and surprises versus expectations with sustainable-vs-one-time framing, plus a bull/bear thesis check, quality signals with forward watch-fors, sentiment and positioning, a post-print scenario refresh with probability-weighted expected value, and a valuation cross-check. Triggers: \"analyze X earnings\", \"earnings digest for X\", \"how did X do last quarter\", \"X Q3 results\", \"break down X's earnings\", \"what did X report\", \"post-earnings analysis\", \"did X beat or miss\"."
 ---
 
 # Bigdata Earnings Digest

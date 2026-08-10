@@ -1,6 +1,6 @@
 ---
 name: review-pr
-description: '"Comprehensive PR review using specialized agents"'
+description: Comprehensive PR review using specialized agents
 ---
 
 # Comprehensive PR Review

@@ -1,6 +1,11 @@
 ---
 name: fix-pseudo-modules
-description: "|"
+description: |-
+  Fix pseudo module and implicit global issues that UI5 linter reports but cannot auto-fix. Use this skill when linter outputs:
+  - `no-pseudo-modules` with messages about deprecated enum or DataType pseudo module access
+  - `no-implicit-globals` with messages about module not exported by library or OData globals
+  Trigger on: direct enum imports (sap/ui/core/BarColor), direct DataType imports (sap/ui/core/CSSSize), library.EnumName access, odata.compare/fillUriTemplate/uriEncode in bindings.
+  Provides guidance on proper module imports for enums, DataTypes, and OData expression addons.
 ---
 
 # Fix Pseudo Modules and Implicit Globals

@@ -164,13 +164,16 @@ format_d3: ",.0f"   # 1,235 (rounded, with thousands separator)
 - If there is any date/timestamp column in the underlying table, pick the primary or most interesting one and add it under `dimensions:`
 - It is also _strongly_ recommended that you configure a primary time dimension using `timeseries:`
 
-### Auto-generated explore
+### Inline explore
 
-When you create a metrics view, Rill automatically generates an explore dashboard with the same name, exposing all dimensions and measures. To customize the explore (you usually should not need to), add an `explore:` block:
+New metrics views should set `version: 1` and include an `explore:` block, which makes Rill emit an explore dashboard for the metrics view (named after the metrics view unless `name:` is set):
 
 ```yaml
+version: 1
 explore:
   display_name: Sales Dashboard
+  dimensions: '*'      # Optional: dimensions to expose ('*', a list, or {exclude: [...]}); defaults to all
+  measures: '*'        # Optional: measures to expose ('*', a list, or {exclude: [...]}); defaults to all
   defaults:
     time_range: P7D
     measures:
@@ -178,7 +181,9 @@ explore:
       - order_count
 ```
 
-**Legacy behavior**: Files with `version: 1` do NOT auto-generate an explore. Omit `version:` in new metrics views to get the auto-generated explore.
+An empty block (`explore: {}`) is enough to enable the dashboard with all dimensions and measures. Note that `explore:` with no value (null) does NOT enable it. Set `explore: {skip: true}` to create a metrics view without a dashboard.
+
+**Legacy behavior**: Files without `version:` (or `version: 0`) auto-generate an explore even without an `explore:` block. Files with `version: 1` only get an explore if an `explore:` block is present.
 
 ## Full Example
 
@@ -186,6 +191,7 @@ Here is a complete, annotated metrics view:
 
 ```yaml
 # metrics/orders.yaml
+version: 1
 type: metrics_view
 
 # Display metadata
@@ -256,6 +262,10 @@ measures:
     expression: SUM(item_count) / NULLIF(COUNT(*), 0)
     format_d3: ",.1f"
     valid_percent_of_total: false
+
+# Explore dashboard for this metrics view
+explore:
+  display_name: Orders Dashboard
 ```
 
 ## Security Policies
@@ -369,6 +379,34 @@ cache:
 ```
 
 You should not add a `cache:` config when the metrics view references a model inside the project since Rill does automatic cache management in that case.
+
+### Tags on dimensions and measures
+
+Add `tags:` (free-form labels) to a dimension or measure to group and filter the dropdowns and pivot tables:
+
+```yaml
+dimensions:
+  - name: campaign_name
+    column: campaign_name
+    tags: [marketing]
+measures:
+  - name: total_spend
+    expression: SUM(spend)
+    tags: [marketing, finance]
+```
+
+### Rollups
+
+Rollups back a metrics view with pre-aggregated tables. When a query's grain, dimensions, measures, time range, and filters match a rollup, Rill reads the smaller table instead of the base table for faster results. Requires a `timeseries:`.
+
+```yaml
+rollups:
+  - model: events_daily           # Pre-aggregated model
+    time_grain: day               # Required
+    dimensions: [country]         # Optional; defaults to all
+    measures: [total_events]      # Optional; defaults to all
+    data_time_range: -90D to now  # Optional; indicates rollup data time range if set otherwise min/max queries are done on the timeseries column to figure out rollup's data time range
+```
 
 ## Dialect-Specific Notes
 
@@ -495,7 +533,7 @@ allOf:
                         - expression
                 properties:
                     column:
-                        description: a categorical column
+                        description: A categorical column.
                         type: string
                     description:
                         description: a freeform text description of the dimension
@@ -504,7 +542,7 @@ allOf:
                         description: a display name for your dimension
                         type: string
                     expression:
-                        description: a non-aggregate expression such as string_split(domain, '.'). One of column and expression is required but cannot have both at the same time
+                        description: A non-aggregate expression such as string_split(domain, '.'). One of column and expression is required, but cannot have both at the same time.
                         type: string
                     lookup_default_expression:
                         description: an optional SQL expression used as a fallback value when no match is found in the dictionary (maps to `dictGetOrDefault`)
@@ -513,7 +551,7 @@ allOf:
                         description: the primary key column in the lookup dictionary that corresponds to the dimension's `column` in the fact table
                         type: string
                     lookup_table:
-                        description: the name of a ClickHouse dictionary to use for query-time lookups. Use `database.dictionary_name` for dictionaries in a non-default database. All three `lookup_*` fields (`lookup_table`, `lookup_key_column`, `lookup_value_column`) must be specified together. See [Query-Time Joins](/developers/build/metrics-view/dimensions/lookup) for details
+                        description: The name of a ClickHouse dictionary to use for query-time lookups. Use `database.dictionary_name` for dictionaries in a non-default database. All three `lookup_*` fields (`lookup_table`, `lookup_key_column`, `lookup_value_column`) must be specified together. See [Query-Time Joins](/developers/build/metrics-view/dimensions/lookup) for details.
                         type: string
                     lookup_value_column:
                         description: the attribute column in the lookup dictionary whose values will be displayed for this dimension
@@ -527,13 +565,13 @@ allOf:
                             type: string
                         type: array
                     type:
-                        description: 'Dimension type: "geo" for geospatial dimensions, "time" for time dimensions or "categorical" for categorial dimensions. Default is undefined and the type will be inferred instead'
+                        description: 'Dimension type: "geo" for geospatial dimensions, "time" for time dimensions, or "categorical" for categorical dimensions. Default is undefined and the type will be inferred instead.'
                         type: string
                     unnest:
-                        description: if true, allows multi-valued dimension to be unnested (such as lists) and filters will automatically switch to "contains" instead of exact match
+                        description: If true, allows multi-valued dimensions to be unnested (such as lists), and filters will automatically switch to "contains" instead of exact match.
                         type: boolean
                     uri:
-                        description: enable if your dimension is a clickable URL to enable single click navigation (boolean or valid SQL expression)
+                        description: Enable if your dimension is a clickable URL to enable single-click navigation (boolean or valid SQL expression).
                         type:
                             - string
                             - boolean
@@ -574,7 +612,7 @@ allOf:
                         type: string
                     format_d3_locale:
                         description: |
-                            locale configuration passed through to D3, enabling changing the currency symbol among other things. For details, see the docs for D3's formatLocale.
+                            Locale configuration passed through to D3, enabling changes to the currency symbol and other formatting options. For details, see the docs for D3's formatLocale.
                               ```yaml
                               format_d3: "$,"
                               format_d3_locale:
@@ -586,7 +624,7 @@ allOf:
                                 description: the currency symbol
                                 type: array
                             grouping:
-                                description: the grouping of the currency symbol
+                                description: Grouping for the currency symbol.
                                 type: array
                         type: object
                     format_preset:
@@ -612,23 +650,23 @@ allOf:
                         type: string
                     per:
                         $ref: '#/definitions/field_selectors_properties'
-                        description: for per dimensions
+                        description: Dimensions to partition the measure by.
                     requires:
                         $ref: '#/definitions/field_selectors_properties'
-                        description: using an available measure or dimension in your metrics view to set a required parameter, cannot be used with simple measures. See [referencing measures](/developers/build/metrics-view/measures/referencing) for more information.
+                        description: Uses an available measure or dimension in your metrics view to set a required parameter. Cannot be used with simple measures. See [referencing measures](/developers/build/metrics-view/measures/referencing) for more information.
                     tags:
                         description: optional list of tags for categorizing the measure (defaults to empty)
                         items:
                             type: string
                         type: array
                     treat_nulls_as:
-                        description: used to configure what value to fill in for missing time buckets. This also works generally as COALESCING over non empty time buckets.
+                        description: Configures the value to fill in for missing time buckets. This also works generally as COALESCE over non-empty time buckets.
                         type: string
                     type:
                         description: 'Measure calculation type: "simple" for basic aggregations, "derived" for calculations using other measures, or "time_comparison" for period-over-period analysis. Defaults to "simple" unless dependencies exist.'
                         type: string
                     valid_percent_of_total:
-                        description: a boolean indicating whether percent-of-total values should be rendered for this measure
+                        description: Indicates whether percent-of-total values should be rendered for this measure.
                         type: boolean
                     window:
                         anyOf:

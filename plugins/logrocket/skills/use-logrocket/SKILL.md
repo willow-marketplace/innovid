@@ -26,6 +26,7 @@ This plugin connects with `?toolsets=all`, so all of these tools are available:
 - `find_sessions`: Filter LogRocket sessions by criteria like user, URL, time range, or events.
 - `watch_sessions`: Analyze one or more specific sessions and extract detailed, qualitative information about user behavior.
 - `build_metric`: Query LogRocket analytics data directly.
+- `find_issues`: List a project's issues - JavaScript exceptions, network errors, rage clicks, dead clicks, frustrating network requests, error states, and mobile crashes - filtered by severity, triage status, issue type, and time range.
 
 ## Instructions
 
@@ -33,11 +34,12 @@ This plugin connects with `?toolsets=all`, so all of these tools are available:
 2. For precise work, prefer the targeted tools:
    - Use `find_sessions` to filter down to relevant sessions, then `watch_sessions` to analyze or extract details from specific ones.
    - Use `build_metric` to query analytics/metrics data directly.
+   - Use `find_issues` for issue triage. It defaults to severe, untriaged issues from the last week, so widen `severity`, `triageStatuses`, or the date range when the user asks for something broader. Issues data is only retained for 30 days. When an issue already has an `issueAnalysis`, use it instead of re-deriving the root cause, and follow up with `watch_sessions` on affected sessions when you need more detail.
 3. If the user hasn't specified an organization or project, use the `list_organizations` and `list_projects` tools to discover them. If multiple are found, ask the user which to use.
 4. To continue the same conversation (e.g. follow-up questions, drilling deeper), pass the `chatID` from the previous `use_logrocket` response.
 5. Be specific about what you want analyzed — mention URLs, click targets, user emails, time ranges, or custom events when possible.
 6. Ask LogRocket to watch sessions when you need detailed, qualitative insights about user behavior.
-7. Present results clearly to the user, including any session URLs, metrics, charts, or actionable insights.
+7. Present results clearly to the user, including any session URLs, issue links, metrics, charts, or actionable insights.
 
 ## Example Prompts
 

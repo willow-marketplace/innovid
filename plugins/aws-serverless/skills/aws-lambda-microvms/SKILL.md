@@ -1,6 +1,6 @@
 ---
 name: aws-lambda-microvms
-description: ">"
+description: "Build, run, debug, and operate applications on AWS Lambda MicroVMs — Firecracker-isolated, snapshot-resumable serverless compute environments that run inside a container with up to 8-hour lifetimes. Triggers on: Lambda MicroVMs, Firecracker isolation, snapshot-resumable compute, suspend/resume, sandboxed or untrusted code execution, AI/agent code-execution sandboxes, interactive code playgrounds and notebooks (Jupyter, REPLs), reinforcement-learning environments, multi-tenant CI executors and build runners, sessionful game or simulation servers, isolated security scanners, long-lived sessions, or port-listening servers (gRPC, WebSocket, custom TCP). For standard event-driven Lambda functions, use the aws-lambda skill instead."
 ---
 
 # AWS Lambda MicroVMs

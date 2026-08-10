@@ -119,7 +119,7 @@ https://res.cloudinary.com/<cloud_name>/<asset_type>/<delivery_type>/<transforma
 **Action parameters**: Perform transformations (one action per component: each action transformation should be separated by a slash)
 **Qualifier parameters**: Modify action behavior (in the same component as the action, using commas as separators)
 
-Check the [Transformation Reference](https://cloudinary.com/documentation/transformation_reference.md) to determine if a parameter is an action or qualifier.
+Check the [Transformation Reference](https://cloudinary.com/documentation/transformation_reference.md?install_source=plugin&referrer=trans-skill) to determine if a parameter is an action or qualifier.
 
 ## Core Transformations
 
@@ -149,8 +149,8 @@ Use **`c_fit`** when:
 
 Use **`c_pad`** when:
 - Must fit exact dimensions without cropping
-- Need to fill empty space with background color/blur/AI-generated pixels
-- Use with `b_<color>` or `b_auto` (blurred background) or `b_gen_fill`
+- Need to fill empty space with background color/blur (videos only)/AI-generated pixels
+- Use with `b_<color>`, `b_auto`, `b_blurred` (blurred background - videos only), or `b_gen_fill`
 
 Use **`c_limit`** when:
 - Set maximum dimensions but don't upscale small images
@@ -279,11 +279,13 @@ l_logo/c_scale,fl_relative,w_0.25/fl_layer_apply,g_north_west,x_10,y_10  # Logo 
 l_docs:one_black_pixel/c_scale,fl_relative,h_1.0,w_1.0/o_50/fl_layer_apply # Full-image semi-transparent overlay
 co_yellow,l_text:Arial_40:Hello%20World/fl_layer_apply,g_south            # Text overlay
 u_background/e_background_removal                                          # Custom background
+c_fill,h_400,w_300/l_same_image/c_fill,e_grayscale,h_400,w_300/fl_layer_apply,g_west,x_300 # Side-by-side (600×400)
 ```
 
 **Important**: 
 - Color (`co_`) is a qualifier — use in the **same component** as text overlay declaration
 - **Always use `fl_relative`** when you want overlay dimensions as a percentage of the base image
+- **Side-by-side / canvas extension**: to place an overlay *beside* the base, offset it past the base edge — the canvas auto-expands. Use `g_west,x_<base_width>` for horizontal or `g_north,y_<base_height>` for vertical.
 
 ### Borders & Rounding
 
@@ -304,14 +306,15 @@ r_20,bo_5px_solid_rgb:0066ff   # Rounded with border (same component)
 ### Background Color
 
 - **`b_color,c_pad`** - Fill empty space with solid color (product images, letterboxing)
-- **`b_auto,c_pad`** - Blurred original as background (elegant alternative to solid)
+- **`b_auto,c_pad`** - Aautomatically selected background color based on one or more predominant colors in the image
 - **`b_gen_fill,c_pad`** - AI-extended background (change aspect ratio without cropping; see AI Transformations for cost)
 
 **Examples:**
 ```
 b_lightblue,c_pad,w_1.0         # Light blue background
-b_auto,c_pad,ar_16:9            # Blurred background, 16:9
+b_auto,c_pad,ar_16:9            # Automatically selected color for background, 16:9
 b_gen_fill,c_pad,ar_1:1         # AI-extended to square
+b_blurred,c_pad,ar_16:9         # Blurred background (videos only), 16:9
 ```
 
 **Critical**: Background (`b_`) is a qualifier - use **with** pad crop in same component: `b_color,c_pad,w_X`, NOT `/b_color/`.
@@ -331,6 +334,19 @@ a_-2                    # Straighten slight tilt
 a_hflip                 # Mirror horizontally
 a_auto_right            # Auto-fix from EXIF
 ```
+
+### Asset Type Matters (Image vs. Video)
+
+Many flags and parameters apply to only one asset type. Applying one to the wrong base often **fails silently** — the URL still returns a valid `200` with no `X-Cld-Error`, just the wrong output. This goes both ways: video-only syntax on an image, and image-only syntax on a video. Always verify the actual output (dimensions, duration, frame count) rather than assuming it worked.
+
+**Common video-only examples** (this is *not* an exhaustive list — ~35 parameters are video-only):
+- **`fl_splice`** (flag) - Concatenate a clip/image onto the video timeline (no image equivalent — to place media side-by-side, offset the overlay to extend the canvas: `fl_layer_apply,g_west,x_<base_width>`)
+- **`du_`, `so_`, `eo_`** - Trim/seek by time (duration, start offset, end offset)
+- **`fps_`** - Set frame rate
+- **`vc_`, `ac_`** - Video / audio codec
+- **`e_boomerang`, `e_progressbar`** - Video-only effects
+
+**When unsure whether a flag or parameter supports your asset type, check the [Transformation Reference](https://cloudinary.com/documentation/transformation_reference.md?install_source=plugin&referrer=trans-skill) before applying it.**
 
 ## Named Transformations
 
@@ -419,6 +435,8 @@ For complete syntax, arithmetic operations, nested conditionals, and real-world 
 7. ✅ **`g_auto` compatibility** (only works with `c_fill`, `c_lfill`, `c_crop`, `c_thumb`, `c_auto`)
 8. ✅ **Background as qualifier** (use with pad crop: `b_color,c_pad,w_X`, not `/b_color/`)
 9. ✅ **Format/quality at end** (prefer `f_auto/q_auto` as final components)
+10. ✅ **Flags/parameters match the base asset type** (asset-type-specific syntax — e.g. video-only `fl_splice`, `du_`, `fps_`, `vc_` — often no-ops silently on the wrong base, in either direction; verify the output and check the Asset Type Matters section above)
+11. ✅ **Transformation parameters are valid** (don't make up any parameter names - check against [Transformation Reference](https://cloudinary.com/documentation/transformation_reference.md?install_source=plugin&referrer=trans-skill))
 
 **Quick syntax check:**
 - Commas separate parameters within a component: `c_fill,g_auto,w_400`
@@ -437,7 +455,7 @@ When a transformation isn't working:
    - Delivery type: `/upload/` or `/fetch/` etc.
    - Public ID at the end
 2. **Check the X-Cld-Error header**: Cloudinary reports errors in the `X-Cld-Error` HTTP response header
-3. **Check parameter names** against [Transformation Reference](https://cloudinary.com/documentation/transformation_reference.md)
+3. **Check parameter names** against [Transformation Reference](https://cloudinary.com/documentation/transformation_reference.md?install_source=plugin&referrer=trans-skill)
 4. **Check crop mode**: Specify crop mode explicitly; avoid both dimensions with `c_scale` (causes distortion if aspect ratios don't match)
 5. **Verify gravity compatibility**: `g_auto` doesn't work with `c_scale`, `c_fit`, `c_limit`, `c_pad`
 6. **Check action vs qualifier**: Only one action per component, qualifiers in same component
@@ -474,9 +492,9 @@ fetch('https://res.cloudinary.com/demo/image/upload/w_abc/sample.jpg')
 - `Resource not found` - Asset doesn't exist or public ID is incorrect
 - `Transformation limit exceeded` - Account transformation quota reached
 
-**Online tool:** Use the [X-Cld-Error Inspector](https://cloudinary.com/documentation/advanced_url_delivery_options#x_cld_error_inspector_tool) to check any Cloudinary URL
+**Online tool:** Use the [X-Cld-Error Inspector](https://cloudinary.com/documentation/advanced_url_delivery_options.md?install_source=plugin&referrer=trans-skill#x_cld_error_inspector_tool) to check any Cloudinary URL
 
-For more details, see [Error Handling](https://cloudinary.com/documentation/advanced_url_delivery_options#error_handling)
+For more details, see [Error Handling](https://cloudinary.com/documentation/advanced_url_delivery_options.md?install_source=plugin&referrer=trans-skill#error_handling)
 
 ## Transformation Costs
 
@@ -489,7 +507,7 @@ For complete cost details and cost reduction strategies, see [references/transfo
 ### Skill References (Progressive Disclosure)
 - [references/debugging.md](references/debugging.md) - Use when transformations return errors or unexpected results
 - [references/ai-transformations.md](references/ai-transformations.md) - Use when you need AI transformation prompt syntax, cost details, or complex AI combinations
-- [references/video-transformations.md](references/video-transformations.md) - Use when working with video codecs, trimming strategies, or concatenation
+- [references/video-transformations.md](references/video-transformations.md) - Use when working with video codecs, trimming strategies, concatenation, or creating animated images from videos
 - [references/advanced-features.md](references/advanced-features.md) - Use when building complex logic with variables, conditionals, or arithmetic
 - [references/responsive-images.md](references/responsive-images.md) - Use when implementing responsive images, configuring Client Hints, or using dpr_auto/w_auto
 - [references/transformation-costs.md](references/transformation-costs.md) - Use when optimizing for cost or explaining cost implications to users
@@ -497,34 +515,34 @@ For complete cost details and cost reduction strategies, see [references/transfo
 - [references/examples.md](references/examples.md) - Use when you need real-world examples beyond the Quick Start (social cards, e-commerce, responsive images)
 
 ### Core Cloudinary Documentation
-- [Transformation Reference](https://cloudinary.com/documentation/transformation_reference.md) - All parameters
+- [Transformation Reference](https://cloudinary.com/documentation/transformation_reference.md?install_source=plugin&referrer=trans-skill) - All parameters
 
 ### Image Transformations
-- [Image Transformations Overview](https://cloudinary.com/documentation/image_transformations.md)
-- [Resizing and Cropping](https://cloudinary.com/documentation/resizing_and_cropping.md)
-- [Placing Layers on Images](https://cloudinary.com/documentation/layers.md)
-- [Effects and Enhancements](https://cloudinary.com/documentation/effects_and_artistic_enhancements.md)
-- [Background Removal](https://cloudinary.com/documentation/background_removal.md)
-- [Generative AI Transformations](https://cloudinary.com/documentation/generative_ai_transformations.md)
-- [Face-Detection Based Transformations](https://cloudinary.com/documentation/face_detection_based_transformations.md)
-- [Custom Focus Areas](https://cloudinary.com/documentation/custom_focus_areas.md)
-- [Transformation Refiners](https://cloudinary.com/documentation/transformation_refiners.md)
-- [Animated Images](https://cloudinary.com/documentation/animated_images.md)
-- [Transformations on 3D Models](https://cloudinary.com/documentation/transformations_on_3d_models.md)
-- [Conditional Transformations](https://cloudinary.com/documentation/conditional_transformations.md)
-- [User-Defined Variables and Arithmetic](https://cloudinary.com/documentation/user_defined_variables.md)
-- [Custom Functions](https://cloudinary.com/documentation/custom_functions.md)
+- [Image Transformations Overview](https://cloudinary.com/documentation/image_transformations.md?install_source=plugin&referrer=trans-skill)
+- [Resizing and Cropping](https://cloudinary.com/documentation/resizing_and_cropping.md?install_source=plugin&referrer=trans-skill)
+- [Placing Layers on Images](https://cloudinary.com/documentation/layers.md?install_source=plugin&referrer=trans-skill)
+- [Effects and Enhancements](https://cloudinary.com/documentation/effects_and_artistic_enhancements.md?install_source=plugin&referrer=trans-skill)
+- [Background Removal](https://cloudinary.com/documentation/background_removal.md?install_source=plugin&referrer=trans-skill)
+- [Generative AI Transformations](https://cloudinary.com/documentation/generative_ai_transformations.md?install_source=plugin&referrer=trans-skill)
+- [Face-Detection Based Transformations](https://cloudinary.com/documentation/face_detection_based_transformations.md?install_source=plugin&referrer=trans-skill)
+- [Custom Focus Areas](https://cloudinary.com/documentation/custom_focus_areas.md?install_source=plugin&referrer=trans-skill)
+- [Transformation Refiners](https://cloudinary.com/documentation/transformation_refiners.md?install_source=plugin&referrer=trans-skill)
+- [Animated Images](https://cloudinary.com/documentation/animated_images.md?install_source=plugin&referrer=trans-skill)
+- [Transformations on 3D Models](https://cloudinary.com/documentation/transformations_on_3d_models.md?install_source=plugin&referrer=trans-skill)
+- [Conditional Transformations](https://cloudinary.com/documentation/conditional_transformations.md?install_source=plugin&referrer=trans-skill)
+- [User-Defined Variables and Arithmetic](https://cloudinary.com/documentation/user_defined_variables.md?install_source=plugin&referrer=trans-skill)
+- [Custom Functions](https://cloudinary.com/documentation/custom_functions.md?install_source=plugin&referrer=trans-skill)
 
 ### Video Transformations
-- [Video Transformations Overview](https://cloudinary.com/documentation/video_manipulation_and_delivery.md)
-- [Resizing and Cropping](https://cloudinary.com/documentation/video_resizing_and_cropping.md)
-- [Trimming and Concatenating](https://cloudinary.com/documentation/video_trimming_and_concatenating.md)
-- [Placing Layers on Videos](https://cloudinary.com/documentation/video_layers.md)
-- [Effects and Enhancements](https://cloudinary.com/documentation/video_effects_and_enhancements.md)
-- [Audio Transformations](https://cloudinary.com/documentation/audio_transformations.md)
-- [Converting Videos to Animated Images](https://cloudinary.com/documentation/videos_to_animated_images.md)
-- [Conditional Transformations](https://cloudinary.com/documentation/video_conditional_expressions.md)
-- [User-Defined Variables and Arithmetic](https://cloudinary.com/documentation/video_user_defined_variables.md)
+- [Video Transformations Overview](https://cloudinary.com/documentation/video_manipulation_and_delivery.md?install_source=plugin&referrer=trans-skill)
+- [Resizing and Cropping](https://cloudinary.com/documentation/video_resizing_and_cropping.md?install_source=plugin&referrer=trans-skill)
+- [Trimming and Concatenating](https://cloudinary.com/documentation/video_trimming_and_concatenating.md?install_source=plugin&referrer=trans-skill)
+- [Placing Layers on Videos](https://cloudinary.com/documentation/video_layers.md?install_source=plugin&referrer=trans-skill)
+- [Effects and Enhancements](https://cloudinary.com/documentation/video_effects_and_enhancements.md?install_source=plugin&referrer=trans-skill)
+- [Audio Transformations](https://cloudinary.com/documentation/audio_transformations.md?install_source=plugin&referrer=trans-skill)
+- [Converting Videos to Animated Images](https://cloudinary.com/documentation/videos_to_animated_images.md?install_source=plugin&referrer=trans-skill)
+- [Conditional Transformations](https://cloudinary.com/documentation/video_conditional_expressions.md?install_source=plugin&referrer=trans-skill)
+- [User-Defined Variables and Arithmetic](https://cloudinary.com/documentation/video_user_defined_variables.md?install_source=plugin&referrer=trans-skill)
 
 ## Common Mistakes & Best Practices
 

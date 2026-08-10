@@ -1,6 +1,6 @@
 ---
 name: qdrant-deployment-options
-description: "\"Guides Qdrant deployment selection. Use when someone asks 'how to deploy Qdrant', 'Docker vs Cloud', 'local mode', 'embedded Qdrant', 'Qdrant EDGE', 'which deployment option', 'self-hosted vs cloud', or 'need lowest latency deployment'. Also use when choosing between deployment types for a new project.\""
+description: Guides Qdrant deployment selection. Use when someone asks 'how to deploy Qdrant', 'Docker vs Cloud', 'local mode', 'embedded Qdrant', 'Qdrant EDGE', 'which deployment option', 'self-hosted vs cloud', or 'need lowest latency deployment'. Also use when choosing between deployment types for a new project.
 ---
 
 # Which Qdrant Deployment Do I Need?
@@ -23,7 +23,7 @@ Use when: you need full control over infrastructure, data residency, or custom c
 
 - Docker is the default deployment. Full Qdrant Open Source feature set, minimal setup. [Quick start](https://skills.qdrant.tech/md/documentation/quickstart/?s=download-and-run)
 - You own operations: upgrades, backups, scaling, monitoring
-- Must set up distributed mode manually for multi-node clusters [Distributed deployment](https://skills.qdrant.tech/md/documentation/distributed_deployment/)
+- Must set up distributed mode manually for multi-node clusters [Distributed deployment](https://skills.qdrant.tech/md/documentation/scaling/distributed_deployment/)
 - Consider Hybrid Cloud if you want Qdrant Cloud management on your infrastructure [Hybrid Cloud](https://skills.qdrant.tech/md/documentation/hybrid-cloud/)
 
 
@@ -43,6 +43,7 @@ Use when: network round-trip to a server is unacceptable. Edge devices, in-proce
 - Qdrant EDGE: in-process bindings to Qdrant shard-level functions, no network overhead [Qdrant EDGE](https://skills.qdrant.tech/md/documentation/edge/edge-quickstart/)
 - Same data format as server. Can sync with server via shard snapshots.
 - Single-node feature set only. No distributed mode.
+- Chose EDGE and want to build on it? See the `qdrant-edge` skill (BM25, snapshot sync, app-side fusion).
 
 
 ## What NOT to Do

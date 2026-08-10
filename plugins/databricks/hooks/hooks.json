@@ -1,15 +1,5 @@
 {
   "hooks": {
-    "UserPromptSubmit": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/databricks-router.py\" || python \"${CLAUDE_PLUGIN_ROOT}/hooks/databricks-router.py\" || true"
-          }
-        ]
-      }
-    ],
     "SessionStart": [
       {
         "matcher": "startup|clear|compact",
@@ -28,6 +18,16 @@
           {
             "type": "command",
             "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/databricks-auth-helper.py\" || python \"${CLAUDE_PLUGIN_ROOT}/hooks/databricks-auth-helper.py\" || true"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/databricks-router.py\" || python \"${CLAUDE_PLUGIN_ROOT}/hooks/databricks-router.py\" || true"
           }
         ]
       }

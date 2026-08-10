@@ -1,6 +1,6 @@
 ---
 name: idmp-workflow-alert-debug
-description: '"IDMP alert debugging workflow. Walk the operator chain from event count and detail to context, acknowledgement, resend, annotations, notify rules, and delivery history."'
+description: IDMP alert debugging workflow. Walk the operator chain from event count and detail to context, acknowledgement, resend, annotations, notify rules, and delivery history.
 ---
 
 # workflow: alert debug

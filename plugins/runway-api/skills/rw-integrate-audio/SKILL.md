@@ -1,6 +1,6 @@
 ---
 name: rw-integrate-audio
-description: '"Help users integrate Runway audio APIs (TTS, sound effects, voice isolation, dubbing)"'
+description: Help users integrate Runway audio APIs (TTS, sound effects, voice isolation, dubbing)
 ---
 
 # Integrate Audio Generation

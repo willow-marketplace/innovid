@@ -1,6 +1,6 @@
 ---
 name: cancel-ralph
-description: '"Cancel active Ralph Loop"'
+description: Cancel active Ralph Loop
 ---
 
 # Cancel Ralph

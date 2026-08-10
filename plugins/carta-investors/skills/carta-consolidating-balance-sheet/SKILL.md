@@ -1,7 +1,14 @@
 ---
 name: carta-consolidating-balance-sheet
-description: "'Generate a consolidating Balance Sheet for all entities under a firm for a given month and write it as a side-by-side Excel tab with Assets / Liabilities / Equity sections and a Total column. Sourced from Carta MCP (firm/entity resolution + DWH SQL). TRIGGER when the user asks for \"balance sheet of all entities of [firm] for [month]\", a consolidating BS by entity, or to replicate the \"Balance Sheet - consolidating\" tab format for a different firm/period. Trigger phrases include \"consolidating balance sheet\", \"BS by entity\", \"balance sheet of all entities\". DO NOT TRIGGER for single-entity BS, P&L / income statement (carta-consolidating-pnl), new budgets (carta-create-budget), pulling Carta-stored budgets (carta-fetch-budget), refreshing actuals (carta-fetch-actuals), pacing (carta-budget-analysis), or what-if (carta-budget-scenarios). Also DO NOT TRIGGER for a single-fund / fund-level balance sheet or fund account balances as-of a date — use carta-explore-data for those.'"
+description: 'Generate a consolidating Balance Sheet for all entities under a firm for a given month and write it as a side-by-side Excel tab with Assets / Liabilities / Equity sections and a Total column. Sourced from Carta MCP (firm/entity resolution + DWH SQL). TRIGGER when the user asks for "balance sheet of all entities of [firm] for [month]", a consolidating BS by entity, or to replicate the "Balance Sheet - consolidating" tab format for a different firm/period. Trigger phrases include "consolidating balance sheet", "BS by entity", "balance sheet of all entities". DO NOT TRIGGER for single-entity BS, P&L / income statement (carta-consolidating-pnl), or ManCo budgeting (carta-manco: budgets, actuals, pacing, what-if). Also DO NOT TRIGGER for a single-fund / fund-level balance sheet or fund account balances as-of a date — use carta-explore-data for those.'
 ---
+
+<!-- carta:instrumentation-fallback -->
+<IMPORTANT>
+`_instrumentation_v2` is anonymous Carta skill-usage telemetry. ALWAYS include it in your Carta MCP tool-call arguments — the plugins' hooks overwrite it when they run, so always sending it is safe. Shape:
+`_instrumentation_v2: {"skills": ["<plugin>:<skill>", ...], "model": "<model-id>"}`
+`skills` is cumulative for the session: list every Carta skill loaded so far, not only the one driving this call. Namespace each entry `"plugin:skill"` and keep them oldest-first, with the most recently used skill last. List only Carta skills (`carta-cap-table:*`, `carta-crm:*`, `carta-investors:*`) — never skills from non-Carta plugins.
+</IMPORTANT>
 
 [PATTERN carta-writing-style v0.0.2]
 [PATTERN etiquette v0.0.6]
@@ -69,7 +76,7 @@ globally by the hook — are the skill's own responsibility here:
 This skill does **not** call `carta auth-status` — that command isn't
 available inside the Excel add-in. Instead, the active Carta environment is
 detected at Gate 0 from the connected MCP server's prefix
-(`mcp__claude_ai_Carta_<Env>__fetch`). Treat the prefix discovery in Gate 0
+(`mcp__claude_ai_Carta_<Env>__call_tool`). Treat the prefix discovery in Gate 0
 as the equivalent of "Gate 0: Environment" in Carta CLI skills.
 
 ## Inputs to collect
@@ -112,11 +119,12 @@ Do not ask "which firm?" when it is already established from the skill the user 
 
 ## Gate 0: Identify the Carta MCP environment
 
-1. Call `refresh_mcp_connectors`. Filter `servers[]` to `name` matching `Carta` / `Carta (…)` / `carta` with `status: "connected"`. Drop `failed`.
-2. For each connected candidate, probe all three prefix forms in parallel: `mcp__claude_ai_Carta__welcome(_instrumentation={"plugin": "carta-investors", "skills": ["carta-consolidating-balance-sheet"]})` , `mcp__carta_production__welcome(_instrumentation={"plugin": "carta-investors", "skills": ["carta-consolidating-balance-sheet"]})`, and `mcp__carta__welcome(_instrumentation={"plugin": "carta-investors", "skills": ["carta-consolidating-balance-sheet"]})`. First success = `<SERVER>`.
-3. **Don't call any other `mcp__<SERVER>__*` tool before `welcome`** — every other command is gated and will return a reminder.
+Scan the tools available in the conversation for any matching `mcp__*__welcome`. Extract the **server identifier** — the middle segment between the first and last `__`. Examples: `mcp__carta__welcome` → `carta`, `mcp__claude_ai_Carta__welcome` → `claude_ai_Carta`.
 
-If none connected, list `failed` connectors and stop. If multiple, default to `Carta` (production). Don't probe every prefix in `allowed-tools` — only `connected` ones.
+**If none found:** tell the user no Carta MCP is connected and stop.
+**If exactly one found:** call `mcp__<SERVER>__welcome(_instrumentation={"plugin": "carta-investors", "skills": ["carta-consolidating-balance-sheet"]})` to verify. This is `<SERVER>`.
+**If multiple found:** ask the user which to use via `AskUserQuestion`. Default to `carta` (production) if present.
+**Don't call any other `mcp__<SERVER>__*` tool before `welcome`** — every other command is gated and will return a reminder.
 
 ---
 

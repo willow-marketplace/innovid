@@ -1,6 +1,13 @@
 ---
 name: fix-fiori-elements-extensions
-description: "|"
+description: |-
+  Handle Fiori Elements V2 controller extensions during UI5 modernization. Use this skill when:
+  - Extension controllers use `sap.ui.controller()` AND the manifest has a matching `controllerName` entry (Case B → report only, do not modernize)
+  - Extension controllers use `Controller.extend()` with manifest `controllerName` registration (Case B → report only, do not modernize)
+  - Code contains `registerControllerExtensions` calls (Case A → ControllerExtension.extend + override)
+  - Manifest.json has `sap.ui5/extends/extensions/sap.ui.controllerExtensions` with `controllerName` entries
+  Case B (plain object) is by far the most common. For Case B, do NOT modify controller files — report them and move on. Case A requires actual code modernization.
+  For plain controller definitions in custom (non-Fiori-Elements) apps where `sap.ui.controller()` is just defining a standalone controller, use `fix-js-globals` (Case 9) instead.
 ---
 
 # Fix Fiori Elements Controller Extensions

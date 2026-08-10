@@ -1,6 +1,6 @@
 ---
 name: datahub-mfe-create-app
-description: ">-"
+description: Scaffold a new DataHub Micro Frontend (MFE) app with all boilerplate files. Use when the user wants to create a new micro frontend, MFE, remote app, or Module Federation app for DataHub.
 ---
 
 # Create a DataHub MFE App

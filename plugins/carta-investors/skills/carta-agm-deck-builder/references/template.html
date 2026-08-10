@@ -218,7 +218,7 @@ Global tokens used on every slide:
         <div class="ds-body ds-body--sm ds-on-mute">Total value to paid-in as of {{AS_OF_DATE}}. Older vintage funds reflect mature, realized returns.</div>
       </div>
       <div style="max-height:300px; overflow:hidden;">
-        <div data-ds-chart="hbar" data-config='{"max":{{TVPI_CHART_MAX}},"rows":{{TVPI_CHART_ROWS}}}'></div>
+        <div data-ds-chart="hbar" data-config='{"max":{{TVPI_CHART_MAX}},"rows":{{TVPI_CHART_ROWS}},"wideLabel":true}'></div>
       </div>
     </div>
   </div>
@@ -558,7 +558,7 @@ Global tokens used on every slide:
         <div class="ds-accent-bar ds-accent-bar--3" style="margin-top:24px;"></div>
       </div>
       <div style="max-height:360px; overflow:hidden;">
-        <div data-ds-chart="hbar" data-config='{"max":100,"rows":{{DEPLOY_CHART_ROWS}}}'></div>
+        <div data-ds-chart="hbar" data-config='{"max":100,"rows":{{DEPLOY_CHART_ROWS}},"wideLabel":true}'></div>
       </div>
     </div>
   </div>
@@ -637,7 +637,7 @@ Global tokens used on every slide:
         <div class="ds-body ds-body--sm ds-on-mute" style="margin-bottom:20px;">{{PORTFOLIO_CURRENCY_NOTE}}</div>
         <div class="ds-accent-bar"></div>
       </div>
-      <div data-ds-chart="hbar" data-config='{"max":{{PORTFOLIO_CHART_MAX}},"rows":{{PORTFOLIO_CHART_ROWS}}}'></div>
+      <div data-ds-chart="hbar" data-config='{"max":{{PORTFOLIO_CHART_MAX}},"rows":{{PORTFOLIO_CHART_ROWS}},"wideLabel":true}'></div>
     </div>
   </div>
 </section>
@@ -647,17 +647,14 @@ Global tokens used on every slide:
      SLIDE 11b — INVESTMENT DETAIL & PERFORMANCE (realized + unrealized MOIC)
      Surface: ds-alt
      Tokens:
-       {{INVEST_COMPANY1}}           "Company A" — first realized company name (plain)
-       {{INVEST_MOIC1}}             "XXX×" — first MOIC value (in em/accent color)
-       {{INVEST_COMPANY2}}          "Company B" — second realized company name (plain)
-       {{INVEST_MOIC2}}             "YYY×" — second MOIC value (in em/accent color)
-       {{REALIZED_CHART_MAX}}       number — max MOIC across all realized positions
+       {{INVEST_HEADLINE}}           pre-rendered HTML headline sentence; 1-company: "Name returned <em>X.XX×</em>."; 2-company: "Name returned <em>X.XX×</em> &amp; Name returned <em>Y.YY×</em>. Both fully realized."
+       {{REALIZED_CHART_MAX}}       number — max MOIC across realized positions only
        {{REALIZED_CHART_ROWS}}      JSON array (sorted desc by MOIC, max 8):
          [{"label":"Company · Fund","value":XXX,"valueLabel":"XXX×","series":1}, ...]
          series: 1=100×+, 2=50-100×, 3=10-50×, 4=<10×
        {{REALIZED_KPI1_LABEL}}  {{REALIZED_KPI1_VALUE}}  {{REALIZED_KPI1_NOTE}}  (ds-kpi-highlight)
        {{REALIZED_KPI2_LABEL}}  {{REALIZED_KPI2_VALUE}}  {{REALIZED_KPI2_NOTE}}  (ds-kpi-highlight--2)
-       {{UNREALIZED_CHART_MAX}} same value as REALIZED_CHART_MAX (consistent scale)
+       {{UNREALIZED_CHART_MAX}} max MOIC across unrealized positions only (independent scale from REALIZED_CHART_MAX)
        {{UNREALIZED_CHART_ROWS}} JSON array (sorted desc by MOIC, max 8):
          [{"label":"Company · Fund (currency)","value":XX.XX,"valueLabel":"XX.XX×","series":2}, ...]
        {{UNREALIZED_NOTE}}      "Unrealized MOIC = remaining FMV ÷ cost basis." — no source attribution
@@ -669,7 +666,7 @@ Global tokens used on every slide:
   <div class="ds-pad ds-pad--header">
     <div class="ds-eyebrow" style="margin-bottom:20px;">Investment performance · Realized &amp; unrealized MOIC</div>
     <div class="ds-h1" style="margin-bottom:36px;">
-      {{INVEST_COMPANY1}} returned <em>{{INVEST_MOIC1}}</em>. {{INVEST_COMPANY2}} <em>{{INVEST_MOIC2}}</em>. Both fully realized.
+      {{INVEST_HEADLINE}}
     </div>
 
     <div style="display:grid; grid-template-columns:1fr 1fr; gap:64px; align-items:start;">
@@ -677,7 +674,7 @@ Global tokens used on every slide:
         <div style="display:flex; align-items:center; gap:10px; margin-bottom:16px;">
           <span class="ds-pill ds-pill--3">Realized · Cash returned to LPs</span>
         </div>
-        <div data-ds-chart="hbar" data-config='{"max":{{REALIZED_CHART_MAX}},"rows":{{REALIZED_CHART_ROWS}}}'></div>
+        <div data-ds-chart="hbar" data-config='{"max":{{REALIZED_CHART_MAX}},"rows":{{REALIZED_CHART_ROWS}},"wideLabel":true}'></div>
         <div style="margin-top:16px; display:flex; gap:32px;">
           <div>
             <div class="ds-label" style="margin-bottom:6px;">{{REALIZED_KPI1_LABEL}}</div>
@@ -696,7 +693,7 @@ Global tokens used on every slide:
         <div style="display:flex; align-items:center; gap:10px; margin-bottom:16px;">
           <span class="ds-pill ds-pill--2">MOIC on current FMV</span>
         </div>
-        <div data-ds-chart="hbar" data-config='{"max":{{UNREALIZED_CHART_MAX}},"rows":{{UNREALIZED_CHART_ROWS}}}'></div>
+        <div data-ds-chart="hbar" data-config='{"max":{{UNREALIZED_CHART_MAX}},"rows":{{UNREALIZED_CHART_ROWS}},"wideLabel":true}'></div>
         <div class="ds-accent-bar ds-accent-bar--2" style="margin-top:20px;"></div>
         <div class="ds-body ds-body--sm ds-on-mute" style="margin-top:12px;">{{UNREALIZED_NOTE}}</div>
       </div>

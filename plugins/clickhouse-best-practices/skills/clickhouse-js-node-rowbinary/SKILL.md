@@ -1,6 +1,6 @@
 ---
 name: clickhouse-js-node-rowbinary
-description: ">"
+description: Generate TypeScript/JavaScript code that reads/decodes AND writes/encodes ClickHouse RowBinary streams for the ClickHouse HTTP server. Use this skill whenever a user wants to parse or produce `RowBinary`, `RowBinaryWithNames`, or `RowBinaryWithNamesAndTypes`. Node.js only, doesn't cover browsers.
 ---
 
 # ClickHouse JS RowBinary Codec Generator for Node.js

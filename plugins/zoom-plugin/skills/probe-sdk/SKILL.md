@@ -1,6 +1,6 @@
 ---
 name: probe-sdk
-description: '"Reference skill for Zoom Probe SDK. Use after routing to a preflight workflow when testing browser compatibility, media permissions, audio or video diagnostics, and network readiness before users join."'
+description: Reference skill for Zoom Probe SDK. Use after routing to a preflight workflow when testing browser compatibility, media permissions, audio or video diagnostics, and network readiness before users join.
 ---
 
 # Zoom Probe SDK

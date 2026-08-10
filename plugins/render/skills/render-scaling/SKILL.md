@@ -1,6 +1,6 @@
 ---
 name: render-scaling
-description: ">-"
+description: Scales Render services—configures autoscaling targets, chooses instance types, sets manual instance counts, and optimizes cost. Use when the user needs to handle more traffic, set up autoscaling, pick the right instance type, reduce costs, or troubleshoot scaling behavior like slow scale-down or stuck instances.
 ---
 
 # Render Scaling

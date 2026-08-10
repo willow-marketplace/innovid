@@ -1,6 +1,6 @@
 ---
 name: otel-instrumentation
-description: ">"
+description: 'Provides guidance on OpenTelemetry SDK setup, custom instrumentation, and sending data to Honeycomb. Trigger phrases: "instrument my app", "add tracing", "set up OpenTelemetry", "configure OTel", "add custom spans", "add attributes to spans", "send traces to Honeycomb", "set up OTLP", "configure sampling", "add span events", "add span links", "set up tracing for [any language]", "configure the OTel Collector", or any request about OpenTelemetry SDK setup, custom instrumentation, or sending data to Honeycomb.'
 ---
 
 # OpenTelemetry Instrumentation for Honeycomb
@@ -32,9 +32,10 @@ OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=https://api.honeycomb.io/v1/traces
 OTEL_EXPORTER_OTLP_METRICS_ENDPOINT=https://api.honeycomb.io/v1/metrics
 ```
 
-**For metrics (required if sending metrics):**
+**For metrics (preferred):** Use modern OTLP metrics and native datapoints. Use dataset
+hints to confirm the destination type (`metrics` or `events`). Authenticate with:
 ```bash
-OTEL_EXPORTER_OTLP_METRICS_HEADERS="x-honeycomb-team=YOUR_API_KEY,x-honeycomb-dataset=YOUR_DATASET"
+OTEL_EXPORTER_OTLP_METRICS_HEADERS="x-honeycomb-team=YOUR_API_KEY"
 ```
 
 ### Protocol Selection
@@ -62,10 +63,10 @@ authenticate. Without it, Honeycomb silently rejects requests — no error, no d
 `OTEL_EXPORTER_OTLP_HEADERS="x-honeycomb-team=YOUR_API_KEY"` or pass headers
 programmatically. If loading the key from `.env`, ensure dotenv runs before SDK init.
 
-**Metrics dataset header:** Honeycomb requires `x-honeycomb-dataset` on the metrics OTLP
-endpoint to route metrics correctly. Without it, metrics are silently dropped. Traces do
-not need this header (they route by `service.name`). Set via
-`OTEL_EXPORTER_OTLP_METRICS_HEADERS="x-honeycomb-team=YOUR_API_KEY,x-honeycomb-dataset=YOUR_DATASET"`.
+**Metrics:** Prefer modern OTLP metrics and native datapoints. Dataset hints identify the
+destination type (`metrics` or `events`), so do not add `x-honeycomb-dataset` by default.
+Use that header only when hints or configuration require legacy routing to a named event
+dataset. Traces do not need it; they route by `service.name`.
 
 For the env var values, language-specific dependencies, and setup code (Go, Python,
 Node.js, Java, Ruby, .NET, Rust), see
@@ -117,6 +118,9 @@ Not every function needs a span. Two questions determine whether a span is worth
   attribute on the parent span instead.
 - **Too few spans**: Collapsing hours of work into a single opaque handler leaves you
   guessing about where time is spent.
+- **Test spans left in**: Spans named `test-span`, `debug-span`, or similar are
+  artefacts that pollute the dataset. Remove any span created solely to verify tracing
+  is working before finishing.
 
 When in doubt, prefer **attributes on existing spans** over creating new child spans.
 
@@ -141,31 +145,59 @@ user = authenticate(request)
 span.set_attribute("auth.duration_ms", (time.monotonic() - auth_start) * 1000)
 ```
 
-#### Exception Slugs (tag each error site with a static identifier)
+#### Exception telemetry: event details plus span-level dimensions
 
-Tag each error throw site with a unique static string (`exception.slug`). This creates
-a low-cardinality, greppable identifier that connects dashboards directly to code.
+Use the Logs API for new exception events. Emit the record while the relevant span is
+active and include the standard exception fields (`exception.type`, `exception.message`,
+`exception.stacktrace`, and `exception.escaped` when applicable), an ERROR severity, and
+`event.name="exception"`. Set the span status to ERROR separately when the operation failed.
 
-```go
-// Go: static slug — greppable, safe for GROUP BY
-span.SetAttributes(
-    attribute.String("exception.slug", "err-stripe-charge-failed"),
-    attribute.Bool("error", true),
-)
-span.RecordError(err)
+In Honeycomb, a trace-correlated exception log is rendered in the trace as a `span_event`
+annotation and carries `trace.trace_id` and `trace.parent_id`. Its full `exception.*`
+payload remains on the log-derived event; it is **not hoisted onto the containing span**.
+Search the exception event row, then follow its trace ID to inspect the surrounding trace.
+
+Use low-cardinality span attributes for aggregation and alerting:
+
+- `error=true` and the span status indicate operation failure.
+- `exception.slug` is a static, greppable identifier for the error site.
+- An optional error category is safer for `GROUP BY` than full exception messages.
+
+```text
+Logs-API exception event: event.name=exception, body=exception, meta.signal_type=log
+Legacy span-event exception: name=exception, meta.signal_type=trace
+Both may have: meta.annotation_type=span_event
 ```
 
-```python
-# Python: static slug — greppable, safe for GROUP BY
-span.set_attribute("exception.slug", "err-stripe-card-error")
-span.set_attribute("error", True)
-span.record_exception(e)
-```
+`record_exception` / `RecordError` remain compatibility APIs for existing SDKs and code,
+but do not use them as the only new guidance when Logs API support is available. They can
+also produce parent-span exception fields that a Logs-API event alone does not produce.
 
-Find unhandled errors (missing slugs): `WHERE error = true AND exception.slug does-not-exist`.
+Find operation failures by span dimensions: `WHERE error = true AND exception.slug does-not-exist`.
+Find Logs-API exception events with `event.name=exception AND exception.type exists` and
+follow a sampled `trace.trace_id` into `get_trace` with `show_events=true`.
 
-For extended examples in all languages, see
+For extended examples and the MCP investigation recipe, see
 `${CLAUDE_PLUGIN_ROOT}/skills/otel-instrumentation/references/custom-instrumentation.md`.
+
+#### Optional compatibility: promote exception fields with a LogRecordProcessor
+
+If existing span-level dashboards, alerts, or queries depend on Honeycomb's historical exception
+field promotion, add a custom **LogRecordProcessor** before the batch/export processor. When it
+sees an exception log, it should use the log record's resolved context to find the active recording
+span and promote a configured, minimal set of fields such as `error=true`, `error.type`,
+`exception.type`, `exception.slug`, or an error category.
+
+Do not recommend a standalone `SpanProcessor` for this: span processors receive span lifecycle
+callbacks, not log records. Keep full `exception.message` and `exception.stacktrace` on the Logs
+API event by default; copy them onto spans only when legacy query compatibility explicitly requires
+it. The processor must run synchronously while the span context is valid, before the log reaches
+batch export. It should no-op when there is no recording span and must not infer fields that the
+application did not put on the log record.
+
+This is an optional migration layer, not a replacement for querying the Logs API event. Agents
+should treat span-level promoted fields as instrumentation-dependent and continue to query
+`event.name=exception` event rows for full diagnostics.
 
 ## What to Instrument
 
@@ -196,15 +228,20 @@ For the complete catalog organized by category with rationale and example querie
 
 For why attributes matter conceptually, see the **observability-fundamentals** skill.
 
-## Span Events and Span Links
+## Span Events, Logs API Events, and Span Links
 
-- **Span events**: Record point-in-time occurrences within a span (errors, retries, state
-  changes). Use `span.add_event("event_name", {attributes})`.
+- **Point-in-time events**: Prefer the Logs API for new events, especially exceptions. Emit
+  while the span is active so the record carries trace context. In Honeycomb, a correlated
+  log is rendered as a `meta.annotation_type=span_event` annotation, but its event name is
+  in `event.name` (and often `body`), not `name`.
+- **Legacy span events**: `span.add_event` / `AddEvent` remain valid compatibility paths. Their
+  event name is in `name` and their signal type is `trace`.
 - **Span links**: Connect spans across different trace hierarchies (async processing,
   fan-out/fan-in, cross-system correlation). Create a `Link` to the related span context.
 
-See `${CLAUDE_PLUGIN_ROOT}/skills/otel-instrumentation/references/custom-instrumentation.md`
-for full examples of both patterns.
+For human instrumentation examples and an agent-safe Honeycomb MCP query → sample → trace
+workflow, see `${CLAUDE_PLUGIN_ROOT}/skills/otel-instrumentation/references/custom-instrumentation.md`
+and the **production-investigation** skill.
 
 ## Sampling
 

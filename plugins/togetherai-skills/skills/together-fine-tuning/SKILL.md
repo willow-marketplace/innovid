@@ -1,6 +1,6 @@
 ---
 name: together-fine-tuning
-description: '"LoRA, full fine-tuning, DPO preference tuning, VLM training, function-calling tuning, reasoning tuning, and BYOM uploads on Together AI. Reach for it whenever the user wants to adapt a model on custom data rather than only run inference, evaluate outputs, or host an existing model."'
+description: LoRA, full fine-tuning, DPO preference tuning, VLM training, function-calling tuning, reasoning tuning, and BYOM uploads on Together AI. Reach for it whenever the user wants to adapt a model on custom data rather than only run inference, evaluate outputs, or host an existing model.
 ---
 
 # Together Fine-Tuning
@@ -31,7 +31,7 @@ Supported workflows in this repo:
 
 - Use `together-chat-completions` for plain inference without training
 - Use `together-evaluations` to measure a model before or after tuning
-- Use `together-dedicated-endpoints` to host the resulting tuned model
+- Use `together-dedicated-model-inference` to host the resulting tuned model
 - Use `together-gpu-clusters` only when the user needs raw infrastructure rather than managed tuning
 
 ## Quick Routing

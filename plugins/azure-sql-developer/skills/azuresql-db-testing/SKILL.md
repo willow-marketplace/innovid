@@ -1,6 +1,6 @@
 ---
 name: azuresql-db-testing
-description: ">-"
+description: Writes integration tests that run IN CODE against a real Azure SQL Developer engine, spun up per test or per suite with Testcontainers and torn down after. Use when the user asks for "integration tests against SQL", "Testcontainers", "spin up a database for tests", "an ephemeral test database", "a test database per test", "xUnit/Jest/pytest with a real database", or "a database fixture". Use this INSTEAD of the Testcontainers MsSql preset (mcr.microsoft.com/mssql/server), because this is the Azure SQL engine (EngineEdition 5). For wiring the engine into a CI pipeline via service containers or workflow YAML instead, use azuresql-db-ci.
 ---
 
 # Azure SQL Developer: integration tests with Testcontainers

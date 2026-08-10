@@ -1,7 +1,14 @@
 ---
 name: search-investors
-description: ">"
+description: Searches for and retrieves investor records from the Carta CRM. Use this skill when the user says things like "find an investor", "search investors", "look up an investor", "show me investor details for [name]", "get investor by ID", "list investors", "what investors do we have", or "/search-investors". Returns investor details including ID, name, and custom fields. The investor ID returned can be used with the update-investor skill.
 ---
+
+<!-- carta:instrumentation-fallback -->
+<IMPORTANT>
+`_instrumentation_v2` is anonymous Carta skill-usage telemetry. ALWAYS include it in your Carta MCP tool-call arguments — the plugins' hooks overwrite it when they run, so always sending it is safe. Shape:
+`_instrumentation_v2: {"skills": ["<plugin>:<skill>", ...], "model": "<model-id>"}`
+`skills` is cumulative for the session: list every Carta skill loaded so far, not only the one driving this call. Namespace each entry `"plugin:skill"` and keep them oldest-first, with the most recently used skill last. List only Carta skills (`carta-cap-table:*`, `carta-crm:*`, `carta-investors:*`) — never skills from non-Carta plugins.
+</IMPORTANT>
 
 ## Overview
 
@@ -20,14 +27,17 @@ If it's unclear, default to search and ask the user for a name or keyword.
 
 **By ID:**
 ```
-mcp__carta_crm__get_investor({ id: "<investor id>" })
+crm_call_tool({ "name": "crm:get_investor", "arguments": { id: "<investor id>" } })
 ```
 
 **By name / keyword:**
 ```
-mcp__carta_crm__search_investors({
-  query: "<search term>",
-  limit: 20
+crm_call_tool({
+  "name": "crm:search_investors",
+  "arguments": {
+    query: "<search term>",
+    limit: 20
+  }
 })
 ```
 

@@ -1,6 +1,6 @@
 ---
 name: slack-api
-description: "\"Discover, navigate, and call Slack Web API methods (the family.method endpoints at slack.com/api like chat.postMessage, conversations.history, users.info, views.open). Use this skill whenever the developer asks which Slack API method does something, needs a method's required OAuth scopes or token type, wants to call or test a Web API method, is handling cursor pagination (next_cursor), hitting rate limits (tier/ratelimited/Retry-After), or debugging API errors like missing_scope, invalid_auth, or channel_not_found. Also trigger when they paste a slack.com/api/ URL or a docs.slack.dev/reference/methods link, or ask how to list/fetch/post/update Slack resources via the API. This skill covers the Web API method layer: finding the right method, reading its contract (scopes, arguments, errors), and calling it over raw HTTP with curl or through a Slack SDK.\""
+description: "Discover, navigate, and call Slack Web API methods (the family.method endpoints at slack.com/api like chat.postMessage, conversations.history, users.info, views.open). Use this skill whenever the developer asks which Slack API method does something, needs a method's required OAuth scopes or token type, wants to call or test a Web API method, is handling cursor pagination (next_cursor), hitting rate limits (tier/ratelimited/Retry-After), or debugging API errors like missing_scope, invalid_auth, or channel_not_found. Also trigger when they paste a slack.com/api/ URL or a docs.slack.dev/reference/methods link, or ask how to list/fetch/post/update Slack resources via the API. This skill covers the Web API method layer: finding the right method, reading its contract (scopes, arguments, errors), and calling it over raw HTTP with curl or through a Slack SDK."
 ---
 
 # Slack Web API
@@ -52,7 +52,7 @@ Map the developer's intent to a family, then to a candidate method.
 
 WebFetch the live method index:
 
-```
+```text
 https://docs.slack.dev/reference/methods.md
 ```
 
@@ -70,7 +70,7 @@ When you would rather search by keyword than scan the index, and the Slack CLI i
 
 Fetch the method's doc page with WebFetch. Either follow the method's link from the index (Step 1) or construct the URL — the path segment is **all-lowercase** and ends in `.md`:
 
-```
+```text
 https://docs.slack.dev/reference/methods/<method-lowercased>.md
 ```
 

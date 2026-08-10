@@ -20,16 +20,24 @@ sonar-coverage my-project --file src/auth/login.py  # line-by-line detail for on
 
 This skill requires the SonarQube MCP Server to be configured and the tools `mcp__sonarqube__search_files_by_coverage` and `mcp__sonarqube__get_file_coverage_details` to be available in your session.
 
-**Before proceeding**, verify the tools are accessible. If they are not, do not attempt to call any CLI commands or invent alternatives, and show the user:
+**Before proceeding**, verify the tools are accessible. If they are not, try the `sonar api` CLI fallback in Step 3 before giving up — don't invent other CLI commands (e.g. `sonar mcp call` or `sonar coverage` do not exist).
+
+**If the CLI fallback also fails (for example `sonar` not installed/authenticated, or no project key can be resolved), narrow down the cause** — check whether the `sonarqube` MCP server is enabled in this agent's configuration.
+
+- **Not enabled / not registered** → recommend running the sonar-integrate skill.
+- **Enabled but its tools are still unavailable** → configuration is correct but the server failed to start. The most common cause is that the container runtime is not running — the MCP server launches inside Docker/Podman/Nerdctl via `sonar run mcp`, so a correctly configured server still produces no tools if the daemon is stopped. Run `docker ps` yourself (falling back to `podman ps` / `nerdctl ps`) to confirm which cause applies: if it errors, the runtime is down; after the user starts it, confirm the same command succeeds before asking them to restart the agent session.
+
+Either way, show the user:
 
 > Unable to reach the SonarQube MCP Server, or project key not found.
 >
 > **Possible causes:**
 > - MCP server not registered — invoke the sonar-integrate skill to configure the SonarQube MCP Server, then restart the agent session
+> - Container runtime not running — the SonarQube MCP Server runs inside a container (Docker, Podman, or Nerdctl); start your container runtime, then restart the agent session
 > - Credentials not configured — invoke the sonar-integrate skill
 > - Project key is wrong or no default project in MCP config — pass an explicit key, or verify `sonar-project.properties` / re-run the sonar-integrate skill for this project
 
-Then ask the user (yes/no) whether to run the sonar-integrate skill now. If they confirm, invoke the sonar-integrate skill yourself and follow it end-to-end in this session, then ask the user to restart the agent session so the new MCP tools become available; if they decline, stop.
+Then ask the user (yes/no) whether to run the sonar-integrate skill now. Briefly explain what it does: it checks the SonarQube setup on their machine — installing or updating `sonarqube-cli` and verifying authentication — and re-configures the integration for this agent, including the SonarQube MCP server and secrets-scanning hooks. If they confirm, invoke the sonar-integrate skill yourself and follow it end-to-end in this session, then ask the user to ensure a container runtime (Docker, Podman, or Nerdctl) is running and to restart the agent session so the new MCP tools become available; if they decline, stop.
 
 ## Instructions
 
@@ -85,6 +93,14 @@ If no files are returned (all files exceed the threshold), say: *"All files meet
 Then offer to drill in:
 *"Ask me to inspect any of these files for uncovered lines, or invoke the sonar-coverage skill with `--file <file-key>` (add a project key only if needed)."*
 
+**If `mcp__sonarqube__search_files_by_coverage` is unavailable, fall back to `sonar api`.** This needs an explicit project key (no MCP default) — if none was resolved in Step 1, ask the user or invoke sonar-list-projects, then stop.
+
+```bash
+sonar api get "/api/measures/component_tree?component=<project-key>&metricKeys=coverage,line_coverage,branch_coverage&qualifiers=FIL&strategy=leaves&s=metric&metricSort=coverage&asc=true[&pullRequest=<id>]"
+```
+
+Use `metricKeys`. If a call 400s unexpectedly, add `-v` to see the actual server error. Read `coverage` from each component's `measures` array and present it in the same table format above.
+
 #### Flow B — Line detail (`--file <key>` given, or user asks to inspect a file)
 
 Call `mcp__sonarqube__get_file_coverage_details`:
@@ -117,6 +133,16 @@ Lines with no test coverage: 14, 15, 23, 45–52, 67
 ```
 
 If the file is fully covered, say: *"All lines in this file are covered."*
+
+**If `mcp__sonarqube__get_file_coverage_details` is unavailable, fall back to `sonar api`:**
+
+```bash
+sonar api get "/api/sources/lines?key=<file-key>[&pullRequest=<id>]"
+```
+
+Each returned line has coverage fields (covered/uncovered, branch hit counts) — derive the uncovered-lines list and partially-covered-branches table from those.
+
+If this also fails, show the standard message above — don't guess further commands.
 
 ### Step 4: Next steps
 

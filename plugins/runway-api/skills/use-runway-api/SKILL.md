@@ -1,6 +1,6 @@
 ---
 name: use-runway-api
-description: '"Directly use the Runway API from the agent to generate media, manage resources, and inspect account state"'
+description: Directly use the Runway API from the agent to generate media, manage resources, and inspect account state
 ---
 
 # Use Runway API

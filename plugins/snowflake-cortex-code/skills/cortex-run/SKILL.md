@@ -1,6 +1,6 @@
 ---
 name: cortex-run
-description: '"ONLY load this skill when the user explicitly types $cortex-run or /cortex-run. NEVER load this skill from auto-routing hooks or keyword matching. For auto-routed prompts, use snowflake-cortex-code:cortex-router instead."'
+description: ONLY load this skill when the user explicitly types $cortex-run or /cortex-run. NEVER load this skill from auto-routing hooks or keyword matching. For auto-routed prompts, use snowflake-cortex-code:cortex-router instead.
 ---
 
 # Cortex Code (Explicit Invocation)

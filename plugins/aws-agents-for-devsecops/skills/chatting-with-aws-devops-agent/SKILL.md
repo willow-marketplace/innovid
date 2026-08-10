@@ -1,6 +1,6 @@
 ---
 name: chatting-with-aws-devops-agent
-description: ">-"
+description: Have a fast, conversational analysis with the AWS DevOps Agent. Use for cost optimization, architecture review, topology mapping, knowledge / runbook discovery, security audits, dependency questions, and quick diagnostics — anything that needs a 5-30 second answer rather than a 5-8 minute deep investigation. Trigger words include cost, optimize, review, architecture, topology, what runbooks, show me, compare, audit, what if.
 ---
 
 # Chat with the AWS DevOps Agent

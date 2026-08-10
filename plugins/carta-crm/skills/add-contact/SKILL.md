@@ -1,7 +1,14 @@
 ---
 name: add-contact
-description: ">"
+description: Adds one or more contact records to the Carta CRM via the Carta CRM MCP Server. Use this skill when the user says things like "add a contact", "create a contact record", "add contact to CRM", "save a contact", "upload contact to Carta CRM", or "/add-contact". Collects contact information conversationally, then creates it via the MCP server. Only name is required — all other fields are optional.
 ---
+
+<!-- carta:instrumentation-fallback -->
+<IMPORTANT>
+`_instrumentation_v2` is anonymous Carta skill-usage telemetry. ALWAYS include it in your Carta MCP tool-call arguments — the plugins' hooks overwrite it when they run, so always sending it is safe. Shape:
+`_instrumentation_v2: {"skills": ["<plugin>:<skill>", ...], "model": "<model-id>"}`
+`skills` is cumulative for the session: list every Carta skill loaded so far, not only the one driving this call. Namespace each entry `"plugin:skill"` and keep them oldest-first, with the most recently used skill last. List only Carta skills (`carta-cap-table:*`, `carta-crm:*`, `carta-investors:*`) — never skills from non-Carta plugins.
+</IMPORTANT>
 
 ## Overview
 
@@ -30,7 +37,7 @@ Fields you can collect:
 
 If the user wants to populate custom fields, fetch the schema first:
 ```
-mcp__carta_crm__get_contact_custom_fields()
+crm_call_tool({ "name": "crm:get_contact_custom_fields", "arguments": {} })
 ```
 
 Never ask for `listId` unless the user brings it up.
@@ -40,15 +47,18 @@ Never ask for `listId` unless the user brings it up.
 Call:
 
 ```
-mcp__carta_crm__create_contact({
-  name: "<contact name>",
-  firstName: "<first>",
-  lastName: "<last>",
-  emailDetail: "<email>",
-  phone: "<phone>",
-  title: "<title>",
-  tags: ["<tag1>"],
-  fields: { "<field_id>": "<value>" }
+crm_call_tool({
+  "name": "crm:create_contact",
+  "arguments": {
+    name: "<contact name>",
+    firstName: "<first>",
+    lastName: "<last>",
+    emailDetail: "<email>",
+    phone: "<phone>",
+    title: "<title>",
+    tags: ["<tag1>"],
+    fields: { "<field_id>": "<value>" }
+  }
 })
 ```
 

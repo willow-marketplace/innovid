@@ -1,6 +1,6 @@
 ---
 name: exploring-apm-traces
-description: ">"
+description: Investigates distributed application performance using PostHog APM (OpenTelemetry span) data via MCP. Use when the user asks about service traces, slow HTTP/database spans, error spans, error-rate trends or spikes, latency distributions, trace IDs, or span attributes — not AI observability traces or product logs. Uses posthog:query-apm-spans, posthog:apm-trace-get, posthog:apm-spans-sparkline, posthog:apm-services-list, posthog:apm-attributes-list, and posthog:apm-attribute-values-list.
 ---
 
 # Exploring APM traces (OpenTelemetry spans)

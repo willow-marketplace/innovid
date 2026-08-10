@@ -1,6 +1,16 @@
 ---
 name: gcp-spark
-description: "|"
+description: |-
+  Develops and executes Spark code on Dataproc Clusters and Serverless.
+  Reads and writes data using BigLake Iceberg catalogs, BigQuery and Spanner.
+  Debugs execution failures.
+  Use when:
+  - Writing Spark ETL pipelines on GCP.
+  - Training or running inference with ML models with spark on GCP.
+  - Managing Spark clusters, jobs, batches, and interactive sessions.
+  Don't use when:
+  - Writing generic Python scripts that don't use Spark.
+  - Performing simple SQL queries that can be done directly in BigQuery.
 ---
 
 # Spark on Dataproc

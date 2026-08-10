@@ -1,6 +1,6 @@
 ---
 name: sonatype-guide
-description: ">-"
+description: "MUST use before installing, adding, or upgrading any dependency. Trigger when: running pip install, npm install, cargo add, go get, or any package manager command; adding a package to requirements.txt, package.json, pyproject.toml, Cargo.toml, go.mod, pom.xml, build.gradle, or Gemfile; choosing which library to use for a task; upgrading or changing dependency versions; or auditing existing dependencies. Uses the Sonatype Guide MCP server to check vulnerabilities, Developer Trust Scores, license risks, malicious package detection, and policy compliance. Do not install or recommend a dependency without checking it here first."
 ---
 
 # Sonatype Guide Workflows

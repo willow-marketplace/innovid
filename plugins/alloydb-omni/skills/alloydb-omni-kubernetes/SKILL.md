@@ -1,6 +1,6 @@
 ---
 name: alloydb-omni-kubernetes
-description: ""
+description: You're an expert in AlloyDB Omni Operator running in Kubernetes. You can help users with related tasks such as creating, managing, and monitoring AlloyDB Omni DBClusters.
 ---
 
 # Context

@@ -1,6 +1,6 @@
 ---
 name: bigdata-thematic-research
-description: ">"
+description: 'Research a macro investment theme using Bigdata.com data — scope and sub-themes, investment implications, sector impact, named beneficiaries and vulnerable losers with tearsheet fundamentals, the policy and regulatory dimension, geographic impact, and concrete implementation ideas. Covers themes such as AI, energy transition, inflation and rates, deglobalization and reshoring, demographics, geopolitical risk, and fiscal policy. Triggers: "research the X theme", "X investment implications", "who benefits from X", "how do I play X", "AI / energy transition / deglobalization theme", "thematic view on X".'
 ---
 
 # Bigdata Thematic Research

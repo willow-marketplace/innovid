@@ -1,6 +1,6 @@
 ---
 name: signal-prospect
-description: ">"
+description: Find companies or contacts triggered by a buying signal, then surface verified phone numbers for the right decision makers. Use when the user says "find companies that just raised funding", "who's surging in sales hiring right now", "show me companies with headcount growth", "find contacts who just got promoted", "who changed jobs recently in [industry]", "show me [title] at companies that just [signal event]", or any request that starts with a real-world trigger rather than a static filter.
 ---
 
 # Signal-Prospect

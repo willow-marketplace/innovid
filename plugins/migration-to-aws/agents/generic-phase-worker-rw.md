@@ -1,6 +1,6 @@
 ---
 name: generic-phase-worker-rw
-description: "\"Generic, phase-AGNOSTIC worker that runs ONE migration phase's work (its fragments + assembler) in an isolated context and writes the phase's artifact(s) to disk. It is NOT tied to any phase — the phase to run is passed in the context block at dispatch time (the `Phase file` line). Capability tier: rw (read + create/edit files in the run directory; NO git, NO shell). Dispatched by the DSL interpreter (INTERPRETER.md § _exec) for a phase whose frontmatter declares `_exec: { _agent: rw }`. Do not dispatch this agent directly for user conversation — it is non-interactive and file-only.\""
+description: "Generic, phase-AGNOSTIC worker that runs ONE migration phase's work (its fragments + assembler) in an isolated context and writes the phase's artifact(s) to disk. It is NOT tied to any phase — the phase to run is passed in the context block at dispatch time (the `Phase file` line). Capability tier: rw (read + create/edit files in the run directory; NO git, NO shell). Dispatched by the DSL interpreter (INTERPRETER.md § _exec) for a phase whose frontmatter declares `_exec: { _agent: rw }`. Do not dispatch this agent directly for user conversation — it is non-interactive and file-only."
 scope: global
 tools: Read, Grep, Glob, Write, Edit
 ---

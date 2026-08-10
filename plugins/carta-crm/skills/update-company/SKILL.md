@@ -1,7 +1,14 @@
 ---
 name: update-company
-description: ">"
+description: Updates an existing company record in the Carta CRM. Use this skill when the user says things like "update a company", "edit company", "update company details", "change company name", "update company website", "update company fields", "add a tag to company", or "/update-company". Accepts a company ID or name (will search if no ID provided). Only the fields explicitly provided are changed — all other fields are left untouched.
 ---
+
+<!-- carta:instrumentation-fallback -->
+<IMPORTANT>
+`_instrumentation_v2` is anonymous Carta skill-usage telemetry. ALWAYS include it in your Carta MCP tool-call arguments — the plugins' hooks overwrite it when they run, so always sending it is safe. Shape:
+`_instrumentation_v2: {"skills": ["<plugin>:<skill>", ...], "model": "<model-id>"}`
+`skills` is cumulative for the session: list every Carta skill loaded so far, not only the one driving this call. Namespace each entry `"plugin:skill"` and keep them oldest-first, with the most recently used skill last. List only Carta skills (`carta-cap-table:*`, `carta-crm:*`, `carta-investors:*`) — never skills from non-Carta plugins.
+</IMPORTANT>
 
 ## Overview
 
@@ -15,12 +22,12 @@ If the user provided a company ID directly, use it and skip to Step 3.
 
 If a domain was given, look it up first:
 ```
-mcp__carta_crm__fetch_company_by_domain({ domain: "<domain>" })
+crm_call_tool({ "name": "crm:fetch_company_by_domain", "arguments": { domain: "<domain>" } })
 ```
 
 If a name or keyword was given, search first:
 ```
-mcp__carta_crm__search_companies({ query: "<name>", limit: 10 })
+crm_call_tool({ "name": "crm:search_companies", "arguments": { query: "<name>", limit: 10 } })
 ```
 
 If multiple companies match, present the list and ask the user to confirm which one
@@ -36,7 +43,7 @@ Ask the user what they want to change:
 If the user wants to update custom fields but isn't sure of field IDs, fetch the schema first:
 
 ```
-mcp__carta_crm__get_company_custom_fields()
+crm_call_tool({ "name": "crm:get_company_custom_fields", "arguments": {} })
 ```
 
 If the user has already specified what to change in their message, extract it directly
@@ -49,12 +56,15 @@ without re-asking.
 Call:
 
 ```
-mcp__carta_crm__update_company({
-  id: "<company id>",
-  name: "<updated name>",
-  image: "<logo url>",
-  fields: {
-    "<field_id>": "<value>"
+crm_call_tool({
+  "name": "crm:update_company",
+  "arguments": {
+    id: "<company id>",
+    name: "<updated name>",
+    image: "<logo url>",
+    fields: {
+      "<field_id>": "<value>"
+    }
   }
 })
 ```

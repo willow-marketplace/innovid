@@ -1,6 +1,6 @@
 ---
 name: bigdata-risk-assessment
-description: ">"
+description: 'Produce a comprehensive risk assessment for a public company using Bigdata.com data (10-K risk factors, 8-K material events, news, tearsheet financials). Covers six categories — regulatory and legal, competitive and moat erosion, operational, financial and balance sheet, macro, and management and governance — each rated by likelihood and impact, with a distress screen when leverage is stretched, mitigation status, a priority matrix, and a scenario bridge to value drivers. Triggers: "risk assessment for X", "assess risks for X", "what are the risks with X", "what could go wrong at X", "risk factors for X", "how risky is X", "downside risks for X".'
 ---
 
 # Bigdata Risk Assessment

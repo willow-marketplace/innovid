@@ -1,6 +1,6 @@
 ---
 name: deploy-check
-description: '"[experimental] Evaluate deployment risk by analyzing code changes against incident history, active incidents, and on-call readiness. Forked-subagent flow may not have MCP access in all Claude Code contexts."'
+description: "[experimental] Evaluate deployment risk by analyzing code changes against incident history, active incidents, and on-call readiness. Forked-subagent flow may not have MCP access in all Claude Code contexts."
 ---
 
 # Pre-Deploy Safety Check (experimental)

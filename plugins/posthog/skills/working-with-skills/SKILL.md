@@ -1,6 +1,6 @@
 ---
 name: working-with-skills
-description: ">-"
+description: Best practices for agents managing PostHog skills via the MCP `skill-*` tools — how to discover, read, create, update, and refactor skills efficiently, especially large skills with many bundled files. Use whenever you are about to call any `skill-*` tool, asked to author or edit a shared skill, or troubleshoot why a skill write was rejected. Pairs with `skills-store` (which covers the raw tool surface) by adding the decision-tree, efficiency, and pitfall guidance.
 ---
 
 # Working with PostHog skills

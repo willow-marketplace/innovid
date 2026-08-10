@@ -10,10 +10,18 @@ description: Call CrowdStrike Falcon platform APIs (detections, alerts, hosts, R
 > If you are loading this skill, your role is **Falcon API integration specialist for Foundry functions**.
 >
 > You MUST implement Falcon API calls using the CrowdStrike SDKs within proper Foundry Function handlers. Authentication is automatic when using the FDK handler pattern.
+>
+> The FalconPy `Detects` class is **removed**. Do not import it. Use `Alerts` for detection queries.
 
 This skill covers calling CrowdStrike Falcon APIs from within Foundry functions (serverless Go or Python code). Authentication is completely automatic when code runs inside Foundry function handlers — the platform handles all OAuth flows, token management, and credential injection.
 
 For exposing external APIs to Foundry via OpenAPI specs, see **api-integrations** instead.
+
+> **🚫 DEPRECATED API — NEVER USE:**
+>
+> **Do NOT import or use the `Detects` class from FalconPy.** The Detects API (`/detects/entities/detects/v2`) is deprecated and returns **405 Method Not Allowed**. Any code using `Detects()`, `query_detects()`, or `get_detect_summaries()` will fail at runtime.
+>
+> **Use instead:** `from falconpy import Alerts` with `query_alerts_v2()` / `get_alerts_v2()`. Filter by `product:'detections'` to scope to detections only.
 
 ## Reference Files
 
@@ -29,7 +37,7 @@ FalconPy Service Classes require zero arguments when called inside Foundry Funct
 from logging import Logger
 from typing import Any, Dict, Union
 from crowdstrike.foundry.function import Function, Request, Response
-from falconpy import Alerts, Hosts, Detects
+from falconpy import Alerts, Hosts
 
 func = Function.instance()
 
@@ -38,7 +46,13 @@ def get_alerts(request: Request, config: Union[Dict[str, Any], None], logger: Lo
     falcon = Alerts()  # Zero-arg constructor — auth is automatic
 
     limit = min(int(request.params.get("limit", 50)), 100)
-    response = falcon.query_alerts_v2(limit=limit)
+    # FQL filter: high-severity alerts from the last 24 hours.
+    # Combine conditions with '+' (AND); relative times like 'now-24h' are supported.
+    response = falcon.query_alerts_v2(
+        filter="severity_name:'High'+created_timestamp:>'now-24h'",
+        limit=limit,
+        sort="created_timestamp|desc",
+    )
 
     if response["status_code"] != 200:
         logger.error(f"Failed to query alerts: {response.get('errors')}")
@@ -111,27 +125,33 @@ func main() {
 
 ## Common API Patterns
 
-### Detection Queries
+### Detection Queries (via Alerts API)
+
+> **⚠️ The legacy Detects API (`/detects/entities/detects/v2`) is deprecated and returns 405 Method Not Allowed.** Use the Alerts API (`/alerts/entities/alerts/v3`) for all detection queries — it covers both detections and cases.
 
 ```python
 @func.handler(method='GET', path='/api/detections')
 def get_detections(request: Request, config, logger) -> Response:
-    falcon = Detects()  # Zero-arg — auth is automatic
+    falcon = Alerts()  # Zero-arg — auth is automatic
 
     severity_min = int(request.params.get("severity_min", 3))
     limit = min(int(request.params.get("limit", 50)), 100)
 
-    query_response = falcon.query_detects(filter=f"max_severity_displayname:>'{severity_min}'",
-                                          limit=limit,
-                                          sort="last_behavior|desc")
+    # Use Alerts v2 methods — these hit /alerts/entities/alerts/v3 under the hood.
+    # FQL filter: severity threshold + product "detections" (excludes cases/incidents).
+    query_response = falcon.query_alerts_v2(
+        filter=f"severity:>='{severity_min}'+product:'detections'",
+        limit=limit,
+        sort="created_timestamp|desc",
+    )
     if query_response["status_code"] != 200:
         return Response(body={"error": "Failed to query detections"}, code=500)
 
-    detection_ids = query_response.get("body", {}).get("resources", [])
-    if not detection_ids:
+    alert_ids = query_response.get("body", {}).get("resources", [])
+    if not alert_ids:
         return Response(body={"detections": []}, code=200)
 
-    details = falcon.get_detect_summaries(ids=detection_ids)
+    details = falcon.get_alerts_v2(ids=alert_ids)
     if details["status_code"] != 200:
         return Response(body={"error": "Failed to get details"}, code=500)
 
@@ -168,7 +188,6 @@ def get_host_details(request: Request, config, logger) -> Response:
 @func.handler(method='POST', path='/api/enrich')
 def enrich_host_context(request: Request, config, logger) -> Response:
     hosts_api = Hosts()
-    detects_api = Detects()
     alerts_api = Alerts()
 
     hostname = request.body.get("hostname")
@@ -183,16 +202,127 @@ def enrich_host_context(request: Request, config, logger) -> Response:
 
     host = hosts_api.get_device_details(ids=host_ids).get("body", {}).get("resources", [{}])[0]
 
-    # Get detections
-    detect_ids = detects_api.query_detects(filter=f"device.hostname:'{hostname}'", limit=10).get("body", {}).get("resources", [])
-    detections = detects_api.get_detect_summaries(ids=detect_ids).get("body", {}).get("resources", []) if detect_ids else []
+    # Get detections (via Alerts API with product filter)
+    detection_ids = alerts_api.query_alerts_v2(filter=f"device.hostname:'{hostname}'+product:'detections'", limit=10).get("body", {}).get("resources", [])
+    detections = alerts_api.get_alerts_v2(ids=detection_ids).get("body", {}).get("resources", []) if detection_ids else []
 
-    # Get alerts
+    # Get all alerts (includes detections + cases)
     alert_ids = alerts_api.query_alerts_v2(filter=f"device.hostname:'{hostname}'", limit=10).get("body", {}).get("resources", [])
     alerts = alerts_api.get_alerts_v2(ids=alert_ids).get("body", {}).get("resources", []) if alert_ids else []
 
     return Response(body={"host": host, "detections": detections, "alerts": alerts}, code=200)
 ```
+
+## LogScale / NG-SIEM Queries from Functions
+
+When you need to **query** LogScale data (e.g., workflow execution stats from the "fusion" repo, detection telemetry, custom ingested events), use the `NGSIEM` class. This is distinct from **ingestion** (covered in functions-development).
+
+> **⚠️ Class Disambiguation:**
+> - `NGSIEM` — Use for **querying** (async search jobs) and file uploads (lookup files, CSV imports). This is the query interface.
+> - `FoundryLogScale` — Use only for **ingestion** (`ingest_data`). Despite the name suggesting broad LogScale functionality, it does NOT have the search methods.
+
+### Query Pattern (Python)
+
+```python
+import time
+from logging import Logger
+from typing import Any, Dict, Union
+from crowdstrike.foundry.function import Function, Request, Response
+from falconpy import NGSIEM
+
+func = Function.instance()
+
+# Always "search-all" — see the gotcha below. Scope to a repo in the query, not here.
+REPO = "search-all"
+
+
+def run_logscale_query(ngsiem, query_string, start, end, logger, max_wait=40):
+    """Execute a CQL query as an async search job and return result rows.
+
+    ``start`` / ``end`` accept Humio relative strings ("24h", "7d", "30d",
+    "now") or epoch-millisecond integers.
+    """
+    payload = {"queryString": query_string, "start": start, "end": end, "isLive": False}
+    # Must be search=, not body= — see the keyword gotcha below.
+    started = ngsiem.start_search(repository=REPO, search=payload)
+
+    if not isinstance(started, dict) or started.get("status_code", 500) >= 300:
+        logger.error(f"start_search failed: {started}")
+        return None
+
+    # start_search returns "resources"; get_search_status returns "body".
+    job_id = (started.get("resources") or {}).get("id")
+    if not job_id:
+        logger.error(f"start_search returned no job id: {started}")
+        return None
+
+    # Poll until done
+    waited = 0.0
+    poll_interval = 1.5
+    while waited < max_wait:
+        time.sleep(poll_interval)
+        waited += poll_interval
+        status = ngsiem.get_search_status(repository=REPO, id=job_id)
+        if not isinstance(status, dict) or status.get("status_code", 500) >= 300:
+            logger.error(f"get_search_status failed: {status}")
+            return None
+        sbody = status.get("body") or {}
+        if sbody.get("done"):
+            return sbody.get("events", []) or []
+
+    logger.warning(f"query timed out after {max_wait}s: {query_string}")
+    return None
+
+
+@func.handler(method='POST', path='/api/query')
+def handle_query(request: Request, config: Union[Dict[str, Any], None], logger: Logger) -> Response:
+    ngsiem = NGSIEM()  # Zero-arg auth — automatic in Foundry
+
+    query = request.body.get("query", "")
+    start = request.body.get("start", "24h")
+    end = request.body.get("end", "now")
+
+    events = run_logscale_query(ngsiem, query, start, end, logger)
+    if events is None:
+        return Response(body={"error": "LogScale query failed"}, code=500)
+
+    return Response(body={"results": events, "count": len(events)}, code=200)
+
+if __name__ == '__main__':
+    func.run()
+```
+
+### The `search=` Keyword Gotcha
+
+**CRITICAL:** Pass the query payload as `search=`, not `body=`. FalconPy's guard reads only `kwargs.get("search")`, so `body=` returns a local error without issuing a request. The docstring lists `body` as accepted, but the guard ignores it ([falconpy#1491](https://github.com/CrowdStrike/falconpy/issues/1491)).
+
+Response keys are asymmetric: `start_search` renames its payload to `resources` (read `started["resources"]["id"]`), while `get_search_status` does not (read `status["body"]`).
+
+### The "search-all" Repository Gotcha
+
+**CRITICAL:** Always pass `repository="search-all"` when querying from Foundry functions. Passing a specific repository name (e.g., `"fusion"`, `"main"`) causes **403 Forbidden** errors at runtime (`"scope not permitted"`), even if the repository exists and the app has `humio-auth-proxy` scopes granted.
+
+The NG-SIEM queryjobs API is addressed by **searchable view**, not by raw repo name. Use `search-all` as the repository and add `#repo=fusion` (or whichever repo you need) as a filter prefix in your query string:
+
+```python
+# Filter to a specific repo within the query itself
+query = "#repo=fusion | execution_log_type=summary | execution_log_subtype=end | groupby([status], function=count(execution_id, distinct=true))"
+events = run_logscale_query(ngsiem, query, "24h", "now", logger)
+```
+
+### Required OAuth Scopes
+
+```yaml
+# manifest.yml
+auth:
+    scopes:
+        - humio-auth-proxy:read     # Required for queries
+        - humio-auth-proxy:write    # Required only if also uploading lookup files
+```
+
+### Reference
+
+- [Exporting Falcon Next-Gen SIEM Query Results to CSV with Falcon Foundry](https://www.crowdstrike.com/tech-hub/ng-siem/exporting-falcon-next-gen-siem-query-results-to-csv-with-falcon-foundry/) — background on async LogScale querying from Foundry, plus CSV export. Note that this post reaches for `FoundryLogScale` with `mode="async"`; the `NGSIEM` pattern above is what has been verified end-to-end against the queryjobs API in a deployed app. Use the pattern above, and treat the post as context for the surrounding workflow (time ranges, result handling, export).
 
 ## The 207 Multi-Status Gotcha
 
@@ -207,17 +337,6 @@ if response["status_code"] == 207:
     if rate_limited:
         return Response(body={"error": "Rate limited", "failed_ids": [e.get("id") for e in rate_limited]}, code=429)
 ```
-
-## Multi-Region Support
-
-The SDKs handle region discovery automatically when called from within Foundry Function handlers. No configuration needed.
-
-| Region | Base URL |
-|--------|----------|
-| US-1 | api.crowdstrike.com |
-| US-2 | api.us-2.crowdstrike.com |
-| EU-1 | api.eu-1.crowdstrike.com |
-| US-GOV-1 | api.laggar.gcw.crowdstrike.com |
 
 ## Testing
 
@@ -253,8 +372,6 @@ cd functions/my-function && python3 main.py
 curl -X GET http://localhost:8081/api/alerts?limit=10
 ```
 
-The zero-arg pattern works seamlessly in both local and cloud environments.
-
 ## OAuth Scopes for manifest.yml
 
 Every FalconPy service class call requires the correct OAuth scope(s) declared in your manifest's `auth.scopes` array. Without the right scopes, the function gets a 403 at runtime. `foundry apps validate` does NOT catch missing scopes — it only fails at runtime.
@@ -274,6 +391,7 @@ Each row maps a FalconPy method actually called in a sample function to the scop
 | `IdentityProtection` | `graphql`, `query_sensors`, `get_sensor_details` | `identity-graphql:write`, `identity-entities:read` | foundry-sample-idp-notifications |
 | `IdentityProtection` | `query_policy_rules`, `get_policy_rules`, `delete_policy_rules` | `identity-policy-rules:read`, `identity-policy-rules:write` | foundry-sample-servicenow-idp |
 | `NGSIEM` | `upload_file` | `humio-auth-proxy:write` | foundry-sample-ngsiem-importer |
+| `NGSIEM` | `start_search`, `get_search_status` | `humio-auth-proxy:read` | Verified against a live CID (200 + results); see LogScale Queries section |
 | `FoundryLogScale` | `ingest_data` | `app-logs:read`, `app-logs:write` | foundry-sample-logscale |
 | `FirewallManagement` | `create_rule_group`, `query_events`, `get_events` | `firewall-management:read`, `firewall-management:write` | foundry-sample-category-blocking |
 | `HostGroup` | `query_host_groups`, `get_host_groups` | `host-group:read`, `host-group:write` | foundry-sample-category-blocking |
@@ -315,7 +433,7 @@ Use `max_severity_displayname` for FQL filters (string comparison) or `max_sever
 
 ## Common Pitfalls
 
-- **Writing OAuth code or credential management.** Auth is completely automatic for FalconPy inside FDK handlers. NEVER use `os.environ.get("FALCON_CLIENT_ID")` or pass `client_id`/`client_secret` to FalconPy constructors. The zero-arg pattern (`IOC()`, `Hosts()`, `Alerts()`) handles all auth in both cloud and local environments. (Go requires explicit credential wiring via `fdk.FalconClientOpts()` -- see the Go section above.)
+- **Writing OAuth code or credential management.** Auth is automatic inside FDK handlers. The zero-arg pattern (`Hosts()`, `Alerts()`) handles all auth. (Go requires `fdk.FalconClientOpts()` -- see above.)
 - **Using `requests` library instead of CrowdStrike SDKs.** SDKs handle auth, retries, pagination, and region discovery.
 - **Passing credentials explicitly to constructors.** Use zero-arg constructors (`Alerts()`, `Hosts()`). Do NOT write `IOC(client_id=os.environ["FALCON_CLIENT_ID"], client_secret=...)` -- this breaks context-based auth in the Foundry cloud.
 - **Writing Falcon API calls outside of FDK handler functions.** The handler pattern is required for automatic auth injection.

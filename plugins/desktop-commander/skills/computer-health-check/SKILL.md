@@ -1,6 +1,6 @@
 ---
 name: computer-health-check
-description: ">-"
+description: "Run a comprehensive, read-only health check on the user's computer and return a scored chat summary with prioritized, plain-English recommendations and safe cleanup suggestions. Use this whenever the user wants to check their computer's health, speed it up, free up / reclaim disk space, find what's eating CPU / memory / storage, check battery health and wear, audit login & startup items, see pending updates, or asks for a \"tune-up\", \"checkup\", \"system report\", \"health check\", or \"is my Mac/PC/laptop healthy\". Trigger even on casual phrasing like \"my laptop feels slow\", \"why is my fan so loud\", \"my computer is laggy\", \"running out of space\", or \"clean up my machine\". Works on macOS, Windows, and Linux. This is a Desktop Commander skill: it relies on a real local shell (start_process / interact_with_process) and is strictly read-only by default — it never needs sudo and only performs cleanups the user explicitly approves."
 ---
 
 # Computer Health Check
@@ -45,9 +45,9 @@ Determine the platform before doing anything else, because the commands differ.
 
 Then open the matching reference file and use its command set:
 
-- macOS → `references/macos.md`
-- Windows → `references/windows.md`
-- Linux → `references/linux.md`
+- macOS → [`references/macos.md`](references/macos.md)
+- Windows → [`references/windows.md`](references/windows.md)
+- Linux → [`references/linux.md`](references/linux.md)
 
 Read **only** the one that matches. Each file contains a single batched collection script
 plus interpretation notes and cleanup commands.

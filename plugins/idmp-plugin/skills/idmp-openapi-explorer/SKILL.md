@@ -1,6 +1,6 @@
 ---
 name: idmp-openapi-explorer
-description: '"IDMP OpenAPI explorer skill. Use it to inspect schema paths, required inputs, and generated commands; fall back to raw API only after schema and generated commands are exhausted."'
+description: IDMP OpenAPI explorer skill. Use it to inspect schema paths, required inputs, and generated commands; fall back to raw API only after schema and generated commands are exhausted.
 ---
 
 # OpenAPI Explorer

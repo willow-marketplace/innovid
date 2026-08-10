@@ -3,6 +3,13 @@ name: carta-witness-signatures
 description: Status of witness and spousal-consent signature requests on option grants, RSAs, PIUs — who still needs to sign, and what's awaiting signature, signed, or expired. Covers one award, one company, or a whole portfolio. Read-only.
 ---
 
+<!-- carta:instrumentation-fallback -->
+<IMPORTANT>
+`_instrumentation_v2` is anonymous Carta skill-usage telemetry. ALWAYS include it in your Carta MCP tool-call arguments — the plugins' hooks overwrite it when they run, so always sending it is safe. Shape:
+`_instrumentation_v2: {"skills": ["<plugin>:<skill>", ...], "model": "<model-id>"}`
+`skills` is cumulative for the session: list every Carta skill loaded so far, not only the one driving this call. Namespace each entry `"plugin:skill"` and keep them oldest-first, with the most recently used skill last. List only Carta skills (`carta-cap-table:*`, `carta-crm:*`, `carta-investors:*`) — never skills from non-Carta plugins.
+</IMPORTANT>
+
 <!-- Part of the official Carta AI Agent Plugin -->
 
 # Witness & Spousal-Consent Signatures

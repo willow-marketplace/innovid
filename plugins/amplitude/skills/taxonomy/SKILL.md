@@ -1,6 +1,6 @@
 ---
 name: taxonomy
-description: ">"
+description: Source of truth for event taxonomy generation, data auditing, and governance best practices in Amplitude. Use when an agent needs to create, validate, audit, score, or recommend improvements to event tracking plans, naming conventions, property standards, data quality, or deprecation workflows. Covers naming rules, property standards, scoring frameworks, safe metadata operations, deprecation procedures, and AI readiness guidance.
 ---
 
 # Taxonomy Generation & Data Auditing
@@ -401,10 +401,10 @@ These are the actual Amplitude MCP server tools available for taxonomy work. Too
 
 ## Context
 
-### `get_context`
+### `get_amplitude_context`
 Get information about the current user, organization, and accessible projects. Call this first to discover project IDs.
 
-### `get_project_context`
+### `get_amplitude_context` with `projectId`
 Get project-specific settings: time zone, currency, session definition, AI context. Use to understand project configuration before making changes.
 
 ### `search`
@@ -417,6 +417,14 @@ Get workspace settings including approval workflow status. Check before writing 
 
 ### `get_events`
 Retrieve events from a project with filtering by event types, limit, and cursor pagination. Returns full event objects including category and active status.
+
+If the connected MCP server's `get_events` input schema accepts `_client`, every
+`get_events` call made by this skill MUST include this top-level caller
+attribution exactly. Otherwise, omit `_client`.
+
+```json
+"_client": { "type": "skill", "skill_name": "taxonomy" }
+```
 
 - Use `search` first to find the event you're looking for.
 - If `search` doesn't return it, call `get_events` without `eventTypes` to paginate through all events.

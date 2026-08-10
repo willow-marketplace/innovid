@@ -1,6 +1,6 @@
 ---
 name: analytics
-description: '"Instant sales analytics. Ask any performance question — emails, calls, meetings, tasks, opportunities, sequences, conversation intelligence — and get formatted tables with real Apollo data."'
+description: Instant sales analytics. Ask any performance question — emails, calls, meetings, tasks, opportunities, sequences, conversation intelligence — and get formatted tables with real Apollo data.
 ---
 
 # Analytics

@@ -1,6 +1,6 @@
 ---
 name: dbt-bigquery
-description: Expert guidance for creating, modifying, and optimizing dbt pipelines
+description: Expert guidance for creating, modifying, and optimizing dbt pipelines for BigQuery. Use this skill whenever user asks for generating or modifying a dbt model or project. Activate this skill when the user - Creates, modifies, or troubleshoots **dbt models or pipelines** - Needs to **optimize SQL** within a dbt project - Is **setting up a new dbt project** or configuring existing one
 ---
 
 # dbt Expert Skill for BigQuery
@@ -74,8 +74,7 @@ Follow these steps when fulfilling dbt-related requests:
     -   If cleaning is not applied, provide **strong evidence** in the response.
     -   Include an **"Automatic Cleaning Summary"** section in every response.
 -   **SQL Optimizations:**
-    -   Follow the optimization protocol in **@skill:bigquery**
-        strictly.
+    -   Follow the optimization protocol in **@skill:bigquery-sql** strictly.
     -   Include an **"Optimization Summary"** section when applied.
 
 ### 4. Implement Changes

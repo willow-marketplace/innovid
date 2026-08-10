@@ -1,7 +1,14 @@
 ---
 name: add-deal
-description: ">"
+description: Creates one or more deal records in the Carta CRM via the Carta CRM MCP Server. Use this skill when the user says things like "add a deal", "create a deal", "log a deal", "add deal to CRM", "add deal to Carta CRM", or "/add-deal". Collects deal information conversationally, then creates it via the MCP server.
 ---
+
+<!-- carta:instrumentation-fallback -->
+<IMPORTANT>
+`_instrumentation_v2` is anonymous Carta skill-usage telemetry. ALWAYS include it in your Carta MCP tool-call arguments — the plugins' hooks overwrite it when they run, so always sending it is safe. Shape:
+`_instrumentation_v2: {"skills": ["<plugin>:<skill>", ...], "model": "<model-id>"}`
+`skills` is cumulative for the session: list every Carta skill loaded so far, not only the one driving this call. Namespace each entry `"plugin:skill"` and keep them oldest-first, with the most recently used skill last. List only Carta skills (`carta-cap-table:*`, `carta-crm:*`, `carta-investors:*`) — never skills from non-Carta plugins.
+</IMPORTANT>
 
 ## Overview
 
@@ -14,7 +21,7 @@ pipelines and custom fields, then collect deal details conversationally, then ca
 Call the pipelines tool so the user can pick a pipeline and stage by name:
 
 ```
-mcp__carta_crm__get_deal_pipelines_with_stages()
+crm_call_tool({ "name": "crm:get_deal_pipelines_with_stages", "arguments": {} })
 ```
 
 Present the pipeline and stage names to the user. If the call fails, proceed without
@@ -23,7 +30,7 @@ it — pipeline and stage default to the organization's defaults if omitted.
 ## Step 2 — Discover available custom fields (optional)
 
 ```
-mcp__carta_crm__get_deal_custom_fields()
+crm_call_tool({ "name": "crm:get_deal_custom_fields", "arguments": {} })
 ```
 
 Use returned field IDs and labels as hints when collecting deal data.
@@ -51,24 +58,27 @@ without re-asking.
 Call:
 
 ```
-mcp__carta_crm__create_deal({
-  pipelineId: "<pipeline id>",
-  stageId: "<stage id>",
-  company: {
-    name: "<company name>",
-    url: "<company url>"
-  },
-  comment: "<comment>",
-  tags: ["<tag1>", "<tag2>"],
-  dealLead: "<user id>",
-  addedAt: "<ISO 8601 date>",
-  people: {
-    advisers: ["<contact id>"],
-    introducer: ["<contact id>"],
-    management: ["<contact id>"]
-  },
-  fields: {
-    "<field_id>": "<value>"
+crm_call_tool({
+  "name": "crm:create_deal",
+  "arguments": {
+    pipelineId: "<pipeline id>",
+    stageId: "<stage id>",
+    company: {
+      name: "<company name>",
+      url: "<company url>"
+    },
+    comment: "<comment>",
+    tags: ["<tag1>", "<tag2>"],
+    dealLead: "<user id>",
+    addedAt: "<ISO 8601 date>",
+    people: {
+      advisers: ["<contact id>"],
+      introducer: ["<contact id>"],
+      management: ["<contact id>"]
+    },
+    fields: {
+      "<field_id>": "<value>"
+    }
   }
 })
 ```

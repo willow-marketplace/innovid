@@ -1,7 +1,14 @@
 ---
 name: search-fundraisings
-description: ">"
+description: Searches for and retrieves fundraising records from the Carta CRM. Use this skill when the user says things like "find a fundraising", "search fundraisings", "look up a fundraising round", "show fundraising details for [name]", "get fundraising by ID", "list fundraisings", "what fundraisings do we have", or "/search-fundraisings". Returns fundraising details including ID, name, stage, and custom fields. The fundraising ID returned can be used with the update-fundraising skill.
 ---
+
+<!-- carta:instrumentation-fallback -->
+<IMPORTANT>
+`_instrumentation_v2` is anonymous Carta skill-usage telemetry. ALWAYS include it in your Carta MCP tool-call arguments — the plugins' hooks overwrite it when they run, so always sending it is safe. Shape:
+`_instrumentation_v2: {"skills": ["<plugin>:<skill>", ...], "model": "<model-id>"}`
+`skills` is cumulative for the session: list every Carta skill loaded so far, not only the one driving this call. Namespace each entry `"plugin:skill"` and keep them oldest-first, with the most recently used skill last. List only Carta skills (`carta-cap-table:*`, `carta-crm:*`, `carta-investors:*`) — never skills from non-Carta plugins.
+</IMPORTANT>
 
 ## Overview
 
@@ -20,19 +27,26 @@ If it's unclear, default to search and ask for a search term.
 
 **By ID:**
 ```
-mcp__carta_crm__get_fundraising({ id: "<fundraising id>" })
+crm_call_tool({ "name": "crm:get_fundraising", "arguments": { id: "<fundraising id>" } })
 ```
 
 **By name / keyword:**
 ```
-mcp__carta_crm__search_fundraising({
-  query: "<search term>",
-  limit: 20
+crm_call_tool({
+  "name": "crm:search_fundraising",
+  "arguments": {
+    query: "<search term>",
+    limit: 20
+  }
 })
 ```
 
 If the user filtered by stage name, call `get_fundraising_stages` first to resolve
-the name to a stage ID, then pass `stages: ["<stage id>"]`.
+the name to a stage ID, then pass `stages: ["<stage id>"]`:
+
+```
+crm_call_tool({ "name": "crm:get_fundraising_stages", "arguments": {} })
+```
 
 Increase `limit` if the user asks to see more results. Use `offset` to paginate.
 

@@ -248,7 +248,7 @@ sentry span list my-org/my-project/abc123def456...
 
 #### Dataset names for the Events API
 
-When querying the Events API (directly or via `sentry api`), valid dataset values are: `spans`, `transactions`, `logs`, `errors`, `discover`.
+When querying the Events API (directly or via `sentry api`), valid dataset values are: `spans`, `logs`, `errors`, `tracemetrics`, `profile_functions`, and `uptime_results`.
 
 ### Common Mistakes
 
@@ -280,8 +280,8 @@ npm install -g sentry
 ### Authentication
 
 ```bash
-sentry auth login
-sentry auth login --token YOUR_SENTRY_API_TOKEN
+sentry auth
+sentry auth --token YOUR_SENTRY_API_TOKEN
 sentry auth status
 sentry auth logout
 ```
@@ -294,7 +294,7 @@ Authenticate with Sentry
 
 - `sentry auth login` — Authenticate with Sentry
 - `sentry auth logout` — Log out of Sentry
-- `sentry auth refresh` — Refresh your authentication token
+- `sentry auth refresh` — Refresh your OAuth access token
 - `sentry auth status` — View authentication status
 - `sentry auth token` — Print the stored authentication token
 - `sentry auth whoami` — Show the currently authenticated identity
@@ -314,7 +314,7 @@ Work with Sentry organizations
 
 Work with Sentry projects
 
-- `sentry project create <name> <platform>` — Create a new project
+- `sentry project create [<org>/]<name>:<platform>...` — Create one or more projects
 - `sentry project delete <org/project>` — Delete a project
 - `sentry project list <org/project>` — List projects
 - `sentry project view <org/project>` — View details of a project
@@ -372,6 +372,15 @@ Manage Sentry alert rules
 
 → Full flags and examples: `references/alert.md`
 
+### Build
+
+Manage mobile build artifacts
+
+- `sentry build upload <path...>` — Upload builds to a project
+- `sentry build download <build-id>` — Download a build artifact
+
+→ Full flags and examples: `references/build.md`
+
 ### CLI
 
 CLI-related commands
@@ -394,6 +403,15 @@ Manage code mappings for stack trace linking
 
 → Full flags and examples: `references/code-mappings.md`
 
+### Conversation
+
+List and view AI conversations
+
+- `sentry conversation list <org>` — List recent AI conversations
+- `sentry conversation view <org/conversation-id>` — View an AI conversation transcript
+
+→ Full flags and examples: `references/conversation.md`
+
 ### Dart-symbol-map
 
 Work with Dart/Flutter symbol maps
@@ -407,6 +425,10 @@ Work with Dart/Flutter symbol maps
 Work with debug information files
 
 - `sentry debug-files check <path>` — Inspect a debug information file
+- `sentry debug-files find <id...>` — Locate debug files for given debug identifiers
+- `sentry debug-files upload <path...>` — Upload debug information files to Sentry
+- `sentry debug-files print-sources <path>` — List the source files a debug file references
+- `sentry debug-files bundle-sources <path>` — Bundle a debug file's source files for source context
 - `sentry debug-files bundle-jvm <path>` — Create a JVM source bundle for source context
 
 → Full flags and examples: `references/debug-files.md`
@@ -426,6 +448,14 @@ Manage Sentry dashboards
 
 → Full flags and examples: `references/dashboard.md`
 
+### Platform
+
+List valid Sentry platform identifiers
+
+- `sentry platform list` — List all valid Sentry platform identifiers
+
+→ Full flags and examples: `references/platform.md`
+
 ### Proguard
 
 Work with ProGuard/R8 mapping files
@@ -434,6 +464,15 @@ Work with ProGuard/R8 mapping files
 - `sentry proguard uuid <path>` — Compute the UUID for a ProGuard mapping file
 
 → Full flags and examples: `references/proguard.md`
+
+### React-native
+
+Upload React Native sourcemaps from build steps
+
+- `sentry react-native gradle` — Upload a React Native bundle + sourcemap (Gradle build step)
+- `sentry react-native xcode <script-arg...>` — Upload React Native sourcemaps (Xcode build step)
+
+→ Full flags and examples: `references/react-native.md`
 
 ### Replay
 
@@ -486,6 +525,15 @@ Query aggregate event data (Explore)
 
 → Full flags and examples: `references/explore.md`
 
+### Feedback
+
+Search and inspect User Feedback
+
+- `sentry feedback list <org/project>` — List and search User Feedback
+- `sentry feedback view <feedback>` — View a User Feedback item
+
+→ Full flags and examples: `references/feedback.md`
+
 ### Log
 
 View Sentry logs
@@ -503,6 +551,16 @@ Work with Sentry cron monitors
 - `sentry monitor list <org/project>` — List cron monitors
 
 → Full flags and examples: `references/monitor.md`
+
+### Snapshots
+
+Manage and compare snapshots
+
+- `sentry snapshots diff <base-dir> <head-dir>` — Compare two directories of snapshot images
+- `sentry snapshots download` — Download baseline snapshot images
+- `sentry snapshots upload <path>` — Upload snapshots to a project
+
+→ Full flags and examples: `references/snapshots.md`
 
 ### Sourcemap
 
@@ -549,6 +607,14 @@ Initialize Sentry in your project (experimental)
 - `sentry init <target> <directory>` — Initialize Sentry in your project (experimental)
 
 → Full flags and examples: `references/init.md`
+
+### Info
+
+Print configuration and verify authentication
+
+- `sentry info` — Print configuration and verify authentication
+
+→ Full flags and examples: `references/info.md`
 
 ### Local
 

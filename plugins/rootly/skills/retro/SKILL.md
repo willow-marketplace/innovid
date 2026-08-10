@@ -1,6 +1,6 @@
 ---
 name: retro
-description: '"[experimental] Generate a structured post-incident retrospective from incident data. Forked-subagent flow may not have MCP access in all Claude Code contexts."'
+description: "[experimental] Generate a structured post-incident retrospective from incident data. Forked-subagent flow may not have MCP access in all Claude Code contexts."
 ---
 
 # Retrospective Generator (experimental)

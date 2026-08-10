@@ -1,6 +1,6 @@
 ---
 name: testing-mcp-tools-locally
-description: ">"
+description: "Set up the local dev environment, seed data, and API keys to test the staff-only managed migrations MCP tools (managed-migrations-support-list, managed-migrations-support-get) end to end. Use when testing batch import support tooling, debugging MCP tool responses or discovery (tools not appearing), or verifying the support API before deploying. Covers the discovery gate: hidden scope, is_staff, user:read, and why wildcard keys and OAuth never work."
 ---
 
 # Testing managed migrations MCP tools locally

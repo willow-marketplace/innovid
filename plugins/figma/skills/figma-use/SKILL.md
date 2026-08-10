@@ -1,6 +1,6 @@
 ---
 name: figma-use
-description: '"**MANDATORY prerequisite** — you MUST invoke this skill BEFORE every `use_figma` tool call. NEVER call `use_figma` directly without loading this skill first. Skipping it causes common, hard-to-debug failures. Trigger whenever the user wants to perform a write action or a unique read action that requires JavaScript execution in the Figma file context — e.g. create/edit/delete nodes, set up variables or tokens, build components and variants, modify auto-layout or fills, bind variables to properties, or inspect file structure programmatically."'
+description: "**MANDATORY prerequisite** — you MUST invoke this skill BEFORE every `use_figma` tool call. NEVER call `use_figma` directly without loading this skill first. Skipping it causes common, hard-to-debug failures. Trigger whenever the user wants to perform a write action or a unique read action that requires JavaScript execution in the Figma file context — e.g. create/edit/delete nodes, set up variables or tokens, build components and variants, modify auto-layout or fills, bind variables to properties, or inspect file structure programmatically."
 ---
 
 # use_figma — Figma Plugin API Skill
@@ -24,7 +24,7 @@ IMPORTANT: Whenever you work with design systems, start with [working-with-desig
 1.  **Use `return` to send data back.** The return value is JSON-serialized automatically (objects, arrays, strings, numbers). Do NOT call `figma.closePlugin()` or wrap code in an async IIFE — this is handled for you.
 2.  **Write plain JavaScript with top-level `await` and `return`.** Code is automatically wrapped in an async context. Do NOT wrap in `(async () => { ... })()`.
 3.  `figma.notify()` **throws "not implemented"** — never use it
-3a. `getPluginData()` / `setPluginData()` are **not supported** in `use_figma` — do not use them. Use `getSharedPluginData()` / `setSharedPluginData()` instead (these ARE supported), or track node IDs by returning them and passing them to subsequent calls.
+3a. **Return node IDs and keep workflow state outside the Figma file.** Put human-readable component purpose and usage in the component's `description`.
 4.  `console.log()` is NOT returned — use `return` for output
 5.  **Work incrementally in small steps.** Break large operations into multiple `use_figma` calls. Validate after each step. This is the single most important practice for avoiding bugs.
 6.  Colors are **0–1 range** (not 0–255): `{r: 1, g: 0, b: 0}` = red
@@ -392,10 +392,6 @@ return figma.root.children.map(p => ({ id: p.id, name: p.name }));
 
 Step 2: in the **next assistant turn, emit one `use_figma` per page in parallel** (a single message containing N tool-use blocks). Each runs:
 ```js
-// Read-only inspection — skip invisible instance interiors for the
-// hundreds-of-times-faster findAllWithCriteria.
-figma.skipInvisibleInstanceChildren = true;
-
 const page = await figma.getNodeByIdAsync(PAGE_ID);
 await figma.setCurrentPageAsync(page);
 // findAllWithCriteria uses an indexed type lookup — hundreds of times faster

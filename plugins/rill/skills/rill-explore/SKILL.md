@@ -28,10 +28,11 @@ Explore dashboards require minimal configuration. In most cases, you only need t
 
 ## Inline explores in metrics views
 
-Metrics views create an explore resource by default with the same name as the metrics view. For legacy reasons, this does not happen for metrics views containing `version: 1`. You can customize a metrics view's explore with the `explore:` property inside the metrics view file:
+The preferred way to create an explore is inline in the metrics view file: set `version: 1` and add an `explore:` block, which emits an explore resource with the same name as the metrics view (or `name:` if set):
 
 ```yaml
 # metrics/sales.yaml
+version: 1
 type: metrics_view
 display_name: Sales Analytics
 
@@ -46,8 +47,11 @@ measures:
   - name: total_revenue
     expression: SUM(revenue)
 
-# Inline explore configuration (optional)
+# Inline explore configuration
 explore:
+  display_name: Sales Dashboard
+  dimensions: '*'  # Optional: dimensions to expose ('*', a list, or {exclude: [...]}); defaults to all
+  measures: '*'    # Optional: measures to expose ('*', a list, or {exclude: [...]}); defaults to all
   time_ranges:
     - P7D
     - P30D
@@ -56,7 +60,9 @@ explore:
     time_range: P30D
 ```
 
-Use inline explores for simple cases where you want to keep the metrics view and its dashboard configuration together. Use separate explore files when you need multiple explores for the same metrics view or more complex configurations.
+For legacy reasons, metrics views without `version:` auto-emit an explore even without an `explore:` block; metrics views with `version: 1` only emit one when the block is present.
+
+Use inline explores to keep the metrics view and its dashboard configuration together. Use separate explore files when you need multiple explores for the same metrics view.
 
 ## Example with annotations
 
@@ -139,7 +145,7 @@ allOf:
         defaults:
             additionalProperties: false
             description: |
-                defines the defaults YAML struct
+                Defines the defaults YAML struct.
                   ```yaml
                   defaults: #define all the defaults within here
                     dimensions:
@@ -154,7 +160,7 @@ allOf:
                   ```
             properties:
                 comparison_dimension:
-                    description: for dimension mode, specify the comparison dimension by name
+                    description: For dimension mode, specify the comparison dimension by name.
                     type: string
                 comparison_mode:
                     description: 'Controls how to compare current data with historical or categorical baselines. Options: `none` (no comparison), `time` (compares with past based on default_time_range), `dimension` (compares based on comparison_dimension values)'
@@ -170,7 +176,7 @@ allOf:
                     $ref: '#/definitions/field_selector_properties'
                     description: Provides the default measures to load on viewing the dashboard
                 time_range:
-                    description: Refers to the default time range shown when a user initially loads the dashboard. The value must be either a valid [ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations) (for example, PT12H for 12 hours, P1M for 1 month, or P26W for 26 weeks) or one of the [Rill ISO 8601 extensions](https://docs.rilldata.com/reference/rill-iso-extensions#extensions)
+                    description: Refers to the default time range shown when a user initially loads the dashboard. The value must be either an [ISO 8601 duration](https://en.wikipedia.org/wiki/ISO_8601#Durations) (for example, PT12H for 12 hours, P1M for 1 month, or P26W for 26 weeks) or one of the [Rill ISO 8601 extensions](https://docs.rilldata.com/reference/rill-iso-extensions#extensions).
                     type: string
             type: object
         description:
@@ -227,7 +233,7 @@ allOf:
                   description: Inline theme configuration.
         time_ranges:
             description: |
-                Overrides the list of default time range selections available in the dropdown. It can be string or an object with a 'range' and optional 'comparison_offsets'
+                Overrides the list of default time range selections available in the dropdown. It can be a string or an object with a 'range' and optional 'comparison_offsets'.
                   ```yaml
                   time_ranges:
                     - PT15M // Simplified syntax to specify only the range

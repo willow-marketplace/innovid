@@ -1,6 +1,6 @@
 ---
 name: rover
-description: ">"
+description: "Guide for using Apollo Rover CLI to manage GraphQL schemas and federation. Use this skill when: (1) publishing or fetching subgraph/graph schemas, (2) composing supergraph schemas locally or via GraphOS, (3) running local supergraph development with rover dev, (4) validating schemas with check and lint commands, (5) configuring Rover authentication and environment, (6) exploring or searching a graph's schema for agent-driven discovery (rover schema describe / rover schema search)."
 ---
 
 # Apollo Rover CLI Guide
@@ -148,6 +148,12 @@ subgraphs:
     schema:
       subgraph_url: http://localhost:4002/graphql
 ```
+
+`federation_version` here is the **composition version** — it only needs to be ≥
+each subgraph's `@link` floor, so subgraphs pinned to a lower version compose
+fine. If a subgraph server throws `UNKNOWN_FEDERATION_LINK_VERSION` at startup,
+that's a client-library lag, not a composition problem. See the apollo-federation
+skill's [Federation versions](../apollo-federation/references/composition.md#federation-versions-floor-vs-composition).
 
 Compose:
 ```bash

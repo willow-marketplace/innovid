@@ -1,6 +1,6 @@
 ---
 name: domains
-description: "\"Wire a domain the user ALREADY OWNS (GoDaddy/Namecheap/Cloudflare/…) to their Convex app: exact DNS records, custom-domain attachment, auth-origin rebind. TRIGGER when the user owns a domain and wants it pointing at their app ('point my domain at this', 'use my own domain', 'set up example.com'). Never asks for registrar credentials.\""
+description: "Wire a domain the user ALREADY OWNS (GoDaddy/Namecheap/Cloudflare/…) to their Convex app: exact DNS records, custom-domain attachment, auth-origin rebind. TRIGGER when the user owns a domain and wants it pointing at their app ('point my domain at this', 'use my own domain', 'set up example.com'). Never asks for registrar credentials."
 ---
 
 # Custom domain with your own provider (/domains)

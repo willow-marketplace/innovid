@@ -1,6 +1,6 @@
 ---
 name: stripe-docs
-description: ">-"
+description: Use when the user or agent needs to read, search, or look up Stripe documentation or API reference. Prefer this over curl or WebFetch for any docs.stripe.com content.
 ---
 
 Use `stripe docs` instead of fetching [docs.stripe.com](https://docs.stripe.com/.md) content directly with `curl` or `WebFetch`.

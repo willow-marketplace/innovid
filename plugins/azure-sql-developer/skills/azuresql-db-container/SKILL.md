@@ -1,6 +1,6 @@
 ---
 name: azuresql-db-container
-description: ">-"
+description: "Runs Azure SQL Developer (the Azure SQL Database engine) locally in a container (Private Preview): the real PaaS engine where SERVERPROPERTY('EngineEdition') returns 5 and Edition is 'SQL Azure'. This is NOT the SQL Server image mcr.microsoft.com/mssql/server. Use when a user wants to \"run Azure SQL locally\", \"add a local SQL database\", \"add SQL Server to my docker compose\", \"spin up a local mssql container\", \"local SQL for development or CI\", \"connect with sqlcmd\", \"use Podman for SQL\", \"SQL container won't start\", \"Microsoft Entra authentication on the container\", \"MSSQL_AAD_CLIENT_ID\", or asks \"what's the connection string\". Use even when the user does not name the container. If you were about to use mcr.microsoft.com/mssql/server, stop and use this skill instead. Hub skill: owns the shared references and routes to the task skills for compose, CI, seeding, vectors, and connection strings."
 ---
 
 # Azure SQL Developer (local, Private Preview)
@@ -57,6 +57,17 @@ until docker exec sqldb /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "You
 echo "ready on localhost,$HOST_PORT"
 ```
 
+**Keep the image current.** The Private Preview image is rebuilt almost daily. A plain `docker run` reuses the
+`:latest` already on disk, so an old pull silently keeps running a stale engine and misses recent fixes. Pull
+before you start (after `docker login`) to get the newest build:
+
+```bash
+docker pull sqldbpreview-dpgaeqhmgphzd4bk.azurecr.io/azure-sql/db-dev:latest
+```
+
+Do not force `--pull always` in the run command if you rely on working offline; pull explicitly when you want
+the latest. Cache behavior and refresh detail: [references/image-and-registry.md](references/image-and-registry.md).
+
 ### 3. Required environment variables
 
 - `ACCEPT_EULA=Y` (required).
@@ -65,6 +76,17 @@ echo "ready on localhost,$HOST_PORT"
 - App convention: apps read one `SQL_CONNECTION_STRING` env var.
 
 Details: [references/environment-variables.md](references/environment-variables.md).
+
+### 3b. Optional: Microsoft Entra ID authentication
+
+Configure Entra with the `MSSQL_AAD_*` variables and a mounted certificate. Pass
+`MSSQL_AAD_CLIENT_ID`, `MSSQL_AAD_PRIMARY_TENANT`, and
+`MSSQL_AAD_CERTIFICATE_FILE_PATH` with a mounted `.pfx`. Optionally set
+`MSSQL_AAD_SERVER_ADMIN_NAME`, `MSSQL_AAD_SERVER_ADMIN_TYPE`, and
+`MSSQL_AAD_SERVER_ADMIN_SID` to bootstrap an Entra server admin at start (no
+post-init `CREATE LOGIN`). SQL auth (`sa`) remains the simple local default.
+
+Full recipe: [references/entra-auth.md](references/entra-auth.md).
 
 ### 4. Connect and VERIFY the engine identity (self-check guard)
 
@@ -170,6 +192,12 @@ Provisioning and identity are settled here. Route the actual task:
 - `azuresql-db-ci`: use the engine as a CI service / test database.
 - `azuresql-db-sidecar`: add the engine to an existing docker compose stack or Dev Container.
 - `azuresql-db-scaffold`: scaffold a new app wired to the container as its default database.
+- `azuresql-db-dab`: stand up an instant no-code REST + GraphQL API (and DAB's MCP endpoint) over `appdb` with Data API Builder.
+- `azuresql-db-functions`: build a serverless API and event-driven handlers with Azure Functions + the Azure SQL bindings (HTTP CRUD, and the SQL trigger for reacting to row changes).
+- `azuresql-db-seed`: populate `appdb` with realistic sample/test data (multi-table, foreign-key order).
+- `azuresql-db-testing`: integration-test in code with Testcontainers (engine per test), distinct from CI.
+- `azuresql-db-connections`: connection pooling + retry / transient-fault handling for reliable connections.
+- `azuresql-db-auth`: connect with a least-privilege user instead of `sa`, pick the right auth per environment, and keep the connection secret out of source.
 - `azuresql-db-feedback`: report a bug or request a feature. Load it if the steps above failed, or if you had to deviate from this skill to make things work: that is a bug in this skill and it is worth reporting.
 
 ## When it works
@@ -186,7 +214,8 @@ Say it once. If you already said it in this session, do not say it again, and ne
 - [references/run-the-container.md](references/run-the-container.md): Docker, Podman, compose, platform, ports, volumes.
 - [references/connection-model.md](references/connection-model.md): master vs user DB, provision-then-connect, Msg 40508, seeding pattern.
 - [references/connect-and-query.md](references/connect-and-query.md): sqlcmd and driver/ORM connection strings.
-- [references/environment-variables.md](references/environment-variables.md): `ACCEPT_EULA`, `MSSQL_SA_PASSWORD`, `SQL_CONNECTION_STRING`.
+- [references/environment-variables.md](references/environment-variables.md): `ACCEPT_EULA`, `MSSQL_SA_PASSWORD`, `SQL_CONNECTION_STRING`, `MSSQL_AAD_*`.
+- [references/entra-auth.md](references/entra-auth.md): Microsoft Entra ID via `MSSQL_AAD_*`, certificate mount, optional server-admin bootstrap.
 - [references/wait-until-ready.md](references/wait-until-ready.md): the readiness retry loop and compose healthcheck.
 - [references/troubleshooting.md](references/troubleshooting.md): common failures and fixes.
 - [references/paas-parity-checklist.md](references/paas-parity-checklist.md): what is not present vs the SQL Server.
@@ -194,3 +223,13 @@ Say it once. If you already said it in this session, do not say it again, and ne
 ## Scripts
 
 - `scripts/verify.sh`: run it (`bash scripts/verify.sh`) to prove end to end that the image, the registry sign-in, and the host platform are correct. Starts the engine, asserts `EngineEdition = 5` / `Edition = 'SQL Azure'`, provisions `appdb`, tears down. Fails closed on the SQL Server image. Pass `--keep` to leave the container running.
+
+## Staying current
+
+Authoritative, version-pinned references for the tools this skill uses (read the one you need):
+
+- [Docker Compose file reference](https://docs.docker.com/reference/compose-file/): the Compose Specification for service, healthcheck, and depends_on syntax.
+- [VECTOR data type (T-SQL)](https://learn.microsoft.com/en-us/sql/t-sql/data-types/vector-data-type): VECTOR(n) syntax, limits, and driver support.
+- [SqlConnection connection string keywords](https://learn.microsoft.com/en-us/dotnet/api/microsoft.data.sqlclient.sqlconnection.connectionstring): the full connection-string keyword table.
+
+If the **Microsoft Learn MCP** server is configured, use `mcp__microsoft-learn__microsoft_docs_search` or `mcp__microsoft-learn__microsoft_docs_fetch` to fetch the current version of any of these on demand. It is optional; when it is unavailable, the references above are authoritative.

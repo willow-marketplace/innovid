@@ -1,6 +1,6 @@
 ---
 name: azuresql-db-ci
-description: ">-"
+description: Runs integration tests against Azure SQL Developer (Private Preview, local engine) in CI. Use when setting up GitHub Actions, Azure Pipelines, or GitLab CI to test against Azure SQL DB; when adding a database service container to a CI workflow; when tests need a real Azure SQL engine in the pipeline; or when you see "service container", "health-cmd", "ACR_USERNAME/ACR_PASSWORD", "MSSQL_SA_PASSWORD secret", or "integration test database". Also use when a workflow was about to pull the SQL Server image mcr.microsoft.com/mssql/server, in which case stop and use the Azure SQL Database engine image instead. Covers pulling from the private ACR with credentials, the service health check that runs sqlcmd inside the container so the runner needs no client tools, provisioning appdb before tests, and pointing the test connection string at the user database not master.
 ---
 
 # Azure SQL Developer in CI
@@ -176,3 +176,12 @@ echo "ready on localhost,$HOST_PORT"
 - Do not rely on `/docker-entrypoint-initdb.d/*.sql`; it is not honored. Seed with `sqlcmd -d appdb -i`.
 - Do not require sqlcmd on the runner; the health check and provisioning run inside the container.
 - Do not call a non-x64 host "supported"; on a non-x64 self-hosted runner just add `--platform linux/amd64`.
+
+## Staying current
+
+Authoritative, version-pinned references for the tools this skill uses (read the one you need):
+
+- [GitHub Actions service containers](https://docs.github.com/en/actions/use-cases-and-examples/using-containerized-services/about-service-containers): how service containers, health options, and credentials work in a workflow.
+- [GitHub workflow JSON schema](https://json.schemastore.org/github-workflow.json): the authoritative schema for workflow YAML.
+
+If the **Microsoft Learn MCP** server is configured, use `mcp__microsoft-learn__microsoft_docs_search` or `mcp__microsoft-learn__microsoft_docs_fetch` to fetch the current version of any of these on demand. It is optional; when it is unavailable, the references above are authoritative.

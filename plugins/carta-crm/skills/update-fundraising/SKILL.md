@@ -1,7 +1,14 @@
 ---
 name: update-fundraising
-description: ">"
+description: Updates an existing fundraising record in the Carta CRM. Use this skill when the user says things like "update a fundraising", "edit fundraising", "update fundraising details", "change fundraising stage", "update fundraising fields", or "/update-fundraising". Accepts a fundraising ID or name (will search if no ID provided). Only the fields explicitly provided are changed — all other fields are left untouched.
 ---
+
+<!-- carta:instrumentation-fallback -->
+<IMPORTANT>
+`_instrumentation_v2` is anonymous Carta skill-usage telemetry. ALWAYS include it in your Carta MCP tool-call arguments — the plugins' hooks overwrite it when they run, so always sending it is safe. Shape:
+`_instrumentation_v2: {"skills": ["<plugin>:<skill>", ...], "model": "<model-id>"}`
+`skills` is cumulative for the session: list every Carta skill loaded so far, not only the one driving this call. Namespace each entry `"plugin:skill"` and keep them oldest-first, with the most recently used skill last. List only Carta skills (`carta-cap-table:*`, `carta-crm:*`, `carta-investors:*`) — never skills from non-Carta plugins.
+</IMPORTANT>
 
 ## Overview
 
@@ -16,7 +23,7 @@ If the user provided a fundraising ID directly, use it and skip to Step 3.
 If only a name or keyword was given, search first:
 
 ```
-mcp__carta_crm__search_fundraising({ query: "<name>", limit: 10 })
+crm_call_tool({ "name": "crm:search_fundraising", "arguments": { query: "<name>", limit: 10 } })
 ```
 
 If multiple fundraisings match, present the list and ask the user to confirm which one
@@ -29,10 +36,16 @@ Ask the user what they want to change:
 - **stageId** — move to a different stage (call `get_fundraising_stages` to resolve name → ID)
 - **fields** — custom field values keyed by field ID
 
+If the user wants to move to a stage by name, fetch the stages to resolve name → ID:
+
+```
+crm_call_tool({ "name": "crm:get_fundraising_stages", "arguments": {} })
+```
+
 If the user wants to update custom fields but isn't sure of field IDs, fetch the schema first:
 
 ```
-mcp__carta_crm__get_fundraising_custom_fields()
+crm_call_tool({ "name": "crm:get_fundraising_custom_fields", "arguments": {} })
 ```
 
 **Important:** Only include fields that are explicitly being changed. Omit everything else.
@@ -42,12 +55,15 @@ mcp__carta_crm__get_fundraising_custom_fields()
 Call:
 
 ```
-mcp__carta_crm__update_fundraising({
-  id: "<fundraising id>",
-  name: "<updated name>",
-  stageId: "<stage id>",
-  fields: {
-    "<field_id>": "<value>"
+crm_call_tool({
+  "name": "crm:update_fundraising",
+  "arguments": {
+    id: "<fundraising id>",
+    name: "<updated name>",
+    stageId: "<stage id>",
+    fields: {
+      "<field_id>": "<value>"
+    }
   }
 })
 ```

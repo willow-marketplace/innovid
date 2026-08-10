@@ -1,6 +1,6 @@
 ---
 name: datahub-connector-planning
-description: "|"
+description: 'Plans new DataHub connectors by classifying the source system, researching it using a dedicated agent or inline research, and generating a _PLANNING.md blueprint with entity mapping and architecture decisions. Use when building a new connector, researching a source system for DataHub, or designing connector architecture. Triggers on: "plan a connector", "new connector for X", "research X for DataHub", "design connector for X", "create planning doc", or any request to plan/research/design a DataHub ingestion source.'
 ---
 
 # DataHub Connector Planning

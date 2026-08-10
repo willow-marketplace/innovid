@@ -2,7 +2,6 @@
 # /// script
 # requires-python = ">=3.9"
 # dependencies = [
-#   "rembg>=2.0",
 #   "Pillow>=10.0",
 # ]
 # ///
@@ -196,8 +195,8 @@ def initials(name: str) -> str:
     return "".join(letters[:2]) if letters else "?"
 
 
-def cap_headline(text: str, max_chars: int = 80, max_words: int = 10) -> str:
-    """Truncate headline text to 80 chars or 10 words, whichever hits first."""
+def cap_headline(text: str, max_chars: int = 55, max_words: int = 8) -> str:
+    """Truncate headline text to fit within two rendered lines at 64px."""
     words = str(text).split()
     if len(words) > max_words:
         text = " ".join(words[:max_words])
@@ -627,7 +626,7 @@ def build_slide06(funds: list[dict], irr_rows: list[dict], currency: str = "USD"
 
         dist_cell = dash_if_zero(dist, fmt_currency) if dist == 0 else f'<td>{fmt_currency(dist)}</td>'
         dpi_class = hi_td(dpi, 1.0) or (mute_td() if dpi < 0.01 else "")
-        dpi_cell = f'<td{mute_td()}>0.00×</td>' if dpi < 0.001 else f'<td{hi_td(dpi,1.0)}>{fmt_moic(dpi)}</td>'
+        dpi_cell = f'<td style="color:rgba(255,255,255,0.4);">0.00×</td>' if dpi < 0.001 else f'<td{hi_td(dpi,1.0)}>{fmt_moic(dpi)}</td>'
 
         rows_html.append(
             f"<tr>"
@@ -963,11 +962,11 @@ def build_slide14(bucket_rows: list[dict]) -> dict:
     b0_cos, b0_inv, b0_val = bucket_data("0x (Written Off)")
 
     chart_rows = json.dumps([
-        {"label": "1–3×",               "value": b1_cos,  "valueLabel": f"{b1_cos} companies",  "series": 3},
-        {"label": "10×+",               "value": b10_cos, "valueLabel": f"{b10_cos} companies", "series": 1},
-        {"label": "<1×",                "value": blt_cos, "valueLabel": f"{blt_cos} companies", "series": 4},
-        {"label": "0× (written off)",   "value": b0_cos,  "valueLabel": f"{b0_cos} companies",  "series": 5},
-        {"label": "3–10×",              "value": b3_cos,  "valueLabel": f"{b3_cos} companies",  "series": 2},
+        {"label": "10×+",             "value": b10_cos, "valueLabel": f"{b10_cos} companies", "series": 1},
+        {"label": "3–10×",            "value": b3_cos,  "valueLabel": f"{b3_cos} companies",  "series": 2},
+        {"label": "1–3×",             "value": b1_cos,  "valueLabel": f"{b1_cos} companies",  "series": 3},
+        {"label": "<1×",              "value": blt_cos, "valueLabel": f"{blt_cos} companies", "series": 4},
+        {"label": "0× (written off)", "value": b0_cos,  "valueLabel": f"{b0_cos} companies",  "series": 5},
     ])
 
     return {
@@ -1484,6 +1483,18 @@ def build_slide27(expense_rows: list[dict]) -> dict:
     }
 
 
+def _invest_headline(realized: list[dict]) -> str:
+    if not realized:
+        return "No realized exits in this portfolio."
+    c1 = realized[0].get("issuer_name", "Company A")
+    m1 = fmt_moic(to_f(realized[0].get("moic", 0)))
+    if len(realized) < 2:
+        return f"{c1} returned <em>{m1}</em>."
+    c2 = realized[1].get("issuer_name", "Company B")
+    m2 = fmt_moic(to_f(realized[1].get("moic", 0)))
+    return f"{c1} returned <em>{m1}</em> &amp; {c2} returned <em>{m2}</em>. Both fully realized."
+
+
 def build_slide11b(inv_rows: list[dict]) -> dict:
     """11b Investment Performance · Table of realized exits + top unrealized by MOIC."""
     if not inv_rows:
@@ -1512,10 +1523,8 @@ def build_slide11b(inv_rows: list[dict]) -> dict:
     if not realized and not unrealized:
         return {}
 
-    global_max = max(
-        (to_f(r.get("moic", 0)) for r in (realized + unrealized)[:20]),
-        default=100.0,
-    )
+    realized_max   = max((to_f(r.get("moic", 0)) for r in realized[:20]),   default=100.0)
+    unrealized_max = max((to_f(r.get("moic", 0)) for r in unrealized[:20]), default=100.0)
 
     def make_rows(items, max_n=8):
         return json.dumps([{
@@ -1526,7 +1535,7 @@ def build_slide11b(inv_rows: list[dict]) -> dict:
         } for i, r in enumerate(items[:max_n])])
 
     top1 = realized[0] if realized else unrealized[0] if unrealized else {}
-    top2 = realized[1] if len(realized) > 1 else (unrealized[0] if unrealized else {})
+    top2 = realized[1] if len(realized) > 1 else {}
 
     def kpi_parts(r, prefix):
         name = r.get("issuer_name", "Company")
@@ -1539,18 +1548,22 @@ def build_slide11b(inv_rows: list[dict]) -> dict:
         }
 
     result = {
-        "INVEST_COMPANY1":      realized[0].get("issuer_name", "Company A") if realized else "Company A",
-        "INVEST_MOIC1":         fmt_moic(to_f(realized[0].get("moic", 0))) if realized else "—",
-        "INVEST_COMPANY2":      realized[1].get("issuer_name", "Company B") if len(realized) > 1 else "Company B",
-        "INVEST_MOIC2":         fmt_moic(to_f(realized[1].get("moic", 0))) if len(realized) > 1 else "—",
-        "REALIZED_CHART_MAX":   str(round(global_max, 2)),
+        "INVEST_HEADLINE":      _invest_headline(realized),
+        "REALIZED_CHART_MAX":   str(round(realized_max, 2)),
         "REALIZED_CHART_ROWS":  make_rows(realized),
-        "UNREALIZED_CHART_MAX": str(round(global_max, 2)),
+        "UNREALIZED_CHART_MAX": str(round(unrealized_max, 2)),
         "UNREALIZED_CHART_ROWS": make_rows(unrealized),
         "UNREALIZED_NOTE":      "Unrealized MOIC = remaining FMV ÷ cost basis.",
     }
     result.update(kpi_parts(top1, "REALIZED_KPI1"))
-    result.update(kpi_parts(top2, "REALIZED_KPI2"))
+    if len(realized) >= 2:
+        result.update(kpi_parts(top2, "REALIZED_KPI2"))
+    else:
+        result.update({
+            "REALIZED_KPI2_LABEL": "",
+            "REALIZED_KPI2_VALUE": "",
+            "REALIZED_KPI2_NOTE":  "",
+        })
     return result
 
 
@@ -1853,7 +1866,6 @@ def process_logo(args) -> None:
     import io
     import urllib.request
     from PIL import Image
-    from rembg import remove as rembg_remove
 
     output_path = Path(args.output)
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -1877,8 +1889,13 @@ def process_logo(args) -> None:
     print("Removing background...")
     try:
         img = Image.open(io.BytesIO(raw)).convert("RGBA")
-        result = rembg_remove(img)
-        result.save(output_path, "PNG")
+        pixels = img.getdata()
+        cleaned = [
+            (r, g, b, 0) if r > 240 and g > 240 and b > 240 else (r, g, b, a)
+            for r, g, b, a in pixels
+        ]
+        img.putdata(cleaned)
+        img.save(output_path, "PNG")
         print(f"✓ Logo saved with transparent background: {output_path}")
     except Exception as e:
         output_path.write_bytes(raw)

@@ -1,6 +1,6 @@
 ---
 name: azuresql-db-sidecar
-description: ">-"
+description: Adds Azure SQL Developer as a sidecar service in an existing Docker Compose stack or Dev Container. Use when wiring the local Azure SQL Database engine into compose or devcontainer.json, when an app needs a SQL backend via a service name (not localhost), or for prompts like "add SQL to my compose", "add a database service", "depends_on database", "devcontainer SQL sidecar", "compose healthcheck for SQL", "wait for the database before starting the app". Handles platform linux/amd64, the private registry login, the healthcheck wait-until-ready, and a one-shot init service that creates appdb (the engine does not auto-create databases). Not the SQL Server image. Prefer this for any compose or Dev Container SQL wiring.
 ---
 
 # Azure SQL Developer as a sidecar (Compose / Dev Container)
@@ -108,6 +108,7 @@ Bring it up (after `docker login`, see above):
 
 ```bash
 docker login sqldbpreview-dpgaeqhmgphzd4bk.azurecr.io   # pull-only creds by signing up at https://aka.ms/sqldbcontainerpreview-signup
+docker compose pull                                      # refresh the daily-rebuilt :latest (compose reuses a cached image otherwise)
 docker compose up -d
 ```
 
@@ -181,3 +182,12 @@ The app container reaches the database at `sqldb,1433` over the compose network.
 - Do not drop `--platform` / `platform: linux/amd64`; the image is x64 only.
 - Do not depend on `/docker-entrypoint-initdb.d/*.sql`; it is not honored here.
 - Do not call a non-x64 host "supported"; it runs under emulation only.
+
+## Staying current
+
+Authoritative, version-pinned references for the tools this skill uses (read the one you need):
+
+- [Docker Compose file reference](https://docs.docker.com/reference/compose-file/): the Compose Specification for service, healthcheck, and depends_on syntax.
+- [devcontainer.json reference](https://containers.dev/implementors/json_reference/): the Dev Container metadata keys (dockerComposeFile, service, runServices, remoteEnv).
+
+If the **Microsoft Learn MCP** server is configured, use `mcp__microsoft-learn__microsoft_docs_search` or `mcp__microsoft-learn__microsoft_docs_fetch` to fetch the current version of any of these on demand. It is optional; when it is unavailable, the references above are authoritative.

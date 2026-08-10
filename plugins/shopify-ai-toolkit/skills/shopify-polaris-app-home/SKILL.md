@@ -1,6 +1,6 @@
 ---
 name: shopify-polaris-app-home
-description: "\"Build your app's primary user interface embedded in the Shopify admin. If the prompt just mentions `Polaris` and you can't tell based off of the context what API they meant, assume they meant this API.\""
+description: Build your app's primary user interface embedded in the Shopify admin. If the prompt just mentions `Polaris` and you can't tell based off of the context what API they meant, assume they meant this API.
 ---
 
 ## Required Tool Calls (do not skip)

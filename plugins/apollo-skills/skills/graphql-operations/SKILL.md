@@ -1,6 +1,6 @@
 ---
 name: graphql-operations
-description: ">"
+description: "Guide for writing GraphQL operations (queries, mutations, fragments) following best practices. Use this skill when: (1) writing GraphQL queries or mutations, (2) organizing operations with fragments, (3) optimizing data fetching patterns, (4) setting up type generation or linting, (5) reviewing operations for efficiency."
 ---
 
 # GraphQL Operations Guide

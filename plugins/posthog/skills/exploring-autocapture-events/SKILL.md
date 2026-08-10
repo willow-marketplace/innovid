@@ -1,6 +1,6 @@
 ---
 name: exploring-autocapture-events
-description: ">"
+description: Guides exploration of $autocapture events captured by posthog-js to understand user interactions, find CSS selectors (especially data-attr attributes), evaluate selector uniqueness, query matching clicks ad-hoc, and create actions. Use when the user asks about autocapture data, wants to find what users are clicking, needs to build actions from click events, asks about elements_chain, wants to build a trend or funnel filtered by clicks or other autocapture interactions, asks which properties autocapture sends, or asks how to filter $autocapture events. Only applies to projects using posthog-js autocapture.
 ---
 
 # Exploring autocapture events
@@ -118,7 +118,7 @@ Each step in a `FunnelsQuery` / `TrendsQuery` is an `EventsNode` (or `ActionsNod
 Two distinct property `type` values matter — they are not interchangeable:
 
 - **`type: "element"`** — keys: `selector`, `tag_name`, `text`, `href`. Matched against the parsed `elements_chain`. Operator support is split:
-  - `selector` and `tag_name` only support `exact` and `is_not` — anything else raises `NotImplementedError` in the query compiler (`posthog/hogql/property.py`).
+  - `selector` and `tag_name` only support `exact` and `is_not` — any other operator is rejected by the query engine and the query errors.
   - `text` and `href` accept the full string operator set (`exact`, `is_not`, `icontains`, `not_icontains`, `regex`, `not_regex`, `is_set`, `is_not_set`).
 - **`type: "event"`** — keys: any of the canonical autocapture properties (`$event_type`, `$el_text`, `$current_url`) or anything else on the event. Standard event-property operators (`exact`, `icontains`, `regex`, etc.).
 

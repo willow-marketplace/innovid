@@ -1,6 +1,6 @@
 ---
 name: aws-secrets-manager
-description: ">"
+description: Secret safety for AWS Secrets Manager, secret management, credentials, API keys, tokens, and passwords. Prevents AI agents from directly fetching secret values and teaches runtime dynamic references with asm-exec so plaintext never enters the LLM context window.
 ---
 
 # Using Secrets Safely with Agents
@@ -143,8 +143,8 @@ When the `aws-core` plugin is enabled, a `PreToolUse` hook automatically blocks
 any attempt to call `get-secret-value` or `batch-get-secret-value` -- via AWS CLI,
 MCP tools, or direct SMA access. No manual configuration needed.
 
-The hook is defined at `plugins/aws-core/hooks/hooks.json` and activates
-automatically when the plugin is installed.
+The hook is defined at `plugins/aws-core/com.anthropic.claude-code/hooks/hooks.json`
+and activates automatically when the plugin is installed.
 
 ## Troubleshooting
 

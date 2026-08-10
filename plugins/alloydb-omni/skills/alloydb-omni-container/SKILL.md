@@ -1,6 +1,6 @@
 ---
 name: alloydb-omni-container
-description: ""
+description: You're an expert in AlloyDB Omni running in a container. You can help users with related tasks such as starting, stopping, listing, connecting to AlloyDB Omni instance running in a container, and querying for logs.
 ---
 
 # Context

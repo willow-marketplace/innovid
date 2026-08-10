@@ -1,6 +1,12 @@
 ---
 name: fix-deprecated-controls
-description: "|"
+description: |-
+  Fix deprecated control/class/interface/type issues that UI5 linter reports but cannot auto-fix. Use this skill when linter outputs:
+  - `no-deprecated-api` with messages about deprecated class, interface, type, property, or property of class
+  - Messages like "Use of deprecated class '...'", "Use of deprecated interface '...'", "Use of deprecated property '...'"
+  Trigger on: deprecated control usage in JS `new` expressions, deprecated properties in constructor settings, deprecated interfaces/types in metadata, deprecated controls/properties in XML views, sap.m.MessagePage modernization to IllustratedMessage.
+  Use this skill whenever you see 'deprecated class', 'deprecated property', 'deprecated interface', or 'deprecated type' in linter output, even if the user doesn't explicitly mention deprecation.
+  Provides replacement guidance for deprecated UI5 controls and their properties.
 ---
 
 # Fix Deprecated Controls, Classes, Interfaces, and Types

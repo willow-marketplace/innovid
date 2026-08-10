@@ -1,6 +1,6 @@
 ---
 name: bigdata-sector-analysis
-description: ">"
+description: "Analyze a market sector using Bigdata.com data — performance, valuations, themes, sub-industries, and upcoming catalysts. Maps the sector to its own operating and valuation KPIs rather than generic P/E, reads cycle and profitability positioning as early, mid, or late versus history, aggregates bellwether tearsheet metrics, and closes with a positioning call plus top picks and areas to avoid. Triggers: \"analyze the X sector\", \"what's happening in X sector\", \"X sector outlook\", \"how is the X industry doing\", \"X sector valuations\", \"is the X sector attractive\", \"semiconductor/energy/healthcare sector view\"."
 ---
 
 # Bigdata Sector Analysis

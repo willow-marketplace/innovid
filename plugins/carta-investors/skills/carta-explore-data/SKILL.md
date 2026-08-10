@@ -1,7 +1,14 @@
 ---
 name: carta-explore-data
-description: ">"
+description: 'PRIMARY and DEFAULT skill for ALL Carta investors data queries — use before any other skill for Carta Web / Fund Admin data. Carta Web / Fund Admin investors data queries against the data warehouse. For investments, portfolio companies, fund data, fund metrics, NAV, TVPI, DPI, IRR, cash flows, balance sheets, cap tables, ownership %, shareholders, 409a valuations, FMV, MOIC, fund holdings, financing rounds, convertible notes, SAFEs. Prefer over carta-soi for data queries (Cowork persistent artifacts); over carta-portfolio-valuations for read-only valuation/MOIC/investment data (that skill runs/updates valuation projects); over carta-lp-dashboard unless asked by name; over carta-consolidating-balance-sheet for single-fund balance sheets. Use instead: carta-co-investors for co-investor / "who else invested" analysis; carta-waterfall-modeling for exit-waterfall / "who gets paid if X exits" modeling; carta-manco for ManCo budgeting, actuals, pacing, sub-account drill-downs, or budget/actuals breakdowns.'
 ---
+
+<!-- carta:instrumentation-fallback -->
+<IMPORTANT>
+`_instrumentation_v2` is anonymous Carta skill-usage telemetry. ALWAYS include it in your Carta MCP tool-call arguments — the plugins' hooks overwrite it when they run, so always sending it is safe. Shape:
+`_instrumentation_v2: {"skills": ["<plugin>:<skill>", ...], "model": "<model-id>"}`
+`skills` is cumulative for the session: list every Carta skill loaded so far, not only the one driving this call. Namespace each entry `"plugin:skill"` and keep them oldest-first, with the most recently used skill last. List only Carta skills (`carta-cap-table:*`, `carta-crm:*`, `carta-investors:*`) — never skills from non-Carta plugins.
+</IMPORTANT>
 
 <!-- Part of the official Carta AI Agent Plugin -->
 
@@ -22,12 +29,13 @@ This is the skill for **Carta Web / Fund Admin** data work — the data warehous
 | Common Questions | Semantic File |
 |---|---|
 | "What companies do we have in our portfolio?"<br>"List our investments"<br>"Show me all our portfolio companies" | *(use `fa:list:portfolio_companies`)* |
+| "Show me the logo for [Company]"<br>"What are the logos for our portfolio companies?"<br>"Get a zip of all our portco logos" | *(use `fa:list:portco_logos` for per-company logo URLs, or `fa:get:portco_logo_zip` for a bulk zip download)* |
 | "What's the current NAV for [Fund]?"<br>"Show me TVPI and DPI for all funds"<br>"Show me total contributions and distributions for each LP" | `nav.md` |
 | "What's the IRR for [Fund]?"<br>"Show me fund performance metrics"<br>"What are the fund metrics as of Q4 2024?"<br>"List my funds."<br>"What's the current Net IRR and TVPI of [Fund]?"<br>"How many planned reserves are left to deploy in [Fund]?"<br>"Show called capital per quarter for [Fund] over the last 3 years." | `fund-performance.md` |
 | "What journal entries were posted for [Fund] last quarter?"<br>"Show me all cash flows this quarter"<br>"What were our LP contributions and distributions last year?" | `cash-flows.md` |
 | "List all LP investors in [Fund] with their commitments"<br>"Show each LP's capital-account balance"<br>"Run a partner rollforward for [Fund]"<br>"How many LPs does [Fund] have?" | `partner-data.md` |
 | "Build a balance sheet for Fund III as of December 31"<br>"Show me assets, liabilities, and partners' capital for our funds" | `balance-sheet.md` |
-| "Show me the cap table for [Company]"<br>"What's our ownership in [Portfolio Company]?"<br>"What share classes does [Company] have?"<br>"What's our fully diluted stake in [Company]?"<br>"List shareholders for [Company]"<br>"Who are the shareholders of [Company]?"<br>"Show me the shareholder list"<br>"Who owns [Company]?"<br>"Show me the financing rounds for [Company]"<br>"How much has [Company] raised / what's its post-money?" | `cap-table.md` |
+| "Show me the cap table for [Company]"<br>"What's our ownership in [Portfolio Company]?"<br>"What share classes does [Company] have?"<br>"What's our fully diluted stake in [Company]?"<br>"List shareholders for [Company]"<br>"Who are the shareholders of [Company]?"<br>"Show me the shareholder list"<br>"Who owns [Company]?"<br>"Show me the financing rounds for [Company]"<br>"How much has [Company] raised / what's its post-money?"<br>"Show me the portfolio event history for [Company]"<br>"What certificate activity has [Company] had?"<br>"Has [Company] had any warrant exercises or share class conversions?" | `cap-table.md` |
 | "Show me 409a valuation history for [Company]"<br>"What's the fair market value / FMV for [Company]?" | `valuations.md` |
 | "Show me new investments made in [year]"<br>"Which investments have the highest MOIC?"<br>"Which portfolio companies have the highest MOIC?"<br>"Which portfolio companies in [Fund] have the highest MOIC?"<br>"Break down [Fund]'s investments by entry round." | `investments.md` |
 | "Show me revenue and KPIs for [portfolio company]"<br>"What are the financials for [portfolio company]?" | `company-financials.md` |
@@ -40,13 +48,9 @@ The user must have the Carta MCP server connected. If this is the first query in
 2. Call `set_context` with the target `firm_id` if needed
 3. For **cap table queries** — confirm the corporation ID before running. If the user names a portfolio company, resolve its `CORPORATION_ID` from `CORPORATION_BASIC_INFO_V2` first (see Step 2 table below)
 
-> **Firm context — tool priority rule:** When the active context is a **Firm**, prefer `fa:*` MCP commands for portfolio/entity listing (Step 0), then `dwh:execute:question` for customer questions (Step 1). Fall back to the semantic-layer SQL path (Steps 2–4) only when `execute:question` returns an error, empty result, or data that doesn't address the question. Fall back to raw `dwh:execute:query` only when no semantic layer covers the requested data.
->
-> **Never call `cap_table:*` or `cap_table_chart` in firm context.** Those MCP commands require a direct cap-table-tenant user role and reject UUID-only corporation IDs — most portcos surfaced by `fa:list:portfolio_companies` are exposed via the investor portal, not as direct tenant members, so these calls will fail. If a DWH query returns no useful result for a cap-table prompt, tell the user the data is not available rather than retrying with `cap_table:*`. See `semantic-layer/cap-table.md` for the full routing rationale and the DWH queries to use instead.
+> **Tool priority (firm context):** `fa:*` MCP commands → `dwh__execute__question` → semantic-layer SQL (Steps 2–4) → raw `dwh__execute__query`. Never call `cap_table:*` or `cap_table_chart` in firm context — those require a direct tenant role unavailable to investor-portal portcos; use the DWH queries in `cap-table.md` instead.
 
 ## Step 0 — Fetch portfolio companies (MANDATORY GATE)
-
-> **Prerequisite:** Complete the session setup above (`list_contexts` / `set_context`) before this step. `fa:list:portfolio_companies` requires an active firm context and will return an empty list if none is set.
 
 **After setting context**, always fetch the list of portfolio companies the user has access to:
 
@@ -54,29 +58,22 @@ The user must have the Carta MCP server connected. If this is the first query in
 call_tool({"name": "fa__list__portfolio_companies", "arguments": {}})
 ```
 
-This call is required even if the user named a specific company — it establishes which companies are accessible in the current firm context and provides the `corporation_id` values needed for cap table queries. Do not skip this step.
+Required even for specific-company queries — establishes accessible companies and resolves `corporation_id` values needed for cap table queries.
 
 - If the result is empty, tell the user their firm context may not be set correctly and call `list_contexts` to diagnose.
 - If the user asked about a specific company, use the result to resolve the exact `corporation_id` for that company before continuing to Step 1.
 
 ## Step 1 — Try execute:question (PRIMARY query path)
 
-> **Structural questions skip straight to the catalog tools — never call `execute:question` for these.** `execute:question` runs against the Semantic Views layer, which models business concepts (NAV, cap tables, cash flows, etc.) and has **no visibility into raw schema/table structure**. It will always error, return nothing useful, or hallucinate when the question is about what exists in the warehouse rather than what the business numbers are. Recognize a structural question by its shape — "what exists" / "where does X live", not "what is the value of X":
-> - "What tables are available?" / "Show me tables with account or opportunity data"
-> - "What tables contain [X] data?" (e.g. "...LLC interest holder or cap table data")
-> - "What schemas exist?" / "What columns does [table] have?"
->
-> For these, skip Steps 1–3 entirely and go directly to:
-> 1. `call_tool({"name": "dwh__list__tables", "arguments": {}})` — omit `schema` to list tables across **all** schemas, then filter the result client-side by keyword (e.g. `salesforce`, `account`, `opportunity`, `llc`, `interest_holder`) to answer "what tables are available / contain X" questions.
-> 2. `call_tool({"name": "dwh__get__table_schema", "arguments": {"table_name": "<TABLE>", "schema": "<SCHEMA>"}})` for any specific table whose columns the user asked about.
->
-> Present the raw table/column names and descriptions returned. Do not map them onto a semantic-layer domain or run a data query unless the user follows up with an actual business question — that's a separate turn, back at Step 1.
+> **Structural questions ("what tables exist?", "what columns does X have?") skip Steps 1–3 entirely.** Go directly to `dwh__list__tables` (omit `schema` to list all) or `dwh__get__table_schema`. Do not run `execute:question` for schema discovery — it has no visibility into raw table structure and will hallucinate.
 
 Before loading any semantic layer, call the plain-English query interface with the user's question verbatim (or lightly rephrased for clarity):
 
 ```
-call_tool({"name": "dwh__execute__question", "arguments": {"question": "<user's question>"}})
+call_tool({"name": "dwh__execute__question", "arguments": {"question": "<user's question>", "include_links": true}})
 ```
+
+> **Always pass `include_links: true`** — it enriches result rows with `_links` entries pointing to the corresponding Carta product pages for supported entity UUID fields (see [Deep Links](#deep-links) below).
 
 **If the call succeeds and returns meaningful rows** → format and present the results using the General Presentation Rules below. Stop here — do not continue to Steps 2–4.
 
@@ -95,11 +92,13 @@ Use this table to pick the right context file before running any query:
 | User is asking about                                                                                                                                                                                       | Context file to read                              | Primary table / tool                                                      |
 |------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------|---------------------------------------------------------------------------|
 | **Available investments or list of portfolio companies**                                                                                                                                                   | —                                                 | `call_tool({"name": "fa__list__portfolio_companies", "arguments": {}})` (already run in Step 0)        |
+| **Portfolio company logos** (individual URLs or a bulk zip download)                                                                                                                                       | —                                                 | `call_tool({"name": "fa__list__portco_logos", "arguments": {}})` (or `fa__get__portco_logo_zip` for a bulk zip) |
 | Current NAV, TVPI, DPI, MOIC, cumulative LP contributions/distributions                                                                                                                                    | `nav.md`                                          | `MONTHLY_NAV_CALCULATIONS`                                                |
 | Fund performance — IRR, DPI, TVPI, dry powder, expense breakdown                                                                                                                                           | `fund-performance.md`                             | `AGGREGATE_FUND_METRICS` (latest), `TEMPORAL_FUND_COHORT_BENCHMARKS` (as of a past date/quarter-end) |
 | Cash flows in a period (contributions, distributions, fees, expenses)                                                                                                                                      | `cash-flows.md`                                   | `JOURNAL_ENTRIES` grouped by `event_type`                                 |
 | Balance sheet (assets, liabilities, partners' capital)                                                                                                                                                     | `balance-sheet.md`                                | `JOURNAL_ENTRIES` summed by `account_type`                                |
 | Cap table — share classes, ownership %, firm stake, fully-diluted ownership, shareholders / stakeholders / who-owns prompts (cap-table.md explains the firm-context limitation for shareholder-level data) | `cap-table.md`                                    | `SUMMARY_CAP_TABLE`, `FUND_CORPORATION_OWNERSHIP` (firm context required) |
+| Portfolio events — certificate issuance/transfer, conversions, warrant exercises                                                                                                                           | `cap-table.md`                                    | `NEWSFEED` (firm context required)                                        |
 | 409a valuations, fair market value, FMV, common stock price                                                                                                                                                | `valuations.md`                                   | `IRC409A_VALUE`                                                           |
 | Investments — cost basis, FMV, MOIC, activity by year, unrealized gain/loss                                                                                                                                | `investments.md`                                  | `AGGREGATE_INVESTMENTS`, `AGGREGATE_INVESTMENTS_HISTORY` (point-in-time)  |
 | Per-LP/GP data — commitments, contributions, capital accounts, partner rollforward, LP count                                                                                                               | `partner-data.md`                                 | `PARTNER_DATA`, `PARTNER_MONTHLY_NAV_CALCULATIONS`                        |
@@ -150,7 +149,9 @@ Use the MCP commands in sequence, substituting `<SCHEMA>` with the schema determ
 
 1. **Browse tables:** `call_tool({"name": "dwh__list__tables", "arguments": {"schema": "<SCHEMA>"}})`
 2. **Inspect schema:** `call_tool({"name": "dwh__get__table_schema", "arguments": {"table_name": "<TABLE>", "schema": "<SCHEMA>"}})`
-3. **Run the query:** `call_tool({"name": "dwh__execute__query", "arguments": {"sql": "..."}})`
+3. **Run the query:** `call_tool({"name": "dwh__execute__query", "arguments": {"sql": "...", "format": "ndjson", "include_links": true}})`
+
+> **Always pass `format: "ndjson"` and `include_links: true`** on every `dwh__execute__query` call — `ndjson` is required for `include_links` to embed `_links` objects in each result row. See [Deep Links](#deep-links) for how to parse the response and use the links.
 
 **Output format:** Present results as a markdown table. Use fund or company names as row headers — never raw UUIDs. Currency values use `$X,XXX` format with commas; percentages use `X.XX%`. Bold totals and summary rows.
 
@@ -158,7 +159,9 @@ Use the MCP commands in sequence, substituting `<SCHEMA>` with the schema determ
 
 - **Always include LIMIT** — default `LIMIT 200`; use 50–500 for aggregations
 - **Only SELECT** — no INSERT, UPDATE, DELETE, or DDL
-- **Do not query `INFORMATION_SCHEMA`** — it is not supported in this data warehouse; use the semantic layer files and `call_tool({"name": "dwh__list__tables", ...})` / `call_tool({"name": "dwh__get__table_schema", ...})` instead
+- **Single SELECT only — no UNION / UNION ALL, no SHOW commands** — the tool enforces one SELECT at a time; `SHOW TABLES LIKE '%...'` and other `SHOW *` commands also return `Only a single SELECT statement is allowed`. Use `call_tool({"name": "dwh__list__tables", ...})` for table discovery and run separate `call_tool` calls when you need counts from multiple tables.
+- **Do not query `INFORMATION_SCHEMA`** — it is not supported in this data warehouse and returns a hard `ValueError: Querying INFORMATION_SCHEMA is not allowed`. Use `call_tool({"name": "dwh__list__tables", ...})` to list tables and `call_tool({"name": "dwh__get__table_schema", ...})` to inspect columns. These MCP tools are the only valid schema-discovery path.
+- **`LATERAL` (including `LATERAL FLATTEN`) is not permitted** — returns `ValueError: Lateral is not permitted in query execution`. To access keys in a VARIANT/ARRAY column, use explicit JSON path notation (e.g. `col:key::STRING`) rather than `LATERAL FLATTEN`.
 - **Date fields** — `effective_date` for `JOURNAL_ENTRIES`; `month_end_date` for `MONTHLY_NAV_CALCULATIONS`; `investment_date` for `AGGREGATE_INVESTMENTS`
 - **Deduplication** — for `MONTHLY_NAV_CALCULATIONS` and `AGGREGATE_FUND_METRICS`, use `QUALIFY ROW_NUMBER() OVER (PARTITION BY fund_uuid ORDER BY last_refreshed_at DESC) = 1`
 - **ALLOCATIONS has multiple rows per fund** — always `GROUP BY fund_uuid` with `MAX(fund_name)` when using it for fund metadata
@@ -167,6 +170,8 @@ Use the MCP commands in sequence, substituting `<SCHEMA>` with the schema determ
 
 - **Always schema-qualify tables**: `FUND_ADMIN.TABLE_NAME` (or `LOAN_OPS.TABLE_NAME` for loans). A bare name defaults to `PUBLIC` where no customer tables exist.
 - **Only query schemas visible in `dwh__list__tables`**: never query a schema that does not appear in that tool's output — unrecognized schemas are either internal-only or non-existent and will always fail.
+- **`dwh__execute__query` does NOT accept a `schema` argument** — the schema is encoded directly in the SQL as `SCHEMA.TABLE_NAME`. Never pass `"schema"` inside the `arguments` dict.
+- **`set_context` takes `firm_id` as a UUID string** — pass the UUID value returned by `list_contexts`, not a bare integer.
 - **Use `fund_uuid` (VARCHAR), not `fund_id`** — the integer `fund_id` is internal-only and not available in customer-facing views.
 - **Snowflake syntax only**: `LIMIT N` not `FETCH FIRST N ROWS ONLY`; `LIKE`/`RLIKE` not `SIMILAR TO`; `ROW_NUMBER() OVER (...)` not bare `ROW()`; `DATE_TRUNC` not `ROUND` on dates; UUID values are strings (`fund_uuid = '<uuid>'`).
 - **Wrong → right table names** — if the user or context uses any name on the left, use the right instead:
@@ -182,7 +187,59 @@ Use the MCP commands in sequence, substituting `<SCHEMA>` with the schema determ
 | `INVESTORS_PARTNER` | `PARTNER_DATA` |
 | `FUNDADMIN_DATASHARE_*` (with full dbt prefix) | Use short name: e.g. `MONTHLY_NAV_CALCULATIONS` |
 
-- **Wrong column names**: Domain-specific corrections are in each semantic layer file's `⚠️ Common Mistakes` section. Always run `dwh__get__table_schema` to verify column names before querying — the schema response flags common aliases in the column descriptions.
+- **Wrong column names**: Domain-specific corrections are in each semantic layer file's `⚠️ Common Mistakes` section. Always run `dwh__get__table_schema` to verify column names before querying. Cross-domain shortcuts that frequently produce `invalid identifier` errors:
+
+| ❌ Do NOT use | ✅ Use instead | Table |
+|---|---|---|
+| `NET_IRR` / `IRR` | `net_lp_irr` (LP net) or `deal_irr` (gross) | `AGGREGATE_FUND_METRICS` |
+| `PRICE_PER_SHARE` | `ORIGINAL_ISSUE_PRICE` | `FINANCING_HISTORY` |
+| `AMOUNT_RAISED` | `ESTIMATED_CASH_RAISED` or `CALCULATED_CASH_RAISED` | `FINANCING_HISTORY` |
+| `HEADQUARTERS_CITY` / `HEADQUARTERS_STATE` / `HEADQUARTERS_COUNTRY` | `CITY` / `STATE` / `COUNTRY` | `CORPORATION_BASIC_INFO_V2` |
+| `LEGAL_NAME` / `NAME` / `COMPANY_NAME` | `CORPORATION_NAME` | `CORPORATION_BASIC_INFO_V2` |
+| `TRANSACTION_DATE` / `POSTING_DATE` / `ENTRY_DATE` | `effective_date` | `JOURNAL_ENTRIES` |
+| `OWNERSHIP_PERCENTAGE` / `OWNERSHIP_PCT` | `PERCENTAGE` (TEXT — cast with `TRY_TO_DECIMAL`) | `FUND_CORPORATION_OWNERSHIP` |
+| `OUTSTANDING_QUANTITY` | `OUTSTANDING_SHARES` | `SUMMARY_CAP_TABLE` |
+| `BOOL_OR(col)` | `BOOLOR_AGG(col)` | *(any table)* — Snowflake has no `BOOL_OR` |
+| `SHARE_CLASS_NAME` | `SHARECLASS_NAME` | `FINANCING_HISTORY` — one word, no underscore between SHARE and CLASS |
+| `rows` / `ROWS` (as a column alias) | any other alias (e.g. `row_count`, `cnt`) | *(any table)* — `ROWS` is a Snowflake reserved word; using it as a column alias causes `syntax error unexpected 'ROWS'` |
+
+## DWH Tool Invocations — Exact Forms Required
+
+Use `call_tool` with these exact double-underscore names. Any other form (colon syntax, single underscores, direct tool invocations) returns `NotFoundError: Unknown tool`.
+
+| Task | Exact invocation |
+|---|---|
+| Run SQL | `call_tool({"name": "dwh__execute__query", "arguments": {"sql": "SELECT ...", "format": "ndjson", "include_links": true}})` |
+| Natural-language question | `call_tool({"name": "dwh__execute__question", "arguments": {"question": "...", "include_links": true}})` |
+| List tables in a schema | `call_tool({"name": "dwh__list__tables", "arguments": {"schema": "FUND_ADMIN"}})` |
+| Get a table's columns | `call_tool({"name": "dwh__get__table_schema", "arguments": {"table_name": "TABLE_NAME", "schema": "FUND_ADMIN"}})` |
+
+- `dwh__execute__query` key is `sql` (not `query`). `format: "ndjson"` and `include_links: true` are mandatory on every call — `ndjson` is required for `_links` to be embedded in rows; without it, link data is lost.
+- `dwh__execute__question` keys: `question` (required) and `include_links` (optional). Do not pass `sql`, `fund_uuid`, `firm_uuid`, `format`, or any other key.
+- **JSON keys with spaces in VARIANT columns** — `col:'Key With Spaces'` and `col["Key With Spaces"]` both fail with `SQL compilation error`. For keys containing spaces, use escaped inner quotes: `col:'"Key With Spaces"'::STRING`. This applies to `AGGREGATE_INVESTMENTS.TAGS_JSON` and any other VARIANT column with spaced key names.
+- **`ORDER BY` with `SELECT DISTINCT`** — columns used in `ORDER BY` must also appear in the `SELECT` list when using `DISTINCT`; otherwise Snowflake raises `is not a valid order by expression`.
+
+## Deep Links
+
+`include_links: true` is always required (see table above). It adds a `_links` entry to each row for supported entity UUID columns:
+
+`include_links` adds a `_links` entry to each row for supported entity UUID columns. Supported fields and their requirements:
+
+| Column | Links to | Requires |
+|---|---|---|
+| `journal_entry_gluuid` | Journal entry page | `fund_uuid` column in result |
+| `journal_entry_line_id` | Journal tab | `fund_uuid` column in result |
+| `asset_id` | Investments tab | `fund_uuid` column in result |
+| `partner_interest_group_id` | Partners tab | `fund_uuid` column in result |
+| `entity_link_id` | Portfolio company page | `fund_uuid` or `firm_carta_id` column in result |
+| `issuer_entity_link_id` | Portfolio company page | `fund_uuid` or `firm_carta_id` column in result |
+
+**Always include the resolver column(s) in every SELECT** — `_links` is silently empty without them:
+- Include `fund_uuid` whenever the result contains `journal_entry_gluuid`, `journal_entry_line_id`, `asset_id`, or `partner_interest_group_id`
+- Include `fund_uuid` or `firm_carta_id` whenever the result contains `entity_link_id` or `issuer_entity_link_id`
+- Include these columns even when you don't display them to the user
+
+**Using `_links`:** when a row has a `_links` entry, hyperlink the entity's display name (fund name, company name, LP name) to `row["_links"][field]["web_url"]`. Use the value verbatim — never reconstruct or guess URLs.
 
 ## General Presentation Rules
 

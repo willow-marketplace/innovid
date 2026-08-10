@@ -1,6 +1,6 @@
 ---
 name: generate-oas
-description: ">"
+description: Generate a complete OpenAPI 3.0 (OAS) specification from an API codebase, a Postman or Insomnia collection, or both together. Use this skill whenever the user wants to generate, create, or derive an OpenAPI spec, reverse-engineer an API definition, document an existing API, or convert a Postman/Insomnia collection to OpenAPI — when there is no existing OAS file yet. Triggers on phrases like "generate OAS", "create an OpenAPI spec", "generate openapi.json", "document my API", "reverse-engineer spec", "convert postman to openapi", "convert insomnia to openapi", "postman collection to OAS", "insomnia collection to OAS", or any request to produce an OAS file from source material rather than from an existing spec.
 ---
 
 # Generate an OpenAPI Specification

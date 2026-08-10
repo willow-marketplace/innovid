@@ -1,6 +1,6 @@
 ---
 name: suppressing-noisy-errors
-description: ">"
+description: Create PostHog error tracking suppression rules to drop high-volume, low-value errors at ingestion. Use when the user asks "stop capturing this error", "drop browser extension errors", "ignore ResizeObserver loops", "suppress bot-driven errors", or wants to reduce ingestion cost from noisy unactionable errors. Identifies suppression candidates, scopes the filter tightly, decides between full suppression and sampling, and confirms the rule before creating it. Suppressed errors are dropped permanently — this skill defaults to caution.
 ---
 
 # Suppressing noisy errors
@@ -83,7 +83,7 @@ posthog:query-error-tracking-issue-events
 {
   "issueId": "<candidate_issue_id>",
   "limit": 10,
-  "verbosity": "stack"
+  "include": ["exception", "stacktrace", "environment", "navigation"]
 }
 ```
 
@@ -119,13 +119,12 @@ Match on the most specific property combination you can:
 | Third-party network beacon failures | `$exception_sources icontains "<vendor-domain>"` AND a type filter (e.g. `$exception_types exact "TypeError"`)                              |
 
 The canonical exception properties (`$exception_types`, `$exception_values`,
-`$exception_sources`, `$exception_functions`) are arrays at capture time. The
-property filter compiler [special-cases them](https://github.com/PostHog/posthog/blob/master/posthog/hogql/property.py#L904) — it parses the
-JSON-materialized column and wraps the filter in
-`arrayExists(v -> ..., JSONExtract(...))`, so all the standard operators
-(`exact`, `is_not`, `icontains`, `not_icontains`, `regex`, `not_regex`) work
-against individual elements with the bare value: `exact "TypeError"`, not
-`exact '["TypeError"]'` or `regex '"TypeError"'`.
+`$exception_sources`, `$exception_functions`) are arrays at capture time.
+PostHog's property filters special-case them — each filter matches against
+the individual array elements, so all the standard operators (`exact`,
+`is_not`, `icontains`, `not_icontains`, `regex`, `not_regex`) work with the
+bare value: `exact "TypeError"`, not `exact '["TypeError"]'` or
+`regex '"TypeError"'`.
 
 The singular forms (`$exception_type`, `$exception_message`) and
 `$exception_stack_trace_raw` are emitted on a fraction of a percent of events;
@@ -216,7 +215,7 @@ posthog:query-error-tracking-issue-events
 {
   "issueId": "<id from the list>",
   "limit": 3,
-  "verbosity": "stack",
+  "include": ["exception", "stacktrace", "environment", "navigation"],
   "onlyAppFrames": false
 }
 ```

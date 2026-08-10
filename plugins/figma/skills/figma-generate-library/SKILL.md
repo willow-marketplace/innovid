@@ -1,6 +1,6 @@
 ---
 name: figma-generate-library
-description: '"Build or update a professional-grade design system in Figma from a codebase. Use when the user wants to create variables/tokens, build component libraries, create individual components with proper variant sets and variable bindings, set up theming (light/dark modes), document foundations, or reconcile gaps between code and Figma. Also use when the user asks to create or generate any component in Figma — even a single one — since components require proper variable foundations, variant states, and design token bindings to be production-quality. This skill teaches WHAT to build and in WHAT ORDER — it complements the `figma-use` skill which teaches HOW to call the Plugin API. Both skills should be loaded together."'
+description: Build or update a professional-grade design system in Figma from a codebase. Use when the user wants to create variables/tokens, build component libraries, create individual components with proper variant sets and variable bindings, set up theming (light/dark modes), document foundations, or reconcile gaps between code and Figma. Also use when the user asks to create or generate any component in Figma — even a single one — since components require proper variable foundations, variant states, and design token bindings to be production-quality. This skill teaches WHAT to build and in WHAT ORDER — it complements the `figma-use` skill which teaches HOW to call the Plugin API. Both skills should be loaded together.
 ---
 
 # Design System Builder — Figma MCP Skill
@@ -15,60 +15,99 @@ Build professional-grade design systems in Figma that match code. This skill orc
 
 ## 1. The One Rule That Matters Most
 
-**This is NEVER a one-shot task.** Building a design system requires 20–100+ `use_figma` calls across multiple phases, with mandatory user checkpoints between them. Any attempt to create everything in one call WILL produce broken, incomplete, or unrecoverable results. Break every operation to the smallest useful unit, validate, get feedback, proceed.
+For every phase, follow this communication contract.
+
+Before starting a phase:
+- Post a user-facing checklist titled `Phase N Checklist`.
+- Include every task/subtask that will be attempted in that phase.
+- Include the phase exit criteria.
+- Do not begin mutating work for the phase until this checklist has been posted.
+- If the phase requires explicit approval, ask for approval after the checklist and wait.
+
+During execution:
+- Before each major subsection, post a short update naming the exact section being worked on, using this format:
+  `Working on Phase N.X: <section name>`
+- Keep updates concise, but make the current work visible.
+- When a subsection completes, mark it as completed in the running checklist if the interface supports checklist/status updates; otherwise mention completion in the next progress update.
+
+At the end of each phase:
+- Post a `Phase N Summary` with:
+  - Completed tasks
+  - Created or changed Figma objects
+  - Validations performed
+  - Decisions or conflicts resolved
+  - Remaining risks or follow-ups
+- Then show the required phase artifact for that phase and continue automatically.
+- Only ask for explicit approval after Phase 0 or if a genuine decision fork arises (see [Section 6](#6-decision-forks)). For Phases 1–4, the default is to continue automatically after the summary.
+
+### Stable Task IDs
+
+Use one task ID format everywhere: `P{phase}.{step}`.
+
+Rules:
+- Use lettered step IDs only: `P0.a`, `P0.b`, `P1.a`, `P3.d`.
+- Do not use plain bullet points for task lists.
+- Every phase checklist, progress update, validation note, and phase summary MUST reference the same task IDs
+
+**No setup exception:** Creating a new Figma file, importing a library, creating pages, variables, collections, styles, or components all count as creation/mutation. Do not treat any of them as harmless setup.
+
+**This is NEVER a one-shot task.** Building a design system requires 20–100+ `use_figma` calls across multiple phases, with mandatory progress between them. Any attempt to create everything in one call WILL produce broken, incomplete, or unrecoverable results. Break every operation to the smallest useful unit, validate, get feedback, proceed.
 
 ---
 
 ## 2. Mandatory Workflow
 
-Every design system build follows this phase order. Skipping or reordering phases causes structural failures that are expensive to undo.
+Work through the phases in order. Do not move to the next phase until the current phase's required actions and acceptance checks are complete. If a phase cannot pass, stop and report the blocker. Do not approximate, skip, or defer a failed phase unless the user explicitly approves the limitation. No best-effort substitutions. No quiet approximations. No handoff with missing source truth, missing visual truth, fake assets, approximate typography, broken interactions, or unverified states.
 
-```
-Phase 0: DISCOVERY (always first — no use_figma writes yet)
-  0a. Analyze codebase → extract tokens, components, naming conventions
-  0b. Inspect Figma file → pages, variables, components, styles, existing conventions
-  0c. Search subscribed libraries → use search_design_system for reusable assets
-  0d. Lock v1 scope → agree on exact token set + component list before any creation
-  0e. Map code → Figma → resolve conflicts (code and Figma disagree = ask user)
-  ✋ USER CHECKPOINT: present full plan, await explicit approval
+### Phase 0: DISCOVERY (always first — no `use_figma` writes yet)
 
-Phase 1: FOUNDATIONS (tokens first — always before components)
-  1a. Create variable collections and modes
-  1b. Create primitive variables (raw values, 1 mode)
-  1c. Create semantic variables (aliased to primitives, mode-aware)
-  1d. Set scopes on ALL variables
-  1e. Set code syntax on ALL variables
-  1f. Create effect styles (shadows) and text styles (typography)
-  → Exit criteria: every token from the agreed plan exists, all scopes set, all code syntax set
-  ✋ USER CHECKPOINT: show variable summary, await approval
+- [ ] 0a. Analyze codebase → extract tokens, components, naming conventions
+- [ ] 0b. Inspect Figma file → pages, variables, components, styles, existing conventions
+- [ ] 0c. Search subscribed libraries → use `search_design_system` for reusable assets
+- [ ] 0d. Lock v1 scope → exact token set + component list recorded before any creation
+- [ ] 0e. Map code → Figma → every conflict (code disagrees with Figma) resolved and recorded
+- [ ] 0f. Print a **gap analysis** to chat: what exists in code but not Figma, what exists in Figma but not code, and every conflict from 0e with its resolution
 
-Phase 2: FILE STRUCTURE (before components)
-  2a. Create page skeleton: Cover → Getting Started → Foundations → --- → Components → --- → Utilities
-  2b. Create foundations documentation pages (color swatches, type specimens, spacing bars)
-  → Exit criteria: all planned pages exist, foundations docs are navigable
-  ✋ USER CHECKPOINT: show page list + screenshot, await approval
+### Phase 1: FOUNDATIONS (tokens first — always before components)
 
-Phase 3: COMPONENTS (one at a time — never batch)
-  For EACH component (in dependency order: atoms before molecules):
-    3a. Create dedicated page
-    3b. Build base component with auto-layout + full variable bindings
-    3c. Create all variant combinations (combineAsVariants + grid layout)
-    3d. Add component properties (TEXT, BOOLEAN, INSTANCE_SWAP)
-    3e. Link properties to child nodes
-    3f. Add page documentation (title, description, usage notes)
-    3g. Validate: get_metadata (structure) + get_screenshot (visual)
-    3h. Optional: lightweight Code Connect mapping while context is fresh
-    → Exit criteria: variant count correct, all bindings verified, screenshot looks right
-    ✋ USER CHECKPOINT per component: show screenshot, await approval before next component
+- [ ] 1a. Create variable collections and modes
+- [ ] 1b. Create primitive variables (raw values, 1 mode)
+- [ ] 1c. Create semantic variables (aliased to primitives, mode-aware)
+- [ ] 1d. Set scopes on ALL variables (never `ALL_SCOPES`)
+- [ ] 1e. Set code syntax on ALL variables
+- [ ] 1f. Create effect styles (shadows) and text styles (typography)
+- [ ] 1g. Print a **variable summary** to chat: N collections, M variables, K modes, broken down by collection
+- [ ] 1h. Print the **style list** to chat: every effect style and text style created, with names
+- [ ] Exit criteria met: every token from the agreed plan exists, all scopes set, all code syntax set
 
-Phase 4: INTEGRATION + QA (final pass)
-  4a. Finalize all Code Connect mappings
-  4b. Accessibility audit (contrast, min touch targets, focus visibility)
-  4c. Naming audit (no duplicates, no unnamed nodes, consistent casing)
-  4d. Unresolved bindings audit (no hardcoded fills/strokes remaining)
-  4e. Final review screenshots of every page
-  ✋ USER CHECKPOINT: complete sign-off
-```
+### Phase 2: FILE STRUCTURE (before components)
+
+- [ ] 2a. Create page skeleton: Cover → Getting Started → Foundations → --- → Components → --- → Utilities
+- [ ] 2b. Create foundations documentation pages (color swatches, type specimens, spacing bars)
+- [ ] 2c. Capture a `get_screenshot` of every foundations page and print the **page list** to chat alongside the screenshots
+- [ ] Exit criteria met: all planned pages exist, foundations docs are navigable
+
+### Phase 3: COMPONENTS (one at a time — never batch)
+
+For EACH component (in dependency order: atoms before molecules), run the checklist below. Finish the current component before starting the next.
+
+- [ ] 3a. Create dedicated page
+- [ ] 3b. Build base component with auto-layout + full variable bindings
+- [ ] 3c. Create all variant combinations (`combineAsVariants` + grid layout)
+- [ ] 3d. Add component properties (TEXT, BOOLEAN, INSTANCE_SWAP)
+- [ ] 3e. Link properties to child nodes
+- [ ] 3f. Add page documentation (title, description, usage notes)
+- [ ] 3g. Validate: `get_metadata` (structure) + `get_screenshot` (visual)
+- [ ] 3h. Optional: lightweight Code Connect mapping while context is fresh
+- [ ] Exit criteria met: variant count correct, all bindings verified, screenshot looks right
+
+### Phase 4: INTEGRATION + QA (final pass)
+
+- [ ] 4a. Finalize all Code Connect mappings
+- [ ] 4b. Accessibility audit (contrast, min touch targets, focus visibility)
+- [ ] 4c. Naming audit (no duplicates, no unnamed nodes, consistent casing)
+- [ ] 4d. Unresolved bindings audit (no hardcoded fills/strokes remaining)
+- [ ] 4e. Final review screenshots of every page
 
 ---
 
@@ -98,30 +137,25 @@ Phase 4: INTEGRATION + QA (final pass)
 13. **NEVER parallelize `use_figma` calls** — Figma state mutations must be strictly sequential. Even if your tool supports parallel calls, never run two use_figma calls simultaneously.
 14. **Never hallucinate Node IDs** — always read IDs from the state ledger returned by previous calls. Never reconstruct or guess an ID from memory.
 15. **Use the helper scripts** — embed scripts from `scripts/` into your use_figma calls. Don't write 200-line inline scripts from scratch.
-16. **Explicit phase approval** — at each checkpoint, name the next phase explicitly. "looks good" is not approval to proceed to Phase 3 if you asked about Phase 1.
 
 ---
 
 ## 4. State Management (Required for Long Workflows)
 
-> **`getPluginData()` / `setPluginData()` are NOT supported in `use_figma`.** Use `getSharedPluginData()` / `setSharedPluginData()` instead (these ARE supported), or use name-based lookups and the state ledger (returned IDs).
+> Do not store workflow state on Figma objects. Use deterministic names for discovery and exact returned IDs in the state ledger. Put human-readable component purpose and usage guidance in the component or component-set `description`.
 
-| Entity type | Idempotency key | How to check existence |
+| Entity type | Stable identity | How to check existence |
 |-------------|----------------|----------------------|
-| Scene nodes (pages, frames, components) | `setSharedPluginData('dsb', 'key', value)` or unique name | `node.getSharedPluginData('dsb', 'key')` or `page.findOne(n => n.name === 'Button')` |
+| Pages and frames | Deterministic name + state-ledger ID | `figma.root.children.find(p => p.name === pageName)` or `await figma.getNodeByIdAsync(id)` |
+| Components and component sets | Variant/set name + state-ledger ID | `page.findOne(n => n.name === name)` or `await figma.getNodeByIdAsync(id)` |
 | Variables | Name within collection | `(await figma.variables.getLocalVariablesAsync()).find(v => v.name === name && v.variableCollectionId === collId)` |
 | Styles | Name | `getLocalTextStyles().find(s => s.name === name)` |
 
-Tag every created **scene node** immediately after creation:
-```javascript
-node.setSharedPluginData('dsb', 'run_id', RUN_ID);        // identifies this build run
-node.setSharedPluginData('dsb', 'phase', 'phase3');        // which phase created it
-node.setSharedPluginData('dsb', 'key', 'component/button');// unique logical key
-```
+Record every returned ID in the state ledger immediately after creation. Never use a fuzzy lookup to authorize deletion.
 
 **State persistence**: Do NOT rely solely on conversation context for the state ledger. Write it to disk:
 ```
-/tmp/dsb-state-{RUN_ID}.json
+/tmp/design-system-state-{RUN_ID}.json
 ```
 Re-read this file at the start of every turn. In long workflows, conversation context will be truncated — the file is the source of truth.
 
@@ -193,24 +227,23 @@ search_design_system({ query, fileKey, includeLibraryKeys: ["lk-abc123..."], inc
 - Import the library component as a nested instance inside a new wrapper component
 - Expose a clean API on the wrapper
 
-**Three-way priority**: local existing → subscribed library import → create new.
+**Priority order**: local existing → subscribed library import → unsubscribed UI Kit library from `libraries_available_to_add` (icons especially) → create new.
 
 ---
 
-## 6. User Checkpoints
+## 6. Decision Forks
 
-Mandatory. Design decisions require human judgment.
+Ask the user when paths fork — when two or more reasonable answers exist and no clear winner comes from the codebase, the Figma file, or the locked plan. Don't silently default. Present each option with its tradeoff and your recommendation; pick only after the user steers.
 
-| After | Required artifacts | Ask |
-|-------|-------------------|-----|
-| Discovery + scope lock | Token list, component list, gap analysis | "Here's my plan. Approve before I create anything?" |
-| Foundations | Variable summary (N collections, M vars, K modes), style list | "All tokens created. Review before file structure?" |
-| File structure | Page list + screenshot | "Pages set up. Review before components?" |
-| Each component | get_screenshot of component page | "Here's [Component] with N variants. Correct?" |
-| Each conflict (code ≠ Figma) | Show both versions | "Code says X, Figma has Y. Which wins?" |
-| Final QA | Per-page screenshots + audit report | "Complete. Sign off?" |
+**When NOT to ask:** if exactly one path is clearly correct from the source of truth (code, Figma file, agreed plan), take it. This section is for genuine ambiguity, not for offloading every decision.
 
-**If user rejects**: fix before moving on. Never build on rejected work.
+| Fork situation | What to surface | Example ask |
+|---|---|---|
+| Code ≠ Figma on a token, component, or value | Both versions side by side, with provenance (file/line vs node) | "Code says `--color-bg-primary = #FFFFFF`, Figma has `color/bg/primary = #FAFAFA`. Which wins?" |
+| Subscribed library has a close-but-not-exact match | Library component summary + gap list | "Library has `Button` with no `loading` state. Reuse + wrap locally, or rebuild from scratch?" |
+| Scope ambiguity at plan-lock (0d) | What's clearly in, what's clearly out, what's ambiguous | "Spec lists `Button` and `Input`; `Field` is referenced but not defined. In or out of v1?" |
+
+**If the user rejects an option you already built on:** fix before moving on. Never build on rejected work.
 
 ---
 
@@ -290,7 +323,6 @@ Collection: "Spacing"       modes: ["Value"]
 - ❌ Retrying a failed script without understanding the error first
 - ❌ Using name-prefix matching for cleanup (deletes user-owned nodes)
 - ❌ Building on unvalidated work from the previous step
-- ❌ Skipping user checkpoints to "save time"
 - ❌ Parallelizing use_figma calls (always sequential)
 - ❌ Guessing/hallucinating node IDs from memory (always read from state ledger)
 - ❌ Writing massive inline scripts instead of using the provided helper scripts
@@ -329,5 +361,4 @@ Reusable Plugin API helper functions. Embed in `use_figma` calls:
 | [bindVariablesToComponent.js](scripts/bindVariablesToComponent.js) | Bind design tokens to all component visual properties |
 | [createDocumentationPage.js](scripts/createDocumentationPage.js) | Create a page with title + description + section structure |
 | [validateCreation.js](scripts/validateCreation.js) | Verify created nodes match expected counts, names, structure |
-| [cleanupOrphans.js](scripts/cleanupOrphans.js) | Remove orphaned nodes by name convention or state ledger IDs |
-| [rehydrateState.js](scripts/rehydrateState.js) | Scan file for all pages, components, variables by name; returns full `{key → nodeId}` map for state reconstruction |
+| [cleanupOrphans.js](scripts/cleanupOrphans.js) | Remove only the exact node, variable, and collection IDs supplied from the state ledger |

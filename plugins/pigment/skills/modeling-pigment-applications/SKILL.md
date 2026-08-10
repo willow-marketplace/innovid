@@ -79,7 +79,7 @@ Invariants the agent must respect:
 
 ### Sibling decisions the agent gets wrong most often
 
-- **Dimension vs Property.** Values repeat across rows AND you need to slice metrics by them, use a Dimension. Free text, measure, or boolean, use a Property.
+- **Dimension vs Property.** Values repeat across rows AND you need to slice metrics by them, use a Dimension. Free text, measure, or boolean, use a Property. Before creating list properties, read [Property Type Selection](./modeling_fundamentals.md#21-dimensions-and-properties) — do not default categorical fields to Text.
 - **Dimension vs Transaction List.** Need to slice metrics by it with unique items, use a Dimension. Granular events, high volume, not structural, use a Transaction List.
 - **Metric vs Transaction List as source of truth.** Aggregated planning numbers belong in a Metric. Atomic events from ERP or CRM belong in a Transaction List, then aggregate with `BY`.
 - **Table vs standalone Metric.** Multiple metrics share dimensions and you want calculated items or a single view, use a Table. One isolated KPI or intermediate calc stays standalone.
@@ -109,10 +109,10 @@ Concrete shape of a well-formed micro-app. Generalize from this pattern.
 
 ```
 Folders:
-  01. Dimensions
-  02. Library
-  03. Data Loads
-  04. Reporting
+  1. Dimensions
+  2. Library
+  3. Data Loads
+  4. Reporting
 
 Dimensions:
   Country       items: FR, US, UK         property: Region [Dim]
@@ -145,7 +145,8 @@ Table:
 
 - **Architecture before blocks.** Dimensional structure is the single most expensive decision. Design before building.
 - **Only dimension lists can be structural.** Transaction lists never. Aggregate with `BY`.
-- **Never use `.` or `:` in names.** They break formula references.
+- **Never use `.`, `:`, `'`, or `"` in friendly names.** They break formula references or are rejected by the platform. Sanitize user-provided names before create/rename tool calls.
+- **Prefer ASCII friendly names.** Avoid apostrophes and circumflex letters (â, ê, î, ô, û) — use `Prets`, `Creances`, `Total_Effectifs`, not `Prêts`, `Crêances`, `Total d'Effectifs`. Put localized phrasing in display names; see [./modeling_naming_conventions.md#character-rules](./modeling_naming_conventions.md#character-rules).
 - **Never place a block at the root level.**
 - **Never reference an item directly in a formula** when T&D is in use. Use an input metric of type Dimension.
 - **List Subsets are not a default.** Membership change deletes data irreversibly. Prefer filters.

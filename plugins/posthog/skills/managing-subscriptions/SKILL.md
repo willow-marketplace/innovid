@@ -1,6 +1,6 @@
 ---
 name: managing-subscriptions
-description: "'Manage PostHog subscriptions — scheduled email, Slack, or webhook deliveries of insight or dashboard snapshots, optionally with an AI-written summary attached to each delivery. Use when the user wants to subscribe to an insight or dashboard, get an AI summary attached to those deliveries, check existing subscriptions, change delivery frequency, add or remove recipients, or stop receiving updates.'"
+description: Manage PostHog subscriptions — scheduled email, Slack, or webhook deliveries of insight or dashboard snapshots, optionally with an AI-written summary attached to each delivery. Use when the user wants to subscribe to an insight or dashboard, get an AI summary attached to those deliveries, check existing subscriptions, change delivery frequency, add or remove recipients, or stop receiving updates.
 ---
 
 # Managing subscriptions

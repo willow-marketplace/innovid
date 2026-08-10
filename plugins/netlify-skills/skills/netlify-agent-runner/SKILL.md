@@ -9,15 +9,28 @@ Run AI coding agents (Claude, Codex, Gemini) remotely on Netlify infrastructure 
 
 ## Prerequisites
 
-- The site must be **linked to a Netlify project** (via `netlify link` or `netlify init`), or you can specify `--project <name>` to target any Netlify site
+- The site must be **linked to a Netlify project** (via `netlify link` or `netlify init`).
+- **Or skip linking entirely:** pass `--project <name>` (a project ID or name) directly to `netlify agents:create` to target any Netlify site without linking first.
 - The Netlify CLI must be installed and authenticated
+- Agent runs **consume plan credits**. If the account has no available credits — or the agent/AI usage limit has been reached — `netlify agents:create` is **blocked** and the run won't start. That's an account/plan-state issue to surface to the user, not something to work around.
+
+## Use only documented CLI surfaces
+
+Interact with agent tasks only through the documented `netlify agents:*` commands (plus `netlify --help` and the public CLI reference). Do **not** go around the CLI:
+
+- **Do not curl `https://api.netlify.com/...`** to fetch, create, or stop a task — the endpoint shapes are not part of the public contract.
+- **Do not run `netlify api <method>`** as a recovery hatch when a documented command fails.
+- **Do not read auth tokens** out of `~/Library/Preferences/netlify/config.json` (or anywhere on disk) to authenticate side-channel calls.
+
+If a documented command fails, report the exact error and context to the user and stop — don't invent an undocumented way to reach the task.
 
 ## How Agent Tasks Run
 
 Read this before creating a task — agent tasks behave differently from running an agent locally, and the differences are easy to miss.
 
 - **Remote, not local.** Tasks run on Netlify infrastructure, not on your machine. They operate on the site's **connected repository**, not your local working tree. The remote agent only sees what has been pushed to the remote — it cannot see uncommitted or unpushed changes.
-- **Branch-based.** By default a task runs against the production branch (`main` or `master`). To target a different branch, use `-b <branch>` and make sure that branch has been **pushed to the remote first**, or the agent will be working from code that doesn't exist remotely.
+- **Branch-based.** By default a task runs against the production branch (`main` or `master`). To choose a different *base* branch for the agent to start from, use `-b <branch>` and make sure that branch has been **pushed to the remote first**, or the agent will be working from code that doesn't exist remotely. `-b` sets the base (starting) branch — not where the results are written (see the next bullet).
+- **Output lands on a new branch — not in place.** The agent does **not** commit its changes onto the base branch you selected. It pushes its work to a **new branch** with its own **Deploy Preview**, so your existing branch (or `main`) is never overwritten. Review the task's results on that new branch / Deploy Preview — don't expect the base branch to change directly.
 - **Asynchronous.** `netlify agents:create` returns as soon as the task is queued — it does **not** block until the work is finished. When the command returns, the task is still running remotely.
 - **No webhooks or callbacks.** Nothing notifies you when a task changes state or completes. To find out what's happening, you have to **poll** with `netlify agents:show <task-id>` or `netlify agents:list`.
 - **Statuses are terminal or not.** A task moves through `new` → `running` → one of `done`, `error`, or `cancelled`. Keep polling until the status is one of those last three before you act on the results.
@@ -61,6 +74,8 @@ netlify agents:create "Add a footer" --json
 | `--json` | Output result as JSON |
 
 ## Managing Agent Tasks
+
+All `netlify agents:*` commands are **project-scoped** — they operate on a single project (the one your directory is linked to, or the one named with `--project <name>`), not on your whole team. `netlify agents:list` shows the tasks for that one project only; there is no team-wide command that lists tasks across all your sites. To see a different site's tasks, run from its linked directory or pass `--project <name>` for it.
 
 ### List tasks
 
@@ -120,7 +135,16 @@ Some of the many things you can do with Agent Runners:
 
 If you are an AI agent, you can use `netlify agents:create` to delegate work to an agent running remotely on Netlify — for example, to get a second opinion from a different model.
 
-**IMPORTANT — ask for permission first.** Agent tasks run on Netlify infrastructure and incur cost for the user. You MUST get the user's explicit permission before running any `netlify agents:create` command. Explain what you want to run, which agent you want to use, and why. Never run these commands without the user's approval.
+**IMPORTANT — ask for permission first, as a distinct confirmation step.** Agent tasks run on Netlify infrastructure and cost the user credits, so a real approval gate matters. Get explicit permission before running any `netlify agents:create` command — and treat that as its own turn, separate from the user's original request. A directive-sounding prompt ("start a task…", "use the claude agent and pin it to Opus") is **not** itself the approval: it tells you what they want, but the billable command still waits for a yes.
+
+Make the permission request a concrete proposal, not a menu:
+
+- **The exact command**, filled in — e.g. `netlify agents:create -p "<the real prompt>" -a codex` — not a `<placeholder>` and not a pick-one list of agents.
+- **One agent, already chosen** — commit to a single `-a` value and say why you picked it ("codex for a second opinion on the auth logic"), rather than offering claude/codex/gemini as interchangeable options.
+- **Why**, plus **what happens after "yes"**: the run is asynchronous — `agents:create` returns as soon as the task is queued, there's no callback, and you'll poll `netlify agents:show <task-id>` for the outcome.
+- **Even if a prerequisite is missing** (not authenticated, not linked to a site, not a git repo yet), still show the exact command and chosen agent you'll run *once it's resolved* — surface the blocker **and** the concrete proposal, rather than collapsing to only describing the blocker.
+
+Never run these commands without the user's approval.
 
 Before delegating, understand what you're handing off (see [How Agent Tasks Run](#how-agent-tasks-run) above):
 

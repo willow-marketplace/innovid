@@ -1,6 +1,6 @@
 ---
 name: bigdata-variant-perception
-description: ">"
+description: "State explicitly where your view on a public company differs from consensus, using Bigdata.com data. Establishes the consensus baseline from estimates and sell-side posture, applies the EPIC filter to candidate differentiators, frames the view on FaVeS (fundamentals, valuation, sentiment), and states the variant view as a specific, falsifiable claim with a time horizon — plus what the market is missing, why the mispricing persists, the evidence for the view, and what would disprove it. Triggers: \"variant perception on X\", \"where do I differ from consensus on X\", \"what is the market missing on X\", \"non-consensus view on X\", \"what's priced in versus reality for X\", \"contrarian case for X\"."
 ---
 
 # Bigdata Variant Perception

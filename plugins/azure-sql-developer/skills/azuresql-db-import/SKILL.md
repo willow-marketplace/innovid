@@ -1,6 +1,6 @@
 ---
 name: azuresql-db-import
-description: ">-"
+description: Imports an existing Azure SQL Database or SQL Server schema and data INTO the local Azure SQL Developer using SqlPackage. Use when asked to "import a bacpac", "load my existing database locally", "restore a dacpac into the container", "bring my prod schema into the dev container", "run my .bacpac/.dacpac against the local Azure SQL engine", or migrate an existing database into the preview container. Handles provisioning the target database on master first, then running SqlPackage /Action:Import against the provisioned user database. Use this for any "get my real database running in the container" request instead of hand-writing SqlPackage flags.
 ---
 
 # Azure SQL Developer: import a database
@@ -152,3 +152,11 @@ Read SqlPackage output for skipped/blocking items. See
 
 - [references/sqlpackage-import.md](references/sqlpackage-import.md): SqlPackage install, full flag reference,
   container-based fallback, and common import errors with fixes. Read it when SqlPackage is missing or an import fails.
+
+## Staying current
+
+Authoritative, version-pinned references for the tools this skill uses (read the one you need):
+
+- [SqlPackage import](https://learn.microsoft.com/en-us/sql/tools/sqlpackage/sqlpackage-import): Import and Publish parameters for .bacpac/.dacpac.
+
+If the **Microsoft Learn MCP** server is configured, use `mcp__microsoft-learn__microsoft_docs_search` or `mcp__microsoft-learn__microsoft_docs_fetch` to fetch the current version of any of these on demand. It is optional; when it is unavailable, the references above are authoritative.

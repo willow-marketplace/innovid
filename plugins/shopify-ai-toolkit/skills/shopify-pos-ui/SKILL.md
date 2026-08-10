@@ -1,6 +1,6 @@
 ---
 name: shopify-pos-ui
-description: "\"Build retail point-of-sale applications using Shopify's POS UI components. These components provide a consistent and familiar interface for POS applications. POS UI Extensions also supports scaffolding new POS extensions using Shopify CLI commands. Keywords: POS, Retail, smart grid\""
+description: "Build retail point-of-sale applications using Shopify's POS UI components. These components provide a consistent and familiar interface for POS applications. POS UI Extensions also supports scaffolding new POS extensions using Shopify CLI commands. Keywords: POS, Retail, smart grid"
 ---
 
 ## Required Tool Calls (do not skip)
@@ -62,13 +62,9 @@ If no extension target is specified, search the documentation to determine the a
 ## Available Extension Targets for pos-ui
 
 Surface: **point-of-sale**
-Total Targets: **34**
+Total Targets: **30**
 
 ---
-
-### pos.cart-update
-
-#### `pos.cart-update.event.observe`
 
 ### pos.cart.line-item-details
 
@@ -81,14 +77,6 @@ Renders a full-screen modal interface launched from cart line item menu items. U
 #### `pos.cart.line-item-details.action.menu-item.render`
 
 Renders a single interactive button component as a menu item in the cart line item action menu. Use this target for item-specific operations like applying discounts, adding custom properties, or launching verification workflows for individual cart items. Extensions at this target can access detailed line item information including title, quantity, price, discounts, properties, and product metadata through the Cart Line Item API. Menu items typically invoke `shopify.action.presentModal()` to launch the companion modal for complete workflows.
-
-### pos.cash-tracking-session-complete
-
-#### `pos.cash-tracking-session-complete.event.observe`
-
-### pos.cash-tracking-session-start
-
-#### `pos.cash-tracking-session-start.event.observe`
 
 ### pos.customer-details
 
@@ -239,10 +227,6 @@ Renders a custom information section within the post-return screen. Use this tar
 #### `pos.return.post.action.menu-item.render`
 
 Renders a single interactive button component as a menu item in the post-return action menu. Use this target for post-return operations like generating return receipts, processing restocking workflows, or collecting return feedback. Extensions at this target can access the order identifier through the Order API to perform return-specific operations. Menu items typically invoke `shopify.action.presentModal()` to launch the companion modal for complete post-return workflows.
-
-### pos.transaction-complete
-
-#### `pos.transaction-complete.event.observe`
 
 ---
 

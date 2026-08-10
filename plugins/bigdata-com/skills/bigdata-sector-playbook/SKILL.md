@@ -1,6 +1,6 @@
 ---
 name: bigdata-sector-playbook
-description: ">"
+description: "Build an actionable investment playbook for a sector using Bigdata.com data and sector-specific frameworks — the KPIs that actually matter in that sector, how to value companies in it and why, the live debates and where consensus sits on each, valuation context against the sector's own history, a sub-industry map with cycle position, screening criteria and sector-specific red flags, and an actionable setup of what to own, avoid, and watch. More operational than a sector analysis: it teaches how to invest the sector, not just how it is doing. Triggers: \"sector playbook for X\", \"how do I analyze X companies\", \"what KPIs matter in X\", \"how to value X sector companies\", \"investing framework for X sector\", \"X sector cheat sheet\"."
 ---
 
 # Bigdata Sector Playbook

@@ -1,6 +1,9 @@
 ---
 name: ui5-best-practices-smart-controls
-description: "|"
+description: |-
+  UI5 smart controls (sap.ui.comp) best practices for OData V2 annotation-driven controls. Use when creating/troubleshooting SmartField, SmartForm, SmartFilterBar, SmartChart, SmartLink, SmartMultiInput, or SmartTable. Covers control selection, annotations (ValueList, FieldControl, SemanticObject, UI.LineItem, UI.Chart), mandatory rules, common errors, and per-control API reference.
+  Triggers: "SmartField", "SmartForm", "SmartFilterBar", "SmartChart", "SmartLink", "SmartMultiInput", "sap.ui.comp", "smart control annotations", "OData V2 metadata-driven", "value help annotations", "ValueList annotation", "field control annotation", "semantic object navigation".
+  Keywords: sap.ui.comp, SmartField, SmartForm, SmartFilterBar, SmartChart, SmartLink, SmartMultiInput, SmartTable, ValueHelpDialog, OData V2, annotations, ValueList, FieldControl, SemanticObject, entitySet, ControlConfiguration, GroupConfiguration, textArrangement, FilterProvider, initialise, beforeRebindChart, navigationTargetsObtained
 ---
 
 # UI5 Smart Controls Best Practices
@@ -21,7 +24,6 @@ Apply these guidelines whenever generating, reviewing, or troubleshooting UI5 sm
 | Working on or planning a `sap.ui.comp.smartmultiinput.SmartMultiInput` | [`references/smart-multi-input.md`](references/smart-multi-input.md)                                                         |
 | Working on or planning a `sap.ui.comp.filterbar.FilterBar`             | [`references/filter-bar.md`](references/filter-bar.md)                                                                       |
 | Working on or planning a `sap.ui.comp.valuehelpdialog.ValueHelpDialog` | [`references/value-help-dialog.md`](references/value-help-dialog.md)                                                         |
-| Working on or planning a `sap.ui.comp.smarttable.SmartTable`           | See `ui5-best-practices-tables` skill, [`references/smart-table.md`](../ui5-best-practices-tables/references/smart-table.md) |
 
 Load before producing any output. Do not work from memory.
 

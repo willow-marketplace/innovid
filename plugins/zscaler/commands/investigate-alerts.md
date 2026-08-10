@@ -1,6 +1,6 @@
 ---
 name: investigate-alerts
-description: '"Investigate active and historical ZDX alerts to understand scope, root cause, and impact."'
+description: Investigate active and historical ZDX alerts to understand scope, root cause, and impact.
 ---
 
 # Investigate ZDX Alerts

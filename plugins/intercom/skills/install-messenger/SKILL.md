@@ -1,6 +1,6 @@
 ---
 name: install-messenger
-description: ">"
+description: Install the Intercom Messenger on a website or web application with secure JWT-based identity verification. Generates backend and frontend code for React, Next.js, Vue.js, Angular, Ember, and plain JavaScript. Supports Node.js, Python (Flask/Django), PHP, and Ruby backends. Use when the user asks to "install Intercom", "add the Intercom Messenger", "set up Intercom chat widget", "add customer chat to my website", or "integrate Intercom".
 ---
 
 # Install Intercom Messenger

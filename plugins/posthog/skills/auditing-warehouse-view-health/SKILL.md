@@ -1,6 +1,6 @@
 ---
 name: auditing-warehouse-view-health
-description: ">"
+description: Audit the health of a PostHog project's materialized views (saved queries) — find every failed materialization and flag unused or stale materialized views that cost storage and compute. Use when the user asks "which of my views are broken?", "why is this materialized view failing?", "are any of my views wasting compute?", or wants a one-shot triage of view health. For source/sync health use `auditing-warehouse-source-health`.
 ---
 
 # Auditing data warehouse view health

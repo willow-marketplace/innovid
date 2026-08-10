@@ -1,6 +1,6 @@
 ---
 name: filtering-bot-traffic
-description: "'Identify, measure, and exclude bot / crawler / AI-agent traffic in PostHog web and product analytics using the traffic classification surface (the isLikelyBot / getTrafficType HogQL functions and the $virt_* virtual properties). Use when the user asks to \"exclude bots\", \"filter out crawlers\", \"remove bot traffic from my numbers\", \"how much of my traffic is bots / AI crawlers\", \"is GPTBot / ChatGPT / Claude hitting my site\", \"break down traffic by human vs bot\", or wants clean human-only counts in an insight or dashboard. For the real-time Live tab bot tiles, use exploring-live-traffic instead.'"
+description: Identify, measure, and exclude bot / crawler / AI-agent traffic in PostHog web and product analytics using the traffic classification surface (the isLikelyBot / getTrafficType HogQL functions and the $virt_* virtual properties). Use when the user asks to "exclude bots", "filter out crawlers", "remove bot traffic from my numbers", "how much of my traffic is bots / AI crawlers", "is GPTBot / ChatGPT / Claude hitting my site", "break down traffic by human vs bot", or wants clean human-only counts in an insight or dashboard. For the real-time Live tab bot tiles, use exploring-live-traffic instead.
 ---
 
 # Filtering and measuring bot traffic
@@ -173,5 +173,4 @@ the capture API) before building bot insights.
 - **Don't silently drop the host filter.** If the user is scoped to one domain, inherit
   `$host` in `properties` — leaving it out changes the answer.
 - **Bot definitions evolve.** The detected-bot list changes over time, so re-running the
-  same query later can classify older events differently. Definitions live in
-  `products/web_analytics/backend/hogql_queries/bot_definitions.py`.
+  same query later can classify older events differently.

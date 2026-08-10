@@ -1,6 +1,6 @@
 ---
 name: datahub-mfe-configure-app
-description: ">-"
+description: Configure a DataHub instance to load and display a Micro Frontend (MFE) app. Use when the user wants to register an MFE with DataHub, add an MFE to the nav sidebar, set up MFE config for local dev or production/k8s, or troubleshoot MFE loading issues.
 ---
 
 # Configure an MFE in DataHub

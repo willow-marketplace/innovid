@@ -1,6 +1,6 @@
 ---
 name: shopify-use-shopify-cli
-description: '"Choose when the user needs **Shopify CLI** to run or fix something now: validate app or extension config on disk (`shopify.app.toml`, `shopify.app.<name>.toml`, `shopify.extension.toml`); run or troubleshoot store workflows (`shopify store auth`, `shopify store execute`); inventory or product changes by handle, SKU, or location name; or CLI setup, auth, upgrade issues. Emphasize **commands and operational steps**, not only authoring GraphQL. Skip for API-only understanding or codegen with no CLI execution. Examples: validate configuration before deploy; run an existing query via CLI; list products; missing `shopify store execute`."'
+description: "Choose when the user needs **Shopify CLI** to run or fix something now: validate app or extension config on disk (`shopify.app.toml`, `shopify.app.<name>.toml`, `shopify.extension.toml`); run or troubleshoot store workflows (`shopify store auth`, `shopify store execute`); or perform explicit store-scoped reads/writes on a named store domain (for example, show/list/find the first 10 products on my store at `foo.myshopify.com`, or inventory and product changes by handle, SKU, or location name). Emphasize **commands and operational steps**, not only authoring GraphQL. Skip for API-only understanding or codegen with no CLI execution, and skip for brand-new merchant asks to start a Shopify store or try Shopify before they have an account. Examples: validate configuration before deploy; run an existing query via CLI; show the first 10 products on `foo.myshopify.com`; missing `shopify store execute`."
 ---
 
 ## Required Tool Calls (do not skip)
@@ -138,6 +138,13 @@ Apply this section only when the user explicitly wants to run a GraphQL operatio
 - If the validated operation is read-only, keep the final `shopify store execute --store ... --query '...'` command without `--allow-mutations`.
 - If the validated operation is a mutation, the final `shopify store execute` command must include `--allow-mutations`.
 - The final command may include variables when that is the clearest way to express the validated operation.
+
+### ShopifyQL analytics
+
+- Merchant analytics and reporting questions (sales, orders, revenue, sessions, conversion, trends) are answered with **ShopifyQL**, run through the `shopifyqlQuery` Admin GraphQL field. Author the ShopifyQL with the `shopify-shopifyql` guidance, then run it through this same store-execution flow.
+- The operation wraps the ShopifyQL in a triple-quoted block string: `query { shopifyqlQuery(query: """FROM … SHOW …""") { tableData { columns { name dataType } rows } parseErrors } }`.
+- ShopifyQL is read-only: use `--scopes read_reports` on `shopify store auth`, and never add `--allow-mutations`.
+- Read `parseErrors` from the result to check validity — a non-empty `parseErrors` means the ShopifyQL is invalid; fix it and re-run. The rows and columns come back in `tableData`.
 
 ### Store execution constraints
 

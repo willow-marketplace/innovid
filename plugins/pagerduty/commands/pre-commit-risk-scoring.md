@@ -1,6 +1,6 @@
 ---
 name: pre-commit-risk-scoring
-description: '"Assess pre-commit risk by correlating PagerDuty incidents with current code changes"'
+description: Assess pre-commit risk by correlating PagerDuty incidents with current code changes
 ---
 
 You are performing a pre-commit risk assessment. Follow these steps precisely and in order. Do not skip steps. Do not silently degrade -- if a required tool is unavailable, stop and tell the user.

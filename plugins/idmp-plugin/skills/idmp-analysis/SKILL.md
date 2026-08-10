@@ -1,6 +1,6 @@
 ---
 name: idmp-analysis
-description: '"IDMP analysis skill for listing, searching, reading, resuming, and preparing analysis create flows with path, trigger type, sub-template, and output-attribute checks."'
+description: IDMP analysis skill for listing, searching, reading, resuming, and preparing analysis create flows with path, trigger type, sub-template, and output-attribute checks.
 ---
 
 # analysis

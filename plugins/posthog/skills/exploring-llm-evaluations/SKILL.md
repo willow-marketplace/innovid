@@ -1,6 +1,6 @@
 ---
 name: exploring-llm-evaluations
-description: ">"
+description: Investigate AI observability evaluations — `hog` (deterministic code-based), `llm_judge` (LLM-prompt-based), and `sentiment` (user-message sentiment). Find existing evaluations, inspect their configuration, run them against specific generations, query individual results, and generate AI-powered summaries for boolean pass/fail runs. Use when the user asks to debug why an evaluation is failing, surface common failure modes, compare results across filters, dry-run a Hog evaluator, prototype a new LLM-judge prompt, inspect sentiment classifications, or manage the evaluation lifecycle.
 ---
 
 # Exploring AI observability evaluations

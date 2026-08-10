@@ -1,6 +1,6 @@
 ---
 name: render-networking
-description: ">-"
+description: Connects Render services over the private network—internal DNS, service discovery, and cross-service communication. Use when the user needs to wire services together, resolve internal hostnames, troubleshoot connectivity between services, configure environment isolation, or understand which services can reach each other.
 ---
 
 # Render private networking

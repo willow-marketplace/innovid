@@ -1,6 +1,6 @@
 ---
 name: azuresql-db-rag
-description: ">-"
+description: Builds local vector search, RAG, embeddings, and semantic search on Azure SQL Developer using the native VECTOR type and VECTOR_DISTANCE. Use when you need to store embeddings, do similarity search, top-k nearest neighbor, cosine distance, retrieval-augmented generation, "find similar documents", chatbot memory, or semantic lookup against a local SQL database. Use this instead of pgvector, FAISS, Chroma, Pinecone, or a separate vector store when the data already lives in (or can live in) Azure SQL. Covers the VECTOR(n) column type, inserting embeddings with CAST(CAST(? AS NVARCHAR(MAX)) AS VECTOR(n)) where the dimension is a literal, a pluggable embed() so only the endpoint changes for cloud, and the honest current state of CREATE VECTOR INDEX. Provisions appdb on master first so every script runs on a fresh container.
 ---
 
 # Azure SQL Developer: local vector search and RAG
@@ -212,3 +212,12 @@ the same; you just add the index.
 ## References
 
 - [references/vector-schema.md](references/vector-schema.md): table shapes, how to choose the dimension n, insert and top-k query mechanics, distance metrics, metadata filtering, corpus seeding, indexing status, and troubleshooting. Read it when designing the vector schema or a query beyond the basic top-k shown above.
+
+## Staying current
+
+Authoritative, version-pinned references for the tools this skill uses (read the one you need):
+
+- [VECTOR data type (T-SQL)](https://learn.microsoft.com/en-us/sql/t-sql/data-types/vector-data-type): VECTOR(n) syntax, limits, and driver support.
+- [VECTOR_DISTANCE (T-SQL)](https://learn.microsoft.com/en-us/sql/t-sql/functions/vector-distance-transact-sql): cosine, euclidean, and dot distance with examples.
+
+If the **Microsoft Learn MCP** server is configured, use `mcp__microsoft-learn__microsoft_docs_search` or `mcp__microsoft-learn__microsoft_docs_fetch` to fetch the current version of any of these on demand. It is optional; when it is unavailable, the references above are authoritative.

@@ -1,6 +1,6 @@
 ---
 name: triaging-error-issues
-description: ">"
+description: Triage PostHog error tracking issues during a daily or on-call review. Use when the user asks "what's broken?", "what new errors do we have?", "show me top errors today", "what should I look at this morning", or wants a prioritized list of active issues to work on. Surfaces new and high-impact issues, ranks by users affected and recency, points at linked replays, and proposes next actions (investigate, assign, suppress, merge).
 ---
 
 # Triaging error tracking issues
@@ -109,7 +109,7 @@ posthog:query-error-tracking-issue-events
 {
   "issueId": "<issue_id>",
   "limit": 1,
-  "verbosity": "stack"
+  "include": ["exception", "stacktrace", "environment", "navigation", "correlation"]
 }
 ```
 
@@ -144,5 +144,7 @@ For each, suggest one of: **investigate** (`investigating-error-issue`), **assig
   user decide. Bulk actions belong in dedicated skills.
 - If the project uses Inbox (`posthog:inbox-reports-list`), check it first — PostHog
   may have already curated the most actionable issues so you avoid re-deriving them.
-- Provide the issue URL (`/error_tracking/<id>`) for each row so the user can jump
-  straight to the issue page if they want to drill down themselves.
+- Provide each row's `_posthogUrl` (returned on every issue row) so the user can jump
+  straight to the issue page if they want to drill down themselves. If you build the
+  link yourself, use the full `/project/<project_id>/error_tracking/<id>` path, never
+  a bare `/error_tracking/<id>`.

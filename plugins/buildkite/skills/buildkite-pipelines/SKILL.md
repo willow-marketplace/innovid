@@ -1,6 +1,6 @@
 ---
 name: buildkite-pipelines
-description: ">"
+description: This skill should be used when the user asks to "write a pipeline", "add caching", "make this build faster", "show test failures in the build page", "add annotations", "only run tests when code changes", "set up dynamic pipelines", "add retry", "parallel steps", "matrix build", "add plugins", or "work with artifacts in pipeline YAML". Also use when the user mentions .buildkite/ directory, pipeline.yml, buildkite-agent pipeline upload, step types (command, wait, block, trigger, group, input), if_changed, notify, concurrency, dynamic pipeline quotas, pipeline upload limits, or asks about Buildkite CI configuration.
 ---
 
 # Buildkite Pipelines
@@ -37,7 +37,7 @@ The agent reads `.buildkite/pipeline.yml` and uploads the steps to Buildkite for
 Buildkite looks for `.buildkite/pipeline.yml` by default. Override the path with `buildkite-agent pipeline upload path/to/other.yml`.
 
 > For creating pipelines programmatically, see the **buildkite-api** skill.
-> For agent and queue setup, see the **buildkite-agent-infrastructure** skill.
+> For agent and queue setup, see the [queues documentation](https://buildkite.com/docs/agent/queues).
 
 ## Step Types
 
@@ -81,7 +81,7 @@ steps:
       key: "v1-deps-{{ checksum 'package-lock.json' }}"
 ```
 
-> Hosted agent setup and instance shapes are covered by the **buildkite-agent-infrastructure** skill.
+> For hosted agent setup and instance shapes, see the [Buildkite hosted agents documentation](https://buildkite.com/docs/agent/buildkite-hosted).
 
 ## Fast-Fail and Non-Blocking Steps
 

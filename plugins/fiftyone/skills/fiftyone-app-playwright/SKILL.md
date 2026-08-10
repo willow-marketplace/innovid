@@ -1,6 +1,6 @@
 ---
 name: fiftyone-app-playwright
-description: ">"
+description: Use when driving the FiftyOne App via the Playwright MCP — plugin/operator verification, demo or screencast recording, or any end-to-end UI automation against `fo.launch_app(...)`. Covers the critical "do not navigate after reload_dataset" crash, launcher patterns (remote=True, trigger-file IPC), MUI-specific input/dropdown gotchas, sidebar tag filtering, `data-cy` selectors, dialog scrolling, session refresh strategies, and cleanup. Trigger on mentions of "Playwright + FiftyOne", "automate FiftyOne App", "operator demo", "browser_navigate crash", "reload_dataset", or any FiftyOne session that silently dies after a UI action.
 ---
 
 # FiftyOne + Playwright Automation

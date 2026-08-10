@@ -1,6 +1,9 @@
 ---
 name: ui5-best-practices-mdc
-description: "|"
+description: |-
+  UI5 MDC (sap.ui.mdc) best practices for OData V4 delegate-based controls. Use when creating/troubleshooting MDC FilterBar, Chart, Field, FilterField, ValueHelp, Link, MultiValueField, or Table. Covers delegate pattern, fetchProperties, PropertyInfo, p13nMode, updateBindingInfo, Condition.createCondition, and common errors (delegate not loaded, chart no data, fields not appearing). Also applies to JSON model (non-OData) MDC usage.
+  Triggers: "MDC", "sap.ui.mdc", "delegate pattern", "fetchProperties", "PropertyInfo", "MDC personalization", "p13nMode", "MDC field not rendering", "MDC chart not binding", "MDC conditions", OData V4 freestyle with model-driven controls.
+  Keywords: sap.ui.mdc, FilterBar, Chart, Field, FilterField, ValueHelp, Link, MultiValueField, delegate, fetchProperties, updateBindingInfo, PropertyInfo, OData V4, JSON model, TypeMap, p13nMode, conditions, FilterBarDelegate, ChartDelegate, ValueHelpDelegate, LinkDelegate, Condition.createCondition
 ---
 
 # UI5 MDC Controls Best Practices
@@ -21,7 +24,6 @@ Apply these guidelines whenever generating, reviewing, or troubleshooting MDC co
 | Working on or planning a `sap.ui.mdc.Link`            | [`references/mdc-link.md`](references/mdc-link.md)                                                                       |
 | Working on or planning a `sap.ui.mdc.MultiValueField` | [`references/mdc-multi-value-field.md`](references/mdc-multi-value-field.md)                                             |
 | Using MDC controls with JSON model (non-OData)        | [`references/mdc-json-delegates.md`](references/mdc-json-delegates.md)                                                   |
-| Working on or planning a `sap.ui.mdc.Table`           | See `ui5-best-practices-tables` skill, [`references/mdc-table.md`](../ui5-best-practices-tables/references/mdc-table.md) |
 
 Load before producing any output. Do not work from memory.
 

@@ -3,6 +3,13 @@ name: carta-waterfall-scenarios
 description: Exit, sale, acquisition, and liquidation payouts for a company — answers how much money each holder walks away with at a given sale price, return multiples on holdings, and how proceeds distribute across share classes. Computes dollar amounts at modeled valuations, not abstract rights.
 ---
 
+<!-- carta:instrumentation-fallback -->
+<IMPORTANT>
+`_instrumentation_v2` is anonymous Carta skill-usage telemetry. ALWAYS include it in your Carta MCP tool-call arguments — the plugins' hooks overwrite it when they run, so always sending it is safe. Shape:
+`_instrumentation_v2: {"skills": ["<plugin>:<skill>", ...], "model": "<model-id>"}`
+`skills` is cumulative for the session: list every Carta skill loaded so far, not only the one driving this call. Namespace each entry `"plugin:skill"` and keep them oldest-first, with the most recently used skill last. List only Carta skills (`carta-cap-table:*`, `carta-crm:*`, `carta-investors:*`) — never skills from non-Carta plugins.
+</IMPORTANT>
+
 <!-- Part of the official Carta AI Agent Plugin -->
 
 # Waterfall Scenarios

@@ -9,14 +9,14 @@ Manage ad sets and ads via the Spotify Ads API. Read settings from the active pl
 
 ## Setup
 
-1. Read `access_token`, `ad_account_id`, and `auto_execute` from the active platform settings file:
-   - Codex: prefer `.codex/spotify-ads-api.local.md`, then fall back to `.claude/spotify-ads-api.local.md`, then `.gemini/spotify-ads-api.local.md`.
-   - Claude: prefer `.claude/spotify-ads-api.local.md`, then fall back to `.codex/spotify-ads-api.local.md`, then `.gemini/spotify-ads-api.local.md`.
-   - Gemini: prefer `.gemini/spotify-ads-api.local.md`, then fall back to `.claude/spotify-ads-api.local.md`, then `.codex/spotify-ads-api.local.md`.
-2. Base URL: `https://api-partner.spotify.com/ads/v3`
-3. If no settings file exists, instruct the user to run the configure skill first (`/spotify-ads-api:configure` on Claude/Codex, `/configure` on Gemini).
-4. Read the active platform manifest for the plugin `version`: `.codex-plugin/plugin.json` on Codex, `.claude-plugin/plugin.json` on Claude, or `gemini-extension.json` (extension root) on Gemini.
-5. Set `SDK_PRODUCT` to `codex-plugin` on Codex, `claude-code-plugin` on Claude, or `gemini-cli-extension` on Gemini. Set `SDK_HEADER="X-Spotify-Ads-Sdk: $SDK_PRODUCT/$PLUGIN_VERSION"` and include `-H "$SDK_HEADER"` on all API requests.
+Set the plugin root and define the request wrapper:
+
+```bash
+PLUGIN_ROOT="${CODEX_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-.}}"
+api() { "$PLUGIN_ROOT/scripts/api-request.sh" ads "$@"; }
+```
+
+To retrieve settings values (TOKEN, AD_ACCOUNT_ID, AUTO_EXECUTE, BASE_URL) for use outside API calls, run `api --env`.
 
 ## Parsing Arguments
 
@@ -29,9 +29,7 @@ The argument format is: `<resource> <operation> [id]`
 
 ### `ad-sets list`
 ```bash
-curl -s -w "\nHTTP_STATUS:%{http_code}" -H "Authorization: Bearer $TOKEN" \
-  -H "$SDK_HEADER" \
-  "$BASE_URL/ad_accounts/$AD_ACCOUNT_ID/ad_sets?limit=50&sort_direction=DESC"
+api GET "ad_accounts/{ad_account_id}/ad_sets?limit=50&sort_direction=DESC"
 ```
 Format as table: ID | Name | Campaign ID | Status | Format | Budget | Start
 
@@ -41,7 +39,7 @@ Prompt for required fields:
 - **campaign_id** (uuid — suggest listing campaigns first)
 - **start_time** (ISO 8601 datetime)
 - **end_time** (ISO 8601 — **required if budget type is LIFETIME**)
-- **budget** — ask for dollar amount and type (DAILY/LIFETIME), convert to micro_amount
+- **budget** — ask for amount in the ad account's billing currency and type (DAILY/LIFETIME), convert to micro_amount
 - **asset_format** (AUDIO, VIDEO, IMAGE, CATALOG)
 - **category** (required — valid `ADV_X_Y` code, fetch from `GET /ad_categories` if needed)
 - **targets** — ask for targeting preferences:
@@ -51,9 +49,9 @@ Prompt for required fields:
   - Platforms (optional) → `"platforms": ["ANDROID", "DESKTOP", "IOS"]` (**NOT "MOBILE" or "CONNECTED_DEVICE"**)
   - Placements (required) → `"placements": ["MUSIC"]`
 - **bid_strategy** — plain string: `MAX_BID`, `COST_PER_RESULT`, `AUTOBID`, or `UNSET`. Default to `MAX_BID`.
-- **bid_micro_amount** (required with MAX_BID or COST_PER_RESULT, not required with AUTOBID) — ask for the bid cap in dollars, convert to micro-amount. This is the maximum CPM the user is willing to pay. Example: "$15 bid cap" = `15000000`
+- **bid_micro_amount** (required with MAX_BID or COST_PER_RESULT, not required with AUTOBID) — ask for the bid cap in the ad account's billing currency, convert to micro-amount. This is the maximum CPM. Example: $15 USD = `15000000`, ¥160 JPY = `160000000`
 
-Important: Convert dollar amounts to micro-amounts by multiplying by 1,000,000. This applies to both `budget.micro_amount` and `bid_micro_amount`.
+Important: Convert amounts to micro-amounts by multiplying by 1,000,000. This applies to both `budget.micro_amount` and `bid_micro_amount`.
 
 **Ad set validation guardrails before any POST:**
 - Never send zero or negative `budget.micro_amount`; ask for a positive budget and convert it to micro-units.
@@ -63,7 +61,7 @@ Important: Convert dollar amounts to micro-amounts by multiplying by 1,000,000. 
 - Valid `targets.platforms` values are only `ANDROID`, `DESKTOP`, and `IOS`; never send `WEB`, `MOBILE`, `CONNECTED_DEVICE`, or `ad_platforms`.
 - Do not send `cost_model`, `skippable`, `is_skippable`, or `ad_platforms` in ad set create payloads.
 - Use age ranges with `min >= 18` unless the user has explicitly confirmed a market/category that allows minors.
-- If using `city_ids`, `dma_ids`, `postal_code_ids`, or `region_ids`, include the parent `country_code` in the same `geo_targets` object.
+- If using `city_ids`, `postal_code_ids`, or `region_ids`, include the parent `country_code` in the same `geo_targets` object.
 
 #### Geo-Targeting
 
@@ -73,21 +71,17 @@ Important: Convert dollar amounts to micro-amounts by multiplying by 1,000,000. 
 
 ```bash
 # Search by location name
-curl -s -w "\nHTTP_STATUS:%{http_code}" -H "Authorization: Bearer $TOKEN" \
-  -H "$SDK_HEADER" \
-  "$BASE_URL/targets/geos?country_code=US&q=Connecticut&limit=20"
+api GET "targets/geos?country_code=US&q=Connecticut&limit=20"
 
 # Search by postal code
-curl -s -w "\nHTTP_STATUS:%{http_code}" -H "Authorization: Bearer $TOKEN" \
-  -H "$SDK_HEADER" \
-  "$BASE_URL/targets/geos?country_code=US&q=06103&limit=20"
+api GET "targets/geos?country_code=US&q=06103&limit=20"
 ```
 
 Response includes `id`, `type`, `name`, and `parent_geo_name` for each geo.
 
 **Geo Types:**
 - `REGION` — States/provinces (e.g., Connecticut, California, Ontario)
-- `DMA_REGION` — Designated Market Areas for media targeting (e.g., "Hartford & New Haven, CT")
+- `DMA_REGION` — Designated Market Areas for media targeting (e.g., "Hartford & New Haven, CT"). **Note:** DMA-level targeting via `dma_ids` is no longer supported. DMAs can still be looked up but cannot be used as targeting refinements.
 - `CITY` — Cities and towns
 - `POSTAL_CODE` — ZIP codes (format: "US:06103", "CA:M5H")
 
@@ -108,15 +102,7 @@ Response includes `id`, `type`, `name`, and `parent_geo_name` for each geo.
 }
 ```
 
-3. **DMA-level** (media markets):
-```json
-"geo_targets": {
-  "country_code": "US",
-  "dma_ids": ["533"]  // Hartford & New Haven, CT
-}
-```
-
-4. **City-level**:
+3. **City-level**:
 ```json
 "geo_targets": {
   "country_code": "US",
@@ -124,7 +110,7 @@ Response includes `id`, `type`, `name`, and `parent_geo_name` for each geo.
 }
 ```
 
-5. **Postal code-level** (most granular):
+4. **Postal code-level** (most granular):
 ```json
 "geo_targets": {
   "country_code": "US",
@@ -132,12 +118,11 @@ Response includes `id`, `type`, `name`, and `parent_geo_name` for each geo.
 }
 ```
 
-6. **Multi-level** (combine different geo types):
+5. **Multi-level** (combine different geo types):
 ```json
 "geo_targets": {
   "country_code": "US",
   "region_ids": ["4831725"],  // Connecticut
-  "dma_ids": ["533"],          // Hartford & New Haven DMA
   "city_ids": ["4845411"]      // West Hartford
 }
 ```
@@ -153,10 +138,8 @@ Response includes `id`, `type`, `name`, and `parent_geo_name` for each geo.
 **Pre-flight audience estimate:** Before executing the POST, run an audience estimate to validate targeting:
 
 ```bash
-curl -s -w "\nHTTP_STATUS:%{http_code}" -X POST -H "Authorization: Bearer $TOKEN" \
-  -H "$SDK_HEADER" \
-  -H "Content-Type: application/json" \
-  -d '{
+api POST "estimates/audience" \
+  '{
     "ad_account_id": "<AD_ACCOUNT_ID>",
     "start_date": "<start_time>",
     "asset_format": "<AUDIO|VIDEO|IMAGE|CATALOG>",
@@ -165,8 +148,7 @@ curl -s -w "\nHTTP_STATUS:%{http_code}" -X POST -H "Authorization: Bearer $TOKEN
     "bid_micro_amount": <bid>,
     "budget": {"micro_amount": <budget>, "type": "<DAILY|LIFETIME>", "currency": "USD"},
     "targets": { <same targets as above> }
-  }' \
-  "https://api-partner.spotify.com/ads/v3/estimates/audience"
+  }'
 ```
 
 **Note:** This endpoint is NOT scoped under `/ad_accounts/{id}/` — it's at the top level: `POST /estimates/audience`. Use the base URL directly followed by `/estimates/audience`.
@@ -191,18 +173,13 @@ Ask whether to proceed, adjust targeting, or cancel before creating the ad set.
 **Create the ad set:**
 
 ```bash
-curl -s -w "\nHTTP_STATUS:%{http_code}" -X POST -H "Authorization: Bearer $TOKEN" \
-  -H "$SDK_HEADER" \
-  -H "Content-Type: application/json" \
-  -d '{...}' \
-  "$BASE_URL/ad_accounts/$AD_ACCOUNT_ID/ad_sets"
+api POST "ad_accounts/{ad_account_id}/ad_sets" \
+  '{...}'
 ```
 
 ### `ad-sets get <id>`
 ```bash
-curl -s -w "\nHTTP_STATUS:%{http_code}" -H "Authorization: Bearer $TOKEN" \
-  -H "$SDK_HEADER" \
-  "$BASE_URL/ad_accounts/$AD_ACCOUNT_ID/ad_sets/$AD_SET_ID"
+api GET "ad_accounts/{ad_account_id}/ad_sets/$AD_SET_ID"
 ```
 
 ### `ad-sets update <id>`
@@ -212,9 +189,7 @@ Prompt for fields to update (min 1). Same fields as create, all optional.
 
 ### `ads list`
 ```bash
-curl -s -w "\nHTTP_STATUS:%{http_code}" -H "Authorization: Bearer $TOKEN" \
-  -H "$SDK_HEADER" \
-  "$BASE_URL/ad_accounts/$AD_ACCOUNT_ID/ads?limit=50&sort_direction=DESC"
+api GET "ad_accounts/{ad_account_id}/ads?limit=50&sort_direction=DESC"
 ```
 Format as table: ID | Name | Ad Set ID | Status | Delivery
 
@@ -222,30 +197,36 @@ Format as table: ID | Name | Ad Set ID | Status | Delivery
 Prompt for required fields:
 - **name** (2-200 chars)
 - **ad_set_id** (uuid — suggest listing ad sets first)
-- **tagline** (2-40 chars, ad headline)
+- **tagline** (2-40 chars, ad headline; required for live ads, optional for drafts)
 - **advertiser_name** (2-25 chars)
 - **assets** — fetch available assets from `GET /assets` and prompt user to select:
-  - `asset_id` (required — audio/video/image creative matching ad set format)
+  - `asset_id` (required for live ads, optional for drafts — audio/video/image creative matching ad set format)
   - `logo_asset_id` (required — logo image)
   - `companion_asset_id` (required for AUDIO format — companion image)
 - **call_to_action** — uses field `key` (NOT `type`) and `clickthrough_url` (NOT `url`):
   - `key`: SHOP_NOW, LEARN_MORE, LISTEN_NOW, SIGN_UP, WATCH_NOW, BUY_NOW, DOWNLOAD, etc.
-  - `clickthrough_url`: landing page URL
+  - `clickthrough_url`: landing page URL (required for live ads, optional for drafts)
 - **delivery** (ON/OFF, default ON)
+- **third_party_tracking** (optional) — array of tracking pixels. Each entry needs:
+  - `measurement_event`: **required** — `IMPRESSION`, `CLICKED`, `START`, `FIRST_QUARTILE`, `MIDPOINT`, `THIRD_QUARTILE`, `COMPLETE`, or `VIEWABLE_IMPRESSION`. If omitted, defaults to IMPRESSION — always set explicitly, especially for click trackers.
+  - `measurement_partner`: `DCM`, `IAS`, `MOAT`, `DOUBLEVERIFY`, or `UNSET`
+  - `url`: the tracking pixel URL
+  - Example with both impression and click trackers:
+    ```json
+    "third_party_tracking": [
+      {"measurement_event": "IMPRESSION", "measurement_partner": "DCM", "url": "https://ad.doubleclick.net/ddm/trackimp/..."},
+      {"measurement_event": "CLICKED", "measurement_partner": "DCM", "url": "https://ad.doubleclick.net/ddm/trackclk/..."}
+    ]
+    ```
 
 ```bash
-curl -s -w "\nHTTP_STATUS:%{http_code}" -X POST -H "Authorization: Bearer $TOKEN" \
-  -H "$SDK_HEADER" \
-  -H "Content-Type: application/json" \
-  -d '{...}' \
-  "$BASE_URL/ad_accounts/$AD_ACCOUNT_ID/ads"
+api POST "ad_accounts/{ad_account_id}/ads" \
+  '{...}'
 ```
 
 ### `ads get <id>`
 ```bash
-curl -s -w "\nHTTP_STATUS:%{http_code}" -H "Authorization: Bearer $TOKEN" \
-  -H "$SDK_HEADER" \
-  "$BASE_URL/ad_accounts/$AD_ACCOUNT_ID/ads/$AD_ID"
+api GET "ad_accounts/{ad_account_id}/ads/$AD_ID"
 ```
 
 ### `ads update <id>`

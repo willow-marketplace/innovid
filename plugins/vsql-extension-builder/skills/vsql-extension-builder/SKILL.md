@@ -1,6 +1,6 @@
 ---
 name: vsql-extension-builder
-description: ">"
+description: "Build a VillageSQL extension end-to-end using the 7-phase persona-driven workflow: requirements, feasibility, scaffold, implementation, CTO review, UAT, and documentation. Supports C++ (default) and Rust implementations. Discovers the current VEF API from live SDK sources during Phase 1 feasibility and Phase 2 bootstrap — no hardcoded API names. Works from any directory."
 ---
 
 # VillageSQL Extension Builder

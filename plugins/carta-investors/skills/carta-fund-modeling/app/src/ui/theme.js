@@ -13,9 +13,15 @@
 //     rows/slices, checked toggles, primary buttons are BLACK in light, WHITE in dark.
 //   - BLUE ("links / focus / info accents") -> Ink link/focus blue (#285DA3), never
 //     used for "active" state.
-// Fonts: SYSTEM-FONT STACK ONLY (Inter as fallback) — never @font-face/CDN a webfont.
-// Micro-apps are opened repeatedly as a dev tool; a webfont's cost compounds. This is a
-// deliberate divergence from the base theme contract (which loads Inter for one-shot artifacts).
+// Fonts: now aligned with this app's updated micro-app typography contract (a prior
+// version of this file deliberately avoided ever loading a webfont here — see git history
+// if you need the old rationale). Inter is loaded from the rsms.me CDN via index.html's
+// <link> — never name a face in the font stack without a matching loader (if that <link>
+// is ever removed, drop Inter from SANS too). SangBleu Versailles is self-hosted: the
+// woff2 ships at public/fonts/ and is @font-face'd below, so it loads from a local file
+// with zero network dependency. Offline-safe for Inter specifically: if the CDN request
+// fails (no network), the browser just falls through to the next name in the stack — no
+// error, no broken page, just a different-looking fallback font until connectivity returns.
 //
 // INK, PAPER, LINE, BORDER_DEFAULT, GREEN, RED, BLUE, FAINT, SHADE, ACCENT — internal only.
 // Components inline these as var(--ink-...) strings directly; these consts exist only for
@@ -51,25 +57,22 @@ export const GRAD_DARK = "var(--ink-button-background-color-primary-base-default
 // any consumer computing a track-relative position accounting for thumb width.
 export const TAPE_THUMB = 14;
 
-// System-font stack ONLY — never @font-face'd or CDN-loaded (see header). Mirrors
-// Ink's REAL, actually-shipped stack — not a generic "system font stack" pattern
-// (confirmed in real fund-admin: `@carta/ink/dist/ink.css`'s `body` rule is
-// literally `font-family: "Inter var", "Open Sans", "Helvetica Neue", helvetica,
-// arial, sans-serif`, and Ink self-hosts Inter as a local variable-font woff2 —
-// no CDN). This app has neither that font file nor Ink's synthetic
-// `"Inter Fallback"` face, so those two names are dropped; `Inter` stays first
-// (opportunistic — resolves if the user happens to have it installed, same as
-// Ink's own `local("Inter")` @font-face src), then Ink's own real fallback chain
-// verbatim.
+// Inter is now loaded as a real webfont from the rsms.me CDN (see the <link> in
+// index.html) — this mirrors Ink's REAL, actually-shipped stack, not a generic "system
+// font stack" pattern (confirmed in real fund-admin: `@carta/ink/dist/ink.css`'s `body`
+// rule is literally `font-family: "Inter var", "Open Sans", "Helvetica Neue", helvetica,
+// arial, sans-serif`). This app doesn't load Ink's synthetic `"Inter Fallback"` face, so
+// that name is dropped; `Inter` stays first (now backed by the CDN link, not just an
+// opportunistic locally-installed match), then Ink's own real fallback chain verbatim.
 export const SANS = "Inter, \"Open Sans\", \"Helvetica Neue\", Helvetica, Arial, sans-serif";
 export const sans = { fontFamily: SANS };
 // Real serif — Ink's real `--ink-font-global-family-prominent` chain verbatim:
-// `SangBleu Versailles` first (opportunistic — same pattern as `Inter` in SANS
-// above, resolves only if a user happens to have Carta's brand font installed
-// locally; this app never @font-face's or CDN-loads it), then `Georgia` (Ink's
-// own designated fallback, a real system-installed serif), then the generic
-// `serif` catch-all. Used by `H1` ONLY (components.jsx) — Ink reserves the real
-// serif for the page title; `H2`/`H3` are sans (see `HEADING2_STYLE`/`H3` there).
+// `SangBleu Versailles` first, now self-hosted (the woff2 ships at public/fonts/ and is
+// @font-face'd in GLOBAL_CSS below, so it loads from a local file with zero network
+// dependency), then `Georgia` (Ink's own designated fallback, a real system-installed
+// serif), then the generic `serif` catch-all. Used by `H1` ONLY (components.jsx) — Ink
+// reserves the real serif for the page title; `H2`/`H3` are sans (see
+// `HEADING2_STYLE`/`H3` there).
 export const serif = { fontFamily: "\"SangBleu Versailles\", Georgia, serif" };
 // SANS with tight tracking — this app's own bolder display treatment for brand
 // wordmarks and hero numbers (StatTile's `serif` prop, the top-bar/landing-page
@@ -77,7 +80,11 @@ export const serif = { fontFamily: "\"SangBleu Versailles\", Georgia, serif" };
 // despite some call sites' historical `serif`-named prop — kept as a distinct,
 // honestly-named export so it's never confused with the real `serif` above.
 export const tightSans = { fontFamily: SANS, letterSpacing: "-0.02em" };
-export const mono = { fontFamily: SANS, fontVariantNumeric: "tabular-nums", letterSpacing: "0" }; // figures (grotesk, tabular)
+// NOT a monospace typeface — same SANS/Inter family as `sans`, just with
+// tabular-nums figures for column/value alignment. Named after Ink's real
+// `.ink-num` recipe (theme-with-ink/tokens.css), which this mirrors — never
+// switch to an actual monospace font for numeric alignment.
+export const inkNum = { fontFamily: SANS, fontVariantNumeric: "tabular-nums", letterSpacing: "0" };
 
 // ── Type scale — the single source of truth for font sizes across the app.
 // Replaces the ~24 ad-hoc fontSize literals (many half-pixel: 9/9.5/10.5/11.5…)
@@ -129,6 +136,15 @@ export const SMALL_1 = { ...sans, fontSize: FS.body, lineHeight: "20px", fontWei
 export const SMALL_2 = { ...sans, fontSize: FS.body, lineHeight: "20px", fontWeight: 400 };
 
 export const GLOBAL_CSS = `
+  /* Self-hosted — the woff2 lives at public/fonts/ (copied verbatim into dist/fonts/ by
+     Vite's public-dir passthrough, unhashed), so this loads from a local file with no
+     network dependency, unlike Inter above. Georgia (serif's second link) covers the
+     rare case this fails to load. */
+  @font-face {
+    font-family: "SangBleu Versailles";
+    src: url("/fonts/SangBleuVersailles-Regular-WebS.woff2") format("woff2");
+    font-weight: 400; font-style: normal; font-display: swap;
+  }
   :root {
     color-scheme: light;
 
@@ -275,6 +291,9 @@ export const GLOBAL_CSS = `
      border on hover per the real recipe. */
   .btn-ghost { border: 1px solid var(--ink-button-border-color-secondary-base-default) !important; border-radius: 4px; }
   .btn-ghost:hover:not(:disabled) { background: ${SHADE} !important; border-color: var(--ink-button-border-color-secondary-base-hover) !important; }
+  /* Ink's real secondary-disabled recipe — a muted border/text on the same
+     background, not the crude opacity-dim Btn falls back to for "locked". */
+  .btn-ghost:disabled { border-color: var(--ink-button-border-color-secondary-disabled) !important; background: var(--ink-button-background-color-secondary-disabled) !important; color: var(--ink-button-font-color-secondary-disabled) !important; }
   .btn-primary { border-radius: 4px; box-shadow: none; }
   .btn-primary:hover:not(:disabled) { background: var(--grad-dark-hover) !important; }
 
@@ -383,6 +402,40 @@ export const GLOBAL_CSS = `
   .ink-sort-icon__asc, .ink-sort-icon__desc { fill: #CECFCF; }
   th[aria-sort="ascending"] .ink-sort-icon__asc { fill: ${INK}; }
   th[aria-sort="descending"] .ink-sort-icon__desc { fill: ${INK}; }
+
+  /* Ink's standard underline Tab recipe (theme-with-ink components.md "## Tab") —
+     the active indicator is a 3px bottom border on the item itself, never a
+     separate pill/element. disabled tabs get the muted-text/no-hover treatment
+     inline styles apply on top of these rules (see Companies.jsx usage). */
+  /* Matches theme-with-ink's HorizontalNav resource (components-horizontalnav.html)
+     exactly — the "## Tab" recipe in components.md is a looser generic approximation
+     (8px-padded 3px border-bottom, 24px leading) that reads with a visibly bigger
+     gap between the label and its underline than the real product. HorizontalNav's
+     own measured spec: 44px-tall items with the label vertically centered, a 2px
+     underline pinned to the bottom edge via ::after (not part of the box's own
+     padding/border), 14px/20px type, weight 400 → 500 on the active item. */
+  .ink-tabs { display: flex; align-items: center; gap: 24px; height: 44px; border-bottom: 1px solid var(--ink-color-global-border-subtle); }
+  .ink-tab { position: relative; display: inline-flex; align-items: center; height: 44px; padding: 0; margin: 0; background: transparent; border: 0; font: 400 ${FS.value}px/20px ${SANS}; color: var(--ink-color-global-text-subtle); cursor: pointer; border-radius: 0; box-shadow: none; white-space: nowrap; }
+  .ink-tab:hover, .ink-tab:focus { color: ${INK}; }
+  .ink-tab.is-active { color: ${INK}; font-weight: 500; }
+  .ink-tab.is-active::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--ink-color-global-border-active); }
+
+  /* Ink's real NewCheckbox recipe (theme-with-ink resources/components-checkbox.html) —
+     20px square, 4px radius, box stays WHITE in both themes (only the border/glyph
+     recolor), Gray-90 check glyph, 8px gap to the label, 14px/20px type. Focus and
+     hover key off the real (visually-hidden) <input>'s own pseudo-classes via the
+     sibling ".box" span, rather than a manually-toggled "is-*" class — no JS
+     needed to keep the states in sync. */
+  .ink-chk { display: inline-flex; align-items: center; gap: 8px; font: 400 ${FS.value}px/20px ${SANS}; color: ${INK}; cursor: pointer; user-select: none; position: relative; }
+  .ink-chk input { position: absolute; opacity: 0; pointer-events: none; width: 20px; height: 20px; }
+  .ink-chk .box { flex: 0 0 auto; width: 20px; height: 20px; border: 1px solid var(--ink-color-global-border-default); border-radius: 4px; background: var(--ink-color-global-brand-white); display: inline-flex; align-items: center; justify-content: center; transition: border-color .12s ease, box-shadow .12s ease; }
+  .ink-chk .box svg { display: block; width: 14px; height: 14px; opacity: 0; color: #394040; }
+  .ink-chk:hover .box { border-color: var(--ink-color-global-border-hover); }
+  .ink-chk input:checked ~ .box svg { opacity: 1; }
+  .ink-chk input:focus-visible ~ .box { border-color: var(--ink-color-global-border-focus-default); box-shadow: 0 0 0 4px var(--ink-color-global-border-focus-light); }
+  .ink-chk input:disabled ~ .box { background: var(--ink-color-global-surface-disabled); border-color: var(--ink-color-global-border-disabled); }
+  .ink-chk input:disabled ~ .box svg { color: var(--ink-color-global-text-disabled); }
+  .ink-chk:has(input:disabled) { cursor: not-allowed; color: var(--ink-color-global-text-disabled); }
 
   /* Ink Tag variants — "mini" size for dense tables: 20px height, 11px text, 4px radius.
      feedback-informational ("default") is a bordered semantic tag (reuses this app's own

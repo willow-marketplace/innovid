@@ -1,6 +1,6 @@
 ---
 name: querying-data-lake
-description: ">-"
+description: "Execute and manage Athena SQL queries across default and federated catalogs (Glue, S3 Tables, Redshift). Triggers on phrases like: query data, run SQL, athena query, analyze table, SQL query, workgroup status, profile table, query Redshift catalog, query S3 Tables. Do NOT use for finding specific data assets (use finding-data-lake-assets), full catalog audits (use exploring-data-catalog), importing data (use ingesting-into-data-lake)."
 ---
 
 # Query Data Lake

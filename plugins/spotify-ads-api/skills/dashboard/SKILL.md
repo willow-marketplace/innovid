@@ -9,14 +9,14 @@ Quick performance overview with metrics, spend, and pacing for active campaigns.
 
 ## Setup
 
-1. Read `access_token`, `ad_account_id`, and `auto_execute` from the active platform settings file:
-   - Codex: prefer `.codex/spotify-ads-api.local.md`, then fall back to `.claude/spotify-ads-api.local.md`, then `.gemini/spotify-ads-api.local.md`.
-   - Claude: prefer `.claude/spotify-ads-api.local.md`, then fall back to `.codex/spotify-ads-api.local.md`, then `.gemini/spotify-ads-api.local.md`.
-   - Gemini: prefer `.gemini/spotify-ads-api.local.md`, then fall back to `.claude/spotify-ads-api.local.md`, then `.codex/spotify-ads-api.local.md`.
-2. Base URL: `https://api-partner.spotify.com/ads/v3`
-3. If no settings file exists, instruct the user to run the configure skill first (`/spotify-ads-api:configure` on Claude/Codex, `/configure` on Gemini).
-4. Read the active platform manifest for the plugin `version`: `.codex-plugin/plugin.json` on Codex, `.claude-plugin/plugin.json` on Claude, or `gemini-extension.json` (extension root) on Gemini.
-5. Set `SDK_PRODUCT` to `codex-plugin` on Codex, `claude-code-plugin` on Claude, or `gemini-cli-extension` on Gemini. Set `SDK_HEADER="X-Spotify-Ads-Sdk: $SDK_PRODUCT/$PLUGIN_VERSION"` and include `-H "$SDK_HEADER"` on all API requests.
+Set the plugin root and define the request wrapper:
+
+```bash
+PLUGIN_ROOT="${CODEX_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-.}}"
+api() { "$PLUGIN_ROOT/scripts/api-request.sh" dashboard "$@"; }
+```
+
+To retrieve settings values (TOKEN, AD_ACCOUNT_ID, AUTO_EXECUTE, BASE_URL) for use outside API calls, run `api --env`.
 
 ## Parsing Arguments
 
@@ -34,9 +34,7 @@ Execute two API calls to build the dashboard:
 ### Call 1: Get campaign metrics
 
 ```bash
-curl -s -w "\nHTTP_STATUS:%{http_code}" -H "Authorization: Bearer $TOKEN" \
-  -H "$SDK_HEADER" \
-  "$BASE_URL/ad_accounts/$AD_ACCOUNT_ID/aggregate_reports?\
+api GET "ad_accounts/{ad_account_id}/aggregate_reports?\
 entity_type=CAMPAIGN&\
 fields=IMPRESSIONS&fields=SPEND&fields=CLICKS&fields=REACH&fields=FREQUENCY&fields=CTR&fields=COMPLETES&\
 granularity=LIFETIME&\
@@ -48,9 +46,7 @@ limit=50"
 ### Call 2: Get campaign details (for names, budget, pacing)
 
 ```bash
-curl -s -w "\nHTTP_STATUS:%{http_code}" -H "Authorization: Bearer $TOKEN" \
-  -H "$SDK_HEADER" \
-  "$BASE_URL/ad_accounts/$AD_ACCOUNT_ID/campaigns?limit=50&sort_direction=DESC"
+api GET "ad_accounts/{ad_account_id}/campaigns?limit=50&sort_direction=DESC"
 ```
 
 ### Display format
@@ -68,8 +64,8 @@ Active campaigns: 3 | Total spend: $1,234.56
 
 ### Formatting rules
 
-- **Spend from `aggregate_reports`**: Already in dollars — display directly as `$X.XX` (do NOT divide by 1,000,000)
-- **Budget `micro_amount` from entity details** (campaigns, ad sets): In micro-units — divide by 1,000,000 to get dollars
+- **Spend from `aggregate_reports`**: Already in the ad account's billing currency — display directly as `$X.XX` (do NOT divide by 1,000,000)
+- **Budget `micro_amount` from entity details** (campaigns, ad sets): In micro-units — divide by 1,000,000 to get the billing currency amount
 - **Impressions/Reach/Clicks**: Format with thousands separators (e.g., `156,234`)
 - **CTR**: Display as percentage with 2 decimal places (e.g., `0.79%`)
 - **Frequency**: Display with 2 decimal places
@@ -104,17 +100,13 @@ Drill into a specific campaign with ad set breakdown.
 ### Call 1: Campaign details
 
 ```bash
-curl -s -w "\nHTTP_STATUS:%{http_code}" -H "Authorization: Bearer $TOKEN" \
-  -H "$SDK_HEADER" \
-  "$BASE_URL/ad_accounts/$AD_ACCOUNT_ID/campaigns/$CAMPAIGN_ID"
+api GET "ad_accounts/{ad_account_id}/campaigns/$CAMPAIGN_ID"
 ```
 
 ### Call 2: Ad set metrics
 
 ```bash
-curl -s -w "\nHTTP_STATUS:%{http_code}" -H "Authorization: Bearer $TOKEN" \
-  -H "$SDK_HEADER" \
-  "$BASE_URL/ad_accounts/$AD_ACCOUNT_ID/aggregate_reports?\
+api GET "ad_accounts/{ad_account_id}/aggregate_reports?\
 entity_type=AD_SET&\
 fields=IMPRESSIONS&fields=SPEND&fields=CLICKS&fields=REACH&fields=FREQUENCY&fields=COMPLETES&\
 granularity=LIFETIME&\
@@ -127,9 +119,7 @@ limit=50"
 ### Call 3: Ad set details (for budget/targeting info)
 
 ```bash
-curl -s -w "\nHTTP_STATUS:%{http_code}" -H "Authorization: Bearer $TOKEN" \
-  -H "$SDK_HEADER" \
-  "$BASE_URL/ad_accounts/$AD_ACCOUNT_ID/ad_sets?campaign_ids=$CAMPAIGN_ID&limit=50"
+api GET "ad_accounts/{ad_account_id}/ad_sets?campaign_ids=$CAMPAIGN_ID&limit=50"
 ```
 
 ### Display format
@@ -144,7 +134,7 @@ Status: ACTIVE | Created: 2026-02-15
 | US 25-54 Video   | VIDEO  | $50/day    |      58,234 | $150.00 | 13,600 |    344 |    42,000 |
 ```
 
-Apply the same formatting rules as the account overview (spend from reports is already in dollars; budget micro_amount from entity details must be divided by 1,000,000).
+Apply the same formatting rules as the account overview (spend from reports is already in the billing currency; budget micro_amount from entity details must be divided by 1,000,000).
 
 Show targeting summary for each ad set if available (geo, age range, platforms).
 
@@ -159,9 +149,7 @@ Like the default account overview, but also breaks down each campaign into its a
 Use the same calls as the account overview, plus:
 
 ```bash
-curl -s -w "\nHTTP_STATUS:%{http_code}" -H "Authorization: Bearer $TOKEN" \
-  -H "$SDK_HEADER" \
-  "$BASE_URL/ad_accounts/$AD_ACCOUNT_ID/aggregate_reports?\
+api GET "ad_accounts/{ad_account_id}/aggregate_reports?\
 entity_type=AD_SET&\
 fields=IMPRESSIONS&fields=SPEND&fields=CLICKS&fields=REACH&fields=FREQUENCY&fields=COMPLETES&\
 granularity=LIFETIME&\
@@ -174,9 +162,7 @@ limit=50"
 And:
 
 ```bash
-curl -s -w "\nHTTP_STATUS:%{http_code}" -H "Authorization: Bearer $TOKEN" \
-  -H "$SDK_HEADER" \
-  "$BASE_URL/ad_accounts/$AD_ACCOUNT_ID/ad_sets?limit=50&sort_direction=DESC"
+api GET "ad_accounts/{ad_account_id}/ad_sets?limit=50&sort_direction=DESC"
 ```
 
 ### Display format
@@ -206,4 +192,4 @@ Q2 Brand (CLICKS) — $225.50 spent
 - If `auto_execute` is `true`, execute all API calls directly and display the dashboard.
 - If `auto_execute` is `false`, present the curl commands and ask for confirmation before executing.
 - On error, show the error message from the response body.
-- Spend values from `aggregate_reports` are already in dollars — display directly. Budget `micro_amount` values from entity details (campaigns, ad sets) must be divided by 1,000,000. Never show raw micro-amounts to the user.
+- Spend values from `aggregate_reports` are already in the billing currency — display directly. Budget `micro_amount` values from entity details (campaigns, ad sets) must be divided by 1,000,000. Never show raw micro-amounts to the user.

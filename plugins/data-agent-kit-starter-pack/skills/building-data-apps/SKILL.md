@@ -1,6 +1,19 @@
 ---
 name: building-data-apps
-description: "|"
+description: |-
+  Build modern data apps, dashboards, and interactive reports using either
+  React + Vite or Streamlit. Includes optional Gemini Data Analytics chat
+  integration for an AI powered "chat with your data" experience.
+
+  Relevant when any of the following conditions are true:
+    1. User explicitly requests to build a data dashboard, data application, or visualization UI, and the UI pulls data from a GCP database (defaulting to BigQuery unless otherwise specified).
+    2. You need to generate a frontend web application to interact with, query, and visualize data from GCP data sources.
+    3. User wants to build a "chat with your data" experience or integrate the Gemini Data Analytics chat API into a web interface.
+
+  Do NOT use when any of the following conditions are true:
+    1. The request is for building backend-only services.
+    2. The request is for simple CLI scripts or command-line applications.
+    3. The web application is not data-centric or does not involve visualizing/querying data from GCP sources.
 ---
 
 # Building Data Applications

@@ -1,6 +1,6 @@
 ---
 name: review-hog-authoring
-description: ">"
+description: How to author custom ReviewHog skills — the review perspectives, blind-spot checks, and validation criteria that drive ReviewHog's automated PR reviews. Use when a user wants a new review perspective (a specialist lens on their PRs), a custom blind-spot sweep, or their own validation bar for which findings get published. Trigger on "create a ReviewHog perspective", "custom review perspective", "my own blind-spot check", "custom validation criteria", "tune what ReviewHog publishes".
 ---
 
 # Authoring ReviewHog skills

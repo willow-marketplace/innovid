@@ -1,6 +1,6 @@
 ---
 name: rw-setup-api-key
-description: '"Guide users through obtaining and configuring a Runway API key"'
+description: Guide users through obtaining and configuring a Runway API key
 ---
 
 # Setup API Key

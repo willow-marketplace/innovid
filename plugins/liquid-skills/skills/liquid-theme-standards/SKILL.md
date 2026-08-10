@@ -1,6 +1,6 @@
 ---
 name: liquid-theme-standards
-description: '"CSS, JavaScript, and HTML coding standards for Shopify Liquid themes. Covers BEM naming inside stylesheet tags, design tokens, CSS custom properties, Web Components for themes, defensive CSS, and progressive enhancement. Use when writing CSS/JS/HTML in .liquid files or theme asset files."'
+description: CSS, JavaScript, and HTML coding standards for Shopify Liquid themes. Covers BEM naming inside stylesheet tags, design tokens, CSS custom properties, Web Components for themes, defensive CSS, and progressive enhancement. Use when writing CSS/JS/HTML in .liquid files or theme asset files.
 ---
 
 # CSS, JS & HTML Standards for Shopify Liquid Themes

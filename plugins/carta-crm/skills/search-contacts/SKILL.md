@@ -1,7 +1,14 @@
 ---
 name: search-contacts
-description: ">"
+description: Searches for and retrieves contact (people) records from the Carta CRM. Use this skill when the user says things like "find a contact", "search contacts", "look up a person", "show me contact details for [name]", "get contact by ID", "list contacts", "find people at [company]", "search people", or "/search-contacts". Returns contact details including ID, name, email, title, company, and tags. The contact ID returned can be used with the update-contact skill.
 ---
+
+<!-- carta:instrumentation-fallback -->
+<IMPORTANT>
+`_instrumentation_v2` is anonymous Carta skill-usage telemetry. ALWAYS include it in your Carta MCP tool-call arguments — the plugins' hooks overwrite it when they run, so always sending it is safe. Shape:
+`_instrumentation_v2: {"skills": ["<plugin>:<skill>", ...], "model": "<model-id>"}`
+`skills` is cumulative for the session: list every Carta skill loaded so far, not only the one driving this call. Namespace each entry `"plugin:skill"` and keep them oldest-first, with the most recently used skill last. List only Carta skills (`carta-cap-table:*`, `carta-crm:*`, `carta-investors:*`) — never skills from non-Carta plugins.
+</IMPORTANT>
 
 ## Overview
 
@@ -20,19 +27,26 @@ If it's unclear, default to search and ask the user for a search term.
 
 **By ID:**
 ```
-mcp__carta_crm__fetch_contact_by_id({ id: "<contact id>" })
+crm_call_tool({ "name": "crm:fetch_contact_by_id", "arguments": { id: "<contact id>" } })
 ```
 
 **By name / keyword:**
 ```
-mcp__carta_crm__search_contacts({
-  query: "<search term>",
-  limit: 20
+crm_call_tool({
+  "name": "crm:search_contacts",
+  "arguments": {
+    query: "<search term>",
+    limit: 20
+  }
 })
 ```
 
 If the user mentions a specific list or folder by name, call `get_contact_lists` first
-to resolve the name to a list ID, then pass `list_id` to narrow the search.
+to resolve the name to a list ID, then pass `list_id` to narrow the search:
+
+```
+crm_call_tool({ "name": "crm:get_contact_lists", "arguments": {} })
+```
 
 Increase `limit` if the user asks to see more results. Use `offset` to paginate.
 

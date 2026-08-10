@@ -1,6 +1,6 @@
 ---
 name: datarobot-model-explainability
-description: ">"
+description: Tools and guidance for model explainability, prediction explanations, feature impact analysis, SHAP values, SHAP distributions, anomaly assessment, and model diagnostics. Use when analyzing model explanations, feature impact, SHAP values, SHAP distributions, anomaly assessment, or diagnosing model behavior.
 ---
 
 # DataRobot Model Explainability Skill
@@ -114,9 +114,9 @@ pe_job = dr.PredictionExplanations.create(
     project_id=project_id,
     model_id=model_id,
     dataset_id=dataset.id,
-    max_explanations=5,      # top N features per row, up to 50
-    threshold_high=0.5,      # only explain rows with prediction >= threshold
-    threshold_low=0.1,       # only explain rows with prediction <= threshold
+    max_explanations=5,  # top N features per row, up to 50
+    threshold_high=0.5,  # only explain rows with prediction >= threshold
+    threshold_low=0.1,  # only explain rows with prediction <= threshold
 )
 
 pe_obj = pe_job.get_result_when_complete()
@@ -161,9 +161,9 @@ from datarobot.models.anomaly_assessment import AnomalyAssessmentRecord
 record = AnomalyAssessmentRecord.compute(
     project_id=project_id,
     model_id=model_id,
-    backtest=0,           # backtest index (int) or "holdout"
+    backtest=0,  # backtest index (int) or "holdout"
     source="validation",  # "training" or "validation" only
-    series_id=None,       # required for multiseries projects
+    series_id=None,  # required for multiseries projects
 )
 
 records = AnomalyAssessmentRecord.list(project_id=project_id, model_id=model_id)

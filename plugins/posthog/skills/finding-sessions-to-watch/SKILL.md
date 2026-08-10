@@ -1,6 +1,6 @@
 ---
 name: finding-sessions-to-watch
-description: ">"
+description: Guides a user from "I want to watch recordings but don't know which ones" to a short, high-signal list of sessions worth watching. Use when the user asks which sessions or replays to watch, wants help finding interesting / useful recordings, says they don't know where to start in session replay, or wants to watch sessions about a goal (signup, pricing, onboarding, checkout, a feature, rageclicks, errors, mobile, a specific person) without naming exact filters. Turns a vague intent into a focused RecordingsQuery via `query-session-recordings-list`, then deep-links the best few and hands off to `investigating-replay`. Do NOT use when the user already has a recording/session ID (use investigating-replay) or wants the replay for a known error issue (use finding-replay-for-issue).
 ---
 
 # Finding sessions to watch

@@ -9,7 +9,7 @@
 - FedRAMP certification status for AgentCore and Lambda MicroVMs
 - Any Bedrock model price (defer to migration-to-aws pricing cache; never hardcode here)
 
-## Temporal branch (temporal-worker.md Step 4)
+## Temporal (design.md — Freshness, temporal units only)
 
 Volatile facts to re-verify when the Temporal branch generates a plan. The awsknowledge
 MCP does not cover Temporal-side facts; each fact below names its actual verification
@@ -55,10 +55,11 @@ feature-status lookup):**
 - **Feature statuses** (Serverless Workers, Workflow Streams, External Payload Storage,
   Worker Versioning) — **preferred:** query the Temporal KB MCP (above). **Fallback:**
   fetch the relevant docs.temporal.io page. CAUTION for Serverless Workers regardless of
-  channel: the docs label has shown "Available" while the feature was pre-release
-  (user-verified 2026-07); a docs label — or an MCP answer echoing it — alone does NOT
-  upgrade it to GA — keep the pre-release label until the user shows GA evidence (e.g. a
-  GA announcement post).
+  channel: the docs label has moved before without a GA announcement (it read "Available"
+  in 2026-07 while the feature was still pre-release; it reads "Public Preview" as of
+  2026-08) — a docs label — or an MCP answer echoing it — alone does NOT upgrade it to
+  GA — keep the Public Preview label until the user shows GA evidence (e.g. a GA
+  announcement post).
 
 **Not verifiable (always cached):**
 

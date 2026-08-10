@@ -1,6 +1,6 @@
 ---
 name: ui5-best-practices-qunit
-description: "|"
+description: 'Use when the user asks to "write a QUnit test", "fix a failing QUnit test", "add a QUnit module", "modernize QUnit tests", "migrate from QUnit 1", or mentions QUnit-specific constructs such as assert.async, nextUIUpdate, Core.applyChanges, sinon sandbox, asyncTest, or QUnit.module. Covers coding standards for OpenUI5/SAPUI5 unit test files: const/let over var, arrow functions over .bind(this), async/await over assert.async(), assert.expect() in every async test, sinon.createSandbox(), descriptive test names, beforeEach/afterEach module isolation, nextUIUpdate vs Core.applyChanges rules, try/finally teardown in helpers, QUnit 1 to QUnit 2 globals migration, and non-ASCII character avoidance.'
 ---
 
 # QUnit Test Best Practices for UI5

@@ -1,6 +1,6 @@
 ---
 name: bigdata-pre-ipo-analysis
-description: ">"
+description: "Produce a balanced pre-IPO research note on an upcoming, not-yet-listed company using its S-1/F-1 plus Bigdata.com data. Covers deal structure (price range, shares, greenshoe, implied valuation, underwriters, lock-ups, share classes), two years plus interim financials, business model and funding history, TAM and listed comparables, IPO-window conditions, and 90-day sentiment — closing with bull and bear debates and watch points, never a participate/avoid call. Triggers: \"analyze the IPO of X\", \"S-1 analysis\", \"upcoming listing for X\", \"IPO report on X\", \"should I look at X's IPO\", \"pre-IPO research on X\", \"X IPO valuation\"."
 ---
 
 # Bigdata Pre-IPO Analysis

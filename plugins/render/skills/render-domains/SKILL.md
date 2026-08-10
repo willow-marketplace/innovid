@@ -1,6 +1,6 @@
 ---
 name: render-domains
-description: ">-"
+description: "Configures custom domains and TLS certificates on Render—DNS setup, CNAME records, apex domains, wildcard domains, and certificate troubleshooting. Use when the user needs to add a custom domain, configure DNS, set up HTTPS/TLS, troubleshoot certificate issuance, disable the onrender.com subdomain, or add a wildcard domain. Trigger terms: custom domain, DNS, CNAME, TLS, SSL, HTTPS, certificate, apex domain, wildcard domain, onrender.com, domain verification."
 ---
 
 # Render Custom Domains

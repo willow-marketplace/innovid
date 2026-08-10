@@ -1,6 +1,6 @@
 ---
 name: datahub-enrich
-description: "|"
+description: 'Use this skill when the user wants to add or update metadata in DataHub: descriptions, tags, glossary terms, ownership, deprecation, domains, data products, structured properties, documents, or field-level metadata. Triggers on: "add tag to X", "update description for X", "set owner of X", "add glossary term", "deprecate X", "create a domain", "create a glossary term", "add a document", or any request to modify DataHub metadata.'
 ---
 
 # DataHub Enrich

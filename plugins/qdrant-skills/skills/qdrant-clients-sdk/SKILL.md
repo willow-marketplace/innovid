@@ -1,6 +1,6 @@
 ---
 name: qdrant-clients-sdk
-description: '"Qdrant provides client SDKs for various programming languages, allowing easy integration with Qdrant deployments."'
+description: Qdrant provides client SDKs for various programming languages, allowing easy integration with Qdrant deployments.
 ---
 
 # Qdrant Clients SDK

@@ -1,6 +1,14 @@
 ---
 name: fix-xml-globals
-description: "|"
+description: |-
+  Fix XML view/fragment issues that UI5 linter reports but cannot auto-fix. Use this skill when linter outputs these rules:
+  - `no-globals` - For ALL global variable access in XML views — sap.*, jQuery.*, AND app-namespace globals (e.g., com.example.app.utils.Handler.onPress, my.app.formatter.method)
+  - `no-ambiguous-event-handler` - For event handlers without dot prefix or local name
+  - `no-deprecated-api` - For legacy template:require syntax (space-separated)
+  Trigger on XML view/fragment files with errors about global variables, event handlers, formatters, type references in bindings, factory functions, or template:require.
+  Automatically adds core:require declarations, fixes event handler prefixes, and handles .bind($control) for functions that use 'this'.
+  IMPORTANT: The linter reports app-namespace globals in XML under `no-globals` — these MUST be fixed by this skill, NOT deferred to fix-linter-blind-spots.
+  For native HTML or SVG in XML views, use the fix-xml-native-html skill instead.
 ---
 
 # Fix XML Views/Fragments Global Access
@@ -271,40 +279,14 @@ When multiple modules share the same class name, use descriptive aliases:
 </mvc:View>
 ```
 
-### Formatters with Multiple Parameters
+### Formatters with Multiple Parts / Expression Bindings
 
-When a binding expression uses a formatter with multiple parts, the `core:require` is the same — only the global namespace in the formatter reference changes.
-
-```xml
-<!-- Before -->
-<Text text="{
-    parts: [
-        {path: 'firstName'},
-        {path: 'lastName'}
-    ],
-    formatter: 'my.app.model.formatter.formatFullName'
-}" />
-
-<!-- After (with core:require for formatter on the view root) -->
-<Text text="{
-    parts: [
-        {path: 'firstName'},
-        {path: 'lastName'}
-    ],
-    formatter: 'formatter.formatFullName'
-}" />
-```
-
-### Globals Accessed Inside Expression Bindings
-
-Expression bindings that reference globals via the `${...}` syntax also need `core:require`.
+Multi-part bindings and expression bindings follow the same `core:require` pattern — just replace the dotted global with the local alias. Expression binding example:
 
 ```xml
-<!-- Before -->
-<Text visible="{= ${/count} > 0}" text="{= my.app.model.formatter.formatCount(${/count})}" />
-
-<!-- After -->
-<Text visible="{= ${/count} > 0}" text="{= formatter.formatCount(${/count})}" />
+<!-- Before: text="{= my.app.model.formatter.formatCount(${/count})}" -->
+<!-- After (with core:require for formatter): -->
+<Text text="{= formatter.formatCount(${/count})}" />
 ```
 
 ## App-Namespace Globals in XML

@@ -1,6 +1,11 @@
 ---
 name: fix-component-async
-description: "|"
+description: |-
+  Fix Component.js async configuration issues that UI5 linter reports but cannot auto-fix. Use this skill when linter outputs these rules:
+  - `async-component-flags` - For missing IAsyncContentCreation interface, missing manifest declaration, redundant async flags, async:false errors
+  - `no-removed-manifest-property` - For async flags in inline manifest v2
+  Trigger on Component.js files with errors about async loading, IAsyncContentCreation, manifest declaration.
+  Automatically adds the IAsyncContentCreation interface and configures manifest properly.
 ---
 
 # Fix Component.js Async Configuration

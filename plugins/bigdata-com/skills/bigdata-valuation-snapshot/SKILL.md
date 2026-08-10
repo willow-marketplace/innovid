@@ -1,6 +1,6 @@
 ---
 name: bigdata-valuation-snapshot
-description: ">"
+description: "Answer what a public company is worth and whether it is cheap or expensive, using Bigdata.com data (tearsheet multiples, estimates, margins, peer context). Produces a multiples cross-check against the company's own history and peer median, an implied-expectations read on what the current price already embeds (reverse-DCF reasoning, no model build required), the 2-3 value drivers that dominate, and a cheap / fair / rich verdict. Triggers: \"what is X worth\", \"is X expensive\", \"valuation snapshot for X\", \"what's priced in for X\", \"is X cheap vs peers\", \"how is X valued\", \"fair value for X\"."
 ---
 
 # Bigdata Valuation Snapshot

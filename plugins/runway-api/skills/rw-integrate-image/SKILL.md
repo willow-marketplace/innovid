@@ -1,6 +1,6 @@
 ---
 name: rw-integrate-image
-description: '"Help users integrate Runway image generation APIs (text-to-image with reference images)"'
+description: Help users integrate Runway image generation APIs (text-to-image with reference images)
 ---
 
 # Integrate Image Generation

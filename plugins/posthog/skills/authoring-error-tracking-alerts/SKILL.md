@@ -1,6 +1,6 @@
 ---
 name: authoring-error-tracking-alerts
-description: ">"
+description: Author error tracking alerts that fire when an issue is created, reopened, or starts spiking. Use when the user asks to set up error notifications, route exceptions to Slack/webhook/Linear, or evaluate which error events are worth alerting on. Covers trigger-event selection, integration choice, dedup against existing alerts, and shipping with the canonical message body shape.
 ---
 
 # Authoring error tracking alerts

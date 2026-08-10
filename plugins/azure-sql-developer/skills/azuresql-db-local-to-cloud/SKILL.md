@@ -1,6 +1,6 @@
 ---
 name: azuresql-db-local-to-cloud
-description: ">-"
+description: Proves that code built and tested against the local Azure SQL Database container runs unchanged against Azure SQL Database in the cloud, with only the connection string changing. Use when a user wants to develop locally then deploy to the cloud, asks "will this work in Azure", "same code local and cloud", "promote to Azure SQL", "swap the connection string", "dev/prod parity", "local to cloud", or is wiring SQL_CONNECTION_STRING for an app that must target both the container and a cloud server. Use this when an app uses local SA auth but needs Microsoft Entra auth in the cloud. Covers Node (mssql), .NET (Microsoft.Data.SqlClient), and Python (pyodbc). Reach for this skill before hand-editing app code to "make it work in Azure"; the rule is the code does not change, only the connection string does.
 ---
 
 # Azure SQL Developer to Azure SQL Database: same code, local to cloud
@@ -48,13 +48,15 @@ SQL. Only `Server`, the auth fields, and TLS posture move.
 ## Local SA auth vs cloud Entra auth (why, not just how)
 
 Local: the container is provisioned with one bootstrap login, `sa`, set via the
-`MSSQL_SA_PASSWORD` environment variable. There is no identity provider in front
-of a container on your laptop, so password auth over a trusted self-signed cert
-(`TrustServerCertificate=true`) is the pragmatic local default. **Microsoft Entra
-ID authentication does not work on the container**, so do not try to wire it up
-locally. The `MSSQL_AAD_*` variables that work on the SQL Server image are accepted
-here but Entra initialization fails and is silently disabled (see the
-`azuresql-db-faq` skill). SQL auth locally is the intended path, not a workaround.
+`MSSQL_SA_PASSWORD` environment variable. There is no identity provider required
+in front of a container on your laptop, so password auth over a trusted
+self-signed cert (`TrustServerCertificate=true`) is the pragmatic local default.
+
+Microsoft Entra ID authentication **does** work on the container (configure with
+the `MSSQL_AAD_*` variables and a certificate mount; see the
+`azuresql-db-container` skill, `references/entra-auth.md`). Use it when you
+want closer local-to-cloud parity. Most local-to-cloud flows still start with SQL
+auth locally and switch only the connection string for Entra in the cloud.
 
 Cloud: Azure SQL Database sits behind Microsoft Entra ID. Instead of shipping a
 password, the app presents a token from its Entra identity (a managed identity
@@ -233,3 +235,12 @@ body stays an overview.
 ## References
 
 - [references/auth-local-vs-cloud.md](references/auth-local-vs-cloud.md): why local SA auth and cloud Microsoft Entra auth differ, the token flow, per-stack auth setup, the Python (pyodbc) example, and the deployment checklist. Read it when wiring the cloud connection string or promoting an app to Azure.
+
+## Staying current
+
+Authoritative, version-pinned references for the tools this skill uses (read the one you need):
+
+- [Connect and query Azure SQL Database](https://learn.microsoft.com/en-us/azure/azure-sql/database/connect-query-content-reference-guide): per-language quickstarts, connection info, TLS, and drivers for the cloud service.
+- [SqlConnection connection string keywords](https://learn.microsoft.com/en-us/dotnet/api/microsoft.data.sqlclient.sqlconnection.connectionstring): the full connection-string keyword table.
+
+If the **Microsoft Learn MCP** server is configured, use `mcp__microsoft-learn__microsoft_docs_search` or `mcp__microsoft-learn__microsoft_docs_fetch` to fetch the current version of any of these on demand. It is optional; when it is unavailable, the references above are authoritative.

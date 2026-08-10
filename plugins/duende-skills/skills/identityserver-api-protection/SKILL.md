@@ -1,6 +1,6 @@
 ---
 name: identityserver-api-protection
-description: '"Protecting APIs with Duende IdentityServer: JWT bearer authentication, reference token introspection, scope-based authorization, DPoP/mTLS proof-of-possession validation, local API authentication, and multi-audience scenarios."'
+description: "Protecting APIs with Duende IdentityServer: JWT bearer authentication, reference token introspection, scope-based authorization, DPoP/mTLS proof-of-possession validation, local API authentication, and multi-audience scenarios."
 ---
 
 # Protecting APIs with IdentityServer

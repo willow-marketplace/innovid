@@ -1,6 +1,6 @@
 ---
 name: aws-iam
-description: ">"
+description: Verified corrections for IAM behaviors that AI agents frequently get wrong — policy evaluation edge cases, trust policy gotchas, STS session limits, Organizations quirks, and SAML/MFA specifics. Also provides structured workflows for IAM role management and least-privilege policy generation. Covers condition operator safety (ForAnyValue/ForAllValues with Null checks for absent keys), bucket policy deny patterns (VPC endpoint restrictions, org path conditions), resource-based policy confused deputy protection, and service role creation for AWS services (Glue, CloudTrail, VPC Flow Logs, Firehose, DataSync, S3 replication, Lambda, Step Functions, ECS, etc.) including trust policies with aws:SourceAccount/aws:SourceArn conditions. Applies when creating or configuring IAM roles, writing IAM or bucket policies, working with STS, Organizations, condition operators, or any task requiring an IAM service role or execution role. Does not cover non-IAM authorization like Cognito user-pool policies or app-level RBAC.
 ---
 
 # AWS IAM — Common Pitfalls

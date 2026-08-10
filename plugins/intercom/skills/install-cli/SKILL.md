@@ -1,6 +1,6 @@
 ---
 name: install-cli
-description: ">"
+description: Install and authenticate the Intercom CLI (`@intercom/cli`) — a command-line tool for managing Intercom workspaces, designed for both human operators and AI agents. Use when the user asks to "install the Intercom CLI", "set up the intercom command", "install @intercom/cli", or wants shell access to their Intercom workspace.
 ---
 
 # Install Intercom CLI

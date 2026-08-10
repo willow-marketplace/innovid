@@ -1,91 +1,120 @@
 ---
 name: scrape
-description: Scrape web content as clean markdown/HTML/JSON via the Bright Data CLI (`bdata scrape`). Use when the user wants to fetch a page, extract content from a list of URLs, or crawl paginated listings. Hands off to `data-feeds` for supported platforms (Amazon, LinkedIn, TikTok, Instagram, YouTube, Reddit, etc.) and to `search` when URLs must be discovered first. Requires the Bright Data CLI; proactively guides install + login if missing.
+description: End-to-end web scraping workflow — from URL to working spider with web-poet page objects. Use this for full-site or multiple-page crawls that create a new scraping workflow. Do not use for fixing, debugging, or modifying an existing spider.
 ---
 
-# Bright Data — Scrape
+You are orchestrating the full web scraping workflow, from a user's prompt to a
+working Scrapy spider with web-poet page objects.
 
-Get clean content (markdown, HTML, JSON, screenshot) from one or more URLs via the Bright Data CLI. This skill owns the "fetch raw or lightly-structured content" job. For platform-specific structured data (Amazon, LinkedIn, TikTok, etc.), **stop and use `data-feeds` instead** — you'll get clean JSON without selector logic.
+## Prerequisites
 
-## Setup gate (run first)
+Requires `uv`. Install if missing.
 
-Before any scrape, verify the CLI is installed and authenticated:
+## Input
 
-```bash
-if ! command -v bdata >/dev/null 2>&1; then
-    echo "bdata CLI not installed — see bright-data-best-practices/references/cli-setup.md"
-elif ! bdata zones >/dev/null 2>&1; then
-    echo "bdata not authenticated — run: bdata login  (or: bdata login --device for SSH)"
-fi
+The raw argument string is `$ARGUMENTS`. Split it into 2 positional arguments:
+
+1. **url**: target website URL (first whitespace-separated token)
+2. **what**: what the user wants to extract (the rest after the URL, e.g. "product", "job listing", "recipe" — free text, may contain spaces)
+
+## Track progress
+
+Before Stage 1, create exactly these tasks with `TaskCreate`, in order:
+  1. "Decide which fields to extract" — `/scrape-define`
+  2. "Analyze the website" — `/scrape-spec`
+  3. "Create the Scrapy project" — `/scrape-ensure-project`
+  4. "Generate the extraction code" — `/scrape-codegen` (one per data type)
+  5. "Generate the spider" — `/scrape-create-spider`
+
+As you launch each skill, `TaskUpdate` the task to `in_progress`. Mark it `completed`
+only after the skill (all instances of the skill in case of `/scrape-codegen`)
+returns successfully. Do not batch updates — flip status at the boundary so the user
+sees live progress.
+
+Do NOT create tasks inside the sub-skills; they share this session's task list
+and would duplicate entries.
+
+## Stage 1: Define schema
+
+Invoke `/scrape-define` with the user's arguments. This downloads 1 detail page,
+discovers fields, and runs a fast terminal approval loop for the schema.
+
+Output: `.scrape/{site_name}/` with approved schema (including `examples` from user-verified values). No stored pages or value files — those come from Stage 2.
+
+## Stage 2: Explore and validate
+
+Invoke `/scrape-spec .scrape/{site_name}`. This downloads more detail and listing
+pages, compares HTML variants, extracts values, and optionally presents a browser
+review.
+
+## Stage 3: Generate working project
+
+### Ensure the Scrapy project
+
+Derive a project name from the domain (e.g., `books_toscrape_com`).
+
+```
+/scrape-ensure-project ./{project_name} {project_name}
 ```
 
-If either check fails, halt and route the user to `skills/bright-data-best-practices/references/cli-setup.md`. Do not attempt the legacy `curl` fallback silently — ask the user first.
+### Generate page objects (per data type)
 
-## Pick your path
+After `scrape-spec` returns, re-read `{site_path}/spec.json` to get the final
+`data_types` list — `scrape-spec` may have replaced `{data_type}` with
+`{data_type}-list` when all requested fields were found on list pages.
 
-| Situation | Action |
-|---|---|
-| Single URL | `bdata scrape <url> -f markdown` |
-| Small list (≤ ~20 URLs) | shell loop, 1 at a time (see `references/patterns.md`) |
-| Larger list (dozens+) | `xargs -P 4` with parallelism cap (see `references/patterns.md`) |
-| Paginated listing | scrape page 1 → extract next-page URL → append → repeat (see `references/examples.md`) |
-| JS-heavy / login-gated / interaction-required | escalate to `bdata browser` (see `brightdata-cli` skill) |
-| Amazon, LinkedIn, TikTok, Instagram, YouTube, Reddit, … | **stop — hand off to `data-feeds`** |
-| No URL yet, just a topic | **hand off to `search`** |
+Identify the primary data type: the first entry in `data_types` that is not
+`"navigation"`. If it ends with `-list` (e.g., `"products-list"`), the site
+will use list-page extraction. Otherwise it uses detail-page extraction (the
+default). Navigation is always present.
 
-## Action
-
-Core commands:
-
-```bash
-# Clean markdown (default)
-bdata scrape "https://example.com/article" -f markdown -o article.md
-
-# Raw HTML (when you need the DOM)
-bdata scrape "https://example.com" -f html -o page.html
-
-# Structured JSON (when the Unlocker returns parsed fields)
-bdata scrape "https://example.com" -f json --pretty -o page.json
-
-# Visual snapshot (saves PNG)
-bdata scrape "https://example.com" -f screenshot -o page.png
-
-# Geo-targeted (override the exit country)
-bdata scrape "https://example.com" --country de -f markdown
+Call codegen once per data type in `data_types`:
 
 ```
+/scrape-codegen .scrape/{site_name}/{primary_type} ./{project_name}
+/scrape-codegen .scrape/{site_name}/navigation ./{project_name}
+```
 
-Full flag reference: [`references/flags.md`](references/flags.md).
+Where `{primary_type}` is whatever `scrape-spec` wrote — `products-list` for
+the list path, `products` (or the site's data type name) for the detail path.
+Each call adds its own item class, page object, and fixtures to the project.
 
-## Verification gate (run before claiming success)
+## Spider generation
 
-1. **Non-empty output:** `test -s "$out_path"` — or, for stdout, at least 200 bytes of content.
-2. **Not a block page** — grep the output for any of these signatures (case-insensitive):
-   - `Access Denied`
-   - `Just a moment`
-   - `Attention Required`
-   - `Checking your browser`
-   - `captcha`
-   - `cf-browser-verification`
-   - `cloudflare` *(with < 2KB total body)*
-3. **Expected markers present** for the task: e.g., a product page should contain a price pattern (`\$\d`); an article should contain at least one `<h1>` or `# ` heading.
-4. **On failure, escalation ladder:**
-   - Retry with a different `--country` (e.g., `--country de` if the origin site is US)
-   - Escalate to `bdata browser` for full JS rendering (hand off to `brightdata-cli` skill)
+After codegen, determine the PO class import paths from the generated files, then:
 
-Do not report success until all checks above pass.
+```
+/scrape-create-spider ./{project_name} {item_po_import_path} {nav_po_import_path}
+```
 
-## Red flags
+Also provide start URLs in the prompt (the site URL from spec.json).
 
-- Claiming success without inspecting the output.
-- Silencing errors with `2>/dev/null` — you'll miss auth failures and rate-limit errors.
-- Running `bdata scrape` on Amazon/LinkedIn/TikTok/Instagram/YouTube/Reddit URLs — these are supported by `data-feeds` and return structured data directly. Scraping loses the structure.
-- Scraping the same URL repeatedly in the same task — cache the first result.
-- Looping `bdata scrape` sequentially for large lists instead of using `xargs -P 4` (or similar) with a parallelism cap.
-- Using `curl` against `api.brightdata.com` directly — legacy path; only when the CLI isn't available.
+When the primary data type ends with `-list`, the generated item PO class name
+ends with `ListPage` (e.g., `ProductListPage`). `scrape-create-spider` detects
+this suffix and automatically generates a list-extraction spider (items yielded
+directly from `parse()`, no `parse_item` callback).
 
-## References
+When the primary data type is a plain detail type, the spider uses the standard
+detail-extraction pattern (navigation in `parse()`, items in `parse_item()`).
 
-- [`references/flags.md`](references/flags.md) — every flag with when-to-use notes.
-- [`references/patterns.md`](references/patterns.md) — shell-loop batching, `xargs` parallelism, pagination recipe, retry/backoff, block-page recovery chain, legacy `curl` fallback.
-- [`references/examples.md`](references/examples.md) — (1) single page → markdown, (2) batch a list of URLs with parallelism cap, (3) paginated listing, (4) block-page recovery.
+Tests with a limited crawl.
+
+## Report
+
+```
+Created scraping solution for {domain}:
+  Project: ./{project_name}/
+  Spider: uv run scrapy crawl {spider_name}
+  Tests: uv run pytest fixtures/
+```
+
+Offer to help the user deploy to [Scrapy
+Cloud](https://docs.zyte.com/scrapy-cloud/get-started.md) if they wish. It's
+useful for scheduled or long-running crawls, to keep a job history with results
+and logs, for job monitoring (with an API that an LLM can use), and more. There
+is also a [free tier](https://docs.zyte.com/scrapy-cloud/pricing.md).
+
+If they deploy and run it there (via `/scrape-scrapy-cloud`), the run will by
+default wait for the job to finish and validate its results (errors, field
+coverage, and whether items match the request) before reporting back — so
+expect it to take as long as the crawl does unless they opt out.

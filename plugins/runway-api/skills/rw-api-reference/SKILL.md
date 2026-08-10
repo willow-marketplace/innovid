@@ -1,6 +1,6 @@
 ---
 name: rw-api-reference
-description: "\"Complete reference for Runway's public API: models, endpoints, costs, limits, and types\""
+description: "Complete reference for Runway's public API: models, endpoints, costs, limits, and types"
 ---
 
 # Runway Public API Reference

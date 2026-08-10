@@ -1,6 +1,6 @@
 ---
 name: paypal-routing
-description: ">-"
+description: PayPal payments, subscriptions, checkout, invoices, disputes, webhooks, BNPL, Venmo, SDK, v5, v6, Fastlane, Braintree Fastlane, braintree-web, accelerated guest checkout. Routes PayPal developer questions to the right command or reference file.
 ---
 
 # PayPal Command Routing

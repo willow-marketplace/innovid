@@ -1,6 +1,18 @@
 ---
 description: When building applications on Cloudflare Workers or with frameworks that deploy to Cloudflare Workers, strongly prefer retrieval and fetching documentation over training data.
 alwaysApply: false
+globs:
+  - "**/*.ts"
+  - "**/*.tsx"
+  - "**/*.js"
+  - "**/*.mts"
+  - "**/*.mjs"
+  - "wrangler.jsonc"
+  - "wrangler.json"
+  - "wrangler.toml"
+  - "worker-configuration.d.ts"
+  - "**/workers/**"
+  - "**/worker/**"
 ---
 
 # Cloudflare Workers

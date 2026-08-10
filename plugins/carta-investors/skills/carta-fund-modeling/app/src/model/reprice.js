@@ -208,6 +208,14 @@ export function quarterOffsetDate(anchorISO, q) {
   return dt.toISOString().slice(0, 10);
 }
 
+/** Inverse of quarterOffsetDate: whole quarters between an ISO anchor and an ISO target date (month-based, day-agnostic, matching quarterOffsetDate's own arithmetic). */
+export function quartersBetween(anchorISO, targetISO) {
+  const [ay, am] = String(anchorISO || "").split("-").map(Number);
+  const [ty, tm] = String(targetISO || "").split("-").map(Number);
+  if (!ay || !ty) return 0;
+  return Math.round(((ty - ay) * 12 + (tm - am)) / 3);
+}
+
 /**
  * Per-fund exit horizon derived from realized companies' exit-timing sliders: the
  * proceeds-weighted average exit quarter, offset from navAsOf. Funds with no
@@ -321,22 +329,29 @@ function repriceConfig(company, { totalFv, hasBasis, cartaMoic, cartaRef, update
   if (companyIsWaterfall(company)) {
     const refB = companyReferenceExit(company) / 1e9; // billions
     const cur = company.valuationB ?? refB ?? 0;
-    const ref = refB || cur || 1;
+    // `ref` (→ max, → presets) must NEVER fall back to `cur` — cur is the value
+    // being dragged/set, so anchoring the range to it bakes each render's dragged
+    // value into the NEXT render's max/presets, compounding on every mousemove
+    // tick of a single drag (or every preset click) into an exponential runaway
+    // (observed: a company with no reference exit blew up to e+31/e+34 after a
+    // few interactions). Anchor to a stable, company-intrinsic floor instead.
+    const ref = refB || 1;
     return {
       value: cur, min: 0, max: Math.max(1, ref * 8), step: 0.01,
       fmtVal: (x) => fmtB(x), resetValue: refB,
       onChange: (x) => updateCompany(company.id, { valuationB: x, includeInNav: true }),
-      presets: sentimentPresets(refB || ref),
+      presets: sentimentPresets(ref),
     };
   }
   if (hasBasis) {
     const cur = company.valuationB ?? cartaRef ?? 0;
-    const ref = cartaRef || cur || 1;
+    // Same fix as the waterfall branch above — never anchor `ref` to `cur`.
+    const ref = cartaRef || 1;
     return {
       value: cur, min: 0, max: Math.max(2, ref * 22), step: 0.01,
       fmtVal: (x) => fmtB(x), resetValue: cartaRef,
       onChange: (x) => updateCompany(company.id, { valuationB: x, includeInNav: true }),
-      presets: sentimentPresets(cartaRef ?? ref),
+      presets: sentimentPresets(ref),
     };
   }
   if (cartaMoic) {

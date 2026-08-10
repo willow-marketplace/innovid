@@ -1,6 +1,6 @@
 ---
 name: bigdata-post-ipo-day179
-description: ">"
+description: 'Write a day-179 post-IPO note on the 180-day lock-up expiry using Bigdata.com data plus filings and market data. Covers lock-up terms from the prospectus (expiry date, covered holders, share count, early-release provisions), float and overhang math (post-expiry float, days-to-trade versus ADV), insider and VC selling-intention signals, positioning into the event (short interest, borrow, options skew), the historical lock-up-expiry effect with analogs, and a two-sided read. Balanced, no buy/avoid call. Triggers: "180-day lock-up expiry for X", "lockup expiration impact", "post-IPO day 179", "shares unlocking for X", "insider selling after lockup", "float expansion at lockup".'
 ---
 
 # Bigdata Post-IPO Day 179 — 180-Day Lock-Up Expiry

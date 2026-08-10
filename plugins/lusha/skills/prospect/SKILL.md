@@ -1,88 +1,80 @@
 ---
 name: prospect
-description: '"Full ICP-to-leads pipeline. Describe your ideal customer in plain English and get a ranked table of enriched decision-maker leads with emails and phone numbers."'
+description: Build a targeted list of contacts or companies from Lusha and return verified phone numbers alongside emails. Use when the user says "find me [title] at [company type]", "build a list of [ICP description]", "prospect [criteria]", "who should I be calling at [industry]", or any request to generate a lead list from an ICP or persona description.
 ---
 
 # Prospect
 
-Go from an ICP description to a ranked, enriched lead list in one shot. The user describes their ideal customer via "$ARGUMENTS".
-
-## Examples
-
-- `/apollo:prospect VP of Engineering at Series B+ SaaS companies in the US, 200-1000 employees`
-- `/apollo:prospect heads of marketing at e-commerce companies in Europe`
-- `/apollo:prospect CTOs at fintech startups, 50-500 employees, New York`
-- `/apollo:prospect procurement managers at manufacturing companies with 1000+ employees`
-- `/apollo:prospect SDR leaders at companies using Salesforce and Outreach`
+Go from an ICP description to a ranked, phone-enriched lead list. Filters are resolved before search — never guess filter values.
 
 ## Step 1 — Parse the ICP
 
-Extract structured filters from the natural language description in "$ARGUMENTS":
+Extract structured filters from the user's natural language description. Some filters take free-form text directly; others must be resolved to canonical values first.
 
-**Company filters:**
-- Industry/vertical keywords → `q_organization_keyword_tags`
-- Employee count ranges → `organization_num_employees_ranges`
-- Company locations → `organization_locations`
-- Specific domains → `q_organization_domains_list`
+**Contact filters (`prospecting_contact_search`):**
+- Job titles → pass directly as `jobTitles` (free-form strings, e.g. "VP of Sales"). No resolution call needed.
+- Department / seniority → resolve via `prospecting_contact_filters` (type: `departments`, `seniority`). Use these for broad role targeting when a specific title isn't given.
+- Country → resolve via `prospecting_contact_filters` (type: `all_countries`); Location → type: `locations` (requires `locationSearchText`).
 
-**Person filters:**
-- Job titles → `person_titles`
-- Seniority levels → `person_seniorities`
-- Person locations → `person_locations`
+**Company filters (`prospecting_company_search`):**
+- Industry → resolve via `prospecting_company_filters` (type: `industries_labels`)
+- Size → resolve via `prospecting_company_filters` (type: `sizes`)
+- Revenue → resolve via `prospecting_company_filters` (type: `revenues`)
+- Location → resolve via `prospecting_company_filters` (type: `locations`, requires `q`)
+- Tech stack → resolve via `prospecting_company_filters` (type: `technologies`, requires `q`)
+- Buying intent → resolve via `prospecting_company_filters` (type: `intent_topics`)
 
-If the ICP is vague, ask 1-2 clarifying questions before proceeding. At minimum, you need a title/role and an industry or company size.
+Resolve every non-title filter to canonical values before searching — passing raw natural-language strings as structured filter values is the most common cause of search failures. Each `prospecting_*_filters` call resolves one filter type; run the independent lookups in parallel.
 
-## Step 2 — Search for Companies
+If the ICP is too vague to resolve (no title, no industry, no company size), ask one clarifying question before proceeding. At minimum, a title or department and at least one company-level constraint are required.
 
-Use `mcp__claude_ai_Apollo_MCP__apollo_mixed_companies_search` with the company filters:
-- `q_organization_keyword_tags` for industry/vertical
-- `organization_num_employees_ranges` for size
-- `organization_locations` for geography
-- Set `per_page` to 25
+See `references/filter-guide.md` for filter resolution details.
 
-## Step 3 — Enrich Top Companies
+## Step 2 — Search Companies
 
-Use `mcp__claude_ai_Apollo_MCP__apollo_organizations_bulk_enrich` with the domains from the top 10 results. This reveals revenue, funding, headcount, and firmographic data to help rank companies.
+Use `prospecting_company_search` with resolved company filters. Request up to 25 results. This scopes the contact search to qualified accounts.
 
-## Step 4 — Find Decision Makers
+If the user only specified contact-level criteria (no company filters), skip this step and go directly to Step 3.
 
-Use `mcp__claude_ai_Apollo_MCP__apollo_mixed_people_api_search` with:
-- `person_titles` and `person_seniorities` from the ICP
-- `q_organization_domains_list` scoped to the enriched company domains
-- `per_page` set to 25
+## Step 3 — Search Contacts
 
-## Step 5 — Enrich Top Leads
+Use `prospecting_contact_search` with resolved contact filters. Scope to the company results from Step 2 where applicable. Request up to 25 results.
 
-> **Credit warning**: Tell the user exactly how many credits will be consumed before proceeding.
+## Step 4 — Enrich Top Results
 
-Use `mcp__claude_ai_Apollo_MCP__apollo_people_bulk_match` to enrich up to 10 leads per call with:
-- `first_name`, `last_name`, `domain` for each person
-- `reveal_personal_emails` set to `true`
+Search results are previews — they carry no phones/emails but include a `canReveal[]` list per contact showing which fields can be revealed and their per-field credit cost in `canReveal[].credits`.
 
-If more than 10 leads, batch into multiple calls.
+Use `prospecting_contact_enrich` with the contact `id`s to reveal phones and email. Pass `reveal` set from the results' `canReveal[].field` to control exactly which fields (and credits) you pay for. Up to **50** contacts per call — split larger sets across calls.
 
-## Step 6 — Present the Lead Table
+Before enriching, sum the `canReveal[].credits` for the fields you'll reveal, state the total to the user, and wait for confirmation on large batches. Use `account_usage` first if the user wants to confirm their balance covers it.
 
-Show results in a ranked table:
+## Step 5 — Present the Lead List
 
-### Leads matching: [ICP Summary]
+### Filters Applied
+Show the user exactly what was used so they can verify:
 
-| # | Name | Title | Company | Employees | Revenue | Email | Phone | ICP Fit |
-|---|---|---|---|---|---|---|---|---|
+| Filter | Value |
+|--------|-------|
+| ... | ... |
 
-**ICP Fit** scoring:
-- **Strong** — title, seniority, company size, and industry all match
-- **Good** — 3 of 4 criteria match
-- **Partial** — 2 of 4 criteria match
+### Lead List
 
-**Summary**: Found X leads across Y companies. Z credits consumed.
+| # | Name | Title | Company | Industry | Size | Direct Phone | Mobile | Email | Intent Signal |
+|---|------|-------|---------|----------|------|-------------|--------|-------|---------------|
 
-## Step 7 — Offer Next Actions
+- Surface direct phone and mobile as separate columns — do not merge or hide them
+- Mark missing phone numbers with `—` not blank cells
+- Include intent signal column only if `intent_topics` filter was used
 
-Ask the user:
+### Summary
+- Results found: X (showing top Y)
+- Contacts with verified phone: Z
+- Credits consumed: N
 
-1. **Save all to Apollo** — Bulk-create contacts via `mcp__claude_ai_Apollo_MCP__apollo_contacts_create` with `run_dedupe: true` for each lead
-2. **Load into a sequence** — Ask which sequence and run the sequence-load flow for these contacts
-3. **Deep-dive a company** — Run `/apollo:company-intel` on any company from the list
-4. **Refine the search** — Adjust filters and re-run
-5. **Export** — Format leads as a CSV-style table for easy copy-paste
+## Step 6 — Offer Next Actions
+
+1. **Refine** — adjust filters and re-run
+2. **Add intent filter** — narrow to companies actively researching a topic
+3. **Add tech stack filter** — narrow to companies using a specific technology
+4. **Run signal-prospect** — cross this list against current buying signals
+5. **Export** — format as CSV for copy-paste

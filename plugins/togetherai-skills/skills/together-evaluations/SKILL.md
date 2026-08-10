@@ -1,6 +1,6 @@
 ---
 name: together-evaluations
-description: '"LLM-as-a-judge evaluation framework on Together AI. Classify, score, and compare model outputs, select judge models, use external-provider judges or targets, poll results and download reports. Reach for it whenever the user wants to benchmark outputs, grade responses, compare A/B variants, or operationalize automated evaluations."'
+description: LLM-as-a-judge evaluation framework on Together AI. Classify, score, and compare model outputs, select judge models, use external-provider judges or targets, poll results and download reports. Reach for it whenever the user wants to benchmark outputs, grade responses, compare A/B variants, or operationalize automated evaluations.
 ---
 
 # Together AI Evaluations
@@ -32,7 +32,7 @@ through Together AI's evaluation system.
 - Use `together-chat-completions` for one-off inference or manual judge prompts
 - Use `together-batch-inference` for bulk offline generation rather than evaluation
 - Use `together-fine-tuning` when the user wants to improve the model instead of just measure it
-- Use `together-dedicated-endpoints` only if the evaluation target itself is a dedicated endpoint
+- Use `together-dedicated-model-inference` only if the evaluation target itself is a dedicated endpoint
 
 ## Quick Routing
 
@@ -44,6 +44,9 @@ through Together AI's evaluation system.
 - **Dataset columns, Jinja2 templates, or pre-generated responses**
   - Read the dataset and template sections in [references/api-reference.md](references/api-reference.md)
   - Use `--eval-column`, `--model-a-column`, or `--model-b-column` in the scripts
+- **Evaluating vision-capable models with image inputs**
+  - Read the Image Inputs section in [references/api-reference.md](references/api-reference.md)
+  - Add an `image_data_urls` column (base64 data URLs) to the dataset; the model and judge must be vision-capable
 - **External providers as judge or target**
   - Read the model-source and provider sections in [references/api-reference.md](references/api-reference.md)
   - Use the scripts with `--judge-model-source external`, `--eval-model-source external`, or compare-side source flags

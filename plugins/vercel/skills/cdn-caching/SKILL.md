@@ -1,6 +1,6 @@
 ---
 name: cdn-caching
-description: Debug Vercel CDN caching — cache hit rate, stale content, revalidation behavior, ISR + PPR, and costs.
+description: Debug Vercel CDN caching — cache hit rate, stale content, revalidation behavior, ISR + PPR, per-request cache reasons (cacheReason) and PPR state (ppr_state), and costs.
 ---
 
 # Vercel Caching
@@ -34,7 +34,7 @@ Vercel caches at multiple layers between the visitor and your backend. A request
   - _Invalidate_ (`invalidateByTag`, Next.js `revalidateTag`/`revalidatePath`) = stale-while-revalidate. Keeps serving stale while refreshing in the background → response shows `x-vercel-cache: STALE`.
   - _Dangerously-delete_ (`dangerouslyDeleteByTag`, Next.js `updateTag` or a revalidate with no lifetime) = hard removal. The next request blocks in the **foreground** to regenerate → `x-vercel-cache: REVALIDATED`.
 - **Cache tags & blast radius** — tags group cached entries so one call can clear many. A coarse tag attached to thousands of paths has a large _blast radius_: a single write drops them all and the hit rate collapses until they re-warm. Prefer granular tags (`product-${id}`) plus a roll-up tag.
-- **Cache status / cache reason** (`x-vercel-cache` response header):
+- **Cache status** (`x-vercel-cache` response header) — the _outcome_:
 
   | Value         | Meaning                                                          |
   | ------------- | ---------------------------------------------------------------- |
@@ -44,6 +44,32 @@ Vercel caches at multiple layers between the visitor and your backend. A request
   | `PRERENDER`   | Served a prerendered ISR/PPR shell                               |
   | `REVALIDATED` | Foreground revalidation after a delete (or `Pragma: no-cache`)   |
   | `BYPASS`      | Caching skipped (`no-store`, `private`, cookies, etc.)           |
+
+- **Cache reason** (`cacheReason`) — the finer _explanation_ of that outcome for a single request. The `cache_result` metric lumps all `MISS`es (and all `STALE`s) together; the reason is the only thing that tells them apart. Nine values, three per group:
+
+  | `cacheReason`      | Refines  | Meaning                                                                       |
+  | ------------------ | -------- | ----------------------------------------------------------------------------- |
+  | `cold`             | MISS     | Cache empty for this key/variant (first request or evicted); the function ran |
+  | `collapsed`        | MISS     | Concurrent requests to one uncached path collapsed into a single invocation   |
+  | `error`            | MISS     | An error prevented serving from cache                                         |
+  | `draft_mode`       | → BYPASS | Next.js Draft Mode active — bypassed so editors see live content              |
+  | `prerender_bypass` | → BYPASS | Prerender-bypass cookie/token present                                         |
+  | `crawler`          | → BYPASS | SEO-crawler UA — full response served so bots index real content              |
+  | `stale_time`       | STALE    | Time-based `revalidate` interval elapsed; regenerating in background (SWR)     |
+  | `stale_tag`        | STALE    | Tag invalidated (`revalidateTag` / `invalidateByTag`); regenerating           |
+  | `stale_error`      | STALE    | A revalidation attempt **failed**; serving the last-good copy (a bug signal)  |
+
+  A raw `MISS` with reason `draft_mode` / `prerender_bypass` / `crawler` is **displayed as `BYPASS`** (all usually expected). The three `stale_*` reasons separate a healthy time refresh (`stale_time`) from a broad-tag blast (`stale_tag`) from a failing regen (`stale_error`). Read `cacheReason` from `vercel logs` or the dashboard Logs "Reason" row — the `x-vercel-cache-reason` header is internal-only and not visible via `curl`.
+
+- **PPR state** (`ppr_state`) — for a Partial Prerendering route, _how much_ of the response was prerendered versus computed per request. Only set on `partial_prerender` serves; blank for plain `prerender` / `func` / `static` routes and for cases the proxy can't classify (cold shell miss, `BYPASS`). Three states:
+
+  | `ppr_state` | Meaning                                                                              |
+  | ----------- | ------------------------------------------------------------------------------------ |
+  | Static      | Fully prerendered — no postponed state, so the function is not invoked for the body   |
+  | Partial     | A static shell serves from cache + a postponed hole the function resumes per request  |
+  | Dynamic     | The whole body is postponed and rendered by the function per request                  |
+
+  A **Partial** serve that still invokes the function is _not_ a cache miss — the cached shell serves immediately while the function fills only the dynamic holes. Read `ppr_state` from `vercel logs` or the dashboard Logs panel, or aggregate with `vercel metrics vercel.request.count --group-by ppr_state`. Like `cacheReason`, the `x-vercel-ppr-state` header is internal-only and not visible via `curl`.
 
 ## Investigating cache issues
 
@@ -88,6 +114,20 @@ Once you know hit rate, quantify ISR spend and whether revalidation — not traf
 vercel metrics vercel.request.count -S <team> -p <project> -a sum --since 24h
 vercel metrics vercel.isr_operation.write_units -S <team> -p <project> -a sum --since 24h
 ```
+
+**Write utilization = cache serves ÷ ISR writes** — cached reads per regeneration.
+
+```bash
+# numerator: cache serves — sum the HIT + STALE + PRERENDER buckets
+vercel metrics vercel.request.count -S <team> -p <project> \
+  -f "environment eq 'production' and (cache_result eq 'HIT' or cache_result eq 'STALE')" \
+  --group-by route -a sum --since 24h
+# denominator: ISR writes
+vercel metrics vercel.isr_operation.write_units -S <team> -p <project> \
+  -f "environment eq 'production'" --group-by route -a sum --since 24h
+```
+
+High is good; near or below ~1 means you regenerate about as fast as the page is read (wasted writes) → lengthen the revalidate interval or move time-based to on-demand tag revalidation.
 
 **Which routes revalidate most.** Break write units down by `route` and `request_path` to find paths that regenerate often relative to traffic:
 

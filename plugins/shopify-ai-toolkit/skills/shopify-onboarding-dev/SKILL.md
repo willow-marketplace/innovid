@@ -1,6 +1,6 @@
 ---
 name: shopify-onboarding-dev
-description: '"Get started building on Shopify. Use when a developer asks to build an app, build a theme, create a dev store, set up a partner account, scaffold a project, or get started developing for Shopify. NOT for merchants managing stores."'
+description: Get started building on Shopify. Use when a developer asks to build an app, build a theme, create a dev store, set up a partner account, scaffold a project, or get started developing for Shopify. NOT for merchants managing stores.
 ---
 
 ## Required Tool Calls (do not skip)

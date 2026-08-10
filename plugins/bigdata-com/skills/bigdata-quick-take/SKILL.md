@@ -1,6 +1,6 @@
 ---
 name: bigdata-quick-take
-description: ">"
+description: 'Give a fast, PM-style quick take on a stock using Bigdata.com data — a one-line current view, the 2-3 drivers that actually matter right now, the key risks and what would change the view, and the near-term setup with the next catalyst. Deliberately short: one page, no full thesis, no model. Triggers: "quick take on X", "what do you think of X", "give me a fast view on X", "thoughts on X", "X in a nutshell", "one-liner on X", "is X interesting right now".'
 ---
 
 # Bigdata Quick Take

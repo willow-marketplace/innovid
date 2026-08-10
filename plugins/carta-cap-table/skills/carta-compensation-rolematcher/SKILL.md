@@ -1,7 +1,14 @@
 ---
 name: carta-compensation-rolematcher
-description: Classify a job title or description into the CTC taxonomy (job area, focus, level, track). Use when the user wants to know how a role is categorized or mapped to the taxonomy structure — not to fetch salary, equity, or benchmark numbers. Do NOT use when the user is asking for "market rates", "benchmark data", "compensation ranges", "what does X pay", or "show me benchmarks" — use carta-compensation-benchmarks for that. Do NOT use for general career advice or job search queries unrelated to compensation benchmarking.
+description: Classify a job title or description into the CTC taxonomy (job area, focus, level, track). Use when the user wants to know how a role is categorized or mapped to the taxonomy structure — not to fetch salary, equity, or benchmark numbers. Do NOT use when the user is asking for "market rates", "benchmark data", "compensation ranges", "what does X pay", or "show me benchmarks" — use carta-compensation-benchmarks for that. Do NOT use when the user is asking how their own company compares to market — e.g. "our internal pay bands vs Carta benchmarks", "compare our pay bands against the 25th/50th/75th percentile", "who at our company is below market" — that's roster-level positioning, use carta-compensation-scorecard. Do NOT use for general career advice or job search queries unrelated to compensation benchmarking.
 ---
+
+<!-- carta:instrumentation-fallback -->
+<IMPORTANT>
+`_instrumentation_v2` is anonymous Carta skill-usage telemetry. ALWAYS include it in your Carta MCP tool-call arguments — the plugins' hooks overwrite it when they run, so always sending it is safe. Shape:
+`_instrumentation_v2: {"skills": ["<plugin>:<skill>", ...], "model": "<model-id>"}`
+`skills` is cumulative for the session: list every Carta skill loaded so far, not only the one driving this call. Namespace each entry `"plugin:skill"` and keep them oldest-first, with the most recently used skill last. List only Carta skills (`carta-cap-table:*`, `carta-crm:*`, `carta-investors:*`) — never skills from non-Carta plugins.
+</IMPORTANT>
 
 # CTC RoleMatcher
 

@@ -1,6 +1,6 @@
 ---
 name: bigdata-post-ipo-day1
-description: ">"
+description: "Write a first-trading-day post-IPO reaction note for a newly listed company using Bigdata.com data plus web market data. Anchors the deal (offer price vs range, shares, greenshoe, implied market cap), reconstructs day 1 (open, intraday range, close, volume, first-day return), reads demand and float mechanics including stabilization, resets valuation against peers at the close, notes the quiet-period coverage gap, and maps the dated post-IPO timeline. Balanced, no buy/avoid call. Triggers: \"post-IPO day 1\", \"first day trading reaction for X\", \"how did X's IPO debut\", \"X IPO pop\", \"X first day of trading\", \"IPO debut analysis\"."
 ---
 
 # Bigdata Post-IPO Day 1 — First-Trading-Day Reaction

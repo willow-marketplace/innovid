@@ -1,6 +1,11 @@
 ---
 name: fix-csp-compliance
-description: "|"
+description: |-
+  Fix Content Security Policy (CSP) compliance issues that UI5 linter reports but cannot auto-fix. Use this skill when linter outputs:
+  - `csp-unsafe-inline-script` with message "Use of unsafe inline script"
+  Trigger on: inline JavaScript in HTML files, script tags without src attribute, onclick/onload handlers in HTML.
+  Also use when user mentions 'security headers', 'inline script warning', 'CSP policy', 'unsafe-inline', or 'Content-Security-Policy'.
+  Provides guidance on moving inline scripts to external files for CSP compliance.
 ---
 
 # Fix CSP Compliance - Unsafe Inline Scripts

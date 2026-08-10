@@ -1,6 +1,6 @@
 ---
 name: databricks-aibi-dashboards
-description: '"Create Databricks AI/BI dashboards. Must use when creating, updating, or deploying Lakeview dashboards as Databricks Dashboard have a unique json structure. CRITICAL: You MUST test ALL SQL queries via CLI BEFORE deploying. Follow guidelines strictly."'
+description: "Create Databricks AI/BI dashboards. Must use when creating, updating, or deploying Lakeview dashboards as Databricks Dashboard have a unique json structure. CRITICAL: You MUST test ALL SQL queries via CLI BEFORE deploying. Follow guidelines strictly."
 ---
 
 # AI/BI Dashboard Skill
@@ -20,7 +20,7 @@ A dashboard should be showing something relevant for a human, typically some KPI
 | Get schema | `databricks experimental aitools tools discover-schema catalog.schema.table1 catalog.schema.table2` |
 | Test query | `databricks experimental aitools tools query --warehouse WH "SELECT..."` |
 | Create dashboard | `databricks lakeview create --display-name "X" --warehouse-id "WH" --dataset-catalog CATALOG --dataset-schema SCHEMA --serialized-dashboard "$(cat file.json)" --json '{"parent_path": "/Workspace/Users/<you>/path"}'` — `--dataset-catalog` / `--dataset-schema` are **flag-only** (REQUIRED; CLI silently drops them if put in `--json`); `parent_path` is JSON-only (no flag). Queries must use bare table names. |
-| Update dashboard | `databricks lakeview update DASHBOARD_ID --serialized-dashboard "$(cat file.json)"` |
+| Update dashboard | `databricks lakeview update DASHBOARD_ID --dataset-catalog CATALOG --dataset-schema SCHEMA --serialized-dashboard "$(cat file.json)"` — **always re-pass `--dataset-catalog` / `--dataset-schema` on update** (same flag-only rule as create); update replaces the serialized dashboard, so omitting them nulls the per-dataset defaults and breaks every bare-table query. |
 | Publish | `databricks lakeview publish DASHBOARD_ID --warehouse-id WH` |
 | Delete | `databricks lakeview trash DASHBOARD_ID` |
 
@@ -86,14 +86,17 @@ Sample rows alone don't tell you what to build. you can write aggregate SQL thro
 - **Trend viability** at daily/weekly/monthly grain → picks the right trend granularity.
 - **Story confirmation** — run the aggregations you plan to put in the dashboard and check they're not flat, empty, or uninteresting. Fix the query or adjust the story before moving on.
 
-Fan out independent probes (state ∈ `PENDING|RUNNING|SUCCEEDED|FAILED|CANCELED|CLOSED`):
+Fan out independent probes in one call — pass several positional SQLs (and/or repeated `--file`) and they run in parallel (default `--concurrency 8`):
 
 ```bash
-submit() { databricks api post /api/2.0/sql/statements --json "$(jq -nc --arg w "$1" --arg s "$2" '{warehouse_id:$w,statement:$s,wait_timeout:"0s",on_wait_timeout:"CONTINUE"}')" | jq -r .statement_id; }
-SIDS=(); for q in "$@"; do SIDS+=( "$(submit "$WH" "$q")" ); done
-for s in "${SIDS[@]}"; do databricks api get "/api/2.0/sql/statements/$s" | jq '{state:.status.state, rows:.result.data_array}'; done
-# cancel: databricks api post "/api/2.0/sql/statements/$SID/cancel"
+DATABRICKS_WAREHOUSE_ID=<WH> databricks experimental aitools tools query --output json \
+  "SELECT COUNT(*) FROM catalog.schema.orders" \
+  "SELECT region, COUNT(*) FROM catalog.schema.orders GROUP BY region ORDER BY 2 DESC LIMIT 10" \
+  "SELECT MIN(ts), MAX(ts) FROM catalog.schema.orders"
 ```
+
+- **`--output json` is mandatory** in multi-query mode. Returns one object per statement: `{sql, state, rows, error}`; failures are per-statement (`state: "FAILED"`), others still succeed.
+- ⚠️ **Don't trust the exit code** (a failed statement can still exit `0`) — gate on each object's `state != "SUCCEEDED"`.
 
 > **Dashboard queries are different** — inside the dashboard JSON, the `FROM` clause must reference ONLY the table name, with no catalog or schema prefix:
 > - ✅ Correct: `FROM trips`
@@ -116,7 +119,9 @@ If values don't match expectations, ensure the query is correct, fix the data if
 
 Before writing JSON, plan your dashboard:
 
-1. You must know the expected specific JSON structure. For this, **Read reference files**: [1-widget-specifications.md](references/1-widget-specifications.md), [3-filters.md](references/3-filters.md), [4-examples.md](references/4-examples.md)
+1. You must know the expected specific JSON structure. For this, **Read reference files**: [1-widget-specifications.md](references/1-widget-specifications.md), [3-filters.md](references/3-filters.md).
+
+Always make sure you read an entire example to understand the structure, like [4-examples.md](references/4-examples.md).
 
 2. Think: **What widgets?** Map each visualization to a dataset:
    | Widget | Type | Dataset | Has filter field? |
@@ -166,7 +171,12 @@ databricks lakeview list
 databricks lakeview get DASHBOARD_ID
 
 # Update a dashboard
-databricks lakeview update DASHBOARD_ID --serialized-dashboard "$(cat dashboard.json)"
+# ALWAYS re-pass --dataset-catalog / --dataset-schema: update replaces the
+# serialized dashboard, so omitting them nulls the defaults and breaks queries.
+databricks lakeview update DASHBOARD_ID \
+  --dataset-catalog "my_catalog" \
+  --dataset-schema "my_schema" \
+  --serialized-dashboard "$(cat dashboard.json)"
 
 # Publish a dashboard
 databricks lakeview publish DASHBOARD_ID --warehouse-id WAREHOUSE_ID
@@ -184,9 +194,20 @@ databricks workspace-entity-tag-assignments create-tag-assignment \
 
 ---
 
+## UPDATING AN EXISTING DASHBOARD
+
+To change a dashboard that already exists, build the updated JSON with the [creation workflow](#new-dashboard-creation-workflow) above, then deploy it with `update` + `publish` on the **same** `DASHBOARD_ID` — never re-run `create`/import.
+
+- **Don't `create`/import to update.** That mints a new dashboard id + URL and breaks any link you've already shared; `create` is for brand-new dashboards only.
+- **`update` changes only the draft.** The `/published` link viewers see stays on the last snapshot until you `publish` again — so always `publish` after `update`.
+
+---
+
 ## JSON Structure (Required Skeleton)
 
 Every dashboard's `serialized_dashboard` content must follow this exact structure:
+
+Important: ALWAYS add a space or `\n` at the end of each `queryLines` value as they are concatenated to create the dataset.
 
 ```json
 {
@@ -211,7 +232,7 @@ Every dashboard's `serialized_dashboard` content must follow this exact structur
 ```
 
 **Structural rules (violations cause "failed to parse serialized dashboard"):**
-- `queryLines`: Array of strings, NOT `"query": "string"`. Elements are **joined verbatim** with no separator — end each line with `\n` (or strip `-- comments`). A line ending in `-- comment` with no newline swallows the next line.
+- `queryLines`: Array of strings, NOT `"query": "string"`. Elements are **joined verbatim** with no separator — end each line with ` ` or `\n` (or strip `-- comments`). A line ending in `-- comment` with no newline swallows the next line.
 - Widgets: INLINE in `layout[].widget`, NOT a separate `"widgets"` array
 - `pageType`: Required on every page (`PAGE_TYPE_CANVAS` or `PAGE_TYPE_GLOBAL_FILTERS`)
 - Query binding: `query.fields[].name` must exactly match `encodings.*.fieldName`
@@ -246,7 +267,7 @@ Mental model — **60/30/10 rule** mapped to theme keys: **60% neutral** = canva
 
 - `visualizationColors`: ordered palette every chart series and category mapping cycles through. **Positions are 0-indexed**: `position: 0` = first color (`#FFA600` above), `position: 6` = seventh (`#99DDB4`). Length 5–8 is typical.
 - Background / font / selection colors take `light` + `dark` pairs; the dashboard auto-selects based on viewer mode.
-- `widgetHeaderAlignment`: `"LEFT"` (default), `"CENTER"`, or `"RIGHT"`.
+- `widgetHeaderAlignment`: `"LEFT"` (default), `"CENTER"`, or `"RIGHT"`. Optional top-level: `fontFamily` (e.g. `"Space Grotesk"`, `"Inter"` — sans-serif keeps dense data readable; don't override per widget) and `widgetCornerRadius` (integer px, e.g. `12` for rounded corners; `0` or omit = square).
 - Per-widget color references: `{"themeColorType": "visualizationColors", "position": N}` (0-indexed) to pin to a palette slot, or `{"hex": "#FF0000"}` for an exact color outside the palette.
 
 **Palette-design rules** (this is what separates a polished dashboard from a noisy one):
@@ -319,7 +340,7 @@ Apply unless user specifies otherwise:
 - **Fewer datasets is better — aim for one dataset that backs as many widgets as possible.** Clicking a value on a chart (e.g., a bar, a slice) acts as a filter on **that dataset**, and every other widget sharing the same dataset re-renders with the click applied. Splitting widgets across many narrow datasets breaks this cross-filtering and forces users to set explicit filter widgets for what should "just work". Prefer one wide dataset per domain (orders, cases, customers); only split when a widget genuinely needs different grain, pre-aggregation, or a parameter the others can't tolerate.
 - **Two ways to define a dataset**:
   - **SQL query**: `{"name": "ds_x", "displayName": "...", "queryLines": ["SELECT ...", "FROM table"]}` — full control, can include `WITH` / `JOIN` / `AI_FORECAST` / etc.
-  - **UC asset shorthand**: `{"name": "ds_x", "displayName": "...", "asset_name": "catalog.schema.table_or_view"}` — no SQL needed. Works for regular tables, views, and metric views.
+  - **UC asset shorthand**: `{"name": "ds_x", "asset_name": "catalog.schema.table_or_view"}` — no SQL needed. Works for tables, views, and metric views. You can still stack `columns` (measures + derived dimensions) on top: `{"name": "ds_x", "asset_name": "...", "columns": [{"displayName": "Total Revenue", "expression": "SUM(\`amount_usd\`)"}]}` — same `MEASURE()` pattern.
 - **Exactly ONE valid SQL query per dataset** when using `queryLines` (no multiple queries separated by `;`)
 - **Queries must use bare table names only** — no catalog, no schema prefix. Example: `FROM orders`, never `FROM gold.orders` or `FROM main.gold.orders`. The catalog and schema come from the `--dataset-catalog` and `--dataset-schema` flags at creation time. These flags only fill in missing parts — they do NOT override any catalog/schema written in the query.
 - SELECT must include all dimensions needed by widgets and all derived columns via `AS` aliases

@@ -1,6 +1,6 @@
 ---
 name: improving-mcp-tools
-description: ">"
+description: 'Run an improve-my-MCP campaign: an autoresearch-style loop that measures the MCP agent experience with the eval harness, picks the highest-impact tool problem from production data, makes one bounded fix, and keeps it only if before/after scores improve. Use when asked to "improve my MCP", run an MCP improvement campaign, fix tool discoverability or descriptions based on evidence, or prepare an eval-backed PR for a tool change. Every shipped change must carry eval evidence; guardrails below are hard rules.'
 ---
 
 # Improving MCP tools
@@ -85,7 +85,12 @@ These are not suggestions; violating any of them ends the campaign pass.
 ## Failure modes to expect
 
 - A description change that helps one intent can steal traffic from the right
-  tool for another — that's why the no-regression sample is mandatory.
+  tool for another — that's why the no-regression sample is mandatory. The
+  intent-cluster snapshot's `tool_overlaps` (see
+  [`exploring-mcp-intent-clusters`](../exploring-mcp-intent-clusters/SKILL.md))
+  lists exactly which pairs compete for which intents: snapshot it before a
+  description rewrite and recompute after, and treat a capture shift in an
+  overlapping pair as the regression signal.
 - Probe latency varies with stack warmth; compare medians across ≥3 runs
   before attributing a latency change to your fix.
 - Tool-presence misses can be feature-flag gating, not catalog absence —

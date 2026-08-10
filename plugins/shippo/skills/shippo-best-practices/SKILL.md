@@ -1,6 +1,6 @@
 ---
 name: shippo-best-practices
-description: ">-"
+description: Guides Shippo integration decisions, choosing between Rates at Checkout vs. full Shipments+Transactions vs. Batch processing, address validation strategy (v1 vs v2 fields), domestic vs international workflows (customs declarations, incoterms), label format selection, and webhook setup. Use when planning, building, or reviewing any Shippo integration, including building checkout flows, bulk fulfillment pipelines, address validation, label generation, package tracking, customs handling, or webhook subscriptions.
 ---
 
 <!--

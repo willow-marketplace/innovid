@@ -1,6 +1,10 @@
 ---
 name: fix-library-init
-description: "|"
+description: |-
+  Fix Library.init() apiVersion issues and modernize enums to DataType.registerEnum. Use this skill when linter outputs:
+  - `no-deprecated-api` with message "Deprecated call to ... Use the {apiVersion: 2} parameter instead"
+  Trigger on library.js files with errors about: "Deprecated call to", "Lib.init", "Library.init", "{apiVersion: 2} parameter"
+  Adds apiVersion: 2 to Library.init() calls and modernizes enum definitions to use DataType.registerEnum, which is required for type validation when using apiVersion: 2.
 ---
 
 # Fix Library.init() Modernization

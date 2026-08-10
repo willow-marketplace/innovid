@@ -1,6 +1,6 @@
 ---
 name: phone
-description: '"Reference skill for Zoom Phone. Use after routing to a phone workflow when implementing OAuth, Phone APIs, webhooks, Smart Embed events, URI schemes, CRM or CTI dialers, or call handling automation."'
+description: Reference skill for Zoom Phone. Use after routing to a phone workflow when implementing OAuth, Phone APIs, webhooks, Smart Embed events, URI schemes, CRM or CTI dialers, or call handling automation.
 ---
 
 # /build-zoom-phone-integration
@@ -50,6 +50,13 @@ Start here:
 6. Apply migration-safe data mapping (v1 -> v2 -> v3) and handle renamed fields.
 7. Harden security (origin validation, webhook signature validation, least-privilege scopes).
 
+> **Need to create/configure the Marketplace app first?** Use
+> [Marketplace app management](../rest-api/references/marketplace-apps.md) for General App or
+> S2S app setup, admin/user scope selection, event subscription behavior, and credential
+> response shapes before implementing Phone APIs or Smart Embed workflows. Start from the
+> [General App Phone template](../rest-api/assets/marketplace-apps/marketplace-manifest-template-for-general-admin-phone-api.json) or
+> [S2S Phone template](../rest-api/assets/marketplace-apps/marketplace-app-creation-template-for-s2s-phone-api.json).
+
 ## High-Level Scenarios
 
 - CRM softphone pane using Smart Embed + contact search/match callbacks.
@@ -65,6 +72,7 @@ See [scenarios/high-level-scenarios.md](scenarios/high-level-scenarios.md) for d
 ## Chaining
 
 - OAuth setup/token lifecycle: [../oauth/SKILL.md](../oauth/SKILL.md)
+- Marketplace app creation and manifest validation: [../rest-api/references/marketplace-apps.md](../rest-api/references/marketplace-apps.md)
 - Phone and account resources via REST: [../rest-api/SKILL.md](../rest-api/SKILL.md)
 - Event delivery and signature validation: [../webhooks/SKILL.md](../webhooks/SKILL.md)
 - Contact Center blended journey: [../contact-center/SKILL.md](../contact-center/SKILL.md)

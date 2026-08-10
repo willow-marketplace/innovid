@@ -1,6 +1,15 @@
 ---
 name: js-sdk-best-practices
-description: "|"
+description: |-
+  Web data extraction and discovery using the Bright Data JavaScript/TypeScript
+  SDK (`@brightdata/sdk`). Use when the user is working in Node.js/TypeScript and
+  asks to "scrape", "get data from", "extract", "search for", or "find"
+  information from websites. Also use when the user mentions specific platforms
+  like Amazon, LinkedIn, Instagram, Facebook, TikTok, YouTube, Reddit, Pinterest,
+  ChatGPT, Perplexity, or DigiKey, or asks for "bulk data", "historical data", or
+  "dataset" from JS. Covers scraping, SERP search, AI discovery, datasets,
+  browser automation, and Scraper Studio. For Python, use brightdata-sdk; for the
+  terminal CLI, use brightdata-cli.
 ---
 
 # Bright Data JavaScript SDK

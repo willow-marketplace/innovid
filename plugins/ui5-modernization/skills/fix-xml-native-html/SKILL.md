@@ -1,6 +1,11 @@
 ---
 name: fix-xml-native-html
-description: "|"
+description: |-
+  Fix native HTML and SVG usage in XML views/fragments that UI5 linter reports but cannot auto-fix. Use this skill when linter outputs:
+  - `no-deprecated-api` with message "Usage of native HTML in XML Views/Fragments is deprecated"
+  - `no-deprecated-api` with message "Deprecated use of SVG in XML View or Fragment"
+  Trigger on: HTML elements in XML views (html:div, html:span, html:a), SVG elements in XML views, xmlns:html namespace usage.
+  Provides guidance on replacing native HTML with UI5 controls and SVG with UI5 icons or custom controls.
 ---
 
 # Fix Native HTML and SVG in XML Views/Fragments

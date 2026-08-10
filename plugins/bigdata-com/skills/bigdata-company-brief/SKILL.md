@@ -1,6 +1,6 @@
 ---
 name: bigdata-company-brief
-description: ">"
+description: "Generate a company brief — a cited 30-day summary of what happened at a public company and why it matters — using Bigdata.com data (news, filings, transcripts, tearsheet financials). Findings are categorized into financial results, product and tech launches, M&A and partnerships, regulatory and legal, management changes, and other material events, each with date, facts, and a bullish/bearish/neutral investment implication tied to a value driver, plus competitive context and a ranked top 2-3. Triggers: \"company brief for X\", \"what's happening with X\", \"catch me up on X\", \"recent developments at X\", \"what's the news on X\", \"summary of the last month for X\", \"any updates on X\"."
 ---
 
 # Bigdata Company Brief

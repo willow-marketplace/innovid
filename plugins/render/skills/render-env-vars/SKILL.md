@@ -1,6 +1,6 @@
 ---
 name: render-env-vars
-description: ">-"
+description: "Configures environment variables, secrets, and env groups on Render. Use when the user needs to set env vars, wire secrets between services, create env groups, use generateValue, set sync: false, or troubleshoot missing or incorrect environment variable values in Blueprints or the Dashboard."
 ---
 
 # Environment Variables on Render

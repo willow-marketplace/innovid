@@ -1,6 +1,6 @@
 ---
 name: labs-quickstart
-description: "\"LABS — the FULL Convex quickstart experience: scaffold a running Next.js + shadcn app from one sentence with passkey (WebAuthn) sign-in and a live in-app Chef feedback panel pre-baked, build the idea live narrating through the panel, then PUBLISH it to a public https://<app>.convex.app URL (with the user's confirmation before publishing). For a plain local-only scaffold, use the `quickstart` skill instead.\""
+description: "LABS — the FULL Convex quickstart experience: scaffold a running Next.js + shadcn app from one sentence with passkey (WebAuthn) sign-in and a live in-app Chef feedback panel pre-baked, build the idea live narrating through the panel, then PUBLISH it to a public https://<app>.convex.app URL (with the user's confirmation before publishing). For a plain local-only scaffold, use the `quickstart` skill instead."
 ---
 
 # Convex Labs Quickstart — full wow-shell, built live, published
@@ -119,7 +119,7 @@ installed the pinned `@convex-dev/auth` build + peers, wrote `convex/auth.ts`,
 
 **So A0 is just two quick things:**
 1. **Verify** the pre-bake: those `convex/auth*.ts` + `http.ts` files exist,
-   `schema.ts` has `...authTables`, and `…/convex-errors.log` is clean. If the
+   `schema.ts` has `...authTables`, and `.quickstart-logs/convex-errors.log` is clean. If the
    bootstrap log printed a `passkeys: … failed` warning, follow the runbook's
    passkey-fallback wiring for *only that* step.
 2. **Add the `PasskeyButton`** (below) and gate your feature's content on auth state.
@@ -192,8 +192,8 @@ Notes that matter:
   (OTP / magic link).
 - Passkeys require a **secure context** — `http://localhost` counts, so local dev
   works. Publishing (STEP C) rebinds the passkey env vars to the `.convex.app` origin.
-- **Verify it compiled before moving on:** watch `…/convex-errors.log` and
-  `…/next-errors.log`. Don't advance the todo until both logs are clean and the
+- **Verify it compiled before moving on:** watch `.quickstart-logs/convex-errors.log` and
+  `.quickstart-logs/next-errors.log`. Don't advance the todo until both logs are clean and the
   running page renders the sign-in UI.
 - **Do not unmount or move `<ChefPanel />`** while wiring the UI — the panel lives in
   `app/layout.tsx`; the provider wraps it.

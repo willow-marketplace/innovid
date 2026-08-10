@@ -1,6 +1,6 @@
 ---
 name: bigdata-post-ipo-day14
-description: ">"
+description: "Write a day-14 post-IPO note on potential NASDAQ-100 fast-track index inclusion for a recently listed large-cap, using Bigdata.com data plus web search for index methodology and market data. Covers two-week trading status, an eligibility check against Nasdaq's current published rules (cited, never assumed), a float-adjusted index weight and implied passive-demand estimate with the math shown, days-to-cover versus ADV, the historical index effect and reversal risk, and dated watch points. Balanced, no buy/avoid call. Triggers: \"NASDAQ-100 fast track for X\", \"index inclusion impact on X\", \"post-IPO day 14\", \"will X be added to the Nasdaq-100\", \"passive flows from index inclusion\"."
 ---
 
 # Bigdata Post-IPO Day 14 — NASDAQ-100 Fast-Track Inclusion

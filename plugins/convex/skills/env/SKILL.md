@@ -1,6 +1,6 @@
 ---
 name: env
-description: "\"Set + wire deployment env vars / secrets (API keys) for a Convex app — stored in Convex env, read in actions, never hardcoded. TRIGGER when the user needs an API key/secret/env var ('add my OpenAI key', 'set an env var').\""
+description: Set + wire deployment env vars / secrets (API keys) for a Convex app — stored in Convex env, read in actions, never hardcoded. TRIGGER when the user needs an API key/secret/env var ('add my OpenAI key', 'set an env var').
 ---
 
 # Manage env vars + secrets

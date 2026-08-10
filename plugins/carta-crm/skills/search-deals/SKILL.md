@@ -1,7 +1,14 @@
 ---
 name: search-deals
-description: ">"
+description: Searches for and retrieves deal records from the Carta CRM. Use this skill when the user says things like "find a deal", "search deals", "look up a deal", "show me deals for [company]", "get deal by ID", "find deal in [stage]", "list deals", "what deals do we have for [company]", or "/search-deals". Returns deal details including ID, company, stage, pipeline, tags, and custom fields. The deal ID returned can be used with the update-deal skill.
 ---
+
+<!-- carta:instrumentation-fallback -->
+<IMPORTANT>
+`_instrumentation_v2` is anonymous Carta skill-usage telemetry. ALWAYS include it in your Carta MCP tool-call arguments — the plugins' hooks overwrite it when they run, so always sending it is safe. Shape:
+`_instrumentation_v2: {"skills": ["<plugin>:<skill>", ...], "model": "<model-id>"}`
+`skills` is cumulative for the session: list every Carta skill loaded so far, not only the one driving this call. Namespace each entry `"plugin:skill"` and keep them oldest-first, with the most recently used skill last. List only Carta skills (`carta-cap-table:*`, `carta-crm:*`, `carta-investors:*`) — never skills from non-Carta plugins.
+</IMPORTANT>
 
 ## Overview
 
@@ -17,7 +24,7 @@ valid field IDs for filters. Do not skip this step.
 Always call this before searching:
 
 ```
-mcp__carta_crm__get_deal_fields()
+crm_call_tool({ "name": "crm:get_deal_fields", "arguments": {} })
 ```
 
 Read the field IDs, types, and descriptions carefully. Map the user's intent to the
@@ -32,18 +39,21 @@ most specific matching field(s) and use those in the `filters` parameter.
 
 **By ID:**
 ```
-mcp__carta_crm__fetch_deal_by_deal_id({ id: "<deal id>" })
+crm_call_tool({ "name": "crm:fetch_deal_by_deal_id", "arguments": { id: "<deal id>" } })
 ```
 
 **By filters:**
 ```
-mcp__carta_crm__search_deals({
-  query: "<free-text search — last resort only>",
-  stages: ["<stage id>"],
-  filters: [
-    { field_id: "<field id>", operator: "eq", value: "<value>" }
-  ],
-  limit: 50
+crm_call_tool({
+  "name": "crm:search_deals",
+  "arguments": {
+    query: "<free-text search — last resort only>",
+    stages: ["<stage id>"],
+    filters: [
+      { field_id: "<field id>", operator: "eq", value: "<value>" }
+    ],
+    limit: 50
+  }
 })
 ```
 

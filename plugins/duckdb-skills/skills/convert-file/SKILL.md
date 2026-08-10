@@ -1,6 +1,6 @@
 ---
 name: convert-file
-description: ">"
+description: 'Convert any data file to another format: CSV, Parquet, JSON, Excel, GeoJSON, and more. Use when the user says "convert to parquet", "save as xlsx", "export as JSON", "make this a CSV", "turn into parquet", or any variation of format-to-format conversion for data files. Also triggers when the user wants to write Parquet, Excel, or other binary formats that Claude cannot produce natively.'
 ---
 
 You are helping the user convert a data file from one format to another using DuckDB.

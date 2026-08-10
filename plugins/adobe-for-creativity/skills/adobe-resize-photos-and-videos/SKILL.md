@@ -1,6 +1,6 @@
 ---
 name: adobe-resize-photos-and-videos
-description: ">"
+description: 'Resize photos and videos to exact pixel dimensions or aspect ratios using Adobe tools. Use this skill whenever a user wants to resize, scale, or change the dimensions of an image or video file — including phrases like "resize this to 1920x1080", "make this 4K", "scale to 800x600", "change the aspect ratio to 16:9", "resize my video", "make the image smaller", "crop to square", "fit this to a specific size", "resize for print", "resize for web", "make it 300 DPI ready", "change canvas size", "resize a batch of photos", or any request specifying target dimensions (W×H, ratio, or named size like "4K", "HD", "A4"). Also triggers for: "make this fit a specific size", "resize to [any dimension]", "I need this at [WxH]", "scale my video down", "change resolution", "downscale", "upscale". NOT for social media platform sets (use adobe-create-social-variations for that). Uses image_crop_and_resize for photos, video_resize for videos.'
 ---
 
 # Adobe Resize Photos and Videos

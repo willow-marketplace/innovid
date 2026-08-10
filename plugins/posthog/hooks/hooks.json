@@ -1,15 +1,5 @@
 {
   "hooks": {
-    "SessionEnd": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 ${CLAUDE_PLUGIN_ROOT:-$PLUGIN_ROOT}/hooks/session-end-llma.py"
-          }
-        ]
-      }
-    ],
     "PreToolUse": [
       {
         "matcher": "__exec$",
@@ -17,6 +7,16 @@
           {
             "type": "command",
             "command": "${CLAUDE_PLUGIN_ROOT:-$PLUGIN_ROOT}/hooks/gate-exec-write.sh"
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ${CLAUDE_PLUGIN_ROOT:-$PLUGIN_ROOT}/hooks/session-end-llma.py"
           }
         ]
       }

@@ -1,6 +1,6 @@
 ---
 name: aws-lambda-managed-instances
-description: ">"
+description: "Evaluate, configure, and migrate workloads to AWS Lambda Managed Instances (LMI). Triggers on: Lambda Managed Instances, LMI, capacity provider, multi-concurrency Lambda, dedicated instance Lambda, EC2-backed Lambda, cold start elimination, Graviton Lambda, instance type for Lambda, scheduled scaling for LMI, Lambda cost optimization with Reserved Instances or Savings Plans. Also trigger when users describe high-volume predictable workloads seeking cost savings, want to scale LMI capacity on a schedule, or compare Lambda vs EC2 for steady-state traffic. For standard Lambda without LMI, use the aws-lambda skill instead."
 ---
 
 # AWS Lambda Managed Instances (LMI)

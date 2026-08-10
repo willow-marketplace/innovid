@@ -1,6 +1,6 @@
 ---
 name: bigdata-earnings-preview
-description: ">"
+description: "Create a forward-looking earnings preview for a public company ahead of its next earnings call, using Bigdata.com data (estimates, tearsheet financials, news, filings, transcripts, events calendar). Produces an EPIC driver table, earnings quality screen with forward watch-fors, structured sentiment and positioning data, what's priced in plus valuation cross-check, FaVeS variant perception, bull and bear cases, bull/base/bear scenarios with probability-weighted expected value, and key metrics to watch — fully cited. Triggers: \"earnings preview for X\", \"preview X earnings\", \"pre-earnings analysis\", \"Q3 preview\", \"what to expect before X reports\", \"what should I watch when X reports\", \"set up for X earnings\", \"bull and bear case into the print\"."
 ---
 
 # Bigdata Earnings Preview

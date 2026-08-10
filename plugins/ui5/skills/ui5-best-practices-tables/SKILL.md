@@ -1,6 +1,9 @@
 ---
 name: ui5-best-practices-tables
-description: "|"
+description: |-
+  UI5 table best practices for freestyle applications. Use when creating/troubleshooting any table: sap.m.Table (ResponsiveTable), sap.ui.table.Table (GridTable), TreeTable, SmartTable, or sap.ui.mdc.Table. Covers control selection matrix, mandatory rules, common errors, and per-control API guidance.
+  Triggers: "create a table", "which table should I use", "GridTable", "ResponsiveTable", "TreeTable", "SmartTable", "MDC table", "sap.ui.mdc.Table", "table not showing data", "table binding", "table selection", "drag and drop table", "table personalization", "table growing", "table pop-in", "table performance", "table export", "table sticky header".
+  Keywords: sap.m.Table, sap.ui.table, GridTable, ResponsiveTable, TreeTable, SmartTable, sap.ui.mdc.Table, rows, items, rowMode, growing, sticky, personalization, p13n.Engine, DragDropInfo, OData V4, OData V2, ariaLabelledBy, cell templates
 ---
 
 # UI5 Table Best Practices

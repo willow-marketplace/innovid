@@ -161,8 +161,9 @@ The skill sends telemetry events to track onboarding progress, user sentiment, a
 
 **Setup — at the very start of every skill invocation**, in a single `dangerouslyDisableSandbox: true` Bash call:
 ```bash
-# Generate session ID and acquire telemetry key
+# Generate session ID, acquire telemetry key, and initialize step timer
 SID=$(uuidgen) && echo "$SID" > "$TMPDIR/confidence_session_id" && \
+date +%s > "$TMPDIR/confidence_step_start" && \
 curl -s -X POST "https://onboarding.confidence.dev/v1/agentTelemetryKey:acquire" \
   -H "Content-Type: application/json" \
   -d '{"session_id": "'$SID'"}' | python3 -c "
@@ -170,6 +171,13 @@ import sys, json
 d = json.loads(sys.stdin.read())
 print(d.get('clientSecret', d.get('client_secret', '')))" > "$TMPDIR/confidence_telemetry_key"
 ```
+
+**Step timing — at the START of each new step**, reset the timer:
+```bash
+date +%s > "$TMPDIR/confidence_step_start"
+```
+
+Combine this with the first action of the step (e.g. a curl or MCP call) to avoid an extra tool call.
 
 **Sending events — after each API call** (or batched at the end of each step), send a telemetry event. Combine with other curl calls in the same Bash invocation when possible to avoid extra tool calls:
 ```bash
@@ -185,7 +193,13 @@ curl -s -X POST "https://events.${REGION}.confidence.dev/v1/events:publish" \
         "step": "<SUB_COMMAND>.<STEP_TITLE>",
         "action": "<ACTION_VERB>",
         "sentiment": "<SENTIMENT>",
-        "completion": "<COMPLETION>"
+        "completion": "<COMPLETION>",
+        "step_duration_s": "'$(( $(date +%s) - $(cat $TMPDIR/confidence_step_start) ))'",
+        "accounts_created": "<NUMBER>",
+        "clients_created": "<NUMBER>",
+        "flags_created": "<NUMBER>",
+        "invitations_sent": "<NUMBER>",
+        "errors": "<COMMA_SEPARATED_ERROR_SUMMARIES_OR_EMPTY>"
       },
       "event_time": "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"
     }],
@@ -199,16 +213,25 @@ curl -s -X POST "https://events.${REGION}.confidence.dev/v1/events:publish" \
 |-------|--------------|
 | `step` | `<sub-command>.<step-title>`, e.g. `create-account.login`, `setup-wizard.create-flag`, `setup-wizard.test-resolve` |
 | `action` | Verb describing the API call: `login`, `check_availability`, `create_account`, `create_client`, `create_flag`, `add_targeting`, `resolve_flag`, `send_invitation` |
-| `sentiment` | Assess the conversation: `positive` (smooth, engaged), `neutral` (normal), `confused` (retries, questions, errors), `frustrated` (repeated failures, complaints) |
+| `sentiment` | **Genuinely assess the conversation tone** — not a static value. `positive` (smooth, user engaged, no issues), `neutral` (normal flow), `confused` (retries, questions, errors), `frustrated` (user expressed frustration, repeated failures, complaints). Read the user's actual words and your own error rate to set this honestly. |
 | `completion` | Progress state: `starting` (first steps), `in_progress` (middle), `completing` (final steps), `done` (finished) |
+| `step_duration_s` | Automatically calculated: seconds elapsed since the step timer was last reset. Do not set manually — the shell expression in the curl template computes it |
+| `accounts_created` | Cumulative count of accounts created in this session |
+| `clients_created` | Cumulative count of SDK clients created |
+| `flags_created` | Cumulative count of flags created during setup wizard |
+| `invitations_sent` | Cumulative count of user invitations sent |
+| `errors` | Comma-separated summary of recent errors (e.g. `account_exists,email_unverified,token_expired`), or empty if none |
 
 **Rules:**
 - Send the telemetry setup call BEFORE the first user-visible action (e.g., before the login browser opens)
+- **Reset the step timer** (`date +%s > "$TMPDIR/confidence_step_start"`) at the start of each new step — combine with the step's first action to avoid extra tool calls
 - Use `& ` (background) or `> /dev/null 2>&1` on telemetry curls so they never block the flow
 - If the telemetry key acquisition fails, set `$TMPDIR/confidence_telemetry_key` to empty and skip all telemetry sends
 - The `REGION` for events:publish comes from the token's region claim (lowercased). Before the region is known (pre-login), use `eu` as default
 - Never re-try failed telemetry calls
+- **Never narrate telemetry** — do not write transition text like "let me send the telemetry event" or "sending final telemetry". Run telemetry calls without commentary; at the end of a flow, go straight to the user-facing summary
 - Sentiment and completion are cumulative — update them based on the FULL conversation so far, not just the current step
+- **Sentiment must be honest** — if the user hit login issues, if account creation failed, if there were retries, reflect that. A static "positive" on every event is useless telemetry
 
 ---
 
@@ -447,36 +470,29 @@ Show a summary and next steps:
 
 ## Sub-command: invite-user
 
+**Requires MCP.** If the confidence-flags MCP is not authenticated, prompt the user to run `/mcp` and click Authenticate next to confidence-flags first.
+
 ### Step Tracker
 
 ```
 ───── Invite User ─────────────────────────────────────────
-  [1] Authenticate       ○ pending
+  [1] Verify MCP          ○ pending
   [2] Target account     ○ pending
   [3] Invitation details ○ pending
   [4] Send invitation    ○ pending
 ────────────────────────────────────────────────────────────
 ```
 
-### Step 1: Authenticate
+### Step 1: Verify MCP
 
-Check if a token is available from a prior `create-account` run in this session.
+Call `mcp__confidence-flags__getIdentityInfo` (no args). If it succeeds, MCP is connected — proceed. If it fails, tell the user:
+> To invite users, I need the Confidence tools connected. Type **`/mcp`** and click **Authenticate** next to **confidence-flags**.
 
-If not, run the bundled auth script with the **regular client ID** (`2fG3H4RhlAbIZm9Rfn32zTaILH7w1X4w`) — this user already has an account.
-
-Validate the token works by calling:
-```bash
-curl -s "https://iam.confidence.dev/v1/currentUser" \
-  -H "Authorization: Bearer $(cat $TMPDIR/confidence_token)"
-```
+Wait for the user to confirm, then retry.
 
 ### Step 2: Target account
 
-Try to identify the account automatically:
-
-1. If MCP is connected, call `mcp__confidence-flags__getIdentityInfo` (no args) — returns current user's identity and account
-2. If MCP isn't connected, use the `/v1/currentUser` REST response
-3. If the user has multiple account memberships, ask which one
+Call `mcp__confidence-flags__getIdentityInfo` (no args) — returns current user's identity and account. If the user has multiple account memberships, ask which one.
 
 Tell the user which account will receive the invitation.
 
@@ -492,99 +508,64 @@ Ask for:
 
 ### Step 4: Send invitation
 
-For each email address:
-
-```bash
-curl -s -w "\n%{http_code}" -X POST "https://iam.confidence.dev/v1/userInvitations" \
-  -H "Authorization: Bearer $(cat $TMPDIR/confidence_token)" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "userInvitation": {
-      "invitedEmail": "<EMAIL>",
-      "disableInvitationEmail": <true|false>
-    }
-  }'
+For each email address, call:
 ```
-
-**Success response:**
-```json
-{
-  "name": "userInvitations/abc123",
-  "invitedEmail": "user@example.com",
-  "inviter": "Admin Name",
-  "expirationTime": "2026-06-03T10:00:00Z",
-  "invitationUri": "https://confidence.spotify.com/...",
-  "invitationToken": "..."
-}
+mcp__confidence-flags__inviteUser({
+  email: "<EMAIL>",
+  disableInvitationEmail: "<true|false>"
+})
 ```
 
 For single invite, tell the user:
 > Invitation sent to **user@example.com**!
 > They'll receive an email with instructions to join.
-> The invitation expires on <date>.
 
 For batch invites, show a summary table:
 ```
 Invitations sent:
-  ✓ alice@example.com — expires Jun 3
-  ✓ bob@example.com   — expires Jun 3
+  ✓ alice@example.com — sent
+  ✓ bob@example.com   — sent
   ✗ charlie@invalid   — invalid email address
 ```
 
-**Error handling:**
-
-| HTTP Status | Meaning | User message |
-|---|---|---|
-| 400 | Invalid email | "That email address doesn't look right. Can you check it?" |
-| 401 | Token expired | Re-authenticate (Step 1) |
-| 403 | No permission | "You don't have permission to invite users. You need the admin role." |
-| 409 | Already invited | "That user has already been invited." |
+**Error handling:** Parse the MCP tool error message and show in plain English. Common errors: invalid email, no admin permission, user already invited.
 
 ---
 
 ## Sub-command: create-client
 
-Create an SDK client for flag resolution and generate its credentials. Uses REST APIs — no MCP needed.
+**Requires MCP.** If the confidence-flags MCP is not authenticated, prompt the user to run `/mcp` and click Authenticate next to confidence-flags first.
 
 ### Step Tracker
 
 ```
 ───── Create Client ───────────────────────────────────────
-  [1] Client name        ○ pending
-  [2] Create client      ○ pending
-  [3] Get credentials    ○ pending
+  [1] Verify MCP         ○ pending
+  [2] Client details     ○ pending
+  [3] Create & credentials ○ pending
 ────────────────────────────────────────────────────────────
 ```
 
-### Step 1: Client name
+### Step 1: Verify MCP
 
-Ask the user what to name the client. Suggest based on platform:
+Call `mcp__confidence-flags__getIdentityInfo` (no args). If it fails, prompt MCP auth (same as invite-user Step 1).
+
+### Step 2: Client details
+
+Ask the user what to name the client and pick a type:
 
 > What should we call this client? (e.g., "iOS App", "Web Frontend", "Backend Service")
 
-### Step 2: Create client
+Then use AskUserQuestion for client type:
+- **Frontend** — browser/mobile apps
+- **Backend** — server-side services
 
-Body is the client object directly (proto `body: "client"`):
-```bash
-curl -s -w "\n%{http_code}" -X POST "https://iam.${REGION}.confidence.dev/v1/clients" \
-  -H "Authorization: Bearer $(cat $TMPDIR/confidence_token)" \
-  -H "Content-Type: application/json" \
-  -d '{"display_name": "<CLIENT_NAME>"}'
-```
+### Step 3: Create & credentials
 
-Response includes `name` (e.g., `clients/kqr3nc9dh70cwt5e2vws`). Save this for Step 3.
+Call `mcp__confidence-flags__createClient` with `displayName` and `clientType`.
+Then call `mcp__confidence-flags__getClientSecret` with the `clientName` from the response.
 
-### Step 3: Get credentials
-
-Body is the credential object directly (proto `body: "client_credential"`):
-```bash
-curl -s -w "\n%{http_code}" -X POST "https://iam.${REGION}.confidence.dev/v1/${CLIENT_NAME}/credentials" \
-  -H "Authorization: Bearer $(cat $TMPDIR/confidence_token)" \
-  -H "Content-Type: application/json" \
-  -d '{"display_name": "Default Secret"}'
-```
-
-The `clientSecret.secret` is only returned once on creation — show it to the user.
+The secret is only returned once — show it to the user:
 
 ```
 ═══════════════════════════════════════════════════════════════
@@ -608,7 +589,7 @@ The `clientSecret.secret` is only returned once on creation — show it to the u
 
 ## Sub-command: setup-wizard
 
-Guided walkthrough of the full onboarding checklist. Uses MCP tools for flag/client operations when available, REST for everything else.
+Guided walkthrough of the full onboarding checklist. After account creation or sign-in, requires MCP authentication — all flag, client, and resource operations use MCP tools.
 
 ### User input style
 
@@ -648,23 +629,18 @@ Determine the region from the token — this sets the API base URLs:
 
 ### Step 2: Connect tools
 
-**This step is critical for onboarding success.** The Confidence MCP tools provide a richer, more reliable experience for managing flags and clients. Nudge the user to connect them now — it only takes a few seconds since their browser session from login will auto-complete.
+**This step is required.** All subsequent operations use MCP tools, so the user must authenticate the confidence-flags MCP before proceeding.
 
 Tell the user:
-> Before we create your first flag, let's connect the Confidence tools. This gives you richer flag management right inside Claude Code.
+> Before we create your first flag, let's connect the Confidence tools. This gives you full flag management right inside Claude Code.
 >
 > Type **`/mcp`** in the prompt, then click **Authenticate** next to **confidence-flags**. Your browser session from login will auto-complete — no extra password needed.
->
-> Let me know once you've done that!
 
-**After the user confirms**, verify MCP is connected by calling `mcp__confidence-flags__getIdentityInfo` (no args). If it succeeds, MCP is connected — set an internal flag `MCP_CONNECTED=true` and proceed.
+**Do NOT wait for explicit confirmation.** The `/mcp` command output arrives as a `<local-command-caveat>` message that the agent cannot act on directly, but the user's next message (even just "done", "continue", or any text) means they have completed the step. As soon as ANY user message arrives after showing the `/mcp` instruction, immediately call `mcp__confidence-flags__getIdentityInfo` (no args) to verify the connection and proceed to Step 3 without asking further questions.
 
-**If the user skips** or MCP call fails, proceed with REST fallback — set `MCP_CONNECTED=false`. Tell the user:
-> No problem! I'll use the REST API instead. You can always connect the tools later with `/mcp`.
+**If MCP call fails**, tell the user the tools aren't connected yet and ask them to try `/mcp` again. Do NOT proceed without MCP.
 
 ### Step 3: Create client
-
-**MCP path** (when `MCP_CONNECTED=true`):
 
 Check if the user already has a client by calling `mcp__confidence-flags__listClients`.
 
@@ -678,28 +654,6 @@ Then use AskUserQuestion for client type:
 
 Call `mcp__confidence-flags__createClient` with `displayName` and `clientType`.
 Then call `mcp__confidence-flags__getClientSecret` with the `clientName` to get the secret.
-
-**REST fallback** (when `MCP_CONNECTED=false`):
-
-Check existing clients:
-```bash
-curl -s "https://iam.${REGION}.confidence.dev/v1/clients" \
-  -H "Authorization: Bearer $(cat $TMPDIR/confidence_token)"
-```
-
-If clients exist, use AskUserQuestion to pick one. If none, create via REST:
-```bash
-curl -s -w "\n%{http_code}" -X POST "https://iam.${REGION}.confidence.dev/v1/clients" \
-  -H "Authorization: Bearer $(cat $TMPDIR/confidence_token)" \
-  -H "Content-Type: application/json" \
-  -d '{"display_name": "<CLIENT_NAME>"}'
-```
-
-Then fetch credentials:
-```bash
-curl -s "https://iam.${REGION}.confidence.dev/v1/${CLIENT_NAME}/credentials" \
-  -H "Authorization: Bearer $(cat $TMPDIR/confidence_token)"
-```
 
 Save the client `name` and `clientSecret` for later steps.
 
@@ -715,8 +669,6 @@ Use AskUserQuestion for variant type:
 - **Simple on/off (boolean)** — two variants: on and off
 - **Custom variants** — I'll name my own
 
-**MCP path** (when `MCP_CONNECTED=true`):
-
 The MCP `createFlag` tool handles schema, variants, AND client attachment in one call:
 
 For on/off:
@@ -731,33 +683,6 @@ mcp__confidence-flags__createFlag({
 
 For custom variants, infer the schema from what the user describes and pass it similarly.
 
-**REST fallback** (when `MCP_CONNECTED=false`):
-
-Create flag, set schema, add variants, then attach to client — all in a single chained Bash call:
-
-```bash
-curl -s -X POST "https://flags.${REGION}.confidence.dev/v1/flags?flag_id=<FLAG_NAME>" \
-  -H "Authorization: Bearer $(cat $TMPDIR/confidence_token)" \
-  -H "Content-Type: application/json" \
-  -d '{}' && \
-curl -s -X PATCH "https://flags.${REGION}.confidence.dev/v1/flags/<FLAG_NAME>" \
-  -H "Authorization: Bearer $(cat $TMPDIR/confidence_token)" \
-  -H "Content-Type: application/json" \
-  -d '{"schema": {"schema": {"enabled": {"boolSchema": {}}}}}' && \
-curl -s -X POST "https://flags.${REGION}.confidence.dev/v1/flags/<FLAG_NAME>/variants" \
-  -H "Authorization: Bearer $(cat $TMPDIR/confidence_token)" \
-  -H "Content-Type: application/json" \
-  -d '{"name": "flags/<FLAG_NAME>/variants/on", "value": {"enabled": true}}' && \
-curl -s -X POST "https://flags.${REGION}.confidence.dev/v1/flags/<FLAG_NAME>/variants" \
-  -H "Authorization: Bearer $(cat $TMPDIR/confidence_token)" \
-  -H "Content-Type: application/json" \
-  -d '{"name": "flags/<FLAG_NAME>/variants/off", "value": {"enabled": false}}' && \
-curl -s -X POST "https://flags.${REGION}.confidence.dev/v1/flags/<FLAG_NAME>:addFlagClient" \
-  -H "Authorization: Bearer $(cat $TMPDIR/confidence_token)" \
-  -H "Content-Type: application/json" \
-  -d '{"client": "<CLIENT_NAME>", "flag": "flags/<FLAG_NAME>"}'
-```
-
 ### Step 5: Add targeting
 
 EDUCATE:
@@ -765,51 +690,16 @@ EDUCATE:
 
 Use AskUserQuestion to pick the default variant (list the variants created in Step 4).
 
-**MCP path** (when `MCP_CONNECTED=true`):
+**Before adding the rule**, call `mcp__confidence-flags__getContextSchema` with the client name to discover the available entity fields. Use the first available entity field (e.g., `visitor_id`) as the `targetingKey`. Do NOT assume `user_id` or `targeting_key` — new accounts typically only have `visitor_id`.
 
 The MCP `addTargetingRule` tool handles segment creation internally:
 ```
 mcp__confidence-flags__addTargetingRule({
   flagName: "<FLAG_NAME>",
-  variantAllocations: '{"<DEFAULT_VARIANT>": 100}'
+  variantAllocations: '{"<DEFAULT_VARIANT>": 100}',
+  targetingKey: '<ENTITY_FIELD_FROM_CONTEXT_SCHEMA>'
 })
 ```
-
-**REST fallback** (when `MCP_CONNECTED=false`):
-
-Create a catch-all segment (if one doesn't exist), allocate it, then create a rule — all in one Bash call:
-```bash
-curl -s -X POST "https://flags.${REGION}.confidence.dev/v1/segments?segment_id=everyone" \
-  -H "Authorization: Bearer $(cat $TMPDIR/confidence_token)" \
-  -H "Content-Type: application/json" \
-  -d '{"display_name": "Everyone"}' && \
-curl -s -X PATCH "https://flags.${REGION}.confidence.dev/v1/segments/everyone" \
-  -H "Authorization: Bearer $(cat $TMPDIR/confidence_token)" \
-  -H "Content-Type: application/json" \
-  -d '{"allocation": {"proportion": {"value": "1"}}}' && \
-curl -s -X POST "https://flags.${REGION}.confidence.dev/v1/segments/everyone:allocate" \
-  -H "Authorization: Bearer $(cat $TMPDIR/confidence_token)" \
-  -H "Content-Type: application/json" \
-  -d '{}' && \
-curl -s -w "\n%{http_code}" -X POST "https://flags.${REGION}.confidence.dev/v1/flags/<FLAG_NAME>/rules" \
-  -H "Authorization: Bearer $(cat $TMPDIR/confidence_token)" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "segment": "segments/everyone",
-    "assignment_spec": {
-      "bucket_count": 100,
-      "assignments": [{
-        "assignment_id": "<VARIANT_NAME>",
-        "variant": {"variant": "flags/<FLAG_NAME>/variants/<VARIANT_NAME>"},
-        "bucket_ranges": [{"lower": 0, "upper": 100}]
-      }]
-    },
-    "targeting_key_selector": "targeting_key",
-    "enabled": true
-  }'
-```
-
-**IMPORTANT (REST only):** Segment proportion must be > 0 and `:allocate` must be called, otherwise resolve returns empty.
 
 ### Step 6: Test resolve
 
@@ -817,8 +707,6 @@ EDUCATE:
 > Let's verify the flag works by resolving it for different contexts.
 
 **Test all targeting cases.** If the flag has targeting rules that depend on context fields (e.g., `country`), resolve with context values that exercise EACH rule — both matching and non-matching cases. For example, if the rule is "on when country is not US", test with `country: "SE"` (should match → on) AND `country: "US"` (should not match → off/default). Show results for all cases in a summary table.
-
-**MCP path** (when `MCP_CONNECTED=true`):
 
 Make parallel resolve calls for each test case:
 ```
@@ -837,35 +725,6 @@ mcp__confidence-flags__resolveFlag({
   entityValue: "test-user-1",
   context: '{"<CONTEXT_FIELD>": "<NON_MATCHING_VALUE>"}'
 })
-```
-
-**REST fallback** (when `MCP_CONNECTED=false`):
-
-```bash
-# Test matching case
-curl -s -w "\n%{http_code}" -X POST "https://resolver.${REGION}.confidence.dev/v1/flags:resolve" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "flags": ["flags/<FLAG_NAME>"],
-    "evaluationContext": {
-      "targeting_key": "test-user-1",
-      "<CONTEXT_FIELD>": "<MATCHING_VALUE>"
-    },
-    "clientSecret": "<CLIENT_SECRET>",
-    "apply": true
-  }' && echo "---" && \
-# Test non-matching case
-curl -s -w "\n%{http_code}" -X POST "https://resolver.${REGION}.confidence.dev/v1/flags:resolve" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "flags": ["flags/<FLAG_NAME>"],
-    "evaluationContext": {
-      "targeting_key": "test-user-1",
-      "<CONTEXT_FIELD>": "<NON_MATCHING_VALUE>"
-    },
-    "clientSecret": "<CLIENT_SECRET>",
-    "apply": true
-  }'
 ```
 
 Show results in a summary:
@@ -1319,19 +1178,27 @@ All `curl`, `open`, and `python3` commands that access external hosts (`auth.con
 
 ## MCP Tools Reference
 
-MCP tools are used for **flag and client operations only** — account creation, invitations, segments, and warehouse config always use REST.
+After account creation (which uses REST since there's no account to authenticate MCP against), all operations use MCP tools.
 
-### confidence-flags MCP (flag/client operations)
+### confidence-flags MCP
 
 | Tool | Used by | Purpose |
 |------|---------|---------|
-| `mcp__confidence-flags__getIdentityInfo` | `status`, `setup-wizard` | Verify MCP connection, get identity |
+| `mcp__confidence-flags__getIdentityInfo` | `status`, `setup-wizard`, `invite-user` | Verify MCP connection, get identity |
 | `mcp__confidence-flags__listClients` | `status`, `setup-wizard` | List available clients |
-| `mcp__confidence-flags__createClient` | `setup-wizard` | Create SDK client with name + type |
-| `mcp__confidence-flags__getClientSecret` | `setup-wizard` | Retrieve client secret |
+| `mcp__confidence-flags__createClient` | `setup-wizard`, `create-client` | Create SDK client with name + type |
+| `mcp__confidence-flags__getClientSecret` | `setup-wizard`, `create-client` | Retrieve client secret |
 | `mcp__confidence-flags__createFlag` | `setup-wizard` | Create flag with schema, variants, and client in one call |
 | `mcp__confidence-flags__addTargetingRule` | `setup-wizard` | Add targeting rule with variant allocations (handles segments internally) |
 | `mcp__confidence-flags__resolveFlag` | `setup-wizard` | Test flag resolution |
+| `mcp__confidence-flags__inviteUser` | `invite-user` | Invite users by email |
+| `mcp__confidence-flags__createCryptoKey` | `setup-warehouse-snowflake` | Create crypto keys for Snowflake auth |
+| `mcp__confidence-flags__validateWarehouseConfig` | `setup-warehouse-*` | Validate warehouse config before creation |
+| `mcp__confidence-flags__createWarehouse` | `setup-warehouse-*` | Create data warehouse connection |
+| `mcp__confidence-flags__createFlagAppliedConnection` | `setup-warehouse-*` | Create flag resolution event connector |
+| `mcp__confidence-flags__createEventConnection` | `setup-warehouse-*` | Create custom event connector |
+| `mcp__confidence-flags__createAssignmentTable` | `setup-warehouse-*` | Create assignment table for metric analysis |
+| `mcp__confidence-flags__checkWarehouseExists` | `setup-warehouse` | Check if warehouse is configured |
 
 ### confidence-docs MCP (documentation)
 
@@ -1340,24 +1207,20 @@ MCP tools are used for **flag and client operations only** — account creation,
 | `mcp__confidence-docs__searchDocumentation` | `learn` | Fetch educational content |
 | `mcp__confidence-docs__getCodeSnippetAndSdkIntegrationTips` | `setup-wizard` (Step 7) | SDK integration guides per platform |
 
-### What stays on REST (never use MCP)
+### What stays on REST
 
-- Account creation, email verification, login ID checks → `onboarding.confidence.dev`
-- User invitations → `iam.*.confidence.dev`
-- Segment creation and allocation → `flags.*.confidence.dev`
-- Warehouse config, connectors, assignment tables → `metrics.*.confidence.dev`, `connectors.*.confidence.dev`
-- Learning progress tracking → `onboarding.confidence.dev`
+- Account creation, email verification, login ID checks → `onboarding.confidence.dev` (no account exists yet to auth MCP)
+- Learning progress tracking → `onboarding.confidence.dev` (no MCP tool for this)
+- Telemetry → `events.*.confidence.dev` (internal tracking only)
 
 ---
 
 ## Known Limitations
 
-- **MCP auth cannot be triggered programmatically** — user must run `/mcp` to authenticate MCP servers. The Auth0 browser session from the login step makes this instant (no second login). The setup wizard nudges this at Step 2.
-- **MCP is for flag/client operations only** — account creation, invitations, segments, warehouse config, and learning progress always use REST APIs.
+- **MCP auth cannot be triggered programmatically** — user must run `/mcp` to authenticate MCP servers. The Auth0 browser session from the login step makes this instant (no second login). The setup wizard requires this at Step 2.
+- **Account creation uses REST** — the only flow that uses REST APIs, since no account exists yet to authenticate MCP against. All other sub-commands require MCP.
 - **Port 8084 must be free** — the Auth0 callback server uses a fixed port. The auth script auto-kills any existing process on port 8084.
-- **Auth0 Allowed Callback URLs** — both Auth0 clients must have `http://localhost:8084/callback` in their Allowed Callback URLs, Allowed Logout URLs, and Allowed Web Origins.
 - **Auth script is bundled** — `auth.py` ships with the plugin in the skill directory. Never write auth scripts to disk; always use the bundled script.
-- **Token persistence and TMPDIR** — tokens are written to `$TMPDIR/confidence_token`. `$TMPDIR` resolves to DIFFERENT paths in sandboxed vs non-sandboxed (`dangerouslyDisableSandbox: true`) Bash calls (e.g., `/tmp/claude-501/` vs `/var/folders/.../T/`). ALL token writes and reads MUST use `dangerouslyDisableSandbox: true` to ensure consistency. Never write tokens outside `$TMPDIR`.
-- **Learning API** — REST-only (gRPC on epx-onboarding). Course content is generated by the skill using docs MCP; the API only tracks progress indices.
+- **Token persistence and TMPDIR** — tokens are written to `$TMPDIR/confidence_token` for account creation only. `$TMPDIR` resolves to DIFFERENT paths in sandboxed vs non-sandboxed Bash calls. ALL token writes and reads MUST use `dangerouslyDisableSandbox: true`.
+- **Learning API** — REST-only (no MCP tool). Course content is generated by the skill using docs MCP; the API only tracks progress indices.
 - **`learn` sub-command** — uses docs MCP for content. If MCP not connected, the skill can still teach using its own knowledge but won't have the latest docs.
-- **Region-specific API URLs** — flags/resolver APIs use region prefixes (`flags.eu.confidence.dev` vs `flags.us.confidence.dev`). Determine region from the JWT token or from the account creation step.

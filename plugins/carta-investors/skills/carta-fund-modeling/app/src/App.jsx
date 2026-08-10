@@ -10,7 +10,6 @@ import Companies from "./views/Companies.jsx";
 import PowerLaw from "./views/returns/PowerLaw.jsx";
 import LpReturns from "./views/returns/LpReturns.jsx";
 import GpEconomics from "./views/returns/GpEconomics.jsx";
-import PerformanceSidebarV2 from "./ui/PerformanceSidebarV2.jsx";
 import Reserves from "./views/Reserves.jsx";
 import CohortStanding from "./views/CohortStanding.jsx";
 import Report from "./views/Report.jsx";
@@ -20,6 +19,7 @@ import { warn, WarnToast, BASELINE_LOCKED_MSG } from "./ui/warn.jsx";
 import { parseRoute, navigate, subscribeNav } from "./route.js";
 import { fmContext } from "./pinpoint/fmContext.js";
 import { postToOuter, onFromOuter } from "./bridge-client.js";
+import { trackClick, trackRender } from "./analytics.js";
 
 const I = ({ d, extra }) => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ flex: "none" }}>
@@ -30,15 +30,28 @@ const I = ({ d, extra }) => (
 const TABS = [
   ["overview", "Firm Overview", "M4 18a8 8 0 0116 0", "M12 18l5-5"],
   ["companies", "Companies", "M12 3l9 5-9 5-9-5z", "M3 13l9 5 9-5"],
-  ["power-law", "Power Law", "M4 20h16", "M4 20C10 20 13 5 20 4"],
   ["lp-returns", "LP Returns", "M3 16l5-5 4 4 8-8", "M16 7h4v4"],
   ["gp-economics", "GP Economics", "M4 7h16", "M9 7v13M15 7v13"],
   ["reserves", "Reserves", "M4 7h13v10H4z", "M17 10h3v4h-3"],
+  ["power-law", "Power Law", "M4 20h16", "M4 20C10 20 13 5 20 4"],
   ["cohort", "Benchmarks", "M5 19a9 9 0 1114 0", "M12 19l5-6"],
-  ["report", "Report", "M7 3h7l4 4v13a1 1 0 01-1 1H7a1 1 0 01-1-1V4a1 1 0 011-1z", "M14 3v4h4"],
+  ["export", "Export", "M7 3h7l4 4v13a1 1 0 01-1 1H7a1 1 0 01-1-1V4a1 1 0 011-1z", "M14 3v4h4"],
 ];
 const TAB_IDS = TABS.map(([id]) => id);
 const DEFAULT_TAB = "overview";
+
+// PascalCase view names for analytics IDs (FundModeling.<ViewName>.*) — keyed
+// by the same tab id used in routing/TABS above.
+const TAB_VIEW_NAMES = {
+  overview: "Overview",
+  companies: "Companies",
+  "power-law": "PowerLaw",
+  "lp-returns": "LpReturns",
+  "gp-economics": "GpEconomics",
+  reserves: "Reserves",
+  cohort: "CohortStanding",
+  export: "Export",
+};
 
 // The active page is the third path segment (/firm/<slug>/<page>) — see route.js.
 // The URL is the source of truth: useSyncExternalStore re-reads it on any nav
@@ -206,6 +219,18 @@ export default function App({ firm, onChooseFirm }) {
   // (never hardcoded USD); drives fmt$/fmtM/fmtB across the app.
   setDisplayCurrency(snapshot?.source?.currency);
   const [tab, setTab] = useTabRoute(firm);
+  // Nav-click tracking is separate from setTab itself — setTab is also called
+  // from drill-downs (openFund/openFundSection) and the per-fund-tab auto-select,
+  // which aren't user nav clicks.
+  const selectTab = (id) => {
+    trackClick(`FundModeling.Nav.${TAB_VIEW_NAMES[id]}`);
+    setTab(id);
+  };
+  // Fires once per view becoming active, however it got there (nav click,
+  // drill-down, back/forward, or a direct link).
+  useEffect(() => {
+    trackRender(`FundModeling.${TAB_VIEW_NAMES[tab]}.View`);
+  }, [tab]);
   // Normalize a bare /firm/<slug> to /firm/<slug>/overview so the URL always names
   // the page shown (a reload of the bare firm path lands here first).
   useEffect(() => {
@@ -254,6 +279,10 @@ export default function App({ firm, onChooseFirm }) {
   const [confirm, setConfirm] = useState(null); // {title, message, confirmLabel, danger, onConfirm} or null
   const narrow = useNarrow();
   const contentRef = useRef(null); // the app's scrollable content div — window.scrollTo is a no-op here
+  // reset scroll to top on every tab switch, not just the drill-down callbacks below
+  useEffect(() => {
+    contentRef.current?.scrollTo({ top: 0 });
+  }, [tab]);
 
   // dark mode — opt-in via the toggle and persisted; defaults to LIGHT (ignores
   // the OS preference) so the dashboard always opens light unless the user chose dark.
@@ -298,10 +327,6 @@ export default function App({ firm, onChooseFirm }) {
     }
   }, [tab, fundScope, snapshot]);
 
-  // which fund(s) the hovered/expanded Companies row touches — lets the
-  // Performance sidebar v2 grey out the funds a reprice can't possibly affect
-  const [activeFundIds, setActiveFundIds] = useState(null);
-
   if (!fundStates) {
     return (
       <div style={{ ...sans, minHeight: "100vh", background: "var(--ink-color-global-surface-background-default)", color: "var(--ink-color-global-text-subtle)", display: "grid", placeItems: "center" }}>
@@ -324,9 +349,6 @@ export default function App({ firm, onChooseFirm }) {
     setTab(sectionId === "gp-returns" ? "gp-economics" : "lp-returns");
     contentRef.current?.scrollTo({ top: 0 });
   };
-  // Performance sidebar v2 — consolidates the top metric strip, the per-company
-  // fund-impact grey box, and the slider presets into one right panel on Companies
-  const showPerformanceV2Sidebar = tab === "companies" && !narrow;
 
   // live firm rollup for the persistent metric bar — reflects this slice's marks
   const firmAgg = firmRollup(fundStates);
@@ -397,7 +419,7 @@ export default function App({ firm, onChooseFirm }) {
         </div>
       </div>
       {TABS.map(([id, label, icon, extra]) => (
-        <NavItem key={id} id={id} label={label} icon={icon} extra={extra} active={tab === id} onClick={() => setTab(id)} />
+        <NavItem key={id} id={id} label={label} icon={icon} extra={extra} active={tab === id} onClick={() => selectTab(id)} />
       ))}
       <div style={{ height: 1, background: "var(--ink-color-global-border-subtle)", margin: "9px 8px" }} />
       <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "0 8px 4px" }}>
@@ -446,8 +468,8 @@ export default function App({ firm, onChooseFirm }) {
       </div>
       <div style={{ display: "flex", gap: 4, overflowX: "auto" }}>
         {TABS.map(([id, label]) => (
-          <button key={id} onClick={() => setTab(id)} data-testid={`tab-${id}`}
-            style={{ ...sans, fontSize: FS.bodyLg, fontWeight: tab === id ? 600 : 500, padding: "7px 13px", border: "none",
+          <button key={id} onClick={() => selectTab(id)} data-testid={`tab-${id}`}
+            style={{ ...sans, fontSize: FS.body, fontWeight: tab === id ? 600 : 500, padding: "7px 13px", border: "none",
               borderRadius: 4, cursor: "pointer", whiteSpace: "nowrap",
               background: tab === id ? "var(--ink-color-global-surface-lightgray-default)" : "transparent", color: tab === id ? "var(--ink-button-background-color-primary-base-default)" : "var(--ink-color-global-text-subtle)" }}>
             {label}
@@ -504,7 +526,8 @@ export default function App({ firm, onChooseFirm }) {
                   updateCompany={updateCompany} updateSlice={update} setAssumption={setAssumption}
                   readOnly={locked} reload={reload} flush={flush}
                   holdingsPulled={holdingsPulled} fundScope={fundScope} setFundScope={setFundScope}
-                  onActiveFundsChange={setActiveFundIds} />
+                  fundStates={fundStates} firmAgg={firmAgg} firmLpDelta={firmLpDelta} firmGpCarry={firmGpCarry}
+                  sliceName={slice.name} onOpenFundSection={openFundSection} />
               )}
               {(tab === "power-law" || tab === "lp-returns" || tab === "gp-economics") && (() => {
                 const returnsProps = {
@@ -518,17 +541,10 @@ export default function App({ firm, onChooseFirm }) {
                 return <GpEconomics {...returnsProps} />;
               })()}
               {tab === "cohort" && <CohortStanding snapshot={snapshot} fundStates={fundStates} portfolio={slice} />}
-              {tab === "report" && <Report doc={doc} snapshot={snapshot} baseSlice={baseSlice} />}
+              {tab === "export" && <Report doc={doc} snapshot={snapshot} baseSlice={baseSlice} />}
             </div>
           </main>
         </div>
-
-        {showPerformanceV2Sidebar && (
-          <PerformanceSidebarV2 fundStates={fundStates} firmAgg={firmAgg} firmLpDelta={firmLpDelta}
-            firmGpCarry={firmGpCarry} sliceName={slice.name} fundScope={fundScope}
-            snapshot={snapshot} portfolio={effSlice}
-            onOpenFundSection={openFundSection} activeFundIds={activeFundIds} />
-        )}
       </div>
 
       {scenarioDialog && (

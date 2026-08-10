@@ -1,6 +1,6 @@
 {
   "hooks": {
-    "Stop": [
+    "SessionEnd": [
       {
         "hooks": [
           {
@@ -10,7 +10,7 @@
         ]
       }
     ],
-    "SessionEnd": [
+    "Stop": [
       {
         "hooks": [
           {

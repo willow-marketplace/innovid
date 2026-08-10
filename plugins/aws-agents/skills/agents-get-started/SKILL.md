@@ -1,6 +1,6 @@
 ---
 name: agents-get-started
-description: ">"
+description: 'Use when a developer wants to create a new agent project or get started with AgentCore. Handles framework selection, project scaffolding, first deploy, and first invocation. Triggers on: "build an agent", "create an agent", "get started", "new project", "agentcore create", "which framework", "Strands vs LangGraph", "hello world agent", "first agent", "create MCP server", "host MCP server", "agentcore dev", "dev server", "what port", "local development". Not for adding capabilities to existing projects — use agents-build or agents-connect. Strands vs LangGraph in a migration context routes to agents-build, not here. Connecting to an existing MCP server routes to agents-connect, not here.'
 ---
 
 # get-started

@@ -1,6 +1,6 @@
 ---
 name: read-memories
-description: ">"
+description: Search past Claude Code session logs to recall prior decisions, patterns, or unresolved work. Use when user says "do you remember", "what did we do", references past conversations, or you need context from prior sessions.
 ---
 
 Search past session logs silently — do NOT narrate the process. Absorb the results and continue with enriched context.

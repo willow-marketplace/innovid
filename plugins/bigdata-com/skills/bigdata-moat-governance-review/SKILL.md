@@ -1,6 +1,6 @@
 ---
 name: bigdata-moat-governance-review
-description: ">"
+description: "Assess how durable a public company's competitive advantage is and whether management can be trusted with the capital, using Bigdata.com data. Covers moat identification by type with evidence, moat strength via ROIC versus WACC, pricing power and share trend, a competitive advantage period estimate with erosion signals, industry structure via five forces, the capital allocation track record across M&A, buybacks, dividends and reinvestment, and governance — board independence, dual roles, compensation design, related-party exposure, insider activity. Triggers: \"does X have a moat\", \"moat review for X\", \"how durable is X's advantage\", \"is X's management any good\", \"capital allocation at X\", \"governance review of X\", \"competitive advantage of X\"."
 ---
 
 # Bigdata Moat & Governance Review

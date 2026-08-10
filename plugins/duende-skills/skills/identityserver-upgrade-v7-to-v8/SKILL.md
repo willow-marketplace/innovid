@@ -1,6 +1,6 @@
 ---
 name: identityserver-upgrade-v7-to-v8
-description: '"Migrating Duende IdentityServer from v7.4 to v8.0: breaking changes, API replacements (ICache→HybridCache, IClock→TimeProvider), CancellationToken additions, EF migrations, and step-by-step upgrade guide."'
+description: "Migrating Duende IdentityServer from v7.4 to v8.0: breaking changes, API replacements (ICache→HybridCache, IClock→TimeProvider), CancellationToken additions, EF migrations, and step-by-step upgrade guide."
 ---
 
 # Upgrading IdentityServer v7 to v8

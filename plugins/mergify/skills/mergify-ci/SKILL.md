@@ -125,6 +125,8 @@ mergify ci scopes --config .mergify.yml --write scopes.json
 
 The config file defines scopes with file patterns. When files change between base and head, matching scopes are identified and written to `GITHUB_OUTPUT` (on GitHub Actions) or to Buildkite meta-data under `mergify-ci.scopes` (on Buildkite), as a JSON map of scope names to `"true"`/`"false"`.
 
+A renamed file counts against **both** of its paths, same as the engine: `git mv critical/guard.txt ignored/guard.txt` touches `critical` and `ignored`.
+
 ## Scopes Send (`scopes-send`)
 
 Sends scopes tied to a pull request to the Mergify API. Used when scopes are determined manually or from a file rather than auto-detected.
@@ -138,6 +140,10 @@ mergify ci scopes-send --scopes-json scopes.json -p 123
 
 # Send scopes from a plain-text file (one scope per line)
 mergify ci scopes-send --scopes-file scopes.txt -p 123
+
+# Declare the PR impacts every scope (merge-queue barrier),
+# e.g. a build-system or CI-workflow change
+mergify ci scopes-send -s build-system --all -p 123
 ```
 
 **Key options:**
@@ -147,6 +153,7 @@ mergify ci scopes-send --scopes-file scopes.txt -p 123
 - `--scope` / `-s` -- Scope name (repeatable)
 - `--scopes-json` -- JSON file containing scopes (output of `mergify ci scopes --write`)
 - `--scopes-file` -- Plain-text file with one scope per line
+- `--all` -- Declare the pull request impacts every scope. The merge queue treats it as a barrier: never batched or run in parallel with other pull requests. The concrete scopes are still sent alongside the flag.
 
 ## Tests Show (`tests show`)
 

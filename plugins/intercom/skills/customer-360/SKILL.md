@@ -1,6 +1,6 @@
 ---
 name: customer-360
-description: ">"
+description: Build a comprehensive customer profile from Intercom data, including conversation history, account context, and interaction timeline. Use when the user asks to "look up a customer", "customer profile", "customer 360", "tell me about this customer", "summarize a customer's history", or provides a customer email or company name and wants a full picture.
 ---
 
 # Customer 360

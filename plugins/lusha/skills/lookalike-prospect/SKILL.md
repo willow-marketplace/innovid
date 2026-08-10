@@ -1,6 +1,6 @@
 ---
 name: lookalike-prospect
-description: ">"
+description: Find companies or contacts similar to a set of references, then enrich results with verified phone numbers. Use when the user says "find companies like my best customers", "find more contacts like these", "expand from these accounts", "who else looks like [company]", "find similar companies to [list]", or any request to discover lookalike targets from a reference set. Requires at least 5 reference companies or contacts for quality results.
 ---
 
 # Lookalike Prospect

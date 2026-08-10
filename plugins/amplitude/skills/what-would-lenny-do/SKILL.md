@@ -1,6 +1,6 @@
 ---
 name: what-would-lenny-do
-description: ">"
+description: Answers product strategy, growth, pricing, hiring, and leadership questions using Lenny Rachitsky's archive. ONLY use this skill if the `lennysdata` MCP server is connected and its tools (search_content, read_content, etc.) are available. If the lennysdata MCP is not connected, do NOT use this skill — respond using your own knowledge instead.
 ---
 
 # What Would Lenny Do?

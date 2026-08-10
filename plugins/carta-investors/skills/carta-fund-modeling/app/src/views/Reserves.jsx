@@ -5,13 +5,14 @@
 // follow-on split are adjustable planning assumptions, set PER FUND and saved
 // into the active scenario. Model: src/model/reserves.js.
 import { useMemo, useState } from "react";
-import { FS, sans, mono, NOTICE, MICRO } from "../ui/theme.js";
+import { FS, sans, inkNum, NOTICE, MICRO } from "../ui/theme.js";
 import { fmt$, fmtM, fmtX, fmtPct } from "../ui/format.js";
 import { H1, H3, Eyebrow, MethodNote, SourceNote, Toggle, Slider, StatBar, Badge, SectionChips, fundLabel } from "../ui/components.jsx";
 import { TableHead, useTableSort, TableScroll } from "../ui/table.jsx";
 import { computeReserves, nearlyDeployed, optimalReserveAllocation, newDealCount } from "../model/reserves.js";
 import { deploymentRunway } from "../model/runway.js";
 import { useFirmData } from "../state/FirmData.jsx";
+import { trackClick } from "../analytics.js";
 
 /** A quarter count rendered as "3.0 qtrs · ~9 mo" for quick reading. */
 const fmtRunway = (q) => `${q.toFixed(1)} qtrs · ~${Math.round(q * 3)} mo`;
@@ -31,7 +32,7 @@ function RunwayCard({ reserves, pacing, avgChecks, mixed }) {
   const r = useMemo(() => deploymentRunway(reserves, pacing, { avgChecks }), [reserves, pacing, avgChecks]);
   const { sorted: runwayRows, sort: runwaySort, onSort: onRunwaySort } = useTableSort(r.funds, RUNWAY_COLS);
   if (!r.funds.length) return null;
-  const cell = { ...mono, textAlign: "right", fontSize: FS.value, whiteSpace: "nowrap" };
+  const cell = { ...inkNum, textAlign: "right", fontSize: FS.value, whiteSpace: "nowrap" };
   return (
     <div style={{ marginBottom: 16 }}>
       <div style={{ display: "flex", alignItems: "baseline", gap: 14, flexWrap: "wrap", marginBottom: 4 }}>
@@ -282,11 +283,11 @@ export default function Reserves({ snapshot, portfolio, setAssumption, readOnly 
           <span style={{ ...sans, fontSize: FS.bodyLg, fontWeight: 650, color: "var(--ink-color-global-text-default)" }}>Committed capital, allocated</span>
           <span style={{ ...sans, fontSize: FS.small, color: "var(--ink-color-global-text-subtle)" }}>fee, follow-on &amp; recycling set per fund{readOnly ? " · locked" : ""}</span>
           {spvCount > 0 && (
-            <Toggle checked={showSpv} onChange={setShowSpv}
+            <Toggle checked={showSpv} onChange={(v) => { trackClick("FundModeling.Reserves.ToggleShowSpvs"); setShowSpv(v); }}
               labels={[`Show SPVs (${spvCount})`, `Show SPVs (${spvCount})`]} />
           )}
           {hiddenCount > 0 && (
-            <Toggle checked={showCalled} onChange={setShowCalled}
+            <Toggle checked={showCalled} onChange={(v) => { trackClick("FundModeling.Reserves.ToggleShowCalledFunds"); setShowCalled(v); }}
               labels={[`Show fully called funds (${hiddenCount})`, `Show fully called funds (${hiddenCount})`]} />
           )}
           <span style={{ flex: 1 }} />
@@ -314,10 +315,10 @@ export default function Reserves({ snapshot, portfolio, setAssumption, readOnly 
                   <div style={{ ...sans, fontSize: FS.body, fontWeight: 600, color: "var(--ink-color-global-text-default)", lineHeight: 1.2, overflowWrap: "anywhere" }}>
                     {f.id}{f.isSpv && <Badge style={{ marginLeft: 6 }}>SPV</Badge>}
                   </div>
-                  <div style={{ ...mono, fontSize: FS.micro, color: MICRO }}>{fmtM(f.committed)} committed</div>
+                  <div style={{ ...inkNum, fontSize: FS.micro, color: MICRO }}>{fmtM(f.committed)} committed</div>
                 </div>
                 <AllocBar f={f} />
-                <div style={{ ...mono, fontSize: FS.body, fontWeight: 700, color: f.reserves > 0 ? "var(--ink-color-global-data-viz-blue-3)" : "var(--ink-color-global-text-subtle)", textAlign: "right" }}>
+                <div style={{ ...inkNum, fontSize: FS.body, fontWeight: 700, color: f.reserves > 0 ? "var(--ink-color-global-data-viz-blue-3)" : "var(--ink-color-global-text-subtle)", textAlign: "right" }}>
                   {f.reserves > 0 ? fmtM(f.reserves) : "fully called"}
                 </div>
               </div>
@@ -383,7 +384,7 @@ export default function Reserves({ snapshot, portfolio, setAssumption, readOnly 
             <span style={{ ...sans, fontSize: FS.small, color: "var(--ink-color-global-text-subtle)" }}>where the next dollar works hardest</span>
             <span style={{ flex: 1 }} />
             {noPoolCount > 0 && (
-              <Toggle checked={hideNoPool} onChange={setHideNoPool}
+              <Toggle checked={hideNoPool} onChange={(v) => { trackClick("FundModeling.Reserves.ToggleHideNoPool"); setHideNoPool(v); }}
                 labels={[`Hide funds with no reserve pool (${noPoolCount})`, `Hide funds with no reserve pool (${noPoolCount})`]} />
             )}
           </div>
@@ -402,9 +403,9 @@ export default function Reserves({ snapshot, portfolio, setAssumption, readOnly 
                   <tr key={r.id}>
                     <td style={{ ...sans, fontSize: FS.value, color: "var(--ink-color-global-text-default)", whiteSpace: "nowrap", maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis" }} title={r.name}>{r.name}</td>
                     <td style={{ ...sans, fontSize: FS.value, color: "var(--ink-color-global-text-subtle)", whiteSpace: "nowrap" }}>{fundLabel(r.fundName)}</td>
-                    <td style={{ ...mono, textAlign: "right", fontSize: FS.value, fontWeight: 700, color: r.marginal > 1 ? "var(--ink-color-global-feedback-positive-strong)" : "var(--ink-color-global-text-subtle)" }}>{fmtX(r.marginal)}</td>
-                    <td style={{ ...mono, textAlign: "right", fontSize: FS.value, color: "var(--ink-color-global-text-subtle)" }}>{fmtM(r.entryVal)} → {fmtM(r.markVal)}</td>
-                    <td style={{ ...mono, textAlign: "right", fontSize: FS.value, fontWeight: 700, color: r.suggested > 0 ? "var(--ink-color-global-feedback-positive-strong)" : "var(--ink-color-global-text-subtle)" }}>
+                    <td style={{ ...inkNum, textAlign: "right", fontSize: FS.value, fontWeight: 700, color: r.marginal > 1 ? "var(--ink-color-global-feedback-positive-strong)" : "var(--ink-color-global-text-subtle)" }}>{fmtX(r.marginal)}</td>
+                    <td style={{ ...inkNum, textAlign: "right", fontSize: FS.value, color: "var(--ink-color-global-text-subtle)" }}>{fmtM(r.entryVal)} → {fmtM(r.markVal)}</td>
+                    <td style={{ ...inkNum, textAlign: "right", fontSize: FS.value, fontWeight: 700, color: r.suggested > 0 ? "var(--ink-color-global-feedback-positive-strong)" : "var(--ink-color-global-text-subtle)" }}>
                       {r.suggested > 0 ? fmtM(r.suggested)
                         : r.fundFollowOn > 0 ? "—"
                           : (
@@ -449,10 +450,10 @@ export default function Reserves({ snapshot, portfolio, setAssumption, readOnly 
                   {fundLabel(f.name)}
                   {f.isSpv && <Badge style={{ marginLeft: 6 }}>SPV</Badge>}
                 </td>
-                <td style={{ ...mono, textAlign: "right" }}>{fmt$(f.committed)}</td>
-                <td style={{ ...mono, textAlign: "right" }}>{fmt$(f.paidIn)}</td>
-                <td style={{ ...mono, textAlign: "right", fontWeight: 700, color: f.reserves > 0 ? "var(--ink-color-global-feedback-positive-strong)" : "var(--ink-color-global-text-subtle)" }}>{f.reserves > 0 ? fmt$(f.reserves) : "—"}</td>
-                <td style={{ ...mono, textAlign: "right" }}
+                <td style={{ ...inkNum, textAlign: "right" }}>{fmt$(f.committed)}</td>
+                <td style={{ ...inkNum, textAlign: "right" }}>{fmt$(f.paidIn)}</td>
+                <td style={{ ...inkNum, textAlign: "right", fontWeight: 700, color: f.reserves > 0 ? "var(--ink-color-global-feedback-positive-strong)" : "var(--ink-color-global-text-subtle)" }}>{f.reserves > 0 ? fmt$(f.reserves) : "—"}</td>
+                <td style={{ ...inkNum, textAlign: "right" }}
                   title={`Deployed ${fmt$(f.deployed)} of ${fmt$(f.investable)} investable${f.deployed > f.investable ? " (capped at 100%)" : ""}. Basis = max(invested at cost ${fmt$(f.invested)}, paid-in ${fmt$(f.paidIn)}); investable = committed − fee/expense reserve.`}>
                   <span style={{ display: "inline-flex", alignItems: "center", gap: 7, justifyContent: "flex-end" }}>
                     <span style={{ width: 46, height: 5, borderRadius: 3, background: "var(--ink-color-global-surface-lightgray-default)", overflow: "hidden", display: "inline-block" }}>
@@ -461,16 +462,16 @@ export default function Reserves({ snapshot, portfolio, setAssumption, readOnly 
                     {fmtPct(f.deployedPct, 0)}
                   </span>
                 </td>
-                <td style={{ ...mono, textAlign: "right", color: "var(--ink-color-global-text-subtle)" }}>{f.uncalled > 0 ? fmt$(f.uncalled) : "—"}</td>
+                <td style={{ ...inkNum, textAlign: "right", color: "var(--ink-color-global-text-subtle)" }}>{f.uncalled > 0 ? fmt$(f.uncalled) : "—"}</td>
               </tr>
             ))}
             <tr className="totrow">
               <td>Count: {ledgerRows.length}</td>
-              <td style={{ ...mono, textAlign: "right" }}>{mixed ? "—" : fmt$(totals.committed)}</td>
-              <td style={{ ...mono, textAlign: "right" }}>{mixed ? "—" : fmt$(totals.paidIn)}</td>
-              <td style={{ ...mono, textAlign: "right", color: "var(--ink-color-global-feedback-positive-strong)" }}>{mixed ? "—" : fmt$(totals.reserves)}</td>
-              <td style={{ ...mono, textAlign: "right" }}>{mixed ? "—" : fmtPct(totals.deployedPct, 0)}</td>
-              <td style={{ ...mono, textAlign: "right", color: "var(--ink-color-global-text-subtle)" }}>{mixed ? "—" : fmt$(totals.uncalled)}</td>
+              <td style={{ ...inkNum, textAlign: "right" }}>{mixed ? "—" : fmt$(totals.committed)}</td>
+              <td style={{ ...inkNum, textAlign: "right" }}>{mixed ? "—" : fmt$(totals.paidIn)}</td>
+              <td style={{ ...inkNum, textAlign: "right", color: "var(--ink-color-global-feedback-positive-strong)" }}>{mixed ? "—" : fmt$(totals.reserves)}</td>
+              <td style={{ ...inkNum, textAlign: "right" }}>{mixed ? "—" : fmtPct(totals.deployedPct, 0)}</td>
+              <td style={{ ...inkNum, textAlign: "right", color: "var(--ink-color-global-text-subtle)" }}>{mixed ? "—" : fmt$(totals.uncalled)}</td>
             </tr>
           </tbody>
         </table>

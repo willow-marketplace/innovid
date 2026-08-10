@@ -1,6 +1,6 @@
 ---
 name: ai-tools-setup
-description: ">-"
+description: "Set up, connect, validate, and repair Claude Desktop and MCP servers using Desktop Commander — inspecting and fixing mcp.json / claude_desktop_config.json, getting MCP servers to connect, and diagnosing local AI tooling. Use when a user wants to install, configure, connect, validate, or fix Claude Desktop, an MCP server, an MCP config file, or a local AI agent/gateway. Trigger on the symptoms that actually bring people in: \"Claude can't see my tools\", \"my MCP server isn't showing up\", \"tools aren't loading in Claude\", \"add an MCP server\", \"my MCP isn't connecting\", \"fix my Claude Desktop config\", \"the agent won't respond\", \"wire up Ollama / LM Studio\", \"restart Claude Desktop\". Also covers local agent gateways like OpenClaw and Hermes."
 ---
 
 # AI Tools Setup Assistant
@@ -51,18 +51,18 @@ known failure modes.
   servers, and inspecting / validating / repairing MCP config files
   (`claude_desktop_config.json`, `.claude/mcp.json`, `~/.lmstudio/mcp.json`,
   and similar). Also connection health checks.
-  → Read `references/claude-desktop-mcp.md`
+  → Read [`references/claude-desktop-mcp.md`](references/claude-desktop-mcp.md)
 
 - **OpenClaw** — a self-hosted multi-channel gateway for AI agents. Install,
   onboard, wire a model/provider, connect channels (Telegram, Slack, iMessage,
   etc.), diagnose the gateway, and uninstall.
-  → Read `references/openclaw.md`
+  → Read [`references/openclaw.md`](references/openclaw.md)
 
 - **Hermes** — disambiguate first: **Hermes Agent** (the Nous Research
   self-improving agent framework) vs. **Hermes 3** (just a local LLM you run via
   Ollama). Install, run `hermes setup --portal`, configure providers, personality
   (`SOUL.md`), memory/skills, MCP, and messaging.
-  → Read `references/hermes.md`
+  → Read [`references/hermes.md`](references/hermes.md)
 
 When in doubt about a tool's current behavior, fetch the official docs:
 OpenClaw — https://docs.openclaw.ai/ ·

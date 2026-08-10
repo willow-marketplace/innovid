@@ -47,6 +47,10 @@ Every **pivot field** placed in `pages`, `rows`, or `columns` gets a **stable id
 
 `ListPropertyPath` is the **technical** name of **properties** (e.g. in the UI: `Month > Year`, `Country > Region`).
 
+### Discovering valid pivots
+
+**Requests that mean "add a pivot"**: whenever the user asks to disaggregate, break down, split by, group by, "show by", "by <dimension>", or "per" some dimension, they are asking you to add a pivot. Before adding pivots, call **`tool:get_available_pivots`** for the View and build new pivots from the returned candidates instead of guessing. See [view_pivoting.md](./view_pivoting.md) §2.
+
 ### Other
 
 - Do **not** create views on **sublists**.
@@ -60,19 +64,24 @@ Every **pivot field** placed in `pages`, `rows`, or `columns` gets a **stable id
 - **Value and pivot ids** — Assigned by the server. For a NEW pivot/value, omit `id`. To KEEP an existing one, echo back the id from a prior `tool:create_view` / `tool:update_view_*` / `tool:get_view` response. Never invent UUIDs.
 - **Same dimension on Pages and on Rows/Columns is SUPPORTED** — When the user asks to "put X on Pages", **add** to Pages without removing X from Rows/Columns. Page selectors then narrow which modalities appear on the row/column axis. Do not treat this as a conflict. See [view_components.md](./view_components.md) for OK patterns vs. anti-patterns.
 - **"Filter" from users → Page Selector first** — Restricting to a dimension item (Year, Country, Version, …) = **`pages`** + default item, not `filters[]`. View Filters only for top-N-by-metric, exclusion, or logic Page Selectors cannot express. See [view_filtering.md](./view_filtering.md).
+- **Board context → align Pages across Views** — Replicate every sibling board page selector on this View if the block supports it (grouping page when grains differ). See [board_pages.md](../designing-boards/board_pages.md).
 - **New View (greenfield)** — Two-step flow:
   1. Call **`tool:create_view`**. Leave `pivotLayout` **null** to let the server build a sensible default layout for the underlying block. To override, send a complete `pivotLayout` with all three axes (`rows`, `columns`, `pages`) populated — each entry is a **simplified pivot seed** (`dimensionId` + optional `listPropertyPath`); use an empty array for an axis with no pivot. Half-specified layouts are rejected. Values and hidden-dim aggregations are created with sensible defaults; refine them in step 2 if needed.
   2. Iterate with **`tool:update_view_pivots`**, **`tool:update_view_values`** (and the other `update_view_*` tools) to refine the configuration. None of those refinements are accepted by `tool:create_view`.
 - **Editing an existing View** — Use the field-specific variants directly on the View id:
   - Values (add/remove value fields, `showValueAsConfiguration`) → `tool:update_view_values`. Echo back existing value ids to keep them stable.
-  - **Pivot edits** (rows / columns / pages / metricsLocation) → `tool:update_view_pivots`.
+  - **Pivot edits** on Metric & Table Views (rows / columns / pages / metricsLocation) → `tool:update_view_pivots`.
+  - **Pivot edits** on List Views (row groupings / page selectors) → `tool:update_list_view_pivots`. On a List every pivot is built on the List itself: identify a grouping or page selector by its `listPropertyPath`, not a `dimensionId`; no columns, no metricsLocation. `tool:update_view_pivots` is not for Lists.
   - Aggregations (pivot-level `aggregationConfigurations` and view-level `hiddenDimensionsAggregations`) → `tool:update_view_aggregations`.
   - Filters → `tool:update_view_filters`. Sorts → `tool:update_view_sorts`. Chart config → `tool:update_view_chart_config`.
-  - Metadata, template, sharing status → `tool:update_view`.
+  - Cell formatting — background/text color, bold, italic, alignment, on the whole grid or specific coordinates (a metric, a dimension member, a calculated item) → `tool:update_view_formatting`. Read existing formatting with `tool:get_view` + `include: ["Formatting"]`. Each override is static by default; set `scope.condition` to make it **conditional** (highlight cells below/above a threshold, a color scale, a text match, or a comparison against another metric — see the tool's `McpCondition` schema for which fields each condition type uses). `overrides` replaces both static and conditional overrides wholesale, so resend the ones you want to keep. Override order matters: the first override wins per property, so list specific coordinate overrides before broader ones and put any all-grid override last. Borders are read-only; number/text value formatting is on the metric (see Critical Rules).
+  - Grid layout — display mode (tabular/tree), row height, gridlines, header options, totals position (the View's **Layout** panel) → `tool:update_view_grid_layout`. Partial update; read the current layout with `tool:get_view` + `include: ["GridLayout"]`.
+  - Name / description / template → `tool:update_view`.
+  - Sharing status (`None` / `Dataviz`) → `tool:update_view`, in a **separate call** — it cannot be combined with name/description/template in the same request, and applies only to the canonical (`Configure`) View.
 
   If a Draft was auto-created, the agent should:
-  - wire the widget to display it via **`tool:update_view_widget_overrides`** so only this user sees it
-  - tell the user they can save the Draft in the Board UI.
+  - wire the widget to display it via **`tool:set_widget_preview`** so only this user sees it
+  - **propose to save it** via the **Bulk-save protocol** below — list the Draft name, ask for explicit confirmation, then call **`tool:save_draft_views`**. Only if `tool:save_draft_views` is unavailable, fall back to telling the user they can save the Draft in the Board UI.
 
 - **Bulk-save protocol** if `tool:save_draft_views` is available — after creating or editing one or more Draft Views:
   1. List the draft view names and ask the user for explicit confirmation before saving.
@@ -84,7 +93,7 @@ Every **pivot field** placed in `pages`, `rows`, or `columns` gets a **stable id
 - **Name (first signal)** — **"View 1"** and similar are often **placeholders**. Prefer **`create_view`** with a real name and pivots aligned to **this** widget and **other widgets on the same board** unless the existing View already fits.
 - **Shared / external View (other users, other boards)** — Prefer **Draft** (or a **new** View) before overwriting something others rely on or displayed in another board, except if asked explicitely.
 - **Table views — per-view metrics** — When adding or removing metrics on **Table block views**, call `tool:update_view_values` with the full desired value list: **add** a value entry for new metrics, **remove** value entries that are not relevant. Prefer removal over hiding — hidden metrics may still compute. Keep a metric hidden (`displayed: false`) only when the view still depends on it, such as for value-field filtering, sort-by-metric-value, or as an advanced-aggregator operand (ratio, growth, etc.). Do not plan a separate step to update the Table block's metric membership first. Do not add every table metric to each view and hide the rest; configure only the metrics each view should show.
-- **Table views — ratio / variance metrics** — When you **add** a metric to a **Table** View via `tool:update_view_values`, check whether it is a ratio, percentage-like, or relative-variance metric (name + formula — see [view_aggregators.md §7A](./view_aggregators.md#7a-detecting-ratio--variance-metrics-when-adding-value-fields)). If yes, in the **same editing pass**: (1) call `tool:get_metric` (and operand metrics if needed) to identify the two operand metrics; (2) call `tool:update_view_values` with **three** value fields — ratio metric plus both operands (operands may be `displayed: false`); (3) call `tool:update_view_aggregations` to set **Advanced Aggregator Ratio** or **Growth** on the ratio value field (`pivotAggregations` for visible Rows/Columns and `hiddenDimensionsAggregations` for other hidden dimensions) — never leave default **Sum**. Re-apply whenever you add that metric to another Table View. Not applicable to Views Metrics or Lists.
+- **Table views — ratio / variance metrics** — When you **add** a metric to a **Table** View via `tool:update_view_values`, check whether it is a ratio, percentage-like, or relative-variance metric (name + formula — see [view_aggregators.md §7A](./view_aggregators.md#7a-detecting-ratio--variance-metrics-when-adding-value-fields)). If yes, in the **same editing pass**: (1) call `tool:filtered_search` (and operand metrics if needed) to identify the two operand metrics; (2) call `tool:update_view_values` with **three** value fields — ratio metric plus both operands (operands may be `displayed: false`); (3) call `tool:update_view_aggregations` to set **Advanced Aggregator Ratio** or **Growth** on the ratio value field (`pivotAggregations` for visible Rows/Columns and `hiddenDimensionsAggregations` for other hidden dimensions) — never leave default **Sum**. Re-apply whenever you add that metric to another Table View. Not applicable to Views Metrics or Lists.
 
 # Definitions
 
@@ -94,7 +103,7 @@ A View is **how** a Block (Metric, List, Table) is shown: pivots, filters, sort,
 
 ## Draft Views
 
-A **private** working copy to **preview** edits before they hit an existing view. On **boards**, use a Draft + **widget overrides** when changing the **live** View behind a widget—see [view_widgets.md](../designing-boards/view_widgets.md). **Not** a substitute for **`create_view`** when you need a **new** View. **Save via bulk-save protocol** — list the draft names, wait for user confirmation, then call `tool:save_draft_views` once with all draft view IDs
+A **private** working copy to **preview** edits before they hit an existing view. On **boards**, use a Draft + **widget overrides** when changing the **live** View behind a widget—see [view_widgets.md](../designing-boards/view_widgets.md). **Not** a substitute for **`create_view`** when you need a **new** View. **Save via bulk-save protocol** — list the draft names, wait for user confirmation, then call `tool:save_draft_views` once with all draft view IDs. **Cannot be deleted** via `tool:delete_views` — the tool returns `deleted: false` for each draft; to discard a Draft, tell the user to do it in the UI.
 
 ---
 

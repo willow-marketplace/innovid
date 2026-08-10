@@ -1,6 +1,6 @@
 ---
 name: discover-event-surfaces
-description: ">"
+description: Given a change_brief YAML (output from diff-intake), generates an exhaustive list of candidate analytics events to instrument. Takes the perspective of an engineer with a PM mindset — surfaces everything worth considering so a PM can decide what actually matters. Use this as step 2 of the analytics instrumentation workflow, immediately after diff-intake produces a change_brief. Trigger whenever a user has a change_brief YAML and wants to know what analytics events to add, or asks "what should I track for this PR", "what events should I instrument", "generate event candidates", or any request to surface analytics coverage gaps for a code change.
 ---
 
 # discover-event-surfaces
@@ -88,14 +88,18 @@ avoid duplicates and match the naming convention already in use.
 ### Resolve the project
 
 If the change_brief includes an Amplitude `projectId`, use it directly. Otherwise,
-call `get_context` to resolve the project name or ask the user which project to
+call `get_amplitude_context` to resolve the project name or ask the user which project to
 target. You need a `projectId` for the next call.
 
 ### Pull existing events
 
-Call `get_events` with the resolved `projectId` (no cursor needed — just the first
-page is enough for pattern detection). This returns event objects with fields like
-`eventType`, `category`, `description`, etc.
+Call `get_events` with the resolved `projectId`. If its input schema accepts
+`_client`, every `get_events` call made by this skill MUST include the top-level
+argument
+`"_client": { "type": "skill", "skill_name": "discover-event-surfaces" }`
+in the tool arguments. Otherwise, omit `_client`. No cursor is needed — just the
+first page is enough for pattern detection. This returns event objects with
+fields like `eventType`, `category`, `description`, etc.
 
 ### Build naming references and an existing event index
 

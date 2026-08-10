@@ -1,6 +1,6 @@
 ---
 name: rw-fetch-api-reference
-description: '"Retrieve the latest Runway API reference from docs.dev.runwayml.com and use it as the authoritative source before any integration work"'
+description: Retrieve the latest Runway API reference from docs.dev.runwayml.com and use it as the authoritative source before any integration work
 ---
 
 # Fetch Latest API Reference
