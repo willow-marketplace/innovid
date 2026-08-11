@@ -19,15 +19,20 @@ Install two skills — they land under `.agents/skills/`:
   doesn't cover.
 
 Install via the skills CLI — run this through exec_tool, exactly as written. It installs the two
-skills, then runs `deploy.cjs <vertical>`, which lays the shared transport + **your one vertical's**
-REST scaffolds and UI client into `src/` and pins an AGENTS.md note. **Set `VERTICAL`** to what the
-prompt asks for — one of `storefront`, `bookings`, `blog`, `cms`, `portfolio`, `pricing-plans`,
-`events`, `members` (too vague to tell? do STEP 2 first, then set it).
+skills, then runs `deploy.cjs <vertical…>` (lays the shared transport + **each** listed vertical's
+REST scaffolds and UI client into `src/`) and `pin-agents-md.cjs` (pins the project's AGENTS.md
+note so later turns keep the rules).
+
+**Set `VERTICALS`** to what the prompt asks for, from `storefront`, `bookings`, `blog`, `cms`,
+`portfolio`, `pricing-plans`, `events`, `members` (too vague to tell? do STEP 2 first, then set it).
+**List every vertical the app actually uses** — one is the common case, and name more when the intent
+spans them, so all their scaffolds come from the skill rather than being written by hand. Adding one
+later is fine too: re-run with the extra name (the copy only fills in missing files).
 
 ```js
 const { execSync } = require('child_process');
 const { readdirSync } = require('fs');
-const VERTICAL = 'storefront'; // ← set from the prompt (see the list above)
+const VERTICALS = ['storefront']; // ← set from the prompt; list every vertical the app uses
 const results = {};
 for (const skill of ['wix-vibe-headless', 'wix-docs']) {
   try {
@@ -37,9 +42,11 @@ for (const skill of ['wix-vibe-headless', 'wix-docs']) {
       : out.includes('No valid skills') ? 'not_found' : 'unknown';
   } catch (e) { results[skill] = 'error: ' + e.message; }
 }
-// Deploy the shared transport + ONLY this vertical's scaffolds/UI into src/, and pin AGENTS.md.
-const deploy = execSync(`node /app/.agents/skills/wix-vibe-headless/install/deploy.cjs ${VERTICAL}`, { cwd: '/app' }).toString();
-return { results, installed: readdirSync('/app/.agents/skills'), deploy: JSON.parse(deploy) };
+// Deploy the shared transport + each listed vertical's scaffolds/UI into src/.
+const deploy = execSync(`node /app/.agents/skills/wix-vibe-headless/install/deploy.cjs ${VERTICALS.join(' ')}`, { cwd: '/app' }).toString();
+// Pin the project's AGENTS.md note (idempotent) so the rules survive after this doc leaves context.
+const agentsMd = execSync(`node /app/.agents/skills/wix-vibe-headless/install/pin-agents-md.cjs`, { cwd: '/app' }).toString();
+return { results, installed: readdirSync('/app/.agents/skills'), deploy: JSON.parse(deploy), agentsMd: JSON.parse(agentsMd) };
 ```
 
 Read the skills with **`read_file`** (rooted at `/app` → workspace-relative path, e.g.

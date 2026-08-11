@@ -1,39 +1,14 @@
 ---
 name: doctor
-description: "Read-only Databricks health check: CLI, profiles, auth validity via one API call. Pass `full` to also check compute and recent job failures."
+description: Diagnose the Remember plugin — resolved paths, detected tools, storage mode, and whether capture is actually saving memory.
 ---
 
-# Databricks Doctor
+Run this exact command and relay its output back to the user **verbatim**, inside a code block, with no summarizing, editing, or omitting of lines:
 
-Run a **read-only** health check and report a short status table. Make no
-changes; every step below only reads. If a subcommand or flag is unfamiliar,
-check `databricks <group> --help` first rather than guessing.
+```
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/doctor.sh"
+```
 
-Run these in order. Don't stop on the first failure; collect what you can and
-report the rest as unknown.
+After the code block, do not add your own diagnosis or next steps unless the user asks — the script's report is the answer, and re-deriving it from your own guesses is how a confident wrong answer gets attached to a correct report.
 
-1. **CLI**: `databricks --version`. Flag only if it's missing; don't gate on a
-   specific version (the CLI surfaces its own update notice).
-2. **Profiles**: `databricks auth profiles`. List configured profiles and
-   validity. If `$1` is given, use that profile for the rest. Otherwise, if more
-   than one profile exists, ask the user which to use (**never auto-select**).
-3. **Auth method**: `databricks auth describe --profile <profile>` shows the
-   effective host, user, and credential source (never pass `--sensitive`).
-4. **Auth validity**: `databricks current-user me --profile <profile>`. This
-   single API call proves the credentials work end to end (token valid,
-   workspace reachable, expected identity); don't probe other APIs for it.
-   For account-level profiles (an `accounts.*` host), `current-user me` does
-   not exist; report what `auth describe` resolved instead.
-
-Stop here by default. Run the extended checks below only when the user passed `full` or asked about compute or jobs:
-
-5. **Compute**: `databricks warehouses list` and `databricks clusters list` for
-   the profile. Note what's running.
-6. **Recent job failures**: list recent job runs (e.g.
-   `databricks jobs list-runs --limit 20 --profile <profile>`) and surface any
-   recent failures.
-
-Then print a compact table: **check | status (✅/⚠️/❌) | detail**. End with the
-single most useful next action (e.g. "run `/databricks:setup` to add a profile").
-
-This is a status check; it only reads, so don't run anything that changes state.
+If the report states a problem, quote the `VERDICT` line back in plain language **together with any `FAIL` or `WARN` lines above it**. The verdict names the single most likely cause; the lines above it are the evidence, and when more than one thing is wrong they carry detail the verdict cannot. Never contradict a `FAIL` line — if the verdict and a `FAIL` line seem to disagree, say so plainly rather than picking one, because that disagreement is itself worth reporting.

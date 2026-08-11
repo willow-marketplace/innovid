@@ -1,25 +1,320 @@
 ---
 name: auth
-description: "Add authentication to the current Convex + web app — passkeys by default (OAuth/password optional), wired end to end incl. the auth.config.ts that's the #1 auth footgun. TRIGGER when the user wants login / sign-in / accounts / passkeys / OAuth for an existing app."
+description: Authentication integration guidance — Clerk (native Vercel Marketplace), Descope, and Auth0 setup for Next.js applications. Covers middleware auth patterns, sign-in/sign-up flows, and Marketplace provisioning. Use when implementing user authentication.
 ---
 
-# Add sign-in to the app
+# Authentication Integrations
 
-Install and wire @convex-dev/auth for the current app: a provider (passkeys by default, or OAuth/password), the server config, the client hooks, and a sign-in UI — correctly, including the auth.config.ts that's the #1 real-world auth footgun.
+You are an expert in authentication for Vercel-deployed applications — covering Clerk (native Vercel Marketplace integration), Descope, and Auth0.
 
-## Steps
-1. Install @convex-dev/auth (pinned build) and add it to convex.config.ts. With pnpm, also `pnpm add jose` (it won't hoist otherwise); you need it for step 3.
-2. Add the provider in convex/auth.ts (Passkey by default; Password or OAuth like Google on request).
-3. Generate the auth keys HEADLESSLY. Do NOT run the interactive `npx @convex-dev/auth` wizard: it needs a login/TTY and hangs in non-interactive, anonymous, or CI runs (the #1 auth time-sink). Generate JWT_PRIVATE_KEY + JWKS deterministically with `jose`:
-   node -e 'import("jose").then(async({generateKeyPair,exportPKCS8,exportJWK})=>{const k=await generateKeyPair("RS256",{extractable:true});const priv=await exportPKCS8(k.privateKey);const pub=await exportJWK(k.publicKey);process.stdout.write(JSON.stringify({JWT_PRIVATE_KEY:priv.trimEnd().replace(/\n/g," "),JWKS:JSON.stringify({keys:[{use:"sig",...pub}]})}))})' > .auth-keys.json
-   Then set JWT_PRIVATE_KEY and JWKS (from .auth-keys.json) plus SITE_URL on the deployment. Prefer the Convex MCP `envSet` tool, one call per var, to avoid shell-quoting the multi-line key. CLI fallback: use the NAME=VALUE form (`npx convex env set "JWT_PRIVATE_KEY=$JWT"`), NEVER `env set JWT_PRIVATE_KEY "$JWT"` (the value starts with `-----BEGIN` and the CLI parses the leading `-` as an unknown flag). SITE_URL is the dev URL (e.g. http://localhost:3000). Delete .auth-keys.json after.
-4. Write convex/auth.config.ts (the silently-always-signed-out bug lives here if it's wrong).
-5. Wire the client: ConvexAuthProvider, the sign-in component, and route guards. If you import shadcn/ui primitives (button, input, textarea, label, and so on), add them first with `npx shadcn@latest add <name>`; a missing @/components/ui/* is a hard build error.
-6. Verify a sign-in round-trips before declaring done.
+## Clerk (Recommended — Native Marketplace Integration)
 
-## Rules
-- Generate JWT_PRIVATE_KEY/JWKS with `jose` (extractable RS256; PKCS8 newlines to spaces; JWKS = {keys:[{use:"sig", ...publicJwk}]}). Do NOT run the interactive `npx @convex-dev/auth` wizard: it hangs headless/anonymous. Set the vars via the MCP `envSet` tool or the NAME=VALUE CLI form.
-- Always write auth.config.ts: a missing/incorrect one makes the app silently always-signed-out with no error.
-- Passkeys by default; only switch to password/OAuth on explicit request.
-- Install any shadcn/ui primitive you import up front (`npx shadcn@latest add ...`); a missing @/components/ui/* is a hard build failure.
-- Verify a real sign-in works before finishing.
+Clerk is a native Vercel Marketplace integration with auto-provisioned environment variables and unified billing. Current SDK: `@clerk/nextjs` v7 (Core 3, March 2026).
+
+### Install via Marketplace
+
+```bash
+# Install Clerk from Vercel Marketplace (auto-provisions env vars)
+vercel integration add clerk
+```
+
+Auto-provisioned environment variables:
+- `CLERK_SECRET_KEY` — server-side API key
+- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` — client-side publishable key
+
+### SDK Setup
+
+```bash
+# Install the Clerk Next.js SDK
+npm install @clerk/nextjs
+```
+
+### Middleware Configuration
+
+```ts
+// middleware.ts
+import { clerkMiddleware } from "@clerk/nextjs/server";
+
+export default clerkMiddleware();
+
+export const config = {
+  matcher: [
+    // Skip Next.js internals and static files
+    "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
+    // Always run for API routes
+    "/(api|trpc)(.*)",
+  ],
+};
+```
+
+### Protect Routes
+
+```ts
+// middleware.ts — protect specific routes
+import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
+
+const isProtectedRoute = createRouteMatcher(["/dashboard(.*)", "/api(.*)"]);
+
+export default clerkMiddleware(async (auth, req) => {
+  if (isProtectedRoute(req)) {
+    await auth.protect();
+  }
+});
+```
+
+### Frontend API Proxy (Core 3)
+
+Proxy Clerk's Frontend API through your own domain to avoid third-party requests:
+
+```ts
+// middleware.ts
+export default clerkMiddleware({
+  frontendApiProxy: { enabled: true },
+});
+```
+
+### Provider Setup
+
+```tsx
+// app/layout.tsx
+import { ClerkProvider } from "@clerk/nextjs";
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <ClerkProvider>
+      <html lang="en">
+        <body>{children}</body>
+      </html>
+    </ClerkProvider>
+  );
+}
+```
+
+### Sign-In and Sign-Up Pages
+
+```tsx
+// app/sign-in/[[...sign-in]]/page.tsx
+import { SignIn } from "@clerk/nextjs";
+
+export default function Page() {
+  return <SignIn />;
+}
+```
+
+```tsx
+// app/sign-up/[[...sign-up]]/page.tsx
+import { SignUp } from "@clerk/nextjs";
+
+export default function Page() {
+  return <SignUp />;
+}
+```
+
+Add routing env vars to `.env.local`:
+
+```env
+NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
+NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
+```
+
+### Access User Data
+
+```tsx
+// Server component
+import { currentUser } from "@clerk/nextjs/server";
+
+export default async function Page() {
+  const user = await currentUser();
+  return <p>Hello, {user?.firstName}</p>;
+}
+```
+
+```tsx
+// Client component
+"use client";
+import { useUser } from "@clerk/nextjs";
+
+export default function UserGreeting() {
+  const { user, isLoaded } = useUser();
+  if (!isLoaded) return null;
+  return <p>Hello, {user?.firstName}</p>;
+}
+```
+
+### API Route Protection
+
+```ts
+// app/api/protected/route.ts
+import { auth } from "@clerk/nextjs/server";
+
+export async function GET() {
+  const { userId } = await auth();
+  if (!userId) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  return Response.json({ userId });
+}
+```
+
+## Descope
+
+Descope is available on the Vercel Marketplace with native integration support.
+
+### Install via Marketplace
+
+```bash
+vercel integration add descope
+```
+
+### SDK Setup
+
+```bash
+npm install @descope/nextjs-sdk
+```
+
+### Provider and Middleware
+
+```tsx
+// app/layout.tsx
+import { AuthProvider } from "@descope/nextjs-sdk";
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <AuthProvider projectId={process.env.NEXT_PUBLIC_DESCOPE_PROJECT_ID!}>
+      <html lang="en">
+        <body>{children}</body>
+      </html>
+    </AuthProvider>
+  );
+}
+```
+
+```ts
+// middleware.ts
+import { authMiddleware } from "@descope/nextjs-sdk/server";
+
+export default authMiddleware({
+  projectId: process.env.DESCOPE_PROJECT_ID!,
+  publicRoutes: ["/", "/sign-in"],
+});
+```
+
+### Sign-In Flow
+
+```tsx
+"use client";
+import { Descope } from "@descope/nextjs-sdk";
+
+export default function SignInPage() {
+  return <Descope flowId="sign-up-or-in" />;
+}
+```
+
+## Auth0
+
+Auth0 provides a mature authentication platform with extensive identity provider support.
+
+### SDK Setup
+
+```bash
+npm install @auth0/nextjs-auth0
+```
+
+### Configuration
+
+```ts
+// lib/auth0.ts
+import { Auth0Client } from "@auth0/nextjs-auth0/server";
+
+export const auth0 = new Auth0Client();
+```
+
+Required environment variables:
+
+```env
+AUTH0_SECRET=<random-secret>
+AUTH0_BASE_URL=http://localhost:3000
+AUTH0_ISSUER_BASE_URL=https://your-tenant.auth0.com
+AUTH0_CLIENT_ID=<client-id>
+AUTH0_CLIENT_SECRET=<client-secret>
+```
+
+### Middleware
+
+```ts
+// middleware.ts
+import { auth0 } from "@/lib/auth0";
+import { NextRequest, NextResponse } from "next/server";
+
+export async function middleware(request: NextRequest) {
+  return await auth0.middleware(request);
+}
+
+export const config = {
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt).*)",
+  ],
+};
+```
+
+### Access Session Data
+
+```tsx
+// Server component
+import { auth0 } from "@/lib/auth0";
+
+export default async function Page() {
+  const session = await auth0.getSession();
+  return session ? (
+    <p>Hello, {session.user.name}</p>
+  ) : (
+    <a href="/auth/login">Log in</a>
+  );
+}
+```
+
+## Decision Matrix
+
+| Need | Recommended | Why |
+|------|------------|-----|
+| Fastest setup on Vercel | Clerk | Native Marketplace, auto-provisioned env vars |
+| Passwordless / social login flows | Descope | Visual flow builder, Marketplace native |
+| Enterprise SSO / SAML / multi-tenant | Auth0 | Deep enterprise identity support |
+| Pre-built UI components | Clerk | Drop-in `<SignIn />`, `<UserButton />` |
+| Vercel unified billing | Clerk or Descope | Both are native Marketplace integrations |
+
+## Clerk Core 3 Breaking Changes (March 2026)
+
+Clerk provides an upgrade CLI that scans your codebase and applies codemods: `npx @clerk/upgrade`. Requires **Node.js 20.9.0+**.
+
+- **`auth()` is async** — always use `const { userId } = await auth()`, not synchronous
+- **`auth.protect()` moved** — use `await auth.protect()` directly, not from the return value of `auth()`
+- **`clerkClient()` is async** — use `await clerkClient()` in middleware handlers
+- **`authMiddleware()` removed** — migrate to `clerkMiddleware()`
+- **`@clerk/types` deprecated** — import types from SDK subpath exports: `import type { UserResource } from '@clerk/react/types'` (works from any SDK package)
+- **`ClerkProvider` no longer forces dynamic rendering** — pass the `dynamic` prop if needed
+- **Cache components** — when using Next.js cache components, place `<ClerkProvider>` inside `<body>`, not wrapping `<html>`
+- **Satellite domains** — new `satelliteAutoSync` option skips handshake redirects when no session cookies exist
+- **Smaller bundles** — React is now shared across framework SDKs (~50KB gzipped savings)
+- **Better offline handling** — `getToken()` now correctly distinguishes signed-out from offline states
+
+## Cross-References
+
+- **Marketplace install and env var provisioning** → `⤳ skill: marketplace`
+- **Middleware routing patterns** → `⤳ skill: routing-middleware`
+- **Environment variable management** → `⤳ skill: env-vars`
+
+## Official Documentation
+
+- [Clerk + Vercel Marketplace](https://clerk.com/docs/deployments/vercel)
+- [Clerk Next.js Quickstart](https://clerk.com/docs/quickstarts/nextjs)
+- [Descope Next.js SDK](https://docs.descope.com/getting-started/nextjs)
+- [Auth0 Next.js SDK](https://auth0.com/docs/quickstart/webapp/nextjs)

@@ -28,7 +28,7 @@
         "cost",
         "coach"
       ],
-      "updatedAt": "2026-08-10T00:26:56.087Z"
+      "updatedAt": "2026-08-10T12:17:08.350Z"
     },
     {
       "name": "claude-mem",
@@ -53,7 +53,7 @@
         "typescript",
         "nodejs"
       ],
-      "updatedAt": "2026-08-10T00:26:56.088Z"
+      "updatedAt": "2026-08-10T12:17:08.350Z"
     },
     {
       "name": "caveman",
@@ -64,7 +64,7 @@
         "url": "https://github.com/JuliusBrussee",
         "name": "Julius Brussee"
       },
-      "updatedAt": "2026-08-10T00:26:56.088Z"
+      "updatedAt": "2026-08-10T12:17:08.350Z"
     },
     {
       "name": "context-mode",
@@ -87,7 +87,7 @@
         "playwright",
         "context7"
       ],
-      "updatedAt": "2026-08-10T00:26:56.088Z"
+      "updatedAt": "2026-08-10T12:17:08.350Z"
     },
     {
       "name": "ui-ux-pro-max",
@@ -108,7 +108,7 @@
         "charts",
         "components"
       ],
-      "updatedAt": "2026-08-10T00:26:56.088Z"
+      "updatedAt": "2026-08-10T12:17:08.351Z"
     },
     {
       "name": "superpowers",
@@ -129,7 +129,7 @@
         "best-practices",
         "workflows"
       ],
-      "updatedAt": "2026-08-10T12:02:29.406Z"
+      "updatedAt": "2026-08-11T00:04:06.689Z"
     },
     {
       "name": "warp",
@@ -141,7 +141,7 @@
         "name": "Warp"
       },
       "homepage": "https://github.com/warpdotdev/claude-code-warp",
-      "updatedAt": "2026-08-10T00:26:56.089Z"
+      "updatedAt": "2026-08-10T12:17:08.351Z"
     },
     {
       "name": "asana",
@@ -151,7 +151,7 @@
       "author": {
         "name": "Asana"
       },
-      "updatedAt": "2026-08-10T12:02:48.354Z"
+      "updatedAt": "2026-08-11T00:02:45.091Z"
     },
     {
       "name": "atlassian",
@@ -161,7 +161,7 @@
       "author": {
         "name": "Atlassian"
       },
-      "updatedAt": "2026-08-10T12:02:49.228Z"
+      "updatedAt": "2026-08-11T00:02:46.162Z"
     },
     {
       "name": "teamcity-cli",
@@ -172,7 +172,7 @@
         "name": "JetBrains"
       },
       "homepage": "https://www.jetbrains.com/teamcity/",
-      "updatedAt": "2026-08-10T12:02:34.184Z"
+      "updatedAt": "2026-08-11T00:04:10.588Z"
     },
     {
       "name": "typescript-lsp",
@@ -183,7 +183,7 @@
         "name": "Anthropic",
         "email": "support@anthropic.com"
       },
-      "updatedAt": "2026-08-10T12:02:28.943Z"
+      "updatedAt": "2026-08-11T00:04:06.418Z"
     },
     {
       "name": "php-lsp",
@@ -194,7 +194,7 @@
         "name": "Anthropic",
         "email": "support@anthropic.com"
       },
-      "updatedAt": "2026-08-10T12:02:16.514Z"
+      "updatedAt": "2026-08-11T00:03:51.074Z"
     },
     {
       "name": "clangd-lsp",
@@ -205,7 +205,7 @@
         "name": "Anthropic",
         "email": "support@anthropic.com"
       },
-      "updatedAt": "2026-08-10T12:01:47.375Z"
+      "updatedAt": "2026-08-11T00:02:58.352Z"
     },
     {
       "name": "ruby-lsp",
@@ -216,7 +216,7 @@
         "name": "Anthropic",
         "email": "support@anthropic.com"
       },
-      "updatedAt": "2026-08-10T12:02:21.175Z"
+      "updatedAt": "2026-08-11T00:03:58.917Z"
     },
     {
       "name": "lua-lsp",
@@ -227,7 +227,7 @@
         "name": "Anthropic",
         "email": "support@anthropic.com"
       },
-      "updatedAt": "2026-08-10T12:02:04.017Z"
+      "updatedAt": "2026-08-11T00:03:22.350Z"
     },
     {
       "name": "kotlin-lsp",
@@ -238,7 +238,7 @@
         "name": "Anthropic",
         "email": "support@anthropic.com"
       },
-      "updatedAt": "2026-08-10T12:02:02.146Z"
+      "updatedAt": "2026-08-11T00:03:20.016Z"
     },
     {
       "name": "csharp-lsp",
@@ -249,7 +249,7 @@
         "name": "Anthropic",
         "email": "support@anthropic.com"
       },
-      "updatedAt": "2026-08-10T12:01:50.730Z"
+      "updatedAt": "2026-08-11T00:03:06.271Z"
     },
     {
       "name": "gopls-lsp",
@@ -260,7 +260,7 @@
         "name": "Anthropic",
         "email": "support@anthropic.com"
       },
-      "updatedAt": "2026-08-10T12:02:00.556Z"
+      "updatedAt": "2026-08-11T00:03:16.216Z"
     },
     {
       "name": "sonarqube",
@@ -280,7 +280,7 @@
         "security",
         "secrets"
       ],
-      "updatedAt": "2026-08-10T12:02:25.590Z"
+      "updatedAt": "2026-08-11T00:04:02.700Z"
     },
     {
       "name": "snowflake-cortex-code",
@@ -299,7 +299,7 @@
         "sql",
         "data"
       ],
-      "updatedAt": "2026-08-10T12:02:25.262Z"
+      "updatedAt": "2026-08-11T00:04:02.138Z"
     },
     {
       "name": "slack",
@@ -312,7 +312,7 @@
       },
       "homepage": "https://docs.slack.dev/ai/slack-skills-plugin",
       "repository": "https://github.com/slackapi/slack-skills-plugin",
-      "updatedAt": "2026-08-10T12:02:25.686Z"
+      "updatedAt": "2026-08-11T00:04:02.479Z"
     },
     {
       "name": "postman",
@@ -337,7 +337,7 @@
         "openapi",
         "agent-ready"
       ],
-      "updatedAt": "2026-08-10T12:02:52.495Z"
+      "updatedAt": "2026-08-11T00:03:56.325Z"
     },
     {
       "name": "notion",
@@ -350,7 +350,7 @@
       },
       "homepage": "https://github.com/makenotion/claude-code-notion-plugin",
       "repository": "https://github.com/makenotion/claude-code-notion-plugin",
-      "updatedAt": "2026-08-10T12:02:18.187Z"
+      "updatedAt": "2026-08-11T00:03:56.313Z"
     },
     {
       "name": "mongodb",
@@ -370,18 +370,27 @@
         "mcp",
         "vector-search"
       ],
-      "updatedAt": "2026-08-10T12:02:10.035Z"
+      "updatedAt": "2026-08-11T00:03:39.579Z"
     },
     {
       "name": "terraform",
       "source": "./plugins/terraform",
-      "description": "The Terraform MCP Server provides seamless integration with Terraform ecosystem, enabling advanced automation and interaction capabilities for Infrastructure as Code (IaC) development.",
+      "description": "Terraform skills for configuration, modules, providers, tests, imports, stacks, and policy.",
       "version": "1.0.0",
       "author": {
+        "url": "https://github.com/hashicorp",
         "name": "HashiCorp"
       },
-      "homepage": "https://github.com/anthropics/claude-plugins-public/tree/main/external_plugins/terraform",
-      "updatedAt": "2026-08-10T12:02:28.711Z"
+      "homepage": "https://developer.hashicorp.com/terraform",
+      "repository": "https://github.com/hashicorp/agent-skills",
+      "keywords": [
+        "terraform",
+        "hcl",
+        "provider",
+        "modules",
+        "infrastructure"
+      ],
+      "updatedAt": "2026-08-11T00:04:14.620Z"
     },
     {
       "name": "github",
@@ -391,7 +400,7 @@
       "author": {
         "name": "GitHub"
       },
-      "updatedAt": "2026-08-10T12:02:00.193Z"
+      "updatedAt": "2026-08-11T00:03:15.922Z"
     },
     {
       "name": "gitlab",
@@ -402,7 +411,7 @@
         "name": "GitLab"
       },
       "homepage": "https://github.com/anthropics/claude-plugins-public/tree/main/external_plugins/gitlab",
-      "updatedAt": "2026-08-10T12:02:00.303Z"
+      "updatedAt": "2026-08-11T00:03:16.108Z"
     },
     {
       "name": "context7",
@@ -412,7 +421,7 @@
       "author": {
         "name": "Upstash"
       },
-      "updatedAt": "2026-08-10T12:01:49.726Z"
+      "updatedAt": "2026-08-11T00:03:04.622Z"
     },
     {
       "name": "ralph-loop",
@@ -424,7 +433,7 @@
         "email": "support@anthropic.com"
       },
       "homepage": "https://github.com/anthropics/claude-plugins-public/tree/main/plugins/ralph-loop",
-      "updatedAt": "2026-08-10T12:02:19.434Z"
+      "updatedAt": "2026-08-11T00:03:56.474Z"
     },
     {
       "name": "playwright",
@@ -435,7 +444,7 @@
         "name": "Microsoft"
       },
       "homepage": "https://github.com/anthropics/claude-plugins-public/tree/main/external_plugins/playwright",
-      "updatedAt": "2026-08-10T12:02:17.033Z"
+      "updatedAt": "2026-08-11T00:03:54.470Z"
     },
     {
       "name": "code-review",
@@ -446,7 +455,7 @@
         "name": "Anthropic",
         "email": "support@anthropic.com"
       },
-      "updatedAt": "2026-08-10T12:01:49.278Z"
+      "updatedAt": "2026-08-11T00:03:02.607Z"
     },
     {
       "name": "code-simplifier",
@@ -457,7 +466,7 @@
         "name": "Anthropic",
         "email": "support@anthropic.com"
       },
-      "updatedAt": "2026-08-10T12:02:17.578Z"
+      "updatedAt": "2026-08-11T00:03:54.640Z"
     },
     {
       "name": "claude-md-management",
@@ -468,7 +477,7 @@
         "name": "Anthropic",
         "email": "support@anthropic.com"
       },
-      "updatedAt": "2026-08-10T12:01:47.435Z"
+      "updatedAt": "2026-08-11T00:02:58.606Z"
     },
     {
       "name": "claude-code-setup",
@@ -479,7 +488,7 @@
         "name": "Anthropic",
         "email": "support@anthropic.com"
       },
-      "updatedAt": "2026-08-10T12:01:47.421Z"
+      "updatedAt": "2026-08-11T00:02:58.544Z"
     },
     {
       "name": "code-modernization",
@@ -490,7 +499,7 @@
         "name": "Anthropic",
         "email": "support@anthropic.com"
       },
-      "updatedAt": "2026-08-10T12:01:48.894Z"
+      "updatedAt": "2026-08-11T00:03:04.334Z"
     },
     {
       "name": "skill-creator",
@@ -502,7 +511,7 @@
         "email": "support@anthropic.com"
       },
       "homepage": "https://github.com/anthropics/claude-plugins-official/tree/main/plugins/skill-creator",
-      "updatedAt": "2026-08-10T12:02:49.073Z"
+      "updatedAt": "2026-08-11T00:04:01.394Z"
     },
     {
       "name": "monday-crm",
@@ -533,7 +542,7 @@
         "timeline",
         "activity-insights"
       ],
-      "updatedAt": "2026-08-10T12:02:09.307Z"
+      "updatedAt": "2026-08-11T00:03:38.765Z"
     },
     {
       "name": "sentry-cli",
@@ -544,7 +553,7 @@
         "name": "Sentry"
       },
       "homepage": "https://sentry.io",
-      "updatedAt": "2026-08-10T12:02:24.490Z"
+      "updatedAt": "2026-08-11T00:04:02.821Z"
     },
     {
       "name": "sentry",
@@ -562,7 +571,7 @@
         "monitoring",
         "error-tracking"
       ],
-      "updatedAt": "2026-08-10T12:02:27.011Z"
+      "updatedAt": "2026-08-11T00:04:03.134Z"
     },
     {
       "name": "zoom-plugin",
@@ -591,7 +600,7 @@
         "team-chat",
         "mcp"
       ],
-      "updatedAt": "2026-08-10T12:02:42.606Z"
+      "updatedAt": "2026-08-11T00:04:09.862Z"
     },
     {
       "name": "microsoft-docs",
@@ -616,7 +625,7 @@
         "powerbi",
         "office"
       ],
-      "updatedAt": "2026-08-10T12:02:07.032Z"
+      "updatedAt": "2026-08-11T00:03:31.319Z"
     },
     {
       "name": "jfrog",
@@ -643,7 +652,7 @@
         "package-resolution",
         "ai-catalog"
       ],
-      "updatedAt": "2026-08-10T12:02:02.966Z"
+      "updatedAt": "2026-08-11T00:03:20.743Z"
     },
     {
       "name": "miro",
@@ -694,7 +703,7 @@
         "kanban",
         "sync"
       ],
-      "updatedAt": "2026-08-10T12:02:08.322Z"
+      "updatedAt": "2026-08-11T00:03:34.478Z"
     },
     {
       "name": "huggingface-skills",
@@ -715,7 +724,7 @@
         "jobs",
         "llm"
       ],
-      "updatedAt": "2026-08-10T12:02:02.946Z"
+      "updatedAt": "2026-08-11T00:03:20.228Z"
     },
     {
       "name": "hyperframes",
@@ -729,7 +738,7 @@
       },
       "homepage": "https://hyperframes.heygen.com",
       "repository": "https://github.com/heygen-com/hyperframes",
-      "updatedAt": "2026-08-10T00:26:56.159Z"
+      "updatedAt": "2026-08-10T12:17:08.364Z"
     },
     {
       "name": "desktop-commander",
@@ -752,7 +761,7 @@
         "spreadsheet",
         "desktop-commander"
       ],
-      "updatedAt": "2026-08-10T12:01:55.937Z"
+      "updatedAt": "2026-08-11T00:03:12.863Z"
     },
     {
       "name": "expo",
@@ -763,7 +772,7 @@
         "name": "Expo Team",
         "email": "support@expo.dev"
       },
-      "updatedAt": "2026-08-10T12:01:57.910Z"
+      "updatedAt": "2026-08-11T00:03:15.530Z"
     },
     {
       "name": "cloudinary",
@@ -786,7 +795,7 @@
         "optimization",
         "mcp"
       ],
-      "updatedAt": "2026-08-10T12:01:48.757Z"
+      "updatedAt": "2026-08-11T00:03:00.996Z"
     },
     {
       "name": "figma",
@@ -796,7 +805,7 @@
       "author": {
         "name": "Figma"
       },
-      "updatedAt": "2026-08-10T12:02:00.326Z"
+      "updatedAt": "2026-08-11T00:03:16.478Z"
     },
     {
       "name": "cloudflare",
@@ -806,7 +815,7 @@
       "author": {
         "name": "Cloudflare"
       },
-      "updatedAt": "2026-08-10T12:01:53.138Z"
+      "updatedAt": "2026-08-11T00:03:07.423Z"
     },
     {
       "name": "clickhouse",
@@ -826,7 +835,7 @@
         "mcp",
         "analytics"
       ],
-      "updatedAt": "2026-08-10T12:02:52.464Z"
+      "updatedAt": "2026-08-11T00:03:59.588Z"
     },
     {
       "name": "adobe-for-creativity",
@@ -843,14 +852,14 @@
         "image-editing",
         "design"
       ],
-      "updatedAt": "2026-08-10T12:02:48.374Z"
+      "updatedAt": "2026-08-11T00:02:45.477Z"
     },
     {
       "name": "chrome-devtools-mcp",
       "source": "./plugins/chrome-devtools-mcp",
       "description": "Reliable automation, in-depth debugging, and performance analysis in Chrome using Chrome DevTools and Puppeteer",
       "version": "1.5.0",
-      "updatedAt": "2026-08-10T00:26:56.197Z"
+      "updatedAt": "2026-08-10T12:17:08.366Z"
     },
     {
       "name": "airtable",
@@ -894,7 +903,7 @@
         "mcp",
         "content"
       ],
-      "updatedAt": "2026-08-10T12:02:45.792Z"
+      "updatedAt": "2026-08-11T00:02:41.486Z"
     },
     {
       "name": "box",
@@ -912,7 +921,7 @@
         "file-management",
         "collaboration"
       ],
-      "updatedAt": "2026-08-10T12:02:54.879Z"
+      "updatedAt": "2026-08-11T00:02:54.801Z"
     },
     {
       "name": "auth0",
@@ -923,13 +932,13 @@
         "name": "Auth0",
         "email": "support@auth0.com"
       },
-      "updatedAt": "2026-08-10T12:02:50.303Z"
+      "updatedAt": "2026-08-11T00:02:48.069Z"
     },
     {
       "name": "azure",
       "source": "./plugins/azure",
       "description": "Microsoft Azure MCP and Skills integration for cloud resource management, deployments, and Azure services. Manage your Azure infrastructure, monitor applications, and deploy resources directly from Claude Code.",
-      "version": "1.2.17",
+      "version": "1.2.25",
       "author": {
         "url": "https://www.microsoft.com",
         "name": "Microsoft"
@@ -946,7 +955,7 @@
         "foundry",
         "diagnostics"
       ],
-      "updatedAt": "2026-08-10T12:01:57.446Z"
+      "updatedAt": "2026-08-11T00:03:14.089Z"
     },
     {
       "name": "dbt",
@@ -965,7 +974,7 @@
         "semantic-layer",
         "testing"
       ],
-      "updatedAt": "2026-08-10T00:26:56.225Z"
+      "updatedAt": "2026-08-10T12:17:08.367Z"
     },
     {
       "name": "dbt-extras",
@@ -982,7 +991,7 @@
         "extras",
         "utilities"
       ],
-      "updatedAt": "2026-08-10T00:26:56.225Z"
+      "updatedAt": "2026-08-10T12:17:08.367Z"
     },
     {
       "name": "dbt-migration",
@@ -1000,7 +1009,7 @@
         "fusion",
         "platform-migration"
       ],
-      "updatedAt": "2026-08-10T00:26:56.225Z"
+      "updatedAt": "2026-08-10T12:17:08.367Z"
     },
     {
       "name": "oz-harness-support",
@@ -1012,7 +1021,7 @@
         "name": "Warp"
       },
       "homepage": "https://github.com/warpdotdev/claude-code-warp",
-      "updatedAt": "2026-08-10T00:26:56.226Z"
+      "updatedAt": "2026-08-10T12:17:08.368Z"
     },
     {
       "name": "forge-skills",
@@ -1023,7 +1032,7 @@
         "name": "Atlassian Labs"
       },
       "homepage": "https://developer.atlassian.com/platform/forge/",
-      "updatedAt": "2026-08-10T12:02:00.690Z"
+      "updatedAt": "2026-08-11T00:03:16.466Z"
     },
     {
       "name": "grafana-cloud-mcp",
@@ -1045,7 +1054,7 @@
         "prometheus",
         "loki"
       ],
-      "updatedAt": "2026-08-10T12:02:00.716Z"
+      "updatedAt": "2026-08-11T00:03:16.882Z"
     },
     {
       "name": "ui5",
@@ -1070,7 +1079,7 @@
         "development-guidelines",
         "best-practices"
       ],
-      "updatedAt": "2026-08-10T12:02:30.206Z"
+      "updatedAt": "2026-08-11T00:04:09.123Z"
     },
     {
       "name": "ui5-modernization",
@@ -1090,7 +1099,7 @@
         "linter",
         "upgrade"
       ],
-      "updatedAt": "2026-08-10T12:02:30.300Z"
+      "updatedAt": "2026-08-11T00:04:09.272Z"
     },
     {
       "name": "vercel",
@@ -1113,7 +1122,7 @@
         "deployment",
         "serverless"
       ],
-      "updatedAt": "2026-08-10T12:02:37.299Z"
+      "updatedAt": "2026-08-11T00:04:12.903Z"
     },
     {
       "name": "valtown",
@@ -1131,7 +1140,7 @@
         "serverless",
         "typescript"
       ],
-      "updatedAt": "2026-08-10T12:02:42.606Z"
+      "updatedAt": "2026-08-11T00:04:09.880Z"
     },
     {
       "name": "vanta",
@@ -1152,7 +1161,7 @@
         "grc",
         "risk"
       ],
-      "updatedAt": "2026-08-10T12:02:30.474Z"
+      "updatedAt": "2026-08-11T00:04:09.904Z"
     },
     {
       "name": "youdotcom-agent-skills",
@@ -1181,7 +1190,7 @@
         "x402",
         "mpp"
       ],
-      "updatedAt": "2026-08-10T12:02:34.113Z"
+      "updatedAt": "2026-08-11T00:04:11.639Z"
     },
     {
       "name": "unreal-engine-skills-for-claude-code",
@@ -1193,7 +1202,7 @@
         "email": "thomas.mansencal@epicgames.com"
       },
       "homepage": "https://dev.epicgames.com/documentation/unreal-engine/unreal-mcp-in-unreal-editor",
-      "updatedAt": "2026-08-10T12:02:30.422Z"
+      "updatedAt": "2026-08-11T00:04:09.791Z"
     },
     {
       "name": "langfuse",
@@ -1214,7 +1223,7 @@
         "prompt-management",
         "evaluation"
       ],
-      "updatedAt": "2026-08-10T12:02:35.483Z"
+      "updatedAt": "2026-08-11T00:04:14.105Z"
     },
     {
       "name": "zscaler",
@@ -1225,7 +1234,7 @@
         "name": "Zscaler"
       },
       "homepage": "https://github.com/zscaler/zscaler-mcp-server",
-      "updatedAt": "2026-08-10T12:02:42.009Z"
+      "updatedAt": "2026-08-11T00:03:51.797Z"
     },
     {
       "name": "zoominfo",
@@ -1305,7 +1314,7 @@
         "website visitor identification",
         "mcp"
       ],
-      "updatedAt": "2026-08-10T12:02:48.425Z"
+      "updatedAt": "2026-08-11T00:04:14.210Z"
     },
     {
       "name": "windsor-ai",
@@ -1335,7 +1344,7 @@
         "stripe",
         "business-intelligence"
       ],
-      "updatedAt": "2026-08-10T12:02:31.136Z"
+      "updatedAt": "2026-08-11T00:04:10.464Z"
     },
     {
       "name": "wix",
@@ -1356,7 +1365,7 @@
         "cms",
         "wix-apps"
       ],
-      "updatedAt": "2026-08-10T12:02:39.442Z"
+      "updatedAt": "2026-08-11T00:03:50.557Z"
     },
     {
       "name": "sumup",
@@ -1367,7 +1376,7 @@
         "name": "SumUp"
       },
       "homepage": "https://www.sumup.com/",
-      "updatedAt": "2026-08-10T12:02:28.000Z"
+      "updatedAt": "2026-08-11T00:04:05.254Z"
     },
     {
       "name": "workos",
@@ -1380,7 +1389,7 @@
       },
       "homepage": "https://workos.com",
       "repository": "https://github.com/workos/skills",
-      "updatedAt": "2026-08-10T12:02:32.874Z"
+      "updatedAt": "2026-08-11T00:04:11.861Z"
     },
     {
       "name": "wordpress.com",
@@ -1388,7 +1397,7 @@
       "description": "Uses Claude Code to create and edit WordPress sites with WordPress Studio before deploying changes to your WordPress.com site.",
       "version": "1.0.0",
       "homepage": "https://developer.wordpress.com/wordpress-com-claude-code-plugin/",
-      "updatedAt": "2026-08-10T00:26:56.250Z"
+      "updatedAt": "2026-08-10T12:17:08.372Z"
     },
     {
       "name": "vsql-extension-builder",
@@ -1399,7 +1408,7 @@
         "name": "VillageSQL"
       },
       "homepage": "https://villagesql.com",
-      "updatedAt": "2026-08-10T12:02:31.076Z"
+      "updatedAt": "2026-08-11T00:04:10.461Z"
     },
     {
       "name": "ui5-typescript-conversion",
@@ -1420,7 +1429,7 @@
         "typescript",
         "conversion"
       ],
-      "updatedAt": "2026-08-10T12:02:29.883Z"
+      "updatedAt": "2026-08-11T00:04:07.984Z"
     },
     {
       "name": "spotify-ads-api",
@@ -1441,7 +1450,7 @@
         "oauth",
         "reporting"
       ],
-      "updatedAt": "2026-08-10T12:02:28.481Z"
+      "updatedAt": "2026-08-11T00:04:06.299Z"
     },
     {
       "name": "tavily",
@@ -1465,7 +1474,7 @@
         "crawl",
         "extract"
       ],
-      "updatedAt": "2026-08-10T12:02:28.640Z"
+      "updatedAt": "2026-08-11T00:04:06.262Z"
     },
     {
       "name": "togetherai-skills",
@@ -1488,7 +1497,7 @@
         "video",
         "audio"
       ],
-      "updatedAt": "2026-08-10T12:02:29.987Z"
+      "updatedAt": "2026-08-11T00:04:07.725Z"
     },
     {
       "name": "zilliz",
@@ -1499,7 +1508,7 @@
         "name": "Zilliz"
       },
       "homepage": "https://docs.zilliz.com",
-      "updatedAt": "2026-08-10T12:02:33.343Z"
+      "updatedAt": "2026-08-11T00:04:11.754Z"
     },
     {
       "name": "zapier",
@@ -1525,7 +1534,7 @@
         "ai-tools",
         "productivity"
       ],
-      "updatedAt": "2026-08-10T12:02:32.674Z"
+      "updatedAt": "2026-08-11T00:04:11.199Z"
     },
     {
       "name": "supabase",
@@ -1551,7 +1560,7 @@
         "migrations",
         "rls"
       ],
-      "updatedAt": "2026-08-10T12:02:28.061Z"
+      "updatedAt": "2026-08-11T00:04:05.343Z"
     },
     {
       "name": "stripe",
@@ -1571,7 +1580,7 @@
         "api",
         "security"
       ],
-      "updatedAt": "2026-08-10T12:02:28.117Z"
+      "updatedAt": "2026-08-11T00:04:06.401Z"
     },
     {
       "name": "twilio-developer-kit",
@@ -1582,7 +1591,7 @@
         "name": "Twilio"
       },
       "homepage": "https://www.twilio.com",
-      "updatedAt": "2026-08-10T12:02:30.685Z"
+      "updatedAt": "2026-08-11T00:04:09.049Z"
     },
     {
       "name": "atomic-agents",
@@ -1590,7 +1599,7 @@
       "description": "Comprehensive development workflow for building AI agents with the Atomic Agents framework. Includes specialized agents for schema design, architecture planning, code review, and tool development. Features guided workflows, progressive-disclosure skills, and best practice validation.",
       "version": "1.0.0",
       "homepage": "https://github.com/BrainBlend-AI/atomic-agents",
-      "updatedAt": "2026-08-10T12:02:51.619Z"
+      "updatedAt": "2026-08-11T00:02:51.166Z"
     },
     {
       "name": "swift-lsp",
@@ -1601,7 +1610,7 @@
         "name": "Anthropic",
         "email": "support@anthropic.com"
       },
-      "updatedAt": "2026-08-10T12:02:27.766Z"
+      "updatedAt": "2026-08-11T00:04:05.397Z"
     },
     {
       "name": "zyte-web-data",
@@ -1613,7 +1622,7 @@
       },
       "homepage": "https://github.com/zytedata/claude-skills",
       "repository": "https://github.com/zytedata/claude-skills",
-      "updatedAt": "2026-08-10T12:02:55.702Z"
+      "updatedAt": "2026-08-11T00:04:14.964Z"
     },
     {
       "name": "telegram",
@@ -1626,7 +1635,7 @@
         "channel",
         "mcp"
       ],
-      "updatedAt": "2026-08-10T12:02:28.487Z"
+      "updatedAt": "2026-08-11T00:04:06.303Z"
     },
     {
       "name": "vanta-mcp-plugin",
@@ -1647,7 +1656,7 @@
         "grc",
         "risk"
       ],
-      "updatedAt": "2026-08-10T12:02:30.463Z"
+      "updatedAt": "2026-08-11T00:04:09.912Z"
     },
     {
       "name": "vibe-prospecting",
@@ -1670,7 +1679,7 @@
         "companies",
         "contacts"
       ],
-      "updatedAt": "2026-08-10T12:02:32.296Z"
+      "updatedAt": "2026-08-11T00:04:10.446Z"
     },
     {
       "name": "idmp-plugin",
@@ -1697,7 +1706,7 @@
         "asset-modeling",
         "data-ingestion"
       ],
-      "updatedAt": "2026-08-10T12:02:02.483Z"
+      "updatedAt": "2026-08-11T00:03:20.134Z"
     },
     {
       "name": "langfuse-observability",
@@ -1709,7 +1718,7 @@
       },
       "homepage": "https://langfuse.com/integrations/other/claude-code",
       "repository": "https://github.com/langfuse/Claude-Observability-Plugin",
-      "updatedAt": "2026-08-10T12:02:03.879Z"
+      "updatedAt": "2026-08-11T00:03:21.039Z"
     },
     {
       "name": "grafana-assistant",
@@ -1728,7 +1737,7 @@
         "a2a",
         "cli"
       ],
-      "updatedAt": "2026-08-10T12:02:00.827Z"
+      "updatedAt": "2026-08-11T00:03:16.874Z"
     },
     {
       "name": "math-olympiad",
@@ -1740,7 +1749,7 @@
         "email": "support@anthropic.com"
       },
       "homepage": "https://github.com/anthropics/claude-plugins-official/tree/main/plugins/math-olympiad",
-      "updatedAt": "2026-08-10T12:02:04.600Z"
+      "updatedAt": "2026-08-11T00:03:23.768Z"
     },
     {
       "name": "lusha",
@@ -1769,7 +1778,7 @@
         "revops",
         "mcp"
       ],
-      "updatedAt": "2026-08-10T12:02:48.276Z"
+      "updatedAt": "2026-08-11T00:03:38.313Z"
     },
     {
       "name": "learn-with-coursera",
@@ -1780,7 +1789,7 @@
         "name": "Coursera"
       },
       "homepage": "https://github.com/coursera/skills",
-      "updatedAt": "2026-08-10T12:02:03.808Z"
+      "updatedAt": "2026-08-11T00:03:21.021Z"
     },
     {
       "name": "oracle-ai-data-platform-workbench-engineer-agent",
@@ -1831,7 +1840,7 @@
         "guardrails",
         "agent-tools"
       ],
-      "updatedAt": "2026-08-10T12:02:16.366Z"
+      "updatedAt": "2026-08-11T00:03:53.687Z"
     },
     {
       "name": "outputai",
@@ -1843,7 +1852,7 @@
         "email": "oss@growthx.ai"
       },
       "homepage": "https://output.ai",
-      "updatedAt": "2026-08-10T12:02:16.923Z"
+      "updatedAt": "2026-08-11T00:03:52.514Z"
     },
     {
       "name": "mcp-tunnels",
@@ -1855,7 +1864,7 @@
         "email": "support@anthropic.com"
       },
       "homepage": "https://github.com/anthropics/claude-plugins-official/tree/main/plugins/mcp-tunnels",
-      "updatedAt": "2026-08-10T12:02:05.279Z"
+      "updatedAt": "2026-08-11T00:03:24.803Z"
     },
     {
       "name": "mergify",
@@ -1885,7 +1894,7 @@
         "checkout",
         "workflow"
       ],
-      "updatedAt": "2026-08-10T12:02:09.204Z"
+      "updatedAt": "2026-08-11T00:03:33.818Z"
     },
     {
       "name": "playground",
@@ -1897,7 +1906,7 @@
         "email": "support@anthropic.com"
       },
       "homepage": "https://github.com/anthropics/claude-plugins-official/tree/main/plugins/playground",
-      "updatedAt": "2026-08-10T12:02:17.039Z"
+      "updatedAt": "2026-08-11T00:03:54.360Z"
     },
     {
       "name": "preset-cli-skills",
@@ -1920,7 +1929,7 @@
         "ci-cd",
         "automation"
       ],
-      "updatedAt": "2026-08-10T12:02:18.296Z"
+      "updatedAt": "2026-08-11T00:03:56.264Z"
     },
     {
       "name": "pydantic-ai",
@@ -1932,7 +1941,7 @@
         "email": "support@pydantic.dev"
       },
       "homepage": "https://github.com/pydantic/skills/tree/main/plugins/ai",
-      "updatedAt": "2026-08-10T12:02:18.306Z"
+      "updatedAt": "2026-08-11T00:03:54.859Z"
     },
     {
       "name": "qdrant-skills",
@@ -1943,7 +1952,7 @@
         "name": "Qdrant"
       },
       "homepage": "https://skills.qdrant.tech",
-      "updatedAt": "2026-08-10T12:02:19.965Z"
+      "updatedAt": "2026-08-11T00:03:56.824Z"
     },
     {
       "name": "pr-review-toolkit",
@@ -1955,7 +1964,7 @@
         "email": "support@anthropic.com"
       },
       "homepage": "https://github.com/anthropics/claude-plugins-public/tree/main/plugins/pr-review-toolkit",
-      "updatedAt": "2026-08-10T12:02:17.578Z"
+      "updatedAt": "2026-08-11T00:03:54.640Z"
     },
     {
       "name": "rc",
@@ -1963,7 +1972,7 @@
       "description": "Configure RevenueCat projects, apps, products, entitlements, and offerings directly from Claude Code. Manage your in-app purchase backend without leaving your development workflow.",
       "version": "1.0.0",
       "homepage": "https://www.revenuecat.com",
-      "updatedAt": "2026-08-10T12:02:20.918Z"
+      "updatedAt": "2026-08-11T00:03:58.694Z"
     },
     {
       "name": "redis-development",
@@ -1984,7 +1993,7 @@
         "performance",
         "best-practices"
       ],
-      "updatedAt": "2026-08-10T12:02:20.170Z"
+      "updatedAt": "2026-08-11T00:03:57.682Z"
     },
     {
       "name": "remember",
@@ -2002,7 +2011,7 @@
         "persistence",
         "session"
       ],
-      "updatedAt": "2026-08-10T12:02:23.542Z"
+      "updatedAt": "2026-08-11T00:03:59.945Z"
     },
     {
       "name": "semgrep",
@@ -2014,7 +2023,7 @@
         "name": "Semgrep"
       },
       "homepage": "https://github.com/semgrep/mcp-marketplace.git",
-      "updatedAt": "2026-08-10T00:26:56.339Z"
+      "updatedAt": "2026-08-10T12:17:08.381Z"
     },
     {
       "name": "sonatype-guide",
@@ -2026,7 +2035,7 @@
       },
       "homepage": "https://guide.sonatype.com",
       "repository": "https://github.com/sonatype/guide-claude-plugin",
-      "updatedAt": "2026-08-10T12:02:26.055Z"
+      "updatedAt": "2026-08-11T00:04:02.951Z"
     },
     {
       "name": "aikido",
@@ -2049,7 +2058,7 @@
         "scanning",
         "vulnerability"
       ],
-      "updatedAt": "2026-08-10T12:02:52.464Z"
+      "updatedAt": "2026-08-11T00:03:59.588Z"
     },
     {
       "name": "pixeltable",
@@ -2061,7 +2070,7 @@
         "name": "Pixeltable"
       },
       "homepage": "https://docs.pixeltable.com",
-      "updatedAt": "2026-08-10T12:02:17.254Z"
+      "updatedAt": "2026-08-11T00:03:54.535Z"
     },
     {
       "name": "hunter",
@@ -2087,7 +2096,7 @@
         "outreach",
         "crm"
       ],
-      "updatedAt": "2026-08-10T12:02:01.333Z"
+      "updatedAt": "2026-08-11T00:03:18.876Z"
     },
     {
       "name": "greptile",
@@ -2106,7 +2115,7 @@
         "gitlab",
         "ai"
       ],
-      "updatedAt": "2026-08-10T12:02:00.777Z"
+      "updatedAt": "2026-08-11T00:03:16.637Z"
     },
     {
       "name": "hookify",
@@ -2118,7 +2127,7 @@
         "email": "support@anthropic.com"
       },
       "homepage": "https://github.com/anthropics/claude-plugins-public/tree/main/plugins/hookify",
-      "updatedAt": "2026-08-10T12:02:19.434Z"
+      "updatedAt": "2026-08-11T00:03:56.474Z"
     },
     {
       "name": "jdtls-lsp",
@@ -2129,7 +2138,7 @@
         "name": "Anthropic",
         "email": "support@anthropic.com"
       },
-      "updatedAt": "2026-08-10T12:02:01.747Z"
+      "updatedAt": "2026-08-11T00:03:19.198Z"
     },
     {
       "name": "laravel-boost",
@@ -2140,7 +2149,7 @@
         "name": "Laravel"
       },
       "homepage": "https://github.com/anthropics/claude-plugins-public/tree/main/external_plugins/laravel-boost",
-      "updatedAt": "2026-08-10T12:02:02.717Z"
+      "updatedAt": "2026-08-11T00:03:20.334Z"
     },
     {
       "name": "knowledge-catalog",
@@ -2153,7 +2162,7 @@
       },
       "homepage": "https://cloud.google.com/dataplex",
       "repository": "https://github.com/gemini-cli-extensions/knowledge-catalog",
-      "updatedAt": "2026-08-10T12:02:02.684Z"
+      "updatedAt": "2026-08-11T00:03:20.498Z"
     },
     {
       "name": "legalzoom",
@@ -2166,7 +2175,7 @@
       },
       "homepage": "https://github.com/legalzoom/claude-plugins",
       "repository": "https://github.com/legalzoom/claude-plugins",
-      "updatedAt": "2026-08-10T12:02:03.789Z"
+      "updatedAt": "2026-08-11T00:03:21.142Z"
     },
     {
       "name": "learning-output-style",
@@ -2178,7 +2187,7 @@
         "email": "support@anthropic.com"
       },
       "homepage": "https://github.com/anthropics/claude-plugins-public/tree/main/plugins/learning-output-style",
-      "updatedAt": "2026-08-10T12:02:02.958Z"
+      "updatedAt": "2026-08-11T00:03:20.546Z"
     },
     {
       "name": "linear",
@@ -2189,7 +2198,7 @@
         "name": "Linear"
       },
       "homepage": "https://github.com/anthropics/claude-plugins-public/tree/main/external_plugins/linear",
-      "updatedAt": "2026-08-10T12:02:03.619Z"
+      "updatedAt": "2026-08-11T00:03:20.680Z"
     },
     {
       "name": "liquid-lsp",
@@ -2207,7 +2216,7 @@
         "shopify",
         "theme"
       ],
-      "updatedAt": "2026-08-10T12:02:03.745Z"
+      "updatedAt": "2026-08-11T00:03:21.340Z"
     },
     {
       "name": "liquid-skills",
@@ -2227,7 +2236,7 @@
         "css",
         "javascript"
       ],
-      "updatedAt": "2026-08-10T12:02:03.895Z"
+      "updatedAt": "2026-08-11T00:03:22.145Z"
     },
     {
       "name": "looker",
@@ -2240,7 +2249,7 @@
       },
       "homepage": "https://cloud.google.com/looker",
       "repository": "https://github.com/gemini-cli-extensions/looker",
-      "updatedAt": "2026-08-10T12:02:04.846Z"
+      "updatedAt": "2026-08-11T00:03:23.663Z"
     },
     {
       "name": "mcp-apps",
@@ -2259,7 +2268,7 @@
         "ui",
         "interactive"
       ],
-      "updatedAt": "2026-08-10T12:02:05.703Z"
+      "updatedAt": "2026-08-11T00:03:27.749Z"
     },
     {
       "name": "lovable",
@@ -2279,7 +2288,7 @@
         "full-stack",
         "mcp"
       ],
-      "updatedAt": "2026-08-10T12:02:04.340Z"
+      "updatedAt": "2026-08-11T00:03:22.994Z"
     },
     {
       "name": "lumen",
@@ -2300,7 +2309,7 @@
         "ollama",
         "rag"
       ],
-      "updatedAt": "2026-08-10T12:02:14.921Z"
+      "updatedAt": "2026-08-11T00:03:40.476Z"
     },
     {
       "name": "mintlify",
@@ -2308,13 +2317,13 @@
       "description": "Build beautiful documentation sites with Mintlify. Convert non-markdown files into properly formatted MDX pages, add and modify content with correct component use, and automate documentation updates.",
       "version": "1.0.0",
       "homepage": "https://www.mintlify.com/",
-      "updatedAt": "2026-08-10T12:02:07.097Z"
+      "updatedAt": "2026-08-11T00:03:31.197Z"
     },
     {
       "name": "neon",
       "source": "./plugins/neon",
       "description": "Manage your Neon backend with the Neon agent skills and the Neon MCP Server: Lakebase Postgres, branching, Object Storage, Functions, and the AI Gateway",
-      "version": "1.1.1",
+      "version": "1.1.2",
       "author": {
         "url": "https://neon.com",
         "name": "Neon"
@@ -2329,7 +2338,7 @@
         "database",
         "mcp"
       ],
-      "updatedAt": "2026-08-10T12:02:10.327Z"
+      "updatedAt": "2026-08-11T00:03:39.272Z"
     },
     {
       "name": "netsuite-suitecloud",
@@ -2340,7 +2349,7 @@
         "name": "Oracle NetSuite"
       },
       "homepage": "https://github.com/oracle/netsuite-suitecloud-sdk",
-      "updatedAt": "2026-08-10T12:02:15.225Z"
+      "updatedAt": "2026-08-11T00:03:54.192Z"
     },
     {
       "name": "mcp-server-dev",
@@ -2352,7 +2361,7 @@
         "email": "support@anthropic.com"
       },
       "homepage": "https://github.com/anthropics/claude-plugins-official/tree/main/plugins/mcp-server-dev",
-      "updatedAt": "2026-08-10T12:02:05.130Z"
+      "updatedAt": "2026-08-11T00:03:24.430Z"
     },
     {
       "name": "mercadopago",
@@ -2379,7 +2388,7 @@
         "fintech",
         "meli"
       ],
-      "updatedAt": "2026-08-10T12:02:06.070Z"
+      "updatedAt": "2026-08-11T00:03:28.160Z"
     },
     {
       "name": "migration-to-aws",
@@ -2442,7 +2451,7 @@
         "temporal-to-aws",
         "durable-execution"
       ],
-      "updatedAt": "2026-08-10T12:02:12.875Z"
+      "updatedAt": "2026-08-11T00:03:35.393Z"
     },
     {
       "name": "oracledb",
@@ -2455,7 +2464,7 @@
       },
       "homepage": "https://cloud.google.com/solutions/oracle",
       "repository": "https://github.com/gemini-cli-extensions/oracledb",
-      "updatedAt": "2026-08-10T12:02:16.025Z"
+      "updatedAt": "2026-08-11T00:03:49.068Z"
     },
     {
       "name": "pinecone",
@@ -2483,7 +2492,7 @@
         "bm25",
         "hybrid search"
       ],
-      "updatedAt": "2026-08-10T12:02:48.784Z"
+      "updatedAt": "2026-08-11T00:03:54.038Z"
     },
     {
       "name": "netlify-skills",
@@ -2495,13 +2504,13 @@
       },
       "homepage": "https://github.com/netlify/context-and-tools",
       "repository": "https://github.com/netlify/context-and-tools",
-      "updatedAt": "2026-08-10T12:02:15.195Z"
+      "updatedAt": "2026-08-11T00:03:49.033Z"
     },
     {
       "name": "nimble",
       "source": "./plugins/nimble",
-      "description": "Real-time web search and data extraction for AI agents - powered by Nimble. Search, extract, map, and crawl any site on the web with built-in stealth, JS rendering, and retries. Get clean, structured web data from any public webpage with site-specific Extraction Templates, or run Web Search Agents for open-ended research and enrichment. The definitive web data toolkit for AI-native development.",
-      "version": "1.5.0",
+      "description": "Live web search for AI agents. Find current pages, read any URL, and run research agents that work across many sources and return findings with citations. Includes reusable Extraction Templates for consistently shaped records from known sites, and Web Search Agents for research, enrichment, and dataset building.",
+      "version": "1.6.1",
       "author": {
         "url": "https://www.nimbleway.com",
         "name": "Nimble",
@@ -2515,7 +2524,6 @@
         "web-search",
         "web-crawl",
         "web-map",
-        "scraping",
         "agents",
         "mcp",
         "cli",
@@ -2526,7 +2534,7 @@
         "company-research",
         "business-intelligence"
       ],
-      "updatedAt": "2026-08-10T12:02:33.775Z"
+      "updatedAt": "2026-08-11T00:04:14.210Z"
     },
     {
       "name": "plugin-dev",
@@ -2538,7 +2546,7 @@
         "email": "support@anthropic.com"
       },
       "homepage": "https://github.com/anthropics/claude-plugins-public/tree/main/plugins/plugin-dev",
-      "updatedAt": "2026-08-10T12:02:17.635Z"
+      "updatedAt": "2026-08-11T00:03:54.600Z"
     },
     {
       "name": "project-artifact",
@@ -2550,7 +2558,7 @@
         "email": "support@anthropic.com"
       },
       "homepage": "https://github.com/anthropics/claude-plugins-public/tree/main/plugins/project-artifact",
-      "updatedAt": "2026-08-10T12:02:18.403Z"
+      "updatedAt": "2026-08-11T00:03:54.785Z"
     },
     {
       "name": "nvidia-skills",
@@ -2580,7 +2588,7 @@
         "physical-ai",
         "cad"
       ],
-      "updatedAt": "2026-08-10T12:02:15.100Z"
+      "updatedAt": "2026-08-11T00:03:54.081Z"
     },
     {
       "name": "nightvision",
@@ -2602,7 +2610,7 @@
         "openapi",
         "vulnerability-detection"
       ],
-      "updatedAt": "2026-08-10T12:02:12.134Z"
+      "updatedAt": "2026-08-11T00:03:41.843Z"
     },
     {
       "name": "oracle-ai-data-platform-workbench-spark-connectors",
@@ -2648,7 +2656,7 @@
         "pushdown",
         "catalog"
       ],
-      "updatedAt": "2026-08-10T12:02:16.791Z"
+      "updatedAt": "2026-08-11T00:03:54.122Z"
     },
     {
       "name": "resend",
@@ -2669,7 +2677,7 @@
         "notifications",
         "agent-inbox"
       ],
-      "updatedAt": "2026-08-10T12:02:21.548Z"
+      "updatedAt": "2026-08-11T00:03:59.266Z"
     },
     {
       "name": "runway-api",
@@ -2695,7 +2703,7 @@
         "batch",
         "runway-api"
       ],
-      "updatedAt": "2026-08-10T12:02:21.914Z"
+      "updatedAt": "2026-08-11T00:03:59.777Z"
     },
     {
       "name": "sanity",
@@ -2718,7 +2726,7 @@
         "structured-content",
         "visual-editing"
       ],
-      "updatedAt": "2026-08-10T12:02:23.384Z"
+      "updatedAt": "2026-08-11T00:04:00.857Z"
     },
     {
       "name": "security-guidance",
@@ -2730,7 +2738,7 @@
         "email": "dworken@anthropic.com"
       },
       "homepage": "https://github.com/anthropics/claude-plugins-official/tree/main/plugins/security-guidance",
-      "updatedAt": "2026-08-10T12:02:23.970Z"
+      "updatedAt": "2026-08-11T00:04:00.850Z"
     },
     {
       "name": "serena",
@@ -2741,7 +2749,7 @@
         "name": "Oraios"
       },
       "homepage": "https://github.com/anthropics/claude-plugins-public/tree/main/external_plugins/serena",
-      "updatedAt": "2026-08-10T12:02:24.077Z"
+      "updatedAt": "2026-08-11T00:04:01.040Z"
     },
     {
       "name": "spanner",
@@ -2754,7 +2762,7 @@
       },
       "homepage": "https://cloud.google.com/spanner",
       "repository": "https://github.com/gemini-cli-extensions/spanner",
-      "updatedAt": "2026-08-10T12:02:26.364Z"
+      "updatedAt": "2026-08-11T00:04:03.400Z"
     },
     {
       "name": "qodo-skills",
@@ -2776,7 +2784,7 @@
         "standards",
         "pr-review"
       ],
-      "updatedAt": "2026-08-10T00:26:56.413Z"
+      "updatedAt": "2026-08-10T12:17:08.392Z"
     },
     {
       "name": "pyright-lsp",
@@ -2787,7 +2795,7 @@
         "name": "Anthropic",
         "email": "support@anthropic.com"
       },
-      "updatedAt": "2026-08-10T12:02:18.408Z"
+      "updatedAt": "2026-08-11T00:03:54.838Z"
     },
     {
       "name": "qt-development-skills",
@@ -2798,7 +2806,7 @@
         "name": "Qt Group"
       },
       "homepage": "https://www.qt.io/",
-      "updatedAt": "2026-08-10T12:02:20.383Z"
+      "updatedAt": "2026-08-11T00:03:58.209Z"
     },
     {
       "name": "render",
@@ -2820,7 +2828,7 @@
         "monitoring",
         "debugging"
       ],
-      "updatedAt": "2026-08-10T12:02:21.512Z"
+      "updatedAt": "2026-08-11T00:03:59.178Z"
     },
     {
       "name": "revenuecat",
@@ -2828,7 +2836,7 @@
       "description": "Configure RevenueCat projects, apps, products, entitlements, and offerings directly from Claude Code. Manage your in-app purchase backend without leaving your development workflow.",
       "version": "1.0.0",
       "homepage": "https://www.revenuecat.com",
-      "updatedAt": "2026-08-10T12:02:20.895Z"
+      "updatedAt": "2026-08-11T00:03:58.998Z"
     },
     {
       "name": "rootly",
@@ -2851,7 +2859,7 @@
         "retrospectives",
         "rootly"
       ],
-      "updatedAt": "2026-08-10T12:02:52.464Z"
+      "updatedAt": "2026-08-11T00:03:59.615Z"
     },
     {
       "name": "oracle-ai-data-platform-workbench-databricks-migrator",
@@ -2896,7 +2904,7 @@
         "lakehouse",
         "rest-api"
       ],
-      "updatedAt": "2026-08-10T12:02:16.720Z"
+      "updatedAt": "2026-08-11T00:03:54.399Z"
     },
     {
       "name": "planetscale",
@@ -2907,7 +2915,7 @@
         "name": "PlanetScale"
       },
       "homepage": "https://planetscale.com/",
-      "updatedAt": "2026-08-10T12:02:17.232Z"
+      "updatedAt": "2026-08-11T00:03:54.779Z"
     },
     {
       "name": "rust-analyzer-lsp",
@@ -2918,7 +2926,7 @@
         "name": "Anthropic",
         "email": "support@anthropic.com"
       },
-      "updatedAt": "2026-08-10T12:02:21.643Z"
+      "updatedAt": "2026-08-11T00:03:59.168Z"
     },
     {
       "name": "prisma",
@@ -2929,7 +2937,7 @@
         "name": "Prisma"
       },
       "homepage": "https://prisma.io",
-      "updatedAt": "2026-08-10T12:02:18.130Z"
+      "updatedAt": "2026-08-11T00:03:55.040Z"
     },
     {
       "name": "sap-mdk-server",
@@ -2946,7 +2954,7 @@
         "mdk",
         "mcp"
       ],
-      "updatedAt": "2026-08-10T12:02:55.347Z"
+      "updatedAt": "2026-08-11T00:04:07.773Z"
     },
     {
       "name": "save-to-spotify",
@@ -2967,7 +2975,7 @@
         "timeline",
         "save-to-spotify"
       ],
-      "updatedAt": "2026-08-10T12:02:23.931Z"
+      "updatedAt": "2026-08-11T00:04:01.239Z"
     },
     {
       "name": "servicenow-sdk",
@@ -2986,7 +2994,7 @@
         "now-sdk",
         "platform"
       ],
-      "updatedAt": "2026-08-10T12:02:24.574Z"
+      "updatedAt": "2026-08-11T00:04:01.505Z"
     },
     {
       "name": "session-report",
@@ -2998,7 +3006,7 @@
         "email": "support@anthropic.com"
       },
       "homepage": "https://github.com/anthropics/claude-plugins-official/tree/main/plugins/session-report",
-      "updatedAt": "2026-08-10T12:02:24.376Z"
+      "updatedAt": "2026-08-11T00:04:01.195Z"
     },
     {
       "name": "sap-cds-mcp",
@@ -3016,7 +3024,7 @@
         "cds",
         "mcp"
       ],
-      "updatedAt": "2026-08-10T12:02:22.830Z"
+      "updatedAt": "2026-08-11T00:03:59.776Z"
     },
     {
       "name": "circleback",
@@ -3026,7 +3034,7 @@
       "author": {
         "name": "Circleback"
       },
-      "updatedAt": "2026-08-10T12:01:46.691Z"
+      "updatedAt": "2026-08-11T00:02:58.904Z"
     },
     {
       "name": "42crunch-api-security-testing",
@@ -3055,7 +3063,7 @@
         "devsecops",
         "42crunch"
       ],
-      "updatedAt": "2026-08-10T12:02:45.772Z"
+      "updatedAt": "2026-08-11T00:02:41.325Z"
     },
     {
       "name": "hostinger",
@@ -3068,7 +3076,7 @@
       },
       "homepage": "https://developers.hostinger.com",
       "repository": "https://github.com/hostinger/claude-plugin",
-      "updatedAt": "2026-08-10T12:02:01.169Z"
+      "updatedAt": "2026-08-11T00:03:18.455Z"
     },
     {
       "name": "dropbox",
@@ -3105,7 +3113,7 @@
         "import",
         "export"
       ],
-      "updatedAt": "2026-08-10T12:01:56.627Z"
+      "updatedAt": "2026-08-11T00:03:12.907Z"
     },
     {
       "name": "grafana-mcp",
@@ -3126,7 +3134,7 @@
         "prometheus",
         "loki"
       ],
-      "updatedAt": "2026-08-10T12:02:00.723Z"
+      "updatedAt": "2026-08-11T00:03:16.886Z"
     },
     {
       "name": "imessage",
@@ -3139,7 +3147,7 @@
         "channel",
         "mcp"
       ],
-      "updatedAt": "2026-08-10T12:02:28.481Z"
+      "updatedAt": "2026-08-11T00:04:06.299Z"
     },
     {
       "name": "intercom",
@@ -3161,7 +3169,7 @@
         "crm",
         "api"
       ],
-      "updatedAt": "2026-08-10T12:02:01.969Z"
+      "updatedAt": "2026-08-11T00:03:19.875Z"
     },
     {
       "name": "quarkus-agent",
@@ -3181,7 +3189,7 @@
         "dev-mode",
         "scaffolding"
       ],
-      "updatedAt": "2026-08-10T12:02:20.106Z"
+      "updatedAt": "2026-08-11T00:03:57.432Z"
     },
     {
       "name": "logfire",
@@ -3193,7 +3201,7 @@
         "email": "support@pydantic.dev"
       },
       "homepage": "https://github.com/pydantic/skills/tree/main/plugins/logfire",
-      "updatedAt": "2026-08-10T12:02:04.291Z"
+      "updatedAt": "2026-08-11T00:03:22.781Z"
     },
     {
       "name": "logrocket",
@@ -3212,7 +3220,7 @@
         "mcp",
         "galileo"
       ],
-      "updatedAt": "2026-08-10T12:02:04.106Z"
+      "updatedAt": "2026-08-11T00:03:22.459Z"
     },
     {
       "name": "mapbox",
@@ -3233,7 +3241,7 @@
         "mcp",
         "gis"
       ],
-      "updatedAt": "2026-08-10T12:02:06.798Z"
+      "updatedAt": "2026-08-11T00:03:29.819Z"
     },
     {
       "name": "rill",
@@ -3244,7 +3252,7 @@
         "name": "Rill Data"
       },
       "homepage": "https://docs.rilldata.com/developers/build/ai-configuration",
-      "updatedAt": "2026-08-10T12:02:21.290Z"
+      "updatedAt": "2026-08-11T00:03:59.127Z"
     },
     {
       "name": "sagemaker-ai",
@@ -3267,7 +3275,7 @@
         "mlops",
         "aws"
       ],
-      "updatedAt": "2026-08-10T12:02:22.358Z"
+      "updatedAt": "2026-08-11T00:03:59.851Z"
     },
     {
       "name": "pagerduty",
@@ -3278,7 +3286,7 @@
         "name": "PagerDuty"
       },
       "homepage": "https://github.com/PagerDuty/claude-code-plugins",
-      "updatedAt": "2026-08-10T12:02:16.140Z"
+      "updatedAt": "2026-08-11T00:03:50.129Z"
     },
     {
       "name": "sap-hana-cli",
@@ -3305,7 +3313,7 @@
         "backup",
         "security"
       ],
-      "updatedAt": "2026-08-10T12:02:23.772Z"
+      "updatedAt": "2026-08-11T00:04:01.079Z"
     },
     {
       "name": "pigment",
@@ -3316,13 +3324,13 @@
         "name": "Pigment"
       },
       "homepage": "https://www.pigment.com",
-      "updatedAt": "2026-08-10T12:02:17.212Z"
+      "updatedAt": "2026-08-11T00:03:53.914Z"
     },
     {
       "name": "sap-fiori-mcp-server",
       "source": "./plugins/sap-fiori-mcp-server",
       "description": "MCP server for SAP Fiori development tools for Claude Code. Build and modify SAP Fiori applications with AI assistance.",
-      "version": "1.11.7",
+      "version": "1.11.8",
       "author": {
         "url": "https://www.sap.com",
         "name": "SAP SE",
@@ -3338,7 +3346,7 @@
         "mcp",
         "fiori-elements"
       ],
-      "updatedAt": "2026-08-10T12:02:25.211Z"
+      "updatedAt": "2026-08-11T00:04:02.075Z"
     },
     {
       "name": "sourcegraph",
@@ -3350,7 +3358,7 @@
       },
       "homepage": "https://github.com/sourcegraph-community/sourcegraph-claudecode-plugin",
       "repository": "https://github.com/sourcegraph-community/sourcegraph-claudecode-plugin",
-      "updatedAt": "2026-08-10T12:02:25.795Z"
+      "updatedAt": "2026-08-11T00:04:02.917Z"
     },
     {
       "name": "posthog",
@@ -3374,7 +3382,7 @@
         "dashboards",
         "llm-analytics"
       ],
-      "updatedAt": "2026-08-10T12:02:21.872Z"
+      "updatedAt": "2026-08-11T00:03:59.479Z"
     },
     {
       "name": "apollo",
@@ -3397,7 +3405,7 @@
         "analytics",
         "mcp"
       ],
-      "updatedAt": "2026-08-10T12:02:48.276Z"
+      "updatedAt": "2026-08-11T00:03:23.891Z"
     },
     {
       "name": "datadog",
@@ -3415,7 +3423,7 @@
         "observability",
         "productivity"
       ],
-      "updatedAt": "2026-08-10T12:01:54.265Z"
+      "updatedAt": "2026-08-11T00:03:10.816Z"
     },
     {
       "name": "dataproc",
@@ -3428,7 +3436,7 @@
       },
       "homepage": "https://cloud.google.com/dataproc",
       "repository": "https://github.com/gemini-cli-extensions/dataproc",
-      "updatedAt": "2026-08-10T12:01:54.749Z"
+      "updatedAt": "2026-08-11T00:03:11.480Z"
     },
     {
       "name": "railway",
@@ -3441,7 +3449,7 @@
       },
       "homepage": "https://docs.railway.com/agents",
       "repository": "https://github.com/railwayapp/railway-skills",
-      "updatedAt": "2026-08-10T12:02:19.680Z"
+      "updatedAt": "2026-08-11T00:03:57.647Z"
     },
     {
       "name": "shopify-ai-toolkit",
@@ -3459,7 +3467,7 @@
         "storefront",
         "admin-api"
       ],
-      "updatedAt": "2026-08-10T12:02:28.489Z"
+      "updatedAt": "2026-08-11T00:03:49.859Z"
     },
     {
       "name": "shopify",
@@ -3477,7 +3485,7 @@
         "storefront",
         "admin-api"
       ],
-      "updatedAt": "2026-08-10T00:26:56.486Z"
+      "updatedAt": "2026-08-10T12:17:08.402Z"
     },
     {
       "name": "coderabbit",
@@ -3497,7 +3505,7 @@
         "coderabbit",
         "claude-code"
       ],
-      "updatedAt": "2026-08-10T12:02:17.571Z"
+      "updatedAt": "2026-08-11T00:03:54.633Z"
     },
     {
       "name": "fullstory",
@@ -3514,7 +3522,7 @@
         "behavioral-analytics",
         "session-replay"
       ],
-      "updatedAt": "2026-08-10T12:02:00.489Z"
+      "updatedAt": "2026-08-11T00:03:16.350Z"
     },
     {
       "name": "canva",
@@ -3536,7 +3544,7 @@
         "graphic design",
         "marketing"
       ],
-      "updatedAt": "2026-08-10T12:02:55.713Z"
+      "updatedAt": "2026-08-11T00:02:55.491Z"
     },
     {
       "name": "firestore-native",
@@ -3549,7 +3557,7 @@
       },
       "homepage": "https://cloud.google.com/firestore",
       "repository": "https://github.com/gemini-cli-extensions/firestore-native",
-      "updatedAt": "2026-08-10T12:02:00.042Z"
+      "updatedAt": "2026-08-11T00:03:16.137Z"
     },
     {
       "name": "duckdb-skills",
@@ -3581,7 +3589,7 @@
         "sql",
         "attach-db"
       ],
-      "updatedAt": "2026-08-10T12:02:17.264Z"
+      "updatedAt": "2026-08-11T00:03:54.008Z"
     },
     {
       "name": "cds-mcp",
@@ -3599,7 +3607,7 @@
         "cds",
         "mcp"
       ],
-      "updatedAt": "2026-08-10T12:01:46.729Z"
+      "updatedAt": "2026-08-11T00:02:57.929Z"
     },
     {
       "name": "atlan",
@@ -3624,7 +3632,7 @@
         "mcp",
         "atlan"
       ],
-      "updatedAt": "2026-08-10T12:02:49.578Z"
+      "updatedAt": "2026-08-11T00:02:47.687Z"
     },
     {
       "name": "bigquery-data-analytics",
@@ -3637,7 +3645,7 @@
       },
       "homepage": "https://cloud.google.com/bigquery",
       "repository": "https://github.com/gemini-cli-extensions/bigquery-data-analytics",
-      "updatedAt": "2026-08-10T12:02:54.176Z"
+      "updatedAt": "2026-08-11T00:03:10.715Z"
     },
     {
       "name": "cloud-sql-sqlserver",
@@ -3650,7 +3658,7 @@
       },
       "homepage": "https://cloud.google.com/sql/docs/sqlserver",
       "repository": "https://github.com/gemini-cli-extensions/cloud-sql-sqlserver",
-      "updatedAt": "2026-08-10T12:01:49.292Z"
+      "updatedAt": "2026-08-11T00:03:02.336Z"
     },
     {
       "name": "dash0",
@@ -3669,7 +3677,7 @@
         "dash0",
         "otel"
       ],
-      "updatedAt": "2026-08-10T12:01:53.979Z"
+      "updatedAt": "2026-08-11T00:03:09.754Z"
     },
     {
       "name": "firecrawl",
@@ -3679,7 +3687,7 @@
       "author": {
         "name": "Firecrawl"
       },
-      "updatedAt": "2026-08-10T12:01:58.833Z"
+      "updatedAt": "2026-08-11T00:03:15.944Z"
     },
     {
       "name": "alloydb",
@@ -3692,7 +3700,7 @@
       },
       "homepage": "https://cloud.google.com/alloydb",
       "repository": "https://github.com/gemini-cli-extensions/alloydb",
-      "updatedAt": "2026-08-10T12:02:47.956Z"
+      "updatedAt": "2026-08-11T00:02:44.348Z"
     },
     {
       "name": "azure-cosmos-db-assistant",
@@ -3714,7 +3722,7 @@
         "vector-search",
         "best-practices"
       ],
-      "updatedAt": "2026-08-10T12:02:53.447Z"
+      "updatedAt": "2026-08-11T00:02:51.359Z"
     },
     {
       "name": "alloydb-omni",
@@ -3727,7 +3735,7 @@
       },
       "homepage": "https://cloud.google.com/alloydb/omni",
       "repository": "https://github.com/gemini-cli-extensions/alloydb-omni",
-      "updatedAt": "2026-08-10T12:02:47.838Z"
+      "updatedAt": "2026-08-11T00:02:44.324Z"
     },
     {
       "name": "appwrite",
@@ -3746,7 +3754,7 @@
         "mcp",
         "skills"
       ],
-      "updatedAt": "2026-08-10T12:02:48.784Z"
+      "updatedAt": "2026-08-11T00:02:54.045Z"
     },
     {
       "name": "cloud-sql-postgresql",
@@ -3759,7 +3767,7 @@
       },
       "homepage": "https://cloud.google.com/sql",
       "repository": "https://github.com/gemini-cli-extensions/cloud-sql-postgresql",
-      "updatedAt": "2026-08-10T12:01:49.404Z"
+      "updatedAt": "2026-08-11T00:03:02.756Z"
     },
     {
       "name": "cloud-sql-mysql",
@@ -3772,7 +3780,7 @@
       },
       "homepage": "https://cloud.google.com/sql",
       "repository": "https://github.com/gemini-cli-extensions/cloud-sql-mysql",
-      "updatedAt": "2026-08-10T12:01:48.268Z"
+      "updatedAt": "2026-08-11T00:03:01.025Z"
     },
     {
       "name": "postiz",
@@ -3800,7 +3808,7 @@
         "youtube",
         "reddit"
       ],
-      "updatedAt": "2026-08-10T12:02:18.071Z"
+      "updatedAt": "2026-08-11T00:03:55.242Z"
     },
     {
       "name": "exa",
@@ -3812,7 +3820,7 @@
         "email": "hello@exa.ai"
       },
       "repository": "https://github.com/exa-labs/exa-mcp-server",
-      "updatedAt": "2026-08-10T12:02:55.720Z"
+      "updatedAt": "2026-08-11T00:03:14.966Z"
     },
     {
       "name": "fastly-agent-toolkit",
@@ -3829,7 +3837,7 @@
         "vcl",
         "cdn"
       ],
-      "updatedAt": "2026-08-10T12:01:59.872Z"
+      "updatedAt": "2026-08-11T00:03:15.319Z"
     },
     {
       "name": "apollo-skills",
@@ -3859,7 +3867,7 @@
         "rover",
         "rust-best-practices"
       ],
-      "updatedAt": "2026-08-10T12:02:49.073Z"
+      "updatedAt": "2026-08-11T00:03:10.603Z"
     },
     {
       "name": "base44",
@@ -3883,21 +3891,21 @@
         "javascript",
         "typescript"
       ],
-      "updatedAt": "2026-08-10T12:02:54.300Z"
+      "updatedAt": "2026-08-11T00:02:52.713Z"
     },
     {
       "name": "datarobot-agent-skills",
       "source": "./plugins/datarobot-agent-skills",
       "description": "DataRobot skills for AI/ML workflows — model training, deployment, predictions, feature engineering, monitoring, explainability, data preparation, App Framework CI/CD, and external agent monitoring.",
       "version": "1.4.3",
-      "updatedAt": "2026-08-10T12:01:57.429Z"
+      "updatedAt": "2026-08-11T00:03:13.622Z"
     },
     {
       "name": "buildkite",
       "source": "./plugins/buildkite",
       "description": "Official Buildkite skills for Claude Code, Cursor, and other AI coding agents — pipelines, migration, preflight, agent runtime, CLI, and API",
       "version": "1.0.0",
-      "updatedAt": "2026-08-10T12:02:55.647Z"
+      "updatedAt": "2026-08-11T00:02:55.360Z"
     },
     {
       "name": "crowdstrike-falcon-foundry",
@@ -3919,7 +3927,7 @@
         "api-integration",
         "security"
       ],
-      "updatedAt": "2026-08-10T12:01:52.277Z"
+      "updatedAt": "2026-08-11T00:03:08.183Z"
     },
     {
       "name": "dataverse",
@@ -3937,7 +3945,7 @@
         "power-platform",
         "dynamics-365"
       ],
-      "updatedAt": "2026-08-10T12:01:55.770Z"
+      "updatedAt": "2026-08-11T00:03:12.003Z"
     },
     {
       "name": "dominodatalab",
@@ -3962,7 +3970,7 @@
         "dask",
         "app-deployment"
       ],
-      "updatedAt": "2026-08-10T12:02:35.781Z"
+      "updatedAt": "2026-08-11T00:03:39.910Z"
     },
     {
       "name": "circle-skills",
@@ -3981,7 +3989,7 @@
         "web3",
         "payments"
       ],
-      "updatedAt": "2026-08-10T12:01:47.877Z"
+      "updatedAt": "2026-08-11T00:02:58.846Z"
     },
     {
       "name": "bigdata-com",
@@ -4018,7 +4026,7 @@
         "scenario analysis",
         "company briefs"
       ],
-      "updatedAt": "2026-08-10T12:02:54.965Z"
+      "updatedAt": "2026-08-11T00:02:55.307Z"
     },
     {
       "name": "data-agent-kit-starter-pack",
@@ -4029,7 +4037,7 @@
         "name": "Google LLC",
         "email": "data-cloud-ai-integrations@google.com"
       },
-      "updatedAt": "2026-08-10T12:02:54.176Z"
+      "updatedAt": "2026-08-11T00:03:10.819Z"
     },
     {
       "name": "airwallex-agentos",
@@ -4053,7 +4061,7 @@
         "cli",
         "mcp"
       ],
-      "updatedAt": "2026-08-10T12:02:45.954Z"
+      "updatedAt": "2026-08-11T00:02:41.612Z"
     },
     {
       "name": "datahub-skills",
@@ -4063,7 +4071,7 @@
       "author": {
         "name": "DataHub Project"
       },
-      "updatedAt": "2026-08-10T12:01:55.768Z"
+      "updatedAt": "2026-08-11T00:03:11.768Z"
     },
     {
       "name": "brightdata-plugin",
@@ -4128,7 +4136,7 @@
         "deal-finder",
         "price-tracking"
       ],
-      "updatedAt": "2026-08-10T12:02:55.720Z"
+      "updatedAt": "2026-08-11T00:03:41.172Z"
     },
     {
       "name": "fiftyone",
@@ -4140,7 +4148,7 @@
       },
       "homepage": "https://docs.voxel51.com/",
       "repository": "https://github.com/voxel51/fiftyone-skills",
-      "updatedAt": "2026-08-10T12:02:19.434Z"
+      "updatedAt": "2026-08-11T00:03:56.474Z"
     },
     {
       "name": "honeycomb",
@@ -4163,7 +4171,7 @@
         "debugging",
         "instrumentation"
       ],
-      "updatedAt": "2026-08-10T12:02:01.684Z"
+      "updatedAt": "2026-08-11T00:03:18.819Z"
     },
     {
       "name": "agentforce-adlc",
@@ -4180,7 +4188,7 @@
         "salesforce",
         "adlc"
       ],
-      "updatedAt": "2026-08-10T12:02:46.800Z"
+      "updatedAt": "2026-08-11T00:02:43.728Z"
     },
     {
       "name": "clickhouse-best-practices",
@@ -4201,13 +4209,13 @@
         "best-practices",
         "data-ingestion"
       ],
-      "updatedAt": "2026-08-10T12:01:50.230Z"
+      "updatedAt": "2026-08-11T00:03:05.286Z"
     },
     {
       "name": "carta-crm",
       "source": "./plugins/carta-crm",
       "description": "Manage the Carta CRM conversationally — search, add, update, and enrich investors, companies, contacts, deals, notes, and fundraisings via the Carta CRM MCP Server",
-      "version": "1.4.0",
+      "version": "1.5.1",
       "author": {
         "name": "Carta",
         "email": "crm@carta.com"
@@ -4230,28 +4238,28 @@
         "introductions",
         "network"
       ],
-      "updatedAt": "2026-08-10T12:02:33.751Z"
+      "updatedAt": "2026-08-11T00:03:38.306Z"
     },
     {
       "name": "data-engineering",
       "source": "./plugins/data-engineering",
       "description": "Data engineering plugin - warehouse exploration, pipeline authoring, Airflow integration",
       "version": "0.1.0",
-      "updatedAt": "2026-08-10T12:01:53.900Z"
+      "updatedAt": "2026-08-11T00:03:11.366Z"
     },
     {
       "name": "astronomer-data-agents",
       "source": "./plugins/astronomer-data-agents",
       "description": "Data engineering plugin - warehouse exploration, pipeline authoring, Airflow integration",
       "version": "0.1.0",
-      "updatedAt": "2026-08-10T12:02:50.778Z"
+      "updatedAt": "2026-08-11T00:02:48.682Z"
     },
     {
       "name": "data",
       "source": "./plugins/data",
       "description": "Data engineering plugin - warehouse exploration, pipeline authoring, Airflow integration",
       "version": "0.1.0",
-      "updatedAt": "2026-08-10T12:01:53.601Z"
+      "updatedAt": "2026-08-11T00:03:10.925Z"
     },
     {
       "name": "cockroachdb",
@@ -4275,7 +4283,7 @@
         "migration",
         "multi-region"
       ],
-      "updatedAt": "2026-08-10T12:01:49.830Z"
+      "updatedAt": "2026-08-11T00:03:04.602Z"
     },
     {
       "name": "convex",
@@ -4305,7 +4313,7 @@
         "typescript",
         "mcp"
       ],
-      "updatedAt": "2026-08-10T12:02:36.814Z"
+      "updatedAt": "2026-08-11T00:03:59.615Z"
     },
     {
       "name": "amplitude",
@@ -4317,7 +4325,7 @@
         "name": "Amplitude",
         "email": "support@amplitude.com"
       },
-      "updatedAt": "2026-08-10T12:02:48.425Z"
+      "updatedAt": "2026-08-11T00:03:38.284Z"
     },
     {
       "name": "aws-dev-toolkit",
@@ -4342,7 +4350,7 @@
         "azure",
         "bedrock"
       ],
-      "updatedAt": "2026-08-10T12:02:51.063Z"
+      "updatedAt": "2026-08-11T00:02:48.938Z"
     },
     {
       "name": "codspeed",
@@ -4361,7 +4369,7 @@
         "optimization",
         "benchmarking"
       ],
-      "updatedAt": "2026-08-10T00:26:56.534Z"
+      "updatedAt": "2026-08-10T12:17:08.415Z"
     },
     {
       "name": "boltz",
@@ -4387,13 +4395,13 @@
         "molecular-modeling",
         "drug-discovery"
       ],
-      "updatedAt": "2026-08-10T12:02:55.243Z"
+      "updatedAt": "2026-08-11T00:02:54.686Z"
     },
     {
       "name": "carta-cap-table",
       "source": "./plugins/carta-cap-table",
       "description": "Carta Cap Table plugin — skills and hooks for querying cap tables, grants, SAFEs, 409A valuations, waterfall scenarios, and more",
-      "version": "6.40.0",
+      "version": "6.41.1",
       "author": {
         "name": "Carta",
         "email": "engineering@carta.com"
@@ -4407,7 +4415,7 @@
         "equity",
         "grants"
       ],
-      "updatedAt": "2026-08-10T12:01:47.993Z"
+      "updatedAt": "2026-08-11T00:02:59.484Z"
     },
     {
       "name": "commit-commands",
@@ -4418,7 +4426,7 @@
         "name": "Anthropic",
         "email": "support@anthropic.com"
       },
-      "updatedAt": "2026-08-10T12:01:49.556Z"
+      "updatedAt": "2026-08-11T00:03:03.265Z"
     },
     {
       "name": "fakechat",
@@ -4433,7 +4441,7 @@
         "channel",
         "mcp"
       ],
-      "updatedAt": "2026-08-10T12:01:58.144Z"
+      "updatedAt": "2026-08-11T00:03:14.289Z"
     },
     {
       "name": "firebase",
@@ -4443,7 +4451,7 @@
       "author": {
         "name": "Google"
       },
-      "updatedAt": "2026-08-10T12:01:58.347Z"
+      "updatedAt": "2026-08-11T00:03:15.164Z"
     },
     {
       "name": "discord",
@@ -4456,7 +4464,7 @@
         "channel",
         "mcp"
       ],
-      "updatedAt": "2026-08-10T12:02:28.481Z"
+      "updatedAt": "2026-08-11T00:04:06.299Z"
     },
     {
       "name": "explanatory-output-style",
@@ -4467,7 +4475,7 @@
         "name": "Anthropic",
         "email": "support@anthropic.com"
       },
-      "updatedAt": "2026-08-10T12:01:56.957Z"
+      "updatedAt": "2026-08-11T00:03:13.357Z"
     },
     {
       "name": "feature-dev",
@@ -4478,7 +4486,7 @@
         "name": "Anthropic",
         "email": "support@anthropic.com"
       },
-      "updatedAt": "2026-08-10T12:02:17.571Z"
+      "updatedAt": "2026-08-11T00:03:54.633Z"
     },
     {
       "name": "frontend-design",
@@ -4489,7 +4497,7 @@
         "name": "Anthropic",
         "email": "support@anthropic.com"
       },
-      "updatedAt": "2026-08-10T12:01:59.611Z"
+      "updatedAt": "2026-08-11T00:03:15.752Z"
     },
     {
       "name": "agent-sdk-dev",
@@ -4500,13 +4508,13 @@
         "name": "Anthropic",
         "email": "support@anthropic.com"
       },
-      "updatedAt": "2026-08-10T12:02:46.077Z"
+      "updatedAt": "2026-08-11T00:02:43.198Z"
     },
     {
       "name": "carta-investors",
       "source": "./plugins/carta-investors",
       "description": "Carta Investors plugin — write-capable skills for querying and updating investors data, performance benchmarks, regulatory reporting, AGM deck generation, brand extraction, and more via the Carta MCP server",
-      "version": "3.11.1",
+      "version": "3.16.0",
       "author": {
         "name": "Carta",
         "email": "engineering@carta.com"
@@ -4528,7 +4536,7 @@
         "pdf",
         "pptx"
       ],
-      "updatedAt": "2026-08-10T12:01:47.993Z"
+      "updatedAt": "2026-08-11T00:02:59.484Z"
     },
     {
       "name": "aws-transform",
@@ -4564,7 +4572,7 @@
         "modernization analysis",
         "agentic readiness"
       ],
-      "updatedAt": "2026-08-10T12:02:52.895Z"
+      "updatedAt": "2026-08-11T00:02:49.160Z"
     },
     {
       "name": "amazon-location-service",
@@ -4588,7 +4596,7 @@
         "address",
         "coordinates"
       ],
-      "updatedAt": "2026-08-10T12:02:48.253Z"
+      "updatedAt": "2026-08-11T00:02:45.446Z"
     },
     {
       "name": "cwc-makers",
@@ -4610,7 +4618,7 @@
         "onboarding",
         "cwc"
       ],
-      "updatedAt": "2026-08-10T12:01:51.673Z"
+      "updatedAt": "2026-08-11T00:03:06.743Z"
     },
     {
       "name": "aws-amplify",
@@ -4632,7 +4640,7 @@
         "graphql",
         "functions"
       ],
-      "updatedAt": "2026-08-10T12:02:49.532Z"
+      "updatedAt": "2026-08-11T00:02:46.473Z"
     },
     {
       "name": "databases-on-aws",
@@ -4659,7 +4667,7 @@
         "serverless",
         "sql"
       ],
-      "updatedAt": "2026-08-10T12:01:53.711Z"
+      "updatedAt": "2026-08-11T00:03:09.223Z"
     },
     {
       "name": "aws-serverless",
@@ -4686,7 +4694,7 @@
         "microvms",
         "firecracker"
       ],
-      "updatedAt": "2026-08-10T12:02:51.063Z"
+      "updatedAt": "2026-08-11T00:02:48.938Z"
     },
     {
       "name": "deploy-on-aws",
@@ -4709,7 +4717,7 @@
         "draw.io",
         "architecture"
       ],
-      "updatedAt": "2026-08-10T12:01:55.570Z"
+      "updatedAt": "2026-08-11T00:03:11.781Z"
     },
     {
       "name": "confidence",
@@ -4729,7 +4737,7 @@
         "migration",
         "openfeature"
       ],
-      "updatedAt": "2026-08-10T12:01:53.215Z"
+      "updatedAt": "2026-08-11T00:03:08.257Z"
     },
     {
       "name": "aws-startup-advisor",
@@ -4767,7 +4775,7 @@
         "llm-migration",
         "cost-estimation"
       ],
-      "updatedAt": "2026-08-10T12:02:56.191Z"
+      "updatedAt": "2026-08-11T00:02:55.642Z"
     },
     {
       "name": "ai-plugins",
@@ -4792,7 +4800,7 @@
         "AppSec",
         "OSS Upgrade Investigator"
       ],
-      "updatedAt": "2026-08-10T12:02:48.769Z"
+      "updatedAt": "2026-08-11T00:02:45.585Z"
     },
     {
       "name": "aws-data-analytics",
@@ -4845,7 +4853,7 @@
         "log-analytics",
         "trace-analytics"
       ],
-      "updatedAt": "2026-08-10T12:02:52.813Z"
+      "updatedAt": "2026-08-11T00:02:51.297Z"
     },
     {
       "name": "aws-agents-for-devsecops",
@@ -4895,7 +4903,7 @@
         "uat",
         "ui-testing"
       ],
-      "updatedAt": "2026-08-10T12:02:52.495Z"
+      "updatedAt": "2026-08-11T00:03:59.588Z"
     },
     {
       "name": "aws-core",
@@ -5011,7 +5019,7 @@
         "reserved-instances",
         "right-sizing"
       ],
-      "updatedAt": "2026-08-10T12:02:53.948Z"
+      "updatedAt": "2026-08-11T00:02:52.675Z"
     },
     {
       "name": "aws-agents",
@@ -5063,7 +5071,7 @@
         "browser-tool",
         "rate-limiting"
       ],
-      "updatedAt": "2026-08-10T12:02:52.659Z"
+      "updatedAt": "2026-08-11T00:02:50.838Z"
     },
     {
       "name": "databricks",
@@ -5110,7 +5118,7 @@
         "zerobus",
         "data-engineering"
       ],
-      "updatedAt": "2026-08-10T12:02:52.495Z"
+      "updatedAt": "2026-08-11T00:03:59.924Z"
     },
     {
       "name": "duende-skills",
@@ -5122,7 +5130,7 @@
         "name": "Duende Software"
       },
       "repository": "https://github.com/DuendeSoftware/duende-skills",
-      "updatedAt": "2026-08-10T12:02:23.156Z"
+      "updatedAt": "2026-08-11T00:03:55.964Z"
     },
     {
       "name": "build-with-wordpress",
@@ -5132,7 +5140,7 @@
       "author": {
         "name": "Automattic"
       },
-      "updatedAt": "2026-08-10T00:26:56.575Z"
+      "updatedAt": "2026-08-10T12:17:08.424Z"
     },
     {
       "name": "terraform-code-generation",
@@ -5156,7 +5164,7 @@
         "import",
         "discovery"
       ],
-      "updatedAt": "2026-08-10T00:26:56.575Z"
+      "updatedAt": "2026-08-11T00:04:14.620Z"
     },
     {
       "name": "packer-builders",
@@ -5178,7 +5186,7 @@
         "image",
         "builder"
       ],
-      "updatedAt": "2026-08-10T00:26:56.576Z"
+      "updatedAt": "2026-08-11T00:04:12.480Z"
     },
     {
       "name": "packer-hcp",
@@ -5198,7 +5206,7 @@
         "metadata",
         "image-tracking"
       ],
-      "updatedAt": "2026-08-10T00:26:56.576Z"
+      "updatedAt": "2026-08-10T12:17:08.425Z"
     },
     {
       "name": "terraform-provider-development",
@@ -5218,7 +5226,7 @@
         "resources",
         "testing"
       ],
-      "updatedAt": "2026-08-10T00:26:56.576Z"
+      "updatedAt": "2026-08-11T00:04:14.561Z"
     },
     {
       "name": "terraform-module-generation",
@@ -5239,7 +5247,7 @@
         "stacks",
         "refactoring"
       ],
-      "updatedAt": "2026-08-10T00:26:56.577Z"
+      "updatedAt": "2026-08-11T00:04:14.604Z"
     },
     {
       "name": "deepeval",
@@ -5260,7 +5268,7 @@
         "datasets",
         "confident-ai"
       ],
-      "updatedAt": "2026-08-10T12:02:18.534Z"
+      "updatedAt": "2026-08-11T00:03:44.338Z"
     },
     {
       "name": "terraform-policy-code",
@@ -5282,7 +5290,7 @@
         "tfpolicy",
         "enforcement"
       ],
-      "updatedAt": "2026-08-10T00:26:56.578Z"
+      "updatedAt": "2026-08-11T00:04:14.585Z"
     },
     {
       "name": "claude-code-sentry-monitor",
@@ -5300,7 +5308,7 @@
         "ai-agents",
         "tracing"
       ],
-      "updatedAt": "2026-08-10T00:26:56.578Z"
+      "updatedAt": "2026-08-10T12:17:08.427Z"
     },
     {
       "name": "amd-skills",
@@ -5311,7 +5319,7 @@
         "name": "AMD"
       },
       "homepage": "https://developer.amd.com/",
-      "updatedAt": "2026-08-10T12:02:48.441Z"
+      "updatedAt": "2026-08-11T00:02:46.037Z"
     },
     {
       "name": "receipts",
@@ -5323,7 +5331,7 @@
         "email": "support@anthropic.com"
       },
       "homepage": "https://github.com/anthropics/claude-plugins-official/tree/main/plugins/receipts",
-      "updatedAt": "2026-08-10T12:02:19.822Z"
+      "updatedAt": "2026-08-11T00:03:56.690Z"
     },
     {
       "name": "newrelic",
@@ -5336,7 +5344,7 @@
       },
       "homepage": "https://newrelic.com/",
       "repository": "https://github.com/newrelic/newrelic-claude-plugin",
-      "updatedAt": "2026-08-10T12:02:10.909Z"
+      "updatedAt": "2026-08-11T00:03:41.696Z"
     },
     {
       "name": "altimate-code",
@@ -5359,7 +5367,7 @@
         "databricks",
         "column-lineage"
       ],
-      "updatedAt": "2026-08-10T12:02:47.305Z"
+      "updatedAt": "2026-08-11T00:02:43.797Z"
     },
     {
       "name": "azure-sql-developer",
@@ -5381,7 +5389,7 @@
         "rag",
         "vector-search"
       ],
-      "updatedAt": "2026-08-10T12:02:54.072Z"
+      "updatedAt": "2026-08-11T00:02:52.923Z"
     },
     {
       "name": "browser-use",
@@ -5393,7 +5401,7 @@
         "name": "Browser Use"
       },
       "homepage": "https://github.com/browser-use/browser-use",
-      "updatedAt": "2026-08-10T12:02:55.089Z"
+      "updatedAt": "2026-08-11T00:02:55.000Z"
     },
     {
       "name": "carbone-skill",
@@ -5406,7 +5414,7 @@
       },
       "homepage": "https://carbone.io",
       "repository": "https://github.com/carboneio/carbone-skill",
-      "updatedAt": "2026-08-10T12:02:55.923Z"
+      "updatedAt": "2026-08-11T00:02:55.699Z"
     },
     {
       "name": "ckeditor",
@@ -5440,7 +5448,7 @@
         "track-changes",
         "ai-writing-assistant"
       ],
-      "updatedAt": "2026-08-10T12:01:47.352Z"
+      "updatedAt": "2026-08-11T00:02:59.210Z"
     },
     {
       "name": "crowdsec",
@@ -5461,7 +5469,7 @@
         "bouncer",
         "fail2ban"
       ],
-      "updatedAt": "2026-08-10T12:01:50.774Z"
+      "updatedAt": "2026-08-11T00:03:07.151Z"
     },
     {
       "name": "gitkraken",
@@ -5471,7 +5479,7 @@
       "author": {
         "name": "GitKraken"
       },
-      "updatedAt": "2026-08-10T12:02:00.461Z"
+      "updatedAt": "2026-08-11T00:03:16.585Z"
     },
     {
       "name": "growthbook",
@@ -5489,7 +5497,7 @@
         "experimentation",
         "ab-testing"
       ],
-      "updatedAt": "2026-08-10T12:02:01.227Z"
+      "updatedAt": "2026-08-11T00:03:18.530Z"
     },
     {
       "name": "mlflow",
@@ -5500,7 +5508,7 @@
         "name": "MLflow Team"
       },
       "homepage": "https://github.com/mlflow/skills",
-      "updatedAt": "2026-08-10T12:02:08.704Z"
+      "updatedAt": "2026-08-11T00:03:36.002Z"
     },
     {
       "name": "modern-web-guidance",
@@ -5510,7 +5518,7 @@
       "author": {
         "name": "Google Chrome"
       },
-      "updatedAt": "2026-08-10T12:02:10.358Z"
+      "updatedAt": "2026-08-11T00:03:35.999Z"
     },
     {
       "name": "qodo",
@@ -5532,7 +5540,7 @@
         "standards",
         "pr-review"
       ],
-      "updatedAt": "2026-08-10T12:02:19.450Z"
+      "updatedAt": "2026-08-11T00:03:56.318Z"
     },
     {
       "name": "stackhawk-api",
@@ -5556,7 +5564,7 @@
         "posture",
         "triage"
       ],
-      "updatedAt": "2026-08-10T12:02:26.432Z"
+      "updatedAt": "2026-08-11T00:04:03.507Z"
     },
     {
       "name": "stackhawk-hawkscan",
@@ -5579,7 +5587,7 @@
         "api-security",
         "vulnerability-scanning"
       ],
-      "updatedAt": "2026-08-10T12:02:29.406Z"
+      "updatedAt": "2026-08-11T00:04:06.689Z"
     },
     {
       "name": "ui-theme-designer",
@@ -5602,7 +5610,7 @@
         "fundamental-styles",
         "plugin"
       ],
-      "updatedAt": "2026-08-10T12:02:29.563Z"
+      "updatedAt": "2026-08-11T00:04:07.046Z"
     },
     {
       "name": "claude-security",
@@ -5613,7 +5621,7 @@
         "name": "Anthropic",
         "email": "support@anthropic.com"
       },
-      "updatedAt": "2026-08-10T12:01:47.880Z"
+      "updatedAt": "2026-08-11T00:02:58.823Z"
     },
     {
       "name": "catalyst-by-zoho",
@@ -5638,7 +5646,7 @@
         "stratus",
         "functions"
       ],
-      "updatedAt": "2026-08-10T12:01:46.634Z"
+      "updatedAt": "2026-08-11T00:02:57.676Z"
     },
     {
       "name": "mattpocock-skills",
@@ -5660,7 +5668,7 @@
         "domain-modeling",
         "productivity"
       ],
-      "updatedAt": "2026-08-10T12:02:06.154Z"
+      "updatedAt": "2026-08-11T00:03:28.085Z"
     },
     {
       "name": "paypal",
@@ -5683,7 +5691,7 @@
         "mcp",
         "commerce"
       ],
-      "updatedAt": "2026-08-10T12:02:52.495Z"
+      "updatedAt": "2026-08-11T00:04:06.390Z"
     },
     {
       "name": "shippo",
@@ -5707,7 +5715,7 @@
         "batch",
         "address-validation"
       ],
-      "updatedAt": "2026-08-10T12:02:25.442Z"
+      "updatedAt": "2026-08-11T00:04:01.891Z"
     },
     {
       "name": "atlassian-twg-cli",
@@ -5741,7 +5749,7 @@
         "cli",
         "atlassian context"
       ],
-      "updatedAt": "2026-08-10T12:02:49.365Z"
+      "updatedAt": "2026-08-11T00:02:46.398Z"
     },
     {
       "name": "noibu",
@@ -5752,7 +5760,7 @@
         "url": "https://noibu.com",
         "name": "Noibu"
       },
-      "updatedAt": "2026-08-10T12:02:13.238Z"
+      "updatedAt": "2026-08-11T00:03:42.685Z"
     },
     {
       "name": "ponytail",
@@ -5763,7 +5771,7 @@
         "url": "https://github.com/DietrichGebert",
         "name": "Dietrich Gebert"
       },
-      "updatedAt": "2026-08-10T00:26:56.617Z"
+      "updatedAt": "2026-08-10T12:17:08.434Z"
     },
     {
       "name": "understand-anything",
@@ -5782,7 +5790,7 @@
         "onboarding",
         "dashboard"
       ],
-      "updatedAt": "2026-08-10T00:26:56.617Z"
+      "updatedAt": "2026-08-10T12:17:08.434Z"
     },
     {
       "name": "endor-labs-agent-kit",
@@ -5807,7 +5815,7 @@
         "AppSec",
         "OSS Upgrade Investigator"
       ],
-      "updatedAt": "2026-08-10T00:26:56.617Z"
+      "updatedAt": "2026-08-10T12:17:08.434Z"
     },
     {
       "name": "aiven",
@@ -5834,7 +5842,7 @@
         "kafka-connect",
         "apps"
       ],
-      "updatedAt": "2026-08-10T12:02:47.086Z"
+      "updatedAt": "2026-08-11T00:02:43.146Z"
     },
     {
       "name": "crowdstrike-falcon-fusion",
@@ -5853,7 +5861,7 @@
         "automation",
         "security"
       ],
-      "updatedAt": "2026-08-10T12:02:52.464Z"
+      "updatedAt": "2026-08-11T00:03:59.588Z"
     },
     {
       "name": "airwallex-dev",
@@ -5875,14 +5883,17 @@
         "payments",
         "checkout"
       ],
-      "updatedAt": "2026-08-10T12:02:46.033Z"
+      "updatedAt": "2026-08-11T00:02:41.680Z"
     },
     {
       "name": "streaming-skills-plugin",
       "source": "./plugins/streaming-skills-plugin",
       "description": "Skills for streaming application developers, covering Kafka and Flink client libraries and Schema Registry",
       "version": "1.2.1",
-      "updatedAt": "2026-08-10T12:02:28.879Z"
+      "author": {
+        "name": "Confluent"
+      },
+      "updatedAt": "2026-08-11T00:04:06.064Z"
     },
     {
       "name": "synthflow",
@@ -5903,7 +5914,34 @@
         "telephony",
         "integration"
       ],
-      "updatedAt": "2026-08-10T12:02:28.349Z"
+      "updatedAt": "2026-08-11T00:04:06.095Z"
+    },
+    {
+      "name": "mongodb-atlas",
+      "source": "./plugins/mongodb-atlas",
+      "description": "Official Antigravity plugin for MongoDB Atlas (hosted MCP Server + Skills). Connect to the MongoDB-hosted Atlas MCP server, explore data, manage collections, optimize queries, generate reliable code, implement best practices, develop advanced features, and more.",
+      "version": "1.0.0",
+      "updatedAt": "2026-08-11T00:03:39.612Z"
+    },
+    {
+      "name": "packer",
+      "source": "./plugins/packer",
+      "description": "Packer skills for image building and HCP Packer registry workflows.",
+      "version": "1.0.0",
+      "author": {
+        "url": "https://github.com/hashicorp",
+        "name": "HashiCorp"
+      },
+      "homepage": "https://developer.hashicorp.com/packer",
+      "repository": "https://github.com/hashicorp/agent-skills",
+      "keywords": [
+        "packer",
+        "images",
+        "aws",
+        "azure",
+        "hcp-packer"
+      ],
+      "updatedAt": "2026-08-11T00:04:12.480Z"
     }
   ]
 }

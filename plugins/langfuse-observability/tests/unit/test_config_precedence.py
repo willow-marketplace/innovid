@@ -181,6 +181,6 @@ def test_env_keys_with_code_default_host_do_not_warn(hook_module: Any, monkeypat
     config = hook_module.get_langfuse_config()
 
     assert config is not None
-    assert config.host == "https://us.cloud.langfuse.com"
+    assert config.host == "https://cloud.langfuse.com"
     assert config.user_id is None
     assert "mixed-source" not in _read_log(hook_module)

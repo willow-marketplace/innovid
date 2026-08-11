@@ -1,10 +1,20 @@
 {
   "name": "terraform",
   "version": "1.0.0",
-  "description": "The Terraform MCP Server provides seamless integration with Terraform ecosystem, enabling advanced automation and interaction capabilities for Infrastructure as Code (IaC) development.",
-  "updatedAt": "2026-08-10T12:02:28.711Z",
+  "description": "Terraform skills for configuration, modules, providers, tests, imports, stacks, and policy.",
+  "updatedAt": "2026-08-11T00:04:14.620Z",
   "author": {
+    "url": "https://github.com/hashicorp",
     "name": "HashiCorp"
   },
-  "homepage": "https://github.com/anthropics/claude-plugins-public/tree/main/external_plugins/terraform"
+  "homepage": "https://developer.hashicorp.com/terraform",
+  "repository": "https://github.com/hashicorp/agent-skills",
+  "keywords": [
+    "terraform",
+    "hcl",
+    "provider",
+    "modules",
+    "infrastructure"
+  ],
+  "skills": "./skills/"
 }

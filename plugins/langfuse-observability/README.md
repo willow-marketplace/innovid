@@ -35,7 +35,7 @@ The plugin requires or accepts:
 | --------------------- | ---------------------------------------------------------------------------------------------------- |
 | `LANGFUSE_SECRET_KEY` | Your Langfuse secret key (`sk-lf-...`). Stored in your OS keychain.                                  |
 | `LANGFUSE_PUBLIC_KEY` | Your Langfuse public key (`pk-lf-...`).                                                              |
-| `LANGFUSE_BASE_URL`   | https://us.cloud.langfuse.com (default), https://cloud.langfuse.com for EU, or your self-hosted URL. |
+| `LANGFUSE_BASE_URL`   | https://cloud.langfuse.com (default, EU), https://us.cloud.langfuse.com for US, or your self-hosted URL. |
 | `LANGFUSE_USER_ID`    | Optional. User identifier attached to every trace (shown as the user in Langfuse).                   |
 | `CC_LANGFUSE_DEBUG`   | Verbose logging to `~/.claude/state/langfuse_hook.log`.                                              |
 | `CC_LANGFUSE_MAX_CHARS` | Truncate captured inputs/outputs to this many characters (default 20000).                          |
@@ -165,8 +165,7 @@ Instead of `CC_LANGFUSE_TRACEPARENT` you can pass `CC_LANGFUSE_PARENT_TRACE_ID` 
 
 This plugin transmits your Claude Code session data — conversation turns, assistant
 generations, tool calls, and token-usage statistics — to the Langfuse endpoint you
-configure (`LANGFUSE_BASE_URL`, default `https://us.cloud.langfuse.com`; EU and
-self-hosted endpoints are supported). Data is sent at the end of each turn (the
+configure (`LANGFUSE_BASE_URL`, default `https://cloud.langfuse.com`). Data is sent at the end of each turn (the
 `Stop` hook) and at session end (`SessionEnd`) using the Langfuse API keys you
 provide, which are stored in your OS keychain. No data is sent anywhere other than
 the endpoint you configure.
