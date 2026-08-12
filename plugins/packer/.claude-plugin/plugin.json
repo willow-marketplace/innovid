@@ -2,7 +2,7 @@
   "name": "packer",
   "version": "1.0.0",
   "description": "Packer skills for image building and HCP Packer registry workflows.",
-  "updatedAt": "2026-08-11T00:29:03.665Z",
+  "updatedAt": "2026-08-12T00:12:33.896Z",
   "author": {
     "url": "https://github.com/hashicorp",
     "name": "HashiCorp"
