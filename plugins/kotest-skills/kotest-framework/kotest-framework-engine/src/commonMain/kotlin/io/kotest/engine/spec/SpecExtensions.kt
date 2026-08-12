@@ -1,0 +1,196 @@
+package io.kotest.engine.spec
+
+import io.kotest.core.LogLine
+import io.kotest.core.Logger
+import io.kotest.core.extensions.Extension
+import io.kotest.core.extensions.SpecExtension
+import io.kotest.core.listeners.AfterSpecListener
+import io.kotest.core.listeners.BeforeSpecListener
+import io.kotest.core.listeners.FinalizeSpecListener
+import io.kotest.core.listeners.IgnoredSpecListener
+import io.kotest.core.listeners.InstantiationErrorListener
+import io.kotest.core.listeners.InstantiationListener
+import io.kotest.core.listeners.PrepareSpecListener
+import io.kotest.core.spec.Spec
+import io.kotest.core.test.TestCase
+import io.kotest.engine.config.ProjectConfigResolver
+import io.kotest.engine.config.SpecConfigResolver
+import io.kotest.engine.extensions.ExtensionException
+import io.kotest.engine.extensions.MultipleExceptions
+import io.kotest.engine.mapError
+import io.kotest.engine.test.TestResult
+import kotlin.reflect.KClass
+
+/**
+ * Used to invoke [Extension]s on specs.
+ */
+internal class SpecExtensions(
+   private val specConfigResolver: SpecConfigResolver,
+   private val projectConfigResolver: ProjectConfigResolver,
+) {
+
+   constructor() : this(SpecConfigResolver(), ProjectConfigResolver())
+
+   private val logger = Logger<SpecExtensions>()
+
+   /**
+    * Runs all the [BeforeSpecListener]s for this [Spec]. All errors are caught and wrapped
+    * in [ExtensionException.BeforeSpecException] and if more than one error,
+    * all will be wrapped in a [MultipleExceptions].
+    */
+   suspend fun beforeSpec(spec: Spec) {
+      logger.log { LogLine(spec::class, "beforeSpec $spec") }
+
+      val errors = specConfigResolver.extensions(spec)
+         .filterIsInstance<BeforeSpecListener>()
+         .mapNotNull { listener ->
+            runCatching { listener.beforeSpec(spec) }
+               .mapError { ExtensionException.BeforeSpecException(it) }
+               .exceptionOrNull()
+         }
+
+      return when {
+         errors.isEmpty() -> Unit
+         errors.size == 1 -> throw errors.first()
+         else -> throw MultipleExceptions(errors)
+      }
+   }
+
+   /**
+    * Runs all the [AfterSpecListener]s for this [Spec]. All errors are caught and wrapped
+    * in [ExtensionException.AfterSpecException] and if more than one error,
+    * all will be wrapped in a [MultipleExceptions].
+    */
+   suspend fun afterSpec(spec: Spec): Result<Spec> = runCatching {
+      logger.log { LogLine(spec::class, "afterSpec $spec") }
+
+      spec.autoCloseables().let { closeables ->
+         logger.log { LogLine(spec::class, "Closing ${closeables.size} autocloseables [$closeables]") }
+         closeables.forEach {
+            if (it.isInitialized()) it.value.close() else Unit
+         }
+      }
+
+      val errors = specConfigResolver.extensions(spec)
+         .filterIsInstance<AfterSpecListener>()
+         .mapNotNull { listener ->
+            runCatching { listener.afterSpec(spec) }
+               .mapError { ExtensionException.AfterSpecException(it) }
+               .exceptionOrNull()
+         }
+
+      return when {
+         errors.isEmpty() -> Result.success(spec)
+         errors.size == 1 -> Result.failure(errors.first())
+         else -> Result.failure(MultipleExceptions(errors))
+      }
+   }
+
+   suspend fun specInstantiated(spec: Spec) = runCatching {
+      logger.log { LogLine(spec::class, "specInstantiated $spec") }
+      specConfigResolver.extensions(spec)
+         .filterIsInstance<InstantiationListener>()
+         .forEach { it.specInstantiated(spec) }
+   }
+
+   suspend fun specInstantiationError(kclass: KClass<out Spec>, t: Throwable) = runCatching {
+      logger.log { LogLine(kclass, "specInstantiationError $t") }
+      projectConfigResolver.extensions()
+         .filterIsInstance<InstantiationErrorListener>()
+         .forEach { it.instantiationError(kclass, t) }
+   }
+
+   /**
+    * Runs all the [PrepareSpecListener]s for this [Spec].
+    *
+    * All errors are caught and wrapped and then rethrown:
+    * - in [ExtensionException.PrepareSpecException] for a single error
+    * - in [MultipleExceptions] for multiple errors
+    */
+   suspend fun prepareSpec(kclass: KClass<out Spec>) {
+
+      val exts = projectConfigResolver.extensions().filterIsInstance<PrepareSpecListener>()
+      logger.log { LogLine(kclass, "${exts.size} PrepareSpecListener extensions") }
+
+      val errors = exts.mapNotNull { listener ->
+         runCatching { listener.prepareSpec(kclass) }
+            .mapError { ExtensionException.PrepareSpecException(it) }.exceptionOrNull()
+      }
+
+      return when {
+         errors.size == 1 -> throw errors.single()
+         errors.size > 1 -> throw MultipleExceptions(errors)
+         else -> Unit
+      }
+   }
+
+   /**
+    * Runs all the [FinalizeSpecListener]s for this [Spec]. All errors are caught and wrapped
+    * in [ExtensionException.FinalizeSpecException] and if more than one error,
+    * all will be wrapped in a [MultipleExceptions].
+    */
+   suspend fun finalizeSpec(
+      kclass: KClass<out Spec>,
+      results: Map<TestCase, TestResult>,
+   ): Result<KClass<out Spec>> {
+
+      val exts = projectConfigResolver.extensions().filterIsInstance<FinalizeSpecListener>()
+      logger.log { LogLine(kclass, "${exts.size} FinalizeSpecListener extensions") }
+
+      val errors = exts.mapNotNull { listener ->
+         runCatching { listener.finalizeSpec(kclass, results) }
+            .mapError { ExtensionException.FinalizeSpecException(it) }.exceptionOrNull()
+      }
+
+      return when {
+         errors.isEmpty() -> Result.success(kclass)
+         errors.size == 1 -> Result.failure(errors.first())
+         else -> Result.failure(MultipleExceptions(errors))
+      }
+   }
+
+   /**
+    * Executes any [SpecExtension]s for this spec, and then invokes the [f] as the innermost function.
+    */
+   suspend fun <T> intercept(spec: Spec, f: suspend () -> T): T? {
+
+      val exts = specConfigResolver.extensions(spec).filterIsInstance<SpecExtension>()
+      logger.log { LogLine(spec::class, "${exts.size} SpecExtension interceptors") }
+      if (exts.isEmpty()) return f()
+
+      var result: T? = null
+      val initial: suspend () -> Unit = {
+         result = f()
+      }
+      val chain = exts.foldRight(initial) { op, acc ->
+         {
+            op.intercept(spec) {
+               acc()
+            }
+         }
+      }
+      chain.invoke()
+      return result
+   }
+
+   /**
+    * Notify all [IgnoredSpecListener]s that the given [kclass] has been ignored.
+    */
+   suspend fun ignored(kclass: KClass<out Spec>, reason: String?): Result<KClass<out Spec>> {
+
+      val exts = projectConfigResolver.extensions().filterIsInstance<IgnoredSpecListener>()
+      logger.log { LogLine(kclass, "${exts.size} IgnoredSpecListener extensions") }
+      if (exts.isEmpty()) return Result.success(kclass)
+
+      val errors = exts.mapNotNull { listener ->
+         runCatching { listener.ignoredSpec(kclass, reason) }
+            .mapError { ExtensionException.IgnoredSpecException(it) }.exceptionOrNull()
+      }
+
+      return when {
+         errors.isEmpty() -> Result.success(kclass)
+         errors.size == 1 -> Result.failure(errors.first())
+         else -> Result.failure(MultipleExceptions(errors))
+      }
+   }
+}

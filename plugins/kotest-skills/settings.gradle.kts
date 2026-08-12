@@ -1,0 +1,289 @@
+rootProject.name = "kotest"
+
+pluginManagement {
+   repositories {
+      google()
+      mavenCentral()
+      gradlePluginPortal()
+   }
+}
+
+plugins {
+   id("com.gradle.develocity") version "4.4.0"
+   id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
+}
+
+@Suppress("UnstableApiUsage")
+dependencyResolutionManagement {
+   repositoriesMode = RepositoriesMode.PREFER_PROJECT
+
+   repositories {
+      google()
+      mavenCentral()
+
+      //region Declare the Node.js & Yarn download repositories
+      // Workaround https://youtrack.jetbrains.com/issue/KT-68533/
+      ivy("https://nodejs.org/dist/") {
+         name = "Node Distributions at $url"
+         patternLayout { artifact("v[revision]/[artifact](-v[revision]-[classifier]).[ext]") }
+         metadataSources { artifact() }
+         content { includeModule("org.nodejs", "node") }
+      }
+      ivy("https://github.com/yarnpkg/yarn/releases/download") {
+         name = "Yarn Distributions at $url"
+         patternLayout { artifact("v[revision]/[artifact](-v[revision]).[ext]") }
+         metadataSources { artifact() }
+         content { includeModule("com.yarnpkg", "yarn") }
+      }
+      //endregion
+   }
+
+}
+
+include(
+   ":kotest-common",
+
+   // contains the execution engine implementation for jvm, js, native
+   // brings in the API dependency
+   ":kotest-framework:kotest-framework-engine",
+
+   // a fat jar that includes everything needed to execute the engine as a standalone program
+   ":kotest-framework:kotest-framework-standalone",
+
+   // gradle plugin to run tests outside of gradle's test task
+   ":kotest-framework:kotest-framework-plugin-gradle",
+
+   // generates KMP tests
+   ":kotest-framework:kotest-framework-symbol-processor",
+
+   ":kotest-intellij-plugin",
+
+   // the older kotest 4.x era data/table testing, now pulled out into a legacy module
+   ":kotest-assertions:kotest-assertions-table",
+
+   // provides the base Matcher and assertion counters which are used by the engine to track assertion usage
+   ":kotest-assertions:kotest-assertions-shared",
+
+   // assertions used to validate code does not compile - see more https://github.com/tschuchortdev/kotlin-compile-testing
+   ":kotest-assertions:kotest-assertions-compiler",
+
+   // the core assertions that cover the basic types such as String, Int, Boolean, etc.
+   // it also defines the assertion error builders that create the intellij formatted assertion errors
+   // users should depend on this if they want to use kotest assertions in tests
+   ":kotest-assertions:kotest-assertions-core",
+
+   // provides json matchers for comparing json strings, json objects, and json arrays
+   ":kotest-assertions:kotest-assertions-json",
+
+   // provides matchers for ktor requests and responses
+   ":kotest-assertions:kotest-assertions-ktor",
+
+   ":kotest-assertions:kotest-assertions-yaml",
+
+   ":kotest-assertions:kotest-assertions-kotlinx-datetime",
+
+   ":kotest-assertions:kotest-assertions-arrow",
+   ":kotest-assertions:kotest-assertions-arrow-fx-coroutines",
+
+   // assertions for the konform validation library
+   ":kotest-assertions:kotest-assertions-konform",
+
+   // base classes for property testing, plus std lib generators
+   ":kotest-property",
+
+   // contains arbs for kotlinx datetime
+   ":kotest-property:kotest-property-datetime",
+
+   // contains  extensions for property testing that build on the kotest test framework
+   // the new 6.0+ permutations based DSL for property testing
+   ":kotest-property:kotest-property-permutations",
+
+   // contains extensions for property testing that build on the kotest test framework
+   ":kotest-property:kotest-property-lifecycle",
+
+   ":kotest-property:kotest-property-arrow",
+//   ":kotest-property:kotest-property-arrow-optics",
+
+   // contains some common extensions not worth making a module for
+   ":kotest-extensions",
+
+   ":kotest-extensions:kotest-extensions-htmlreporter",
+   ":kotest-extensions:kotest-extensions-junitxml",
+
+   // adds support for the koin DI framework - see more https://insert-koin.io/
+   ":kotest-extensions:kotest-extensions-koin",
+
+   // shared support executing tests via JUnit Platform
+   ":kotest-runner:kotest-runner-junit-platform",
+
+   // runs tests on junit5 but also used by other modules to run kotest's own tests
+   ":kotest-runner:kotest-runner-junit5",
+   ":kotest-runner:kotest-runner-junit4",
+   ":kotest-runner:kotest-runner-junit6",
+
+   // BOM for whole kotest project
+   ":kotest-bom",
+)
+
+/** Is the build currently running on CI? */
+private val isCI = System.getenv("CI").toBoolean()
+private val isLocal = !isCI
+
+/** Is the build currently running on a GitHub actions Linux runner? */
+private val isLinuxRunner = System.getenv("RUNNER_OS") == "Linux"
+
+private val isMaster = System.getenv("GITHUB_REF_NAME") == "master"
+
+/** we only include JVM-only modules if it's a non-CI build, or if it's a master build, or if it's using a linux runner */
+private val shouldRunJvmOnlyModules = isLocal || isMaster || isLinuxRunner
+
+/** we only include Linux-only modules if it's a non-CI build or if it's using a linux runner */
+private val shouldRunLinuxOnlyModules = isLocal || isLinuxRunner
+
+/**
+ * These modules only have JVM source sets. We don't need to run them on all OSes for PRs as we can
+ * assume that if it works on one JVM, then it will work on all JVMs. Worst case, is there's a bug on
+ * a specific OS JVM that causes a test to fail on macOS when it works on linux, for example, then our
+ * PR would be green but go red on master. This is an acceptable trade off given the limited availability
+ * of macOS runners on GitHub.
+ */
+if (shouldRunJvmOnlyModules) {
+   include(
+
+      ":kotest-tests:kotest-tests-core",
+
+      // tests for Java APIs added in JDK21
+      ":kotest-tests:kotest-tests-assertions-java21",
+
+      // defines the order of callbacks
+      ":kotest-tests:kotest-tests-callback-order",
+
+      ":kotest-tests:kotest-tests-concurrency-tests",
+      ":kotest-tests:kotest-tests-concurrency-specs",
+
+      ":kotest-tests:kotest-tests-config-project",
+      // tests that we can look up a project config by extending from a shared module
+      ":kotest-tests:kotest-tests-config-project-inherited",
+      // tests that we can look up a project config by putting it on a common package path
+      ":kotest-tests:kotest-tests-config-project-prefix",
+      ":kotest-tests:kotest-tests-config-classname",
+      ":kotest-tests:kotest-tests-config-packages",
+
+      // tests that kotest.properties on the classpath are picked up
+      ":kotest-tests:kotest-tests-config-properties",
+
+      ":kotest-tests:kotest-tests-htmlreporter",
+
+      // tests specific functionality of the JUnit4 runner used by Android instrumented tests
+      ":kotest-tests:kotest-tests-junit4",
+
+      // tests that we add the jupiter dep to allow org.junit.jupiter.api.Test annotations for backwards compatibility
+      // we shouldn't really add it, people can add it themselves if they want the dependency, but this is a historic artifact
+      ":kotest-tests:kotest-tests-junit-jupiter",
+
+      ":kotest-tests:kotest-tests-junitxml",
+      ":kotest-tests:kotest-tests-junit-displaynameformatter",
+
+      ":kotest-tests:kotest-tests-multiname-test-name-sysprop",
+
+      // Tests that the KOTEST_TAGS env var is correctly applied to tags at runtime
+      ":kotest-tests:kotest-tests-tags-envvar",
+
+      ":kotest-tests:kotest-tests-power-assert",
+      ":kotest-tests:kotest-tests-spec-parallelism",
+      ":kotest-tests:kotest-tests-tagextension",
+      ":kotest-tests:kotest-tests-timeout-project",
+      ":kotest-tests:kotest-tests-timeout-sysprop",
+      ":kotest-tests:kotest-tests-test-parallelism",
+
+      // tests various forms of the Gradle --tests filter
+      ":kotest-tests:kotest-tests-gradle-test-filter:kotest-tests-gradle-test-filter-fully-qualified-class",
+      ":kotest-tests:kotest-tests-gradle-test-filter:kotest-tests-gradle-test-filter-fully-qualified-class-root-test",
+      ":kotest-tests:kotest-tests-gradle-test-filter:kotest-tests-gradle-test-filter-single-class",
+      ":kotest-tests:kotest-tests-gradle-test-filter:kotest-tests-gradle-test-filter-package-recursive",
+      ":kotest-tests:kotest-tests-gradle-test-filter:kotest-tests-gradle-test-filter-class-wildcard-prefix",
+
+      // tests for Gradle JVM test suite integration
+      ":kotest-tests:kotest-tests-jvm-test-suites",
+
+      // tests specific to the JS implementations
+      ":kotest-tests:kotest-tests-js",
+
+      // various tests and details for generating XML reports via the Gradle tasks
+      ":kotest-tests:kotest-tests-xml",
+
+      // tests specific to the WasmJS engine
+      ":kotest-tests:kotest-tests-wasm-js",
+
+      // tests specific to the WasmWASI engine
+      ":kotest-tests:kotest-tests-wasm-wasi"
+   )
+}
+
+/**
+ * These modules only require the JVM, so there's no need to run them on all platforms.
+ * We skip them on non-Linux CI runners to keep cross-platform builds lean.
+ * Local (non-CI) builds always include them.
+ */
+if (shouldRunLinuxOnlyModules) {
+   include(
+      // android junit4 instrumentation tests; the AVD/emulator setup only runs on a
+      // Linux runner with KVM, so we keep it out of the Windows/macOS jobs.
+      ":kotest-tests:kotest-tests-android-instrumentation",
+
+      // adds support for the allure reporting framework - see more https://allurereport.org/
+      ":kotest-extensions:kotest-extensions-allure",
+      ":kotest-extensions:kotest-extensions-blockhound",
+
+      // adds support for coroutine decoroutinator - see more https://github.com/Anamorphosee/stacktrace-decoroutinator
+      ":kotest-extensions:kotest-extensions-decoroutinator",
+
+      // adds support for mockserver - see more https://www.mock-server.com/
+      ":kotest-extensions:kotest-extensions-mockserver",
+
+      ":kotest-extensions:kotest-extensions-pitest",
+
+      ":kotest-extensions:kotest-extensions-spring",
+
+      // adds support for the testcontainers framework - see more https://testcontainers.com
+      ":kotest-extensions:kotest-extensions-testcontainers",
+
+      // adds support for the wiremock framework - see more https://www.wiremock.io/
+      ":kotest-extensions:kotest-extensions-wiremock",
+
+      // allows overriding the .now() functionality on time classes
+      ":kotest-extensions:kotest-extensions-now",
+
+      // extensions that adapt junit extensions into kotest extensions
+      ":kotest-extensions:kotest-extensions-junit5",
+   )
+}
+
+develocity {
+   buildScan {
+      termsOfUseUrl = "https://gradle.com/help/legal-terms-of-use"
+      termsOfUseAgree = "yes"
+      publishing.onlyIf { false }
+   }
+}
+
+buildCache {
+   val kotestUser = providers.gradleProperty("Kotest_GradleBuildCache_user").orNull
+   val kotestPass = providers.gradleProperty("Kotest_GradleBuildCache_pass").orNull
+//   remote<HttpBuildCache> {
+//      url = uri("https://kotest-gradle.duckdns.org/cache")
+//      credentials {
+//         username = kotestUser
+//         password = kotestPass
+//      }
+//      isPush = kotestUser != null && kotestPass != null
+//   }
+   local {
+      // Disable local cache when running on GitHub Actions to reduce the size of GitHub Actions cache,
+      // and to ensure that CI builds updates the remote cache.
+      val isCI = System.getenv("CI") == "true"
+      isEnabled = !isCI
+   }
+}
+
+enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")

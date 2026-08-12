@@ -1,0 +1,53 @@
+package com.sksamuel.kotest.engine.spec.style
+
+import io.kotest.core.spec.Spec
+import io.kotest.core.spec.style.FreeSpec
+import io.kotest.matchers.shouldBe
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+
+@Suppress("OverridingDeprecatedMember", "DEPRECATION")
+class FreeSpecTest : FreeSpec() {
+
+   private var count = 0
+
+   override suspend fun afterSpec(spec: Spec) {
+      count shouldBe 3
+   }
+
+   init {
+
+      "context a" - {
+         "b1" - {
+            "c" {
+               count += 1
+            }
+         }
+         "b2" - {
+            "d" {
+               count += 2
+            }
+         }
+      }
+
+      "context with coroutine in free scope" - {
+         launch { delay(1) }
+         "another context with coroutine in free scope" - {
+            launch { delay(1) }
+            "a dummy test" {
+
+            }
+         }
+      }
+
+
+      "params" - {
+         "support config".config(enabled = true) {
+         }
+      }
+
+      "multiple invocations root test is allowed with config".config(invocations = 3) {
+         1 + 1 shouldBe 2
+      }
+   }
+}

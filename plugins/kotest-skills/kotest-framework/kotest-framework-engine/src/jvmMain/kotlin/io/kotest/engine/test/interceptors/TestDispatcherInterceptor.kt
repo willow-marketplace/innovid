@@ -1,0 +1,44 @@
+package io.kotest.engine.test.interceptors
+
+import io.kotest.core.Logger
+import io.kotest.core.test.TestCase
+import io.kotest.core.test.TestScope
+import io.kotest.engine.test.TestResult
+import io.kotest.engine.test.scopes.withCoroutineContext
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineName
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.test.TestDispatcher
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.withContext
+
+/**
+ * A [TestExecutionInterceptor] that installs a [UnconfinedTestDispatcher] as the coroutine
+ * dispatcher for the test.
+ *
+ * If the current dispatcher is already a [TestDispatcher] then this interceptor is a no-op.
+ */
+@ExperimentalCoroutinesApi
+@ExperimentalStdlibApi
+class TestDispatcherInterceptor : TestExecutionInterceptor {
+
+   private val logger = Logger(TestDispatcherInterceptor::class)
+
+   override suspend fun intercept(
+      testCase: TestCase,
+      scope: TestScope,
+      test: NextTestExecutionInterceptor
+   ): TestResult {
+      return when (currentCoroutineContext()[CoroutineDispatcher]) {
+         is TestDispatcher -> test(testCase, scope)
+         else -> {
+            val dispatcher = UnconfinedTestDispatcher()
+            logger.log { Pair(testCase.name.name, "Switching context to StandardTestDispatcher: $dispatcher") }
+            withContext(dispatcher + CoroutineName("wibble")) {
+               test(testCase, scope.withCoroutineContext(dispatcher))
+            }
+         }
+      }
+   }
+}

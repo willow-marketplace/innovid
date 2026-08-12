@@ -1,0 +1,58 @@
+package io.kotest.extensions.testcontainers
+
+import com.zaxxer.hikari.HikariConfig
+import com.zaxxer.hikari.HikariDataSource
+import io.kotest.core.extensions.MountableExtension
+import io.kotest.core.listeners.AfterSpecListener
+import io.kotest.core.spec.Spec
+import io.kotest.extensions.testcontainers.options.ContainerExtensionConfig
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runInterruptible
+import org.testcontainers.containers.JdbcDatabaseContainer
+import javax.sql.DataSource
+
+/**
+ * A Kotest [MountableExtension] for [JdbcDatabaseContainer]s that will launch the container
+ * upon installation, and close after the spec has completed.
+ *
+ * This extension will create a pooled [HikariDataSource] attached to the database and
+ * return that to the user as the materialized value.
+ *
+ * The pool can be configured in the mount configure method.
+ *
+ * If you require a shared instance across multiple specs, consider using [JdbcDatabaseContainerProjectExtension]
+ *
+ * Note: This extension requires Kotest 6.0+
+ *
+ * @param container the specific test container type
+ */
+class JdbcDatabaseContainerSpecExtension(
+   private val container: JdbcDatabaseContainer<*>,
+   private val config: ContainerExtensionConfig = ContainerExtensionConfig(),
+   private val onStart: (DataSource) -> Unit = { },
+) : MountableExtension<HikariConfig, DataSource>, AfterSpecListener {
+
+   private var dataSource: HikariDataSource? = null
+
+   override fun mount(configure: HikariConfig.() -> Unit): DataSource {
+      container.start()
+      container.followOutput(config.logConsumer)
+      val config = HikariConfig()
+      config.jdbcUrl = container.jdbcUrl
+      config.username = container.username
+      config.password = container.password
+      config.configure()
+      val ds = HikariDataSource(config)
+      dataSource = ds
+      onStart(ds)
+      return ds
+   }
+
+   override suspend fun afterSpec(spec: Spec) {
+      runInterruptible(Dispatchers.IO) {
+         dataSource?.close()
+         container.stop()
+      }
+   }
+}
+

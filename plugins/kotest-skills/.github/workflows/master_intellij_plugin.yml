@@ -1,0 +1,80 @@
+name: master-intellij-plugin
+
+on:
+   push:
+      paths:
+         - 'kotest-intellij-plugin/**'
+      branches:
+         - master
+
+jobs:
+   build:
+      runs-on: ubuntu-latest
+
+      permissions:
+         contents: read
+         packages: write
+
+      strategy:
+         matrix:
+            product: [ "IC-251", "IC-252", "IC-253", "IC-261" ]
+         max-parallel: 10
+         fail-fast: false
+
+      steps:
+         -  uses: actions/checkout@v6
+            with:
+               fetch-depth: 0
+
+         -  uses: actions/setup-java@v5
+            with:
+               java-version: "21"
+               distribution: "temurin"
+               server-id: github
+               server-username: GITHUB_ACTOR
+               server-password: GITHUB_TOKEN
+
+         -  name: Override Kotlin version for IC-261
+            if: matrix.product == 'IC-261'
+            run: |
+               sed -i 's/^kotlin-gradle-plugin = "[0-9][^"]*"/kotlin-gradle-plugin = "2.3.10"/' gradle/libs.versions.toml
+               sed -i 's/^kotlin-compile-version = .*/kotlin-compile-version = "2.3.10"/' gradle/libs.versions.toml
+               sed -i 's/^kotlin-core-libaries-version = .*/kotlin-core-libaries-version = "2.3.10"/' gradle/libs.versions.toml
+
+         -  name: Run tests
+            run: ./gradlew :kotest-intellij-plugin:check
+            env:
+               PRODUCT_NAME: ${{ matrix.product }}
+
+         -  name: Build plugin distribution
+            run: ./gradlew :kotest-intellij-plugin:buildPlugin
+            env:
+               PRODUCT_NAME: ${{ matrix.product }}
+
+         -  name: Publish distribution zip to GitHub Packages
+            run: |
+               mvn --batch-mode deploy:deploy-file \
+                  -Dfile=$(ls kotest-intellij-plugin/build/distributions/*.zip) \
+                  -DgroupId=io.kotest \
+                  -DartifactId=kotest-intellij-plugin-${{ matrix.product }} \
+                  -Dversion=${{ vars.KOTEST_RELEASE_MAJOR_MINOR }}.${{ github.run_number }} \
+                  -Dpackaging=zip \
+                  -DrepositoryId=github \
+                  -Durl=https://maven.pkg.github.com/kotest/kotest
+            env:
+               GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+         -  name: Bundle the build report
+            if: failure()
+            run: find . -type d -name 'reports' | zip -@ -r build-reports.zip
+
+         -  name: Upload the build report
+            if: failure()
+            uses: actions/upload-artifact@master
+            with:
+               name: error-report
+               path: build-reports.zip
+
+env:
+   GRADLE_OPTS: -Dorg.gradle.configureondemand=true -Dorg.gradle.parallel=false -Dkotlin.incremental=false -Dorg.gradle.jvmargs="-Xmx3g -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8"
+   KOTEST_RELEASE_MAJOR_MINOR: ${{ vars.KOTEST_RELEASE_MAJOR_MINOR }}

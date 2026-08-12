@@ -1,0 +1,116 @@
+name: Gradle Task
+run-name: "Gradle Task ${{ inputs.task }}, ${{ inputs.runs-on }}, ${{ inputs.ref }}"
+
+on:
+   workflow_call:
+      inputs:
+         runs-on:
+            description: "The platform to run tests on"
+            required: true
+            type: string
+         ref:
+            description: "The git branch, tag or SHA to checkout"
+            required: false
+            type: string
+         task:
+            description: "The Gradle task to run"
+            required: true
+            type: string
+         cache-read-only:
+            description: "Whether to write to the Gradle build cache"
+            required: false
+            type: boolean
+            default: true
+
+permissions:
+   contents: read
+
+jobs:
+   gradle:
+      runs-on: ${{ inputs.runs-on }}
+      steps:
+         -  name: "Set KONAN_DATA_DIR (windows)" # This sets the path to a folder named .konan in the user's home directory
+            if: runner.os == 'Windows'
+            shell: powershell
+            run: |
+               "KONAN_DATA_DIR=${{ github.workspace }}\.konan" >> $env:GITHUB_ENV
+
+         -  name: "Set KONAN_DATA_DIR (bash)"
+            if: runner.os != 'Windows'
+            run: |
+               echo "KONAN_DATA_DIR=${{ github.workspace }}/.konan" >> $GITHUB_ENV
+
+         -  name: Checkout the repo
+            uses: actions/checkout@v6
+            with:
+               ref: ${{ github.event.inputs.ref }}
+
+         -  name: Setup JDK
+            uses: actions/setup-java@v5
+            with:
+               distribution: "temurin"
+               java-version-file: .github/.java-version
+
+         -  name: Setup Gradle
+            uses: gradle/actions/setup-gradle@v6
+            with:
+               cache-encryption-key: ${{ secrets.GRADLE_CONFIGURATION_CACHE_ENCRYPTION_KEY }}
+               cache-read-only: ${{ inputs.cache-read-only }}
+
+         -  name: Cache Kotlin Konan
+            uses: actions/cache@v5
+            with:
+               path: ${{ env.KONAN_DATA_DIR }}
+               key: kotlin-konan-${{ runner.os }}
+               enableCrossOsArchive: true
+               restore-keys: |
+                  kotlin-konan-
+
+         -  name: Cache Kotest user directory
+            uses: actions/cache@v5
+            with:
+               path: ~/.kotest
+               key: kotest-user-dir-${{ runner.os }}
+               enableCrossOsArchive: true
+               restore-keys: |
+                  kotest-user-dir-
+
+         -  name: Enable KVM (Linux)
+            if: runner.os == 'Linux'
+            run: |
+               echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+               sudo udevadm control --reload-rules
+               sudo udevadm trigger --name-match=kvm
+
+         - name: Check Gradle Wrapper
+           uses: gradle/actions/wrapper-validation@v6
+
+         -  name: Gradle ${{ inputs.task }}
+            run: ./gradlew ${{ inputs.task }}
+            shell: bash
+
+         -  name: Test report PR check
+            uses: mikepenz/action-junit-report@v6
+            if: always() && github.event_name == 'pull_request' # always run even if the previous step fails
+            with:
+               report_paths: '**/build/test-results/jvmTest/TEST-*.xml'
+
+         -  name: Upload build reports
+            if: failure()
+            uses: actions/upload-artifact@v7
+            with:
+               name: build-reports-${{ runner.os }}-${{ github.action }}-${{ github.run_id }}
+               path: |
+                  **/build/reports/
+                  **/*.hprof
+                  **/*.log
+               if-no-files-found: ignore
+
+env:
+   RELEASE_VERSION: ${{ github.event.inputs.version }}
+   ORG_GRADLE_PROJECT_signingKey: ${{ secrets.SIGNING_KEY }}
+   ORG_GRADLE_PROJECT_signingPassword: ${{ secrets.SIGNING_PASSWORD }}
+   ORG_GRADLE_PROJECT_Kotest_GradleBuildCache_user: ${{ secrets.GRADLE_BUILD_CACHE_USER }}
+   ORG_GRADLE_PROJECT_Kotest_GradleBuildCache_pass: ${{ secrets.GRADLE_BUILD_CACHE_PASS }}
+   NEW_MAVEN_CENTRAL_USERNAME: ${{ secrets.NEW_MAVEN_CENTRAL_USERNAME }}
+   NEW_MAVEN_CENTRAL_PASSWORD: ${{ secrets.NEW_MAVEN_CENTRAL_PASSWORD }}

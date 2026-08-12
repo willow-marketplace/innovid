@@ -1,0 +1,67 @@
+package io.kotest.extensions.testcontainers
+
+import com.zaxxer.hikari.HikariConfig
+import com.zaxxer.hikari.HikariDataSource
+import io.kotest.core.extensions.MountableExtension
+import io.kotest.core.listeners.AfterProjectListener
+import io.kotest.extensions.testcontainers.options.ContainerExtensionConfig
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runInterruptible
+import org.testcontainers.containers.JdbcDatabaseContainer
+import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.locks.ReentrantLock
+import javax.sql.DataSource
+
+/**
+ * A Kotest [MountableExtension] for [JdbcDatabaseContainer]s that will launch the container
+ * upon first installation, and close after the test suite has completed. This extension will only
+ * launch the container once per project and will not reset it between specs.
+ *
+ * This extension will create a pooled [HikariDataSource] attached to the database and
+ * return that to the user as the materialized value.
+ *
+ * The pool can be configured in the mount configure method.
+ *
+ * Note: This extension requires Kotest 6.0+
+ *
+ * @param container the specific test container type
+ */
+class JdbcDatabaseContainerProjectExtension(
+   private val container: JdbcDatabaseContainer<*>,
+   private val config: ContainerExtensionConfig = ContainerExtensionConfig(),
+   private val onStart: (DataSource) -> Unit = { },
+) : MountableExtension<HikariConfig, DataSource>, AfterProjectListener {
+
+   private val ref = AtomicReference<HikariDataSource>(null)
+   private val lock = ReentrantLock()
+
+   override fun mount(configure: HikariConfig.() -> Unit): HikariDataSource {
+      lock.lockInterruptibly()
+      try {
+         val t = ref.get()
+         if (t == null) {
+            container.start()
+            container.followOutput(config.logConsumer)
+            val config = HikariConfig()
+            config.jdbcUrl = container.jdbcUrl
+            config.username = container.username
+            config.password = container.password
+            config.configure()
+            val ds = HikariDataSource(config)
+            onStart(ds)
+            ref.set(ds)
+         }
+
+         return ref.get()
+      } finally {
+         lock.unlock()
+      }
+   }
+
+   override suspend fun afterProject() {
+      runInterruptible(Dispatchers.IO) {
+         ref.getAndSet(null)?.close()
+         container.stop()
+      }
+   }
+}

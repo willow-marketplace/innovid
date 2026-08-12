@@ -1,0 +1,59 @@
+package com.sksamuel.kotest.engine
+
+import io.kotest.core.annotation.EnabledIf
+import io.kotest.core.annotation.LinuxOnlyGithubCondition
+import io.kotest.core.config.AbstractProjectConfig
+import io.kotest.core.descriptors.Descriptor
+import io.kotest.core.spec.SpecRef
+import io.kotest.engine.extensions.filter.DescriptorFilter
+import io.kotest.engine.extensions.filter.DescriptorFilterResult
+import io.kotest.core.spec.style.FunSpec
+import io.kotest.core.spec.style.StringSpec
+import io.kotest.engine.test.TestResult
+import io.kotest.engine.TestEngineLauncher
+import io.kotest.engine.listener.CollectingTestEngineListener
+import io.kotest.matchers.booleans.shouldBeTrue
+import io.kotest.matchers.shouldBe
+
+@EnabledIf(LinuxOnlyGithubCondition::class)
+class DescriptorFilterTest : FunSpec() {
+   init {
+
+      test("a filtered test should be ignored with reason") {
+
+         val filter = object : DescriptorFilter {
+            override fun filter(descriptor: Descriptor): DescriptorFilterResult {
+               return when (descriptor.id.value) {
+                  "foo" -> DescriptorFilterResult.Exclude("get outta here!")
+                  else -> DescriptorFilterResult.Include
+               }
+            }
+         }
+
+         val collector = CollectingTestEngineListener()
+         val c = object : AbstractProjectConfig() {
+            override val extensions = listOf(filter)
+         }
+
+         TestEngineLauncher()
+            .withListener(collector)
+            .withSpecRefs(SpecRef.Reference(SillySpec::class))
+            .withProjectConfig(c)
+            .execute()
+
+         collector.result("foo") shouldBe TestResult.Ignored("get outta here!")
+         collector.result("bar")!!.isSuccess.shouldBeTrue()
+      }
+   }
+}
+
+private class SillySpec : StringSpec() {
+   init {
+      // this test will be ignored through the TestFilter
+      "foo" {
+         error("foo")
+      }
+      "bar" {
+      }
+   }
+}

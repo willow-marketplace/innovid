@@ -1,0 +1,179 @@
+package com.sksamuel.kotest.engine.spec.sorts
+
+import io.kotest.assertions.throwables.shouldThrowAny
+import io.kotest.core.config.AbstractProjectConfig
+import io.kotest.core.extensions.SpecExecutionOrderExtension
+import io.kotest.core.spec.Order
+import io.kotest.core.spec.SpecExecutionOrder
+import io.kotest.core.spec.SpecRef
+import io.kotest.core.spec.name
+import io.kotest.core.spec.style.DescribeSpec
+import io.kotest.core.spec.style.FunSpec
+import io.kotest.engine.TestEngineLauncher
+import io.kotest.engine.config.ProjectConfigResolver
+import io.kotest.engine.listener.CollectingTestEngineListener
+import io.kotest.engine.spec.DefaultSpecExecutionOrderExtension
+import io.kotest.matchers.collections.shouldHaveSize
+import io.kotest.matchers.shouldBe
+
+class DefaultSpecExecutionOrderExtensionTest : DescribeSpec({
+
+   describe("The DefaultSpecExecutionOrder extension should support") {
+
+      it("SpecExecutionOrder.Undefined") {
+         val c = object : AbstractProjectConfig() {
+            override val specExecutionOrder = SpecExecutionOrder.Undefined
+         }
+         DefaultSpecExecutionOrderExtension(ProjectConfigResolver(c)).sort(
+            listOf(
+               SpecRef.Reference(ZSpec::class),
+               SpecRef.Reference(SpecZ::class),
+            )
+         ) shouldBe listOf(
+            SpecRef.Reference(ZSpec::class),
+            SpecRef.Reference(SpecZ::class),
+         )
+      }
+
+      it("SpecExecutionOrder.Annotated") {
+         val c = object : AbstractProjectConfig() {
+            override val specExecutionOrder = SpecExecutionOrder.Annotated
+         }
+         DefaultSpecExecutionOrderExtension(ProjectConfigResolver(c)).sort(
+            listOf(
+               SpecRef.Reference(ASpec::class),
+               SpecRef.Reference(ZSpec::class),
+               SpecRef.Reference(SpecA::class),
+               SpecRef.Reference(SpecZ::class),
+            )
+         ) shouldBe listOf(
+            SpecRef.Reference(SpecA::class),
+            SpecRef.Reference(ASpec::class),
+            SpecRef.Reference(ZSpec::class),
+            SpecRef.Reference(SpecZ::class),
+         )
+      }
+
+      it("SpecExecutionOrder.Lexicographic") {
+         val c = object : AbstractProjectConfig() {
+            override val specExecutionOrder = SpecExecutionOrder.Lexicographic
+         }
+         DefaultSpecExecutionOrderExtension(ProjectConfigResolver(c)).sort(
+            listOf(
+               SpecRef.Reference(ASpec::class),
+               SpecRef.Reference(ZSpec::class),
+               SpecRef.Reference(SpecA::class),
+               SpecRef.Reference(SpecZ::class),
+            )
+         ) shouldBe listOf(
+            SpecRef.Reference(ASpec::class),
+            SpecRef.Reference(SpecA::class),
+            SpecRef.Reference(SpecZ::class),
+            SpecRef.Reference(ZSpec::class),
+         )
+      }
+
+      it("SpecExecutionOrder.Random") {
+
+         val c = object : AbstractProjectConfig() {
+            override val specExecutionOrder = SpecExecutionOrder.Random
+         }
+
+         // should have all combinations since it's meant to be random
+         List(10000) {
+            DefaultSpecExecutionOrderExtension(ProjectConfigResolver(c)).sort(
+               listOf(
+                  SpecRef.Reference(ASpec::class),
+                  SpecRef.Reference(ZSpec::class),
+                  SpecRef.Reference(SpecA::class),
+                  SpecRef.Reference(SpecZ::class),
+               )
+            )
+         }.distinct().shouldHaveSize(24)
+      }
+
+      it("SpecExecutionOrder.Random should use seed") {
+
+         val c = object : AbstractProjectConfig() {
+            override val randomOrderSeed = 123123123L
+            override val specExecutionOrder = SpecExecutionOrder.Random
+         }
+
+         val specs = listOf(
+            SpecRef.Reference(ASpec::class),
+            SpecRef.Reference(ZSpec::class),
+            SpecRef.Reference(SpecA::class),
+            SpecRef.Reference(SpecZ::class),
+         )
+
+         val ext = DefaultSpecExecutionOrderExtension(ProjectConfigResolver(c))
+         ext.sort(specs) shouldBe ext.sort(specs)
+      }
+
+      it("should error if mode is undefined and a spec is annotated") {
+         val specs = listOf(
+            SpecRef.Reference(ASpec::class),
+            SpecRef.Reference(ZSpec::class),
+         )
+         val c = object : AbstractProjectConfig() {
+            override val specExecutionOrder = SpecExecutionOrder.Undefined
+         }
+         shouldThrowAny {
+            DefaultSpecExecutionOrderExtension(ProjectConfigResolver(c)).sort(specs)
+         }
+      }
+
+      it("should be detected from project config") {
+
+         val c = object : AbstractProjectConfig() {
+            override val extensions = listOf(MySpecExecutionOrderExtension)
+         }
+
+         val listener = CollectingTestEngineListener()
+
+         TestEngineLauncher()
+            .withListener(listener)
+            .withSpecRefs(
+               SpecRef.Reference(ASpec::class),
+               SpecRef.Reference(ZSpec::class),
+               SpecRef.Reference(YSpec::class)
+            )
+            .withProjectConfig(c)
+            .execute()
+
+         listener.names shouldBe listOf("z", "y", "a")
+
+      }
+   }
+
+})
+
+@Order(3)
+private class ASpec : FunSpec() {
+   init {
+      test("a") {}
+   }
+}
+
+private class YSpec : FunSpec() {
+   init {
+      test("y") {}
+   }
+}
+
+private class ZSpec : FunSpec() {
+   init {
+      test("z") {}
+   }
+}
+
+@Order(2)
+private class SpecA : FunSpec()
+
+private class SpecZ : FunSpec()
+
+object MySpecExecutionOrderExtension : SpecExecutionOrderExtension {
+   override fun sort(specs: List<SpecRef>): List<SpecRef> {
+      return specs.sortedBy { it.name() }.reversed()
+   }
+}

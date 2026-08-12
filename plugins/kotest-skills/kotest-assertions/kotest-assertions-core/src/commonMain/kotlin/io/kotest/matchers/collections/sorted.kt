@@ -1,0 +1,191 @@
+package io.kotest.matchers.collections
+
+import io.kotest.matchers.Matcher
+import io.kotest.matchers.MatcherResult
+import io.kotest.matchers.should
+import io.kotest.matchers.shouldNot
+
+// SHOULD BE SORTED: empty, transform, comparator
+// Array ================================================================================================
+fun <T : Comparable<T>> Array<T>.shouldBeSorted(): Array<T> {
+   asList().shouldBeSorted()
+   return this
+}
+
+infix fun <T, E : Comparable<E>> Array<T>.shouldBeSortedBy(transform: (T) -> E): Array<T> {
+   asList().shouldBeSortedBy(transform)
+   return this
+}
+
+infix fun <T> Array<T>.shouldBeSortedWith(comparator: Comparator<in T>): Array<T> {
+   asList().shouldBeSortedWith(comparator)
+   return this
+}
+
+infix fun <T> Array<T>.shouldBeSortedWith(cmp: (T, T) -> Int): Array<T> {
+   asList().shouldBeSortedWith(cmp)
+   return this
+}
+
+// List ================================================================================================
+
+fun <T : Comparable<T>> List<T>.shouldBeSorted(): List<T> {
+   this should beSorted()
+   return this
+}
+
+infix fun <T, E : Comparable<E>> List<T>.shouldBeSortedBy(transform: (T) -> E): List<T> {
+   this should beSortedBy(transform)
+   return this
+}
+
+infix fun <T> List<T>.shouldBeSortedWith(comparator: Comparator<in T>): List<T> {
+   this should beSortedWith(comparator)
+   return this
+}
+
+infix fun <T> List<T>.shouldBeSortedWith(cmp: (T, T) -> Int): List<T> {
+   this should beSortedWith(cmp)
+   return this
+}
+
+// Iterable ==========================================================================================
+
+fun <T : Comparable<T>, I : Iterable<T>> I.shouldBeSorted(): I {
+   toList().shouldBeSorted()
+   return this
+}
+
+infix fun <T, I : Iterable<T>, E : Comparable<E>> I.shouldBeSortedBy(transform: (T) -> E): I {
+   toList().shouldBeSortedBy(transform)
+   return this
+}
+
+infix fun <T, I : Iterable<T>> I.shouldBeSortedWith(comparator: Comparator<in T>): I {
+   toList().shouldBeSortedWith(comparator)
+   return this
+}
+
+infix fun <T, I : Iterable<T>> I.shouldBeSortedWith(cmp: (T, T) -> Int): I {
+   toList().shouldBeSortedWith(cmp)
+   return this
+}
+
+
+// SHOULD BE SORTED: empty, transform, comparator
+// Array =============================================================================================
+
+fun <T : Comparable<T>> Array<T>.shouldNotBeSorted(): Array<T> {
+   asList().shouldNotBeSorted()
+   return this
+}
+
+infix fun <T, E : Comparable<E>> Array<T>.shouldNotBeSortedBy(transform: (T) -> E): Array<T> {
+   asList() shouldNotBeSortedBy transform
+   return this
+}
+
+infix fun <T> Array<T>.shouldNotBeSortedWith(comparator: Comparator<in T>): Array<T> {
+   asList().shouldNotBeSortedWith(comparator)
+   return this
+}
+
+infix fun <T> Array<T>.shouldNotBeSortedWith(cmp: (T, T) -> Int): Array<T> {
+   asList().shouldNotBeSortedWith(cmp)
+   return this
+}
+
+// List ===============================================================================================
+
+fun <T : Comparable<T>> List<T>.shouldNotBeSorted(): List<T> {
+   this shouldNot beSorted()
+   return this
+}
+
+infix fun <T, E : Comparable<E>> List<T>.shouldNotBeSortedBy(transform: (T) -> E): List<T> {
+   this shouldNot beSortedBy(transform)
+   return this
+}
+
+infix fun <T> List<T>.shouldNotBeSortedWith(comparator: Comparator<in T>): List<T> {
+   this shouldNot beSortedWith(comparator)
+   return this
+}
+
+infix fun <T> List<T>.shouldNotBeSortedWith(cmp: (T, T) -> Int): List<T> {
+   this shouldNot beSortedWith(cmp)
+   return this
+}
+
+// Iterable ===============================================================================================
+
+fun <T : Comparable<T>, I : Iterable<T>> I.shouldNotBeSorted(): I {
+   toList().shouldNotBeSorted()
+   return this
+}
+
+infix fun <T, I : Iterable<T>, E : Comparable<E>> I.shouldNotBeSortedBy(transform: (T) -> E): I {
+   toList().shouldNotBeSortedBy(transform)
+   return this
+}
+
+infix fun <T, I : Iterable<T>> I.shouldNotBeSortedWith(comparator: Comparator<in T>): I {
+   toList().shouldNotBeSortedWith(comparator)
+   return this
+}
+
+infix fun <T, I : Iterable<T>> I.shouldNotBeSortedWith(cmp: (T, T) -> Int): I {
+   toList().shouldNotBeSortedWith(cmp)
+   return this
+}
+
+// Primitive Arrays ==================================================================================
+
+fun BooleanArray.shouldBeSorted(): BooleanArray = apply { asList().shouldBeSorted() }
+fun BooleanArray.shouldNotBeSorted(): BooleanArray = apply { asList().shouldNotBeSorted() }
+
+fun ByteArray.shouldBeSorted(): ByteArray = apply { asList().shouldBeSorted() }
+fun ByteArray.shouldNotBeSorted(): ByteArray = apply { asList().shouldNotBeSorted() }
+
+fun ShortArray.shouldBeSorted(): ShortArray = apply { asList().shouldBeSorted() }
+fun ShortArray.shouldNotBeSorted(): ShortArray = apply { asList().shouldNotBeSorted() }
+
+fun CharArray.shouldBeSorted(): CharArray = apply { asList().shouldBeSorted() }
+fun CharArray.shouldNotBeSorted(): CharArray = apply { asList().shouldNotBeSorted() }
+
+fun IntArray.shouldBeSorted(): IntArray = apply { asList().shouldBeSorted() }
+fun IntArray.shouldNotBeSorted(): IntArray = apply { asList().shouldNotBeSorted() }
+
+fun LongArray.shouldBeSorted(): LongArray = apply { asList().shouldBeSorted() }
+fun LongArray.shouldNotBeSorted(): LongArray = apply { asList().shouldNotBeSorted() }
+
+fun FloatArray.shouldBeSorted(): FloatArray = apply { asList().shouldBeSorted() }
+fun FloatArray.shouldNotBeSorted(): FloatArray = apply { asList().shouldNotBeSorted() }
+
+fun DoubleArray.shouldBeSorted(): DoubleArray = apply { asList().shouldBeSorted() }
+fun DoubleArray.shouldNotBeSorted(): DoubleArray = apply { asList().shouldNotBeSorted() }
+
+fun <T> beSortedWith(comparator: Comparator<in T>): Matcher<List<T>> = sortedWith(comparator)
+
+fun <T> beSortedWith(cmp: (T, T) -> Int): Matcher<List<T>> = sortedWith(cmp)
+
+fun <T> sortedWith(comparator: Comparator<in T>): Matcher<List<T>> = sortedWith { a, b ->
+   comparator.compare(a, b)
+}
+
+fun <T> sortedWith(cmp: (T, T) -> Int): Matcher<List<T>> = object : Matcher<List<T>> {
+   override fun test(value: List<T>): MatcherResult {
+      val failure = value.withIndex().firstOrNull { (i, it) -> i != value.lastIndex && cmp(it, value[i + 1]) > 0 }
+      val snippet = value.joinToString(",", limit = 10)
+      val elementMessage = {
+         when (failure) {
+            null -> ""
+            else -> ". Element ${failure.value} at index ${failure.index} shouldn't precede element ${value[failure.index + 1]}"
+         }
+      }
+      return MatcherResult(
+         failure == null,
+         { "List [$snippet] should be sorted${elementMessage()}" },
+         { "List [$snippet] should not be sorted" })
+   }
+}

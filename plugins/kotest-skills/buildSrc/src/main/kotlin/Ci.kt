@@ -1,0 +1,53 @@
+import Ci.snapshotVersion
+
+object Ci {
+
+   /**
+    * The base version used for the release version.
+    * For non release builds, `-SNAPSHOT` or `-LOCAL` will be appended.
+    */
+   private val SNAPSHOT_BASE = System.getenv("KOTEST_RELEASE_MAJOR_MINOR") ?: "6.99.99"
+
+   // The build number from GitHub Actions, if available, which is used to create a unique snapshot version.
+   private val githubBuildNumber = System.getenv("GITHUB_RUN_NUMBER")
+
+   private val snapshotVersion = when (githubBuildNumber) {
+      null -> "$SNAPSHOT_BASE-LOCAL"
+      else -> "$SNAPSHOT_BASE.${githubBuildNumber}-SNAPSHOT"
+   }
+
+   /** The final release version. If specified, will override [snapshotVersion]. */
+   private val releaseVersion = System.getenv("RELEASE_VERSION")?.ifBlank { null }
+
+   // true if we are publishing to maven central or a similar repository
+   // false if we are publishing to a local directory for testing purposes or publishing the gradle plugin
+   val isRelease = releaseVersion != null
+
+   val gradleRelease = System.getenv("GRADLE_RELEASE")?.ifBlank { null } ?: snapshotVersion
+
+   /** The published version of Kotest dependencies. */
+   val publishVersion = releaseVersion ?: snapshotVersion
+
+   /** Is the build currently running on CI. */
+   private val isCI = System.getenv("CI").toBoolean()
+   private val isLocal = !isCI
+
+   /** Is the git branch master */
+   private val isMaster = System.getenv("GITHUB_REF_NAME") == "master"
+
+   /** Is the build currently running on a GitHub actions Linux runner? */
+   private val isLinuxRunner = System.getenv("RUNNER_OS") == "Linux"
+
+   /**
+    * We only include watchos, tvsos and ios builds if it's a non-CI build or if it's master build
+    * due to the limited availability of the github macos runners.
+    * Can be overridden by setting KOTEST_EXAMPLES_WORKFLOW=true (set by test-kotest-examples.yml on non-master branches).
+    */
+   val shouldRunWatchTvIosModules = isLocal || isMaster || System.getenv("KOTEST_EXAMPLES_WORKFLOW").toBoolean()
+   val shouldAddLinuxTargets = isLocal || isLinuxRunner
+
+   /**
+    * Property to flag the build as JVM only, can be used to run checks on local machine much faster.
+    */
+   const val JVM_ONLY = "jvmOnly"
+}

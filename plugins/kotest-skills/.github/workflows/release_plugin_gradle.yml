@@ -1,0 +1,37 @@
+name: release_plugin_gradle
+run-name: Releasing Kotest Gradle Plugin ${{ inputs.version }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "The release version (leave blank for snapshot)"
+        required: false
+
+env:
+  GRADLE_RELEASE: ${{ github.event.inputs.version }}
+  GRADLE_PUBLISH_KEY: ${{ secrets.GRADLE_PUBLISH_KEY }}
+  GRADLE_PUBLISH_SECRET: ${{ secrets.GRADLE_PUBLISH_SECRET }}
+
+permissions:
+  contents: read
+
+jobs:
+  release-plugin:
+    runs-on: ubuntu-latest
+    if: github.repository == 'kotest/kotest'
+
+    steps:
+      - name: Checkout the repo
+        uses: actions/checkout@v6
+
+      - name: Setup JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: "temurin"
+          java-version-file: .github/.java-version
+
+      - uses: gradle/actions/setup-gradle@v6
+
+      - name: deploy to gradle
+        run: ./gradlew :kotest-framework:kotest-framework-plugin-gradle:publishPlugins

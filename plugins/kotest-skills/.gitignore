@@ -1,0 +1,78 @@
+# Compiled class file
+*.class
+
+# Log file
+*.log
+
+# BlueJ files
+*.ctxt
+.idea
+.gradle
+out
+build
+
+# Mobile Tools for Java (J2ME)
+.mtj.tmp/
+
+# Package Files #
+*.jar
+*.war
+*.nar
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
+.claude
+
+sandbox/
+.allure
+
+*.iml
+.idea/**
+!.idea/icon.png
+
+# virtual machine crash logs, see https://www.java.com/en/download/help/error_hotspot.html
+hs_err_pid*
+out/
+
+build
+target
+.gradle
+
+# FIXME remove when Gradle Daemon JVM can be auto-provisioned - see configureGradleDaemonJvm()
+gradle/gradle-daemon-jvm.properties
+
+.kotlin/
+
+build/test-results
+kotest-tests/kotest-tests-htmlreporter/reports/
+
+allure-results/
+
+# Gradle wrapper
+!gradle/wrapper/gradle-wrapper.jar
+
+allure.log
+kotest-*.log
+kotest.log
+
+local.properties
+.kotest
+/kotest-examples/kotest-examples-javascript/node_modules/
+/kotest-examples/kotest-examples-javascript/package-lock.json
+*.gpg.enc
+
+kotest-tests/kotest-tests-js/node_modules/
+documentation/site/
+node_modules/
+
+.docusaurus
+.DS_Store
+.intellijPlatform
+yarn.lock
+
+.gemini/
+gha-creds-*.json
+
+.claude/*.lock

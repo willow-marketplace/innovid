@@ -1,0 +1,396 @@
+package io.kotest.runner.junit.platform
+
+import io.kotest.common.KotestInternal
+import io.kotest.common.env
+import io.kotest.common.reflection.bestName
+import io.kotest.core.LogLine
+import io.kotest.core.Logger
+import io.kotest.core.descriptors.Descriptor
+import io.kotest.core.descriptors.DescriptorId
+import io.kotest.core.spec.SpecRef
+import io.kotest.core.spec.descriptor
+import io.kotest.core.test.TestCase
+import io.kotest.core.test.TestType
+import io.kotest.engine.config.ProjectConfigResolver
+import io.kotest.engine.errors.ExtensionExceptionExtractor
+import io.kotest.engine.listener.AbstractTestEngineListener
+import io.kotest.engine.listener.TestEngineInitializedContext
+import io.kotest.engine.listener.TestEngineListener
+import io.kotest.engine.names.UniqueNames
+import io.kotest.engine.test.TestResult
+import io.kotest.engine.test.TestResultBuilder
+import io.kotest.engine.test.names.DisplayNameFormatting
+import org.junit.platform.engine.EngineExecutionListener
+import org.junit.platform.engine.TestDescriptor
+import org.junit.platform.engine.TestExecutionResult
+import org.junit.platform.engine.support.descriptor.EngineDescriptor
+import kotlin.reflect.KClass
+
+/**
+ * A Kotest [TestEngineListener] that forwards notifications to a JUnit Platform [EngineExecutionListener].
+ *
+ * This is not thread safe and should only be invoked by one spec at a time or
+ * wrapped in a [SynchronizedEngineExecutionListener].
+ *
+ * JUnit platform supports out-of-order notification of tests, in that sibling
+ * tests can be executed in parallel and updating JUnit out of order. However, the Gradle test
+ * task gets confused if we are executing two or more tests directly under the root at once.
+ * Therefore, we must queue up notifications until each spec is completed.
+ *
+ * Gradle test run observations:
+ *
+ * using Platform 1.6.0 --
+ * TestDescriptor.Type.CONTAINER seem to be ignored in output.
+ * TestDescriptor.Type.CONTAINER_AND_TEST appear as siblings of their nested tests if not added as a child
+ * Add child first, then register dynamic test, then start the test
+ *
+ * Top level descriptors must have a source attached, or the execution will fail with a parent-attached exception.
+ * Type.CONTAINER_TEST doesn't seem to work as a top level descriptor, it will hang
+ * leaf tests do not need to be completed, but they will be marked as uncomplete in intellij.
+ * Dynamic test can be called after or before addChild.
+ * A Type.TEST can be a child of a Type.TEST.
+ * Intermediate Type.CONTAINER seem to be ignored in output.
+ * Intermediate containers can have the same class source as parent.
+ * Type.TEST as top level seems to hang.
+ * A TEST doesn't seem to be able to have the same source as a parent, or hang.
+ * A TEST seems to hang if it has a ClassSource.
+ * MethodSource seems to be ok with a TEST.
+ * Container test names seem to be taken from a Source.
+ * Nested tests are outputted as siblings.
+ * Can complete executions out of order.
+ * Child failures will fail parent CONTAINER.
+ * Sibling containers can start and finish in parallel.
+ *
+ * Intellij runner observations:
+ *
+ * Intermediate Type.CONTAINERs are shown.
+ * Intermediate Type.TESTs are shown.
+ * A Type.TEST can be a child of a Type.TEST
+ * MethodSource seems to be ok with a TEST.
+ * Container test names seem to be taken from the name property.
+ * Nested tests are outputted as nested.
+ * Child failures will not fail containing TEST.
+ * child failures will fail a containing CONTAINER.
+ * Call addChild _before_ registering test otherwise it will appear in the display out of order.
+ * Must start tests after their parent, or they can go missing.
+ * Sibling containers can start and finish in parallel.
+ *
+ * Observations from 1.13.4
+ *
+ * TestDescriptor.Type.CONTAINER that does not contain TESTs is ignored in intellij's tree output
+ *
+ */
+@KotestInternal
+class JUnitTestEngineListener(
+   private val listener: EngineExecutionListener,
+   val root: EngineDescriptor,
+   private val formatter: DisplayNameFormatting,
+) : AbstractTestEngineListener() {
+
+   private val logger = Logger(JUnitTestEngineListener::class)
+
+   // JUnit TestDescriptors are mutable and contain children added dynamically, so we need to keep track of them
+   private val descriptors = mutableMapOf<Descriptor, TestDescriptor>()
+
+   private val startedTests = mutableSetOf<Descriptor.TestDescriptor>()
+
+   private var failOnIgnoredTests = false
+
+   // Whether at least one test was ignored across the whole engine run.
+   // Tracked separately from `results` because `results` is cleared per-spec
+   // by `reset()` and would otherwise be empty by the time `engineFinished`
+   // checks it.
+   private var anyTestIgnored = false
+
+   private val results = mutableMapOf<Descriptor, TestResult>()
+
+   private val dummies = hashSetOf<String>()
+
+   override suspend fun engineStarted() {
+      logger.log { "Engine started" }
+      listener.executionStarted(root)
+   }
+
+   override suspend fun engineInitialized(context: TestEngineInitializedContext) {
+      logger.log { "Engine initialized with context $context" }
+      failOnIgnoredTests = ProjectConfigResolver(context.projectConfig, context.registry).failOnIgnoredTests()
+   }
+
+   override suspend fun engineFinished(t: List<Throwable>) {
+      logger.log { "Engine finished; throwables=[${t}]" }
+
+      registerExceptionPlaceholders(t)
+
+      val result = if (failOnIgnoredTests && anyTestIgnored) {
+         TestExecutionResult.failed(RuntimeException("Build contained ignored test"))
+      } else {
+         TestExecutionResult.successful()
+      }
+
+      logger.log { "Notifying junit that engine completed $root" }
+      listener.executionFinished(root, result)
+   }
+
+   override suspend fun specStarted(ref: SpecRef) {
+      logger.log { LogLine(ref.fqn, "specStarted") }
+      try {
+
+         var descriptor = findTestDescriptorForSpec(root, ref.descriptor())
+
+         if (descriptor == null) {
+            descriptor = createSpecTestDescriptor(root, ref.descriptor(), ref.kclass.bestName())
+            root.addChild(descriptor)
+            listener.dynamicTestRegistered(descriptor)
+         }
+
+         descriptors[ref.descriptor()] = descriptor
+
+         logger.log { LogLine(ref.fqn, "executionStarted $descriptor") }
+         listener.executionStarted(descriptor)
+
+      } catch (t: Throwable) {
+         logger.log { LogLine(ref.fqn, "Error marking spec as started $t") }
+         throw t
+      }
+   }
+
+   override suspend fun specFinished(ref: SpecRef, result: TestResult) {
+      logger.log { LogLine(ref.fqn, "specFinished $result") }
+
+      val t = result.errorOrNull
+      when {
+
+         // if we had an error in the spec, we will attach a placeholder error-test to the spec
+         // and mark that as failed
+         t != null -> {
+            val descriptor = findTestDescriptorForSpec(root, ref.descriptor())
+               ?: error("Could not find TestDescriptor for spec ${ref.kclass}")
+            // a single error becomes one placeholder; MultipleExceptions becomes one per cause
+            ExtensionExceptionExtractor.flatten(t).forEach { addPlaceholderTest(descriptor, it, ref.kclass) }
+            logger.log { LogLine(ref.fqn, "executionFinished: $descriptor $t") }
+            listener.executionFinished(descriptor, TestExecutionResult.failed(t))
+         }
+
+         else -> {
+            val descriptor = findTestDescriptorForSpec(root, ref.descriptor())
+               ?: error("Could not find TestDescriptor for spec ${ref.kclass}")
+            logger.log { LogLine(ref.fqn, "executionFinished: $descriptor") }
+            listener.executionFinished(descriptor, TestExecutionResult.successful())
+         }
+      }
+      reset()
+   }
+
+   override suspend fun specIgnored(kclass: KClass<*>, reason: String?) {
+
+      // an ignored spec will not have been started
+      // also, if using `--tests`, then the spec would not have been registered, in that case
+      // instead of showing all tests minus the one we are running as ignored, we'll just skip
+
+      logger.log { LogLine(kclass.bestName(), "specIgnored") }
+      val testDescriptor = findTestDescriptorForSpec(root, Descriptor.SpecDescriptor(DescriptorId(kclass.java.name)))
+      if (testDescriptor != null)
+         listener.executionSkipped(testDescriptor, reasonIfEnabled(reason))
+   }
+
+   private fun reset() {
+      results.clear()
+      descriptors.clear()
+      startedTests.clear()
+      placeholderNames.clear()
+   }
+
+   // Tracks placeholder test names already attached to a parent descriptor so that
+   // multiple failures of the same callback type (eg two BeforeSpec listeners) don't
+   // produce colliding UniqueIds.
+   private val placeholderNames = hashSetOf<String>()
+
+   /**
+    * Dynamically registers a placeholder test with the name derived from the throwable type.
+    * We do this so we can add a child test with the name of the callback that failed for extra clarity.
+    * This allows multiple callback failures to be stacked.
+    */
+   private fun addPlaceholderTest(parent: TestDescriptor, t: Throwable, kclass: KClass<*>) {
+      val (name, cause) = ExtensionExceptionExtractor.resolve(t)
+      val unique = UniqueNames.unique(name, placeholderNames) { s, k -> "${s} ($k)" } ?: name
+      placeholderNames.add(unique)
+      val id = parent.uniqueId.append(Segment.Test.value, unique)
+      val descriptor = TestTestDescriptor(
+         id = id,
+         displayName = unique,
+         source = getMethodSource(kclass, id),
+         type = TestDescriptor.Type.TEST,
+      )
+      parent.addChild(descriptor)
+      listener.dynamicTestRegistered(descriptor)
+      listener.executionStarted(descriptor)
+      listener.executionFinished(
+         descriptor,
+         TestResultBuilder.builder().withError(cause).build().toTestExecutionResult()
+      )
+   }
+
+   override suspend fun testStarted(testCase: TestCase) {
+
+      // JUnit has TEST and CONTAINER types, but intellij will not render a CONTAINER unless it has a child.
+      // Since Kotest allows you to have containers that do not contain tests, we must wait to see if a container
+      // has any children before we register it as a container. If it does not, then we will register it as a test
+      // once it completes. Therefore, the testStarted listener must wait to register a test.
+
+      logger.log { Pair(testCase.name.name, "test started") }
+
+      // if this test has a parent, we can mark that parent as started, because it's definitely not a leaf
+      if (testCase.parent != null)
+         startParents(testCase)
+
+      // if the test is a Kotest TEST type, then it's definitely a leaf test, so we can start it immediately
+      if (testCase.type == TestType.Test) {
+         startTestIfNotStarted(testCase, TestDescriptor.Type.TEST)
+      }
+   }
+
+   override suspend fun testFinished(testCase: TestCase, result: TestResult) {
+
+      // this test can be output now as we have all we need to know to complete it
+      // we know at this point that any nested tests have also completed
+      //
+      // we don't need to start parents, because they would have been started by the coresponding
+      // call to testStarted
+      //
+      // because of the Gradle bugs described elsewhere, if this was a leaf test, we would not yet have
+      // started it, so we need to start it if not.
+
+      logger.log { Pair(testCase.name.name, "test finished $result") }
+      results[testCase.descriptor] = result
+
+      // if this test was started, we don't need to register it again
+      // if it was not started, then it must be a Type.TEST (otherwise its children would have started it)
+      startTestIfNotStarted(testCase, TestDescriptor.Type.TEST)
+
+      // startTestIfNotStarted guarantees a descriptor is present here - if not throw as something has gone quite wrong
+      val descriptor = descriptors[testCase.descriptor]
+         ?: error("No descriptor found for test case ${testCase.descriptor}")
+
+      logger.log { Pair(testCase.name.name, "executionFinished: $descriptor") }
+      listener.executionFinished(descriptor, result.toTestExecutionResult())
+   }
+
+   override suspend fun testIgnored(testCase: TestCase, reason: String?) {
+
+      // A test can reach `testIgnored` along two routes:
+      //  - it was never started: a TestEnabledExtension returned disabled, fail-fast
+      //    short-circuited it, etc. — this is the original case.
+      //  - it WAS started, then its body threw `TestAbortedException` /
+      //    `IterationSkippedException`, which `HandleSkippedExceptionsTestInterceptor`
+      //    converts to `TestResult.Ignored` and `TestFinishedInterceptor` then
+      //    routes through `testIgnored` instead of `testFinished`.
+      // In the second case, `testStarted` already created the descriptor, fired
+      // `dynamicTestRegistered` + `executionStarted`, and tracked it in `startedTests`.
+      // Re-creating the descriptor here would produce a duplicate UniqueId child
+      // and leave the original descriptor without an `executionFinished` event.
+      // Detect that case and finalize as aborted instead.
+      if (testCase.descriptor in startedTests) {
+         val descriptor = descriptors[testCase.descriptor]
+            ?: error("startedTests contains ${testCase.descriptor} but descriptors does not")
+         logger.log { Pair(testCase.name.name, "test ignored after start; finalizing as aborted: $reason") }
+         results[testCase.descriptor] = TestResult.Ignored(reason)
+         // this test was skipped (via TestAbortedException / assumption), so it must be
+         // accounted for in the ignored-tests tracking that drives failOnIgnoredTests,
+         // consistent with the never-started ignored path below.
+         anyTestIgnored = true
+         listener.executionFinished(descriptor, TestExecutionResult.aborted(null))
+         return
+      }
+
+      // an ignored test that was never started — register a fresh descriptor and skip it.
+      // Start any parents that haven't already been marked as started.
+      startParents(testCase)
+
+      // ignored test should be a TEST type, because an ignored test will never have child tests.
+      val testDescriptor = createTestDescriptorWithMethodSource(root, testCase, TestDescriptor.Type.TEST, formatter)
+      attachToParent(testCase, testDescriptor)
+
+      logger.log { Pair(testCase.name.name, "Registering dynamic test: $testDescriptor") }
+      listener.dynamicTestRegistered(testDescriptor)
+
+      logger.log { Pair(testCase.name.name, "test ignored $reason") }
+      results[testCase.descriptor] = TestResult.Ignored(reason)
+      anyTestIgnored = true
+
+      logger.log { Pair(testCase.name.name, "executionSkipped: $testDescriptor") }
+      listener.executionSkipped(testDescriptor, reasonIfEnabled(reason))
+   }
+
+   private fun reasonIfEnabled(reason: String?): String {
+      if (reason == null) return ""
+      if (env("KOTEST_SHOW_IGNORE_REASONS") == "true") return reason
+      return ""
+   }
+
+   private fun startParents(testCase: TestCase) {
+      val parent = testCase.parent
+      if (parent != null) {
+         startParents(parent)
+         // when starting parents, the type must be CONTAINER
+         startTestIfNotStarted(parent, TestDescriptor.Type.CONTAINER)
+      }
+   }
+
+   /**
+    * If the given testCase has not yet been marked as started, then now we register it and start it.
+    * This method is only invoked for parents, so we know the type is always CONTAINER.
+    */
+   private fun startTestIfNotStarted(testCase: TestCase, type: TestDescriptor.Type) {
+      if (!startedTests.contains(testCase.descriptor)) {
+
+         val testDescriptor = createTestDescriptorWithMethodSource(root, testCase, type, formatter)
+         attachToParent(testCase, testDescriptor)
+         descriptors[testCase.descriptor] = testDescriptor
+
+         logger.log { Pair(testCase.name.name, "Registering dynamic container test: $testDescriptor") }
+         listener.dynamicTestRegistered(testDescriptor)
+
+         logger.log { Pair(testCase.name.name, "executionStarted: $testDescriptor") }
+         listener.executionStarted(testDescriptor)
+
+         // now mark it as started so we can safely call this method again
+         startedTests.add(testCase.descriptor)
+      }
+   }
+
+   private fun attachToParent(testCase: TestCase, testDescriptor: TestDescriptor) {
+      // must attach to the parent, which we know will have been created prior, either spec or parent test
+      val parent = testCase.descriptor.parent
+      val p = descriptors[parent] ?: error("No parent found: ${parent.id.value}")
+      p.addChild(testDescriptor)
+   }
+
+   /**
+    * Registers placeholder specs and marks them as failed for each throwable.
+    * See [ExtensionExceptionExtractor].
+    */
+   private fun registerExceptionPlaceholders(ts: List<Throwable>) {
+      ts.forEach {
+         val (name, cause) = ExtensionExceptionExtractor.resolve(it)
+         val container = createAndRegisterDummySpec(name)
+         listener.executionStarted(container)
+         listener.executionFinished(container, TestExecutionResult.failed(cause))
+      }
+   }
+
+   /**
+    * Registers a placeholder test which we can use to attach lifecycle errors.
+    * The test is registered with the engine parent.
+    * See [ExtensionExceptionExtractor].
+    */
+   private fun createAndRegisterDummySpec(name: String): TestDescriptor {
+
+      val unique = UniqueNames.unique(name, dummies) { s, k -> "${s}_$k" } ?: name
+      dummies.add(unique)
+
+      val descriptor = createSpecTestDescriptor(root, Descriptor.SpecDescriptor(DescriptorId(unique)), unique)
+      root.addChild(descriptor)
+      listener.dynamicTestRegistered(descriptor)
+      return descriptor
+   }
+}

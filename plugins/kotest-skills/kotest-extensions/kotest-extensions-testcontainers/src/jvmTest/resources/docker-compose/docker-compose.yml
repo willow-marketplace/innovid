@@ -1,0 +1,4 @@
+services:
+   helloworld:
+      image: alpine
+      command: echo "Hello World"

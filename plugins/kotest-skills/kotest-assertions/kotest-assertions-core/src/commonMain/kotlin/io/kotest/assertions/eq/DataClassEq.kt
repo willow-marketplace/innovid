@@ -1,0 +1,157 @@
+package io.kotest.assertions.eq
+
+import io.kotest.assertions.Actual
+import io.kotest.assertions.AssertionErrorBuilder
+import io.kotest.assertions.Expected
+import io.kotest.assertions.print.print
+import io.kotest.common.reflection.Property
+import io.kotest.common.reflection.bestName
+import io.kotest.common.reflection.reflection
+
+internal fun isDataClassInstance(obj: Any?): Boolean =
+   obj != null && reflection.isDataClass(obj::class)
+
+/**
+ * Prints a detailed diff of data class instances, highlighting which properties/fields of the data class instances
+ * differ.
+ *
+ * The Kotlin compiler derives the equals() implementation based on all properties declared in the primary constructor.
+ * As such this feature becomes less useful if you want to override equals() in your data classes. If this is the case
+ * you may wish to turn off this feature by setting the system property: "kotest.assertions.show-data-class-diffs" to
+ * "false".
+ *
+ * E.g.:
+ * ```
+ *     -Dkotest.assertions.show-data-class-diffs=false
+ * ```
+ */
+internal object DataClassEq : Eq<Any> {
+
+   /**
+    * Used to determine at what level of nesting we abort processing the diff.
+    * To prevent stack overflows/cyclic dependencies.
+    * Note: With cycle detection via EqContext, this provides defense in depth.
+    */
+   private const val MAX_NESTED_DEPTH = 10
+
+   override fun equals(actual: Any, expected: Any,  context: EqContext): EqResult {
+      if (actual === expected) return EqResult.Success
+
+      if (context.isVisited(actual, expected)) return EqResult.Success
+
+      context.push(actual, expected)
+      try {
+         return if (testByEquals(actual, expected)) {
+            EqResult.Success
+         } else {
+
+            runCatching {
+               val differences = dataClassDiff(actual, expected, context = context)
+               if (differences == null || differences.differences.isEmpty()) {
+                  // The structural diff only compares primary constructor members. When there are
+                  // none to compare (e.g. data objects), an empty diff does not establish equality,
+                  // so we must honor the equals() result, which already determined they are not equal.
+                  if (reflection.primaryConstructorMembers(expected::class).isEmpty()) {
+                     EqResult.Failure {
+                        AssertionErrorBuilder.create()
+                           .withValues(Expected(expected.print()), Actual(actual.print()))
+                           .build()
+                     }
+                  } else {
+                     EqResult.Success
+                  }
+               } else {
+                  val detailedDiffMsg = runCatching {
+                     formatDifferences(differences) + "\n\n"
+                  }.getOrNull() ?: ""
+
+                  EqResult.Failure {
+                     AssertionErrorBuilder.create()
+                        .withMessage(detailedDiffMsg)
+                        .withValues(Expected(expected.print()), Actual(actual.print()))
+                        .build()
+                  }
+               }
+            }.getOrElse {
+               EqResult.Failure {
+                  AssertionErrorBuilder.create()
+                     .withMessage("Error: ${it.message}")
+                     .withValues(Expected(expected.print()), Actual(actual.print()))
+                     .build()
+               }
+            }
+         }
+      } finally {
+         context.pop()
+      }
+   }
+
+   private fun testByEquals(a: Any?, b: Any?): Boolean = makeComparable(a) == makeComparable(b)
+
+   private fun dataClassDiff(actual: Any?, expected: Any?, depth: Int = 0, context: EqContext): DataClassDifference? {
+      require(actual != null && expected != null) { "Actual and expected values cannot be null in a data class comparison" }
+      require(depth < MAX_NESTED_DEPTH) { "Max depth reached" }
+      val differences = computeMemberDifferences(expected, actual, depth, context)
+      return when {
+         differences.isEmpty() -> null
+         else -> DataClassDifference(expected::class.bestName(), differences)
+      }
+   }
+
+   internal fun dataClassFieldCount(value: Any?): Int = value?.let {
+      reflection.primaryConstructorMembers(it::class).size
+   } ?: 0
+
+   private fun computeMemberDifferences(
+      expected: Any,
+      actual: Any,
+      depth: Int,
+      context: EqContext
+   ): List<Pair<Property, PropertyDifference>> =
+      reflection.primaryConstructorMembers(expected::class).mapNotNull { prop ->
+         val actualPropertyValue = prop.call(actual)
+         val expectedPropertyValue = prop.call(expected)
+         val result = EqCompare.compare(actualPropertyValue, expectedPropertyValue, context)
+         when (result) {
+            is EqResult.Failure -> {
+               if (isDataClassInstance(actualPropertyValue) && isDataClassInstance(expectedPropertyValue)) {
+                  if(dataClassFieldCount(actualPropertyValue) > 0 || dataClassFieldCount(expectedPropertyValue) > 0) {
+                     dataClassDiff(actualPropertyValue, expectedPropertyValue, depth + 1, context)?.let { diff ->
+                        Pair(prop, diff)
+                     }
+                  } else {
+                     Pair(prop, StandardDifference(result.error()))
+                  }
+               }
+               else {
+                  val error = result.error()
+                  Pair(prop, StandardDifference(error))
+               }
+            }
+            EqResult.Success -> null
+         }
+      }
+
+   private fun formatDifferences(dataClassDiff: DataClassDifference, indentStyle: List<Boolean> = emptyList()): String {
+      val noOfDifferences = dataClassDiff.differences.size
+      return dataClassDiff.differences.mapIndexed { index, (property, difference) ->
+         val isLastProperty = index + 1 == noOfDifferences
+         val diffMsg = when (difference) {
+            is StandardDifference -> difference.differenceError.message
+            is DataClassDifference -> formatDifferences(difference, indentStyle + isLastProperty)
+         }
+         buildString {
+            append(indentStyle.joinToString(separator = "") { if (it) "   " else "│  " })
+            append(if (isLastProperty) '└' else '├')
+            append(" ${property.name}: $diffMsg")
+         }
+      }.joinToString(separator = "\n", prefix = "data class diff for ${dataClassDiff.dataClassName}\n")
+   }
+}
+
+private sealed class PropertyDifference
+private data class StandardDifference(val differenceError: Throwable) : PropertyDifference()
+private data class DataClassDifference(
+   val dataClassName: String,
+   val differences: List<Pair<Property, PropertyDifference>>
+) : PropertyDifference()

@@ -1,0 +1,143 @@
+package io.kotest.runner.junit.platform
+
+import io.kotest.core.descriptors.Descriptor
+import io.kotest.core.test.TestCase
+import io.kotest.engine.test.names.DisplayNameFormatting
+import org.junit.platform.engine.TestDescriptor
+import org.junit.platform.engine.TestSource
+import org.junit.platform.engine.UniqueId
+import org.junit.platform.engine.support.descriptor.AbstractTestDescriptor
+import org.junit.platform.engine.support.descriptor.ClassSource
+import org.junit.platform.engine.support.descriptor.EngineDescriptor
+import org.junit.platform.engine.support.descriptor.MethodSource
+import kotlin.jvm.optionals.getOrNull
+import kotlin.reflect.KClass
+
+internal const val TRUNCATE_TEST_NAMES_ENV = "KOTEST_TRUNCATE_TEST_NAMES"
+internal const val MAX_TRUNCATED_NAME_LENGTH = 48
+
+/**
+ * Finds and returns the [org.junit.platform.engine.TestDescriptor] corresponding to the
+ * given [Descriptor.SpecDescriptor] that was previously added to the engine.
+ *
+ * If the engine descriptor does not contain the spec descriptor, then null is returned.
+ */
+internal fun findTestDescriptorForSpec(root: EngineDescriptor, descriptor: Descriptor.SpecDescriptor): TestDescriptor? {
+   val id = createUniqueIdForSpec(root.uniqueId, descriptor.id)
+   return root.findByUniqueId(id).getOrNull()
+}
+
+/**
+ * Creates a [org.junit.platform.engine.TestDescriptor] from the given spec.
+ * This descriptor needs to be added to the parent engine descriptor.
+ */
+internal fun createSpecTestDescriptor(
+   root: EngineDescriptor,
+   descriptor: Descriptor.SpecDescriptor,
+   displayName: String,
+): TestDescriptor {
+   val id = createUniqueIdForSpec(root.uniqueId, descriptor.id)
+   val source = ClassSource.from(descriptor.id.value)
+   return SpecTestDescriptor(id, displayName, source)
+}
+
+internal class SpecTestDescriptor(
+   id: UniqueId,
+   displayName: String,
+   source: TestSource,
+) : AbstractTestDescriptor(id, displayName, source) {
+   override fun getType(): TestDescriptor.Type = TestDescriptor.Type.CONTAINER
+   override fun mayRegisterTests(): Boolean = true
+}
+
+/**
+ * Creates a [org.junit.platform.engine.TestDescriptor] for Kotest tests.
+ *
+ * Test case descriptors can be either TEST or CONTAINER depending on if they contain nested tests.
+ *
+ * Note: The odd name for this class is because it is for Kotest "Test"s (not specs) and is a TestDescriptor,
+ * hence the duplicated TestTest part.
+ */
+internal class TestTestDescriptor(
+   id: UniqueId,
+   displayName: String,
+   source: TestSource,
+   private val type: TestDescriptor.Type,
+) : AbstractTestDescriptor(id, displayName, source) {
+
+   // there is a bug in Gradle 4.7+ whereby CONTAINER_AND_TEST breaks test reporting or hangs the build, as it is not handled
+   // see https://github.com/gradle/gradle/issues/4912
+   // so we can't use CONTAINER_AND_TEST for our test scopes, but simply container
+   // update jan 2020: Seems we can use CONTAINER_AND_TEST now in Gradle 6, and CONTAINER is invisible in output
+   // update sep 2021: Gradle 7.1 seems we can use TEST for everything but CONTAINER_AND_TEST will not show without a contained test
+   // update for 5.0.0.M2 - will just dynamically add tests after they have completed, and we can see the full tree
+   // update 5.0.0.M3 - if we add dynamically afterward then the timings are all messed up, seems Gradle keeps the time itself
+   // update 2026 - claim to be fixed in a recent release, can revisit once later versions of Gradle become common
+   override fun getType(): TestDescriptor.Type = type
+   override fun mayRegisterTests(): Boolean = type == TestDescriptor.Type.CONTAINER
+
+}
+
+internal fun createTestDescriptorWithMethodSource(
+   root: EngineDescriptor,
+   testCase: TestCase,
+   type: TestDescriptor.Type,
+   formatter: DisplayNameFormatting,
+): TestDescriptor {
+   val id = createUniqueIdForTest(root.uniqueId, testCase.descriptor)
+
+   // The IntelliJ plugin used to rely on a `<kotest>...</kotest>` tag injected here to drive
+   // jump-to-source navigation. That tag was visible to anyone without the plugin installed.
+   // Newer plugins read the path from the MethodSource (className=fqn, methodName=seg/seg/...)
+   // exposed via `proxy.locationUrl` ("java:test://<fqn>/<segment>/..."), so the displayName
+   // can stay clean for everyone. See LocationEmbedder for details.
+   val formattedTestName = formatter.format(testCase)
+   val displayName = when {
+      isTruncateTestNamesEnabled() && type == TestDescriptor.Type.CONTAINER -> truncateTestName(formattedTestName)
+      else -> formattedTestName
+   }
+
+   // For CONTAINER types, use ClassSource (like v5.9.1) to ensure a proper tree structure in Android Studio.
+   // Android Studio does not display MethodSource containers correctly, hence using ClassSource for them.
+   // gradle-junit-platform hides tests if we don't send a source at all
+   // surefire-junit-platform (maven) needs a MethodSource to separate test cases from each other
+   // and produce a more correct XML report with the test case name.
+   val source = when (type) {
+      TestDescriptor.Type.CONTAINER -> ClassSource.from(testCase.spec::class.java)
+      else -> getMethodSource(testCase.spec::class, id)
+   }
+
+   return TestTestDescriptor(
+      id = id,
+      displayName = displayName,
+      source = source,
+      type = type,
+   )
+}
+
+internal fun getMethodSource(kclass: KClass<*>, id: UniqueId): MethodSource = MethodSource.from(
+   /* className = */ kclass.java.name,
+   /* methodName = */ id.segments.filter { it.type == Segment.Test.value }.joinToString("/") { it.value }
+)
+
+/**
+ * Returns true if test name truncation is enabled.
+ *
+ * Checks both the JVM system property and the environment variable with the same key
+ * ([TRUNCATE_TEST_NAMES_ENV]) so that the feature can be activated via either mechanism.
+ * System properties are checked first because they work on all platforms (including Windows,
+ * where modifying environment variables at runtime is unreliable).
+ */
+internal fun isTruncateTestNamesEnabled(): Boolean =
+   System.getProperty(TRUNCATE_TEST_NAMES_ENV) == "true" || System.getenv(TRUNCATE_TEST_NAMES_ENV) == "true"
+
+internal fun truncateTestName(name: String): String {
+   if (name.length <= MAX_TRUNCATED_NAME_LENGTH) return name
+   val take = MAX_TRUNCATED_NAME_LENGTH - 3
+   // If `take(n)` would split a UTF-16 surrogate pair (the n-1th char is a high surrogate
+   // and the nth char is a low surrogate) we'd produce an unpaired high surrogate. Drop the
+   // dangling high surrogate so the truncated string remains valid UTF-16. Result is at
+   // most one char shorter than MAX_TRUNCATED_NAME_LENGTH; never invalid.
+   val safeTake = if (name[take - 1].isHighSurrogate() && name[take].isLowSurrogate()) take - 1 else take
+   return name.take(safeTake) + "..."
+}

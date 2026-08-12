@@ -1,0 +1,58 @@
+public abstract class io/kotest/framework/gradle/KotestGradleExtension {
+	public fun <init> ()V
+	public abstract fun getAlwaysRerunTests ()Lorg/gradle/api/provider/Property;
+	public abstract fun getCustomGradleTask ()Lorg/gradle/api/provider/Property;
+	public abstract fun getEnablePowerAssert ()Lorg/gradle/api/provider/Property;
+	public abstract fun getShowIgnoreReasons ()Lorg/gradle/api/provider/Property;
+	public abstract fun getTruncateTestNamesInGradle ()Lorg/gradle/api/provider/Property;
+}
+
+public abstract class io/kotest/framework/gradle/KotestPlugin : org/gradle/api/Plugin {
+	public static final field Companion Lio/kotest/framework/gradle/KotestPlugin$Companion;
+	public static final field POWER_ASSERT_PLUGIN_ID Ljava/lang/String;
+	public fun <init> ()V
+	public synthetic fun apply (Ljava/lang/Object;)V
+	public fun apply (Lorg/gradle/api/Project;)V
+}
+
+public final class io/kotest/framework/gradle/KotestPlugin$Companion {
+}
+
+public final class io/kotest/framework/gradle/SpecsResolver {
+	public static final field DELIMITER Ljava/lang/String;
+	public static final field INSTANCE Lio/kotest/framework/gradle/SpecsResolver;
+}
+
+public abstract class io/kotest/framework/gradle/tasks/KotestAndroidTask : org/gradle/api/tasks/JavaExec {
+	public static final field Companion Lio/kotest/framework/gradle/tasks/KotestAndroidTask$Companion;
+	public static final field TYPE_CLASSES_DIR Ljava/lang/String;
+	public static final field TYPE_CLASSES_JAR Ljava/lang/String;
+	public fun <init> ()V
+	public fun exec ()V
+	public abstract fun getCompilationName ()Lorg/gradle/api/provider/Property;
+	public abstract fun getInclude ()Lorg/gradle/api/provider/Property;
+	public abstract fun getModuleTestReportsDir ()Lorg/gradle/api/file/DirectoryProperty;
+	public abstract fun getPackages ()Lorg/gradle/api/provider/Property;
+	public abstract fun getRootTestReportsDir ()Lorg/gradle/api/file/DirectoryProperty;
+	public abstract fun getSpecs ()Lorg/gradle/api/provider/Property;
+	public abstract fun getSpecsClasspath ()Lorg/gradle/api/provider/Property;
+	public abstract fun getTargetName ()Lorg/gradle/api/provider/Property;
+}
+
+public final class io/kotest/framework/gradle/tasks/KotestAndroidTask$Companion {
+	public final fun getARTIFACT_TYPE ()Lorg/gradle/api/attributes/Attribute;
+}
+
+public abstract class io/kotest/framework/gradle/tasks/KotestJvmTask : org/gradle/api/tasks/JavaExec {
+	public fun <init> ()V
+	public fun exec ()V
+	public abstract fun getInclude ()Lorg/gradle/api/provider/Property;
+	public abstract fun getModuleName ()Lorg/gradle/api/provider/Property;
+	public abstract fun getModuleTestReportsDir ()Lorg/gradle/api/file/DirectoryProperty;
+	public abstract fun getPackages ()Lorg/gradle/api/provider/Property;
+	public abstract fun getRootTestReportsDir ()Lorg/gradle/api/file/DirectoryProperty;
+	public abstract fun getSpecs ()Lorg/gradle/api/provider/Property;
+	public abstract fun getTargetName ()Lorg/gradle/api/provider/Property;
+	public abstract fun getTestSourceSetClasspath ()Lorg/gradle/api/provider/Property;
+}
+

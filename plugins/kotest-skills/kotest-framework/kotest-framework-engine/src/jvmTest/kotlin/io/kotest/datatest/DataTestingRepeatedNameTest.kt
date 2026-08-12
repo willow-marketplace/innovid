@@ -1,0 +1,187 @@
+package io.kotest.datatest
+
+import io.kotest.core.config.AbstractProjectConfig
+import io.kotest.core.names.DuplicateTestNameMode
+import io.kotest.core.spec.SpecRef
+import io.kotest.core.spec.style.DescribeSpec
+import io.kotest.core.spec.style.FunSpec
+import io.kotest.core.spec.style.StringSpec
+import io.kotest.engine.TestEngineLauncher
+import io.kotest.engine.listener.CollectingTestEngineListener
+import io.kotest.matchers.shouldBe
+
+class DataTestingRepeatedTestNameTest : FunSpec() {
+   init {
+
+      test("with describe spec repeated names should have count appended") {
+
+         val c = object : AbstractProjectConfig() {
+            override val duplicateTestNameMode = DuplicateTestNameMode.Silent
+         }
+
+         val collector = CollectingTestEngineListener()
+         TestEngineLauncher().withListener(collector)
+            .withProjectConfig(c)
+            .withSpecRefs(SpecRef.Reference((RepeatedNamesDescribeSpec::class)))
+            .execute()
+
+         collector.names shouldBe listOf(
+            "Foo(name=sam)",
+            "Foo(name=ham)",
+            "Foo(name=sham)",
+            "(1) Foo(name=sham)",
+            "(1) Foo(name=ham)",
+            "(2) Foo(name=ham)",
+            "(1) Foo(name=sam)",
+            "foo"
+         )
+      }
+
+      test("with describe spec repeated names at root should have count appended") {
+
+         val c = object : AbstractProjectConfig() {
+            override val duplicateTestNameMode = DuplicateTestNameMode.Silent
+         }
+
+         val collector = CollectingTestEngineListener()
+         TestEngineLauncher().withListener(collector)
+            .withProjectConfig(c)
+            .withSpecRefs(SpecRef.Reference((RepeatedNamesDescribeSpecRoot::class)))
+            .execute()
+
+         collector.names shouldBe listOf(
+            "Foo(name=sam)",
+            "Foo(name=ham)",
+            "Foo(name=sham)",
+            "(1) Foo(name=sham)",
+            "(1) Foo(name=ham)",
+            "(2) Foo(name=ham)",
+            "(1) Foo(name=sam)",
+         )
+      }
+
+      test("with fun spec repeated names should have count appended") {
+
+         val c = object : AbstractProjectConfig() {
+            override val duplicateTestNameMode = DuplicateTestNameMode.Silent
+         }
+
+         val collector = CollectingTestEngineListener()
+         TestEngineLauncher().withListener(collector)
+            .withProjectConfig(c)
+            .withSpecRefs(SpecRef.Reference((RepeatedNamesFunSpec::class)))
+            .execute()
+
+         collector.names shouldBe listOf(
+            "Foo(name=sam)",
+            "Foo(name=ham)",
+            "Foo(name=sham)",
+            "(1) Foo(name=sham)",
+            "(1) Foo(name=ham)",
+            "(2) Foo(name=ham)",
+            "(1) Foo(name=sam)",
+            "foo"
+         )
+      }
+
+      test("with fun spec repeated names at root should have count appended") {
+
+         val c = object : AbstractProjectConfig() {
+            override val duplicateTestNameMode = DuplicateTestNameMode.Silent
+         }
+
+         val collector = CollectingTestEngineListener()
+         TestEngineLauncher().withListener(collector)
+            .withProjectConfig(c)
+            .withSpecRefs(SpecRef.Reference((RepeatedNamesRootFunSpec::class)))
+            .execute()
+
+         collector.names shouldBe listOf(
+            "Foo(name=sam)",
+            "Foo(name=ham)",
+            "Foo(name=sham)",
+            "(1) Foo(name=sham)",
+            "(1) Foo(name=ham)",
+            "(2) Foo(name=ham)",
+            "(1) Foo(name=sam)",
+         )
+      }
+   }
+}
+
+private class RepeatedNamesDescribeSpecRoot : DescribeSpec() {
+   init {
+      withData(
+         Foo("sam"),
+         Foo("ham"),
+         Foo("sham"),
+         Foo("sham"),
+         Foo("ham"),
+         Foo("ham"),
+         Foo("sam"),
+      ) { }
+   }
+}
+
+ class RepeatedNamesDescribeSpec : DescribeSpec() {
+   init {
+      describe("foo") {
+         withData(
+            Foo("sam"),
+            Foo("ham"),
+            Foo("sham"),
+            Foo("sham"),
+            Foo("ham"),
+            Foo("ham"),
+            Foo("sam"),
+         ) { }
+      }
+   }
+}
+
+private class RepeatedNamesFunSpec : FunSpec() {
+   init {
+      context("foo") {
+         withData(
+            Foo("sam"),
+            Foo("ham"),
+            Foo("sham"),
+            Foo("sham"),
+            Foo("ham"),
+            Foo("ham"),
+            Foo("sam"),
+         ) { }
+      }
+   }
+}
+
+private class RepeatedNamesRootFunSpec : FunSpec() {
+   init {
+      withData(
+         Foo("sam"),
+         Foo("ham"),
+         Foo("sham"),
+         Foo("sham"),
+         Foo("ham"),
+         Foo("ham"),
+         Foo("sam"),
+      ) { }
+   }
+}
+
+private class RepeatedNamesRootStringSpec : StringSpec() {
+   init {
+      withData(
+         Foo("sam"),
+         Foo("ham"),
+         Foo("sham"),
+         Foo("sham"),
+         Foo("ham"),
+         Foo("ham"),
+         Foo("sam"),
+      ) { }
+   }
+}
+
+
+private data class Foo(val name: String)

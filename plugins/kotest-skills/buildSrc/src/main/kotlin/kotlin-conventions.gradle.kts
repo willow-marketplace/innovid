@@ -1,0 +1,92 @@
+import org.gradle.api.tasks.testing.logging.TestLogEvent
+import org.gradle.tooling.events.FinishEvent
+import org.gradle.tooling.events.OperationCompletionListener
+import org.gradle.tooling.events.task.TaskFinishEvent
+import org.jetbrains.kotlin.buildtools.api.ExperimentalBuildToolsApi
+import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
+import org.jetbrains.kotlin.gradle.tasks.KotlinTest
+import utils.SystemPropertiesArgumentProvider
+
+plugins {
+   id("kotest-base")
+   kotlin("multiplatform")
+}
+
+tasks.withType<Test>().configureEach {
+   useJUnitPlatform()
+
+   val kotestSystemProps: Provider<Map<String, String>> = providers.systemPropertiesPrefixedBy("kotest")
+   jvmArgumentProviders += SystemPropertiesArgumentProvider(kotestSystemProps)
+   filter {
+      isFailOnNoMatchingTests = false
+   }
+   outputs.upToDateWhen { false }
+   testLogging {
+      events(TestLogEvent.FAILED)
+   }
+}
+
+val libs = versionCatalogs.named("libs")
+
+kotlin {
+   @OptIn(ExperimentalKotlinGradlePluginApi::class, ExperimentalBuildToolsApi::class)
+   compilerOptions {
+
+      freeCompilerArgs.add("-Xexpect-actual-classes")
+      freeCompilerArgs.add("-Xreturn-value-checker=${if (Ci.isRelease) "disable" else "full"}")
+      freeCompilerArgs.add("-XXLanguage:+UnnamedLocalVariables")
+
+      // See https://mbonnin.net/2026-02-22-kotlin-versions
+      compilerVersion.set(libs.findVersion("kotlin-compile-version").get().toString())
+      coreLibrariesVersion = libs.findVersion("kotlin-core-libaries-version").get().toString()
+
+      apiVersion.set(
+         org.jetbrains.kotlin.gradle.dsl.KotlinVersion.fromVersion(
+            libs.findVersion("kotlin-language-version").get().toString().substringBeforeLast('.') // x.y.z -> x.y
+         )
+      )
+
+      languageVersion.set(
+         org.jetbrains.kotlin.gradle.dsl.KotlinVersion.fromVersion(
+            libs.findVersion("kotlin-language-version").get().toString().substringBeforeLast('.') // x.y.z -> x.y
+         )
+      )
+
+      allWarningsAsErrors = false
+   }
+   sourceSets.configureEach {
+      languageSettings {
+         optIn("io.kotest.common.KotestInternal")
+         optIn("kotlin.contracts.ExperimentalContracts")
+         optIn("kotlin.experimental.ExperimentalTypeInference")
+         optIn("kotlin.time.ExperimentalTime")
+      }
+   }
+}
+
+tasks.withType<KotlinTest>().configureEach {
+   failOnNoDiscoveredTests = false
+}
+
+abstract class TimerService : BuildService<BuildServiceParameters.None>, OperationCompletionListener {
+   override fun onFinish(event: FinishEvent) {
+      if (event is TaskFinishEvent) {
+         val duration = event.result.endTime - event.result.startTime
+         if (duration > 1000) { // Only log tasks slower than 1s
+            println("Task ${event.descriptor.name} took ${duration}ms")
+         }
+      }
+   }
+}
+
+// Inject the registry as a property
+val listenerRegistry = objects.newInstance(RegistryWrapper::class.java).registry
+
+// Define a simple wrapper to facilitate injection in the script
+interface RegistryWrapper {
+   @get:Inject
+   val registry: BuildEventsListenerRegistry
+}
+
+val serviceProvider = gradle.sharedServices.registerIfAbsent("taskTimer", TimerService::class) {}
+listenerRegistry.onTaskCompletion(serviceProvider)

@@ -1,0 +1,91 @@
+package com.sksamuel.kotest.matchers.string
+
+import io.kotest.assertions.assertSoftly
+import io.kotest.assertions.throwables.shouldThrow
+import io.kotest.assertions.throwables.shouldThrowAny
+import io.kotest.core.spec.style.FreeSpec
+import io.kotest.matchers.should
+import io.kotest.matchers.shouldBe
+import io.kotest.matchers.shouldNot
+import io.kotest.matchers.string.containInOrder
+import io.kotest.matchers.string.shouldContain
+import io.kotest.matchers.string.shouldContainInOrder
+import io.kotest.matchers.string.shouldNotContainInOrder
+
+class ContainInOrderMatcherTest : FreeSpec() {
+   init {
+      "string should containInOrder()" - {
+         "should test that a string contains the requested strings" {
+            "a" should containInOrder()
+            "a" shouldNot containInOrder("d")
+            "ab" should containInOrder("a", "b")
+            "ab" shouldNot containInOrder("b", "a")
+            "azc" should containInOrder("a", "c")
+            "zabzc" should containInOrder("ab", "c")
+            "a" shouldNot containInOrder("a", "a")
+            "aa" should containInOrder("a", "a")
+            "azbzbzc" should containInOrder("a", "b", "b", "c")
+            "abab" should containInOrder("a", "b", "a", "b")
+            "ababa" should containInOrder("aba", "aba")
+            "aaa" should containInOrder("aa", "aa")
+            "" should containInOrder()
+            "" shouldNot containInOrder("a")
+            "" should containInOrder("")
+            "" should containInOrder("", "")
+            "ab" should containInOrder("", "a", "", "b", "")
+         }
+
+         "should fail if value is null" {
+            shouldThrow<AssertionError> {
+               null shouldNot containInOrder("")
+            }.message shouldBe "Expecting actual not to be null"
+
+            shouldThrow<AssertionError> {
+               null.shouldNotContainInOrder("")
+            }.message shouldBe "Expecting actual not to be null"
+
+            shouldThrow<AssertionError> {
+               null should containInOrder("")
+            }.message shouldBe "Expecting actual not to be null"
+
+            shouldThrow<AssertionError> {
+               null.shouldContainInOrder("")
+            }.message shouldBe "Expecting actual not to be null"
+         }
+
+         "should output first mismatch" {
+            val message = shouldThrowAny {
+               "The quick brown fox jumps over the lazy dog".shouldContainInOrder(
+                  "The", "quick", "red", "fox", "jumps", "over", "the", "lazy", "dog"
+               )
+            }.message
+            message.shouldContain("""The best fit is the subset with the following indexes: [0, 1, -, 3, 4, 5, 6, 7, 8]""")
+            message.shouldContain("Element[2] not found")
+         }
+
+         "should pass for overlapping substrings when second one occurs later" {
+            "sourdough bread".shouldContainInOrder("bread", "read")
+         }
+
+         "should fail for overlapping substrings when second one begins at same index" {
+            "are you ready".shouldNotContainInOrder("read", "ready")
+         }
+
+         "should find first mismatch before its expected place" {
+            val message = shouldThrowAny {
+               "The quick brown fox jumps over the lazy dog".shouldContainInOrder(
+                  "The", "brown", "fox", "jumps", "over", "the", "quick brown", "lazy", "dog"
+               )
+            }.message
+            assertSoftly {
+               message.shouldContain("""The best fit is the subset with the following indexes: [0, -, -, -, -, -, 6, 7, 8]""")
+               message.shouldContain("Element[1] found at index(es): [10]")
+               message.shouldContain("Element[2] found at index(es): [16]")
+               message.shouldContain("Element[3] found at index(es): [20]")
+               message.shouldContain("Element[4] found at index(es): [26]")
+               message.shouldContain("Element[5] found at index(es): [31]")
+            }
+         }
+      }
+   }
+}

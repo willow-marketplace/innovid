@@ -1,0 +1,273 @@
+package io.kotest.datatest
+
+import io.kotest.core.spec.style.scopes.ExpectSpecContainerScope
+import io.kotest.core.spec.style.scopes.ExpectSpecRootScope
+import io.kotest.core.test.TestScope
+import io.kotest.engine.stable.StableIdents
+
+/**
+ * Registers tests at the root level for each element.
+ *
+ * The test name will be generated from the stable properties of the elements. See [StableIdents].
+ */
+fun <T> ExpectSpecRootScope.withData(
+   first: T,
+   second: T, // we need two elements here so the compiler can disambiguate from the sequence version
+   vararg rest: T,
+   test: suspend ExpectSpecContainerScope.(T) -> Unit
+) {
+   withContexts(listOf(first, second) + rest, test)
+}
+
+/**
+ * Registers tests at the root level for each element.
+ *
+ * The test name will be generated from the stable properties of the elements. See [StableIdents].
+ */
+fun <T> ExpectSpecRootScope.withContexts(
+   first: T,
+   second: T, // we need two elements here so the compiler can disambiguate from the sequence version
+   vararg rest: T,
+   test: suspend ExpectSpecContainerScope.(T) -> Unit
+) {
+   withContexts(listOf(first, second) + rest, test)
+}
+
+/**
+ * Registers tests at the root level for each element.
+ *
+ * The test name will be generated from the stable properties of the elements. See [StableIdents].
+ */
+fun <T> ExpectSpecRootScope.withExpects(
+   first: T,
+   second: T, // we need two elements here so the compiler can disambiguate from the sequence version
+   vararg rest: T,
+   test: suspend TestScope.(T) -> Unit
+) {
+   withExpects(listOf(first, second) + rest, test)
+}
+
+fun <T> ExpectSpecRootScope.withData(
+   nameFn: (T) -> String,
+   first: T,
+   second: T,  // we need two elements here so the compiler can disambiguate from the sequence version
+   vararg rest: T,
+   test: suspend ExpectSpecContainerScope.(T) -> Unit
+) {
+   withContexts(nameFn, listOf(first, second) + rest, test)
+}
+
+fun <T> ExpectSpecRootScope.withContexts(
+   nameFn: (T) -> String,
+   first: T,
+   second: T,  // we need two elements here so the compiler can disambiguate from the sequence version
+   vararg rest: T,
+   test: suspend ExpectSpecContainerScope.(T) -> Unit
+) {
+   withContexts(nameFn, listOf(first, second) + rest, test)
+}
+
+fun <T> ExpectSpecRootScope.withExpects(
+   nameFn: (T) -> String,
+   first: T,
+   second: T,  // we need two elements here so the compiler can disambiguate from the sequence version
+   vararg rest: T,
+   test: suspend TestScope.(T) -> Unit
+) {
+   withExpects(nameFn, listOf(first, second) + rest, test)
+}
+
+/**
+ * Registers tests at the root level for each element of [ts].
+ *
+ * The test name will be generated from the stable properties of the elements. See [StableIdents].
+ */
+fun <T> ExpectSpecRootScope.withData(
+   ts: Sequence<T>,
+   test: suspend ExpectSpecContainerScope.(T) -> Unit
+) {
+   withContexts(ts.toList(), test)
+}
+
+/**
+ * Registers tests at the root level for each element of [ts].
+ *
+ * The test name will be generated from the stable properties of the elements. See [StableIdents].
+ */
+fun <T> ExpectSpecRootScope.withContexts(
+   ts: Sequence<T>,
+   test: suspend ExpectSpecContainerScope.(T) -> Unit
+) {
+   withContexts(ts.toList(), test)
+}
+
+/**
+ * Registers tests at the root level for each element of [ts].
+ *
+ * The test name will be generated from the stable properties of the elements. See [StableIdents].
+ */
+fun <T> ExpectSpecRootScope.withExpects(
+   ts: Sequence<T>,
+   test: suspend TestScope.(T) -> Unit
+) {
+   withExpects(ts.toList(), test)
+}
+
+/**
+ * Registers tests at the root level for each element of [ts].
+ *
+ * The test name will be generated from the stable properties of the elements. See [StableIdents].
+ */
+fun <T> ExpectSpecRootScope.withData(
+   nameFn: (T) -> String,
+   ts: Sequence<T>,
+   test: suspend ExpectSpecContainerScope.(T) -> Unit
+) {
+   withContexts(nameFn, ts.toList(), test)
+}
+
+/**
+ * Registers tests at the root level for each element of [ts].
+ *
+ * The test name will be generated from the stable properties of the elements. See [StableIdents].
+ */
+fun <T> ExpectSpecRootScope.withContexts(
+   nameFn: (T) -> String,
+   ts: Sequence<T>,
+   test: suspend ExpectSpecContainerScope.(T) -> Unit
+) {
+   withContexts(nameFn, ts.toList(), test)
+}
+
+/**
+ * Registers tests at the root level for each element of [ts].
+ *
+ * The test name will be generated from the stable properties of the elements. See [StableIdents].
+ */
+fun <T> ExpectSpecRootScope.withExpects(
+   nameFn: (T) -> String,
+   ts: Sequence<T>,
+   test: suspend TestScope.(T) -> Unit
+) {
+   withExpects(nameFn, ts.toList(), test)
+}
+
+/**
+ * Registers tests at the root level for each element of [ts].
+ *
+ * The test name will be generated from the stable properties of the elements. See [StableIdents].
+ */
+fun <T> ExpectSpecRootScope.withData(
+   ts: Iterable<T>,
+   test: suspend ExpectSpecContainerScope.(T) -> Unit
+) {
+   withContexts({ StableIdents.getStableIdentifier(it) }, ts, test)
+}
+
+/**
+ * Registers tests at the root level for each element of [ts].
+ *
+ * The test name will be generated from the stable properties of the elements. See [StableIdents].
+ */
+fun <T> ExpectSpecRootScope.withContexts(
+   ts: Iterable<T>,
+   test: suspend ExpectSpecContainerScope.(T) -> Unit
+) {
+   withContexts({ StableIdents.getStableIdentifier(it) }, ts, test)
+}
+
+/**
+ * Registers tests at the root level for each element of [ts].
+ *
+ * The test name will be generated from the stable properties of the elements. See [StableIdents].
+ */
+fun <T> ExpectSpecRootScope.withExpects(
+   ts: Iterable<T>,
+   test: suspend TestScope.(T) -> Unit
+) {
+   withExpects({ StableIdents.getStableIdentifier(it) }, ts, test)
+}
+
+/**
+ * Registers tests at the root level for each element of [ts].
+ *
+ * The test name will be generated from the given [nameFn] function.
+ */
+fun <T> ExpectSpecRootScope.withData(
+   nameFn: (T) -> String,
+   ts: Iterable<T>,
+   test: suspend ExpectSpecContainerScope.(T) -> Unit
+) {
+   withContexts(nameFn, ts, test)
+}
+
+/**
+ * Registers tests at the root level for each element of [ts].
+ *
+ * The test name will be generated from the given [nameFn] function.
+ */
+fun <T> ExpectSpecRootScope.withContexts(
+   nameFn: (T) -> String,
+   ts: Iterable<T>,
+   test: suspend ExpectSpecContainerScope.(T) -> Unit
+) {
+   val dataTestTagConfig = getDataTestTagConfig()
+   ts.forEach { t ->
+      context(nameFn(t)).config(dataTestTagConfig) { this.test(t) }
+   }
+}
+
+/**
+ * Registers tests at the root level for each element of [ts].
+ *
+ * The test name will be generated from the given [nameFn] function.
+ */
+fun <T> ExpectSpecRootScope.withExpects(
+   nameFn: (T) -> String,
+   ts: Iterable<T>,
+   test: suspend TestScope.(T) -> Unit
+) {
+   val dataTestTagConfig = getDataTestTagConfig()
+   ts.forEach { t ->
+      expect(nameFn(t)).config(dataTestTagConfig) { this.test(t) }
+   }
+}
+
+/**
+ * Registers tests at the root level for each tuple of [data], with the first value of the tuple
+ * used as the test name, and the second value passed to the test.
+ */
+fun <T> ExpectSpecRootScope.withData(
+   data: Map<String, T>,
+   test: suspend ExpectSpecContainerScope.(T) -> Unit
+) {
+   withContexts(data, test)
+}
+
+/**
+ * Registers tests at the root level for each tuple of [data], with the first value of the tuple
+ * used as the test name, and the second value passed to the test.
+ */
+fun <T> ExpectSpecRootScope.withContexts(
+   data: Map<String, T>,
+   test: suspend ExpectSpecContainerScope.(T) -> Unit
+) {
+   val dataTestTagConfig = getDataTestTagConfig()
+   data.forEach { (name, t) ->
+      context(name).config(dataTestTagConfig) { this.test(t) }
+   }
+}
+
+/**
+ * Registers tests at the root level for each tuple of [data], with the first value of the tuple
+ * used as the test name, and the second value passed to the test.
+ */
+fun <T> ExpectSpecRootScope.withExpects(
+   data: Map<String, T>,
+   test: suspend TestScope.(T) -> Unit
+) {
+   val dataTestTagConfig = getDataTestTagConfig()
+   data.forEach { (name, t) ->
+      expect(name).config(dataTestTagConfig) { this.test(t) }
+   }
+}

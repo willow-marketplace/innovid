@@ -1,0 +1,303 @@
+package io.kotest.matchers.collections
+
+import io.kotest.assertions.AssertionsConfig
+import io.kotest.assertions.eq.CollectionEq
+import io.kotest.assertions.eq.EqCompare
+import io.kotest.assertions.eq.EqContext
+import io.kotest.assertions.eq.EqResult
+import io.kotest.assertions.equals.Equality
+import io.kotest.assertions.print.print
+import io.kotest.assertions.similarity.possibleMatchesDescription
+import io.kotest.matchers.Matcher
+import io.kotest.matchers.MatcherResultBuilder
+import io.kotest.matchers.neverNullMatcher
+import io.kotest.matchers.should
+import io.kotest.matchers.shouldNot
+import kotlin.jvm.JvmName
+
+/**
+ * Assert that a collection contains exactly, and only, the given elements, in the same order.
+ */
+@JvmName("shouldContainExactly_iterable")
+infix fun <T> Iterable<T>?.shouldContainExactly(expected: Iterable<T>) =
+   this?.toList() should containExactly(expected.toList())
+
+/**
+ * Assert that a collection contains exactly, and only, the given elements, in the same order.
+ */
+@JvmName("shouldContainExactly_array")
+infix fun <T> Array<T>?.shouldContainExactly(expected: Array<T>) =
+   this?.asList() should containExactly(*expected)
+
+/**
+ * Assert that a collection contains exactly, and only, the given elements, in the same order.
+ */
+fun <T> Iterable<T>?.shouldContainExactly(vararg expected: T) =
+   this?.toList() should containExactly(*expected)
+
+/**
+ * Assert that a collection contains exactly, and only, the given elements, in the same order.
+ */
+fun <T> Array<T>?.shouldContainExactly(vararg expected: T) =
+   this?.asList() should containExactly(*expected)
+
+/**
+ * Assert that a collection contains exactly, and only, the given elements, in the same order.
+ */
+infix fun <T, C : Collection<T>> C?.shouldContainExactly(expected: C) = this should containExactly(expected)
+
+/**
+ * Assert that a collection contains exactly, and only, the given elements, in the same order.
+ */
+fun <T> Collection<T>?.shouldContainExactly(vararg expected: T) = this should containExactly(*expected)
+
+/**
+ * Assert that a collection contains exactly, and only, the given elements, in the same order.
+ */
+fun <T> containExactly(vararg expected: T): Matcher<Collection<T>?> = containExactly(expected.asList())
+
+/**
+ * Assert that a collection contains exactly, and only, the given elements, in the same order.
+ */
+fun <T, C : Collection<T>> containExactly(expected: C): Matcher<C?> =
+   containExactly(expected, null)
+
+/**
+ * Assert that a collection contains exactly, and only, the given elements, in the same order.
+ */
+fun <T, C : Collection<T>> containExactly(
+   expected: C,
+   verifier: Equality<T>?,
+): Matcher<C?> = neverNullMatcher { actual ->
+
+   fun Throwable?.isDisallowedIterableComparisonFailure() =
+      this?.message?.startsWith(CollectionEq.TRIGGER) == true
+
+   val failureReason = if (verifier == null) {
+      val result = EqCompare.compare(actual, expected, EqContext(true))
+      when (result) {
+         is EqResult.Failure -> result.error()
+         EqResult.Success -> null
+      }
+   } else {
+      matchCollectionsWithVerifier(actual, expected, verifier)
+   }
+
+   val passed = failureReason == null
+   val missing = if(passed) {
+      emptyList()
+   } else {
+      expected.filterNot { t ->
+         actual.any { verifier?.verify(it, t)?.areEqual() ?: (it == t) }
+      }
+   }
+   val extra = if(passed) {
+      emptyList()
+   } else {
+      actual.filterNot { t ->
+             expected.any { verifier?.verify(it, t)?.areEqual() ?: (it == t) }
+      }
+   }
+
+   val failureMessage = {
+      buildString {
+         if (failureReason.isDisallowedIterableComparisonFailure()) {
+            append(failureReason?.message)
+         } else {
+            append(
+               "Collection should contain exactly: ${expected.print().value} but was: ${actual.print().value}"
+            )
+            appendLine()
+         }
+
+         if (failureReason is CollectionMismatchWithCustomVerifier) {
+            append(failureReason.message)
+            appendLine()
+         }
+
+         appendMissingAndExtra(missing, extra)
+         appendLine()
+         appendPossibleMatches(extra, actual)
+
+         if (!passed && !failureReason.isDisallowedIterableComparisonFailure() && verifier == null) {
+            appendSubmatches(actual, expected)
+         }
+      }
+   }
+
+   val negatedFailureMessage =
+      { "Collection should not contain exactly: ${expected.print().value}" }
+
+   if (failureReason.isDisallowedIterableComparisonFailure()) {
+      MatcherResultBuilder.create(passed)
+         .withFailureMessage(failureMessage)
+         .withNegatedFailureMessage(negatedFailureMessage)
+         .build()
+   } else if (
+      actual.size > AssertionsConfig.maxCollectionEnumerateSize &&
+      expected.size > AssertionsConfig.maxCollectionEnumerateSize
+   ) {
+      MatcherResultBuilder.create(passed)
+         .withFailureMessage { failureMessage() + "(set the 'kotest.assertions.collection.enumerate.size' JVM property to see full output)" }
+         .withNegatedFailureMessage { negatedFailureMessage() + "(set the 'kotest.assertions.collection.enumerate.size' JVM property to see full output)" }
+         .build()
+   } else {
+      MatcherResultBuilder.create(passed)
+         .withValues(expected = { expected.print() }, actual = { actual.print() })
+         .withFailureMessage(failureMessage)
+         .withNegatedFailureMessage(negatedFailureMessage)
+         .build()
+   }
+}
+
+internal fun<T> matchCollectionsWithVerifier(
+   actual: Collection<T>,
+   expected: Collection<T>,
+   verifier: Equality<T>
+): CollectionMismatchWithCustomVerifier? {
+   val actualIterator = actual.iterator()
+   val expectedIterator = expected.iterator()
+   var index = 0
+   while (actualIterator.hasNext()) {
+      val actualElement = actualIterator.next()
+      if (expectedIterator.hasNext()) {
+         val expectedElement = expectedIterator.next()
+         val equalityResult = verifier.verify(actualElement, expectedElement)
+         if(!equalityResult.areEqual()) {
+            return CollectionMismatchWithCustomVerifier(
+               "Elements differ at index $index, expected: <${expectedElement.print().value}>, but was <${actualElement.print().value}>, ${equalityResult.details().explain()}"
+            )
+         }
+      } else {
+         return CollectionMismatchWithCustomVerifier("Actual has an element at index $index, expected is shorter")
+      }
+      index++
+   }
+   if (expectedIterator.hasNext()) {
+      return CollectionMismatchWithCustomVerifier("Expected has an element at index $index, actual is shorter")
+   }
+   return null
+}
+
+internal class CollectionMismatchWithCustomVerifier(message: String): Exception(message)
+
+@JvmName("shouldNotContainExactly_iterable")
+infix fun <T> Iterable<T>?.shouldNotContainExactly(expected: Iterable<T>) =
+   this?.toList() shouldNot containExactly(expected.toList())
+
+@JvmName("shouldNotContainExactly_array")
+infix fun <T> Array<T>?.shouldNotContainExactly(expected: Array<T>) = this?.asList() shouldNot containExactly(*expected)
+
+fun <T> Iterable<T>?.shouldNotContainExactly(vararg expected: T) = this?.toList() shouldNot containExactly(*expected)
+fun <T> Array<T>?.shouldNotContainExactly(vararg expected: T) = this?.asList() shouldNot containExactly(*expected)
+
+infix fun <T, C : Collection<T>> C?.shouldNotContainExactly(expected: C) = this shouldNot containExactly(expected)
+fun <T> Collection<T>?.shouldNotContainExactly(vararg expected: T) = this shouldNot containExactly(*expected)
+
+// region Primitive array overloads
+
+@JvmName("shouldContainExactly_booleanArray")
+infix fun BooleanArray?.shouldContainExactly(expected: BooleanArray): BooleanArray? = apply { this?.asList() should containExactly(expected.asList()) }
+fun BooleanArray?.shouldContainExactly(vararg expected: Boolean): BooleanArray? = apply { this?.asList() should containExactly(expected.asList()) }
+
+@JvmName("shouldNotContainExactly_booleanArray")
+infix fun BooleanArray?.shouldNotContainExactly(expected: BooleanArray): BooleanArray? = apply { this?.asList() shouldNot containExactly(expected.asList()) }
+fun BooleanArray?.shouldNotContainExactly(vararg expected: Boolean): BooleanArray? = apply { this?.asList() shouldNot containExactly(expected.asList()) }
+
+@JvmName("shouldContainExactly_byteArray")
+infix fun ByteArray?.shouldContainExactly(expected: ByteArray): ByteArray? = apply { this?.asList() should containExactly(expected.asList()) }
+fun ByteArray?.shouldContainExactly(vararg expected: Byte): ByteArray? = apply { this?.asList() should containExactly(expected.asList()) }
+
+@JvmName("shouldNotContainExactly_byteArray")
+infix fun ByteArray?.shouldNotContainExactly(expected: ByteArray): ByteArray? = apply { this?.asList() shouldNot containExactly(expected.asList()) }
+fun ByteArray?.shouldNotContainExactly(vararg expected: Byte): ByteArray? = apply { this?.asList() shouldNot containExactly(expected.asList()) }
+
+@JvmName("shouldContainExactly_shortArray")
+infix fun ShortArray?.shouldContainExactly(expected: ShortArray): ShortArray? = apply { this?.asList() should containExactly(expected.asList()) }
+fun ShortArray?.shouldContainExactly(vararg expected: Short): ShortArray? = apply { this?.asList() should containExactly(expected.asList()) }
+
+@JvmName("shouldNotContainExactly_shortArray")
+infix fun ShortArray?.shouldNotContainExactly(expected: ShortArray): ShortArray? = apply { this?.asList() shouldNot containExactly(expected.asList()) }
+fun ShortArray?.shouldNotContainExactly(vararg expected: Short): ShortArray? = apply { this?.asList() shouldNot containExactly(expected.asList()) }
+
+@JvmName("shouldContainExactly_charArray")
+infix fun CharArray?.shouldContainExactly(expected: CharArray): CharArray? = apply { this?.asList() should containExactly(expected.asList()) }
+fun CharArray?.shouldContainExactly(vararg expected: Char): CharArray? = apply { this?.asList() should containExactly(expected.asList()) }
+
+@JvmName("shouldNotContainExactly_charArray")
+infix fun CharArray?.shouldNotContainExactly(expected: CharArray): CharArray? = apply { this?.asList() shouldNot containExactly(expected.asList()) }
+fun CharArray?.shouldNotContainExactly(vararg expected: Char): CharArray? = apply { this?.asList() shouldNot containExactly(expected.asList()) }
+
+@JvmName("shouldContainExactly_intArray")
+infix fun IntArray?.shouldContainExactly(expected: IntArray): IntArray? = apply { this?.asList() should containExactly(expected.asList()) }
+fun IntArray?.shouldContainExactly(vararg expected: Int): IntArray? = apply { this?.asList() should containExactly(expected.asList()) }
+
+@JvmName("shouldNotContainExactly_intArray")
+infix fun IntArray?.shouldNotContainExactly(expected: IntArray): IntArray? = apply { this?.asList() shouldNot containExactly(expected.asList()) }
+fun IntArray?.shouldNotContainExactly(vararg expected: Int): IntArray? = apply { this?.asList() shouldNot containExactly(expected.asList()) }
+
+@JvmName("shouldContainExactly_longArray")
+infix fun LongArray?.shouldContainExactly(expected: LongArray): LongArray? = apply { this?.asList() should containExactly(expected.asList()) }
+fun LongArray?.shouldContainExactly(vararg expected: Long): LongArray? = apply { this?.asList() should containExactly(expected.asList()) }
+
+@JvmName("shouldNotContainExactly_longArray")
+infix fun LongArray?.shouldNotContainExactly(expected: LongArray): LongArray? = apply { this?.asList() shouldNot containExactly(expected.asList()) }
+fun LongArray?.shouldNotContainExactly(vararg expected: Long): LongArray? = apply { this?.asList() shouldNot containExactly(expected.asList()) }
+
+@JvmName("shouldContainExactly_floatArray")
+infix fun FloatArray?.shouldContainExactly(expected: FloatArray): FloatArray? = apply { this?.asList() should containExactly(expected.asList()) }
+fun FloatArray?.shouldContainExactly(vararg expected: Float): FloatArray? = apply { this?.asList() should containExactly(expected.asList()) }
+
+@JvmName("shouldNotContainExactly_floatArray")
+infix fun FloatArray?.shouldNotContainExactly(expected: FloatArray): FloatArray? = apply { this?.asList() shouldNot containExactly(expected.asList()) }
+fun FloatArray?.shouldNotContainExactly(vararg expected: Float): FloatArray? = apply { this?.asList() shouldNot containExactly(expected.asList()) }
+
+@JvmName("shouldContainExactly_doubleArray")
+infix fun DoubleArray?.shouldContainExactly(expected: DoubleArray): DoubleArray? = apply { this?.asList() should containExactly(expected.asList()) }
+fun DoubleArray?.shouldContainExactly(vararg expected: Double): DoubleArray? = apply { this?.asList() should containExactly(expected.asList()) }
+
+@JvmName("shouldNotContainExactly_doubleArray")
+infix fun DoubleArray?.shouldNotContainExactly(expected: DoubleArray): DoubleArray? = apply { this?.asList() shouldNot containExactly(expected.asList()) }
+fun DoubleArray?.shouldNotContainExactly(vararg expected: Double): DoubleArray? = apply { this?.asList() shouldNot containExactly(expected.asList()) }
+
+// endregion
+
+fun StringBuilder.appendMissingAndExtra(missing: Collection<Any?>, extra: Collection<Any?>) {
+   if (missing.isNotEmpty()) {
+      append("Some elements were missing: ${missing.take(AssertionsConfig.maxCollectionPrintSize.value).print().value}")
+   }
+   if (missing.isNotEmpty() && extra.isNotEmpty()) {
+      append(
+         " and some elements were unexpected: ${
+            extra.take(AssertionsConfig.maxCollectionPrintSize.value).print().value
+         }"
+      )
+   }
+   if (missing.isEmpty() && extra.isNotEmpty()) {
+      append(
+         "Some elements were unexpected: ${
+            extra.take(AssertionsConfig.maxCollectionPrintSize.value).print().value
+         }"
+      )
+   }
+}
+
+internal fun<T> StringBuilder.appendPossibleMatches(missing: Collection<T>, expected: Collection<T>) {
+   val possibleMatches = missing
+      .map { possibleMatchesDescription(expected.toSet(), it) }
+      .filter { it.isNotEmpty() }
+   if(possibleMatches.isNotEmpty()) {
+      append("\nPossible matches:\n${possibleMatches.take(AssertionsConfig.maxSimilarityPrintSize.value).joinToString("\n\n")}")
+   }
+   if(AssertionsConfig.maxSimilarityPrintSize.value < possibleMatches.size) {
+      append("\nPrinted first ${AssertionsConfig.maxSimilarityPrintSize.value} similarities out of ${possibleMatches.size}, (set the 'kotest.assertions.similarity.print.size' JVM property to see full output for similarity)\n")
+   }
+}
+
+private fun <T> StringBuilder.appendSubmatches(actual: Collection<T>, expected: Collection<T>) {
+   val partialMatchesDescription = describePartialMatchesInCollection(expected, actual.toList()).toString()
+   if (partialMatchesDescription.isNotEmpty()) {
+      appendLine()
+      appendLine(partialMatchesDescription)
+   }
+}

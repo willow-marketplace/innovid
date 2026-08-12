@@ -1,0 +1,17 @@
+{
+  "name": "kotest-skills",
+  "version": "6.2.4",
+  "description": "Agent skills for writing, migrating, and debugging Kotlin tests with Kotest.",
+  "updatedAt": "2026-08-12T10:11:02.047Z",
+  "author": {
+    "name": "Kotest Team"
+  },
+  "homepage": "https://kotest.io",
+  "repository": "https://github.com/kotest/kotest",
+  "keywords": [
+    "kotest",
+    "kotlin",
+    "testing"
+  ],
+  "skills": "./skills/"
+}

@@ -1,0 +1,45 @@
+package io.kotest.engine.extensions
+
+import io.kotest.core.Logger
+import io.kotest.core.listeners.AfterProjectListener
+import io.kotest.core.listeners.BeforeProjectListener
+import io.kotest.engine.config.ProjectConfigResolver
+
+internal class ProjectExtensions(private val projectConfigResolver: ProjectConfigResolver) {
+
+   private val logger = Logger(ProjectExtensions::class)
+
+   /**
+    * Executes all [BeforeProjectListener]s, returning any exceptions that occur.
+    */
+   suspend fun beforeProject(): List<ExtensionException.BeforeProjectException> {
+      val extensions = projectConfigResolver.extensions().filterIsInstance<BeforeProjectListener>()
+      if (extensions.isEmpty()) return emptyList()
+      logger.log { "Invoking ${extensions.size} BeforeProjectListeners" }
+      return extensions.mapNotNull { ext ->
+         try {
+            ext.beforeProject()
+            null
+         } catch (t: Throwable) {
+            ExtensionException.BeforeProjectException(t, ext)
+         }
+      }
+   }
+
+   /**
+    * Executes all [AfterProjectListener]s, returning any exceptions that occur.
+    */
+   suspend fun afterProject(): List<ExtensionException.AfterProjectException> {
+      val extensions = projectConfigResolver.extensions().filterIsInstance<AfterProjectListener>()
+      if (extensions.isEmpty()) return emptyList()
+      logger.log { "Invoking ${extensions.size} AfterProjectListeners" }
+      return extensions.mapNotNull { ext ->
+         try {
+            ext.afterProject()
+            null
+         } catch (t: Throwable) {
+            ExtensionException.AfterProjectException(t, ext)
+         }
+      }
+   }
+}

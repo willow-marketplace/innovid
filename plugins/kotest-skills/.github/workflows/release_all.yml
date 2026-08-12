@@ -1,0 +1,130 @@
+name: release-all
+run-name: Releasing Kotest ${{ inputs.version }} from ${{ inputs.branch }}
+
+on:
+   workflow_dispatch:
+      inputs:
+         version:
+            description: "The release version"
+            required: true
+         branch:
+            description: "The branch to release from"
+            required: true
+            default: 'master'
+
+env:
+   RELEASE_VERSION: ${{ inputs.version }}
+   ORG_GRADLE_PROJECT_signingKey: ${{ secrets.SIGNING_KEY }}
+   ORG_GRADLE_PROJECT_signingPassword: ${{ secrets.SIGNING_PASSWORD }}
+   NEW_MAVEN_CENTRAL_USERNAME: ${{ secrets.NEW_MAVEN_CENTRAL_USERNAME }}
+   NEW_MAVEN_CENTRAL_PASSWORD: ${{ secrets.NEW_MAVEN_CENTRAL_PASSWORD }}
+
+concurrency:
+   group: "${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}"
+   cancel-in-progress: true
+
+
+permissions:
+   contents: write
+
+
+jobs:
+   publish:
+      strategy:
+         # Not sure if this is still true on new maven central, perhaps parallel uploads are now supported?
+         fail-fast: false
+         matrix:
+            include:
+               # KMP
+               -  os: ubuntu-latest
+                  args: -P"kotest_enabledPublicationNamePrefixes=KotlinMultiplatform"
+               # JVM
+               -  os: ubuntu-latest
+                  args: -P"kotest_enabledPublicationNamePrefixes=jvm"
+               # JS
+               -  os: ubuntu-latest
+                  args: -P"kotest_enabledPublicationNamePrefixes=js"
+               # Linux
+               -  os: ubuntu-latest
+                  args: -P"kotest_enabledPublicationNamePrefixes=linux"
+               # Wasm
+               -  os: ubuntu-latest
+                  args: -P"kotest_enabledPublicationNamePrefixes=wasm"
+               # Publish 'common' components (KotlinMultiplatform,jvm,js) only on Linux, to avoid duplicate publications
+               -  os: ubuntu-latest
+                  args: -P"kotest_enabledPublicationNamePrefixes=android"
+               # Kotest BOM
+               -  os: ubuntu-latest
+                  args: -P"kotest_enabledPublicationNamePrefixes=KotestBom"
+
+               # Windows: MinGW
+               -  os: windows-latest
+                  args: -P"kotest_enabledPublicationNamePrefixes=mingw"
+
+               # Apple: macOS
+               -  os: macos-latest
+                  args: -P"kotest_enabledPublicationNamePrefixes=macOS"
+               # Apple: iOS
+               -  os: macos-latest
+                  args: -P"kotest_enabledPublicationNamePrefixes=iOS"
+               # Apple: tvOS
+               -  os: macos-latest
+                  args: -P"kotest_enabledPublicationNamePrefixes=tvOS"
+               # Apple: watchOS
+               -  os: macos-latest
+                  args: -P"kotest_enabledPublicationNamePrefixes=watchOS"
+
+
+      uses: ./.github/workflows/run-gradle.yml
+      secrets: inherit
+      with:
+         ref: refs/tags/${{ inputs.version }}
+         task: >
+            -P"kotest_enableKotlinJs=true"
+            -P"kotest_enableKotlinNative=true"
+            ${{ matrix.args }}
+            --no-configuration-cache
+            publishToAppropriateCentralRepository
+         runs-on: ${{ matrix.os }}
+
+   tag:
+      needs: publish
+      runs-on: ubuntu-latest
+      steps:
+         -  uses: actions/checkout@v6
+            with:
+               ref: ${{ inputs.branch }}
+               fetch-depth: 0
+         -  name: Create and push tag
+            shell: bash
+            run: |
+               set -euo pipefail
+               git config --global user.email "sam@sksamuel.com"
+               git config --global user.name "Kotest Release Bot"
+               TAG="${{ inputs.version }}"
+               # Check if tag already exists remotely
+               if git ls-remote --tags origin | grep -q "refs/tags/${TAG}$"; then
+                 echo "Tag ${TAG} already exists on origin; skipping creation."
+               else
+                 echo "Creating tag ${TAG} on current commit."
+                 git tag -a "${TAG}" -m "Release ${TAG}"
+                 git push origin "refs/tags/${TAG}"
+               fi
+         -  name: Bump kotest-skills plugin version
+            shell: bash
+            run: |
+               set -euo pipefail
+               VERSION="${{ inputs.version }}"
+               jq --arg v "$VERSION" '.version = $v' .claude-plugin/plugin.json > /tmp/plugin.json
+               mv /tmp/plugin.json .claude-plugin/plugin.json
+               jq --arg v "$VERSION" '.metadata.version = $v' .claude-plugin/marketplace.json > /tmp/marketplace.json
+               mv /tmp/marketplace.json .claude-plugin/marketplace.json
+               git config --global user.email "sam@sksamuel.com"
+               git config --global user.name "Kotest Release Bot"
+               git add .claude-plugin/plugin.json .claude-plugin/marketplace.json
+               if git diff --cached --quiet; then
+                 echo "kotest-skills plugin already at ${VERSION}; nothing to commit."
+               else
+                 git commit -m "Bump kotest-skills plugin version to ${VERSION}"
+                 git push origin "${{ inputs.branch }}"
+               fi

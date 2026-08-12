@@ -1,0 +1,45 @@
+package com.sksamuel.kotest.engine.spec.style
+
+import io.kotest.core.spec.style.ExpectSpec
+import io.kotest.matchers.shouldBe
+
+class ExpectSpecTest : ExpectSpec() {
+   init {
+      context("some context") {
+         expect("some test") {
+            // test here
+         }
+         expect("some test 2").config(enabled = true) {
+            // test here
+         }
+         context("another nested context") {
+            expect("some test") {
+               // test here
+            }
+            expect("some test 2").config(enabled = false) {
+               // test here
+            }
+            xexpect("disabled") {
+               error("Boom")
+            }
+            xexpect("xtest with config").config(invocations = 3) {
+               error("Boom")
+            }
+         }
+         xcontext("disabled nested context") {
+            error("Boom")
+         }
+      }
+      xcontext("should be ignored 1") {
+         expect("disabled") {
+            error("Boom")
+         }
+      }
+      xcontext("should be ignored 2") {
+         error("Boom")
+      }
+      expect("multiple invocations root test is allowed with config").config(invocations = 3) {
+         1 + 1 shouldBe 2
+      }
+   }
+}

@@ -1,0 +1,171 @@
+public abstract interface annotation class io/kotest/common/DelicateKotest : java/lang/annotation/Annotation {
+}
+
+public final class io/kotest/common/EnvKt {
+	public static final fun sysprop (Ljava/lang/String;D)D
+	public static final fun sysprop (Ljava/lang/String;I)I
+	public static final fun sysprop (Ljava/lang/String;Ljava/lang/Object;Lkotlin/jvm/functions/Function1;)Ljava/lang/Object;
+	public static final fun sysprop (Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;
+	public static final fun sysprop (Ljava/lang/String;Z)Z
+	public static final fun syspropOrEnv (Ljava/lang/String;)Ljava/lang/String;
+}
+
+public abstract interface annotation class io/kotest/common/ExperimentalKotest : java/lang/annotation/Annotation {
+}
+
+public final class io/kotest/common/IntellijKt {
+	public static final fun isIntellij ()Z
+}
+
+public abstract interface annotation class io/kotest/common/JVMOnly : java/lang/annotation/Annotation {
+}
+
+public abstract interface annotation class io/kotest/common/KotestInternal : java/lang/annotation/Annotation {
+}
+
+public abstract interface annotation class io/kotest/common/KotestTesting : java/lang/annotation/Annotation {
+}
+
+public final class io/kotest/common/Platform : java/lang/Enum {
+	public static final field JS Lio/kotest/common/Platform;
+	public static final field JVM Lio/kotest/common/Platform;
+	public static final field Native Lio/kotest/common/Platform;
+	public static final field WasmJs Lio/kotest/common/Platform;
+	public static final field WasmWasi Lio/kotest/common/Platform;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/kotest/common/Platform;
+	public static fun values ()[Lio/kotest/common/Platform;
+}
+
+public final class io/kotest/common/Platform_jvmKt {
+	public static final fun getPlatform ()Lio/kotest/common/Platform;
+}
+
+public final class io/kotest/common/PowerSetIndexesKt {
+	public static final fun powerSetIndexes (I)Lkotlin/sequences/Sequence;
+}
+
+public abstract interface annotation class io/kotest/common/SoftDeprecated : java/lang/annotation/Annotation {
+	public abstract fun message ()Ljava/lang/String;
+}
+
+public final class io/kotest/common/TestNameContextElement : kotlin/coroutines/AbstractCoroutineContextElement {
+	public static final field Key Lio/kotest/common/TestNameContextElement$Key;
+	public fun <init> (Ljava/lang/String;)V
+	public final fun getTestName ()Ljava/lang/String;
+}
+
+public final class io/kotest/common/TestNameContextElement$Key : kotlin/coroutines/CoroutineContext$Key {
+}
+
+public final class io/kotest/common/TestTimeSourceKt {
+	public static final fun testTimeSource (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public abstract interface class io/kotest/common/reflection/AnnotationSearchParameter {
+}
+
+public final class io/kotest/common/reflection/IncludingAnnotations : io/kotest/common/reflection/AnnotationSearchParameter {
+	public static final field INSTANCE Lio/kotest/common/reflection/IncludingAnnotations;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/kotest/common/reflection/IncludingSuperclasses : io/kotest/common/reflection/AnnotationSearchParameter {
+	public static final field INSTANCE Lio/kotest/common/reflection/IncludingSuperclasses;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/kotest/common/reflection/Instantiation_jvmKt {
+	public static final fun getInstantiations ()Lio/kotest/common/reflection/Instantiations;
+}
+
+public abstract interface class io/kotest/common/reflection/Instantiations {
+	public abstract fun newInstanceNoArgConstructorOrObjectInstance (Lkotlin/reflect/KClass;)Ljava/lang/Object;
+}
+
+public final class io/kotest/common/reflection/JvmReflection : io/kotest/common/reflection/Reflection {
+	public static final field INSTANCE Lio/kotest/common/reflection/JvmReflection;
+	public fun annotations (Lkotlin/reflect/KClass;Ljava/util/Set;)Ljava/util/List;
+	public fun fqn (Lkotlin/reflect/KClass;)Ljava/lang/String;
+	public fun isAbstract (Lkotlin/reflect/KClass;)Z
+	public fun isDataClass (Lkotlin/reflect/KClass;)Z
+	public fun isEnumClass (Lkotlin/reflect/KClass;)Z
+	public fun primaryConstructorMembers (Lkotlin/reflect/KClass;)Ljava/util/List;
+}
+
+public final class io/kotest/common/reflection/Property {
+	public fun <init> (Ljava/lang/String;Lkotlin/reflect/KType;Lkotlin/jvm/functions/Function1;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Lkotlin/reflect/KType;
+	public final fun component3 ()Lkotlin/jvm/functions/Function1;
+	public final fun copy (Ljava/lang/String;Lkotlin/reflect/KType;Lkotlin/jvm/functions/Function1;)Lio/kotest/common/reflection/Property;
+	public static synthetic fun copy$default (Lio/kotest/common/reflection/Property;Ljava/lang/String;Lkotlin/reflect/KType;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lio/kotest/common/reflection/Property;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCall ()Lkotlin/jvm/functions/Function1;
+	public final fun getName ()Ljava/lang/String;
+	public final fun getType ()Lkotlin/reflect/KType;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract interface class io/kotest/common/reflection/Reflection {
+	public abstract fun annotations (Lkotlin/reflect/KClass;Ljava/util/Set;)Ljava/util/List;
+	public abstract fun fqn (Lkotlin/reflect/KClass;)Ljava/lang/String;
+	public abstract fun isAbstract (Lkotlin/reflect/KClass;)Z
+	public abstract fun isDataClass (Lkotlin/reflect/KClass;)Z
+	public abstract fun isEnumClass (Lkotlin/reflect/KClass;)Z
+	public abstract fun primaryConstructorMembers (Lkotlin/reflect/KClass;)Ljava/util/List;
+}
+
+public final class io/kotest/common/reflection/ReflectionInstantiations : io/kotest/common/reflection/Instantiations {
+	public static final field INSTANCE Lio/kotest/common/reflection/ReflectionInstantiations;
+	public fun newInstanceNoArgConstructorOrObjectInstance (Lkotlin/reflect/KClass;)Ljava/lang/Object;
+}
+
+public final class io/kotest/common/reflection/ReflectionKt {
+	public static final fun bestName (Lkotlin/reflect/KClass;)Ljava/lang/String;
+}
+
+public final class io/kotest/common/reflection/reflectionjvm {
+	public static final fun getReflection ()Lio/kotest/common/reflection/Reflection;
+}
+
+public final class io/kotest/common/stacktrace/JvmStacktraces : io/kotest/common/stacktrace/StackTraces {
+	public static final field INSTANCE Lio/kotest/common/stacktrace/JvmStacktraces;
+	public fun cleanStackTrace (Ljava/lang/Throwable;)Ljava/lang/Throwable;
+	public fun root (Ljava/lang/Throwable;)Ljava/lang/Throwable;
+	public fun throwableLocation (Ljava/lang/Throwable;)Ljava/lang/String;
+	public fun throwableLocation (Ljava/lang/Throwable;I)Ljava/util/List;
+}
+
+public abstract interface class io/kotest/common/stacktrace/StackTraces {
+	public abstract fun cleanStackTrace (Ljava/lang/Throwable;)Ljava/lang/Throwable;
+	public abstract fun root (Ljava/lang/Throwable;)Ljava/lang/Throwable;
+	public fun throwableLocation (Ljava/lang/Throwable;)Ljava/lang/String;
+	public abstract fun throwableLocation (Ljava/lang/Throwable;I)Ljava/util/List;
+}
+
+public final class io/kotest/common/stacktrace/StackTraces$DefaultImpls {
+	public static fun throwableLocation (Lio/kotest/common/stacktrace/StackTraces;Ljava/lang/Throwable;)Ljava/lang/String;
+}
+
+public final class io/kotest/common/stacktrace/UserStackTraceConverter {
+	public static final field INSTANCE Lio/kotest/common/stacktrace/UserStackTraceConverter;
+	public final fun getUserStacktrace ([Ljava/lang/StackTraceElement;)[Ljava/lang/StackTraceElement;
+}
+
+public final class io/kotest/common/stacktrace/stacktracesjvm {
+	public static final fun getShouldRemoveKotestElementsFromStacktrace ()Z
+	public static final fun getStacktraces ()Lio/kotest/common/stacktrace/StackTraces;
+	public static final fun setShouldRemoveKotestElementsFromStacktrace (Z)V
+}
+
+public final class io/kotest/common/syspropjvm {
+	public static final fun env (Ljava/lang/String;)Ljava/lang/String;
+	public static final fun sysprop (Ljava/lang/String;)Ljava/lang/String;
+}
+
