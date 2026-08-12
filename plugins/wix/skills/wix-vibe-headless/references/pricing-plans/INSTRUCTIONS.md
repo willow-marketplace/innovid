@@ -36,11 +36,11 @@ map, so you don't need to open them:**
 | `components/PlanCard.jsx` | plan card — name, description, price, perks, Subscribe (when `buyable`) |
 | `components/PlanGrid.jsx` | responsive plans grid + empty state |
 | `components/OrderCard.jsx` | one member order row for the "my plans" list |
-| `components/WixManageBanner.jsx` | dev-only manage banner — drop it into your Layout (STEP 4) |
+| `components/WixManageBanner.jsx` | preview-only manage banner — drop it into your Layout (STEP 3) |
 | `pages/Plans.jsx` | the plans-table route (`/plans`) — grid + paging + checkout |
 | `pages/PlanDetail.jsx` | the plan-detail route (`/plans/:slug`) — perks, terms, checkout |
 | `pages/MyPlans.jsx` | the member's memberships + post-checkout confirmation (`/my-plans`) |
-| `rest/wix-config.js` | **you set the ids here** (STEP 2) |
+| `rest/wix-config.js` | the two ids, written by the install step |
 | `rest/wix-client.js` + `rest/wix-pricing-plans.js` | REST transport + plans/orders/checkout helpers |
 
 They're already in place — go **straight to theming + wiring**, nothing to verify first. **Don't
@@ -50,11 +50,8 @@ a real fallback — a runtime error, or a field the snippets don't cover (see "F
 end). (Files missing? the install's `deploy` result lists what it wrote; re-run install, or copy
 `references/pricing-plans/app/` → `src/`.)
 
-## STEP 2 — Credentials
-Write `src/rest/wix-config.js` with your `WIX_CLIENT_ID` and `WIX_METASITE_ID` from the prompt — the
-one place both ids live.
 
-## STEP 3 — Theme (nothing to style on the shipped components)
+## STEP 2 — Theme (nothing to style on the shipped components)
 The shipped components carry **no palette of their own** — they render from base44's design tokens
 in `src/index.css` (`:root`/`.dark`: `--background`, `--foreground`, `--card`, `--primary`,
 `--muted`, `--border`, `--radius`, `--font-*`) via shadcn Tailwind classes (`bg-card`,
@@ -62,10 +59,10 @@ in `src/index.css` (`:root`/`.dark`: `--background`, `--foreground`, `--card`, `
 `font-display`). Those tokens are **already set to the brand by the design phase**, so the shipped
 pages are themed with zero work here. To adjust the palette, edit `index.css` (`:root` **and**
 `.dark`) — the base44 way; **never add a parallel theme file (e.g. a `theme.css`) or restyle the
-shipped JSX.** Build the Home/Header you add (STEP 4) from the **same** base44 tokens/classes so it
+shipped JSX.** Build the Home/Header you add (STEP 3) from the **same** base44 tokens/classes so it
 matches automatically. A dark brand is just base44's dark palette in `index.css` — no per-component work.
 
-## STEP 4 — Wire routes + provider (surgical `find_replace` on `src/App.jsx`, never a rewrite)
+## STEP 3 — Wire routes + provider (surgical `find_replace` on `src/App.jsx`, never a rewrite)
 **No file reads needed to wire this.** Every shipped page and `WixManageBanner` is a default export that takes **no props** — wire them exactly as the snippet shows; nothing in those files needs looking up.
 `App.jsx` carries required platform auth scaffolding (`AuthProvider`/`useAuth`) — edit it in, don't
 replace it. Pricing Plans needs **no** cross-page provider (checkout is a redirect, not client
@@ -74,7 +71,7 @@ state) — so unlike the storefront there's no `<CartProvider>` to wrap.
   route under one pathless `<Route element={<Layout/>}>`. Your brand chrome then wraps **every**
   page — including the shipped `Plans` / `PlanDetail` / `MyPlans` — so you **never edit the shipped
   pages to add a header/footer** (they render inside `<Outlet/>` as-is).
-- **Pin the top chrome as one fixed block.** Put `<WixManageBanner/>` (shipped, dev-only) **above**
+- **Pin the top chrome as one fixed block.** Put `<WixManageBanner/>` (shipped, preview-only) **above**
   your `<Header/>` inside a single `position:fixed` top region — the header itself is plain in-flow
   markup, the region owns the fixing — so banner + header ride together (no scroll drift/gap). Pad
   the content by the region's **ResizeObserver-measured** height so it clears the chrome and
@@ -85,7 +82,7 @@ state) — so unlike the storefront there's no `<CartProvider>` to wrap.
 ```jsx
 import { useRef, useState, useEffect } from "react";
 import { Routes, Route, Outlet } from "react-router-dom";
-import WixManageBanner from "@/components/WixManageBanner";   // shipped, dev-only · default export, no props
+import WixManageBanner from "@/components/WixManageBanner";   // shipped, preview-only · default export, no props
 import Plans from "@/pages/Plans";                     // shipped · default export, no props
 import PlanDetail from "@/pages/PlanDetail";           // shipped · default export, no props
 import MyPlans from "@/pages/MyPlans";                 // shipped · default export, no props
@@ -103,7 +100,7 @@ function Layout() {
   }, []);
   return (<>
     <div ref={topRef} style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 50 }}>
-      <WixManageBanner />                    {/* null in prod / when dismissed */}
+      <WixManageBanner />                    {/* null on the published site / when dismissed */}
       <Header />                             {/* your brand header, in-flow inside this fixed block */}
     </div>
     <div style={{ paddingTop: offset }}>     {/* clears the chrome; shrinks when the banner is dismissed */}
@@ -125,7 +122,7 @@ function Layout() {
 
 ## What you build (not shipped)
 The **home / landing page**, the **`Header`** and a **`Footer`** — the two you drop into the
-`Layout` (STEP 4) so they wrap every route — plus the overall brand story, styled with the same
+`Layout` (STEP 3) so they wrap every route — plus the overall brand story, styled with the same
 base44 tokens/classes. **Compose the shipped pieces** — a "featured plans" strip is just `queryPlans` +
 the shipped `PlanGrid`; the nav is links to `/plans` and `/my-plans`:
 
@@ -214,9 +211,8 @@ Fallback only — when you hit an error or need something not shown here: read t
 file under `src/`, or look it up via the **`wix-docs`** skill.
 
 ## Hard rules
-- Set `WIX_CLIENT_ID` (STEP 2) — not the placeholder.
 - Style via base44 design tokens (`index.css` / shadcn Tailwind classes), never by rewriting the shipped components or adding a parallel theme file.
-- Header/footer live in a `Layout` around `<Outlet/>` (STEP 4) — never edit the shipped
+- Header/footer live in a `Layout` around `<Outlet/>` (STEP 3) — never edit the shipped
   `Plans`/`PlanDetail`/`MyPlans` to add chrome.
 - The Layout's fixed top region owns positioning: `<WixManageBanner/>` above `<Header/>`; your
   `Header` is plain in-flow markup (not `position:fixed`).

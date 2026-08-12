@@ -2,7 +2,7 @@
   "name": "mlflow",
   "version": "1.0.0",
   "description": "Skills for tracing, evaluating, and improving AI agents with MLflow. Supports the full agent improvement loop: instrument → trace → evaluate → iterate → validate.",
-  "updatedAt": "2026-08-12T00:27:11.685Z",
+  "updatedAt": "2026-08-12T12:02:23.545Z",
   "author": {
     "name": "MLflow Team"
   },

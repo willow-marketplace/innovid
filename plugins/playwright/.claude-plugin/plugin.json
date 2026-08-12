@@ -2,7 +2,7 @@
   "name": "playwright",
   "version": "1.0.0",
   "description": "Browser automation and end-to-end testing MCP server by Microsoft. Enables Claude to interact with web pages, take screenshots, fill forms, click elements, and perform automated browser testing workflows.",
-  "updatedAt": "2026-08-12T00:27:11.582Z",
+  "updatedAt": "2026-08-12T12:02:33.273Z",
   "author": {
     "name": "Microsoft"
   },

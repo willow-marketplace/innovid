@@ -2,7 +2,7 @@
   "name": "aikido",
   "version": "1.2.5",
   "description": "Aikido Security for Claude Code: scan code (SAST, secrets, IaC) and list all issues from your Aikido feed powered by the Aikido MCP server.",
-  "updatedAt": "2026-08-12T00:27:11.628Z",
+  "updatedAt": "2026-08-12T12:03:04.817Z",
   "author": {
     "url": "https://aikido.dev",
     "name": "Aikido Security"

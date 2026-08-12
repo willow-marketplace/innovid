@@ -30,9 +30,9 @@ so you don't need to open them:**
 | `components/CartButton.jsx` | header cart **icon** button with a live-count badge |
 | `components/CartDrawer.jsx` | slide-over cart (mount once; opens from `useCart`) |
 | `components/VariantPicker.jsx` | option/variant selector used on the PDP — colour options render as real swatches, and picking one moves the gallery to that colour's photo |
-| `components/WixManageBanner.jsx` | dev-only manage banner — drop it into your Layout (STEP 4) |
+| `components/WixManageBanner.jsx` | preview-only manage banner — drop it into your Layout (STEP 3) |
 | `pages/Shop.jsx`, `pages/ProductDetail.jsx` | the two shipped routes (`/shop`, `/product/:slug`) |
-| `rest/wix-config.js` | **you set the ids here** (STEP 2) |
+| `rest/wix-config.js` | the two ids, written by the install step |
 | `rest/wix-client.js` + `rest/wix-store-*.js` | REST transport + catalog/cart helpers |
 
 They're already in place — go **straight to theming + wiring**, nothing to verify first. **Don't
@@ -42,11 +42,8 @@ real fallback — a runtime error, or a field the snippets don't cover (see "Fal
 end). (Files missing? the install's `deploy` result lists what it wrote; re-run install, or copy
 `references/storefront/app/` → `src/`.)
 
-## STEP 2 — Credentials
-Write `src/rest/wix-config.js` with your `WIX_CLIENT_ID` and `WIX_METASITE_ID` from the prompt — the
-one place both ids live.
 
-## STEP 3 — Theme (nothing to style on the shipped components)
+## STEP 2 — Theme (nothing to style on the shipped components)
 The shipped components carry **no palette of their own** — they render from base44's design tokens
 in `src/index.css` (`:root`/`.dark`: `--background`, `--foreground`, `--card`, `--primary`,
 `--muted`, `--border`, `--radius`, `--font-*`) via shadcn Tailwind classes (`bg-card`,
@@ -54,10 +51,10 @@ in `src/index.css` (`:root`/`.dark`: `--background`, `--foreground`, `--card`, `
 `font-display`). Those tokens are **already set to the brand by the design phase**, so the shipped
 pages are themed with zero work here. To adjust the palette, edit `index.css` (`:root` **and**
 `.dark`) — the base44 way; **never add a parallel theme file (e.g. a `theme.css`) or restyle the
-shipped JSX.** Build the Home/Header you add (STEP 4) from the **same** base44 tokens/classes so it
+shipped JSX.** Build the Home/Header you add (STEP 3) from the **same** base44 tokens/classes so it
 matches automatically. A dark brand is just base44's dark palette in `index.css` — no per-component work.
 
-## STEP 4 — Wire routes + provider (surgical `find_replace` on `src/App.jsx`, never a rewrite)
+## STEP 3 — Wire routes + provider (surgical `find_replace` on `src/App.jsx`, never a rewrite)
 **No file reads needed to wire this.** Every shipped page and `WixManageBanner` is a default export that takes **no props** — wire them exactly as the snippet shows; nothing in those files needs looking up.
 `App.jsx` carries required platform auth scaffolding (`AuthProvider`/`useAuth`) — edit it in, don't
 replace it.
@@ -66,7 +63,7 @@ replace it.
   route under one pathless `<Route element={<Layout/>}>`. Your brand chrome then wraps **every** page
   — including the shipped `Shop` / `ProductDetail` — so you **never edit the shipped pages to add a
   header/footer** (they render inside `<Outlet/>` as-is). Mount `<CartDrawer/>` once in the Layout.
-- **Pin the top chrome as one fixed block.** Put `<WixManageBanner/>` (shipped, dev-only) **above**
+- **Pin the top chrome as one fixed block.** Put `<WixManageBanner/>` (shipped, preview-only) **above**
   your `<Header/>` inside a single `position:fixed` top region — the header itself is plain in-flow
   markup, the region owns the fixing — so banner + header ride together (no scroll drift/gap). Pad
   the content by the region's measured height so it clears the chrome and self-corrects when the
@@ -79,7 +76,7 @@ import { useRef, useState, useEffect } from "react";
 import { Routes, Route, Outlet } from "react-router-dom";
 import { CartProvider } from "@/context/CartContext";
 import CartDrawer from "@/components/CartDrawer";
-import WixManageBanner from "@/components/WixManageBanner";   // shipped, dev-only · default export, no props
+import WixManageBanner from "@/components/WixManageBanner";   // shipped, preview-only · default export, no props
 import Shop from "@/pages/Shop";                       // shipped · default export, no props
 import ProductDetail from "@/pages/ProductDetail";     // shipped · default export, no props
 import Home from "@/pages/Home";       // YOU build
@@ -96,7 +93,7 @@ function Layout() {
   }, []);
   return (<>
     <div ref={topRef} style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 50 }}>
-      <WixManageBanner />                    {/* null in prod / when dismissed */}
+      <WixManageBanner />                    {/* null on the published site / when dismissed */}
       <Header />                             {/* your brand header, in-flow inside this fixed block */}
     </div>
     <div style={{ paddingTop: offset }}>     {/* clears the chrome; shrinks when the banner is dismissed */}
@@ -120,7 +117,7 @@ function Layout() {
 
 ## What you build (not shipped)
 The **home / landing page**, the **`Header`** (mount `<CartButton/>` in it) and a **`Footer`** — the
-two you drop into the `Layout` (STEP 4) so they wrap every route — plus the overall brand story,
+two you drop into the `Layout` (STEP 3) so they wrap every route — plus the overall brand story,
 styled from the same base44 tokens/classes. **Compose the shipped pieces** — a
 featured strip is just `queryProducts` + the shipped `ProductGrid`; the nav is a `<CartButton/>`
 (a clean cart-**icon** button with a live-count badge — render it as-is, don't wrap it in your own
@@ -243,9 +240,8 @@ reference page inline; these are the areas they sit in:
 - Headless redirect session (hosted checkout): https://dev.wix.com/docs/api-reference/business-management/headless/redirects.md
 
 ## Hard rules
-- Set `WIX_CLIENT_ID` (STEP 2) — not the placeholder.
 - Style via base44 design tokens (`index.css` / shadcn Tailwind classes), never by rewriting the shipped components or adding a parallel theme file.
-- Header/footer live in a `Layout` around `<Outlet/>` (STEP 4) — never edit the shipped `Shop`/`ProductDetail` to add chrome.
+- Header/footer live in a `Layout` around `<Outlet/>` (STEP 3) — never edit the shipped `Shop`/`ProductDetail` to add chrome.
 - The Layout's fixed top region owns positioning: `<WixManageBanner/>` above `<Header/>`; your `Header` is plain in-flow markup (not `position:fixed`).
 - Checkout goes through the shipped cart (redirect-session) — never a hand-built `/checkout` URL.
 - Render live Wix data or the shipped empty state — never mock products.
