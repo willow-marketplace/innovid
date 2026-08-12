@@ -80,10 +80,9 @@ _Claude Code asking about the
    [Codex](https://developers.openai.com/codex/cli), or
    [OpenCode](https://opencode.ai/)
 
-**Note:** Installation differs by platform. Claude Code is installed from a
-plugin marketplace. Codex uses a local MCP server plus native skill discovery.
-OpenCode installs from npm. Cursor packaging is shipped in this repository and
-is ready for Cursor's plugin distribution workflow.
+**Note:** Installation differs by platform. Claude Code and Codex install from
+plugin marketplaces. OpenCode installs from npm. Cursor packaging is shipped
+in this repository and is ready for Cursor's plugin distribution workflow.
 
 **Install:**
 
@@ -113,29 +112,21 @@ skill or the Lumen `semantic_search` tool.
 
 **Codex**
 
-Quick install:
-
-```text
-Fetch and follow instructions from https://raw.githubusercontent.com/ory/lumen/refs/heads/main/.codex/INSTALL.md
-```
-
-Manual install:
+Codex CLI 0.147.0 or newer installs Lumen as a native plugin:
 
 ```bash
-CODEX_HOME="${CODEX_HOME:-$HOME/.codex}"
-git clone https://github.com/ory/lumen.git "$CODEX_HOME/lumen"
-mkdir -p "$HOME/.agents/skills"
-ln -s "$CODEX_HOME/lumen/skills" "$HOME/.agents/skills/lumen"
-codex mcp add lumen -- "$CODEX_HOME/lumen/scripts/run" stdio
+codex plugin marketplace add ory/claude-plugins
+codex plugin add lumen@ory
 ```
 
-Detailed docs: [.codex/INSTALL.md](.codex/INSTALL.md)
+If the marketplace already exists, run `codex plugin marketplace upgrade ory`
+before installing. Legacy manual-clone and broken-plugin repair instructions:
+[.codex/INSTALL.md](.codex/INSTALL.md).
 
 Verify with:
 
 ```bash
-codex mcp get lumen
-ls -la "$HOME/.agents/skills/lumen"
+codex mcp get lumen --json
 ```
 
 **OpenCode**
@@ -161,7 +152,7 @@ opencode mcp list
 - **Claude Code** - update through Claude's plugin marketplace
 - **Cursor** - refresh or reinstall the bundled plugin through Cursor after
   updating this repository or the published package
-- **Codex** - `cd "${CODEX_HOME:-$HOME/.codex}/lumen" && git pull`
+- **Codex** - upgrade the `ory` marketplace, reinstall `lumen@ory`, and restart
 - **OpenCode** - update the version pin in `opencode.json` (e.g.
   `@ory/lumen-opencode@0.0.29`) and restart OpenCode
 
@@ -173,7 +164,8 @@ On first Claude Code or Cursor session start, Lumen:
 3. Registers a `semantic_search` MCP tool that the host can use automatically
 
 In Codex and OpenCode, the same binary download and index seeding happen on the
-first `semantic_search` call.
+first `semantic_search` call. Codex stores the downloaded binary in the
+plugin's writable data directory rather than the read-only package cache.
 
 Two shared skills are also available: `doctor` (health check) and `reindex`
 (forced re-indexing). Claude exposes them as `/lumen:doctor` and
@@ -216,8 +208,9 @@ Files → semantic chunks → vector embeddings → SQLite/sqlite-vec → KNN se
 
 When Claude needs to understand code, it calls `semantic_search` instead of
 reading entire files. The index is stored outside your repo
-(`~/.local/share/lumen/<hash>/index.db`), keyed by project path and model name —
-different models never share an index.
+(`~/.local/share/lumen/<hash>/index.db`). Git worktrees from the same repository
+use one collection for a compatible model, vector-storage, and chunking profile;
+non-Git projects use private collections. Different profiles never collide.
 
 ## Benchmarks
 
@@ -284,6 +277,7 @@ All configuration is via environment variables:
 | `OLLAMA_HOST`            | `http://localhost:11434` | Ollama server URL                                             |
 | `LM_STUDIO_HOST`         | `http://localhost:1234`  | LM Studio server URL                                          |
 | `LUMEN_MAX_CHUNK_TOKENS` | `512`                    | Max tokens per chunk before splitting                         |
+| `LUMEN_VECTOR_STORAGE`   | `int8`                   | Vector precision (`int8` or `float32`)                         |
 | `LUMEN_EMBED_DIMS`       | —                        | Override embedding dimensions (required for unlisted models)  |
 | `LUMEN_EMBED_CTX`        | `8192` (unlisted models) | Override context window length                                |
 
@@ -387,10 +381,12 @@ Index databases are stored outside your project:
 ~/.local/share/lumen/<hash>/index.db
 ```
 
-Where `<hash>` is derived from the absolute project path, embedding model name,
-and binary version. Different models or Lumen versions automatically get
-separate indexes. No files are added to your repo, no `.gitignore` modifications
-needed.
+Where `<hash>` identifies the Git common directory (or the absolute path for a
+non-Git project), indexed scope, embedding model and dimensions, vector
+precision, chunking profile, and index version. Worktrees in one repository
+share content-addressed file revisions and vectors while retaining independent
+project memberships. Vectors use int8 storage by default; set
+`LUMEN_VECTOR_STORAGE=float32` to opt out. No files are added to your repo.
 
 You can safely delete the entire `lumen` directory to clear all indexes, or let
 Lumen reclaim the space for you:
@@ -405,11 +401,15 @@ An index counts as used every time Lumen opens it (search, indexing, status, or
 session start), so indexes for projects you still work on are never removed.
 Indexes with an indexer currently running are always kept.
 
-**Git worktrees** are detected automatically. When you create a new worktree
-(`git worktree add` or `claude --worktree`), Lumen finds a sibling worktree's
-existing index and copies it as a seed. The Merkle tree diff then re-indexes
-only the files that actually differ — typically a handful of files instead of
-the entire codebase. No configuration needed; it just works.
+**Git worktrees** are detected automatically. A new worktree attaches unchanged
+path-and-content revisions directly from the repository collection and embeds
+only missing chunk inputs. Removing an old worktree drops its memberships;
+shared revisions and vectors remain until their final reference disappears.
+Legacy per-worktree indexes migrate lazily, reusing unchanged float32 vectors
+without contacting the embedding backend.
+
+For the complete storage key, sharing rules, status metrics, migration process,
+and cleanup lifecycle, see [Index storage and lifecycle](docs/INDEX_STORAGE.md).
 
 ## CLI Reference
 
@@ -470,6 +470,19 @@ to the model, set **Override Domain Type** → **Text Embedding**.
 
 Set `LUMEN_EMBED_MODEL` to a model from the supported table above. Each model
 gets its own database; the old index is not deleted automatically.
+
+Changing `LUMEN_VECTOR_STORAGE`, `LUMEN_EMBED_DIMS`, or `LUMEN_MAX_CHUNK_TOKENS`
+also selects a separate collection. Run `lumen clean` after the old profile is
+no longer in use if you want to reclaim its disk space.
+
+**Understanding index size and deduplication**
+
+Call `index_status` for the project. It reports project-local file and chunk
+counts alongside collection-wide unique vectors, shared references,
+deduplication ratio, vector precision, database size, and currently reclaimable
+SQLite pages. See
+[Index storage and lifecycle](docs/INDEX_STORAGE.md#reading-index-status) for
+definitions and examples.
 
 **Slow first indexing**
 

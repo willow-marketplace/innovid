@@ -16,6 +16,12 @@ This skill extends the base skill-creator workflow with Confluent-specific requi
 - **Spec compliance**: Created skills validated against the [Agent Skills specification](https://agentskills.io/specification)
 - **Smart defaults**: Schema Registry with JSON_SR (schema GUID in header) by default
 
+## Prerequisites
+
+- Python 3.9+
+- `confluent-kafka[avro,json,protobuf]`, `requests`, `jsonschema`, `python-dotenv` Python packages (see `scripts/requirements.txt`)
+- Access to a Confluent environment (Cloud, Platform, local Docker, or WarpStream) for E2E testing
+
 ## When to use this skill
 
 Use this skill when a user wants to create a skill for external users that involves:
@@ -341,7 +347,15 @@ For common operations, use the bundled scripts in `scripts/`:
 - `register_schema.py` — Register schemas with Schema Registry
 - `cleanup_resources.py` — Clean up topics, schemas, Flink statements (local only)
 
-Include relevant scripts in the created skill's `scripts/` directory when packaging.
+**If script execution is denied** (e.g., headless/non-interactive sessions have no approval mechanism) — fall back to the manual steps below rather than stalling silently:
+
+- `check_compute_pool.py` → manually check pool status via the `confluent flink compute-pool` CLI or the Cloud Console
+- `produce_data.py` → manually produce JSON_SR-encoded records via the `confluent kafka topic produce` CLI, or a one-off producer snippet described in prose
+- `consume_and_verify.py` → manually consume via `confluent kafka topic consume` and compare the count/contents against expectations by hand
+- `register_schema.py` → manually register the schema via `confluent schema-registry schema create` or the Schema Registry UI
+- `cleanup_resources.py` → manually delete topics/schemas/statements via their respective `confluent` CLI delete commands (Cloud), or skip cleanup if the environment is ephemeral (local only)
+
+Include relevant scripts in the created skill's `scripts/` directory when packaging — and require the created skill to document this same fallback if it ships its own scripts.
 
 ---
 

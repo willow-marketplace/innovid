@@ -1,8 +1,8 @@
 {
   "name": "resend",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Send and receive emails, build with React Email, follow deliverability best practices",
-  "updatedAt": "2026-08-11T00:19:12.283Z",
+  "updatedAt": "2026-08-12T00:00:50.212Z",
   "author": {
     "url": "https://resend.com",
     "name": "Resend",

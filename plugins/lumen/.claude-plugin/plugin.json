@@ -2,7 +2,7 @@
   "name": "lumen",
   "version": "1.0.0",
   "description": "Precise local semantic code search via MCP. Indexes your codebase with Go AST parsing, embeds with Ollama or LM Studio, and exposes vector search to Claude through an MCP server — no cloud, no npm.",
-  "updatedAt": "2026-08-11T00:19:12.275Z",
+  "updatedAt": "2026-08-12T00:00:43.843Z",
   "author": {
     "url": "https://github.com/ory",
     "name": "Ory Corp"

@@ -1,11 +1,16 @@
 package api
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"net/url"
-	"strconv"
-	"strings"
 )
+
+type buildCancelRequest struct {
+	Comment        string `json:"comment"`
+	ReaddIntoQueue bool   `json:"readdIntoQueue"`
+}
 
 // QueueOptions represents options for listing queued builds
 type QueueOptions struct {
@@ -46,32 +51,37 @@ func (c *Client) GetBuildQueue(opts QueueOptions) (*BuildQueue, bool, error) {
 	return &BuildQueue{Count: len(builds), Builds: builds}, truncated, nil
 }
 
-// RemoveFromQueue removes a build from the queue
+// RemoveFromQueue cancels a queued build; DELETE would also erase its history entry, which needs far stronger permissions than canceling.
 func (c *Client) RemoveFromQueue(id string) error {
-	path := "/app/rest/buildQueue/id:" + id
-	return c.doNoContent(c.ctx(), "DELETE", path, nil, "")
+	return c.cancelQueued(id, "")
 }
 
-// SetQueuedBuildPosition moves a queued build to a specific position in the queue
-func (c *Client) SetQueuedBuildPosition(buildID string, position int) error {
-	path := "/app/rest/buildQueue/order/" + buildID
-	return c.doNoContent(c.ctx(), "PUT", path, strings.NewReader(strconv.Itoa(position)), "text/plain")
+func (c *Client) cancelQueued(id, comment string) error {
+	body, err := json.Marshal(buildCancelRequest{Comment: comment})
+	if err != nil {
+		return fmt.Errorf("failed to marshal request: %w", err)
+	}
+	return c.doNoContent(c.ctx(), "POST", "/app/rest/buildQueue/id:"+id, bytes.NewReader(body), "application/json")
 }
 
-// MoveQueuedBuildToTop moves a queued build to the top of the queue
+// MoveQueuedBuildToTop moves a queued build to the top of the queue; the path takes the position ("first", "last" or "after:<ids>"), the body the build.
 func (c *Client) MoveQueuedBuildToTop(buildID string) error {
-	return c.SetQueuedBuildPosition(buildID, 0)
+	body, err := json.Marshal(map[string]string{"id": buildID})
+	if err != nil {
+		return fmt.Errorf("failed to marshal request: %w", err)
+	}
+	return c.doNoContent(c.ctx(), "PUT", "/app/rest/buildQueue/order/first", bytes.NewReader(body), "application/json")
 }
 
 // ApproveQueuedBuild approves a queued build that requires approval
 func (c *Client) ApproveQueuedBuild(buildID string) error {
-	path := fmt.Sprintf("/app/rest/buildQueue/id:%s/approval/status", buildID)
-	return c.doNoContent(c.ctx(), "PUT", path, strings.NewReader(`"approved"`), "application/json")
+	path := fmt.Sprintf("/app/rest/buildQueue/id:%s/approve", buildID)
+	return c.doNoContent(c.ctx(), "POST", path, nil, "")
 }
 
 // GetQueuedBuildApprovalInfo returns approval information for a queued build
 func (c *Client) GetQueuedBuildApprovalInfo(buildID string) (*ApprovalInfo, error) {
-	path := fmt.Sprintf("/app/rest/buildQueue/id:%s/approval", buildID)
+	path := fmt.Sprintf("/app/rest/buildQueue/id:%s/approvalInfo", buildID)
 
 	var info ApprovalInfo
 	if err := c.get(c.ctx(), path, &info); err != nil {

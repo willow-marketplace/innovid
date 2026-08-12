@@ -81,6 +81,26 @@ type contentType struct {
 // deduplicated so usage is counted only once per API call. When a call was
 // retried on a fallback model, all billed iterations are summed (see
 // usageData.effective).
+//
+// A call already counted in an EARLIER turn of the same file is skipped. On
+// continuation/compaction, Claude Code re-appends conversation history it has
+// re-materialized — byte-identical entries, original timestamps, original
+// usage — after the current turn's prompt. The replayed user entries are
+// tool_result relays, which do not close the turn, so a purely position-based
+// scan counts that history a second time and reports a session's cumulative
+// usage on a single turn.
+//
+// The rule only matches a replay whose original occurs earlier in the same
+// file, which covers the layouts Claude Code writes: resuming appends to the
+// same transcript without replaying anything, and forking copies the parent
+// history AHEAD of the fork's first prompt, so the turn boundary already
+// excludes it. A replay whose original never appeared earlier in the file is
+// out of scope here.
+//
+// Entries that predate the current turn but were never counted before are still
+// attributed to it. They are the tail of a turn whose flush lost the race with
+// the next prompt (see TurnComplete), and billing them one turn late keeps the
+// session total whole — the lesser error for a cost view than dropping them.
 func ReadTurnUsage(transcriptPath string) (*Usage, error) {
 	f, err := os.Open(transcriptPath)
 	if err != nil {
@@ -99,6 +119,9 @@ func ReadTurnUsage(transcriptPath string) (*Usage, error) {
 	// callOrder preserves first-seen order so the result does not depend on map
 	// iteration order.
 	var callOrder []string
+	// counted holds the call keys of every earlier turn in this file, so
+	// replayed history is not counted again.
+	counted := make(map[string]bool)
 	var hasUsage bool
 	// entryCount seeds a synthetic key for entries carrying neither id, so
 	// distinct calls are still counted separately rather than merged.
@@ -111,7 +134,11 @@ func ReadTurnUsage(transcriptPath string) (*Usage, error) {
 		}
 
 		if isRealUserMessage(entry) {
-			// New turn — reset accumulator.
+			// New turn — the calls counted so far belong to the turn that just
+			// ended, so a replay of them later in the file must not count again.
+			for _, key := range callOrder {
+				counted[key] = true
+			}
 			perCall = make(map[string]*usageData)
 			callOrder = nil
 			hasUsage = false
@@ -122,7 +149,6 @@ func ReadTurnUsage(transcriptPath string) (*Usage, error) {
 			continue
 		}
 
-		hasUsage = true
 		entryCount++
 		// Prefer the message id: some sessions write no requestId at all, and
 		// without a per-call key each streamed entry's usage would be counted
@@ -134,6 +160,12 @@ func ReadTurnUsage(transcriptPath string) (*Usage, error) {
 		if key == "" {
 			key = fmt.Sprintf("entry-%d", entryCount)
 		}
+		if counted[key] {
+			// Replayed history: this call was already reported on an earlier
+			// turn's span.
+			continue
+		}
+		hasUsage = true
 		if _, seen := perCall[key]; !seen {
 			callOrder = append(callOrder, key)
 		}

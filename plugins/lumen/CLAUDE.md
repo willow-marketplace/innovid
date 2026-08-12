@@ -8,11 +8,12 @@ efficiently detect changes and minimize re-indexing.
 This repository keeps all agent integration surfaces at the repo root:
 
 - Claude Code plugin files under `.claude-plugin/`
-- Codex install docs under `.codex/`
+- Codex install docs under `.codex/` and isolated native package under
+  `plugins/lumen/`
 - Cursor plugin files under `.cursor-plugin/`
 - OpenCode plugin files under `.opencode/`
 - Shared hooks, skills, MCP wiring, and launchers under `hooks/`, `skills/`,
-  `mcp.json`, and `scripts/`
+  `.cursor/mcp.json`, and `scripts/`
 
 Do not add a repo-root `.mcp.json` or repo-root `.codex-plugin/`. Claude Code
 reads repo-root `.mcp.json` as project-scoped MCP config, which would change
@@ -117,9 +118,11 @@ system handles MCP registration, hooks, and skills declaratively via:
 - `hooks/hooks.json` — SessionStart + PreToolUse hooks
 - `skills/` — `/lumen:doctor` and `/lumen:reindex` skills
 
-Codex, Cursor, and OpenCode reuse the same repo-root `skills/`, `hooks/`, and
-`scripts/` surfaces. Their install-specific entrypoints live in `.codex/`,
-`.cursor-plugin/`, `.opencode/`, and `mcp.json`.
+Cursor and OpenCode reuse the repo-root `skills/`, `hooks/`, and `scripts/`
+surfaces. Codex installs the isolated Agent Plugins v1 package under
+`plugins/lumen/`; its copied launchers and skills must remain byte-identical to
+their repo-root counterparts. Install-specific entrypoints live in `.codex/`,
+`.cursor-plugin/`, `.cursor/mcp.json`, and `.opencode/`.
 
 ## Environment Variables
 
@@ -130,6 +133,7 @@ Codex, Cursor, and OpenCode reuse the same repo-root `skills/`, `hooks/`, and
 | `OLLAMA_HOST`            | `http://localhost:11434` | Ollama server URL                          |
 | `LM_STUDIO_HOST`         | `http://localhost:1234`  | LM Studio server URL                       |
 | `LUMEN_MAX_CHUNK_TOKENS` | `512`                    | Max tokens per chunk before splitting      |
+| `LUMEN_VECTOR_STORAGE`   | `int8`                   | Vector precision (`int8` or `float32`)     |
 
 ¹ `ordis/jina-embeddings-v2-base-code` (Ollama),
 `nomic-ai/nomic-embed-code-GGUF` (LM Studio)
@@ -141,11 +145,13 @@ Codex, Cursor, and OpenCode reuse the same repo-root `skills/`, `hooks/`, and
 ├── main.go              # 3-line entrypoint
 ├── .claude-plugin/      # Claude Code plugin manifest
 ├── .codex/             # Codex installation docs
+├── .agents/            # Repo-local Codex marketplace for development
 ├── .cursor-plugin/     # Cursor plugin manifest
+├── .cursor/            # Cursor MCP wiring
 ├── .opencode/          # OpenCode install docs and plugin entrypoint
+├── plugins/lumen/      # Isolated native Codex/Agent Plugins package
 ├── hooks/              # Claude + Cursor hook declarations
 ├── skills/             # Shared skill definitions
-├── mcp.json            # Cursor MCP wiring
 ├── package.json        # @ory/lumen-opencode npm package metadata
 ├── scripts/            # Shared launchers and platform wrappers
 ├── cmd/
@@ -157,7 +163,8 @@ Codex, Cursor, and OpenCode reuse the same repo-root `skills/`, `hooks/`, and
 ├── internal/
 │   ├── config/         # Config loading & paths
 │   ├── index/          # Orchestration (Merkle + embedding + chunking)
-│   ├── store/          # SQLite + sqlite-vec operations
+│   ├── store/          # Shared SQLite collection + sqlite-vec operations
+│   ├── sqlitevec/      # Vendored sqlite-vec v0.1.9 wrapper and sources
 │   ├── chunker/        # Go AST parsing → chunks
 │   ├── embedder/       # Ollama/LM Studio HTTP client
 │   └── merkle/         # Change detection (SHA-256 tree)
@@ -189,8 +196,9 @@ because slog writes to the log file while tui writes to the process stderr.
 ## Key Design Decisions
 
 - **Merkle tree for diffs**: Avoid re-indexing unchanged code
-- **Model name + IndexVersion in DB path**: Different models or index versions →
-  separate indexes (SHA-256 hash of path + model name + `IndexVersion`).
+- **Repository collection profile in DB path**: Git common directory, indexed
+  scope, model, dimensions, vector precision, chunking profile, and
+  `IndexVersion` select a shared content-addressed collection.
   `IndexVersion` is a hardcoded constant in `internal/config/version.go` —
   increment it (and document why in the commit message) whenever a chunker,
   embedder, or index-format change would make existing indexes incompatible. Do
@@ -199,12 +207,20 @@ because slog writes to the log file while tui writes to the process stderr.
   .gitattributes → extension
 - **Chunk splitting at line boundaries**: Oversized chunks split at
   `LUMEN_MAX_CHUNK_TOKENS` (512 default)
-- **32-batch embedding**: Balance memory vs. API round-trips
+- **256-batch embedding**: Only exact embedding inputs missing from the shared
+  vector table are sent to the backend
 - **Cosine distance KNN**: Normalized for semantic similarity
+- **Vendored sqlite-vec**: v0.1.9 is compiled behind `internal/sqlitevec` so
+  collection deletion and vector behavior do not drift with system packages
 - **Plugin system**: Declarative Claude and Cursor packaging at the repo root,
-  plus Codex/OpenCode install surfaces that reuse the same skills and launcher
-- **No repo-root `.mcp.json`**: Use `mcp.json` for Cursor and `.codex/INSTALL.md`
-  for Codex so Claude project behavior never changes implicitly
+  an isolated Codex package with parity-tested copies, and an OpenCode install
+  surface that reuses the shared skills and launcher
+- **No repo-root `.mcp.json` or `.codex-plugin/`**: Use `.cursor/mcp.json` for
+  Cursor and `plugins/lumen/` for Codex so project behavior never changes
+  implicitly
+
+See [docs/INDEX_STORAGE.md](docs/INDEX_STORAGE.md) for collection identity,
+deduplication, vector precision, migration, cleanup, and status-field semantics.
 
 ## Claude Integration Notes
 

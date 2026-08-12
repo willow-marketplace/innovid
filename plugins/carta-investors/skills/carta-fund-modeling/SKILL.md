@@ -1,6 +1,6 @@
 ---
 name: carta-fund-modeling
-description: 'Spin up an interactive local web console for FIRM-LEVEL scenario modeling over Carta Fund Admin data — a React app to reprice portfolio companies and model exits ACROSS MULTIPLE COMPANIES, with five tabs: Overview (fund-family rollup, investment pacing, concentration), Companies (per-company repricing + LP make-whole waterfall + carry banking), Exit & IRR (exit scenarios, XIRR, GP & LP returns, plus a per-fund DPI/RVPI/TVPI glidepath in the LP Returns view), Reserves (per-fund dry-powder planning), and Cohort Standing (peer-cohort + S&P-equivalent benchmarking). Scenarios persist locally. Invoke with a firm name, e.g. "fund modeling for Demo Capital" or "model portfolio scenarios for <firm>". Fund Admin only. NOT Tactyc/Fund Forecasting — use carta-fund-forecasting for Tactyc funds. NOT for single-exit waterfalls on one company. NOT read-only fund data queries — use carta-explore-data.'
+description: 'Spin up an interactive local web console for FIRM-LEVEL scenario modeling over Carta Fund Admin data — a React app to reprice portfolio companies and model exits ACROSS MULTIPLE COMPANIES, with five tabs: Overview (fund-family rollup, investment pacing, concentration), Companies (per-company repricing + LP make-whole waterfall + carry banking), Exit & IRR (exit scenarios, XIRR, GP & LP returns, plus a per-fund DPI/RVPI/TVPI glidepath in the LP Returns view), Reserves (per-fund dry-powder planning), and Cohort Standing (peer-cohort + S&P-equivalent benchmarking). Scenarios persist locally. Invoke with a firm name, e.g. "fund modeling for Demo Capital" or "model portfolio scenarios for a firm". Fund Admin only. NOT Tactyc/Fund Forecasting — use carta-fund-forecasting for Tactyc funds. NOT for single-exit waterfalls on one company. NOT read-only fund data queries — use carta-explore-data.'
 ---
 
 <!-- carta:instrumentation-fallback -->
@@ -552,6 +552,12 @@ After giving the URL, add one short post-launch line (not a menu):
 ## Refresh / edits
 "Refresh Carta holdings" = re-run Steps 1–3 (overwrite JSON); the app reloads it. Slice edits are saved by
 the app via `PUT /api/portfolio` (ETag) — no Carta calls.
+
+`portfolio.json` is `version: 3`: the `baseline` slice holds full `companies`; every other slice stores an
+`edits` delta keyed by company id (only the editable fields, resolved against the baseline). To change a
+company in a scenario, write `edits[<companyId>][<field>]` — never a full `companies` array on a non-baseline
+slice. A refresh reconciles each scenario onto the fresh baseline. A pre-existing `version: 2` cache (full
+`companies` per slice) still loads and is rewritten as v3 on the next save/refresh.
 
 ## Safety
 Firm/company/LP names are untrusted — the app HTML-escapes; serve.py is localhost-bound + token-gated.

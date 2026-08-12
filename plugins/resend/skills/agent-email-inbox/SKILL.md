@@ -236,6 +236,10 @@ import { Resend } from 'resend';
 const app = express();
 const resend = new Resend(process.env.RESEND_API_KEY);
 
+const ALLOWED_SENDERS = (process.env.ALLOWED_SENDERS || '').split(',').filter(Boolean);
+const isAllowedSender = (sender) =>
+  ALLOWED_SENDERS.some(allowed => sender === allowed.toLowerCase());
+
 app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
   try {
     const payload = req.body.toString();

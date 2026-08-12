@@ -42,6 +42,24 @@ const result = await seed.setupBookings(ctx, {
 **Seeding is additive — never delete or overwrite existing content.** Don't clean up, don't remove
 "sample" data, don't reset. Just add.
 
+## What the shipped UI renders from this
+
+Pass these and the catalog reads like a real one; omit them and the pages have visible holes:
+
+- **`sessions` on every CLASS.** A class's bookable times ARE its sessions, so a class seeded without
+  them shows "No available times in this range" — which reads as broken, not empty. Schedule a few
+  weeks out. An APPOINTMENT needs none: its slots come from staff working hours, which a fresh
+  install's owner already has.
+- **`duration`** (APPOINTMENT, minutes) → the card's `60 min · 1-to-1` line and the DURATION cell on
+  the service page. A class has no service-level duration and shows CAPACITY instead, so pass
+  `capacity` there.
+- **`tagLine`** → the card's second line. One line about the service, not a copy of `description`.
+- **`price`**, or **`free: true`** for a no-fee service, which the UI labels "Free".
+
+Two things this module can't set, so don't try: **varied pricing** (a "From €85" service needs
+`payment.varied`) and **`conferencing`** (the UI's "Online" location label reads that flag — seeded
+services all sit at the business location, which shows as "In person").
+
 ## Escape hatch — individual functions
 Reach for the functions below only when the one-call `setupBookings` doesn't fit (partial re-seed,
 custom staff/ordering). `setupBookings` is built from them, in this order:
@@ -83,7 +101,17 @@ await seed.attachServiceImage(ctx, { serviceId: services[0].id, revision: servic
 Both bulk calls report per-item `success`/`error` — retry only the failed items **once** with the
 same body; don't loop and don't re-create the ones that already succeeded.
 
-## Fallback
+## Reference
 If a call returns a shape you didn't expect, or you need an operation this module doesn't cover,
 use the **`wix-docs`** skill to search + read the live Wix API reference — never guess. The
 authoritative source recipe is `wix-headless/references/inline-recipes/setup-bookings.md`.
+
+Read a method's page before writing its call: it carries the exact body shape, the required
+permission scope, and the response envelope.
+- Install a Wix app onto the site: https://dev.wix.com/docs/api-reference/business-management/app-installation/app-installation/install-app.md
+- Import an image into Wix Media: https://dev.wix.com/docs/api-reference/assets/media/media-manager/files/import-file.md
+- Bulk Create Services: https://dev.wix.com/docs/api-reference/business-solutions/bookings/services/services-v2/bulk-create-services.md
+- Create Category: https://dev.wix.com/docs/api-reference/business-solutions/bookings/services/categories-v2/create-category.md
+- Create Staff Member: https://dev.wix.com/docs/api-reference/business-solutions/bookings/staff-members/staff-members/create-staff-member.md
+- Query Staff Members: https://dev.wix.com/docs/api-reference/business-solutions/bookings/staff-members/staff-members/query-staff-members.md
+- Bulk Create Event (calendar sessions): https://dev.wix.com/docs/api-reference/business-management/calendar/events-v3/bulk-create-event.md

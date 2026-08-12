@@ -34,7 +34,7 @@ type BuildMessagesResponse struct {
 type BuildMessagesOptions struct {
 	// Count is the number of messages to fetch. Negative values fetch from the tail.
 	Count int
-	// SinceID skips messages up to this ID (used as the first param of messagesCount).
+	// Deprecated: misnamed, this is the server's messagesAfter count, not a since-ID; the start index comes from the messageId param, which this client never sends.
 	SinceID int
 	// Tail mode fetches from the end of the log.
 	Tail bool

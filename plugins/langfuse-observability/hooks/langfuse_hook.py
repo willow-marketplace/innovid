@@ -922,6 +922,28 @@ def get_async_launch_flag_from_row(row: Dict[str, Any]) -> Optional[bool]:
         return None
     return tool_use_result.get("status") == "async_launched" or tool_use_result.get("isAsync") is True
 
+def get_workflow_launch_marker_from_row(row: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Read the structured Workflow launch marker from a tool_result row.
+
+    Workflow launches carry toolUseResult.taskType == "local_workflow" plus
+    the runId that names the run's transcript directory
+    (<transcript_stem>/subagents/workflows/<runId>/). Only the structured
+    marker is trusted, the launch text is never parsed.
+    """
+    tool_use_result = row.get("toolUseResult")
+    if not isinstance(tool_use_result, dict):
+        return None
+    if tool_use_result.get("taskType") != "local_workflow":
+        return None
+    run_id = tool_use_result.get("runId")
+    if not isinstance(run_id, str) or not run_id:
+        return None
+    workflow_launch_marker: Dict[str, Any] = {"run_id": run_id}
+    workflow_name = tool_use_result.get("workflowName")
+    if isinstance(workflow_name, str) and workflow_name:
+        workflow_launch_marker["workflow_name"] = workflow_name
+    return workflow_launch_marker
+
 def is_async_agent_launch_result(tool_result_entry: Any) -> bool:
     if not isinstance(tool_result_entry, dict):
         return False
@@ -944,7 +966,8 @@ def get_pending_agent_tool_use_ids(turn: Turn) -> List[str]:
     tool_use_ids: List[str] = []
     for assistant_message in turn.assistant_msgs:
         for tool_use_block in get_tool_use_blocks(get_content_from_row(assistant_message)):
-            if tool_use_block.get("name") not in ("Agent", "Task"):
+            # Workflows resolve via task notifications too, so they hold the turn open.
+            if tool_use_block.get("name") not in ("Agent", "Task", "Workflow"):
                 continue
             tool_use_id = str(tool_use_block.get("id") or "")
             if not tool_use_id:
@@ -1046,6 +1069,7 @@ def add_tool_result_row(row: Dict[str, Any], state: TurnAssemblyState) -> bool:
     state.current_rows.append(row)
     row_timestamp = row.get("timestamp")
     is_async_launch = get_async_launch_flag_from_row(row)
+    workflow_launch_marker = get_workflow_launch_marker_from_row(row)
     for tool_result_block in get_tool_result_blocks(get_content_from_row(row)):
         tool_use_id = tool_result_block.get("tool_use_id")
         if tool_use_id:
@@ -1055,6 +1079,13 @@ def add_tool_result_row(row: Dict[str, Any], state: TurnAssemblyState) -> bool:
             }
             if is_async_launch is not None:
                 tool_result_entry["is_async_launch"] = is_async_launch
+            if workflow_launch_marker is not None:
+                # Links the launching tool_use to its workflow run so emission
+                # can attach the run's agent transcripts (which have no
+                # toolUseId of their own) under this tool's span.
+                tool_result_entry["workflow_run_id"] = workflow_launch_marker["run_id"]
+                if "workflow_name" in workflow_launch_marker:
+                    tool_result_entry["workflow_name"] = workflow_launch_marker["workflow_name"]
             state.tool_results_by_id[str(tool_use_id)] = tool_result_entry
     return True
 
@@ -1337,6 +1368,19 @@ def get_new_turns_from_transcript(
     assign_turn_numbers(turns, trailing_turn, session_state)
     return turns, session_state
 
+def resolve_agent_jsonl_and_id(meta_path: Path) -> Optional[Tuple[Path, str]]:
+    """Derive an agent's transcript path and agent id from its meta.json path.
+
+    Returns None when the sibling .jsonl is missing (metas without a
+    transcript identify nothing worth emitting)."""
+    jsonl_path = meta_path.with_name(meta_path.name[: -len(".meta.json")] + ".jsonl")
+    if not jsonl_path.exists():
+        return None
+    agent_id = meta_path.name[: -len(".meta.json")]
+    if agent_id.startswith("agent-"):
+        agent_id = agent_id[len("agent-"):]
+    return jsonl_path, agent_id
+
 def get_subagent_transcripts_by_tool_use_id(transcript_path: Path) -> Dict[str, Dict[str, Any]]:
     """Map launching Agent/Task tool_use ids to their subagent transcripts."""
     subagent_dir = transcript_path.with_suffix("") / "subagents"
@@ -1354,13 +1398,10 @@ def get_subagent_transcripts_by_tool_use_id(transcript_path: Path) -> Dict[str, 
         if not isinstance(tool_use_id, str) or not tool_use_id:
             continue
 
-        jsonl_path = meta_path.with_name(meta_path.name[: -len(".meta.json")] + ".jsonl")
-        if not jsonl_path.exists():
+        resolved = resolve_agent_jsonl_and_id(meta_path)
+        if resolved is None:
             continue
-
-        agent_id = meta_path.name[: -len(".meta.json")]
-        if agent_id.startswith("agent-"):
-            agent_id = agent_id[len("agent-"):]
+        jsonl_path, agent_id = resolved
 
         subagent_transcripts_by_tool_use_id[tool_use_id] = {
             "path": jsonl_path,
@@ -1369,6 +1410,75 @@ def get_subagent_transcripts_by_tool_use_id(transcript_path: Path) -> Dict[str, 
             "description": metadata.get("description"),
         }
     return subagent_transcripts_by_tool_use_id
+
+def get_workflow_journal_results(run_dir: Path) -> Dict[str, Any]:
+    """Per-agent return values from a workflow run's journal.jsonl.
+
+    The journal carries {"type":"result","agentId",...,"result":{...}} rows,
+    one per completed agent; unparseable lines are skipped."""
+    journal_path = run_dir / "journal.jsonl"
+    try:
+        lines = journal_path.read_text(encoding="utf-8").splitlines()
+    except Exception:
+        return {}
+    results_by_agent_id: Dict[str, Any] = {}
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            journal_row = json.loads(line)
+        except Exception:
+            continue
+        if not isinstance(journal_row, dict) or journal_row.get("type") != "result":
+            continue
+        agent_id = journal_row.get("agentId")
+        if isinstance(agent_id, str) and agent_id:
+            results_by_agent_id[agent_id] = journal_row.get("result")
+    return results_by_agent_id
+
+def get_workflow_agent_transcripts_by_run_id(transcript_path: Path) -> Dict[str, List[Dict[str, Any]]]:
+    """Map Workflow run ids to the workflow-spawned agent transcripts on disk.
+
+    Workflow-tool agents live under <stem>/subagents/workflows/wf_<runId>/;
+    their meta.json carries agentType=="workflow-subagent" and — unlike
+    classic subagents — no toolUseId, so they are keyed by the run id (the
+    directory name) instead. The launching tool_use is linked via
+    toolUseResult.runId on the parent transcript's tool_result row
+    (see get_workflow_launch_marker_from_row).
+    """
+    workflows_dir = transcript_path.with_suffix("") / "subagents" / "workflows"
+    if not workflows_dir.is_dir():
+        return {}
+
+    workflow_agents_by_run_id: Dict[str, List[Dict[str, Any]]] = {}
+    for run_dir in sorted(workflows_dir.glob("wf_*")):
+        if not run_dir.is_dir():
+            continue
+        journal_results = get_workflow_journal_results(run_dir)
+        agents: List[Dict[str, Any]] = []
+        for meta_path in sorted(run_dir.glob("agent-*.meta.json")):
+            try:
+                metadata = json.loads(meta_path.read_text(encoding="utf-8"))
+            except Exception:
+                continue
+            if not isinstance(metadata, dict) or metadata.get("agentType") != "workflow-subagent":
+                continue
+
+            resolved = resolve_agent_jsonl_and_id(meta_path)
+            if resolved is None:
+                continue
+            jsonl_path, agent_id = resolved
+
+            agents.append({
+                "path": jsonl_path,
+                "agent_id": agent_id,
+                "agent_type": metadata.get("agentType"),
+                "result": journal_results.get(agent_id),
+            })
+        if agents:
+            workflow_agents_by_run_id[run_dir.name] = agents
+    return workflow_agents_by_run_id
 
 def get_task_id_to_tool_use_id(
     subagent_transcripts_by_tool_use_id: Optional[Dict[str, Dict[str, Any]]],
@@ -1734,7 +1844,8 @@ def build_tool_metadata(
 @dataclass
 class EmissionCursor:
     """Tracks which of a turn's observations were already emitted (namespaced
-    keys: gen:/tool:/subagent:) so continuation firings only emit what is new.
+    keys: gen:/tool:/subagent:/workflow-agent:) so continuation firings only
+    emit what is new.
 
     completed_only skips observations whose emitted form could still change
     (generation awaiting tool results, running async subagent); at turn close
@@ -1776,6 +1887,7 @@ def emit_single_tool_observation(
     pending_async_tool_results: List[Dict[str, Any]],
     cursor: EmissionCursor,
     tool_key: str,
+    workflow_agent_transcripts_by_run_id: Optional[Dict[str, List[Dict[str, Any]]]] = None,
 ) -> EmittedSingleToolObservation:
     tool_use_id = str(tool_use.get("id") or "")
     tool_name = tool_use.get("name") or "unknown"
@@ -1797,6 +1909,24 @@ def emit_single_tool_observation(
         else None
     )
     tool_metadata = build_tool_metadata(tool_name, tool_use_id, tool_input_meta, tool_result, subagent)
+
+    workflow_run_id = (
+        tool_result_entry.get("workflow_run_id") if isinstance(tool_result_entry, dict) else None
+    )
+    workflow_name = (
+        tool_result_entry.get("workflow_name") if isinstance(tool_result_entry, dict) else None
+    )
+    workflow_agents = (
+        workflow_agent_transcripts_by_run_id.get(workflow_run_id) or []
+        if workflow_agent_transcripts_by_run_id and workflow_run_id
+        else []
+    )
+    if workflow_run_id:
+        tool_metadata["workflow_run_id"] = workflow_run_id
+        if workflow_name:
+            tool_metadata["workflow_name"] = workflow_name
+        if workflow_agents:
+            tool_metadata["workflow_agent_count"] = len(workflow_agents)
 
     tool_use_timestamp = parse_timestamp(turn.tool_use_timestamps_by_id.get(tool_use_id)) or assistant_timestamp
     # A tool span's end time comes from its result row, so it only counts as
@@ -1843,7 +1973,32 @@ def emit_single_tool_observation(
                     tool_use_timestamp,
                 )
 
-    tool_end_timestamp = _get_latest_timestamp(tool_result.result_timestamp, tool_use_timestamp)
+    workflow_end_timestamp = None
+    if workflow_agents:
+        # Agent transcripts may still grow until the completion
+        # notification (final_content) lands.
+        workflow_resolved = (
+            isinstance(tool_result_entry, dict)
+            and tool_result_entry.get("final_content") is not None
+        )
+        workflow_end_timestamp = emit_workflow_agent_observations(
+            langfuse,
+            # tool_span is None only when an earlier firing already exported
+            # it; late-discovered agents then nest under the turn root instead.
+            tool_span._otel_span if tool_span is not None else parent_otel_span,
+            workflow_agents,
+            workflow_run_id=workflow_run_id,
+            workflow_name=workflow_name,
+            workflow_resolved=workflow_resolved,
+            cursor=cursor,
+            emission_scope=tool_use_id or tool_key,
+        )
+
+    # Exported spans are immutable, so the end time set here must already
+    # cover the workflow agents nested under this span.
+    tool_end_timestamp = _get_latest_timestamp(
+        tool_result.result_timestamp, tool_use_timestamp, workflow_end_timestamp
+    )
     handoff_timestamp = (
         tool_result.result_timestamp
         or tool_result.final_result_timestamp
@@ -1870,7 +2025,9 @@ def emit_single_tool_observation(
             "tool_name": tool_name,
             "output": tool_result.output,
         },
-        latest_end_timestamp=_get_latest_timestamp(tool_end_timestamp, subagent_end_timestamp),
+        latest_end_timestamp=_get_latest_timestamp(
+            tool_end_timestamp, subagent_end_timestamp, workflow_end_timestamp
+        ),
     )
 
 def emit_tool_observation_batch(
@@ -1884,6 +2041,7 @@ def emit_tool_observation_batch(
     pending_subagents: List[Dict[str, Any]],
     pending_async_tool_results: List[Dict[str, Any]],
     cursor: EmissionCursor,
+    workflow_agent_transcripts_by_run_id: Optional[Dict[str, List[Dict[str, Any]]]] = None,
 ) -> EmittedToolObservationBatch:
     assistant_timestamp = parse_timestamp(assistant_message)
     generation_key = generation_emission_key(assistant_index, assistant_message)
@@ -1905,6 +2063,7 @@ def emit_tool_observation_batch(
             pending_async_tool_results,
             cursor,
             tool_key,
+            workflow_agent_transcripts_by_run_id=workflow_agent_transcripts_by_run_id,
         )
         if emitted_tool.handoff_timestamp is not None:
             tool_result_timestamps.append(emitted_tool.handoff_timestamp)
@@ -2038,7 +2197,8 @@ def emit_turn_observations(langfuse: Langfuse, parent_otel_span: Any, turn: Turn
                            start_timestamp: Optional[datetime],
                            generation_name: str = "LLM Call",
                            subagent_transcripts_by_tool_use_id: Optional[Dict[str, Dict[str, Any]]] = None,
-                           cursor: Optional[EmissionCursor] = None) -> Optional[datetime]:
+                           cursor: Optional[EmissionCursor] = None,
+                           workflow_agent_transcripts_by_run_id: Optional[Dict[str, List[Dict[str, Any]]]] = None) -> Optional[datetime]:
     """Emit a turn's generations and tool observations under an existing span.
 
     The full turn is always walked so cross-observation context (generation
@@ -2138,6 +2298,7 @@ def emit_turn_observations(langfuse: Langfuse, parent_otel_span: Any, turn: Turn
             pending_subagents,
             pending_async_tool_results,
             cursor,
+            workflow_agent_transcripts_by_run_id=workflow_agent_transcripts_by_run_id,
         )
         latest_end_timestamp = _get_latest_timestamp(
             latest_end_timestamp,
@@ -2175,9 +2336,70 @@ def emit_turn_observations(langfuse: Langfuse, parent_otel_span: Any, turn: Turn
 
     return latest_end_timestamp
 
+def emit_workflow_agent_observations(
+    langfuse: Langfuse,
+    parent_otel_span: Any,
+    workflow_agents: List[Dict[str, Any]],
+    *,
+    workflow_run_id: str,
+    workflow_name: Optional[str],
+    workflow_resolved: bool,
+    cursor: EmissionCursor,
+    emission_scope: str,
+) -> Optional[datetime]:
+    """Emit each workflow-spawned agent transcript under the launching
+    "Tool: Workflow" span.
+
+    Workflow agents carry no toolUseId of their own, so their emission keys
+    are derived from the launching tool_use (emission_scope) plus the agent
+    id — unique per agent and stable across Stop firings, so the incremental
+    EmissionCursor neither duplicates nor starves them.
+    """
+    workflow_label = workflow_name or workflow_run_id
+    latest_end_timestamp: Optional[datetime] = None
+    for workflow_agent in workflow_agents:
+        agent_id = workflow_agent.get("agent_id")
+        if not isinstance(agent_id, str) or not agent_id:
+            continue
+        if not cursor.should_emit(
+            f"workflow-agent:{emission_scope}:{agent_id}", complete=workflow_resolved
+        ):
+            continue
+        extra_metadata: Dict[str, Any] = {
+            "workflow_run_id": workflow_run_id,
+            "workflow_agent_id": agent_id,
+        }
+        if workflow_name:
+            extra_metadata["workflow_name"] = workflow_name
+        agent_result = workflow_agent.get("result")
+        agent_result_json: Optional[str] = None
+        if agent_result is not None:
+            agent_result_json, _ = truncate_text(json.dumps(agent_result, ensure_ascii=False))
+            extra_metadata["workflow_agent_result"] = agent_result_json
+        agent_end_timestamp = emit_subagent_observations(
+            langfuse,
+            parent_otel_span,
+            workflow_agent,
+            # No explicit start: the agent transcript's first row is the real start.
+            None,
+            span_name=f"Workflow agent: {workflow_label}/{agent_id}",
+            extra_metadata=extra_metadata,
+            generation_name="LLM Call",
+            # Workflow agents typically end on a bare StructuredOutput tool_use
+            # (no text in the final message); the journal result is the agent's
+            # actual return value, so it becomes the span output instead of "".
+            empty_output_fallback=agent_result_json,
+        )
+        latest_end_timestamp = _get_latest_timestamp(latest_end_timestamp, agent_end_timestamp)
+    return latest_end_timestamp
+
 def emit_subagent_observations(langfuse: Langfuse, parent_otel_span: Any,
                                subagent: Dict[str, Any],
-                               start_timestamp: Optional[datetime]) -> Optional[datetime]:
+                               start_timestamp: Optional[datetime],
+                               span_name: Optional[str] = None,
+                               extra_metadata: Optional[Dict[str, Any]] = None,
+                               generation_name: str = "Subagent LLM Call",
+                               empty_output_fallback: Optional[str] = None) -> Optional[datetime]:
     path = subagent.get("path")
     if not isinstance(path, Path):
         return start_timestamp
@@ -2196,22 +2418,31 @@ def emit_subagent_observations(langfuse: Langfuse, parent_otel_span: Any,
     last_turn = turns[-1]
     last_assistant = last_turn.assistant_msgs[-1]
     subagent_output_text, _ = truncate_text(extract_text_from_content(get_content_from_row(last_assistant)))
+    if not subagent_output_text and empty_output_fallback is not None:
+        # A final message of only thinking/tool_use blocks extracts no text;
+        # callers with a better source (workflow journal result) supply it here.
+        # Classic subagents pass no fallback, keeping their behavior unchanged.
+        subagent_output_text = empty_output_fallback
 
     description = subagent.get("description")
-    subagent_name = f"Subagent: {description}" if isinstance(description, str) and description else "Subagent"
+    if span_name is None:
+        span_name = f"Subagent: {description}" if isinstance(description, str) and description else "Subagent"
+    subagent_metadata: Dict[str, Any] = {
+        "agent_type": subagent.get("agent_type"),
+        "description": description,
+        "transcript_path": get_short_transcript_path_for_metadata(path),
+        "user_text": subagent_input_meta,
+    }
+    if extra_metadata:
+        subagent_metadata.update(extra_metadata)
     subagent_span = _start_backdated(
         langfuse,
-        name=subagent_name,
+        name=span_name,
         as_type="span",
         start_time=subagent_start_timestamp,
         parent_otel_span=parent_otel_span,
         input={"role": "user", "content": subagent_input_text},
-        metadata={
-            "agent_type": subagent.get("agent_type"),
-            "description": description,
-            "transcript_path": get_short_transcript_path_for_metadata(path),
-            "user_text": subagent_input_meta,
-        },
+        metadata=subagent_metadata,
     )
 
     latest_end_timestamp = subagent_start_timestamp
@@ -2222,7 +2453,7 @@ def emit_subagent_observations(langfuse: Langfuse, parent_otel_span: Any,
             subagent_span._otel_span,
             turn,
             previous_start_timestamp,
-            generation_name="Subagent LLM Call",
+            generation_name=generation_name,
             subagent_transcripts_by_tool_use_id=None,
         )
         latest_end_timestamp = _get_latest_timestamp(latest_end_timestamp, latest_turn_timestamp)
@@ -2425,7 +2656,8 @@ def emit_turn(langfuse: Langfuse, session_id: str, turn_num: int,
               progress: Optional[Dict[str, Any]] = None,
               close: bool = True,
               trace_seed: Optional[str] = None,
-              parent_context: Optional[Tuple[str, str]] = None) -> Dict[str, Any]:
+              parent_context: Optional[Tuple[str, str]] = None,
+              workflow_agent_transcripts_by_run_id: Optional[Dict[str, List[Dict[str, Any]]]] = None) -> Dict[str, Any]:
     """Emit a turn, resuming from prior firings' progress.
 
     With no progress and close=True this is the classic one-shot emission.
@@ -2483,6 +2715,7 @@ def emit_turn(langfuse: Langfuse, session_id: str, turn_num: int,
             parse_timestamp(turn.user_msg),
             subagent_transcripts_by_tool_use_id=subagent_transcripts_by_tool_use_id,
             cursor=cursor,
+            workflow_agent_transcripts_by_run_id=workflow_agent_transcripts_by_run_id,
         )
         if trace_span is not None:
             # The root exports exactly once: end time and output are the
@@ -2515,6 +2748,7 @@ def emit_and_close_ready_turns(
     subagent_transcripts_by_tool_use_id: Dict[str, Dict[str, Any]],
     trace_seed: Optional[str] = None,
     parent_context: Optional[Tuple[str, str]] = None,
+    workflow_agent_transcripts_by_run_id: Optional[Dict[str, List[Dict[str, Any]]]] = None,
 ) -> int:
     emitted = 0
     # Turns without a user-row uuid bypass assign_turn_numbers; seed their
@@ -2545,6 +2779,7 @@ def emit_and_close_ready_turns(
                 close=True,
                 trace_seed=trace_seed,
                 parent_context=parent_context,
+                workflow_agent_transcripts_by_run_id=workflow_agent_transcripts_by_run_id,
             )
         except Exception as e:
             # Log at INFO so SDK incompatibilities (and other emit failures)
@@ -2564,6 +2799,7 @@ def emit_ready_observations_of_open_turn(
     subagent_transcripts_by_tool_use_id: Dict[str, Dict[str, Any]],
     trace_seed: Optional[str] = None,
     parent_context: Optional[Tuple[str, str]] = None,
+    workflow_agent_transcripts_by_run_id: Optional[Dict[str, List[Dict[str, Any]]]] = None,
 ) -> None:
     """Emit the held open turn once its async activity is provably resolved.
 
@@ -2607,6 +2843,7 @@ def emit_ready_observations_of_open_turn(
             close=False,
             trace_seed=trace_seed,
             parent_context=parent_context,
+            workflow_agent_transcripts_by_run_id=workflow_agent_transcripts_by_run_id,
         )
         session_state.turn_progress[user_row_uuid] = progress
     except Exception as e:
@@ -2628,6 +2865,13 @@ def emit_new_turns_from_transcript(
         subagent_transcripts_by_tool_use_id = get_subagent_transcripts_by_tool_use_id(transcript_path)
         if subagent_transcripts_by_tool_use_id:
             debug(f"Discovered {len(subagent_transcripts_by_tool_use_id)} subagent transcript(s)")
+
+        workflow_agent_transcripts_by_run_id = get_workflow_agent_transcripts_by_run_id(transcript_path)
+        if workflow_agent_transcripts_by_run_id:
+            debug(
+                f"Discovered workflow agent transcript(s) for "
+                f"{len(workflow_agent_transcripts_by_run_id)} workflow run(s)"
+            )
 
         turns, session_state = get_new_turns_from_transcript(
             transcript_path,
@@ -2653,6 +2897,7 @@ def emit_new_turns_from_transcript(
                 subagent_transcripts_by_tool_use_id=subagent_transcripts_by_tool_use_id,
                 trace_seed=config.trace_seed,
                 parent_context=config.parent_context,
+                workflow_agent_transcripts_by_run_id=workflow_agent_transcripts_by_run_id,
             )
 
         session_state.turn_count += emitted
@@ -2670,6 +2915,7 @@ def emit_new_turns_from_transcript(
             subagent_transcripts_by_tool_use_id=subagent_transcripts_by_tool_use_id,
             trace_seed=config.trace_seed,
             parent_context=config.parent_context,
+            workflow_agent_transcripts_by_run_id=workflow_agent_transcripts_by_run_id,
         )
 
         # Known limitation (accepted, like the crash-between-emit-and-save

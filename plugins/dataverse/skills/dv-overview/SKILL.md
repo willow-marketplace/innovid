@@ -65,8 +65,6 @@ Python is the language for automation **logic** (transformation, control flow, r
 - Use `scripts/auth.py` for tokens/credentials; `azure-identity` (Python) for Azure credential flows
 - Treat the Dataverse CLI (`dataverse`) and `pac` as allowed first-party CLIs
 
-About to run `npm` or create a `package.json`? STOP — that is off-rails. Reaching for `pac` or the Dataverse CLI is not.
-
 ### 2. Pick the surface that fits — capability awareness, not a fixed order
 
 No mandated tool order. Each surface has a capability profile; pick what fits the job and the surface you are already in — soft defaults, not a required sequence. The full matrix is in **Tool Capabilities** below; the principles:
@@ -77,7 +75,7 @@ No mandated tool order. Each surface has a capability profile; pick what fits th
 
 **Field casing:** `$select`/`$filter` use lowercase logical names (`new_name`). `$expand` and `@odata.bind` use Navigation Property Names that are case-sensitive and must match `$metadata` (e.g., `new_AccountId`). Getting this wrong causes 400 errors. **SDK record payloads:** provide the correct SchemaName casing on `@odata.bind` keys (e.g., `new_AccountId@odata.bind`); the SDK does not auto-correct wrong casing. **Raw Web API calls** (forms, views, metadata): casing is entirely manual — a lowercase `new_accountid@odata.bind` will 400.
 
-**Publisher prefix:** Never hardcode a prefix (especially not `new`). Always query existing publishers in the environment and ask the user which to use. The prefix is permanent on every component created with it. See the solution skill's publisher discovery flow.
+**Publisher prefix:** Never hardcode a prefix (especially `new`); query existing publishers and ask the user. The prefix is permanent. See the solution skill's publisher discovery flow.
 
 ### 3. Use Documented Auth Patterns
 
@@ -94,13 +92,15 @@ Three entry points, one shared sign-in:
 - Hard-code tokens or credentials in scripts
 - Invent a new auth mechanism
 
-If auth is expired or missing, re-run `dataverse auth create` (or `pac auth create` for `pac`), or check `.env` credentials. See the `dv-connect` skill.
+If auth is expired or missing, re-run `dataverse auth create` (or `pac auth create`), or check `.env`. See the `dv-connect` skill.
 
 ### 4. Be honest about gaps — don't hallucinate
 
 Each skill documents a tested sequence — follow it when it fits. The skills are the source of truth for the supported, non-deprecated API. If a call fails with `AttributeError`, the installed SDK version may not have it — check the skill's version note and use the documented alternative.
 
 **The honesty guard:** if you hit a gap the skills don't cover, say so and suggest a workaround. **Do not hallucinate an unsupported path** — do not invent a method, parameter, or endpoint that isn't documented. If unsure, say so.
+
+**Connectivity is not auth.** A `login.microsoftonline.com` token can succeed while the org's data-plane domain is unreachable (restricted-egress hosts like ChatGPT Work Mode). Never report a count or result you didn't get from a real call that returned — verify with `python scripts/auth.py --check`; if it fails, say "unreachable," never a fabricated number. On a constrained host, lead with the SDK, not CLI/MCP. See `dv-connect/references/headless-hosts.md`.
 
 ---
 
@@ -113,7 +113,7 @@ Understanding the real limits of each tool prevents hallucinated paths. This is 
 | **MCP Server** | Data CRUD (create/read/update/delete records, batch up to 25 per call), table create/update/delete + column add (incl. local choice/multiselect + lookup/customer), schema + record inspection via `describe`, metadata search (`search`), data + file-content search (`search_data`, when Dataverse search is enabled), file upload/download | Forms, Views, **global** Option Sets, **N:N** relationships, alternate keys, Solutions (lookup + local choice/multiselect columns **are** supported via `create_table`/`update_table`). **Note:** table creation may timeout but still succeed — always `describe` (e.g. `describe('tables/{name}')`) before retrying. Run queries sequentially (parallel calls timeout). Column names with spaces normalize to underscores (e.g., `"Specialty Area"` → `cr9ac_specialty_area`). **SQL (`read_query`):** supports `JOIN`, `GROUP BY` (COUNT/SUM/AVG/MIN/MAX), `TOP`, `WHERE`, `ORDER BY`; does NOT support `DISTINCT`, `HAVING`, subqueries, `OFFSET`, `UNION`, `CASE`/`IF`, `CAST`/`CONVERT`, CTE, or date functions. For those, use `client.query.sql()` (also allows `DISTINCT`, <5K rows), `$apply`, or a builder->DataFrame with pandas — see `dv-query`. **Bulk:** MCP `create_record`/`update_record`/`delete_record` batch up to 25 records per call; for larger bulk use the SDK `CreateMultiple` — see `dv-data`. |
 | **Python SDK (`dv-data`)** | Scripted data writes, especially at volume. Record CRUD, upsert (alternate keys), bulk create/update/upsert (CreateMultiple/UpdateMultiple/UpsertMultiple), CSV import with lookup resolution, file column uploads (chunked >128MB) | global Option Sets, record association (`$ref`), `$apply` aggregation, table/column/relationship creation (use `dv-metadata`), custom action invocation |
 | **Python SDK (`dv-query`)** | Bulk reads and analytics. Multi-page record iteration, OData queries (select/filter/expand/orderby), QueryBuilder fluent API, GUID-free display (formatted values), `$expand` to resolve lookups, **aggregation and N:N joins via `client.query.fetchxml()`** (aggregate FetchXML + link-entity), pandas DataFrame handoff (`client.query.builder(...).execute().to_dataframe()`) for exports, Jupyter notebook snippets | OData `$apply` and N:N `$expand` on the **QueryBuilder** path — use `records.list(expand=...)` for N:N, or `fetchxml()` for aggregates (not raw `urllib`) |
-| **Dataverse CLI (`dataverse`)** | Headless data plane (no Python script needed): `data` CRUD (`query/get/create/update/upsert/delete/count`), `data associate`/`disassociate` (N:N + lookups via `$ref`), `data upload` (file columns); `api request`/`invoke` (managed Web API escape hatch); `api list`/`describe` for Custom API discovery; shared `auth`/`org` token cache | Metadata/schema creation (use SDK — `dv-metadata`), solution ALM (use PAC), forms/views authoring |
+| **Dataverse CLI (`dataverse`)** | Headless data plane: `data` CRUD, `associate`/`disassociate` (N:N + `$ref`), `data upload`; `api request`/`invoke` (Web API escape hatch); `api list`/`describe` (Custom API discovery) | Metadata/schema (use SDK — `dv-metadata`), solution ALM (use PAC), forms/views; **blocked on ChatGPT web / Codex cloud** (no .NET runtime) — use the SDK |
 | **PAC CLI** | Solution export/import/pack/unpack, environment create/list/delete/reset, auth profile management, plugin updates (`pac plugin push` — first-time registration requires Web API), user/role assignment (`pac admin assign-user`), add solution components (`pac solution add-solution-component`) | Data CRUD, metadata creation (tables/columns/forms), listing solution components (no `list-components` — query `solutioncomponent` via SDK/CLI) |
 | **Azure CLI** | App registrations, service principals, credential management | Dataverse-specific operations |
 | **GitHub CLI** | Repo management, GitHub secrets, Actions workflow status | Dataverse-specific operations |
@@ -121,9 +121,9 @@ Understanding the real limits of each tool prevents hallucinated paths. This is 
 
 **Routing:** the table shows what each surface does; the *how to choose* principle (soft defaults, not a fixed order) is Hard Rule 2. MCP tools not in your list? Load `dv-connect`.
 
-**Volume guidance:** MCP for up to ~25 records per call or simple filters; the SDK's `CreateMultiple` for larger bulk writes (chunk large sets starting ~1,000 — see `dv-data`) and `dv-query` for bulk reads (streams pages, avoids MCP SQL limits); Web API for `$apply` aggregation.
+**Volume guidance:** MCP for up to ~25 records per call or simple filters; the SDK's `CreateMultiple` for larger bulk writes (chunk large sets starting ~1,000 — see `dv-data`) and `dv-query` for bulk reads; Web API for `$apply` aggregation.
 
-**SDK method cheat-sheet** (anti-hallucination, *not* a preference signal): SDK method names are the least discoverable surface — MCP tools appear in your tool list and the CLI self-documents via `dataverse --help`, but SDK calls surface nowhere, so agents invent them. This maps common ops to the exact call. Each op is equally reachable via MCP/CLI per Hard Rule 2; see the noted skill for the full pattern.
+**SDK method cheat-sheet** (anti-hallucination, *not* a preference signal): SDK method names are the least discoverable surface, so agents invent them. This maps common ops to the exact call. Each op is equally reachable via MCP/CLI per Hard Rule 2; see the noted skill for the full pattern.
 
 | Operation | SDK call | Skill |
 | --- | --- | --- |
@@ -155,7 +155,7 @@ If the user's request involves MCP — either explicitly ("connect via MCP", "us
 1. This is a SDK fallback case — use the Python SDK to answer the question. Do not block the user.
 2. After answering, offer: "MCP would handle this conversationally — want me to set it up?"
 
-The distinction matters: explicit MCP request → block and set up MCP. Implicit/conversational question → answer with SDK, offer MCP setup.
+The distinction matters: explicit MCP request → block and set up MCP; implicit question → answer with SDK, offer MCP setup.
 
 **If MCP tools ARE available**, prefer MCP for simple reads/queries/small CRUD. Use the SDK only when a script is needed.
 

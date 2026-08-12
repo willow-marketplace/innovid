@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 	"testing"
 
@@ -41,31 +42,31 @@ func TestGetBuildQueueWithFilter(t *testing.T) {
 func TestRemoveFromQueue(t *testing.T) {
 	t.Parallel()
 	client := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "DELETE", r.Method)
-		assert.Contains(t, r.URL.Path, "/app/rest/buildQueue/id:100")
-		w.WriteHeader(http.StatusNoContent)
+		assert.Equal(t, "POST", r.Method)
+		assert.Equal(t, "/app/rest/buildQueue/id:100", r.URL.Path)
+
+		body, err := io.ReadAll(r.Body)
+		require.NoError(t, err)
+		assert.JSONEq(t, `{"comment":"","readdIntoQueue":false}`, string(body))
+
+		w.WriteHeader(http.StatusOK)
 	})
 
 	err := client.RemoveFromQueue("100")
 	require.NoError(t, err)
 }
 
-func TestSetQueuedBuildPosition(t *testing.T) {
-	t.Parallel()
-	client := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "PUT", r.Method)
-		assert.Contains(t, r.URL.Path, "/app/rest/buildQueue/order/100")
-		w.WriteHeader(http.StatusNoContent)
-	})
-
-	err := client.SetQueuedBuildPosition("100", 5)
-	require.NoError(t, err)
-}
-
 func TestMoveQueuedBuildToTop(t *testing.T) {
 	t.Parallel()
 	client := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
-		assert.Contains(t, r.URL.Path, "/app/rest/buildQueue/order/100")
+		assert.Equal(t, "PUT", r.Method)
+		assert.Equal(t, "/app/rest/buildQueue/order/first", r.URL.Path)
+		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
+
+		body, err := io.ReadAll(r.Body)
+		require.NoError(t, err)
+		assert.JSONEq(t, `{"id":"100"}`, string(body))
+
 		w.WriteHeader(http.StatusNoContent)
 	})
 
@@ -76,7 +77,7 @@ func TestMoveQueuedBuildToTop(t *testing.T) {
 func TestGetQueuedBuildApprovalInfo(t *testing.T) {
 	t.Parallel()
 	client := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
-		assert.Contains(t, r.URL.Path, "/app/rest/buildQueue/id:100/approval")
+		assert.Equal(t, "/app/rest/buildQueue/id:100/approvalInfo", r.URL.Path)
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(ApprovalInfo{Status: "waitingForApproval", CanBeApprovedByCurrentUser: true})
 	})
