@@ -2,7 +2,7 @@
   "name": "php-lsp",
   "version": "1.0.0",
   "description": "PHP language server (Intelephense) for code intelligence",
-  "updatedAt": "2026-08-13T12:01:58.521Z",
+  "updatedAt": "2026-08-13T12:03:28.782Z",
   "author": {
     "name": "Anthropic",
     "email": "support@anthropic.com"
