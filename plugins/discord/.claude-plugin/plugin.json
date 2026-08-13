@@ -2,7 +2,7 @@
   "name": "discord",
   "version": "0.0.4",
   "description": "Discord channel for Claude Code — messaging bridge with built-in access control. Manage pairing, allowlists, and policy via /discord:access.",
-  "updatedAt": "2026-08-13T00:02:06.248Z",
+  "updatedAt": "2026-08-13T00:18:29.676Z",
   "keywords": [
     "discord",
     "messaging",
