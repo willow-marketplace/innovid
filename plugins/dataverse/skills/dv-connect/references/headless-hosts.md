@@ -9,15 +9,34 @@ plus the one working path — so you never chase a dead end or report a result y
 
 ## ENTRY GATE — does this file apply to you? (decide FIRST)
 
-**Read on only if you are on a constrained host.** You are constrained if **any** of these is true:
+**Default: a local Windows/macOS host is CAPABLE, whichever agent drives it (Claude Code / Cursor / Copilot / Codex, desktop or CLI).**
+Run the normal `dv-connect` flow and check installed tools individually. Classify from **what actually
+happens**, never from the agent's or host's product name. A filesystem/command approval prompt is NOT a
+capability constraint, and a **missing CLI means install it** (see [tools-setup.md](tools-setup.md)), not "constrained".
 
-- **Context (no install needed)** — you are told, or it is evident, that the host is **ChatGPT Work Mode**, **Codex cloud sandbox**, a **CI runner**, **SSH**, or a **container**.
-- **Keyring (no install needed)** — `sys.platform == 'linux'` with no `$DISPLAY` and no running `gnome-keyring` / `dbus`. => no credential store (Axis 2 below).
-- **Only if a .NET tool is already installed** — `dataverse --version` (or `pac`) fails to *start* (`Failed to create CoreCLR` / exit `137`, => Axis 1 below), or `dataverse auth list` is empty right after a "successful" sign-in. **Do not install a CLI just to probe** — the two signals above already decide it.
+### Classification (deterministic — decide by evidence)
+
+| Evidence | Classification |
+|---|---|
+| Any local agent (desktop or CLI) on Windows or macOS | **Capable** (default) |
+| Filesystem / command approval prompts | **Capable** — an approval gate is not a constraint |
+| A required CLI is missing | **Install it** — not evidence of constraint |
+| Explicit **Codex cloud** sandbox, **ChatGPT Work Mode**, or **CI** | **Constrained** |
+| Linux with no `$DISPLAY` / D-Bus / keyring | **Constrained** — no credential store (Axis 2) |
+| CLI installed but its runtime can't start (`Failed to create CoreCLR` / exit `137`) | **Constrained** (Axis 1) |
+| `dataverse auth list` empty right after a "successful" sign-in | **Constrained** — no persistence |
+
+**Only three probes are decisive** (do NOT install a CLI just to probe — context + keyring already decide most cases):
+1. **Context** — explicit **Codex cloud** / **ChatGPT Work Mode** / **CI** is constrained. **SSH / container is NOT decisive by itself** — you can SSH into a capable Windows/macOS/keyring Linux box; check OS, keyring, runtime startup, and credential persistence, not the label.
+2. **Keyring** — `sys.platform == 'linux'` with no `$DISPLAY` and no running `gnome-keyring` / `dbus` => no credential store.
+3. **Runtime/persistence (only when the CLI is ALREADY installed)** — bare `dataverse` (or bare `pac`) cannot *launch* due to a runtime error (`Failed to create CoreCLR` / exit `137`). A **usage or authentication error is NOT a runtime-start failure** (`dataverse --version` / `pac --version` are not valid commands — do not use them as the probe). Or, after sign-in, an unexpectedly empty `dataverse auth list` indicates a persistence failure.
 
 **If NONE apply, STOP — you are on a capable host.** Close this file and run the normal `dv-connect`
-flow unchanged (DV CLI + PAC + native MCP + Python SDK all work). Nothing here applies; do not degrade
-a capable host with these overrides.
+flow: the host **supports** DV CLI, PAC, the Python SDK, persistent authentication, and local MCP
+configuration (capable = can be installed / configured / run, not necessarily already installed / authed /
+loaded). A *local* agent (any of the above, desktop or CLI) is filesystem-sandboxed
+but fully CAPABLE — it is NOT a *cloud* sandbox (Codex cloud / ChatGPT Work Mode); do not degrade it with
+these overrides.
 
 ---
 

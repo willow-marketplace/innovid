@@ -1,8 +1,8 @@
 {
   "name": "dataverse",
-  "version": "1.11.1",
+  "version": "1.11.2",
   "description": "Microsoft Dataverse plugin for coding agents — powering CRUD, bulk data operations, advanced queries, schema lifecycle, and environment management through intelligent skills that unify MCP, CLI, and SDK workflows.",
-  "updatedAt": "2026-08-12T12:18:05.944Z",
+  "updatedAt": "2026-08-13T00:01:36.895Z",
   "author": {
     "url": "https://www.microsoft.com",
     "name": "Microsoft"

@@ -1696,18 +1696,8 @@ def collect_subagent_skill_tags(
                 add_skill_tags_from_rows(rows, names, "subagent-skill:")
     return names
 
-def short_session_label(session_id: str, max_len: int = 12) -> str:
-    """Return a compact session label for trace names."""
-    sid = session_id.strip()
-    if not sid:
-        return "unknown"
-    parts = sid.split("-")
-    if len(parts) == 5 and len(parts[0]) == 8:
-        return parts[0]
-    return sid if len(sid) <= max_len else sid[:max_len].rstrip("-")
-
-def trace_display_name(session_id: str, turn_num: int) -> str:
-    return f"Claude Code - Turn {turn_num} ({short_session_label(session_id)})"
+# Constant on purpose: a shared trace name keeps Langfuse name-based grouping usable.
+TRACE_NAME = "Claude Code Turn"
 
 def get_trace_tags(
     turn: Turn,
@@ -2679,7 +2669,7 @@ def emit_turn(langfuse: Langfuse, session_id: str, turn_num: int,
         attribute_propagation = propagate_attributes(
             session_id=session_id,
             user_id=user_id,
-            trace_name=trace_display_name(session_id, turn_num),
+            trace_name=TRACE_NAME,
             tags=get_trace_tags(turn, subagent_transcripts_by_tool_use_id),
         )
     else:

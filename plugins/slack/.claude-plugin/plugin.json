@@ -1,8 +1,8 @@
 {
   "name": "slack",
   "version": "1.2.0",
-  "description": "Bring Slack into your AI tools with a Slack MCP server and Slack skills",
-  "updatedAt": "2026-08-12T12:18:05.866Z",
+  "description": "Slack AI tools for users and developers: interact with your workspace via the Slack MCP server and use skills to develop Slack apps.",
+  "updatedAt": "2026-08-13T00:02:03.725Z",
   "author": {
     "url": "https://slack.com",
     "name": "Slack"
