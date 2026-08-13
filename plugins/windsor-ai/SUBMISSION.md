@@ -10,14 +10,14 @@ The entry in `.claude-plugin/marketplace.json` would look something like:
 ```json
 {
   "name": "windsor-ai",
-  "description": "Connect Claude Code to 325+ business data sources via Windsor.ai. Query marketing, sales, CRM, ecommerce, finance, and analytics data from Google Ads, Meta, HubSpot, Salesforce, Shopify, Stripe, and hundreds more.",
+  "description": "Connect Claude Code to 350+ business data sources via Windsor.ai. Query marketing, sales, CRM, ecommerce, finance, and analytics data from Google Ads, Meta, HubSpot, Salesforce, Shopify, Stripe, and hundreds more.",
   "author": {
     "name": "Windsor.ai",
     "email": "support@windsor.ai"
   },
   "source": {
     "source": "github",
-    "repo": "windsorai/claude-code-plugin"
+    "repo": "windsor-ai/claude-windsor-ai-plugin"
   }
 }
 ```

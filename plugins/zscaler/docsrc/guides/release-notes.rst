@@ -6,6 +6,32 @@ Release Notes
 Zscaler Integrations MCP Server Changelog
 ------------------------------------------
 
+## 0.15.2 (August 13, 2026)
+
+### Notes
+
+- Python Versions: **v3.11, v3.12, v3.13, v3.14**
+
+### Bug Fixes
+
+`Issue #96 <https://github.com/zscaler/zscaler-mcp-server/issues/96>`_ - **ZPA list tools can now paginate past the first 20 results.** The ZPA API paginates (default 20 rows, max 500) and 16 list tools had no way to request more, so large tenants silently saw a truncated view — including policy rules, where evaluation order matters. All five policy-rule families (access, timeout, forwarding, isolation, app protection) plus 11 further ZPA list tools (BA certificates, PRA credentials/portals, provisioning keys, SAML/SCIM attributes, SCIM groups, app-protection/posture profiles, trusted networks, enrollment certificates) now accept ``page`` and ``page_size``, and the policy-rule tools also accept ``search``.
+
+`Issue #95 <https://github.com/zscaler/zscaler-mcp-server/issues/95>`_ - **The entitlement filter no longer strips working Cloud & Branch Connector, ZIdentity, and Z-Insights tools.** ZIdentity emits ``CLOUD_CONNECTOR``, ``ZIAM``, and ``ZINSIGHTS`` in the token's ``service-info`` claim — values the filter did not recognize, so it removed ``ztw_*`` / ``zid_*`` / ``zins_*`` tools the tenant was genuinely entitled to. The three values are now mapped (pinned against a live token), and any unmapped product value is named in a startup warning so a future mapping gap is visible instead of masquerading as a missing entitlement.
+
+`Issue #98 <https://github.com/zscaler/zscaler-mcp-server/issues/98>`_ - **A missing customer ID is no longer reported as a missing credential.** ``ZSCALER_CUSTOMER_ID`` (ZPA) and ``ZCELL_CUSTOMER_ID`` (ZCell) are tenant-scope identifiers, but the error called them "missing OneAPI credentials", sending operators to re-check a client ID / secret that was working fine. The error now names the product family that needs the value, states that authentication itself is unaffected, and notes that the value may not exist on a tenant not entitled to that product.
+
+## 0.15.1 (August 12, 2026)
+
+### Notes
+
+- Python Versions: **v3.11, v3.12, v3.13, v3.14**
+
+### Enhancements
+
+**``zia_list_url_categories`` can now answer "which category contains this URL?" in one small call.** A new ``contains_url`` parameter filters the response server-side to only the categories whose admin-configured URL entries cover the given URL, each annotated with a ``_url_match`` field naming the entries that matched. Matching follows ZIA's own domain semantics (``.app.box.com`` covers ``app.box.com``; a bare ``box.com`` covers its subdomains). Previously the only option was returning every category in full — on tenants with large custom URL lists a single question could cost over 100,000 response tokens and overflow gateway context limits; the same question now returns only the matching category records.
+
+**Tools that return content captured from outside the tenant now label it as untrusted.** The three EASM tools that surface externally-authored text (``zeasm_get_finding_evidence``, ``zeasm_get_finding_scan_output``, ``zeasm_get_lookalike_domain`` WHOIS data) prepend a notice instructing the model to treat the values as data, never as instructions — a defense-in-depth measure against indirect prompt injection. The records themselves are unchanged.
+
 ## 0.15.0 (July 30, 2026)
 
 ### Notes

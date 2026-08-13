@@ -9,7 +9,7 @@ Recognized installer hosts: `claude-code`, `codex`, `copilot`, `cursor`, `devin`
 
 ## Unix / macOS
 
-**Escape hatch — run in your terminal**
+**Installer command — run in your terminal**
 
 ```bash
 curl -fsSL --retry 2 https://teamwork-graph.atlassian.com/cli/install | bash
@@ -36,7 +36,7 @@ fi
 
 ## Windows PowerShell
 
-**Escape hatch — run in PowerShell**
+**Installer command — run in PowerShell**
 
 ```powershell
 curl.exe -fsSL https://teamwork-graph.atlassian.com/cli/install.ps1 -o "$env:TEMP\twg-install.ps1"
@@ -60,7 +60,7 @@ if (-not $TWG_BIN -and $env:LOCALAPPDATA) {
   if (Test-Path -LiteralPath $fallback -PathType Leaf) { $TWG_BIN = $fallback }
 }
 if (-not $TWG_BIN) {
-  Write-Warning "twg was not found; use the escape hatch above."
+  Write-Warning "twg was not found; use the installer command above."
 }
 if ($TWG_BIN) {
   & $TWG_BIN doctor
@@ -75,17 +75,19 @@ narrate the plugin argument or describe attribution or analytics to the user.
 
 1. Run the OS-specific **Inspect** block.
 2. If the CLI is missing:
-   - Full interactive terminal: after explicit approval, run the escape-hatch installer
+   - Full interactive terminal: after explicit approval, run the installer command
      outside the sandbox only if prompts remain visible and answerable.
-   - Limited terminal or failed download: give the OS escape hatch to the user; include the
+   - Limited terminal or failed download: give the OS installer command to the user; include the
      plugin argument for a recognized host. Do not execute it.
-3. Treat a fresh install as complete only when every required installer stage succeeds. On
-   fresh-install failure, provide only the failure explanation, full installer command, and
-   `When it finishes, reply done.` Put the command in a fenced `bash` or `powershell` block with
-   the raw URL; never render it inline or as a Markdown link. Do not mention any `twg` command,
-   including `doctor`, until the user replies `done`.
-4. Only after full installer success, run `doctor` yourself. Never ask the user to run it or
-   paste its output, and never reinstall for auth, permission, or command errors.
+3. If an interactive stage does not finish, do not retry it or start another interactive command.
+   Give the user only the interactive command for that unfinished stage, using matching
+   installer-reported remediation when present. Do not include `doctor` or other follow-up
+   commands; step 4 owns them. Add `When it finishes, reply done.` Put every installer or
+   remediation command handed to the user in a fenced `bash` or `powershell` block. Use raw URLs;
+   never render a command inline or as a Markdown link.
+4. After full installer success, or after the user replies `done`, run `doctor` yourself. Never
+   ask the user to run it or paste its output, and never reinstall for auth, permission, or
+   command errors.
 
 ## Terminal capability
 
@@ -97,16 +99,16 @@ Setup can prompt for agreement consent, required OAuth, and optional Bitbucket c
   session where post-start input is unavailable or uncertain.
 - Only a full interactive terminal may run installation or interactive `twg setup`,
   `twg login`, and `twg setup bitbucket` outside the sandbox.
-- With a limited terminal, do not start an interactive flow; give the OS escape hatch to the
-  user, including the plugin argument when recognized.
-- Run the installer once in the foreground. If input becomes unavailable, stop only that task
-  and follow step 3; do not background, poll, sleep, guess answers or phase, retry, or kill by
-  process name. Show only OAuth URLs and codes emitted by the active attempt; never invent or
-  reuse them.
+- With a limited terminal, do not start an interactive flow; give the applicable installer or
+  remediation command to the user.
+- Run each interactive command once in the foreground. If input becomes unavailable or the
+  command is interrupted, stop only that task and follow step 3. Do not background, poll, sleep,
+  guess answers or phase, retry, launch a replacement, or kill by process name. Show only OAuth
+  URLs and codes emitted by the active attempt; never invent or reuse them.
 - Before requesting approval, explain that the installer downloads `twg`, writes it to the
   standard location, and installs global skills.
 - Installer execution requires explicit approval; a setup request alone is not approval.
-- Escape hatch means only an OS installer command above, never a `twg ...` command.
+- Installer command means only an OS installer command above, never a `twg ...` command.
 
 ## Setup behavior
 
@@ -121,7 +123,8 @@ Setup can prompt for agreement consent, required OAuth, and optional Bitbucket c
 
 ## Doctor remediation
 
-Use this section only for a pre-existing install or after full installer success.
+Use this section only for a pre-existing install, after full installer success, or after the user
+completes a handed-off interactive step and replies `done`.
 Run only the reported fix.
 
 - With a full interactive terminal, run auth or setup fixes outside the sandbox.

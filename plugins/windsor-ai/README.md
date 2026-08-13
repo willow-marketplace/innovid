@@ -20,7 +20,7 @@ This plugin gives Claude Code access to your business data through [Windsor.ai](
 Or install from this repository:
 
 ```bash
-claude plugin marketplace add https://github.com/windsorai/claude-code-plugin
+claude plugin marketplace add https://github.com/windsor-ai/claude-windsor-ai-plugin
 claude plugin install windsor-ai
 ```
 

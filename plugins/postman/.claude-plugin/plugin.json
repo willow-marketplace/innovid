@@ -2,7 +2,7 @@
   "name": "postman",
   "version": "1.3.1",
   "description": "Full API lifecycle management for Claude Code. Sync collections, generate client code, discover APIs, run tests, create mocks, publish docs, and audit security. Powered by the Postman MCP Server.",
-  "updatedAt": "2026-08-13T00:18:29.504Z",
+  "updatedAt": "2026-08-13T12:02:00.217Z",
   "author": {
     "url": "https://www.postman.com",
     "name": "Postman"
