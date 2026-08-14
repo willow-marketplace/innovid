@@ -81,16 +81,26 @@ silently return zero. The split is about whether you already hold the object:
     Ngsiem.detection.id = ?detectID
     ```
 
-  - **Correlation-rule detections** → **Get Detection Details** action, NOT an
-    Event Query. The rule trigger exposes only the composite `DetectionID` and an
-    opaque `ID`; neither matches the `Ngsiem.detection.id` value that Advanced
-    event search filters on, and that field is not in the trigger schema. The
-    field that used to bridge it (`Ngsiem.original_indicator.id`) is gone from the
-    rule-trigger events, so a correlation-rule detection cannot be hydrated via
-    Event Query today. Add a **Get Detection Details** gather step (or a
-    CrowdStrike HTTP Request to `/alerts/entities/alerts/v2` passing the composite
-    `DetectionID` as `composite_id`) to fetch the full detection, then read fields
-    from its response.
+  - **Correlation-rule detections** → hydrate with the same
+    `Ngsiem.alert.id = ?detectID` query. It works, but returns **multiple records**
+    (the underlying events plus a correlation "meta-event" that only signals the
+    rule fired), so `results[0]` is non-deterministic across runs. Drop the
+    meta-event and keep the real events:
+
+    ```
+    Ngsiem.alert.id = ?detectID
+    | xdr_type != correlation-rule-detection
+    | report_name != *
+    ```
+
+    or project named columns with `table([field1, field2, ...])`. Restrict the
+    action's output schema to only the fields you read, so runs that omit some
+    fields don't fail schema validation. Event Query is how you reach the
+    **event-level detail** (per-event source IP, country, and so on) that made up
+    the detection. A **Get Detection Details** action returns the detection
+    *object* instead — reach for it when the object's summary fields are all you
+    need, or call `/alerts/entities/alerts/v2` with the composite `DetectionID` as
+    `composite_id` for that same object.
 
   **Treat detection IDs as opaque.** Per the detections team, `composite_id` (what
   the trigger hands you) is the primary key used to retrieve a detection, but its

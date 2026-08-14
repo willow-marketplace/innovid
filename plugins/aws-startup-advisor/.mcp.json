@@ -21,6 +21,29 @@
     "awsknowledge": {
       "url": "https://knowledge-mcp.global.api.aws",
       "type": "http"
+    },
+    "temporal-docs": {
+      "url": "https://temporal.mcp.kapa.ai",
+      "type": "http"
+    },
+    "aws-pricing-calculator": {
+      "args": [
+        "-y",
+        "sample-aws-pricing-calculator-mcp@1.2.8"
+      ],
+      "type": "stdio",
+      "command": "npx",
+      "timeout": 120000,
+      "autoApprove": [
+        "get_server_info",
+        "search_services",
+        "get_service_fields",
+        "create_estimate",
+        "add_service",
+        "validate_estimate",
+        "build_estimate",
+        "export_estimate"
+      ]
     }
   }
 }

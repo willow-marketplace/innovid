@@ -48,6 +48,9 @@ Bootstrap a non-custodial USDC agent wallet with the Circle CLI. Covers install 
 ### fund-agent-wallet
 Fund a Circle agent wallet with USDC. Covers the fiat on-ramp (buy USDC with USD/card) and crypto transfer, plus Gateway/Nanopayments deposits used to pay for services. Payments are gas-abstracted (USDC only, no ETH required).
 
+### recover-eco-funds
+Diagnose and recover USDC from a legacy Circle CLI Eco deposit. Covers onchain intent reconstruction, permissionless self-refunds after the deadline, and ERC-3009 sweeps from an API-verified backing EOA to its linked SCA with explicit approval before each broadcast.
+
 ### pay-via-agent-wallet
 Pay for x402 services on Circle's marketplace. Search paid HTTP endpoints by keyword, inspect price and schema, then settle per call in USDC with `circle services pay`. No API keys, accounts, or prefunded billing required.
 

@@ -2,7 +2,7 @@
   "name": "aiven",
   "version": "1.0.6",
   "description": "Easily deploy managed PostgreSQL (pg), Kafka, OpenSearch, Clickhouse and other databases, streaming and apps. Free tier available, up and running in minutes.",
-  "updatedAt": "2026-08-13T12:02:38.571Z",
+  "updatedAt": "2026-08-14T00:03:28.494Z",
   "author": {
     "url": "https://aiven.io",
     "name": "Aiven"

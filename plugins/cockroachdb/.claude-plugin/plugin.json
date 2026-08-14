@@ -2,7 +2,7 @@
   "name": "cockroachdb",
   "version": "0.1.10",
   "description": "Connect Claude Code directly to your CockroachDB clusters for hands-on database work — explore schemas, write optimized SQL, debug queries, and manage distributed database clusters. This plugin provides tools across MCP backends (self-hosted MCP Toolbox and managed CockroachDB Cloud MCP Server), specialized agents (DBA, Developer, Operator), skills across operational domains, and built-in safety hooks.",
-  "updatedAt": "2026-08-13T12:02:54.241Z",
+  "updatedAt": "2026-08-14T00:04:01.363Z",
   "author": {
     "url": "https://github.com/cockroachdb",
     "name": "Cockroach Labs"
