@@ -2,7 +2,7 @@
   "name": "streaming-skills-plugin",
   "version": "1.2.1",
   "description": "Skills for streaming application developers, covering Kafka and Flink client libraries and Schema Registry",
-  "updatedAt": "2026-08-14T12:02:20.268Z",
+  "updatedAt": "2026-08-14T12:18:20.524Z",
   "author": {
     "name": "Confluent"
   },

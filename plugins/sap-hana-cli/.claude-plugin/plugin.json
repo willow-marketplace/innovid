@@ -2,7 +2,7 @@
   "name": "sap-hana-cli",
   "version": "1.0.0",
   "description": "150+ SAP HANA database tools for AI assistants. Query tables, import/export data, profile data quality, compare schemas, manage backups, monitor performance, and more. Connects to SAP HANA Cloud and on-premise databases.",
-  "updatedAt": "2026-08-14T12:02:13.909Z",
+  "updatedAt": "2026-08-14T12:18:20.489Z",
   "author": {
     "url": "https://github.com/SAP-samples",
     "name": "SAP"
