@@ -1,8 +1,8 @@
 {
   "name": "wix",
-  "version": "1.16.0",
+  "version": "1.16.1",
   "description": "Build, manage, and deploy Wix sites and apps. Includes CLI development skills and Wix MCP server for site management, eCommerce, CMS, dashboard extensions, and more.",
-  "updatedAt": "2026-08-14T00:22:35.291Z",
+  "updatedAt": "2026-08-14T12:02:29.647Z",
   "author": {
     "url": "https://dev.wix.com",
     "name": "Wix"

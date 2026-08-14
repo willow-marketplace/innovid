@@ -1,8 +1,8 @@
 {
   "name": "figma",
-  "version": "2.2.91",
+  "version": "2.2.95",
   "description": "Plugin that includes the Figma MCP server and Skills for common workflows",
-  "updatedAt": "2026-08-14T00:22:35.284Z",
+  "updatedAt": "2026-08-14T12:03:18.340Z",
   "author": {
     "name": "Figma"
   },

@@ -2,7 +2,7 @@
   "name": "airwallex-dev",
   "version": "0.1.0",
   "description": "Airwallex integration skills for Claude. Code-generation workflows that scaffold, configure, and wire Airwallex APIs into your project.",
-  "updatedAt": "2026-08-14T00:22:35.347Z",
+  "updatedAt": "2026-08-14T12:02:43.878Z",
   "author": {
     "url": "https://www.airwallex.com",
     "name": "Airwallex"
