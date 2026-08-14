@@ -2,7 +2,7 @@
   "name": "pyright-lsp",
   "version": "1.0.0",
   "description": "Python language server (Pyright) for type checking and code intelligence",
-  "updatedAt": "2026-08-14T00:05:01.132Z",
+  "updatedAt": "2026-08-14T00:22:35.310Z",
   "author": {
     "name": "Anthropic",
     "email": "support@anthropic.com"

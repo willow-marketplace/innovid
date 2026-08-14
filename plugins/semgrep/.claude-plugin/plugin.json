@@ -2,7 +2,7 @@
   "name": "semgrep",
   "version": "2.0.3",
   "description": "Semgrep Guardian: Scans agent-generated code for security vulnerabilities.",
-  "updatedAt": "2026-08-13T12:29:01.087Z",
+  "updatedAt": "2026-08-14T00:22:35.300Z",
   "author": {
     "url": "https://github.com/semgrep",
     "name": "Semgrep"
