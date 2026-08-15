@@ -2,7 +2,7 @@
   "name": "datadog",
   "version": "0.7.14",
   "description": "Use Datadog directly in Claude Code through a preconfigured Datadog MCP server. Query logs, metrics, traces, dashboards, and more through natural conversation. This plugin is in preview.",
-  "updatedAt": "2026-08-15T00:03:01.512Z",
+  "updatedAt": "2026-08-15T12:03:03.663Z",
   "author": {
     "name": "Datadog"
   },
