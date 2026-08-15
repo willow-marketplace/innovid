@@ -13,6 +13,7 @@ description: Query LogRocket for session replays, metrics, issues, and user beha
 - Checking for regressions after recent deploys or commits
 - Prioritizing what to work on next based on real user impact
 - Investigating JavaScript errors, rage clicks, or dead clicks
+- Inspecting the network requests and responses a user's session actually made, such as failing API calls
 - Analyzing post-launch behavior for a new feature
 - Researching a specific user or account's sessions
 
@@ -25,6 +26,7 @@ This plugin connects with `?toolsets=all`, so all of these tools are available:
 - `use_logrocket`: Run natural language queries against your LogRocket data (sessions, metrics, issues), powered by Ask Galileo. It chains tool calls internally and is the best general-purpose entry point.
 - `find_sessions`: Filter LogRocket sessions by criteria like user, URL, time range, or events.
 - `watch_sessions`: Analyze one or more specific sessions and extract detailed, qualitative information about user behavior.
+- `get_network_entries`: Retrieve the raw network requests and responses recorded during a single session as a HAR 1.2 document, filtered by URL, HTTP method, status code, and time.
 - `build_metric`: Query LogRocket analytics data directly.
 - `find_issues`: List a project's issues - JavaScript exceptions, network errors, rage clicks, dead clicks, frustrating network requests, error states, and mobile crashes - filtered by severity, triage status, issue type, and time range.
 
@@ -33,6 +35,7 @@ This plugin connects with `?toolsets=all`, so all of these tools are available:
 1. For broad or open-ended requests, call the `use_logrocket` MCP tool with a natural language `query` describing what you want to know — it handles sessions, metrics, and issues end to end.
 2. For precise work, prefer the targeted tools:
    - Use `find_sessions` to filter down to relevant sessions, then `watch_sessions` to analyze or extract details from specific ones.
+   - Use `get_network_entries` instead of `watch_sessions` when you only need network data for a session. It takes the `recordingID` and `sessionID` returned by `find_sessions`, and narrowing with `urlFilter`, `methods`, `minStatus`/`maxStatus`, or `startTime`/`endTime` keeps responses small. Results are paginated, so when `offset + limit` is less than `total`, call again with a higher `offset`. Truncated or missing bodies, headers, cookies, and timings are expected and don't indicate a problem with the recorded app. To cover many sessions, call this once per session found by `find_sessions`.
    - Use `build_metric` to query analytics/metrics data directly.
    - Use `find_issues` for issue triage. It defaults to severe, untriaged issues from the last week, so widen `severity`, `triageStatuses`, or the date range when the user asks for something broader. Issues data is only retained for 30 days. When an issue already has an `issueAnalysis`, use it instead of re-deriving the root cause, and follow up with `watch_sessions` on affected sessions when you need more detail.
 3. If the user hasn't specified an organization or project, use the `list_organizations` and `list_projects` tools to discover them. If multiple are found, ask the user which to use.

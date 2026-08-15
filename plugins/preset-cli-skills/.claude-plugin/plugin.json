@@ -2,7 +2,7 @@
   "name": "preset-cli-skills",
   "version": "1.0.0",
   "description": "Preset CLI skills for explicit shell, scripting, and CI/CD workflows driven by the `sup` CLI (PyPI package `superset-sup`). Use only for CLI workflows; do not use for MCP-only work or as a substitute for direct API calls when the user wants HTTP/SDK code.",
-  "updatedAt": "2026-08-14T12:18:20.451Z",
+  "updatedAt": "2026-08-15T00:03:34.376Z",
   "author": {
     "url": "https://preset.io/",
     "name": "Preset"

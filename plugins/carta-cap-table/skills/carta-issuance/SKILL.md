@@ -177,6 +177,13 @@ and never attempt `render-panel` when `preview_start` is absent.
 ToolSearch: "select:mcp__carta__fetch,mcp__carta__mutate,mcp__carta__welcome,mcp__carta__list_accounts"
 ```
 
+`mcp__carta__` is the placeholder prefix
+([Step 2a](#step-2a--carta-command-names-hardcoded-never-discovered)) — when the session's
+Carta tools carry a different prefix, substitute it into the `select:` string; the names after
+the prefix never change. Zero matches on the literal `mcp__carta__` names means the wrong
+prefix, not a disconnected server — re-check the session's tool list before treating it as the
+Step 3 stop.
+
 One call, four tools, the complete set for the run. **`mutate` is loaded here, up front**, so
 Phase 2 never has to load it after the user confirms — that would be serial latency at the
 worst possible moment. On the Cowork path, add `mcp__visualize__show_widget` to the same
@@ -195,18 +202,40 @@ mcp__carta__fetch({"command": "cap_table:get:<noun>",     "params": {…}})
 mcp__carta__mutate({"command": "cap_table:mutate:<noun>", "params": {…}})
 ```
 
+**`mcp__carta__` is a placeholder** — here, in every code block below, and in every reference
+file. The real prefix is environment-dependent (`mcp__carta-test__fetch`, plugin-scoped and
+UUID-suffixed connector forms all occur). Resolve it from the session's tool list and
+substitute it everywhere; only the prefix varies — tool and command names never do. The one
+exception: the frontmatter `allowed-tools` entries are literal grant patterns — never
+substitute there.
+
 | Purpose | Command | Tool |
 |---|---|---|
 | Reference data for the collection surface | `cap_table:get:issuance_init` | `fetch` |
 | Stakeholder lookup | `cap_table:get:stakeholders` | `fetch` |
 | Load an existing set's rows | `cap_table:get:load_drafts` | `fetch` |
 | List draft sets (resume by name) | `cap_table:list:draft_sets` | `fetch` |
+| Cap-table totals for context math — authorized, outstanding, fully diluted, ownership % | `cap_table:get:cap_table_by_share_class` | `fetch` |
 | Save rows, no validation | `cap_table:mutate:save_drafts` | `mutate` |
 | Validate a saved set | `cap_table:mutate:validate_drafts` | `mutate` |
 | Save + validate + dedupe + issue | `cap_table:mutate:issue_securities` | `mutate` |
 | Resolve flagged duplicates | `cap_table:mutate:resolve_duplicate_stakeholder` | `mutate` |
 
-**Go through `fetch`/`mutate`, not `call_tool`.** Both are *pinned gateway* tools: always
+> **The totals source has a breakdown-sounding name.** `cap_table:get:cap_table_by_share_class`
+> — `corporation_id` alone — returns authorized, outstanding, fully diluted, and ownership %.
+> Context math only (e.g. percent-of-fully-diluted for a grant), never a payload source. There
+> is no `cap_table:get:cap_table_summary` — guessing it returns *"Unknown command"* — and the
+> similar-sounding `cap_table_summary_report` is a different plugin's report command, not a
+> name here; the row above is this skill's totals source.
+
+**Go through `fetch`/`mutate`, not `call_tool`.** The runtime's tool descriptions deprecate
+`fetch` in favour of `call_tool` and `discover` in favour of `search_tools`. That notice is
+known and deliberately not followed — do not "fix" the contradiction. `fetch` stays because
+the per-command tools `call_tool` would target are excluded from `tools/list` (the mechanics
+below); the `discover` half is moot here because every command name is hardcoded in the table
+above, so discovery never runs (full story:
+[incidents.md § Round-trips](references/incidents.md#round-trips-that-bought-nothing)).
+Both `fetch` and `mutate` are *pinned gateway* tools: always
 present in `tools/list`, reachable in one hop, with scope and staff checks enforced inside the
 command executor. The double-underscore form (`cap_table__mutate__issue_securities`) is not a
 typo for a command name — carta-mcp also generates one hidden tool per command by swapping `:`
@@ -267,8 +296,45 @@ no dependencies on each other; serial fetches here are pure latency.
   `issuance_init` payload".
 
   **Read each section under its own name.** Never let one section's `count: 0` stand in for
-  another's, and **never stop the flow over a count** — the surface is built and opened
-  regardless (Hard rule 10).
+  another's. Exactly one count may stop the flow — the [Account-setup
+  gate](#account-setup-gate-option-grant-only) below, on `document_sets.count` read under that
+  name and no other. Every other count, zero included, never gates: the surface is built and
+  opened regardless (Hard rule 10).
+
+### Account-setup gate (option grant only)
+
+Runs once, immediately after the `issuance_init` payload is read — before FMV, jurisdiction,
+plan, or any surface work — and is skipped entirely when `security_type` is `certificate`. Both
+adapters run it: a zero-template corporation cannot issue from either surface.
+
+Read `document_sets.count` from the `document_sets` section, under that exact name. Confirm the
+section name before acting on the number: a real run aborted a valid issuance by reading
+`acceleration_templates`' zero as this section's ([incidents.md § Reading server data
+wrong](references/incidents.md#reading-server-data-wrong)). Then branch:
+
+- **`count >= 1`** → pass; continue the phase. No other section's count matters here —
+  `acceleration_templates.count: 0`, or any other empty list, is a normal state and never gates.
+- **`count == 0`** → stop before building any surface:
+
+  > *"Your corporation doesn't have any option-grant document templates set up yet. Create one in the Carta app, then come back."*
+
+- **`document_sets` failed to fetch** — `null` (named in the top-level `errors` or not), absent
+  outright, or present but not the documented `{count, results}` shape (missing or non-numeric
+  `count`) → a failed fetch, **not** `count: 0`. Run the section's fallback,
+  `cap_table:get:document_sets` with `security_type: "option_grant"`, and gate on that count
+  instead. If the fallback errors too, surface its message verbatim and stop as a fetch failure
+  — never with the no-templates message above.
+
+**Why stopping here doesn't break Hard rule 10.** Rule 10 forbids asking for *collectible
+fields* — anything the surface has a field for, like who the grantees are — before the surface
+opens. The surface's document-set field picks **among existing templates**; it cannot create
+one. Every grant row requires one (`document_set_id` is an `always` field), so with zero
+templates the field is unfillable from any surface and the batch it collects can never issue. A
+missing template is an **account-setup blocker** — the same category as an unreachable Carta MCP
+(Phase 0 Step 3) — and account setup happens in the Carta app, not on this surface.
+
+**The gate has exactly one member: `document_sets`, on option grants.** It is not a "stop on any
+empty section" rule and must not be read as one.
 
 ### Option grant: resolve the FMV and the jurisdiction (before building the surface)
 
