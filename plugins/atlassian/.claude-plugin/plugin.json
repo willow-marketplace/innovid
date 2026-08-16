@@ -2,7 +2,7 @@
   "name": "atlassian",
   "version": "1.0.0",
   "description": "Connect to Atlassian products including Jira and Confluence. Search and create issues, access documentation, manage sprints, and integrate your development workflow with Atlassian's collaboration tools.",
-  "updatedAt": "2026-08-16T00:03:32.081Z",
+  "updatedAt": "2026-08-16T00:21:09.059Z",
   "author": {
     "name": "Atlassian"
   },

@@ -2,7 +2,7 @@
   "name": "terraform-provider-development",
   "version": "1.0.0",
   "description": "Terraform provider development skills for Claude Code, including resources, data sources, actions, and acceptance testing.",
-  "updatedAt": "2026-08-15T12:20:18.617Z",
+  "updatedAt": "2026-08-16T00:21:09.313Z",
   "author": {
     "url": "https://github.com/hashicorp",
     "name": "HashiCorp"

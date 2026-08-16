@@ -2,7 +2,7 @@
   "name": "sentry-cli",
   "version": "1.0.0",
   "description": "Skills for using the Sentry CLI to interact with Sentry from the command line",
-  "updatedAt": "2026-08-16T00:05:18.124Z",
+  "updatedAt": "2026-08-16T00:21:09.079Z",
   "author": {
     "name": "Sentry"
   },
