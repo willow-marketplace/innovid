@@ -2,7 +2,7 @@
   "name": "cloudinary",
   "version": "1.1.2",
   "description": "Use Cloudinary directly in Claude. Upload, manage, optimize, and transform images and videos at scale using natural language.",
-  "updatedAt": "2026-08-16T00:21:09.086Z",
+  "updatedAt": "2026-08-16T12:02:35.683Z",
   "author": {
     "name": "Cloudinary",
     "email": "support@cloudinary.com"
