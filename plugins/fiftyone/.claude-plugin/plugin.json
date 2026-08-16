@@ -2,7 +2,7 @@
   "name": "fiftyone",
   "version": "1.0.3",
   "description": "Build high-quality datasets and computer vision models. Visualize datasets, analyze models, find duplicates, run inference, evaluate predictions, and develop custom plugins.",
-  "updatedAt": "2026-08-16T12:03:00.332Z",
+  "updatedAt": "2026-08-16T12:02:44.036Z",
   "author": {
     "name": "Voxel51"
   },

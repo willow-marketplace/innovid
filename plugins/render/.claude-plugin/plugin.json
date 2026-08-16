@@ -2,7 +2,7 @@
   "name": "render",
   "version": "1.0.0",
   "description": "Deploy, debug, and monitor applications on Render. Includes skills, an agent, slash commands, a render.yaml validation hook, and the Render MCP server preconfigured over OAuth.",
-  "updatedAt": "2026-08-16T12:03:02.309Z",
+  "updatedAt": "2026-08-16T12:02:27.897Z",
   "author": {
     "url": "https://render.com",
     "name": "Render",
