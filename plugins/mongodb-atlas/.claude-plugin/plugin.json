@@ -2,6 +2,6 @@
   "name": "mongodb-atlas",
   "version": "1.0.0",
   "description": "Official Antigravity plugin for MongoDB Atlas (hosted MCP Server + Skills). Connect to the MongoDB-hosted Atlas MCP server, explore data, manage collections, optimize queries, generate reliable code, implement best practices, develop advanced features, and more.",
-  "updatedAt": "2026-08-15T12:03:27.458Z",
+  "updatedAt": "2026-08-16T00:04:47.762Z",
   "skills": "./skills/"
 }
