@@ -2,7 +2,7 @@
   "name": "azure",
   "version": "1.2.29",
   "description": "Microsoft Azure MCP and Skills integration for cloud resource management, deployments, and Azure services. Manage your Azure infrastructure, monitor applications, and deploy resources directly from Claude Code.",
-  "updatedAt": "2026-08-16T12:02:40.049Z",
+  "updatedAt": "2026-08-17T00:03:09.953Z",
   "author": {
     "url": "https://www.microsoft.com",
     "name": "Microsoft"
