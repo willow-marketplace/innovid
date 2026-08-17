@@ -1,8 +1,8 @@
 {
   "name": "databricks",
-  "version": "0.2.10",
+  "version": "0.2.11",
   "description": "Databricks skills for the CLI, Apps, Lakebase, Model Serving, Lakeflow Jobs, Spark Declarative Pipelines, Declarative Automation Bundles (DABs), and classic-to-serverless migration.",
-  "updatedAt": "2026-08-17T00:27:00.604Z",
+  "updatedAt": "2026-08-17T12:01:40.523Z",
   "author": {
     "url": "https://databricks.com",
     "name": "Databricks"

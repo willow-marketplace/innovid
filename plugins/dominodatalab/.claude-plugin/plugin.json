@@ -2,7 +2,7 @@
   "name": "dominodatalab",
   "version": "1.0.0",
   "description": "Full Domino Data Lab platform support — workspaces, jobs, model deployment, experiment tracking, GenAI tracing, Spark/Ray/Dask, and app deployment for data science teams",
-  "updatedAt": "2026-08-17T00:27:00.568Z",
+  "updatedAt": "2026-08-17T12:01:42.474Z",
   "author": {
     "url": "https://www.domino.ai",
     "name": "Domino Data Lab"

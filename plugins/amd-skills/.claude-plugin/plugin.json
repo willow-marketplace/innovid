@@ -2,7 +2,7 @@
   "name": "amd-skills",
   "version": "1.0.0",
   "description": "AMD's verified Agent Skills in one plugin: route image/audio through local AI on Ryzen AI, serve LLMs on AMD Instinct GPUs with vLLM, and analyze GPU kernel and PyTorch trace performance.",
-  "updatedAt": "2026-08-17T00:27:00.609Z",
+  "updatedAt": "2026-08-17T12:01:10.980Z",
   "author": {
     "name": "AMD"
   },
