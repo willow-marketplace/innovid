@@ -366,8 +366,14 @@ These recipes do NOT cover frontend development or SDK usage for displaying data
 ### [Create Headless Site](references/sites/create-headless-site.md)
 **Technical:** Creates a Wix Headless site (headless business) with one account-level API call — site, Wix Business Solution apps, and a configured OAuth client.
 
+### [Manage OAuth Apps](references/sites/manage-oauth-apps.md)
+**Technical:** Create, read, update, and query OAuth apps for a Wix headless site. Each OAuth app's `id` is the `client_id` for frontends connecting to the site's Wix APIs. Secret and rotation are dashboard-only.
+
 ### [Query Sites](references/sites/query-sites.md)
 **Technical:** Lists and queries all sites associated with a Wix account using Sites API. Covers pagination with cursor-based navigation.
+
+### [Read Account or Site Context](references/sites/read-site-context.md)
+**Technical:** One call that returns a site's installed apps (by display name), locale, currency, status, and catalog version. Replaces separate query-sites + list-installed-apps + site-properties calls. Use this first on any unfamiliar site to decide which management recipes to follow.
 
 ### [Site Import](references/sites/site-import.md)
 **Technical:** Drives the autonomous Wix Site Import agent over REST (`/site-import/v1/imports`) to migrate a store/site from another platform (Shopify, WooCommerce, Magento, or any URL) into Wix. Covers Start/Poll/Reply/Cancel, relaying agent questions and progress in plain language, handling `DEPLOYED`/`FAILED`/`AUTH_EXPIRED`/`SESSION_EXPIRED` states, and post-deploy follow-up changes. Use when the user wants to import, migrate, or clone an existing store/site into Wix.
