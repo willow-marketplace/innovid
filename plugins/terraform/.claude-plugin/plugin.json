@@ -2,7 +2,7 @@
   "name": "terraform",
   "version": "1.0.0",
   "description": "The Terraform MCP Server provides seamless integration with Terraform ecosystem, enabling advanced automation and interaction capabilities for Infrastructure as Code (IaC) development.",
-  "updatedAt": "2026-08-17T12:14:44.290Z",
+  "updatedAt": "2026-08-18T00:02:19.039Z",
   "author": {
     "name": "HashiCorp"
   },

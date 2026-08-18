@@ -22,6 +22,8 @@ Lookup files are CSV, JSON, or TXT reference tables in Falcon Next-Gen SIEM that
 the `match()` function in CrowdStrike Query Language (CQL). Common uses: IP blocklists, user
 risk scores, asset inventories, and IOC reference tables.
 
+> **Running the scripts.** Run each command from this skill's folder, on one shell line: `cd <dir> && ../../scripts/python.sh scripts/<name>.py`. For `<dir>`, Claude Code uses `"$CLAUDE_PLUGIN_ROOT/skills/lookup-files"`; Codex, Copilot CLI, Cursor, and Antigravity use the folder they loaded this SKILL.md from (e.g. `~/.agents/skills/lookup-files`). The wrapper bootstraps its own Python venv.
+
 ## Prerequisites
 
 - **Python 3.13+** with `crowdstrike-falconpy` installed (`pip install crowdstrike-falconpy`)
@@ -53,7 +55,7 @@ The scripts share auth via `common/scripts/auth.py`, which exposes
 `get_ngsiem_client()` for Next-Gen SIEM operations. Test credentials:
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/scripts/python.sh ../common/scripts/auth.py
+../../scripts/python.sh ../../common/scripts/auth.py
 ```
 
 ## Core Workflow
@@ -61,8 +63,8 @@ ${CLAUDE_PLUGIN_ROOT}/scripts/python.sh ../common/scripts/auth.py
 ### Step 1 — List (check for duplicates)
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/scripts/python.sh scripts/list_lookups.py --list
-${CLAUDE_PLUGIN_ROOT}/scripts/python.sh scripts/list_lookups.py --search "blocklist"
+../../scripts/python.sh scripts/list_lookups.py --list
+../../scripts/python.sh scripts/list_lookups.py --search "blocklist"
 ```
 
 ### Step 2 — Prepare the file
@@ -81,14 +83,14 @@ and `references/lookup-file-formats.md` for the full format rules.
 ### Step 3 — Upload
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/scripts/python.sh scripts/create_lookup.py --file blocklist.csv --name "ip-blocklist.csv"
+../../scripts/python.sh scripts/create_lookup.py --file blocklist.csv --name "ip-blocklist.csv"
 ```
 
 ### Step 4 — Verify
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/scripts/python.sh scripts/get_lookup.py --name "ip-blocklist.csv"
-${CLAUDE_PLUGIN_ROOT}/scripts/python.sh scripts/list_lookups.py --search "blocklist" --json
+../../scripts/python.sh scripts/get_lookup.py --name "ip-blocklist.csv"
+../../scripts/python.sh scripts/list_lookups.py --search "blocklist" --json
 ```
 
 ### Step 5 — Use in CQL
@@ -109,7 +111,7 @@ matches a non-existent column and returns nothing. See
 Replace the content while keeping the same filename:
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/scripts/python.sh scripts/update_lookup.py --name "ip-blocklist.csv" --file updated-blocklist.csv
+../../scripts/python.sh scripts/update_lookup.py --name "ip-blocklist.csv" --file updated-blocklist.csv
 ```
 
 > **Update is content-only — it does not carry labels.** The PATCH endpoint
@@ -124,7 +126,7 @@ ${CLAUDE_PLUGIN_ROOT}/scripts/python.sh scripts/update_lookup.py --name "ip-bloc
 ### Step 7 — Delete
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/scripts/python.sh scripts/delete_lookup.py --name "ip-blocklist.csv" --confirm
+../../scripts/python.sh scripts/delete_lookup.py --name "ip-blocklist.csv" --confirm
 ```
 
 ## Lookup Files from Workflows

@@ -1,8 +1,8 @@
 {
   "name": "hostinger",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Deploy, manage and monitor Hostinger services — Websites, Domains & DNS, Ecommerce, Email, Email Marketing, WordPress, Subscriptions & Payments, and VPS. Authenticate via browser (OAuth)",
-  "updatedAt": "2026-08-17T12:14:44.339Z",
+  "updatedAt": "2026-08-18T00:01:43.650Z",
   "author": {
     "url": "https://www.hostinger.com",
     "name": "Hostinger"
@@ -12,7 +12,7 @@
   "mcpServers": {
     "hostinger": {
       "args": [
-        "hostinger-api-mcp@latest"
+        "hostinger-api-mcp@1.35.6"
       ],
       "command": "npx"
     }
