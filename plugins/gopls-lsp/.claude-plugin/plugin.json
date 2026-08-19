@@ -2,7 +2,7 @@
   "name": "gopls-lsp",
   "version": "1.0.0",
   "description": "Go language server for code intelligence and refactoring",
-  "updatedAt": "2026-08-19T12:04:19.579Z",
+  "updatedAt": "2026-08-19T12:24:59.009Z",
   "author": {
     "name": "Anthropic",
     "email": "support@anthropic.com"
