@@ -1,6 +1,6 @@
 ---
 name: agents-build
-description: "Use to extend an existing agent project with memory, app integration, VPC, multi-agent, migration, model, browser, code interpreter, payments, or resource removal. Triggers: \"add memory\", \"remember across sessions\", \"call agent from app\", \"invoke agent from code\", \"agent auth\", \"streaming\", \"VPC\", \"VPC connectivity\", \"can't reach from VPC\", \"multi-agent\", \"A2A\", \"A2A auth\", \"orchestrator not delegating\", \"specialist not called\", \"migrate Bedrock Agent\", \"migration issue\", \"change model\", \"browser tool\", \"code interpreter\", \"delete agent\", \"tear down\", \"agentcore remove\", \"cross-account memory\", \"add payments capability to my agent\", \"wire payments plugin\", \"payments middleware for my agent\", \"integrate x402 payments with the agent I'm building\", \"enable my agent project with x402 payments\". External APIs via Gateway: use agents-connect. New project: use agents-get-started. CLI/dev-server errors: use agents-debug. Runtime x402 payments: use agents-pay. Migration-specific Strands vs LangGraph routes here."
+description: "Use to extend an existing agent project with memory, app integration, VPC, multi-agent, migration, model, browser, code interpreter, payments, or resource removal. Triggers: \"add memory\", \"remember across sessions\", \"call agent from app\", \"invoke agent from code\", \"agent auth\", \"streaming\", \"VPC\", \"VPC connectivity\", \"can't reach from VPC\", \"multi-agent\", \"A2A\", \"A2A auth\", \"orchestrator not delegating\", \"specialist not called\", \"migrate Bedrock Agent\", \"migration issue\", \"change model\", \"browser tool\", \"code interpreter\", \"delete agent\", \"tear down\", \"agentcore remove\", \"cross-account memory\", \"add payments capability to my agent\", \"wire payments plugin\", \"integrate x402 payments with the agent I'm building\", \"add MPP payments\", \"Machine Payments Protocol\". External APIs via Gateway: use agents-connect. New project: use agents-get-started. CLI/dev-server errors: use agents-debug. Runtime x402/MPP payments: use agents-pay. Migration-specific Strands vs LangGraph routes here."
 ---
 
 # build
@@ -16,7 +16,7 @@ Add capabilities to your AgentCore agent project.
 - Migrating an existing Bedrock Agent to AgentCore
 - Adding the Browser tool so the agent can navigate websites
 - Adding the Code Interpreter so the agent can execute code in a sandbox
-- Adding AgentCore Payments so the agent can pay for x402-protected APIs, tools, or content
+- Adding AgentCore Payments so the agent can pay for x402- or MPP-protected APIs, tools, or content
 - Removing resources from your project or tearing down a deployment
 
 Do NOT use for:
@@ -74,7 +74,7 @@ Based on the developer's prompt and `$ARGUMENTS`, load the appropriate reference
 | Migrate Bedrock Agent, import agent, move to AgentCore | [`references/migrate.md`](references/migrate.md) |
 | Browser tool, web navigation, form filling, scraping, Nova Act, Playwright, live view | [`references/browser.md`](references/browser.md) |
 | Code Interpreter, execute code, sandbox, run Python/JS/TS, data analysis in agent, pandas | [`references/code-interpreter.md`](references/code-interpreter.md) |
-| Payments, pay for x402 content, 402 Payment Required, microtransactions, paid API/tool, payment manager/connector | [`references/payments.md`](references/payments.md) |
+| Payments, pay for x402 or MPP content, 402 Payment Required, Machine Payments Protocol, WWW-Authenticate: Payment, microtransactions, paid API/tool, payment manager/connector | [`references/payments.md`](references/payments.md) |
 | Delete agent, remove resource, tear down, clean up, destroy, start fresh | [`references/teardown.md`](references/teardown.md) |
 | Change model, switch model, use Haiku/Sonnet/Nova, different model | Inline — see "Changing the model" below |
 

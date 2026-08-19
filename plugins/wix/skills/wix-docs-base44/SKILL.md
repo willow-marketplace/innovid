@@ -9,7 +9,8 @@ Get the exact truth about a Wix API — endpoint, HTTP verb, request/response sh
 an error. **Discover everything: every endpoint, path, doc URL, body and enum comes from this
 skill's tools, never from training, memory, or pattern.** A URL you composed and a path you
 remembered are guesses even when they look right — and a 404 or an empty result means discover,
-not permute.
+not permute. That includes the example endpoints in this file: they illustrate the mechanics and
+go stale like any snapshot — discover the real contract before you rely on one.
 
 This is the [`wix-docs`](../wix-docs/SKILL.md) flow — find the right page, then read it — for a
 sandbox with no shell pipeline and a ~5,000-char cap on tool results. Documents therefore live on
@@ -35,7 +36,11 @@ const docs = (() => { const m = { exports: {} };
 
 (The module must be on disk first — `bootstrap.md` is the paste-ready bootstrap that installs
 this skill into the app via `npx skills add`; after it runs, the path is
-`/app/.agents/skills/wix-docs-base44/scripts/docs.js`.)
+`/app/.agents/skills/wix-docs-base44/scripts/docs.js`. When installing is not an option — no
+network to GitHub, or a one-shot paste — `references/base44-wix-discovery-execution-loop-guide-light.md` is the whole skill as a single
+self-contained prompt: every snippet a complete exec body, no module, no install, and **no disk**
+— every call fetches, reduces in memory, and returns under the result cap, so nothing ever lands
+in the app's repo.)
 
 | call | does | returns |
 |---|---|---|
@@ -139,7 +144,10 @@ docs.sections("cancel-booking")
       ### cancelBooking        offset 401, limit   9    camelCase = SDK snippet
 ```
 
-Know which `##` you are under before quoting anything.
+Know which `##` you are under before quoting anything. And **window the REST example first** —
+the `### Examples` row under `## REST API` (English title = curl) is a complete working request:
+exact URL, headers, and a body with real-format values. Model the call from it; read schema
+windows only for what the example leaves out (optional params, enums, validations).
 
 ## 4. Establish absence
 
@@ -160,14 +168,14 @@ difference between an answer and a silent `[]`:
 
 ```typescript
 lightIndex: Array<{             // RESOURCES, not methods
-  name: string                  // "Cart"
+  name: string                  // "Contacts V5"
   docsUrl: string               // the resource page
-  menuPath: string[]            // ["business-solutions", "e-commerce", "purchase-flow", "cart"]
+  menuPath: string[]            // ["crm", "members-contacts", "contacts", "contacts-v5"]
   methods: Array<{
-    operationId: string         // fully qualified: "com.wix.ecom…CartService.AddToCurrentCart"
+    operationId: string         // fully qualified: "wix.contacts.v5.Contacts.QueryContacts"
     summary: string; httpMethod: string
-    path: string                // PARTIAL ("/v1/carts/current/add-to-cart") — never call it
-    publicUrl: string           // "https://www.wixapis.com/ecom/v1/carts/current/add-to-cart" — call THIS
+    path: string                // PARTIAL ("/v5/contacts/query") — never call it
+    publicUrl: string           // "https://www.wixapis.com/contacts/v5/contacts/query" — call THIS
     docsUrl: string
   }>
 }>
@@ -185,12 +193,14 @@ round replaces guessing path variants:
 ```js
 await docs.specQuery(`async function(){
   const r = lightIndex.find(x => x.docsUrl ===
-    "https://dev.wix.com/docs/api-reference/business-solutions/e-commerce/purchase-flow/cart");
-  return r.methods.map(m => ({ op: m.operationId.split(".").pop(),
+    "https://dev.wix.com/docs/api-reference/crm/members-contacts/contacts/contacts-v5");
+  return r.methods.filter(m => /query/i.test(m.summary))
+                  .map(m => ({ op: m.operationId.split(".").pop(),
                                verb: m.httpMethod, call: m.publicUrl }));
 }`)
-// → { op: "AddToCurrentCart", verb: "post",
-//     call: "https://www.wixapis.com/ecom/v1/carts/current/add-to-cart" }
+// → { op: "QueryContacts", verb: "post",
+//     call: "https://www.wixapis.com/contacts/v5/contacts/query" }
+// (unfiltered, this resource's 32 methods overflow the inline budget — slice, don't dump)
 ```
 
 Schemas are huge, so return the slice you need and **iterate** — each call is one round; refine the
@@ -243,7 +253,7 @@ Two identities, and which one a call wants is part of what you read:
 ```js
 const { accessToken } = await base44.asServiceRole.connectors.getConnection("wix");
 return await docs.callApi({
-  url: "https://www.wixapis.com/stores/v3/products/query",   // from the page you just read
+  url: "https://www.wixapis.com/contacts/v5/contacts/query",   // from the page you just read
   token: accessToken,
   body: { query: { cursorPaging: { limit: 10 } } },
 });

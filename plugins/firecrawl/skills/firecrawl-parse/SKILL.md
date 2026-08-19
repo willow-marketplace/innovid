@@ -5,7 +5,7 @@ description: Efficiently extract and convert the contents of any local file—su
 
 # firecrawl parse
 
-Turn a local document into clean markdown on disk. Supports **PDF, DOCX, DOC, ODT, RTF, XLSX, XLS, HTML/HTM/XHTML**.
+Turn a local document into clean markdown on disk. Supports **PDF, DOCX, DOC, ODT, RTF, XLSX, XLS, HTML/HTM**.
 
 ## When to use
 
@@ -35,14 +35,14 @@ Then `head`, `grep`, `rg` etc., or incrementally read the file - don't load the 
 
 ## Options
 
-| Option                 | Description                             |
-| ---------------------- | --------------------------------------- |
-| `-S, --summary`        | AI-generated summary                    |
-| `-Q, --query <prompt>` | Ask a question about the parsed content |
-| `-o, --output <path>`  | Output file path — **always use this**  |
-| `-f, --format <fmt>`   | `markdown` (default), `html`, `summary` |
-| `--timeout <ms>`       | Timeout for the parse job               |
-| `--timing`             | Show request duration                   |
+| Option                   | Description                                                                                                                      |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
+| `-S, --summary`          | AI-generated summary                                                                                                             |
+| `-Q, --query <prompt>`   | Ask a question about the parsed content                                                                                          |
+| `-o, --output <path>`    | Output file path — **always use this**                                                                                           |
+| `-f, --format <formats>` | Comma-separated: `markdown`, `html`, `rawHtml`, `links`, `images`, `summary`, `json`, `attributes`. Multiple formats output JSON |
+| `--timeout <ms>`         | Timeout for the parse job                                                                                                        |
+| `--timing`               | Show request duration                                                                                                            |
 
 ## Tips
 
@@ -50,7 +50,7 @@ Then `head`, `grep`, `rg` etc., or incrementally read the file - don't load the 
 - Max upload size: **50 MB** per file.
 - Credits: ~1 per PDF page; HTML is 1 flat.
 - Check `.firecrawl/` before re-parsing the same file.
-- To check your credit balance (recommended for batch processing and similar workflows), use the `firecrawl credit-usage` command.
+- To check your credit balance (recommended for batch processing and similar workflows), use `firecrawl credit-usage` (requires authentication).
 
 ## See also
 

@@ -1,8 +1,8 @@
 {
   "name": "exa",
-  "version": "3.4.0",
+  "version": "3.4.1",
   "description": "Exa web search, content fetching, and multi-step research via MCP tools and skills.",
-  "updatedAt": "2026-08-18T12:03:44.915Z",
+  "updatedAt": "2026-08-19T00:03:59.489Z",
   "author": {
     "name": "Exa",
     "email": "hello@exa.ai"

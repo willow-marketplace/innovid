@@ -1,8 +1,8 @@
 {
   "name": "datadog",
-  "version": "0.7.14",
+  "version": "0.7.17",
   "description": "Use Datadog directly in Claude Code through a preconfigured Datadog MCP server. Query logs, metrics, traces, dashboards, and more through natural conversation. This plugin is in preview.",
-  "updatedAt": "2026-08-18T12:03:36.365Z",
+  "updatedAt": "2026-08-19T00:03:54.898Z",
   "author": {
     "name": "Datadog"
   },
@@ -14,5 +14,28 @@
     "observability",
     "productivity"
   ],
-  "skills": "./skills/"
+  "skills": "./skills/",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "^mcp__plugin_datadog_mcp__(get_widget|visualize_tabular_data)$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash"
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash"
+          }
+        ]
+      }
+    ]
+  }
 }

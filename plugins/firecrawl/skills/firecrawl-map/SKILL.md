@@ -7,11 +7,13 @@ description: Discover and list all URLs on a website, with optional search filte
 
 Discover URLs on a site. Use `--search` to find a specific page within a large site.
 
+**Prerequisite:** `map` requires authentication (no keyless free tier); without credentials the CLI prompts an interactive login.
+
 ## When to use
 
 - You need to find a specific subpage on a large site
 - You want a list of all URLs on a site before scraping or crawling
-- Step 3 in the [workflow escalation pattern](firecrawl-cli): search → scrape → **map** → crawl → interact
+- Step 3 in the [workflow escalation pattern](../firecrawl/SKILL.md): search → scrape → **map** + scrape → crawl → monitor → interact
 
 ## Quick start
 

@@ -6,7 +6,7 @@
   "rtk": false,
   "allow_outside_cwd": false,
   "allow_vim_shell": false,
-  "presets": ["github", "git"],
+  "presets": ["github", "git", "watch"],
   "validators": {
     "ruff": {
       "cmd": "{python} {supertool_dir}/validators/ruff/ruff.py {file}",
@@ -28,6 +28,16 @@
       "hooks_into": ["edit", "replace", "replace_lines", "paste", "append", "vim"],
       "rollback_on_fail": false,
       "timeout": 10
+    }
+  },
+  "ops": {
+    "radar": {
+      "radar_tiers": {
+        "gh-prs": {}
+      }
+    },
+    "git-push": {
+      "budget": 1500
     }
   },
   "builtin-ops": {

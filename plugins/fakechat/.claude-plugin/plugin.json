@@ -2,7 +2,7 @@
   "name": "fakechat",
   "version": "0.0.1",
   "description": "Localhost iMessage-style web chat for Claude Code — test surface with file upload and edits. No tokens, no access control.",
-  "updatedAt": "2026-08-18T12:03:43.155Z",
+  "updatedAt": "2026-08-19T00:03:58.978Z",
   "keywords": [
     "fakechat",
     "web",

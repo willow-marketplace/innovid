@@ -83,6 +83,7 @@ Auth resolves: `--api-key` flag > `RESEND_API_KEY` env > config file (`resend lo
 | `emails receiving` | list, get, attachments, forward, listen |
 | `domains` | create, verify, get, claim, update, delete, list |
 | `logs` | list, get, open |
+| `careers` | list, apply — browse open positions at Resend and apply |
 | `suppressions` _(beta)_ | list, add, get, delete, batch — requires account enrollment |
 | `api-keys` | create, list, delete |
 | `automations` | create, get, list, update, delete, stop, open, runs |
@@ -167,6 +168,7 @@ resend doctor -q
 - **Defining contact properties** → [references/contact-properties.md](references/contact-properties.md)
 - **Working with templates** → [references/templates.md](references/templates.md)
 - **Viewing API request logs** → [references/logs.md](references/logs.md)
+- **Browsing or applying to jobs at Resend** → [references/careers.md](references/careers.md)
 - **Managing the suppression list** (beta) → [references/suppressions.md](references/suppressions.md)
 - **Creating automations or sending events** → [references/automations.md](references/automations.md)
 - **Setting up webhooks or listening for events** → [references/webhooks.md](references/webhooks.md)

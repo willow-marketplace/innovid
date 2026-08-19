@@ -1,0 +1,25 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "^mcp__plugin_datadog_mcp__(get_widget|visualize_tabular_data)$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash"
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash"
+          }
+        ]
+      }
+    ]
+  }
+}
