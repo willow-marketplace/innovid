@@ -20,15 +20,16 @@ Five Cloudinary MCP servers are pre-configured:
 
 ### Skills
 
-Two skills are included to give the agent deep Cloudinary knowledge:
+Three skills are included to give the agent deep Cloudinary knowledge:
 
 | Skill | Directory | Description |
 |---|---|---|
 | **cloudinary-docs** | `skills/cloudinary-docs/` | Answers Cloudinary questions by fetching live documentation from `cloudinary.com/documentation/llms.txt`, ensuring accurate and up-to-date responses with real code examples. |
 | **cloudinary-transformations** | `skills/cloudinary-transformations/` | Creates and debugs Cloudinary transformation URLs from natural language. Covers resize/crop, generative AI effects, video transformations, overlays, named transformations, and cost optimization — with a built-in validation checklist and debugging guide. |
+| **claimable-cloud** | `skills/claimable-cloud/` | Provisions a working Cloudinary cloud with a single command and no signup (a Claimable Cloud) when no credentials are available — claimable by email within 24 hours to keep as a permanent free account. |
 
 ## Getting Started
 
 1. Install this plugin in Cursor/Claude Code.
-2. On first use, approve the OAuth login prompt for the MCP servers. For `cloudinary-mediaflows`, add your credentials to its headers in `mcp.json`.
+2. On first use, approve the OAuth login prompt for the MCP servers. For `cloudinary-mediaflows`, add your credentials to its headers in `mcp.json`. No Cloudinary account yet? Just ask the agent to set one up — the **claimable-cloud** skill provisions a free working cloud with no signup (claim it by email within 24 hours to keep it).
 3. Ask your agent anything about Cloudinary — uploads, transformations, metadata, analysis, and more. The agent will automatically use the right skill and MCP server for the job.

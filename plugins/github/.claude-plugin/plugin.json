@@ -2,7 +2,7 @@
   "name": "github",
   "version": "1.0.0",
   "description": "Official GitHub MCP server for repository management. Create issues, manage pull requests, review code, search repositories, and interact with GitHub's full API directly from Claude Code.",
-  "updatedAt": "2026-08-19T00:22:59.463Z",
+  "updatedAt": "2026-08-19T12:04:18.488Z",
   "author": {
     "name": "GitHub"
   }
