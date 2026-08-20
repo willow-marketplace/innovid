@@ -2,7 +2,7 @@
   "name": "terraform",
   "version": "1.0.0",
   "description": "Terraform skills for configuration, modules, providers, tests, imports, stacks, and policy.",
-  "updatedAt": "2026-08-20T00:05:58.454Z",
+  "updatedAt": "2026-08-20T00:25:38.410Z",
   "author": {
     "url": "https://github.com/hashicorp",
     "name": "HashiCorp"
