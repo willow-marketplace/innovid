@@ -234,6 +234,19 @@ Refer to the developer documentation to find all valid values for a prop. Ensure
 ></s-url-field>
 ```
 
+## `s-grid` vs. inline `s-stack`
+
+Use `s-grid` when form controls and actions must stay aligned in columns. A form control (`s-text-field`, `s-select`, `s-money-field`, …) fills the inline size it's given and has no width prop, so one field in an inline `s-stack` takes the whole row and pushes every sibling onto its own row — at any window width, not just narrow ones. Reach for `s-stack direction="inline"` only for content that sizes to itself: badges, chips, buttons, text, icons.
+
+```tsx
+// ✅ Columns are explicit, so the field can't push the action off the row
+<s-grid gridTemplateColumns="1fr auto" gap="base" alignItems="end">
+  <s-text-field label="Discount code" name="code"></s-text-field>
+  <s-button variant="primary">Apply</s-button>
+</s-grid>
+// ❌ <s-stack direction="inline"> — the field fills the row and Apply lands underneath it
+```
+
 ## Imports
 
 App Home extensions use `@shopify/app-bridge-types` for App Bridge APIs and `@shopify/polaris-types` for Polaris component types. Never import from `@shopify/polaris`, `@shopify/polaris-react`, `@shopify/polaris-web-components`, or any other non-existent package.

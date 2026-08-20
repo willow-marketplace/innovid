@@ -1,20 +1,19 @@
 {
   "name": "hostinger",
-  "version": "1.1.1",
-  "description": "Deploy, manage and monitor Hostinger services — Websites, Domains & DNS, Ecommerce, Email, Email Marketing, WordPress, Subscriptions & Payments, and VPS. Authenticate via browser (OAuth)",
-  "updatedAt": "2026-08-19T12:24:59.064Z",
+  "version": "1.2.0",
+  "description": "Deploy, manage and monitor Hostinger services — Websites, Domains & DNS, Ecommerce, Email, Email Marketing, WordPress, Subscriptions & Payments, and VPS. Runs as a remote MCP server with browser (OAuth) sign-in — nothing to install locally.",
+  "updatedAt": "2026-08-20T00:04:27.255Z",
   "author": {
     "url": "https://www.hostinger.com",
     "name": "Hostinger"
   },
   "homepage": "https://developers.hostinger.com",
   "repository": "https://github.com/hostinger/claude-plugin",
+  "skills": "./skills/",
   "mcpServers": {
     "hostinger": {
-      "args": [
-        "hostinger-api-mcp@1.35.6"
-      ],
-      "command": "npx"
+      "url": "https://mcp.hostinger.com",
+      "type": "http"
     }
   }
 }

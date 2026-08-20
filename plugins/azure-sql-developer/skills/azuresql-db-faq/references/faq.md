@@ -44,10 +44,10 @@ Azure SQL Database in the cloud, where the platform provides them.
 ## Connection model and databases
 
 **Why does `USE otherdb` return Msg 40508?** A connection to a user database is an
-SDS (Azure-faithful) session and enforces Azure SQL Database semantics, where `USE`
+Azure-faithful session and enforces Azure SQL Database semantics, where `USE`
 is not allowed. Select the database in the connection string (`Database=appdb` or
 `-d appdb` for sqlcmd). `USE` appears to work only on a `master` connection, which is
-a non-SDS provisioning session, but `master` is for provisioning, not application work.
+a provisioning session, but `master` is for provisioning, not application work.
 
 **Why do I have to create the database first?** The engine does not auto-create a
 database on connect, and it does not run `/docker-entrypoint-initdb.d/*.sql` (that is
@@ -57,7 +57,7 @@ name; use whatever you like.)
 
 **Why is there a two-step "provision on master, then reconnect" dance?** It is a
 current limitation. Public Preview plans a default startup database (for example
-`MSSQL_DB=appdb`) so you connect straight into an SDS session without going through master.
+`MSSQL_DB=appdb`) so you connect straight into the user-database session without going through master.
 
 ## Vectors / AI
 
@@ -132,6 +132,14 @@ of Azure SQL Database in the cloud, where a contained user is preferred and serv
 logins are limited; the app code and connection string are identical either way.
 Microsoft Entra contained users (`CREATE USER [name] FROM EXTERNAL PROVIDER`) do
 work on the container once Entra is enabled. Full recipes: the `azuresql-db-auth` skill.
+
+**Why does `BULK INSERT` (or `OPENROWSET(BULK ...)`) fail with Msg 12713 on a local file?**
+Because the engine reads bulk data only from **Azure Blob Storage**, not the local filesystem,
+exactly as Azure SQL Database in the cloud. Pointing `BULK INSERT` at a path inside the container
+returns `Msg 12713` ("OPENROWSET is not allowed to read local files"). To load a **local** CSV,
+use the `bcp` utility (it streams rows over the connection instead of reading a server-side file)
+or a driver/ORM; use `BULK INSERT` only against Blob Storage via a `DATABASE SCOPED CREDENTIAL` +
+`EXTERNAL DATA SOURCE`. Recipes: the `azuresql-db-seed` skill.
 
 **Are session/database defaults identical to the cloud?** Mostly. Some defaults
 (collation, transaction isolation, ANSI settings) do not match the cloud exactly and

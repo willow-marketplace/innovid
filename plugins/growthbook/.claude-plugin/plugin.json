@@ -1,8 +1,8 @@
 {
   "name": "growthbook",
-  "version": "1.0.0",
-  "description": "A suite of agent skills for the full GrowthBook feature flag and experimentation lifecycle.",
-  "updatedAt": "2026-08-19T12:24:59.106Z",
+  "version": "2.0.0",
+  "description": "Domain skills for the full GrowthBook feature flag, experimentation, and product analytics lifecycle.",
+  "updatedAt": "2026-08-20T00:04:27.120Z",
   "author": {
     "url": "https://growthbook.io",
     "name": "GrowthBook"

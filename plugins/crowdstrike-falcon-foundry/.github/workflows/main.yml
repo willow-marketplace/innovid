@@ -148,6 +148,20 @@ jobs:
             fail=1
           fi
 
+          # Codex manifest must match plugin.json
+          codex_plugin_version=$(jq -r '.version' .codex-plugin/plugin.json)
+          if [ "$codex_plugin_version" != "$plugin_version" ]; then
+            echo "FAIL: .codex-plugin/plugin.json version '$codex_plugin_version' != .claude-plugin/plugin.json '$plugin_version'"
+            fail=1
+          fi
+
+          # Codex marketplace catalog pins a release tag, so its ref must match too
+          agents_ref=$(jq -r '.plugins[0].source.ref' .agents/plugins/marketplace.json)
+          if [ "${agents_ref#v}" != "$plugin_version" ]; then
+            echo "FAIL: .agents/plugins/marketplace.json ref '$agents_ref' != v$plugin_version"
+            fail=1
+          fi
+
           # All SKILL.md versions must match plugin.json
           for skill in skills/*/SKILL.md; do
             skill_version=$(sed -n 's/^version: *//p' "$skill")
@@ -181,6 +195,27 @@ jobs:
           node-version: 22
       - name: Run markdownlint
         run: npx markdownlint-cli2 "**/*.md"
+      - name: Check relative links resolve
+        run: |
+          python3 - <<'PY'
+          import pathlib, re, sys
+          pattern = re.compile(r'\[[^\]]*\]\(([^)#][^)]*)\)')
+          broken = []
+          for path in pathlib.Path('.').rglob('*.md'):
+              if 'node_modules' in path.parts or '.git' in path.parts:
+                  continue
+              for lineno, line in enumerate(path.read_text(errors='ignore').splitlines(), 1):
+                  for match in pattern.finditer(line):
+                      target = match.group(1).split('#')[0].strip()
+                      if not target or target.startswith(('http', 'mailto:', '/')):
+                          continue
+                      if not (path.parent / target).exists():
+                          broken.append(f"{path}:{lineno} -> {target}")
+          for entry in broken:
+              print(f"FAIL: {entry}")
+          print(f"{len(broken)} broken relative link(s)")
+          sys.exit(1 if broken else 0)
+          PY
 
   pylint:
     runs-on: ubuntu-latest
