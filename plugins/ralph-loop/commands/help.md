@@ -1,175 +1,127 @@
 ---
 name: help
-description: Get help with the hookify plugin
+description: Explain Ralph Loop plugin and available commands
 ---
 
-# Hookify Plugin Help
+# Ralph Loop Plugin Help
 
-Explain how the hookify plugin works and how to use it.
+Please explain the following to the user:
 
-## Overview
+## What is Ralph Loop?
 
-The hookify plugin makes it easy to create custom hooks that prevent unwanted behaviors. Instead of editing `hooks.json` files, users create simple markdown configuration files that define patterns to watch for.
+Ralph Loop implements the Ralph Wiggum technique - an iterative development methodology based on continuous AI loops, pioneered by Geoffrey Huntley.
 
-## How It Works
-
-### 1. Hook System
-
-Hookify installs generic hooks that run on these events:
-- **PreToolUse**: Before any tool executes (Bash, Edit, Write, etc.)
-- **PostToolUse**: After a tool executes
-- **Stop**: When Claude wants to stop working
-- **UserPromptSubmit**: When user submits a prompt
-
-These hooks read configuration files from `.claude/hookify.*.local.md` and check if any rules match the current operation.
-
-### 2. Configuration Files
-
-Users create rules in `.claude/hookify.{rule-name}.local.md` files:
-
-```markdown
----
-name: warn-dangerous-rm
-enabled: true
-event: bash
-pattern: rm\s+-rf
----
-
-⚠️ **Dangerous rm command detected!**
-
-This command could delete important files. Please verify the path.
+**Core concept:**
+```bash
+while :; do
+  cat PROMPT.md | claude-code --continue
+done
 ```
 
-**Key fields:**
-- `name`: Unique identifier for the rule
-- `enabled`: true/false to activate/deactivate
-- `event`: bash, file, stop, prompt, or all
-- `pattern`: Regex pattern to match
+The same prompt is fed to Claude repeatedly. The "self-referential" aspect comes from Claude seeing its own previous work in the files and git history, not from feeding output back as input.
 
-The message body is what Claude sees when the rule triggers.
+**Each iteration:**
+1. Claude receives the SAME prompt
+2. Works on the task, modifying files
+3. Tries to exit
+4. Stop hook intercepts and feeds the same prompt again
+5. Claude sees its previous work in the files
+6. Iteratively improves until completion
 
-### 3. Creating Rules
-
-**Option A: Use /hookify command**
-```
-/hookify Don't use console.log in production files
-```
-
-This analyzes your request and creates the appropriate rule file.
-
-**Option B: Create manually**
-Create `.claude/hookify.my-rule.local.md` with the format above.
-
-**Option C: Analyze conversation**
-```
-/hookify
-```
-
-Without arguments, hookify analyzes recent conversation to find behaviors you want to prevent.
+The technique is described as "deterministically bad in an undeterministic world" - failures are predictable, enabling systematic improvement through prompt tuning.
 
 ## Available Commands
 
-- **`/hookify`** - Create hooks from conversation analysis or explicit instructions
-- **`/hookify:help`** - Show this help (what you're reading now)
-- **`/hookify:list`** - List all configured hooks
-- **`/hookify:configure`** - Enable/disable existing hooks interactively
+### /ralph-loop <PROMPT> [OPTIONS]
 
-## Example Use Cases
+Start a Ralph loop in your current session.
 
-**Prevent dangerous commands:**
-```markdown
----
-name: block-chmod-777
-enabled: true
-event: bash
-pattern: chmod\s+777
----
-
-Don't use chmod 777 - it's a security risk. Use specific permissions instead.
+**Usage:**
+```
+/ralph-loop "Refactor the cache layer" --max-iterations 20
+/ralph-loop "Add tests" --completion-promise "TESTS COMPLETE"
 ```
 
-**Warn about debugging code:**
-```markdown
----
-name: warn-console-log
-enabled: true
-event: file
-pattern: console\.log\(
+**Options:**
+- `--max-iterations <n>` - Max iterations before auto-stop
+- `--completion-promise <text>` - Promise phrase to signal completion
+
+**How it works:**
+1. Creates `.claude/.ralph-loop.local.md` state file
+2. You work on the task
+3. When you try to exit, stop hook intercepts
+4. Same prompt fed back
+5. You see your previous work
+6. Continues until promise detected or max iterations
+
 ---
 
-Console.log detected. Remember to remove debug logging before committing.
+### /cancel-ralph
+
+Cancel an active Ralph loop (removes the loop state file).
+
+**Usage:**
+```
+/cancel-ralph
 ```
 
-**Require tests before stopping:**
-```markdown
----
-name: require-tests
-enabled: true
-event: stop
-pattern: .*
+**How it works:**
+- Checks for active loop state file
+- Removes `.claude/.ralph-loop.local.md`
+- Reports cancellation with iteration count
+
 ---
 
-Did you run tests before finishing? Make sure `npm test` or equivalent was executed.
+## Key Concepts
+
+### Completion Promises
+
+To signal completion, Claude must output a `<promise>` tag:
+
+```
+<promise>TASK COMPLETE</promise>
 ```
 
-## Pattern Syntax
+The stop hook looks for this specific tag. Without it (or `--max-iterations`), Ralph runs infinitely.
 
-Use Python regex syntax:
-- `\s` - whitespace
-- `\.` - literal dot
-- `|` - OR
-- `+` - one or more
-- `*` - zero or more
-- `\d` - digit
-- `[abc]` - character class
+### Self-Reference Mechanism
 
-**Examples:**
-- `rm\s+-rf` - matches "rm -rf"
-- `console\.log\(` - matches "console.log("
-- `(eval|exec)\(` - matches "eval(" or "exec("
-- `\.env$` - matches files ending in .env
+The "loop" doesn't mean Claude talks to itself. It means:
+- Same prompt repeated
+- Claude's work persists in files
+- Each iteration sees previous attempts
+- Builds incrementally toward goal
 
-## Important Notes
+## Example
 
-**No Restart Needed**: Hookify rules (`.local.md` files) take effect immediately on the next tool use. The hookify hooks are already loaded and read your rules dynamically.
+### Interactive Bug Fix
 
-**Block or Warn**: Rules can either `block` operations (prevent execution) or `warn` (show message but allow). Set `action: block` or `action: warn` in the rule's frontmatter.
+```
+/ralph-loop "Fix the token refresh logic in auth.ts. Output <promise>FIXED</promise> when all tests pass." --completion-promise "FIXED" --max-iterations 10
+```
 
-**Rule Files**: Keep rules in `.claude/hookify.*.local.md` - they should be git-ignored (add to .gitignore if needed).
+You'll see Ralph:
+- Attempt fixes
+- Run tests
+- See failures
+- Iterate on solution
+- In your current session
 
-**Disable Rules**: Set `enabled: false` in frontmatter or delete the file.
+## When to Use Ralph
 
-## Troubleshooting
+**Good for:**
+- Well-defined tasks with clear success criteria
+- Tasks requiring iteration and refinement
+- Iterative development with self-correction
+- Greenfield projects
 
-**Hook not triggering:**
-- Check rule file is in `.claude/` directory
-- Verify `enabled: true` in frontmatter
-- Confirm pattern is valid regex
-- Test pattern: `python3 -c "import re; print(re.search('your_pattern', 'test_text'))"`
-- Rules take effect immediately - no restart needed
+**Not good for:**
+- Tasks requiring human judgment or design decisions
+- One-shot operations
+- Tasks with unclear success criteria
+- Debugging production issues (use targeted debugging instead)
 
-**Import errors:**
-- Check Python 3 is available: `python3 --version`
-- Verify hookify plugin is installed correctly
+## Learn More
 
-**Pattern not matching:**
-- Test regex separately
-- Check for escaping issues (use unquoted patterns in YAML)
-- Try simpler pattern first, then refine
-
-## Getting Started
-
-1. Create your first rule:
-   ```
-   /hookify Warn me when I try to use rm -rf
-   ```
-
-2. Try to trigger it:
-   - Ask Claude to run `rm -rf /tmp/test`
-   - You should see the warning
-
-4. Refine the rule by editing `.claude/hookify.warn-rm.local.md`
-
-5. Create more rules as you encounter unwanted behaviors
-
-For more examples, check the `${CLAUDE_PLUGIN_ROOT}/examples/` directory.
+- Original technique: https://ghuntley.com/ralph/
+- Ralph Orchestrator: https://github.com/mikeyobrien/ralph-orchestrator

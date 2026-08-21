@@ -2,7 +2,7 @@
   "name": "appwrite",
   "version": "0.2.0",
   "description": "Appwrite tools for Claude Code, including SDK skills, the hosted Appwrite MCP server, and deployment commands.",
-  "updatedAt": "2026-08-21T00:02:43.637Z",
+  "updatedAt": "2026-08-21T00:03:36.836Z",
   "author": {
     "name": "Appwrite",
     "email": "team@appwrite.io"

@@ -2,7 +2,7 @@
   "name": "hostinger",
   "version": "1.2.0",
   "description": "Deploy, manage and monitor Hostinger services — Websites, Domains & DNS, Ecommerce, Email, Email Marketing, WordPress, Subscriptions & Payments, and VPS. Runs as a remote MCP server with browser (OAuth) sign-in — nothing to install locally.",
-  "updatedAt": "2026-08-21T00:01:59.287Z",
+  "updatedAt": "2026-08-21T00:03:13.730Z",
   "author": {
     "url": "https://www.hostinger.com",
     "name": "Hostinger"

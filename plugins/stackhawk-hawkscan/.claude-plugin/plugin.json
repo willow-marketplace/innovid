@@ -2,7 +2,7 @@
   "name": "stackhawk-hawkscan",
   "version": "2.5.0",
   "description": "Configure, run, and interpret HawkScan DAST results inside Claude Code. Generates stackhawk.yml configs, runs scans via CLI or Docker, and transforms security findings into prioritized fix tasks for your coding agent.",
-  "updatedAt": "2026-08-21T00:02:27.165Z",
+  "updatedAt": "2026-08-21T00:03:49.877Z",
   "author": {
     "url": "https://www.stackhawk.com",
     "name": "StackHawk",
