@@ -26,6 +26,9 @@
         },
         "ideToolIconPath": "./Figma Icon (Mono-line black, tight).svg",
         "ideToolIconRendersAsTemplate": true
+      },
+      "headers": {
+        "X-Figma-Plugin-Bundle": "figma_prod@2_2_96"
       }
     }
   }

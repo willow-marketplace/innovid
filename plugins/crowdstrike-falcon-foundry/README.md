@@ -26,7 +26,7 @@ AI coding assistant skills for building [CrowdStrike Falcon Foundry](https://www
 | Cursor | `/add-plugin crowdstrike-falcon-foundry` | [Cursor](https://cursor.com/marketplace) (pending) |
 | Antigravity CLI | `agy plugin install https://github.com/CrowdStrike/foundry-skills` | [Google](https://antigravity.google/docs/plugins) |
 
-Claude Code, Codex, Copilot CLI, and Cursor have each been verified end to end: the skills were loaded from a local clone, then used to build and deploy an app to a live Falcon Foundry tenant from the example prompt below.
+All five assistants have been verified end to end: the skills were loaded from a local clone, then used to build and deploy an app to a live Falcon Foundry tenant from the example prompt below.
 
 For local development with Claude Code, use `claude --plugin-dir /path/to/foundry-skills`. These skills follow the [Agent Plugins](https://agent-plugins.org) format and include a `.codex-plugin/plugin.json` manifest for native Codex discovery. See the [blog post](https://www.crowdstrike.com/tech-hub/ng-siem/build-falcon-foundry-apps-with-claude-code/) for a full walkthrough.
 
@@ -282,6 +282,16 @@ gh release create v<version> --target main --title "v<version>" --generate-notes
 This generates release notes from merged PRs and saves them as a draft. Review and edit the notes at [github.com/CrowdStrike/foundry-skills/releases](https://github.com/CrowdStrike/foundry-skills/releases), then click **Publish** when ready.
 
 After publishing the release, notify Anthropic of the new tag and SHA so they can update the marketplace pin. Do not open PRs to `anthropics/claude-plugins-official` or re-submit through the plugin submission form.
+
+## Cross-Plugin: Fusion Workflows
+
+`foundry-skills` builds **Falcon Foundry apps** with the full lifecycle: API integrations, UI pages, serverless functions, collections, and workflows wrapped in a `manifest.yml`. When a request is a standalone Fusion workflow (a trigger plus actions that already exist, with no app to build), use the sibling plugin ([fusion-skills](https://github.com/CrowdStrike/fusion-skills)):
+
+```
+/plugin install crowdstrike-falcon-fusion
+```
+
+The two plugins detect each other and advise the right path. Use `foundry-skills` for the full app lifecycle; use `fusion-skills` for standalone workflows with live action discovery. Neither requires the other to function.
 
 ## License
 

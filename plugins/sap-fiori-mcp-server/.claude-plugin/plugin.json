@@ -1,8 +1,8 @@
 {
   "name": "sap-fiori-mcp-server",
-  "version": "1.11.12",
+  "version": "1.11.13",
   "description": "MCP server for SAP Fiori development tools for Claude Code. Build and modify SAP Fiori applications with AI assistance.",
-  "updatedAt": "2026-08-20T00:25:38.478Z",
+  "updatedAt": "2026-08-21T00:02:23.178Z",
   "author": {
     "url": "https://www.sap.com",
     "name": "SAP SE",

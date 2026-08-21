@@ -1,9 +1,9 @@
 ---
 name: azuresql-db-connections
-description: "Makes an app's database connections reliable against the local Azure SQL Developer (Private Preview) and, unchanged, against Azure SQL Database in the cloud: connection pooling plus retry/transient-fault handling. Use when the user mentions \"connection pooling\", \"retry logic\", \"transient fault\", \"retry on transient error\", \"EnableRetryOnFailure\", \"connection resiliency\", \"reliable connections\", \"pool size\", \"Max Pool Size\", or says \"the connection keeps dropping\", \"connections time out under load\", \"add backoff\", or \"make the DB layer resilient\". This is the Azure SQL engine (EngineEdition 5), not the mssql/server SQL Server image. Reach for this whenever hardening a data-access layer that talks to SQL Server or Azure SQL."
+description: "Makes an app's database connections reliable against the local Azure SQL Database container (Private Preview) and, unchanged, against Azure SQL Database in the cloud: connection pooling plus retry/transient-fault handling. Use when the user mentions \"connection pooling\", \"retry logic\", \"transient fault\", \"retry on transient error\", \"EnableRetryOnFailure\", \"connection resiliency\", \"reliable connections\", \"pool size\", \"Max Pool Size\", or says \"the connection keeps dropping\", \"connections time out under load\", \"add backoff\", or \"make the DB layer resilient\". This is the Azure SQL engine (EngineEdition 5), not the mssql/server SQL Server image. Reach for this whenever hardening a data-access layer that talks to SQL Server or Azure SQL."
 ---
 
-# Azure SQL Developer: reliable connections (pooling + retry)
+# Reliable connections on the Azure SQL Database container (pooling + retry)
 
 Make the app's database connections reliable with **connection pooling** and **retry /
 transient-fault handling**. This is the **Azure SQL engine** (Private Preview), not the SQL

@@ -24,8 +24,13 @@ const BUDGET = 4000;
 const SCRATCH = ".agents/skills/wix-base44-connector/scratch";
 
 const clip = (out) => {
-  const s = typeof out === "string" ? out : JSON.stringify(out);
-  return s.length <= BUDGET ? out : { truncated: true, total: s.length, head: s.slice(0, BUDGET) };
+  if (typeof out === "string")
+    return out.length <= BUDGET ? out : { truncated: true, total: out.length, head: out.slice(0, BUDGET) };
+  // absence must be visible: JSON.stringify silently ERASES undefined keys, so a probe like
+  // { lineItems: resp.cart?.lineItems } loses the very field that proves the call failed —
+  // render undefined as null instead
+  const s = JSON.stringify(out, (k, v) => v === undefined ? null : v);
+  return s.length <= BUDGET ? JSON.parse(s) : { truncated: true, total: s.length, head: s.slice(0, BUDGET) };
 };
 
 // One transport for every JSON call — Content-Type, optional Bearer, ok-guard.
@@ -57,7 +62,10 @@ const outlineOf = (lines, cap = 30) => {
 
 // A ref is a scratch path or the URL it came from — resolve to lines, fetching+saving
 // URLs on first touch (the .md suffix is appended for extensionless docs URLs).
-const slugOf = (url) => url.replace(/\?.*$/, "").split("/").pop().replace(/\.md$/, "") + ".md";
+// two path segments, not one: doc leaves repeat across products (every API has an
+// introduction.md), and a one-segment name makes resolveRef's cache return the WRONG document
+const slugOf = (url) => url.replace(/\?.*$/, "").replace(/\.md$/, "")
+  .split("/").filter(Boolean).slice(-2).join("-") + ".md";
 async function resolveRef(ref) {
   const isUrl = /^https?:/.test(ref);
   const name = isUrl ? slugOf(ref) : ref.split("/").pop();
@@ -172,7 +180,9 @@ async function spec(code) {
     return { result, note: "empty — the query missed the shape, not proof of absence; find the resource by docsUrl on lightIndex" };
   const text = JSON.stringify(result, null, 1);
   if (text.length <= BUDGET) return result;
-  return { ...save("spec.json", text),
+  let h = 5381;
+  for (const ch of code) h = ((h * 33) ^ ch.charCodeAt(0)) >>> 0;   // same query → same file
+  return { ...save("spec-" + h.toString(36) + ".json", text),
            shape: Array.isArray(result) ? `Array(${result.length})` : Object.keys(result || {}).slice(0, 15),
            head: text.slice(0, 600) };
 }

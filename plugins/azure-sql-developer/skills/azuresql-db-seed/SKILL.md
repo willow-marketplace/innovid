@@ -1,9 +1,9 @@
 ---
 name: azuresql-db-seed
-description: Populates the local Azure SQL Developer database (appdb) with realistic sample/test data so a developer has something to build against. Use when the user says "seed the database", "add test data", "populate the dev database", "generate sample data", "fake data", "load fixtures", "insert test rows", "write a seed script", or "bulk load a CSV". This is the Azure SQL engine (EngineEdition 5), not the mssql/server SQL Server image. Distinct from azuresql-db-scaffold (which does a single seed.sql step while bootstrapping an app) and azuresql-db-import (which loads a .bacpac). Reach for this whenever an existing appdb needs volume, fixtures, or believable rows.
+description: Populates the local Azure SQL Database container's database (appdb) with realistic sample/test data so a developer has something to build against. Use when the user says "seed the database", "add test data", "populate the dev database", "generate sample data", "fake data", "load fixtures", "insert test rows", "write a seed script", or "bulk load a CSV". This is the Azure SQL engine (EngineEdition 5), not the mssql/server SQL Server image. Distinct from azuresql-db-scaffold (which does a single seed.sql step while bootstrapping an app) and azuresql-db-import (which loads a .bacpac). Reach for this whenever an existing appdb needs volume, fixtures, or believable rows.
 ---
 
-# Azure SQL Developer: seed the dev database
+# Seed the dev database on the Azure SQL Database container
 
 Fill an existing **appdb** with realistic sample data so the app has something to render, query,
 and test against. This is the **Azure SQL engine** (Private Preview), not the SQL Server image.

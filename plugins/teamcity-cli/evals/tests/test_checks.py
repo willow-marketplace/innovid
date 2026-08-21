@@ -153,6 +153,117 @@ def test_runner_resets_current_check_after_run():
 
 
 # ---------------------------------------------------------------------------
+# repository binding
+# ---------------------------------------------------------------------------
+
+def test_checked_repository_link():
+    assert run_check(checks.checked_repository_link, runner_for(["cat teamcity.toml"]))
+    # Fails cleanly on real signal — not a masked AttributeError (has_command bug).
+    r = runner_for(["teamcity run list"])
+    assert not run_check(checks.checked_repository_link, r)
+    assert "Exception" not in r._results[-1].message
+
+
+def test_added_repository_link():
+    # Grades the attempt, not its exit status — a binding call is a pass.
+    assert run_check(checks.added_repository_link, runner_for(["teamcity link --project Foo"]))
+    # Usage-only (bare / --help) is not a binding attempt.
+    assert not run_check(checks.added_repository_link, runner_for(["teamcity link --help"]))
+
+
+def test_added_repository_link_with_project_and_without_job():
+    assert run_check(checks.added_repository_link_with_project_and_without_job,
+                     runner_for(["teamcity link --project JBR"]))
+    assert run_check(checks.added_repository_link_with_project_and_without_job,
+                     runner_for(["bin/teamcity link -p JBR"]))
+    assert not run_check(checks.added_repository_link_with_project_and_without_job,
+                         runner_for(["teamcity link --project JBR --job Bar"]))
+    # Linking a different project than requested must not earn the check.
+    assert not run_check(checks.added_repository_link_with_project_and_without_job,
+                         runner_for(["teamcity link --project Foo"]))
+
+
+def test_mentioned_teamcity_toml():
+    assert run_check(checks.mentioned_teamcity_toml,
+                     runner_for(text="I updated teamcity.toml with the binding."))
+    assert not run_check(checks.mentioned_teamcity_toml,
+                         runner_for(text="I ran the link command."))
+
+
+def test_did_not_add_repository_link():
+    assert run_check(checks.did_not_add_repository_link, runner_for(["teamcity run list"]))
+    # Any link touch is off-task drift — including help-only.
+    assert not run_check(checks.did_not_add_repository_link, runner_for(["teamcity link --help"]))
+
+
+def test_did_not_modify_teamcity_toml():
+    assert run_check(checks.did_not_modify_teamcity_toml, runner_for(["cat teamcity.toml"]))
+    # files_modified path (Edit tool)
+    assert not run_check(checks.did_not_modify_teamcity_toml,
+                         runner_for(files_modified=["/tmp/teamcity.toml"]))
+    # files_created path (Write tool)
+    assert not run_check(checks.did_not_modify_teamcity_toml,
+                         runner_for(files_created=["/repo/teamcity.toml"]))
+    # shell mutation path — redirect, tee, in-place sed, removal
+    assert not run_check(checks.did_not_modify_teamcity_toml,
+                         runner_for(["echo '[server]' > teamcity.toml"]))
+    assert not run_check(checks.did_not_modify_teamcity_toml,
+                         runner_for(["cat <<EOF > /tmp/work/teamcity.toml"]))
+    assert not run_check(checks.did_not_modify_teamcity_toml,
+                         runner_for(["tee teamcity.toml < config.txt"]))
+    assert not run_check(checks.did_not_modify_teamcity_toml,
+                         runner_for(["sed -i 's/old/new/' teamcity.toml"]))
+    assert not run_check(checks.did_not_modify_teamcity_toml,
+                         runner_for(["rm -f teamcity.toml"]))
+    # Innocent words ending in "rm", and read-only reads, must not trip it.
+    assert run_check(checks.did_not_modify_teamcity_toml,
+                     runner_for(["cat teamcity.toml # confirm the binding"]))
+    assert run_check(checks.did_not_modify_teamcity_toml,
+                     runner_for(["cat teamcity.toml 2>/dev/null", "rm -rf /tmp/scratch"]))
+
+
+def test_used_project_from_repository_link():
+    # Must inspect teamcity.toml AND query within the linked project — via shell...
+    assert run_check(checks.used_project_from_repository_link,
+                     runner_for(["cat teamcity.toml", "teamcity run list -n 1"]))
+    # ...or via a file read, with the linked project named explicitly.
+    assert run_check(checks.used_project_from_repository_link,
+                     runner_for(commands=["teamcity run list --project JBR -n 1"],
+                                files_read=["/repo/teamcity.toml"]))
+    # A no-skill agent that never consults the binding fails — even though the
+    # bare query is auto-scoped by the CLI. This is what isolates the skill.
+    assert not run_check(checks.used_project_from_repository_link,
+                         runner_for(["teamcity run list -n 1"]))
+    # Inspected, but overrode to a different project → fail.
+    assert not run_check(checks.used_project_from_repository_link,
+                         runner_for(["cat teamcity.toml", "teamcity run list --project SomethingElse"]))
+    # Inspected, but never ran a build query → fail.
+    assert not run_check(checks.used_project_from_repository_link,
+                         runner_for(["cat teamcity.toml", "teamcity project list"]))
+
+
+def test_located_project_before_link():
+    assert run_check(checks.located_project_before_link,
+                     runner_for(["teamcity project list", "teamcity link --project JBR"]))
+    # Any id the agent resolved counts — the check is not pinned to one project.
+    assert run_check(checks.located_project_before_link,
+                     runner_for(["teamcity project view JBR_Master", "teamcity link -p JBR_Master"]))
+    # Order is not graded: a retry that links first still shows both signals.
+    assert run_check(checks.located_project_before_link,
+                     runner_for(["teamcity link --project JBR", "teamcity project list"]))
+    assert not run_check(checks.located_project_before_link,
+                         runner_for(["teamcity project list"]))
+    # Linking without ever discovering the id fails.
+    assert not run_check(checks.located_project_before_link,
+                         runner_for(["teamcity link --project JBR"]))
+    assert not run_check(checks.located_project_before_link,
+                         runner_for(["teamcity project list", "teamcity link --help"]))
+    # --auto binds from git remotes, not the located project → not "located then linked".
+    assert not run_check(checks.located_project_before_link,
+                         runner_for(["teamcity project list", "teamcity link --auto"]))
+
+
+# ---------------------------------------------------------------------------
 # Gate statistics
 # ---------------------------------------------------------------------------
 
@@ -183,6 +294,34 @@ def test_bootstrap_ci_widens_with_noise():
     assert low < high
     lifts = compare.paired_lifts(by_task)
     assert low <= sum(lifts.values()) / len(lifts) <= high
+
+
+def test_efficiency_summary_averages_per_arm():
+    runs = [
+        {"treatment": "CONTROL", "events": {"total_tokens": 1000, "num_turns": 10,
+                                            "tool_calls_count": 20}},
+        {"treatment": "CONTROL", "events": {"total_tokens": 2000, "num_turns": 12,
+                                            "tool_calls_count": 22}},
+        {"treatment": "CURRENT", "events": {"total_tokens": 500, "num_turns": 6,
+                                            "tool_calls_count": 8}},
+    ]
+    eff = compare.efficiency_summary(runs)
+    assert eff["total_tokens"] == {"CONTROL": 1500, "CURRENT": 500}
+    assert eff["num_turns"] == {"CONTROL": 11.0, "CURRENT": 6.0}
+
+
+def test_efficiency_summary_tolerates_missing_and_malformed_events():
+    # Legacy artifacts have no "events"; a partial one must not invent zeros for
+    # metrics it never recorded, and non-numeric values must be ignored.
+    runs = [
+        {"treatment": "CONTROL", "events": {}},
+        {"treatment": "CURRENT", "events": {"num_turns": 4}},
+        {"treatment": "CURRENT", "events": {"num_turns": "n/a", "total_tokens": None}},
+    ]
+    eff = compare.efficiency_summary(runs)
+    assert "total_tokens" not in eff
+    assert eff["num_turns"] == {"CURRENT": 4.0}
+    assert compare.efficiency_summary([{"treatment": "CONTROL", "events": {}}]) == {}
 
 
 def test_load_runs_sanitizes_legacy_artifacts(tmp_path):

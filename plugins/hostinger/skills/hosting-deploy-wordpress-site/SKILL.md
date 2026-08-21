@@ -1,6 +1,6 @@
 ---
 name: hosting-deploy-wordpress-site
-description: Import a full WordPress website (archive + database dump) into a Hostinger "hosting" website via public-api, using standalone MCP tools/plain curl instead of a filesystem-driven deploy tool. Use when asked to import/restore a whole WordPress site on hosting (not Agency Plan), or replicate what public-api-generator's hosting_importWordpressWebsite tool does step by step.
+description: Import a full WordPress website (archive + database dump) into a Hostinger "hosting" website via public-api, using standalone MCP tools/plain curl instead of a filesystem-driven deploy tool. Use when asked to import/restore a whole WordPress site on hosting (not Agency Plan).
 ---
 
 # Import a WordPress site to hosting
@@ -57,9 +57,11 @@ directly via TUS, authenticated with the `auth_key`/`rest_auth_key` from
    ```
 5. **Trigger import**: call `hosting_importWordPressWebsiteV1` with body:
    ```json
-   { "archive_path": "site.zip", "sql_path": "dump.sql" }
+   { "username": "...", "domain": "...", "archive_path": "site.zip", "sql_path": "dump.sql" }
    ```
-   (bare filenames from steps 3/4, no other fields accepted).
+   `archive_path` and `sql_path` are the bare filenames from steps 3/4 — no other body fields.
+   `username` and `domain` are URL path params in the REST API, but the MCP tool takes
+   them as ordinary arguments — pass all of them.
 
 ## Verify
 

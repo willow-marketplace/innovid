@@ -1,11 +1,11 @@
 ---
 name: azuresql-db-dab
-description: Stands up an instant no-code REST + GraphQL API over the local Azure SQL Developer using Microsoft Data API Builder (DAB). Use when a user wants to "expose my table as an API", "add a REST API over the database", "generate a GraphQL API", "put an API in front of SQL", "CRUD API without writing code", or "dab init / dab-config.json". Also the way to serve a built-in MCP endpoint FROM the database via DAB (an API surface DAB provides, not a separate SQL MCP server). Prefer this over hand-writing a controller/ORM API when the user just needs REST or GraphQL over existing tables. Triggers include "Data API Builder", "dab start", "instant API over Azure SQL", "expose entities as REST/GraphQL". Reach for this even when the user only says "give me an API for this database".
+description: Stands up an instant no-code REST + GraphQL API over the local Azure SQL Database container using Microsoft Data API Builder (DAB). Use when a user wants to "expose my table as an API", "add a REST API over the database", "generate a GraphQL API", "put an API in front of SQL", "CRUD API without writing code", or "dab init / dab-config.json". Also the way to serve a built-in MCP endpoint FROM the database via DAB (an API surface DAB provides, not a separate SQL MCP server). Prefer this over hand-writing a controller/ORM API when the user just needs REST or GraphQL over existing tables. Triggers include "Data API Builder", "dab start", "instant API over Azure SQL", "expose entities as REST/GraphQL". Reach for this even when the user only says "give me an API for this database".
 ---
 
-# Azure SQL Developer: instant REST + GraphQL API with Data API Builder
+# Instant REST + GraphQL API on the Azure SQL Database container with Data API Builder
 
-Generate a full REST **and** GraphQL API over the local **Azure SQL Developer**
+Generate a full REST **and** GraphQL API over the local **Azure SQL Database container**
 (Private Preview) with no application code, using **Data API Builder (DAB)** -
 Microsoft's first-party open-source engine. You describe tables as entities in
 `dab-config.json`; DAB serves them. DAB connects over the normal TDS protocol
