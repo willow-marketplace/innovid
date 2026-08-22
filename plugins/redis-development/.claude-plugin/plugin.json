@@ -2,7 +2,7 @@
   "name": "redis-development",
   "version": "1.4.0",
   "description": "Redis development best practices — data structures, query engine, vector search, caching, and performance optimization",
-  "updatedAt": "2026-08-22T00:02:14.790Z",
+  "updatedAt": "2026-08-22T00:19:42.295Z",
   "author": {
     "url": "https://redis.io",
     "name": "Redis"

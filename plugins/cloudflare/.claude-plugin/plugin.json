@@ -2,7 +2,7 @@
   "name": "cloudflare",
   "version": "1.0.0",
   "description": "Skills for the Cloudflare developer platform: Workers, Durable Objects, Agents SDK, MCP servers, Wrangler CLI, and web performance",
-  "updatedAt": "2026-08-22T00:01:46.137Z",
+  "updatedAt": "2026-08-22T00:19:42.183Z",
   "author": {
     "name": "Cloudflare"
   },
