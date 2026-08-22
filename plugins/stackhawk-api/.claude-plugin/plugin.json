@@ -2,7 +2,7 @@
   "name": "stackhawk-api",
   "version": "2.5.0",
   "description": "Query the StackHawk platform API for security posture reporting, findings analysis, and app management. Uses the combined hawk CLI (hawk op …) for all platform queries.",
-  "updatedAt": "2026-08-21T00:03:46.358Z",
+  "updatedAt": "2026-08-22T00:02:20.039Z",
   "author": {
     "url": "https://www.stackhawk.com",
     "name": "StackHawk",

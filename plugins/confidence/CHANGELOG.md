@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.9.0](https://github.com/spotify/confidence-ai-plugins/compare/v0.8.0...v0.9.0) (2026-08-21)
+
+
+### Features
+
+* **migrate-optimizely:** auto-map exists/substring with evals ([#68](https://github.com/spotify/confidence-ai-plugins/issues/68)) ([1e8918c](https://github.com/spotify/confidence-ai-plugins/commit/1e8918ca2a9f2637672099665634e757abee9d2f))
+
+
+### Bug Fixes
+
+* **skills:** improve instrument-events and explore-metric interactivity and reliability ([#69](https://github.com/spotify/confidence-ai-plugins/issues/69)) ([e2021ae](https://github.com/spotify/confidence-ai-plugins/commit/e2021aea02169f55fa7cdbd6d9a03610410ab58f))
+
+## [0.8.0](https://github.com/spotify/confidence-ai-plugins/compare/v0.7.0...v0.8.0) (2026-08-19)
+
+
+### Features
+
+* add Codex marketplace.json for OpenAI plugin directory distribution ([9e8bc1d](https://github.com/spotify/confidence-ai-plugins/commit/9e8bc1dccbfa3ee70725a2aa5bebeb1faceb8f35))
+* add Codex marketplace.json for OpenAI plugin distribution ([#63](https://github.com/spotify/confidence-ai-plugins/issues/63)) ([9e8bc1d](https://github.com/spotify/confidence-ai-plugins/commit/9e8bc1dccbfa3ee70725a2aa5bebeb1faceb8f35))
+* add instrument-events and explore-metric skills with evals ([#67](https://github.com/spotify/confidence-ai-plugins/issues/67)) ([522fc63](https://github.com/spotify/confidence-ai-plugins/commit/522fc63eedd9557820807353867387cdbd7cf4c9))
+* **migrate-optimizely:** add full phase 0-2 plan/adjust/execute flow ([#65](https://github.com/spotify/confidence-ai-plugins/issues/65)) ([f59de52](https://github.com/spotify/confidence-ai-plugins/commit/f59de5266f96311bcbe462b4483263c42bb0859e))
+
 ## [Unreleased]
 
 ### Features
@@ -7,13 +29,13 @@
 * **migrate-optimizely:** Bare `/migrate-optimizely` (no args) defaults to **`plan access`** — start Phase 0 from the beginning. Explicit subcommands unchanged.
 * **migrate-optimizely:** Add multi-turn evals for default `plan access` entry, access consent gate, `plan access` no-writes, and `adjust flags` no-create; existing flag conversations now answer the source-method opening question.
 * **migrate-optimizely:** Phase 0–2 each support plan / **adjust** / execute. Flag clients live inside **`plan access` Step 4** (no separate `plan clients` command). After every `plan *` completes, a **required exit ask** offers adjust (or tick/execute/done). **`execute flags` must end with a Phase 1 resolve gate** — every migrated flag resolve-verified (not a 3–5 spot-check). See [README — Optimizely → Confidence](./README.md#optimizely--confidence), [`SKILL.md`](./skills/migrate-optimizely/SKILL.md), and [`access.md`](./skills/migrate-optimizely/access.md).
-* **migrate-optimizely:** `plan flags` runs a **rules operator audit** and asks for workarounds on unsupported Optimizely operators (`exists` / `substring` / `regex`); all execute loops (access, flags, rules) must show a **live progress bar**.
+* **migrate-optimizely:** `plan flags` **auto-tells** the user when Optimizely **exists** or **substring** appears, and records the Confidence map: **exists → IS NOT NULL** (not exists → IS NULL); **substring → starts with / ends with** (prefix vs suffix). Mid-string contains and **regex** stay BLOCKED. Execute imports the auto-map; do not treat exists/prefix-suffix substring as unresolved BLOCKED. Evals: `plan-badge` expects IS NOT NULL (migrate) with `resolutions`; `substring-gate` stays BLOCKED for mid-string `@test`; `version-substring-starts-with` and `locale-suffix-ends-with` cover the auto-maps with TargetingResolution. Local eval resolver treats empty `eqRule` value as equals-null.
 * **migrate-optimizely:** Production waterfall / `_rulesets` targeting-rules import must show a live `Execute Flags · targeting rules` progress bar (not milestone-only `... created N` logs); same for segment prep, catch-alls, and resolve verify.
 * **migrate-optimizely:** Execute progress bars must appear in the **chat transcript** (collapsed shell / giant heredoc / silent background waits alone are not enough); agents poll a progress file and paste the latest `█`/`░` line every ~15–30s.
 * **migrate-optimizely:** Targeting-rules import is a **separate** execute phase with its own chat-visible `Execute Flags · targeting rules` bar (canonical progress-file emitter); skipping planned rules, catch-all-only runs, or folding rules into the create bar is a bug.
 * **migrate-optimizely:** After flag create completes, agents **must** surface a next-step handoff recommending **Start targeting-rules import** before resolve gate or `plan code`.
 * **migrate-optimizely:** After rules import completes, agents **must** surface a next-step handoff recommending **Start resolve-verify all flags** (segment match on every migrated flag) — that gate **definitively validates Phase 1** before `plan code`.
-* **migrate-optimizely:** Plan/execute **must** flag Optimizely `exists` / `substring` / `regex` audience ops as **BLOCKED** (Rules operator audit + UNSUPPORTED-OPERATOR GATE); never silently migrate those rules — Confidence has no contains/presence/regex targeting.
+* **migrate-optimizely:** Plan/execute **must** auto-translate Optimizely **exists** → **IS NOT NULL** and **substring** → **starts with / ends with**, and tell the user in `plan flags`. **regex** and mid-string contains stay **BLOCKED**. Never silently skip the audit. Never emit ruleless presence criteria.
 * **migrate-optimizely:** Prefer **Flags MCP first** for Flag clients / flag writes; fall back to IAM/Flags REST when MCP is `needsAuth` or errors. Users/groups/policies/invites remain **IAM REST only** (no IAM MCP).
 * **migrate-optimizely:** Confidence **empty rules ≠ everyone**. `plan flags` must list flags with no Optimizely rules under **auto everyone catch-all**; `execute flags` must **automatically** add/enable that catch-all whenever a migrated flag still has zero enabled rules.
 

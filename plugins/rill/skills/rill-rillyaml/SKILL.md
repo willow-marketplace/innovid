@@ -262,6 +262,9 @@ allOf:
                 rill.ai.max_time_range_days:
                     description: 'Maximum time range allowed for AI tool queries, in days. Set to 0 for no limit. Default: 0.'
                     type: integer
+                rill.ai.mcp_tolerant_args:
+                    description: 'Tolerantly decode MCP tool-call arguments where object/array-typed fields arrive as JSON-encoded strings, to work around a serialization bug in some MCP clients. Default: true.'
+                    type: boolean
                 rill.ai.require_time_range:
                     description: 'Require AI tool queries to include a time range filter; reject queries without one. Default: true.'
                     type: boolean

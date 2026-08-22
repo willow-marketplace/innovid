@@ -91,7 +91,6 @@ Invariants the agent must respect:
 Decide in this order. Reversing causes rework.
 
 1. **Application boundary.** One app vs a Hub-and-domain-apps topology. The Hub holds shared Dimensions (Entity, GL, FX, Version, Time) and shared reference/actuals data. Domain apps reference Hub content via shared Blocks (Library), typically metrics with a Push/Pull naming convention.
-2. ```
 2. **Dimensional structure.** List the slicing axes. Target 5 or fewer structural dimensions per metric. Challenge anything above.
 3. **Calendar.** Pick fiscal year, granularity (Month or Quarter), and date range. Use the existing app calendar. Never roll your own time list.
 4. **Version Dimension.** If the app holds any planning cycle (Budget, Forecast, Actual), build a Version Dimension and define switchover and gating Booleans now, not later. See `skill:planning-cycles-pigment-applications`.
@@ -145,6 +144,19 @@ Table:
 
 - **Architecture before blocks.** Dimensional structure is the single most expensive decision. Design before building.
 - **Only dimension lists can be structural.** Transaction lists never. Aggregate with `BY`.
+- **A structural change (adding/removing a dimension, changing type) does not automatically
+  propagate to metrics that reference the changed one.** Pigment aligns mismatched dimensions
+  silently (broadcast/collapse) instead of failing, which can produce wrong numbers with no
+  visible error. Before editing, use `tool:get_data_dependency_tree` (direction `Sources`) to
+  trace back to the originating metric(s) and transaction list, so you know what grain of
+  detail already exists upstream. Before declaring such a change done, use
+  `tool:get_data_dependency_tree` (direction `Usages`) to find dependent formulas, then
+  `tool:validate_formula` (with `metric_id`) on each to catch a silent mismatch — see
+  `skill:writing-pigment-formulas` ("Structural Dimension Changes") for the full workflow.
+- **Removing a dimension from a metric's structure is lossy and irreversible.** Unlike adding a
+  dimension, once the metric no longer stores that grain the historical detail cannot be
+  recovered from the metric itself. Say so explicitly when proposing the change, even if the
+  detail still exists upstream (e.g. on a source metric or transaction list).
 - **Never use `.`, `:`, `'`, or `"` in friendly names.** They break formula references or are rejected by the platform. Sanitize user-provided names before create/rename tool calls.
 - **Prefer ASCII friendly names.** Avoid apostrophes and circumflex letters (â, ê, î, ô, û) — use `Prets`, `Creances`, `Total_Effectifs`, not `Prêts`, `Crêances`, `Total d'Effectifs`. Put localized phrasing in display names; see [./modeling_naming_conventions.md#character-rules](./modeling_naming_conventions.md#character-rules).
 - **Never place a block at the root level.**

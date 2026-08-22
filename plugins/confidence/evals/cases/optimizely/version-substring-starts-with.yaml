@@ -1,0 +1,57 @@
+name: version-substring-starts-with
+description: >
+  Audience uses substring on app_version with a version prefix.
+  Auto-translate to starts with and tell the user. Not BLOCKED.
+tags: [substring, workaround, starts-with]
+
+input:
+  user_message: |
+    I want to migrate my Optimizely flags to Confidence.
+    Here is a flag from my project. What is the migration
+    path for this one? Describe it in plain English.
+  flag:
+    key: min-app-version-gate
+    name: Min app version gate
+    description: Gate using app version prefix contains.
+    archived: false
+    variable_definitions: {}
+    variations:
+      - { key: on, name: On }
+      - { key: off, name: Off }
+    ruleset:
+      enabled: true
+      default_variation_key: off
+      rule_priorities: [version_check]
+      rules:
+        version_check:
+          type: targeted_delivery
+          percentage_included: 10000
+          audience_conditions: ["or", { audience_id: 12 }]
+          audience_ids: [12]
+          variations:
+            on: { percentage_included: 10000 }
+    referenced_audiences:
+      "12":
+        name: Version 1.2 family
+        conditions: >
+          ["and",
+          {"type": "custom_attribute", "name": "app_version",
+          "match_type": "substring", "value": "1.2"}]
+
+expected:
+  scope: migrate
+  flag_shape: boolean
+  plan_includes:
+    - "starts with"
+    - "substring"
+  plan_excludes:
+    - "startsWithRule"
+    - "eqRule"
+    - "mcp__confidence"
+  resolutions:
+    - context: { app_version: "1.2.0" }
+      variant: "on"
+    - context: { app_version: "1.1.0" }
+      variant: "off"
+    - context: {}
+      variant: "off"
