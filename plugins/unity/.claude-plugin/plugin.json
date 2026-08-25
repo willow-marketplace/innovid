@@ -1,0 +1,26 @@
+{
+  "name": "unity",
+  "version": "0.1.0-beta",
+  "description": "Unity's official plugin for coding agents, with curated skills for game development, monetization, and performance optimization.",
+  "updatedAt": "2026-08-25T00:05:53.247Z",
+  "author": {
+    "url": "https://unity.com",
+    "name": "Unity Technologies"
+  },
+  "homepage": "https://unity.com",
+  "keywords": [
+    "unity",
+    "gamedev",
+    "game-development",
+    "ui-toolkit",
+    "ugui",
+    "2d",
+    "tilemap",
+    "in-app-purchases",
+    "monetization",
+    "localization",
+    "multiplayer",
+    "shader-graph"
+  ],
+  "skills": "./skills/"
+}

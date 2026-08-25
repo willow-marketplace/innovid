@@ -2,7 +2,7 @@
   "name": "data-agent-kit-starter-pack",
   "version": "0.8.0",
   "description": "This plugin provides a specialized suite of skills for data engineers and database practitioners working on Google Cloud. It acts as an expert assistant, allowing you to use natural language prompts in your preferred coding agent to architect complex data pipelines, transform data with dbt, write Spark and BigQuery SQL notebooks, and orchestrate end-to-end workflows across GCP's data ecosystem.",
-  "updatedAt": "2026-08-22T00:19:42.412Z",
+  "updatedAt": "2026-08-25T00:04:37.331Z",
   "author": {
     "name": "Google LLC",
     "email": "data-cloud-ai-integrations@google.com"

@@ -20,6 +20,7 @@ import (
 	"github.com/dash0hq/dash0-agent-plugin/internal/filelog"
 	"github.com/dash0hq/dash0-agent-plugin/internal/otlp"
 	"github.com/dash0hq/dash0-agent-plugin/internal/sessionurl"
+	"github.com/dash0hq/dash0-agent-plugin/internal/source/claude"
 	"github.com/dash0hq/dash0-agent-plugin/internal/transcript"
 	"github.com/dash0hq/dash0-agent-plugin/internal/version"
 )
@@ -153,8 +154,10 @@ func Process(event map[string]any, cfg otlp.Config, dataDir string, now time.Tim
 		event["chat_span_id"] = chatSpanID
 
 		model := ""
+		previousTraceID := ""
 		if ctx, err := otlp.LoadTraceContext(sessionDir); err == nil && ctx != nil {
 			model = ctx.Model
+			previousTraceID = ctx.TraceID
 		}
 
 		if err := otlp.SaveTraceContext(otlp.TraceContext{
@@ -164,6 +167,9 @@ func Process(event map[string]any, cfg otlp.Config, dataDir string, now time.Tim
 			Model:     model,
 		}, sessionDir); err != nil {
 			return res, err
+		}
+		if previousTraceID != "" {
+			otlp.ClearToolModels(sessionDir, previousTraceID)
 		}
 	}
 
@@ -203,6 +209,9 @@ func Process(event map[string]any, cfg otlp.Config, dataDir string, now time.Tim
 		if err := sendLLMTrace(event, cfg, now, sessionDir, hookEvent == "StopFailure"); err != nil {
 			fmt.Fprintf(os.Stderr, "on-event: trace export: %v\n", err)
 		}
+		if ctx, err := otlp.LoadTraceContext(sessionDir); err == nil && ctx != nil {
+			otlp.ClearToolModels(sessionDir, ctx.TraceID)
+		}
 		otlp.ClearTraceContext(sessionDir)
 	case "SubagentStart":
 		// Snapshot the current trace context for this agent so its
@@ -220,10 +229,18 @@ func Process(event map[string]any, cfg otlp.Config, dataDir string, now time.Tim
 			}
 		}
 	case "SubagentStop":
+		markedConsumed := false
+		if agentID != "" {
+			if err := otlp.MarkAgentTraceContextConsumed(sessionDir, agentID); err != nil {
+				fmt.Fprintf(os.Stderr, "on-event: marking agent trace context consumed: %v\n", err)
+			} else {
+				markedConsumed = true
+			}
+		}
 		if err := sendLLMTrace(event, cfg, now, sessionDir, false); err != nil {
 			fmt.Fprintf(os.Stderr, "on-event: trace export (subagent): %v\n", err)
 		}
-		if agentID != "" {
+		if markedConsumed {
 			otlp.ClearAgentTraceContext(sessionDir, agentID)
 		}
 	case "SessionEnd":
@@ -250,24 +267,64 @@ func SessionDir(dataDir, sessionID string) string {
 }
 
 func sendToolTrace(event map[string]any, cfg otlp.Config, ts time.Time, dataDir string, failed bool) error {
-	ctx, err := otlp.LoadTraceContext(dataDir)
-	if err != nil || ctx == nil {
-		return fmt.Errorf("no trace context available for tool span")
+	agentID, _ := event["agent_id"].(string)
+
+	// For a sub-agent's tool call, prefer the snapshot taken at SubagentStart,
+	// for the same reason sendLLMTrace does: the Task tool returns as soon as the
+	// agent is launched, so the spawning turn's Stop — which clears the session
+	// context — routinely lands while the sub-agent is still working. Reading
+	// only the session context dropped every tool call made after that point,
+	// which is most of them.
+	var ctx *otlp.TraceContext
+	if agentID != "" {
+		consumed, err := otlp.AgentTraceContextConsumed(dataDir, agentID)
+		if err != nil || consumed {
+			return fmt.Errorf("no trace context available for tool span")
+		}
+		ctx, _ = otlp.LoadAgentTraceContext(dataDir, agentID)
+	}
+	if ctx == nil || ctx.TraceID == "" {
+		var err error
+		ctx, err = otlp.LoadTraceContext(dataDir)
+		if err != nil || ctx == nil || ctx.TraceID == "" {
+			return fmt.Errorf("no trace context available for tool span")
+		}
 	}
 
 	traceID := ctx.TraceID
 	parentSpanID := ctx.SpanID
 
-	if _, hasModel := event["model"]; !hasModel && ctx.Model != "" {
-		event["model"] = ctx.Model
+	// An actor-scoped turn model wins over the session's startup model. Keeping
+	// parent and subagent caches separate avoids mixing models between actors,
+	// which read different transcripts: see modelTranscript.
+	if _, hasModel := event["model"]; !hasModel {
+		if model, err := otlp.LoadToolModel(dataDir, traceID, agentID); err == nil && model != "" {
+			event["model"] = model
+		}
 	}
 
 	if _, hasModel := event["model"]; !hasModel {
-		if tp, _ := event["transcript_path"].(string); tp != "" {
-			if m := transcript.ReadModel(tp); m != "" {
+		if tp := modelTranscript(event, agentID); tp != "" {
+			// Resolve once per turn, then remember it for the rest of the turn. The
+			// transcript flushes asynchronously, so reading it per tool call put the
+			// model on some of a turn's tool spans and not others, decided by which
+			// call happened to run after the flush. Remembering the answer makes every
+			// later tool span in the turn carry it, and waiting covers the first one.
+			//
+			// A sub-agent's tool call after the spawning turn's Stop caches nothing,
+			// because the session context it would write to is gone by then. Those
+			// calls each read the transcript, which is correct but not free.
+			if m := waitForModel(tp); m != "" {
 				event["model"] = m
+				rememberModel(dataDir, traceID, agentID, m)
 			}
 		}
+	}
+
+	// ctx.Model is the model the session started with, so it answers for the main
+	// actor only — a sub-agent gets no model rather than the parent's.
+	if _, hasModel := event["model"]; !hasModel && agentID == "" && ctx.Model != "" {
+		event["model"] = ctx.Model
 	}
 
 	startTime := ts
@@ -276,28 +333,32 @@ func sendToolTrace(event map[string]any, cfg otlp.Config, ts time.Time, dataDir 
 	}
 
 	toolName, _ := event["tool_name"].(string)
-	agentID, _ := event["agent_id"].(string)
 
 	var spanID string
 	if strings.EqualFold(toolName, "Agent") {
-		resultAgentID := extractAgentIDFromResponse(event["tool_response"])
-		if resultAgentID != "" {
+		// The Agent tool's own span id is derived from the sub-agent it launched,
+		// so the sub-agent's own spans can name it as their parent without
+		// sharing any state.
+		if resultAgentID := extractAgentIDFromResponse(event["tool_response"]); resultAgentID != "" {
 			spanID = otlp.SpanIDFromAgentID(resultAgentID)
 			event["agent_id"] = resultAgentID
-		} else {
-			spanID, err = otlp.GenerateSpanID()
-			if err != nil {
-				return err
-			}
 		}
-	} else {
-		spanID, err = otlp.GenerateSpanID()
+	}
+	if spanID == "" {
+		generated, err := otlp.GenerateSpanID()
 		if err != nil {
 			return err
 		}
+		spanID = generated
 	}
 
-	if !strings.EqualFold(toolName, "Agent") && agentID != "" {
+	// A tool call made inside a sub-agent parents under that agent's span rather
+	// than under the turn's chat span. This includes an Agent call made by a
+	// sub-agent — a nested spawn — because a top-level Agent call carries no
+	// agent_id at all: the id of the agent it launches arrives in the response,
+	// and is read above. So agent_id here always names the caller, never the
+	// callee, and nesting survives instead of being flattened onto the turn.
+	if agentID != "" {
 		parentSpanID = otlp.SpanIDFromAgentID(agentID)
 	}
 
@@ -306,6 +367,17 @@ func sendToolTrace(event map[string]any, cfg otlp.Config, ts time.Time, dataDir 
 	span := otlp.NewToolSpan(traceID, spanID, parentSpanID, startTime, ts, event, failed, cfg)
 	return otlp.SendTrace(span, event, cfg)
 }
+
+// Skill invocation routes, reported as dash0.gen_ai.tool.skill.source.
+//
+// The two are not interchangeable. skillSourceCommand is a person deciding to
+// run a skill; skillSourceModel is the model reaching for one. Counting them
+// together answers "which skills are used"; keeping them apart answers "who
+// chose it", and only the second route was ever observable before.
+const (
+	skillSourceCommand = "command"
+	skillSourceModel   = "model"
+)
 
 // EnrichToolEvent applies the source-agnostic extractor rules to a tool event
 // whose tool_name/tool_input/tool_response are already populated in the
@@ -339,6 +411,11 @@ func EnrichToolEvent(event map[string]any) {
 	if strings.EqualFold(toolName, "Skill") {
 		if skill := ExtractSkillName(toolInput); skill != "" {
 			event["skill_name"] = skill
+			// The model chose this skill. The other route — a person typing the
+			// slash command — is attributed on the chat span by sendLLMTrace, so
+			// both carry the route and a count can separate deliberate use from
+			// the model's own reaching.
+			event["skill_source"] = skillSourceModel
 		}
 	}
 	if server := ExtractMCPServer(toolName); server != "" {
@@ -369,10 +446,6 @@ func sendLLMTrace(event map[string]any, cfg otlp.Config, ts time.Time, dataDir s
 
 	traceID := ctx.TraceID
 	spanID := ctx.SpanID
-
-	if _, hasModel := event["model"]; !hasModel && ctx.Model != "" {
-		event["model"] = ctx.Model
-	}
 
 	startTime := ts
 	if ctx.StartTime != "" {
@@ -445,17 +518,29 @@ func sendLLMTrace(event map[string]any, cfg otlp.Config, ts time.Time, dataDir s
 				fmt.Fprintf(os.Stderr, "on-event: reading transcript: %v\n", err)
 			}
 			if usage != nil {
-				event["gen_ai.usage.input_tokens"] = usage.InputTokens
-				event["gen_ai.usage.output_tokens"] = usage.OutputTokens
-				event["gen_ai.usage.cache_creation.input_tokens"] = usage.CacheCreationInputTokens
-				event["gen_ai.usage.cache_read.input_tokens"] = usage.CacheReadInputTokens
-				event["dash0.gen_ai.usage.cache_creation.ephemeral_5m.input_tokens"] = usage.CacheCreation5mInputTokens
-				event["dash0.gen_ai.usage.cache_creation.ephemeral_1h.input_tokens"] = usage.CacheCreation1hInputTokens
+				injectTurnUsage(event, usage)
+				// Alongside the usage it qualifies: billing mode exists to say what
+				// a cost figure means, so on a turn that reported no tokens it would
+				// annotate nothing.
+				injectClaudeBilling(event, cfg)
 			}
 		}
 
 		if title := transcript.ReadSessionTitle(transcriptPath); title != "" {
 			event["gen_ai.conversation.name"] = title
+		}
+
+		// A skill invoked by its slash command runs no tool, so it produces no
+		// execute_tool span. The invocation is recorded on the turn's chat span
+		// instead, under the same key the Skill tool uses, so one query counts
+		// both routes and skill_source separates them.
+		if agentID == "" {
+			if _, has := event["skill_name"]; !has {
+				if skill := transcript.ReadTurnSkillCommand(transcriptPath); skill != "" {
+					event["skill_name"] = skill
+					event["skill_source"] = skillSourceCommand
+				}
+			}
 		}
 
 		if _, hasModel := event["model"]; !hasModel {
@@ -465,8 +550,65 @@ func sendLLMTrace(event map[string]any, cfg otlp.Config, ts time.Time, dataDir s
 		}
 	}
 
+	if _, hasModel := event["model"]; !hasModel && ctx.Model != "" {
+		event["model"] = ctx.Model
+	}
+
 	span := otlp.NewLLMSpan(traceID, spanID, parentSpanID, startTime, ts, event, failed, cfg)
 	return otlp.SendTrace(span, event, cfg)
+}
+
+// injectTurnUsage writes the turn's token counts onto the event as gen_ai.usage.*
+// attributes, which the span builder emits verbatim. Callers skip it when the
+// transcript yielded nothing, so the span carries no token attributes at all
+// rather than a row of zeros.
+func injectTurnUsage(event map[string]any, usage *transcript.Usage) {
+	event["gen_ai.usage.input_tokens"] = usage.InputTokens
+	event["gen_ai.usage.output_tokens"] = usage.OutputTokens
+	event["gen_ai.usage.cache_creation.input_tokens"] = usage.CacheCreationInputTokens
+	event["gen_ai.usage.cache_read.input_tokens"] = usage.CacheReadInputTokens
+	event["dash0.gen_ai.usage.cache_creation.ephemeral_5m.input_tokens"] = usage.CacheCreation5mInputTokens
+	event["dash0.gen_ai.usage.cache_creation.ephemeral_1h.input_tokens"] = usage.CacheCreation1hInputTokens
+	// Emitted only when the turn did some thinking, matching Copilot's
+	// emission of the same key (cmd/copilot-on-event/main.go). The two
+	// runtimes share the key so one query spans both, and a key that is
+	// always present in one and conditional in the other would defeat
+	// that. Unlike the counts above, a zero here carries no information:
+	// thinking tokens are a subset of output_tokens, so absence and zero
+	// mean the same thing for every total and every cost.
+	if usage.ReasoningOutputTokens > 0 {
+		event["gen_ai.usage.reasoning.output_tokens"] = usage.ReasoningOutputTokens
+	}
+}
+
+// injectClaudeBilling records whether a Claude Code session is billed per token,
+// so the consumer knows whether the cost figure is spend or a list-price
+// equivalent. See DEVELOPMENT.md for the attribute contract.
+//
+// Harness-guarded because this function sits in the shared LLM-span path: Codex
+// derives its own billing mode from the rollout, and stamping Claude's account
+// state onto a Codex span would silently overwrite it with the wrong answer.
+//
+// Billing is account state rather than turn state, so it does not read the
+// transcript — but the caller gates it on usage being present, since the mode
+// exists to qualify a cost figure.
+func injectClaudeBilling(event map[string]any, cfg otlp.Config) {
+	if cfg.HarnessName != "claude-code" {
+		return
+	}
+
+	info := claude.ReadBilling()
+	// Who meters the session is a separate dimension from whether it is metered at
+	// all, so a consumer can read either attribute alone without being misled.
+	if info.Provider != "" {
+		event["dash0.gen_ai.billing_provider"] = info.Provider
+	}
+	// Stated even when "unknown": alongside a cost figure, recording that we
+	// looked and could not tell differs from never having looked.
+	event["dash0.gen_ai.billing_mode"] = info.BillingMode
+	if info.PlanType != "" {
+		event["dash0.gen_ai.plan_type"] = info.PlanType
+	}
 }
 
 // sessionIDPattern restricts session IDs to filename-safe characters. Session
@@ -483,6 +625,77 @@ const turnCompleteWaitBudget = 500 * time.Millisecond
 
 // turnCompletePollInterval is the gap between transcript readiness checks.
 const turnCompletePollInterval = 50 * time.Millisecond
+
+// modelWaitBudget caps how long sendToolTrace waits for the assistant entry
+// that requested a tool to reach the transcript. A turn's first tool call can
+// fire before that flush lands — measured at ~900ms behind the PreToolUse hook —
+// and without the wait the model is absent from that one span and present on
+// every later one. A resolved model is then cached in a trace-and-actor-keyed
+// sidecar, so the wait is normally paid once per actor per turn.
+const modelWaitBudget = 1 * time.Second
+
+// modelTranscript names the transcript that says which model this actor is
+// running. A sub-agent runs its own — an agent definition may pin one and the
+// Agent tool takes an override — but its PostToolUse carries only
+// transcript_path, which is the main session's, so its own file is derived.
+// Returning "" leaves the model absent, which beats reading the wrong actor's.
+func modelTranscript(event map[string]any, agentID string) string {
+	sessionTranscript, _ := event["transcript_path"].(string)
+	if agentID == "" {
+		return sessionTranscript
+	}
+	// SubagentStop is the one event that carries it outright.
+	if atp, _ := event["agent_transcript_path"].(string); atp != "" {
+		return atp
+	}
+	sessionID, _ := event["session_id"].(string)
+	return transcript.SubagentPath(sessionTranscript, sessionID, agentID)
+}
+
+// waitForModel returns the model named by the transcript, waiting only while an
+// assistant entry could still be on its way.
+//
+// Two early exits keep the budget off the hot path. A transcript that already
+// has an assistant entry naming no model belongs to a source that does not
+// record models, so waiting would add latency to every tool call for nothing.
+// And a transcript_path pointing at no file at all is not a flush in progress:
+// nothing is coming, and polling it burned the entire budget on every tool call
+// of such a session (measured at 1.6s per call before this check).
+func waitForModel(transcriptPath string) string {
+	if _, err := os.Stat(transcriptPath); err != nil {
+		return ""
+	}
+	deadline := time.Now().Add(modelWaitBudget)
+	for {
+		model, hasAssistant := transcript.ReadCurrentTurnModel(transcriptPath)
+		if model != "" {
+			return model
+		}
+		if hasAssistant || time.Now().After(deadline) {
+			return ""
+		}
+		time.Sleep(turnCompletePollInterval)
+	}
+}
+
+// rememberModel caches a transcript-resolved model in a trace-and-actor-keyed
+// sidecar only while that trace is the active session turn. The second context
+// check closes the Stop/new-prompt race around the sidecar write without ever
+// rewriting trace_context.json.
+func rememberModel(dataDir, traceID, actorID, model string) {
+	ctx, err := otlp.LoadTraceContext(dataDir)
+	if err != nil || ctx == nil || ctx.TraceID != traceID {
+		return
+	}
+	if err := otlp.SaveToolModel(dataDir, traceID, actorID, model); err != nil {
+		fmt.Fprintf(os.Stderr, "on-event: remembering model: %v\n", err)
+		return
+	}
+	ctx, err = otlp.LoadTraceContext(dataDir)
+	if err != nil || ctx == nil || ctx.TraceID != traceID {
+		otlp.ClearToolModel(dataDir, traceID, actorID)
+	}
+}
 
 // waitForTurnComplete blocks until the transcript's current turn shows a
 // terminal assistant entry or the budget elapses. It returns immediately once

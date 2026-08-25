@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.2.34
+
+- feat: Added Referenced Workloads Updates to Azure Enterprise Infra Planner Skills (feature: Referenced Workloads) ([#3094](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3094))
+
+## 1.2.33
+
+- refactor: remove duplicate content from Foundry skill description ([#3104](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3104))
+
 ## 1.2.32
 
 - Update outdated runtime references in plugin skills to latest LTS versions ([#3011](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3011))

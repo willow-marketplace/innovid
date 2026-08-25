@@ -1,8 +1,8 @@
 {
   "name": "mercadopago",
-  "version": "4.3.0",
-  "description": "Mercado Pago integration toolkit for Claude Code. One agent routes to four skills: mp-integrate (full wizard for Checkout Pro, Checkout API, Bricks, QR Code, Point, Subscriptions, Marketplace, Wallet Connect — plus /mp-integrate migrate to upgrade legacy Instore integrations to the Orders API), mp-webhooks (HMAC-validated receiver scaffold + diagnostics), mp-test-setup (test users, credentials, and test cards for AR/BR/MX/CO/CL), and mp-review (quality and security checklist before going live). Scaffolding works without MCP auth; live docs, credential lookup, and test-user creation use the official Mercado Pago MCP server.",
-  "updatedAt": "2026-08-22T00:19:42.324Z",
+  "version": "4.3.1",
+  "description": "Mercado Pago integration toolkit for Claude Code. One agent routes to four skills: mp-integrate (wizard for Checkout Pro, Checkout API, Bricks, QR Code, Point, Subscriptions, Marketplace, Wallet Connect, Payouts, and SmartApps — plus migration of legacy Instore integrations to the Orders API), mp-webhooks (HMAC-validated receiver scaffold and diagnostics), mp-test-setup (test users, credentials, and test cards), and mp-review (quality and security checks). Scaffolding works offline where possible; live account and documentation operations use the official Mercado Pago MCP server on demand.",
+  "updatedAt": "2026-08-25T00:04:49.633Z",
   "author": {
     "name": "Mercado Pago Developer Experience"
   },
@@ -18,6 +18,8 @@
     "point",
     "subscriptions",
     "marketplace",
+    "payouts",
+    "smartapps",
     "wallet",
     "3ds",
     "fintech",
@@ -34,7 +36,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/check-version.sh"
+            "command": "bash"
           }
         ]
       }
@@ -45,7 +47,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 ${CLAUDE_PLUGIN_ROOT}/hooks/validate_mp_credentials.py"
+            "command": "python3"
           }
         ]
       }
@@ -56,7 +58,7 @@
       "url": "https://mcp.mercadopago.com/mcp",
       "type": "http",
       "headers": {
-        "X-Plugin-Version": "4.3.0",
+        "X-Plugin-Version": "4.3.1",
         "X-Invocation-Context": "router"
       }
     }
