@@ -2,7 +2,7 @@
   "name": "terraform-code-generation",
   "version": "1.0.0",
   "description": "Terraform code generation skills for Claude Code, including HCL generation, style guides, and testing.",
-  "updatedAt": "2026-08-22T00:31:01.944Z",
+  "updatedAt": "2026-08-25T00:23:58.274Z",
   "author": {
     "url": "https://github.com/hashicorp",
     "name": "HashiCorp"

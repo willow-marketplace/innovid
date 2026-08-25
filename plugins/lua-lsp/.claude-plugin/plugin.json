@@ -2,7 +2,7 @@
   "name": "lua-lsp",
   "version": "1.0.0",
   "description": "Lua language server for code intelligence",
-  "updatedAt": "2026-08-25T00:04:44.091Z",
+  "updatedAt": "2026-08-25T00:23:58.004Z",
   "author": {
     "name": "Anthropic",
     "email": "support@anthropic.com"
