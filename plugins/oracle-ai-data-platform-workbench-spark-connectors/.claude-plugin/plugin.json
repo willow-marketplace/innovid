@@ -2,7 +2,7 @@
   "name": "oracle-ai-data-platform-workbench-spark-connectors",
   "version": "1.0.0",
   "description": "Oracle AI Data Platform Workbench Spark connectors for Claude Code. 26 connector skills covering Oracle, OCI, SaaS, JDBC, object storage, streaming, REST, Excel, and multi-cloud data sources, including dedicated DB2 and Azure SQL guidance.",
-  "updatedAt": "2026-08-25T12:02:26.726Z",
+  "updatedAt": "2026-08-25T12:09:13.871Z",
   "author": {
     "name": "Ahmed Awan"
   },
