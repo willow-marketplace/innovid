@@ -2,7 +2,7 @@
   "name": "logfire",
   "version": "1.0.0",
   "description": "Add Logfire observability to Python applications with auto-instrumentation for FastAPI, httpx, asyncpg, SQLAlchemy, and more",
-  "updatedAt": "2026-08-28T00:04:46.955Z",
+  "updatedAt": "2026-08-28T00:25:11.364Z",
   "author": {
     "name": "Pydantic",
     "email": "support@pydantic.dev"

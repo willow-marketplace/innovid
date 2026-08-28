@@ -2,7 +2,7 @@
   "name": "mongodb",
   "version": "1.2.1",
   "description": "Official Antigravity plugin for MongoDB (MCP Server + Skills). Connect to databases, explore data, manage collections, optimize queries, generate reliable code, implement best practices, develop advanced features, and more.",
-  "updatedAt": "2026-08-28T00:05:08.658Z",
+  "updatedAt": "2026-08-28T00:25:11.288Z",
   "author": {
     "url": "https://www.mongodb.com",
     "name": "MongoDB",

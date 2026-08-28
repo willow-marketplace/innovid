@@ -2,7 +2,7 @@
   "name": "cloud-sql-mysql",
   "version": "0.2.0",
   "description": "Connect and interact with a Cloud SQL for MySQL database and data.",
-  "updatedAt": "2026-08-28T00:04:12.036Z",
+  "updatedAt": "2026-08-28T00:25:11.378Z",
   "author": {
     "name": "Google LLC",
     "email": "data-cloud-ai-integrations@google.com"
