@@ -55,7 +55,11 @@
 #   installed — additionally takes the whole chain, unchanged:
 #     resolve-paths.sh, detect-tools.sh, bootstrap-dirs.sh, log.sh
 #   Binaries:
-#     python3 (for JSON parsing of last-save.json — only once a save has landed)
+#     python3 (for JSON parsing of last-save.json, via `pipeline.shell
+#              read-position` — only once a save has landed, and only when
+#              the #353 sidecar below is absent or disagrees; a save that
+#              landed and left a trustworthy sidecar spawns no interpreter
+#              at all)
 #     jq (for reading config.json — on the resolving run only)
 #
 # EXIT CODES
@@ -73,6 +77,17 @@
 #
 #       no save yet:        14 -> 6   (336 ms -> 130 ms)
 #       a save behind it:   15 -> 8   (405 ms -> 248 ms)
+#
+#   The 8-spawn "a save behind it" figure is #352's own number, on that
+#   branch, BEFORE #353's sidecar existed — every one of those runs still
+#   paid for `pipeline.shell read-position`. #353 (this file, below) adds a
+#   bash-`read`-able sidecar that a save behind it now consults with a
+#   builtin `read` instead, so a warm run whose sidecar is present and
+#   agrees no longer spawns python3 at all. REASONED, not directly
+#   re-measured end-to-end: the spawn this drops is the exact one #352
+#   measured at 2 spawns / ~118 ms on a call that takes it, so the same
+#   drop should apply here on the agreeing-sidecar path — but this file has
+#   not re-run that measurement on this change.
 #
 #   The reporter's Windows 11 / Git Bash numbers are 750-1000 ms per call
 #   against ~90 ms for the prompt hook that already replays. Per-spawn cost is
@@ -459,7 +474,7 @@ if printf '%s' "$SESSION_ID" > "$REMEMBER_DIR/tmp/capture-alive.$$" 2>/dev/null;
         || rm -f "$REMEMBER_DIR/tmp/capture-alive.$$" 2>/dev/null || true
 fi
 
-# --- Get last saved position (from last-save.json) ---
+# --- Get last saved position (from the #353 sidecar, or last-save.json) ---
 # Positions are keyed by session (issue #140), so ask for THIS session rather
 # than whether it happens to own the one slot — two live sessions used to
 # overwrite each other and re-summarize whole spans as duplicates.
@@ -484,8 +499,54 @@ fi
 # slow path has sourced detect-tools.sh already, and detect-tools.sh exports
 # PYTHON, so an invocation that inherited a resolved one from a parent is
 # equally answered. Re-sourcing would only repeat the spawn.
+# --- The #353 sidecar: skip the read-position spawn when it can be trusted ---
+# `pipeline.shell save-position` (invoked from save-session.sh) writes a
+# plain-integer, bash-`read`-able mirror of THIS session's position AFTER it
+# commits last-save.json, never before — so the sidecar can lag the truth
+# (a crash between the two writes) but can never be ahead of it. That
+# ordering is what makes a value greater than CURRENT_LINES, this run's own
+# transcript line count, self-evidently wrong: reaching one needs corruption
+# or a session-id collision, never a legitimate crash window. A sidecar that
+# fails either check is a DISAGREEMENT with last-save.json and is never
+# trusted silently — it is logged, once per occurrence, and the read falls
+# back to the authoritative `read-position` spawn this hot path exists to
+# avoid on the common path.
+#
+# Three states, not two: SIDECAR_TRUSTED holds the sidecar's own value with
+# no spawn at all; a fallback below asks read-position for the authoritative
+# one; neither path ever substitutes a silent 0 for "could not tell" — an
+# absent or invalid sidecar simply means there was nothing here to trust,
+# and the code below asks the real source of truth instead of guessing.
+SIDECAR=""
+case "$SESSION_ID" in
+    ''|.|..|*[!A-Za-z0-9._-]*) : ;;
+    *) SIDECAR="$REMEMBER_DIR/tmp/position.$SESSION_ID" ;;
+esac
+
 LAST_LINE=0
-if [ -f "$LAST_SAVE_FILE" ]; then
+SIDECAR_TRUSTED=""
+if [ -n "$SIDECAR" ] && [ -f "$SIDECAR" ]; then
+    _SIDECAR_LINE=""
+    read -r _SIDECAR_LINE < "$SIDECAR" 2>/dev/null
+    case "$_SIDECAR_LINE" in
+        ''|*[!0-9]*)
+            log "hook" "WARNING: sidecar $SIDECAR held a non-numeric value ($_SIDECAR_LINE) — disagrees with last-save.json, falling back to read-position"
+            ;;
+        *)
+            # 10# (#332): a leading zero in the sidecar would otherwise be
+            # read as octal and take this comparison — and the delta
+            # arithmetic below it — down with it.
+            if [ "$((10#$_SIDECAR_LINE))" -gt "$CURRENT_LINES" ]; then
+                log "hook" "WARNING: sidecar $SIDECAR reports position $_SIDECAR_LINE, past this run's own $CURRENT_LINES transcript lines — disagrees with last-save.json, falling back to read-position"
+            else
+                LAST_LINE=$((10#$_SIDECAR_LINE))
+                SIDECAR_TRUSTED=1
+            fi
+            ;;
+    esac
+fi
+
+if [ -z "$SIDECAR_TRUSTED" ] && [ -f "$LAST_SAVE_FILE" ]; then
     [ -n "${PYTHON:-}" ] || source "$_HOOK_DIR/detect-tools.sh"
     LAST_LINE=$(cd "$PIPELINE_DIR" && $PYTHON -m pipeline.shell read-position "$LAST_SAVE_FILE" "$SESSION_ID" 2>/dev/null)
     case "$LAST_LINE" in ''|*[!0-9]*) LAST_LINE=0 ;; esac

@@ -84,7 +84,7 @@ source "$PLUGIN_ROOT/scripts/log.sh" 2>/dev/null
 # diagnostic up front. Exit 127 (command-missing) to match the degraded-env
 # contract that tolerates rc in (0, 127), not a bare 1.
 if ! command -v _remember_date >/dev/null 2>&1; then
-    echo "session-start-hook: ERROR — failed to source $PLUGIN_ROOT/scripts/log.sh" >&2
+    echo "session-start-hook: ERROR -- failed to source $PLUGIN_ROOT/scripts/log.sh" >&2
     exit 127
 fi
 TODAY=$(_remember_date '+%Y-%m-%d')
@@ -576,7 +576,7 @@ _remember_write_case_divergence() {
             # nobody reads. It is still never rendered as agreement anywhere
             # that reports it; `/remember:doctor` says it every time.
             [ "$_old" = "$_body" ] && return 0
-            log "case-divergence" "could not check whether this store is known by a second spelling (disk=$REMEMBER_CASE_DISK_STATE${REMEMBER_CASE_DISK_REASON:+/$REMEMBER_CASE_DISK_REASON} git=$REMEMBER_CASE_GIT_STATE${REMEMBER_CASE_GIT_REASON:+/$REMEMBER_CASE_GIT_REASON}) — this is not a report that they agree"
+            log "case-divergence" "could not check whether this store is known by a second spelling (disk=$REMEMBER_CASE_DISK_STATE${REMEMBER_CASE_DISK_REASON:+/$REMEMBER_CASE_DISK_REASON} git=$REMEMBER_CASE_GIT_STATE${REMEMBER_CASE_GIT_REASON:+/$REMEMBER_CASE_GIT_REASON}) -- this is not a report that they agree"
             ;;
     esac
     return 0
@@ -756,7 +756,7 @@ if [ -z "$CURRENT_SESSION_ID" ]; then
     # (#144, #263, #266). doctor reports the marker.
     printf '%s\n' "the SessionStart payload carried no usable session_id" \
         > "$CAPTURE_SKIPPED" 2>/dev/null || true
-    log "hook" "session-start: capture-gap check skipped — no session_id on stdin"
+    log "hook" "session-start: capture-gap check skipped -- no session_id on stdin"
 else
     rm -f "$CAPTURE_SKIPPED" 2>/dev/null || true
 
@@ -771,7 +771,7 @@ else
     if [ -n "$PREV_ID" ] && [ "$REPORTED_ID" != "$PREV_ID" ] \
        && ! capture_was_seen "$PREV_ID" \
        && grep -q '"tool_use"' "$PREV_JSONL" 2>/dev/null; then
-        echo "remember: your previous session was not captured. If you just installed or enabled the plugin, that is expected — capture starts now. Otherwise its hooks were not registered for that session; run /remember:doctor." \
+        echo "remember: your previous session was not captured. If you just installed or enabled the plugin, that is expected -- capture starts now. Otherwise its hooks were not registered for that session; run /remember:doctor." \
             > "$REMEMBER_DIR/tmp/capture-gap-notice" 2>/dev/null || true
         printf '%s' "$PREV_ID" > "$CAPTURE_REPORTED" 2>/dev/null || true
     fi
@@ -862,7 +862,7 @@ if [ "$REMEMBER_ROOT" != "$PROJECT_DIR" ] || [ -n "$PER_SESSION_HANDOFF" ]; then
     echo "=== HANDOFF ==="
     echo "Write next handoff to: $REMEMBER_HANDOFF"
     if [ -n "$HANDOFF_MODE_DEGRADED" ]; then
-        echo "(handoff_mode is \"per_session\", but no session_id reached this hook — writing to the shared file above, not a per-session one.)"
+        echo "(handoff_mode is \"per_session\", but no session_id reached this hook -- writing to the shared file above, not a per-session one.)"
     fi
     echo ""
 fi
@@ -979,11 +979,28 @@ if [ -f "$REMEMBER_HANDOFF" ] && [ -s "$REMEMBER_HANDOFF" ]; then
 
     echo "=== LAST HANDOFF ==="
     if [ -n "$PREV_FP" ] && [ "$HANDOFF_FP" = "$PREV_FP" ]; then
-        # 10# after the case (#332). The record is explicitly hand-editable,
-        # which is the premise of the guard above and the one source that can
-        # deliver "08".
-        DELIVERIES=$((10#$DELIVERIES + 1))
-        echo "[already delivered ${DELIVERIES} times since ${FIRST_DELIVERED:-an earlier session} — no new handoff has been written since, so this is pending replacement, not news. You may already have acted on it. Running /remember replaces it.]"
+        # The counter's own wording ("already delivered N times") is a claim
+        # about how many SESSIONS have seen this content — but `SessionStart`
+        # fires on every source, including `compact`, which is not a new
+        # session at all (#206 settled this for the capture-alive store; #341
+        # is that rule applied here). Without the guard below, four
+        # auto-compactions of a handoff delivered exactly once read as
+        # "already delivered 5 times", arguing for dismissing content that
+        # was in fact read once.
+        #
+        # `compact` is the only source excluded. `clear`, `fork`, `resume`, an
+        # absent source and an unrecognised value are NOT: each already means
+        # something happened that plausibly warrants treating the fire as a
+        # fresh look — `clear` genuinely replaces the context, and the #339
+        # safe direction for an unknown/absent source is to change nothing.
+        # `compact` is the one source that is provably still the same session.
+        if [ "$SESSION_START_SOURCE" != "compact" ]; then
+            # 10# after the case (#332). The record is explicitly
+            # hand-editable, which is the premise of the guard above and the
+            # one source that can deliver "08".
+            DELIVERIES=$((10#$DELIVERIES + 1))
+        fi
+        echo "[already delivered ${DELIVERIES} times since ${FIRST_DELIVERED:-an earlier session} -- no new handoff has been written since, so this is pending replacement, not news. You may already have acted on it. Running /remember replaces it.]"
     else
         DELIVERIES=1
         FIRST_DELIVERED=$(_remember_date '+%Y-%m-%d %H:%M')
@@ -998,6 +1015,111 @@ elif [ -f "$REMEMBER_HANDOFF_STATE" ]; then
     # describes content that no longer exists, and keeping it would mislabel a
     # future handoff that happens to fingerprint the same.
     rm -f "$REMEMBER_HANDOFF_STATE"
+fi
+
+# ── Prune stale per-session delivery records (#373) ───────────────
+# handoff_mode: per_session writes one remember.delivered.<session_id> per
+# session (above) and nothing else in this codebase ever removes one -- the
+# same class of leak #362 already fixed once, in the same directory, under a
+# different filename ("could not tell" was not a state that leak had; this
+# one does, because a delivery record's own session might still be live).
+#
+# Coupling this to the paired remember.<session_id>.md handoff slot was
+# considered and rejected: that slot survives forever ON PURPOSE (#221), so a
+# sweep keyed to it would reintroduce unbounded growth under a new name.
+# Coupled instead to the one fact that actually answers "is this session
+# over": whether Claude Code's own transcript for that session id still
+# exists under $SESSIONS_DIR -- the same directory `previous_transcript`
+# above already reads. A transcript still on disk means the session could
+# still resume and write another handoff; one that is gone means the session
+# is gone in every way this hook can observe.
+#
+# Three states, not two, matching the record left behind:
+#   - transcript confirmed ABSENT, record older than GRACE_MIN -> pruned
+#   - transcript confirmed PRESENT -> record is kept (not a bug: correct
+#     under the coupling above)
+#   - transcript ABSENT but record younger than GRACE_MIN, or $SESSIONS_DIR
+#     cannot be listed at all -> nothing is touched. Could-not-tell must
+#     never render as either of the other two, so on doubt the safe
+#     direction is the one #221 already chose for the handoff itself: keep,
+#     never guess-delete.
+#
+# #393: "transcript absent" alone does not mean "session gone". At
+# source=startup (see the #270 comment above, lines 100-108) Claude Code
+# creates a session's own transcript AFTER this hook has already run and
+# already written that session's delivery record (line ~1012 above). For
+# that window a live session's record is indistinguishable from a dead
+# one's on the transcript check alone -- any concurrent session start
+# would prune a record that is still in active use. GRACE_MIN arbitrates:
+# a record newer than the window is not evidence the session is over,
+# whatever the transcript says; the mtime check below is what makes this a
+# third state instead of a coin flip. GRACE_MIN is REASONED, not measured
+# against real Claude Code startup timing -- there is no instrumented
+# figure for how long that gap runs, so this picks a duration wide enough
+# that no plausible hook-to-transcript-creation delay approaches it, while
+# staying bounded: a genuinely dead session's record is still pruned, just
+# on the next session start after it ages past this window, never lost.
+GRACE_MIN=5
+#
+# Runs regardless of THIS session's own handoff_mode -- not gated on
+# $PER_SESSION_HANDOFF. Gating it there was considered and rejected: a
+# record left behind during a PAST per_session period does not stop
+# existing the moment a user switches handoff_mode back to "single", and a
+# sweep that only ran while per_session was the CURRENT setting would leak
+# exactly those records forever -- the same accumulation this fix exists to
+# stop, just gated behind a config toggle instead of eliminated.
+#
+# Legacy (un-namespaced) mode never matches the glob below regardless: it
+# only ever matches "remember.delivered.<something>", and the shared-mode
+# file is exactly "remember.delivered" with no trailing dot.
+if [ -d "$SESSIONS_DIR" ] && [ -d "$REMEMBER_DIR/tmp" ]; then
+    for _remember_stale_record in "$REMEMBER_DIR"/tmp/remember.delivered.*; do
+        [ -f "$_remember_stale_record" ] || continue
+        _remember_stale_id="${_remember_stale_record##*/remember.delivered.}"
+        [ -n "$_remember_stale_id" ] || continue
+        # Never sweep the record this very invocation just wrote.
+        [ "$_remember_stale_id" = "$CURRENT_SESSION_ID" ] && continue
+        if [ ! -e "$SESSIONS_DIR/$_remember_stale_id.jsonl" ]; then
+            # #393: an absent transcript is not proof the session is over --
+            # it is also what a session still inside its own startup window
+            # looks like. Read the record's own mtime rather than shelling
+            # out to `find -mmin`: `find` is the one command on this path
+            # with a real PATH-shadowing risk on Windows Git Bash
+            # (System32's find.exe can resolve ahead of MinGW's find on
+            # some setups and silently answers a different question), so it
+            # would degrade "prune" into a silent always-keep with nothing
+            # surfaced. `stat` uses the same GNU-first-then-BSD-fallback
+            # order already used by doctor.sh:257 and lib-lock.sh:183 for
+            # exactly this portability split -- GNU first, because GNU
+            # `stat -f` on Linux pollutes stdout with a filesystem block
+            # before failing (the #327/#1072 class), so trying it second,
+            # only after `-c` has already failed cleanly, is load-bearing
+            # order and not a stylistic choice.
+            _remember_stale_mtime=$(stat -c %Y "$_remember_stale_record" 2>/dev/null) \
+                || _remember_stale_mtime=$(stat -f %m "$_remember_stale_record" 2>/dev/null) \
+                || _remember_stale_mtime=""
+            if [ -z "$_remember_stale_mtime" ]; then
+                # Could not read the record's own age -> could-not-tell,
+                # same safe direction as an unreadable $SESSIONS_DIR above.
+                continue
+            fi
+            case "$_remember_stale_mtime" in (''|*[!0-9]*) _remember_stale_mtime=0 ;; esac
+            # _remember_date +%s -- same call site convention as
+            # post-tool-hook.sh:377/605. lib-clock.sh routes %s to `date`
+            # unconditionally (never the printf builtin), and `_remember_date`
+            # itself already falls back to plain `date` with no TZ set, so
+            # this always yields digits; the guard below is what #332 asks
+            # for at every arithmetic sink regardless.
+            _remember_now=$(_remember_date +%s)
+            case "$_remember_now" in (''|*[!0-9]*) _remember_now=0 ;; esac
+            if [ "$_remember_now" -gt 0 ] && [ "$_remember_stale_mtime" -gt 0 ] \
+                && [ $((10#$_remember_now - 10#$_remember_stale_mtime)) -lt $((GRACE_MIN * 60)) ]; then
+                continue
+            fi
+            rm -f "$_remember_stale_record" 2>/dev/null
+        fi
+    done
+    unset _remember_stale_record _remember_stale_id _remember_stale_mtime _remember_now GRACE_MIN
 fi
 
 # ── History hint ───────────────────────────────────────────────────────────
@@ -1174,8 +1296,18 @@ fi
 
 # ── Consolidation trigger ─────────────────────────────────────────────────
 # If past-day staging files exist, compress them in the background.
+#
+# Gated on source (#342): `compact` fires mid-session and changes nothing
+# about whether yesterday's staging is worth compressing — the #339 report
+# measured `compact` re-triggering this 82 times across 50 sessions, against
+# `startup`'s 180, all spawning the same work again. `compact` is excluded
+# for the same reason #341 excludes it from the delivery counter: it is
+# provably not a new entry point into the session. `startup`, `resume`,
+# `clear`, `fork`, an absent source and an unrecognised value are left
+# triggering exactly as before — narrowing further would mean staging files
+# wait indefinitely for a session that never does a bare `startup` again.
 STAGING_COUNT=$(ls "$REMEMBER_DIR/today-"*.md 2>/dev/null | grep -v "today-${TODAY}.md" | grep -v "\.done\.md" | wc -l | tr -d ' ')
-if [ "$STAGING_COUNT" -gt 0 ]; then
+if [ "$STAGING_COUNT" -gt 0 ] && [ "$SESSION_START_SOURCE" != "compact" ]; then
     echo "=== MEMORY CONSOLIDATION ==="
     echo "$STAGING_COUNT day(s) of memory to compress. Running consolidation in background..."
     nohup "$PLUGIN_ROOT/scripts/run-consolidation.sh" </dev/null >/dev/null 2>&1 & disown 2>/dev/null || true

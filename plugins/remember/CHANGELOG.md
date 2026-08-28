@@ -7,6 +7,128 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.23.0] - 2026-08-28 — Three states where there were two
+
+### Added
+
+- Added a test pinning `_stdin_json_string`'s first-occurrence scanning of `source` in `session-start-hook.sh`'s stdin payload: a top-level `source` wins when a nested `source` key follows it (the shape every payload takes today), and a characterization test documents the one direction that is not covered — a nested `source` key appearing before the top-level one. No live payload takes that shape; nothing in the extractor changed. (#344)
+
+- Added: `/remember:doctor` now reports whether the `SessionEnd` hook -- the last-chance flush for a session that ends in conversation rather than tool calls -- has ever actually fired for this project, instead of staying silent about it while `PostToolUse` capture can look perfectly healthy. It reads the `logs/autonomous/session-end-*.log` file `session-end-hook.sh` already leaves behind as a side effect of its own background flush, rather than introducing a new marker. Three states, not two: fired (OK); never fired despite evidence that a prior session has gone quiet for at least 15 minutes without ending (FAIL, and it now outranks the generic "capture is working" verdict); and no session has had the chance to end yet, which reports as neither of the other two. The staleness threshold, not a raw transcript count, is what tells a prior session that ended apart from a second Claude Code window still open on the same project (#370).
+
+### Changed
+
+- #330: Added a measured cost pin for the per-tool-call hot path (`tests/test_hot_path_cost_pin_330.py`), alongside the existing substring guard in `tests/test_case_divergence_298.py`. Counts external spawns (already pinned in `tests/test_post_tool_fast_path_350.py`) and, new here, bash builtin `read` invocations via `bash -x` tracing -- the vector the issue named as outside the substring check's vocabulary. Proven non-vacuous against scratch reproductions of the named evasions: a `GIT=git; "$GIT" -C ...` wrapper, `command "git" ...`, and a builtin-read loop with no new process and no new literal. No change to `scripts/post-tool-hook.sh` itself -- the hot path was already clean.
+
+- #353: `save-session.sh` (via `pipeline.shell save-position`) now also writes a per-session, bash-`read`-able position sidecar under `tmp/position.<session_id>`, so `scripts/post-tool-hook.sh`'s per-tool-call hot path can skip the `pipeline.shell read-position` spawn once a save has landed for that session. The sidecar is written strictly after `last-save.json` is committed, never before, so a crash between the two writes can only leave it stale, never ahead of the truth -- and the hot path bounds the sidecar's value against the transcript's own line count, falling back to `read-position` (never to a silent 0) and logging a loud warning on any disagreement. A session evicted from `last-save.json`'s bounded slot store (#140) now also has its sidecar removed, so a stale file cannot outlive the entry it mirrors.
+
+- #395: The hot-path cost pin (`tests/test_hot_path_cost_pin_330.py`) now also measures the path #353 actually changed -- a warm tool call with a prior save landed, where the hot path consults #353's own sidecar instead of falling through to the `pipeline.shell read-position` spawn. The existing budget case only ever exercised the "no save yet" branch, so the sidecar branch was unpinned; the new case's budget is set at the measured value (18 builtin reads, no slack) rather than copying the existing margin, so a future addition to that branch has to argue for itself. A companion regression test mutates a scratch copy of the hook to defeat sidecar trust and shows the new assertions actually fail on that regression. No change to `scripts/post-tool-hook.sh` or `pipeline/shell.py` -- this is test-coverage only.
+
+### Fixed
+
+- Fixed `session-start-hook.sh`'s "already delivered N times" handoff counter inflating on every auto-compaction inside a single session — a handoff delivered once could read as "already delivered 5 times" after four compactions. The counter now excludes `source=compact` from the increment; every other source (`startup`, `resume`, `clear`, `fork`, absent, unrecognised) still counts as before. (#341)
+
+- Fixed `session-start-hook.sh` re-spawning `run-consolidation.sh` on every `SessionStart`, including auto-compaction (`source=compact`), when past-day staging files were pending — measured firing 82 times across 50 sessions on `compact` alone. The trigger now excludes `source=compact`; `startup`, `resume`, `clear`, `fork`, absent and unrecognised sources still trigger it as before. (#342)
+
+- **A staging file (`today-*.md`) that grows for weeks because consolidation stopped consuming it was invisible** (#349) — `staging_append` (`scripts/lib-staging-lock.sh`) is a bare append with no size check, and five call sites (`save-session.sh`'s NDC-commit failure branches, `run-consolidation.sh`'s own append) append a span and deliberately never roll it back on failure — a visible duplicate beats an invisible erasure, and that trade is unchanged here. What nobody costed was the *persistent* cause: sustained lock contention, a full disk, or a stalled consolidation round (a misconfigured `features.ndc_compression`, or the #346 skip-forever state) left the same kind of span landing there every round, forever, with nothing to notice. `staging_append` now logs a one-time WARNING (`report_error()`, reaching the daily log and `hook-errors.log`, surfaced by `/remember:doctor`) the first time a staging file crosses `thresholds.staging_warn_bytes` (default 2000000 bytes) — nothing is capped, truncated, or dropped; the file's contents are exactly what a caller wrote to it.
+
+- Fixed: `CLAUDE.md` now says explicitly that the test suite runs locally on demand and that CI is
+  the gate, so nobody re-adds a `pre-push` hook running the suite from memory. A hook doing that
+  was previously observed to hold a push's SSH transport open long enough to kill the push itself
+  after a ~28 minute local run, while adding no evidence CI's 12-leg matrix does not already give
+  (#355).
+
+- Fixed: `scripts/doctor.sh`'s store-size check computed "today" from the machine clock instead of `config.timezone`, the same source the pipeline itself uses (`REMEMBER_TZ` -> `pipeline/_tz.py`'s `today_str()`, which `_eligible_staging` excludes today by). With a configured timezone ahead of the machine's own, doctor excluded the staging file the pipeline counts and counted the file the pipeline excludes, at once -- and when the wrongly-counted file was the larger of the two, this could invent the "cannot heal itself" alarm on a store the pipeline is about to rotate happily. `doctor.sh` now reads `.timezone` the same grep-then-`TZ=` way it already reads `thresholds.consolidate_max_bytes`, without sourcing `log.sh` (#357).
+
+- Fixed: `scripts/doctor.sh`'s VERDICT ladder checked the oversized-store arm added in #348 above the no-usable-Python arm, so a user whose Python broke on an already-large store was told the staging files were over the cap "on their own" instead of being pointed at the Tools section that actually explains it -- the ladder's own rule, stated in its header, is that specific causes are named before the general one, and staging piling up is the *effect* of consolidation not running, while a broken interpreter is a *cause*. The no-usable-Python arm now outranks it (#359).
+
+- Fixed: `scripts/doctor.sh`'s store-size check read `thresholds.consolidate_max_bytes: 0` as a literal 0-byte cap, because its digits-only config parser accepts `0` just like any other number -- while `pipeline/shell.py` documents and implements `0` as the cap being **disabled**. Every non-empty store then failed the check and reached the loudest verdict arm doctor.sh can produce, even though the pipeline itself was consolidating that store on every round. The check now reports the cap as disabled, by name, instead of comparing against it (#360).
+
+- Fixed: `scripts/session-start-hook.sh` printed four lines containing a U+2014
+  em-dash directly to stdout/stderr. What a cp1252 Windows console does with
+  them was unestablished -- either mojibake, or a decode failure one layer up
+  in whoever consumes this hook's stdout -- and neither outcome could be
+  observed without a Windows machine. Decided file-wide rather than per-line,
+  as the issue argued: this file's printed (echo/printf) lines may not carry
+  non-ASCII at all, so the four are now plain ASCII (`--` in place of the
+  em-dash). The file's other ~94 em-dashes, all in comments that never reach
+  a stream, are untouched (#367).
+
+- **`save-session.sh --force` could lose the save.lock race and exit 0 having saved nothing** (#369) — the lock was acquired with a 0-second timeout *before* the argument parse that would have seen `--force`, so a forced flush that lost the race was indistinguishable from a genuine "nothing new to flush" no-op. The realistic trigger: `post-tool-hook.sh` forks a background save, then `SessionEnd` fires moments later and forks a second `save-session.sh --force` for the same session while the first still holds the lock — the one save whose entire purpose is that there is no next chance. A forced call now waits, bounded (`REMEMBER_FORCE_LOCK_TIMEOUT`, default 30s), for the SAME mutex rather than bypassing it — no second writer, only a longer retry — and if the holder still has not released after that wait, the call now exits 1 instead of 0. `session-end-hook.sh` already checks for a nonzero exit and calls `report_error()` on it, so this makes that existing check see the real failure instead of a false all-clear. A plain (non-forced) call, e.g. `post-tool-hook.sh`'s own background fork, is unchanged: timeout 0, skip on contention, exit 0 — losing that race is still a legitimate no-op.
+
+- Fixed: with `handoff_mode: "per_session"`, every session left a
+  `remember.delivered.<session_id>` record behind in `$REMEMBER_DIR/tmp` and
+  nothing ever removed one -- the same directory, and the same class of leak,
+  that #362 already fixed once under a different filename.
+  `session-start-hook.sh` now prunes a session's delivery record once that
+  session's own transcript is confirmed gone from Claude Code's own session
+  directory. The record is deliberately NOT coupled to its paired
+  `remember.<session_id>.md` handoff, which survives on purpose (#221) --
+  that coupling would have reintroduced unbounded growth under a new name.
+  When the session directory itself cannot be read, nothing is pruned:
+  could-not-tell-if-the-session-is-over must never render as "pruned". The
+  sweep runs regardless of the CURRENT session's own `handoff_mode`, so a
+  record left over from an earlier `per_session` period is still pruned
+  after switching back to `single` (#373).
+
+- Fixed: `README.md`'s official-marketplace section quantified the `claude-plugins-official`
+  catalogue pin lag from a four-run sample ("between one and fourteen hours... one run skipped a
+  tagged release") that had rotted -- measured 2026-08-27, the pin was 15 days old and had skipped
+  two tagged releases, not one. The section now says the lag is unbounded and gives the reader the
+  two commands to measure their own exposure instead of a number that goes stale (#377).
+
+- Fixed #383: `tests/test_save_session_gates.py::TestHeaderTimeIsTakenBackOffTheModel::test_a_wrong_time_is_overwritten_with_the_scripts_own` hardcoded the header time `18:30`, so it flaked for one minute a day whenever the wall clock happened to also read `18:30` -- the script correctly left a matching header alone, and the test asserted a correction that correctly did not fire. Two unrelated pull requests failed this exact assertion in the same minute on 2026-08-27. The header time is now derived an hour off the current clock (wrapping through midnight), which is wrong by construction for the whole test run rather than for 1439 minutes out of 1440, plus a positive control that the logged correction actually differs from the deliberately-wrong time fed in.
+
+- Fixed: `README.md` still described the pre-#379 behaviour of the delivery counter and the
+  consolidation trigger, neither of which mentioned the `source=compact` gate PR #379 added. A
+  reader seeing "already delivered N times" on a long session, or wondering why consolidation did
+  not re-run mid-session, got the pre-#379 answer from the docs. Both spots now say that an
+  auto-compaction refire does not inflate the counter and does not re-spawn
+  `run-consolidation.sh` — `startup`, `resume`, `clear` and `fork` are unaffected. (#384)
+
+- Fixed: `README.md`'s `## Diagnostics` section still described `/remember:doctor` as
+  reporting only whether `PostToolUse` has ever fired, though PR #387 (closing #370) gave the
+  script a second, `SessionEnd` liveness check. A reader relying on the docs to know what
+  `/remember:doctor` covers had no description of the new line. The paragraph now also says
+  `/remember:doctor` reports whether `SessionEnd` -- the last-chance flush -- has ever fired for
+  the project. (#390)
+
+- Fixed: `/remember:doctor`'s `SessionEnd` liveness check (#370) FAILed on a healthy install
+  that merely had *prior* Claude Code history in the project -- a quiet transcript predating
+  the plugin's own store was read as proof a session ended without `SessionEnd` firing, when
+  the hook could not have been registered for it at all. That FAIL also displaced the correct,
+  actionable fresh-install remediation ("PostToolUse has never fired; restart Claude Code")
+  behind a less useful `SessionEnd` message. A transcript now only counts as evidence once it
+  is newer than `.remember/.gitignore`'s own mtime -- written exactly once, the first time any
+  hook bootstraps the store, and never rewritten by ordinary hook activity, so it survives
+  ongoing capture in a way the store directory's own mtime does not (an earlier version of this
+  fix read the directory itself, and was caught in self-review resetting to "now" on every
+  save); a transcript whose age could not be read is likewise excluded rather than silently
+  folded into the count the way it previously was. The genuine failure -- a session that ended
+  after the store existed, with no `session-end-*.log` to show for it -- still FAILs and still
+  outranks the generic "capture is working" verdict. This check can currently only `WARN`,
+  never `FAIL`, for a store in external storage mode from the start, or for a legacy store
+  later migrated to external mode with git backup enabled -- in the latter shape the git-backup
+  hook deletes this same `.gitignore` marker as a one-time migration cleanup and it is never
+  recreated, a gap caught in a second review pass and documented rather than fixed here (the
+  fix belongs in the git-backup hook or in a new marker of its own). (#392)
+
+- Fixed: the #373 delivery-record sweep could delete a *live* session's
+  `remember.delivered.<session_id>` record, resetting its delivery counter so
+  an already-shown handoff read as news again. The sweep's only signal --
+  whether that session's transcript still exists under Claude Code's own
+  session directory -- cannot tell a dead session from one still inside its
+  own startup: at `source=startup`, Claude Code creates a session's
+  transcript only *after* this hook has already run and already written that
+  session's own delivery record, so a concurrent session start could prune a
+  record still in active use. The sweep now also checks the record's own
+  mtime, adding a third state: a record younger than a short grace window is
+  left untouched even when the transcript is absent, since that is exactly
+  what a session still starting up looks like. A record old enough to be
+  outside the window is still pruned exactly as before -- nothing is lost,
+  pruning is only deferred past the window (#393).
+
+- **`staging_append` (`scripts/lib-staging-lock.sh`) crashed with an undefined-function error when sourced without `log.sh`, or with a `log.sh` that returned early on a store where `logs/` cannot be created** (#394) — `config()` and `report_error()`, added to `staging_append` by #349's growth warning, are defined only in `log.sh`, which the file's own USAGE block never declared as a requirement. No live impact today (the sole production call site sources `log.sh` and calls `log` extensively before reaching it), but the #349 test could not catch it either: its driver sources `log.sh`, satisfying the missing dependency by accident. Fixed with a `declare -F`-guarded fallback matching `session-end-hook.sh`'s own guard for the identical `log.sh`-returned-early case — and deliberately *not* the silent `dispatch() { :; }` no-op stub `user-prompt-hook.sh` uses elsewhere, because a no-op `report_error()` here would turn #349's growth warning into exactly the silent failure #349 exists to end, on precisely the broken stores where surfacing it matters most. `report_error()`'s fallback still writes to `hook-errors.log` when that directory exists and is writable (mirroring `log.sh`'s own `report_error()`), falling back to stderr only when it genuinely cannot; `log()`'s fallback sources `lib-clock.sh` for `_remember_date` rather than a raw `date` call, so its timestamps stay `REMEMBER_TZ`-consistent like every other timestamp in this pipeline.
+
 ## [0.22.0] - 2026-08-27 — Guards that were written next door
 
 ### Added
@@ -1348,7 +1470,8 @@ Fixes [#9](https://github.com/Digital-Process-Tools/claude-remember/issues/9), a
 
 ## [0.1.0] — Initial release
 
-[Unreleased]: https://github.com/Digital-Process-Tools/claude-remember/compare/v0.22.0...HEAD
+[Unreleased]: https://github.com/Digital-Process-Tools/claude-remember/compare/v0.23.0...HEAD
+[0.23.0]: https://github.com/Digital-Process-Tools/claude-remember/releases/tag/v0.23.0
 [0.22.0]: https://github.com/Digital-Process-Tools/claude-remember/releases/tag/v0.22.0
 [0.21.0]: https://github.com/Digital-Process-Tools/claude-remember/releases/tag/v0.21.0
 [0.20.0]: https://github.com/Digital-Process-Tools/claude-remember/releases/tag/v0.20.0

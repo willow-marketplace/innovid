@@ -1,6 +1,6 @@
 ---
 name: labs-quickstart
-description: "LABS — the FULL Convex quickstart experience: scaffold a running Next.js + shadcn app from one sentence with passkey (WebAuthn) sign-in and a live in-app Chef feedback panel pre-baked, build the idea live narrating through the panel, then PUBLISH it to a public https://<app>.convex.app URL (with the user's confirmation before publishing). For a plain local-only scaffold, use the `quickstart` skill instead."
+description: "LABS — the FULL Convex quickstart: scaffold a Next.js + shadcn app from one sentence with passkey sign-in and an in-app feedback panel pre-baked, build it live, then PUBLISH to a public convex.app URL (with the user's confirmation)."
 ---
 
 # Convex Labs Quickstart — full wow-shell, built live, published

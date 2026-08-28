@@ -29,6 +29,9 @@
     "triggers": {
       "merged_prs": 10,
       "soak_hours": 48
-    }
+    },
+    "create_release": true,
+    "draft": false,
+    "latest": true
   }
 }

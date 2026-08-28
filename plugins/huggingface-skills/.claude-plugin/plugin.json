@@ -2,7 +2,7 @@
   "name": "huggingface-skills",
   "version": "1.0.26",
   "description": "Core Hugging Face Hub operations through the hf CLI, including skill installation, repo management, jobs, datasets, models, Spaces, and discovery.",
-  "updatedAt": "2026-08-28T00:25:11.299Z",
+  "updatedAt": "2026-08-28T12:05:02.632Z",
   "author": {
     "name": "Hugging Face"
   },
