@@ -25,17 +25,7 @@ npm install -g resend-cli
 brew install resend/cli/resend
 ```
 
-**Install script** — note: these download and execute a remote script. Prefer npm or Homebrew when available.
-
-```bash
-# macOS / Linux
-curl -fsSL https://resend.com/install.sh | bash
-```
-
-```powershell
-# Windows PowerShell
-irm https://resend.com/install.ps1 | iex
-```
+Other install methods (installer scripts for macOS, Linux, and Windows) are documented at [resend.com/docs/cli](https://resend.com/docs/cli).
 
 After installing, verify:
 ```bash
@@ -60,7 +50,7 @@ The CLI auto-detects non-TTY environments and outputs JSON — no `--json` flag 
 
 ## Authentication
 
-Auth resolves: `--api-key` flag > `RESEND_API_KEY` env > config file (`resend login --key`). Use `--profile` or `RESEND_PROFILE` for multi-profile.
+Auth resolves: `RESEND_API_KEY` env > config file (`resend login --key`). Use `--profile` or `RESEND_PROFILE` for multi-profile.
 
 **Credential safety:**
 - Never write a literal API key into a command, script, or file — it ends up in shell history, logs, and transcripts. Reference the environment (`"$RESEND_API_KEY"`) or use a stored profile (`resend login`).
@@ -70,7 +60,6 @@ Auth resolves: `--api-key` flag > `RESEND_API_KEY` env > config file (`resend lo
 
 | Flag | Description |
 |------|-------------|
-| `--api-key <key>` | Override API key for this invocation |
 | `-p, --profile <name>` | Select stored profile |
 | `--json` | Force JSON output (auto in non-TTY) |
 | `-q, --quiet` | Suppress spinners/status (implies `--json`) |
@@ -91,7 +80,7 @@ Auth resolves: `--api-key` flag > `RESEND_API_KEY` env > config file (`resend lo
 | `broadcasts` | create, send, get, update, delete, list, cancel, open, clicked-links, recipients |
 | `contacts` | create, update, delete, segments, topics, imports |
 | `contact-properties` | create, update, delete, list |
-| `segments` | create, get, list, delete, contacts |
+| `segments` | create, get, list, update, delete, contacts |
 | `templates` | create, publish, duplicate, delete, list |
 | `topics` | create, update, delete, list |
 | `webhooks` | create, update, listen, delete, list |

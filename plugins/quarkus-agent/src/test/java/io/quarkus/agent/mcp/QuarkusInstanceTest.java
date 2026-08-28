@@ -2,6 +2,7 @@ package io.quarkus.agent.mcp;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import java.net.ServerSocket;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -261,5 +262,58 @@ class QuarkusInstanceTest {
         Thread.sleep(500);
 
         assertThrows(IllegalStateException.class, instance::restart);
+    }
+
+    @Test
+    void externalInstanceIsRunningWithCorrectPort() throws Exception {
+        // Use a real open port so the liveness probe in reconcileStatus returns true.
+        try (ServerSocket server = new ServerSocket(0)) {
+            int port = server.getLocalPort();
+            QuarkusInstance instance = new QuarkusInstance("/test/project", port);
+
+            assertEquals(QuarkusInstance.Status.RUNNING, instance.getStatus());
+            assertEquals(port, instance.getHttpPort());
+            assertTrue(instance.isExternal());
+            assertTrue(instance.isAlive());
+        }
+    }
+
+    @Test
+    void externalInstanceHasDefaultDevMcpPath() {
+        QuarkusInstance instance = new QuarkusInstance("/test/project", 8080);
+
+        assertEquals(QuarkusInstance.DEFAULT_DEV_MCP_PATH, instance.getDevMcpPath());
+    }
+
+    @Test
+    void externalInstanceStopSetsStatusWithoutKillingProcess() {
+        QuarkusInstance instance = new QuarkusInstance("/test/project", 8080);
+
+        instance.stop();
+
+        assertEquals(QuarkusInstance.Status.STOPPED, instance.getStatus());
+        assertFalse(instance.isAlive());
+    }
+
+    @Test
+    void externalInstanceTransitionsToStoppedWhenPortUnreachable() {
+        // Port 1 is reserved and will not be listening in any test environment.
+        QuarkusInstance instance = new QuarkusInstance("/test/project", 1);
+
+        assertEquals(QuarkusInstance.Status.STOPPED, instance.getStatus());
+    }
+
+    @Test
+    void externalInstanceRestartThrows() {
+        QuarkusInstance instance = new QuarkusInstance("/test/project", 8080);
+
+        assertThrows(IllegalStateException.class, instance::restart);
+    }
+
+    @Test
+    void externalInstanceSendInputThrows() {
+        QuarkusInstance instance = new QuarkusInstance("/test/project", 8080);
+
+        assertThrows(IllegalStateException.class, () -> instance.sendInput('s'));
     }
 }

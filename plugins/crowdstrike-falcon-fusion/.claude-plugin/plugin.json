@@ -2,7 +2,7 @@
   "name": "crowdstrike-falcon-fusion",
   "version": "1.1.0",
   "description": "CrowdStrike Falcon Fusion skills for authoring, deploying, and executing Fusion workflows. Includes live action discovery, YAML authoring with schema validation, workflow import and release, execution monitoring, and Falcon Next-Gen SIEM lookup files.",
-  "updatedAt": "2026-08-25T12:09:13.914Z",
+  "updatedAt": "2026-08-28T00:05:28.398Z",
   "author": {
     "name": "CrowdStrike"
   },

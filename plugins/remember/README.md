@@ -6,7 +6,7 @@
 [![Python](https://img.shields.io/badge/python-3.9%2B-blue)](https://www.python.org/)
 [![OS](https://img.shields.io/badge/tested%20on-Linux%20%7C%20macOS%20%7C%20Windows-blue)](https://github.com/Digital-Process-Tools/claude-remember/actions/workflows/tests.yml)
 [![License](https://img.shields.io/badge/license-Community-brightgreen)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.21.0-orange)](.claude-plugin/plugin.json)
+[![Version](https://img.shields.io/badge/version-0.22.0-orange)](.claude-plugin/plugin.json)
 
 Claude Code starts every session blank. It doesn't know what you worked on yesterday, what conventions your team follows, or what mistakes it already made. You re-explain everything, every time.
 
@@ -201,6 +201,16 @@ Make sure `bash`, `jq`, and `python3` are resolvable from the shell Claude Code 
           }
         ]
       }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/remember/scripts/session-end-hook.sh"
+          }
+        ]
+      }
     ]
   }
 }
@@ -212,13 +222,16 @@ Make sure `bash`, `jq`, and `python3` are resolvable from the shell Claude Code 
 
 ## Hooks
 
-The plugin registers three Claude Code hooks:
+The plugin registers four Claude Code hooks:
 
 | Hook               | Script                  | Purpose                                                   |
 | ------------------ | ----------------------- | --------------------------------------------------------- |
 | `SessionStart`     | `session-start-hook.sh` | Loads memory files into context (identity only at `source=compact`), recovers missed sessions |
 | `UserPromptSubmit` | `user-prompt-hook.sh`   | Injects current timestamp so the agent knows the time     |
 | `PostToolUse`      | `post-tool-hook.sh`     | Auto-saves session when tool call delta exceeds threshold |
+| `SessionEnd`       | `session-end-hook.sh`   | Unconditionally flushes whatever `PostToolUse` has not yet saved (#345) |
+
+`SessionEnd` ignores the cooldown and min-human-message gates the other saves respect — it is the last chance a session gets, not a routine tick — but it does not write a handoff note; see [below](#sessionend-flushes-it-does-not-hand-off) for why.
 
 `SessionStart` sources `log.sh` for shared config, timezone, logging, and the `dispatch()` system; `PostToolUse` does too on the run that resolves, and replays that resolution on the rest (see below). Hooks dispatch lifecycle events (e.g., `after_user_prompt`) to extensible listeners in `hooks.d/`. **Installing a listener for an event puts that hook back on the full chain**, because `dispatch()` lives in `log.sh` — the fast paths only skip it when there is nothing executable to dispatch to.
 
@@ -240,7 +253,19 @@ Nothing here bounds what a hook can *do* — it runs as you, with your environme
 
 `PostToolUse` registers with no matcher, so it is the hottest hook in the plugin — tool calls outnumber prompts roughly ten to one. On macOS/bash 3.2 a warm tool call costs 6 external spawns instead of 14 (130 ms instead of 336 ms); the reporter who filed [#350](https://github.com/Digital-Process-Tools/claude-remember/issues/350) measured 750-1000 ms per tool call on Windows 11 / Git Bash before the change. The merged config file itself is still never cached — it can carry a live OAuth token and is `0600` per PID for that reason — only the two numbers this hook reads out of it. The **first** tool call of a session, and the first after any config edit, still takes the whole chain and publishes it.
 
-All three are registered together, from `hooks/hooks.json`, when the session starts — which is why enabling the plugin mid-session wires up none of them (see the install note above).
+All four are registered together, from `hooks/hooks.json`, when the session starts — which is why enabling the plugin mid-session wires up none of them (see the install note above).
+
+### `SessionEnd`: flushes, it does not hand off
+
+`session-end-hook.sh` forks `save-session.sh --force` into the background, once, when the session ends, and returns immediately — the same fork pattern `post-tool-hook.sh` already uses, and for the same reason Claude Code documents for its own hook budget: **Claude Code kills a hook at 60s of its own accord**, and save-session.sh's own Haiku call already asks for up to 120s (180s for NDC compression) — past 60s on exactly the long, content-heavy sessions this hook exists to rescue. Running the flush in the foreground and waiting on it would risk losing the *entire* flush to that kill, silently. `--force` bypasses the save cooldown and the min-human-message gate — the two gates that exist to throttle a *live* session's routine saves and that can otherwise leave a session's entire final stretch (a design discussion, a review, a decision — often the part worth keeping) unsaved if nothing after the last save cleared them ([#345](https://github.com/Digital-Process-Tools/claude-remember/issues/345)). It still costs nothing extra when there is genuinely nothing new: the zero-exchange gate is not bypassed, so a session with no unsaved content just advances its position.
+
+**It does not write a handoff note.** `/remember` composes `remember.md` from the model's own first-person recollection of the session; there is no model turn running at `SessionEnd` for a hook to narrate from. A fabricated placeholder would silently overwrite a real handoff written earlier in the same session with something that carries no forward-looking content — worse than leaving the existing file alone, and adjacent to (not a fix for) [#341](https://github.com/Digital-Process-Tools/claude-remember/issues/341)'s stale-delivery-count problem. Run `/remember` yourself before ending a session you want a narrated handoff for; this hook is the safety net under `now.md`, not a replacement for that skill.
+
+**When `SessionEnd` actually fires is only partially documented.** The Claude Code hooks reference (checked 2026-08) documents `reason` values `clear`, `resume`, `logout` and `prompt_input_exit` — the graceful exits — and is silent on a crash, a killed terminal, or a session ending by hitting its usage cap. This hook cannot make `SessionEnd` fire where Claude Code itself would not invoke it, so `features.recovery`'s next-session-start repair stays in place regardless: it is what still covers the abrupt endings this hook cannot reach.
+
+A flush failure (missing `python3`, a Haiku call that errors) is reported via the same channel `/remember:doctor` already reads (`hook-errors.log`) rather than swallowed silently, unlike the plugin's other hooks — this one is the last chance a session gets, so a failure here has nowhere left to retry from. Because the flush is backgrounded, that report lands once the background process finishes, not synchronously with the hook itself — the same trade the git-backup hook's own detached push already makes.
+
+A store that could never be created at all (a read-only or otherwise unwritable project root) is a narrower case than a flush failure — there is no `hook-errors.log` to write to, because the directory that would hold it is the one that failed. That one warning goes to this hook's own stderr instead ([#372](https://github.com/Digital-Process-Tools/claude-remember/issues/372)); it will not show up in `/remember:doctor`.
 
 ## Diagnostics (`/remember:doctor`)
 
@@ -272,6 +297,8 @@ The trade is that the same note can be delivered more than once. Every delivery 
 
 **The delivery record is local to one machine and is never backed up** ([#285](https://github.com/Digital-Process-Tools/claude-remember/issues/285)). It says *this* clone has already delivered *this* handoff, and it cannot honestly say more: its timestamp is one machine's clock and its count is one machine's sessions. If you work from two machines against a shared store, the handoff itself travels — it is memory — but each machine counts its own deliveries, so a note you have already read on your laptop arrives on your desktop as news. That is the deliberate direction: being shown a note twice costs a re-read, while being told you have already acted on one you have never seen costs the work.
 
+**Two INTERACTIVE sessions sharing one project store are a different hazard than either of the above** ([#363](https://github.com/Digital-Process-Tools/claude-remember/issues/363)). `_resolve_memory_project_dir` shares one store across a project's worktrees by design ([#56](https://github.com/Digital-Process-Tools/claude-remember/issues/56)), so two panes open on the same project are the ordinary case, not an edge one — and by default they still share one `remember.md`. If both run `/remember`, the second write silently overwrites the first, which then survives only in that session's own transcript. Set `"handoff_mode": "per_session"` to give each session its own `remember.<session_id>.md` instead; see the config table below. This is off by default, so an existing install keeps today's behaviour until it opts in.
+
 ## Data files
 
 The pipeline writes to `REMEMBER_DIR` (created automatically). By default this is `.remember/` inside your project root; in external storage mode it is a per-project subdirectory of `~/.remember/` (see [External storage mode](#external-storage-mode)).
@@ -284,13 +311,16 @@ The pipeline writes to `REMEMBER_DIR` (created automatically). By default this i
 | `archive.md`                   | Older history consolidated                        |
 | `archive-YYYY-MM-DD.md`        | Rotated archive slices — searchable, not auto-loaded |
 | `recent-YYYY-MM-DD.md`         | Rotated `recent.md` spans — searchable, not auto-loaded |
-| `remember.md`                  | Handoff note written by `/remember`               |
+| `remember.md`                  | Handoff note written by `/remember` (`handoff_mode: "single"`, the default) |
+| `remember.<session_id>.md`     | Per-session handoff note (`handoff_mode: "per_session"`, [#363](https://github.com/Digital-Process-Tools/claude-remember/issues/363)) — not pruned automatically |
 | `logs/`                        | Pipeline logs — local to this machine, never backed up |
-| `tmp/`                         | Lock files, cooldown markers, handoff delivery record, this session's [slug record](#1-read-the-slug-this-session-computed) — local to this machine, never backed up |
+| `tmp/`                         | Lock files, cooldown markers, handoff delivery record, this session's [slug record](#1-read-the-slug-this-session-computed), each invocation's merged config — local to this machine, never backed up |
 | `identity.md`                  | Per-project identity override (optional)          |
 | `.claude/remember/identity.md` | Your agent's identity and values (you write this) |
 
 In [external storage mode](#external-storage-mode) with `{slug}` in `data_dir` there is one more file, and it is **not** inside `REMEMBER_DIR`: `<store root>/tmp/sessions`, the [session index](#2-find-the-record-when-the-slug-names-its-directory). It is per-machine state like the rest of `tmp/`, excluded from the git backup, and it exists because that is the one place a non-bash caller can name without already knowing the slug.
+
+**`tmp/remember-config-<pid>.json`** is the three-layer config merge (bundled defaults, `~/.remember/config.json`, this project's `config.json`) for one invocation. It is created and removed by the same process, via an `EXIT` trap — and on Windows/Git Bash that trap does not reliably fire for this plugin's short-lived hook processes, so one leaked, unremoved copy per hook call was observed accumulating directly in the OS temp directory (23,908 of them in one report, [#362](https://github.com/Digital-Process-Tools/claude-remember/issues/362)). Since #362 the file lives here — a directory this plugin owns, rather than one shared with every other app on the machine — and every invocation also sweeps away any copy here whose age says its own process is long gone, so a trap that never fires no longer leaks forever.
 
 ## Computing the slug outside bash
 
@@ -433,6 +463,7 @@ Put cross-project preferences (timezone, cooldowns) in `~/.remember/config.json`
 | `prompt_stamp`                   | `full`           | What the `UserPromptSubmit` hook injects into the model's context. `full` — `[14:30 CEST — jack — 45%]`, unchanged from every previous release. `stable` — `[jack]` only: the clock and the context percentage both change between turns, and the percentage climbs on *every* prompt for anyone running the status line, so dropping only the clock would leave the line volatile. The `>= 95` context warning is **kept**, because it is threshold-gated and changes bytes only when it changes behaviour. `off` — nothing at all, warning included. An unrecognised value reads as `full` ([#301](https://github.com/Digital-Process-Tools/claude-remember/issues/301)). |
 | `model`                          | `haiku`          | Model used for the summarization / consolidation `claude -p` call. `REMEMBER_MODEL` overrides it. Documented as an env var only until #176, though `config.json` is the source of truth. |
 | `reject_pattern`                 | _(empty)_        | Overrides the reject-gate regex that keeps model refusals out of the memory layer. Empty → the narrow built-in default; `none` → gate off; anything else → a case-insensitive regex. An invalid regex falls back to the default. `REMEMBER_REJECT_PATTERN` overrides it. |
+| `handoff_mode`                   | `single`         | **Off by default.** `single` — every interactive session shares one `remember.md`, byte-identical to every previous release. `per_session` — the handoff becomes `remember.<session_id>.md`, so two sessions sharing one project store ([#56](https://github.com/Digital-Process-Tools/claude-remember/issues/56)) each write and read their own note instead of the second silently overwriting the first ([#363](https://github.com/Digital-Process-Tools/claude-remember/issues/363)). History, `recent.md`, `archive.md` and consolidation are unaffected either way — only the single handoff slot is namespaced. If no usable `session_id` reaches the hook, `per_session` falls back to the shared file — the hint still points at it, since that path is still correct — but a visible line says the fallback happened, so it does not read as isolation that never applied. No pruning ships with this key: stale `remember.<session_id>.md` files accumulate until removed by hand. |
 | `thresholds.consolidate_max_bytes` | `600000`       | Max UTF-8 size of the staging content sent to the consolidation model. Read by `run-consolidation.sh`; documented in `config.example.json` but missing from this table until #176. Since [#346](https://github.com/Digital-Process-Tools/claude-remember/issues/346) the same number also caps what consolidation may **write**: a response larger than this is refused rather than copied over `recent.md`/`archive.md`. It is measured on staging + `recent.md` + `archive.md` together, and a store already over it now [rotates its way out](#a-store-over-the-consolidation-cap) rather than skipping forever ([#348](https://github.com/Digital-Process-Tools/claude-remember/issues/348)). |
 | `thresholds.memory_inject_max_bytes` | `200000`     | A memory file larger than this is **named with its size instead of injected** at session start ([#346](https://github.com/Digital-Process-Tools/claude-remember/issues/346)). It stays on disk and stays greppable; what stops is pouring it into a context window that cannot hold it — a multi-GB `recent.md` froze every `claude` launch in the reporter's project. A healthy memory file is kilobytes, so this only ever fires on a store that is already broken. Set `0` to disable. |
 | `debug`                          | _(unset)_        | Verbose logging for cooldowns and locks. Unset, each script keeps its own default — `save-session.sh` is verbose, the git-backup hook is quiet — which is what they did before this option was wired up (#176). `REMEMBER_DEBUG` overrides it.                                                                                                                                                                                                |
@@ -532,6 +563,8 @@ Write next handoff to: /home/alice/.remember/-home-alice-projects-my-app/remembe
 ```
 
 The `/remember` skill reads this block to know where to write. If no block is present (legacy mode), it falls back to `{project_root}/.remember/remember.md`.
+
+**This same hint is what makes `handoff_mode: "per_session"` (see [Handoff between sessions](#handoff-between-sessions-remember) and the config table) work with no change to the `/remember` skill** ([#363](https://github.com/Digital-Process-Tools/claude-remember/issues/363)): in legacy mode with `per_session` on, the hint fires too — even though external mode is off — because `remember.<session_id>.md` no longer matches the skill's own hardcoded legacy fallback, so the hint is the only thing that can still point it at the right file. If `per_session` is on but no usable `session_id` reached the hook, the hint still fires with the shared `remember.md` path — that path is still correct, and an earlier version of this feature withheld the hint outright here, which broke external mode by reintroducing the exact bug the hint exists to prevent — but a second line says the fallback happened, so it is visible rather than read as isolation.
 
 ### Per-project identity override
 

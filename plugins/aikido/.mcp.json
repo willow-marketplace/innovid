@@ -3,7 +3,7 @@
     "aikido-mcp": {
       "args": [
         "-y",
-        "@aikidosec/mcp@1.0.20"
+        "@aikidosec/mcp@1.0.21"
       ],
       "command": "npx"
     }

@@ -18,34 +18,16 @@ Depending on the specific workload phase (Training, Checkpointing, or Inference)
 and data access patterns, recommend one of the two Cloud Storage Rapid
 solutions.
 
-| Dimension            | Rapid Cache               | Rapid Buckets             |
-| :------------------- | :------------------------ | :------------------------ |
-| **Description**      | Zonal read cache attached | Zonal bucket in the       |
-:                      : to an existing standard   : `RAPID` storage class     :
-:                      : regional bucket.          : (different namespace).    :
-| **Primary Use Case** | **Model Training &        | **Model Checkpointing**   |
-:                      : Inference** where         : and high-QPS, write-heavy :
-:                      : datasets already exist in : training tasks.           :
-:                      : a GCS bucket.             :                           :
-| **Read/Write**       | **Read-Only**. Writes     | **Read and Write**.       |
-:                      : must be written to the    : Serves as a writable      :
-:                      : underlying bucket.        : source of truth.          :
-| **Namespace**        | Same namespace as the     | Independent namespace     |
-:                      : underlying standard       : (must copy/upload data    :
-:                      : bucket.                   : directly).                :
-| **Performance**      | High throughput,          | Ultra-low latency, high   |
-:                      : cold-start penalty on     : throughput, and high QPS  :
-:                      : first reads. Same QPS as  : (no cold start).          :
-:                      : standard GCS.             :                           :
-| **Data Lifecycle**   | Default TTL is 24 hours.  | Permanent storage (data   |
-:                      : Cache automatically       : lives forever until       :
-:                      : evicts stale data.        : deleted).                 :
-| **Appendability**    | No append support.        | **Supports Append (BiDi   |
-:                      :                           : protocol)** to write      :
-:                      :                           : streaming data up to 5TB. :
-| **Hierarchical       | Optional.                 | **Required** (Always      |
-: Namespace (HNS)**    :                           : enabled, not              :
-:                      :                           : configurable).            :
+Dimension                        | Rapid Cache                                                                             | Rapid Buckets
+:------------------------------- | :-------------------------------------------------------------------------------------- | :------------
+**Description**                  | Zonal read cache attached to an existing standard regional bucket.                      | Zonal bucket in the `RAPID` storage class (different namespace).
+**Primary Use Case**             | **Model Training & Inference** where datasets already exist in a Cloud Storage bucket.  | **Model Checkpointing** and high-QPS, write-heavy training tasks.
+**Read/Write**                   | **Read-Only**. Writes must be written to the underlying bucket.                         | **Read and Write**. Serves as a writable source of truth.
+**Namespace**                    | Same namespace as the underlying standard bucket.                                       | Independent namespace (must copy/upload data directly).
+**Performance**                  | High throughput, cold-start penalty on first reads. Same QPS as standard Cloud Storage. | Ultra-low latency, high throughput, and high QPS (no cold start).
+**Data Lifecycle**               | Default TTL is 24 hours. Cache automatically evicts stale data.                         | Permanent storage (data lives forever until deleted).
+**Appendability**                | No append support.                                                                      | **Supports Append (BiDi protocol)** to write streaming data up to 5TB.
+**Hierarchical Namespace (HNS)** | Optional.                                                                               | **Required** (Always enabled, not configurable).
 
 --------------------------------------------------------------------------------
 
@@ -87,87 +69,21 @@ explicitly configure and recommend the following:
 
 ## Bucket Configuration Plan Mapping
 
-The following table maps GCS features to AI/ML workloads and details their
-recommendation status.
+The following table maps Cloud Storage features to AI/ML workloads and details
+their recommendation status.
 
-| Feature Group   | GCS Feature /  | Status       | Recommendations  | Documentation Link                                                             |
-:                 : Setting        :              : & Implementation :                                                                                :
-:                 :                :              : Details          :                                                                                :
-| :-------------- | :------------- | :----------- | :--------------- | :----------------------------------------------------------------------------- |
-| **Core**        | **Storage      | Highly       | Use **STANDARD** | [Storage                                                                       |
-:                 : Class**        : Recommended  : for standard     : Classes](https\://cloud.google.com/storage/docs/storage-classes)<br>[Rapid     :
-:                 :                :              : buckets, or      : Buckets](https\://cloud.google.com/storage/docs/rapid/rapid-bucket)            :
-:                 :                :              : **RAPID**        :                                                                                :
-:                 :                :              : storage class    :                                                                                :
-:                 :                :              : for zonal Rapid  :                                                                                :
-:                 :                :              : Buckets.         :                                                                                :
-|                 | **Bucket       | Highly       | **Zonal** (for   | [Locations](https://cloud.google.com/storage/docs/locations)                   |
-:                 : Type**         : Recommended  : Rapid Buckets)   :                                                                                :
-:                 :                :              : or **Regional**  :                                                                                :
-:                 :                :              : (for standard    :                                                                                :
-:                 :                :              : GCS/Rapid Cache  :                                                                                :
-:                 :                :              : origin) to       :                                                                                :
-:                 :                :              : co-locate        :                                                                                :
-:                 :                :              : storage and      :                                                                                :
-:                 :                :              : compute.         :                                                                                :
-| **Serving**     | **CORS &       | Optional /   | Avoid exposing   |                                                                                |
-:                 : Signed URLs**  : Not          : AI datasets      :                                                                                :
-:                 :                : Recommended  : directly to      :                                                                                :
-:                 :                :              : public users.    :                                                                                :
-| **Security**    | **Uniform      | **Required** | **Must be        | [Uniform Bucket-Level                                                          |
-:                 : Bucket-Level   :              : enabled** for    : Access](https\://cloud.google.com/storage/docs/uniform-bucket-level-access)    :
-:                 : Access         :              : baseline access  :                                                                                :
-:                 : (UBLA)**       :              : control          :                                                                                :
-:                 :                :              : security.        :                                                                                :
-|                 | **Encryption   | Highly       | Configure CMEK.  | [CMEK](https://cloud.google.com/storage/docs/encryption/customer-managed-keys) |
-:                 : (CMEK)**       : Recommended  : Use KMS Autokey  :                                                                                :
-:                 :                :              : for automation.  :                                                                                :
-|                 | **Soft         | Good to Have | Optional.        | [Soft Delete](https://cloud.google.com/storage/docs/soft-delete)               |
-:                 : Delete**       :              : (Useful but not  :                                                                                :
-:                 :                :              : highly           :                                                                                :
-:                 :                :              : recommended due  :                                                                                :
-:                 :                :              : to potential     :                                                                                :
-:                 :                :              : storage cost     :                                                                                :
-:                 :                :              : overhead from    :                                                                                :
-:                 :                :              : massive AI       :                                                                                :
-:                 :                :              : dataset churn).  :                                                                                :
-| **Cost**        | **Object       | Highly       | Define OLM rules | [Lifecycle Management](https://cloud.google.com/storage/docs/lifecycle)        |
-:                 : Lifecycle      : Recommended  : to automatically :                                                                                :
-:                 : Management     :              : delete stale     :                                                                                :
-:                 : (OLM)**        :              : checkpoints      :                                                                                :
-:                 :                :              : (e.g. keep only  :                                                                                :
-:                 :                :              : the last 3 days  :                                                                                :
-:                 :                :              : of checkpoints)  :                                                                                :
-:                 :                :              : to avoid massive :                                                                                :
-:                 :                :              : storage bills on :                                                                                :
-:                 :                :              : zonal disks.     :                                                                                :
-| **Management**  | **Labels &     | Highly       | Apply billing    | [Bucket Labels](https://cloud.google.com/storage/docs/using-bucket-labels)     |
-:                 : Tagging**      : Recommended  : and ownership    :                                                                                :
-:                 :                :              : labels (e.g.     :                                                                                :
-:                 :                :              : `{"workload"\:   :                                                                                :
-:                 :                :              : "ai-training"}`) :                                                                                :
-:                 :                :              : to accurately    :                                                                                :
-:                 :                :              : trace expensive  :                                                                                :
-:                 :                :              : high-performance :                                                                                :
-:                 :                :              : storage spend.   :                                                                                :
-| **Specialized** | **BiDi         | Highly       | Utilize the BiDi | [Hierarchical Namespace](https://cloud.google.com/storage/docs/hns-overview)   |
-:                 : (Bidirectional : Recommended  : protocol on      :                                                                                :
-:                 : Streaming)**   :              : Rapid Buckets to :                                                                                :
-:                 :                :              : enable           :                                                                                :
-:                 :                :              : low-latency,     :                                                                                :
-:                 :                :              : high-QPS         :                                                                                :
-:                 :                :              : streaming and    :                                                                                :
-:                 :                :              : append           :                                                                                :
-:                 :                :              : operations.      :                                                                                :
-| **Monitoring**  | **Cloud        | Highly       | Monitor caching  | [Cloud Monitoring](https://cloud.google.com/storage/docs/monitoring)           |
-:                 : Monitoring**   : Recommended  : metrics, hit     :                                                                                :
-:                 :                :              : rates, and       :                                                                                :
-:                 :                :              : ingress/egress   :                                                                                :
-:                 :                :              : bandwidth to     :                                                                                :
-:                 :                :              : ensure TPUs/GPUs :                                                                                :
-:                 :                :              : are not          :                                                                                :
-:                 :                :              : bottlenecked by  :                                                                                :
-:                 :                :              : storage.         :                                                                                :
+Feature Group   | Cloud Storage Feature / Setting        | Status                     | Recommendations & Implementation Details                                                                                                                  | Documentation Link
+:-------------- | :------------------------------------- | :------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------- | :-----------------
+**Core**        | **Storage Class**                      | Highly Recommended         | Use **STANDARD** for standard buckets, or **RAPID** storage class for zonal Rapid Buckets.                                                                | [Storage Classes](https://docs.cloud.google.com/storage/docs/storage-classes.md.txt)<br>[Rapid Buckets](https://docs.cloud.google.com/storage/docs/rapid/rapid-bucket.md.txt)
+                | **Bucket Type**                        | Highly Recommended         | **Zonal** (for Rapid Buckets) or **Regional** (for standard Cloud Storage/Rapid Cache origin) to co-locate storage and compute.                           | [Locations](https://docs.cloud.google.com/storage/docs/locations.md.txt)
+**Serving**     | **CORS & Signed URLs**                 | Optional / Not Recommended | Avoid exposing AI datasets directly to public users.                                                                                                      |
+**Security**    | **Uniform Bucket-Level Access (UBLA)** | **Required**               | **Must be enabled** for baseline access control security.                                                                                                 | [Uniform Bucket-Level Access](https://docs.cloud.google.com/storage/docs/uniform-bucket-level-access.md.txt)
+                | **Encryption (CMEK)**                  | Highly Recommended         | Configure CMEK. Use KMS Autokey for automation.                                                                                                           | [CMEK](https://docs.cloud.google.com/storage/docs/encryption/customer-managed-keys.md.txt)
+                | **Soft Delete**                        | Good to Have               | Optional. (Useful but not highly recommended due to potential storage cost overhead from massive AI dataset churn).                                       | [Soft Delete](https://docs.cloud.google.com/storage/docs/soft-delete.md.txt)
+**Cost**        | **Object Lifecycle Management (OLM)**  | Highly Recommended         | Define OLM rules to automatically delete stale checkpoints (e.g. keep only the last 3 days of checkpoints) to avoid massive storage bills on zonal disks. | [Lifecycle Management](https://docs.cloud.google.com/storage/docs/lifecycle.md.txt)
+**Management**  | **Labels & Tagging**                   | Highly Recommended         | Apply billing and ownership labels (e.g. `{"workload": "ai-training"}`) to accurately trace expensive high-performance storage spend.                     | [Bucket Labels](https://docs.cloud.google.com/storage/docs/using-bucket-labels.md.txt)
+**Specialized** | **BiDi (Bidirectional Streaming)**     | Highly Recommended         | Utilize the BiDi protocol on Rapid Buckets to enable low-latency, high-QPS streaming and append operations.                                               | [Hierarchical Namespace](https://docs.cloud.google.com/storage/docs/hns-overview.md.txt)
+**Monitoring**  | **Cloud Monitoring**                   | Highly Recommended         | Monitor caching metrics, hit rates, and ingress/egress bandwidth to ensure TPUs/GPUs are not bottlenecked by storage.                                     | [Cloud Monitoring](https://docs.cloud.google.com/storage/docs/monitoring.md.txt)
 
 ## Key Pre-Deployment Questions to Ask:
 

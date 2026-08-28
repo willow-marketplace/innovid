@@ -2,7 +2,7 @@
   "name": "mcp-tunnels",
   "version": "1.0.0",
   "description": "Connect Claude to a private MCP server through an Anthropic MCP tunnel. Drives the Docker Compose quickstart end to end: certificates, proxy config, cloudflared, and a verifiable sample server.",
-  "updatedAt": "2026-08-25T12:09:13.860Z",
+  "updatedAt": "2026-08-28T00:04:49.005Z",
   "author": {
     "name": "Anthropic",
     "email": "support@anthropic.com"

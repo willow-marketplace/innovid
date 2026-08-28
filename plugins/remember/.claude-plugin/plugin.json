@@ -2,7 +2,7 @@
   "name": "remember",
   "version": "1.0.0",
   "description": "Continuous memory for Claude Code. Extracts, summarizes, and compresses conversations into tiered daily logs. Claude remembers what you did yesterday.",
-  "updatedAt": "2026-08-25T12:09:13.863Z",
+  "updatedAt": "2026-08-28T00:05:35.800Z",
   "author": {
     "name": "Digital Process Tools"
   },
@@ -43,6 +43,16 @@
           {
             "type": "command",
             "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/user-prompt-hook.sh\""
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/session-end-hook.sh\""
           }
         ]
       }

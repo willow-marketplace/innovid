@@ -15,116 +15,26 @@ premature deletion (immutability).
 ## Bucket Configuration Plan Mapping
 
 The following table maps the Long-Term Archive & Compliance use case to specific
-GCS features and details their recommendation status.
+Cloud Storage features and details their recommendation status.
 
-| Feature Group  | GCS Feature /  | Status       | Recommendations &         | Documentation Link                                                             |
-:                : Setting        :              : Implementation Details    :                                                                                :
-| :------------- | :------------- | :----------- | :------------------------ | :----------------------------------------------------------------------------- |
-| **Core**       | **Storage      | Highly       | **Coldline** or           | [Storage Classes](https://cloud.google.com/storage/docs/storage-classes)       |
-:                : Class**        : Recommended  : **Archive** Storage       :                                                                                :
-:                :                :              : Class.<br><br>Archive     :                                                                                :
-:                :                :              : storage offers the lowest :                                                                                :
-:                :                :              : cost per gigabyte, ideal  :                                                                                :
-:                :                :              : for data kept as a legal  :                                                                                :
-:                :                :              : requirement that may      :                                                                                :
-:                :                :              : never be read. Beware of  :                                                                                :
-:                :                :              : high retrieval and early  :                                                                                :
-:                :                :              : deletion fees (e.g.       :                                                                                :
-:                :                :              : minimum 365 days          :                                                                                :
-:                :                :              : retention for Archive).   :                                                                                :
-|                | **Bucket       | Highly       | **Regional** or           | [Locations](https://cloud.google.com/storage/docs/locations)                   |
-:                : Type**         : Recommended  : **Dual-Regional** bucket  :                                                                                :
-:                :                :              : configuration.            :                                                                                :
-:                :                :              : Multi-regional            :                                                                                :
-:                :                :              : configurations should be  :                                                                                :
-:                :                :              : avoided if national laws  :                                                                                :
-:                :                :              : mandate physical data     :                                                                                :
-:                :                :              : residency boundaries.     :                                                                                :
-| **Serving**    | **Signed       | Good to Have | Gated write access only;  | [Signed                                                                        |
-:                : URLs**         :              : restrict public URLs      : URLs](https\://cloud.google.com/storage/docs/access-control/signed-urls)       :
-:                :                :              : entirely.                 :                                                                                :
-| **Security**   | **Uniform      | **Required** | **Must be enabled.**      | [Uniform Bucket-Level                                                          |
-:                : Bucket-Level   :              : Standardizes              : Access](https\://cloud.google.com/storage/docs/uniform-bucket-level-access)    :
-:                : Access         :              : administrative access     :                                                                                :
-:                : (UBLA)**       :              : control across the        :                                                                                :
-:                :                :              : bucket.                   :                                                                                :
-|                | **Public       | **Required** | **Must be enforced.**     | [Public Access                                                                 |
-:                : Access         :              : Disallows public read     : Prevention](https\://cloud.google.com/storage/docs/public-access-prevention)   :
-:                : Prevention     :              : permissions.              :                                                                                :
-:                : (PAP)**        :              :                           :                                                                                :
-|                | **Encryption   | Highly       | **CMEK via KMS** is       | [CMEK](https://cloud.google.com/storage/docs/encryption/customer-managed-keys) |
-:                : (CMEK)**       : Recommended  : standard for compliance   :                                                                                :
-:                :                :              : workloads. Use KMS        :                                                                                :
-:                :                :              : Autokey for automated     :                                                                                :
-:                :                :              : keys, or prompt the user  :                                                                                :
-:                :                :              : for key paths.            :                                                                                :
-|                | **IP           | Good to Have | Limit bucket              | [Bucket IP                                                                     |
-:                : Filtering**    :              : administration endpoints  : Filtering](https\://cloud.google.com/storage/docs/bucket-ip-filtering)         :
-:                :                :              : exclusively to verified   :                                                                                :
-:                :                :              : corporate office IPs or   :                                                                                :
-:                :                :              : secure VPN ranges.        :                                                                                :
-|                | **Retention    | Good to Have | Configure GCS **Bucket    | [Bucket Lock](https://cloud.google.com/storage/docs/bucket-lock)<br>[Object    |
-:                : Policy         :              : Lock** or **Object Lock** : Lock](https\://cloud.google.com/storage/docs/object-lock)                      :
-:                : (WORM)**       :              : to enforce immutability   :                                                                                :
-:                :                :              : (Write Once, Read         :                                                                                :
-:                :                :              : Many).<br><br>**Warning\: :                                                                                :
-:                :                :              : Locking the retention     :                                                                                :
-:                :                :              : policy is irreversible.   :                                                                                :
-:                :                :              : Objects cannot be deleted :                                                                                :
-:                :                :              : by anyone, including      :                                                                                :
-:                :                :              : owners or Google Cloud    :                                                                                :
-:                :                :              : Support, until the        :                                                                                :
-:                :                :              : retention period          :                                                                                :
-:                :                :              : expires.**                :                                                                                :
-| **Cost**       | **Object       | Highly       | Configure lifecycle rules | [Lifecycle Management](https://cloud.google.com/storage/docs/lifecycle)        |
-:                : Lifecycle      : Recommended  : to automatically purge    :                                                                                :
-:                : Management     :              : expired archive records   :                                                                                :
-:                : (OLM)**        :              : (e.g. delete after 7      :                                                                                :
-:                :                :              : years / 2555 days) to     :                                                                                :
-:                :                :              : mitigate liability and    :                                                                                :
-:                :                :              : storage costs.            :                                                                                :
-| **Management** | **Labels &     | Highly       | Apply governance metadata | [Bucket Labels](https://cloud.google.com/storage/docs/using-bucket-labels)     |
-:                : Tagging**      : Recommended  : tags (e.g.                :                                                                                :
-:                :                :              : `{"compliance-type"\:     :                                                                                :
-:                :                :              : "hipaa"}` or              :                                                                                :
-:                :                :              : `{"retention-period"\:    :                                                                                :
-:                :                :              : "7-years"}`) for          :                                                                                :
-:                :                :              : cost-center and policy    :                                                                                :
-:                :                :              : tracking.                 :                                                                                :
-|                | **Storage      | Good to Have | Use Storage Insights      | [Inventory                                                                     |
-:                : Intelligence** :              : Inventory Reports to      : Reports](https\://cloud.google.com/storage/docs/insights/inventory-reports)    :
-:                :                :              : track record age, verify  :                                                                                :
-:                :                :              : compliance counts, and    :                                                                                :
-:                :                :              : manage data wipes.        :                                                                                :
-| **Compliance** | **Regional     | Highly       | Enforce localized control | [Locations](https://cloud.google.com/storage/docs/locations)                   |
-:                : Endpoints**    : Recommended  : planes to satisfy         :                                                                                :
-:                :                :              : sovereignty requirements  :                                                                                :
-:                :                :              : where data operations     :                                                                                :
-:                :                :              : must stay within regional :                                                                                :
-:                :                :              : borders.                  :                                                                                :
-| **Transfers**  | **Storage      | Good to Have | Use STS for               | [Storage Transfer                                                              |
-:                : Transfer       :              : inter-regional            : Service](https\://cloud.google.com/storage-transfer/docs/overview)             :
-:                : Service        :              : migrations, backup, or    :                                                                                :
-:                : (STS)**        :              : ITAR compliance           :                                                                                :
-:                :                :              : transfers.                :                                                                                :
-|                | **SFTP**       | Good to Have | Implement secure SFTP     | [SFTP Gateway (SFTP)](https://cloud.google.com/storage/docs/sftp)              |
-:                :                :              : transfers if legacy       :                                                                                :
-:                :                :              : compliance networks or    :                                                                                :
-:                :                :              : mainframes upload         :                                                                                :
-:                :                :              : transaction logs          :                                                                                :
-:                :                :              : directly.                 :                                                                                :
-| **Monitoring** | **Cloud        | Highly       | Enable GCS Audit Logs     | [Cloud Audit Logging](https://cloud.google.com/storage/docs/audit-logging)     |
-:                : Logging**      : Recommended  : (Data Access & Admin      :                                                                                :
-:                :                :              : Activity) to maintain a   :                                                                                :
-:                :                :              : complete, audit-safe      :                                                                                :
-:                :                :              : record of data reads,     :                                                                                :
-:                :                :              : writes, and config        :                                                                                :
-:                :                :              : updates.                  :                                                                                :
-|                | **Cloud        | Good to Have | Monitor capacity trends   | [Cloud Monitoring](https://cloud.google.com/storage/docs/monitoring)           |
-:                : Monitoring**   :              : and set alert systems to  :                                                                                :
-:                :                :              : fire if unexpected large  :                                                                                :
-:                :                :              : drops in object count or  :                                                                                :
-:                :                :              : volume occur.             :                                                                                :
+Feature Group  | Cloud Storage Feature / Setting        | Status             | Recommendations & Implementation Details                                                                                                                                                                                                                                                         | Documentation Link
+:------------- | :------------------------------------- | :----------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :-----------------
+**Core**       | **Storage Class**                      | Highly Recommended | **Coldline** or **Archive** Storage Class.<br><br>Archive storage offers the lowest cost per gigabyte, ideal for data kept as a legal requirement that may never be read. Beware of high retrieval and early deletion fees (e.g. minimum 365 days retention for Archive).                        | [Storage Classes](https://docs.cloud.google.com/storage/docs/storage-classes.md.txt)
+               | **Bucket Type**                        | Highly Recommended | **Regional** or **Dual-Regional** bucket configuration. Multi-regional configurations should be avoided if national laws mandate physical data residency boundaries.                                                                                                                             | [Locations](https://docs.cloud.google.com/storage/docs/locations.md.txt)
+**Serving**    | **Signed URLs**                        | Good to Have       | Gated write access only; restrict public URLs entirely.                                                                                                                                                                                                                                          | [Signed URLs](https://docs.cloud.google.com/storage/docs/access-control/signed-urls.md.txt)
+**Security**   | **Uniform Bucket-Level Access (UBLA)** | **Required**       | **Must be enabled.** Standardizes administrative access control across the bucket.                                                                                                                                                                                                               | [Uniform Bucket-Level Access](https://docs.cloud.google.com/storage/docs/uniform-bucket-level-access.md.txt)
+               | **Public Access Prevention (PAP)**     | **Required**       | **Must be enforced.** Disallows public read permissions.                                                                                                                                                                                                                                         | [Public Access Prevention](https://docs.cloud.google.com/storage/docs/public-access-prevention.md.txt)
+               | **Encryption (CMEK)**                  | Highly Recommended | **CMEK via KMS** is standard for compliance workloads. Use KMS Autokey for automated keys, or prompt the user for key paths.                                                                                                                                                                     | [CMEK](https://docs.cloud.google.com/storage/docs/encryption/customer-managed-keys.md.txt)
+               | **IP Filtering**                       | Good to Have       | Limit bucket administration endpoints exclusively to verified corporate office IPs or secure VPN ranges.                                                                                                                                                                                         | [Bucket IP Filtering](https://docs.cloud.google.com/storage/docs/ip-filtering-overview.md.txt)
+               | **Retention Policy (WORM)**            | Good to Have       | Configure Cloud Storage **Bucket Lock** or **Object Lock** to enforce immutability (Write Once, Read Many).<br><br>**Warning: Locking the retention policy is irreversible. Objects cannot be deleted by anyone, including owners or Google Cloud Support, until the retention period expires.** | [Bucket Lock](https://docs.cloud.google.com/storage/docs/bucket-lock.md.txt)<br>[Object Lock](https://docs.cloud.google.com/storage/docs/object-lock.md.txt)
+**Cost**       | **Object Lifecycle Management (OLM)**  | Highly Recommended | Configure lifecycle rules to automatically purge expired archive records (e.g. delete after 7 years / 2555 days) to mitigate liability and storage costs.                                                                                                                                        | [Lifecycle Management](https://docs.cloud.google.com/storage/docs/lifecycle.md.txt)
+**Management** | **Labels & Tagging**                   | Highly Recommended | Apply governance metadata tags (e.g. `{"compliance-type": "hipaa"}` or `{"retention-period": "7-years"}`) for cost-center and policy tracking.                                                                                                                                                   | [Bucket Labels](https://docs.cloud.google.com/storage/docs/using-bucket-labels.md.txt)
+               | **Storage Intelligence**               | Good to Have       | Use Storage Insights Inventory Reports to track record age, verify compliance counts, and manage data wipes.                                                                                                                                                                                     | [Inventory Reports](https://docs.cloud.google.com/storage/docs/insights/inventory-reports.md.txt)
+**Compliance** | **Regional Endpoints**                 | Highly Recommended | Enforce localized control planes to satisfy sovereignty requirements where data operations must stay within regional borders.                                                                                                                                                                    | [Locations](https://docs.cloud.google.com/storage/docs/locations.md.txt)
+**Transfers**  | **Storage Transfer Service (STS)**     | Good to Have       | Use STS for inter-regional migrations, backup, or ITAR compliance transfers.                                                                                                                                                                                                                     | [Storage Transfer Service](https://docs.cloud.google.com/storage-transfer/docs/overview.md.txt)
+               | **SFTP**                               | Good to Have       | Implement secure SFTP transfers if legacy compliance networks or mainframes upload transaction logs directly.                                                                                                                                                                                    | [SFTP Gateway (SFTP)](https://docs.cloud.google.com/integration-connectors/docs/connectors/sftp/configure.md.txt)
+**Monitoring** | **Cloud Logging**                      | Highly Recommended | Enable Cloud Storage Audit Logs (Data Access & Admin Activity) to maintain a complete, audit-safe record of data reads, writes, and config updates.                                                                                                                                              | [Cloud Audit Logging](https://docs.cloud.google.com/storage/docs/audit-logging.md.txt)
+               | **Cloud Monitoring**                   | Good to Have       | Monitor capacity trends and set alert systems to fire if unexpected large drops in object count or volume occur.                                                                                                                                                                                 | [Cloud Monitoring](https://docs.cloud.google.com/storage/docs/monitoring.md.txt)
 
 ## Key Pre-Deployment Questions to Ask:
 

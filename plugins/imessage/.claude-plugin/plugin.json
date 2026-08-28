@@ -2,7 +2,7 @@
   "name": "imessage",
   "version": "1.0.0",
   "description": "iMessage channel for Claude Code — reads chat.db directly, sends via AppleScript. Built-in access control; manage pairing, allowlists, and policy via /imessage:access.",
-  "updatedAt": "2026-08-25T12:09:13.879Z",
+  "updatedAt": "2026-08-28T00:05:46.394Z",
   "keywords": [
     "imessage",
     "messaging",

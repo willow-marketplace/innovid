@@ -1,6 +1,6 @@
 ---
 name: carta-compensation-app
-description: 'Launch an interactive local web console for Carta Total Compensation (CTC) data — a React app served from localhost, fed by CTC benchmark data fetched once at build time. Today it ships the Benchmarks tab: the full salary / total-cash / equity percentile matrix (P25/P50/P75/P90) for a corporation, grouped by job area and IC/Manager/Executive track, with an equity representation toggle (notional / FD % / shares), and the Scorecard tab: per-metric market positioning (salary / total cash / equity) plus the per-employee roster with compa-ratios. Plan Modeling and Reports tabs are planned. Invoke with a corporation name or numeric id, e.g. "comp dashboard for Acme" or "open the CTC console for corp 7". READ-ONLY. CLAUDE CODE ONLY — it serves a local web app; outside Claude Code use carta-compensation-benchmarks (market rate for a role) or carta-compensation-scorecard (roster, compa-ratios). NOT for a single role lookup.'
+description: "Serves a live, clickable CTC console — builds one corporation's Carta Total Compensation data into a React app on localhost, where you filter by job area, compare peer groups and explore the scorecard yourself. CLAUDE CODE ONLY; it serves a local web app. Use it when the ask is to run an app, launch a console, or explore the data live, rather than to be told a figure. Invoke with a corporation name or id, e.g. \"launch a comp dashboard for Acme\". Its Benchmarks and Scorecard tabs are surfaces inside the app, not separately routable. Route by deliverable, not subject — an answer, CSV or figure to quote belongs to a sibling even when the wording overlaps: use carta-compensation-benchmarks for a role's market rate, and carta-compensation-scorecard for roster positioning, compa-ratios or who is below market. So \"what are our comp benchmarks\" is a sibling even though it names them, while \"open our comp benchmarks so I can filter them\" is this skill. NOT for a single role lookup. READ-ONLY."
 ---
 
 <!-- carta:instrumentation-fallback -->
@@ -10,6 +10,8 @@ description: 'Launch an interactive local web console for Carta Total Compensati
 `skills` is cumulative for the session: list every Carta skill loaded so far, not only the one driving this call. Namespace each entry `"plugin:skill"` and keep them oldest-first, with the most recently used skill last. List only Carta skills (`carta-cap-table:*`, `carta-crm:*`, `carta-investors:*`) — never skills from non-Carta plugins.
 `surface` is the Claude surface you are running in: `"chat"` (claude.ai or the Claude app, i.e. regular chat, not Cowork), `"cowork"` (Cowork mode), `"code-terminal"`, `"code-desktop"`, or `"excel"`. Omit it entirely if none of those describe your surface or you cannot tell — do not guess and do not invent another value.
 </IMPORTANT>
+
+<!-- [PATTERN carta-writing-style v0.0.2] [PATTERN etiquette v0.0.6] [PATTERN text v0.0.8] [PATTERN tables v0.0.12] [PATTERN carta-watermark v0.0.10] [PATTERN base v0.1.0] -->
 
 # CTC Dashboard (local React console)
 
@@ -57,8 +59,9 @@ uv run "${CLAUDE_PLUGIN_ROOT}/skills/carta-compensation-app/scripts/ctc_paths.py
 ```
 
 Read-only; prints `slug`, `cache_root`, `raw_dir`, `dashboard_dir`, `snapshot_age_days`,
-`snapshot_benchmark_version_id` and `snapshot_benchmark_version` without creating anything. Use
-the printed `dashboard_dir` **verbatim** — never recompute a cache path.
+`snapshot_benchmark_version_id`, `snapshot_benchmark_version`, `snapshot_skill_version` and
+`current_skill_version` without creating anything. Use the printed `dashboard_dir` **verbatim**
+— never recompute a cache path.
 
 - `snapshot_age_days=none` with `suggested_match=` lines → did-you-mean picker via
   `AskUserQuestion`.
@@ -67,6 +70,11 @@ the printed `dashboard_dir` **verbatim** — never recompute a cache path.
   alone.
 
 ### The version gate (REQUIRED on every cache hit)
+
+**Age is not freshness**, and there are two independent ways a fresh-looking cache can be stale:
+the **benchmark release** it holds, and the **skill version** that built it. Check both before
+launching. Neither is visible on screen — a stale dashboard renders perfectly, which is exactly
+what makes it worth a gate.
 
 **Age is not freshness.** Carta publishes benchmark releases on its own cadence, and a
 corporation's plan can be re-pinned to a newer release at any time — so a cache written
@@ -91,6 +99,42 @@ Compare its `benchmark_version.id` against the printed `snapshot_benchmark_versi
 | ids **differ** | **Re-fetch (Step 2), regardless of age.** Say why in one line: "Carta published a newer benchmark release (v21.0 → v25.5) — refetching." Do not offer "use cached" as the default here; the cached figures are superseded. |
 | `snapshot_benchmark_version_id=none` | Treat as a mismatch and re-fetch. A cache whose version cannot be read must not be trusted. |
 | The plan call fails (403/5xx) | Fall back to the age rule and **say so**: "Couldn't confirm the benchmark release is current, so this may be up to N days behind." Never silently pretend the check passed. |
+
+#### Skill version — the second staleness axis (no MCP call)
+
+`resolve` prints `snapshot_skill_version` (what built the cache) and `current_skill_version`
+(what a rebuild would produce). Compare them:
+
+| Condition | Action |
+|---|---|
+| **equal** | Nothing to say. The cache was built by this skill; launch. |
+| **differ** | **Tell the user and offer a rebuild** — do not rebuild unprompted, and do not launch silently. One line naming both versions and what it means, then `AskUserQuestion`: rebuild (recommended) vs open the cached build. |
+| `snapshot_skill_version=none` | A cache built before the field existed. Same as "differ": say the cache predates version tracking and offer the rebuild. |
+| `current_skill_version=none` | The running skill's version could not be read. Say so, skip this check, and fall through to the benchmark gate — never treat unknown as a match. |
+
+**Why offer rather than force**, when a benchmark mismatch re-fetches outright: superseded
+percentiles are *wrong*, while a cache from an older skill is *correct but possibly incomplete*.
+The figures still tie out; what may be missing is a capability — a tab, a peer-group dimension —
+that this version could add. Wrong data justifies spending the user's calls without asking;
+missing features do not, especially now that a default rebuild is a ~77-call sweep.
+
+**Say what changed in terms of the dashboard, not the version string.** "Built with skill 0.1.0,
+now on 0.2.0" tells the user nothing they can act on. Name the consequence: *"This dashboard was
+built before peer-group switching existed, so it has no dimension or bucket pickers. Rebuilding
+adds them — about 77 calls, a few minutes."* If you cannot say what a rebuild would add, say that
+plainly rather than inventing a benefit.
+
+**Version equality is the signal — do not second-guess it.** This skill's `version:` is bumped
+deliberately when a change warrants rebuilding a cache; an unchanged version means the maintainers
+judged the change cache-compatible. Never compare timestamps, file contents, or the plugin version
+as a substitute — `plugin.json` moves whenever any sibling skill in the plugin changes, which has
+nothing to do with this dashboard's data.
+
+> **Bump `version:` in this skill's frontmatter when a change alters what a build produces** — a
+> new tab, another data dimension, a different data-dir shape. That bump is the whole mechanism by
+> which existing users are told their dashboard can be improved; skip it and they keep opening a
+> cache that silently lacks the new capability. Leave it alone for wording, docs and fixes that
+> produce a byte-identical build.
 
 **This intentionally costs one MCP call on a warm launch.** The previous zero-call path was
 faster but could not distinguish "4 days old and current" from "4 days old and 12 releases
@@ -340,8 +384,194 @@ between pages as a failure and re-fetch what you already have.
    one of 22 job areas. A timeout on a `job_limit: 6` page is NOT a reason to retry with a bigger
    limit; if 6 areas time out, a larger page certainly will.
 
-A hard ceiling regardless of outcome: **at most 8 export calls per build** (4 pages plus
-retries). If you're about to exceed that, stop and report — you're in a retry loop.
+A hard ceiling regardless of outcome: **at most 8 export calls per build** for the corp's OWN
+group (4 pages plus retries). Alternates in 2c-bis carry their own ceiling. If you're about to
+exceed either, stop and report — you're in a retry loop.
+
+**2c-bis. The other buckets in the corp's dimension — this is what turns on the peer-group
+dropdowns.**
+
+The Benchmarks tab has a dimension picker and a bucket picker, and **it hides both unless the
+data dir contains more than one peer group.** They read `alternatePeerGroups`, which
+`build_datadir.py` assembles from `peer_<CODE>/` subdirectories of the raw dir. Fetch nothing
+here and the controls never appear — not broken, just nothing to switch between.
+
+So: after the corp's own sweep is COMPLETE, **sweep every other bucket in the same dimension.**
+Same `benchmark_version_id`, same `equity_quantity: "FOUR_YEAR_GRANT"`, same `job_limit: 6` and
+the same page-until-`next_job_offset`-is-null discipline — the only thing that changes is the
+`<dimension>_bucket` value. The codes, in order, per dimension:
+
+| Dimension | Bucket codes (low → high) |
+|---|---|
+| `post_money` | `ONE_MILLION`, `TEN_MILLION`, `TWENTY_FIVE_MILLION`, `FIFTY_MILLION`, `ONE_HUNDRED_MILLION`, `TWO_HUNDRED_FIFTY_MILLION`, `FIVE_HUNDRED_MILLION`, `ONE_BILLION` |
+| `headcount` | `ONE_TO_TWENTY_FIVE`, `TWENTY_FIVE_TO_HUNDRED`, `HUNDRED_TO_FIVE_HUNDRED`, `GREATER_THAN_FIVE_HUNDRED` |
+| `capital_raised` | `ONE_TO_TEN_MILLION`, `TEN_TO_TWENTY_FIVE_MILLION`, `TWENTY_FIVE_TO_FIFTY_MILLION`, `FIFTY_TO_ONE_HUNDRED_MILLION`, `ONE_HUNDRED_TO_TWO_HUNDRED_MILLION`, `GREATER_THAN_TWO_HUNDRED_MILLION` |
+
+**Sweep all three dimensions, not just the plan's.** The app has a dimension picker as well as
+a bucket picker, and it offers whatever dimensions the data dir contains — so fetching only the
+plan's dimension leaves that control with one option, which is the same dead-end the bucket
+picker had. Post-money valuation, headcount and capital raised are all real ways a customer
+asks "who are we being compared against", and the builder already labels each group with its
+own dimension and citation phrase.
+
+The bucket param name changes with the dimension — **exactly one** per call:
+
+| Dimension | Param |
+|---|---|
+| `post_money` | `post_money_bucket` |
+| `headcount` | `headcount_bucket` |
+| `capital_raised` | `capital_raised_bucket` |
+
+**The plan's own dimension still leads.** The builder puts it first in the picker and the corp's
+own bucket stays the default, because that is the peer set the plan actually chose — switching
+bucket asks "what if we were valued higher?", while switching dimension changes what a peer *is*.
+Both are legitimate; only one is the default.
+
+> **A bucket label alone is ambiguous across dimensions.** `$1M-$10M` exists in both post-money
+> and capital raised, and on a real corp they return different figures (167,000 vs 144,000 for the
+> same role). That is why each group carries its own dimension and citation, and why the CSV
+> filename includes the dimension. Never describe a group by its bucket label alone.
+
+Capture each bucket into its OWN subdirectory — `--export-page` takes the destination, so point
+it at `peer_<CODE>/` instead of the raw dir:
+
+```bash
+uv run "${CLAUDE_PLUGIN_ROOT}/skills/carta-compensation-app/scripts/save_benchmark_result.py" \
+  --export-page <printed_result_path_or_.raw_file> "<raw_dir>/peer_<CODE>"
+```
+
+Use the bucket code **exactly** as spelled above: `build_datadir.py` reads the code back out of
+the directory name to look up that group's label and dimension, so `peer_one_million` or
+`peer_ONE-MILLION` lands as an unlabelled group in the switcher.
+
+**Skip the corp's own bucket** — it is already the flat `benchmark_*.json` set at the top of the
+raw dir, and fetching it twice would put the same group in the dropdown twice.
+
+> ### Sweep ALL dimensions and ALL buckets by default
+>
+> **Unless the user has asked for something narrower, fetch every bucket in all three
+> dimensions.** Do not ask first, and do not quietly pick a cheaper scope on their behalf — a
+> partial sweep is the one outcome that looks like a broken app rather than a saved call. With
+> one dimension the dimension picker renders a single option and hides; with one bucket both
+> pickers hide, and the user sees a dashboard with no peer-group controls at all and no
+> indication that anything was skipped.
+>
+> Narrow **only** on an explicit instruction ("just post-money", "skip the alternates", "keep it
+> quick"). Then say which scope you used and which pickers it leaves empty, so the absence is a
+> stated choice rather than a silent gap.
+
+**Cost, and why it is no longer a reason to ask.** There are 18 buckets across the three
+dimensions (8 post-money, 4 headcount, 6 capital raised), each a full 4-page sweep: **17
+alternates × 4 = 68 extra calls**, against the ~9 for the corp's own group.
+
+Sequentially that is minutes of wall clock, which is what the old "ask first" default was
+protecting against. **Fan the sweep out across subagents instead** (see below) and those 68
+calls cost roughly one bucket's wall clock, because buckets are independent. Parallelism, not a
+smaller scope, is the answer to the cost.
+
+| Scope | Calls | What the pickers show |
+|---|---|---|
+| **All three dimensions (DEFAULT)** | ~68 | Both pickers fully populated |
+| Own dimension, all buckets | ~12–28 | Bucket picker works; dimension picker hides |
+| Adjacent buckets only | ~8 | Three buckets in one dimension |
+| Own bucket only | 0 extra | Neither picker appears |
+
+The per-dimension figures differ — post-money has 7 alternates (~28 calls), capital raised 5
+(~20), headcount 3 (~12) — so quote the number for the dimension actually in play rather than
+28 for all three.
+
+A verified reference point: on corp 7 the full 18-bucket sweep completed with every page
+returning 200, so 68 is a measured figure rather than a guess.
+
+Ceiling for this step: **at most 6 export calls per bucket** (4 pages plus two retries), and
+**stop the whole step after 3 consecutive buckets fail**. A systemic failure — wrong
+`benchmark_version_id`, auth, a bad bucket param — will fail on every bucket, and grinding
+through 17 of them wastes ~100 calls to learn what the second one already told you.
+
+**A failed alternate is not a failed build.** Alternates are additive: the corp's own group is
+already captured and the dashboard is complete without them. If a bucket's sweep won't finish,
+delete its partial `peer_<CODE>/` directory and move on — `build_datadir.py` already drops an
+alternate with no rows and warns rather than publishing a group that renders as a blank grid,
+but removing the directory keeps the warning list honest about what you actually attempted.
+Report which buckets are in the switcher and which you dropped.
+
+**2c-ter. Fan the alternates out across subagents.**
+
+**Do the alternates in parallel, one subagent per bucket.** Buckets are independent — each is a
+self-contained 4-page sweep writing to its own `peer_<CODE>/` directory, with no shared state
+and no ordering between them. Sweeping them in one context is the slowest possible arrangement
+and, on a client where MCP results arrive inline rather than as a file path, also the most
+fragile: every page's payload has to pass through the orchestrator twice (once arriving, once
+being written), and each of those hand-reproduced pages is an opportunity to corrupt a salary
+figure. Delegating puts the payloads in the subagent's context instead, so the orchestrator
+never handles them.
+
+**Split one bucket per agent, 17 agents.** The harness caps concurrency (~10 at once) and
+queues the rest, so this lands in about two waves and the wall clock is a couple of buckets
+deep rather than 17. If the MCP starts rate-limiting, fall back to ~6 agents of ~3 buckets
+each — do NOT respond to rate limiting by narrowing the scope.
+
+**Do the version gate ONCE, in the orchestrator, before spawning anything.** Resolve the
+corporation, run Step 2a/2b, and hand every agent the already-pinned `benchmark_version_id`.
+Seventeen agents each calling `get:plan` is 17 wasted calls, and worse, a release published
+mid-sweep could leave different buckets pinned to different versions — figures that silently
+disagree across the picker.
+
+Each agent's brief needs, at minimum:
+
+- Its bucket code(s), and **the matching bucket param for that dimension** — `post_money_bucket`
+  / `headcount_bucket` / `capital_raised_bucket`, exactly one per call.
+- The pinned `benchmark_version_id`, `corporation_id`, and `equity_quantity: "FOUR_YEAR_GRANT"`.
+- The absolute raw-dir path, and the destination `<raw_dir>/peer_<CODE>` — the code spelled
+  **exactly** as in the table above, since the builder reads the dimension and label back out of
+  the directory name.
+- The paging discipline: `job_limit: 6`, page until `next_job_offset` is null.
+- **The capture contract, in full.** The agent must write the tool result verbatim and pass it
+  to `save_benchmark_result.py --export-page`; it must never retype or summarise a payload.
+- **A verification step, done by PARSING — not by eye.** The script prints the job areas and row
+  count it captured; the agent parses the response's own `jobs_covered` and `row_count` and
+  compares them programmatically, then re-captures on any mismatch rather than proceeding. Say
+  this explicitly in the brief: an agent told only to "confirm the counts match" will skim two
+  numbers that look alike, and a single transposed digit inside a 100-row page changes neither
+  the row count nor the job list. Structural comparison is what catches a payload that arrived
+  intact but was written back wrong — the one failure the capture contract exists to prevent, and
+  one that a real sweep has already produced and caught this way.
+- The per-bucket ceiling (6 calls) and the instruction to delete a partial `peer_<CODE>/` and
+  report it rather than leaving it half-swept.
+- **Never echo benchmark figures in its report** — the same rule that applies here. Agents
+  report bucket codes, page counts and row counts only.
+
+**Sanity-check the figures themselves once the sweep lands.** Counts and job lists prove a page
+arrived; they say nothing about whether its numbers survived being written back out. One cheap
+pass over the captured rows catches what counting cannot:
+
+```bash
+uv run - <<'PY'
+import json, glob, os
+bad = 0; rows = 0
+for f in glob.glob(os.path.expanduser("<raw_dir>/peer_*/benchmark_*.json")):
+    for r in json.load(open(f)).get("benchmarks") or []:
+        rows += 1
+        p = (r.get("salary_benchmarks") or {}).get("percentiles") or {}
+        v = [float(p[k]) for k in ("p25", "p50", "p75", "p90") if p.get(k) is not None]
+        # Percentiles are ordered by construction, and a salary outside this range
+        # is not a number the API returns -- either signals a mangled write.
+        if v != sorted(v) or any(x < 1000 or x > 50_000_000 for x in v):
+            bad += 1
+print("rows", rows, "anomalies", bad)
+PY
+```
+
+A transposed digit usually breaks the ordering or leaves the plausible range, so this turns a
+silent corruption into a visible one for the cost of a second. It is a smoke test, not a proof —
+a wrong digit that happens to preserve both properties still slips through, which is why the
+per-page parsed comparison above remains the primary defence.
+
+**Verify the fan-out centrally when the agents return.** Do not trust the reports alone — read
+each bucket's `peer_<CODE>/export_pages.json` and confirm `sweep_complete: true`. A retried page
+can appear twice in a manifest's `pages` list; that is harmless, because a re-capture overwrites
+the same per-job-area files rather than appending, but a manifest whose `sweep_complete` is
+false means that bucket really is short and must be re-run or dropped.
 
 **2d. Employee list — one bulk export (feeds the Scorecard tab).**
 
@@ -481,22 +711,85 @@ Source under `app/src/` is served directly; the service worker transpiles `.jsx`
 **Do NOT run `npm run build` after editing source** — edit, refresh, done. `npm run build` only
 rebuilds `webapp/vendor/*` on a React/Sucrase bump. See `app/README.md`.
 
+### Changing the app when the user asks — yes, do it
+
+**A request to change this console is in scope, and you should act on it.** Add a column,
+add a percentile, change a sort, restyle a table, add a filter, add a tab. The app is
+local, the source is right there, and `READ-ONLY` in this skill's description means *this
+skill does not write to Carta* — it is not a statement that the UI is frozen. The
+Benchmarks and Scorecard tabs are the two that exist today, not the two that are allowed
+to exist.
+
+**Do not refuse a modification request by citing a data-integrity rule that is about
+something else.** This skill carries several strict, correct prohibitions — no demo data,
+no fabricated geo scalars, no retyped MCP payloads, no partial sweep published as
+complete. Every one of them is about *not inventing data that was never fetched*. None of
+them says the UI cannot change, and reading them that way turns a narrow correctness rule
+into a blanket refusal.
+
+The one that gets over-applied is the geo-scalar block in `build_datadir.py`
+("do not paper over this with client-side interpolation or a hardcoded scalar table").
+Read it precisely: it is about **location** adjustment. There is no command returning a
+scalar table across the ~400 supported locations, so a location dropdown would have to
+invent scalars for locations nobody fetched. That is still true and still forbidden.
+
+**Interpolating between two percentiles the server did return is a different thing.** The
+console holds P25, P50, P75 and P90 as real fetched values (`salary.p50` is a plain
+number; equity is nested per percentile as `equity.p50.{notional,shares,fdpct}`). A P60
+estimated from P50 and P75 is arithmetic on two real numbers, bounded by them. Nothing in
+this skill forbids it, and it is a legitimate thing to want: percentile targets between
+the published ones are ordinary compensation practice.
+
+**When you add a value the server did not return, you MUST label it.** Not because it is
+suspect — because a reader comparing this console against the CTC product UI must be able
+to tell which numbers should match and which will not be there at all. Two requirements,
+both mandatory:
+
+- **In the UI**, mark it with BOTH a `Tag` AND a `title` tooltip naming the calculation —
+  e.g. a `notice`-tone "Estimated" tag on the column header, with
+  `title="Interpolated between P50 and P75"`. `Tag` (`app/src/ui/components.jsx`) already
+  takes both; do not invent a new component. **The tag must be visible on first render** —
+  not behind a help menu, a disclosure toggle, or a legend the reader has to go find; the
+  tooltip then explains the arithmetic on hover. An interpolated number that looks identical
+  to a fetched one is the failure this prevents.
+- **In what you tell the user**, say what it is derived from and that it will not appear
+  in the product UI. One sentence.
+
+Two things that stay off-limits, because they are about invented data rather than UI:
+
+- **Do not extrapolate past the fetched range.** P95 or P99 from P90 is not interpolation;
+  there is no upper bound to sit between, so the number is a guess wearing a percentile's
+  name. Same for a percentile below P25.
+- **Do not derive a value the server already returns as a field.** Compa-ratios and
+  low/mid/high bands come from the API precisely so this console agrees with the product
+  UI; recomputing one locally drifts the moment the server changes its rounding or
+  geo-adjustment order, and the drift reads as data rather than a bug. See the header of
+  `app/src/views/Scorecard.jsx`.
+
+If a request genuinely cannot be satisfied without inventing data — a location dropdown
+being the live example — say which data is missing and what would have to exist to make it
+possible, rather than declining without a reason.
+
 ## Common failure modes
 
-| Situation | What to do |
-|---|---|
-| `exceeded 10000ms time limit` or `"Too many job areas"` on `compensation:export:benchmarks` | You asked for too many areas in one call — usually by omitting `job_limit`. The limit that bites first is a **10s server timeout**, not the ~300-row cap. Use `job_limit: 6` and page with `job_offset`; an explicit `job_limit` above 12 is a 400, not clamped. |
-| An export page 403s / 5xxs | Retry that page once, same `job_offset`. **Never** fall back to per-job-area `compensation:get:benchmark` calls to route around it — fix the export call's arguments instead. |
-| An export page fails twice | Stop before building and surface the error. One call now covers up to 12 of 22 job areas, so a page that won't succeed after a retry is a systemic problem (wrong `benchmark_version_id`, bad bucket param, auth), not bad luck on one job area. |
-| `build_datadir.py` reports `EXPORT SWEEP: ... stopped early` or refuses to build | Paging didn't reach `next_job_offset: null`. Fetch the remaining page(s) — check `<raw_dir>/export_pages.json` for `last_next_job_offset`. |
-| `"Unknown tool"` on a scorecard command | The generated tool name **keeps the hyphen**: `compensation__get__employee-scorecard`. Only colons become `__`, so `..._scorecard` (underscore) is not a real tool. `call_tool` works fine with the correct name — verified against a live MCP. (`fetch` is not registered in current builds, so it is not the fallback either.) |
-| Roster looks short / Scorecard counts too low | On the paged fallback: `pageSize` camelCase is silently ignored and the default page size applies — use `page_size`. Also check you did not pass `score=`, which filters on the nullable overall band and drops unscored employees. |
-| `compensation:export:scorecard` returns 400 "at most 200 fit" | The corporation is larger than one export response. Use the paged fallback in Step 2d — do NOT narrow with `job_filters`, which silently under-reports who is below market. |
-| `save_roster_page: N row(s) do not match the ... header` | The export's columns and rows disagree, so the payload is not what the decoder expects. Do not work around it — a partially-decoded employee list would be published flagged COMPLETE. Re-fetch; if it repeats, the export's column set changed and the script needs updating. |
-| `build_datadir.py` refuses: "the roster sweep is INCOMPLETE" | Paging stopped before `total_results` was reached. Check `<raw_dir>/roster_pages.json` for `distinct_employees` vs `total_results` and fetch the remaining pages. Never work around this — a partial roster under-reports how many employees are below market. |
-| Scorecard tab absent on a fresh build | `snapshot.json` will say `hasRoster: false`. The roster sweep failed or was skipped; re-run with "refresh". A warm cache re-fetches nothing (Step 0's one call is the version gate), so the tab cannot appear until the next build. |
-| Numbers don't match the CTC product UI | Almost always `equity_quantity` (must be `FOUR_YEAR_GRANT`) or a missing/incorrect `*_bucket` param. |
-| `HTTP 400` on `job`/`focus` | Passing a display label (`"Engineering"`) or a combined value (`ENGINEER/BACKEND`). Two separate params; `job` UPPER_SNAKE, `focus` lowercase. |
-| Builder exits "peer_group.dimension is …" | `plan.json` is missing or from a different corp. Re-fetch Step 2. |
-| Browser shows the dark error overlay | Copy the message back into the session — it carries the file and line. |
-| Blank page, no overlay | Service worker didn't claim. Hard-refresh once; the shell reloads itself after 3s as a backstop. |
+The **Tell user** column is the message to surface, not a script to read verbatim — keep its
+substance and its honesty about what failed. Where it is "—", the fix is silent and the user
+does not need to hear about it.
+
+| Symptom | Cause | Tell user |
+|---|---|---|
+| `exceeded 10000ms time limit` or `"Too many job areas"` on `compensation:export:benchmarks` | Too many areas in one call — usually `job_limit` omitted. The limit that bites first is a **10s server timeout**, not the ~300-row cap. Use `job_limit: 6` and page with `job_offset`; an explicit `job_limit` above 12 is a 400, not clamped. | "The request was too large. Retrying in smaller batches…" |
+| An export page 403s / 5xxs | Transient. Retry that page once, same `job_offset`. **Never** fall back to per-job-area `compensation:get:benchmark` calls to route around it — fix the export call's arguments instead. | — (retry silently; only speak up if the retry also fails) |
+| An export page fails twice | Systemic, not bad luck: one call covers up to 12 of 22 job areas, so a page that won't succeed after a retry means a wrong `benchmark_version_id`, bad bucket param, or auth. Stop before building. | "The benchmark fetch failed twice on the same page, so I stopped rather than build a partial dashboard. [the error]" |
+| `build_datadir.py` reports `EXPORT SWEEP: ... stopped early` or refuses to build | Paging didn't reach `next_job_offset: null`. Fetch the remaining page(s) — check `<raw_dir>/export_pages.json` for `last_next_job_offset`. | — (fetch the rest, then build; mention only if pages cannot be completed) |
+| `"Unknown tool"` on a scorecard command | The generated tool name **keeps the hyphen**: `compensation__get__employee-scorecard`. Only colons become `__`, so `..._scorecard` (underscore) is not a real tool. `call_tool` works with the correct name — verified against a live MCP. (`fetch` is not registered in current builds, so it is not the fallback either.) | — (correct the name and retry) |
+| Roster looks short / Scorecard counts too low | On the paged fallback: `pageSize` camelCase is silently ignored and the default page size applies — use `page_size`. Also check you did not pass `score=`, which filters on the nullable overall band and drops unscored employees. | "The roster came back short — refetching so the scorecard covers everyone." |
+| `compensation:export:scorecard` returns 400 "at most 200 fit" | The corporation is larger than one export response. Use the paged fallback in Step 2d — do NOT narrow with `job_filters`, which silently under-reports who is below market. | — (page through it; the user gets the complete roster either way) |
+| `save_roster_page: N row(s) do not match the ... header` | The export's columns and rows disagree, so the payload is not what the decoder expects. A partially-decoded employee list would be published flagged COMPLETE. Re-fetch; if it repeats, the export's column set changed and the script needs updating. | "The roster data came back in an unexpected shape, so I stopped rather than publish a partial employee list." |
+| `build_datadir.py` refuses: "the roster sweep is INCOMPLETE" | Paging stopped before `total_results` was reached. Check `<raw_dir>/roster_pages.json` for `distinct_employees` vs `total_results` and fetch the remaining pages. Never work around this — a partial roster under-reports how many employees are below market. | "The roster is incomplete ([n] of [total] employees), so the scorecard would under-report who is below market. Fetching the rest." |
+| Scorecard tab absent on a fresh build | `snapshot.json` says `hasRoster: false`. The roster sweep failed or was skipped; re-run with "refresh". A warm cache re-fetches nothing (Step 0's one call is the version gate), so the tab cannot appear until the next build. | "The Scorecard tab needs the employee roster, which this build doesn't have. Want me to rebuild with a refresh?" |
+| Numbers don't match the CTC product UI | Almost always `equity_quantity` (must be `FOUR_YEAR_GRANT`) or a missing/incorrect `*_bucket` param. | "Those figures were fetched with the wrong equity basis or peer group. Rebuilding so they match the product UI." |
+| `HTTP 400` on `job`/`focus` | Passing a display label (`"Engineering"`) or a combined value (`ENGINEER/BACKEND`). Two separate params; `job` UPPER_SNAKE, `focus` lowercase. | — (fix the params and retry) |
+| Builder exits "peer_group.dimension is …" | `plan.json` is missing or from a different corp. Re-fetch Step 2. | — (re-fetch, then build) |
+| Browser shows the dark error overlay | A runtime error in the app; the overlay carries the file and line. | "The dashboard hit a rendering error — paste the message from the red overlay and I'll fix it." |
+| Blank page, no overlay | Service worker didn't claim. The shell reloads itself after 3s as a backstop. | "If the page is still blank, hard-refresh once — the service worker needs to claim it." |

@@ -203,7 +203,7 @@ The report is the source of truth for the developer's next session: it tells the
 - MCP: `quality_checklist` (include only if called, with date/time)
 - MCP: `quality_evaluation` (include only if called, with the payment_id used)
 - MCP: `form_homologation` (include only if called)
-- Skill: `mp-review` v4.3.1
+- Skill: `mp-review` v4.3.2
 
 **Scores**: {X/Y required and Z/W best practices if verified; otherwise `official quality: N/A`}, {S}/9 security. **Verdict**: {Ready for production | Needs fixes | Blocked | Partial — MCP checks not verified}.
 ```

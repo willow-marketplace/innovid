@@ -7,6 +7,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.22.0] - 2026-08-27 — Guards that were written next door
+
+### Added
+
+- **Added a `SessionEnd` hook that flushes whatever `PostToolUse` has not yet saved** ([#345](https://github.com/Digital-Process-Tools/claude-remember/issues/345)) — `hooks/hooks.json` registered `SessionStart`, `UserPromptSubmit` and `PostToolUse` but nothing on the way out, so a session that ended in conversation rather than tool calls (a design discussion, a review, a decision — often the part worth keeping) could lose its entire final stretch if nothing after the last save cleared `cooldowns.save_seconds` or `thresholds.min_human_messages`. `session-end-hook.sh` forks `save-session.sh --force` into the background, once, the same way `post-tool-hook.sh` already does — Claude Code kills a hook at 60s of its own accord, and save-session.sh's own Haiku call already asks for up to 120s (180s for NDC compression), so waiting on it in the foreground risked losing the entire flush to that kill on exactly the long sessions this hook exists to rescue. `--force` bypasses the save cooldown and the min-human-message gate; it does not bypass the zero-exchange gate, so a session with nothing new since the last save costs no Haiku call.
+
+  It deliberately does **not** write a handoff note. `/remember` composes `remember.md` from the model's own first-person recollection of the session; there is no model turn running at `SessionEnd` for a hook to narrate from, and a fabricated placeholder would silently overwrite a real handoff written earlier in the same session — worse than leaving it alone, and adjacent to (not a fix for) [#341](https://github.com/Digital-Process-Tools/claude-remember/issues/341)'s stale-delivery-count problem rather than an interaction with it, since this hook never touches `remember.md`.
+
+  Whether `SessionEnd` fires on a crash, a killed terminal, or a session ending at the usage cap is not established by the current Claude Code hooks reference (checked 2026-08) — it documents `clear`, `logout`, `prompt_input_exit` and `resume` and is silent on the abrupt paths. This hook cannot make `SessionEnd` fire where Claude Code itself would not invoke it, so `features.recovery`'s next-session-start repair stays in place unchanged: it is what still covers the endings this hook cannot reach.
+
+- **`handoff_mode: "per_session"` stops two interactive sessions sharing one project store from clobbering each other's handoff** ([#363](https://github.com/Digital-Process-Tools/claude-remember/issues/363)). `_resolve_memory_project_dir` shares one store across a project's worktrees by design ([#56](https://github.com/Digital-Process-Tools/claude-remember/issues/56)), so two panes open on the same project is the ordinary case, not an edge one. Every session still wrote its handoff to the same fixed `remember.md`, so the second session's `/remember` silently overwrote the first's — a different failure from [#221](https://github.com/Digital-Process-Tools/claude-remember/issues/221)/[#222](https://github.com/Digital-Process-Tools/claude-remember/issues/222), which protect a *pending* handoff from a session that never writes one back, not two sessions that each do.
+  Setting `"handoff_mode": "per_session"` gives each session its own `remember.<session_id>.md`, keyed by the `SessionStart` payload's own `session_id` (#270). History, `recent.md`, `archive.md` and consolidation are untouched — only the single handoff slot is namespaced. If no usable `session_id` reaches the hook, the session falls back to the shared file, and the `=== HANDOFF ===` hint still points at it (the shared path is still correct, and withholding it broke external storage mode, where that path is the only real one) — but a visible line says the fallback happened, so a user who set `per_session` does not read isolation into a session that never got one.
+  Default is `single` — today's behaviour, byte-identical — matching every other behaviour-changing key in this file (`data_dir`, `git_restore.enabled`, `reject_pattern`): a new layout never applies until asked for, so an existing install's disk is unchanged by the upgrade. No pruning ships with this key; a stale `remember.<session_id>.md` is the user's own writing with no copy anywhere else, so it accumulates until removed by hand rather than being deleted on a heuristic that can misfire.
+
+### Fixed
+
+- Fixed: a memory store whose `logs/` directory could not be created (a
+  read-only mount, a permission error) was silently publishing a cooldown of
+  120 seconds and a delta threshold of 50 lines to the env-resolution cache
+  as though `config.json` had asked for exactly that, overriding whatever a
+  user had actually configured until they next edited their config. The
+  publish is now skipped entirely on a store that could not resolve those two
+  values, in `scripts/user-prompt-hook.sh` and `scripts/post-tool-hook.sh`.
+  (#358)
+
+- Fixed: the very first tool call of a session (and the first after any
+  config edit) could print 22 lines of Apple's `/usr/bin/log` usage text to
+  stderr and `dispatch: command not found`, from a `PostToolUse` hook
+  documented to always exit 0 -- and an installed `after_post_tool` listener
+  silently did not run on that call. `scripts/post-tool-hook.sh`'s slow path
+  now guards `log` and `dispatch` the same way its fast path already did
+  (`declare -F`, not `type`, because macOS's own `log` binary makes `type
+  log` true either way); the same unguarded `dispatch` call in
+  `scripts/user-prompt-hook.sh`'s slow path is fixed alongside it. (#361)
+
+- Fixed the per-invocation merged-config temp file (`remember-config-<pid>.json`) leaking forever on Windows/Git Bash, where the `EXIT` trap that is supposed to remove it does not reliably fire for this plugin's short-lived hook processes — one machine accumulated 23,908 of them directly in the OS temp directory. The file now lives under `<REMEMBER_DIR>/tmp` (a directory this plugin owns) instead of the shared OS temp root, and every invocation sweeps away any stale copy left there by a process whose trap never ran (#362).
+
+- Fixed: a store whose `.remember/logs/` could never be created (a
+  read-only or otherwise unwritable project root) made `SessionEnd` report
+  nothing at all -- `scripts/session-end-hook.sh` sourced `log.sh` with
+  stderr suppressed and then called `log`/`report_error` unguarded, both of
+  which `log.sh` returns before defining on exactly this path. On macOS the
+  first call also shelled out to Apple's `/usr/bin/log` binary (`type log`
+  is true whether or not a shell function exists), and the second failed
+  outright with `report_error: command not found` -- silently, because the
+  hook is documented `EXIT CODES: 0 Always` and a `command not found` does
+  not change that. `session-end-hook.sh` now carries the same `declare -F`
+  guard `post-tool-hook.sh` and `user-prompt-hook.sh` already do (#361), and
+  on this one path -- the last chance a session gets to report a failed
+  flush -- the fallback still writes a `WARNING` line to stderr rather than
+  going silent, since `hook-errors.log` and the notice channel both live
+  under the same directory that could not be created. (#372)
+
+- Fixed: `scripts/bootstrap-dirs.sh` built its `EXIT` cleanup trap by string concatenation, interpolating the relocated merged-config path into a single-quoted span inside a string that `trap` re-parses at exit. In legacy mode that path is rooted at the raw, non-slugified project directory, so an apostrophe in the project path (e.g. `~/Bob's Project`) terminated the quoted span early and left the temp file behind at every hook exit — reintroducing the leak #362 was filed and fixed for, for exactly this slice of users, even though the changelog said #362 was closed. The interpolated path is now passed through `printf %q` so it re-parses as exactly one word regardless of the quote characters it contains (#375).
+
 ## [0.21.0] - 2026-08-18 — A store that could not get out of its own way
 
 ### Added
@@ -1293,7 +1348,8 @@ Fixes [#9](https://github.com/Digital-Process-Tools/claude-remember/issues/9), a
 
 ## [0.1.0] — Initial release
 
-[Unreleased]: https://github.com/Digital-Process-Tools/claude-remember/compare/v0.21.0...HEAD
+[Unreleased]: https://github.com/Digital-Process-Tools/claude-remember/compare/v0.22.0...HEAD
+[0.22.0]: https://github.com/Digital-Process-Tools/claude-remember/releases/tag/v0.22.0
 [0.21.0]: https://github.com/Digital-Process-Tools/claude-remember/releases/tag/v0.21.0
 [0.20.0]: https://github.com/Digital-Process-Tools/claude-remember/releases/tag/v0.20.0
 [0.19.0]: https://github.com/Digital-Process-Tools/claude-remember/releases/tag/v0.19.0

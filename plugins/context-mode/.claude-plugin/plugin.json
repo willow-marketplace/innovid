@@ -2,7 +2,7 @@
   "name": "context-mode",
   "version": "1.0.151",
   "description": "MCP server that saves 98% of your context window with session continuity. Sandboxed code execution in 11 languages, FTS5 knowledge base with BM25 ranking, and automatic state restore across compactions.",
-  "updatedAt": "2026-08-25T12:09:13.835Z",
+  "updatedAt": "2026-08-27T00:05:36.192Z",
   "author": {
     "url": "https://github.com/mksglu",
     "name": "Mert Koseoğlu"

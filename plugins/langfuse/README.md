@@ -22,7 +22,7 @@ Install as a [Cursor plugin](https://cursor.com/docs/plugins):
 
 ### skills CLI
 
-Install via the [skills CLI](https://github.com/anthropics/skills):
+Install via the [skills CLI](https://github.com/vercel-labs/skills):
 
 ```bash
 npx skills add langfuse/skills --skill "langfuse"
@@ -60,6 +60,10 @@ Once installed, the agent will automatically use these skills when relevant — 
 - Migrating prompts to Langfuse prompt management
 - Querying traces, prompts, or datasets via the API
 - Looking up Langfuse docs, SDK usage, or integration guides
+
+## Contributing
+
+Want to improve a skill or add a new one? See [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 ## Feedback & Requests
 

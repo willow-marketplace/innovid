@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.2.36
+
+- feat: add Foundry agent validation skill entry point ([#3115](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3115))
+
+## 1.2.35
+
+- fix: role ([#3114](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3114))
+
 ## 1.2.34
 
 - feat: Added Referenced Workloads Updates to Azure Enterprise Infra Planner Skills (feature: Referenced Workloads) ([#3094](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3094))

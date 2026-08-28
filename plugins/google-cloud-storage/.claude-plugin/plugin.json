@@ -2,7 +2,7 @@
   "name": "google-cloud-storage",
   "version": "1.0.0",
   "description": "Official Google Cloud Storage (GCS) plugin. Manage buckets and objects, transfer data, and configure MCP, FUSE, IAM, security, lifecycle rules, signed URLs, Terraform, and the CLI.",
-  "updatedAt": "2026-08-25T12:09:13.917Z",
+  "updatedAt": "2026-08-28T00:04:36.524Z",
   "author": {
     "name": "Google LLC",
     "email": "gcs-agentic-ai-customer-support@google.com"
