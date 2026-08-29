@@ -14,6 +14,9 @@ const FAR_GROUP_BY_PENDING = {
 const FAR_STATUS_COMPLETE = 2;
 const FAR_STATUS_CANCELED = 3;
 
+// TaskStatus PENDING and ACTIVE — the task statuses that still await someone.
+const FAR_OPEN_TASK_STATUSES = [0, 1];
+
 // Each label is an event the payload can prove. There is no "received" here:
 // nothing marks a read, so it would be a guess presented as a fact.
 const FAR_STATUS_LABEL = {
@@ -87,6 +90,16 @@ function farWorkflowId(res) {
   for (const c of _mcpResultCandidates(res)) {
     const id = c && (c.workflow_id ?? c.id);
     if (id != null) return id;
+  }
+  return null;
+}
+
+// The JWT a message carries as an attachment. Without it the file is in Carta but
+// attached to nothing, so a missing token counts as a failed upload.
+function farDocToken(res) {
+  if (!res || res.isError) return null;
+  for (const c of _mcpResultCandidates(res)) {
+    if (c && typeof c.token === 'string' && c.token) return c.token;
   }
   return null;
 }
@@ -312,6 +325,8 @@ function farNormalizeMessages(rows) {
       html: m.content_html ?? '',
       isStaff: m.author?.is_staff === true,
       author: m.author?.name ?? null,
+      // Two spellings again: the endpoint sends user_id, the model renames it id.
+      authorId: m.author?.id ?? m.author?.user_id ?? null,
       at: m.message_timestamp ?? null,
       attachments: farNormalizeAttachments(m.attachments),
     }))
@@ -323,7 +338,19 @@ function farNormalizeMessages(rows) {
 function farPendingState(w) {
   const fromTask = String(w.last_task?.template ?? '').toLowerCase();
   if (fromTask) return fromTask;
-  return String(w.status_presentation?.status ?? '').toLowerCase().replace(/\s+/g, '-');
+  const shown = String(w.status_presentation?.status ?? '').toLowerCase().replace(/\s+/g, '-');
+  if (shown) return shown;
+  return farPendingFromTasks(w);
+}
+
+// fa:list:workflow names no pending actor of its own — it carries the tasks and
+// each one says whose turn it is. The open task is the one that answers.
+function farPendingFromTasks(w) {
+  const open = (w.tasks || []).find(t => t && FAR_OPEN_TASK_STATUSES.includes(t.status));
+  if (!open) return '';
+  if (open.is_pending_customer) return 'pending-customer';
+  if (open.is_pending_carta) return 'pending-carta';
+  return '';
 }
 
 // "investment wire" → "Investment wire". request_type names the job, so it beats
@@ -360,23 +387,30 @@ function farNeedsTitle(w) {
 
 function farNormalizeWorkflow(w) {
   const status = Number(w.status);
-  const pending = farPendingState(w);
+  // Set only when the pending task is the GP's review, so a card knows to open
+  // the capital call panel rather than the thread.
+  const ccr = ccrIsReviewTask(w) ? ccrTargetFor(w) : null;
+  const pending = ccr ? 'pending-customer' : farPendingState(w);
   const group = (status === FAR_STATUS_COMPLETE || status === FAR_STATUS_CANCELED)
     ? 'done'
     : (FAR_GROUP_BY_PENDING[pending] ?? 'progress');
   return {
     id: w.id ?? w.workflow_id,
-    title: farRequestTitle(w),
+    title: ccr ? CCR_CARD_TITLE : farRequestTitle(w),
+    subtitle: ccr ? ccrFundLabel(w) : null,
     firm: w.firm?.name?.trim() || null,
     group,
     state: pending,
     canceled: status === FAR_STATUS_CANCELED,
-    needsTitle: farNeedsTitle(w),
+    // A review card is already named, and its thread is the workflow's own
+    // history rather than a request someone typed.
+    needsTitle: ccr ? false : farNeedsTitle(w),
     requested: w.created_at ?? null,
     lastActivity: w.last_activity_at ?? w.last_communication_at ?? w.created_at ?? null,
     // Deliberately NOT workflow_detail_url — that is a /staff/ route, so linking
     // a customer to it sends them somewhere they cannot open.
     webUrl: w.workflow_cta_url ?? null,
+    ccr,
   };
 }
 
@@ -482,20 +516,46 @@ function farPlanScopeNote() {
     : 'Save as plan keeps it for this session only — this artifact cannot save it.';
 }
 
-function farSavePlan() {
+async function farSavePlan() {
   const box = document.getElementById('far-compose-text');
   const message = (box?.value ?? '').trim();
   if (!message) { showToast('Add a description before saving.'); return; }
   trackWorkhub('click', 'CartaWorkhub.FundAdminRequests.SavePlan');
-  farWritePlans(farReadPlans().concat({
-    planId: 'plan-' + Date.now(),
-    message,
-    requested: new Date().toISOString(),
-  }));
+  // Editing a plan and saving it again is the same plan. Its drafted date rides
+  // along so an edit does not read as a new one.
+  const plans = farReadPlans();
+  const at = _farPlanId ? plans.findIndex(p => p.planId === _farPlanId) : -1;
+  const build = files => {
+    const entry = {
+      planId: at === -1 ? 'plan-' + Date.now() : _farPlanId,
+      message,
+      requested: at === -1 ? new Date().toISOString() : plans[at].requested,
+      attachments: files ?? [],
+    };
+    return at === -1 ? plans.concat(entry) : plans.map((p, i) => (i === at ? entry : p));
+  };
+
+  let files = await farPlanAttachments('compose');
+  let reason = files === null ? 'big' : '';
+  let next = build(files);
+  if (files && files.length && JSON.stringify(next).length > FAR_PLAN_STORE_BUDGET) {
+    files = null;
+    reason = 'full';
+    next = build(null);
+  }
+  const dropped = files === null ? (_farPicked.compose ?? []).length : 0;
+  farWritePlans(next);
+  _farPlanId = (at === -1 ? next[next.length - 1] : next[at]).planId;
+  _farPicked.compose = [];
   closeFarCompose();
-  showToast(farStorageOk()
-    ? 'Saved as a plan on this computer. Nothing has gone to Carta yet.'
-    : 'Saved as a plan for this session. Nothing has gone to Carta yet.');
+  showToast(((at === -1 ? 'Saved as a plan' : 'Plan updated')
+    + (farStorageOk() ? ' on this computer.' : ' for this session.')
+    + ' Nothing has gone to Carta yet.')
+    + (dropped === 0 ? '' : reason === 'big'
+      ? ` ${dropped === 1 ? 'Your file was' : 'Your files were'} too large to keep with a plan —`
+        + ' attach again when you send.'
+      : ` There was no room to keep ${dropped === 1 ? 'your file' : 'your files'} —`
+        + ' discard an old plan, or attach again when you send.'));
   renderFarSection();
 }
 
@@ -516,7 +576,11 @@ function farDiscardPlan(planId) {
 function farReviewPlan(planId) {
   const plan = farReadPlans().find(p => p.planId === planId);
   if (!plan) return;
-  openFarCompose();
+  // Set before opening, so the picker mounts with the plan's files already in it.
+  _farPicked.compose = (plan.attachments ?? []).map(a => ({
+    id: ++_farPickSeq, name: a.name, size: a.size, b64: a.b64,
+  }));
+  openFarCompose(true);
   _farPlanId = planId;
   const box = document.getElementById('far-compose-text');
   if (box) box.value = plan.message;
@@ -570,14 +634,9 @@ async function farFetchRequests() {
     let rows = farResults(scoped);
 
     if (!rows && _benchmarkFirmId) {
-      const listed = await _mcp('fetch', {
-        command: 'fa:list:workflow',
-        params: {
-          firm_uuid: _benchmarkFirmId,
-          template_type: 'request-generic',
-          page_size: FAR_PAGE_SIZE,
-        },
-      });
+      // Takes only `statuses` and rejects every other param; the firm comes from
+      // the session context set at boot. Capital calls under review ride along.
+      const listed = await _mcp('fetch', { command: 'fa:list:workflow', params: {} });
       rows = farResults(listed);
     }
 
@@ -589,11 +648,12 @@ async function farFetchRequests() {
       _farPartial = true;
       _farRows = await farFetchFromIds();
     }
+    _farRows = ccrWithSeedRow(_farRows);
     loaded = true;
   } catch (e) {
     console.error('[far] request list unavailable —', e);
     _farPartial = true;
-    _farRows = [];
+    _farRows = ccrWithSeedRow([]);
   }
   renderFarSection();
   // Hydration only improves titles, so it stays outside the try above — sharing
@@ -764,15 +824,17 @@ function farCard(r, withTime) {
   card.className = 'far-card' + (isTodo ? ' far-card-todo' : '');
   card.innerHTML = `
     <div class="far-card-title">${escHtml(r.title ?? 'Request to Carta')}</div>
+    ${r.subtitle ? `<div class="far-card-sub">${escHtml(r.subtitle)}</div>` : ''}
     <div class="far-card-status">
       <span class="far-dot${isTodo ? ' far-dot-todo' : ''}"></span>
       <span class="far-card-status-text">${escHtml(farStatusLabel(r))}</span>
     </div>
     <div class="far-card-footer">
       <button class="far-card-view">${isTodo ? 'Review' : 'View'} &rarr;</button>
-      <span class="far-card-age">Requested ${escHtml(withTime ? farStamp(r.requested) : farDate(r.requested))}</span>
+      ${r.requested ? `<span class="far-card-age">Requested ${escHtml(withTime ? farStamp(r.requested) : farDate(r.requested))}</span>` : ''}
     </div>`;
-  card.querySelector('.far-card-view').addEventListener('click', () => openFarThread(r.id));
+  card.querySelector('.far-card-view').addEventListener('click', () =>
+    r.ccr ? openCapitalCallReview(r.ccr, r.title) : openFarThread(r.id));
   return card;
 }
 
@@ -898,10 +960,14 @@ function applyFarPreset(i) {
   box.selectionStart = box.selectionEnd = at;
 }
 
-function openFarCompose() {
+// resume means the same draft coming back — from review, or reopened from a plan.
+// Its files, its preset and the plan it belongs to are all still the sender's.
+function openFarCompose(resume) {
   trackWorkhub('click', 'CartaWorkhub.FundAdminRequests.Compose');
-  _farPlanId = null;
-  _farPresetName = null;
+  if (!resume) {
+    _farPlanId = null;
+    _farPresetName = null;
+  }
   const overlay = farEnsureOverlay('far-compose-overlay', 'far-overlay');
   overlay.innerHTML = `
     <div class="far-panel">
@@ -914,6 +980,7 @@ function openFarCompose() {
         <div class="far-presets">${farPresetTiles()}</div>
         <textarea id="far-compose-text" class="far-textarea" rows="6"
           placeholder="Anything your fund admin team can do — capital calls, investments, valuations, payments, transfers, or closes."></textarea>
+        ${farPickerHtml('compose')}
       </div>
       <div class="far-panel-footer">
         <button class="far-btn-secondary" onclick="closeFarCompose()">Cancel</button>
@@ -924,6 +991,7 @@ function openFarCompose() {
     </div>`;
   overlay.classList.add('far-overlay-visible');
   document.getElementById('far-compose-text')?.focus();
+  farMountPicker('compose', { reset: !resume });
 }
 
 // ── Request analysis ──
@@ -1006,6 +1074,7 @@ function farRenderReview() {
       <div class="far-panel-body">
         <p class="far-compose-hint">Summary of what goes to your Carta fund admin team. They pick it up, start the work, and reply here.</p>
         <div class="far-review" id="far-review-text">${escHtml(message)}</div>
+        ${farPickedSummaryHtml('compose')}
         ${farOpenItemsHtml(farOpenItems(message))}
       </div>
       <div class="far-panel-footer">
@@ -1020,7 +1089,7 @@ function farRenderReview() {
 // Back from review keeps what they wrote — retyping it would be its own bug.
 function openFarComposeWithDraft() {
   const draft = _farDraft;
-  openFarCompose();
+  openFarCompose(true);
   const box = document.getElementById('far-compose-text');
   if (box) { box.value = draft; box.focus(); }
 }
@@ -1042,9 +1111,21 @@ async function submitFarCompose() {
   if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
 
   try {
+    const { tokens, failed } = await farUploadPicked('compose', (n, total) => {
+      if (btn) btn.textContent = `Attaching ${n} of ${total}…`;
+    });
+    if (btn) btn.textContent = 'Sending…';
+    // Filing the request anyway would open a case whose evidence is missing, and
+    // the thread would show no sign of it. Stop so the file can be retried.
+    if (failed.length) {
+      showToast(`Could not upload ${failed.join(', ')} — remove or retry before sending.`);
+      if (btn) { btn.disabled = false; btn.textContent = 'Send to Carta'; }
+      return;
+    }
+
     const res = await _mcp('mutate', {
       command: 'fa:create:fund-admin-message',
-      params: { message },
+      params: tokens.length ? { message, attachment_tokens: tokens } : { message },
     });
     if (res.isError) throw new Error(res.content?.[0]?.text ?? 'Unknown error');
     const id = farWorkflowId(res);
@@ -1067,6 +1148,7 @@ async function submitFarCompose() {
       lastActivity: now,
       webUrl: null,
     });
+    _farPicked.compose = [];
     renderFarSection();
     farRenderSent();
   } catch (e) {
@@ -1097,6 +1179,7 @@ async function openFarThread(workflowId) {
       <div class="far-panel-footer far-thread-footer">
         <textarea id="far-reply-text" class="far-textarea far-textarea-reply" rows="3"
           placeholder="Reply to your Carta team…"></textarea>
+        ${farPickerHtml('reply')}
         <div class="far-thread-actions">
           <button class="far-btn-secondary" onclick="closeFarThread()">Close</button>
           <button class="far-btn-primary" id="far-reply-send" onclick="submitFarReply()">Send</button>
@@ -1104,8 +1187,9 @@ async function openFarThread(workflowId) {
       </div>
     </div>`;
   overlay.classList.add('far-overlay-visible');
+  farMountPicker('reply');
 
-  const msgs = await farFetchThread(workflowId);
+  const [msgs] = await Promise.all([farFetchThread(workflowId), farResolveViewer()]);
   const body = document.getElementById('far-thread-body');
   // A second card was opened while this thread was in flight.
   if (!body || String(_farOpenThreadId) !== String(workflowId)) return;
@@ -1117,36 +1201,36 @@ async function openFarThread(workflowId) {
   body.innerHTML = msgs.map((m, i) => farBubble(m, row?.webUrl, i, row?.title)).join('');
 }
 
-// Staff messages render as their client-facing text plus a link into Carta —
-// never Carta's internal agent output, run logs, or system metadata.
-//
-// Attribution is positional because it cannot be read from the payload: every
-// message comes back with the same author and is_staff true, Carta's replies
-// included. Index 0 is always the request that opened the thread, and a reply
-// sent in this session is appended with isStaff false.
+// The thread has three parties, not two: the viewer, a colleague at their firm,
+// and Carta. Identity settles the first, is_staff the last, and a colleague sits
+// on the firm's side under their own name.
 function farBubble(m, webUrl, i, title) {
-  const mine = i === 0 || m.isStaff === false;
-  const side = mine ? 'far-bubble-you' : 'far-bubble-carta';
-  const who = mine ? 'You' : 'Carta';
-  const cta = !mine && webUrl
+  const mine = _farViewerId != null && m.authorId != null
+    ? String(m.authorId) === _farViewerId
+    : i === 0 || m.isStaff === false;
+  // Ordered after `mine`, or a staff viewer's own messages read as Carta's.
+  const carta = !mine && m.isStaff === true;
+  const side = carta ? 'far-bubble-carta' : 'far-bubble-you';
+  const who = mine ? 'You' : carta ? 'Carta' : (m.author || 'Someone at your firm');
+  const cta = carta && webUrl
     ? `<a class="far-bubble-cta" href="${escHtml(webUrl)}" target="_blank" rel="noopener">Review in Carta &rarr;</a>`
     : '';
   return `
     <div class="far-bubble ${side}">
       <div class="far-bubble-head">
-        <span class="far-bubble-who">${who}</span>
+        <span class="far-bubble-who">${escHtml(who)}</span>
         <span class="far-bubble-at">${escHtml(farStamp(m.at))}</span>
       </div>
-      ${farBodyHtml(m, mine, title)}
+      ${farBodyHtml(m, i === 0, title)}
       ${farAttachmentsHtml(m.attachments)}
       ${cta}
     </div>`;
 }
 
-// The sender's own opening message is a filled template; a reply is prose.
-function farBodyHtml(m, mine, title) {
+// The message that opened the request is a filled template; a reply is prose.
+function farBodyHtml(m, opening, title) {
   const source = { content_html: m.html, content_text: m.text };
-  if (mine) {
+  if (opening) {
     // Field parsing stays on the flat text — its label regex is line-oriented.
     const { fields, lead, rest } = farParseFields(farMessageBlocks(source).join('\n\n'));
     if (fields.length > 0) {
@@ -1187,6 +1271,224 @@ function farAttachmentsHtml(attachments) {
   return `<div class="far-attachments">${chips}</div>`;
 }
 
+// ── Attaching files to a message ──
+// Carta drops files past 15 and tokens past 30 minutes without reporting either,
+// so the count is enforced before picking and the clock by uploading at send.
+
+const FAR_MAX_FILES = 15;
+
+// Measured: a request body over 1 MiB never reaches Carta. One file per call, and
+// base64 costs a third, so 750 KB fits. Fifteen stay under the composer's 25 MB.
+const FAR_MAX_FILE_BYTES = 750 * 1024;
+
+const FAR_UPLOAD_COMMAND = 'fa:create:document-content';
+
+// A plan is JSON, so a file rides along as the base64 the upload needs anyway.
+// One plan's share, then the ceiling for all of them: localStorage is a few MB
+// for the whole origin, so one big plan must not cost the rest their durability.
+const FAR_PLAN_FILE_BUDGET = 2 * 1024 * 1024;
+const FAR_PLAN_STORE_BUDGET = 3 * 1024 * 1024;
+
+// Picked files per surface, held only until send. A new request and a reply are
+// separate messages, so each gets its own allowance.
+const _farPicked = { compose: [], reply: [] };
+let _farPickSeq = 0;
+let _farUploadProbe = null;
+
+// A staff sender's own messages come back is_staff true, exactly like Carta's, so
+// only their id tells the two apart. Resolved once, and null when it cannot be.
+let _farViewerId = null;
+let _farViewerProbe = null;
+function farResolveViewer() {
+  if (!_farViewerProbe) {
+    _farViewerProbe = (async () => {
+      try {
+        const res = await _mcp('get_current_user', {});
+        if (res && !res.isError) {
+          for (const c of _mcpResultCandidates(res)) {
+            const id = c && (c.pk ?? c.id);
+            if (id != null) { _farViewerId = String(id); break; }
+          }
+        }
+      } catch (e) {
+        console.info('[far identity] viewer lookup failed', e);
+      }
+      return _farViewerId;
+    })();
+  }
+  return _farViewerProbe;
+}
+
+// Staff-gated, so most viewers cannot attach. discover() runs the same access
+// check; fetch() rejects writes on method first, so it would answer yes for all.
+function farUploadAvailable() {
+  if (!_farUploadProbe) {
+    _farUploadProbe = (async () => {
+      try {
+        const res = await _mcp('discover', { domain: FAR_UPLOAD_COMMAND });
+        if (res && !res.isError) return true;
+        console.info('[far attach] attaching is not available to this viewer');
+        return false;
+      } catch (e) {
+        console.info('[far attach] availability probe failed', e);
+        return false;
+      }
+    })();
+  }
+  return _farUploadProbe;
+}
+
+function farFmtBytes(n) {
+  if (n < 1024) return n + ' B';
+  if (n < 1024 * 1024) return Math.round(n / 1024) + ' KB';
+  return (n / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+function farPickedBytes(key) {
+  return (_farPicked[key] ?? []).reduce((sum, f) => sum + f.size, 0);
+}
+
+// readAsDataURL, not btoa: btoa needs a binary string, and building one for a
+// multi-megabyte file overruns String.fromCharCode's argument limit.
+function farFileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('could not read ' + file.name));
+    reader.onload = () => {
+      const out = String(reader.result ?? '');
+      const comma = out.indexOf(',');
+      if (comma === -1) { reject(new Error('unreadable encoding')); return; }
+      resolve(out.slice(comma + 1));
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function farPickerHtml(key) {
+  return `<div class="far-attach" id="far-attach-${key}" hidden>
+      <input type="file" multiple class="far-file-input" id="far-file-${key}"
+        onchange="farAddFiles('${key}', this)">
+      <div class="far-attach-row">
+        <button type="button" class="far-attach-btn"
+          onclick="document.getElementById('far-file-${key}').click()">${FAR_CLIP_ICON}Attach files</button>
+        <span class="far-attach-hint" id="far-attach-hint-${key}"></span>
+      </div>
+      <div class="far-attach-list" id="far-attach-list-${key}"></div>
+    </div>`;
+}
+
+// The panel can be closed and reopened while the probe is in flight, so the
+// element is looked up again rather than captured before the await.
+async function farMountPicker(key, { reset = true } = {}) {
+  if (reset) _farPicked[key] = [];
+  if (!(await farUploadAvailable())) return;
+  const wrap = document.getElementById('far-attach-' + key);
+  if (!wrap) return;
+  wrap.hidden = false;
+  farRenderPicked(key);
+}
+
+function farRenderPicked(key) {
+  const picked = _farPicked[key] ?? [];
+  const hint = document.getElementById('far-attach-hint-' + key);
+  if (hint) {
+    hint.textContent = picked.length
+      ? `${picked.length} of ${FAR_MAX_FILES} files · ${farFmtBytes(farPickedBytes(key))}`
+      : `Up to ${FAR_MAX_FILES} files, ${farFmtBytes(FAR_MAX_FILE_BYTES)} each.`;
+  }
+  const list = document.getElementById('far-attach-list-' + key);
+  if (!list) return;
+  list.innerHTML = picked.map(f =>
+    `<span class="far-attachment far-attachment-picked">${FAR_CLIP_ICON}` +
+    `<span class="far-attachment-name">${escHtml(f.name)}</span>` +
+    `<span class="far-attach-size">${escHtml(farFmtBytes(f.size))}</span>` +
+    `<button type="button" class="far-attach-remove" onclick="farRemoveFile('${key}', ${f.id})"` +
+    ` aria-label="Remove ${escHtml(f.name)}">✕</button></span>`).join('');
+}
+
+// Names what it would not take and why. Keeping only what fits, silently, is the
+// server behaviour this exists to prevent.
+function farAddFiles(key, input) {
+  const incoming = Array.from(input.files ?? []);
+  input.value = '';
+  if (incoming.length === 0) return;
+
+  const picked = _farPicked[key];
+  const refused = [];
+  for (const file of incoming) {
+    if (picked.length >= FAR_MAX_FILES) {
+      refused.push(`${file.name} (over ${FAR_MAX_FILES} files)`);
+    } else if (file.size > FAR_MAX_FILE_BYTES) {
+      refused.push(`${file.name} is ${farFmtBytes(file.size)}, over the ${farFmtBytes(FAR_MAX_FILE_BYTES)} limit`);
+    } else {
+      picked.push({ id: ++_farPickSeq, name: file.name, size: file.size, file });
+    }
+  }
+  farRenderPicked(key);
+  if (refused.length) showToast('Not attached: ' + refused.join(', '));
+}
+
+function farRemoveFile(key, id) {
+  _farPicked[key] = (_farPicked[key] ?? []).filter(f => f.id !== id);
+  farRenderPicked(key);
+}
+
+// The review step exists so nothing reaches Carta unseen. That includes files.
+function farPickedSummaryHtml(key) {
+  const picked = _farPicked[key] ?? [];
+  if (picked.length === 0) return '';
+  const chips = picked.map(f =>
+    `<span class="far-attachment far-attachment-picked">${FAR_CLIP_ICON}` +
+    `<span class="far-attachment-name">${escHtml(f.name)}</span>` +
+    `<span class="far-attach-size">${escHtml(farFmtBytes(f.size))}</span></span>`).join('');
+  return `<div class="far-attach-review">
+      <p class="far-attach-review-title">Sending ${picked.length}
+        ${picked.length === 1 ? 'file' : 'files'} with this request</p>
+      <div class="far-attach-list">${chips}</div>
+    </div>`;
+}
+
+// All or nothing: half a plan's evidence is harder to notice than none of it.
+async function farPlanAttachments(key) {
+  const out = [];
+  let total = 0;
+  for (const item of _farPicked[key] ?? []) {
+    const b64 = item.b64 ?? await farFileToBase64(item.file);
+    total += b64.length;
+    if (total > FAR_PLAN_FILE_BUDGET) return null;
+    out.push({ name: item.name, size: item.size, b64 });
+  }
+  return out;
+}
+
+// Serial, so the progress count is exact and tokens keep the sender's order.
+async function farUploadPicked(key, onProgress) {
+  const picked = _farPicked[key] ?? [];
+  const tokens = [];
+  const failed = [];
+  for (let i = 0; i < picked.length; i++) {
+    const item = picked[i];
+    // Fifteen round trips is long enough that an unchanging button reads as hung.
+    if (onProgress) onProgress(i + 1, picked.length);
+    try {
+      // Restored from a plan the bytes are already encoded; a fresh pick is not.
+      const content_base64 = item.b64 ?? await farFileToBase64(item.file);
+      const res = await _mcp('mutate', {
+        command: FAR_UPLOAD_COMMAND,
+        params: { filename: item.name, content_base64 },
+      });
+      if (res.isError) throw new Error(res.content?.[0]?.text ?? 'upload rejected');
+      const token = farDocToken(res);
+      if (!token) throw new Error('upload returned no token');
+      tokens.push(token);
+    } catch (e) {
+      console.error('[far upload error]', item.name, e);
+      failed.push(item.name);
+    }
+  }
+  return { tokens, failed };
+}
+
 function closeFarThread() {
   _farOpenThreadId = null;
   document.getElementById('far-thread-overlay')?.classList.remove('far-overlay-visible');
@@ -1203,21 +1505,38 @@ async function submitFarReply() {
   if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
 
   try {
+    const { tokens, failed } = await farUploadPicked('reply', (n, total) => {
+      if (btn) btn.textContent = `Attaching ${n} of ${total}…`;
+    });
+    if (btn) btn.textContent = 'Sending…';
+    if (failed.length) {
+      showToast(`Could not upload ${failed.join(', ')} — remove or retry before sending.`);
+      return;
+    }
+    const sentFiles = (_farPicked.reply ?? []).map(f => ({ name: f.name, href: null }));
+
     const res = await _mcp('mutate', {
       command: 'fa:create:workflow-message',
-      params: { workflow_id: Number(workflowId), message },
+      params: tokens.length
+        ? { workflow_id: Number(workflowId), message, attachment_tokens: tokens }
+        : { workflow_id: Number(workflowId), message },
     });
     if (res.isError) throw new Error(res.content?.[0]?.text ?? 'Unknown error');
 
     // The thread is cached, so append rather than refetch — and the ball is back
     // with Carta, so the card leaves "Tasks to complete".
     const msgs = _farThreadCache[workflowId] ?? [];
-    msgs.push({ id: null, text: message, html: '', isStaff: false, author: null, at: new Date().toISOString() });
+    msgs.push({
+      id: null, text: message, html: '', isStaff: false, author: null,
+      authorId: _farViewerId, at: new Date().toISOString(), attachments: sentFiles,
+    });
     _farThreadCache[workflowId] = msgs;
     const row = (_farRows ?? []).find(r => String(r.id) === String(workflowId));
     if (row) { row.group = 'progress'; row.state = 'pending-carta'; row.lastActivity = new Date().toISOString(); }
 
     if (box) box.value = '';
+    _farPicked.reply = [];
+    farRenderPicked('reply');
     const body = document.getElementById('far-thread-body');
     if (body) body.innerHTML = msgs.map((m, i) => farBubble(m, row?.webUrl, i, row?.title)).join('');
     showToast('Reply sent to your Carta team.');

@@ -5,6 +5,8 @@ description: Run a pre-submission compliance check against your Shopify app's co
 
 ## Required Tool Calls (do not skip)
 
+Each bundled `.mjs` helper supports `-h` and `--help` for complete usage and option details.
+
 You have a `bash` tool. Every response must use it:
 
 1. Call `bash` with the following — log the skill activation:
@@ -131,4 +133,4 @@ Unless all requirements are labeled as likely passing, include these helpful res
 
 ---
 
-> **Privacy notice:** `scripts/log_skill_use.mjs` reports the skill name/version, model/client identifiers, and (when the agent provides them) the verbatim user prompt that triggered the skill activation along with the agent's session id and tool_use_id, to Shopify (`shopify.dev/mcp/usage`) to help improve these tools. Set `OPT_OUT_INSTRUMENTATION=true` in your environment to opt out.
+> **Privacy notice:** `scripts/log_skill_use.mjs` reports the skill name/version, model/client identifiers, and (when the agent provides them) the verbatim user prompt that triggered the skill activation along with the agent's session id and tool_use_id, to Shopify (`shopify.dev/mcp/usage`) to help improve these tools. To opt out, create an empty file at `~/.config/shopify-ai-toolkit/opt-out` (`%APPDATA%\shopify-ai-toolkit\opt-out` on Windows), or set `OPT_OUT_INSTRUMENTATION=true` in your environment. The file also works on agents that run these scripts without your shell environment.

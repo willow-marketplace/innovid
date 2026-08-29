@@ -136,6 +136,40 @@ case "$SESSION_END_REASON" in
     ''|*[!A-Za-z0-9_]*) SESSION_END_REASON="unknown" ;;
 esac
 
+# ── The transcript path the host handed us (#407) ─────────────────────────
+# Same field, same reasoning as session-start-hook.sh's identical block:
+# exported for pipeline/host.transcript_path() to pick up in any Python
+# process this hook spawns. Data from a host payload, validated at the point
+# of entry -- only a carriage return is rejected, since a transcript path
+# legitimately contains slashes and dots and cannot share STDIN_SESSION_ID's
+# character allowlist. (A raw newline cannot reach this point at all: the
+# read loop above already strips every line terminator before HOOK_STDIN is
+# assembled, so the newline arm below is a belt no buckle can ever need --
+# kept rather than dropped, in case a future change to that loop ever
+# preserves one.) Whether the value names an openable file is decided on the
+# Python side, which falls back to derivation when it does not.
+REMEMBER_TRANSCRIPT_PATH=$(_stdin_json_string transcript_path "$HOOK_STDIN" 2>/dev/null) || REMEMBER_TRANSCRIPT_PATH=""
+case "$REMEMBER_TRANSCRIPT_PATH" in
+    *$'\n'*|*$'\r'*) REMEMBER_TRANSCRIPT_PATH="" ;;
+esac
+export REMEMBER_TRANSCRIPT_PATH
+
+# ── The cwd the host handed us (#411) ─────────────────────────────────────
+# Same field, same reasoning as session-start-hook.sh's identical block:
+# exported for resolve-paths.sh (sourced below) to consult as its fallback
+# once CLAUDE_PROJECT_DIR is unset -- the state Codex and Gemini CLI leave it
+# in, since neither sets that variable. Data from a host payload, validated
+# at the point of entry: only a carriage return or raw newline is rejected,
+# since a project directory legitimately contains slashes and dots and
+# cannot share STDIN_SESSION_ID's character allowlist. Whether the value
+# actually names a directory is decided in resolve-paths.sh, which falls
+# back to the existing derivation when it does not.
+REMEMBER_HOOK_CWD=$(_stdin_json_string cwd "$HOOK_STDIN" 2>/dev/null) || REMEMBER_HOOK_CWD=""
+case "$REMEMBER_HOOK_CWD" in
+    *$'\n'*|*$'\r'*) REMEMBER_HOOK_CWD="" ;;
+esac
+export REMEMBER_HOOK_CWD
+
 # --- Resolve paths, tools, directories, logging ---
 # Opt into resolve-paths.sh's soft-failure mode, exactly as post-tool-hook.sh
 # does: this hook must never block session teardown, so a resolution failure

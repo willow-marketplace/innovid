@@ -1,0 +1,267 @@
+{
+  "skill_name": "matrixscan-count-ios",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Add MatrixScan Count to my app so I can count barcodes in bulk. Go with a reasonable default symbology set. File: NonScanditViewController.swift",
+      "expected_output": "The skill adds the MatrixScan Count pipeline to the existing ScanViewController: imports ScanditBarcodeCapture, creates the DataCaptureContext, creates and configures the camera (Camera.default + BarcodeCount.recommendedCameraSettings) and sets it as the context frame source, builds BarcodeCountSettings with a default symbology set, creates the BarcodeCount mode, registers a BarcodeCountListener that copies session.recognizedBarcodes out on the main thread, constructs a BarcodeCountView and adds it to the view hierarchy, wires the BarcodeCountViewUIDelegate list/exit callbacks, and switches the camera on in viewWillAppear and off in viewDidDisappear. The response also shows the setup checklist (SPM, Info.plist, license key).",
+      "files": ["fixtures/NonScanditViewController.swift"],
+      "assertions": [
+        {"text": "import ScanditBarcodeCapture is present"},
+        {"text": "A DataCaptureContext is created with the placeholder '-- ENTER YOUR SCANDIT LICENSE KEY HERE --'"},
+        {"text": "A camera is created with Camera.default and the recommended settings are applied via camera?.apply(BarcodeCount.recommendedCameraSettings) — NOT a bare CameraSettings()"},
+        {"text": "The camera is set as the context frame source via context.setFrameSource(camera)"},
+        {"text": "The camera state is toggled in the lifecycle: camera?.switch(toDesiredState: .on) in viewWillAppear and .off (or .standby) in viewDidDisappear — the view is NOT assumed to own the camera"},
+        {"text": "BarcodeCountSettings is constructed and at least two symbologies are enabled via settings.set(symbology:enabled:)"},
+        {"text": "The BarcodeCount mode is constructed via BarcodeCount(context:settings:)"},
+        {"text": "The view controller conforms to BarcodeCountListener and implements barcodeCount(_:didScanIn:frameData:), copying session.recognizedBarcodes out and dispatching to the main queue before touching app state"},
+        {"text": "barcodeCount.addListener(self) is called"},
+        {"text": "A BarcodeCountView is constructed with BarcodeCountView(frame:context:barcodeCount:) and added to the hierarchy with addSubview (the view does NOT add itself)"},
+        {"text": "The view controller conforms to BarcodeCountViewUIDelegate (implements the List/Exit callbacks — the sessionSnapshot variants listButtonTapped(for:sessionSnapshot:) / exitButtonTapped(for:sessionSnapshot:), or the deprecated no-snapshot forms); barcodeCountView.uiDelegate is set"},
+        {"text": "The existing ScanViewController class is preserved (not renamed or removed); the titleLabel IBOutlet or viewDidLoad title assignment is preserved or the user is told it was kept"},
+        {"text": "The response includes the setup checklist: SPM URL (https://github.com/Scandit/datacapture-spm), NSCameraUsageDescription in Info.plist, replace the license key placeholder"},
+        {"text": "No expected/receiving list (BarcodeCountCaptureList) or brush/status-mode customization is added (defaults are fine for the basic integration)"}
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Add MatrixScan Count to my SwiftUI app so I can count barcodes in bulk. File: NonScanditSwiftUIView.swift",
+      "expected_output": "The skill adds a UIKit view controller with the full MatrixScan Count pipeline (DataCaptureContext, explicitly-managed camera, BarcodeCountSettings + symbologies, BarcodeCount mode, BarcodeCountListener, BarcodeCountView added with addSubview, camera on/off lifecycle, list/exit UI delegate), wraps it in a UIViewControllerRepresentable, and changes the existing SwiftUI ScanView body to use that representable. No Scandit API calls live on the SwiftUI side.",
+      "files": ["fixtures/NonScanditSwiftUIView.swift"],
+      "assertions": [
+        {"text": "import ScanditBarcodeCapture is present"},
+        {"text": "A UIViewController subclass is added with the full MatrixScan Count setup: DataCaptureContext (with the placeholder '-- ENTER YOUR SCANDIT LICENSE KEY HERE --'), camera (Camera.default + camera?.apply(BarcodeCount.recommendedCameraSettings) + context.setFrameSource(camera)), BarcodeCountSettings with at least two symbologies via set(symbology:enabled:), BarcodeCount(context:settings:), a BarcodeCountListener that copies session.recognizedBarcodes on the main thread, and BarcodeCountView(frame:context:barcodeCount:) added with addSubview"},
+        {"text": "The camera is explicitly managed: Camera.default + recommended settings + context.setFrameSource, and camera?.switch(toDesiredState: .on) in viewWillAppear and .off (or .standby) in viewDidDisappear — the BarcodeCountView is NOT assumed to own the camera"},
+        {"text": "barcodeCount.addListener(self) is called and the view controller conforms to BarcodeCountListener implementing barcodeCount(_:didScanIn:frameData:)"},
+        {"text": "The view controller conforms to BarcodeCountViewUIDelegate (implements the List/Exit callbacks — the sessionSnapshot variants listButtonTapped(for:sessionSnapshot:) / exitButtonTapped(for:sessionSnapshot:), or the deprecated no-snapshot forms); barcodeCountView.uiDelegate is set"},
+        {"text": "A UIViewControllerRepresentable-conforming struct is added that makes/updates the UIKit count view controller"},
+        {"text": "The existing SwiftUI ScanView body uses the new representable (no longer the plain Text placeholder)"},
+        {"text": "No Scandit API call (DataCaptureContext, BarcodeCount, BarcodeCountView, Camera, etc.) appears inside the SwiftUI View struct body"},
+        {"text": "No Scandit API call appears inside makeUIViewController or updateUIViewController beyond constructing the UIKit view controller"},
+        {"text": "No hallucinated APIs (BarcodeCountViewSettings, barcodeCount.add(self) instead of addListener, [TrackedBarcode] for recognizedBarcodes, set(symbologies:))"},
+        {"text": "The response includes the setup checklist: SPM URL (https://github.com/Scandit/datacapture-spm), NSCameraUsageDescription in Info.plist, replace the license key placeholder"}
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Also enable QR codes in my MatrixScan Count app. File: IntegratedBarcodeCountViewController.swift",
+      "expected_output": "The skill adds settings.set(symbology: .qr, enabled: true) inside setupRecognition(), preserves the existing enabled symbologies, and does not touch the context / camera / mode / view / listener / lifecycle.",
+      "files": ["fixtures/IntegratedBarcodeCountViewController.swift"],
+      "assertions": [
+        {"text": "settings.set(symbology: .qr, enabled: true) is present (the case is .qr, NOT .qrCode)"},
+        {"text": "The existing enabled symbologies (.ean13UPCA, .ean8, .upce, .code128, .code39) are all still enabled"},
+        {"text": "The change is confined to symbology configuration; the camera setup, BarcodeCount mode, BarcodeCountView, listener, and lifecycle are unchanged"}
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "Use the Dot style for the MatrixScan Count view instead of the default. File: IntegratedBarcodeCountViewController.swift",
+      "expected_output": "The skill switches the BarcodeCountView to the Dot style by using the style: initializer argument (BarcodeCountView(frame:context:barcodeCount:style:) with .dot), leaving the rest of the integration unchanged.",
+      "files": ["fixtures/IntegratedBarcodeCountViewController.swift"],
+      "assertions": [
+        {"text": "The BarcodeCountView is constructed with the style: argument set to BarcodeCountViewStyle.dot (i.e. BarcodeCountView(frame:context:barcodeCount:style:) with .dot)"},
+        {"text": "No invalid/hallucinated style API is used (no BarcodeCountViewSettings, no post-init 'style' assignment — style is read-only and set via the initializer)"},
+        {"text": "The rest of the integration (context, camera, settings, mode, listener, uiDelegate, lifecycle) is unchanged"}
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "Show a torch (flashlight) button in my MatrixScan Count view. File: IntegratedBarcodeCountViewController.swift",
+      "expected_output": "The skill sets barcodeCountView.shouldShowTorchControl = true (using the view's built-in toggle), without hand-rolling a UIButton or manipulating the camera torch directly.",
+      "files": ["fixtures/IntegratedBarcodeCountViewController.swift"],
+      "assertions": [
+        {"text": "barcodeCountView.shouldShowTorchControl = true is set"},
+        {"text": "No custom UIButton / manual torch handling (e.g. camera.desiredTorchState) is added — the built-in control toggle is used"},
+        {"text": "The rest of the integration is unchanged"}
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "Suppress the beep and vibration in my MatrixScan Count app. File: IntegratedBarcodeCountViewController.swift",
+      "expected_output": "The skill silences feedback through barcodeCount.feedback (a BarcodeCountFeedback) by setting its success (and failure) to a silent Feedback (Feedback(vibration: nil, sound: nil)), rather than a non-existent boolean toggle. The rest of the integration is unchanged.",
+      "files": ["fixtures/IntegratedBarcodeCountViewController.swift"],
+      "assertions": [
+        {"text": "Feedback is silenced by assigning a BarcodeCountFeedback with silent success/failure Feedback (semantic)"},
+        {"text": "It does NOT use a non-existent boolean like settings.isSoundEnabled / isHapticsEnabled (that is the MatrixScan Pick API; BarcodeCount has no such toggle — feedback is configured via the BarcodeCountFeedback object)"},
+        {"text": "The change is confined to feedback; the camera, settings, mode, view, listener and lifecycle are unchanged"}
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "Hide the list button in my MatrixScan Count view. File: IntegratedBarcodeCountViewController.swift",
+      "expected_output": "The skill sets barcodeCountView.shouldShowListButton = false using the view's built-in toggle, leaving the rest of the integration unchanged.",
+      "files": ["fixtures/IntegratedBarcodeCountViewController.swift"],
+      "assertions": [
+        {"text": "barcodeCountView.shouldShowListButton = false is set (the built-in shouldShow* toggle)"},
+        {"text": "No custom view manipulation or removal of the BarcodeCountViewUIDelegate is done to hide the button"},
+        {"text": "The rest of the integration is unchanged"}
+      ]
+    },
+    {
+      "id": 8,
+      "prompt": "In my MatrixScan Count app, Code 128 barcodes are always between 8 and 20 characters — restrict to that. File: IntegratedBarcodeCountViewController.swift",
+      "expected_output": "The skill restricts the Code 128 active symbol counts via settings.settings(for: .code128).activeSymbolCounts, set to a Set of Ints covering 8...20, applied on the BarcodeCountSettings before the BarcodeCount mode is constructed. Existing symbologies stay enabled.",
+      "files": ["fixtures/IntegratedBarcodeCountViewController.swift"],
+      "assertions": [
+        {"text": "settings.settings(for: .code128).activeSymbolCounts is assigned a Set of Int covering 8 through 20 (e.g. Set(8...20))"},
+        {"text": "The per-symbology settings are accessed via settings.settings(for:) on the BarcodeCountSettings (not a guessed API), before BarcodeCount(context:settings:) is constructed"},
+        {"text": "The existing enabled symbologies remain enabled; the rest of the integration is unchanged"}
+      ]
+    },
+    {
+      "id": 9,
+      "prompt": "I added MatrixScan Count to my app but the camera preview is just black and nothing gets counted. What's wrong?",
+      "expected_output": "The skill explains that BarcodeCountView does NOT own the camera: you must create the camera (Camera.default), apply BarcodeCount.recommendedCameraSettings, set it as the context's frame source (context.setFrameSource), and switch it on (camera.switch(toDesiredState: .on)) in viewWillAppear — and add NSCameraUsageDescription. Missing the explicit camera setup/lifecycle is the usual cause of a black preview.",
+      "files": [],
+      "assertions": [
+        {"text": "The answer identifies that BarcodeCountView does NOT manage the camera — the app must create and drive it"},
+        {"text": "It lists the required camera steps: Camera.default, apply BarcodeCount.recommendedCameraSettings, context.setFrameSource(camera), and camera.switch(toDesiredState: .on) in viewWillAppear (off in viewDidDisappear)"},
+        {"text": "It mentions NSCameraUsageDescription in Info.plist as a prerequisite"},
+        {"text": "It does NOT invent a view-owns-camera API (no barcodeCountView.start()/onResume() or a cameraSettings: view initializer — those do not exist for BarcodeCount)"}
+      ]
+    },
+    {
+      "id": 10,
+      "prompt": "Also enable QR codes in my SwiftUI MatrixScan Count app. File: IntegratedBarcodeCountSwiftUIView.swift",
+      "expected_output": "The skill adds settings.set(symbology: .qr, enabled: true) inside the UIKit CountViewController hosted in the SwiftUI file, preserves the existing symbologies, keeps the SwiftUI ScanView struct free of Scandit code, and changes nothing else.",
+      "files": ["fixtures/IntegratedBarcodeCountSwiftUIView.swift"],
+      "assertions": [
+        {"text": "settings.set(symbology: .qr, enabled: true) is added inside the UIKit CountViewController's setup (the .qr case, not .qrCode)"},
+        {"text": "The existing enabled symbologies stay enabled"},
+        {"text": "The change is made in the UIKit layer; the SwiftUI ScanView struct and the UIViewControllerRepresentable remain free of Scandit API calls"},
+        {"text": "Nothing else in the integration is modified"}
+      ]
+    },
+    {
+      "id": 11,
+      "prompt": "When the user taps a counted barcode in my MatrixScan Count app, I want to react to it (e.g. show its data). File: IntegratedBarcodeCountViewController.swift",
+      "expected_output": "The skill sets barcodeCountView.delegate to a BarcodeCountViewDelegate and implements barcodeCountView(_:didTapRecognizedBarcode:), using the TrackedBarcode passed in. It does NOT touch the uiDelegate (List/Exit) wiring and does not add highlight/brush customization unless asked.",
+      "files": ["fixtures/IntegratedBarcodeCountViewController.swift"],
+      "assertions": [
+        {"text": "barcodeCountView.delegate is set (the BarcodeCountViewDelegate — distinct from uiDelegate)"},
+        {"text": "The view controller conforms to BarcodeCountViewDelegate and implements barcodeCountView(_:didTapRecognizedBarcode:) with a TrackedBarcode parameter"},
+        {"text": "The tap handler reads from the tapped TrackedBarcode (e.g. trackedBarcode.barcode.data) rather than inventing an API"},
+        {"text": "It does NOT use the non-existent didTapUnrecognizedBarcode / brushForUnrecognizedBarcode names"},
+        {"text": "The existing uiDelegate (List/Exit) wiring and the rest of the integration are unchanged; no brush/icon customization is added unless needed"}
+      ]
+    },
+    {
+      "id": 12,
+      "prompt": "In my MatrixScan Count app, let the user remove a barcode after scanning it by tapping it. File: IntegratedBarcodeCountViewController.swift",
+      "expected_output": "The skill enables tap-to-uncount by setting barcodeCountView.tapToUncountEnabled = true. Tapping an already-counted barcode then removes it from the current scanned items. No custom tap/gesture handling is added; the rest of the integration is unchanged.",
+      "files": ["fixtures/IntegratedBarcodeCountViewController.swift"],
+      "assertions": [
+        {"text": "barcodeCountView.tapToUncountEnabled = true is set"},
+        {"text": "It uses the real property on the BarcodeCountView (tapToUncountEnabled) — NOT a settings flag or a guessed/invented API, and NOT a hand-rolled UITapGestureRecognizer"},
+        {"text": "No other behavior is added (e.g. no custom uncount logic) — enabling the built-in toggle is sufficient"},
+        {"text": "The context, mode, camera, settings, listener, uiDelegate and lifecycle are unchanged"}
+      ]
+    },
+    {
+      "id": 13,
+      "prompt": "My labels have both a Code 128 and a PDF417 barcode, and I only want to count the Code 128 ones. File: IntegratedBarcodeCountViewController.swift",
+      "expected_output": "The skill filters out PDF417 by creating a BarcodeFilterSettings, setting excludedSymbologies = [.pdf417], and assigning it to settings.filterSettings on the BarcodeCountSettings before the BarcodeCount mode is constructed. Both symbologies stay enabled (the excluded one must be enabled to be decoded then filtered). The rest of the integration is unchanged.",
+      "files": ["fixtures/IntegratedBarcodeCountViewController.swift"],
+      "assertions": [
+        {"text": "A BarcodeFilterSettings is constructed via BarcodeFilterSettings()"},
+        {"text": "filterSettings.excludedSymbologies is set to a set containing .pdf417"},
+        {"text": "The filter is applied via settings.filterSettings on the BarcodeCountSettings before BarcodeCount(context:settings:) is constructed"},
+        {"text": "PDF417 is also enabled via settings.set(symbology: .pdf417, enabled: true) so it is decoded and then filtered out (semantic)"},
+        {"text": "The existing enabled symbologies remain enabled; the camera, mode, view, listener, uiDelegate and lifecycle are unchanged"}
+      ],
+      "tags": ["filtering"]
+    },
+    {
+      "id": 15,
+      "prompt": "Let the user trigger a scan with the volume button in my MatrixScan Count app instead of only the on-screen shutter. File: IntegratedBarcodeCountViewController.swift",
+      "expected_output": "The skill enables the hardware trigger by setting barcodeCountView.hardwareTriggerEnabled = true (on iOS this binds the volume button). No custom key-event handling is added; the rest of the integration is unchanged.",
+      "files": ["fixtures/IntegratedBarcodeCountViewController.swift"],
+      "assertions": [
+        {"text": "barcodeCountView.hardwareTriggerEnabled = true is set"},
+        {"text": "It uses the real Bool property hardwareTriggerEnabled on the BarcodeCountView — not a guessed API and not a hand-rolled volume-button observer"},
+        {"text": "It does NOT use the Android-only enableHardwareTrigger(hardwareTriggerKeyCode:) / hardwareTriggerSupported APIs (semantic)"},
+        {"text": "The context, mode, camera, settings, listener, uiDelegate and lifecycle are unchanged"}
+      ],
+      "tags": ["hardware-trigger"]
+    },
+    {
+      "id": 16,
+      "prompt": "I'm sure every barcode in the scene is unique in my MatrixScan Count app — turn on whatever makes scanning faster for that. File: IntegratedBarcodeCountViewController.swift",
+      "expected_output": "The skill sets settings.expectsOnlyUniqueBarcodes = true on the BarcodeCountSettings before constructing the BarcodeCount mode, to enable the unique-barcode optimization. The rest of the integration is unchanged.",
+      "files": ["fixtures/IntegratedBarcodeCountViewController.swift"],
+      "assertions": [
+        {"text": "settings.expectsOnlyUniqueBarcodes = true is set on the BarcodeCountSettings"},
+        {"text": "It is set before BarcodeCount(context:settings:) is constructed"},
+        {"text": "It uses the real property expectsOnlyUniqueBarcodes — not a guessed API"},
+        {"text": "The existing enabled symbologies remain enabled; the camera, mode, view, listener, uiDelegate and lifecycle are unchanged"}
+      ],
+      "tags": ["expects-only-unique"]
+    },
+    {
+      "id": 17,
+      "prompt": "In my MatrixScan Count app, when the app goes to the background I want to clear the count, but when it comes back I want the previously scanned barcodes to still be shown as already counted. File: IntegratedBarcodeCountViewController.swift",
+      "expected_output": "The skill carries the previous batch across the background cycle by stashing the recognized barcodes and calling barcodeCount.reset() when going to the background, then calling barcodeCount.setAdditionalBarcodes(previouslyScanned) when returning to the foreground so they are restored as already-counted. The core integration is otherwise unchanged.",
+      "files": ["fixtures/IntegratedBarcodeCountViewController.swift"],
+      "assertions": [
+        {"text": "On returning to the foreground, barcodeCount.setAdditionalBarcodes(_:) is called with the previously scanned barcodes"},
+        {"text": "On going to the background, the previously scanned barcodes are stashed and barcodeCount.reset() is called to clear the current count (semantic)"},
+        {"text": "It uses the real APIs setAdditionalBarcodes(_:) and reset() — not a guessed restore API"},
+        {"text": "The context, camera, settings, mode, view, listener and uiDelegate wiring are otherwise unchanged"}
+      ],
+      "tags": ["additional-barcodes"]
+    },
+    {
+      "id": 18,
+      "prompt": "Add a 'Start new count' action to my MatrixScan Count app that clears all the scanned barcodes and the on-screen highlights so the user can begin a fresh count. File: IntegratedBarcodeCountViewController.swift",
+      "expected_output": "The skill adds an action that calls barcodeCount.reset() to clear the scanned list and the AR overlays, and clears the app's own running tally (allRecognizedBarcodes). The rest of the integration is unchanged.",
+      "files": ["fixtures/IntegratedBarcodeCountViewController.swift"],
+      "assertions": [
+        {"text": "barcodeCount.reset() is called to clear the scanned barcodes and the AR overlays"},
+        {"text": "The app's own running tally (allRecognizedBarcodes) is also cleared (semantic)"},
+        {"text": "It uses the real reset() method on BarcodeCount — not a guessed clear API and not a manual teardown of the view"},
+        {"text": "The context, camera, settings, mode, view, listener, uiDelegate and lifecycle are unchanged"}
+      ],
+      "tags": ["reset-mode"]
+    },
+    {
+      "id": 19,
+      "prompt": "Enable scan preview in my MatrixScan Count app. File: IntegratedBarcodeCountViewController.swift",
+      "expected_output": "The skill enables scan preview by constructing the settings with BarcodeCountSettings(scanPreviewEnabled: true) — the initializer form, since scanPreviewEnabled is read-only and can't be set after construction. Because scan preview manages the camera internally (overriding the app's frame source), it removes the explicit camera code — Camera.default / BarcodeCount.recommendedCameraSettings / context.setFrameSource and the camera?.switch(...) lifecycle calls. It also tells the user to add the ScanditARCapture framework (scan preview won't work without it). The existing symbologies, the BarcodeCount mode, the view, listener, uiDelegate, and the view lifecycle (prepareScanning/stopScanning) are preserved.",
+      "files": ["fixtures/IntegratedBarcodeCountViewController.swift"],
+      "assertions": [
+        {"text": "BarcodeCountSettings is constructed via BarcodeCountSettings(scanPreviewEnabled: true) — the initializer, NOT a post-init assignment (scanPreviewEnabled is read-only)"},
+        {"text": "The explicit camera code is removed — no Camera.default / BarcodeCount.recommendedCameraSettings / context.setFrameSource, and no camera?.switch(...) in the lifecycle (scan preview manages the camera internally)"},
+        {"text": "The response tells the user to add the ScanditARCapture framework (required for scan preview)"},
+        {"text": "It does NOT invent a settings flag or toggle (no settings.scanPreviewEnabled = true assignment, no enableScanPreview()); the existing enabled symbologies are preserved"},
+        {"text": "The BarcodeCount mode, BarcodeCountView, listener, uiDelegate and the view lifecycle (prepareScanning/stopScanning) are otherwise unchanged"}
+      ]
+    },
+    {
+      "id": 20,
+      "prompt": "Enable scan preview in my MatrixScan Count app and also turn on clustering so the previewed barcodes get grouped into clusters. File: IntegratedBarcodeCountViewController.swift",
+      "expected_output": "The skill enables both: BarcodeCountSettings(scanPreviewEnabled: true) plus settings.clusteringMode = .auto, and removes the explicit camera code as scan preview requires. It flags the scan-preview limitations on clustering — clustering is automatic only (.manual / .autoWithManualCorrection are treated as .auto and cluster editing is unavailable) and expectedNumberOfBarcodesPerCluster behaves as 2 when unset, with only clusters of exactly that size being formed. It does not claim the combination is unsupported.",
+      "files": ["fixtures/IntegratedBarcodeCountViewController.swift"],
+      "assertions": [
+        {"text": "Scan preview is enabled via BarcodeCountSettings(scanPreviewEnabled: true) — the initializer, not a post-init assignment"},
+        {"text": "Clustering is enabled with settings.clusteringMode = ClusteringMode.auto (NOT .manual or .autoWithManualCorrection, which are treated as .auto in scan preview)"},
+        {"text": "The explicit camera code is removed (no Camera.default / recommendedCameraSettings / context.setFrameSource / camera?.switch(...)), as required by scan preview"},
+        {"text": "It does NOT state that scan preview and clustering are incompatible or cannot be combined"},
+        {"text": "It mentions at least one real scan-preview clustering limitation: cluster editing / manual clustering unavailable, or expectedNumberOfBarcodesPerCluster behaving as 2 when unset with only exactly-sized clusters formed"},
+        {"text": "No cluster-editing code is emitted (no beginClusterEditing / formCluster / dissolveCluster, which return nil / do nothing in scan preview)"},
+        {"text": "If expectedNumberOfBarcodesPerCluster is set at all, the value is 2 or more — never 1, which would form no groups under scan preview and defeat the request"}
+      ]
+    },
+    {
+      "id": 21,
+      "prompt": "Enable scan preview in my MatrixScan Count app and let the user group the barcodes manually by swiping across them. File: IntegratedBarcodeCountViewController.swift",
+      "expected_output": "The skill states that manual clustering is not available when scan preview is enabled — .manual and .autoWithManualCorrection are treated as .auto, and cluster editing (gesture UI and beginClusterEditing) is unavailable — so it does not emit a manual clustering mode alongside scan preview. It offers the choice: scan preview with automatic clustering, or manual clustering without scan preview.",
+      "files": ["fixtures/IntegratedBarcodeCountViewController.swift"],
+      "assertions": [
+        {"text": "It states that manual clustering / cluster editing is not available when scan preview is enabled"},
+        {"text": "It does NOT set clusteringMode to .manual or .autoWithManualCorrection together with scanPreviewEnabled: true"},
+        {"text": "It does not emit gesture-UI or editing code as if it worked (no setTextForClusteringGestureHint, no beginClusterEditing / formCluster / dissolveCluster under scan preview)"},
+        {"text": "It offers the alternatives (scan preview with automatic clustering, or manual clustering without scan preview) instead of silently picking one"}
+      ]
+    }
+  ]
+}

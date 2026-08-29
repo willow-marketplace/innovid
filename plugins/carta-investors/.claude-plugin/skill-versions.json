@@ -1,10 +1,10 @@
 {
   "carta-home-build": {
-    "version": "1.8.3",
+    "version": "1.8.4",
     "headline": "Remind investors sends capital call reminders to a batch of LPs at once."
   },
   "carta-workhub-build": {
-    "version": "1.2.0",
-    "headline": "Files attached to a request now show in its thread."
+    "version": "1.5.2",
+    "headline": "You can attach files to a request or a reply."
   }
 }

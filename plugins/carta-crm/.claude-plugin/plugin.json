@@ -1,8 +1,8 @@
 {
   "name": "carta-crm",
-  "version": "1.8.8",
+  "version": "1.9.2",
   "description": "Manage the Carta CRM conversationally — search, add, update, and enrich investors, companies, contacts, deals, notes, and fundraisings via the Carta CRM MCP Server",
-  "updatedAt": "2026-08-28T12:12:37.016Z",
+  "updatedAt": "2026-08-29T00:03:30.361Z",
   "author": {
     "name": "Carta",
     "email": "crm@carta.com"

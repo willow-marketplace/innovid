@@ -2,7 +2,7 @@
   "name": "skill-creator",
   "version": "1.0.0",
   "description": "Create new skills, improve existing skills, and measure skill performance. Use when users want to create a skill from scratch, update or optimize an existing skill, run evals to test a skill, or benchmark skill performance with variance analysis.",
-  "updatedAt": "2026-08-28T12:12:36.881Z",
+  "updatedAt": "2026-08-29T00:03:14.642Z",
   "author": {
     "name": "Anthropic",
     "email": "support@anthropic.com"

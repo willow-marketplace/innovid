@@ -34,7 +34,17 @@
 #
 # ENVIRONMENT (inputs)
 #   CLAUDE_PROJECT_DIR    Project root (set by Claude Code hooks)
-#   CLAUDE_PLUGIN_ROOT    Plugin install directory (set by Claude Code hooks)
+#   REMEMBER_HOOK_CWD     Fallback project root (#411), consulted when
+#                         CLAUDE_PROJECT_DIR is unset -- Codex and Gemini CLI
+#                         never set the latter. Exported by
+#                         session-start-hook.sh / session-end-hook.sh from the
+#                         SessionStart/SessionEnd stdin payload's `cwd` field;
+#                         not read from stdin here (see the caller comments).
+#   PLUGIN_ROOT           Plugin install directory, vendor-neutral name (#407).
+#                         Read before CLAUDE_PLUGIN_ROOT, which is honoured
+#                         when PLUGIN_ROOT is absent -- see pipeline/host.py.
+#   CLAUDE_PLUGIN_ROOT    Plugin install directory (set by Claude Code hooks;
+#                         also set by Codex as a compatibility alias)
 #
 # ENVIRONMENT (outputs)
 #   PROJECT_DIR           Resolved project root (validated to exist)
@@ -83,7 +93,11 @@ umask 077
 # --- Resolve PIPELINE_DIR (where the plugin code lives) ---
 #
 # Priority:
-#   1. CLAUDE_PLUGIN_ROOT (set by Claude Code for marketplace installs)
+#   1. PLUGIN_ROOT (vendor-neutral name; Codex sets it natively) falling back
+#      to CLAUDE_PLUGIN_ROOT (set by Claude Code for marketplace installs, and
+#      by Codex as a compatibility alias it can withdraw -- pipeline/host.py's
+#      PLUGIN_ROOT_VARS is the same precedence, mirrored by hand, and
+#      test_host_shell_parity asserts the two agree)
 #   2. Walk up from this script's real location to find the plugin root
 #      (works for local installs where scripts/ is inside the plugin dir)
 _SCRIPT_DIR="${BASH_SOURCE[0]%/*}"
@@ -102,8 +116,9 @@ _resolve_paths_fail() {
     exit 1
 }
 
-if [ -n "$CLAUDE_PLUGIN_ROOT" ]; then
-    PIPELINE_DIR="$CLAUDE_PLUGIN_ROOT"
+_REMEMBER_PLUGIN_ROOT="${PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-}}"
+if [ -n "$_REMEMBER_PLUGIN_ROOT" ]; then
+    PIPELINE_DIR="$_REMEMBER_PLUGIN_ROOT"
 elif [ -f "$_PLUGIN_ROOT_CANDIDATE/pipeline/haiku.py" ]; then
     # Local install: scripts/ is one level below the plugin root
     PIPELINE_DIR="$_PLUGIN_ROOT_CANDIDATE"
@@ -115,16 +130,30 @@ fi
 # --- Resolve PROJECT_DIR (the user's project root) ---
 #
 # Priority:
-#   1. CLAUDE_PROJECT_DIR (set by Claude Code — always correct)
-#   2. If PIPELINE_DIR is inside a .claude/remember/ structure, derive from that
-#   3. Fail — we cannot guess the project root from a marketplace cache path
+#   1. CLAUDE_PROJECT_DIR (set by Claude Code — always correct, and the more
+#      specific signal on the host that sets it, so it is tried first and a
+#      disagreeing stdin cwd never overrides it)
+#   2. REMEMBER_HOOK_CWD (#411) — the SessionStart/SessionEnd payload's `cwd`
+#      field, exported by the hooks that already read stdin for `session_id`
+#      and `transcript_path` (#206, #407). Codex and Gemini CLI both put `cwd`
+#      on that payload but neither sets CLAUDE_PROJECT_DIR (Codex documents no
+#      such variable at all; Gemini documents no hook environment variables
+#      whatsoever), so this is the fallback that makes resolution possible on
+#      either host. Not every caller of this file is a hook with stdin to
+#      read -- doctor.sh and a bare `source` from a shell have none -- so an
+#      unset or unusable value here is silently skipped, same as an unset
+#      CLAUDE_PROJECT_DIR above.
+#   3. If PIPELINE_DIR is inside a .claude/remember/ structure, derive from that
+#   4. Fail — we cannot guess the project root from a marketplace cache path
 if [ -n "$CLAUDE_PROJECT_DIR" ]; then
     PROJECT_DIR="$CLAUDE_PROJECT_DIR"
+elif [ -n "${REMEMBER_HOOK_CWD:-}" ] && [ -d "${REMEMBER_HOOK_CWD:-}" ]; then
+    PROJECT_DIR="$REMEMBER_HOOK_CWD"
 elif [[ "$PIPELINE_DIR" == *"/.claude/remember" ]]; then
     # Local install: plugin is at $PROJECT/.claude/remember
     PROJECT_DIR="$(cd "$PIPELINE_DIR/../.." && pwd)"
 else
-    _msg="FATAL: Cannot resolve project root. CLAUDE_PROJECT_DIR is not set and plugin is not in a local .claude/remember/ layout (PIPELINE_DIR=$PIPELINE_DIR)."
+    _msg="FATAL: Cannot resolve project root. CLAUDE_PROJECT_DIR is not set, REMEMBER_HOOK_CWD is not set or not a directory, and plugin is not in a local .claude/remember/ layout (PIPELINE_DIR=$PIPELINE_DIR)."
     _resolve_paths_fail "$_msg" "${PROJECT_DIR:-.}/.remember/logs" || return 1
 fi
 

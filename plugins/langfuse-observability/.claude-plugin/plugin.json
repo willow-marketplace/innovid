@@ -1,8 +1,8 @@
 {
   "name": "langfuse-observability",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "The Langfuse x Claude Code Observability Plugin",
-  "updatedAt": "2026-08-28T12:12:36.930Z",
+  "updatedAt": "2026-08-29T00:03:41.984Z",
   "author": {
     "name": "Langfuse"
   },

@@ -15,6 +15,7 @@ Source parts (all in the skill's resources/ dir):
   carta-workhub.tracker.js     — Snowplow UI tracker bundle (marker: /* __CARTA_WORKHUB_TRACKER_JS__ */)
   carta-workhub.config.js      — TASK_PRESETS    (marker: /* __CARTA_WORKHUB_CONFIG_JS__ */)
   carta-workhub.app.js         — app logic       (marker: /* __CARTA_WORKHUB_APP_JS__ */)
+  vendor/pdf*.min.js           — pdf.js renderer (marker: /* __PDFJS_VENDOR_JS__ */)
 
 The artifact's version comes from the plugin's skill-versions registry, keyed by this
 skill (placeholder: {{ARTIFACT_VERSION}}). It lives there rather than beside the skill
@@ -55,6 +56,7 @@ SEMVER_RE = re.compile(r"^\d+\.\d+\.\d+$")
 APP_JS_PARTS = [
     "carta-workhub.app.js",
     "app/fund-admin-requests.js",
+    "app/capital-call-review.js",
     "app/version-check.js",
 ]
 
@@ -64,6 +66,18 @@ MARKERS = {
     "carta-workhub.config.js": r"/\*\s*__CARTA_WORKHUB_CONFIG_JS__\s*\*/",
 }
 APP_JS_MARKER = r"/\*\s*__CARTA_WORKHUB_APP_JS__\s*\*/"
+
+# pdf.js renders the notice PDF in the capital call review panel. Vendored because
+# the artifact's CSP blocks every external host — see resources/vendor/README.md.
+# The worker bundle goes first: it defines globalThis.pdfjsWorker, which the library
+# looks for when asked to parse.
+PDFJS_PARTS = ["vendor/pdf.worker.min.js", "vendor/pdf.min.js"]
+PDFJS_MARKER = r"/\*\s*__PDFJS_VENDOR_JS__\s*\*/"
+
+
+def close_script_safe(js):
+    """Neutralize any `</script` inside inlined JS, which would end the block early."""
+    return js.replace("</script", "<\\/script")
 
 
 def compute_build_id(template, parts):
@@ -100,10 +114,11 @@ def read_version():
     return version
 
 
-def build(mcp_server):
+def build(mcp_server, ccr_fund_uuid="", ccr_activity_id=""):
     template = (RES / "carta-workhub.template.html").read_text()
     parts = {name: (RES / name).read_text() for name in MARKERS}
     parts.update({name: (RES / name).read_text() for name in APP_JS_PARTS})
+    parts.update({name: (RES / name).read_text() for name in PDFJS_PARTS})
     build_id = compute_build_id(template, parts)
 
     out = template
@@ -114,19 +129,28 @@ def build(mcp_server):
         # Use a function replacement so backslashes / $-refs in the content are literal.
         out = re.sub(marker, lambda _m, c=content: c, out, count=1)
 
+    pdfjs = "\n".join(close_script_safe(parts[name]) for name in PDFJS_PARTS)
+    if not re.search(PDFJS_MARKER, out):
+        sys.exit("ERROR: marker for pdf.js missing from template")
+    out = re.sub(PDFJS_MARKER, lambda _m, c=pdfjs: c, out, count=1)
+
     app_js = "\n\n".join(parts[name] for name in APP_JS_PARTS)
     if not re.search(APP_JS_MARKER, out):
         sys.exit("ERROR: marker for app JS missing from template")
     out = re.sub(APP_JS_MARKER, lambda _m, c=app_js: c, out, count=1)
 
     # Leftover build-time markers would mean an incomplete assembly — fail loudly.
-    for token in ("__CARTA_WORKHUB_CSS__", "__CARTA_WORKHUB_TRACKER_JS__", "__CARTA_WORKHUB_CONFIG_JS__", "__CARTA_WORKHUB_APP_JS__"):
+    for token in ("__CARTA_WORKHUB_CSS__", "__CARTA_WORKHUB_TRACKER_JS__", "__CARTA_WORKHUB_CONFIG_JS__", "__CARTA_WORKHUB_APP_JS__", "__PDFJS_VENDOR_JS__"):
         if token in out:
             sys.exit("ERROR: unresolved marker {} after assembly".format(token))
 
     out = out.replace("{{CARTA_MCP_SERVER}}", mcp_server)
     if "{{CARTA_MCP_SERVER}}" in out:
         sys.exit("ERROR: {{CARTA_MCP_SERVER}} still present after substitution")
+
+    # Empty is the normal case: the panel then opens only from a task card.
+    out = out.replace("{{CCR_FUND_UUID}}", ccr_fund_uuid or "")
+    out = out.replace("{{CCR_ACTIVITY_ID}}", ccr_activity_id or "")
 
     out = out.replace("{{BUILD_ID}}", build_id)
 
@@ -142,10 +166,16 @@ def main():
     ap = argparse.ArgumentParser(description="Assemble the carta-workhub artifact.")
     ap.add_argument("--mcp-server", required=True,
                     help="Carta connector display name (the {{CARTA_MCP_SERVER}} value)")
+    ap.add_argument("--ccr-fund-uuid", default="",
+                    help="seed the capital call review panel with this fund UUID")
+    ap.add_argument("--ccr-activity-id", default="",
+                    help="seed the capital call review panel with this activity ShortUUID")
     ap.add_argument("--out", required=True, help="output HTML path")
     args = ap.parse_args()
 
-    html, build_id, version = build(args.mcp_server)
+    html, build_id, version = build(
+        args.mcp_server, args.ccr_fund_uuid, args.ccr_activity_id
+    )
     out_path = Path(args.out)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(html)

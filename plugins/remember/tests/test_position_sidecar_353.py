@@ -303,6 +303,125 @@ def test_a_sidecar_past_the_transcripts_own_line_count_is_a_loud_disagreement(
     )
 
 
+def test_an_orphaned_sidecar_within_bounds_is_not_trusted_and_falls_back(
+    tmp_path: Path,
+):
+    """#403: the bound in the test above only rules out a value the sidecar
+    could never legitimately reach -- it says nothing about whether
+    last-save.json still remembers this session at all. The eviction cleanup
+    in pipeline/shell.py's cmd_save_position (the loop right after the
+    sidecar write) is best-effort by its own comment -- a failed unlink
+    leaves an orphaned sidecar that still falls well inside CURRENT_LINES,
+    which the bound in the test above cannot catch. That sidecar must be
+    rejected too: its session id is no longer a key in last-save.json's own
+    "sessions" map, which is the store this feature's log lines already
+    claim (#403) to consult. MUST fall back to read-position and MUST log
+    the disagreement, exactly like the out-of-range and non-numeric cases
+    above."""
+    home, project, remember = _project(tmp_path, jsonl_lines=60,
+                                        session_id=SESSION_A)
+    # last-save.json remembers only SESSION_B -- SESSION_A has been evicted
+    # (or never made it in), yet its sidecar survives (the failed-unlink
+    # case #403 describes) and is well within this run's own 60 lines.
+    _write_last_save(remember, SESSION_B, 40)
+    _write_sidecar(remember, SESSION_A, "30")
+    env = _env(tmp_path, home, project)
+    _prime(env)
+
+    _result, lines = _traced_run(env, tmp_path, "sidecar-orphaned")
+    _reap(remember)
+
+    assert "python3" in _cmds(lines) or "python" in _cmds(lines), (
+        "MUST-FIRE control: a sidecar whose session is absent from "
+        "last-save.json must fall back to read-position rather than being "
+        "trusted just because its value happens to fit under CURRENT_LINES. "
+        "Spawned:\n  " + "\n  ".join(lines)
+    )
+    body = _logged(remember)
+    assert "disagrees with last-save.json" in body, (
+        "an orphaned sidecar (its session absent from last-save.json) must "
+        "be logged as loudly as an out-of-range or non-numeric one -- all "
+        "three are the SAME acceptance criterion (#403 tightening #353): a "
+        "sidecar disagreement is a loud finding. Log tail: "
+        + repr(body[-2000:])
+    )
+
+
+def test_a_sidecar_whose_session_is_still_in_last_save_json_is_trusted(
+    tmp_path: Path,
+):
+    """The positive control for the test above: an in-bound sidecar whose
+    session id IS still a key in last-save.json's "sessions" map must keep
+    being trusted and must NOT spawn read-position -- without this, "the
+    orphan is rejected" would also pass if #403's fix rejected every sidecar
+    unconditionally."""
+    home, project, remember = _project(tmp_path, jsonl_lines=60,
+                                        session_id=SESSION_A)
+    _write_last_save(remember, SESSION_A, 30)
+    _write_sidecar(remember, SESSION_A, "30")
+    env = _env(tmp_path, home, project)
+    _prime(env)
+
+    _result, lines = _traced_run(env, tmp_path, "sidecar-still-present")
+    _reap(remember)
+
+    assert "python3" not in _cmds(lines) and "python" not in _cmds(lines), (
+        "a sidecar whose session is still present in last-save.json did "
+        "not stop the hook from spawning python for read-position. "
+        "Spawned:\n  " + "\n  ".join(lines)
+    )
+    assert not (remember / "tmp" / "save-session.pid").exists(), (
+        "delta should be 30 against a threshold of 50 -- no save should "
+        "have been forked"
+    )
+    assert "disagrees with last-save.json" not in _logged(remember), (
+        "NEGATIVE CONTROL: a sidecar whose session is still present in "
+        "last-save.json must not log a disagreement"
+    )
+
+
+def test_a_session_id_matching_last_save_jsons_own_fixed_field_names_is_not_falsely_trusted(
+    tmp_path: Path,
+):
+    """The membership check must be scoped to the "sessions" object, not a
+    substring match over the WHOLE file. last-save.json's own schema always
+    carries the fixed top-level keys "session" and "line" (cmd_save_position:
+    `{"sessions": {...}, "session": id, "line": position}`) -- a naive
+    substring match for `"<id>":` over the raw file text would falsely match
+    a session id of "session" or "line" even when neither is actually a key
+    in the "sessions" map, because those two literal strings always appear,
+    quoted and colon-terminated, as the file's OWN field names. Reproduced
+    with an empty "sessions" map (SESSION_A is provably absent from it) and
+    a colliding session id equal to one of those field names."""
+    home, project, remember = _project(tmp_path, jsonl_lines=60,
+                                        session_id="session")
+    (remember / "tmp" / "last-save.json").write_text(
+        json.dumps({"sessions": {}, "session": "session", "line": 5}),
+        encoding="utf-8",
+    )
+    _write_sidecar(remember, "session", "5")
+    env = _env(tmp_path, home, project)
+    _prime(env)
+
+    _result, lines = _traced_run(env, tmp_path, "sidecar-field-name-collision")
+    _reap(remember)
+
+    assert "python3" in _cmds(lines) or "python" in _cmds(lines), (
+        "MUST-FIRE control: a session id equal to last-save.json's own "
+        "fixed field name (\"session\") must not be falsely trusted just "
+        "because that field name is itself quoted and colon-terminated "
+        "somewhere in the file -- the \"sessions\" map is empty, so this "
+        "session is genuinely absent from it. Spawned:\n  "
+        + "\n  ".join(lines)
+    )
+    body = _logged(remember)
+    assert "disagrees with last-save.json" in body, (
+        "a session id colliding with one of last-save.json's own fixed "
+        "field names must be logged as loudly as any other disagreement. "
+        "Log tail: " + repr(body[-2000:])
+    )
+
+
 def test_a_non_numeric_sidecar_is_not_trusted_and_falls_back(tmp_path: Path):
     """A garbled write (partial, or hand-edited) must not become a silent 0
     or a silent anything -- fall back to the authoritative source."""

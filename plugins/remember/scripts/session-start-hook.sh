@@ -52,6 +52,93 @@
 #
 # ============================================================================
 
+# --- Where this script lives ---
+# Parameter expansion, not three `dirname` forks (#230) — the same pattern
+# log.sh and user-prompt-hook.sh already use. A path with no slash in it
+# leaves the filename behind, not a directory; `dirname` answered "." and
+# this must too.
+_HOOK_DIR="${BASH_SOURCE[0]%/*}"
+[ "$_HOOK_DIR" = "${BASH_SOURCE[0]}" ] && _HOOK_DIR="."
+
+# --- Nested summarizer: there is no project here (#204) ---
+# The same fast-path guard post-tool-hook.sh, user-prompt-hook.sh and
+# session-end-hook.sh already carry ahead of their own stdin capture, added
+# here for the same reason (#411): stdin is now read BEFORE resolve-paths.sh
+# is sourced (below), so REMEMBER_HOOK_CWD is available to it. Without a
+# guard here, every nested `claude -p` summarizer child would pay for the
+# bounded stdin read before ever reaching the guard resolve-paths.sh still
+# carries for every OTHER caller. Exiting here is strictly cheaper than
+# before the #411 reorder, not more expensive: previously the guard fired
+# inside resolve-paths.sh, after umask and plugin-root resolution had
+# already run; now it fires before any of that, and before the stdin read.
+[ -n "${REMEMBER_NESTED_SUMMARIZER:-}" ] && exit 0
+
+# ── Read stdin once, before resolving paths (#411) ────────────────────────
+# `session_id` / `transcript_path` / `source` used to be extracted here, just
+# after resolve-paths.sh ran. `cwd` (below) is new, and resolve-paths.sh needs
+# it BEFORE it resolves PROJECT_DIR — a stdin `cwd` is the fallback once
+# CLAUDE_PROJECT_DIR is unset, which is exactly the host that does not set it
+# — so the capture moves up ahead of the source line. stdin is single-read
+# and three other hooks already share this shape; nothing here may consume it
+# twice.
+#
+# The read is bounded in TIME and only in time — `read -t 1`, and never from
+# a tty — for the reason post-tool-hook.sh records: a hook that blocks on
+# stdin is not a slow session start, it is one that never starts. bash 3.2
+# has no sub-second -t, hence 1.
+HOOK_STDIN=""
+if [ ! -t 0 ]; then
+    _line=""
+    while IFS= read -r -t 1 _line || [ -n "$_line" ]; do
+        HOOK_STDIN="$HOOK_STDIN$_line"
+        _line=""
+    done
+fi
+
+# The same deliberately narrow extractor post-tool-hook.sh and
+# session-end-hook.sh use, and for the same reason: the key must be followed
+# by nothing but whitespace and a colon before the value's opening quote, so
+# a `cwd` (or `session_id`, or `transcript_path`) appearing inside some other
+# field is not mistaken for it. It is a heuristic and is treated as one —
+# every result is validated below before anything is done with it.
+_stdin_json_string() {
+    local key="$1" raw="$2" rest prefix value
+    case "$raw" in *"\"$key\""*) ;; *) return 1 ;; esac
+    rest=${raw#*\"$key\"}
+    prefix=${rest%%\"*}
+    case "$prefix" in *[!:[:space:]]*) return 1 ;; esac
+    value=${rest#*\"}
+    value=${value%%\"*}
+    [ -n "$value" ] || return 1
+    printf '%s' "$value"
+}
+
+# ── The cwd the host handed us (#411) ──────────────────────────────────────
+# Every host puts `cwd` on the SessionStart payload (#407's comparison table),
+# but only Claude Code also publishes it as CLAUDE_PROJECT_DIR. Exported for
+# resolve-paths.sh to consult as its fallback once CLAUDE_PROJECT_DIR is
+# unset — precedence is CLAUDE_PROJECT_DIR, then this, then the existing
+# .claude/remember layout derivation, then the existing failure; a stdin
+# `cwd` that disagrees with a SET CLAUDE_PROJECT_DIR must not win, which is
+# why resolve-paths.sh checks CLAUDE_PROJECT_DIR first and this is read
+# regardless of whether it turns out to be used.
+#
+# Validated the same way REMEMBER_TRANSCRIPT_PATH is, below: data from a host
+# payload, at the point of entry, not the point of use. A project directory
+# legitimately contains slashes and dots, so it cannot share
+# CURRENT_SESSION_ID's character allowlist — only a carriage return or a raw
+# newline is rejected (the read loop above already strips every line
+# terminator before HOOK_STDIN is assembled, so the newline arm is a belt no
+# buckle can ever need — kept in case a future change to that loop ever
+# preserves one). Whether the value actually names a directory is decided in
+# resolve-paths.sh, which falls back to the existing derivation when it does
+# not.
+REMEMBER_HOOK_CWD=$(_stdin_json_string cwd "$HOOK_STDIN" 2>/dev/null) || REMEMBER_HOOK_CWD=""
+case "$REMEMBER_HOOK_CWD" in
+    *$'\n'*|*$'\r'*) REMEMBER_HOOK_CWD="" ;;
+esac
+export REMEMBER_HOOK_CWD
+
 # resolve-paths.sh exits its caller on failure by default (a caller that keeps
 # going with unresolved paths writes memory to the wrong place). This hook is
 # documented to never block session startup, so it opts into soft failure and
@@ -60,18 +147,9 @@
 # This used to claim the nested `claude -p` summarizer would fail here because
 # it "has no CLAUDE_PROJECT_DIR". It has one: Claude Code sets it afresh in the
 # child from that session's cwd, so resolution SUCCEEDED and the hook ran with
-# the temp dir as its project (#204). resolve-paths.sh now stops on the
-# REMEMBER_NESTED_SUMMARIZER marker instead, and returns 1 into the `|| exit 0`
-# below.
-#
-# Parameter expansion, not three `dirname` forks (#230) — the same pattern
-# log.sh and user-prompt-hook.sh already use. SessionStart runs once per session
-# rather than per tool call, so this is not the hot path post-tool-hook.sh is;
-# it is a startup cost the user waits on, paid for nothing. A path with no slash
-# in it leaves the filename behind, not a directory; `dirname` answered "." and
-# this must too.
-_HOOK_DIR="${BASH_SOURCE[0]%/*}"
-[ "$_HOOK_DIR" = "${BASH_SOURCE[0]}" ] && _HOOK_DIR="."
+# the temp dir as its project (#204). The guard above (REMEMBER_NESTED_SUMMARIZER)
+# is why this hook never reaches this line for that child; resolve-paths.sh
+# keeps its own copy of the same guard for every OTHER caller that sources it.
 REMEMBER_PATHS_SOFT_FAIL=1 source "$_HOOK_DIR/resolve-paths.sh" || exit 0
 source "$_HOOK_DIR/detect-tools.sh"
 source "$_HOOK_DIR/bootstrap-dirs.sh"
@@ -115,44 +193,8 @@ _remember_env_cache_publish
 # is read too, since #339, but for a different job entirely — how much of the
 # memory recap to print — and nothing on this path consults it.
 #
-# Reading stdin is only safe if it cannot wait forever, so this takes both
-# guards post-tool-hook.sh documents: a tty stdin (hand invocation from a
-# shell) is never read at all, and the read is bounded by `read -t 1`. bash 3.2
-# has no sub-second -t, hence 1. This runs once per session rather than once
-# per tool call, so the worst case is a second of startup — but it is still
-# bounded, because the unbounded version is a session that never begins.
-HOOK_STDIN=""
-if [ ! -t 0 ]; then
-    _line=""
-    while IFS= read -r -t 1 _line || [ -n "$_line" ]; do
-        HOOK_STDIN="$HOOK_STDIN$_line"
-        _line=""
-    done
-fi
-
-# The same deliberately narrow extractor post-tool-hook.sh uses, and for the
-# same reason: the key must be followed by nothing but whitespace and a colon
-# before the value's opening quote, so a `session_id` appearing inside some
-# other field is not mistaken for the field. It is a heuristic and is treated
-# as one — every result is validated below before anything is done with it.
-#
-# Taken over the key rather than hard-coded, because #339 needs a second field
-# — `source` — out of the same payload, and one heuristic is easier to reason
-# about than two copies of it. post-tool-hook.sh keeps its own single-key
-# copy: it reads one field, and sourcing a shared library from a hook that has
-# to survive a broken install is a worse trade than ten duplicated lines.
-_stdin_json_string() {
-    local key="$1" raw="$2" rest prefix value
-    case "$raw" in *"\"$key\""*) ;; *) return 1 ;; esac
-    rest=${raw#*\"$key\"}
-    prefix=${rest%%\"*}
-    case "$prefix" in *[!:[:space:]]*) return 1 ;; esac
-    value=${rest#*\"}
-    value=${value%%\"*}
-    [ -n "$value" ] || return 1
-    printf '%s' "$value"
-}
-
+# HOOK_STDIN was already captured, and _stdin_json_string already defined,
+# above -- ahead of resolve-paths.sh, since #411 -- so this only extracts.
 _stdin_session_id() {
     _stdin_json_string session_id "$1"
 }
@@ -165,6 +207,25 @@ CURRENT_SESSION_ID=$(_stdin_session_id "$HOOK_STDIN" 2>/dev/null) || CURRENT_SES
 case "$CURRENT_SESSION_ID" in
     ''|.|..|*[!A-Za-z0-9._-]*) CURRENT_SESSION_ID="" ;;
 esac
+
+# ── The transcript path the host handed us (#407) ─────────────────────────
+# Read from the same payload, exported for pipeline/host.transcript_path() to
+# pick up in any Python process this hook (or something it dispatches)
+# spawns. This is data from a host payload, same as CURRENT_SESSION_ID above,
+# and validated the same way: at the point of entry, not the point of use. A
+# transcript path legitimately contains slashes and dots, so it cannot share
+# that variable's character allowlist -- only a carriage return is rejected
+# here (a raw newline cannot reach this point at all: the read loop above
+# already strips every line terminator before HOOK_STDIN is assembled, so
+# the newline arm below is a belt no buckle can ever need -- kept rather
+# than dropped, in case a future change to that loop ever preserves one).
+# Whether the value actually names an openable file is decided on the Python
+# side, which falls back to the existing derivation when it does not.
+REMEMBER_TRANSCRIPT_PATH=$(_stdin_json_string transcript_path "$HOOK_STDIN" 2>/dev/null) || REMEMBER_TRANSCRIPT_PATH=""
+case "$REMEMBER_TRANSCRIPT_PATH" in
+    *$'\n'*|*$'\r'*) REMEMBER_TRANSCRIPT_PATH="" ;;
+esac
+export REMEMBER_TRANSCRIPT_PATH
 
 # ── Which KIND of SessionStart is this? (#339) ────────────────────────────
 # `source` is one of startup | resume | clear | compact | fork. It is read for
@@ -628,7 +689,16 @@ fi
 if [ "$(config '.features.recovery' true)" = "true" ]; then
 if [ -d "$SESSIONS_DIR" ] && [ -f "$LAST_SAVE_FILE" ] && [ -n "$PREV_ID" ]; then
     if [ "$PREV_WAS_SAVED" = "no" ]; then
-        "$PLUGIN_ROOT/scripts/save-session.sh" "$PREV_ID" --force </dev/null >/dev/null 2>&1 & disown 2>/dev/null || true
+        # REMEMBER_TRANSCRIPT_PATH (exported above, #407) names THIS session's
+        # own transcript -- it must not reach a save being forced for a
+        # DIFFERENT one. pipeline.extract.find_session() trusts that variable
+        # unconditionally once it names a real file, so an inherited value
+        # here would make PREV_ID's rescue silently read and summarize the
+        # current session's transcript instead, while still labelling the
+        # saved record PREV_ID. Cleared in a subshell so it stays exported for
+        # this hook's own later use. Pinned by
+        # tests/test_recovery_transcript_leak_407.py.
+        ( unset REMEMBER_TRANSCRIPT_PATH; "$PLUGIN_ROOT/scripts/save-session.sh" "$PREV_ID" --force ) </dev/null >/dev/null 2>&1 & disown 2>/dev/null || true
     fi
 fi
 fi
@@ -1098,20 +1168,36 @@ if [ -d "$SESSIONS_DIR" ] && [ -d "$REMEMBER_DIR/tmp" ]; then
             _remember_stale_mtime=$(stat -c %Y "$_remember_stale_record" 2>/dev/null) \
                 || _remember_stale_mtime=$(stat -f %m "$_remember_stale_record" 2>/dev/null) \
                 || _remember_stale_mtime=""
-            if [ -z "$_remember_stale_mtime" ]; then
-                # Could not read the record's own age -> could-not-tell,
-                # same safe direction as an unreadable $SESSIONS_DIR above.
-                continue
-            fi
-            case "$_remember_stale_mtime" in (''|*[!0-9]*) _remember_stale_mtime=0 ;; esac
+            # Empty (stat failed outright) and non-numeric (stat exited 0 but
+            # printed something that is not a timestamp) are both
+            # could-not-tell, same safe direction as an unreadable
+            # $SESSIONS_DIR above -- caught in the same `case` so a
+            # non-empty garbage read cannot be coerced to 0 and then treated
+            # by the -gt 0 gate below as a confirmed, comparable age (found
+            # during #402's own review: the previous split of this check
+            # only caught the fully-empty shape, and the -gt 0 gate does not
+            # tell "confirmed zero" apart from "coerced from garbage").
+            case "$_remember_stale_mtime" in
+                (''|*[!0-9]*)
+                    continue
+                    ;;
+            esac
             # _remember_date +%s -- same call site convention as
             # post-tool-hook.sh:377/605. lib-clock.sh routes %s to `date`
             # unconditionally (never the printf builtin), and `_remember_date`
             # itself already falls back to plain `date` with no TZ set, so
-            # this always yields digits; the guard below is what #332 asks
-            # for at every arithmetic sink regardless.
+            # this is not expected to fail on this path -- but #402 found
+            # that when it does (empty output, or a non-numeric one), the
+            # -gt 0 gates below silently coerced "could not read the clock"
+            # into "confirmed outside the grace window", the opposite of
+            # what an unreadable mtime does three lines above. Refuse to
+            # guess in either failure shape, same as the mtime check does.
             _remember_now=$(_remember_date +%s)
-            case "$_remember_now" in (''|*[!0-9]*) _remember_now=0 ;; esac
+            case "$_remember_now" in
+                (''|*[!0-9]*)
+                    continue
+                    ;;
+            esac
             if [ "$_remember_now" -gt 0 ] && [ "$_remember_stale_mtime" -gt 0 ] \
                 && [ $((10#$_remember_now - 10#$_remember_stale_mtime)) -lt $((GRACE_MIN * 60)) ]; then
                 continue

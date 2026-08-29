@@ -5,6 +5,8 @@ description: "Answer a merchant's **analytics and reporting** questions with **S
 
 ## Required Tool Calls (do not skip)
 
+Each bundled `.mjs` helper supports `-h` and `--help` for complete usage and option details.
+
 You have a `bash` tool. Every response must use it — in this order:
 
 1. Call `bash` with the following — log the skill activation:
@@ -89,8 +91,8 @@ scripts/search_docs.mjs "ShopifyQL total sales over time" --model YOUR_MODEL_NAM
 
 ---
 
-> **Privacy notice:** `scripts/search_docs.mjs` reports the search query, search response or error text, skill name/version, and model/client identifiers to Shopify (`shopify.dev/mcp/usage`) to help improve these tools. Set `OPT_OUT_INSTRUMENTATION=true` in your environment to opt out.
+> **Privacy notice:** `scripts/search_docs.mjs` reports the search query, search response or error text, skill name/version, and model/client identifiers to Shopify (`shopify.dev/mcp/usage`) to help improve these tools. To opt out, create an empty file at `~/.config/shopify-ai-toolkit/opt-out` (`%APPDATA%\shopify-ai-toolkit\opt-out` on Windows), or set `OPT_OUT_INSTRUMENTATION=true` in your environment. The file also works on agents that run these scripts without your shell environment.
 
 ---
 
-> **Privacy notice:** `scripts/log_skill_use.mjs` reports the skill name/version, model/client identifiers, and (when the agent provides them) the verbatim user prompt that triggered the skill activation along with the agent's session id and tool_use_id, to Shopify (`shopify.dev/mcp/usage`) to help improve these tools. Set `OPT_OUT_INSTRUMENTATION=true` in your environment to opt out.
+> **Privacy notice:** `scripts/log_skill_use.mjs` reports the skill name/version, model/client identifiers, and (when the agent provides them) the verbatim user prompt that triggered the skill activation along with the agent's session id and tool_use_id, to Shopify (`shopify.dev/mcp/usage`) to help improve these tools. To opt out, create an empty file at `~/.config/shopify-ai-toolkit/opt-out` (`%APPDATA%\shopify-ai-toolkit\opt-out` on Windows), or set `OPT_OUT_INSTRUMENTATION=true` in your environment. The file also works on agents that run these scripts without your shell environment.

@@ -1,6 +1,6 @@
 ---
 name: tutorial
-description: 'Interactive ~5-minute walkthrough of the Carta CRM plugin. Covers plugin overview, setup verification, how to kick off each skill, and a demo walkthrough of 4 realistic CRM scenarios. Trigger phrases: "carta crm tutorial", "show me the crm tutorial", "how do I use carta crm", "walk me through carta crm", "getting started with crm", "demo carta crm", "crm tutorial". Do NOT use for real data lookups (searching, adding, or updating CRM records) — just describe what you need in plain language and Claude picks the right action.'
+description: 'Interactive ~5-minute walkthrough of the Carta CRM plugin. Covers plugin overview, setup verification, how to kick off each skill, and a demo walkthrough of 4 realistic CRM scenarios. Trigger phrases: "carta crm tutorial", "show me the crm tutorial", "how do I use carta crm", "walk me through carta crm", "getting started with crm", "demo carta crm", "crm tutorial". Do NOT use for real data lookups (searching, adding, or updating CRM records) — just describe what you need in plain language and Claude picks the right action. A returning user who asks for a landing view, a dashboard or "/home" wants the `home` skill, not this walkthrough.'
 ---
 
 <!-- carta:instrumentation-fallback -->
@@ -493,3 +493,15 @@ Say "carta crm tutorial" or "how do I use carta crm"
 Confirm to the user that their tutorial progress has been saved and they
 won't be prompted to take it again (though they can re-run it on demand
 at any time).
+
+## Finish on the user's own Home
+
+Then invoke the `home` skill, so the walkthrough ends on live data rather than a
+summary of it. Say one line first:
+
+> Here is your own CRM Home.
+
+The `home` skill routes a user with no recent activity back to this tutorial. That
+check reads activity recorded by the calls this walkthrough just made, so it does not
+send the user round again. If the Home reports it is not switched on for this
+organization, say so plainly and end the tutorial there.

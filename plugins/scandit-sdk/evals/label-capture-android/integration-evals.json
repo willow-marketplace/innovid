@@ -1,0 +1,259 @@
+{
+  "skill_name": "label-capture-android",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I want to add Scandit Label Capture to my Android app. Here's my main activity: MainActivity.kt. The label is a perishable-product sticker with an EAN-13 barcode and an expiry date (both required) and a total price (optional).",
+      "expected_output": "The skill reads integration.md, walks through the interactive label-definition questions, writes complete Label Capture integration code into MainActivity.kt, and shows the setup checklist.",
+      "files": [
+        "fixtures/MainActivity.kt"
+      ],
+      "assertions": [
+        { "text": "Setup checklist is shown and mentions the four Gradle dependencies: com.scandit.datacapture:core, :barcode, :label, and :label-text-models; no Scandit Maven repository is referenced" },
+        { "text": "DataCaptureContext.forLicenseKey( is present" },
+        { "text": "A license key placeholder string is present (semantic)" },
+        { "text": "LabelCaptureSettings.builder() is used" },
+        { "text": ".addLabel() is called on the builder and terminated with .buildFluent(\"...\") followed by .build()" },
+        { "text": ".addCustomBarcode() is chained on the label builder and terminated with .buildFluent(\"...\")" },
+        { "text": "Symbology.EAN13_UPCA is present (Android underscore form, not EAN13UPCA)" },
+        { "text": ".addExpiryDateText() is chained on the label builder and terminated with .buildFluent(\"...\")" },
+        { "text": ".addTotalPriceText() is chained on the label builder and .isOptional(true) is called on it" },
+        { "text": "LabelCapture.forDataCaptureContext( is present" },
+        { "text": "labelCapture.addListener( is present with an onSessionUpdated override" },
+        { "text": "session.capturedLabels is accessed inside onSessionUpdated" },
+        { "text": "DataCaptureView.newInstance( is present" },
+        { "text": "LabelCaptureBasicOverlay.newInstance( is present" },
+        { "text": "Camera.getDefaultCamera(LabelCapture.createRecommendedCameraSettings()) is called" },
+        { "text": "camera.switchToDesiredState(FrameSourceState.ON) is called in onResume" },
+        { "text": "camera.switchToDesiredState(FrameSourceState.OFF) is called in onPause" },
+        { "text": "setPattern is NOT present in the generated code" },
+        { "text": "setPatterns is NOT present in the generated code" },
+        { "text": "setDataTypePattern is NOT present in the generated code" },
+        { "text": "setDataTypePatterns is NOT present in the generated code" },
+        { "text": "LabelCaptureValidationFlowOverlay is NOT used (the user did not ask for Validation Flow)" }
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Add Label Capture with the Validation Flow to my Android app. Write the code into MainActivity.kt. The label is a perishable-product sticker with an EAN-13 barcode (required) and an expiry date (required). Show me how to customize the placeholder text for the expiry date field.",
+      "expected_output": "The skill detects the platform, uses LabelCaptureValidationFlowOverlay instead of LabelCaptureBasicOverlay, implements LabelCaptureValidationFlowListener, sets placeholder text for the expiry date field, and delegates onPause/onResume to the overlay.",
+      "files": [
+        "fixtures/MainActivity.kt"
+      ],
+      "assertions": [
+        { "text": "LabelCaptureValidationFlowOverlay.newInstance( is used instead of LabelCaptureBasicOverlay" },
+        { "text": "LabelCaptureValidationFlowSettings.newInstance() is called" },
+        { "text": "setPlaceholderTextForLabelDefinition is called on the settings with the expiry date field name and a placeholder string" },
+        { "text": "validationFlowOverlay.applySettings( is called" },
+        { "text": "validationFlowOverlay.listener is assigned with an onValidationFlowLabelCaptured implementation" },
+        { "text": "validationFlowOverlay.onPause() is called in onPause" },
+        { "text": "validationFlowOverlay.onResume() is called in onResume" },
+        { "text": "Symbology.EAN13_UPCA is present" },
+        { "text": "DataCaptureContext.forLicenseKey( is present" }
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "I want to add Scandit Label Capture to my Android app.",
+      "expected_output": "The skill asks what fields are on the label (Question A) and presents the supported field type checklist. It does NOT generate integration code yet — it correctly waits for the user to describe their label before writing anything.",
+      "files": [],
+      "assertions": [
+        { "text": "The response asks what fields or data are on the label — it does not generate code without knowing the label structure" },
+        { "text": "The supported field types are listed, including at minimum: addCustomBarcode (or Custom barcode), addExpiryDateText (or Expiry date), addTotalPriceText (or Total price)" },
+        { "text": "No LabelCaptureSettings.builder() code block is included — the skill waits for the user to answer before writing any integration code" },
+        { "text": "All clarifying questions are asked BEFORE any integration code is produced — the response explicitly states it will write the code after the user answers, not before" }
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "SIMULATE A TWO-TURN CONVERSATION:\nTurn 1 — send this message first: 'I want to add Scandit Label Capture to my Android app.'\nTurn 2 — after the skill responds with clarifying questions, send this follow-up: 'The label is a perishable-product sticker with an EAN-13 barcode (required), an expiry date (required), and a total price (optional). Here is my main activity: MainActivity.kt. Please write the integration code.'",
+      "expected_output": "After the two-turn exchange the skill produces complete Label Capture integration code — equivalent to eval 1 — written into MainActivity.kt with the setup checklist.",
+      "files": [
+        "fixtures/MainActivity.kt"
+      ],
+      "assertions": [
+        { "text": "LabelCaptureSettings.builder() is used in the final generated code" },
+        { "text": ".addCustomBarcode() is chained on the label builder" },
+        { "text": "Symbology.EAN13_UPCA is present" },
+        { "text": ".addExpiryDateText() is chained on the label builder" },
+        { "text": ".addTotalPriceText() is chained on the label builder and .isOptional(true) is called on it" },
+        { "text": "LabelCapture.forDataCaptureContext( is present" },
+        { "text": "Camera.getDefaultCamera(LabelCapture.createRecommendedCameraSettings()) is called" },
+        { "text": "LabelCaptureValidationFlowOverlay is NOT used (the user did not ask for Validation Flow)" }
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "Add Scandit Label Capture to my Android app to scan the box of a smartphone. I need to read the IMEI 1, the IMEI 2, and the device's serial number printed on the box. Here is my activity: MainActivity.kt.",
+      "expected_output": "The skill uses the pre-built barcode-semantic field builders addImeiOneBarcode(), addImeiTwoBarcode(), and addSerialNumberBarcode() (NOT custom barcode/text fields with hand-written regex), and includes the label-text-models Gradle dependency because barcode-semantic fields require the model at runtime — it does NOT claim the artifact can be skipped because the label is barcode-only.",
+      "files": [
+        "fixtures/MainActivity.kt"
+      ],
+      "assertions": [
+        { "text": "addImeiOneBarcode() is used for the IMEI 1 field" },
+        { "text": "addImeiTwoBarcode() is used for the IMEI 2 field" },
+        { "text": "addSerialNumberBarcode() is used for the serial number field" },
+        { "text": "No hallucinated regex: addCustomText() is NOT used with a hand-written IMEI or serial-number regex pattern, and addCustomBarcode() is NOT used as a stand-in for IMEI/serial — the pre-built barcode-semantic builders are used instead" },
+        { "text": "The com.scandit.datacapture:label-text-models Gradle dependency is included" },
+        { "text": "The response does NOT state that label-text-models can be omitted because the label only has barcode fields (the barcode-semantic fields require it)" },
+        { "text": "DataCaptureContext.forLicenseKey( and LabelCapture.forDataCaptureContext( are present" }
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "I want to use Scandit Label Capture in my Android retail app to scan printed price shelf labels — the product barcode plus the displayed price. Write the integration into MainActivity.kt.",
+      "expected_output": "The skill recognises this as a price/shelf-label scenario and uses the pre-built whole-label factory LabelDefinition.createPriceCaptureDefinition(...) rather than hand-assembling the label from addCustomBarcode()/addTotalPriceText() individual builders. It includes BOTH the label-text-models AND the price-label Gradle dependencies (price capture needs the price-label model artifact in addition to label-text-models).",
+      "files": [
+        "fixtures/MainActivity.kt"
+      ],
+      "assertions": [
+        { "text": "LabelDefinition.createPriceCaptureDefinition( is used to define the price/shelf label" },
+        { "text": "The label is NOT hand-assembled from individual addTotalPriceText()/addUnitPriceText()/addCustomBarcode() builders when the pre-built price-capture definition covers the scenario" },
+        { "text": "LabelDefinition is imported from com.scandit.datacapture.label.capture" },
+        { "text": "The com.scandit.datacapture:label-text-models Gradle dependency is included" },
+        { "text": "The com.scandit.datacapture:price-label Gradle dependency is included (required for createPriceCaptureDefinition in addition to label-text-models)" },
+        { "text": "LabelCapture.forDataCaptureContext( and DataCaptureContext.forLicenseKey( are present" }
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "In my Android app I'm already using Scandit Label Capture to read a shipping label. I also want to run Barcode Capture at the same time, on the same camera session, to continuously scan separate standalone package barcodes. How do I wire up both modes on the same DataCaptureContext?",
+      "expected_output": "The skill explains that Label Capture and Barcode Capture cannot both be active at the same time in the same DataCaptureContext, and recommends modelling the extra barcode as a field inside the Label Capture label definition (addCustomBarcode() or a pre-built barcode field) instead of adding a second mode.",
+      "files": [],
+      "assertions": [
+        { "text": "The response states that Label Capture and Barcode Capture cannot both run as active modes simultaneously in the same DataCaptureContext" },
+        { "text": "The response recommends adding the barcode as a field within the Label Capture label definition (addCustomBarcode() or a pre-built barcode field) as the supported approach" },
+        { "text": "The response does NOT provide code that creates and enables both BarcodeCapture.forDataCaptureContext(...) and LabelCapture.forDataCaptureContext(...) as concurrently active modes" }
+      ]
+    },
+    {
+      "id": 8,
+      "prompt": "I'm using Smart Label Capture on Android with the Basic Overlay. I want to customize how detected fields are highlighted in the camera feed — make the barcode box cyan, the expiry-date box green, and hide the box around the whole label. Show me how.",
+      "expected_output": "The skill explains the LabelCaptureBasicOverlay draws a label box and per-field boxes, and shows how to customize them per-field/per-label via LabelCaptureBasicOverlayListener (brushForField / brushForLabel returning Brush? or null for default), using the Android Brush(fill, stroke, strokeWidth) constructor. It may also mention the global setLabelBrush/setCapturedFieldBrush shortcut.",
+      "files": [],
+      "assertions": [
+        { "text": "LabelCaptureBasicOverlayListener is implemented and assigned to overlay.listener" },
+        { "text": "brushForField( is overridden and returns a Brush for the barcode and expiry-date field names (and null/default for others)" },
+        { "text": "brushForLabel( is overridden and returns a transparent/null brush to hide the whole-label box" },
+        { "text": "Brush( from com.scandit.datacapture.core.ui.style.Brush is used with the (fill, stroke, strokeWidth) arguments, e.g. Brush(Color.CYAN, Color.CYAN, 1f)" },
+        { "text": "The response notes that returning null from brushForField/brushForLabel keeps the default brush" }
+      ],
+      "tags": ["basic-overlay-customization"]
+    },
+    {
+      "id": 9,
+      "prompt": "On Android Smart Label Capture I want a fully custom AR experience: draw my own warning TextView below any expiry-date field on the camera feed. How do I set up the Advanced Overlay?",
+      "expected_output": "The skill uses LabelCaptureAdvancedOverlay with LabelCaptureAdvancedOverlayListener, returning a custom Android View from viewForCapturedLabelField for expiry-date fields and an Anchor + PointWithUnit offset, and flags the higher implementation cost of the Advanced Overlay versus the Basic Overlay / Validation Flow.",
+      "files": [],
+      "assertions": [
+        { "text": "LabelCaptureAdvancedOverlay.newInstance( is used to create the overlay" },
+        { "text": "LabelCaptureAdvancedOverlayListener is implemented and assigned to the overlay's listener" },
+        { "text": "viewForCapturedLabelField( is overridden and returns a custom Android View (e.g. a TextView) for expiry-date fields and null for others" },
+        { "text": "anchorForCapturedLabelField( returns an Anchor (e.g. Anchor.BOTTOM_CENTER) and offsetForCapturedLabelField( returns a PointWithUnit" },
+        { "text": "The response flags that the Advanced Overlay is more work than the Basic Overlay / Validation Flow and should be used only when full custom AR control is needed" }
+      ],
+      "tags": ["advanced-overlay"]
+    },
+    {
+      "id": 10,
+      "prompt": "My Android Smart Label Capture app crashes on launch the moment the label definition is built, and on another device the camera preview is just black with no error. The label scans a serial number and an expiry date. What's going wrong?",
+      "expected_output": "The skill diagnoses the launch crash as a missing label-text-models Gradle artifact (the pre-built serial-number barcode field and the expiry-date text field load an on-device model) and the black preview as a missing/ungranted CAMERA runtime permission or the camera never being switched on. It does not invent new APIs.",
+      "files": [],
+      "assertions": [
+        { "text": "The launch crash is attributed to the missing com.scandit.datacapture:label-text-models Gradle dependency, required because the label uses pre-built fields (serial-number barcode and/or expiry-date text)" },
+        { "text": "The black/blank preview is attributed to the CAMERA runtime permission not being granted before the camera starts, and/or camera.switchToDesiredState(FrameSourceState.ON) not being called" },
+        { "text": "The response mentions adding <uses-permission android:name=\"android.permission.CAMERA\" /> to AndroidManifest.xml and requesting it at runtime before starting the camera" },
+        { "text": "The response does NOT invent non-existent Scandit APIs; note the com.scandit.datacapture:label-text-models Gradle artifact IS real and allowed (semantic)" }
+      ],
+      "tags": ["error-troubleshooting"]
+    },
+    {
+      "id": 11,
+      "prompt": "I need to read a seven-segment LED display (a meter readout) with Smart Label Capture on Android. Write the label-definition setup into MainActivity.kt.",
+      "expected_output": "The skill uses the pre-built whole-label factory LabelDefinition.createSevenSegmentDisplayLabelDefinition(...) rather than hand-assembling a custom digit field with a guessed regex, passes it to addLabel(...), and includes the label-text-models Gradle dependency.",
+      "files": [
+        "fixtures/MainActivity.kt"
+      ],
+      "assertions": [
+        { "text": "LabelDefinition.createSevenSegmentDisplayLabelDefinition( is used to define the seven-segment display label" },
+        { "text": "The pre-built definition is passed to .addLabel(...) on LabelCaptureSettings.builder() — the label is NOT hand-assembled from addCustomText()/addCustomBarcode() with a hand-written digit regex" },
+        { "text": "The com.scandit.datacapture:label-text-models Gradle dependency is included" },
+        { "text": "LabelCapture.forDataCaptureContext( and DataCaptureContext.forLicenseKey( are present" }
+      ],
+      "tags": ["seven-segment-display"]
+    },
+    {
+      "id": 12,
+      "prompt": "My customer's Android Smart Label Capture app misses OCR on worn, low-contrast shipping labels and users keep having to type values manually. Can Scandit fall back to a more powerful cloud model? How do I enable it?",
+      "expected_output": "The skill explains the Adaptive Recognition Engine (cloud fallback), shows how to enable it with adaptiveRecognition(adaptiveRecognitionMode = AdaptiveRecognitionMode.AUTO) on the label definition, and clearly flags that it is in BETA, requires the ARE feature flag on the license key, and that production use requires contacting support@scandit.com.",
+      "files": [],
+      "assertions": [
+        { "text": "The response describes the Adaptive Recognition Engine as a cloud-based OCR fallback that triggers when the on-device model fails" },
+        { "text": "The enabling API is shown: adaptiveRecognition(adaptiveRecognitionMode = AdaptiveRecognitionMode.AUTO) (AdaptiveRecognitionMode.AUTO) on the label definition" },
+        { "text": "The response flags that the Adaptive Recognition API is in BETA" },
+        { "text": "The response states it requires a license key with the ARE feature flag and that enabling it for production requires contacting support@scandit.com" },
+        { "text": "The response surfaces that the adaptiveRecognition(...) API is not present in public SDK releases up to and including 8.4.0 (availability caveat), so the user's SDK version must be checked" }
+      ],
+      "tags": ["adaptive-recognition-cloud"]
+    },
+    {
+      "id": 13,
+      "prompt": "Does Scandit Smart Label Capture on Android support scanning full receipts — store name, totals, and line items — into structured data? How would I wire it up?",
+      "expected_output": "The skill explains Receipt Scanning uses the Adaptive Recognition Engine with a different integration pattern: LabelCaptureAdaptiveRecognitionOverlay plus a LabelCaptureAdaptiveRecognitionListener whose onRecognized callback returns a ReceiptScanningResult (storeName, paymentTotal, lineItems, etc.). It clearly flags that this is in BETA and requires contacting support@scandit.com.",
+      "files": [],
+      "assertions": [
+        { "text": "The response states Receipt Scanning uses the LabelCaptureAdaptiveRecognitionOverlay instead of the standard Basic/Validation Flow overlay" },
+        { "text": "The response uses a LabelCaptureAdaptiveRecognitionListener whose onRecognized callback receives the sealed base type AdaptiveRecognitionResult and narrows it to ReceiptScanningResult (it does NOT type the override parameter as ReceiptScanningResult, which doesn't compile)" },
+        { "text": "The response names ReceiptScanningResult fields such as storeName, paymentTotal, and lineItems" },
+        { "text": "The response flags that Receipt Scanning / the Adaptive Recognition Engine is in BETA and requires contacting support@scandit.com to enable" },
+        { "text": "The response surfaces that the public Receipt Scanning classes are not present in public SDK releases up to and including 8.4.0 (availability caveat)" }
+      ],
+      "tags": ["receipt-scanning"]
+    },
+    {
+      "id": 14,
+      "prompt": "I'm using Scandit Label Capture in my Android retail app with the pre-built price-capture definition (createPriceCaptureDefinition). I validate the scanned price against my own price database. I want the price field on screen to be outlined green when the captured price matches and red when it doesn't, and I want a small status icon floating just above the price field showing the same result. Write the overlay code.",
+      "expected_output": "The skill reads advanced.md. It colors the price field with a per-field brush via LabelCaptureBasicOverlayListener.brushForField (returning a green/red Brush based on validation state read off the whole CapturedLabel), and floats the status icon with LabelCaptureAdvancedOverlay. Crucially, because the icon's appearance depends on sibling fields (barcode vs price), it does NOT build the floating view from the advanced overlay's per-field listener (viewForCapturedLabelField, which has no label context) — it pushes the view imperatively via setViewForCapturedLabelField(field, label, view) from onSessionUpdated, with setAnchorForCapturedLabelField / setOffsetForCapturedLabelField for placement.",
+      "files": [],
+      "assertions": [
+        { "text": "Field coloring uses LabelCaptureBasicOverlayListener.brushForField (overriding brushForField), returning a Brush whose color depends on the validation state" },
+        { "text": "A Brush is constructed (e.g. Brush(...)) with green/red colors for the match/mismatch states" },
+        { "text": "LabelCaptureAdvancedOverlay is used for the floating status icon" },
+        { "text": "The floating view is pushed imperatively with setViewForCapturedLabelField(field, label, view) (or the per-label setViewForCapturedLabel) called from onSessionUpdated, NOT produced from the advanced overlay listener's viewForCapturedLabelField callback" },
+        { "text": "setAnchorForCapturedLabelField and setOffsetForCapturedLabelField are used to position the icon above the price field (Anchor plus a PointWithUnit offset)" },
+        { "text": "The response explains or reflects that the advanced overlay's per-field listener callback (viewForCapturedLabelField) carries no label context, which is why the imperative push from onSessionUpdated is used" },
+        { "text": "Fields are read by type (LabelFieldType.BARCODE / LabelFieldType.TEXT) rather than by hardcoded field names" }
+      ],
+      "tags": ["overlay-ar-feedback"]
+    },
+    {
+      "id": 15,
+      "prompt": "I'm using Scandit Label Capture on Android to scan shipping labels (a custom definition with a tracking-number barcode and a weight text field). After a label is captured I want a small summary card floating just below the whole label showing both values. How do I do that?",
+      "expected_output": "The skill reads advanced.md and uses the advanced overlay's per-LABEL APIs — either the listener's viewForCapturedLabel(overlay, capturedLabel) (which, unlike the per-field callback, receives the whole CapturedLabel, so the listener path is fine here) or the imperative setViewForCapturedLabel(label, view). The card reads both fields off the CapturedLabel. Placement is Anchor.BOTTOM_CENTER with a POSITIVE-Y PointWithUnit offset (the view is centered on the anchor and +Y is downward, so pushing the card fully below the label needs a downward shift).",
+      "files": [],
+      "assertions": [
+        { "text": "LabelCaptureAdvancedOverlay is used with a per-LABEL view: either the listener's viewForCapturedLabel(overlay, capturedLabel) callback or the imperative setViewForCapturedLabel(label, view) — NOT the per-field view APIs (viewForCapturedLabelField / setViewForCapturedLabelField)" },
+        { "text": "The response does NOT claim the advanced overlay listener cannot be used for this case — the per-label callback receives the whole CapturedLabel, so sibling-field state is available there (the no-label-context trap applies only to the per-FIELD callback)" },
+        { "text": "The summary card's content is read off the CapturedLabel's fields (by type or name) inside the view-producing code path — no global/session-keyed side store is introduced to smuggle label state" },
+        { "text": "The card is anchored below the label: Anchor.BOTTOM_CENTER (or equivalent bottom anchor) is used" },
+        { "text": "The offset is a PointWithUnit with a POSITIVE Y value (downward), consistent with the view being centered on the anchor point and +Y pointing down — not a negative/upward offset" },
+        { "text": "No invented APIs: only documented advanced-overlay methods (viewForCapturedLabel / anchorForCapturedLabel / offsetForCapturedLabel listener callbacks, or setViewForCapturedLabel / setAnchorForCapturedLabel / setOffsetForCapturedLabel imperative setters) are used" }
+      ],
+      "tags": ["advanced-overlay-per-label"]
+    },
+    {
+      "id": 16,
+      "prompt": "My Android app uses Label Capture with the Validation Flow overlay. I'd like to additionally outline each captured field in my brand color and float a checkmark icon above fields as they're captured, like I saw in the price-capture sample. Can I add the basic and advanced overlays on top of my validation flow setup?",
+      "expected_output": "The skill answers YES for the basic overlay: the Validation Flow overlay draws no field highlighting, and the official LabelCaptureSimpleSample attaches a LabelCaptureBasicOverlay (with a brush listener) alongside the VF overlay on the same DataCaptureView — so the brand-color outline is directly supported. The VF overlay remains the capture-lifecycle owner: no LabelCaptureListener is added alongside it, and results still come only through onValidationFlowLabelCaptured. For the floating checkmark, the advanced overlay can be added too, but under VF it can only be driven through its listener callbacks (the imperative push requires a LabelCaptureListener, which VF setups must not add) — a state-gated checkmark via viewForCapturedLabelField(overlay, labelField) checking the field's own state is fine since it needs no sibling-field context.",
+      "files": [],
+      "assertions": [
+        { "text": "The response answers that the basic overlay CAN be attached alongside LabelCaptureValidationFlowOverlay for field highlighting (the VF overlay provides no field outlines itself) — it does NOT claim the Validation Flow is self-contained and must not be combined with other overlays" },
+        { "text": "The VF overlay remains the capture-lifecycle owner: no LabelCaptureListener is added alongside the Validation Flow overlay, and label results are still consumed via onValidationFlowLabelCaptured" },
+        { "text": "The field outline uses the basic overlay's brushes (a Brush via the brushForField listener or the capturedFieldBrush/predictedFieldBrush properties) — purely visual, no result handling moved into it" },
+        { "text": "If the floating checkmark is implemented, the advanced overlay is driven via its LISTENER callbacks (e.g. viewForCapturedLabelField gated on the field's own state) — the response does NOT use the imperative setViewForCapturedLabelField push from onSessionUpdated, which is unavailable under VF because it would require adding a LabelCaptureListener" },
+        { "text": "No invented APIs: overlay methods used are documented ones (newInstance, listener assignment, brush APIs, viewFor/anchorFor/offsetForCapturedLabelField)" }
+      ],
+      "tags": ["validation-flow-overlay-mixing"]
+    }
+  ]
+}
