@@ -1,0 +1,24 @@
+{
+  "name": "i-have-adhd",
+  "version": "0.2.0",
+  "description": "Shape Claude Code output for an ADHD reader: lead with the next action, number steps, suppress tangents, restate state, make wins visible.",
+  "updatedAt": "2026-08-31T08:04:02.367Z",
+  "author": {
+    "url": "https://github.com/ayghri",
+    "name": "Ayoub G."
+  },
+  "skills": "./skills/",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e \"(async()=>{const root=process.env.CLAUDE_PLUGIN_ROOT||process.env.PLUGIN_ROOT;if(root)await import(require('node:url').pathToFileURL(require('node:path').join(root,'hooks','always-on.mjs')).href)})().catch(()=>{})\""
+          }
+        ]
+      }
+    ]
+  }
+}
