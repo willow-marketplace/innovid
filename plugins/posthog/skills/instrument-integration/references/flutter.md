@@ -99,7 +99,7 @@ PostHog AI
 
 There are 2 ways of initializing the SDK, automatically and manually.
 
-You'll need to have [Cocoapods](https://guides.cocoapods.org/using/getting-started.html) installed.
+The SDK supports both [CocoaPods](https://guides.cocoapods.org/using/getting-started.html) and [Swift Package Manager (SPM)](https://docs.flutter.dev/packages-and-plugins/swift-package-manager/for-app-developers). Flutter 3.44 and later enable SPM by default. On earlier versions, or if you disabled SPM, enable it with `flutter config --enable-swift-package-manager`.
 
 Automatically:
 
@@ -146,7 +146,9 @@ PostHog AI
 </plist>
 ```
 
-In both cases, you'll need to set the minimum platform version to iOS 13.0 in your Podfile:
+In both cases, you'll need to set the minimum platform version to iOS 13.0.
+
+For CocoaPods projects, set it in your `Podfile`:
 
 ios/Podfile
 
@@ -155,6 +157,16 @@ PostHog AI
 ```yaml
 platform :ios, '13.0'
 # rest of your config
+```
+
+For Swift Package Manager projects without a `Podfile`, set the **Minimum Deployments** version to iOS 13.0 for the `Runner` target in Xcode (**Runner > General > Minimum Deployments**). After you change **Minimum Deployments**, regenerate the iOS project's configuration files:
+
+Terminal
+
+PostHog AI
+
+```bash
+flutter build ios --config-only
 ```
 
 #### Dart setup (For manual step only)
@@ -184,7 +196,9 @@ Future<void> main() async {
 
 #### Web setup
 
-For Web, add your `Web snippet` (which you can find in [your project settings](https://us.posthog.com/settings/project#snippet)) in the `<header>` of your `web/index.html` file:
+If your project has a `web/` directory, this step is required. `Posthog().setup()` is a no-op on web, so a web build without the snippet below captures nothing.
+
+Add your `Web snippet` (which you can find in [your project settings](https://us.posthog.com/settings/project#snippet)) in the `<header>` of your `web/index.html` file. Write your project token into the snippet as a literal string. It's public, the same token ships to every visitor, and it needs no build-time or deploy-time injection:
 
 web/index.html
 
@@ -218,13 +232,23 @@ PostHog AI
             for (
               void 0 !== a ? (u = e[a] = []) : (a = "posthog"),
                 u.people = u.people || [],
-                u.toString = function (t) {
-                  var e = "posthog";
-                  return ("posthog" !== a && (e += "." + a), t || (e += " (stub)"), e);
-                },
-                u.people.toString = function () {
-                  return u.toString(1) + ".people (stub)";
-                },
+                Object.defineProperty(u, "toString", {
+                  configurable: !0,
+                  enumerable: !0,
+                  writable: !0,
+                  value: function (t) {
+                    var e = "posthog";
+                    return ("posthog" !== a && (e += "." + a), t || (e += " (stub)"), e);
+                  },
+                }),
+                Object.defineProperty(u.people, "toString", {
+                  configurable: !0,
+                  enumerable: !0,
+                  writable: !0,
+                  value: function () {
+                    return u.toString(1) + ".people (stub)";
+                  },
+                }),
                 o =
                   "capture identify alias people.set people.set_once set_config register register_once unregister opt_out_capturing has_opted_out_capturing opt_in_capturing reset isFeatureEnabled onFeatureFlags getFeatureFlag getFeatureFlagResult reloadFeatureFlags group updateEarlyAccessFeatureEnrollment getEarlyAccessFeatures getActiveMatchingSurveys getSurveys getNextSurveyStep onSessionId".split(
                     " ",
@@ -292,12 +316,16 @@ PostHog autocapture automatically tracks the following events for you:
 -   **Application Backgrounded** - when the app is sent to the background by the user
 -   **Application Installed** - when the app is installed.
 -   **Application Updated** - when the app is updated.
--   **$screen** - when the user navigates (if using [navigatorObservers](https://docs.flutter.dev/ui/navigation) or [go\_router](https://pub.dev/packages/go_router). You'd need to set up the `PosthogObserver` manually.)
+-   **$screen** - when the user navigates, once you add the `PosthogObserver`
 -   **$exception** - when the app throws exceptions.
 
 ### Capturing screen views
 
-> Note: Your routes should be named. Otherwise, they won't be recorded.
+Screen views aren't captured automatically. Add the `PosthogObserver` to your app yourself. Without it, your app sends no `$screen` events at all.
+
+This works with any routing package, not just the plain `Navigator` API. Add the observer wherever your router takes navigator observers, as shown below for `MaterialApp` and `go_router`.
+
+> Note: Screen names come from each route's `RouteSettings.name`. Most routing packages set this for you. If yours doesn't, name your routes so `$screen` events are readable.
 
 #### Using `navigatorObservers`
 
@@ -436,7 +464,7 @@ await Posthog().alias(
 );
 ```
 
-We strongly recommend reading our docs on [alias](/docs/data/identify.md#alias-assigning-multiple-distinct-ids-to-the-same-user) to best understand how to correctly use this method.
+We strongly recommend reading our docs on [alias](/docs/product-analytics/identify.md#alias-assigning-multiple-distinct-ids-to-the-same-user) to best understand how to correctly use this method.
 
 ## Anonymous vs identified events
 
