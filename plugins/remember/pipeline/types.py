@@ -40,7 +40,7 @@ class TokenUsage:
 
     def __str__(self) -> str:
         """Format as a compact summary string for log output."""
-        return f"{self.input}+{self.cache}cache→{self.output}out (${self.cost_usd:.4f})"
+        return f"{self.input}+{self.cache}cache->{self.output}out (${self.cost_usd:.4f})"
 
 
 @dataclass
@@ -61,12 +61,22 @@ class HaikuResult:
             caller has to be able to say so — reported as a plain SKIP it is
             indistinguishable from a genuinely empty session, and it slips
             past max_summary_failures too, which only counts hard errors.
+        provider: Which summarizer actually produced this result -- "claude"
+            or "codex" (#460/#461). Multiple providers exist now, so a SKIP
+            in the log is ambiguous about which one declined unless this is
+            threaded through: the "was this host-shaped?" question #461 asks
+            is only answerable if the log can name which route a given
+            verdict came from. Set explicitly by whichever call path built
+            this result; the default is "claude" because that was the only
+            provider before #460 and every construction site that predates
+            it (tests included) is correct leaving it unset.
     """
 
     text: str = ""
     tokens: TokenUsage = field(default_factory=TokenUsage)
     is_skip: bool = False
     is_rejected: bool = False
+    provider: str = "claude"
 
 
 @dataclass
@@ -84,6 +94,59 @@ class ExtractResult:
         human_count: Number of human (user) messages extracted.
         assistant_count: Number of assistant messages extracted.
         corrupt_lines: Number of lines that failed JSON parsing.
+        envelope: Which host wrote this transcript's lines, as identified by
+            ``pipeline.host.sniff_envelope()`` from the file's own first line
+            -- "claude-code", "codex", or "unrecognised". "unrecognised" is
+            the loud third state: a shape this module does not know, reported
+            rather than silently parsed as a session with nothing in it (#443).
+        skip_lines: The JSONL line this extraction actually started reading
+            from. Normally the caller's last saved position, but when a prior
+            run recorded this session in the unread-envelope quarantine
+            (#450 -- an "unrecognised" envelope that advanced the saved
+            position anyway, to keep #147's loop closed, without ever having
+            read the span), this is that earlier, still-unread point instead
+            -- so a later build that CAN parse the envelope re-reads the span
+            the earlier build only skipped past. Callers report it (and
+            ``save-position`` consumes it) so the quarantine can be cleared
+            once something has actually read that span.
+        unread_sidecar_unreadable: True when the unread-envelope.json
+            quarantine sidecar was consulted for a resume position AND it
+            exists but could not be trusted (a torn write, a disk fault, a
+            truncated file) -- never true when the sidecar simply does not
+            exist, which is the ordinary "nothing was ever quarantined"
+            case (#458). A caller resuming as though nothing were
+            quarantined when the sidecar is actually corrupt can silently
+            re-lose a span #450's quarantine exists to protect.
+        envelope_unreadable: True when the transcript file named by
+            ``envelope`` could not even be OPENED (an ``OSError`` --
+            permission error, bad mount, vanished between listing and
+            open) -- never true when the file was opened at all, whether
+            that read hit genuine exhaustion (or an empty file) or gave up
+            at the scan cap (``envelope_capped``, below), since neither of
+            those ever contained a line naming a known host shape (#478,
+            #556). ``envelope`` is "unrecognised" in every case; this is
+            what tells "could not open it" apart from the other two.
+        envelope_capped: True when ``envelope`` is "unrecognised" because
+            the scan gave up after ``extract._ENVELOPE_SNIFF_SCAN_CAP``
+            parseable-but-unplaceable lines, rather than because the file
+            was read to genuine exhaustion (or found empty) without ever
+            naming a known host shape (#556). Never true together with
+            ``envelope_unreadable`` -- a file that could not be opened
+            never reaches the scan -- and never true for a resolved
+            envelope. Lets a caller (``pipeline.haiku``'s fallback warning)
+            name the cap specifically instead of lumping it in with
+            "unrecognised shape".
+        envelope_has_unmapped_step: True when ``envelope`` resolved to a
+            known host (currently only ever set for "antigravity") but the
+            read span contained at least one step whose own ``type`` this
+            build's ``pipeline.host`` adapter cannot map to a role (#575).
+            Distinct from an ordinary 0-exchange span: that reports the
+            same ``human_count``/``assistant_count`` of 0 this can, but
+            this is only ever true when a step was actually seen and
+            dropped, so a caller (``scripts/save-session.sh``) can route
+            such a span through the same #450 quarantine an "unrecognised"
+            envelope gets, rather than reporting it as a genuinely quiet
+            session that is safe to advance past for good.
     """
 
     exchanges: str = ""
@@ -91,6 +154,12 @@ class ExtractResult:
     human_count: int = 0
     assistant_count: int = 0
     corrupt_lines: int = 0
+    envelope: str = ""
+    skip_lines: int = 0
+    unread_sidecar_unreadable: bool = False
+    envelope_unreadable: bool = False
+    envelope_capped: bool = False
+    envelope_has_unmapped_step: bool = False
 
 
 @dataclass

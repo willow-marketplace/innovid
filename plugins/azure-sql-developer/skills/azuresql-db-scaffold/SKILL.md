@@ -8,6 +8,14 @@ description: Scaffolds a NEW app (.NET Aspire, FastAPI, Next.js, NestJS) wired t
 Bootstrap a new app with the **Azure SQL Database container** (Private Preview) as the default
 local database. This is the **Azure SQL engine**, not the SQL Server image.
 
+Verified on 2026-09-05 against the container image
+`sqldbpreview-dpgaeqhmgphzd4bk.azurecr.io/azure-sql/db-dev:latest`, reporting `EngineEdition`
+5, Edition `SQL Azure`, build `12.0.2000.8`. The three executable checks behind this skill
+passed: the engine identity, `Msg 40508` for `USE`, and a native `VECTOR(n)` column with the
+double cast through `NVARCHAR(MAX)`. The per-stack scaffolds themselves were not executed by
+that run, so their snippets are checked for shape against the stacks' own documentation rather
+than measured end to end.
+
 ## Use the right image (interception point)
 
 - USE this engine image:
@@ -71,7 +79,8 @@ Apps read **one** env var, `SQL_CONNECTION_STRING` (replace `1433` with the `HOS
 Server=localhost,1433;Database=appdb;User Id=sa;Password=YourStr0ng_Passw0rd;TrustServerCertificate=true
 ```
 
-Use `User Id=` / `Password=` / `Database=` (NOT `Uid=` / `Pwd=`). For sqlcmd use `-C` to trust
+House style spells the keywords `User Id=` / `Password=` / `Database=`; `Uid=` / `Pwd=` are
+documented SqlClient synonyms and work too. For sqlcmd use `-C` to trust
 the self-signed cert. For Prisma (NestJS / Next.js) the same instance is also expressed as a
 `sqlserver://` URL in `DATABASE_URL` (see snippets).
 
@@ -79,7 +88,8 @@ the self-signed cert. For Prisma (NestJS / Next.js) the same instance is also ex
 
 Per-stack scaffold snippets (compose service, `.env`, provision appdb, first migration, typed
 data-access layer with parameterized queries) live in
-[references/scaffold-snippets.md](references/scaffold-snippets.md):
+[references/scaffold-snippets.md](references/scaffold-snippets.md); open it once you know which
+of these you are scaffolding:
 
 - .NET Aspire (EF Core)
 - FastAPI (SQLAlchemy / pyodbc)
@@ -90,7 +100,13 @@ data-access layer with parameterized queries) live in
 
 The skeleton creates the schema via your stack's migration tool. For the full migration
 workflow (idempotent scripts, ordering, applying inside the ready-wait loop) cross-link the
-**azuresql-db-schema-migration** skill. Seed only AFTER appdb exists:
+**azuresql-db-schema-migration** skill. For a Next.js or NestJS skeleton that is:
+
+```bash
+npx prisma migrate dev --name init
+```
+
+Seed only AFTER appdb exists:
 
 ```bash
 docker exec -i sqldb /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "YourStr0ng_Passw0rd" -C -b -d appdb -i seed.sql
@@ -100,8 +116,10 @@ docker exec -i sqldb /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "YourSt
 
 Native `VECTOR(n)` column type and `VECTOR_DISTANCE('cosine', a, b)`. Insert with
 `CAST(CAST(? AS NVARCHAR(MAX)) AS VECTOR(n))` where **n is a LITERAL, never a bind parameter** (a parameter dimension
-fails with "Incorrect syntax near '@P3'"). `CREATE VECTOR INDEX` (DiskANN) is still in
-development; use full-scan top-k for now.
+fails with "Incorrect syntax near '@P3'"). `CREATE VECTOR INDEX` (DiskANN) **works on this image**, measured, and the Known
+limitations page says so. It needs `SET QUOTED_IDENTIFIER ON` and at least 100 rows with
+non-null vectors (`Msg 42266` below that). Full-scan top-k stays exact and stays the right choice
+for a small table. The `azuresql-db-rag` skill carries the rules the index imposes.
 
 ## Validation rules
 

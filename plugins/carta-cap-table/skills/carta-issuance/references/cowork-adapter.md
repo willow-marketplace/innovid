@@ -21,20 +21,40 @@ form already collects, or a pre-ask for a value that is computable (§4).
 One form. Every field, per stakeholder, every computable default pre-filled. The user edits
 what they want and submits once.
 
-**Before you build it, two prerequisites — in this order:**
+**Never hand-write this form.** Run the generator and pass its output straight through:
 
-1. **Call `read_me` once, with `modules: ["interactive"]`.** `show_widget` refuses to render
-   until `read_me` has run, and this form is an interactive one — that module is the one that
-   carries the form and input guidance. Ask for it by name in a single call: `read_me` re-emits
-   the shared core design system on *every* call, so probing module-by-module to find the right
-   one costs ~6k tokens per probe and returns mostly what you already have.
-2. **Read [payload-reference.md](payload-reference.md).** It is the authoritative field contract
-   ([Hard rule 1](../SKILL.md#hard-rules)) and it governs the fields you are about to build —
-   most sharply the per-field date formats, where `grant_expiration_date`, `vesting_start_date`
-   and `rule_144_date` take `MM/DD/YYYY` while every other date goes out ISO. SKILL.md names it
-   as required-reading-up-front, but on this path SKILL.md's preamble is behind you by the time
-   you reach the form, so read it **here** — before constructing the first row, not after the
-   server rejects one with `Date is invalid`.
+```bash
+uv run "${CLAUDE_PLUGIN_ROOT}/skills/carta-issuance/issuance-config/scripts/build_cowork_form.py" \
+  --security-type <option_grant|certificate|piu> \
+  --data "$WORK/_data.json" --knowns "$WORK/_knowns.json" \
+  --corp-name "<legal name>" --corp-id "<corporation_id>" \
+  --out "$WORK/form.html"
+```
+
+Then call `show_widget` with the file's contents **verbatim** as `widget_code`. The two input
+files are the same ones the Code panel uses —
+[`knowns` is documented in code-adapter.md](code-adapter.md#1-config-panel-build_configpy-builds-every-block),
+and the script derives the exercise-price hint, every default, batch mode, and the import
+markers from them. Full flag reference:
+[issuance-config/SKILL.md § Cowork form](../issuance-config/SKILL.md#cowork-form).
+
+A hand-written form is a re-roll of the same dice every run. One traced run shipped
+`board === "today" ? "'+today+'" : ""` — a string-concatenation artifact that would have
+written the literal `'+today+'` as a board approval date — while also omitting the
+**+ Add stakeholder** control, shipping one footer button where the spec requires two (so
+**Save as draft** was unreachable), and rendering no import markers at all.
+
+**Do not call `read_me`.** The document the generator emits is already complete and
+host-compliant; `read_me`'s `interactive` module carries no repeater guidance that would
+express this form, so the call is ~5k tokens and a round trip for nothing.
+
+**Read [payload-reference.md](payload-reference.md) before Phase 1.** It is the authoritative
+field contract ([Hard rule 1](../SKILL.md#hard-rules)) and it governs how you map the
+submitted rows — most sharply the per-field date formats, where `grant_expiration_date`,
+`vesting_start_date` and `rule_144_date` take `MM/DD/YYYY` while every other date goes out
+ISO. SKILL.md names it as required-reading-up-front, but on this path SKILL.md's preamble is
+behind you by the time the form comes back, so read it **here** — before mapping the first
+row, not after the server rejects one with `Date is invalid`.
 
 **Use `show_widget`, not `AskUserQuestion`.** `AskUserQuestion` renders option cards — it
 cannot take a free-text quantity, price, date, or name. Expressing this form as
@@ -43,13 +63,17 @@ this adapter exists to remove. Same rule the KYC intake skills follow.
 
 ### Fields
 
-**This is the authoritative field enumeration for both adapters** — the Code config panel
-collects the identical set, so the two stay interchangeable. Structure it as a repeater of
-**one full key-value block per stakeholder**: every field lives inside that person's own
-block, never in a page-wide shared section, so a single batch can issue genuinely different
-terms to different people. (A bulk run is not "N people, one set of terms" — it is N
-independently-configured rows. The one exception is [batch mode](#batch-mode--identical-term-bulk-grants)
-below, a rendering optimization for the case where the terms really are identical.)
+**This is the authoritative field enumeration for both adapters** — both build from
+`lib/issuance_fields.py`, so the two surfaces stay interchangeable by construction. The
+generator renders it as a repeater of **one full key-value block per stakeholder**: every
+field lives inside that person's own block, never in a page-wide shared section, so a single
+batch can issue genuinely different terms to different people. (A bulk run is not "N people,
+one set of terms" — it is N independently-configured rows. The one exception is
+[batch mode](#batch-mode--identical-term-bulk-grants) below, a rendering optimization for the
+case where the terms really are identical.)
+
+The list below is what the form collects — read it to know what a submitted row carries and
+what `knowns` can pre-fill, not as a build guide.
 
 **Every block, both types** — name (select an existing stakeholder or type a new one; picking
 an existing match auto-populates email, stakeholder type, and relationship, and locks
@@ -80,6 +104,17 @@ collapsed **More fields** accordion, in order: acceleration (optional, shown onc
 set), certificate number, cash paid, debt canceled, returned invested capital (LLC-gated —
 omitted entirely for a corp confirmed non-LLC, not merely hidden), notes.
 
+**PIU, per block** — unit class (labelled "Unit class") · equity plan (**optional**, and
+**not** defaulted even when there is only one — empty issues off the unit class's own
+authorized total) · `<Threshold|Hurdle>` value (**never** pre-filled) · `<Threshold|Hurdle>`
+value type (`Per unit` / `Overall` only) · issue date · board approval (today / other /
+**none** — optional and clearable here) · vesting schedule + start date (opt-in, as certs) ·
+documents · corresponding interest (Yes/No, **only** when the selected unit class reports
+`has_corresponding_interest`) · a collapsed **More fields** accordion: acceleration (once
+vesting is set), security number, consideration price, notes. Threshold labels take
+`knowns.threshold_noun` — "Hurdle" on the UK growth-shares preset. Never on a PIU block:
+exercise price, option type, price per share, legend, Rule 144.
+
 Not on the surface at all — dropped on design feedback, do not add them back: `state_exemption`,
 `state_of_residency`, `employee_id`, `cost_center`, `job_title`, `salary`, `convertible_note`.
 
@@ -88,11 +123,12 @@ Not on the surface at all — dropped on design feedback, do not add them back: 
 does this via `build_config.py`. Blocks are pre-filled one per person named in the prompt. An
 "+ Add stakeholder" control appends a block, copying the most-recently-added block's
 **non-personal, batch-level** terms forward (option type / price / vesting / acceleration /
-dates / documents / HMRC-ATO-notified / early-exercise-style checkboxes, or share class /
-price / vesting / acceleration / legend / Rule 144). Name, email, stakeholder type,
-relationship, quantity, and every identity/amount field in the **More fields** accordion
-(custom label, notes, prefix number, cash paid, debt canceled, returned invested capital)
-start blank on a new block.
+dates / documents / HMRC-ATO-notified / early-exercise-style checkboxes; or share class /
+price / vesting / acceleration / legend / Rule 144; or unit class / equity plan / threshold
+value and type / vesting / acceleration / documents / corresponding interest). Name, email,
+stakeholder type, relationship, quantity, and every identity/amount field in the **More
+fields** accordion (custom label, notes, prefix number, cash paid, debt canceled, returned
+invested capital) start blank on a new block.
 
 **This is where the stakeholder and quantity are collected.** A prompt that omits them shows
 an empty field here, never a chat question — regardless of which shape the prompt takes. Never
@@ -130,8 +166,9 @@ Two obligations, and the second is the one that actually protects the cap table:
 `confidence: "low"` means the value was read out of a document's prose rather than a cell. Say
 so — *"read from the document, confirm it"* — and treat it as needs-confirmation the same way.
 
-The Code adapter gets both behaviours from `build_config.py` automatically; on this path they
-are yours to render.
+**Both behaviours are automatic.** `build_cowork_form.py` renders the markers and blanks every
+noted field straight from `row.import_notes`, so `missingFields()` holds **Review** until the
+admin resolves each one — the click reports the blocker rather than doing nothing. Put the notes on the rows in `knowns` and the form does the rest.
 
 ### Batch mode — identical-term bulk grants
 
@@ -142,34 +179,41 @@ terms and N names** — rendering 30 identical blocks is ~30x the form HTML and 
 payload for zero extra information. Batch mode collapses that case to shared terms once +
 a compact per-person table.
 
-**When to use it.** Auto-activate batch mode when **both** hold:
+**When to use it.** `build_cowork_form.py` decides this itself — it activates batch mode when
+**both** hold:
 - More than 10 rows (`knowns.rows.length > 10`, or an equivalent headcount signal per [Hard
   rule 11](../SKILL.md#hard-rules)).
 - Every row's non-personal terms are identical or unset — i.e. the prompt/`knowns` gave one
   shared set of batch-level terms (option type, exercise price, vesting, document set, etc. for
-  grants; share class, price, legend, etc. for certs) and no individual row overrides any of
-  them.
+  grants; share class, price, legend, etc. for certs; unit class, equity plan, threshold value
+  and type, vesting, documents for PIUs) and no individual row overrides any of them. Identity and amount fields (name, email, quantity, relationship, notes) never count as
+  an override, since those differ per person by nature.
 
 If either condition fails — 10 or fewer rows, **or** any row carries its own distinct term —
-render the per-row repeater instead (existing behavior, unchanged). Batch mode is an
-optimization for the common case, not a replacement for the general one.
+it renders the per-row repeater instead. Batch mode is an optimization for the common case,
+not a replacement for the general one. Set `knowns.batch_mode` to `true`/`false` to force
+either layout.
 
 **Layout.** Two sections instead of N blocks:
 1. **Shared terms, once** — the exact same fields as a per-row block's non-personal terms
-   (option type/exercise price/vesting/documents/etc., or share class/price/vesting/legend/etc.
-   for certs), rendered a single time at the top. Every computable default still applies here
+   (option type/exercise price/vesting/documents/etc.; or share class/price/vesting/legend/etc.
+   for certs; or unit class/equity plan/threshold value and type/vesting/documents for PIUs),
+   rendered a single time at the top. Every computable default still applies here
    ([§4](#4-trust-computable-defaults--never-pre-ask)) — these are the batch-level fallback
    every row inherits.
-2. **Per-grantee table, below** — one row per person, **three columns only**: name · email ·
-   quantity. No per-row expansion of the shared terms; if a specific person genuinely needs
-   different terms, that's a mixed-term batch and belongs in the per-row layout instead (tell
-   the user to say so, or detect it from the prompt before choosing batch mode).
+2. **Per-grantee table, below** — one row per person, **three visible columns**: name · email ·
+   quantity. Each row also carries a relationship `<select>` and a stakeholder-type toggle,
+   hidden until that row's name misses the roster: both are `always` fields on the payload, a
+   roster match supplies them, and nothing supplies them for someone typed in fresh. No
+   per-row expansion of the shared *terms*; if a specific person genuinely needs different
+   terms, that's a mixed-term batch and belongs in the per-row layout instead (tell the user
+   to say so, or detect it from the prompt before choosing batch mode).
 
-**Submit contract — must produce the same `rows` shape as the per-row layout.** Batch mode is
-a *rendering* optimization only; the engine never sees the difference. When the form submits,
-expand the shared terms across every table row so the JSON payload is indistinguishable from
-what the per-row form would have sent — same [Submit contract](#submit-contract) shape, one
-entry per person, each carrying the full field set (shared terms copied onto every row,
+**Submit contract — the same `rows` shape as the per-row layout.** Batch mode is a *rendering*
+optimization only; the engine never sees the difference. The form expands the shared terms
+across every table row on submit, so the JSON payload is indistinguishable from what the
+per-row form would have sent — same [Submit contract](#submit-contract) shape, one entry per
+person, each carrying the full field set (shared terms copied onto every row,
 name/email/quantity from that row's own table cells). `row_key` is still assigned per person
 (`r0`, `r1`, …) so [draft-state bookkeeping](save-validate-flow.md#draft-state-bookkeeping)
 works identically to the per-row path.
@@ -181,8 +225,9 @@ gets its own full block.
 
 ### Submit contract
 
-The form's submit button calls `sendPrompt()` with a JSON payload. It must carry the same
-shape the panel's action-request file does, so the engine's "On submit" step is shared:
+The form's submit button calls `sendPrompt()` with the payload prefixed by an
+`ISSUANCE_CONFIG:` marker — everything after the first colon is the JSON below. It carries the
+same shape the panel's action-request file does, so the engine's "On submit" step is shared:
 
 ```json
 {"action": "config_submit",
@@ -194,9 +239,13 @@ shape the panel's action-request file does, so the engine's "On submit" step is 
 ```
 
 `action` is `config_submit` (save + validate, then review) or `save_only` (save, no
-validation, no review) — same two actions, same meanings, as the panel's two footer buttons.
-Keep `row_key` stable per block — see [Draft state on this path](#draft-state-on-this-path)
+validation, no review) — same two actions, same meanings, as the form's two footer buttons.
+`row_key` stays stable per block; see [Draft state on this path](#draft-state-on-this-path)
 below for what threads through it and why position won't do.
+
+**If the reply arrives as text rather than a submit**, the host's `sendPrompt` no-opped and the
+form told the user to paste the payload instead. It is the same `ISSUANCE_CONFIG:` string —
+parse it the same way and carry on.
 
 After rendering the form, say one line and **wait**. Do not stack an `AskUserQuestion` on top
 of it — that spends the second interactive wait before the review even exists.
@@ -255,6 +304,16 @@ a retry.
 Print the resolved, already-saved-and-validated rows as markdown. **This does not block** —
 it is output, immediately followed by the §3 confirm in the same turn.
 
+**The review is printed *before* the confirm tool call, always.** This is an explicit exception
+to any host instruction about not writing prose between tool calls, or holding output until a
+final response. Such a directive is a style rule about narrating intermediate results; the
+review is not narration, it **is** the gate. A confirm that reaches the user before the review
+does is a failed gate — they approved an irreversible issuance without seeing the terms — and
+backfilling the review afterwards does not repair it, because the answer was already given.
+
+If you find yourself about to call `AskUserQuestion` and the review text is not yet on screen,
+stop and print it first. Order over habit, every run.
+
 Column spec, conditional/optional columns, per-value default explanations, and the
 `ZEPO` / pending-board-approval renderings are all in
 [chat-review.md](chat-review.md) — that file is this capability's content
@@ -307,14 +366,17 @@ in the incident run.
 | Value | Default | Tag |
 |---|---|---|
 | Issue date | today | `(default)` |
-| Grant expiration | `issue_date` + 10 years | `(default)` |
+| Grant expiration | the plan's term from `issue_date` ([payload-reference.md](payload-reference.md#grant-expiration-follows-the-plan)) | `(default — plan term)` |
 | Exercise price | the sole active valuation (409A / EMI / CSOP / share price) | `(default — current <source>)` |
 | Option plan | the only non-expired plan | `(default — only active plan)` |
 | Document set | the only set | `(default — only template)` |
 | Legend | the only legend, or the one flagged `default` | `(default)` |
 | Vesting (grant) | the corp's 4yr / 1yr-cliff schedule | `(default)` |
-| Vesting (cert) | none — opt-in | — |
+| Vesting (cert, PIU) | none — opt-in | — |
 | Board approval | today | `(default)` |
+| Board approval (PIU) | today, and clearable — the field is optional | `(default — today)` |
+| PIU equity plan | **none** — never the only plan | — |
+| PIU threshold value / type | **never defaulted** — terms of the grant | — |
 | Exemption / currency | the `so_type` autofill | `(autofill — <so_type> rule)` |
 | Rule 144 date | `issue_date` | `(default)` |
 

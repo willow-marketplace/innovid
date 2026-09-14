@@ -101,6 +101,10 @@ fi
 # a `cwd` (or `session_id`, or `transcript_path`) appearing inside some other
 # field is not mistaken for it. It is a heuristic and is treated as one —
 # every result is validated below before anything is done with it.
+#
+# #494: whether a real host payload can nest a `cwd` key AHEAD of this
+# field is researched in scripts/user-prompt-hook.sh, next to its own
+# `_stdin_cwd` -- same extractor mechanism, same finding, not repeated here.
 _stdin_json_string() {
     local key="$1" raw="$2" rest prefix value
     case "$raw" in *"\"$key\""*) ;; *) return 1 ;; esac
@@ -113,9 +117,39 @@ _stdin_json_string() {
     printf '%s' "$value"
 }
 
+# _stdin_json_string_into VARNAME key raw
+# Same extraction as _stdin_json_string, written into VARNAME with
+# `printf -v` instead of printed -- so `X=$(_stdin_json_string ...) ||
+# X=""` (a subshell fork purely to capture an already-forkless function's
+# stdout, plus a second statement for the failure case) becomes one
+# unconditional call: VARNAME is set to the empty string up front, so a
+# `return 1` below leaves it exactly where the old `|| X=""` idiom did,
+# with no separate fallback statement needed at the call site (#665, part
+# of #660). Locals below are prefixed `_sjsi_` (this function's own name,
+# abbreviated) rather than the bare `_sjs_` tag config_into's own comment
+# warns about -- narrows, does not close, the same `printf -v`-resolves-
+# against-the-innermost-local collision every function in this file that
+# takes a destination VARNAME shares; see config_into's comment (log.sh)
+# for the full argument.
+_stdin_json_string_into() {
+    local _sjsi_var="$1" _sjsi_key="$2" _sjsi_raw="$3" _sjsi_rest _sjsi_prefix _sjsi_value
+    printf -v "$_sjsi_var" '%s' ""
+    case "$_sjsi_raw" in *"\"$_sjsi_key\""*) ;; *) return 1 ;; esac
+    _sjsi_rest=${_sjsi_raw#*\"$_sjsi_key\"}
+    _sjsi_prefix=${_sjsi_rest%%\"*}
+    case "$_sjsi_prefix" in *[!:[:space:]]*) return 1 ;; esac
+    _sjsi_value=${_sjsi_rest#*\"}
+    _sjsi_value=${_sjsi_value%%\"*}
+    [ -n "$_sjsi_value" ] || return 1
+    printf -v "$_sjsi_var" '%s' "$_sjsi_value"
+}
+
 # ── The cwd the host handed us (#411) ──────────────────────────────────────
-# Every host puts `cwd` on the SessionStart payload (#407's comparison table),
-# but only Claude Code also publishes it as CLAUDE_PROJECT_DIR. Exported for
+# Every host puts `cwd` on the SessionStart payload (#407's comparison table).
+# Claude Code always also publishes it as CLAUDE_PROJECT_DIR; Codex never
+# does (live-confirmed, #463); Gemini CLI's own bundled docs now say it DOES
+# publish CLAUDE_PROJECT_DIR too, as a compatibility alias (#456, unverified
+# live — #532; used to be believed it did not, #534). Exported for
 # resolve-paths.sh to consult as its fallback once CLAUDE_PROJECT_DIR is
 # unset — precedence is CLAUDE_PROJECT_DIR, then this, then the existing
 # .claude/remember layout derivation, then the existing failure; a stdin
@@ -133,7 +167,7 @@ _stdin_json_string() {
 # preserves one). Whether the value actually names a directory is decided in
 # resolve-paths.sh, which falls back to the existing derivation when it does
 # not.
-REMEMBER_HOOK_CWD=$(_stdin_json_string cwd "$HOOK_STDIN" 2>/dev/null) || REMEMBER_HOOK_CWD=""
+_stdin_json_string_into REMEMBER_HOOK_CWD cwd "$HOOK_STDIN" 2>/dev/null
 case "$REMEMBER_HOOK_CWD" in
     *$'\n'*|*$'\r'*) REMEMBER_HOOK_CWD="" ;;
 esac
@@ -151,6 +185,15 @@ export REMEMBER_HOOK_CWD
 # is why this hook never reaches this line for that child; resolve-paths.sh
 # keeps its own copy of the same guard for every OTHER caller that sources it.
 REMEMBER_PATHS_SOFT_FAIL=1 source "$_HOOK_DIR/resolve-paths.sh" || exit 0
+# Defer the Python candidate probe (#662): this foreground path only ever
+# needs $PYTHON through four call sites, all jq-less fallbacks (the config
+# merge, the config flatten, the per-key read, and _jq_fallback itself) --
+# none of which run on the common jq-present path. Every other sourcer of
+# detect-tools.sh (post-tool-hook.sh, save-session.sh, run-consolidation.sh,
+# doctor.sh) invokes $PYTHON -m pipeline.shell unconditionally right after
+# sourcing it, so eager detection there is real, not wasted, work -- this is
+# the one caller that is not.
+_REMEMBER_LAZY_PYTHON=1
 source "$_HOOK_DIR/detect-tools.sh"
 source "$_HOOK_DIR/bootstrap-dirs.sh"
 PLUGIN_ROOT="$PIPELINE_DIR"
@@ -165,7 +208,8 @@ if ! command -v _remember_date >/dev/null 2>&1; then
     echo "session-start-hook: ERROR -- failed to source $PLUGIN_ROOT/scripts/log.sh" >&2
     exit 127
 fi
-TODAY=$(_remember_date '+%Y-%m-%d')
+TODAY=""
+_remember_date_into TODAY '+%Y-%m-%d'
 log "hook" "session-start: PROJECT_DIR=$PROJECT_DIR PIPELINE_DIR=$PIPELINE_DIR REMEMBER_DIR=$REMEMBER_DIR"
 
 # Publish what the chain above just resolved, so user-prompt-hook.sh does not
@@ -174,6 +218,11 @@ log "hook" "session-start: PROJECT_DIR=$PROJECT_DIR PIPELINE_DIR=$PIPELINE_DIR R
 # became a linked git worktree, say — to a single session.
 source "$PLUGIN_ROOT/scripts/lib-env-cache.sh"
 _remember_env_cache_publish
+
+# #668: the injected MEMORY section (six files headed/sized/concatenated,
+# plus the rotated-slice listing) is cached across SessionStart runs -- see
+# lib-memory-context.sh's own header for the validation contract.
+source "$PLUGIN_ROOT/scripts/lib-memory-context.sh"
 
 # ── Which session is THIS one? (#270) ─────────────────────────────────────
 # Both jobs below need to know our own transcript so they can exclude it. They
@@ -221,7 +270,7 @@ esac
 # than dropped, in case a future change to that loop ever preserves one).
 # Whether the value actually names an openable file is decided on the Python
 # side, which falls back to the existing derivation when it does not.
-REMEMBER_TRANSCRIPT_PATH=$(_stdin_json_string transcript_path "$HOOK_STDIN" 2>/dev/null) || REMEMBER_TRANSCRIPT_PATH=""
+_stdin_json_string_into REMEMBER_TRANSCRIPT_PATH transcript_path "$HOOK_STDIN" 2>/dev/null
 case "$REMEMBER_TRANSCRIPT_PATH" in
     *$'\n'*|*$'\r'*) REMEMBER_TRANSCRIPT_PATH="" ;;
 esac
@@ -241,7 +290,7 @@ export REMEMBER_TRANSCRIPT_PATH
 # `compact`: that would silently stop injecting memory for anyone whose
 # payload shape differs from the one this heuristic was written against —
 # the failure this plugin exists to prevent, not to cause.
-SESSION_START_SOURCE=$(_stdin_json_string source "$HOOK_STDIN" 2>/dev/null) || SESSION_START_SOURCE=""
+_stdin_json_string_into SESSION_START_SOURCE source "$HOOK_STDIN" 2>/dev/null
 case "$SESSION_START_SOURCE" in
     startup|resume|clear|compact|fork) ;;
     *) SESSION_START_SOURCE="" ;;
@@ -321,9 +370,79 @@ LAST_SAVE_FILE="$REMEMBER_DIR/tmp/last-save.json"
 SAVED_QUERY='def isline: type == "number" and ((isnan or isinfinite) | not) and . == floor; if (((.sessions // {})[$id]) | isline) or (.session == $id and (.line | isline)) then "saved" else "unsaved" end'
 
 # Args: $1 — session id. Exit 0 if last-save.json records it as saved.
+#
+# _jq_fallback's own shim (scripts/detect-tools.sh) only ever evaluates
+# dotted-path lookups and drops every `--arg`/`--argjson` pair entirely
+# (#667): it eats each leading `-*` token into a flags variable it never
+# reads, then treats the first non-flag token as the query and the one
+# after it as the file -- fed `--arg id "$1" "$SAVED_QUERY"
+# "$LAST_SAVE_FILE"`, that lands on query="id", file="$1" (the session id,
+# not a real file), so the shim always prints nothing and this always read
+# as "unsaved", spawning `save-session.sh --force` on every jq-less
+# startup regardless of whether the previous session was actually saved.
+#
+# Every OTHER $JQ/$JQ_BIN call site under scripts/ that passes --arg already
+# guards itself with `command -v jq` first (session-start-hook.sh's own
+# promo-JSON call below, user-prompt-hook.sh's two notice-JSON calls), so
+# this is the ONLY call site that ever reaches the fallback with --arg --
+# it gets its own jq-free branch instead of teaching the generic shim a
+# --arg parser it would be the sole caller of.
 session_was_saved() {
     [ -n "$1" ] && [ -f "$LAST_SAVE_FILE" ] || return 1
-    [ "$($JQ -r --arg id "$1" "$SAVED_QUERY" "$LAST_SAVE_FILE" 2>/dev/null)" = "saved" ]
+    if [ "$JQ" = "_jq_fallback" ]; then
+        _remember_python || return 1
+        [ "$($PYTHON - "$LAST_SAVE_FILE" "$1" << 'PYEOF' 2>/dev/null
+import json, math, sys
+
+def isline(v):
+    # Mirrors $SAVED_QUERY's own `isline` def exactly: a JSON number,
+    # never a bool (Python's bool is an int subclass), finite (excludes
+    # both NaN and +/-Infinity -- 1e400 overflows to Infinity, and
+    # floor(Infinity) == Infinity, which would otherwise read as a false
+    # "saved"), and equal to its own floor (an integer value).
+    return (
+        isinstance(v, (int, float))
+        and not isinstance(v, bool)
+        and math.isfinite(v)
+        and v == math.floor(v)
+    )
+
+try:
+    data = json.load(open(sys.argv[1]))
+except Exception:
+    print("unsaved")
+    sys.exit(0)
+
+sid = sys.argv[2]
+if not isinstance(data, dict):
+    print("unsaved")
+    sys.exit(0)
+
+sessions = data.get("sessions")
+if sessions is not None and not isinstance(sessions, dict):
+    # $SAVED_QUERY's own `(.sessions // {})[$id]` throws a hard jq runtime
+    # error the instant `.sessions` is present but not an object (or null)
+    # -- jq has no `or`-short-circuit past a raised error, so the WHOLE
+    # query aborts right there and the shell side reads empty stdout as
+    # "unsaved", never reaching the legacy .session/.line fallback below.
+    # Falling through here instead (self-review finding) would read a
+    # corrupted `sessions` value as "saved" whenever a legacy `session`/
+    # `line` pair also happened to validate, diverging from real jq on the
+    # exact same file.
+    print("unsaved")
+    sys.exit(0)
+
+if isinstance(sessions, dict) and isline(sessions.get(sid)):
+    print("saved")
+elif data.get("session") == sid and isline(data.get("line")):
+    print("saved")
+else:
+    print("unsaved")
+PYEOF
+)" = "saved" ]
+    else
+        [ "$($JQ -r --arg id "$1" "$SAVED_QUERY" "$LAST_SAVE_FILE" 2>/dev/null)" = "saved" ]
+    fi
 }
 
 # ── Which session was the PREVIOUS one? (#270) ────────────────────────────
@@ -686,7 +805,11 @@ if [ -n "$PREV_ID" ] && session_was_saved "$PREV_ID"; then
 fi
 
 # ── Recovery: save the most recent missed session ──────────────────────────
-if [ "$(config '.features.recovery' true)" = "true" ]; then
+# config_into (#665, part of #660) writes into a scratch var directly --
+# no command-substitution subshell on top of the flattened-cache-hit table.
+_recovery_enabled=""
+config_into _recovery_enabled '.features.recovery' true
+if [ "$_recovery_enabled" = "true" ]; then
 if [ -d "$SESSIONS_DIR" ] && [ -f "$LAST_SAVE_FILE" ] && [ -n "$PREV_ID" ]; then
     if [ "$PREV_WAS_SAVED" = "no" ]; then
         # REMEMBER_TRANSCRIPT_PATH (exported above, #407) names THIS session's
@@ -766,7 +889,20 @@ CAPTURE_SEEN_DIR="$REMEMBER_DIR/tmp/capture-alive.d"
 CAPTURE_REPORTED="$REMEMBER_DIR/tmp/capture-gap-reported"
 CAPTURE_SEEN_KEEP=200
 
-SEEN_ID=$(cat "$CAPTURE_ALIVE" 2>/dev/null) || true
+# $(<"$f") -- bash's own special-cased "no fork" command substitution,
+# not $(cat "$f" 2>/dev/null) (#679, part of #660): `$(<file)` is ONLY that
+# fast path when the substitution's body is EXACTLY `<file` and nothing
+# else -- `$(2>/dev/null <file)` looks similar but is an ordinary subshell
+# running NO command with two redirections, so it always prints nothing at
+# all, file-present or not (a real, reproduced bug in an earlier version
+# of this fix: it read as correct on the missing-file path and silently
+# broke the present-file one, caught by the full suite rather than by this
+# file's own targeted test, which never exercised a file that actually has
+# content). So: guard the missing/unreadable case with `[ -f ]` first,
+# exactly as this codebase already does everywhere else on this pattern,
+# and use the untouched `$(<file)` form only once existence is known.
+SEEN_ID=""
+[ -f "$CAPTURE_ALIVE" ] && SEEN_ID=$(<"$CAPTURE_ALIVE")
 
 # Args: $1 — session id. Exit 0 if anything can vouch for it having been
 # captured. Any one source suffices; they fail independently.
@@ -797,12 +933,29 @@ capture_was_seen() {
 
 # Bounded: one marker per session accumulates in a tmp dir nothing else
 # prunes. Newest are kept — those are the only ones the check ever reads.
-if [ -d "$CAPTURE_SEEN_DIR" ]; then
+#
+# Gated on actually being over the threshold (#666): the `ls -t | tail`
+# pipeline ran on every single session start before this, even on a brand
+# new store with one marker in it -- paying two forks to find nothing to
+# prune. A glob array costs none: its length is exactly what the threshold
+# check needs, and nullglob means an absent/empty directory counts as zero
+# rather than matching a literal `*` string.
+# `shopt -p nullglob` exits 1 (even though it prints correctly) whenever
+# the option is currently OFF -- which it is by default -- so capturing it
+# via `var=$(...)` would abort this script if it ever ran under `set -e`.
+# `shopt -q` in a plain `&&` conditional never has that problem.
+_remember_capture_seen_was_nullglob=0
+shopt -q nullglob && _remember_capture_seen_was_nullglob=1
+shopt -s nullglob
+_remember_capture_seen_entries=("$CAPTURE_SEEN_DIR"/*)
+[ "$_remember_capture_seen_was_nullglob" = 1 ] || shopt -u nullglob
+if [ "${#_remember_capture_seen_entries[@]}" -gt "$CAPTURE_SEEN_KEEP" ]; then
     ls -t "$CAPTURE_SEEN_DIR" 2>/dev/null | tail -n "+$((CAPTURE_SEEN_KEEP + 1))" \
     | while IFS= read -r stale; do
         [ -n "$stale" ] && rm -f "$CAPTURE_SEEN_DIR/$stale" 2>/dev/null || true
     done
 fi
+unset _remember_capture_seen_entries _remember_capture_seen_was_nullglob
 
 # PREV_ID and PREV_JSONL were resolved once, above, for this check and for
 # recovery both. Guard against the honest zero-tool session too: a conversation
@@ -836,7 +989,10 @@ else
     # tuned out. (This dedupe was structurally unable to help while the id was
     # wrong: a wrong id changes on every startup, so every restart minted a
     # fresh unreported id and warned again.)
-    REPORTED_ID=$(cat "$CAPTURE_REPORTED" 2>/dev/null) || true
+    # $(<"$f") -- see SEEN_ID's own comment above (#679) for why this is
+    # NOT `$(2>/dev/null <"$f")`.
+    REPORTED_ID=""
+    [ -f "$CAPTURE_REPORTED" ] && REPORTED_ID=$(<"$CAPTURE_REPORTED")
 
     if [ -n "$PREV_ID" ] && [ "$REPORTED_ID" != "$PREV_ID" ] \
        && ! capture_was_seen "$PREV_ID" \
@@ -850,20 +1006,14 @@ fi
 # ── Identity: per-project → user-global → plugin-bundled ──────────────────
 # User-global tier: <REMEMBER_ROOT>/identity.md (external mode only).
 # In legacy mode REMEMBER_ROOT == PROJECT_DIR, so we skip it there.
-REMEMBER_ROOT=$(dirname "$REMEMBER_DIR")
-if [ -f "$REMEMBER_DIR/identity.md" ]; then
-    IDENTITY_FILE="$REMEMBER_DIR/identity.md"
-elif [ -f "$REMEMBER_ROOT/identity.md" ] && [ "$REMEMBER_ROOT" != "$PROJECT_DIR" ]; then
-    IDENTITY_FILE="$REMEMBER_ROOT/identity.md"
-else
-    IDENTITY_FILE="$PLUGIN_ROOT/identity.md"
-fi
-
-CORE_MEMORIES="$REMEMBER_DIR/core-memories.md"
-REMEMBER_RECENT="$REMEMBER_DIR/recent.md"
-REMEMBER_ARCHIVE="$REMEMBER_DIR/archive.md"
-REMEMBER_NOW="$REMEMBER_DIR/now.md"
-REMEMBER_TODAY_FILE="$REMEMBER_DIR/today-${TODAY}.md"
+#
+# Computed by lib-memory-context.sh's _remember_memory_paths (#668), the same
+# function save-session.sh and run-consolidation.sh now call to pre-render
+# the SessionStart cache -- kept in one place for the same reason #158
+# documents for session_dir_slug: a second, independently-maintained copy of
+# this exact logic is how the live path and the cache it feeds silently
+# drift apart. TODAY is already set above, so the function reuses it as-is.
+_remember_memory_paths
 
 # ── Handoff path: single (default) vs per-session (#363) ──────────────────
 # Two or more INTERACTIVE sessions share one project store by design, even
@@ -892,7 +1042,7 @@ REMEMBER_TODAY_FILE="$REMEMBER_DIR/today-${TODAY}.md"
 # there, and doing so leaves "no HANDOFF hint was given" visible in the
 # transcript instead of a namespaced-looking path that never actually
 # applied.
-HANDOFF_MODE=$(config ".handoff_mode" "single")
+config_into HANDOFF_MODE ".handoff_mode" "single"
 PER_SESSION_HANDOFF=""
 HANDOFF_MODE_DEGRADED=""
 if [ "$HANDOFF_MODE" = "per_session" ] && [ -n "$CURRENT_SESSION_ID" ]; then
@@ -928,6 +1078,347 @@ fi
 # hint still fires with the correct path, and a second line says so, so
 # a user who set per_session does not read "namespaced" behaviour into a
 # session that never got one.
+# ── Cross-plugin promo (#574) ──────────────────────────────────────────────
+# A single-line systemMessage naming one NOT-YET-INSTALLED sibling plugin,
+# from SessionStart only -- never SessionEnd, never PostToolUse, never
+# UserPromptSubmit/Stop (measured to deliver too, per the issue's own probe,
+# but deliberately not used: a per-turn channel turns "occasional" into
+# "constant" with nobody touching a throttle). additionalContext is never an
+# option here: it costs tokens on every session and is read by the model, not
+# the human this is addressed to.
+#
+# promos.json (data, not shell) lives beside config.example.json so the copy
+# can be added/reworded/dropped without a shell edit inside a hook that runs
+# on every session start. PROMO_MSG is computed here, BEFORE the CTX capture
+# below, because it must reach the plain-script scope that builds the final
+# JSON -- a value set inside the `CTX=$( … )` subshell a few lines down would
+# die with that subshell.
+#
+# REMEMBER_SUPPRESS_PROMO (#596): agy-session-start-hook.sh delegates here
+# with this delegate's own stdout piped to /dev/null (Antigravity parses a
+# command hook's stdout as protojson against its own schema, and this
+# script's plain-text/hookSpecificOutput shape does not fit it -- #563), so
+# any promo composed on that path is guaranteed to never reach a human, yet
+# the emit block a few hundred lines down commits the throttle/rotation
+# marker on any successful `printf`, and `printf` to /dev/null succeeds.
+# That silently burned the whole `cooldowns.promo_seconds` window for
+# every OTHER caller on the same machine, for a promo nobody ever saw.
+#
+# Fixed here rather than by having the emit block detect its own stdout
+# target: this script has no reliable way to do that. `[ -t 1 ]` cannot
+# tell "discarded" from "captured normally" -- a real Claude Code
+# invocation ALSO pipes this hook's stdout through a non-tty read, so a
+# tty check would suppress the marker for every legitimate caller too.
+# Only the caller that KNOWS its own delegation discards stdout can act on
+# that fact, so agy-session-start-hook.sh sets this flag before invoking
+# us, and the whole promo feature -- selection AND marker -- is skipped on
+# that path, leaving the cooldown/rotation state untouched for a real
+# session to actually show the promo in.
+PROMO_MSG=""
+PROMO_ID=""
+PROMO_MARKER=""
+PROMO_NOW=""
+_promos_enabled=""
+config_into _promos_enabled ".features.plugin_promos" true
+if [ "$_promos_enabled" = "true" ] \
+    && [ -z "$REMEMBER_SUPPRESS_PROMO" ]; then
+
+    # Args: none. Reads promos.json + installed_plugins.json, sets PROMO_MSG
+    # as a side effect, and persists the machine-global throttle/rotation
+    # marker when (and only when) it decides to speak.
+    _remember_compute_promo() {
+        local promos_file="$PLUGIN_ROOT/promos.json"
+        [ -f "$promos_file" ] || return 0
+        command -v jq >/dev/null 2>&1 || return 0
+
+        # Machine-global, deliberately NOT under REMEMBER_DIR: data_dir can be
+        # per-project (the legacy default) or external-and-shared, and this
+        # throttle/rotation state describes what THIS MACHINE has already
+        # shown, not what one project's store has. $HOME/.remember is already
+        # the one config tier that is machine-global regardless of data_dir
+        # (lib-memory-dir.sh's user-global tier) -- reused here for the same
+        # reason, not because it holds config today.
+        local promo_dir="${HOME}/.remember/tmp"
+        local marker="$promo_dir/promo-notice"
+        local cooldown
+        config_into cooldown ".cooldowns.promo_seconds" 604800
+        case "$cooldown" in ''|*[!0-9]*) cooldown=604800 ;; esac
+
+        local last_ts=0 last_id=""
+        if [ -f "$marker" ]; then
+            local _pk _pv
+            while IFS='=' read -r _pk _pv; do
+                case "$_pk" in
+                    ts) last_ts="$_pv" ;;
+                    id) last_id="$_pv" ;;
+                esac
+            done < "$marker"
+        fi
+        case "$last_ts" in ''|*[!0-9]*) last_ts=0 ;; esac
+
+        local now=""
+        _remember_date_into now +%s
+        case "$now" in ''|*[!0-9]*) return 0 ;; esac
+
+        if [ "$last_ts" -gt 0 ] \
+            && [ $(( 10#$now - 10#$last_ts )) -lt "$cooldown" ]; then
+            return 0
+        fi
+
+        # ── #660: one jq call for the whole promo list, not four per entry ──
+        # The pre-#660 shape ran, per candidate, one `jq -r '.promos | length'`
+        # plus FOUR more `jq` calls (id/text/url/installed_key) and then, for
+        # every candidate that survived those, TWO MORE identical `has_it`
+        # calls -- one to capture the value, one just to re-run the same query
+        # and inspect its exit status (a plain copy-paste: same program, same
+        # file, same $ikey, called twice). With the two promos.json ships
+        # today that is up to 13 jq forks to decide on ONE line of output.
+        # `jq` is cheap on Linux/macOS; it is not on Windows/Git Bash, where
+        # each subprocess costs ~50-200ms (#660's own measurement) -- a hook
+        # that shells out a dozen times pays for that roughly 10x harder than
+        # on Unix. None of this needed per-entry queries: `.promos` does not
+        # change between one candidate and the next in the same invocation, so
+        # one jq process can read the whole array.
+        #
+        # One value per LINE, not one TSV row per entry (#657 regression
+        # caught mid-implementation): `IFS=$'\t' read` squashes CONSECUTIVE
+        # tab delimiters exactly like it squashes consecutive spaces, because
+        # tab is one of the fixed "IFS whitespace" characters POSIX defines --
+        # true no matter what IFS is actually SET to, as long as it consists
+        # only of space/tab/newline. An entry with an EMPTY middle field (no
+        # `url`, the #574 fixture this broke first) collapses two adjacent
+        # tabs into one delimiter and every field after it shifts left by
+        # one. Newline never gets squashed by `read -r` the same way, so
+        # each field is printed on its own line instead.
+        #
+        # A second trap sits right behind the first: `$( … )` strips EVERY
+        # trailing newline from a command substitution, not just one, so an
+        # entry whose LAST field (`gate`, here) is empty on the FINAL promo
+        # in the file silently loses that line -- the five-line group for
+        # that entry becomes four, and the next `read` past it hits real EOF
+        # instead of the sentinel below, dropping the star ask whenever it
+        # happens to land last with an empty trailing field. A literal,
+        # never-empty sentinel appended after every real field closes both
+        # traps: it can never itself be eaten by trailing-newline stripping
+        # (nothing empty follows it), and the loop below stops on SEEING it
+        # rather than on EOF, so a genuinely empty trailing field is read
+        # correctly instead of silently vanishing.
+        local _promo_rows
+        _promo_rows=$($JQ -r '(.promos[]? | .id // "", .text // "", .url // "", .installed_key // "", .gate // ""), "#promo-end#"' "$promos_file" 2>/dev/null) || return 0
+        [ -n "$_promo_rows" ] || return 0
+
+        # Three states (#574 decision 3), never two. `installed_ok` is unset
+        # (cannot-tell) unless the file exists AND declares the one version
+        # this reads -- a wrong/absent version must suppress exactly like a
+        # confirmed install, never be read as "not installed".
+        #
+        # Folded into the SAME jq call that lists the installed keys (#660):
+        # previously the version check was one `jq` call and each candidate's
+        # `.plugins[$k]` membership test was its own call against the same
+        # document. A malformed `.plugins` (not an object) used to fail each
+        # of those per-key queries individually, which had the SAME aggregate
+        # effect as failing here once -- every candidate already fell through
+        # to `continue` either way, so no entry could ever be selected from an
+        # installed-plugins file jq could not query, and `first_id`/rotation
+        # never sees an entry whose install status could not be confirmed.
+        # Collapsing that into one up-front probe changes nothing selectable,
+        # only how many processes it costs to find out.
+        local installed_file="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/installed_plugins.json"
+        local installed_ok=""
+        local -a installed_keys=()
+        if [ -f "$installed_file" ]; then
+            local _iprobe
+            _iprobe=$($JQ -r 'if (.version // empty) == "2" then (["#ok"] + ((.plugins // {}) | to_entries | map(.key))) | .[] else empty end' "$installed_file" 2>/dev/null)
+            if [ -n "$_iprobe" ]; then
+                local _iline _ifirst=1
+                while IFS= read -r _iline; do
+                    if [ "$_ifirst" = "1" ]; then
+                        _ifirst=0
+                        [ "$_iline" = "#ok" ] && installed_ok="true"
+                        continue
+                    fi
+                    [ -n "$_iline" ] && installed_keys+=("$_iline")
+                done <<< "$_iprobe"
+            fi
+        fi
+
+        local id text url ikey gate entry_idx=0 url_display msg
+        local candidate_id="" candidate_msg="" first_id="" first_msg=""
+        while IFS= read -r id; do
+            [ "$id" = "#promo-end#" ] && break
+            IFS= read -r text || break
+            IFS= read -r url || break
+            IFS= read -r ikey || break
+            IFS= read -r gate || break
+            entry_idx=$((entry_idx + 1))
+
+            if [ -z "$id" ] || [ -z "$text" ]; then
+                log "hook" "promo skipped: promos.json entry $((entry_idx - 1)) is missing id/text"
+                continue
+            fi
+            # `gate` (#657) is the escape from the cross-plugin-only shape
+            # #574 shipped: an entry with no `gate` is the original kind and
+            # still needs `installed_key` to know what to check for; an entry
+            # WITH a `gate` is asking a different question entirely (has this
+            # store demonstrably done something for the user yet?) and has no
+            # installed-plugin identity to check, so `installed_key` is not
+            # required for it.
+            if [ -z "$gate" ] && [ -z "$ikey" ]; then
+                log "hook" "promo skipped: promos.json entry $((entry_idx - 1)) is missing installed_key"
+                continue
+            fi
+            # An entry with no url is skipped, and the skip is VISIBLE
+            # (#574 decision 1) -- never silently rendered without the link.
+            if [ -z "$url" ]; then
+                log "hook" "promo skipped: '$id' has no url"
+                continue
+            fi
+
+            case "$gate" in
+                "")
+                    # The #574 shape: only a plugin that is NOT installed may
+                    # speak.
+                    [ -n "$installed_ok" ] || continue
+                    local _found=""
+                    local _k
+                    for _k in "${installed_keys[@]}"; do
+                        if [ "$_k" = "$ikey" ]; then
+                            _found="yes"
+                            break
+                        fi
+                    done
+                    [ -z "$_found" ] || continue
+                    ;;
+                recent_nonempty)
+                    # #657: the star ask waits until the plugin has
+                    # demonstrably done something for the user. `recent.md`
+                    # existing and being non-empty needs no new counter --
+                    # that file is written only once a past day's staging has
+                    # been consolidated (pipeline/consolidate.py), so its
+                    # presence already means a full day of sessions was
+                    # captured and compressed. `-f` (not `-e`) so a directory,
+                    # device or other non-regular node at that path -- the
+                    # same class of thing #653/#654 refuse at every marker
+                    # WRITE site -- is never read as "done something", and
+                    # `-s` so a zero-byte file (created but never populated)
+                    # is not either.
+                    if [ ! -f "$REMEMBER_RECENT" ] || [ ! -s "$REMEMBER_RECENT" ]; then
+                        continue
+                    fi
+                    ;;
+                *)
+                    # An unrecognised gate is refused, not guessed at --
+                    # rendering an ungated promo by accident is the failure
+                    # this field exists to prevent, not a fallback to offer.
+                    log "hook" "promo skipped: '$id' has unknown gate '$gate'"
+                    continue
+                    ;;
+            esac
+
+            url_display="${url#https://}"
+            url_display="${url_display#http://}"
+            # The off switch travels WITH the message (#631). It was
+            # already documented in README.md, docs/configuration.md and
+            # docs/hooks.md -- none of which a user reads at the moment a
+            # line they did not ask for appears in their terminal.
+            #
+            # The key is spelled in full, exactly as docs/configuration.md
+            # spells it. A shorter `plugin_promos=false` fits the old
+            # 140-char budget, but config.json is JSON -- that form is not
+            # valid syntax anywhere, and a reader who pastes it literally
+            # gets silence rather than an error. An unfindable hint and a
+            # wrong one are the same defect; the budget moved instead
+            # (140 -> 150 -> 170, across #631's two off-switch-hint
+            # commits), which lengthens no rendered line, it only stops
+            # guarding against one that is 30 characters longer.
+            #
+            # The line also says who is speaking (#631). systemMessage is
+            # emitted raw a few hundred lines below -- no plugin name is
+            # added by this hook, and whether the client adds one is not
+            # something this repo can assert. Unattributed, the hint above
+            # names a key in nobody's config.json in particular: every
+            # plugin may have a `features` block, and the reporter had to
+            # work out for himself which of his plugins had spoken. An
+            # unaddressed off switch is barely better than none.
+            #
+            # The longest shipped entry renders at 162 of the 170-char
+            # budget below (the #657 star ask). Dropping `github.com/` from
+            # the display would have bought characters back, but most
+            # terminals stop auto-linking a bare org/repo, and an
+            # unclickable link defeats the only thing the promo is for.
+            # TestPromoCarriesItsOwnOffSwitch asserts every shipped entry
+            # still renders, so a future copy edit that busts the budget
+            # fails CI instead of silently suppressing the promo.
+            msg="claude-remember: $text -- $url_display (off: features.plugin_promos)"
+            if [ "${#msg}" -gt 170 ]; then
+                log "hook" "promo skipped: '$id' text+url exceeds the 170-char budget (${#msg})"
+                continue
+            fi
+
+            [ -n "$first_id" ] || { first_id="$id"; first_msg="$msg"; }
+            if [ "$id" != "$last_id" ]; then
+                candidate_id="$id"
+                candidate_msg="$msg"
+                break
+            fi
+        done <<< "$_promo_rows"
+
+        # Rotation (#574 decision 1): id is what the throttle records, so a
+        # single not-installed candidate that happens to equal last time's id
+        # (only possible plugin) still speaks -- it just never "rotates" away
+        # from itself.
+        [ -n "$candidate_id" ] || { candidate_id="$first_id"; candidate_msg="$first_msg"; }
+        [ -n "$candidate_id" ] || return 0
+
+        # The marker is NOT written here (review finding, #574): this
+        # function only SELECTS a candidate. Writing the throttle/rotation
+        # record at this point, before the buffered-stdout / jq stages a few
+        # hundred lines down have proven the promo actually reached stdout,
+        # meant a buffer-open failure or a jq hiccup on the emit pass could
+        # burn the whole `cooldowns.promo_seconds` window on a promo the user
+        # never saw -- reproduced live by both review spawns (an unwritable
+        # $REMEMBER_DIR/tmp, or jq disappearing between the two `command -v`
+        # checks). PROMO_ID/PROMO_MARKER/PROMO_NOW cross the function
+        # boundary the same way PROMO_MSG already does, and the emit block is
+        # the one place that writes the marker, immediately after printing
+        # the JSON that carries this message -- never before.
+        PROMO_MSG="$candidate_msg"
+        PROMO_ID="$candidate_id"
+        PROMO_MARKER="$marker"
+        PROMO_NOW="$now"
+    }
+
+    _remember_compute_promo
+fi
+
+# ── Buffer the rest of stdout instead of writing it live (#574) ────────────
+# `systemMessage` and plain-context stdout cannot coexist on one reply: it is
+# either JSON or it is not. Everything below used to go straight to real
+# stdout, which the harness reads as additionalContext on this event, so
+# when PROMO_MSG is non-empty it must become `hookSpecificOutput.
+# additionalContext` inside one JSON object instead.
+#
+# fd redirection, not `CTX=$( … )`: this range contains `case` statements
+# (the handoff-delivery-record reader below), and bash's own parser reads a
+# `case` pattern's closing `)` as the end of a command substitution -- the
+# exact trap user-prompt-hook.sh's CTX block already documents avoiding for
+# the same reason, on a much smaller block. A private, pre-verified-writable
+# temp file sidesteps the parser entirely: real fds, no substitution boundary
+# for a `)` to collide with.
+_REMEMBER_CTX_FILE="$REMEMBER_DIR/tmp/session-start-ctx.$$"
+_REMEMBER_CTX_OK=""
+mkdir -p "$REMEMBER_DIR/tmp" 2>/dev/null
+# Verify the target is writable BEFORE handing it to `exec`: a redirection
+# failure on the `exec` builtin itself (a special builtin) can terminate a
+# non-interactive shell outright, and this hook is documented EXIT CODES: 0
+# Always. `: > file` failing cleanly here costs nothing and keeps the
+# unredirected fallback below (print live, exactly as before, minus the
+# promo) the ONLY behaviour change on a store this hook cannot write into.
+if : > "$_REMEMBER_CTX_FILE" 2>/dev/null; then
+    exec 3>&1
+    exec > "$_REMEMBER_CTX_FILE"
+    _REMEMBER_CTX_OK="true"
+fi
 if [ "$REMEMBER_ROOT" != "$PROJECT_DIR" ] || [ -n "$PER_SESSION_HANDOFF" ]; then
     echo "=== HANDOFF ==="
     echo "Write next handoff to: $REMEMBER_HANDOFF"
@@ -1073,7 +1564,7 @@ if [ -f "$REMEMBER_HANDOFF" ] && [ -s "$REMEMBER_HANDOFF" ]; then
         echo "[already delivered ${DELIVERIES} times since ${FIRST_DELIVERED:-an earlier session} -- no new handoff has been written since, so this is pending replacement, not news. You may already have acted on it. Running /remember replaces it.]"
     else
         DELIVERIES=1
-        FIRST_DELIVERED=$(_remember_date '+%Y-%m-%d %H:%M')
+        _remember_date_into FIRST_DELIVERED '+%Y-%m-%d %H:%M'
     fi
     cat "$REMEMBER_HANDOFF"
     echo ""
@@ -1143,7 +1634,17 @@ GRACE_MIN=5
 # only ever matches "remember.delivered.<something>", and the shared-mode
 # file is exactly "remember.delivered" with no trailing dot.
 if [ -d "$SESSIONS_DIR" ] && [ -d "$REMEMBER_DIR/tmp" ]; then
-    for _remember_stale_record in "$REMEMBER_DIR"/tmp/remember.delivered.*; do
+    # #517: normalize before the glob -- REMEMBER_DIR arrives backslash-
+    # separated on msys/cygwin, and bash's glob only ever splits on '/', so
+    # without this the sweep below silently never fires there, leaking one
+    # stale delivery record per session forever (the #373 leak this sweep
+    # exists to stop, just on the one platform it was never proven to
+    # cover). _remember_stale_record itself then expands with '/'
+    # separators from this normalized directory, so the existing
+    # ##*/remember.delivered. strip further down still matches.
+    _remember_delivered_glob_dir=""
+    _remember_forward_slash_into _remember_delivered_glob_dir "$REMEMBER_DIR"
+    for _remember_stale_record in "$_remember_delivered_glob_dir"/tmp/remember.delivered.*; do
         [ -f "$_remember_stale_record" ] || continue
         _remember_stale_id="${_remember_stale_record##*/remember.delivered.}"
         [ -n "$_remember_stale_id" ] || continue
@@ -1192,7 +1693,8 @@ if [ -d "$SESSIONS_DIR" ] && [ -d "$REMEMBER_DIR/tmp" ]; then
             # into "confirmed outside the grace window", the opposite of
             # what an unreadable mtime does three lines above. Refuse to
             # guess in either failure shape, same as the mtime check does.
-            _remember_now=$(_remember_date +%s)
+            _remember_now=""
+            _remember_date_into _remember_now +%s
             case "$_remember_now" in
                 (''|*[!0-9]*)
                     continue
@@ -1209,175 +1711,46 @@ if [ -d "$SESSIONS_DIR" ] && [ -d "$REMEMBER_DIR/tmp" ]; then
 fi
 
 # ── History hint ───────────────────────────────────────────────────────────
-cat "$PLUGIN_ROOT/prompts/session-history-hint.txt" 2>/dev/null
+# printf + $(<file), not `cat` (#679, part of #660): forks nothing, and is
+# byte-identical to the old `cat` ONLY because the shipped file's own
+# trailing bytes are exactly one newline -- proven, not assumed, in
+# tests/test_session_start_spawn_reduction_679.py
+# (test_session_history_hint_read_is_byte_identical_679). Guarded on the
+# file existing so a missing/unreadable file stays silent, matching cat's
+# own `2>/dev/null`.
+if [ -f "$PLUGIN_ROOT/prompts/session-history-hint.txt" ]; then
+    printf '%s\n' "$(<"$PLUGIN_ROOT/prompts/session-history-hint.txt")"
+fi
 echo ""
 
 # ── Inject memory into context ────────────────────────────────────────────
-# One list, read three times below — the membership test, the injection loop
-# and the named-only loop. Kept in a single place so a seventh memory file
-# cannot be added to one of them and forgotten by the others.
-MEMORY_FILES=("$IDENTITY_FILE" "$CORE_MEMORIES" "$REMEMBER_TODAY_FILE" "$REMEMBER_NOW" "$REMEMBER_RECENT" "$REMEMBER_ARCHIVE")
+# Cached across SessionStart runs (#668): six memory files headed/sized/
+# concatenated, plus the rotated-slice listing, only change when a memory
+# file changes -- i.e. after a save or a consolidation, both of which run in
+# a detached background phase already. lib-memory-context.sh is the single
+# source of truth for both the render and the cache (see its own header) --
+# session-start-hook.sh's job here is only to try the cache first, and on a
+# miss render live while ALSO leaving a fresh cache behind via `tee`, so the
+# very next start benefits even if no save/consolidation runs first.
+# MEMORY_FILES was already set by _remember_memory_paths, above.
 
-HAS_MEMORY=""
-for MFILE in "${MEMORY_FILES[@]}"; do
-    if [ -f "$MFILE" ]; then
-        HAS_MEMORY="true"
+if ! _remember_start_cache_context_load; then
+    _REMEMBER_START_CTX_TMP=""
+    if [ -n "${REMEMBER_DIR:-}" ] && [ "${REMEMBER_START_CACHE:-1}" = "1" ] \
+       && [ "$SESSION_START_SOURCE" != "compact" ] \
+       && mkdir -p "$REMEMBER_DIR/tmp" 2>/dev/null; then
+        _REMEMBER_START_CTX_TMP=$(mktemp "$REMEMBER_DIR/tmp/start-context.cache.XXXXXX" 2>/dev/null) || _REMEMBER_START_CTX_TMP=""
     fi
-done
-# Rotated slices are memory too. A store can hold nothing but them — rotate an
-# oversized archive and the fresh archive.md stays empty until the next
-# consolidation — and gating on the list above meant the whole section was
-# skipped, so the one state issue #124 is written to fix printed nothing at all.
-#
-# Two families since #348, not one. A store whose recent.md is the over-cap
-# bulk now rotates it to recent-YYYY-MM-DD.md, and a glob that only knew
-# archive-*.md would leave that slice exactly as invisible as #124 found the
-# archives — the recovery would keep the bytes and lose the recall, which is
-# the failure #124 exists to name.
-ROTATED_SLICES=$(ls "$REMEMBER_DIR"/archive-*.md "$REMEMBER_DIR"/recent-*.md 2>/dev/null | sort)
-if [ -n "$ROTATED_SLICES" ]; then
-    HAS_MEMORY="true"
-fi
-
-if [ -n "$HAS_MEMORY" ]; then
-    echo "=== MEMORY ==="
-    # At source=compact these bodies were already delivered — in this same
-    # session, to the context the compaction has just replaced with a summary
-    # of it. SessionStart fires again there, but the store has not changed and
-    # nothing about the recap is news.
-    #
-    # Identity is the exception and is still printed in full, because it works
-    # by PRESENCE: a path to identity.md does not make the agent behave as
-    # that persona, and no other line of this hook's output even names the
-    # file. Everything else is recall-on-demand and stays addressable — the
-    # === REMEMBER === hint above names the store's files on every single
-    # fire, and the block below names these ones again with their sizes.
-    #
-    # Named rather than dropped, which is the #124 vocabulary for "kept but
-    # not injected": a file nobody names is a file nobody greps, and a recap
-    # that shrinks in silence is indistinguishable from a store that emptied.
-    # The last defence, and the only one that helps a store that is ALREADY
-    # broken (#346). A memory file is written by consolidation, and a bounded
-    # writer does nothing for the 6.4 GB recent.md someone already has on
-    # disk: this loop cat'd it into every session, which is what froze every
-    # `claude` launch in that project and took the reporter's iTerm2 to ~56 GB.
-    #
-    # Named rather than injected, which is the #124 vocabulary a few lines
-    # below for rotated archives — the same trade, reached by size instead of
-    # by filename. The bytes stay on disk and stay greppable; what stops is
-    # pouring them into a context window that cannot hold them. A file this
-    # size is a broken store either way, and a session that starts and says so
-    # is worth more than one that hangs.
-    MEMORY_INJECT_MAX_BYTES=$(config ".thresholds.memory_inject_max_bytes" 200000)
-    case "$MEMORY_INJECT_MAX_BYTES" in (''|*[!0-9]*) MEMORY_INJECT_MAX_BYTES=200000 ;; esac
-    OVERSIZED_MEMORY=""
-    for MFILE in "${MEMORY_FILES[@]}"; do
-        if [ -f "$MFILE" ] && [ -s "$MFILE" ]; then
-            if [ "$SESSION_START_SOURCE" = "compact" ] && [ "$MFILE" != "$IDENTITY_FILE" ]; then
-                continue
-            fi
-            MFILE_BYTES=$(wc -c < "$MFILE" | tr -d ' ')
-            case "$MFILE_BYTES" in (''|*[!0-9]*) MFILE_BYTES=0 ;; esac
-            if [ "$MEMORY_INJECT_MAX_BYTES" -gt 0 ] && [ "$MFILE_BYTES" -gt "$MEMORY_INJECT_MAX_BYTES" ]; then
-                OVERSIZED_MEMORY="${OVERSIZED_MEMORY}${MFILE} (${MFILE_BYTES} bytes)
-"
-                continue
-            fi
-            BASENAME=$(basename "$MFILE")
-            echo "--- $BASENAME ---"
-            cat "$MFILE"
-            echo ""
-        fi
-    done
-    if [ -n "$OVERSIZED_MEMORY" ]; then
-        echo "--- too large to inject (kept on disk; grep on request) ---"
-        printf '%s' "$OVERSIZED_MEMORY"
-        printf 'A healthy memory file is kilobytes. One this size means consolidation wrote a response nobody bounded (see thresholds.memory_inject_max_bytes) and has been skipping ever since; run /remember:doctor.\n'
-        echo ""
+    if [ -n "$_REMEMBER_START_CTX_TMP" ]; then
+        # `tee`, not render-then-publish: the miss path already pays the full
+        # read/size/concatenate cost once, and re-running it a second time
+        # just to fill the cache would double that cost on every single miss.
+        _remember_render_memory_section | tee "$_REMEMBER_START_CTX_TMP"
+        _remember_start_cache_context_finish_publish "$_REMEMBER_START_CTX_TMP"
+    else
+        _remember_render_memory_section
     fi
-    if [ "$SESSION_START_SOURCE" = "compact" ]; then
-        # Built before the header is printed, so the header is never printed
-        # over an empty list — a store can hold identity.md and nothing else.
-        DEFERRED_MEMORY=$(for MFILE in "${MEMORY_FILES[@]}"; do
-            [ "$MFILE" != "$IDENTITY_FILE" ] || continue
-            [ -f "$MFILE" ] && [ -s "$MFILE" ] || continue
-            printf '%s (%s bytes)\n' "$MFILE" "$(wc -c < "$MFILE" | tr -d ' ')"
-        done)
-        if [ -n "$DEFERRED_MEMORY" ]; then
-            echo "--- not re-injected at compact (delivered at session start); read or grep on request ---"
-            printf '%s\n' "$DEFERRED_MEMORY"
-            echo ""
-        fi
-    fi
-    # ── Rotated slices: named, not injected (#124) ────────────────────────
-    # An oversized archive.md is rotated to archive-YYYY-MM-DD.md and a fresh
-    # one started (#123); since #348 an oversized recent.md rotates the same
-    # way, to recent-YYYY-MM-DD.md. The bytes are kept, but nothing in the
-    # read path ever named them, so that slice of memory sat in cold storage
-    # no recall reached — "no memory lost" was true mechanically and false in
-    # practice.
-    #
-    # Named rather than cat'd on purpose: these files were rotated BECAUSE
-    # they were too large to fit a prompt, so injecting them would rebuild
-    # the problem rotation exists to solve. The agent greps them when a
-    # question reaches past what is in context.
-    if [ -n "$ROTATED_SLICES" ]; then
-        # Newest ROTATED_LIST_MAX by date, because rotations accumulate for the
-        # life of a store and this prints on every single session start. The
-        # glob is given for the rest so nothing becomes unreachable again —
-        # which was the whole point of naming them.
-        ROTATED_LIST_MAX=10
-        ROTATED_COUNT=$(echo "$ROTATED_SLICES" | wc -l | tr -d ' ')
-        # Order by the date and rotation number IN THE NAME, parsed — not by
-        # raw name, and not by mtime.
-        #
-        # Raw name is wrong because a second rotation the same day is
-        # archive-DATE-2.md, and '-' (0x2D) sorts before '.' (0x2E), so the
-        # later sibling sorts ahead of the base file it followed.
-        #
-        # mtime looked like the fix and is worse: git checkout writes files in
-        # byte-lexicographic order, so cloning the git-backed store (which
-        # hooks.d/after_save/50-git-backup.sh exists to make possible) hands
-        # archive-DATE-2.md an EARLIER mtime than archive-DATE.md. That
-        # reintroduces the same inversion on every restore, for every file,
-        # instead of only inside a same-day cluster.
-        #
-        # The name carries the truth: the date, then the rotation number, with
-        # the un-suffixed file being that day's first. Zero-padding the number
-        # makes the composed key sort correctly as plain text.
-        #
-        # Both families (#348) go through one parse, keyed on the date and not
-        # on the family: archive-2026-06-29.md and recent-2026-06-29.md are
-        # two slices of the same week and belong next to each other in the
-        # listing. Only one of the two prefix strips can ever match a given
-        # name, so applying both is unconditional rather than a branch.
-        ROTATED_NEWEST=$(echo "$ROTATED_SLICES" | while read -r _slice; do
-            [ -n "$_slice" ] || continue
-            _core=${_slice##*/}
-            _core=${_core#archive-}
-            _core=${_core#recent-}
-            _core=${_core%.md}
-            # Leading '(' on each pattern: bash 3.2 (still what macOS ships)
-            # miscounts the parens of a case inside $( ) without it.
-            case "$_core" in
-                (*-*-*-*) _date=${_core%-*}; _seq=${_core##*-} ;;
-                (*)       _date=$_core;      _seq=1 ;;
-            esac
-            case "$_seq" in (''|*[!0-9]*) _seq=1 ;; esac
-            printf '%s-%010d\t%s\n' "$_date" "$_seq" "$_slice"
-        done | sort | tail -n "$ROTATED_LIST_MAX" | cut -f2-)
-        echo "--- rotated memory slices (not shown; grep on request) ---"
-        echo "$ROTATED_NEWEST" | while read -r _slice; do
-            [ -f "$_slice" ] || continue
-            printf '%s (%s bytes)\n' "$_slice" "$(wc -c < "$_slice" | tr -d ' ')"
-        done
-        if [ "$ROTATED_COUNT" -gt "$ROTATED_LIST_MAX" ]; then
-            printf '... and %s older: %s/archive-*.md, %s/recent-*.md\n' \
-                "$((ROTATED_COUNT - ROTATED_LIST_MAX))" "$REMEMBER_DIR" "$REMEMBER_DIR"
-        fi
-        echo ""
-    fi
-    echo ""
+    unset _REMEMBER_START_CTX_TMP
 fi
 
 # ── Consolidation trigger ─────────────────────────────────────────────────
@@ -1392,11 +1765,57 @@ fi
 # `clear`, `fork`, an absent source and an unrecognised value are left
 # triggering exactly as before — narrowing further would mean staging files
 # wait indefinitely for a session that never does a bare `startup` again.
-STAGING_COUNT=$(ls "$REMEMBER_DIR/today-"*.md 2>/dev/null | grep -v "today-${TODAY}.md" | grep -v "\.done\.md" | wc -l | tr -d ' ')
+# #517: normalize before the glob -- REMEMBER_DIR arrives backslash-
+# separated on msys/cygwin, and bash's glob only ever splits on '/', so
+# without this the count silently undercounts to 0 there, gating the
+# "N day(s) of memory to compress" message and the background
+# consolidation trigger off for real.
+_remember_staging_glob_dir=""
+_remember_forward_slash_into _remember_staging_glob_dir "$REMEMBER_DIR"
+# Glob array + a bash `case` per entry, not `ls | grep -v | grep -v | wc -l |
+# tr -d ' '` (#666) -- five forks collapsed to zero: nullglob turns "no
+# matches" into an empty array instead of the literal pattern string, and the
+# two `grep -v` exclusions (today's own file; anything already marked
+# `.done.md`) are exactly what a `case` pattern already expresses.
+# `shopt -p nullglob` exits 1 (even though it prints correctly) whenever
+# the option is currently OFF -- which it is by default -- so capturing it
+# via `var=$(...)` would abort this script if it ever ran under `set -e`.
+# `shopt -q` in a plain `&&` conditional never has that problem.
+_remember_staging_was_nullglob=0
+shopt -q nullglob && _remember_staging_was_nullglob=1
+shopt -s nullglob
+_remember_staging_candidates=("$_remember_staging_glob_dir/today-"*.md)
+[ "$_remember_staging_was_nullglob" = 1 ] || shopt -u nullglob
+STAGING_COUNT=0
+# Count-guarded: `"${arr[@]}"` on an empty array is an "unbound variable"
+# error under `set -u` on bash < 4.4, and an empty staging dir is the
+# common case.
+[ "${#_remember_staging_candidates[@]}" -gt 0 ] && for _remember_staging_file in "${_remember_staging_candidates[@]}"; do
+    case "$_remember_staging_file" in
+        (*"today-${TODAY}.md") continue ;;
+        (*.done.md) continue ;;
+    esac
+    STAGING_COUNT=$((STAGING_COUNT + 1))
+done
+unset _remember_staging_candidates _remember_staging_was_nullglob _remember_staging_file
 if [ "$STAGING_COUNT" -gt 0 ] && [ "$SESSION_START_SOURCE" != "compact" ]; then
     echo "=== MEMORY CONSOLIDATION ==="
     echo "$STAGING_COUNT day(s) of memory to compress. Running consolidation in background..."
-    nohup "$PLUGIN_ROOT/scripts/run-consolidation.sh" </dev/null >/dev/null 2>&1 & disown 2>/dev/null || true
+    # `3>&-` is load-bearing, not tidiness (#646). Line ~1171 above did
+    # `exec 3>&1` BEFORE redirecting stdout into the buffer file, so fd 3 is a
+    # dup of the hook's REAL stdout -- the pipe Claude Code reads. `nohup`
+    # redirects only fds 0, 1 and 2, so without this the consolidation child
+    # inherits fd 3 and holds the write end of that pipe open for its entire
+    # life. The hook process exits at once; the client, reading to EOF, does
+    # not see EOF until the LAST holder of the write end goes away, which is
+    # the child. The #646 reporter measured a 98.62s SessionStart against a 93s
+    # consolidation -- and 3.2-3.5s whenever it did not fire -- then hit the VS
+    # Code extension's 60s subprocess-init deadline, whose error text sends the
+    # user to audit credentials and network for a pipe they still hold open.
+    # Not a lock, and not a Git Bash detach failure: their own probe of this
+    # exact construct returned in 0.11s. Ordinary POSIX fd inheritance, so it
+    # reproduced on macOS too (tests/test_session_start_fd_leak_646.py).
+    nohup "$PLUGIN_ROOT/scripts/run-consolidation.sh" </dev/null >/dev/null 2>&1 3>&- & disown 2>/dev/null || true
     echo ""
 fi
 
@@ -1406,9 +1825,68 @@ fi
 dispatch "after_session_start"
 
 # The payload file does not outlive the dispatches it was published for.
-[ -n "$_hook_stdin_file" ] && rm -f "$_hook_stdin_file" 2>/dev/null
+# Removed below, batched with $_REMEMBER_CTX_FILE (#679, part of #660):
+# nothing between here and there reads it, so deferring its removal by a
+# few lines costs nothing and turns two `rm -f` execs into one on the
+# common (CTX_OK) path.
 
-# Explicit, because the line above is the last command and it is false whenever
-# no payload file was written — the common case. Falling off the end would exit
-# 1 from a hook documented to always exit 0.
+# ── Emit: promo via systemMessage, or the old plain-text shape unchanged ───
+if [ -n "$_REMEMBER_CTX_OK" ]; then
+    # Restore the real fd before printing anything -- everything above this
+    # point landed in the buffer file instead of the terminal.
+    exec 1>&3 3>&-
+
+    # No PROMO_MSG (feature off, cooldown live, everything already
+    # installed, cannot-tell, or jq unavailable): stream the buffer straight
+    # through, byte-for-byte -- the common case, and the one that must never
+    # regress. `cat`, never `$(cat …)`, so a trailing blank line the old
+    # direct-print path always produced is not silently trimmed here.
+    if [ -n "$PROMO_MSG" ] && command -v jq >/dev/null 2>&1; then
+        _REMEMBER_PROMO_JSON=$($JQ -Rs --arg msg "$PROMO_MSG" \
+            '{hookSpecificOutput:{hookEventName:"SessionStart",additionalContext:.},systemMessage:$msg}' \
+            < "$_REMEMBER_CTX_FILE" 2>/dev/null) || _REMEMBER_PROMO_JSON=""
+        # jq usage failure must not become this hook's status (same
+        # reasoning as user-prompt-hook.sh's own guard): fall back to the
+        # plain buffer rather than ever letting a cosmetic promo cost the
+        # memory context it wraps.
+        if [ -n "$_REMEMBER_PROMO_JSON" ]; then
+            printf '%s\n' "$_REMEMBER_PROMO_JSON"
+            # Commit the throttle/rotation marker ONLY now, after the promo
+            # has actually reached stdout -- never inside
+            # _remember_compute_promo (review finding, #574). Writing it at
+            # selection time meant this exact branch failing (this jq call,
+            # or the buffer-open a few lines above) still left a marker on
+            # disk claiming the promo was shown, burning the whole
+            # `cooldowns.promo_seconds` window on a promo the user never saw.
+            if [ -n "$PROMO_ID" ] && [ -n "$PROMO_MARKER" ]; then
+                mkdir -p "$(dirname "$PROMO_MARKER")" 2>/dev/null
+                printf 'ts=%s\nid=%s\n' "$PROMO_NOW" "$PROMO_ID" \
+                    > "$PROMO_MARKER.$$" 2>/dev/null \
+                    && mv -f "$PROMO_MARKER.$$" "$PROMO_MARKER" 2>/dev/null
+            fi
+        else
+            cat "$_REMEMBER_CTX_FILE"
+        fi
+    else
+        cat "$_REMEMBER_CTX_FILE"
+    fi
+    # Batched with $_hook_stdin_file (#679, part of #660) -- one `rm -f`
+    # instead of two, safe because nothing after the earlier dispatch call
+    # still needs the stdin payload file.
+    rm -f "$_REMEMBER_CTX_FILE" "$_hook_stdin_file" 2>/dev/null
+else
+    # The CTX_OK branch above is the only place $_REMEMBER_CTX_FILE gets
+    # removed; on this branch the buffer redirect never engaged, so it was
+    # never created, but $_hook_stdin_file still needs its own remove.
+    rm -f "$_hook_stdin_file" 2>/dev/null
+fi
+# _REMEMBER_CTX_OK empty: the buffer redirect never engaged, so every line
+# above already went straight to the real terminal as it always did -- there
+# is nothing left to flush, and PROMO_MSG (if any) is silently lost (no
+# marker is written either, by the same "only after delivery" rule above)
+# rather than risk a hook that is supposed to never block session startup.
+
+# Explicit, because the block above is the last command and its own status
+# is not the hook's status. Falling off the end would exit 1 from a hook
+# documented to always exit 0.
 exit 0

@@ -23,32 +23,17 @@ from pathlib import Path
 
 import pytest
 
+from ._bash_runner import find_git_bash
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 HOOKS_JSON = REPO_ROOT / "hooks" / "hooks.json"
 SCRIPTS_DIR = REPO_ROOT / "scripts"
 
-
-def _find_git_bash():
-    """Locate Git Bash specifically (not WSL's bash launcher).
-
-    On Windows, `shutil.which("bash")` may resolve to the WSL launcher. The #82
-    reporter launches Claude Code from Git Bash, so we want *that* bash. Probe the
-    standard Git-for-Windows install locations; fall back to PATH only if the
-    resolved binary lives under a Git install. Returns the exe path or None.
-    """
-    candidates = []
-    for env_var in ("ProgramFiles", "ProgramFiles(x86)", "ProgramW6432"):
-        base = os.environ.get(env_var)
-        if base:
-            candidates.append(Path(base) / "Git" / "bin" / "bash.exe")
-            candidates.append(Path(base) / "Git" / "usr" / "bin" / "bash.exe")
-    for cand in candidates:
-        if cand.is_file():
-            return str(cand)
-    resolved = shutil.which("bash")
-    if resolved and "git" in resolved.replace("\\", "/").lower():
-        return resolved
-    return None
+# Extracted to _bash_runner.py (#432) so test_hook_cwd_leak_417.py and
+# test_transcript_path_leak_424.py can share it instead of skipping on the
+# whole Windows platform. Re-imported under the original private name so
+# nothing else in this file has to change.
+_find_git_bash = find_git_bash
 
 
 def _iter_commands():
@@ -93,6 +78,19 @@ def test_every_shipped_hook_script_is_wired():
     """
     all_commands = "\n".join(cmd for _loc, cmd in _iter_commands())
     for script in sorted(SCRIPTS_DIR.glob("*-hook.sh")):
+        if script.name.startswith("agy-"):
+            # Antigravity CLI (`agy`, #563) has no per-plugin manifest at
+            # all -- its own hooks.json lives at a shared, per-machine path
+            # (~/.gemini/config/hooks.json) with no working variable
+            # substitution, so there is no static file this repo could
+            # check in for hooks/hooks.json's OWN wiring check to find (see
+            # scripts/install_agy_hooks.py's own module docstring). These
+            # scripts have their own wiring guard instead:
+            # tests/test_install_agy_hooks_563.py's
+            # test_build_entry_references_scripts_that_exist and
+            # test_build_entry_only_names_confirmed_events pin that the
+            # installer's generated manifest references every one of them.
+            continue
         assert script.name in all_commands, (
             f"scripts/{script.name} ships with the plugin but no hooks.json "
             f"command references it"

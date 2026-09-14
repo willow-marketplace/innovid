@@ -8,23 +8,6 @@ and cut releases.
 End-user install / configure / uninstall docs live in
 [.cursor-plugin/README.md](../.cursor-plugin/README.md).
 
-## Contents
-
-| Path | Purpose |
-|---|---|
-| `hooks.json` | Source of truth for which Cursor events the plugin listens to, and the only one of the four `<runtime>/hooks.json` files that is **not** referenced from a plugin manifest — Cursor ignores manifest hooks for local plugins, so this is an installer template rather than something Cursor reads. (Codex also merges hooks into a global config at install time, but its `codex/hooks.json` *is* manifest-referenced for the marketplace path; `install-codex.sh` bypasses it and renders the block from `codex.HookEvents` instead, because each hook needs a `trusted_hash` computed from install-time values.) `install-cursor.sh` reads this file, translates `./cursor/cursor-on-event.sh` to `$HOME/.cursor/plugins/local/dash0-agent-plugin/cursor/cursor-on-event.sh`, and merges the entries into the user's `~/.cursor/hooks.json` (Cursor doesn't fire hooks from local plugins directly). |
-| `cursor-on-event.sh` | Bootstrap wrapper Cursor invokes on each event: loads the config file, downloads + checksum-verifies the `cursor-on-event` binary on first run, then execs it. |
-| `skills/` | Cursor-only agent skills (e.g. `dash0-configure`). Referenced from `.cursor-plugin/plugin.json`. |
-
-The code that consumes Cursor hooks lives elsewhere:
-
-- `cmd/cursor-on-event/` — the binary the bootstrap script execs
-- `internal/source/cursor/` — Cursor-specific event normalization
-- `internal/harness/` — resolves the config from Cursor's environment (shared by all four runtimes)
-- `internal/pipeline/` — shared OTLP span emission (used by all four runtimes)
-- `.cursor-plugin/plugin.json` — native plugin manifest Cursor reads from `~/.cursor/plugins/local/dash0-agent-plugin/.cursor-plugin/plugin.json` (declares `skills`; hooks are wired via `~/.cursor/hooks.json` at install time, not via the manifest)
-- `cursor/skills/dash0-configure/SKILL.md` — agent skill that walks the user through writing the config file
-
 ## Install layout (hybrid)
 
 The `install-cursor.sh` script lays the plugin down at `~/.cursor/plugins/local/dash0-agent-plugin/`, which Cursor scans on startup:
@@ -76,29 +59,13 @@ go test ./...
 
 ## Package
 
-Releases are cut via `scripts/release.sh <version>`, which:
+GoReleaser builds every runtime's binaries from one tag; `.goreleaser.yaml` is
+the list. See [DEVELOPMENT.md](../DEVELOPMENT.md#releasing) for the flow.
 
-1. Bumps the hardcoded `VERSION` in `claude/claude-on-event.sh`, `cursor/cursor-on-event.sh`,
-   `.claude-plugin/plugin.json`, and `.cursor-plugin/plugin.json`.
-   (`install-cursor.sh` resolves the latest GitHub release at runtime, so it's
-   not bumped here — set `DASH0_VERSION=` to pin a specific version.)
-2. Commits the bumps as `release: v<version>`.
-3. Creates the `v<version>` tag and pushes it.
-
-The push triggers `.github/workflows/release.yml`, which runs GoReleaser
-(`.goreleaser.yaml`) to build and publish:
-
-| Artifact | Source |
-|---|---|
-| `on-event-{darwin,linux}-{amd64,arm64}` | `cmd/claude-on-event` (Claude Code) |
-| `cursor-on-event-{darwin,linux}-{amd64,arm64}` | `cmd/cursor-on-event` (this) |
-| `checksums.txt` | sha256 of every artifact |
-
-The bootstrap script (`cursor/cursor-on-event.sh`) and `install-cursor.sh`
-both fetch the binary from GitHub Releases by version on first run and
-verify against `checksums.txt`. They also pull `cursor-on-event.sh` itself
-from the matching git tag on `raw.githubusercontent.com`, so the install
-flow has zero dependencies beyond `curl`/`wget` + `sha256sum`/`shasum`.
+`DASH0_VERSION` pins a release: `install-cursor.sh` reads it when resolving what
+to install, and `cursor-on-event.sh` reads it at runtime to override the version
+it was installed with. Only the bootstrap validates it — see
+[DEVELOPMENT.md](../DEVELOPMENT.md#releasing) for what the installer does not.
 
 ## Install in a local Cursor instance
 

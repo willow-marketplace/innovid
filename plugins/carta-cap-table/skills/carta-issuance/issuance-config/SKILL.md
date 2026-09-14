@@ -31,9 +31,9 @@ field set) lives inside that person's own block, so one batch can issue
 genuinely different terms to different people. A "+ Add stakeholder" button
 appends another block, pre-filled by copying the most-recently-added block's
 non-personal terms forward. **One template serves both security types**: it
-carries both field sets, and the `{{SECURITY_TYPE}}` switch (`option_grant` |
-`certificate`) hides the rows whose `data-sectype` doesn't match and selects
-the matching `submit()` payload. Issue date and Board approval are shared field
+carries every field set, and the `{{SECURITY_TYPE}}` switch (`option_grant` |
+`certificate` | `piu`) hides the rows whose `data-sectype` doesn't match and
+selects the matching `submit()` payload. Issue date and Board approval are shared field
 rows (not type-gated) inside every block.
 
 **Two footer buttons.** **Review** posts `action: "config_submit"` — the parent
@@ -46,26 +46,72 @@ posts `action: "save_only"` — a lighter escape hatch, `save_drafts` only, no
 validation, no panel re-render. Both gate on the exact same per-block
 readiness check (`missingFields()`) — Save isn't a weaker bar.
 
+**Neither button is ever disabled.** A click on an unready form always lands: it
+scrolls the first offending stakeholder into view, focuses the blocking field and
+states the reason beside the button, in the error colour. A disabled button whose
+reason sits in grey text elsewhere reads as a broken form, not as a gate.
+
 **Do not invoke this skill directly.** Dispatched by `carta-issuance` Phase 0.5.
 
 ## References
 
 | File | Purpose |
 |---|---|
-| `scripts/build_config.py` | **Builds every dynamic block** (the toggle-button groups **and** the grantee/holder rows, plus the stakeholder roster for autocomplete) deterministically from the fetched data + the prompt-derived `knowns`. The model never hand-authors panel HTML — doing so once shipped dead `btn-card` buttons and stamped a plan id where a document-set id belonged. |
+| `../../../lib/issuance_fields.py` | **Every field builder, shared by both surfaces.** The Cowork form collects the identical set, so one copy serves both and the two cannot drift. Also emits the `so_type` gate sets as JS (`so_type_js_constants()`) so the browser's idea of which types report to HMRC always matches Python's. |
+| `scripts/build_config.py` | **Builds every dynamic block for the Code panel** (toggle groups, grantee/holder rows, autocomplete roster) from the fetched data + prompt-derived `knowns`. The model never hand-authors panel HTML — doing so once shipped dead `btn-card` buttons and stamped a plan id where a document-set id belonged. |
+| `scripts/build_cowork_form.py` | **Builds the whole Cowork form** as one self-contained `show_widget` document. See [Cowork form](#cowork-form). |
 | `scripts/preview_config.py` | **Design-iteration harness.** Renders the panel to a standalone HTML file with committed sample data — no MCP, no skill run. See [Iterating on the UI](#iterating-on-the-ui). |
 | `references/artifact.yaml` | Shared `required` + per-type `optional` substitutions; `save` + `submit-watcher` capabilities |
 | `references/template.html` | Config panel — both field sets gated by `data-sectype`, shared sticky Review/Save footer |
-| `references/styles.css` | Ink-compliant styles (toggles, date/price inputs, legend attestation box) |
-| `references/Inter-roman.var.woff2` | Inter variable font |
-| `references/SangBleuVersailles-Regular-WebS.ttf` | SangBleu Versailles for corp name |
+| `references/styles.css` | Ink-compliant panel styles (toggles, date/price inputs, legend attestation box) |
+| `references/cowork-template.html` | Cowork form — same class contract, `sendPrompt()` submit, per-row and batch layouts |
+| `references/cowork-styles.css` | Cowork styles — design-system tokens only (see [Cowork form](#cowork-form) for why the panel sheet can't be reused) |
+| `references/Inter-roman.var.woff2` | Inter variable font (panel only) |
+| `references/SangBleuVersailles-Regular-WebS.ttf` | SangBleu Versailles for corp name (panel only) |
+
+## Cowork form
+
+`build_cowork_form.py` emits one self-contained document for `show_widget`. Same fields,
+same `rows` payload as the panel — only the submit path and the styling differ.
+
+```bash
+uv run "${CLAUDE_PLUGIN_ROOT}/skills/carta-issuance/issuance-config/scripts/build_cowork_form.py" \
+  --security-type <option_grant|certificate|piu> \
+  --data "$WORK/_data.json" --knowns "$WORK/_knowns.json" \
+  --corp-name "<legal name>" --corp-id "<corporation_id>" \
+  --out "$WORK/form.html"
+# → prints FORM=<path>. Pass the file's contents VERBATIM as show_widget's widget_code.
+```
+
+`_data.json` and `_knowns.json` are the same two files `build_config.py` takes — the
+[`knowns` table in code-adapter.md](../references/code-adapter.md#1-config-panel-build_configpy-builds-every-block)
+is the contract for both. Add `--no-minify` while iterating on the markup.
+
+**Why the panel's `styles.css` is not reused.** The widget host forbids four things it
+does: hardcoded hex (invisible in dark mode), a background on the outer container (the
+host paints it), `100vh`/sticky positioning (the iframe sizes to content), and
+`@font-face` (the CSP blocks the plugin origin). `position: fixed` is out too — it
+collapses the iframe — so the submit state is an in-flow block, not the panel's modal
+overlay. `cowork-styles.css` uses design-system tokens throughout and keys its
+responsive rule off `@container`, not `@media`: a viewport query would track the user's
+window rather than the form's own width.
+
+**Batch mode** (cowork-adapter.md § Batch mode) activates on >10 rows whose terms are
+all identical or unset, collapsing to shared-terms-once plus a name/email/quantity
+table. `knowns.batch_mode` forces it either way. It is a **rendering** choice only: the
+shared terms are expanded onto every row at submit, so the payload is indistinguishable
+from the per-row layout's — including one `row_key` per person.
+
+**`read_me` is not needed.** `show_widget` renders this document as-is, and the
+`interactive` module carries no repeater guidance that would express this form — the
+call is ~5k tokens and a round trip for nothing.
 
 ## Substitutions
 
 `required` (both types provide): `CORP_NAME`, `CORP_ID`, `FLOW_TITLE`
-(`Issue Option Grants` | `Issue Certificates` — verb-first, since this is a write
-operation), `HEADER_SUB` (`7 grantees` |
-`2 holders`), `SECURITY_TYPE` (`option_grant` | `certificate`).
+(`Issue Option Grants` | `Issue Certificates` | `Issue Profits Interest Units` —
+verb-first, since this is a write operation), `HEADER_SUB` (`7 grantees` |
+`2 holders`), `SECURITY_TYPE` (`option_grant` | `certificate` | `piu`).
 
 `optional` (default `""`; built by `build_config.py`):
 
@@ -114,6 +160,8 @@ batch-level `knowns` default when the row didn't specify its own value — see
 | Rule 144 reason | `<select class="select-input block-rule144-reason">` with the 5-value `rule_144_difference_reason` enum (payload-reference.md); pre-selected with this row's own value. Lives inside `.block-rule144-reason-wrap`, shown/hidden by `pickRule144()` in lockstep with the Rule 144 date input — visible only when "Use a different date" is picked. Collected here, in the panel, instead of a separate post-submit `AskUserQuestion` (the prior design) — the reason is required at the same moment the date is, so there's no reason to make it a second round-trip. The Rule 144 date field itself carries the `required=True` marker (`*`) — design feedback that it read as optional without one, even though it's always collected (defaulting to the issue date). |
 | Advanced fields (grant) | A collapsed `<details class="advanced-fields"><summary>More fields (optional)</summary>`, in order: `custom_label`, `grant_reason` (`<select>` — carta-web's own picklist, [carta-modify-issuables/references/field-contract.md](../../carta-modify-issuables/references/field-contract.md): New Hire, Merit, Promotion, Refresh, Corporate transaction, Relationship change, Retention, Advisor, Consultant, Board, Performance bonus, Boxcar grant — was free text, which silently invited server-rejected values), `acceleration_template` (moved in from its own top-level row; still tagged `data-conditional="vesting"`, hidden when the block's own vesting is "No vesting"), `early_exercise`, `auto_exercise_at_vest`, `is_flexible_issue_date`, `notes` (moved in from the shared section). Collapsed is presentation only: `collectBlocks()` reads every one of these fields regardless of the accordion's open/closed state. (`state_exemption`/`employee_id`/`cost_center`/`job_title`/`salary` were dropped from the panel entirely — design feedback.) |
 | Advanced fields (certificate) | Same accordion pattern, in order: `acceleration_template` (moved in, same conditional-on-vesting behavior), `prefix_number`, `cash_paid`, `debt_canceled`, `notes` (moved in). (`convertible_note` was dropped from the panel entirely — design feedback. `returned_invested_capital` was dropped too — it's LLC-only and no MCP command can confirm LLC status.) |
+| PIU field rows | `prefix` (labelled **Unit class**), `option_plan` (optional, and never defaulted — an empty plan issues off the unit class), `threshold_value` and `threshold_value_type` (`Unit` / `Overall` only, labelled with the issuer's own noun from `knowns.threshold_noun`), `issue_date`, `board_approval_date` (optional, no pending state), vesting schedule + start, `document_set_id`, and `corresponding_interest` — rendered only when the selected unit class reports `has_corresponding_interest`. See [piu-fields.md](../references/piu-fields.md). |
+| Advanced fields (PIU) | `acceleration_template` (conditional on vesting), `prefix_number` (**Security number**), `cash_paid` (**Consideration price** — UK growth shares only), `notes`. |
 
 `data-label` is required on vesting / acceleration / documents / share-class / legend buttons
 (read for the submit payload). `data-body` is required on legend buttons (the
@@ -252,12 +300,14 @@ block that diverged from the first via per-row edits or a copy-forward-then-chan
 ```
 
 - `share_class_prefix` is that row's selected class prefix (`share_class_label` its display name) — different rows can carry different classes.
-- `board_approval` is `approved_other` (the panel doesn't distinguish "today" from "another date" — both are just a board-approval date; only `pending` is a distinct state) or `pending` (option-grant only — hidden for certificates, which always require a board approval date); `board_approval_date` is the chosen date, omitted when `pending`.
+- `board_approval` is `approved_other` (the panel doesn't distinguish "today" from "another date" — both are just a board-approval date; only `pending` is a distinct state) or `pending` (option-grant only — hidden for certificates, which always require a board approval date, and for PIUs, whose date is optional and simply cleared instead); `board_approval_date` is the chosen date, omitted when `pending`.
 - `rule_144_mode` is `issue_date` (the default — `rule_144_date` and `rule_144_reason` are both `null`, and the parent skill stamps the issue date as the Rule 144 date) or `other` (`rule_144_date` carries the chosen `YYYY-MM-DD`; `rule_144_reason` carries the enum value picked from the panel's own reason `<select>` — the parent reformats the date to `MM/DD/YYYY` and stamps `rule_144_reason` as `rule_144_difference_reason`, no separate collection step needed).
 - `relationship` in a row is the value the user selected in that block — the full
   `issue_date_relationship` picklist ([payload-reference.md](../references/payload-reference.md#picklists)),
-  **always required** for a new stakeholder (the panel's Review button won't enable until it's
-  set — the template's `missingFields()` checks it). It can still arrive as `""` for a
+  **always required** for a new stakeholder (the template's `missingFields()` checks it, and
+  Review reports it rather than going quiet). In batch mode the relationship and
+  stakeholder-type controls ship hidden and are revealed for any row whose name misses the
+  roster — the roster answers for a match, and nothing answers for a miss. It can still arrive as `""` for a
   **roster-matched** row whose own record has no relationship on file — `missingFields()`
   detects a roster match by re-running the same name lookup `onStakeNameInput()` uses (fields
   are never locked/disabled — [Stakeholder auto-populate](#stakeholder-auto-populate), above —

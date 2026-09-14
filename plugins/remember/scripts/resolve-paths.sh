@@ -35,8 +35,14 @@
 # ENVIRONMENT (inputs)
 #   CLAUDE_PROJECT_DIR    Project root (set by Claude Code hooks)
 #   REMEMBER_HOOK_CWD     Fallback project root (#411), consulted when
-#                         CLAUDE_PROJECT_DIR is unset -- Codex and Gemini CLI
-#                         never set the latter. Exported by
+#                         CLAUDE_PROJECT_DIR is unset -- confirmed still true
+#                         of Codex (live-observed, #463) but no longer of
+#                         Gemini CLI, whose own bundled docs say it sets
+#                         CLAUDE_PROJECT_DIR as a compatibility alias (#456,
+#                         unverified live -- #532). This fallback stays
+#                         correct and needed regardless: it exists for ANY
+#                         host that leaves CLAUDE_PROJECT_DIR unset, Codex
+#                         included, not only for Gemini. Exported by
 #                         session-start-hook.sh / session-end-hook.sh from the
 #                         SessionStart/SessionEnd stdin payload's `cwd` field;
 #                         not read from stdin here (see the caller comments).
@@ -116,45 +122,38 @@ _resolve_paths_fail() {
     exit 1
 }
 
+# _REMEMBER_PLUGIN_ROOT keeps this EXACT single-assignment shape --
+# test_host_shell_parity_407.py::_shell_mirrored_vars() reads the two
+# variable names straight off this line via regex, rather than a
+# hand-copied list that would drift from pipeline/host.PLUGIN_ROOT_VARS
+# unnoticed. Validation (#471) below is layered on top of it, not folded
+# into the assignment itself, so that regex keeps matching.
 _REMEMBER_PLUGIN_ROOT="${PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-}}"
-if [ -n "$_REMEMBER_PLUGIN_ROOT" ]; then
+if [ -n "$_REMEMBER_PLUGIN_ROOT" ] && [ -f "$_REMEMBER_PLUGIN_ROOT/pipeline/haiku.py" ]; then
     PIPELINE_DIR="$_REMEMBER_PLUGIN_ROOT"
+elif [ -n "${PLUGIN_ROOT:-}" ] && [ -n "${CLAUDE_PLUGIN_ROOT:-}" ] \
+        && [ "$_REMEMBER_PLUGIN_ROOT" != "$CLAUDE_PLUGIN_ROOT" ] \
+        && [ -f "${CLAUDE_PLUGIN_ROOT}/pipeline/haiku.py" ]; then
+    # PLUGIN_ROOT is generic and unnamespaced (#471): an unrelated tool
+    # exporting it into a hook's environment would otherwise become this
+    # plugin's execution root with no check that it contains this plugin's
+    # code -- PIPELINE_DIR is subsequently the pipeline.shell import root,
+    # sourced as scripts/log.sh, executed as scripts/save-session.sh, and
+    # dispatched as hooks.d. A PLUGIN_ROOT that fails the same [ -f ] marker
+    # check the local-install branch below already makes falls through to
+    # the vendor alias instead of being trusted anyway -- turning a name
+    # collision into a fallback rather than a wrong execution root. This
+    # arm only fires when PLUGIN_ROOT was actually set and rejected (so
+    # _REMEMBER_PLUGIN_ROOT came from it, not already from
+    # CLAUDE_PLUGIN_ROOT) and names a genuinely different directory than
+    # CLAUDE_PLUGIN_ROOT, which is validated here on its own merits.
+    PIPELINE_DIR="$CLAUDE_PLUGIN_ROOT"
 elif [ -f "$_PLUGIN_ROOT_CANDIDATE/pipeline/haiku.py" ]; then
     # Local install: scripts/ is one level below the plugin root
     PIPELINE_DIR="$_PLUGIN_ROOT_CANDIDATE"
 else
-    _msg="FATAL: Cannot resolve plugin root. CLAUDE_PLUGIN_ROOT is not set and $_PLUGIN_ROOT_CANDIDATE/pipeline/haiku.py does not exist."
+    _msg="FATAL: Cannot resolve plugin root. PLUGIN_ROOT/CLAUDE_PLUGIN_ROOT do not point at a valid plugin install (missing pipeline/haiku.py) and $_PLUGIN_ROOT_CANDIDATE/pipeline/haiku.py does not exist."
     _resolve_paths_fail "$_msg" "${CLAUDE_PROJECT_DIR:-.}/.remember/logs" || return 1
-fi
-
-# --- Resolve PROJECT_DIR (the user's project root) ---
-#
-# Priority:
-#   1. CLAUDE_PROJECT_DIR (set by Claude Code — always correct, and the more
-#      specific signal on the host that sets it, so it is tried first and a
-#      disagreeing stdin cwd never overrides it)
-#   2. REMEMBER_HOOK_CWD (#411) — the SessionStart/SessionEnd payload's `cwd`
-#      field, exported by the hooks that already read stdin for `session_id`
-#      and `transcript_path` (#206, #407). Codex and Gemini CLI both put `cwd`
-#      on that payload but neither sets CLAUDE_PROJECT_DIR (Codex documents no
-#      such variable at all; Gemini documents no hook environment variables
-#      whatsoever), so this is the fallback that makes resolution possible on
-#      either host. Not every caller of this file is a hook with stdin to
-#      read -- doctor.sh and a bare `source` from a shell have none -- so an
-#      unset or unusable value here is silently skipped, same as an unset
-#      CLAUDE_PROJECT_DIR above.
-#   3. If PIPELINE_DIR is inside a .claude/remember/ structure, derive from that
-#   4. Fail — we cannot guess the project root from a marketplace cache path
-if [ -n "$CLAUDE_PROJECT_DIR" ]; then
-    PROJECT_DIR="$CLAUDE_PROJECT_DIR"
-elif [ -n "${REMEMBER_HOOK_CWD:-}" ] && [ -d "${REMEMBER_HOOK_CWD:-}" ]; then
-    PROJECT_DIR="$REMEMBER_HOOK_CWD"
-elif [[ "$PIPELINE_DIR" == *"/.claude/remember" ]]; then
-    # Local install: plugin is at $PROJECT/.claude/remember
-    PROJECT_DIR="$(cd "$PIPELINE_DIR/../.." && pwd)"
-else
-    _msg="FATAL: Cannot resolve project root. CLAUDE_PROJECT_DIR is not set, REMEMBER_HOOK_CWD is not set or not a directory, and plugin is not in a local .claude/remember/ layout (PIPELINE_DIR=$PIPELINE_DIR)."
-    _resolve_paths_fail "$_msg" "${PROJECT_DIR:-.}/.remember/logs" || return 1
 fi
 
 # --- Windows shell normalization (Git Bash / MSYS / Cygwin) ----------------
@@ -168,7 +167,7 @@ fi
 # Convert /c/Users/... → C:\Users\... here so all downstream slug computations
 # (3 shell sites + Python `_session_dir`) align with Claude Code's storage.
 # On Linux/macOS bash $OSTYPE is "linux-gnu" or "darwin*"; the case below
-# never matches and PROJECT_DIR is left untouched.
+# never matches and the input is echoed back untouched.
 # All FOUR shapes, not just the POSIX one (#263). $CLAUDE_PROJECT_DIR does not
 # always arrive in the same form on the same machine: the reporter's log carries
 # `/c/Users/...` and `c:/Users/...` within a single day. Only the first matched,
@@ -180,34 +179,164 @@ fi
 # A path carrying no drive letter at all falls through untouched, which is what
 # a genuine POSIX path under MSYS (/tmp, /usr) needs.
 #
+# A FUNCTION (#448), not a one-shot block run after PROJECT_DIR was already
+# chosen. The old ordering tested REMEMBER_HOOK_CWD's `[ -d ]` in whatever
+# spelling the caller's payload happened to carry, then normalized only the
+# already-selected PROJECT_DIR afterwards -- so a Windows-native cwd
+# (backslash separators, or a bare drive letter) was tested in the form the
+# shell cannot resolve and the branch was skipped before the code that would
+# have fixed the spelling ever ran. On a host with no CLAUDE_PROJECT_DIR
+# (Codex, Gemini CLI) that meant every hook silently fell through to the loud
+# failure via its own `|| exit 0`.
+#
+# The fix normalizes every candidate BEFORE it is tested, uniformly:
+# CLAUDE_PROJECT_DIR was never `-d`-tested before selection either (only
+# trusted, then validated once at the very end below), so giving it the same
+# normalize-then-trust treatment here is not a new exposure. REMEMBER_HOOK_CWD
+# keeps its own existence test before selection -- now against the normalized
+# form -- so a value that still doesn't resolve to a real directory falls
+# through to the next candidate (the local-install derivation, or the loud
+# failure) instead of being adopted and hard-failing later with a less
+# specific message. Normalizing is pure string reshaping (drive letter case,
+# separator direction) with no filesystem access of its own, so applying it to
+# an unvalidated candidate before the existence test adds no new trust in a
+# hostile REMEMBER_HOOK_CWD (#417, #424) -- the value still has to name a real
+# directory to be selected, exactly as before.
+#
 # The drive-form regex lives in a variable: a bracket expression containing a
 # backslash is not portable to write inline on the right of `=~`.
-_REMEMBER_WIN_DRIVE_RE='^([a-zA-Z]):[/\](.*)$'
-case "$OSTYPE" in
-    msys|cygwin)
-        _drive=""
-        _rest=""
-        # Cygwin's mount prefix first: /cygdrive/c/... cannot match the MSYS
-        # form below, because "cygdrive" is not one character.
-        if [[ "$PROJECT_DIR" =~ ^/cygdrive/([a-zA-Z])/(.*)$ ]]; then
-            _drive="${BASH_REMATCH[1]}"
-            _rest="${BASH_REMATCH[2]}"
-        elif [[ "$PROJECT_DIR" =~ ^/([a-zA-Z])/(.*)$ ]]; then
-            _drive="${BASH_REMATCH[1]}"
-            _rest="${BASH_REMATCH[2]}"
-        elif [[ "$PROJECT_DIR" =~ $_REMEMBER_WIN_DRIVE_RE ]]; then
-            _drive="${BASH_REMATCH[1]}"
-            _rest="${BASH_REMATCH[2]}"
-        fi
-        if [ -n "$_drive" ]; then
-            _drive=$(printf '%s' "$_drive" | tr '[:lower:]' '[:upper:]')
-            _rest="${_rest//\//\\}"
-            PROJECT_DIR="${_drive}:\\${_rest}"
-        fi
-        unset _drive _rest
-        ;;
-esac
-unset _REMEMBER_WIN_DRIVE_RE
+_remember_normalize_win_path() {
+    local _in="$1" _drive="" _rest=""
+    local _re='^([a-zA-Z]):[/\](.*)$'
+    case "$OSTYPE" in
+        msys|cygwin)
+            # Cygwin's mount prefix first: /cygdrive/c/... cannot match the
+            # MSYS form below, because "cygdrive" is not one character.
+            if [[ "$_in" =~ ^/cygdrive/([a-zA-Z])/(.*)$ ]]; then
+                _drive="${BASH_REMATCH[1]}"
+                _rest="${BASH_REMATCH[2]}"
+            elif [[ "$_in" =~ ^/([a-zA-Z])/(.*)$ ]]; then
+                _drive="${BASH_REMATCH[1]}"
+                _rest="${BASH_REMATCH[2]}"
+            elif [[ "$_in" =~ $_re ]]; then
+                _drive="${BASH_REMATCH[1]}"
+                _rest="${BASH_REMATCH[2]}"
+            fi
+            if [ -n "$_drive" ]; then
+                _drive=$(printf '%s' "$_drive" | tr '[:lower:]' '[:upper:]')
+                _rest="${_rest//\//\\}"
+                printf '%s' "${_drive}:\\${_rest}"
+                return 0
+            fi
+            ;;
+    esac
+    printf '%s' "$_in"
+}
+
+# --- Portable-glob helper (#517) -------------------------------------------
+#
+# Bash's own filename glob (`*`/`?`/`[...]`) and its parameter-expansion
+# pattern matching (`%`/`##`/a `[[ == ]]` glob) both recognise ONLY '/' as a
+# path-component separator -- POSIX glob(3)'s own definition of a pathname,
+# not a filesystem property -- so on msys/cygwin, where REMEMBER_DIR (and
+# PROJECT_DIR, via _remember_normalize_win_path above) arrive backslash-
+# separated, every such operation against them silently matches nothing.
+# #487 (PR #499) fixed this once, inline, for scripts/save-session.sh's own
+# retention sweep; this is the same fix extracted so every later call site
+# (#517) reuses one mechanism instead of re-deriving the $OSTYPE gate.
+#
+# Gated on $OSTYPE, not applied unconditionally, for the same reason
+# _remember_normalize_win_path above is: a literal backslash is an ordinary,
+# legal filename character on POSIX, and _remember_normalize_win_path (the
+# thing that puts backslashes into these variables in the first place) is
+# itself gated the identical way -- so a POSIX path never carries a
+# separator-shaped backslash to begin with, and unconditionally rewriting
+# one would mangle a real POSIX directory whose name happens to contain a
+# literal `\` into a different, generally nonexistent path.
+#
+# Deliberately NOT `unset -f`'d below the way _remember_normalize_win_path
+# is: every caller of this file that needs to glob or pattern-match against
+# REMEMBER_DIR/PROJECT_DIR sources it AFTER this file runs, so the function
+# has to still be callable then, unlike the normalize helper above, which is
+# only ever used inline, above, within this same file.
+_remember_forward_slash() {
+    case "$OSTYPE" in
+        msys|cygwin) printf '%s' "${1//\\//}" ;;
+        *) printf '%s' "$1" ;;
+    esac
+}
+
+# _remember_forward_slash_into VARNAME VALUE
+# Same answer as _remember_forward_slash, written into VARNAME with
+# `printf -v` instead of printed -- so a caller doing `X=$(_remember_forward_slash
+# "$Y")` can have it with no command-substitution subshell at all (#665, part
+# of #660). `_remember_forward_slash` itself already forks nothing (`case` and
+# a parameter expansion, no external process) -- the fork this removes is the
+# one `$( )` was adding purely to capture that already-forkless function's
+# stdout, the same class `_remember_date_into` (lib-clock.sh, #511) and
+# config_into (log.sh, #665) remove for their own callers.
+_remember_forward_slash_into() {
+    case "$OSTYPE" in
+        msys|cygwin) printf -v "$1" '%s' "${2//\\//}" ;;
+        *) printf -v "$1" '%s' "$2" ;;
+    esac
+}
+
+# --- Resolve PROJECT_DIR (the user's project root) ---
+#
+# Priority:
+#   1. CLAUDE_PROJECT_DIR (set by Claude Code — always correct, and the more
+#      specific signal on the host that sets it, so it is tried first and a
+#      disagreeing stdin cwd never overrides it)
+#   2. REMEMBER_HOOK_CWD (#411, #444) — the host's own hook-event payload's
+#      `cwd` field, exported by the hook that read this file, from its own
+#      stdin -- every hook this plugin registers now offers one (session-start
+#      and session-end since #411; user-prompt and post-tool since #444).
+#      Both Codex and Gemini CLI put `cwd` on that payload. Codex still
+#      documents no CLAUDE_PROJECT_DIR variable at all (live-confirmed,
+#      #463), so this fallback is still what makes resolution possible on
+#      Codex. Gemini CLI's own bundled docs now claim it DOES set
+#      CLAUDE_PROJECT_DIR, as a compatibility alias (#456) -- unverified
+#      live, #532 -- in which case priority 1 above wins for Gemini and this
+#      fallback is simply never reached on that host; it stays correct and
+#      needed for Codex and any other host that genuinely leaves
+#      CLAUDE_PROJECT_DIR unset. Not every
+#      caller of this file is a hook with stdin to read -- doctor.sh and a
+#      bare `source` from a shell have none -- so an unset or unusable value
+#      here is silently skipped, same as an unset CLAUDE_PROJECT_DIR above.
+#      Normalized (#448) before the existence test immediately below, so a
+#      Windows-native spelling is tested in the form the shell can resolve.
+#
+#      ASSUMPTION (#417): this file only SOURCES the variable, it never sets
+#      it, so its correctness here depends on every caller either exporting a
+#      freshly-validated value from its own stdin payload (every hook that
+#      reaches this file does, as of #444, each rejecting embedded newlines)
+#      or clearing it before sourcing this file when it has none to offer
+#      (every non-hook caller, and any hook on a run where stdin carried no
+#      usable `cwd` -- the `unset` at the top of each hook's file runs first,
+#      before its own stdin read, for exactly that reason).
+#      The assumption this whole chain rests on is that no supported host
+#      reuses one process environment across separate hook invocations within
+#      a project-agnostic dispatcher; on Claude Code CLAUDE_PROJECT_DIR always
+#      wins first and this arm never runs. If that assumption is ever wrong,
+#      a value exported by one session's SessionStart could be inherited by a
+#      later PostToolUse/UserPromptSubmit invocation from a DIFFERENT project
+#      that reused the same environment -- reachability was not established
+#      either way when this comment was written; see #417.
+#   3. If PIPELINE_DIR is inside a .claude/remember/ structure, derive from that
+#   4. Fail — we cannot guess the project root from a marketplace cache path
+if [ -n "$CLAUDE_PROJECT_DIR" ]; then
+    PROJECT_DIR="$(_remember_normalize_win_path "$CLAUDE_PROJECT_DIR")"
+elif [ -n "${REMEMBER_HOOK_CWD:-}" ] && [ -d "$(_remember_normalize_win_path "${REMEMBER_HOOK_CWD:-}")" ]; then
+    PROJECT_DIR="$(_remember_normalize_win_path "$REMEMBER_HOOK_CWD")"
+elif [[ "$PIPELINE_DIR" == *"/.claude/remember" ]]; then
+    # Local install: plugin is at $PROJECT/.claude/remember
+    PROJECT_DIR="$(cd "$PIPELINE_DIR/../.." && pwd)"
+else
+    _msg="FATAL: Cannot resolve project root. CLAUDE_PROJECT_DIR is not set, REMEMBER_HOOK_CWD is not set or not a directory, and plugin is not in a local .claude/remember/ layout (PIPELINE_DIR=$PIPELINE_DIR)."
+    _resolve_paths_fail "$_msg" "${PROJECT_DIR:-.}/.remember/logs" || return 1
+fi
+unset -f _remember_normalize_win_path
 
 # --- Validate both paths exist ---
 if [ ! -d "$PROJECT_DIR" ]; then

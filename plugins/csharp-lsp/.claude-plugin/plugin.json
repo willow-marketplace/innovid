@@ -2,9 +2,17 @@
   "name": "csharp-lsp",
   "version": "1.0.0",
   "description": "C# language server for code intelligence",
-  "updatedAt": "2026-08-29T00:03:25.206Z",
+  "updatedAt": "2026-09-14T10:57:46.848Z",
   "author": {
     "name": "Anthropic",
     "email": "support@anthropic.com"
+  },
+  "lspServers": {
+    "csharp-ls": {
+      "command": "csharp-ls",
+      "extensionToLanguage": {
+        ".cs": "csharp"
+      }
+    }
   }
 }

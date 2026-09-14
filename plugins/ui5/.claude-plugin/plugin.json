@@ -2,7 +2,7 @@
   "name": "ui5",
   "version": "1.0.0",
   "description": "SAPUI5 / OpenUI5 plugin for coding agents. Creates and validates UI5 projects, accesses API documentation, runs UI5 linter, retrieves development guidelines and best practices for UI5 development.",
-  "updatedAt": "2026-08-29T00:03:25.788Z",
+  "updatedAt": "2026-09-14T10:58:58.984Z",
   "author": {
     "name": "SAP SE"
   },
@@ -26,7 +26,7 @@
     "ui5-mcp-server": {
       "args": [
         "-y",
-        "@ui5/mcp-server"
+        "@ui5/mcp-server@latest"
       ],
       "command": "npx"
     }

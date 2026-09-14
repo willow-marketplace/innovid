@@ -12,8 +12,24 @@
 ## BigQuery
 
 ### Spark Session Configuration
-No session configuration is needed to read from BigQuery, all jars and
-configuration are provided by default in Dataproc.
+
+On Managed Spark on Google Cloud, BigQuery connector jars are pre-installed.
+When initializing local session, set the BigQuery package coordinates and
+dependencies:
+
+```python
+from pyspark.sql import SparkSession
+
+# For Spark 4.0 environments
+spark = (
+    SparkSession.builder.appName("<APP_NAME>")
+    .config(
+        "spark.jars.packages",
+        "com.google.cloud.spark:spark-4.0-bigquery:0.45.0,javax.inject:javax.inject:1",
+    )
+    .getOrCreate()
+)
+```
 
 ### Reading from BigQuery
 #### Basic example to read a Big Query table
@@ -465,12 +481,20 @@ API.
 
 ### Reading from Cloud SQL via JDBC
 
+> [!WARNING] NEVER embed plaintext secrets or passwords directly in code or
+> scripts. Always retrieve credentials securely via environment variables (or
+> Secret Manager).
+
 ```python
+import os
+
+password = os.environ.get("DB_PASSWORD", "")
+
 df = spark.read.format("jdbc") \
     .option("url", "jdbc:postgresql://<HOST_OR_PRIVATE_IP>:5432/<DATABASE>") \
     .option("dbtable", "<TABLE_NAME>") \
     .option("user", "<USER>") \
-    .option("password", "<PASSWORD>") \
+    .option("password", password) \
     .option("driver", "org.postgresql.Driver") \
     .load()
 ```

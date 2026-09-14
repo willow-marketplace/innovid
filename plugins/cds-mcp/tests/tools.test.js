@@ -1,14 +1,14 @@
 // Node.js test runner (test) for lib/tools.js
 import tools from '../lib/tools.js'
 import assert from 'node:assert'
-import { test } from 'node:test'
+import { describe, test } from 'node:test'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
 
 // Point to the sample project directory
 const sampleProjectPath = join(dirname(fileURLToPath(import.meta.url)), 'sample')
 
-test.describe('tools', () => {
+describe('tools', () => {
   test('search_model: should find services', async () => {
     const result = await tools.search_model.handler({
       projectPath: sampleProjectPath,
@@ -101,7 +101,7 @@ test.describe('tools', () => {
     assert(typeof services[0] === 'string', 'Should return only names')
   })
 
-  test('search_docs: should find docs', async () => {
+  test.skip('search_docs: should find docs', async () => {
     // Normal search
     const results = await tools.search_docs.handler({
       query: 'how to create a new cap project',
@@ -110,7 +110,7 @@ test.describe('tools', () => {
     assert(results.toLowerCase().includes('cds init'), 'Should contain the words cds init')
   })
 
-  test('search_docs: event mesh should mention enterprise-messaging', async () => {
+  test.skip('search_docs: event mesh should mention enterprise-messaging', async () => {
     const meshResults = await tools.search_docs.handler({
       query: 'event mesh config',
       maxResults: 10

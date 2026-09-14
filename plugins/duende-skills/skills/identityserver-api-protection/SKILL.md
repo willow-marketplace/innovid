@@ -15,7 +15,7 @@ description: "Protecting APIs with Duende IdentityServer: JWT bearer authenticat
 - Protecting APIs hosted in the same application as IdentityServer (local API authentication)
 - Securing multi-audience API deployments
 
-Docs: https://docs.duendesoftware.com/identityserver/tokens/api-protection
+Docs: https://docs.duendesoftware.com/identityserver/apis/
 
 ## Core Concepts
 

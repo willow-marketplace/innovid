@@ -28,6 +28,14 @@ mlflow.set_tracking_uri("http://localhost:5000")  # skip if MLFLOW_TRACKING_URI 
 mlflow.set_experiment("my-agent")                 # skip if MLFLOW_EXPERIMENT_ID is set
 ```
 
+> **On Databricks: the experiment name must be an absolute workspace path.**
+> `mlflow.set_experiment("my-agent")` is rejected or lands in the wrong place. Use
+> `mlflow.set_experiment("/Users/<your-email>/my-agent")` or, to attach to an existing
+> experiment, look up its numeric ID in the UI and pass `set_experiment(experiment_id="<id>")`.
+>
+> **On Databricks: opt into UC trace storage**<br>
+> Traces land in the experiment backend by default (capped at 100,000 per experiment). For production use, bind the experiment to a UC trace location when calling `set_experiment`. See [`references/databricks.md`](references/databricks.md) for the one-liner.
+
 ### Enable Tracing
 
 **For supported frameworks** (LangChain, LangGraph, OpenAI, etc.):
@@ -58,16 +66,13 @@ Zero-code instrumentation for supported libraries. See the [Integrations page](h
 ```python
 import mlflow
 
-# Enable before importing/using the library
-mlflow.langchain.autolog()    # LangChain, LangGraph
-mlflow.openai.autolog()       # OpenAI SDK
-mlflow.anthropic.autolog()    # Anthropic SDK
-mlflow.gemini.autolog()       # Google Gemini (google-genai SDK)
-mlflow.litellm.autolog()      # LiteLLM
-mlflow.dspy.autolog()         # DSPy
-mlflow.autogen.autolog()      # AutoGen
-mlflow.crewai.autolog()       # CrewAI
+# Choose the autolog integration for the framework already used by this app.
+mlflow.langchain.autolog()  # LangChain and LangGraph
 ```
+
+For a different framework, use its matching integration instead (for example, `mlflow.openai.autolog()` for the OpenAI SDK). Do not enable every integration speculatively. LangGraph is traced through `mlflow.langchain.autolog()`. There is no `mlflow.langgraph.autolog()`.
+
+**Start with one autolog call. Do not decorate framework operations to recreate automatic spans.** `mlflow.langchain.autolog()` captures LangGraph graph execution, nodes, tools, and model calls on its own. Adding `@mlflow.trace` to those same nodes, tools, or model calls produces duplicate spans. Add a manual span only for app-specific work that the framework does not capture, such as a retrieval step you wrote or an outer application boundary (see "Combining AutoLogging with Custom Tracing" below).
 
 ### Method 2: Decorator (Recommended for Custom Code)
 
@@ -87,6 +92,10 @@ def search_database(sql: str) -> dict:
 
 **Span types**: `LLM`, `CHAIN`, `TOOL`, `AGENT`, `RETRIEVER`, `EMBEDDING`, `RERANKER`, `PARSER`, `UNKNOWN`
 
+**Caution: the decorator auto-captures raw function arguments and return value.** Set `span.set_inputs()` or `span.set_outputs()` inside the body when the span should store a more useful, compact value; explicit values take precedence over the decorator's automatic capture.
+
+For non-chat-shaped root inputs or outputs that need a custom trace-list preview or compact stored values, see [Root span previews and compact values](root-span-previews.md).
+
 ### Method 3: Manual Spans (When Decorator Not Possible)
 
 Use only when you can't use a decorator:
@@ -99,6 +108,12 @@ with mlflow.start_span(name=f"process_{item_id}") as span:
     result = process(query)
     span.set_outputs({"result": result})  # Must set manually
 ```
+
+> **Warning:** A `start_span` context manager that never calls `span.set_inputs(...)`
+> and `span.set_outputs(...)` produces a span with a name and a duration but no I/O. In
+> the trace UI it looks identical to a span that legitimately has none, so a reviewer
+> cannot tell instrumentation succeeded. Always set inputs and outputs on a manual span,
+> or use the `@mlflow.trace` decorator, which captures both automatically.
 
 ### Span content: record full data, not a count
 
@@ -156,6 +171,8 @@ traces = mlflow.search_traces(
 
 ## Combining AutoLogging with Custom Tracing
 
+The `@mlflow.trace` decorator here marks a deliberate application boundary that wraps a custom retrieval step and the autologged LLM call under one root span. It does not re-decorate the framework's own nodes or model calls, which autolog already captures.
+
 ```python
 import mlflow
 from mlflow.entities import SpanType
@@ -172,6 +189,32 @@ def rag_query(question: str) -> str:
 
     return response.content
 ```
+
+### Adding descriptions to LangGraph node spans
+
+When `mlflow.langchain.autolog()` traces a LangGraph graph, each node becomes a span named after the node function. The span shows inputs and outputs but nothing that explains what the node does. To make the trace readable without opening each node's code, write the node's docstring into the span's `description` attribute:
+
+```python
+import mlflow
+
+def web_research(state: dict) -> dict:
+    """Search the web for information relevant to the query."""
+    span = mlflow.get_current_active_span()
+    if span:
+        span.set_attribute("description", web_research.__doc__)
+    # node logic here
+    return state
+
+def enrich_findings(state: dict) -> dict:
+    """Cross-reference web results with the internal knowledge base."""
+    span = mlflow.get_current_active_span()
+    if span:
+        span.set_attribute("description", enrich_findings.__doc__)
+    # node logic here
+    return state
+```
+
+The `description` attribute appears in the span's Attributes tab in the MLflow trace viewer. Any string key works. `"description"` is a readable convention.
 
 ---
 

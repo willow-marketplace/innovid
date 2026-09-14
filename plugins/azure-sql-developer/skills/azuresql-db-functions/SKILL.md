@@ -18,8 +18,18 @@ Database container** (Private Preview) using **Azure Functions** and the first-p
 > Event-driven note: Azure SQL **Change Event Streaming (CES)** is the *cloud*
 > path for streaming row changes, and it **cannot run against the local
 > container** (it is unsupported on the Linux engine and streams only to Azure
-> Event Hubs public endpoints). Locally, use the SQL trigger below. See
-> [references/event-driven.md](references/event-driven.md).
+> Event Hubs public endpoints). Locally, use the SQL trigger below. Open
+> [references/event-driven.md](references/event-driven.md) when you need the reason CES cannot
+> run here, or when a user asks for it by name.
+
+Verified on 2026-09-05 against the container image
+`sqldbpreview-dpgaeqhmgphzd4bk.azurecr.io/azure-sql/db-dev:latest`, reporting `EngineEdition`
+5, Edition `SQL Azure`, build `12.0.2000.8`. All six executable checks behind this skill
+passed: change tracking enabled on a user database, compatibility level 130 or higher,
+`OPENJSON` present, and, against Azure Functions Core Tools 4.12.0, that `func templates list`
+still advertises a SQL trigger template while `func new --template SqlTrigger` is refused with
+`Unknown template 'SqlTrigger'`, with an HTTP template succeeding in the same project as the
+control.
 
 ## Load-bearing facts (inlined; full engine detail in azuresql-db-container)
 
@@ -99,9 +109,9 @@ func new --name Books                              # pick an HTTP trigger templa
 
 Then wire the SQL bindings into the function. Per-language snippets (HTTP GET via
 input binding, HTTP POST upsert via output binding) are in
-[references/functions-snippets.md](references/functions-snippets.md); binding
-attribute/`function.json` fields are in
-[references/functions-bindings-reference.md](references/functions-bindings-reference.md).
+[references/functions-snippets.md](references/functions-snippets.md); open it once you know your
+language. Open [references/functions-bindings-reference.md](references/functions-bindings-reference.md)
+when a binding attribute or a `function.json` field is rejected.
 
 Output-binding requirements: the target table must have a **primary key**
 (the binding upserts via `MERGE`), and the database **compatibility level must
@@ -116,7 +126,17 @@ func start        # HTTP endpoints on http://localhost:7071/api/<name>
 
 ## Step 4: event-driven with the SQL trigger (the local mechanism)
 
-The SQL trigger fires your function when rows change. It requires **Change
+The SQL trigger fires your function when rows change.
+
+**There is no SQL trigger template to scaffold from, even though the tooling
+lists one.** `func templates list` advertises a `SQL Trigger` entry, but
+`func new --template SqlTrigger` exits non-zero with
+`Unknown template 'SqlTrigger'`: the listing and the scaffolder disagree, and no
+flag reconciles them. Scaffold an HTTP trigger instead (`func new --name
+ToDoTrigger --template HttpTrigger`, which succeeds in the same project) and
+write the trigger binding in by hand, as below.
+
+The trigger requires **Change
 Tracking** on the database and table. Enable it once (on `appdb`, not `master`):
 
 ```sql
@@ -168,6 +188,7 @@ move to least-privilege or to the cloud.
 - Do not expect the function app to create `appdb`; provision it on a master connection first.
 - Do not try to make Change Event Streaming (CES) work locally - it is unsupported on the local (Linux) engine and streams only to Azure Event Hubs. Use the SQL trigger locally.
 - Do not use an output binding against a table with no primary key, or below compatibility level 130.
+- Do not scaffold with `func new --template SqlTrigger`; the template is listed but cannot be created. Create an HTTP trigger and add the binding by hand.
 - Do not use the `Connection` binding keyword for SQL bindings; it is `ConnectionStringSetting` / `connectionStringSetting`.
 - Do not commit `local.settings.json` (it holds the connection string / SA password) or drop `TrustServerCertificate=true` / `--platform linux/amd64` on a non-x64 host.
 

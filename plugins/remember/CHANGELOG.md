@@ -7,6 +7,1292 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.32.0] - 2026-09-13 — SessionStart's fork-reduction series closes out with three opt-out caches (memory, config, tool-detection), 22+ more subshell forks cut from the hot path, and a Windows benchmark that finally runs in CI -- plus the release-audit fix moving the #668 config cache out of the project tree and validating it line-by-line before eval, and the privacy/terms pages the plugin directory listing requires (#656, #657, #660, #662-#669, #673, #679, #682, #683)
+
+### Added
+
+- claude-remember now asks for a GitHub star, once, through the same `SessionStart` promo slot and off switch (`features.plugin_promos`) the #574/#631 cross-plugin promo already owns (#657). It does NOT fire at install time: the gate is `recent.md` being a non-empty regular file, which only exists once a full day of sessions has actually been consolidated -- so the ask waits until the plugin has demonstrably done something for you, per the maintainer's decision on the issue. Same cooldown, same rotation, same `claude-remember:`-prefixed self-identifying `systemMessage`-only line as every other entry in `promos.json`. A `stargazers` badge was also added to README.md, next to the version badge.
+
+- `SessionStart` now caches three of the four things #668 identified as recomputed on every start -- the injected `=== MEMORY ===` section (six memory files headed/sized/concatenated, plus the rotated-slice listing), the flattened `config()` table (`_RCFG_*`), and the `python`/`jq` tool-verdict probe -- each validated by mtime (`-nt`, never a tie) against the files it depends on, and each invalidated rather than served stale on any mismatch. The context and config caches are written under `$REMEMBER_DIR/tmp/` and refreshed by `save-session.sh` and `run-consolidation.sh` at the tail of their own already-detached (`nohup ... & disown`) runs, so population costs nothing on the interactive path; `session-start-hook.sh` also self-heals a miss by writing a fresh cache via `tee` while still streaming the live render. The tool-verdict cache lives under the system temp dir (keyed on the exact `$PATH` string) since it runs before `REMEMBER_DIR` is known. The fourth item (`session_dir_slug`) was assessed and deliberately deferred -- see the pull request body for why. New shared library: `scripts/lib-memory-context.sh`. `REMEMBER_START_CACHE=0`, `REMEMBER_CONFIG_CACHE=0` and `REMEMBER_TOOLS_CACHE=0` each disable one cache independently for debugging.
+
+- `session-start-hook.sh` now has a real wall-time and spawn-count benchmark (`tests/test_session_start_windows_benchmark_669.py`), run on every leg of the existing test matrix -- including `windows-latest` under Git Bash -- rather than in a new, separate CI job (#669, part of #660). Every latency figure attached to #660's follow-ups (#662-#667) was reasoned from one reporter's own measurement and never observed in CI, because the Windows leg never executed this hook at all. Two scenarios are measured (jq present, and jq absent -- Git for Windows does not ship it), each cold and warm. Spawn count is asserted as a generous, deliberately loose budget (spawn count is counted by execution, so it is machine-independent); wall time is printed and recorded via `record_property` for a human to compare run over run, never asserted tightly, for the same reason this repo's own `#510` and `#497` reports are reports and not gates: a shared CI runner's wall clock is noisy about itself.
+
+- `tests/test_session_start_windows_benchmark_669.py`'s cold/warm wall-time and spawn-count numbers (#669) now reach a human on every CI run instead of none: each scenario appends a small Markdown table to `$GITHUB_STEP_SUMMARY` (shown on the run's own Summary tab, no workflow-file change needed -- GitHub Actions already makes that variable available to every step) and prints the same table to both stdout and stderr, so it is visible in the job log too, not only on a failure (#673). Appending degrades silently to a no-op when the variable is unset (the ordinary local `pytest` run), but a genuinely unwritable path raises loudly rather than dropping the table a second time.
+
+- Privacy policy (`docs/privacy.md`) and terms of service (`docs/terms.md`) pages, required by the OpenAI plugin directory submission form (#683).
+
+### Changed
+
+- SessionStart's foreground path no longer forks a `python3`/`python`/`py` candidate probe unconditionally on every start (#662). `$PYTHON` is only read by four jq-less fallback call sites (the config merge, the config flatten, the per-key read, and `_jq_fallback` itself), none of which fire when `jq` is on PATH -- the common case. Detection is now lazy: a `_remember_python()` resolver, called only at first actual need and cached the same way the existing PATH-keyed verdict cache already was, opted into via `_REMEMBER_LAZY_PYTHON=1` -- set only by `session-start-hook.sh`, since every OTHER sourcer of `detect-tools.sh` (`post-tool-hook.sh`, `save-session.sh`, `run-consolidation.sh`, `doctor.sh`) genuinely invokes `$PYTHON -m pipeline.shell` right after sourcing it, so eager detection there is real work, not waste. The jq-less path still resolves a working interpreter correctly when one is actually needed (#662's own named trap).
+- Rendering the injected `=== MEMORY ===` section (`lib-memory-context.sh`) no longer forks one `wc` + one `tr` + one `basename` per memory file -- a typical 4-6 file store paid 8-12+ forks here alone (#664, #666). Sizes are now read with one batched `wc -c` call across every present file (and, separately, one across the compact-mode deferred set and one across the up-to-10 rotated slices actually printed), parsed via a plain `read`, which already trims `wc`'s own padding; `basename` is replaced with `${MFILE##*/}`. The rotated-slice listing uses a glob array instead of `ls | sort`, and its count is the array length instead of `echo | wc -l | tr -d ' '`.
+- Three more always-on forks on the SessionStart foreground path are now gated or removed (#666): the `capture-alive.d` prune (`ls -t | tail`) only runs once the directory is actually over its 200-entry keep threshold, instead of on every single start; the staging-count check (`ls | grep -v | grep -v | wc -l | tr -d ' '`, five forks) is now a glob array walked with a `case`, zero forks; and `bootstrap-dirs.sh`'s stale-config sweep (`find -mmin +30`) is skipped entirely when a glob array shows there is nothing to sweep. `lib-clock.sh`'s `_remember_date` also now accepts `%s` through the bash >= 4.2 `printf '%(FMT)T'` builtin instead of always shelling out to `date` for it -- `%s` is POSIX strftime, not the GNU-only extension it was previously lumped in with, and the builtin and `date +%s` are pinned byte-identical by `tests/test_session_start_promo_spawn_budget_660.py`.
+
+- `SessionStart`'s hot path removes 22+ `$( )` subshell forks that were paying
+  a fork purely to capture an already-forkless builtin's output (#665, part
+  of #660): `config()`'s flattened-cache-hit lookups now have a `config_into
+  VAR key default` sibling (`printf -v`, no command substitution) used for
+  every `.features.*`/`.handoff_mode`/`.cooldowns.*`/`.timezone`/etc. read on
+  the `SessionStart` and per-tool-call config paths; `log()`'s timestamp now
+  calls `_remember_date_into` (already added by #511) directly instead of
+  wrapping it in `$( )`; `_remember_forward_slash` and `_stdin_json_string`
+  each gained an `_into` sibling, wired into every session-start-hook.sh call
+  site; and `lib-slug.sh`'s `_remember_build_slug_sed` -- 22 `$(printf
+  '\NNN')` calls building the slug's byte-range sed program, run once per
+  hook invocation -- now uses bash's own ANSI-C (`$'\NNN'`) octal quoting, a
+  lexer-level substitution that forks nothing, proved byte-identical to the
+  old builder. `log()`'s message control-byte scrub (`printf | tr`, #618/
+  #621) and the `.hooks.dispatch_*` reads in the hook-dispatcher region are
+  deliberately unchanged -- see the pull request body for why.
+
+### Fixed
+
+- save-session.sh's `FAILURE_MARKER` write (`last-summary-failure`, the consecutive-summarization-failure counter) now goes through the same `marker_write_ok` guard #653 gave the other four marker writes, instead of opening the path unguarded (#656). It was the fifth marker write in this file and #653's own completeness claim -- and its static test's `_MARKERS` tuple -- missed it: a FIFO planted at that path blocked the write in `open(2)` while still holding the save lock, the same shape #653 closed for `COOLDOWN_MARKER`, `NDC_MARKER`, `NOW_DAY_FILE` and `NDC_GEN_FILE`. Reachable only where `thresholds.max_summary_failures` (default 3) is configured above 1. Found by the v0.31.0 release gate 3 audit, round 2.
+
+- `session-start-hook.sh`'s promo selection (`_remember_compute_promo()`) no longer forks one `jq` process per field, per candidate, per invocation (#660). Reported as ~12.5s average session-start latency on Windows/Git Bash across 36 real starts, against 0.5-1.3s for comparable `SessionStart` hooks in the same sessions -- with Windows process-spawn cost (~50-200ms per subprocess under Git Bash) named as the plausible multiplier. Measured on this file: up to 13 `jq` forks for two shipped promos.json entries, including one query (`.plugins[$k]`) run twice back to back for no reason -- once to capture its value, once again just to inspect its exit status. Now 4, via one `jq` call reading the whole promo list and one probing `installed_plugins.json`, with a spawn-count regression test (`tests/test_session_start_promo_spawn_budget_660.py`) pinning it. Observed: the reduction in subprocess count, on this host. Reasoned, not observed: that removing 6 of 10 forks helps proportionally more on Windows/Git Bash, where each one costs more.
+
+- `50-git-restore.sh` (`before_session_start`) no longer re-runs the whole config-merge chain just to learn that `git_restore.enabled` is `false` (#663, part of #660). `session-start-hook.sh` sources `log.sh` -- which already resolves and merges the layered config -- before dispatching this hook as a CHILD process, and since `_LIB_MEMORY_DIR_LOADED` is deliberately not exported to it, `source log.sh` at the top of the hook unconditionally redid the ENTIRE three-layer merge (`lib-memory-dir.sh`'s own `mktemp`/`jq` merge, plus `log.sh`'s one-pass flatten) before ever reading the one boolean that decides whether any of that was needed -- on every dispatch, on every install with git_restore off (the shipped default). Now the hook reads the flag with one `jq` call straight out of the already-merged `REMEMBER_CONFIG` the parent already exported, before sourcing anything, and only falls through to the full chain when the flag says yes -- unchanged behavior on that path, since the authoritative `config()` gate right after `source log.sh` still re-checks it. Measured on this repo's spawn-counting harness (external `data_dir` layout, real re-source, git_restore.enabled=false): 11 spawns before this fix, 2 after (`tests/test_git_restore_no_resource_when_disabled_663.py`, with a positive control proving `git_restore.enabled=true` still runs the real restore). Also: `dispatch()` (`scripts/log.sh`) now reads the current user's UID with `$EUID` (a bash builtin) instead of forking `id -u`, and folds the per-hook ownership `stat` and the world-writable `find -perm -002` into a single `stat` call whose output decides both.
+
+- `session_was_saved()`'s jq-less fallback path (`_jq_fallback` in `scripts/detect-tools.sh`, used when `jq` is not on `PATH` -- the default on a fresh Git for Windows / Git Bash install) dropped the `--arg id "$1"` pair from its jq query entirely: the flag was swallowed as an unread option and the session id then took the place of the query, leaving the filter and the target file unread. Every previous session read as "unsaved" regardless of the truth, so `session-start-hook.sh`'s recovery block spawned `save-session.sh --force` in the background on every single jq-less startup (#667). `session_was_saved()` now gets its own jq-free branch, reading `last-save.json` with one direct Python call instead of going through the generic `--arg`-blind shim.
+
+- `SessionStart`'s warm path (#679, part of #660): a `sed` recovering the
+  EXIT trap in `lib-memory-dir.sh` and `bootstrap-dirs.sh` is now parameter
+  expansion (zero forks, byte-identical output, proven by a positive/negative
+  control), a `cat` of `capture-alive`/`capture-gap-reported` and the static
+  `session-history-hint.txt` is now a builtin `$(<file)` read, and two
+  same-script temp-file removes at the very end of `session-start-hook.sh`
+  are now one `rm -f` call instead of two. Warm-start spawn count on this
+  platform dropped from 30 to 24 (jq present).
+- The issue's own premise -- that the jq-less path re-probes `python3 -V`
+  and re-renders the whole `MEMORY` section on every warm start, missing
+  both of #668's caches -- turned out to be a bug in the TEST HARNESS this
+  repo measures itself with, not in `detect-tools.sh` or
+  `lib-memory-context.sh`: `tests/test_session_start_windows_benchmark_669.py`'s
+  own `_path_without_jq` helper removed the WHOLE PATH directory holding a
+  `jq` binary to simulate "jq absent", and on any machine where jq shares a
+  directory with core tools this hook also needs (macOS 15+ ships jq at
+  `/usr/bin`, alongside `mktemp`), that silently took `mktemp` down with it
+  too -- breaking BOTH #668 caches' publish step for the whole scenario,
+  cold run included. A genuine Windows/Git-Bash "jq absent" machine has no
+  jq anywhere on `PATH` at all, so there is no directory to remove and
+  `mktemp` (bundled with Git for Windows) is never at risk; users on that
+  platform were never actually affected. Fixed the harness (a per-file
+  exec-shim view directory, not a directory drop) and re-measured: with jq
+  genuinely absent, both caches hit correctly on a warm start, matching
+  jq-present's own warm spawn count exactly (24) once the harness stopped
+  hiding it.
+- Windows/Git-Bash benchmark budgets in `tests/test_session_start_windows_benchmark_669.py`
+  are re-measured and tightened to the corrected numbers (observed on
+  macOS): jq present cold 43 / warm 24, jq absent cold 73 / warm 24, each
+  with roughly 2x slack.
+
+- **Security fix (#682):** the #668 flattened-config cache (`_RCFG_*`, unreleased --
+  landed in #670, after v0.31.0) used to live at `$REMEMBER_DIR/tmp/config.rcfg`
+  -- inside the PROJECT tree, a directory users commit and share -- and was
+  loaded with a bare `source`. A repository could ship that file and have
+  every hook that sources `log.sh` (every `SessionStart`, every post-tool
+  call) execute its contents as shell in the cloning user's own session, no
+  action beyond `git clone` and opening the project. The cache now lives
+  under the system temp dir instead (the same convention as
+  `lib-env-cache.sh`'s and `detect-tools.sh`'s own caches), keyed on
+  `REMEMBER_DIR` so two projects on the same machine never collide on one
+  file's mangled filename and silently read back each other's config (the
+  cache now carries its own REMEMBER_DIR identity line, checked on every
+  load), and the loader no longer trusts `source` at all: it validates
+  every line against the exact `NAME=%q-value` shape the publisher writes
+  and rejects (and removes) the whole file on the first line that does not
+  match, before a single byte of it is evaluated. A stale
+  `.remember/tmp/config.rcfg` left behind by an earlier build is simply
+  never read again -- it is not migrated, and nothing deletes it
+  automatically; it is dead weight, not a hazard, once this fix is
+  installed.
+
+  Follow-up (same issue, self-review + maintainer review): the value
+  validator's ASCII whitelist rejected two shapes `%q` plainly leaves bare
+  and unescaped -- a mid-word `#` (`printf %q 'a#b'` -> `a#b`) and any
+  non-ASCII byte (`e9`, `65e5 672c`) -- turning a rejection into a
+  delete-and-republish on every single run for any config value or
+  project path containing either, forever. The check is now a blacklist of
+  what can actually change how `eval "NAME=value"` parses a plain
+  assignment word (unescaped whitespace, `; & | ( ) < >`, `$`/backtick,
+  quotes), run under a function-local `LC_ALL=C` so its character classes
+  match the raw bytes `%q` wrote rather than whatever locale the caller
+  happens to be in. A second bash-3.2-only gap is also closed: bash
+  tilde-expands after an unquoted `:` in an assignment word as well as at
+  the start, and stock macOS `/bin/bash`'s `%q` does not escape that
+  position (`a:~` stays `a:~`, unlike bash 5's `a:\~`) -- a bare `:~` is
+  now rejected outright, by position, on every bash.
+
+## [0.31.0] - 2026-09-11 — SessionEnd detaches before its preamble, SessionStart stops holding the client's pipe open through consolidation, and the Python-detection FATAL says what it saw -- the three Windows reports of the week, plus the release audit's marker-write FIFO guard (#646, #647, #650, #653)
+
+### Added
+
+- Two guards against the #646 shape, a detached child inheriting a dup of the client's pipe and holding it open after the hook exits (#648): a static check that flags any background spawn in a shell script made while an fd >= 3 opened by `exec` is still open and not closed on that line, run over every script in the repo; and a per-spawn-site measurement that stubs the detached work with a sleeper and asserts EOF on the hook's stdout arrives while the child is still running. The consolidation, recovery-save, PostToolUse-save and Antigravity Stop spawn sites are covered.
+
+### Changed
+
+- Closed without a code change: #621 asked for a cheap in-shell pre-check
+  ahead of `log()`'s `printf | tr` control-byte flatten (an optional cost
+  optimization). PR #627 closed #621 via GitHub's `Closes #621`, but the
+  pre-check was never shipped -- two portability attempts at the pre-check
+  itself (a POSIX `[[:cntrl:]]` bracket-class `case`, then an ANSI-C
+  byte-range `case` meant to fix that) each broke a different CI platform,
+  and a third round -- a test-harness PATH-injection fix -- diagnosed and
+  resolved a separate windows-latest artifact in the same CI run without
+  ever explaining the macOS symptom, so #627 shipped a straight revert to
+  the pre-#621 unconditional flatten instead. `log()` still forks `tr` on
+  every call today. This matches `scripts/log.sh`'s own comment on `log()`
+  ("tried twice... a two-attempt failure record") and `CHANGELOG.md`'s
+  0.30.0 entry for #621 ("two portability attempts... a third round of
+  unreproducible platform fragility"), both already accurate. #621's own
+  closed state now carries a correcting comment so the board does not read
+  the optimization as shipped -- this issue is closed as already correctly
+  documented, with no further code or record change needed (#629).
+
+- Documented, not fixed: while working #621 on PR #627, a bash
+  `case "$var" in *[$'\xxx'-$'\yyy']*)` byte-range glob pattern -- reached
+  for as a cheap in-shell control-byte pre-check -- silently failed to
+  match a message that genuinely carried a control byte on every
+  `macos-latest` CI leg, so the `tr` flatten it guarded never ran. Not
+  reproducible locally on Apple's system bash (3.2.57) or a fresh Homebrew
+  bash (5.3.15), under several locales; the runner image
+  (`macos-26-arm64`, `20260831.0337.3`) was unavailable to test directly,
+  so the mechanism stayed unknown. `scripts/log.sh` no longer uses this
+  pattern (reverted to an unconditional flatten), so nothing shipped is
+  currently exposed, but the pattern shape is a plausible thing to reach
+  for again elsewhere in this codebase and fails silently (a `case` that
+  does not match raises no error) -- recorded as a landmine in
+  `trap.d/630.macos-case-byte-range-silent-mismatch.md` for the curation
+  pass to weigh as a jit-context rule (#630).
+
+### Fixed
+
+- Fixed: `post-tool-hook.sh`'s basename-derived `SESSION_ID` sanitiser
+  (#620) could empty the value to `""` with no non-empty gate before the
+  background save fork, unlike the stdin route's own
+  `STDIN_SESSION_ID_TRUSTED` gate (#610). An empty `argv[1]` reached
+  `save-session.sh`, which reads it as "no id given" and silently
+  substitutes the newest `.jsonl` by mtime instead of refusing -- turning a
+  loud, logged rejection into a completed save for a session nobody named.
+  The fork is now skipped and logged as a refusal whenever the sanitiser
+  empties `SESSION_ID` on the basename route, matching the invariant the
+  stdin route already holds (#633).
+
+- Fixed: `ndc_read_gen()` in `scripts/save-session.sh` could hang the whole save indefinitely (or stream unboundedly) if a FIFO or character device ever existed at `$REMEMBER_DIR/tmp/ndc-generation`, since it lacked the regular-file type check its sibling `ts_marker_read()` already had. It now reports "unreadable" for any non-regular-file marker without attempting to read it (#634).
+
+- Fixed: the two guarded timestamp-marker writes in `scripts/save-session.sh` (`COOLDOWN_MARKER` and `NDC_MARKER`) placed `2>/dev/null` after the `>` redirection, which only takes effect once that redirection has already succeeded -- a failed write (permission denied, a directory in the marker's place) still leaked bash's own raw diagnostic line. Both writes now wrap the redirection in a `{ ...; }` group so `2>/dev/null` actually suppresses the group's own failure, and `report_error()` still reports it as before (#635).
+
+- Fixed: `lib-staging-lock.sh`'s fallback `report_error()` stub -- used only
+  when `log.sh` was never sourced, or returned early (#361/#372/#394) -- now
+  flattens control bytes (`LC_ALL=C tr '[:cntrl:]' ' '`) before writing to
+  `hook-errors.log`, the same as `log.sh`'s own four writers already do
+  since #618. #618's "all four writers now flatten" claim was true of
+  `log.sh`'s own writers only -- this was a fifth, uncovered writer of the
+  same file. No caller passes stranger-controlled text through this stub
+  today, so this closes a coverage gap ahead of the next caller that might
+  (#636).
+
+- Fixed: `scripts/session-start-hook.sh`'s promo length-budget comment (#637)
+  narrated the history as "the budget moved instead (140 -> 150)" while the
+  code enforced 170, matching `docs/hooks.md` and `docs/configuration.md`. The
+  comment now reads "140 -> 150 -> 170", matching the enforced value and both
+  docs. Comment-only fix; no behavior change.
+
+- Fixed: `scripts/save-session.sh` read `$NOW_DAY_FILE` via a bare `cat` with no regular-file type check, unlike its siblings `ndc_read_gen()` (#634) and `ts_marker_read()` (#625) -- a FIFO or character device at that path could hang the whole save indefinitely, or stream unboundedly. The read is now guarded the same way (#642).
+
+- Fixed: five more writes in `scripts/save-session.sh` (the COOLDOWN_MARKER and NDC_MARKER self-heal writes, both NOW_DAY_FILE stamps, and the NDC_TAIL truncate-and-copy) placed `2>/dev/null` after a `>` redirection that can itself fail -- the same shape #635 fixed for two other writes. Since redirections are set up left to right, a failing `>` reports bash's own raw diagnostic before `2>/dev/null` ever takes effect. All five are now wrapped in a `{ ...; }` group so the suppression covers the redirection's own failure too (#643).
+
+- SessionStart no longer holds the client's stdout pipe open for the whole of a background consolidation run (#646). The hook buffers its own output and keeps the real stdout on fd 3, which the detached `run-consolidation.sh` inherited -- so a client reading to EOF waited for the child, not for the hook. Measured at 98.62s against a 93s consolidation, which on the VS Code extension's 60s subprocess-init deadline is a session that fails to start, under an error about authentication and network connectivity. The spawn now closes fd 3.
+
+- SessionEnd writes its `logs/autonomous/session-end-*.log` trace before attempting the flush, instead of after (#647). Every early exit below it -- an uncreatable store, a `save-session.sh` missing from a half-finished install -- used to leave the same empty directory an unregistered hook leaves, and `/remember:doctor` reported "SessionEnd has never fired for this project" and blamed hook registration. A hook cancelled during the preamble is still not covered: that is the 1.5s shared-budget case #560 addresses, and the seed depends on the same path resolution that spends the budget.
+
+- SessionEnd detaches before its own preamble, so the hook process returns in tens of milliseconds on any machine instead of after resolving paths, probing for python/jq and bootstrapping the store (#647, closing the gap #560 left). Claude Code gives SessionEnd a 1.5-second budget shared across every hook on the event; #560 measured that preamble at ~3.4s on a slow Windows/Git-Bash machine, and #561's declared `timeout` is one Claude Code's own reference says a plugin cannot use to raise the budget. The process Claude Code invokes now reads stdin and re-launches itself detached; preamble, trace seed and flush all run in the child. One report is lost on that path and documented: a store that could never be created at all (#372) has no `hook-errors.log` to write to and now no stderr either -- `REMEMBER_SESSION_END_FOREGROUND=1` runs the old inline shape for debugging.
+
+- `detect-tools.sh`'s "No working Python found" now says what it saw, not only what it concluded (#650): the `PATH` it searched and, per candidate, `not on PATH` or the exit status of its `-V` probe (49 being the Microsoft Store placeholder). A Windows reporter logged 1,650 consecutive hook failures over a month with the interpreters present and working in the same shell, then it self-resolved with nothing changed; the old message left no way to tell "missing from PATH" from "present and shadowed" after the fact. Nothing is printed on success.
+
+- save-session.sh's marker WRITE sites (`last-save-ts`, the NDC cooldown and generation markers, `now-day`) now refuse a path that exists but is not a regular file, with a WARNING, instead of opening it (#653). #634/#642 guarded the READ side against a planted FIFO; a `>` on a FIFO with no reader blocks in `open(2)` before any redirection error exists for the surrounding `2>/dev/null || true` to catch, so the post-save write hung while still holding the save lock and every later save queued behind it. Found and reproduced by the v0.31.0 release audit.
+
+- A non-regular `now-day` marker (a FIFO, a directory) is now reported with a WARNING when save-session.sh falls back to today's date, instead of being indistinguishable from "no marker yet" (#654). The siblings fixed for the same class report `unreadable`; this one fell through silently, which is a previous day's entries attributed to today with nothing in the log. Absence stays quiet. Found by the v0.31.0 release audit.
+
+## [0.30.0] - 2026-09-10 — Absent-vs-unreadable markers stop crashing save-session.sh under set -e, hook-errors.log's remaining raw writers get flattened against log forging, and the SessionStart promo names itself and its off switch -- the release gate 3 audit files five more non-blocking findings (#633-#637)
+
+### Changed
+
+- Changed: the cross-plugin promo at `SessionStart` (#574) now says who is
+  speaking and how to stop it, in the line itself (#631). It renders as
+  `claude-remember: <promo> -- <url> (off: features.plugin_promos)`.
+
+  Two separate gaps, both reported as one: `features.plugin_promos` was
+  already documented in `README.md`, `docs/configuration.md` and
+  `docs/hooks.md`, but nobody reads documentation at the moment an unasked-for
+  line appears in their terminal -- the reporter's words were "without a clear
+  path to disabling" it. And `systemMessage` is emitted raw, with no plugin
+  name attached by this hook and no guarantee the client adds one, so the
+  reporter could not tell which of his installed plugins had spoken. An off
+  switch nobody can find and one nobody can address are the same defect
+  twice; the line now carries both halves.
+
+  The default is unchanged: still **on**, still only for a sibling plugin
+  absent from `~/.claude/plugins/installed_plugins.json`, still at most once
+  per `cooldowns.promo_seconds` (7 days). Opt-in was requested and declined --
+  a promo channel nobody opts into reaches nobody, which is removal by a
+  politer name, and the complaint that held up was discoverability rather than
+  existence. The promo is also self-terminating: install both siblings and it
+  never speaks again.
+
+  The length budget moves 140 -> 170 to fit the prefix and the hint. That
+  guard only decides when an entry is skipped-and-logged; it lengthens no
+  rendered line. Two shorter spellings were measured and rejected:
+  `plugin_promos=false` fits 140 but is valid syntax nowhere (`config.json` is
+  JSON), and dropping `github.com/` from the displayed URL fits 150 but stops
+  most terminals auto-linking it, defeating the only thing the promo is for.
+  The longest shipped entry renders at 159 of 170, and a test asserts every
+  shipped entry still renders -- a copy edit that busts the budget fails CI
+  instead of silently suppressing the promo.
+
+### Fixed
+
+- Fixed: the CHANGELOG.md entry for #595 (folded into the 0.29.1 release
+  section) stated as current fact that `docs/windows-skip-triage.md` "now
+  states 102/82" and that `tests/test_windows_skip_triage_prose_totals_595.py`
+  is "a new guard" tying that doc's prose sentences to its own table. Both
+  were true only for the few commits between #595's own merge and #613's:
+  three commits later in that same release, #613 (landed as PR #615) removed
+  the hand-maintained prose counts from the doc entirely and replaced the
+  guard with `tests/test_windows_skip_triage_no_stale_prose_counts_613.py`,
+  which the #613 entry a little further down the same release section
+  already documents correctly. This fragment is not a correction to
+  `changelog.d/595.fixed.md` itself -- that file was already folded into
+  `CHANGELOG.md` and deleted by the time #617 was filed, so there is nothing
+  left under `changelog.d/` to amend. Read the #595 entry as a historical
+  record of what PR #605 did, not as a claim about the doc's state at HEAD;
+  the #613 entry immediately below it in the same release is the current
+  description (#617).
+
+- Fixed: #599's control-byte flatten (`LC_ALL=C tr '[:cntrl:]' ' '`) only
+  ever covered `$MEMORY_LOG_FILE`, the daily narrative log written by
+  `log()` itself. Four functions in `scripts/log.sh` --
+  `_dispatch_report_failure`, `_dispatch_report_skip`, `report_error`, and
+  `_dispatch_report_timeout` -- write a SECOND, independent copy of the same
+  message straight to `hook-errors.log` via their own `printf`, entirely
+  outside `log()`, and that copy was never flattened. `hook-errors.log` is
+  the file `/remember:doctor` tails under "Recent errors" and the one
+  maintainers ask reporters to paste, so an embedded newline in a hook name,
+  an exit reason, or a hook's own untrusted reply text could forge a second,
+  attacker-shaped entry in exactly the file a human is told to trust. All
+  four writers now flatten before either write (#618). This also corrects
+  #599's own coverage claim, both in `scripts/log.sh`'s comment and in the
+  entry already folded into `CHANGELOG.md` under the 0.29.0 release ("the
+  class is closed everywhere `log()` is used") -- that claim was true of
+  `log()` callers, not of `hook-errors.log`'s own raw writers, which #599
+  never reached. The already-released `CHANGELOG.md` entry is left as
+  historical record rather than hand-edited; this fragment is the
+  correction.
+
+- Fixed: save-session.sh's NDC generation guard (#614) now tells "the
+  generation marker was never created" (legitimately generation 0) apart from
+  "the marker exists but a read of it failed" (a permission or I/O error, or a
+  reader racing the truncating write that bumps it). Both used to collapse to
+  the same 0 at both read sites, so two failed reads could compare equal to
+  each other -- and to a legitimately absent marker -- and the guard would go
+  silent exactly when it could not tell whether another NDC round had already
+  committed, restoring the pre-#614 risk of content landing nowhere (#619).
+
+- Fixed: `post-tool-hook.sh`'s basename-derived `SESSION_ID` (the fallback used
+  whenever stdin does not supply a trusted `session_id`) reached
+  `save-session.sh`'s argv unguarded, unlike the stdin-derived id, which #610
+  already guards against a leading dash at its own point of entry. A
+  transcript basename shaped like `save-session.sh`'s own `--dry`/`--force`
+  flags now gets cleared the same way, at the point the id is derived, before
+  it ever reaches `nohup "$SAVE_SCRIPT" "$SESSION_ID" ...` (#620). In
+  practice this route's impact is narrower than #610's: because the
+  basename-derived id and the transcript `save-session.sh`'s own auto-detect
+  would independently re-discover are always the same file, its own
+  session-id-shape check already rejected the crafted value before this fix
+  landed -- but the guard is still added for consistency with the sibling
+  fixes (#576, #600, #610) and because a future change to that downstream
+  check should not silently reopen this route. The code comment claiming
+  both routes already shared this guard is corrected to match.
+
+- Closed without a code change: `log()` (`scripts/log.sh`) forked a
+  `printf | tr` pipeline on every call to flatten control bytes (#599), even
+  though most log messages carry none. #621 asked whether a cheap in-shell
+  pre-check could skip that fork when a message has no control byte to
+  flatten. Two portability attempts at the pre-check each broke a different
+  CI platform in ways this repo could not reproduce locally after extensive
+  effort (multiple bash builds, multiple locales, an emptied environment):
+  a POSIX `[[:cntrl:]]` bracket-class version silently never matched a real
+  embedded control byte under windows-latest's Git Bash, and a follow-up
+  ANSI-C byte-value range meant to avoid exactly that ctype/locale
+  dependency then did the identical thing on every macos-latest CI leg
+  instead. #621 itself calls this fix optional ("if judged worth it") --
+  it is a hot-path cost optimization, not a correctness fix -- and it must
+  not keep blocking the correctness fixes landing alongside it (#618,
+  #620) on a third round of unreproducible platform fragility. `log()`
+  forks the flatten unconditionally again, as it did before #621 (#621).
+
+- Fixed: `_gh_unlabelled_issue_counts` in `.oss/statusline.py` built one line per
+  open issue by joining its label names with `,` in a `gh api --jq` call and
+  splitting that line back apart in Python. A GitHub label name may legally
+  contain a comma -- a label literally named e.g. `blocked,lane-storage` split
+  into two names, one of which (`lane-storage`) could coincidentally collide
+  with a real declared lane, so the issue silently counted as *placed in a
+  lane* when no triage sweep had actually placed it there. The direction of
+  the error was an under-count of `no_lane`/`no_priority`, the opposite of
+  this function's own documented convention of never under-counting -- and
+  the existing `len(lines) != total` cross-check could not catch it, because
+  the line count stayed correct; only the per-line parse was wrong (#622).
+  The wire format is now one JSON array of label names per line
+  (`[.labels[].name] | tojson` server-side, `json.loads` in Python) instead
+  of a comma-joined string, closing the hole with a delimiter no label name
+  can contain rather than trying to escape or reject commas after the fact.
+  `.oss/statusline.py` had no test coverage before this change; a first,
+  narrow test file (`tests/test_statusline_gh_unlabelled_issue_counts_622.py`)
+  covers this one function directly by stubbing `_run`, rather than adding
+  broader coverage for the module -- the smallest fix proportionate to what
+  was actually reported.
+
+- Fixed: save-session.sh's two other timestamp markers, `tmp/last-save-ts`
+  (the save cooldown) and `tmp/last-ndc.ts` (the NDC compression cooldown),
+  had the same absent-vs-unreadable collapse #619 fixed for the NDC
+  generation marker: `cat FILE 2>/dev/null || echo 0` cannot tell "never
+  created" from "exists but a read of it failed" (a permission or I/O error,
+  or the marker's own place taken by a directory). A durably unreadable
+  marker now silently defeated its cooldown on every single invocation with
+  nothing in the log to say so. Both now go through a shared `ts_marker_read`
+  helper and log a WARNING naming the marker when a read fails, instead of
+  proceeding in silence. Fixing this also surfaced a related crash: the
+  unconditional `date +%s > "$MARKER"` write below each read ran unguarded,
+  so a durably unwritable marker (a directory, most reachably) killed the
+  whole script under `set -e` rather than merely leaving the cooldown to
+  re-trigger next time -- both writes are now guarded the same way the
+  existing self-heal write already was. Self-review also caught that
+  widening the existence check to include non-regular files (needed to
+  catch a directory in a marker's place) opened a hang: `cat` on a FIFO with
+  no writer present blocks forever, with no timeout anywhere in the script.
+  `ts_marker_read` now rejects any non-regular file before ever calling
+  `cat` on it (#625).
+
+- Fixed: when save-session.sh's NDC commit gate skips a commit because
+  `tmp/ndc-generation` could not be read (#619), the log line now names the
+  remedy for a marker that is durably unreadable rather than merely racing a
+  writer -- delete it to reset generation tracking to 0 and unblock future
+  commits -- instead of leaving every future round to land on the same
+  "SKIPPED commit" line with no hint of the way out (#626).
+
+## [0.29.1] - 2026-09-07 — A generation counter closes a silent NDC byte-loss race, a control-byte flatten closes a log-forging gap, and the last leading-dash argv-injection guards land across the session hooks — the release gate 3 audit on this delta files six more non-blocking findings, one carried to the next milestone by the round cap
+
+### Fixed
+
+- Fixed: `docs/windows-skip-triage.md` restated the total blanket win32-skip
+  module count and the `unclear` verdict count as fixed prose numbers -- "98"
+  and "78 modules" -- in four sentences that nothing recomputed, while the
+  table right below them (guarded by `tests/test_windows_skip_triage_497.py`
+  against the live tree) had already grown to 102 modules / 82 `unclear`
+  across #589 and #591 without those sentences being touched (#595). The doc
+  now states 102/82, and a new guard,
+  `tests/test_windows_skip_triage_prose_totals_595.py`, ties every one of
+  these prose sentences -- total, `unclear`, and (after self-review flagged
+  the same gap on the two other verdict counts) `convertible` and
+  `not-convertible` as well -- to the table's own row/verdict counts rather
+  than to another hardcoded number, so a future row added to the table
+  without updating the prose next to it fails a test instead of drifting
+  silently again. The table-row parsing itself now lives in one shared
+  `scripts.windows_skip_triage_497.parse_doc_table_rows` helper, used by both
+  this new guard and the existing #497 one, so the two cannot silently
+  disagree about what counts as a row.
+
+- Fixed: an Antigravity SessionStart burned the machine-global cross-plugin promo
+  cooldown for every Claude Code session on the same machine, for a promo nobody ever
+  saw (#596). `scripts/agy-session-start-hook.sh` delegates to
+  `scripts/session-start-hook.sh` with the delegate's own stdout piped to `/dev/null`
+  (Antigravity parses a command hook's stdout as protojson against its own schema,
+  #563) -- but the delegate's emit block committed the `$HOME/.remember/tmp/promo-
+  notice` throttle/rotation marker on any successful `printf`, and `printf` to
+  `/dev/null` succeeds. `agy-session-start-hook.sh` now sets `REMEMBER_SUPPRESS_PROMO=1`
+  on that call, and `session-start-hook.sh` skips the whole promo feature (selection
+  and marker alike) when it is set. Fixed at the delegation call rather than by having
+  `session-start-hook.sh` try to detect its own discarded stdout: a real Claude Code
+  invocation also reads this hook's stdout through a non-tty pipe, so no in-script
+  check (`[ -t 1 ]` included) can tell "discarded" from "captured normally".
+
+- Fixed: `log()` (`scripts/log.sh`) wrote its message argument verbatim into the
+  daily log file, with no newline handling. Several call sites in
+  `scripts/save-session.sh` embed the first 80 bytes of a model's reply straight
+  into a log line (e.g. the NDC and header-validation rejection paths) -- text
+  that is untrusted since #593, because it is model-authored from the
+  conversation's own content rather than controlled by this codebase. A raw
+  newline or carriage return embedded in that text landed at column 0 of the log
+  file and read as a second, forged log entry to anything parsing the log -- a
+  person skimming it, or a script (#599). `log()` now flattens every control byte
+  in the message to a plain space (`LC_ALL=C tr '[:cntrl:]' ' '`, the same remedy
+  `scripts/doctor.sh`'s `_json_escape` already uses for the identical reason)
+  before writing the line, once inside `log()` itself rather than at each of the
+  (at least three) call sites that embed such text, so the class is closed
+  everywhere `log()` is used rather than only at the newest call site.
+  `LC_ALL=C` is load-bearing rather than decoration: those call sites cut the
+  model's reply with `head -c 80`, a byte-count cut with no regard for UTF-8
+  character boundaries, and under the caller's own UTF-8 locale a cut landing
+  mid-multibyte-character makes `tr` print "Illegal byte sequence", exit
+  nonzero, and truncate its own output at the bad byte -- silently dropping
+  everything logged after it, and, because `save-session.sh` runs under `set
+  -e`, aborting the whole script on the `message=$(...)` assignment whose exit
+  status is `tr`'s. Forcing the C locale makes `tr` classify every byte 0-255
+  on its own, identically on GNU and BSD, so a non-ASCII byte that is not
+  itself a control code passes through untouched instead of erroring.
+
+- Hardened `scripts/session-end-hook.sh`'s `STDIN_SESSION_ID` guard against argv flag injection (#600): a `session_id` shaped like a flag (e.g. `--dry`) on the SessionEnd payload consisted entirely of characters the guard already allowed, so it passed untouched and reached `save-session.sh`'s argv, whose own arg loop reads a leading `--dry`/`--force` as a FLAG rather than a session id -- silently turning the last-chance flush into a dry-run preview (no summary written, position not advanced). The guard now rejects a leading dash too, mirroring the remedy #576 already applied at the sibling `agy-stop-hook.sh` call site.
+
+- Fixed: `tests/test_path_resolution.py`'s `test_scripts_use_jq_var_not_hardcoded`
+  excluded a `command -v jq` availability probe by `continue`-ing past the WHOLE
+  matched line, not just the probe span, so a hardcoded `jq` call sharing a line
+  with a probe would never reach any later check in that loop -- the exact
+  exclusion the docstring already promised ("but not `command -v jq`") never
+  actually implemented that way (#601). The scanning logic is now a standalone
+  `_line_has_hardcoded_jq()` helper that strips only the `command -v jq` substring
+  before scanning the rest of the line, closing the amnesty; a new regression test
+  pins a fixture line combining a probe and a hardcoded call on the same line.
+
+- Fixed: `tests/test_plugin_promo_574.py`'s suppression tests (`test_suppressed_when_key_present`,
+  `test_cannot_tell_suppresses_like_installed`, `test_wrong_version_is_cannot_tell`) asserted only
+  that `systemMessage` was absent from the hook's output -- an assertion equally satisfied by the
+  hook printing nothing at all, on the one path covering the common every-session case (promo
+  suppressed, buffer flushed) (#602). Each now also asserts `=== REMEMBER ===` (the history hint
+  from `prompts/session-history-hint.txt`, printed unconditionally on every `SessionStart` run) is
+  present in the output, so a total-loss regression on this path fails the test instead of passing it.
+
+- Fixed: `post-tool-hook.sh`'s `session_id` guard let a leading-dash value
+  (e.g. `--dry`) through unrejected, the same character-class gap #576 already
+  closed at its `agy-stop-hook.sh` call site (and #600 is closing at
+  `session-end-hook.sh`, in PR #609, not yet merged) -- a third, distinct call
+  site here, reaching `save-session.sh`'s argv on the background `nohup` save
+  path.
+  Paired with a real `transcript_path`, the untouched id was trusted and
+  read by `save-session.sh`'s own arg loop as the `--dry` FLAG rather than a
+  positional session id, silently turning a real delta-triggered save into a
+  no-op dry-run preview: no summary written, no position advanced (#610). The
+  guard now rejects a leading dash the same way its two siblings do.
+
+- Fixed: `docs/windows-skip-triage.md` restated four of its own table's counts
+  (the total module count, three times, plus the `convertible`,
+  `not-convertible` and `unclear` verdict counts) as hand-maintained prose
+  numbers. A reactive test (`tests/test_windows_skip_triage_prose_totals_595.py`)
+  caught a mismatch after the fact, but the numbers still drifted three times
+  in quick succession (#595, #596, and a follow-up commit on #611), each time
+  because a PR adding one new table row was reviewed and merged green against
+  its own stale base, before a sibling PR's prose fix had landed -- a same-PR
+  test cannot see a drift introduced by a different PR's base (#613).
+  The prose numbers are removed rather than re-derived: the table below is
+  now the only place any of these counts live, so there is nothing left for a
+  PR to leave out of sync. `tests/test_windows_skip_triage_no_stale_prose_counts_613.py`
+  replaces the old reactive test, guarding against one of these numbers
+  creeping back into the prose by hand.
+
+- Fixed: a narrow NDC compression race (#614) could silently drop bytes from
+  `now.md` that existed nowhere else -- not in `now.md`, not in any
+  `today-*.md`. NDC's own commit re-checks the size of `now.md` under the save
+  lock before trusting its pre-Haiku byte offset, but a *size* check alone
+  cannot tell a legitimate append from a REPLACEMENT that happens to still be
+  at least as long: exactly what another, overlapping NDC round's own commit
+  produces (its own tail, written over `now.md` by its own `mv`). Two
+  overlapping rounds are reachable when a second round's hour-long cooldown
+  gate opens while the first round's Haiku call, or its own lock-reacquisition
+  wait, is still in flight -- for example across a laptop sleep/wake spanning
+  the cooldown. When that happens, the second-committing round's own
+  `tail -c +N` offset no longer describes any real boundary in the file, and
+  can slice into bytes its own Haiku call never summarized.
+  `save-session.sh` now tracks a small monotonic generation counter
+  (`.remember/tmp/ndc-generation`), bumped by every NDC commit that lands and
+  checked, under the same lock, before any later round is allowed to commit --
+  any mismatch means a commit has landed since that round's snapshot was
+  taken, and the round is skipped exactly like the pre-existing "shrank below
+  the snapshot" case, rather than acting on a now-meaningless offset.
+  A prior triage pass on #614 could not confirm the reporter's own suspected
+  cause (a hook blind-truncating `now.md`) -- the append path never truncates,
+  and this race is unrelated to that guess. `tests/test_ndc_commit_lock.py`
+  adds a regression test that reproduces the exact byte loss (a replacement
+  at least as long as the stale snapshot, going undetected by the byte-count
+  check alone) and confirms the generation check now catches it.
+
+## [0.29.0] - 2026-09-06 — A cross-plugin promo ships behind a suppression control, and the release gate 3 audit that found it files three more non-blocking findings against the delta that carried it
+
+### Added
+
+- Added: a `systemMessage` cross-plugin promo at `SessionStart` (#574), naming one
+  sibling Digital-Process-Tools plugin (`supertool` or `claude-jit-context`) the
+  user has NOT already installed, checked against
+  `~/.claude/plugins/installed_plugins.json`. Copy lives in `promos.json` (beside
+  `config.example.json`), never in the hook script, so wording can change without
+  a shell edit. Emitted only from `SessionStart` -- never `SessionEnd`, never as
+  `additionalContext` -- because `systemMessage` is the one hook channel a human
+  sees and the model never does. Off switch: `features.plugin_promos` (default
+  `true`). Throttle: `cooldowns.promo_seconds` (default 604800, i.e. 7 days),
+  persisted per machine under `~/.remember/tmp/`, independent of any per-project
+  `data_dir`. An entry with no `url`, or whose rendered text would be too long, is
+  skipped and the skip is logged rather than silently rendered without the link.
+  A `cannot-tell` read of the installed-plugins file (absent, unreadable, or the
+  wrong schema version) suppresses the promo exactly like a confirmed install --
+  only a positive "not installed" ever speaks.
+
+- Added: a `.claude/jit-context` entry (`tools/00-manual/win32-skip-triage-entry.md`) that reminds, at write time, that a new module-level `pytestmark = pytest.mark.skipif(sys.platform == "win32", ...)` needs a `docs/windows-skip-triage.md` row in the same commit -- a `windows-latest` CI leg caught the omission twice in one session (#585, #588) before this existed (#589). `CONTRIBUTING.md` and `docs/windows-skip-triage.md` now both state the convention as a backstop for a write that does not go through `supertool` (native `Edit`/`Write`), which the jit-context entry cannot see into.
+- Audited `tests/test_path_resolution.py` for other instances of the same shape (#589) -- a docstring/comment promising an exclusion the code does not implement, with no positive-control test proving it fires. Found none beyond the `command -v jq` case already fixed in #574/#588: every other per-line exclusion in that file (`.remember/tmp` in the tmpdir scan, the whole-file `log.sh`/`detect-tools.sh`/`lib-env-cache.sh` omissions) is a plain, correctly-implemented containment check or omission, not a substring pattern that can quietly amnesty a real violation.
+
+- Session summary entries now follow the language of the conversation being summarized (issue #593).
+
+### Fixed
+
+- Fixed: an Antigravity turn made entirely of step `type`s `pipeline/host.py`'s
+  `_ANTIGRAVITY_STEP_ROLES` map does not yet know (a tool-call or reasoning step no
+  probe has captured live) extracted to 0 exchanges and advanced the saved position
+  *without* the #450 quarantine `scripts/save-session.sh` applies to an
+  `"unrecognised"` envelope -- an unmapped-but-present step read as a genuinely
+  quiet session and became unrecoverable the moment a later build learned that step
+  type (#575). `ExtractResult.envelope_has_unmapped_step` (threaded through
+  `pipeline.extract.extract_messages()`'s new `stats` parameter and
+  `pipeline.host.antigravity_step_is_unmapped()`) now flags exactly that case, and
+  `scripts/save-session.sh` routes it through the same quarantine path as an
+  unrecognised envelope, keyed under `"unrecognised"` in `unread-envelope.json`
+  even though the logged and reported envelope stays the honest `"antigravity"`
+  name. The map itself is still only `USER_INPUT`/`PLANNER_RESPONSE` -- filling it
+  in for a real tool-calling turn needs a human-run `agy --dangerously-skip-
+  permissions` session this fix does not have access to; what changed is that a gap
+  in the map can no longer silently lose data.
+
+- Hardened `scripts/agy-stop-hook.sh` against three related defects in its Antigravity Stop payload handling (#576, #578, #579): a `conversationId` shaped like a flag (e.g. `--force`) could reach `save-session.sh`'s argv unsanitised and be read as a flag rather than a session id, silently bypassing the cooldown and minimum-message gates; the four-field stdout protocol between the hook's JSON extractor and its shell reader had no protection against an embedded newline in one field shifting every field after it; and a trailing carriage return from a CRLF-writing `python3` on Windows/Git-Bash could survive into an extracted field. All three are now rejected/stripped at the point of entry, matching the sanitisation convention the sibling hooks already apply to their own stdin-sourced fields.
+
+- Fixed: `scripts/install_agy_hooks.py`'s shared-hooks command line now shell-quotes the plugin's install path with `shlex.quote()` instead of interpolating it inside a hand-written `bash "..."` wrapper (#577). A literal double quote in the install path previously broke the command outright, and double quotes still permit POSIX `$(...)` command substitution, so a path containing one was executed rather than treated as a literal filesystem path. The install path is the user's own checkout location, not remote-controlled, so this was low severity rather than blocking.
+
+- Fixed: `docs/windows.md` no longer states an absolute "N `_remember_forward_slash` call sites in total" count (#580). The number drifted stale for the second time -- it said 10 while a live grep on `main` counted 15, after the same drift already happened once (#524) -- so rather than adding a third guarded-total mechanism, the sentence is dropped entirely and the doc's existing per-issue breakdown, which already enumerates which issue fixed which call site, carries the story on its own.
+
+- Fixed: a MIXED Antigravity read span -- at least one mapped exchange
+  (`USER_INPUT`/`PLANNER_RESPONSE`) alongside at least one unmapped step type in the
+  same span -- exited `scripts/save-session.sh` with `EXCHANGE_COUNT > 0` and was
+  never routed through the #450/#575 quarantine at all: the unmapped step's content
+  was silently dropped, and if a prior quarantine mark existed for that session it
+  was cleared, because the ordinary successful-save path passes any value other than
+  `"unrecognised"` to `cmd_save_position()`, which reads that as "whatever was
+  quarantined has now been read" (#583). `$ENVELOPE_HAS_UNMAPPED_STEP` was
+  previously only consulted inside the script's `EXCHANGE_COUNT -eq 0` branch; a new
+  `save_position_span()` helper now applies the same check at every other
+  `save-position` call site -- the give-up-after-repeated-failures path, the
+  reject-not-an-entry-header path, the model SKIP path, and the ordinary successful
+  append -- so a mixed span quarantines exactly like an all-unmapped one, whatever
+  its own mapped exchanges' fate was. This accepts the same re-extraction/duplicate-
+  summary risk on a future recovery that #575 already accepted for the all-unmapped
+  case, rather than building real per-step-range tracking, which the issue itself
+  left as a larger, separate design decision.
+
+- Fixed: a non-English refusal from the NDC compression call passed the reject gate
+  unfiltered and was written into `today-*.md` as though it were a genuine day
+  summary, after which `now.md` was truncated over the entries that were supposed to
+  have been compressed -- gone, with no copy anywhere (#597). `DEFAULT_REJECT_PATTERN`
+  (`pipeline/haiku.py`) is anchored to English refusal stems, and writing the reply in
+  the conversation's own language (#593) put non-English text into that path for the
+  first time in ordinary use; `IS_REJECTED` alone gated the NDC branch, with no
+  fallback the way the summarize branch already had via `ENTRY_HEADER_ERE`.
+  `scripts/save-session.sh`'s NDC branch now also rejects any reply whose first line
+  does not open with a `"## "` header -- the one thing every genuine compression
+  shares (a single entry, a merged time-blocked range, or a whole-day header) that no
+  refusal produces in any language -- and treats it exactly like the existing
+  `IS_REJECTED` branch: kept at `tmp/rejected-*.md`, `now.md` left intact so the next
+  round retries. Deliberately not `ENTRY_HEADER_ERE` itself, which requires a single
+  `HH:MM` time and would reject a legitimate merged-range header
+  (`## 08:48-09:22 | branch`) that `compress-ndc.prompt.txt` explicitly asks the model
+  to produce.
+
+## [0.28.0] - 2026-09-05 — Antigravity CLI capture ships, with the newline-delimited hook protocol's own hazards filed for follow-up
+
+### Added
+
+- Added: a `trap.d` entry for issue #554, recording that Antigravity CLI (`agy`)
+  1.1.26's `plugin validate` prints the same `[ok]` top-line verdict, exit code `0`,
+  whether it resolved every plugin component or all five came back
+  `skipped (not found)`. This is upstream behaviour in a third-party CLI, not a bug in
+  this repo -- nothing in the plugin itself changed -- so the entry exists to make sure
+  a future claim about Antigravity plugin support in this repo is checked against the
+  per-component detail lines rather than against the verdict or the exit code alone.
+
+- Added: a jit-context trap recording how Antigravity CLI (`agy`) 1.1.27 reads
+  `hooks.json`, measured for issues #553 and #563. Its manifest maps a hook *name* to an
+  object keyed by event, not Claude Code's event-keyed array of matchers -- a
+  Claude-shaped file fails to parse outright, and both the failure and any unrecognised
+  event are silent: `/hooks` answers exactly as it does with no file at all, and the only
+  witness is `~/.gemini/antigravity-cli/cli.log`. The entry records which four events load
+  and fire on that build, the hook stdin payload (including the `transcriptPath` this
+  plugin's capture needs), and that a firing probe must leave a side effect rather than
+  trusting the model's reply. Upstream behaviour in a third-party CLI, not a change to
+  this plugin -- the entry exists so a future Antigravity claim here is checked against
+  the loaded-event list rather than against a manifest that merely installs.
+
+- Added: a working port of this plugin's memory capture onto Antigravity CLI
+  (`agy`), covering `SessionStart`, `UserPromptSubmit` (Antigravity's
+  `PreInvocation`, which fires per model invocation rather than per user
+  prompt) and, for `SessionEnd`, an idempotent per-turn flush on
+  Antigravity's `Stop` -- deliberately NOT the one-shot `session-end-hook.sh`
+  itself, since `Stop` fires after every turn and treating it as a teardown
+  is the exact failure mode manaflow-ai/cmux#5000 already documents.
+  `pipeline/host.py` gained an `ANTIGRAVITY` host (a real, live-captured
+  `ANTIGRAVITY_CONVERSATION_ID` signature) and an `antigravity_exchange()`
+  reader for Antigravity's own flat transcript shape
+  (`{"step_index","source","type","content"}`), so `pipeline/extract.py`
+  now understands a third transcript envelope end to end. Install with
+  `python3 scripts/install_agy_hooks.py`, which merges Remember's entry into
+  the shared, per-machine `~/.gemini/config/hooks.json` without disturbing
+  any other plugin's own entry there -- no static manifest is checked in,
+  because nothing observed on Antigravity sets a plugin-root or
+  project-dir variable a checked-in file could rely on.
+
+  Three defects were found and fixed only by driving this against a real
+  `agy` process, none visible from a transcript-parsing unit test alone:
+  Antigravity's hook executor fails to protojson-parse a Claude Code-shaped
+  hook stdout (context injection / a `hookSpecificOutput` envelope), a
+  plain backgrounded save did not survive the hook process exiting (needed
+  `nohup` + `disown`), and the backgrounded `save-session.sh` had no stdin
+  of its own to resolve `PROJECT_DIR` from (now forwarded from
+  Antigravity's own `workspacePaths`, itself populated only via `agy
+  --add-dir`, not by a bare process `cwd`). See docs/install-antigravity.md
+  for the full account, and the updated
+  `.claude/jit-context/vocabulary/02-hosts/antigravity-hooks.md` for the
+  corrected hooks.json schema and firing evidence, which superseded an
+  earlier, wrong schema and a "PostToolUse/Stop never fire" finding that
+  turned out to be an artifact of that wrong schema, not of the host.
+
+  Not found: any genuine Antigravity session-end signal -- of the four
+  events confirmed loading and firing, none is a process-exit or
+  conversation-close event, so a long session that never re-crosses the
+  minimum-human-messages threshold before the process exits has no
+  equivalent of the last-chance `SessionEnd --force` flush Claude Code and
+  Codex both get. Reported as an open gap, not worked around (#563,
+  superseding #553).
+
+  Self-review also caught and fixed: `scripts/install_agy_hooks.py`
+  originally treated an existing `~/.gemini/config/hooks.json` it could not
+  parse the same as a genuinely absent one, silently discarding whatever
+  other plugin's hook entries were in it on the next write. It now raises
+  `CorruptHooksFile` and writes nothing rather than guessing.
+
+  `tests/test_agy_hooks_563.py` is now triaged in `docs/windows-skip-triage.md`
+  (#497's own meta-guard, `tests/test_windows_skip_triage_497.py`, requires
+  every win32 blanket-skip module to carry an entry) -- `unclear`, same
+  templated reason and verdict as the sibling hook-subprocess test modules
+  it is modelled on.
+
+### Changed
+
+- Changed: reworded README.md and six docs/ pages (configuration.md,
+  diagnostics.md, git-backup-security.md, windows.md, external-storage-mode.md,
+  measuring-lock-hold-times.md) so host-neutral prose says "coding agent"
+  instead of "Claude Code" -- the badges list two hosts (Claude Code, Codex),
+  and the pitch, trust-model, hook-injection and generic-hook-shell sentences
+  were still narrated as if there were one. Left "Claude Code" verbatim
+  everywhere the sentence is actually Claude-Code-specific: install
+  instructions, `.claude/` paths, the hook-name table, and the measured 60s
+  hook-kill timeout in docs/configuration.md. Checked every page for a
+  "Claude Remember" mention after the first (#562's other ask); none had
+  drifted from full-name-once-then-"Remember", so no fold was needed --
+  pinned as a regression guard instead. #562
+
+- Changed: the README now documents Antigravity CLI (`agy`) as a supported host and no
+  longer documents Gemini CLI (#572). Antigravity gains a host badge, an install section built
+  around `scripts/install_agy_hooks.py`, its own column in the hooks table, and a docs-list
+  entry; the table column is separate rather than folded into an existing one because the
+  mapping genuinely differs -- `UserPromptSubmit` maps to `PreInvocation`, `PostToolUse` is
+  not wired, and `SessionEnd` has no analogue at all. That last row is stated in the README
+  itself rather than only in the install page: none of the four Antigravity events confirmed
+  to fire is a process-exit signal, so a short conversation can end with no final flush, and
+  a reader choosing a host should see that before installing rather than after.
+- Changed: the Gemini CLI install section, hooks-table column and docs-list link are removed
+  from the README. `gemini extensions link` is refused on a free-tier individual account with
+  working credentials (`IneligibleTierError: UNSUPPORTED_CLIENT`, #532), and Google's own
+  error text names the Antigravity suite as the migration. This is not a claim that Gemini CLI
+  was withdrawn upstream: paid tiers were never tested and nothing above
+  `@google/gemini-cli` 0.58.0 has been re-probed, so "refused on the tiers that could be
+  tested" is the whole observation. `.gemini/settings.json` and its shape tests are untouched.
+
+### Fixed
+
+- Documented, on `docs/install-gemini-cli.md`, that the `gemini extensions link` install command is refused on an individual Google account's free tier -- `@google/gemini-cli` 0.58.0 answers `IneligibleTierError: UNSUPPORTED_CLIENT` after accepting the OAuth token, a tier rejection rather than an auth failure. The fact now sits next to the install command itself rather than only being discoverable at the bottom of the page. Paid tiers remain untested (#555).
+
+- Fixed: `sniff_file_envelope_status()` (pipeline/extract.py) folded a third
+  cause into the same "unrecognised, and not unreadable" return that #543's
+  50-line scan cap already shared with genuine exhaustion, so a transcript
+  whose scan gave up at the cap was indistinguishable from one that was
+  fully read. The function now returns a third element, `capped`, and
+  `pipeline/haiku.py`'s fallback warning ("could not identify the host from
+  transcript ... (unreadable or an unrecognised shape)") now names the cap
+  specifically instead of lumping it in with a shape genuinely never
+  recognised (#556).
+
+- Fixed: `hooks/hooks.json`'s `SessionEnd` entry now declares `"timeout": 10`
+  -- Claude Code's SessionEnd budget defaults to 1.5 seconds shared across
+  every hook registered for that event, and `session-end-hook.sh`'s own
+  synchronous preamble (path resolution, tool detection, directory
+  bootstrap) was measured at roughly 3.4 seconds on a slow Windows/Git-Bash
+  machine, well past that budget -- Claude Code logged `Hook cancelled` and
+  the session's flush never ran, leaving `logs/autonomous/` with no
+  `session-end-*.log` for that session (#560). The hook body itself is
+  unchanged: it already forks the real flush into the background and
+  returns as soon as it has forked. Declaring `timeout` is the correct
+  thing to do, but Claude Code's own hooks reference is explicit that
+  timeouts declared on a plugin-provided hook (this one) do not raise that
+  shared SessionEnd budget the way a timeout declared in a settings file
+  does -- see [docs/hooks.md](docs/hooks.md) for the documented workaround
+  (`CLAUDE_CODE_SESSIONEND_HOOKS_TIMEOUT_MS`) if `Hook cancelled` still
+  appears after this change. The manual-install `.claude/settings.json`
+  snippet in [docs/install-claude-code.md](docs/install-claude-code.md) also
+  now declares `"timeout": 10` on its `SessionEnd` entry -- unlike a
+  plugin-provided hook, a timeout declared in a settings file *does* raise
+  the shared budget per the same reference, so that install route is fully
+  fixed by this change with no workaround needed (self-review finding,
+  #560).
+
+- Fixed: an Antigravity transcript resolved under `REMEMBER_SUMMARIZER=auto`
+  routed silently to the `claude` summarizer, with no warning that a
+  different vendor's session was being billed to Anthropic -- the exact
+  shape #460/#477 already warn about elsewhere in the same function.
+  Teaching `sniff_envelope()` the Antigravity shape (#563) had moved this
+  case out of the only arm that used to warn. `pipeline/haiku.py`'s
+  `_choose_summarizer_provider()` now warns before falling back to
+  `claude` for a recognised Antigravity transcript, the same as it already
+  does for a vanished Codex transcript (#567).
+
+- Fixed: `scripts/agy-stop-hook.sh`, `scripts/agy-session-start-hook.sh`
+  and `scripts/agy-pre-invocation-hook.sh` each rendered a malformed stdin
+  payload (bad JSON, or no `python3` at all) identically to a genuinely
+  empty-but-valid one, so the stop hook took its `exit 0` arm having
+  captured nothing with no receipt anywhere that it happened. Each script
+  now tells the two apart and logs a warning to stderr on the malformed
+  arm -- safe to do because `agy` only ever parses these hooks' stdout as
+  protojson, and stdout already goes nowhere on this path (#568).
+
+- Fixed: `scripts/install_agy_hooks.py` now writes the emitted Antigravity
+  (`agy`) hook `command` string with forward slashes, always -- previously
+  it embedded `os.path.join`'s own native path separator unmodified, which
+  on Windows is a backslash mixed into a double-quoted shell-command
+  string that `agy` itself later re-parses. Nothing in this repo has
+  access to a Windows `agy` install to confirm end to end whether that
+  raw backslash actually broke execution there (REASONED, not observed --
+  see [docs/install-antigravity.md](docs/install-antigravity.md)'s own
+  "Everything above is macOS ... Nothing here is claimed for ... Windows"
+  caveat), but forward slashes are unambiguous under every quoting model
+  in play and are accepted by every path API bash and Windows itself
+  expose, so normalizing removes the risk outright rather than betting on
+  which model `agy` implements (#569). `tests/test_install_agy_hooks_563.py`
+  gains a new test that asserts directly on the built command string
+  instead -- the existing `os.path.isfile`-based coverage for this path is
+  left in place alongside it (self-review correction: an earlier draft of
+  this fragment said the new test "replaces" that coverage; it did not --
+  the old test still validates a different, still-useful thing, that every
+  named script actually exists on disk) -- and the one other pre-existing
+  test that compared the emitted command against the host's own native
+  separator (`test_build_entry_uses_literal_absolute_script_paths`) is
+  updated to compare against the same forward-slash form the code now
+  always emits, so it does not regress on `windows-latest` CI having
+  nothing to do with the bug it actually checks for (audit finding, #569).
+
+## [0.27.0] - 2026-09-05 — A capture regression that saved nothing since 0.25.0, and Gemini CLI moves from manifest to a real extension
+
+### Added
+
+- #456: added a checked-in Gemini CLI hook manifest, `.gemini/settings.json` -- the output `gemini hooks migrate --from-claude` produces when fed this repo's real `hooks/hooks.json` (observed against a live `gemini-cli 0.57.0` install), with every `${CLAUDE_PLUGIN_ROOT}` the raw migration output carries verbatim rewritten to `${PLUGIN_ROOT}`, since Gemini CLI never sets the Claude-only name (#407). `tests/test_gemini_manifest_456.py` pins the event mapping (`UserPromptSubmit`->`BeforeAgent`, `PostToolUse`->`AfterTool`, `SessionStart`/`SessionEnd` unchanged), the unbound-events-as-empty-arrays shape, and the `${PLUGIN_ROOT}`-only rule -- a manifest lint only, the same limit `tests/test_codex_manifest_410.py` states for the Codex manifest: no `gemini` binary runs in CI, so nothing here proves Gemini actually loads it or fires a hook. Scoped down from the fuller #456: installing and driving a live Gemini session, the transcript envelope, and the stdout-contract question all stay open for follow-up issues.
+
+- #492: added an on-demand, live-provider summary-quality harness (`tests/test_summary_quality_492.py`, skipped by default, opt in with `RUN_LIVE_SUMMARY_JUDGE=1`) that runs the real `save-session` prompt through the live summarizer against two recorded session fixtures and asserts the facts a correct summary must preserve (files, error codes, still-blocked status) survive as substrings. #406's `codex exec` provider (v0.24.0) shipped without any check on what a summary actually says -- routing and liveness tests only assert non-empty output.
+
+- #533: added a real, distributable Gemini CLI extension at `.gemini/` -- `.gemini/gemini-extension.json` (the manifest) and `.gemini/hooks/hooks.json` (the hook bindings, mirroring the shape of the Claude Code `hooks/hooks.json` this repo already ships at the top level), with every hook command spelled `${extensionPath}/../scripts/*.sh`: `${extensionPath}` is the only plugin/package-root template variable Gemini CLI documents, and per `bundle/docs/extensions/reference.md` it resolves solely inside an installed extension's own `gemini-extension.json`/`hooks/hooks.json`, never inside a plain `settings.json`. The `../` is deliberate: the extension root is `.gemini/`, but this repo's hook scripts live one level up at `scripts/`, and this manifest is designed for the one install path that keeps that relationship real -- `gemini extensions link <path-to-this-checkout>/.gemini`, which symlinks rather than copies. `gemini extensions install` copies the extension in isolation and would strand the `../`; this manifest is not built for that path. `tests/test_gemini_extension_533.py` pins both this file's shape and the corrected `.gemini/settings.json` -- a manifest lint only, same limit as `tests/test_gemini_manifest_456.py`/`tests/test_codex_manifest_410.py`: no `gemini` binary runs in CI, and #532 still blocks a live session, so nothing here is proof Gemini CLI actually loads either file or fires a hook. README's Gemini section explains why both `.gemini/settings.json` and this extension are kept side by side, and the double-firing corner case that follows from linking the extension while also working inside this checkout.
+
+- #547: added two host badges to the README badge row -- Claude Code and Codex -- so a reader can see which agent hosts this plugin runs on without reading the tree for manifests. Both are observed hosts: hooks have been seen firing under each. Gemini CLI is deliberately not badged. Its extension and hook manifests are checked in and covered by `test_gemini_manifest_456`, `test_gemini_extension_533`, `test_gemini_project_dir_var_456` and `test_gemini_stdout_envelope_534`, but every one of those asserts manifest *shape* only -- no test, and no observation, has a hook firing under a running Gemini CLI, because headless OAuth returns `invalid_grant` in this environment (#532). A badge beside two observed ones would imply an equal claim, and a caveat paragraph explaining why it does not is a worse fix than not making the claim. Gemini CLI returns to the badge row when #456 is actually settled.
+
+### Changed
+
+- #456: attempted to drive a real Gemini CLI session to settle the manifest's remaining open questions (does a hook fire, what does the stdin payload look like, where does Gemini CLI write its own transcript, does the `BeforeAgent` stdout contract match Codex's). Could not: the installed `gemini-cli` 0.57.0's cached OAuth credentials came back `invalid_grant`, re-authenticating needs a browser this environment does not have, and no `GEMINI_API_KEY`/`GOOGLE_API_KEY` fallback was available -- filed as #532 with exactly what was run. Instead, read the exact installed binary's own bundled reference docs (`bundle/docs/hooks/index.md`, `bundle/docs/extensions/reference.md`) and settled two of the open questions without needing a live session. First: `${PLUGIN_ROOT}` cannot resolve inside `.gemini/settings.json` on a real install, because Gemini CLI's hook-command environment carries no plugin-root variable at all, and its one plugin-root template variable, `${extensionPath}`, is substituted only inside an installed extension's own `gemini-extension.json`/`hooks/hooks.json`, never inside a plain project-scope `settings.json`; fixing that needs its own design decision (a real Gemini extension packaging) and is filed as #533. Second: those same docs list `CLAUDE_PROJECT_DIR` as a compatibility alias Gemini CLI itself sets, contradicting this repo's existing "Codex and Gemini CLI never set it" assumption across `scripts/resolve-paths.sh`, `scripts/lib-env-cache.sh`, three hook scripts, and README's own Codex section -- `pipeline/host.py`'s `GEMINI` host is corrected here (`project_dir_vars=("CLAUDE_PROJECT_DIR",)`, TDD red/green via `tests/test_gemini_project_dir_var_456.py`, since `GEMINI` is dead code today: not in `REGISTRY`, nothing calls `GEMINI.project_dir()` yet), but the wider shell-script and stdout-contract implications reach outside this diff and are filed as #534. README updated with all three findings.
+
+- #533: `.gemini/settings.json` (#456) spelled every hook command with `${PLUGIN_ROOT}`, which cannot resolve there -- per the installed `@google/gemini-cli` 0.57.0's own bundled docs (`bundle/docs/hooks/index.md`), a plain project-scope `settings.json` only gets ordinary shell expansion of `GEMINI_PROJECT_DIR`, `GEMINI_PLANS_DIR`, `GEMINI_SESSION_ID`, `GEMINI_CWD` and `CLAUDE_PROJECT_DIR` -- no plugin-root alias at all. Every `${PLUGIN_ROOT}` in that file is now `${GEMINI_PROJECT_DIR}`, the one variable that names a project-rooted path, kept for the narrow case of developing inside this repo's own checkout. `tests/test_gemini_manifest_456.py`'s two tests that pinned `${PLUGIN_ROOT}` usage are updated to pin `${GEMINI_PROJECT_DIR}` instead.
+
+- #549: the README shrank from 77KB to under 14KB. It now carries only what a reader needs before and just after installing: the pitch, how it works, a two-line install per host, requirements, cost, the two commands, the hooks table, configuration pointers, data files, the trust model and how the repo is maintained. Everything that recorded how a defect was found, or a trap to avoid, moved verbatim rather than rewritten into its own `docs/` page: one install page per host (Claude Code, Codex, Gemini CLI), Windows, hooks and the `hooks.d/` listener contract, diagnostics, handoff delivery, how memory files are written, data files, git worktrees, and the maintainer's longer statement. Every moved section leaves a one-line summary and a link in its place, and every page is listed under `## Reference`. Same convention as #505.
+
+### Fixed
+
+- **3 more Windows glob sites normalized, same class as #517** (#524, #525, #526).
+  The gate-3 release audit ahead of v0.26.0 found three further
+  `REMEMBER_DIR`-derived globs in the same two files #517 already swept, left
+  un-normalized:
+  - `scripts/doctor.sh`'s `_SESSION_END_FIRED` glob (#524) silently stayed 0
+    under a backslash-separated `REMEMBER_DIR`, so `/remember:doctor` fell
+    through to its transcript heuristic and misreported a hook-registration
+    problem that did not exist for a project that genuinely had a
+    `session-end-*.log`. A second, independent cause was found composing with
+    the same misreport: `eced1f3`'s age-keyed retention sweep
+    (`thresholds.autonomous_log_retention_days`, default 7 days) reclaims the
+    same `logs/autonomous/session-end-*.log` files after the retention window,
+    so a project idle longer than that also reproduces this report through a
+    second path. That sweep is unchanged by this fix -- it is a separate,
+    already-working piece of behaviour that happens to touch the same files.
+  - `scripts/doctor.sh`'s operator-facing memory-file count (#525), the third
+    counter of this shape in the file -- #517's own fragment named only the
+    other two ("both printed directly to the operator") -- silently
+    undercounted to 0.
+  - `scripts/run-consolidation.sh`'s `.tail-*`/`.prefix-*` stray-sibling sweep
+    (#526) globbed a `staging_path` that inherits `REMEMBER_DIR`'s backslashes,
+    so one small inert temp file accumulated per failed consolidation split.
+
+  All three now route through the same shared helper #517 introduced,
+  `_remember_forward_slash` (`scripts/resolve-paths.sh`), matching the pattern
+  already used at the file's other sites rather than inventing a new one.
+
+- Fixed a race (#527) where `post-tool-hook.sh`'s backgrounded `save-*.log` could be reclaimed by `save-session.sh`'s own empty-log housekeeping sweep while the flush that redirects into it (its own, or a concurrent sibling's) still holds the file open, losing any diagnostic written after that point. The log is now seeded with a header line before the fork starts, the same defence `session-end-hook.sh` already applies to `session-end-*.log` (#483).
+
+- #534: the shell layer's own `CLAUDE_PROJECT_DIR`-unset comments and README's Codex/Gemini prose both still asserted "Codex and Gemini CLI never set `CLAUDE_PROJECT_DIR`" as shared fact, even though #456 had already found that wrong for Gemini CLI specifically (its own bundled docs list it as a compatibility alias Gemini sets). `scripts/resolve-paths.sh`'s `REMEMBER_HOOK_CWD` fallback and `scripts/lib-env-cache.sh`'s cache-key fallback needed only corrected comments -- both stay correct as fallbacks for any host that genuinely leaves the variable unset (Codex, live-confirmed via `tests/fixtures/codex-env-463.txt`), and Gemini setting the variable just means priority 1 wins and the fallback is never reached on that host. `scripts/user-prompt-hook.sh`'s `UserPromptSubmit` JSON-envelope branch was considered for an actual behavioural fix -- narrowing its gate from "is `CLAUDE_PROJECT_DIR` set" to a Codex-specific signature (`CODEX_SESSION_ID`/`CODEX_THREAD_ID`, the pair `pipeline/host.py`'s `CODEX.signature_vars` already uses) -- and that was tried, then rejected during self-review: #465 already found, live, that neither variable survives into a process Codex spawns as a HOOK (this script is registered as exactly that in `hooks/hooks.codex.json`), only into a Codex TOOL-SHELL command, so gating the hook on that pair would have silently disabled the JSON envelope on every real Codex invocation and reopened #451/#452. The gate stays on `CLAUDE_PROJECT_DIR`, unchanged, correctly documented: Gemini setting the variable now routes it through the same plain-stdout branch Claude Code already takes, REASONED as the safer default (not OBSERVED, since Gemini CLI's own `BeforeAgent` stdout contract has never been driven live -- #532). `tests/test_gemini_stdout_envelope_534.py` pins both sides of this gate as controls (Gemini-shaped gets plain stdout; a genuinely signal-less host still gets the Codex envelope, so a future re-narrowing regresses visibly). README corrected in every place it repeated the old shared-fact claim, including the record of why the Codex-signature alternative was rejected.
+
+- **`cmd_save_position` now validates `session_id` before it becomes a path
+  component** (#538). `pipeline/shell.py` built the position sidecar path
+  (`position.<session_id>`) and the evicted-sidecar removal path by
+  interpolating `session_id` directly, without ever calling
+  `pipeline.extract._validate_session_id` -- the same check `find_session()`
+  already runs before its own equivalent join. Both shell callers
+  (`scripts/post-tool-hook.sh`, `scripts/session-end-hook.sh`) and
+  `scripts/save-session.sh` already filter the id before Python ever sees
+  it, so nothing reachable today was exploitable; this is hardening so a
+  future caller reaching `cmd_save_position` by another route -- a test
+  helper, a new hook, a different host's adapter -- inherits the same
+  guarantee instead of nothing.
+
+- **`config()` no longer splices `$key` unquoted into the jq program it
+  builds** (#539). `scripts/log.sh`'s `config()` reads `config.json` by
+  building `if $key == null then "" else ($key | tostring) end` and handing
+  it to `jq -r` -- `$key` was interpolated into the program text, twice,
+  rather than passed as data. Every call site in this repo passes a
+  hardcoded literal key (`.timezone`, `.cooldowns.save_seconds`, and so on),
+  so nothing exploited this, but nothing enforced that contract either: a
+  future caller that read a key name out of a variable would have had it
+  evaluated as jq against the user's config instead of looked up as a path.
+  `config()` now rejects any key that is not a plain dotted path
+  (`^\.[A-Za-z0-9_]+(\.[A-Za-z0-9_]+)*$`) up front and returns the caller's
+  default, before the config table is loaded and before jq (or its jq-free
+  fallback) ever sees it -- the earlier shape check this used, a `case` glob
+  requiring a leading `.`, silently let a key with *no* leading dot fall
+  through unfiltered, which is exactly the shape a real injection takes.
+  The match runs under `LC_ALL=C`: `[A-Za-z]` is a POSIX collation range,
+  not a byte range, and widens to accept accented letters under a UTF-8
+  locale (the same trap `lib-slug.sh` already documents and guards against
+  elsewhere in this file). And with `REMEMBER_DEBUG=1`, a rejection is now
+  reported on stderr, so it reads differently from a key that is simply
+  absent from config.json -- both used to print the same default silently.
+
+- **`docs/windows-skip-triage.md` now carries a row for
+  `tests/test_config_key_injection_539.py`** (#539). The #539 fix's own new
+  test module carries the module-level win32 blanket-skip pattern
+  `tests/test_windows_skip_triage_497.py` enforces coverage of; it had no
+  row, so the guard (correctly) failed on every `windows-latest` CI leg.
+  Triaged as `unclear` -- the reason string is the same templated
+  "bash subprocess + POSIX layout" boilerplate the majority of this table
+  already carries, and reading the test body confirms real bash/locale
+  behavior (an `LC_ALL=C`-scoped collation-range regex, `tmp_path`-derived
+  paths sourced into the shell) without settling whether `resolve_bash()`
+  alone would make it portable. The table's live module count and the
+  `unclear` subtotal in the doc's own header prose were also one short of
+  the table's actual row count independent of this addition (96 rows vs. a
+  stated 95, i.e. 75 `unclear`) -- fixed alongside this addition so the
+  header prose and the table agree again.
+
+- **The in-repo Codex marketplace no longer collides with the published catalogue** (#540).
+  `.agents/plugins/marketplace.json` -- a development catalogue with one plugin and a
+  local source path, used to run `codex plugin marketplace add .` against a checkout --
+  declared itself `"name": "dpt-plugins"`, the same name the published
+  `Digital-Process-Tools/codex-marketplace` catalogue uses. On a machine that had added
+  both, `remember@dpt-plugins` meant the checkout in one session and the published repo
+  in another. Renamed to `"remember-dev"`, the `<plugin>-dev` shape
+  `claude-jit-context` already ships as `claude-jit-context-dev`.
+
+- **Fixed a regression that stopped memory capture entirely on current Claude Code (2.1.257/2.1.258, CLI and Desktop): every session since claude-remember 0.25.0 read as `unrecognised` and saved 0 exchanges** (#543). `sniff_file_envelope_status()` (`pipeline/extract.py`) decided a transcript's host from its own FIRST parseable line -- correct when #443 introduced it, since Claude Code transcripts used to open with a `user`/`assistant`/`summary`/`system` line. Current Claude Code no longer does: every transcript now opens with several bookkeeping records (`bridge-session`, `queue-operation`, `mode`, `permission-mode`, `last-prompt`, `custom-title`, `attachment`, `file-history-snapshot`) before the first real message line, none of which `sniff_envelope()` (`pipeline/host.py`) can place -- so the old first-line decision returned `"unrecognised"` immediately and every save on an affected install silently captured nothing, with hooks firing and `.remember/` present the whole time. `sniff_file_envelope_status()` now scans forward past a line it cannot place -- up to 50 such lines (`_ENVELOPE_SNIFF_SCAN_CAP`) -- and returns the first verdict that actually resolves to `"claude-code"` or `"codex"`, falling back to `"unrecognised"` only once the file (or the cap) is exhausted without ever resolving. A line neither function can place is not evidence for either host, so skipping it does not weaken the "one host wrote the whole file" reasoning `sniff_envelope()`'s own docstring gives. The #450 quarantine mechanism already recorded every affected session as unread from line 0 rather than losing anything, so sessions captured on an affected install between 0.25.0 and this fix will be picked up on the next save with no further action needed.
+
+- `_validate_session_id()` now rejects `:` in a session_id, alongside the
+  existing path-separator and `..` traversal checks. On NTFS a colon in a
+  filename is read as an Alternate Data Stream separator
+  (`filename:stream`), so a colon-bearing session_id could otherwise land
+  as an ADS on an existing file instead of a distinct file of its own when
+  joined into `position.<session_id>` (#544).
+
+## [0.26.0] - 2026-09-04 — Windows glob-blindness, swept again, and autonomous logs stop erasing their own evidence
+
+### Added
+
+- **A per-module triage of the 95 Windows CI legs' blanket `win32` skips** (#497,
+  follow-up to #507's own skip-ratio report). `docs/windows-skip-triage.md` lists
+  every test module that still carries a module-level
+  `pytestmark = pytest.mark.skipif(sys.platform == "win32", ...)` -- a bare call
+  or one arm of a list of marks -- its skip reason, and a verdict against
+  `tests/_bash_runner.py`'s `resolve_bash()` route -- `convertible`,
+  `not-convertible`, or `unclear` where the reason string alone cannot say. Not
+  a mass rewrite: no test file was converted here. The issue's own re-verified
+  count (107, by a grep that also catches two docstring mentions and eleven
+  modules that already moved to the `resolve_bash()` route) is corrected to 95
+  by `scripts/windows_skip_triage_497.py`'s AST-based count, which
+  `tests/test_windows_skip_triage_497.py` re-derives on every run so the list
+  cannot silently drift out of sync with the tree the way the issue itself
+  describes happening (92 -> 107 with nothing announcing it).
+
+- **The README names its three sibling plugins near the top** (#505). One block, three
+  links, one marketplace command. Before this each README named the others once or not
+  at all, and the repo strangers reach first (claude-remember) pointed nowhere.
+
+- **A test that dominates the suite is now reported, not found by chance** (#510). `pytest` already
+  printed `--durations`; nothing read it. A root-level `conftest.py` now prints the top durations
+  and the slowest test's share of total suite time at the end of every `pytest` run, local or any CI
+  leg, with no extra flag. Three states -- `measured`, `no-baseline`, `could-not-measure` -- are
+  always distinguishable in the output; it is a report, never a gate, and never fails a run on
+  wall-clock time.
+
+### Changed
+
+- **Cross-host locking contract written down and tested** (#491). Claude Code and Codex
+  sharing one `.remember/` store had no explicit safety contract: `scripts/lib-lock.sh`
+  and `scripts/lib-staging-lock.sh` were written and tested against a single host's
+  process model, and neither file nor its tests mentioned Codex or "host" at all.
+  Established (not assumed): the lock primitive is already safe there, because `mkdir`
+  and `kill -0` are OS-level, process-table operations indifferent to which CLI spawned
+  the contending process, and every lock is keyed by a fixed literal name or by day, never
+  by session id. Both files now carry that contract as a header comment, and
+  `tests/test_cross_host_lock_contract_491.py` proves it under real concurrent writes
+  from two simulated hosts (no lost or interleaved entries), documents the one general,
+  pre-existing `kill -0` PID-reuse limitation this design inherits (not new, not made
+  worse by a second host), and locks in that the lock/staging layer never assumes a
+  session-ID shape.
+
+- **Documented, rather than left open, whether a real host payload can trigger the
+  #447 nested-`cwd` extractor gap** (#494). Reading Claude Code's, Codex's and
+  Gemini CLI's hook payload schemas (source-verified for Codex, docs-observed for
+  the other two) shows `cwd` is always a top-level field and the only nested
+  object a hook payload carries (`tool_input`/`tool_response`) is always declared
+  after it — so the gap the #447 test pins is a property of the shell extractor's
+  own first-occurrence scan on a synthetic input, not something any known,
+  currently-shipped host payload reaches. Recorded in the extractor's own header
+  comment; the test stays a characterization rather than becoming a hard
+  assertion, since a host is free to reorder its own schema.
+
+- Changed (#498): `logs/autonomous/` retention housekeeping (`thresholds.autonomous_log_retention_days`) used to run only inside `save-session.sh`'s `if [ "$RUN_NDC" = true ]` block, by accident of placement -- so setting `features.ndc_compression=false` silently disabled log retention too, with the threshold configured and doing nothing and no signal anywhere that it was inert. The sweep now runs unconditionally on every ordinary flush, independent of NDC compression.
+
+- **README.md moved from 934 lines to a stranger-facing front page** (#505). Six
+  reference sections a stranger scrolled past to reach `## Architecture` --
+  computing the slug outside bash, reading the transcript path the host hands
+  us, configuration, measuring lock hold times, external storage mode, and
+  running tests -- moved verbatim to `docs/<slug>.md`, each replaced in the
+  README by a one-line pointer under a new `## Reference` heading. Every
+  internal anchor link that crossed the move was repointed at its new file;
+  `tests/test_config_contract.py` and `tests/test_prompt_stamp_301.py`, which
+  pinned text out of the Configuration table, now read `docs/configuration.md`
+  instead of `README.md`.
+
+- **CI's Windows legs exclude the checkout and runner temp directory from Windows Defender scanning** (#512, ported from `claude-jit-context#310`). `Add-MpPreference -ExclusionPath` on `${{ github.workspace }}` and `$RUNNER_TEMP`, Windows-only, before the test step. This is preemptive rather than a measured speedup here: on run `33574746296` the `windows-latest` legs were the *fastest* in the matrix (133-205s against 370-434s on Linux and 547-638s on macOS), because 92 modules blanket-skip on win32 (#497) and the Windows legs therefore touch almost no temp files. The exclusion earns its keep when those skips lift and the Windows legs start doing the same file-heavy work the other two OSes already do. No test, hook or behaviour is touched; the exclusion exists only inside the ephemeral runner VM.
+
+- **The `tests` workflow supersedes its own in-flight runs on a pull request** (#512). A `concurrency` group of `${{ github.workflow }}-${{ github.ref }}` with `cancel-in-progress: ${{ github.event_name == 'pull_request' }}`, so a second push to a pull request cancels the 12-leg matrix it replaced instead of racing it. Cancellation is deliberately limited to `pull_request`: a push to `main` is the run a release gate reads, and `cancelled` is not `success`, so cancelling one would leave that commit with no verdict at all -- the absence this repository's `CLAUDE.md` warns reads exactly like a pass. `github.ref` is `refs/pull/N/merge` on a pull request and `refs/heads/main` on a push, so the group is never constant and unrelated pull requests are not serialised against each other. `.github/workflows/oss-changelog.yml` already carried the same block; it only triggers on `pull_request`, which is why its `cancel-in-progress` is a bare `true`.
+- **The four plugin-owned files and the `01-oss` rule layer were refreshed from `/oss:scaffold --apply`.** `.github/workflows/oss-changelog.yml`, `.oss/README.md`, `.oss/assemble_changelog.py` and `.oss/statusline.py` are replaced wholesale on every scaffold run, so a fix shipped in the plugin reaches this repository only when that command is re-run here; `/oss:doctor` had reported all three of the changed ones as `would change what it does`. Eleven rule files under `.claude/jit-context/*/01-oss/` were rewritten by the same run, two of them new (`merge-gate.md`, `pr-create-gate.md`). No hand-written file was touched: nothing under `00-manual/` is read or written by that command.
+- **`pytest` now reports the 25 slowest tests.** `--durations=25` added to `addopts` in `pyproject.toml` beside the coverage flags already there, and `test_measurement_configured` set in `.oss.json` to record that the measurement exists. No threshold and no trend check is implied -- this only makes the number visible.
+
+### Fixed
+
+- Fixed (#487): `logs/autonomous/session-end-*.log` was never reclaimed. `find ... -empty -delete` was the only retention `logs/autonomous/` ever had, and #483's own fix for a different bug (that sweep matching its own still-open, still-empty log) seeded every `session-end-*.log` with a header before its subshell opens it -- making every one of them non-empty by construction, and so invisible to the only cleanup this directory had. One file per session, forever. Fixed by adding a second, age-keyed sweep (`thresholds.autonomous_log_retention_days`, default 7) over both file classes (`save-*.log` and `session-end-*.log`), independent of emptiness -- emptiness was always a proxy for staleness, and it is the proxy that produced #483 in the first place. The empty-file sweep still runs first, on the same pass. (Both sweeps were rewritten again since -- see the #498/#502 fragments for the current, portable mechanism.)
+
+- Fixed (#488): two `SessionEnd` hooks for the same project, ending inside the same wall-clock second, resolved to the identical flush log path -- `session-end-hook.sh` named `$_END_LOG` from a second-granularity timestamp alone, with no PID or session id. #486 made the collision harmless (both hooks append rather than truncate) but not absent: two flushes still interleaved into one file, and a reader could not tell whose lines were whose. Fixed by suffixing the filename with the hook process's own PID (`session-end-<HHMMSS>-<PID>.log`), so concurrent hooks always get distinct files. `scripts/doctor.sh`'s own `session-end-*.log` glob (#370's SessionEnd-liveness check) needed no change -- it was never anchored to a fixed width.
+
+- Fixed (#500): `save-session.sh`'s session-id validator admitted a leading hyphen (`^[a-f0-9-]+$` was never anchored to the first character), so an option-shaped session id (`-e`, `--`, `-adef`) could reach `REMEMBER_BRANCH_CMD`'s `argv[1]` as something the operator's own resolver could misread as a flag. Anchored to `^[a-f0-9][a-f0-9-]*$` -- a session id can never start with `-`, closing this off for every caller (CLI, `session-end-hook.sh`, `session-start-hook.sh`'s recovery path) at the one gate they all pass through.
+
+- Fixed (#501): `REMEMBER_BRANCH_CMD`'s stdout was substituted into the summarizer prompt with no bound on embedded control characters -- `$(...)` only strips a trailing newline, so a resolver that printed more than one line, or a lone carriage return with no line feed, wrote arbitrary content at column 0 of the prompt. Either is now refused outright (logged the same WARNING-and-fall-through-to-`git branch` as a non-zero exit or empty stdout), rather than truncated silently to its first line.
+
+- Fixed (#502): `logs/autonomous/`'s two housekeeping sweeps were bare `find` calls with stderr discarded and no exit-status check, so a failing (or, on Windows Git Bash, potentially PATH-shadowed) `find` was indistinguishable from "found nothing to delete." Replaced both with a portable `stat`-based sweep (GNU-first-then-BSD-fallback, matching `session-start-hook.sh`'s own existing sweep) that checks every removal and logs a WARNING through the same path `save-session.sh` already uses for its own fall-throughs, rather than swallowing a failure into silent success.
+
+- Fixed (#503): `session-end-hook.sh`'s `mkdir -p` for `logs/autonomous/` and the header write that seeds its own flush log were both unchecked. A failed write left the log absent or empty exactly as if it had never been opened -- reclaimed by the very next flush's own `-empty` sweep, silently reintroducing #483's original bug (no on-disk trace that `SessionEnd` ever fired) and leaving `scripts/doctor.sh`'s own liveness check to misdirect an operator toward a hook-registration problem that does not exist. Both writes now check their own exit status and report a WARNING on failure.
+
+- **`user-prompt-hook.sh` and `session-start-hook.sh` now agree on the env-cache key
+  for the same project on Windows** (#504). Both hooks derive the fast-path cache
+  key from `CLAUDE_PROJECT_DIR`/`REMEMBER_HOOK_CWD`, but one read it before
+  `resolve-paths.sh` normalized a Windows drive path and the other read it after —
+  a project whose `cwd` arrives in the forward-slash form Windows sometimes sends
+  could key two different cache files for the same project, so the fast path never
+  hit what the slow path had just published. The key is now normalized the same way
+  before it is pinned, so both spellings collapse to the same file.
+
+- **The README's OS badge no longer overclaims Windows test coverage** (#507,
+  following #497's measurement that the `windows-latest` legs report `success`
+  over 1201 of 1960 collected tests skipped -- roughly 61% of the suite, most
+  of it from a `sys.platform == "win32"` blanket-skip still on 107 of 174 test
+  modules). A one-line caveat now sits next to the badge, and `pytest` itself
+  -- local or any leg of the CI matrix, no extra flag -- prints the current
+  leg's own skip ratio via a new `pytest_terminal_summary` hook
+  (`scripts/report_windows_skip_floor.py`), annotating with a `::warning::`
+  GitHub Actions command when a Windows leg crosses a recorded 10% skip floor.
+  Deliberately a report, not a build-failing gate: today's ratio is already
+  far past 10%, and failing on it would redden every future Windows leg until
+  the modules behind it are migrated to `resolve_bash()` (#432), a separate
+  and much larger effort #497 tracks on its own.
+
+- **Consolidation's retire no longer overwrites an existing retired day** (#509). When a
+  `today-YYYY-MM-DD.md` staging file is re-created for a day that was already retired -- a
+  long-running session spanning midnight, or NDC re-opening a retired day's staging file --
+  the retire loop used to `mv`/`head -c ... >` straight over the existing `.done.md`,
+  silently destroying the first retired span's hourly-detail content with no log line.
+  `run-consolidation.sh` now appends to an existing `.done.md` instead of truncating it, in
+  both the plain-rename and the concurrent-append (`head -c`/tail-split) retire paths. The
+  concurrent-append path also no longer commits the consumed prefix into `.done.md` until
+  the unconsumed tail has been safely extracted too, closing a duplication self-review found
+  in the first version of this fix (a `tail` failure used to leave the prefix committed once
+  by the extraction step and once more by the whole-file fallback).
+
+- **`user-prompt-hook.sh`'s warm path forks fewer subshells** (#511, follow-up to
+  #227). The `cwd` extracted from stdin and the clock read for the prompt stamp
+  are now written into a variable directly instead of being captured through a
+  `$( ... )` command substitution — a fork bash pays for the substitution itself
+  even when nothing inside it shells out to an external process, cheap on
+  Linux/macOS and measurably slower on Windows Git Bash per the original report.
+  README now documents `prompt_stamp: "stable"` as the cheapest option for anyone
+  still finding the warm path slow.
+
+- **7 further Windows glob/pattern-match sites fixed, same class as #487** (#517).
+  Bash's own filename glob (`ls`, `rm -rf ... *`, a bare `for ... in`) and its
+  parameter-expansion pattern matching (`%/*`, `##*/`, a `[[ == ]]` glob) all
+  recognise only `/` as a path separator, never a backslash -- and on Git
+  Bash/MSYS2, `resolve-paths.sh` hands `REMEMBER_DIR`/`PROJECT_DIR` to the rest
+  of the scripts backslash-separated, the native Windows form. #487 fixed the
+  one instance CI was red on (`scripts/save-session.sh`'s retention sweep); an
+  `oss:auditor` self-review of that fix found 7 more, in different subsystems,
+  none touched by it:
+  - `scripts/run-consolidation.sh`'s stale-snapshot cleanup silently never fired
+  - `scripts/session-start-hook.sh`'s staging-file count and rotated-slice check
+    (feeding the "N day(s) of memory to compress" message and the session
+    banner's own `=== MEMORY ===` section) silently undercounted/omitted
+  - `scripts/lib-case-divergence.sh`'s own `REMEMBER_DIR` split left
+    `REMEMBER_CASE_STATUS` stuck at `"not-applicable"` regardless of real
+    on-disk state, and its own #138 in-project refusal compared a
+    forward-slashed value against a still-backslash `PROJECT_DIR`
+  - `scripts/doctor.sh`'s storage-mode detection (both the JSON and
+    human-readable branches) misreported an in-project store as "external",
+    and its staging-byte and pending-log-file counts (both printed directly to
+    the operator) silently undercounted to 0
+  - the #373 stale-delivery-record pruner in `scripts/session-start-hook.sh`
+    silently never fired, leaking one record per session forever
+
+  Fixed via one shared helper, `_remember_forward_slash` (`scripts/resolve-paths.sh`,
+  gated on `$OSTYPE` the same way `_remember_normalize_win_path` already is
+  there) -- 10 call sites in total (the case-divergence split above needed a
+  second, paired comparison fixed alongside it, and `doctor.sh`'s two
+  diagnostics each have a JSON-mode and a human-readable branch) now call it
+  instead of re-deriving the gate inline, the way #487's own fix had to.
+  `save-session.sh`'s own retention sweep is left as its existing inline
+  instance; adopting the shared helper there too is a follow-up, not part of
+  this fix.
+
+  **Two further sites in the same family were found and are NOT fixed by
+  this change**: `scripts/bootstrap-dirs.sh`'s in-project `.gitignore` write
+  (`case "$REMEMBER_DIR" in "$_mem_proj"/*)`) and
+  `hooks.d/before_session_start/50-git-restore.sh`'s legacy-mode guard
+  (`${REMEMBER_DIR%/*}`) -- both the identical class, outside this fix's own
+  claimed files. Filed for a follow-up.
+
+- **2 more Windows backslash-blindness sites fixed, found by #517's own
+  self-review** (#519). `scripts/bootstrap-dirs.sh`'s in-project
+  `.gitignore` write (`case "$REMEMBER_DIR" in "$_mem_proj"/*)`) silently
+  never wrote it on Git Bash/MSYS2, leaving that store's memory content
+  unexcluded from `git add -A`/`git status` inside the user's own project
+  repository -- the protective `.gitignore` `hooks.d/after_save/50-git-backup.sh`'s
+  own comments document relying on.
+  `hooks.d/before_session_start/50-git-restore.sh`'s
+  legacy-mode guard (`${REMEMBER_DIR%/*}` / `${REMEMBER_DIR##*/}`) mis-split
+  a backslash-separated `REMEMBER_DIR`, which made the later git-toplevel
+  check disagree with itself and the whole restore silently never fire, on
+  any affected Windows install with `git_restore.enabled=true` -- confirmed
+  live, not just theoretical, by tracing the call path to the hook's own
+  "declined: not the toplevel" refusal.
+
+  Both sites duplicate the identical `$OSTYPE` gate inline rather than
+  calling the shared `_remember_forward_slash` helper
+  (`scripts/resolve-paths.sh`, #517) directly, for two different reasons.
+  The git-restore.sh hook is exec'd as its own process by
+  `scripts/log.sh`'s `dispatch()`, never sourced, so a function
+  `resolve-paths.sh` defines in the parent process is not in scope there,
+  and the file deliberately never sources `resolve-paths.sh` itself to keep
+  its own documented "cheap guards first" cost promise for the legacy-mode
+  majority that can never activate this hook at all. bootstrap-dirs.sh's
+  first-pass fix DID call the shared helper directly (its own USAGE header
+  claims every caller sources `resolve-paths.sh` first) -- but a real
+  caller, `tests/test_external_data_dir.py` and
+  `tests/test_worktree_memory.py`'s own end-to-end harnesses, sources only
+  `detect-tools.sh` and `bootstrap-dirs.sh`, never `resolve-paths.sh`; there
+  the helper is genuinely undefined, the command substitution silently
+  becomes `command not found` (empty output), and the whole gate degrades
+  to "never matches, `.gitignore` never written" for every `REMEMBER_DIR`,
+  not just a backslash-laden one -- caught by CI (ubuntu-latest 3.9, job
+  100934963344) after the first fix shipped.
+
+  A self-review of this fix (oss:auditor) separately caught a second bug
+  the fix itself introduced: normalizing only `REMEMBER_DIR` in the
+  git-restore.sh site and comparing the result against a still-backslash
+  `PROJECT_DIR` (`_remember_normalize_win_path` rewrites `PROJECT_DIR` to
+  backslash form on msys/cygwin, the opposite direction) broke the
+  legacy-mode short-circuit for every genuine legacy-mode Windows install,
+  defeating the file's own "cheap guards first" cost promise. `PROJECT_DIR`
+  is now normalized the same way before that one comparison, matching the
+  pattern `scripts/doctor.sh` and `scripts/lib-case-divergence.sh` already
+  use for the identical `REMEMBER_DIR`-vs-`PROJECT_DIR` comparison.
+
+## [0.25.0] - 2026-09-02 — Telling one session from another, and a fault from a quiet answer
+
+### Added
+
+- Added a test generalising the #344/#379 top-level-wins pin from `source`
+  alone to the extractor itself: `_stdin_json_string` (session-start-hook.sh,
+  session-end-hook.sh, post-tool-hook.sh) and its `cwd`-hardcoded twin
+  `_stdin_cwd` (user-prompt-hook.sh) all take the FIRST `"KEY"` occurrence in
+  the joined stdin string, not the first top-level one, and since #444 that
+  now resolves `cwd` on all four hooks and `session_id` on three of them --
+  neither whitelisted the way `source` was, and `cwd` feeds
+  `REMEMBER_HOOK_CWD`/`PROJECT_DIR` rather than a bounded string comparison.
+  Each (hook, key) pair gets the same two-test shape as the original pin: a
+  nested key AFTER the top-level one must keep losing, and a nested key
+  BEFORE it is pinned as today's documented gap. Nothing in the extractors
+  changed -- no JSON parser was introduced, per #340/#344's standing
+  decision that a hook which must survive a broken install is the wrong
+  place to acquire one. (#447)
+
+- Added (#481): `REMEMBER_BRANCH_CMD` env var, an executable invoked as `$REMEMBER_BRANCH_CMD "$SESSION_ID"` whose stdout resolves the `| <branch>` identity slot of each `## HH:MM | <branch>` memory header. Checked after `REMEMBER_BRANCH` and before the `git branch --show-current` fallback; a non-zero exit or empty stdout falls through to that fallback, logging a WARNING that names the configured command and the session so a configured-but-failing resolver reads as a reported fault rather than as "never configured". Fixes the case `REMEMBER_BRANCH` cannot: several Claude Code sessions running at once in one project share `$PROJECT_DIR`, so both the git-branch fallback and a `REMEMBER_BRANCH` set once at launch resolve to the *same* value for every one of them, collapsing the identity slot the same way the `unknown` fallback originally did. `$SESSION_ID` is already in scope at save time and differs per session, so a site can map it to a name of its own choosing (a local registry, `${SESSION_ID:0:8}`, ...) instead of the plugin guessing a built-in default.
+
+### Changed
+
+- Changed: README's Codex section now records the `UserPromptSubmit`
+  stdout-contract divergence between Claude Code and Codex fixed by #451/#452
+  (Codex's hook engine sniffs the first byte of stdout and marks the run
+  `Failed` on a bare `[`/`{` that fails its own JSON schema), states that
+  `session-start-hook.sh` was checked against three store shapes and does not
+  share the defect, and rebuilds the "not yet known" list from what is
+  actually still unknown today rather than from what was unknown when the
+  section was first written (#453).
+
+### Fixed
+
+- Fixed: `read_unread_envelope()` returned the same empty result for "nothing
+  was ever quarantined" and "the quarantine sidecar exists and could not be
+  read", so a torn write or truncated `unread-envelope.json` silently
+  re-lost a span #450's quarantine exists to protect. `extract_session()`
+  now distinguishes the two and reports it on its result (and through
+  `pipeline.shell`'s existing shell bridge as `UNREAD_SIDECAR_UNREADABLE`)
+  (#458).
+
+- Fixed: an auto-detected Codex session whose exported transcript vanished
+  between export and the SessionEnd hook's read was silently routed to
+  Claude's summarizer with no receipt -- `REMEMBER_SUMMARIZER=auto` now logs
+  that the transcript path was set but the file is gone, distinctly from the
+  ordinary no-transcript-exported case, which stays silent (#477).
+
+- Fixed: `sniff_file_envelope()` returned "unrecognised" for both "the
+  transcript could not even be opened" (permission error, bad mount, a file
+  that vanished between listing and open) and "opened it, read it,
+  recognised no known host shape" -- the same string save-session.sh's
+  receipt points at a shape-sniffing function for, which is the wrong place
+  to look when the real answer is "could not read it at all".
+  `extract_session()` now carries the distinction on its result (and
+  through `pipeline.shell`'s shell bridge as `ENVELOPE_UNREADABLE`), while
+  `sniff_file_envelope()`'s own return value is unchanged for existing
+  callers (#478).
+
+- Fixed: the #469 environment-cache fallback for Codex/Gemini CLI (`_remember_env_cache_path` falling back to `REMEMBER_HOOK_CWD` when `CLAUDE_PROJECT_DIR` is unset) was inert in `scripts/user-prompt-hook.sh` -- that hook unset `REMEMBER_HOOK_CWD` at entry (#417) and only ever set it again from the UserPromptSubmit stdin payload *inside* the "cache missed" branch, i.e. after `_remember_env_cache_load` had already run and failed for want of it. Every UserPromptSubmit wrote a cache file and none was ever read back on a host with no `CLAUDE_PROJECT_DIR`, verbatim the #469 symptom on the hook that fires once per human turn. `tests/test_env_cache_hook_cwd_key_469.py` certified the fix against a premise ("exactly the shape user-prompt-hook.sh ... already offer[s]") that this hook did not meet; its comment now says so and a new end-to-end test drives the real script, via `bash -x`, and asserts the second invocation is a cache HIT (never re-sources `resolve-paths.sh`), not merely a cache write. The stdin read that supplies `REMEMBER_HOOK_CWD` now runs unconditionally, ahead of the cache-load attempt, rather than only on the slow path: it is a bounded bash builtin (`read -t 1`, no fork), measured at no cost above the noise floor of a bare process spawn (8.5ms vs. 9.5ms baseline, 50 runs, macOS/bash 3.2), so this hook keeps a working fast path on Codex/Gemini CLI rather than silently having none. (#479)
+
+- Fixed: the #467 home-path guard's Detector 1 (`tests/test_no_real_home_paths_467.py`)
+  enumerated `tests/fixtures/` non-recursively (`iterdir()`), so a real `/Users/<x>/` or
+  `/home/<x>/` segment committed inside a subdirectory of `tests/fixtures/` was invisible
+  to the detector, and its own positive control could not have noticed -- it only asserted
+  a file count, satisfied by the top-level files alone. The scan now walks the tree
+  (`rglob("*")`) and a new receipt test cross-checks the file count it examined against
+  `git ls-files tests/fixtures`, so a walk that silently drops a subtree disagrees with a
+  number instead of passing quietly. (#480)
+
+- Fixed (#483): `session-end-hook.sh`'s own flush log deleted itself before anyone could read it. The hook redirects `save-session.sh --force`'s output into a fresh, empty `logs/autonomous/session-end-HHMMSS.log` before backgrounding the flush; save-session.sh's own NDC step then sweeps that same directory for stale logs with `find ... -empty -delete`, and on an ordinary successful run nothing ever writes a byte into that log (save-session.sh logs to its own daily file, not to stdout/stderr) -- so the sweep, run from inside the very process writing it, matched and deleted its own log. A later failure's WARNING then named a path that was already gone, and a healthy flush left no trace it had run. Fixed by seeding the log with a header line before the flush starts and appending rather than truncating into it, so it is never `-empty` for its own run's housekeeping to catch -- a genuinely stale, still-empty log from an earlier, abandoned run is untouched and keeps getting swept exactly as before.
+
+## [0.24.0] - 2026-08-29 — A plugin that only knew one host
+
+### Added
+
+- Added: `scripts/doctor.sh --json` -- a machine-readable resolution surface for an external caller that needs a `{slug}`-keyed external store's real directory without reimplementing `session_dir_slug`. Prints a single JSON line carrying `schema_version`, one of three states (`resolved`, `resolved_assumed_project_dir`, `could_not_resolve`), and the resolved `remember_dir` / `storage_mode` / `project_dir` when resolution succeeded, or a `reason` when it did not -- `could_not_resolve` never renders as an absent key or an empty object. Provisional: `schema_version` will be bumped on any incompatible change to these keys or their meaning. (#408)
+
+- Added: a declarative Codex layer -- `.codex-plugin/plugin.json`, a self-referential marketplace entry at `.agents/plugins/marketplace.json`, and `hooks/hooks.codex.json`, which binds Codex's documented lifecycle events to the same `scripts/*.sh` Claude Code already uses. No new hook code was written; the split out of #406 is the DPT epic issue, and this is #410, the piece that could be built before a Codex install existed. **This is scaffolding, not verified Codex support.** No Codex binary was installed anywhere this was built or tested, so `tests/test_codex_manifest_410.py` can only confirm the three manifests are well-formed JSON, name only events Codex documents ([Hooks](https://learn.chatgpt.com/docs/hooks)), and reference scripts that actually exist in the tree -- it cannot confirm Codex loads the plugin, discovers the marketplace entry, or fires a single hook. Read the README's Codex section for the same limit stated in prose. (#410)
+
+### Fixed
+
+- Fixed: `scripts/lib-staging-lock.sh`'s fallback `config()` -- installed for the #361/#372 case where `scripts/log.sh` returns early on a store whose `logs/` cannot be created -- answered every key with the caller's default and no marker, so a store with a real `REMEMBER_CONFIG` holding a configured, non-default `.thresholds.staging_warn_bytes` rendered identically to a store with no config at all. `config()` now tells the two states apart without parsing (`[ -e "$REMEMBER_CONFIG" ]` needs no jq and no Python fallback), and `staging_append` reports the uncertainty via `report_error()` instead of silently trusting the default -- staying silent, as before, only when REMEMBER_CONFIG is genuinely unset. `-e` rather than `-r`: an existing-but-unreadable REMEMBER_CONFIG (a permission change, a mount hiccup) is reported too, caught in this issue's own self-review before shipping. (#399)
+
+- Fixed: a legacy (in-project) store migrated to external mode with git backup enabled could never reach `/remember:doctor`'s SessionEnd `FAIL` verdict again -- it WARNed forever. `hooks.d/after_save/50-git-backup.sh` deletes `$REMEMBER_DIR/.gitignore` as a one-time cleanup of the legacy bootstrap artifact once a backed-up save lands, and doctor.sh's SessionEnd liveness check (#370, #392) read that same file's mtime as its install baseline -- the one file under `REMEMBER_DIR` ordinary hook activity never rewrote. Composed, the cleanup silently removed the diagnostic's only baseline. `bootstrap-dirs.sh` now writes a dedicated `$REMEMBER_DIR/.install-marker` instead, unconditional of storage mode, that nothing else in this codebase has any reason to touch again; a store already degraded by this composition self-heals the next time any hook sources `bootstrap-dirs.sh`. (#401)
+
+- Fixed: `scripts/session-start-hook.sh`'s #393 grace-window sweep coerced an unreadable or non-numeric `_remember_date +%s` clock read to `0` and gated on `-gt 0`, so a failed clock read fell through the same `if` that keeps a live session's delivery record and reached `rm -f` instead -- the opposite of what the mtime read three lines above already did on the same failure shape. `_remember_now` now gets the same could-not-tell-means-keep treatment `_remember_stale_mtime` already had: an empty or non-digit clock read `continue`s (kept) rather than being coerced into "confirmed outside the grace window". Self-review of this fix found the mtime read's own existing guard had the identical gap one level down -- it caught a fully-empty `stat` read but still coerced a non-empty, non-numeric one to `0` before the `-gt 0` gate, so it is fixed the same way in this same change. A readable clock and a readable mtime behave exactly as before. (#402)
+
+- Fixed: the #353 position sidecar's hot-path trust check bounded a sidecar only against the current run's own transcript line count, never against `last-save.json` itself, even though the two log lines that fire on a disagreement both said it did. A sidecar whose session had been evicted from `last-save.json` -- and whose best-effort cleanup unlink (`pipeline/shell.py`'s `cmd_save_position`) failed -- was still trusted whenever its stale value happened to fall inside the current transcript's bound, resuming from a position the authoritative store no longer recognised and summarizing the same span twice. `scripts/post-tool-hook.sh` now also requires the session id to still be a key in `last-save.json`'s own `sessions` map before trusting the sidecar, read via bash's fork-free `$(< file)` so the hot path this feature exists to keep cheap stays cheap -- confirmed against the existing pinned cost budgets in `tests/test_hot_path_cost_pin_330.py`. The membership check is scoped to the `sessions` object's own text rather than the whole file, so a session id equal to one of `last-save.json`'s own fixed field names (`session`, `line`) cannot false-match. (#403)
+
+- Fixed: `/remember:doctor`'s VERDICT ladder could still name "SessionEnd has never fired" as the cause on an AGED store even when a more specific, actionable diagnosis was already printed higher in the same report: `PostToolUse is wired and running, but has not serviced a session -- it is exiting early`. #392/#400 closed the fresh-install half of this displacement (a quiet transcript predating the store's own baseline no longer counts as SessionEnd evidence); this closes the aged-store half by moving the SessionEnd arm below the two PostToolUse arms that already name a cause. SessionEnd's own priority over a healthy-looking "capture is working" verdict, and over "PostToolUse has never fired at all", is unchanged. (#404)
+
+- Fixed: every script under `scripts/` -- not just `session-start-hook.sh` (#367) -- could print a non-ASCII byte (an em-dash, an arrow) to stdout or stderr, which renders as mojibake on a cp1252 Windows console. `scripts/doctor.sh` carried the most (24 lines, including several VERDICT lines), `scripts/post-tool-hook.sh` and the rest of the tree carried the remainder. The same decision is extended to `pipeline/*.py` for a sharper reason than cosmetics: `pipeline/log.py`'s `log()` and `pipeline/haiku.py`'s `_warn()` fall back to `print(..., file=sys.stderr)` on a write failure, and Python's `print()` -- unlike bash's `echo` -- performs a real encode step against the console's codepage, so a non-ASCII message there was not cosmetic garbling but a live `UnicodeEncodeError` crash risk. One deliberate exception: `scripts/bench-slug.sh`'s own non-ASCII benchmark input (a `cafe/nihongo/emoji` test path) is left untouched -- it is a developer-only benchmark demonstrating non-ASCII path handling, not a diagnostic read by an end user, and stripping the bytes would remove the thing being measured. `tests/test_printed_lines_ascii_405.py` pins the whole tree (scripts/*.sh via a printed-line scan, pipeline/*.py via an AST walk over `_warn()`/`log()`/`print()`/raised-exception arguments), and `tests/test_printed_lines_ascii_367.py` continues to pin `session-start-hook.sh` on its own. (#405)
+
+- Fixed: `scripts/session-start-hook.sh`'s recovery block, which force-saves a previous, unsaved session in the background, inherited the CURRENT session's exported `REMEMBER_TRANSCRIPT_PATH` -- caught in self-review before shipping, since `find_session()` trusts that variable unconditionally once it names a real file. The rescue could silently summarize the wrong session's transcript while still labelling the saved record with the previous session's id. The recovery spawn now runs with `REMEMBER_TRANSCRIPT_PATH` unset. (#407)
+- Fixed: the pipeline reconstructed the transcript path from the project directory (`_session_dir()`'s slug-and-glob logic) instead of reading `transcript_path`, which `SessionStart` and `SessionEnd` already hand it on stdin. Every failure mode that reconstruction is exposed to — the drive-letter and truncation cases in #263, the astral-character disagreement in #174 — exists only because a derived path can disagree with where the host actually wrote; a path the host supplies cannot. `pipeline/extract.py`'s `find_session()` now uses the supplied `transcript_path` (via the new `pipeline/host.py` host adapter) when it names a real file, falling back to the existing reconstruction for every caller with no payload — consolidation, `/remember:doctor`, manual invocation. `scripts/session-start-hook.sh` and `scripts/session-end-hook.sh` extract `transcript_path` from the same stdin payload they already read `session_id` from, validate it the same way, and export it as `REMEMBER_TRANSCRIPT_PATH`.
+- Fixed: `extract_session()` derived the id an incremental save resumes from off the transcript's basename, so a host that names its transcript file anything other than `<session_id>.jsonl` (Codex writes `rollout-<date>-<uuid>.jsonl`) would key `get_last_save_line` on a string that never matches, silently re-summarizing the whole transcript on every save — the duplicate #140 exists to prevent. A supplied `session_id` now wins over the basename.
+- Fixed: `scripts/resolve-paths.sh` read the plugin root from `CLAUDE_PLUGIN_ROOT` only. It now reads `${PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-}}` (the inner fallback guards a bare `set -u` caller, which none has today), so the vendor-neutral name wins where present — Codex sets `CLAUDE_PLUGIN_ROOT` only as a compatibility alias it could withdraw in any release, and Gemini CLI documents neither. `tests/test_host_shell_parity_407.py` pins the shell script's hand-mirrored variable list against `pipeline/host.PLUGIN_ROOT_VARS` and the previously-untested derive-from-script-location fallback, the same way `test_slug_parity.py` already guards `lib-slug.sh` against `pipeline/slug.py`. (#407)
+
+- Fixed: `scripts/resolve-paths.sh` could resolve the user's project root from `CLAUDE_PROJECT_DIR` only, which Codex never sets and Gemini CLI documents no hook environment variables for at all -- on either host resolution failed outright and every hook silently no-oped via its `|| exit 0`. `scripts/session-start-hook.sh` and `scripts/session-end-hook.sh` now read the `cwd` field already present on the `SessionStart`/`SessionEnd` stdin payload on all three hosts, validate it the same way `transcript_path` is validated (#407), and export it as `REMEMBER_HOOK_CWD` for `resolve-paths.sh` to consult as a fallback. Precedence is `CLAUDE_PROJECT_DIR`, then `REMEMBER_HOOK_CWD`, then the existing local-install derivation, then the existing loud failure -- a stdin `cwd` that disagrees with a *set* `CLAUDE_PROJECT_DIR` never wins. Reading stdin ahead of `resolve-paths.sh` in `session-start-hook.sh` (it previously read stdin after) meant duplicating the `REMEMBER_NESTED_SUMMARIZER` fast-path guard ahead of the capture, matching the copy `post-tool-hook.sh`, `user-prompt-hook.sh` and `session-end-hook.sh` already carry -- without it the nested `claude -p` summarizer's stdin read would cost up to a second per session it never needed to pay (measured on this change: ~1.03s unguarded vs. ~5-13ms guarded, both with stdin held open). (#411)
+
+- Fixed: `scripts/post-tool-hook.sh` and `scripts/user-prompt-hook.sh` sourced `scripts/resolve-paths.sh` -- which falls back to `REMEMBER_HOOK_CWD` when `CLAUDE_PROJECT_DIR` is unset (#411) -- without ever setting, clearing, or validating that variable themselves, unlike `session-start-hook.sh` and `session-end-hook.sh`, which each derive it fresh from their own stdin `cwd` on every run. On a host that reuses one process environment across separate hook invocations, that meant a value exported by one session's `SessionStart` could in principle be inherited by a later `PostToolUse`/`UserPromptSubmit` call from a *different* project. Reachability of that host behaviour was not established either way, so the fix is not a reachability check: both hooks now `unset REMEMBER_HOOK_CWD` near the top of the file, before sourcing anything else -- correct regardless of whether the leak is reachable on any real host, since neither hook has a stdin `cwd` of its own to offer. `scripts/resolve-paths.sh` documents the assumption at the consulting site. `tests/test_hook_cwd_leak_417.py` pins it, with a positive control proving the underlying `REMEMBER_HOOK_CWD` mechanism in `resolve-paths.sh` still works (so the "must not fire" half cannot pass by testing dead code). (#417)
+
+- Fixed: `tests/test_path_resolution.py`'s `_create_full_plugin_copy` copied `pipeline/__pycache__` wholesale into every simulated plugin install, so a CI leg could fail with `shutil.Error` on a `.pyc.<id>` temp file that a concurrent bytecode write had already renamed away by the time the walk opened it -- a race with nothing to do with the diff under review (observed once, `pytest (ubuntu-latest, 3.10)`, 1 failed / 1800 passed). `shutil.copytree` now passes `ignore=shutil.ignore_patterns("__pycache__", "*.pyc")` for the same reason `tests/test_hooks_json.py`'s copy of `REPO_ROOT` already did. Nothing in the copied tree needs the cache: the copied hooks are bash and any Python they invoke recompiles from source. (#419)
+
+- Fixed: `tests/test_stdin_source_top_level_wins_344.py` and `tests/test_session_start_compact_recap_339.py` named their own "today" staging file with `time.strftime("%Y-%m-%d")` at pytest COLLECTION time, while `scripts/session-start-hook.sh` computes its own `$TODAY` at RUN time -- minutes later on this suite's slower legs. A run that straddled a real UTC-midnight crossing between those two reads named a "today" file the hook no longer recognised as today's, dropping its body from the injected recap and forking a stray background consolidation (observed once, `pytest (macos-latest, 3.9)`, timestamped 57 seconds past UTC midnight, PR #421). Both files now shim `date` on PATH so the fixture's "today" and the hook's own runtime clock read from one frozen, arbitrary value that is never the real wall clock, closing the exposure regardless of when the suite runs; a new pinning test drives the two dates apart deliberately to confirm a genuine mismatch excludes only the stale file rather than blanking the rest of the recap. (#422)
+
+- Fixed: a `REMEMBER_TRANSCRIPT_PATH` set anywhere in the ambient environment -- a `.envrc` in a cloned repo, a modified dotfile -- was trusted unconditionally by `pipeline/host.transcript_path()` (gated only on `os.path.isfile()`) and returned by `pipeline/extract.py`'s `find_session()` *before* `_validate_session_id()`'s traversal check ever ran, so the value could name an arbitrary file that was then read, summarized into the memory store, and committed and pushed by `hooks.d/after_save/50-git-backup.sh`. Only `session-start-hook.sh` and `session-end-hook.sh` have a legitimate reason to set this variable, each from its own stdin payload, freshly validated on every run -- `scripts/post-tool-hook.sh` and `scripts/user-prompt-hook.sh` have no `transcript_path` of their own to offer and now `unset REMEMBER_TRANSCRIPT_PATH` near the top of each, the same pattern #417 already applied to `REMEMBER_HOOK_CWD` in these same two files. Reachability of a host that reuses one process environment across hook invocations was not established either way; the fix does not depend on it. `tests/test_transcript_path_leak_424.py` pins it, with `tests/test_transcript_path_407.py` standing as the positive control that a legitimately supplied path still works. (#424)
+
+- Fixed: `tests/test_printed_lines_ascii_405.py` -- the guard that pins #405's "no non-ASCII on printed lines" decision -- scanned `scripts/*.sh` non-recursively and `pipeline/*.py`, but never looked at `hooks.d/`, which the distribution also ships (`post-tool-hook.sh` documents `hooks.d/after_post_tool/` as part of it). 31 non-comment lines there carried an em-dash: `hooks.d/after_save/50-git-backup.sh` and `hooks.d/before_session_start/50-git-restore.sh` both `printf` and `log` multi-sentence "remember: git backup has STOPPED..." warnings straight at a user's console, on the same cp1252-Windows-mojibake risk #405 already covers for `scripts/`. The guard's own docstring called itself "the same decision made once for the whole `scripts/` tree" while covering barely more than half the shipped shell; it now walks `hooks.d/` recursively too, and both hook files' printed lines are pure ASCII. (#425)
+
+- Fixed: `scripts/post-tool-hook.sh`'s `#353`/`#403` sidecar membership check logged "disagrees with last-save.json" whenever a session's id was not found in the `sessions` map -- but `[ -f "$LAST_SAVE_FILE" ]` passes on a present-but-unreadable file, and `$(< file)` cannot tell "read and got nothing" from "the read itself failed", so an absent `last-save.json`, an unreadable one, and a session genuinely evicted from a readable one all produced the identical comparison claim even though a comparison only actually happened in the last case. Behaviour was already correct and conservative in all three (fall back to `read-position`); only the receipt overstated what was checked. The hook now tracks whether `last-save.json` was present and successfully read before deciding which message to log -- `absent`/`unreadable` each get their own line that does not claim a disagreement, and only a session genuinely missing from a readable file still logs "disagrees with last-save.json". The stderr-suppressing redirect had to move outside the command substitution (`{ X=$(< "$file"); } 2>/dev/null`, not `$(< "$file" 2>/dev/null)`) -- the latter defeats bash's no-fork `$(< file)` fast path, turning it into an always-succeeding empty command that reads nothing, which would have reintroduced the exact "unreadable looks like empty" bug this fix closes. `tests/test_position_sidecar_353.py` pins all three states, including the positive control that a genuine eviction still logs loudly. (#426)
+
+- Fixed: `scripts/doctor.sh --json` (and the human-readable report) captured `resolve-paths.sh`'s stderr by redirecting into `${TMPDIR:-/tmp}/remember-doctor-json-resolve-$$` (and `...-resolve-$$` in the human path) -- a name an attacker can predict from the PID and pre-seed as a symlink. The shell's `>` redirection follows symlinks and truncates the target on open, before doctor.sh writes or reads a byte, so a planted symlink at that name truncated an attacker-chosen file as the invoking user; the later `rm -f` removed only the symlink, never the truncated victim. Predates this delta -- the same pattern is in `v0.23.0`'s own `scripts/doctor.sh:107` -- and was found by the round-one release audit of `v0.23.0..9f3269e`, which reported it `unranked` because no row in the ranking table's fix-mechanism list fits a bare predictable-path TOCTOU. Both sites now use `mktemp` (matching `save-session.sh`'s six existing uses), which makes the actual path unpredictable and closes the race outright. A new test wins the race deterministically against the unfixed script (the PID is known to the caller the instant the process is spawned) and asserts the victim survives; a second test guards this literal shape -- no script under `scripts/` may spell a shared-tmpdir path from `$$` outside a private, already-resolved `$REMEMBER_DIR/tmp` -- though it is a text scan rather than a dataflow check, so it does not follow a shared-tmpdir path built through an intermediate variable (filed separately for two sites found to still have exactly that shape, #427 review). (#427)
+
+- Fixed: `scripts/lib-memory-dir.sh` (the merged-config write) and `scripts/lib-env-cache.sh` (the env-cache publish temp) both built a shared-tmpdir path through an intermediate variable (`SYS_TMPDIR`, `_REMEMBER_ENV_CACHE_FILE`) suffixed with `$$` instead of using `mktemp` -- the same predictable-name TOCTOU #427 fixed in `scripts/doctor.sh`, one step removed: because the path is built through a variable rather than a literal, #427's own class-pin regex (`test_no_script_builds_a_shared_tmpdir_path_from_pid`) does not see either site, which is exactly what #427's review flagged when it filed this issue rather than fixing it in scope. Traced rather than assumed: `lib-memory-dir.sh`'s case is the sharper one. A reproduction (`tests/test_predictable_tmp_429.py`) shows that a symlink pre-seeded at the predictable `${TMPDIR:-/tmp}/remember-config-<pid>.json` does not just get truncated -- it receives the actual merged config that follows, which per the file's own adjacent comment can carry a live `haiku.oauth_token`. The shell's `>` redirection, jq's `>`, and Python's `open(path, "w")` all follow a symlink at their target and write through it; nothing in the merge path defeats that. `lib-env-cache.sh`'s publish path is the same shape without the credential -- its predictable rename-source temp file is now `mktemp`'d too. Both now use `mktemp`, matching `save-session.sh`'s six existing uses and #427's fix -- with no trailing suffix after the `X`s, since BSD/macOS `mktemp` only substitutes a run of `X`s at the very end of the template and silently leaves anything after it literal, which would have looked identical to the working GNU form while not randomizing anything at all. Each fix adds one spawn to its own resolving/publish path (never the per-tool-call fast path), which `tests/test_case_divergence_298.py`'s pre-existing byte-pin guard against `origin/main` now explicitly sanctions for this one line, rather than silently drifting. A must-fire positive control accompanies each must-not-fire attack test, proving the legitimate write still lands -- including the token -- when nothing interferes. Self-review found that the `mktemp` fallback (an empty `$_merged_cfg` when `mktemp` itself fails) fell straight into `jq ... > "$_merged_cfg"` with an empty redirect target, a shell-level error `2>/dev/null` cannot suppress -- an edge case the old literal-path code never had, since it always produced a non-empty path string. That merge attempt is now skipped outright when `mktemp` fails, leaving `REMEMBER_CONFIG` empty exactly as every consumer already treats a genuinely-absent config file. (#429)
+
+- Fixed: `tests/test_hook_cwd_leak_417.py` and `tests/test_transcript_path_leak_424.py` -- the regression tests for two ambient-environment-variable-leak security fixes, one of them release-blocking -- carried a blanket `pytestmark = pytest.mark.skipif(sys.platform == "win32")`, so the `windows-latest` CI leg collected and skipped both, reporting the leg green while coverage there was zero. `tests/test_hooks_json.py` already proved a real bash was reachable on that leg via Git Bash; the skip was copied from a precedent rather than derived from an actual limitation. Both files now share a new `tests/_bash_runner.py::resolve_bash()` (also adopted by `test_hooks_json.py` in place of its own private copy) and skip only when no usable bash can be found at all, so the Windows leg now executes these tests for real against Git Bash instead of silently exempting the whole platform. (#432)
+
+- Fixed: ten comments and test docstrings still described the merged config file as created `0600 per PID`, a claim #429 stopped being true when it replaced the PID-suffixed `remember-config-$$.json` literal path with an unpredictable `mktemp` name to close a symlink-planting TOCTOU. A reader debugging a stale merged config would grep for a filename that is never generated. Two of the ten, in `tests/test_session_end_hook_345.py`, named the old literal path directly and were not in #429's own count; two more, in `scripts/bootstrap-dirs.sh` and `tests/test_trap_quoting_375.py`, surfaced only once the sweep followed the concept rather than the exact phrase. Self-review also caught that `bootstrap-dirs.sh`'s own #362 relocation renames the mktemp file back to a PID-suffixed path under `REMEMBER_DIR/tmp` before `log.sh` and `post-tool-hook.sh` ever read it -- safe there because that directory is private, not shared, but it means "unpredictable mktemp name" overclaims what those two scripts actually see. Their comments, and README.md's matching sentence, now say "0600, fresh every invocation" instead -- true at both stages -- while sites that describe `lib-memory-dir.sh`'s own write specifically keep the more precise "unpredictable mktemp name" wording, since that part is accurate there. `tests/test_layered_config.py` gained a new assertion, `test_merged_config_is_0600_and_not_pid_named`, pinning both the mode and lib-memory-dir.sh's own mktemp-shaped basename so a regression to either the old literal path or a permissive mode fails a test rather than only reading stale in a comment. CHANGELOG.md's own two matches are left alone as the historical record of past releases. (#437)
+
+- Fixed: `main` was red on every ubuntu leg and macos 3.11 the instant #429's own sanctioned-divergence allowance merged. `test_the_per_tool_call_path_is_not_touched` in `tests/test_case_divergence_298.py` compares `scripts/lib-memory-dir.sh` against `origin/main` and allows one keyed old-to-new substitution (`_SANCTIONED_DIVERGENCE`), guarded by an integrity check that the old code must still be findable on `origin/main`. That check was correct while #436 was open and unsatisfiable the moment it merged: `origin/main` then held the *new* code, the old code was gone, and the guard asserted on the default branch itself -- green on the pull request, red the instant it landed, and #436's own checks had additionally run against a base three commits behind `main`. The guard recognized only two states (old code present: substitute; neither present: stale) and needed a third: old code absent *and* new code present is the post-merge steady state, not staleness. `_apply_sanctioned_divergence()` now checks for the new code before asserting, and passes the comparison through unchanged when it is already there. Pinned with three tests that construct both shapes directly (`test_sanctioned_divergence_applies_pre_merge_shape`, `test_sanctioned_divergence_accepts_post_merge_shape`, `test_sanctioned_divergence_still_asserts_when_genuinely_stale`) rather than depending on where `origin/main` happens to sit when they run, so the case they cover cannot drift with the repository's own history. Those three live in a new file, `tests/test_sanctioned_divergence_state_440.py`, rather than beside the guard: `test_case_divergence_298.py` carries a whole-file Windows skip for its bash-spawning tests, and a self-review audit on this issue found that leaving pure-Python string-manipulation tests in that module would inherit the skip and never run on windows-latest CI at all. Separately, and out of scope for this fix: the same self-review discovered that `test_the_per_tool_call_path_is_not_touched` -- the guard this fix repairs -- silently self-skips (`origin/main not available`) on every `pull_request`-triggered CI run in this repository, confirmed directly in the job logs of PR #436 (the PR that introduced the now-repaired allowance) and PR #439 (an unrelated, currently open PR): `actions/checkout`'s default behaviour on `pull_request` events never makes `origin/main` a resolvable ref, so this guard has only ever exercised its assertions after a squash-merge lands on `main` via a `push` event -- structurally too late to block a bad merge, and exactly how the allowance this fix repairs went unverified through its own review. That is reported for filing separately rather than fixed here: it is a CI workflow fetch-depth/trigger design decision, not a change to this guard's own logic. (#440)
+
+- Fixed: `test_the_per_tool_call_path_is_not_touched` in `tests/test_case_divergence_298.py` -- the byte-pin guard that stops the per-tool-call hot path from growing a git spawn -- silently skipped ("origin/main not available") on every `pull_request`-triggered CI run, confirmed directly against job logs on PR #436 and PR #439. `actions/checkout`'s default behaviour on a `pull_request` event checks out a merge ref with no local `origin/main` branch ref, so the guard could never resolve its comparison base while a change was still reviewable; it only ran after a squash-merge landed on `main` via a `push` event, which is exactly how #429's sanctioned-divergence allowance reached `main` and turned it red (#440) without its own pull request ever exercising the guard that would have caught it. Fixed in two ordered parts, per the repo's own convention that a check which cannot run must not render as one that passed: `.github/workflows/tests.yml` now fetches `origin/main` explicitly (`git fetch --no-tags --depth=1 origin main:refs/remotes/origin/main`) right after checkout, so the ref resolves on `pull_request` runs too; and the guard's unavailable-base case now fails loudly on a CI runner (`CI=true` or `GITHUB_ACTIONS=true`) instead of skipping, while still skipping for a contributor's local clone that legitimately has no `origin` remote -- turning that case into a hard failure would make the suite unrunnable for a contributor who did nothing wrong. The decision is a small pure function, `_origin_main_should_be_resolvable`, pinned by its own positive and negative tests so a version that always skipped (silently reintroducing this exposure) would fail them. (#442)
+
+- Fixed: `pipeline/extract.py` only recognised Claude Code's transcript envelope (`{"type": "user"|"assistant", "message": {...}}`), so a real Codex session -- hooks firing, `.remember/` created, one human prompt and one reply on the wire -- extracted `0 exchanges` and saved nothing, indistinguishable from a genuinely quiet session. Codex writes `{"timestamp", "ordinal", "type", "payload"}` on every line, with the role and text one level inside `payload`; `pipeline/host.py` now sniffs a transcript's envelope from its own first line (`sniff_envelope()`) and reads either shape via a new `codex_exchange()` adapter, keyed off Codex's own `event_msg`/`item_completed` record of what a human sent and what the agent answered -- not the same text's second copy under `response_item`, which also carries session scaffolding (skill instructions, the recommended-plugins list, this plugin's own REMEMBER buffer) at the same `role: "user"`. An envelope matching neither host is reported as `"unrecognised"` (`ExtractResult.envelope`, surfaced to `scripts/save-session.sh`'s log as its own message) rather than silently counted as zero. A trimmed, sanitised capture of the reproducing session is committed at `tests/fixtures/codex-rollout.jsonl`. (#443)
+
+- Fixed: `scripts/user-prompt-hook.sh` and `scripts/post-tool-hook.sh` could never resolve the project root on a host that never sets `CLAUDE_PROJECT_DIR` (Codex, Gemini CLI). #411 gave `resolve-paths.sh` a `REMEMBER_HOOK_CWD` fallback, read from each hook's own stdin `cwd`, but only wired it into `session-start-hook.sh` and `session-end-hook.sh`; #417 then had these two other hooks `unset REMEMBER_HOOK_CWD` at entry -- correctly closing a leak where one hook's exported value could be inherited by a hook that had not validated it -- but left them with no legitimate source of the variable at all. Invisible on Claude Code, where `CLAUDE_PROJECT_DIR` is always set; fatal on Codex and Gemini CLI, where per-turn capture silently no-oped behind the `|| exit 0` soft-fail contract. Both hooks now read `cwd` off their own stdin payload -- validated the same way `REMEMBER_TRANSCRIPT_PATH` already is -- after the existing `unset`, never instead of it. `user-prompt-hook.sh` reads it only on the slow (once-per-project) path, since the fast path never sources `resolve-paths.sh` at all; `post-tool-hook.sh` already read its full stdin payload unconditionally on every tool call for `session_id` (#212), so this moves that same read earlier rather than adding a new one, and reuses it instead of reading stdin twice. (#444)
+
+- Fixed: `scripts/resolve-paths.sh` tested `REMEMBER_HOOK_CWD` for directory existence (`[ -d ]`) *before* the Windows backslash/drive-letter normalization block that would have made a Windows-native-spelled `cwd` resolvable -- the normalization ran only against whatever `PROJECT_DIR` was already selected, never against `REMEMBER_HOOK_CWD` at the point it was tested. A `cwd` arriving with backslash separators or a bare drive letter (Codex, Gemini CLI, and any other host with no `CLAUDE_PROJECT_DIR`, since #411/#444's fallback is what those hosts rely on) was therefore tested in the spelling the shell cannot resolve directly, the branch was skipped, and resolution fell through to the loud failure -- silently, via each hook's own `|| exit 0`. The normalization is now a function, `_remember_normalize_win_path`, called on every PROJECT_DIR candidate *before* it is tested rather than once after a candidate is already chosen: `CLAUDE_PROJECT_DIR` gets the same normalize-then-trust treatment it implicitly always had (it was never `-d`-tested before selection either, only validated once at the very end), and `REMEMBER_HOOK_CWD` keeps its own existence test before selection -- now against the normalized form -- so a value that still does not resolve to a real directory falls through to the next candidate exactly as before, rather than being adopted and hard-failing later with a less specific message. `tests/test_windows_native_hook_cwd_448.py` covers all four hooks that read this fallback (`session-start-hook.sh`, `session-end-hook.sh` since #411; `user-prompt-hook.sh`, `post-tool-hook.sh` since #444) via `tests/_bash_runner.py`'s `resolve_bash()` (#432/#439) so the Windows CI leg actually exercises it instead of skipping, plus a platform-independent structural pin on the fix's ordering and a positive control for the "must not fire" case. Whether a Windows-native path actually resolves through `-d` on Git Bash once normalized is **observed** only via that CI leg -- this fix and its reasoning were **reasoned**, not observed, on a machine with no Windows or Git Bash shell. (#448)
+
+- Fixed: `scripts/save-session.sh` advanced the saved read position past a span it never actually read whenever `pipeline.extract.ExtractResult.envelope` came back `"unrecognised"` -- 0 exchanges from a genuinely quiet session and 0 exchanges from a *failure to read* were both saved the same way, so upgrading to a build that could finally parse that envelope (as #443 did for Codex) found the span already behind the marker and never recovered it. The position still advances unconditionally on an unrecognised envelope -- leaving it in place re-triggers the save path forever and never clears its cooldown (#147) -- but the span is now also quarantined, in a new sidecar next to `last-save.json` (`pipeline.extract.mark_unread_envelope` / `read_unread_envelope`, one entry per session, bounded and evicted the same way the position store itself is), at the earliest point not yet actually read. The next extraction for that session resumes from the quarantine point rather than from the advanced position, and `pipeline.shell.cmd_save_position` clears the entry once a save with a recognised envelope actually lands. `pipeline.shell save-position` now takes two additional, optional arguments (`envelope`, `skip_lines`); omitted, they leave any existing quarantine untouched rather than erasing it. (#450)
+
+- Fixed: Codex reported `UserPromptSubmit` as `Failed` on every prompt, even though the hook did its job and exited 0. `scripts/user-prompt-hook.sh` has always printed its prompt stamp (`[HH:MM TZ -- user]`) as plain stdout, which Claude Code reads as `additionalContext` -- but Codex's own hook engine sniffs the first non-whitespace byte of stdout and reads `{`/`[` as "this is my JSON contract" (`codex-rs/hooks/src/engine/output_parser.rs::looks_like_json`), then marks the run `Failed` when that byte does not parse against its `UserPromptSubmit` output schema. The stamp's own leading `[` collided with that heuristic; before #444 the hook hit a FATAL on Codex and printed nothing, which is why the collision was invisible until #444 made the hook succeed there for the first time. On a host that never sets `CLAUDE_PROJECT_DIR` (Codex, and -- reasoned, not observed -- Gemini CLI), the hook now wraps its stdout in the `{"hookSpecificOutput":{"hookEventName":"UserPromptSubmit","additionalContext":...}}` envelope Codex's own schema documents; on Claude Code, stdout is unchanged, byte-for-byte (`tests/test_prompt_stamp_301.py`, `tests/test_hook_stdout_labelling_280.py`). `scripts/session-start-hook.sh` was suspected of the same defect and does not have it: every line it prints opens with a letter or `=`, confirmed by driving the real hook against a full store, a repeated-handoff delivery, and an empty store (`tests/test_codex_upsubmit_stdout_451.py`). (#451)
+
+- Fixed: `PostToolUse` fires on Codex and could never save, because the per-tool-call path resolved a session directory by slugging `PROJECT_DIR` under `~/.claude/projects/` -- Claude Code's own transcript layout. Codex writes its sessions to `~/.codex/sessions/<yyyy>/<mm>/<dd>/rollout-*.jsonl` instead, so the slug never matched a directory that existed and every tool call logged a loud, correct `WARNING: no session dir` whose suggested remedy (create a directory under `~/.claude/projects/`) was advice for the wrong host. `scripts/post-tool-hook.sh` now reads `transcript_path` off the hook's own stdin payload -- present on every hook event, on every host, the same field `session-start-hook.sh`/`session-end-hook.sh` already trust (#407/#424) -- and uses it directly when it names a real file, rather than reconstructing a Claude-Code-shaped location. When stdin offers nothing usable (an older CLI, a test harness, a host not yet taught) the hook falls back to the historical `SESSION_DIR`/slug lookup exactly as before, so nothing about the existing Claude Code path moves. (#459, part of #406)
+
+- Fixed: a Codex session summarized by shelling `claude -p`, requiring an authenticated Claude CLI and billing Anthropic to remember a session run entirely inside a different agent, unconditionally and unannounced. `pipeline/haiku.py` now routes through `pipeline.host.detect_host()`: a detected Codex host summarizes on-host via `codex exec` (`--sandbox read-only --ignore-user-config`, verified against codex-cli 0.150.1 that the isolation flag stops this plugin's own Codex hooks firing inside the nested call, the same way `--setting-sources ''` isolates the Claude path from the operator's hooks, #202); every other host -- Claude Code, an unrecognised host, no signature at all -- keeps the exact behaviour it had before this fix. `REMEMBER_SUMMARIZER` (`claude`/`codex`/`auto`, default `auto`) lets an operator override the detected default either way; `REMEMBER_SUMMARIZER_FALLBACK=claude` is the explicit opt-in for what happens when the codex route cannot produce a result -- unset, that case raises loudly ("could not summarize") rather than silently reproducing this issue's own billing complaint one layer down. (#460)
+
+- Fixed: a Codex session's `SKIP` verdict carried no information about which of two independent things happened -- the model genuinely judging nothing worth keeping, or a Codex-shaped defect making it always decline. Four probe sessions had never once produced a saved memory file. A controlled experiment (identical content run through the Claude Code route and the new `codex exec` route, #460) ruled out a host-shaped cause: a thin, decision-only exchange SKIPs on both routes, and richer, genuinely substantive content SAVES on both -- the summarizer's judgment threshold was never Codex-specific and is unchanged by this fix. What changed is that a `SKIP`, a `REJECTED` (refusal-shaped reply) or a saved entry in `.remember/logs/memory-*.log` now names which provider produced it (`SKIP (provider: codex) -- position -> N`), so a future "was this host-shaped?" question is answerable directly from the log instead of needing this same investigation repeated. `pipeline/types.HaikuResult` gained a `provider` field threaded through `pipeline.shell`'s `call-haiku`/`parse-haiku` output and read by `scripts/save-session.sh`. (#461)
+
+- Fixed: a Codex session could never be detected at runtime, so #460's Codex-native summarizer routing shipped unreachable while passing every one of its own tests. `pipeline/host.py`'s `CODEX` host was keyed to `signature_vars=("CODEX_HOME", "PLUGIN_ROOT")`, and neither is ever exported by Codex to a child process -- `CODEX_HOME` is a configuration path Codex *reads*, not a variable it exports, and `PLUGIN_ROOT` is a compatibility alias, not a signature. A hand-built test environment happily set both, so the defect was invisible to the suite; only a live `codex exec` process could show it. `detect_host()` now keys on `CODEX_SESSION_ID`/`CODEX_THREAD_ID`, the variables a real Codex process actually exports, verified against codex-cli 0.150.1 and pinned against a fixture captured from a live session (`tests/fixtures/codex-env-463.txt`) rather than one constructed by the test -- a constructed fixture would have accepted `CODEX_HOME` just as readily as the code it replaced. A Codex session launched from inside a Claude Code session (nested agents) also carries Claude Code's own signature at the same time; `detect_host()` keeps registry precedence (Claude Code wins) in that case rather than guessing an "innermost" host that flat environment variables cannot actually identify -- see the `REGISTRY` comment in `pipeline/host.py` for the full reasoning. (#463)
+
+- Fixed: under `REMEMBER_SUMMARIZER=auto` (the default), a default-configured Codex session still summarized via `claude -p`, billing Anthropic to remember an OpenAI session -- exactly the outcome #460 was filed to remove, and unfixed by #463's own Codex-signature repair. #464's fixture (`CODEX_SESSION_ID`/`CODEX_THREAD_ID`) was captured from a Codex *tool shell*; the summarizer runs in a different child, the SessionEnd *hook* process (`pipeline/haiku.py` <- `scripts/save-session.sh` <- `scripts/session-end-hook.sh`), and a live capture from inside that hook (env dumped, `CLAUDE_CODE_*` stripped, codex-cli 0.150.1) shows neither variable reaches it -- only `PLUGIN_ROOT`/`CLAUDE_PLUGIN_ROOT` survive. `pipeline.haiku._choose_summarizer_provider()` no longer asks the environment for a Codex signature at all: `auto` now reads the transcript the host actually wrote (`REMEMBER_TRANSCRIPT_PATH`, already exported by every hook since #407) and sniffs its first parseable line for a Codex- or Claude-Code-shaped envelope (`pipeline.extract.sniff_file_envelope()`, #443) -- a fact the host wrote, not a promise it exported and could later withdraw, which is the failure mode #463 and this issue are both instances of. `pipeline.host.detect_host()` is unchanged and still directly tested (env-based host identification is a real, correct fact about a process); it is simply no longer the mechanism this one call site uses. (#465)
+
+- Fixed: two committed files carried the maintainer's real home directory and OS username. `tests/fixtures/codex-rollout.jsonl`, a real (sanitised) Codex capture, carried it in two nested JSON-string blobs that a field-keyed sanitiser never walked -- `cwd`/`git`/`turn_context` were replaced, but a path embedded inside a serialised string value was not. `tests/test_codex_upsubmit_stdout_451.py`, an ordinary hand-authored test file, carried a bare username (no `/Users/` or `/home/` prefix) pasted from real captured probe output into a string literal. Because `.agents/plugins/marketplace.json` declares a local install source (`"path": "./"`), the install copies `tests/` into every install, so both shipped into every 0.24.0 install rather than staying a repo-only artefact. Both are re-sanitised, and `tests/test_no_real_home_paths_467.py` now runs two independent guards: a fixtures-scoped check for un-sanitised `/Users/<x>/`/`/home/<x>/` paths (deliberately not tree-wide -- those prefixes appear legitimately throughout this repo's hand-authored test data and docs, argued in the test's own docstring), and a tree-wide check that no committed file contains the current machine's real OS username verbatim, which is the shape the path check cannot see at any scope and the shape #467's second file actually shipped. The username check now skips outright on CI (`CI`/`GITHUB_ACTIONS` set), loudly, naming why, rather than running there near-vacuously: `windows-latest` runs as `runneradmin`, which appears legitimately in `tests/test_stale_config_sweep_362.py`'s own Windows path fixtures, and asserting the check against every CI image's own account name is a guard that manufactures one false positive per new image forever, not a skiplist that can ever be made complete -- confirmed by this branch's own Windows CI leg going red on exactly that before this correction landed (#472). `_username_check_should_run()`'s own CI/non-CI decision is pinned by two tests deliberately shaped like `tests/test_case_divergence_298.py`'s `_origin_main_should_be_resolvable` (#442) -- read together, since #442 fails loudly on CI for the opposite reason this check skips there: `origin/main` unresolved on CI means the checkout step failed and there is a real defect to report, while a CI runner never being a contributor's own account is true by design and reporting it would not surface one. (#467)
+
+- Fixed: per-tool-call capture on Codex was still silently rejected after #459's fix for the *warning* on the same code path. `scripts/post-tool-hook.sh` derived the session id it hands `save-session.sh` from the resolved transcript's own basename, which is the session id verbatim only on Claude Code's own layout (`<session-id>.jsonl`) -- Codex writes `rollout-<date>-<uuid>.jsonl`, and `save-session.sh`'s `[a-f0-9-]+` validation gate rejected every one of those ids, silently, into an autonomous log nobody reads. `SessionEnd` was unaffected, because it already passes the stdin session id directly, which is why a Codex session still looked fully captured end to end: what was actually lost is every *incremental* save between tool calls, so a crash or a kill instead of a clean `SessionEnd` lost the whole session. The hook now prefers the session id it was actually invoked with -- `STDIN_SESSION_ID`, already extracted and validated at the point of entry -- falling back to the transcript basename only when stdin's id was never confirmed against the resolved transcript, the same precedence #407 gave the transcript path itself. (#468, part of #406)
+
+- Fixed: the #227 environment-cache fast path was permanently dead on Codex and Gemini CLI, so every prompt and every tool call took the full `resolve-paths.sh` -> `bootstrap-dirs.sh` -> `log.sh` chain -- p50 8.7s with 6 outright timeouts in 256 runs on the QEMU/Windows box #227 measured, on a hook whose header says a non-zero exit "BLOCKS THE PROMPT AND ERASES WHAT THE USER TYPED". `scripts/lib-env-cache.sh`'s `_remember_env_cache_path` keyed the cache file on the raw `CLAUDE_PROJECT_DIR`, which neither host ever sets -- `resolve-paths.sh:270` exports the RESOLVED value only after a full slow-path run, so on those hosts a cache *was* written on every invocation and never found by `_remember_env_cache_load`, which runs in a fresh process before that export exists: written every time, hit never. `_remember_env_cache_path` now falls back to `REMEMBER_HOOK_CWD` (the same fallback #411/#444 already gave every hook from its own stdin `cwd`) when `CLAUDE_PROJECT_DIR` is unset, and `_remember_env_cache_load`'s cross-check against the recorded identity, and `_remember_env_cache_publish`'s guard and recorded value, now compare against that same fallback-aware identity rather than raw `CLAUDE_PROJECT_DIR` alone, so a cache published under the fallback can actually be found and trusted on a later run. The key is also now pinned once per process: without it, a `_remember_env_cache_publish` call made after `resolve-paths.sh` has already normalised and exported `CLAUDE_PROJECT_DIR` (Windows/Git-Bash drive-letter rewriting) would key the cache under that normalised string, a different one than the raw `REMEMBER_HOOK_CWD` an earlier `_remember_env_cache_load` call in the same process had already keyed on -- write and read would still never agree, just relocated to Windows instead of Codex/Gemini's absent `CLAUDE_PROJECT_DIR`. (#469)
+
+- Fixed: `.codex-plugin/plugin.json` was unmaintained on two axes. It was never added to `.oss.json`'s `version_sites`, so tagging a release left it declaring the previous version -- every Codex install of a new release would have identified itself as the one before it, correctable only by another release; it is now in `version_sites`. Its `description`, and the sibling `hooks/hooks.codex.json`'s, also still said the Codex layer "not verified against a running Codex install (#410)", which #443, #444, #460, #463 and #465 falsified -- five issues verified against a real `codex-cli 0.150.1` install, several from fixtures captured live, including #444's own per-turn-capture fix already on `main`. Both descriptions now state what is observed (marketplace discovery, install, hook firing, per-turn capture, and session extraction all hold up against a real Codex transcript) instead of repeating a claim two releases out of date. A cross-manifest version-match guard already existed (`tests/test_codex_manifest_410.py::test_codex_plugin_manifest_version_matches_claude_manifest`) and needed no change: it fails whenever `.codex-plugin/plugin.json` and `.claude-plugin/plugin.json` disagree, which is the recurrence this issue asked a guard for. (#470)
+
+- Fixed: `PLUGIN_ROOT` (#407's vendor-neutral, highest-precedence source for the directory the plugin executes from) was accepted with only `[ -d ]` at the `PIPELINE_DIR` validation in `scripts/resolve-paths.sh`, four lines below the specific-file check its sibling branch already makes -- an unrelated directory that merely happens to be named by that generic, unnamespaced variable in a hook's environment became the directory this plugin loads and executes its own code from, with nothing checking it actually contained this plugin. `PIPELINE_DIR` is subsequently the `python3 -m pipeline.shell` import root, the source of `$PIPELINE_DIR/scripts/log.sh`, the executable `$PIPELINE_DIR/scripts/save-session.sh`, and the dispatch root `$PIPELINE_DIR/hooks.d`. `resolve-paths.sh` now applies the same `[ -f "$_REMEMBER_PLUGIN_ROOT/pipeline/haiku.py" ]` marker check the local-install branch already made, and falls through to `CLAUDE_PLUGIN_ROOT` when `PLUGIN_ROOT` fails it -- turning a name collision into a fallback rather than a wrong execution root. `PLUGIN_ROOT`'s precedence over `CLAUDE_PLUGIN_ROOT` (#407) is unchanged; only the missing validation is fixed. `tests/test_host_shell_parity_407.py::test_claude_plugin_root_still_works_when_plugin_root_is_unset` used to pin an *empty* `CLAUDE_PLUGIN_ROOT` directory as accepted -- that was exactly the gap this closes, so the test now builds a directory that actually looks like a plugin install. (#471)
+
+- Fixed: `tests/test_no_real_home_paths_467.py`, the guard #467 added for a real username shipping in a committed file, itself carried the maintainer's real OS username twice, in its own module docstring's worked example (`` `"[10:54 CEST -- <username>]"` ``) -- and the guard's tree-wide username scan exempted `THIS_FILE` from its own check, on the argument that a file documenting the mechanism has to be able to quote a real leaked value. The composition of those two individually defensible choices meant the tree shipped the value, the install copied it (`.agents/plugins/marketplace.json` declares a local source), and the one file that could have caught it was the one file the guard could not see: `8 passed` on a tree containing exactly what detector 2 exists to detect. The docstring now names the mechanism with the same placeholder the fixture already standardised on (`sanitized-user`), which explains it identically without quoting anything real, and the `THIS_FILE` exemption is removed rather than kept for a future quotation that a placeholder makes unnecessary -- argued in the module docstring itself, so the next person who pastes a real credential into this file's prose gets a failing test on their own machine instead of a guard that stays green because it cannot look at itself. (#474)
+
+### Security
+
+- Security: closed the remainder of #424's `containment (read)` row. `pipeline/host.transcript_path()` still gates on existence alone, and `pipeline/extract.py`'s `find_session()` still returns an untrusted `REMEMBER_TRANSCRIPT_PATH` before `_validate_session_id()`'s traversal check ever runs -- but that is now a written decision, not an open gap. `scripts/post-tool-hook.sh` and `scripts/user-prompt-hook.sh` (#430) stay the hardened boundary: they clear the variable before it can reach any Python process, because they run on every tool call with no human watching. A manual `scripts/save-session.sh` run, `scripts/doctor.sh`, and a direct `pipeline.extract` invocation have no hook preamble to clear anything in and trust the ambient environment by design, the same way they already trust `$PATH` or `$HOME` -- a containment check was rejected rather than deferred, because `transcript_path()`/`find_session()` is the ONE channel both that ambient value and the legitimately-supplied one from `session-start-hook.sh`/`session-end-hook.sh`'s own validated stdin payload travel through, and a check narrow enough to matter (the project directory; `CLAUDE_CONFIG_DIR`/`~/.claude`, which is itself relocatable and Claude-Code-specific, not host-neutral) would also reject that legitimate value on a host or mount this repo does not model. `scripts/doctor.sh` now `WARN`s, naming the value with its control characters stripped (so it cannot forge a second report line), when it finds `REMEMBER_TRANSCRIPT_PATH` already set -- checked ahead of path resolution, so an unresolvable install does not also silence the warning by way of `resolve-paths.sh`'s own early exit. `pipeline/host.py`'s and `pipeline/extract.py`'s docstrings and the README's transcript-path section spell out which callers are hardened and which are trusted, and why. `tests/test_transcript_path_trust_431.py` pins all of it: the doctor.sh WARN firing when the variable is set and staying silent when it is not, the WARN surviving a path-resolution failure, the control-character stripping, that `save-session.sh` never silently grows a clearing line that would reverse the decision, and that a manual `find_session()` call still honours a supplied path outside any project or session directory. (#431)
+
 ## [0.23.0] - 2026-08-28 — Three states where there were two
 
 ### Added
@@ -1470,7 +2756,17 @@ Fixes [#9](https://github.com/Digital-Process-Tools/claude-remember/issues/9), a
 
 ## [0.1.0] — Initial release
 
-[Unreleased]: https://github.com/Digital-Process-Tools/claude-remember/compare/v0.23.0...HEAD
+[Unreleased]: https://github.com/Digital-Process-Tools/claude-remember/compare/v0.32.0...HEAD
+[0.32.0]: https://github.com/Digital-Process-Tools/claude-remember/releases/tag/v0.32.0
+[0.31.0]: https://github.com/Digital-Process-Tools/claude-remember/releases/tag/v0.31.0
+[0.30.0]: https://github.com/Digital-Process-Tools/claude-remember/releases/tag/v0.30.0
+[0.29.1]: https://github.com/Digital-Process-Tools/claude-remember/releases/tag/v0.29.1
+[0.29.0]: https://github.com/Digital-Process-Tools/claude-remember/releases/tag/v0.29.0
+[0.28.0]: https://github.com/Digital-Process-Tools/claude-remember/releases/tag/v0.28.0
+[0.27.0]: https://github.com/Digital-Process-Tools/claude-remember/releases/tag/v0.27.0
+[0.26.0]: https://github.com/Digital-Process-Tools/claude-remember/releases/tag/v0.26.0
+[0.25.0]: https://github.com/Digital-Process-Tools/claude-remember/releases/tag/v0.25.0
+[0.24.0]: https://github.com/Digital-Process-Tools/claude-remember/releases/tag/v0.24.0
 [0.23.0]: https://github.com/Digital-Process-Tools/claude-remember/releases/tag/v0.23.0
 [0.22.0]: https://github.com/Digital-Process-Tools/claude-remember/releases/tag/v0.22.0
 [0.21.0]: https://github.com/Digital-Process-Tools/claude-remember/releases/tag/v0.21.0

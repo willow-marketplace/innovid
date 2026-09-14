@@ -86,7 +86,7 @@ https://learn.microsoft.com/api/mcp?maxTokenBudget=2000
 | `microsoft_docs_fetch` | Fetch and convert a Microsoft documentation page into markdown format | `url` (string): URL of the documentation page to read |
 | `microsoft_code_sample_search` | Search for official Microsoft/Azure code snippets and examples | `query` (string): Search query for Microsoft/Azure code snippets<br/>`language` (string, optional): Programming language filter.|
 
-## 💻 Microsoft Learn CLI `preview`
+## 💻 Microsoft Learn CLI
 
 [![npm version](https://img.shields.io/npm/v/@microsoft/learn-cli?style=flat-square&logo=npm&label=npm)](https://www.npmjs.com/package/@microsoft/learn-cli)
 
@@ -101,6 +101,50 @@ npm install -g @microsoft/learn-cli
 # then use `mslearn`
 mslearn search "azure functions timeout"
 ```
+
+Installing the npm package alone does not install agent discovery. The CLI can install a CLI-first
+skill for the same ecosystems supported by this repository's plugins: GitHub Copilot, Claude Code,
+and Codex.
+
+```sh
+# User profile (default)
+mslearn setup --cli
+
+# Current repository
+mslearn setup --cli --project
+
+# Override auto-detection with explicit targets
+mslearn setup --cli --copilot
+mslearn setup --cli --claude
+mslearn setup --cli --codex
+mslearn setup --cli --copilot --project
+mslearn setup --cli --claude --project
+mslearn setup --cli --codex --project
+
+# Multiple agents
+mslearn setup --cli --copilot --claude --codex
+```
+
+Remove only managed discovery content with:
+
+```sh
+mslearn remove --cli
+mslearn remove --cli --copilot
+mslearn remove --cli --claude --codex --project
+```
+
+| Agent | User scope | Project scope |
+|-------|------------|---------------|
+| GitHub Copilot | `~/.copilot/skills/` | `.github/skills/` |
+| Claude Code | `~/.claude/skills/` | `.claude/skills/` |
+| Codex | `~/.agents/skills/` | `.agents/skills/` |
+
+When no target is specified, setup detects installed agents from their well-known user or project
+directories. Removal detects only agents with Microsoft Learn CLI-managed discovery artifacts.
+Explicit targets (`--copilot`, `--claude`, or `--codex`) override detection and can be combined. This
+workflow does not configure MCP or install agents outside the plugin ecosystems such as Cursor.
+When both integrations are installed, agents should prefer the Microsoft Learn MCP tools and use
+the standalone CLI skill only as a fallback.
 
 Pass `--json` to get structured JSON output, useful for programmatic processing:
 
@@ -122,12 +166,19 @@ See [`cli/README.md`](cli/README.md) for the full command reference.
 
 ### Quick Setup
 
-These agent skills are packed in a `microsoft-docs` plugin together with the Learn MCP server itself. If you use Claude Code, run the following command and restart Claude Code:
+Choose the integration that matches how you want the agent to retrieve Microsoft Learn content:
+
+| Mode | Installation | Agent behavior |
+|------|--------------|----------------|
+| Standalone CLI-first | Install/run `@microsoft/learn-cli`, then run `mslearn setup --cli [agent-target]` | Detected or selected agents invoke `npx @microsoft/learn-cli@latest`; MCP is not configured |
+| Repository plugin, MCP-first | Install the repository plugin for GitHub Copilot, Claude Code, or Codex | The plugin supplies the Learn MCP endpoint and MCP-oriented skills |
+
+The repository plugin also supports Claude Code. Run the following command and restart Claude Code:
 ```
 /plugin install microsoft-docs@claude-plugins-official
 ```
 
-Or if you use GitHub Copilot CLI, run this command:
+For the MCP-first GitHub Copilot CLI plugin, run:
 ```
 /plugin install microsoftdocs/mcp
 ```
@@ -212,6 +263,7 @@ When handling questions around how to work with native Microsoft technologies, s
 | No results returned | Try rephrasing your query with more specific technical terms |
 | Tool not appearing in VS Code | Restart VS Code or check that the MCP extension is properly installed |
 | HTTP status 405  | Method not allowed happens when a browser tries to connect to the endpoint. Try using the MCP Server through VS Code GitHub Copilot or [MCP Inspector](https://modelcontextprotocol.io/docs/tools/inspector) instead. |
+| MCP server 'Microsoft Learn' marked as unavailable in Visual Studio (Reason: Eclipsed) | Visual Studio 2022 (17.13+) ships "Microsoft Learn" as a built-in MCP server at a higher-priority scope. "Eclipsed" means a higher-priority definition already exists and the duplicate lower-priority entry is suppressed. Eclipsing is matched on the server name, so remove any manually added entry with the same name as the built-in server (commonly `microsoft-learn` or `Microsoft Learn`) from your `~/.mcp.json` or workspace `.mcp.json`. The built-in server will then become active automatically. No additional configuration is required for Visual Studio users. |
 
 ### 🆘 Getting Support
 

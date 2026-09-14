@@ -1,8 +1,8 @@
 {
   "name": "databases-on-aws",
-  "version": "1.7.1",
+  "version": "1.8.1",
   "description": "Expert database guidance for the AWS database portfolio. Design schemas, execute queries, handle migrations, and choose the right database for your workload.",
-  "updatedAt": "2026-08-29T00:03:29.703Z",
+  "updatedAt": "2026-09-14T10:57:50.117Z",
   "author": {
     "name": "Amazon Web Services"
   },

@@ -1,0 +1,44 @@
+{
+  "name": "@atlassian/opencode-twg",
+  "version": "0.1.4",
+  "description": "OpenCode setup bridge for Atlassian Teamwork Graph CLI (twg). Installs no runtime and handles no credentials.",
+  "type": "module",
+  "exports": {
+    ".": "./index.ts",
+    "./server": "./index.ts"
+  },
+  "files": [
+    "index.ts",
+    "generated",
+    "README.md",
+    "LICENSE.txt"
+  ],
+  "license": "Apache-2.0",
+  "author": {
+    "name": "Atlassian",
+    "url": "https://www.atlassian.com"
+  },
+  "homepage": "https://developer.atlassian.com/cloud/twg-cli/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/atlassian-labs/twg-plugins.git",
+    "directory": "opencode"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://packages.atlassian.com/api/npm/npm-public/"
+  },
+  "engines": {
+    "opencode": ">=1.0.0 <2"
+  },
+  "keywords": [
+    "atlassian",
+    "opencode",
+    "twg",
+    "teamwork graph",
+    "teamwork graph cli"
+  ],
+  "devDependencies": {
+    "@opencode-ai/plugin": "1.18.18"
+  }
+}

@@ -2,7 +2,7 @@
   "name": "nvidia-skills",
   "version": "1.4.0",
   "description": "Find the right NVIDIA skill for GPU acceleration, CUDA, AI agents, data loading, training, inference, robotics, Physical AI, Omniverse, simulation, and other NVIDIA-powered workflows.",
-  "updatedAt": "2026-08-29T00:03:03.165Z",
+  "updatedAt": "2026-09-14T10:58:27.617Z",
   "author": {
     "url": "https://github.com/NVIDIA/skills",
     "name": "NVIDIA"
@@ -26,5 +26,6 @@
     "physical-ai",
     "cad"
   ],
+  "displayName": "NVIDIA Skills",
   "skills": "./skills/"
 }

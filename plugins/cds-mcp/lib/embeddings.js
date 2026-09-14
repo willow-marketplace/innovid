@@ -1,10 +1,10 @@
 import fs from 'fs/promises'
 import path from 'path'
-import { fileURLToPath } from 'url'
-import calculateEmbeddings from './calculateEmbeddings.js'
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
+import calculateEmbeddings, { createEmbeddings, DEFAULT_EMBEDDINGS_DIR } from './calculateEmbeddings.js'
 
-export async function loadChunks(id, dir = path.join(__dirname, '..', 'embeddings')) {
+export { createEmbeddings }
+
+export async function loadChunks(id, dir = DEFAULT_EMBEDDINGS_DIR) {
   function _throwCorruptedError() {
     const error = new Error('Corrupted files')
     error.code = 'EMBEDDINGS_CORRUPTED'
@@ -24,7 +24,7 @@ export async function loadChunks(id, dir = path.join(__dirname, '..', 'embedding
     } catch {
       _throwCorruptedError()
     }
-    const { dim, chunks, count } = meta
+    const { dim, chunks, count, metadata, model } = meta
 
     // Validate metadata structure
     if (!dim || !chunks || !Array.isArray(chunks)) {
@@ -33,6 +33,13 @@ export async function loadChunks(id, dir = path.join(__dirname, '..', 'embedding
 
     if (count !== undefined && count !== chunks.length) {
       _throwCorruptedError()
+    }
+
+    // Optional parallel metadata array — must be the same length if present.
+    if (metadata !== undefined) {
+      if (!Array.isArray(metadata) || metadata.length !== chunks.length) {
+        _throwCorruptedError()
+      }
     }
 
     // Read binary data
@@ -72,8 +79,12 @@ export async function loadChunks(id, dir = path.join(__dirname, '..', 'embedding
         }
       }
 
-      return { content: content, embeddings }
+      const entry = { content: content, embeddings }
+      if (metadata) entry.meta = metadata[i]
+      return entry
     })
+
+    if (model) result.model = model
 
     return result
   } catch (error) {
@@ -98,13 +109,13 @@ export async function loadChunks(id, dir = path.join(__dirname, '..', 'embedding
   }
 }
 
-export async function getEmbeddings(text) {
-  const res = await calculateEmbeddings(text)
+export async function getEmbeddings(text, model) {
+  const res = await calculateEmbeddings(text, model)
   return res
 }
 
 export async function searchEmbeddings(query, chunks) {
-  const search = await getEmbeddings(query)
+  const search = await getEmbeddings(query, chunks?.model)
   // Compute similarity for all chunks
   const scoredChunks = chunks.map(chunk => ({
     ...chunk,
@@ -113,65 +124,6 @@ export async function searchEmbeddings(query, chunks) {
   // Sort by similarity descending
   scoredChunks.sort((a, b) => b.similarity - a.similarity)
   return scoredChunks
-}
-
-// Only to be used in scripts, not in production
-export async function createEmbeddings(id, chunks, dir = path.join(__dirname, '..', 'embeddings')) {
-  const embeddings = []
-
-  for (let i = 0; i < chunks.length; i++) {
-    const embedding = await getEmbeddings(chunks[i])
-    embeddings.push(embedding)
-  }
-
-  await saveEmbeddings(id, chunks, embeddings, dir)
-}
-
-async function saveEmbeddings(id, chunks, embeddings, dir) {
-  if (!chunks.length) throw new Error('No chunks to save')
-  if (!embeddings || !embeddings.length) throw new Error('No embeddings to save')
-  if (chunks.length !== embeddings.length) throw new Error('Chunks and embeddings length mismatch')
-
-  const dim = embeddings[0].length
-  const count = chunks.length
-
-  // Ensure directory exists
-  await fs.mkdir(dir, { recursive: true })
-
-  // Flatten embeddings
-  const embeddingsPath = path.join(dir, `${id}.bin`)
-  const metaPath = path.join(dir, `${id}.json`)
-
-  try {
-    await fs.unlink(embeddingsPath)
-  } catch (err) {
-    if (err.code !== 'ENOENT') throw err // Ignore if file doesn't exist
-  }
-
-  try {
-    await fs.unlink(metaPath)
-  } catch (err) {
-    if (err.code !== 'ENOENT') throw err
-  }
-
-  const flatEmbeddings = new Float32Array(count * dim)
-
-  embeddings.forEach((embedding, i) => {
-    if (!(embedding instanceof Float32Array)) {
-      throw new Error(`Embedding ${i} must be a Float32Array`)
-    }
-    if (embedding.length !== dim) {
-      throw new Error(`All embeddings must have same length (embedding ${i} mismatch)`)
-    }
-    flatEmbeddings.set(embedding, i * dim)
-  })
-
-  // Save embeddings binary
-  await fs.writeFile(embeddingsPath, Buffer.from(flatEmbeddings.buffer))
-
-  // Save metadata (chunks without embeddings)
-  const meta = { dim, count, chunks }
-  await fs.writeFile(metaPath, JSON.stringify(meta, null, 2))
 }
 
 function cosineSimilarity(a, b) {

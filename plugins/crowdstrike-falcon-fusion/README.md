@@ -2,7 +2,7 @@
 
 # Falcon Fusion Skills
 
-[![Version](https://img.shields.io/badge/version-1.1.0-blue)](https://github.com/CrowdStrike/fusion-skills/releases/tag/v1.1.0)
+[![Version](https://img.shields.io/badge/version-1.2.0-blue)](https://github.com/CrowdStrike/fusion-skills/releases/tag/v1.2.0)
 [![CI](https://github.com/CrowdStrike/fusion-skills/actions/workflows/main.yml/badge.svg)](https://github.com/CrowdStrike/fusion-skills/actions/workflows/main.yml)
 
 AI coding assistant skills for building [CrowdStrike Falcon Fusion](https://www.crowdstrike.com/en-us/platform/next-gen-siem/falcon-fusion/) workflows. Go from a natural language prompt to a working Fusion workflow — discover real action IDs from the live API, author the YAML, validate it against the platform schema, import it to a CID, and trigger and monitor its execution.
@@ -21,7 +21,7 @@ AI coding assistant skills for building [CrowdStrike Falcon Fusion](https://www.
 | Assistant | Command | Marketplace |
 |-----------|---------|-------------|
 | Claude Code | `/plugin install crowdstrike-falcon-fusion` | [Anthropic](https://github.com/anthropics/claude-plugins-official) |
-| Codex | `codex plugin add crowdstrike-falcon-fusion@openai-api-curated` | [OpenAI](https://chatgpt.com/plugins) |
+| Codex | `codex plugin add crowdstrike-falcon-fusion@openai-api-curated` | [OpenAI](https://chatgpt.com/plugins/plugins_6a8f7048ed7881918bf5b79011fe2b5e) |
 | Copilot CLI | `copilot plugin install CrowdStrike/fusion-skills` | [GitHub](https://awesome-copilot.github.com/plugin/crowdstrike-falcon-fusion/) |
 | Cursor | `/plugins` (CLI) or `/add-plugin crowdstrike-falcon-fusion` (IDE) | [Cursor](https://cursor.com/marketplace/crowdstrike/crowdstrike-falcon-fusion) |
 | Antigravity CLI | `agy plugin install https://github.com/CrowdStrike/fusion-skills` | [Google](https://antigravity.google/docs/plugins) |
@@ -31,7 +31,7 @@ AI coding assistant skills for building [CrowdStrike Falcon Fusion](https://www.
 
 In a live-tenant run, all five assistants (Claude Code, Codex, Copilot CLI, Cursor, and Antigravity CLI) each authored a valid workflow from the example prompt below and imported it to the tenant.
 
-These skills follow the [Agent Plugins](https://agent-plugins.org) format, with a root `plugin.json` and a Codex `.codex-plugin/plugin.json` so the non-Claude assistants can discover them.
+These skills follow the [Agent Plugins](https://agent-plugins.org) format, with a root `plugin.json` and a Codex `.codex-plugin/plugin.json` so the non-Claude assistants can discover them. See the [blog post](https://www.crowdstrike.com/tech-hub/ng-siem/build-falcon-fusion-workflows-with-claude-code/) for a full walkthrough.
 
 <details>
 <summary><strong>Install from a local clone</strong> (for development or testing a branch)</summary>

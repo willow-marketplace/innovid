@@ -25,31 +25,44 @@ KPI strip, so it keeps the full list below.
 - **Option grant — always (16):** Stakeholder · Type · Email · Relationship · Plan · Option
   type · Quantity · Exercise price · Currency · Board approval · Issue date · Vesting schedule
   · Exercise periods · Grant expiration · Exemption · Documents.
+- **PIU — always (13):** Holder · Type · Email · Relationship · Unit class (prefix) · Equity
+  plan (or *"Direct from unit class"*) · Quantity · `<Threshold|Hurdle>` value ·
+  `<Threshold|Hurdle>` value type · Board approval · Issue date · Exemption · Currency. **No
+  price column of any kind** — a PIU has neither an exercise price nor a price per share.
 
 **Conditional columns** (render only when the trigger fires): Rule 144 reason (when
 `rule_144_date` ≠ `issue_date`); Dividend accrual start date (share class `dividend =
-"Non-cash"`); grant `HMRC notified` (EMI), `ATO notified` (AU types). **Optional columns**
+"Non-cash"`); grant `HMRC notified` (EMI), `ATO notified` (AU types); PIU `Corresponding
+interest` (when the unit class reports `has_corresponding_interest`) and `Consideration
+price` (when a row carries `cash_paid`). **Optional columns**
 (append only when at least one row carries the field, then `—` for unset cells):
 certificate number, vesting + start, acceleration, cash paid, debt canceled,
 notes, returned invested capital (LLC); grant custom label, grant reason, early exercise,
-auto-exercise-at-vest, flexible issue date. (`state_exemption`, `state_of_residency`,
+auto-exercise-at-vest, flexible issue date; PIU security number, vesting + start,
+acceleration, flexible issue date, documents, notes. (`state_exemption`, `state_of_residency`,
 `convertible_note`, `employee_id`, `cost_center`, `job_title`, `salary` are dropped from this
 skill entirely — design feedback; never render or collect them, even if a prompt happens to
 name one.)
 Render `ZEPO` exercise price as
 `$0.00 (ZEPO — must be zero)` and pending board approval as `Pending — needs board approval`.
+**On a PIU, render an absent board approval as `—`, never "Pending"** — that state is the
+grant flow's and does not exist here.
 
 **Default explanations** (attach a one-liner below the table for each value the skill chose):
 Rule 144 date (holding-period start for restricted securities); Board approval pending
-(grant issues pending; record the date later in Carta); Federal exemption (defaulting to
-Section 4(a)(2) private placement); Stakeholder type (INDIVIDUAL = person; NON-INDIVIDUAL =
+(grant issues pending; record the date later in Carta); Federal exemption (certificates default
+to Section 4(a)(2) private placement; US grants are left to the server, which applies Rule 701
+for options under a written compensatory plan); Stakeholder type (INDIVIDUAL = person; NON-INDIVIDUAL =
 trust/LLC/fund/corp); Build/Exercise legend (legal transfer-restriction text — full body
 shown to read before confirming); Option type (ISO/NSO/INTL/EMI/CSOP/Unapproved/AU types,
 ZEPO = zero-exercise-price); Currency/Exemption autofill (set by the option type's
 jurisdiction); Vesting schedule; Exercise periods (copied from the plan); Grant expiration
-(10 years standard, required for ISO); Documents (form-of-option/exercise/plan docs);
+(the plan's own term, required for ISO); Documents (form-of-option/exercise/plan docs);
 HMRC/ATO notified; Dividend accrual start date (required for non-cash dividend classes,
-forbidden otherwise).
+forbidden otherwise); Threshold value type (`Unit` states the threshold for each unit,
+`Overall` once for the whole grant); an **empty PIU equity plan** (the units are issued
+directly from the unit class, so the unit class's own authorized total is the ceiling rather
+than a plan pool).
 
 **Confirm** — one `AskUserQuestion`: `"Issue N \<type\> now"` → issue · `"Save as draft"` →
 save · `"Edit a row"` → re-collect, re-present · `"Cancel"` → stop. Free-text affirmatives
@@ -71,6 +84,8 @@ saves and validates the batch, compare every row's non-personal terms:
   `so_type`.
 - **Certificate** — `law_firm_price` (price/share), `issue_date`, `vesting_template`,
   `prefix` (share class), `legend_id`.
+- **PIU** — `threshold_value`, `threshold_value_type`, `prefix` (unit class), `option_plan`,
+  `issue_date`, `vesting_template`, `document_set_id`.
 
 **All rows match on every one of these fields** → render the compressed format below.
 **Any row differs on any one field** → fall back to the full per-row table

@@ -56,7 +56,7 @@ scripts/gb-call                          ← canonical helper; Claude plugin inv
 .cursor-plugin/                          ← plugin.json (Cursor manifest)
 ```
 
-Four domains: `feature-flags` (17 workflows), `experiments` (5), `analytics` (2), and `gb-setup` (no `references/` — it's a single workflow).
+Four domains: `feature-flags` (17 workflows), `experiments` (6), `analytics` (3), and `gb-setup` (no `references/` — it's a single workflow).
 
 Skills are pure markdown. The helper is the only executable code in the plugin. This is intentional — the v0.2.0 commit (`daac766`) pivoted away from MCP to keep the surface that small.
 
@@ -180,8 +180,8 @@ The "Guardrails" section is where you document things the REST API will not enfo
 - Per-token `bypassApprovalChecks` authorizes archive but **not** delete; only the org-wide `restApiBypassesReviews` setting authorizes destructive actions. Explicit comment in `deleteFeature.ts`: "review-workflow bypass, not destructive-action override" (flag-cleanup)
 - Feature delete unlinks experiments (clears `experiment.linkedFeatures` for any affected experiment) but doesn't delete the experiments themselves — their tracking keys are left pointing at a non-existent flag. Surface this so the user isn't surprised by stale `trackingKey` values in experiment history (flag-cleanup)
 - Feature delete does **not** explicitly clean up holdout associations. A holdout's `linkedExperiments` may have stale references after a flag with a holdout is deleted. Warn the user when `feature.holdout` was present (flag-cleanup)
-- The public product-analytics surface is exactly the three `/api/v1/product-analytics/*-exploration` POSTs — there is no search, columns, or column-values endpoint. Discovery goes through `/fact-metrics`, `/fact-tables`, and the information-schema endpoints, and a fact table's `columns[].topValues` is the only way to look up a column's values (analytics-explore, metric-search)
-- A `200` from an exploration POST is not success — the run is synchronous but errors are swallowed server-side; branch on `exploration.status` (`success`/`error`/`running`), and `cache=required` can return `exploration: null` (analytics-explore)
+- The public Product Analytics surface is `GET /api/v1/product-analytics/search`, `GET /api/v1/product-analytics/columns`, `POST /api/v1/product-analytics/column-values`, the five `/api/v1/product-analytics/*-exploration` POSTs (metric, fact table, data source, SQL, and funnel), and `GET /api/v1/product-analytics/explorations/:id`; the analytics skill deliberately does not construct arbitrary SQL exploration payloads (analytics-explore, metric-search)
+- A `200` from an exploration POST is not necessarily success — branch on `exploration.status`; `running` is pending and must be polled by exploration ID, `error` must be surfaced, and `cache=required` can return `exploration: null` (analytics-explore)
 - The server does **not** backfill a missing `unit` on a metric exploration value — a `null` unit on a mean/proportion/retention/dailyParticipation metric silently switches to event-level aggregation instead of erroring. Always set `unit` explicitly (analytics-explore)
 - Exploration cache matching ignores `chartType` (`withRequestedChartType` swaps the requested type into the cached run) — restyling a chart is a free cache hit, never re-query for it (analytics-explore)
 
@@ -204,6 +204,8 @@ Five workflows must never mutate anything:
 - `experiment-analyze` — read-only in the sense that matters: it may POST a snapshot refresh, but it must never stop or modify the experiment
 
 `analytics-explore` is a third category worth naming: it writes no GrowthBook configuration but does execute real warehouse queries, which cost the user money. Don't treat "writes nothing" as "free."
+
+`learnings` mixes read and write paths: search/list/detail are read-only, while create/update/delete require explicit user confirmation immediately before the request.
 
 Everything else writes. Read-only and proposal-only workflows must *say so* in their intro and enforce it in Guardrails ("Propose, do not create. Never POST to ..."). **The boundary is in the content, not the tooling** — every workflow in a domain inherits the same router `allowed-tools`, so nothing stops a read-only workflow from writing except the words in its file. That's exactly why those words have to be explicit, and it matters more under a router than it did when each skill had its own grant.
 
@@ -267,9 +269,9 @@ Each of these gets added only when a real skill needs it. `experiment-analyze` w
 
 Workflow names map to **what the user is doing**, not to API endpoints:
 
-- Experiments: `brainstorm → design → launch → analyze → stop`
+- Experiments: `learnings → brainstorm → design → launch → analyze → stop → learnings`
 - Flags: `create → toggle → targeting → ramp`/`monitoring → cleanup`, with `revisions → review → publish` running underneath all of them
-- Analytics: `metric-search → analytics-explore`
+- Analytics: `metric-search → metric-create → analytics-explore`
 
 When proposing a new workflow, name it after the user's intent. If you find yourself naming one after an endpoint (`flag-revisions-publish`), the scope is probably wrong — fold it into the lifecycle workflow that uses it.
 

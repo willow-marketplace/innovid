@@ -6,7 +6,7 @@ This repo is for developers who want to:
 
 - add You.com MCP tools and skills to their coding agent quickly
 - use `you-discover` to find the right You.com API, MCP server, SDK, or docs path for an agentic project
-- package the same You.com skills for agent platforms such as Claude Code, Cursor, Codex, Copilot CLI, Kimi Code, OpenCode, OpenClaw, Pi, and Hermes
+- package the same You.com skills for agent platforms such as Claude Code, Cursor, Codex, Copilot CLI, Kimi Code, Grok Build, OpenCode, OpenClaw, Pi, and Hermes
 
 ## Start Here
 
@@ -43,10 +43,11 @@ npx skills add youdotcom-oss/agent-skills --skill you-finance
 | Codex                           | `codex plugin marketplace add youdotcom-oss/agent-skills --sparse .agents/plugins`                    |
 | Cursor                          | Install this repository from the Cursor plugin UI or CLI                                              |
 | Kimi Code                       | `/plugins install <repo url>`                                                                         |
+| Grok Build                      | `grok plugin marketplace add youdotcom-oss/agent-skills` then `grok plugin install you --trust`       |
 | OpenCode                        | `opencode plugin @youdotcom-oss/opencode`                                                             |
 | OpenClaw                        | `openclaw plugins install clawhub:you` or `openclaw plugins install npm:@youdotcom-oss/openclaw`      |
 | Pi                              | `pi install npm:@youdotcom-oss/pi`                                                                    |
-| Hermes                          | `pip install hermes-youdotcom`                                                                        |
+| Hermes                          | `hermes plugins install youdotcom-oss/agent-skills`                                                                        |
 
 The top-level plugin manifests reuse the shared `skills/` directory when the host supports it. Packages under `packages/` include host-specific metadata, copied skills, or runtime adapters where needed.
 
@@ -79,20 +80,21 @@ Useful tool profiles:
 | ------------------------------------------- | ------------------------------- |
 | `https://api.you.com/mcp`                   | Authenticated You.com MCP tools |
 | `https://api.you.com/mcp?profile=free`      | Keyless basic `you-search`      |
-| `https://api.you.com/mcp?tools=you-finance` | Finance-only MCP setup          |
+| `https://api.you.com/mcp/finance`           | Finance-only MCP setup          |
+| `https://api.you.com/mcp/research`          | Research-only MCP setup         |
 
 Some clients use OAuth instead of a static API key. The skills are written to guide the agent through the best available auth path for the current host.
 
 ## Skills
 
-The shared skills route agents to the lightest You.com surface that fits the task. MCP tools are the default for web search and URL reading, while slower managed research and finance workflows prefer reusable local scripts or direct API calls when an API key is available.
+The shared skills route agents to the lightest You.com surface that fits the task. MCP tools are the default for web search and URL reading; managed research (`you-research`) and finance (`you-finance`) answers go through their dedicated single-tool MCP endpoints.
 
 | Skill          | Use it for                                                                                                      |
 | -------------- | --------------------------------------------------------------------------------------------------------------- |
-| `you-web`      | Current web search, URL reading, cited synthesis, and general You.com MCP tool routing.                         |
+| `you-web`      | Current web search and URL reading with a source-reading, citation-first pipeline.                              |
 | `you-free`     | Keyless basic web search with `you-search` only.                                                                |
-| `you-research` | Routing research tasks between agent-led search, Research API scripts, and managed `you-research` MCP fallback. |
-| `you-finance`  | Routing finance questions to an existing script, a new Finance Research API call, or an MCP fallback.           |
+| `you-research` | Routing research tasks between agent-led search and one-shot cited synthesis with the `you-research` MCP tool. |
+| `you-finance`  | Answering finance questions through the `you-finance` MCP tool with payment-aware fallbacks.                    |
 | `you-discover` | Finding how to integrate You.com APIs, MCP servers, SDKs, docs, and tools into agentic projects.                |
 
 `you-discover` is the best starting point when your goal is to build with You.com rather than just search with it. Ask it questions like:
@@ -109,7 +111,6 @@ Use you-discover to compare You.com MCP, Python SDK, and direct API options for 
 | `@youdotcom-oss/opencode` | OpenCode plugin that registers You.com skills and remote MCP server configs.  |
 | `@youdotcom-oss/openclaw` | OpenClaw plugin with You.com skills and `YDC_API_KEY` setup metadata.         |
 | `@youdotcom-oss/pi`       | Pi package that registers You.com skills and bridges You.com MCP tools.       |
-| `hermes-youdotcom`        | Hermes package that ships You.com skills through a Python entry-point plugin. |
 
 See each package README for host-specific details.
 
@@ -118,15 +119,16 @@ See each package README for host-specific details.
 | Path                 | Purpose                                         |
 | -------------------- | ----------------------------------------------- |
 | `skills/`            | Shared You.com skills                           |
+| `plugin.json`        | Agent Plugins (portable) manifest               |
 | `.claude-plugin/`    | Claude Code plugin manifest                     |
 | `.cursor-plugin/`    | Cursor plugin manifest                          |
 | `.codex-plugin/`     | Codex and ChatGPT plugin manifest               |
 | `.plugin/`           | GitHub Copilot CLI plugin manifest              |
 | `.kimi-plugin/`      | Kimi Code plugin manifest                       |
+| `.grok-plugin/`      | Grok Build plugin manifest                      |
 | `packages/opencode/` | OpenCode package                                |
 | `packages/openclaw/` | OpenClaw package                                |
 | `packages/pi/`       | Pi package                                      |
-| `packages/hermes/`   | Hermes package                                  |
 | `skills.sh.json`     | skills.sh display grouping for top-level skills |
 
 ## Development
@@ -145,7 +147,6 @@ Package-level checks:
 bun run --filter '@youdotcom-oss/opencode' test
 bun run --filter '@youdotcom-oss/openclaw' test
 bun run --filter '@youdotcom-oss/pi' test
-bun run --filter '@youdotcom-oss/hermes' test
 ```
 
 Validate shared skill metadata and structure:

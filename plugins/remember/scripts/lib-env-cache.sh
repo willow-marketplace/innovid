@@ -22,7 +22,13 @@
 #
 #   Every check below is a bash builtin — `[ -f ]`, `[ -O ]`, `[ -nt ]`,
 #   parameter expansion, `read`. A validation step that forked would spend the
-#   savings it exists to protect.
+#   savings it exists to protect. The one exception (#504) is
+#   `_remember_env_cache_normalize_into`'s Windows drive-letter uppercasing,
+#   which forks `tr` -- but only on `OSTYPE=msys|cygwin`, and only once a
+#   drive-letter pattern has actually matched, the same carve-out
+#   resolve-paths.sh's own copy of this logic already makes. Everywhere else,
+#   including that same function's own substitution site, `printf -v` is used
+#   specifically so the key computation itself never forks a subshell.
 #
 # USAGE
 #   source "$_HOOK_DIR/lib-env-cache.sh"
@@ -62,15 +68,110 @@
 [ -n "${_REMEMBER_LIB_ENV_CACHE_LOADED:-}" ] && return 0
 _REMEMBER_LIB_ENV_CACHE_LOADED=1
 
-# Sets _REMEMBER_ENV_CACHE_FILE. Returns 1 when there is no project to key on.
+# Sets _REMEMBER_ENV_CACHE_FILE and _REMEMBER_ENV_CACHE_KEY. Returns 1 when
+# there is no project to key on.
 #
-# Keyed on the RAW CLAUDE_PROJECT_DIR, before resolve-paths.sh normalises it:
-# the reader has not run that normalisation yet (it forks `tr` on Git Bash), and
-# both sides comparing the same environment variable is what makes the key
-# agree without either side computing anything.
+# Keyed on the RAW CLAUDE_PROJECT_DIR when it is set, falling back to
+# REMEMBER_HOOK_CWD (#469): Codex sets neither CLAUDE_PROJECT_DIR nor any
+# variable this cache could key on before resolve-paths.sh runs (live-
+# confirmed, #463); Gemini CLI's own bundled docs now say it DOES set
+# CLAUDE_PROJECT_DIR as a compatibility alias (#456, unverified live --
+# #532), so on Gemini this cache is expected to key on that directly and
+# never need the fallback at all. That absence was the entire premise of
+# #407/#411/#444 for Codex -- the same hosts #411/#444 gave every hook a
+# REMEMBER_HOOK_CWD fallback for -- and the fallback stays correct and
+# needed for Codex and any other host that genuinely leaves
+# CLAUDE_PROJECT_DIR unset. Without this,
+# resolve-paths.sh:270 still exports the RESOLVED CLAUDE_PROJECT_DIR before
+# _remember_env_cache_publish runs, so a cache file is written every time and
+# never found by _remember_env_cache_load, which runs in a fresh process
+# before that export exists. The per-process pin inside the function below is
+# what keeps the key stable across a call that runs before resolve-paths.sh's
+# normalisation and one that runs after, WITHIN one process -- but #504 found
+# that pin is not enough on its own: user-prompt-hook.sh's fast path calls
+# this BEFORE resolve-paths.sh has run, in a FRESH process, so it pins the RAW
+# CLAUDE_PROJECT_DIR the host set (unnormalised on Windows/Git-Bash --
+# forward-slash or POSIX drive form); session-start-hook.sh's publish call
+# runs AFTER resolve-paths.sh, in ITS OWN process, and pins the NORMALISED
+# form resolve-paths.sh re-exported. Two different processes, two different
+# strings for the same project, two different cache files -- the fast path
+# can never hit what the slow path wrote. _remember_env_cache_normalize_into
+# below closes that: same normalisation resolve-paths.sh's own
+# _remember_normalize_win_path applies, scoped to the same `case "$OSTYPE" in
+# msys|cygwin)` guard, so its BODY is a genuine no-op (no `tr` fork, no
+# regex work) on every platform except the one where raw and resolved can
+# actually disagree. Written into a named variable via `printf -v`, not
+# printed for a caller to capture with `$( )` -- self-review on this same
+# change (#511/#504, reviewed together) caught that `$(...)` forks a
+# subshell for the SUBSTITUTION ITSELF regardless of what the function body
+# does, which would have paid exactly the per-fork cost #511 exists to
+# remove, on the fast path, on every single invocation, unconditionally on
+# every platform -- not scoped to msys/cygwin the way the function body is.
+# `_remember_normalize_win_path` in resolve-paths.sh keeps the older
+# print-and-capture shape because that file's own callers are cold-path
+# (once per hook invocation, after resolve-paths.sh has already forked far
+# more than this); lib-env-cache.sh's copy exists specifically because this
+# one runs on the hot path, so it gets the `_into` treatment from the start.
+_remember_env_cache_normalize_into() {
+    local _var="$1" _in="$2" _drive="" _rest=""
+    local _re='^([a-zA-Z]):[/\](.*)$'
+    case "$OSTYPE" in
+        msys|cygwin)
+            if [[ "$_in" =~ ^/cygdrive/([a-zA-Z])/(.*)$ ]]; then
+                _drive="${BASH_REMATCH[1]}"
+                _rest="${BASH_REMATCH[2]}"
+            elif [[ "$_in" =~ ^/([a-zA-Z])/(.*)$ ]]; then
+                _drive="${BASH_REMATCH[1]}"
+                _rest="${BASH_REMATCH[2]}"
+            elif [[ "$_in" =~ $_re ]]; then
+                _drive="${BASH_REMATCH[1]}"
+                _rest="${BASH_REMATCH[2]}"
+            fi
+            if [ -n "$_drive" ]; then
+                _drive=$(printf '%s' "$_drive" | tr '[:lower:]' '[:upper:]')
+                _rest="${_rest//\//\\}"
+                printf -v "$_var" '%s:\\%s' "$_drive" "$_rest"
+                return 0
+            fi
+            ;;
+    esac
+    printf -v "$_var" '%s' "$_in"
+}
+
 _remember_env_cache_path() {
-    local _key="${CLAUDE_PROJECT_DIR:-}"
+    # Pinned once per process (#469): this function runs both BEFORE
+    # resolve-paths.sh (from _remember_env_cache_load, when CLAUDE_PROJECT_DIR
+    # is still unset on Codex -- and on any other host that genuinely never
+    # sets it -- and REMEMBER_HOOK_CWD is the only signal; Gemini CLI's own
+    # docs now say it DOES set CLAUDE_PROJECT_DIR, #456, unverified live --
+    # #532, so this branch is not expected to be reached on Gemini at all)
+    # and AFTER it (from _remember_env_cache_publish, by which point
+    # resolve-paths.sh has exported the RESOLVED -- and on Windows/Git-Bash,
+    # NORMALIZED -- CLAUDE_PROJECT_DIR). Recomputing on the second call would
+    # let the now-set CLAUDE_PROJECT_DIR win over the raw REMEMBER_HOOK_CWD
+    # this same invocation's earlier (failed) load call already keyed on --
+    # on a platform where normalization actually changes the string (drive-
+    # letter rewriting; a no-op on macOS/Linux, where raw and resolved always
+    # agree), write and read would target different files, permanently,
+    # exactly the #469 symptom relocated to Windows. resolve-paths.sh only
+    # resolves once per hook invocation, so once a key is known in THIS
+    # process it is reused rather than asked of the environment again.
+    if [ -n "${_REMEMBER_ENV_CACHE_KEY:-}" ]; then
+        return 0
+    fi
+    local _key="${CLAUDE_PROJECT_DIR:-${REMEMBER_HOOK_CWD:-}}"
     [ -n "$_key" ] || return 1
+    # #504: normalise BEFORE pinning, so a raw (pre-resolve-paths.sh) and an
+    # already-normalised (post-resolve-paths.sh) spelling of the same project
+    # collapse to the same key. Idempotent on an already-normalised string --
+    # the drive-letter regex matches a backslash-separated input just as
+    # readily as a forward-slash one, and re-uppercasing an already-uppercase
+    # drive letter is a no-op. `_into` (writes `_key` directly via
+    # `printf -v`), not `_key=$(_remember_env_cache_normalize "$_key")` --
+    # see the comment above the function for why that distinction matters
+    # here specifically.
+    _remember_env_cache_normalize_into _key "$_key"
+    _REMEMBER_ENV_CACHE_KEY="$_key"
     _key="${_key//[!a-zA-Z0-9]/-}"
     # Filename length limits are real (255 bytes on most filesystems) and a deep
     # project path exceeds them. Keep the TAIL: the end of a path is what
@@ -141,7 +242,17 @@ _remember_env_cache_load() {
     # once, at upgrade.
     case "$_cooldown" in '' | *[!0-9]*) return 1 ;; esac
     case "$_delta" in '' | *[!0-9]*) return 1 ;; esac
-    [ "$_env_proj" = "${CLAUDE_PROJECT_DIR:-}" ] || return 1
+    # Compared against the SAME identity _remember_env_cache_path just keyed
+    # on (CLAUDE_PROJECT_DIR, falling back to REMEMBER_HOOK_CWD, #469) rather
+    # than raw CLAUDE_PROJECT_DIR directly -- on Codex (live-confirmed,
+    # #463) CLAUDE_PROJECT_DIR is unset in the fresh process reading this
+    # cache, so comparing against it directly would reject every cache this
+    # fallback lets the path function find, defeating the fix at this one
+    # remaining line. Gemini CLI's own docs now say it DOES set
+    # CLAUDE_PROJECT_DIR (#456, unverified live -- #532), in which case the
+    # comparison above is against that value directly and this fallback path
+    # is simply never exercised on Gemini.
+    [ "$_env_proj" = "${_REMEMBER_ENV_CACHE_KEY:-}" ] || return 1
     [ "$_env_pipe" = "${CLAUDE_PLUGIN_ROOT:-}" ] || return 1
     [ "$_env_home" = "${HOME:-}" ] || return 1
     [ -d "$_pipe" ] || return 1
@@ -171,7 +282,14 @@ _remember_env_cache_load() {
 # could not write a cache file has still done its actual job.
 _remember_env_cache_publish() {
     [ "${REMEMBER_ENV_CACHE:-1}" = "1" ] || return 0
-    [ -n "${CLAUDE_PROJECT_DIR:-}" ] || return 0
+    # Same fallback as the key itself (#469): by the time any real caller
+    # reaches here, resolve-paths.sh has already exported the resolved
+    # CLAUDE_PROJECT_DIR (resolve-paths.sh:270), so this is normally
+    # redundant with that export -- but requiring it directly, rather than
+    # accepting REMEMBER_HOOK_CWD alone, would silently refuse to publish a
+    # cache whose only identity source is REMEMBER_HOOK_CWD, defeating the
+    # fix on any future caller that publishes before that export runs.
+    [ -n "${CLAUDE_PROJECT_DIR:-}${REMEMBER_HOOK_CWD:-}" ] || return 0
     [ -n "${REMEMBER_DIR:-}" ] || return 0
     [ -n "${PROJECT_DIR:-}" ] || return 0
     [ -n "${PIPELINE_DIR:-}" ] || return 0
@@ -192,13 +310,25 @@ _remember_env_cache_publish() {
     [ -n "${REMEMBER_DELTA_THRESHOLD:-}" ] || return 0
     _remember_env_cache_path || return 0
 
-    local _f="$_REMEMBER_ENV_CACHE_FILE" _t="${_REMEMBER_ENV_CACHE_FILE}.$$"
-    # 0600 before a single byte of it exists. Every entry point sets umask 077
-    # (#68), but this decides where memory gets written and its mode must not
-    # depend on the caller having done that.
-    (umask 077; : > "$_t") 2>/dev/null || return 0
+    local _f="$_REMEMBER_ENV_CACHE_FILE" _t
+    # mktemp, not a PID-suffixed literal path (#429): $_f itself is built from
+    # CLAUDE_PROJECT_DIR (predictable to anyone who knows the project path),
+    # and appending "$$" to it is no better -- both name a path in a SHARED
+    # tmp dir before this process has created anything there. The shell's `>`
+    # follows a symlink when opening its target and truncates on open, before
+    # a byte is written, so a symlink pre-seeded at that name would receive
+    # whatever this function goes on to write. mktemp creates the file
+    # atomically at an unpredictable name and already 0600 on every mktemp
+    # this repo relies on (GNU and BSD/macOS alike) -- no umask needed, and no
+    # trailing suffix after the X's (BSD mktemp only substitutes a run of X's
+    # at the very end of the template; anything after is left literal).
+    _t=$(mktemp "${_f}.XXXXXX" 2>/dev/null) || return 0
     {
-        printf 'CACHE_ENV_PROJECT_DIR=%s\n' "$CLAUDE_PROJECT_DIR"
+        # The same identity the file is keyed and validated on (#469), not
+        # raw CLAUDE_PROJECT_DIR: on a caller whose only identity source was
+        # REMEMBER_HOOK_CWD, printing CLAUDE_PROJECT_DIR here would record a
+        # value _remember_env_cache_load's later comparison can never match.
+        printf 'CACHE_ENV_PROJECT_DIR=%s\n' "$_REMEMBER_ENV_CACHE_KEY"
         printf 'CACHE_ENV_PLUGIN_ROOT=%s\n' "${CLAUDE_PLUGIN_ROOT:-}"
         printf 'CACHE_ENV_HOME=%s\n' "${HOME:-}"
         printf 'PROJECT_DIR=%s\n' "$PROJECT_DIR"

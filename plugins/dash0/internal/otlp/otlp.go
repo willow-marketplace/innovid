@@ -323,6 +323,25 @@ var attrSkipKeys = map[string]bool{
 	// span until it was denied here.
 	"turn_id": true,
 
+	// W3C trace context, which Copilot puts on an interactive session's payloads
+	// so a hook can continue its trace. It is a propagation header, not a span
+	// attribute, and on an emitted span it is worse than redundant: the span
+	// belongs to the plugin's own trace, derived from the session id, while this
+	// names Copilot's native one and a span id that is not its parent. Measured
+	// 2026-08-28: a chat span in trace 3b361e94… carrying
+	// 00-558ca38a…-adc5bef1061afc70-01, pointing at a trace that exists only in a
+	// local file. Correlating the two traces deliberately is worth doing — as a
+	// span link, on every span of the turn rather than whichever one carried the
+	// header — and is not this.
+	"traceparent": true,
+
+	// Copilot's agentStop bookkeeping. stopReason says why the turn ended
+	// ("end_turn"), which the span's own status already carries, and it is
+	// camelCase so it arrives unnamespaced. It reached every Copilot chat span
+	// until it was denied here. Copilot's snake_case stop_hook_active is already
+	// covered above, which is why only this one was left.
+	"stopReason": true,
+
 	// InstructionsLoaded bookkeeping. That event maps to no span, so these three
 	// did not reach Dash0; denying them now means mapping the event later cannot
 	// leak them by accident.
@@ -334,6 +353,42 @@ var attrSkipKeys = map[string]bool{
 	// on SessionEnd when a trace context is still open, which is how an
 	// interrupted session gets a turn at all. So "reason" exported on that span.
 	"reason": true,
+
+	// Cursor session bookkeeping. All four are on every Cursor hook payload, so
+	// they reached every chat and execute_tool span until they were denied here.
+	//
+	// conversation_id is the session id under a second name. Cursor puts the
+	// same value in session_id, which attrKeyMap exports as
+	// gen_ai.conversation.id, so the raw field only duplicated it on an
+	// unnamespaced key. Denying it does not cost the conversation id: that comes
+	// from session_id, and every Cursor payload carries both.
+	// generation_id is Cursor's prompt_id — it groups the spans of one turn,
+	// which the trace already does through parenting.
+	// cursor_version names the host build. gen_ai.harness.name says which agent
+	// produced the span, and no other runtime exports its version; a version
+	// belongs in a resource attribute if it is ever wanted.
+	// workspace_roots is the worst of the four: a JSON array of absolute paths,
+	// so every span carried the developer's filesystem layout on a raw key that
+	// omit_io does not cover. The repository is already reported through the
+	// dash0.gen_ai.vcs.* family.
+	"conversation_id": true,
+	"generation_id":   true,
+	"cursor_version":  true,
+	"workspace_roots": true,
+
+	// Cursor's postToolUseFailure bookkeeping, and the one of these five that a
+	// plain probe cannot reach: it is on the failure payload only. It says
+	// "error", which the span's own ERROR status and exception.message already
+	// say, and it arrives unnamespaced like the rest.
+	"failure_type": true,
+
+	// UserPromptSubmit bookkeeping, denied for the InstructionsLoaded reason
+	// above: no span today, so this only has to hold when that changes.
+	// attachments is Cursor's, and is user content. chat_span_id is no source's
+	// — pipeline.go stamps it on every UserPromptSubmit — so it would leak on
+	// all four runtimes at once.
+	"attachments":  true,
+	"chat_span_id": true,
 }
 
 // MaxContentBytes is the maximum size for content attributes (tool I/O, prompts).

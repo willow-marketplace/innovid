@@ -1,0 +1,67 @@
+name: Publish OpenCode package
+
+run-name: Publish OpenCode package ${{ inputs.release_tag }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing OpenCode release tag, for example opencode-v0.1.0
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out main workflow source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Require main and check out tagged release
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        shell: bash
+        run: |
+          test "$GITHUB_REF" = "refs/heads/main"
+          if [[ ! "$RELEASE_TAG" =~ ^opencode-v[0-9]+[.][0-9]+[.][0-9]+(-[0-9A-Za-z.-]+)?([+][0-9A-Za-z.-]+)?$ ]]; then
+            echo "release_tag must be an OpenCode SemVer tag such as opencode-v0.1.0" >&2
+            exit 2
+          fi
+          git fetch --no-tags origin "refs/heads/main:refs/remotes/origin/main"
+          git fetch --no-tags origin "refs/tags/${RELEASE_TAG}:refs/tags/${RELEASE_TAG}"
+          release_commit="$(git rev-list -n 1 "refs/tags/${RELEASE_TAG}")"
+          git merge-base --is-ancestor "$release_commit" refs/remotes/origin/main
+          git checkout --detach "$release_commit"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Verify tag matches package version
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          package_version="$(node -p "require('./opencode/package.json').version")"
+          test "$RELEASE_TAG" = "opencode-v${package_version}"
+
+      - name: Validate npm package contents
+        working-directory: opencode
+        run: npm pack --dry-run
+
+      - name: Get Artifactory publish token
+        id: publish-token
+        uses: atlassian-labs/artifact-publish-token@v1.0.1
+        with:
+          output-modes: npm
+
+      - name: Publish through Artifactory npm-public
+        working-directory: opencode
+        run: npm publish --userconfig="$GITHUB_WORKSPACE/.npmrc-public" --registry="https://packages.atlassian.com/api/npm/npm-public/"

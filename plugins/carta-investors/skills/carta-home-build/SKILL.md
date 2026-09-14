@@ -1,6 +1,6 @@
 ---
 name: carta-home-build
-description: Builds or rebuilds the Carta Home live artifact — a Cowork dashboard home page that works for any Carta firm. Shows a live Schedule of Investments, Fund Performance benchmarks, P&L (from STATEMENT_OF_OPS), Balance Sheet (from MONTHLY_NAV_CALCULATIONS), LP Reporting, Portfolio Valuations (top holdings by MOIC), ManCo expense actuals by category, Form ADV regulatory AUM, and a Skill Directory with one-click copyable prompts. The artifact auto-detects the active firm from the Carta MCP context — no hardcoded firm name needed. Use this skill whenever the user asks to "build the carta home artifact", "rebuild carta home", "set up the carta home page", "deploy carta home", or "restore the carta home dashboard".
+description: Builds or rebuilds the Carta Home live artifact — a Cowork dashboard home page that works for any Carta firm. Shows a live Schedule of Investments, Fund Performance benchmarks, P&L (from STATEMENT_OF_OPS), Balance Sheet (from MONTHLY_NAV_CALCULATIONS), LP Reporting, Portfolio Valuations (top holdings by MOIC), ManCo expense actuals by category, Form ADV regulatory AUM, and a Skill Directory with one-click copyable prompts. The artifact auto-detects the active firm from the Carta MCP context — no hardcoded firm name needed. Use this skill whenever the user asks to "build the carta home artifact", "rebuild carta home", "set up the carta home page", "deploy carta home", or "restore the carta home dashboard". For a company's cap table use carta-cap-table's carta-captable-home-build; for a CRM home of pipeline, deals and contacts use carta-crm's carta-crm-home-build.
 ---
 
 <!-- carta:instrumentation-fallback -->
@@ -16,11 +16,13 @@ description: Builds or rebuilds the Carta Home live artifact — a Cowork dashbo
 Deploys the `carta-home` live artifact, published as **`Carta Home - <firm>`**. It is
 **assembled** from source parts in this skill's `resources/` directory (template + CSS +
 config + app JS) by `scripts/build_artifact.py`, which also substitutes this session's
-Carta connector name. You never need to read the assembled HTML — see "Source layout" below.
+Carta connector name and the firm the title names. You never need to read the assembled
+HTML — see "Source layout" below.
 
-The firm is named in the title but **not** baked into the bundle: the page still detects
-whichever firm is active at open time. One artifact per firm, so each has its own sidebar
-tile.
+The firm reaches the title through the build, because the published artifact takes its name
+from the page's own `<title>` tag. Nothing else about the bundle is firm-specific: the body
+still detects whichever firm is active at open time. One artifact per firm, so each has its
+own sidebar tile.
 
 ## What the artifact does
 
@@ -98,10 +100,11 @@ need the full file in context. Edit the small source file for what you're changi
 
 | File | What it holds | Edit it to… |
 |------|---------------|-------------|
-| `resources/carta-home.config.js` | `DIR_CATEGORIES` + per-category `requires` | change which skills/categories show, or their entitlement gate |
+| `resources/carta-home.config.js` | `DIR_CATEGORIES` + per-category `requires`, `NEWS_TAG` | change which skills/categories show, their entitlement gate, or which Contentful tag feeds Plugin news |
 | `resources/carta-home.app.js` | shared/core runtime logic (`_mcp`, format helpers, `fetchLiveData` bootstrap, SOI, Fund Performance, Skill Directory, tour) | change behavior / data fetching for anything not yet split into its own file below |
 | `resources/app/capital-activity.js` | Capital activity cards + detail overlay (fetch/render/dismiss) | change the capital call / distribution cards or their detail modal |
 | `resources/app/version-check.js` | update banner: reads the published version, compares, renders/dismisses | change the banner copy or when it appears |
+| `resources/app/live-content.js` | Plugin news row: Contentful fetch, per-content-type adapters, card render (tag itself lives in the config file above) | change how news cards are fetched, adapted or rendered |
 | `../../.claude-plugin/skill-versions.json` | this skill's `version` + release `headline` | **bump on every user-visible change** — see Versioning |
 | `resources/carta-home.css` | styles (Ink tokens) | change appearance |
 | `resources/carta-home.template.html` | HTML skeleton + injection markers | change page structure |
@@ -241,8 +244,13 @@ keeps the paths apart.
 ```
 uv run "<SKILL_DIR>/scripts/build_artifact.py" \
   --mcp-server "<CARTA_MCP_SERVER>" \
+  --firm-name "<firm name from Step 0>" \
   --out <outputs-directory>/carta-home-<slug>.html
 ```
+
+`--firm-name` is stamped into the page's `<title>` as `Carta Home - <Firm>`, which is what
+names the published artifact. It is the only firm-specific thing in the bundle; the body
+still detects whichever firm is active when a viewer opens it.
 
 `<SKILL_DIR>` is this skill's base directory — e.g. in Cowork
 `/sessions/<name>/mnt/.remote-plugins/plugin_<id>/skills/carta-home-build`, in Claude Code
@@ -257,8 +265,13 @@ Artifact({action: "list", scope: "mine"})
 Look for an artifact titled exactly **`Carta Home - <Firm>`**. If one is there, keep its
 `url` — Step 3 passes it so the page redeploys in place. If there is none, omit `url`: this
 firm gets its own artifact. An artifact for a *different* firm is not a match — reusing its
-`url` would overwrite that firm's page. A bare **Carta Home** with no suffix is a page from
-before this skill titled them per firm; treat it as this firm's and redeploy over it.
+`url` would overwrite that firm's page.
+
+**A bare `Carta Home` with no suffix** is a page from before the title carried the firm.
+Only adopt one whose favicon is **🏠**: that is this skill's page, so redeploy over it. A
+bare `Carta Home` carrying **📊** belongs to carta-cap-table's `carta-captable-home-build`
+and holds some company's cap table — leave it alone, publishing over it would replace that
+cap table with this firm's dashboard.
 
 ### Step 3: Publish the artifact
 
@@ -269,7 +282,6 @@ the only difference between a first publish and a redeploy.
 Artifact({
   file_path: "<outputs-directory>/carta-home-<slug>.html",
   url: "<url from Step 2 — omit entirely on a first publish>",
-  title: "Carta Home - <Firm>",
   description: "Dashboard home for <Firm> — SOI, Fund Performance, P&L, Balance Sheet, LP Reporting, Valuations, ManCo Actuals, Form ADV, and Skill Directory.",
   favicon: "🏠",
   label: "Redeployed from skill bundle",
@@ -286,6 +298,12 @@ Artifact({
 })
 ```
 
+> **No `title` here, and do not add one.** The tool reads the title out of the file's
+> `<title>` tag and uses its `title` parameter only when the file has none — so a `title`
+> passed alongside a built page is silently dropped. `build_artifact.py` stamps
+> `Carta Home - <Firm>` into the tag from `--firm-name`. If the artifact comes out named
+> wrong, the build is wrong: check what Step 1 printed, not this call.
+>
 > Anything the page calls that is missing from `tools` rejects with `not_in_manifest`.
 > `get_current_user` **must** be there or `fetchUserEnrichment()` fails silently — the
 > debug log never prints and the Skill Directory falls back to showing all categories.
@@ -301,7 +319,7 @@ Artifact({
 > Restate the whole `capabilities` object every time: a non-empty object replaces the
 > stored grant, so a tool you leave out is revoked.
 >
-> The title is stamped once, at publish; the **page** still follows whatever firm is active
+> The title is stamped once, at build; the **page** still follows whatever firm is active
 > in the viewer's Carta context when they open it. A viewer who switches firm sees a title
 > that no longer matches the body. Rebuild for that firm to fix it.
 

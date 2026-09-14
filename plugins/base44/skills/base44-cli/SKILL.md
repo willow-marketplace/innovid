@@ -16,6 +16,8 @@ This skill activates on ANY mention of "base44" or when a `base44/` folder exist
 2. If **YES** (existing project scenario):
    - Transfer to base44-sdk skill for implementation
    - This skill only handles CLI commands (login, deploy, entities push)
+   - **Except running the app locally** — stays here. Read [Running Local Development](#running-local-development)
+     before starting a dev server: one way of running hits production data.
 3. If **NO**, decide between two initialization paths:
    - **Provisioned app** — the Base44 app already exists because it was just provisioned through a Stripe Projects / projects.dev flow, OR `BASE44_APP_ID` (or `BASE44_PROJECTS_BASE44_APP_ID`) is present in the environment or a `.env`/`.env.local` file:
      - Run `npx base44 scaffold` to set up local files for that **existing** app
@@ -265,12 +267,14 @@ Workspaces (a.k.a. organizations) group apps under shared membership. By default
 | Command | Description | Reference |
 |---------|-------------|-----------|
 | `base44 dev` | Start local development for your Base44 backend, and your frontend too when `site.serveCommand` is configured | [dev.md](references/dev.md) |
+| `base44 dev --remote` | Serve the frontend locally against the **production** backend | [dev.md](references/dev.md) |
 
 ### Deployment
 
 | Command | Description | Reference |
 |---------|-------------|-----------|
-| `base44 deploy` | Deploy all resources (entities, functions, agents, agent skills, connectors, auth config, and site) | [deploy.md](references/deploy.md) |
+| `base44 build` | Build the site with its app id injected — use instead of a bare `npm run build` | — |
+| `base44 deploy` | Deploy all resources (entities, functions, agents, agent skills, connectors, auth config, and site); asks whether to build first, or pass `--build` / `--no-build` | [deploy.md](references/deploy.md) |
 
 ### Entity Management
 
@@ -317,6 +321,15 @@ For complete documentation, see [entities-create.md](references/entities-create.
 | `base44 functions delete <names...>` | Delete one or more deployed functions from Base44 | [functions-delete.md](references/functions-delete.md) |
 | `base44 functions list`   | List all deployed functions on Base44 remote  | [functions-list.md](references/functions-list.md)       |
 | `base44 functions pull [name]` | Pull deployed functions from Base44 to local files | [functions-pull.md](references/functions-pull.md)  |
+
+### Workflow Runs
+
+Workflows are the automation system (cron schedules, entity triggers, connector events, in-app agent actions). These commands are read-only: they answer "what workflows exist" and "did my scheduled work fail, and why".
+
+| Command | Description | Reference |
+|---------|-------------|-----------|
+| `base44 workflows list` | List this app's workflows with status and run summary | [workflows-list.md](references/workflows-list.md) |
+| `base44 workflows runs [--status <s>] [--since <t>]` | List workflow runs, newest first; failed runs include the underlying error | [workflows-runs.md](references/workflows-runs.md) |
 
 ### Agent Management
 
@@ -519,8 +532,7 @@ Run one-off scripts against your app with the Base44 SDK pre-authenticated. Use 
 
 5. Build and deploy everything:
    ```bash
-   npm run build
-   npx base44 deploy -y
+   npx base44 deploy --build -y
    ```
 
 Or deploy individual resources:
@@ -555,24 +567,39 @@ npx base44 link --create --name my-app
 ```
 
 ### Running Local Development
-```bash
-# Starts the Base44 backend locally
-npx base44 dev
-```
 
-If you want `base44 dev` to run your frontend too, verify `base44/config.jsonc` has `site.serveCommand` set correctly (for example, `"serveCommand": "npm run dev"`). When that field is present, `base44 dev` runs both the backend and the frontend together.
+Always run through the CLI — two modes:
+
+| Command | Backend + data |
+|---------|----------------|
+| `npx base44 dev` | **local** — throwaway, empty each start, gone on stop |
+| `npx base44 dev --remote` | **production** — the real app's live data |
+
+`base44 dev` starts the local backend (entities, functions, auth) and also serves your frontend when
+`base44/config.jsonc` sets `site.serveCommand`; a backend-only project needs nothing else.
+`--remote` runs *only* the frontend against the real backend, so it needs both a linked project and
+`site.serveCommand`.
+
+Don't run `npm run dev` yourself: without the env vars the CLI injects, the app has no backend to
+reach — the dev server prints which command to use instead.
+
+**Default to `npx base44 dev`.** Under `--remote` every write hits the live app. The vite startup
+line names the backend either way: `[base44] Proxy enabled: /api -> <target>`. Say which you
+started. Options: [dev.md](references/dev.md).
 
 ### Deploying All Changes
 ```bash
 # Generate types (optional, for TypeScript projects)
 npx base44 types generate
 
-# Build your project first
-npm run build
-
-# Deploy everything (entities, functions, and site)
-npx base44 deploy -y
+# Deploy everything (entities, functions, and site), building the site first
+npx base44 deploy --build -y
 ```
+
+Build through the CLI, not with `npm run build`: `npx base44 build` injects `VITE_BASE44_APP_ID`,
+which a bare `npm run build` leaves unset — the bundle then can't resolve its own app and every API
+call on the deployed site fails. `npx base44 deploy` asks whether to build first; `--build` /
+`--no-build` answers up front (non-interactive defaults to upload-only, so CI is unchanged).
 
 ### Generating TypeScript Types
 ```bash
@@ -638,5 +665,6 @@ Most commands require authentication. If you're not logged in, the CLI will auto
 | Duplicate connector type    | Each connector type can only be defined once per project                            |
 | Connector authorization timeout | Re-run `npx base44 connectors push` and complete the OAuth flow in your browser  |
 | No site configuration found | Check that `site.outputDirectory` is configured in project config                   |
-| Site deployment fails       | Ensure you ran `npm run build` first and the build succeeded                        |
+| Site deployment fails       | Ensure the site was built first (`npx base44 build`, or `npx base44 deploy --build`) and the build succeeded |
+| Deployed site's API calls all fail | The bundle was built without its app id — rebuild with `npx base44 build`, not a bare `npm run build`, and redeploy |
 | Update available message    | If prompted to update, run `npm install -g base44@latest` (or use npx for local installs) |

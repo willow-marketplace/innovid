@@ -128,7 +128,7 @@ func TestCopilotMarketplaceConsistency(t *testing.T) {
 	assert.Equal(t, manifestName, entry["name"],
 		"marketplace plugin name must match copilot/plugin.json name (the install id)")
 	assert.Equal(t, manifestVersion, entry["version"],
-		"marketplace plugin version must match copilot/plugin.json (release.sh keeps these in sync)")
+		"marketplace plugin version must match copilot/plugin.json (scripts/version.sh keeps these in sync)")
 
 	meta, _ := mp["metadata"].(map[string]any)
 	assert.Equal(t, manifestVersion, meta["version"],
@@ -166,5 +166,9 @@ func TestCopilotBootstrapValidAndForwardsArgs(t *testing.T) {
 	assert.Contains(t, string(body), `exec "$BINARY" "$@"`, "bootstrap must forward args to the binary")
 	info, err := os.Stat(script)
 	require.NoError(t, err)
-	assert.NotZero(t, info.Mode()&0o111, "bootstrap must be executable")
+	// Windows has no executable bit — os.Stat reports 0666 for every regular
+	// file — so the check only means something on POSIX.
+	if runtime.GOOS != "windows" {
+		assert.NotZero(t, info.Mode()&0o111, "bootstrap must be executable")
+	}
 }

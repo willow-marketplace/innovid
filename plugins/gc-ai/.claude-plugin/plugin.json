@@ -1,0 +1,31 @@
+{
+  "name": "gc-ai",
+  "version": "0.1.0",
+  "description": "Work in your GC AI legal knowledge base from Claude: upload documents, run review playbooks, and ask questions grounded in your own files, all as you.",
+  "updatedAt": "2026-09-14T10:58:32.683Z",
+  "author": {
+    "url": "https://gc.ai",
+    "name": "GC AI",
+    "email": "support@gc.ai"
+  },
+  "homepage": "https://github.com/GC-AI-Inc/gc-ai-claude-plugin",
+  "repository": "https://github.com/GC-AI-Inc/gc-ai-claude-plugin",
+  "keywords": [
+    "legal",
+    "contracts",
+    "document-review",
+    "playbooks",
+    "gc-ai"
+  ],
+  "displayName": "GC AI",
+  "skills": "./skills/",
+  "agents": [
+    "./agents/gc-ai-analyst.md"
+  ],
+  "mcpServers": {
+    "gc-ai": {
+      "url": "https://app.gc.ai/api/mcp",
+      "type": "http"
+    }
+  }
+}

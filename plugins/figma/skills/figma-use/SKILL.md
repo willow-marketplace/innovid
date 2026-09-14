@@ -20,11 +20,11 @@ Before anything, load [plugin-api-standalone.index.md](references/plugin-api-sta
 IMPORTANT: Whenever you work with design systems, start with [working-with-design-systems/wwds.md](references/working-with-design-systems/wwds.md) to understand the key concepts, processes, and guidelines for working with design systems in Figma. Then load the more specific references for components, variables, text styles, and effect styles as needed.
 
 ## 1. Critical Rules
-
 1.  **Use `return` to send data back.** The return value is JSON-serialized automatically (objects, arrays, strings, numbers). Do NOT call `figma.closePlugin()` or wrap code in an async IIFE — this is handled for you.
 2.  **Write plain JavaScript with top-level `await` and `return`.** Code is automatically wrapped in an async context. Do NOT wrap in `(async () => { ... })()`.
 3.  `figma.notify()` **throws "not implemented"** — never use it
-3a. **Return node IDs and keep workflow state outside the Figma file.** Put human-readable component purpose and usage in the component's `description`.
+3a. **Return node IDs and keep workflow state outside the Figma file.** Set human-readable component purpose and usage in `node.description` only on a `COMPONENT` or `COMPONENT_SET` — never on a frame or instance.
+3b. **Narrow before accessing type-specific properties.** Check `node.type`, use a capability guard such as `"characters" in node`, or prefilter with `findAllWithCriteria`. `characters` requires a text-capable node; optional chaining does not protect unsupported property access.
 4.  `console.log()` is NOT returned — use `return` for output
 5.  **Work incrementally in small steps.** Break large operations into multiple `use_figma` calls. Validate after each step. This is the single most important practice for avoiding bugs.
 6.  Colors are **0–1 range** (not 0–255): `{r: 1, g: 0, b: 0}` = red
@@ -37,7 +37,7 @@ IMPORTANT: Whenever you work with design systems, start with [working-with-desig
 12a. **Use auto-layout for containers that hold related children.** When children have a structural relationship — stacked, side-by-side, aligned, gapped, hugged — wrap them in `figma.createAutoLayout()`, not `figma.createFrame()` with absolute `x`/`y`. Absolute coordinates govern where a container sits on the canvas; auto-layout governs how its children relate inside it. Skipping the container leaves no protection against text reflow, content changes, or overlap.
 12b. **`layoutSizing*` and `*AxisSizingMode` are different enums — don't cross them.** `layoutSizingHorizontal`/`layoutSizingVertical` (set on a **child**) take `'FIXED'|'HUG'|'FILL'`; `primaryAxisSizingMode`/`counterAxisSizingMode` (set on the **frame** itself) take `'FIXED'|'AUTO'`. So `layoutSizingVertical = 'AUTO'` is invalid (use `'HUG'`), and `counterAxisSizingMode = 'FILL'` throws `Expected 'FIXED' | 'AUTO', received 'FILL'` (use `'FIXED'`/`'AUTO'`). Two more errors from the same setter — `Error: in set_layoutSizingHorizontal: node must be an auto-layout frame or a child of an auto-layout frame` and `Error: in set_layoutSizingHorizontal: FILL can only be set on children of auto-layout frames` — mean the node isn't in an auto-layout context yet; **recommendation: make the parent auto-layout (`figma.createAutoLayout()`) and `appendChild` the node before setting** (see Rule 12). See [Gotchas](references/gotchas.md#layoutsizing-vs-axissizingmode-two-different-sizing-enums).
 13. **Position new top-level nodes away from (0,0).** Nodes appended directly to the page default to (0,0). Scan `figma.currentPage.children` to find a clear position (e.g., to the right of the rightmost node). This only applies to page-level nodes — nodes nested inside other frames or auto-layout containers are positioned by their parent. See [Gotchas](references/gotchas.md).
-14. **On `use_figma` error, STOP. Do NOT immediately retry.** Failed scripts are **atomic** — if a script errors, it is not executed at all and no changes are made to the file. Read the error message carefully, fix the script, then retry. See [Error Recovery](#6-error-recovery--self-correction).
+14. **On `use_figma` error, obey `safeToRetryWithoutCanvasRead`.** If `true`, fix the error and retry. If `false`, read the canvas, determine what changed, then make changes. See [Error Recovery](#7-error-recovery--self-correction).
 15. **MUST `return` ALL created/mutated node IDs.** Whenever a script creates new nodes or mutates existing ones on the canvas, collect every affected node ID and return them in a structured object (e.g. `return { createdNodeIds: [...], mutatedNodeIds: [...] }`). This is essential for subsequent calls to reference, validate, or clean up those nodes.
 16. **Always set `variable.scopes` explicitly when creating variables.** The default `ALL_SCOPES` pollutes every property picker — almost never what you want. Use specific scopes like `["FRAME_FILL", "SHAPE_FILL"]` for backgrounds, `["TEXT_FILL"]` for text colors, `["GAP"]` for spacing, etc. See [variable-patterns.md](references/variable-patterns.md) for the full list.
 17. **`await` every Promise.** Never leave a Promise unawaited — unawaited async calls (e.g. `figma.loadFontAsync(...)` without `await`, or `figma.setCurrentPageAsync(page)` without `await`) will fire-and-forget, causing silent failures or race conditions. The script may return before the async operation completes, leading to missing data or half-applied changes.
@@ -310,16 +310,9 @@ Step 5: Final verification
 
 ## 7. Error Recovery & Self-Correction
 
-**`use_figma` is atomic — failed scripts do not execute.** If a script errors, no changes are made to the file. The file remains in the same state as before the call. This means there are no partial nodes, no orphaned elements from the failed script, and retrying after a fix is safe.
-
 ### When `use_figma` returns an error
-
-1. **STOP.** Do not immediately fix the code and retry.
-2. **Read the error message carefully.** Understand exactly what went wrong — wrong API usage, missing font, invalid property value, etc.
-3. **If the error is unclear**, call `get_metadata` or `get_screenshot` to understand the current file state.
-4. **Fix the script** based on the error message.
-5. **Retry** the corrected script.
-
+- If `safeToRetryWithoutCanvasRead` is `true`, fix the error and retry.
+- If `false`, read the canvas, determine what changed, then make changes.
 ### Common self-correction patterns
 | Error message | Likely cause | How to fix |
 |---|---|---|
@@ -327,6 +320,8 @@ Step 5: Final verification
 | `Error: in set_layoutSizingHorizontal: node must be an auto-layout frame or a child of an auto-layout frame` / `Error: in set_layoutSizingHorizontal: FILL can only be set on children of auto-layout frames` / `"HUG can only be set on auto-layout frames or text children of auto-layout frames"` / `"FILL cannot be set on absolute positioned auto-layout children"` / `"FILL cannot be set on canvas grid children"` | Tried to assign `HUG`/`FILL` to a node whose structural context doesn't allow it (e.g. parent isn't auto-layout, ran before `appendChild`, non-text child trying to `HUG`, absolute-positioned child trying to `FILL`) | Make the parent auto-layout via `figma.createAutoLayout()`; `appendChild` first; reserve `HUG` for the auto-layout frame itself or for TEXT children; for absolute/immutable/grid children use `FIXED` + `resize()`. See [gotchas.md](references/gotchas.md#layoutsizinghorizontallayoutsizingvertical-value-rules-fixed-hug-fill) |
 | `"Setting figma.currentPage is not supported"` | Used sync page setter (`figma.currentPage = page`) which does NOT work | Use `await figma.setCurrentPageAsync(page)` — the only way to switch pages |
 | `Error: in get_componentPropertyDefinitions: Can only get component property definitions of a component set or non-variant component` | Read `componentPropertyDefinitions` from a variant `COMPONENT` | Read from its parent `COMPONENT_SET` instead. Narrow the owner before touching the getter; optional chaining does not prevent this error. See [component-property owner narrowing](references/component-patterns.md#component-property-owner-narrowing). |
+| `node.characters: no such property 'characters' on FRAME node` | Accessed text content on a node that does not expose `characters` | Narrow to text-capable nodes before access with `"characters" in node` or `findAllWithCriteria({ types: ['TEXT', 'TEXT_PATH'] })`. Optional chaining does not protect this access. |
+| `node.description: no such property 'description' on FRAME node` | Assigned publishable metadata to a non-publishable node | Set `description` only after narrowing to `COMPONENT` or `COMPONENT_SET`. |
 | Property value out of range | Color channel > 1 (used 0–255 instead of 0–1) | Divide by 255 |
 | `"Cannot read properties of null"` | Node doesn't exist (wrong ID, wrong page) | Check page context, verify ID |
 | Script hangs / no response | Infinite loop or unresolved promise | Check for `while(true)` or missing `await`; ensure code terminates |
@@ -342,7 +337,6 @@ Step 5: Final verification
 > For the full validation workflow, see [Validation & Error Recovery](references/validation-and-recovery.md).
 
 ## 8. Pre-Flight Checklist
-
 Before submitting ANY `use_figma` call, verify:
 - [ ] Code uses `return` to send data back (NOT `figma.closePlugin()`)
 - [ ] Code is NOT wrapped in an async IIFE (auto-wrapped for you)
@@ -352,6 +346,7 @@ Before submitting ANY `use_figma` call, verify:
 - [ ] All colors use 0–1 range (not 0–255)
 - [ ] Paint `color` objects use `{r, g, b}` only — no `a` field (opacity goes at the paint level: `{ type: 'SOLID', color: {...}, opacity: 0.5 }`)
 - [ ] Fills/strokes are reassigned as new arrays (not mutated in place)
+- [ ] Every type-specific node property is guarded or prefiltered: `node.characters` is text-capable only; `node.description` is `COMPONENT`/`COMPONENT_SET` only
 - [ ] Page switches use `await figma.setCurrentPageAsync(page)` (sync setter `figma.currentPage = page` does NOT work)
 - [ ] `layoutSizingVertical/Horizontal = 'FILL'` is set AFTER `parent.appendChild(child)`
 - [ ] Wrapping TEXT blocks set `textAutoResize = 'HEIGHT'` and an explicit width (`'FIXED'` + `resize()`) — NOT `FILL` alone, which the default `WIDTH_AND_HEIGHT` mode ignores, collapsing the node to a near-zero-width thread. Verify `node.width > 0`

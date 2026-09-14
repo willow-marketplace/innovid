@@ -5,7 +5,7 @@ description: "The Claude Security menu — pick a job: scan the codebase (the wh
 
 # Claude Security
 
-- Session start time (UTC, the stamp report directories are named with): !`date -u +%Y%m%d-%H%M%S`
+- Session start time (UTC): !`date -u +%Y%m%d-%H%M%S`
 
 ## The front-desk menu
 

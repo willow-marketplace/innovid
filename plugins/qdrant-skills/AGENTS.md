@@ -44,6 +44,7 @@ skills/
   qdrant-clients-sdk/
   qdrant-deployment-options/
   qdrant-edge/
+  qdrant-migration-tool/
   qdrant-model-migration/
   qdrant-multitenancy/
   qdrant-sizing/

@@ -2,12 +2,28 @@
   "name": "dataproc",
   "version": "0.1.0",
   "description": "Manage Dataproc clusters and jobs.",
-  "updatedAt": "2026-08-29T00:03:31.678Z",
+  "updatedAt": "2026-09-14T10:57:51.808Z",
   "author": {
     "name": "Google LLC",
     "email": "data-cloud-ai-integrations@google.com"
   },
   "homepage": "https://cloud.google.com/dataproc",
   "repository": "https://github.com/gemini-cli-extensions/dataproc",
-  "skills": "./skills/"
+  "skills": "./skills/",
+  "mcpServers": {
+    "dataproc": {
+      "env": {
+        "DATAPROC_REGION": "${user_config.dataproc_region}",
+        "DATAPROC_PROJECT": "${user_config.dataproc_project}"
+      },
+      "args": [
+        "-y",
+        "@toolbox-sdk/server@1.9.0",
+        "--prebuilt",
+        "dataproc",
+        "--stdio"
+      ],
+      "command": "npx"
+    }
+  }
 }

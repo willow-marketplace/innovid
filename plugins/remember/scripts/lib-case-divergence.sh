@@ -131,14 +131,35 @@ remember_case_divergence() {
     [ -n "${REMEMBER_STORE_ROOT:-}" ] || return 0
     [ -n "${REMEMBER_DIR:-}" ] || return 0
 
-    local _root="${REMEMBER_DIR%/*}" _name="${REMEMBER_DIR##*/}"
-    [ -n "$_root" ] && [ "$_root" != "$REMEMBER_DIR" ] || return 0
+    # #517: normalize before the parameter-expansion split -- REMEMBER_DIR
+    # arrives backslash-separated on msys/cygwin, and both `%/*` and `##*/`
+    # only ever recognise '/' as the boundary, so without this neither
+    # pattern matches there, _root stays equal to the whole (unsplit)
+    # REMEMBER_DIR, the guard two lines below fails, and this function
+    # returns with REMEMBER_CASE_STATUS left at its default
+    # "not-applicable" regardless of real on-disk state. Splitting the
+    # normalized form also keeps _root itself forward-slash-clean for the
+    # disk probe's own `for _entry in "$_root"/*` glob below.
+    local _remember_case_div_dir _root _name
+    _remember_case_div_dir=$(_remember_forward_slash "$REMEMBER_DIR")
+    _root="${_remember_case_div_dir%/*}" _name="${_remember_case_div_dir##*/}"
+    # Compared against the NORMALIZED form, not the raw $REMEMBER_DIR: on
+    # msys/cygwin the two representations differ by construction (forward-
+    # vs backslash-separated) even when the split above found nothing to
+    # strip, which would make this guard spuriously pass every time if it
+    # compared against the raw value instead.
+    [ -n "$_root" ] && [ "$_root" != "$_remember_case_div_dir" ] || return 0
     [ -n "$_name" ] || return 0
 
     # The same refusal the git backup makes at its top: when the store's parent
     # IS the project, this is the user's own repository and neither hook touches
     # it (#138). Nothing here may go looking inside a repo we do not manage.
-    [ "$_root" != "${PROJECT_DIR:-}" ] || return 0
+    # PROJECT_DIR is forward-slashed too before this comparison -- resolve-
+    # paths.sh's own normalization leaves it backslash-separated on
+    # msys/cygwin, and $_root above is forward-slash-clean by construction
+    # now, so comparing it against a still-backslash PROJECT_DIR would never
+    # match there and this refusal would silently stop firing (#517).
+    [ "$_root" != "$(_remember_forward_slash "${PROJECT_DIR:-}")" ] || return 0
 
     REMEMBER_CASE_RESOLVED="$_name"
     REMEMBER_CASE_ROOT="$_root"
@@ -273,6 +294,6 @@ _remember_case_compose_message() {
         fi
     fi
 
-    REMEMBER_CASE_MESSAGE="remember: ${_lead} — spellings that differ only in case. On a case-insensitive filesystem those are one and the same, which is why memory is being read and written normally and there is nothing to fix today. It would matter on a restore: checked out onto a case-sensitive filesystem they become separate directories, and this plugin would use only ${REMEMBER_CASE_RESOLVED}. Nothing here will rename or merge anything for you — if you keep a backup of this store, check which spellings its HEAD holds before restoring it somewhere case-sensitive. Run /remember:doctor to see this again."
+    REMEMBER_CASE_MESSAGE="remember: ${_lead} -- spellings that differ only in case. On a case-insensitive filesystem those are one and the same, which is why memory is being read and written normally and there is nothing to fix today. It would matter on a restore: checked out onto a case-sensitive filesystem they become separate directories, and this plugin would use only ${REMEMBER_CASE_RESOLVED}. Nothing here will rename or merge anything for you -- if you keep a backup of this store, check which spellings its HEAD holds before restoring it somewhere case-sensitive. Run /remember:doctor to see this again."
     return 0
 }

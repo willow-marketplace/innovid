@@ -22,6 +22,8 @@ brew install jetbrains/utils/teamcity
 curl -fsSL https://jb.gg/tc/install | bash
 ```
 
+The install script also works on macOS. New installs use `~/.local/bin` without sudo; rerunning it updates an existing unmanaged installation in place. Missing Bash/Zsh PATH entries are added automatically. Restart your shell afterward, or use the printed PATH command.
+
 **Windows (Winget):**
 ```powershell
 winget install JetBrains.TeamCityCLI
@@ -83,6 +85,8 @@ See the [getting started guide](https://www.jetbrains.com/help/teamcity/teamcity
 
 ## Usage
 
+For security, redirects never downgrade HTTPS or forward request headers to another origin. Cross-origin artifact downloads remain supported without credentials.
+
 Log in once and the CLI remembers the server:
 
 ```bash
@@ -98,6 +102,9 @@ teamcity run list --user @me --branch @this --limit 1
 # start a build and stay attached to it
 teamcity run start MyProject_Build --branch main --watch
 
+# pin different revisions in a job with multiple VCS roots
+teamcity run start MyProject_Build --revision AppRepo=abc123 --revision AssetsRepo=@main
+
 # logs from the latest build of a job
 teamcity run log --job MyProject_Build
 
@@ -110,9 +117,13 @@ teamcity agent term Agent-Linux-01
 
 One naming note: TeamCity says *build* and *build configuration*; the CLI says `run` and `job`. The [glossary](https://www.jetbrains.com/help/teamcity/teamcity-cli-glossary.html) has the full mapping.
 
+Set `TEAMCITY_RO=1` to block writes and remote shells (`agent exec` and `agent term`). Use server-side permissions for a security boundary.
+
 Every command takes `--json` or `--plain` for [scripting](https://www.jetbrains.com/help/teamcity/teamcity-cli-scripting.html), and `--web` opens the matching page in the TeamCity UI. When no command covers what you need, `teamcity api` calls the REST API directly with your stored credentials. You can also log in to several servers and switch between them — see [configuration](https://www.jetbrains.com/help/teamcity/teamcity-cli-configuration.html).
 
 ## Commands
+
+Artifact downloads are confined to `--output`; failed or incomplete transfers preserve existing files.
 
 | Group        | Commands                                                                                                                                                                                                                                                                                                        |
 |--------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -120,7 +131,7 @@ Every command takes `--json` or `--plain` for [scripting](https://www.jetbrains.
 | **run**      | `list`, `start`, `view`, `watch`, `log`, `tree`, `changes`, `tests`, `diff`, `cancel`, `download`, `artifacts`, `restart`, `pin`/`unpin`, `tag`/`untag`, `comment`                                                                                                                                              |
 | **job**      | `list`, `view`, `create`, `tree`, `pause`/`resume`, `step list`/`view`/`add`/`delete`, `param list`/`get`/`set`/`delete`, `settings list`/`get`/`set`                                                                                                                                                           |
 | **project**  | `list`, `view`, `create`, `tree`, `vcs list`/`view`/`create`/`test`/`delete`, `ssh list`/`generate`/`upload`/`delete`, `cloud profile`/`image`/`instance`, `connection list`/`view`/`create github-app`/`create docker`/`authorize`/`delete`, `param`, `token get`/`put`, `settings export`/`status`/`validate` |
-| **pipeline** | `list`, `view`, `create`, `validate`, `pull`, `push`, `schema`, `delete`                                                                                                                                                                                                                                        |
+| **pipeline** | `list`, `view`, `create`, `validate`, `pull`, `push`, `schema` (enabled runners/features), `delete`                                                                                                                                                                                                                                        |
 | **queue**    | `list`, `approve`, `remove`, `top`                                                                                                                                                                                                                                                                              |
 | **agent**    | `list`, `view`, `term`, `exec`, `jobs`, `authorize`/`deauthorize`, `enable`/`disable`, `move`, `reboot`                                                                                                                                                                                                         |
 | **pool**     | `list`, `view`, `link`/`unlink`                                                                                                                                                                                                                                                                                 |
@@ -130,7 +141,7 @@ Every command takes `--json` or `--plain` for [scripting](https://www.jetbrains.
 | **config**   | `list`, `get`, `set`                                                                                                                                                                                                                                                                                            |
 | **alias**    | `set`, `list`, `delete`                                                                                                                                                                                                                                                                                         |
 | **skill**    | `list`, `install`, `remove`, `update`                                                                                                                                                                                                                                                                           |
-| **update**   | Check for CLI updates                                                                                                                                                                                                                                                                                           |
+| **update**   | Check for and install CLI updates (`--check`/`--json` for status only, `--yes` for non-interactive installation) |
 
 Run `teamcity <command> --help` for usage, or see the [command reference](https://www.jetbrains.com/help/teamcity/teamcity-cli-commands.html).
 
@@ -163,3 +174,7 @@ See [AI agent integration](https://www.jetbrains.com/help/teamcity/teamcity-cli-
 ## Contributing
 
 TeamCity CLI is open source under the Apache-2.0 license. Bug reports and pull requests are welcome — [CONTRIBUTING.md](CONTRIBUTING.md) covers how the project is built and tested.
+
+`project settings status` reports the server’s runtime message and missing DSL context parameters. Its “Recorded” timestamp is when the status was recorded, not the last successful sync.
+
+Connections listed or selected with `--project` include parent projects, including `_Root`. Delete an inherited connection from its owning project.

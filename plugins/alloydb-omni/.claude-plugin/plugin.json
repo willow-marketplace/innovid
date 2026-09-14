@@ -2,12 +2,32 @@
   "name": "alloydb-omni",
   "version": "0.2.1",
   "description": "Create, connect, and interact with an AlloyDB Omni database and data.",
-  "updatedAt": "2026-08-29T00:03:01.417Z",
+  "updatedAt": "2026-09-14T10:57:20.002Z",
   "author": {
     "name": "Google LLC",
     "email": "data-cloud-ai-integrations@google.com"
   },
   "homepage": "https://cloud.google.com/alloydb/omni",
   "repository": "https://github.com/gemini-cli-extensions/alloydb-omni",
-  "skills": "./skills/"
+  "skills": "./skills/",
+  "mcpServers": {
+    "alloydb-omni": {
+      "env": {
+        "ALLOYDB_OMNI_HOST": "${user_config.alloydb_omni_host}",
+        "ALLOYDB_OMNI_PORT": "${user_config.alloydb_omni_port}",
+        "ALLOYDB_OMNI_USER": "${user_config.alloydb_omni_user}",
+        "ALLOYDB_OMNI_DATABASE": "${user_config.alloydb_omni_database}",
+        "ALLOYDB_OMNI_PASSWORD": "${user_config.alloydb_omni_password}",
+        "ALLOYDB_OMNI_QUERY_PARAMS": "${user_config.alloydb_omni_query_params}"
+      },
+      "args": [
+        "-y",
+        "@toolbox-sdk/server@1.9.0",
+        "--prebuilt",
+        "alloydb-omni",
+        "--stdio"
+      ],
+      "command": "npx"
+    }
+  }
 }

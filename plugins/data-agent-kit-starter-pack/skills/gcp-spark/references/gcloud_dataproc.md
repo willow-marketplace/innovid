@@ -1,13 +1,14 @@
-# Dataproc and Spark Integration
+# Managed Spark on Google Cloud (Dataproc) and Spark Integration
 
-Manage Spark resources on Google Cloud Dataproc Clusters and Serverless,
-including setting up clusters; launching jobs and batches; managing serverless
-session templates, and inspecting outputs.
+Manage Spark resources on Managed Spark on Google Cloud (Dataproc Clusters and
+Serverless), including setting up clusters; launching jobs and batches; managing
+serverless session templates; running Spark Connect sessions; and inspecting
+outputs.
 
 ## Background
 
-Dataproc is Google Cloud's managed service for running Hadoop and Spark
-workloads. The two basic flavors are:
+Managed Spark on Google Cloud (Dataproc) is Google Cloud's managed service for
+running Hadoop and Spark workloads. The two basic flavors are:
 
 -   **Clusters** aka **Dataproc on GCE**: users create a cluster, then submit
     one or more Spark or other jobs. Users have control over the underlying VM
@@ -147,7 +148,12 @@ Tips:
 ### Launching batches
 
 > [!WARNING] This DOES NOT apply to executing **Python Notebooks (.ipynb)**.
-> [!IMPORTANT] Refer to this guide when executing **PySpark Script (.py)** ONLY.
+> [!IMPORTANT] This section applies to **PySpark (.py) job**. For other
+> batch jobs e.g. spark-sql use an appropriate job type.
+
+> [!IMPORTANT] Dataproc Serverless batches (`gcloud dataproc batches submit`) do
+> not require running cluster. You MUST NOT create or provision new Dataproc
+> cluster when submitting serverless batch jobs.
 
 Determine the properties and configuration required by the pyspark script before
 executing the command for Job Submission
@@ -220,12 +226,95 @@ the user to associate the notebook with a kernel using the Kernel Selector:
 It is expected for Serverless kernel creation to take approximately 2 minutes or
 more.
 
+### Spark Connect on Dataproc (Notebooks and Scripts)
+
+To initialize, run, or author Spark Connect sessions in PySpark notebooks or
+Python scripts, follow these steps:
+
+1.  **Activating environment**:
+
+    *   **UV installed** (`command -v uv`): Follow **UV environment** (ensure
+        Python version matches runtime e.g. 3.12).
+    *   **Otherwise**: Follow **Pip environment**.
+
+2.  **UV environment**:
+
+    ```bash
+    uv venv spark_env --python 3.12
+    source spark_env/bin/activate
+    uv pip install -U google-cloud-spark-connect
+    ```
+
+3.  **Pip environment**:
+
+    ```bash
+    python3 -m venv spark_env
+    source spark_env/bin/activate
+    pip install -U google-cloud-spark-connect
+    ```
+
+4.  **Initialize `ManagedSparkSession` & Execute**: Use `ManagedSparkSession`
+    from `google.cloud.managed_spark_connect` to connect to Dataproc Serverless.
+    Session provisioning takes **2–3 minutes**; execute scripts in the
+    foreground (e.g. `python3 script.py | tee driver_log.txt`):
+
+    ```python
+    from google.cloud.managed_spark_connect import ManagedSparkSession
+
+    spark = ManagedSparkSession.builder.getOrCreate()
+
+    # Run Spark DataFrame or SQL operations
+    df = spark.sql("SELECT 'Hello from Spark Connect' AS message")
+    df.show()
+
+    # Deactivate / stop the session
+    spark.stop()
+    ```
+
+    You can configure Spark properties using the `.config()` method:
+
+    ```python
+    from google.cloud.managed_spark_connect import ManagedSparkSession
+
+    spark = (
+        ManagedSparkSession.builder.config("spark.executor.memory", "4g")
+        .config("spark.executor.cores", "2")
+        .getOrCreate()
+    )
+    ```
+
+    For advanced configuration, use the `Session` class:
+
+    ```python
+    from google.cloud.dataproc_v1 import Session
+    from google.cloud.managed_spark_connect import ManagedSparkSession
+
+    session_config = Session()
+    session_config.environment_config.execution_config.subnetwork_uri = (
+        "<SUBNET_URI>"
+    )
+    session_config.runtime_config.version = "3.0"
+    spark = (
+        ManagedSparkSession.builder.projectId("<PROJECT_ID>")
+        .location("<REGION>")
+        .dataprocSessionConfig(session_config)
+        .getOrCreate()
+    )
+    ```
+
+5.  **Local Environment Cleanup**:
+
+    ```bash
+    deactivate
+    rm -rf spark_env
+    ```
+
 ### Listing sessions
 
 Prefer MCP if available. If using gcloud, use this command template:
 
 ```
-gcloud beta dataproc sessions list \
+gcloud dataproc sessions list \
     --format="json(createTime, uuid, creator, state, jupyterSession, sparkConnectSession)" \
     --sort-by="~createTime" \
     --limit=100

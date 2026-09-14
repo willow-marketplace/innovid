@@ -2,7 +2,7 @@
   "name": "desktop-commander",
   "version": "0.2.0",
   "description": "MCP server for terminal commands, process management, and file operations across text files, code, PDF, DOCX, Excel, images, and structured data",
-  "updatedAt": "2026-08-29T00:03:33.641Z",
+  "updatedAt": "2026-09-14T10:57:53.370Z",
   "author": {
     "name": "Desktop Commander",
     "email": "es@desktopcommander.app"
@@ -19,6 +19,7 @@
     "spreadsheet",
     "desktop-commander"
   ],
+  "displayName": "Desktop Commander",
   "skills": "./skills/",
   "mcpServers": {
     "desktop-commander": {

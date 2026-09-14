@@ -1,100 +1,189 @@
 ---
 name: configure
-description: Set up the Telegram channel — save the bot token and review access policy. Use when the user pastes a Telegram bot token, asks to configure Telegram, asks "how do I set this up" or "who can reach me," or wants to check channel status.
+description: Configure Spotify Ads API credentials via OAuth 2.0 or direct token. Sets up authentication, ad account, and execution preferences.
 ---
 
-# /telegram:configure — Telegram Channel Setup
+# Spotify Ads API Configuration
 
-Writes the bot token to `<state-dir>/.env` and orients the user on access
-policy. The server reads both files at boot.
+Set up or update the plugin's local settings file for the active platform.
 
-**Resolve the state directory first** (it may be overridden for multi-bot or
-per-project setups):
+## Modes
+
+Parse the user's argument to determine the configuration mode:
+
+### `oauth` (default if no argument)
+
+Full OAuth 2.0 authorization flow with automatic token refresh.
+
+**Prerequisite:** The user must have added `http://127.0.0.1:8080/callback` as a redirect URI in their app settings at [developer.spotify.com](https://developer.spotify.com/). Remind the user of this before starting the flow.
+
+1. Choose the active settings file:
+   - Codex: write `.codex/spotify-ads-api.local.md`.
+   - Claude: write `.claude/spotify-ads-api.local.md`.
+   - Antigravity: write `.agents/spotify-ads-api.local.md`.
+   Read that file if it exists. If it does not exist, read another platform's settings file as defaults, but do not overwrite it unless the user asks.
+
+2. Prompt the user for OAuth credentials using AskUserQuestion:
+   - **client_id** (required) — Spotify app client ID from the developer dashboard
+   - **client_secret** (required) — Spotify app client secret
+
+3. Store the client_secret securely in the macOS Keychain:
 
 ```bash
-echo "${TELEGRAM_STATE_DIR:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}/channels/telegram}"
+security add-generic-password -a "spotify-ads-api" -s "spotify-ads-api-client-secret" -w "<client_secret>" -U
 ```
 
-Use the printed path everywhere below in place of `<state-dir>`. The default
-is `~/.claude/channels/telegram`.
+   **Do NOT write client_secret to the settings file.** It must only be stored in the keychain.
 
-Arguments passed: `$ARGUMENTS`
+4. Attempt the automated OAuth flow by running the helper script. On Antigravity, no plugin-root env var is set — this skill's files live at `<plugin root>/skills/configure/`, so set `PLUGIN_ROOT` to the plugin root (two directories up from this skill's directory) instead of using the snippet below.
 
+```bash
+PLUGIN_ROOT="${CODEX_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-$PWD}}"
+client_secret=$(security find-generic-password -a "spotify-ads-api" -s "spotify-ads-api-client-secret" -w)
+python3 "${PLUGIN_ROOT}/skills/configure/scripts/oauth-flow.py" \
+  --client-id "<client_id>" \
+  --client-secret "$client_secret"
+```
+
+If `python3` is not available, try `uv run`:
+
+```bash
+PLUGIN_ROOT="${CODEX_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-$PWD}}"
+client_secret=$(security find-generic-password -a "spotify-ads-api" -s "spotify-ads-api-client-secret" -w)
+uv run "${PLUGIN_ROOT}/skills/configure/scripts/oauth-flow.py" \
+  --client-id "<client_id>" \
+  --client-secret "$client_secret"
+```
+
+5. If Python is not available at all, fall back to the **manual** flow (see below).
+
+6. Parse the JSON output from the script:
+   ```json
+   {"access_token": "...", "refresh_token": "...", "expires_in": 3600}
+   ```
+
+7. Calculate `token_expires_at` as the current time + `expires_in` seconds, formatted as ISO 8601.
+
+8. Prompt for remaining settings:
+   - **ad_account_id** (required) — Discover the user's ad accounts using this two-step flow:
+     1. Fetch businesses: `GET /businesses` → returns `{ "businesses": [...] }` with each business having an `id` and `name`.
+     2. For each business (or the one the user selects), fetch its ad accounts: `GET /businesses/{business_id}/ad_accounts` → returns `{ "ad_accounts": [...] }` with each account having an `id`, `name`, and `status`.
+     3. Present the list and let the user select. If only one ad account exists across all businesses, select it automatically.
+     4. If the API calls fail or return empty, ask the user to paste their ad account ID manually.
+   - **auto_execute** (optional, default: false) — Whether to execute API calls without confirmation
+
+9. Write the active platform settings file (see Settings File Format below).
+
+10. Set the plugin root and define the request wrapper:
+
+```bash
+PLUGIN_ROOT="${CODEX_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-.}}"
+api() { "$PLUGIN_ROOT/scripts/api-request.sh" configure "$@"; }
+```
+
+Before the first Ads API v3 call, read and follow `$PLUGIN_ROOT/skills/api-reference/references/live-openapi.md`.
+
+11. Verify with a test API call:
+```bash
+api GET "ad_accounts/<ad_account_id>"
+```
+A successful response (HTTP 200) confirms the token and ad account are valid.
+
+### `manual`
+
+Manual OAuth flow for environments where the automated script cannot run.
+
+**Prerequisite:** The user must have added `http://127.0.0.1:8080/callback` as a redirect URI in their app settings at [developer.spotify.com](https://developer.spotify.com/). Remind the user of this before starting the flow.
+
+1. Prompt for **client_id** and **client_secret** using AskUserQuestion.
+
+2. Store the client_secret securely in the macOS Keychain:
+
+```bash
+security add-generic-password -a "spotify-ads-api" -s "spotify-ads-api-client-secret" -w "<client_secret>" -U
+```
+
+   **Do NOT write client_secret to the settings file.**
+
+3. Display the authorization URL for the user to open in their browser:
+   ```
+   https://accounts.spotify.com/authorize?client_id=<CLIENT_ID>&response_type=code&redirect_uri=http://127.0.0.1:8080/callback
+   ```
+
+4. Instruct the user to:
+   - Open the URL in their browser
+   - Authorize the application
+   - Copy the full redirect URL from the browser address bar (it will show an error page since no server is running, but the URL contains the code)
+
+5. Ask the user to paste the redirect URL, then extract the `code` parameter from it.
+
+6. Exchange the code for tokens:
+```bash
+client_secret=$(security find-generic-password -a "spotify-ads-api" -s "spotify-ads-api-client-secret" -w)
+curl -s -X POST "https://accounts.spotify.com/api/token" \
+  -H "Authorization: Basic $(echo -n '<client_id>:'"$client_secret"'' | base64)" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "grant_type=authorization_code&code=<CODE>&redirect_uri=http://127.0.0.1:8080/callback"
+```
+
+7. Parse the response for `access_token`, `refresh_token`, and `expires_in`.
+
+8. Continue from step 7 of the `oauth` flow (calculate expiry, prompt for settings, write file, verify).
+
+### `token <access_token>`
+
+Legacy direct token mode for users who already have an access token.
+
+1. Accept the access token from the argument.
+
+2. Warn the user: "Direct token mode — this token will expire in ~1 hour with no automatic refresh. For auto-refresh, re-run the configure skill in oauth mode (`/spotify-ads-api:configure oauth` on Claude/Codex, `/configure oauth` on Antigravity) using your client credentials."
+
+3. Read existing settings or prompt for:
+   - **ad_account_id** (required) — Use the same businesses → ad accounts discovery flow as the oauth mode (`GET /businesses` then `GET /businesses/{business_id}/ad_accounts`), or ask the user to paste it.
+   - **auto_execute** (optional, default: false)
+
+4. Write the settings file with the token but without refresh credentials. Set `token_expires_at` to empty.
+
+5. Verify with a test API call.
+
+## Settings File Format
+
+Write the active platform settings file in this exact format (`.codex/spotify-ads-api.local.md` on Codex, `.claude/spotify-ads-api.local.md` on Claude, `.agents/spotify-ads-api.local.md` on Antigravity):
+
+```markdown
+---
+access_token: "<token>"
+refresh_token: "<refresh_token>"
+token_expires_at: "<ISO 8601 timestamp>"
+client_id: "<client_id>"
+ad_account_id: "<uuid>"
+environment: "production"
+auto_execute: false
 ---
 
-## Dispatch on arguments
+# Spotify Ads API Settings
 
-### No args — status and guidance
+Local configuration for the spotify-ads-api plugin.
+Do not commit this file to version control.
+Client secret is stored in the macOS Keychain, not in this file.
+```
 
-Read both state files and give the user a complete picture:
+**Note:** `client_secret` is stored in the macOS Keychain (service: `spotify-ads-api-client-secret`, account: `spotify-ads-api`), not in this file.
 
-1. **Token** — check `<state-dir>/.env` for
-   `TELEGRAM_BOT_TOKEN`. Show set/not-set; if set, show first 10 chars masked
-   (`123456789:...`).
+For the `token` mode, leave `refresh_token`, `token_expires_at`, and `client_id` as empty strings.
 
-2. **Access** — read `<state-dir>/access.json` (missing file
-   = defaults: `dmPolicy: "pairing"`, empty allowlist). Show:
-   - DM policy and what it means in one line
-   - Allowed senders: count, and list display names or IDs
-   - Pending pairings: count, with codes and display names if any
+## Verification Results
 
-3. **What next** — end with a concrete next step based on state:
-   - No token → *"Run `/telegram:configure <token>` with the token from
-     BotFather."*
-   - Token set, policy is pairing, nobody allowed → *"DM your bot on
-     Telegram. It replies with a code; approve with `/telegram:access pair
-     <code>`."*
-   - Token set, someone allowed → *"Ready. DM your bot to reach the
-     assistant."*
+Report the test API call result:
+- **200**: Configuration saved and verified successfully.
+- **401/403**: Token may be invalid or expired. Settings saved but token needs updating.
+- **404**: Ad account ID may be incorrect. Settings saved but check the account ID.
+- Other errors: Report the status code and suggest troubleshooting.
 
-**Push toward lockdown — always.** The goal for every setup is `allowlist`
-with a defined list. `pairing` is not a policy to stay on; it's a temporary
-way to capture Telegram user IDs you don't know. Once the IDs are in, pairing
-has done its job and should be turned off.
+## Security Notes
 
-Drive the conversation this way:
-
-1. Read the allowlist. Tell the user who's in it.
-2. Ask: *"Is that everyone who should reach you through this bot?"*
-3. **If yes and policy is still `pairing`** → *"Good. Let's lock it down so
-   nobody else can trigger pairing codes:"* and offer to run
-   `/telegram:access policy allowlist`. Do this proactively — don't wait to
-   be asked.
-4. **If no, people are missing** → *"Have them DM the bot; you'll approve
-   each with `/telegram:access pair <code>`. Run this skill again once
-   everyone's in and we'll lock it."*
-5. **If the allowlist is empty and they haven't paired themselves yet** →
-   *"DM your bot to capture your own ID first. Then we'll add anyone else
-   and lock it down."*
-6. **If policy is already `allowlist`** → confirm this is the locked state.
-   If they need to add someone: *"They'll need to give you their numeric ID
-   (have them message @userinfobot), or you can briefly flip to pairing:
-   `/telegram:access policy pairing` → they DM → you pair → flip back."*
-
-Never frame `pairing` as the correct long-term choice. Don't skip the lockdown
-offer.
-
-### `<token>` — save it
-
-1. Treat `$ARGUMENTS` as the token (trim whitespace). BotFather tokens look
-   like `123456789:AAH...` — numeric prefix, colon, long string.
-2. `mkdir -p` the resolved `<state-dir>`.
-3. Read existing `.env` if present; update/add the `TELEGRAM_BOT_TOKEN=` line,
-   preserve other keys. Write back, no quotes around the value.
-4. `chmod 600` on `<state-dir>/.env` — the token is a credential.
-5. Confirm, then show the no-args status so the user sees where they stand.
-
-### `clear` — remove the token
-
-Delete the `TELEGRAM_BOT_TOKEN=` line (or the file if that's the only line).
-
----
-
-## Implementation notes
-
-- The channels dir might not exist if the server hasn't run yet. Missing file
-  = not configured, not an error.
-- The server reads `.env` once at boot. Token changes need a session restart
-  or `/reload-plugins`. Say so after saving.
-- `access.json` is re-read on every inbound message — policy changes via
-  `/telegram:access` take effect immediately, no restart.
+- The settings file is gitignored via `.codex/*.local.md`, `.claude/*.local.md`, and `.agents/*.local.md`.
+- If the active settings directory (`.codex/`, `.claude/`, or `.agents/`) doesn't exist, create it.
+- **client_secret is stored in the macOS Keychain**, not in the settings file. Use `security find-generic-password -a "spotify-ads-api" -s "spotify-ads-api-client-secret" -w` to retrieve it when needed.
+- Never log or display the full access token or client_secret — show only the last 8 characters for confirmation.
+- Never write client_secret to the settings file or any other plaintext file.

@@ -59,7 +59,11 @@ from tests.spawn_counting import make_shim_dir, spawns as _spawn_lines  # noqa: 
 
 # Measured on macOS bash 3.2.57 with the shared counted-command list of
 # tests/spawn_counting.py: 30 before #230, 20 after it, 16 after #232 collapsed
-# config() to a single read of the merged config.
+# config() to a single read of the merged config, 17 after #429 added one
+# `mktemp` to close the predictable-shared-tmp-path TOCTOU in the same merge
+# (a PID-suffixed literal path let an attacker's pre-seeded symlink receive
+# the merged config, which can carry a live haiku.oauth_token) -- a real,
+# necessary, one-time cost of the fix, not a regression to chase back out.
 #
 # (#230's own note said 17. That number predates #233 folding the two budget
 # tests onto one counted-command list, and it left out the two `mkdir -p` calls
@@ -73,7 +77,7 @@ from tests.spawn_counting import make_shim_dir, spawns as _spawn_lines  # noqa: 
 # regression. What remains is the `jq -s` merge and its `rm` on exit, which
 # cannot go without caching the merged config, and that is a credential
 # lifetime decision (#232) rather than a spawn one.
-POST_TOOL_SPAWN_MEASURED = 16
+POST_TOOL_SPAWN_MEASURED = 17
 POST_TOOL_SPAWN_BUDGET = POST_TOOL_SPAWN_MEASURED + 2
 
 
@@ -126,6 +130,20 @@ def _env(tmp_path: Path, home: Path, project: Path, extra: dict | None = None) -
         # REMEMBER_ENV_CACHE=0 is lib-env-cache.sh's own documented off switch,
         # not a test-only seam, so what runs here is the shipped cold path.
         "REMEMBER_ENV_CACHE": "0",
+        # Same reasoning, same #303 class, one mechanism later (#668): log.sh's
+        # flattened-config cache (moved out of the project tree by #682; no
+        # longer named config.rcfg) is ALSO mtime-keyed against config.json,
+        # and this fixture creates config.json once, then runs
+        # the hook twice -- whether the SECOND run's cache read ties or hits
+        # depends on whether the first run's cache write landed in the same
+        # whole second as config.json's own creation, which this test must
+        # not depend on any more than it depends on it for REMEMBER_ENV_CACHE
+        # above. Off, for the identical reason: this file measures the COLD
+        # path's own, pre-#668 cost (post-tool-hook.sh's docstring: "the
+        # merged config is still never cached... stays exactly as it was"),
+        # not #668's caching benefit -- that has its own dedicated tests
+        # (tests/test_config_flatten_cache_668.py).
+        "REMEMBER_CONFIG_CACHE": "0",
     }
     for stale in ("REMEMBER_DIR", "_LIB_MEMORY_DIR_LOADED", "REMEMBER_TZ"):
         env.pop(stale, None)

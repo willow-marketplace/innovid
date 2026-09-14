@@ -1,0 +1,135 @@
+name: Release skills
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: qodo-skills-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    if: >-
+      github.repository == 'qodo-ai/qodo-skills' &&
+      github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-latest
+    environment:
+      name: marketplace-kiro
+    steps:
+      - name: Check out the release commit
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+
+      - name: Validate release tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          for tool in gh git node npm mktemp sha256sum cmp rm; do
+            command -v "${tool}" >/dev/null 2>&1 || {
+              echo "Release requires '${tool}', but it is not available on this runner." >&2
+              exit 1
+            }
+          done
+
+      - name: Require the exact merged main commit
+        run: |
+          set -euo pipefail
+          git fetch origin main --no-tags
+          if [[ "$(git rev-parse origin/main)" != "${GITHUB_SHA}" ]]; then
+            echo 'Refusing to publish: GITHUB_SHA is not the current merged main commit.' >&2
+            exit 1
+          fi
+
+      - name: Resolve the immutable release source commit
+        id: release-source
+        run: |
+          set -euo pipefail
+          VERSION="$(node -p "require('./distribution/catalog.json').package.version")"
+          TAG="v${VERSION}"
+          RELEASE_COMMIT="${GITHUB_SHA}"
+          if git ls-remote --exit-code --tags origin "refs/tags/${TAG}" >/dev/null 2>&1; then
+            git fetch origin "refs/tags/${TAG}:refs/tags/${TAG}" --force
+            if [[ "$(git cat-file -t "refs/tags/${TAG}")" != 'tag' ]]; then
+              echo "${TAG} is not an annotated tag; refusing recovery." >&2
+              exit 1
+            fi
+            RELEASE_COMMIT="$(git rev-parse "refs/tags/${TAG}^{}")"
+            if ! git merge-base --is-ancestor "${RELEASE_COMMIT}" "${GITHUB_SHA}"; then
+              echo "${TAG} is not an ancestor of current main; refusing recovery." >&2
+              exit 1
+            fi
+          fi
+          echo "commit=${RELEASE_COMMIT}" >> "${GITHUB_OUTPUT}"
+
+      - name: Install locked validation dependencies
+        run: npm ci
+
+      - name: Verify the release package
+        run: npm test
+
+      - name: Require dedicated release App configuration
+        env:
+          RELEASE_APP_ID: ${{ vars.QODO_SKILLS_RELEASE_APP_ID }}
+          RELEASE_APP_PRIVATE_KEY: ${{ secrets.QODO_SKILLS_RELEASE_APP_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          [[ "${RELEASE_APP_ID}" =~ ^[0-9]+$ ]] || { echo 'QODO_SKILLS_RELEASE_APP_ID must be configured in marketplace-kiro.' >&2; exit 1; }
+          test -n "${RELEASE_APP_PRIVATE_KEY}" || { echo 'QODO_SKILLS_RELEASE_APP_PRIVATE_KEY must be configured in marketplace-kiro.' >&2; exit 1; }
+
+      - name: Mint installation-wide read-only release preflight token
+        id: release-preflight-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
+        with:
+          app-id: ${{ vars.QODO_SKILLS_RELEASE_APP_ID }}
+          private-key: ${{ secrets.QODO_SKILLS_RELEASE_APP_PRIVATE_KEY }}
+          owner: qodo-ai
+          permission-administration: read
+
+      - name: Verify runtime release prerequisites
+        env:
+          GH_TOKEN: ${{ steps.release-preflight-token.outputs.token }}
+        run: scripts/verify-release-prerequisites.sh
+
+      - name: Materialize the immutable release source
+        env:
+          RELEASE_COMMIT: ${{ steps.release-source.outputs.commit }}
+        run: |
+          set -euo pipefail
+          RELEASE_SOURCE_DIR="${RUNNER_TEMP}/qodo-release-source"
+          git worktree add --detach "${RELEASE_SOURCE_DIR}" "${RELEASE_COMMIT}"
+          test "$(git -C "${RELEASE_SOURCE_DIR}" rev-parse HEAD)" = "${RELEASE_COMMIT}"
+          test -z "$(git -C "${RELEASE_SOURCE_DIR}" status --porcelain --untracked-files=all)"
+
+      - name: Build deterministic release assets from the immutable source
+        env:
+          RELEASE_COMMIT: ${{ steps.release-source.outputs.commit }}
+        run: |
+          set -euo pipefail
+          node "${RUNNER_TEMP}/qodo-release-source/scripts/build-release-index.mjs" \
+            --output-dir "${RUNNER_TEMP}/qodo-release-index" \
+            --source-commit "${RELEASE_COMMIT}"
+          node "${RUNNER_TEMP}/qodo-release-source/scripts/build-enterprise-bundle.mjs" \
+            --output "${RUNNER_TEMP}/qodo-enterprise-release" \
+            --commit "${RELEASE_COMMIT}" \
+            --release-index "${RUNNER_TEMP}/qodo-release-index/qodo-skills-index.json"
+          node "${RUNNER_TEMP}/qodo-release-source/scripts/release-notes.mjs" \
+            "${RUNNER_TEMP}/qodo-release-notes.md"
+
+      - name: Publish the immutable tag and GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          QODO_ENTERPRISE_RELEASE_DIR: ${{ runner.temp }}/qodo-enterprise-release
+          QODO_RELEASE_COMMIT: ${{ steps.release-source.outputs.commit }}
+          QODO_RELEASE_NOTES_FILE: ${{ runner.temp }}/qodo-release-notes.md
+          QODO_RELEASE_SOURCE_DIR: ${{ runner.temp }}/qodo-release-source
+          QODO_RELEASE_INDEX_DIR: ${{ runner.temp }}/qodo-release-index
+        run: scripts/publish-release.sh

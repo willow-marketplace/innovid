@@ -49,7 +49,7 @@
 #
 # ============================================================================
 
-set -u  # not -e — we never want to fail loudly here
+set -u  # not -e -- we never want to fail loudly here
 
 # ── Cheap guards FIRST, before sourcing anything ─────────────────────────────
 # Sourcing log.sh loads and parses the merged config. Most installs are legacy
@@ -58,11 +58,53 @@ set -u  # not -e — we never want to fail loudly here
 # and the two tests below cost zero subprocesses.
 [ -n "${REMEMBER_DIR:-}" ] && [ -n "${PROJECT_DIR:-}" ] && [ -n "${PIPELINE_DIR:-}" ] || exit 0
 
-REPO_ROOT="${REMEMBER_DIR%/*}"
-SLUG="${REMEMBER_DIR##*/}"
+# #519: normalize before the parameter-expansion split -- REMEMBER_DIR
+# arrives backslash-separated on msys/cygwin (resolve-paths.sh's own
+# _remember_normalize_win_path), and both `%/*` and `##*/` only ever
+# recognise '/' as the boundary, so without this REPO_ROOT stays equal to
+# the whole (unsplit) REMEMBER_DIR. That does not fail loudly: the later
+# `git -C "$REPO_ROOT" rev-parse --show-toplevel` walks up from the wrong
+# (child) directory, finds the TRUE repo root one level up, the two no
+# longer match, and the "not toplevel" refusal a few lines down fires
+# unconditionally -- so on an affected Windows install with
+# git_restore.enabled=true, the whole restore silently never fires, for
+# every REMEMBER_DIR, legacy or external, with no error surfaced anywhere.
+#
+# This is the identical gate `_remember_forward_slash`
+# (scripts/resolve-paths.sh, #517) applies, duplicated inline rather than
+# calling that function directly: session-start-hook.sh's dispatch() execs
+# this file as its own process (not sourced), so a function defined by
+# resolve-paths.sh in the PARENT process is not in scope here, and this
+# file deliberately does not source resolve-paths.sh itself to keep the
+# "cheap guards first" cost promise two lines above -- sourcing it would
+# make even a legacy-mode install (the majority, which exits right below
+# and can never activate this hook) pay for a config resolution it will
+# never use.
+#
+# PROJECT_DIR is normalized here too (self-review finding), not just
+# REMEMBER_DIR: _remember_normalize_win_path rewrites PROJECT_DIR to
+# BACKSLASH form on msys/cygwin (scripts/resolve-paths.sh, drive-letter
+# branch), the opposite direction from this normalization -- so comparing
+# the now-forward-slashed REPO_ROOT against a still-backslash PROJECT_DIR
+# would make the legacy-mode short-circuit below never match on a genuine
+# legacy install, defeating the exact "cheap guards first" cost promise
+# this normalization exists to protect. scripts/doctor.sh:141 and
+# scripts/lib-case-divergence.sh:162 normalize both sides of this identical
+# REMEMBER_DIR-vs-PROJECT_DIR comparison for the same reason.
+case "${OSTYPE:-}" in
+    msys|cygwin) _gr_normalized_dir="${REMEMBER_DIR//\\//}"
+                 _gr_normalized_project="${PROJECT_DIR//\\//}" ;;
+    *)           _gr_normalized_dir="$REMEMBER_DIR"
+                 _gr_normalized_project="$PROJECT_DIR" ;;
+esac
+REPO_ROOT="${_gr_normalized_dir%/*}"
+SLUG="${_gr_normalized_dir##*/}"
+unset _gr_normalized_dir
 
-# Legacy mode (REMEMBER_DIR is inside PROJECT_DIR) → never run.
-[ "$REPO_ROOT" = "$PROJECT_DIR" ] && exit 0
+# Legacy mode (REMEMBER_DIR is inside PROJECT_DIR) → never run. Compared
+# against the NORMALIZED PROJECT_DIR (see above), not the raw one.
+[ "$REPO_ROOT" = "$_gr_normalized_project" ] && exit 0
+unset _gr_normalized_project
 
 # Prevent outer git env vars from overriding git -C behaviour. Same reasoning
 # as the backup hook: a leaked GIT_DIR makes every `git -C … rev-parse`
@@ -89,9 +131,66 @@ if [ "$(_gr_realpath "$TOPLEVEL")" != "$(_gr_realpath "$REPO_ROOT")" ]; then
     # cost; the ordinary "not a git repo at all" exit above still says nothing,
     # because that one really is "nothing to do".
     source "$PIPELINE_DIR/scripts/log.sh" 2>/dev/null && \
-        log "git-restore" "declined: $REPO_ROOT is not the toplevel of its git repository (that is $TOPLEVEL) — a memory store inside a larger repo is never fast-forwarded by this hook, deliberately. Nothing was restored."
+        log "git-restore" "declined: $REPO_ROOT is not the toplevel of its git repository (that is $TOPLEVEL) -- a memory store inside a larger repo is never fast-forwarded by this hook, deliberately. Nothing was restored."
     exit 0
 fi
+
+# ── Cheap gate BEFORE sourcing anything (#663, part of #660) ─────────────────
+# session-start-hook.sh's dispatch() runs this file as a CHILD of a process
+# that already sourced log.sh -- which already ran the full three-layer
+# config merge (lib-memory-dir.sh: mktemp, jq -s across up to three files)
+# and log.sh's own one-pass flatten (another jq call) -- and exported the
+# result as REMEMBER_CONFIG. `source log.sh` below is unconditional, so this
+# child redid the ENTIRE merge from scratch, every time, before ever reading
+# whether the hook is even switched on: because `_LIB_MEMORY_DIR_LOADED` is
+# not (and cannot safely be, see the comment on that guard elsewhere in this
+# codebase) exported to the child, sourcing lib-memory-dir.sh here re-runs
+# unconditionally rather than skipping. #253's default is OFF, so this is
+# every dispatch of this hook, on every install that has never touched
+# git_restore, paying for a merge whose answer is never used.
+#
+# The fix is the one the brief names as cheapest: read the flag straight out
+# of the ALREADY-MERGED file the parent exported, with one jq (or python)
+# call, and only pay for the full chain (which this file still needs for the
+# actual restore, and for config()'s other keys below) when that flag says
+# yes. If REMEMBER_CONFIG is not there, is not readable, or neither jq nor
+# python is available to read it, this must not guess "disabled" -- it falls
+# through to the unconditional `source log.sh` + config() gate below
+# unchanged, so a install lacking jq/REMEMBER_CONFIG never silently loses a
+# restore it asked for. This is strictly an optimization: every path below
+# still re-checks the flag through config() before doing anything else.
+_gr_cheap_restore_enabled() {
+    [ -n "${REMEMBER_CONFIG:-}" ] && [ -f "$REMEMBER_CONFIG" ] || return 1
+    if command -v jq >/dev/null 2>&1; then
+        jq -r '.git_restore.enabled // false' "$REMEMBER_CONFIG" 2>/dev/null
+    elif command -v "${PYTHON:-python3}" >/dev/null 2>&1; then
+        "${PYTHON:-python3}" -c '
+import json, sys
+try:
+    with open(sys.argv[1]) as f:
+        d = json.load(f)
+except Exception:
+    sys.exit(1)
+v = d.get("git_restore", {}).get("enabled", False) if isinstance(d, dict) else False
+print("true" if v is True or v == "true" else "false")
+' "$REMEMBER_CONFIG" 2>/dev/null
+    else
+        return 1
+    fi
+}
+_GR_CHEAP_RC=0
+_GR_CHEAP_ENABLED=$(_gr_cheap_restore_enabled) || _GR_CHEAP_RC=$?
+unset -f _gr_cheap_restore_enabled
+if [ "$_GR_CHEAP_RC" -eq 0 ] && [ "$_GR_CHEAP_ENABLED" != "true" ]; then
+    # A definitive "false" from the file the parent already merged. Nothing
+    # sourced, nothing merged twice.
+    exit 0
+fi
+# Either the cheap read said "true" (fall through and let the authoritative
+# check below confirm it once log.sh's config() is available), or it could
+# not answer at all (_GR_CHEAP_RC != 0) -- in which case the unconditional
+# source + gate below is the only source of truth, exactly as before this
+# change.
 
 # ── Now we can afford logging + config ───────────────────────────────────────
 source "$PIPELINE_DIR/scripts/log.sh"
@@ -241,7 +340,7 @@ _spawn_fetch() {
                 #
                 # Fall through and spawn. The spawn rewrites the record, which
                 # is the whole repair, and one line says why.
-                report_error "git-restore" "WARNING: $FETCH_STATE_FILE says a fetch started $(( 0 - _age ))s in the FUTURE — the clock moved back, or the record is corrupt in a way a digits-only check cannot see. No fetch is running; starting a real one and rewriting the record."
+                report_error "git-restore" "WARNING: $FETCH_STATE_FILE says a fetch started $(( 0 - _age ))s in the FUTURE -- the clock moved back, or the record is corrupt in a way a digits-only check cannot see. No fetch is running; starting a real one and rewriting the record."
             elif [ "$_age" -lt "$FETCH_TIMEOUT" ]; then
                 return 0
             fi
@@ -376,7 +475,7 @@ _take_lock() {
 }
 
 if ! _take_lock; then
-    log "git-restore" "store busy (backup in progress), skip — the fast-forward will be retried next session"
+    log "git-restore" "store busy (backup in progress), skip -- the fast-forward will be retried next session"
     exit 0
 fi
 
@@ -387,26 +486,26 @@ fi
 # failing for a week looks identical to a store that is genuinely current.
 case "$FETCH_HEALTH" in
     ok)        : ;;
-    never-run) log "git-restore" "no fetch has completed yet for $REPO_ROOT — the comparison below is against whatever refs are already on disk, which may be stale. A fetch starts in the background now and its result lands next session." ;;
-    in-flight) log "git-restore" "a background fetch is still running — the comparison below is against the previous fetch's refs" ;;
-    abandoned) log "git-restore" "WARNING: the last background fetch never completed (started $(cat "$FETCH_STATE_FILE" 2>/dev/null | head -1)) — could NOT check the remote. This is not 'up to date': the refs below are as old as the last fetch that did finish." ;;
-    failed:*)  log "git-restore" "WARNING: the last background fetch FAILED (rc=${FETCH_HEALTH#failed:}) — could NOT check the remote. This is not 'up to date': the refs below are as old as the last fetch that did finish. Run 'git -C \"$REPO_ROOT\" fetch $REMOTE_NAME' to see git's own error." ;;
+    never-run) log "git-restore" "no fetch has completed yet for $REPO_ROOT -- the comparison below is against whatever refs are already on disk, which may be stale. A fetch starts in the background now and its result lands next session." ;;
+    in-flight) log "git-restore" "a background fetch is still running -- the comparison below is against the previous fetch's refs" ;;
+    abandoned) log "git-restore" "WARNING: the last background fetch never completed (started $(cat "$FETCH_STATE_FILE" 2>/dev/null | head -1)) -- could NOT check the remote. This is not 'up to date': the refs below are as old as the last fetch that did finish." ;;
+    failed:*)  log "git-restore" "WARNING: the last background fetch FAILED (rc=${FETCH_HEALTH#failed:}) -- could NOT check the remote. This is not 'up to date': the refs below are as old as the last fetch that did finish. Run 'git -C \"$REPO_ROOT\" fetch $REMOTE_NAME' to see git's own error." ;;
 esac
 
 if [ -z "$LOCAL_HEAD" ]; then
-    log "git-restore" "local branch is unborn (no commits in $REPO_ROOT) — nothing to fast-forward onto, refusing. Clone or check out the backup branch by hand."
+    log "git-restore" "local branch is unborn (no commits in $REPO_ROOT) -- nothing to fast-forward onto, refusing. Clone or check out the backup branch by hand."
     _spawn_fetch
     exit 0
 fi
 
 if [ -z "$GIT_RESTORE_BRANCH" ]; then
-    log "git-restore" "HEAD is detached and git_restore.branch is unset — refusing to guess which branch to restore"
+    log "git-restore" "HEAD is detached and git_restore.branch is unset -- refusing to guess which branch to restore"
     exit 0
 fi
 
 REMOTE_HEAD=$(git -C "$REPO_ROOT" rev-parse --verify --quiet "$REMOTE_REF" 2>/dev/null) || REMOTE_HEAD=""
 if [ -z "$REMOTE_HEAD" ]; then
-    log "git-restore" "no fetched ref $REMOTE_REF — nothing to restore FROM (this is not 'up to date'). Check git_restore.remote / git_restore.branch."
+    log "git-restore" "no fetched ref $REMOTE_REF -- nothing to restore FROM (this is not 'up to date'). Check git_restore.remote / git_restore.branch."
     _spawn_fetch
     exit 0
 fi
@@ -424,7 +523,7 @@ case "$AHEAD" in ''|*[!0-9]*) AHEAD="" ;; esac
 case "$BEHIND" in ''|*[!0-9]*) BEHIND="" ;; esac
 
 if [ -z "$AHEAD" ] || [ -z "$BEHIND" ]; then
-    log "git-restore" "WARNING: could not compare HEAD with $REMOTE_REF — could NOT check, no restore attempted"
+    log "git-restore" "WARNING: could not compare HEAD with $REMOTE_REF -- could NOT check, no restore attempted"
     _spawn_fetch
     exit 0
 fi
@@ -440,11 +539,11 @@ if [ "$AHEAD" -gt 0 ] && [ "$BEHIND" -gt 0 ]; then
     _count=$((10#$_count + 1))
     echo "$_count" > "$DIVERGED_STATE_FILE" 2>/dev/null || true
 
-    log "git-restore" "ERROR: the memory store has DIVERGED — $AHEAD local commit(s) the remote does not have, $BEHIND remote commit(s) this machine does not have (consecutive session starts in this state: $_count). NOT restored, and nothing here will merge or rebase for you: recent.md and archive.md are rewritten wholesale by consolidation, so a wrong automatic resolution would corrupt memory silently. Resolve it by hand: git -C \"$REPO_ROOT\" log --oneline --left-right \"HEAD...$REMOTE_REF\""
+    log "git-restore" "ERROR: the memory store has DIVERGED -- $AHEAD local commit(s) the remote does not have, $BEHIND remote commit(s) this machine does not have (consecutive session starts in this state: $_count). NOT restored, and nothing here will merge or rebase for you: recent.md and archive.md are rewritten wholesale by consolidation, so a wrong automatic resolution would corrupt memory silently. Resolve it by hand: git -C \"$REPO_ROOT\" log --oneline --left-right \"HEAD...$REMOTE_REF\""
 
     if [ "$DIVERGED_NOTICE_AFTER" -gt 0 ] && [ "$_count" -eq "$DIVERGED_NOTICE_AFTER" ]; then
         mkdir -p "$REMEMBER_DIR/tmp" 2>/dev/null || true
-        printf '%s\n' "remember: your memory store has DIVERGED from its backup remote. $AHEAD commit(s) here are not on the remote and $BEHIND commit(s) there are not here, so the memory loaded this session is missing them — and the backup cannot push either. Nothing will be merged or rebased for you. Resolve it by hand: git -C \"$REPO_ROOT\" log --oneline --left-right HEAD...$REMOTE_NAME/$GIT_RESTORE_BRANCH" \
+        printf '%s\n' "remember: your memory store has DIVERGED from its backup remote. $AHEAD commit(s) here are not on the remote and $BEHIND commit(s) there are not here, so the memory loaded this session is missing them -- and the backup cannot push either. Nothing will be merged or rebased for you. Resolve it by hand: git -C \"$REPO_ROOT\" log --oneline --left-right HEAD...$REMOTE_NAME/$GIT_RESTORE_BRANCH" \
             > "$REMEMBER_DIR/tmp/git-restore-notice" 2>/dev/null || true
     fi
     _spawn_fetch
@@ -455,7 +554,7 @@ rm -f "$DIVERGED_STATE_FILE" 2>/dev/null || true
 
 if [ "$BEHIND" -eq 0 ]; then
     if [ "$AHEAD" -gt 0 ]; then
-        log "git-restore" "nothing to restore — $AHEAD local commit(s) ahead of $REMOTE_NAME/$GIT_RESTORE_BRANCH, none behind (the backup half pushes those)"
+        log "git-restore" "nothing to restore -- $AHEAD local commit(s) ahead of $REMOTE_NAME/$GIT_RESTORE_BRANCH, none behind (the backup half pushes those)"
     else
         log "git-restore" "already up to date with $REMOTE_NAME/$GIT_RESTORE_BRANCH"
     fi
@@ -470,9 +569,9 @@ fi
 # and a test asserts that stays true — a fast-forward cannot destroy local
 # work, but only as long as nothing else in here can.
 if git -C "$REPO_ROOT" merge --ff-only "$REMOTE_REF" >/dev/null 2>&1; then
-    log "git-restore" "restored $BEHIND commit(s) from $REMOTE_NAME/$GIT_RESTORE_BRANCH (${LOCAL_HEAD:0:7}..${REMOTE_HEAD:0:7}) into $REPO_ROOT — memory below reflects them"
+    log "git-restore" "restored $BEHIND commit(s) from $REMOTE_NAME/$GIT_RESTORE_BRANCH (${LOCAL_HEAD:0:7}..${REMOTE_HEAD:0:7}) into $REPO_ROOT -- memory below reflects them"
 else
-    log "git-restore" "ERROR: fast-forward of $BEHIND commit(s) from $REMOTE_NAME/$GIT_RESTORE_BRANCH was REFUSED by git — most likely uncommitted local changes in $REPO_ROOT that it would overwrite. Nothing was restored and nothing was forced. Run 'git -C \"$REPO_ROOT\" merge --ff-only $REMOTE_REF' to see git's own reason."
+    log "git-restore" "ERROR: fast-forward of $BEHIND commit(s) from $REMOTE_NAME/$GIT_RESTORE_BRANCH was REFUSED by git -- most likely uncommitted local changes in $REPO_ROOT that it would overwrite. Nothing was restored and nothing was forced. Run 'git -C \"$REPO_ROOT\" merge --ff-only $REMOTE_REF' to see git's own reason."
 fi
 
 _spawn_fetch

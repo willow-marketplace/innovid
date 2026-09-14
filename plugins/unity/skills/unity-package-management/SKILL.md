@@ -1,6 +1,6 @@
 ---
 name: unity-package-management
-description: Use when adding, removing, upgrading, or discovering Unity (UPM) packages programmatically from outside the Editor — headless or CI package installs via the C# UnityEditor.PackageManager.Client API, verifying package ids/versions against the Unity registry, or choosing which packages a game needs by genre, platform, and monetization. The Unity CLI does not manage UPM packages, so this skill covers that gap. Triggers on "install a Unity package", "add com.unity.*", "set up packages headless/CI", "which packages for a <genre> game".
+description: Use when adding, removing, upgrading, or discovering Unity (UPM) packages programmatically from outside the Editor — headless or CI package installs via the C# UnityEditor.PackageManager.Client API, verifying package ids/versions against the Unity registry, or choosing which packages a game needs by genre, platform, and monetization. The Unity CLI does not manage UPM packages, so this skill covers that gap. Triggers on "install a Unity package", "add com.unity.*", "set up packages headless/CI", "which packages for a [genre] game".
 ---
 
 # Unity Package Management (headless, via the C# Client API)
@@ -37,7 +37,7 @@ back on the Editor's main-loop pump, so a blocking `while (!req.IsCompleted)` bu
 deadlocks it). The Editor must **stay alive** after `-executeMethod` returns, until the request
 finishes.
 
-`unity run` **cannot** be used for the installer: it always injects `-quit` (see the reserved
+`unity run` **cannot** be used for the installer: its default path injects `-quit` (see the reserved
 flags in the **`unity-cli`** skill). With `-quit`, the Editor quits the instant the method
 returns — before UPM resolves — so packages never install and the callback never runs.
 
@@ -224,8 +224,8 @@ case "$(uname)" in
   Darwin) if [ -d "$ED/Unity.app" ]; then UNITY_BIN="$ED/Unity.app/Contents/MacOS/Unity";
           elif [[ "$ED" == *.app ]]; then UNITY_BIN="$ED/Contents/MacOS/Unity";
           else UNITY_BIN="$ED/Unity"; fi ;;
-  Linux)  UNITY_BIN="$ED/Unity" ;;
-  *)      UNITY_BIN="$ED/Unity.exe" ;;   # Windows (Git Bash / MSYS); use Unity.exe in PowerShell
+  Linux)  UNITY_BIN="$ED/Editor/Unity" ;;
+  *)      UNITY_BIN="$ED/Editor/Unity.exe" ;;   # Windows (Git Bash / MSYS); use Editor\Unity.exe in PowerShell
 esac
 
 "$UNITY_BIN" -batchmode -projectPath "$PROJECT" -executeMethod "$METHOD" -logFile -

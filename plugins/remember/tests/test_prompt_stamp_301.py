@@ -51,7 +51,9 @@ from tests.spawn_counting import make_shim_dir  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 USER_PROMPT = REPO_ROOT / "scripts" / "user-prompt-hook.sh"
-README = REPO_ROOT / "README.md"
+# #505 moved the Configuration section (and prompt_stamp's row in it)
+# verbatim out of README.md into its own doc.
+CONFIG_DOC = REPO_ROOT / "docs" / "configuration.md"
 
 WHO = "cachetester"
 
@@ -135,20 +137,20 @@ def test_the_default_is_byte_for_byte_what_shipped_before(tmp_path):
     an option added for one gateway operator must not quietly restyle the line
     every other install has been reading for a year."""
     out = _stamp(tmp_path, None, pct="45").strip()
-    assert out == f"[{_clock(out)} UTC — {WHO} — 45%]", out
+    assert out == f"[{_clock(out)} UTC -- {WHO} -- 45%]", out
 
 
 def test_full_is_the_default_spelled_out(tmp_path):
     """Setting the documented default explicitly must be a no-op, not a variant."""
     out = _stamp(tmp_path, "full", pct="45").strip()
-    assert out == f"[{_clock(out)} UTC — {WHO} — 45%]", out
+    assert out == f"[{_clock(out)} UTC -- {WHO} -- 45%]", out
 
 
 def test_an_unrecognised_value_falls_back_to_full(tmp_path):
     """A typo in config.json must not silently delete the timestamp — the safe
     direction for an unknown value is the behaviour that already shipped."""
     out = _stamp(tmp_path, "stabel", pct="45").strip()
-    assert out == f"[{_clock(out)} UTC — {WHO} — 45%]", (
+    assert out == f"[{_clock(out)} UTC -- {WHO} -- 45%]", (
         f"`prompt_stamp: stabel` was honoured as something. Got: {out!r}"
     )
 
@@ -343,9 +345,11 @@ def test_a_cache_written_before_this_option_existed_is_not_trusted(tmp_path):
 
 def test_the_option_is_documented_with_all_three_values(tmp_path):
     """tests/test_config_contract.py already asserts the key appears in the
-    README table and the example config. It cannot assert that the table says
-    what the values DO — and an option whose modes are undiscoverable is one
-    people will keep solving with a regex."""
-    text = README.read_text(encoding="utf-8")
+    docs/configuration.md table and the example config. It cannot assert that
+    the table says what the values DO — and an option whose modes are
+    undiscoverable is one people will keep solving with a regex."""
+    text = CONFIG_DOC.read_text(encoding="utf-8")
     for value in ("`full`", "`stable`", "`off`"):
-        assert value in text, f"README documents no {value} mode for prompt_stamp"
+        assert value in text, (
+            f"docs/configuration.md documents no {value} mode for prompt_stamp"
+        )

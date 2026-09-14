@@ -20,7 +20,7 @@ one-confirmation rule, panel lifecycle gotchas) are a separate concern — see
 
 | Core step | Cowork does | You do instead |
 |---|---|---|
-| **Phase 0.25** — import markers | render `import_notes` in the form yourself, and blank any noted field | **nothing extra** — `build_config.py` renders the amber markers and blanks noted fields (so `missingFields()` blocks **Review**) straight from `row.import_notes` |
+| **Phase 0.25** — import markers | render `import_notes` in the form yourself, and blank any noted field | **nothing extra** — `build_config.py` renders the amber markers and blanks noted fields (so `missingFields()` holds **Review**, which reports the blocker on click) straight from `row.import_notes` |
 | **Phase 0.5** — reference data | `stakeholder_names` on the `issuance_init` call, resolved server-side into its `stakeholders` section | **fetch the unfiltered full roster** (`detail=full`, no `search`, no `stakeholder_names`). The panel's name autocomplete and email auto-fill genuinely need every row — it becomes `STAKEHOLDER_LIST_JSON`. Oversized rosters: [§1 Roster fetch](#roster-fetch-for-large-corporations) |
 | **Phase 0.5** — `collectConfig` | one `show_widget` form | the config panel — [§1](#1-config-panel-build_configpy-builds-every-block) |
 | **Phase 0.5** — on submit | read the form's `sendPrompt()` JSON | `cat "$OUT_DIR/<CORP_ID>_action_request.json"` — same shape, same [row mapping](row-mapping.md) |
@@ -34,7 +34,7 @@ one-confirmation rule, panel lifecycle gotchas) are a separate concern — see
 **Recovery `AskUserQuestion`s after a server short-circuit are fine** — no watcher is running
 at that point. The restriction applies only while a panel is open and awaiting a click.
 
-**The [account-setup gate](../SKILL.md#account-setup-gate-option-grant-only) is not a
+**The [account-setup gate](../SKILL.md#account-setup-gate-option-grant-and-piu) is not a
 divergence** — worth stating because it is the one stop that precedes panel work. It runs on
 this path exactly as the core describes, so an option-grant corporation with zero document sets
 stops in Phase 0.5 and the config panel never renders.
@@ -81,16 +81,19 @@ across the batch. A per-row key (see `rows`) always wins over the batch-level fa
 | `today_iso` | `YYYY-MM-DD` — stamped as the default issue/board/vesting-start date on every block that doesn't override it |
 | `currency` | e.g. `"USD"` — informational only (the exercise-price/price-per-share hint text); the real payload `currency` comes from the per-`so_type` autofill, not this |
 | `jurisdiction` | `"US"`/`"UK"`/`"AU"` for the option-type buttons. Grant only. **Derive it** ([SKILL.md Phase 0.5](../SKILL.md#option-grant-resolve-the-fmv-and-the-jurisdiction-before-building-the-surface)) — the `"US"` default shows a UK company ISO/NSO instead of EMI/CSOP |
-| `fmv_options` | `issuance_init`'s `international_valuations.active` rows, as-is (`price`, `currency`, `valuation_type`, `effective_date`). Drives both the hint and the prefill. Grant only. **Exactly one row prefills the field; two or more leaves it empty** so the admin picks between an HMRC report's AMV and UMV rather than the skill guessing |
+| `fmv_options` | `issuance_init`'s `international_valuations.active` rows, as-is — keep `share_class_type` and `share_class_name` alongside `price`, `currency`, `valuation_type`, `effective_date`. Drives both the hint and the prefill. Grant only. The script first narrows to the plan's common share class (an option never prices off a preferred FMV), then **exactly one surviving row prefills the field; two or more leaves it empty** so the admin picks between an HMRC report's AMV and UMV rather than the skill guessing |
 | `fmv_source` | those rows' shared `support_reference_type` — `409A` / `EMI` / `CSOP` / `SHARE_PRICE` (the `*_VALUATION_REPORT` wire forms are accepted too). Names the source in the hint. Grant only |
 | `fmv_expired_on` | the lapsed `expiration_date`, set **only** when `active` is empty but `history` isn't — the hint then says when cover ended instead of just "none on file". Grant only |
+| `common_share_class_name` | the chosen option plan's `common_share_class_name`. The fallback the script matches on when a valuation row omits `share_class_type`. Grant only |
 | `exercise_price_default` | fallback prefill as a bare number, used when `fmv_options` doesn't resolve one. Grant only |
 | `has_409a` | **Deprecated** — the pre-international shape, honoured with `exercise_price_default` for one release so a panel rebuilt mid-conversation still renders a price. Use `fmv_options`/`fmv_source` instead |
 | `no_vesting` | `true` **only** when the user explicitly said no vesting (fallback default; a row's own `vesting_template_id: "__none__"` overrides per-row). Grant only; omit otherwise |
 | `default_vesting_id` | vesting template id to pre-select when you can identify the corp's 4yr/1yr-cliff schedule; omit to let the script pick. Both types — for a certificate batch, setting this also opts every row into vesting by default (certs otherwise default to **No vesting**, being opt-in) |
 | `price_per_share_default` | default price per share as a bare number, or omit to leave blank. Cert only |
-| `share_class_prefix` | prefix to pre-select when the prompt named a class (*"Series A"* → `"PA"`). Cert only. Omit to let the script default to the most recently fetched class (see [certificate-fields.md § Share-class reconciliation](certificate-fields.md#share-class-reconciliation-certificate)) |
-| `is_llc` | never resolved — no MCP command returns a corporation's `legal_entity_type`; always omit. Cert only |
+| `share_class_prefix` | prefix to pre-select when the prompt named a class (*"Series A"* → `"PA"`). Cert and PIU. Omit to let the script default to the most recently fetched class (see [certificate-fields.md § Share-class reconciliation](certificate-fields.md#share-class-reconciliation-certificate)) |
+| `option_plan_id` | plan pk to pre-select when the prompt named one. **PIU only, and never a default** — omitting it selects "no plan", which issues off the unit class ([piu-fields.md](piu-fields.md#equity-plan-reconciliation--per-row-optional-prefix-matched)) |
+| `threshold_noun` | the issuer's own word for the threshold, from `issuance_init`'s `draft_set_init.thresholdNoun` — `"threshold"` by default, `"hurdle"` on the UK growth-shares preset. PIU only |
+| `is_llc` | `issuance_init`'s `draft_set_init.isLLC`, fetched on the PIU flow. Not available on the certificate flow, which has no `draft_set_init` section — omit it there |
 
 ```bash
 OUT_DIR="$HOME/.carta/cache/issuance-config/<CORP_ID>"
@@ -126,7 +129,9 @@ JSON
 #    (SKILL.md Phase 0.5) — both grant-only:
 cat > "$OUT_DIR/_knowns.json" <<'JSON'
 {"jurisdiction":"UK","today_iso":"2026-06-11","currency":"GBP","fmv_source":"EMI",
- "fmv_options":[{"valuation_type":"AMV","price":"0.50","currency":"GBP","effective_date":"2026-01-15"}],
+ "common_share_class_name":"Ordinary",
+ "fmv_options":[{"valuation_type":"AMV","price":"0.50","currency":"GBP","effective_date":"2026-01-15",
+                 "share_class_type":"COMMON","share_class_name":"Ordinary"}],
  "rows":[{"name":"Jane","quantity":"1000"}]}
 JSON
 

@@ -40,6 +40,7 @@ After installing, restart Claude Code and run `/mcp` to complete OAuth authentic
 | `carta-performance-benchmarks` | Compare fund performance against peer benchmark cohorts |
 | `carta-download-tearsheet` | Generate tearsheet PDFs for one or more portcos — single PDF preview or bulk ZIP download |
 | `carta-fund-forecasting` | Read-only Carta Fund Forecasting (formerly Tactyc) — list funds, fund-wide KPIs (TVPI, DPI, IRR, MOIC, NAV, reserves), performance tables, and per-investment analytics. |
+| `carta-manco-reporting` | Interactive management-company reporting dashboard — a local React app over live ManCo financials with P&L drill-down, Budget vs Actuals, management fee income by fund, expense breakdowns, and journal-entry detail. Invoke with a firm name, e.g. "ManCo reporting for Demo Capital". |
 | `deal-group-wf-health` | Read-only dashboard of waterfall health across a firm's deal groups (pass any firm/org id) — model assignment (stranded/none), ownership-link defects, orphaned models, and whether recent runs reached every entity. Internal-only. |
 
 ### Budgeting (Excel)
@@ -49,16 +50,16 @@ Skills that produce accountant-ready Excel workbooks. They run inside **Claude f
 | Skill | Description |
 |-------|-------------|
 | `carta-manco` | Unified ManCo budgeting skill — fetch a stored budget, build a new one from prior-year actuals, refresh actuals against a budget, analyze pacing/variance, or model what-if scenarios (headcount cuts, revenue shocks, new fund raises, expansion hires). |
-| `carta-consolidating-pnl` | Generate a firm-wide consolidating P&L across all entities for a given month — detailed "P&L- with comments" tab plus a one-page executive Summary P&L. |
-| `carta-consolidating-balance-sheet` | Generate a consolidating Balance Sheet across all entities for a given month — side-by-side layout with Assets / Liabilities / Equity. |
+| `carta-consolidating-financial-reports` | Build multi-entity consolidating financial reports across all entities for a given period — P&L (with a one-page executive Summary), Balance Sheet (Assets / Liabilities / Equity), and Trial Balance — individually or all three together. |
 
 For Claude for Excel, enable the Carta connector in **Settings → Connectors** in your claude.ai workspace.
 
-### Fund modeling
+### Fund modeling & portfolio analytics
 
 | Skill | Description |
 |-------|-------------|
 | `carta-fund-modeling` | Launch an interactive local console to reprice portfolio companies, model exits, and plan reserves for an entire firm — fund modeling React app with Overview, Companies, Exit & IRR, Reserves, and Cohort Standing tabs. Invoke with a firm name, e.g. "fund modeling for Demo Capital". |
+| `carta-portfolio-analytics-app` | Launch an interactive local console for a firm's portfolio-company analytics — every operating KPI the portcos report into Data Collection, plus valuation, cap tables, risk and benchmarking from Fund Admin. Eleven tabs: Overview, Dashboard, Review, Portfolio, Compare, Forecast, Risk, Company 360 (with PDF tearsheet), Val. Multiples, Formulas & covenants, Explore. Invoke with a firm name, e.g. "portfolio analytics for Acme Ventures". |
 
 ## MCP Tools
 

@@ -67,14 +67,25 @@ fi
 # `%-I` and friends are GNU *date* padding flags. GNU coreutils implements them
 # in its own strftime copy, so `date '+%-I'` works on a box whose libc strftime
 # would print the flag verbatim — and save-session.sh uses exactly that for the
-# 12-hour clock. `%s` is likewise a strftime extension, and post-tool-hook.sh
-# feeds its result straight into $(( )), where a literal "%s" is not a wrong
-# number but an arithmetic error.
+# 12-hour clock. Neither is on a hot path. Send them to `date`, where they
+# already worked.
 #
-# Neither is on a hot path. Send them to `date`, where they already worked.
+# `%s` used to be refused here too, lumped in with the GNU-only padding flags
+# above on the theory that it was "likewise a strftime extension" -- it is
+# not: POSIX strftime has specified %s (seconds since the epoch) since
+# POSIX.1-2008, bash's own `printf '%(FMT)T'` builtin calls straight through
+# to the platform's strftime for exactly this format spec, and
+# `tests/test_session_start_promo_spawn_budget_660.py` pins the builtin and
+# `date +%s` byte-identical on this same gate (#666, part of #660) -- the
+# same standard `test_the_builtin_and_date_timestamps_are_byte_identical`
+# already holds every other format to. `post-tool-hook.sh:377/605` and
+# `session-start-hook.sh` both feed a `_remember_date +%s` result straight
+# into `$(( ))`, which is exactly why it matters that this is the real
+# seconds-since-epoch integer and not a literal "%s" -- and why it was worth
+# checking rather than assuming, instead of just deleting the glob term.
 _remember_date_builtin_ok() {
     case "$1" in
-        *%-*|*%_*|*%0*|*%^*|*%#*|*%s*) return 1 ;;
+        *%-*|*%_*|*%0*|*%^*|*%#*) return 1 ;;
     esac
     return 0
 }
@@ -97,4 +108,29 @@ _remember_date() {
         printf "%(${1#+})T\\n" -1 && return
     fi
     date "$@"
+}
+
+# _remember_date_into VARNAME [+FORMAT ...] (#511)
+# Same answer as `_remember_date`, written into VARNAME directly instead of
+# printed. `VAR=$(_remember_date ...)` forks a subshell for the command
+# substitution itself EVEN on the builtin (no-`date`-process) path -- cheap on
+# Linux, 50-300ms+ measured on Windows Git Bash per #511's report, and paid on
+# every single prompt regardless of platform. `printf -v` writes to a named
+# variable with no subshell at all, so the builtin/no-REMEMBER_TZ case -- the
+# overwhelming common one on a warmed hook -- now forks nothing here, not even
+# for the substitution itself. The REMEMBER_TZ and bash-3.2 cases still shell
+# out to `date`, an external process either way, so a subshell there is not a
+# new cost -- this only removes the fork that command substitution adds ON TOP
+# of an already-forkless builtin call.
+_remember_date_into() {
+    local _var="$1"
+    shift
+    if [ -z "${REMEMBER_TZ:-}" ] && [ "$_REMEMBER_PRINTF_T" = "1" ] && [ "$#" -eq 1 ] \
+        && _remember_date_builtin_ok "$1"; then
+        printf -v "$_var" "%(${1#+})T" -1
+        return
+    fi
+    local _val
+    _val=$(_remember_date "$@")
+    printf -v "$_var" '%s' "$_val"
 }

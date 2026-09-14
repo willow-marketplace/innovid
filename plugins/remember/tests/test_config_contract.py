@@ -22,14 +22,20 @@ from pathlib import Path
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-README = REPO_ROOT / "README.md"
+# #505 moved the Configuration section verbatim out of README.md into its own
+# doc; the table this file agrees the code and config.example.json against
+# now lives there, not in README.md itself.
+CONFIG_DOC = REPO_ROOT / "docs" / "configuration.md"
 EXAMPLE = REPO_ROOT / "config.example.json"
 
 # Where a config key can legitimately be read from.
 SOURCE_DIRS = ("scripts", "hooks.d", "hooks", "pipeline")
 
-# `config ".some.key" default` / `config '.some.key' default`
-_CONFIG_CALL = re.compile(r"""config\s+["']\.([A-Za-z0-9_.]+)["']""")
+# `config ".some.key" default` / `config '.some.key' default`, and its
+# fork-free sibling `config_into VARNAME ".some.key" default` (#665, part of
+# #660) -- same key position, one extra token (the destination variable)
+# ahead of it.
+_CONFIG_CALL = re.compile(r"""config(?:_into\s+\S+)?\s+["']\.([A-Za-z0-9_.]+)["']""")
 
 # Rows of the config table: | `key` | default | description |
 _README_ROW = re.compile(r"^\|\s*`([a-z][A-Za-z0-9_.]*)`\s*\|")
@@ -76,17 +82,18 @@ def _keys_read_by_the_code() -> set[str]:
 def _keys_documented_in_readme() -> set[str]:
     """Keys from the config table only.
 
-    Identified by the row that documents `data_dir` — the README has several
-    tables whose first column is a backticked name (memory files, hooks, env
-    vars), and matching all of them made `now.md` look like a config option.
+    Identified by the row that documents `data_dir` — docs/configuration.md
+    (moved out of README.md verbatim by #505) has several tables whose first
+    column is a backticked name (memory files, hooks, env vars), and matching
+    all of them made `now.md` look like a config option.
     """
-    lines = README.read_text(encoding="utf-8").splitlines()
+    lines = CONFIG_DOC.read_text(encoding="utf-8").splitlines()
     start = next(
         (i for i, line in enumerate(lines) if _README_ROW.match(line)
          and _README_ROW.match(line).group(1) == "data_dir"),
         None,
     )
-    assert start is not None, "config table not found — has the README moved?"
+    assert start is not None, "config table not found — has docs/configuration.md moved?"
 
     keys = set()
     for line in lines[start:]:

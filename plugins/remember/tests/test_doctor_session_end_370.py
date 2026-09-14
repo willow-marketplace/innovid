@@ -12,10 +12,12 @@ convention and #345's acceptance criteria only covered README and docs.
 No new marker file is introduced by this fix, and scripts/session-end-hook.sh
 is not touched at all: that hook already leaves usable evidence of its own
 accord, as a side effect of its background flush -- a
-logs/autonomous/session-end-<HHMMSS>.log file, written unconditionally once
-the hook gets past its SAVE_SCRIPT-missing check (see that hook's own
-comments around its `_END_LOG` redirect). doctor.sh's job is reading that
-signal, not producing a new one.
+logs/autonomous/session-end-<HHMMSS>-<PID>.log file (the `-<PID>` suffix is
+#488's own naming, see that hook's own comments around its `_END_LOG`
+redirect; the glob below matched a plain `session-end-<HHMMSS>.log` before
+#488 and still matches the PID-suffixed name after it, unchanged), written
+unconditionally once the hook gets past its SAVE_SCRIPT-missing check.
+doctor.sh's job is reading that signal, not producing a new one.
 
 Three states, not two, and the fixtures below pin all three:
 
@@ -290,10 +292,13 @@ def test_marker_present_reports_ok_and_never_a_session_end_problem(tmp_path):
 
     Without this, a fix that flagged every store with two-or-more
     transcripts as broken -- never checking for the session-end log at all
-    -- would still pass the FAIL test above. The fixture writes the exact
-    file session-end-hook.sh's own background flush leaves behind
-    (logs/autonomous/session-end-<HHMMSS>.log), not a purpose-built marker
-    -- this fix reads that file, it does not introduce one.
+    -- would still pass the FAIL test above. The fixture writes the SHAPE
+    of the file session-end-hook.sh's own background flush leaves behind,
+    pre-#488 (logs/autonomous/session-end-<HHMMSS>.log -- no PID suffix);
+    the post-#488 shape is pinned separately, right below, by
+    test_marker_with_pid_suffix_still_reports_ok. Neither is a
+    purpose-built marker -- this fix reads that file, it does not
+    introduce one.
     """
     home, project, remember, session_dir = _project(tmp_path)
     (session_dir / "aaaa-earlier-session.jsonl").write_text("{}\n", encoding="utf-8")
@@ -309,9 +314,41 @@ def test_marker_present_reports_ok_and_never_a_session_end_problem(tmp_path):
         "a store with a genuine session-end log was not reported OK:\n"
         + result.stdout
     )
-    assert "problem — SessionEnd" not in _verdict(result.stdout), (
+    assert "problem -- SessionEnd" not in _verdict(result.stdout), (
         "a working SessionEnd hook still reached a SessionEnd problem verdict:\n"
         + result.stdout
+    )
+
+
+def test_marker_with_pid_suffix_still_reports_ok(tmp_path):
+    """#488: session-end-hook.sh now names its flush log
+    session-end-<HHMMSS>-<PID>.log, not session-end-<HHMMSS>.log, so two
+    hooks ending in the same wall-clock second no longer collide onto one
+    path. This fix's own `for _sel in .../session-end-*.log` glob (above,
+    "5. Capture health" section) was never anchored to a fixed width, so it
+    should still match -- this fixture is the fixed point pinning that,
+    written directly against the fixture's own file (not the real hook,
+    same convention as the sibling test above), so a future narrowing of
+    the glob back to a fixed-width pattern fails here rather than only in
+    production.
+    """
+    home, project, remember, session_dir = _project(tmp_path)
+    (session_dir / "aaaa-earlier-session.jsonl").write_text("{}\n", encoding="utf-8")
+    (session_dir / "bbbb-another-earlier-session.jsonl").write_text("{}\n", encoding="utf-8")
+    (remember / "logs" / "autonomous").mkdir(parents=True)
+    (remember / "logs" / "autonomous" / "session-end-093000-54321.log").write_text(
+        "", encoding="utf-8")
+
+    result = _run(home, project, remember)
+
+    assert result.returncode == 0, result.stderr
+    assert "OK   SessionEnd has fired at least once" in result.stdout, (
+        "a PID-suffixed session-end log (#488's own naming) was not "
+        "recognised as evidence the hook fired:\n" + result.stdout
+    )
+    assert "problem -- SessionEnd" not in _verdict(result.stdout), (
+        "a PID-suffixed session-end log still reached a SessionEnd problem "
+        "verdict:\n" + result.stdout
     )
 
 
@@ -344,7 +381,7 @@ def test_session_end_failure_outranks_the_generic_capture_is_working_verdict(tmp
     result = _run(home, project, remember)
 
     assert result.returncode == 0, result.stderr
-    assert _verdict(result.stdout).startswith("VERDICT: problem — SessionEnd"), (
+    assert _verdict(result.stdout).startswith("VERDICT: problem -- SessionEnd"), (
         "PostToolUse capture being healthy masked SessionEnd's own silent "
         "failure instead of the specific cause outranking the general "
         "success line:\n" + result.stdout
@@ -385,7 +422,7 @@ def test_prior_cc_history_predating_the_store_is_not_a_failure(tmp_path):
         "reached the VERDICT line:\n" + result.stdout
     )
     assert _verdict(result.stdout).startswith(
-        "VERDICT: problem — PostToolUse has never fired"
+        "VERDICT: problem -- PostToolUse has never fired"
     ), (
         "a fresh install with prior CC history and nothing captured did not "
         "surface the correct, actionable PostToolUse remediation:\n"

@@ -100,6 +100,176 @@ POST_TOOL = REPO_ROOT / "scripts" / "post-tool-hook.sh"
 LIB_SLUG = REPO_ROOT / "scripts" / "lib-slug.sh"
 LIB_MEMORY_DIR = REPO_ROOT / "scripts" / "lib-memory-dir.sh"
 
+# The sanctioned executable-code divergences from origin/main for
+# test_the_per_tool_call_path_is_not_touched's byte-pin arms, keyed by the
+# relative path it applies to -- see that test's docstring for why. Applied
+# to the origin/main side before the compare, so anything else that diverges
+# still fails the guard.
+# `_code()` strips comment LINES but keeps blank ones, so every blank line
+# that used to separate a stripped comment block from the code around it
+# survives into the joined "code lines only" text and must be matched here
+# too -- these `\n\n`s are not decoration, they are load-bearing whitespace.
+def _apply_sanctioned_divergence(ref_code: str, rel: str) -> str:
+    """Apply each sanctioned old-to-new substitution for `rel`, if any.
+
+    Three states per substitution, not two (#440) -- the two-state version
+    failed on origin/main the instant its own allowance's PR merged:
+
+    - `old_code` is on origin/main: the substitution's own PR is still open
+      (or the byte-compare is being run against a base that predates it).
+      Substitute old_code with new_code so the compare judges the sanctioned
+      fix rather than the noise it has not yet replaced.
+    - `old_code` is gone AND `new_code` is on origin/main: the post-merge
+      steady state -- the sanctioned fix has already landed on origin/main.
+      Nothing to substitute; leave ref_code unchanged rather than asserting.
+    - Neither is on origin/main: genuinely stale. origin/main moved again and
+      this allowance needs re-deriving, not blindly (re-)applied.
+
+    A file may carry more than one allowance (#429 and #662 both touch
+    lib-memory-dir.sh); they are applied in order, each judged on its own.
+    """
+    for old_code, new_code in _SANCTIONED_DIVERGENCE.get(rel, ()):
+        if old_code in ref_code:
+            ref_code = ref_code.replace(old_code, new_code)
+            continue
+        assert new_code in ref_code, (
+            f"{rel}: neither the old nor the new code of this sanctioned "
+            "substitution is on origin/main -- origin/main has moved and this "
+            "allowance needs re-deriving, not blindly re-applying"
+        )
+    return ref_code
+
+
+# `_LAZY_PYTHON_GUARD` is the #662 line: a `declare -f` builtin check that
+# resolves $PYTHON on first use when detect-tools.sh was sourced in lazy mode
+# and is a no-op everywhere else. It adds no spawn of its own -- it sits
+# immediately before a python spawn that was already there, on branches that
+# only run when that spawn runs -- which is why it is sanctioned here rather
+# than moved off the hot path.
+_LAZY_PYTHON_GUARD = 'declare -f _remember_python >/dev/null 2>&1 && _remember_python\n'
+
+_SANCTIONED_DIVERGENCE = {
+    "scripts/lib-slug.sh": [
+        (
+            '                    local _decoded\n'
+            '                    _decoded=$("${PYTHON:-python3}" "$_py_slug" "$path" 2>/dev/null) \\\n',
+            '                    local _decoded\n'
+            '                    ' + _LAZY_PYTHON_GUARD +
+            '                    _decoded=$("${PYTHON:-python3}" "$_py_slug" "$path" 2>/dev/null) \\\n',
+        ),
+        (
+            '    if [ -f "$_slug_py" ]; then\n'
+            '        _hash=$("${PYTHON:-python3}" "$_slug_py" --hash "$_orig" 2>/dev/null) || _hash=""\n',
+            '    if [ -f "$_slug_py" ]; then\n'
+            '        ' + _LAZY_PYTHON_GUARD +
+            '        _hash=$("${PYTHON:-python3}" "$_slug_py" --hash "$_orig" 2>/dev/null) || _hash=""\n',
+        ),
+        (
+            '_remember_build_slug_sed() {\n'
+            '    local cont\n'
+            '    cont="$(printf \'\\200\')-$(printf \'\\277\')"\n'
+            '    _REMEMBER_SLUG_SED=(\n'
+            '        -e "s/$(printf \'\\360\')[$(printf \'\\220\')-$(printf \'\\277\')][$cont][$cont]/--/g"\n'
+            '        -e "s/[$(printf \'\\361\')-$(printf \'\\363\')][$cont][$cont][$cont]/--/g"\n'
+            '        -e "s/$(printf \'\\364\')[$(printf \'\\200\')-$(printf \'\\217\')][$cont][$cont]/--/g"\n'
+            '        -e "s/$(printf \'\\340\')[$(printf \'\\240\')-$(printf \'\\277\')][$cont]/-/g"\n'
+            '        -e "s/[$(printf \'\\341\')-$(printf \'\\354\')][$cont][$cont]/-/g"\n'
+            '        -e "s/$(printf \'\\355\')[$(printf \'\\200\')-$(printf \'\\237\')][$cont]/-/g"\n'
+            '        -e "s/[$(printf \'\\356\')-$(printf \'\\357\')][$cont][$cont]/-/g"\n'
+            '        -e "s/[$(printf \'\\302\')-$(printf \'\\337\')][$cont]/-/g"\n'
+            "        -e 's/[^a-zA-Z0-9]/-/g'\n"
+            '    )\n'
+            '}\n'
+            '_remember_build_slug_sed\n',
+            # #665 (part of #660): ANSI-C octal quoting instead of
+            # $(printf ...) -- byte-identical output, proved by
+            # tests/test_session_start_fork_tax_665.py::
+            # test_slug_sed_program_is_byte_identical_to_the_old_printf_builder,
+            # replacing 22 subshell forks with a lexer-level substitution
+            # that forks nothing.
+            '_remember_build_slug_sed() {\n'
+            "    local cont=$'\\200-\\277'\n"
+            "    local r220_277=$'\\220-\\277'\n"
+            "    local r361_363=$'\\361-\\363'\n"
+            "    local r200_217=$'\\200-\\217'\n"
+            "    local r240_277=$'\\240-\\277'\n"
+            "    local r341_354=$'\\341-\\354'\n"
+            "    local r200_237=$'\\200-\\237'\n"
+            "    local r356_357=$'\\356-\\357'\n"
+            "    local r302_337=$'\\302-\\337'\n"
+            '    _REMEMBER_SLUG_SED=(\n'
+            '        -e "s/"$\'\\360\'"[$r220_277][$cont][$cont]/--/g"\n'
+            '        -e "s/[$r361_363][$cont][$cont][$cont]/--/g"\n'
+            '        -e "s/"$\'\\364\'"[$r200_217][$cont][$cont]/--/g"\n'
+            '        -e "s/"$\'\\340\'"[$r240_277][$cont]/-/g"\n'
+            '        -e "s/[$r341_354][$cont][$cont]/-/g"\n'
+            '        -e "s/"$\'\\355\'"[$r200_237][$cont]/-/g"\n'
+            '        -e "s/[$r356_357][$cont][$cont]/-/g"\n'
+            '        -e "s/[$r302_337][$cont]/-/g"\n'
+            "        -e 's/[^a-zA-Z0-9]/-/g'\n"
+            '    )\n'
+            '}\n'
+            '_remember_build_slug_sed\n',
+        ),
+    ],
+    "scripts/lib-memory-dir.sh": [
+        (
+            'elif [ "${#_cfg_sources[@]}" -gt 0 ]; then\n'
+            '    "${PYTHON:-python3}" - "$_merged_cfg" "${_cfg_sources[@]}" > /dev/null 2>&1 <<\'PYMERGE\'',
+            'elif [ "${#_cfg_sources[@]}" -gt 0 ]; then\n'
+            '    ' + _LAZY_PYTHON_GUARD +
+            '    "${PYTHON:-python3}" - "$_merged_cfg" "${_cfg_sources[@]}" > /dev/null 2>&1 <<\'PYMERGE\'',
+        ),
+        (
+        '_merged_cfg="${SYS_TMPDIR}/remember-config-$$.json"\n\n' +
+        '(umask 077; : > "$_merged_cfg") 2>/dev/null || true\n\n' +
+        '_cfg_sources=()\n' +
+        '[ -f "$_bundled_cfg"  ] && _cfg_sources+=("$_bundled_cfg")\n' +
+        '[ -f "$_user_cfg"     ] && _cfg_sources+=("$_user_cfg")\n' +
+        '[ -f "$_project_cfg"  ] && _cfg_sources+=("$_project_cfg")\n\n' +
+        'if [ "${#_cfg_sources[@]}" -gt 0 ] && command -v jq >/dev/null 2>&1; then',
+        # mktemp replaces the PID-suffixed literal path (closes the #429
+        # credential-disclosure TOCTOU), and the `if [ -z ... ]` arm closes
+        # the leaked-stderr gap the self-review of #429 found: an empty
+        # $_merged_cfg (a failed mktemp) used to fall straight into
+        # `jq ... > "$_merged_cfg"` with an empty redirect target, a
+        # shell-level error 2>/dev/null cannot suppress.
+        '_merged_cfg=$(mktemp "${SYS_TMPDIR}/remember-config-XXXXXX" 2>/dev/null) || _merged_cfg=""\n\n' +
+        '_cfg_sources=()\n' +
+        '[ -f "$_bundled_cfg"  ] && _cfg_sources+=("$_bundled_cfg")\n' +
+        '[ -f "$_user_cfg"     ] && _cfg_sources+=("$_user_cfg")\n' +
+        '[ -f "$_project_cfg"  ] && _cfg_sources+=("$_project_cfg")\n\n' +
+        'if [ -z "$_merged_cfg" ]; then\n' +
+        '    :\n' +
+        'elif [ "${#_cfg_sources[@]}" -gt 0 ] && command -v jq >/dev/null 2>&1; then',
+        ),
+        (
+            "_existing_trap=$(trap -p EXIT 2>/dev/null | sed \"s/trap -- '//;s/' EXIT//\")\n"
+            "if [ -n \"$_existing_trap\" ]; then\n"
+            "    trap \"${_existing_trap}; rm -f '${_merged_cfg}'\" EXIT\n"
+            "else\n"
+            "    trap \"rm -f '${_merged_cfg}'\" EXIT\n"
+            "fi\n"
+            "unset _existing_trap\n",
+            # #679 (part of #660): `trap -p` is a builtin -- `sed` was the
+            # only fork this line paid, stripping four characters at a
+            # fixed offset. Parameter expansion does the identical strip
+            # with no behaviour change: a prefix/suffix a string does not
+            # have is left unchanged, matching sed on empty input the same
+            # way (no existing trap -> both leave _existing_trap empty).
+            "_t=$(trap -p EXIT 2>/dev/null)\n"
+            "_existing_trap=\"${_t#trap -- \\'}\"\n"
+            "_existing_trap=\"${_existing_trap%\\' EXIT}\"\n"
+            "if [ -n \"$_existing_trap\" ]; then\n"
+            "    trap \"${_existing_trap}; rm -f '${_merged_cfg}'\" EXIT\n"
+            "else\n"
+            "    trap \"rm -f '${_merged_cfg}'\" EXIT\n"
+            "fi\n"
+            "unset _existing_trap _t\n",
+        ),
+    ],
+}
+
 RECORD_NAME = "case-divergence"
 NOTICE_NAME = "case-divergence-notice"
 SESSION_ID = "eeeeeeee-0000-4000-8000-000000000298"
@@ -519,6 +689,57 @@ def test_doctor_is_quiet_when_the_spellings_agree(tmp_path):
 
 
 # ── The hot path ─────────────────────────────────────────────────────────────
+#
+# `_apply_sanctioned_divergence`'s own three-state unit tests live in
+# tests/test_sanctioned_divergence_state_440.py rather than here: this
+# module carries a whole-file `pytestmark` skip on Windows (bash hook
+# subprocess + POSIX semantics, #79), and those three tests are pure Python
+# string manipulation with nothing POSIX or bash about them -- keeping them
+# in this module would inherit that skip and never run on windows-latest CI
+# at all (found by the self-review auditor on #440).
+
+
+def _origin_main_should_be_resolvable(env: dict) -> bool:
+    """A pure decision, kept separate from the subprocess call so it can be
+    tested without depending on the state of `origin/main` in whatever
+    checkout happens to run this suite.
+
+    True on a CI runner, where `origin/main` failing to resolve is exactly
+    the #442 exposure this test exists to close: the checkout step is
+    supposed to have made it available, so its absence is the guard not
+    doing its job, and that must fail loudly rather than render as a skip
+    that looks identical to a pass.
+
+    False everywhere else -- a contributor's local clone may legitimately
+    have no `origin` remote, or a shallow non-CI clone that never fetched
+    `main` at all. Turning that into a hard failure would make the suite
+    unrunnable for a contributor who did nothing wrong, so it stays a skip.
+
+    Both `CI` and `GITHUB_ACTIONS` are checked because they are the two
+    conventional signals and either one is sufficient; neither is unset by
+    accident on a runner, and no test in this suite claims to have unset one
+    to prove that.
+    """
+    return env.get("CI") == "true" or env.get("GITHUB_ACTIONS") == "true"
+
+
+def test_origin_main_unavailable_outcome_fails_loudly_on_ci():
+    """The load-bearing case: on a CI runner, an unresolved origin/main must
+    not render as a skip. A version of this function that always returned
+    False (i.e. always skip) would pass every other test in this file and
+    still leave #442 open -- this is the one that would catch it."""
+    assert _origin_main_should_be_resolvable({"CI": "true"}) is True
+    assert _origin_main_should_be_resolvable({"GITHUB_ACTIONS": "true"}) is True
+
+
+def test_origin_main_unavailable_outcome_skips_locally():
+    """The positive control's negative twin: no CI signal at all reads as a
+    contributor's local clone, which must stay a skip rather than a hard
+    failure -- turning it into one would make the suite unrunnable for
+    anyone without an `origin` remote configured."""
+    assert _origin_main_should_be_resolvable({}) is False
+    assert _origin_main_should_be_resolvable({"CI": "false"}) is False
+    assert _origin_main_should_be_resolvable({"PATH": "/usr/bin"}) is False
 
 
 def test_the_per_tool_call_path_is_not_touched(tmp_path):
@@ -552,6 +773,19 @@ def test_the_per_tool_call_path_is_not_touched(tmp_path):
     and prose that no longer matches the code is this repo's own defect class.
     Strip the comments from both sides — the same one-liner the arm above
     already uses — and every executable byte stays pinned exactly as before.
+
+    One EXECUTABLE line in `lib-memory-dir.sh` is allowed to differ, via
+    `_SANCTIONED_DIVERGENCE` below: #429 replaced a PID-suffixed literal tmp
+    path with `mktemp`, closing a predictable-symlink TOCTOU whose write
+    (traced and reproduced in `tests/test_predictable_tmp_429.py`) can carry
+    a live `haiku.oauth_token` to an attacker-chosen path. That is a real,
+    deliberate spawn added to Pass 2 of the config merge -- exactly the kind
+    of change this guard exists to surface, not to forbid outright -- and it
+    runs only on the resolving run (first tool call of a session, or after a
+    config edit), never on the per-tool-call fast path this guard actually
+    protects. The substitution is applied to the origin/main side before the
+    compare, so it is scoped to this one sanctioned line: anything else that
+    diverges from origin/main in either file still fails this test.
     """
     body = POST_TOOL.read_text(encoding="utf-8")
     code = "\n".join(line for line in body.splitlines()
@@ -571,7 +805,18 @@ def test_the_per_tool_call_path_is_not_touched(tmp_path):
         ["git", "-C", str(REPO_ROOT), "show", "origin/main:scripts/post-tool-hook.sh"],
         capture_output=True, text=True)
     if base.returncode != 0:
-        pytest.skip("origin/main not available")
+        if _origin_main_should_be_resolvable(os.environ):
+            pytest.fail(
+                "origin/main did not resolve on a CI runner -- the byte-pin guard "
+                "this test implements did not run at all (#442). A skip here "
+                "renders exactly like a pass; on a CI runner that is never the "
+                "right answer, so this fails loudly instead."
+            )
+        pytest.skip(
+            "origin/main not available -- no CI env var detected, so this is "
+            "read as a local clone without the ref (e.g. no 'origin' remote, "
+            "or a shallow non-CI clone) rather than the #442 exposure"
+        )
     def _code(text: str) -> str:
         return "\n".join(line for line in text.splitlines()
                          if not line.lstrip().startswith("#"))
@@ -587,7 +832,8 @@ def test_the_per_tool_call_path_is_not_touched(tmp_path):
             f"{rel} on origin/main has no non-comment lines — this compare "
             "would pass against any file at all"
         )
-        assert _code(ref.stdout) == _code(path.read_text(encoding="utf-8")), rel
+        ref_code = _apply_sanctioned_divergence(_code(ref.stdout), rel)
+        assert ref_code == _code(path.read_text(encoding="utf-8")), rel
 
 
 def test_the_check_costs_one_git_invocation_at_most(tmp_path):

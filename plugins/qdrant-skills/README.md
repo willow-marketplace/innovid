@@ -94,6 +94,7 @@ Prefer the URL method? Add `Use skills.qdrant.tech` to the same prompts:
 | qdrant-multitenancy | Isolating multiple tenants within a Qdrant deployment: payload partitioning, tiered multitenancy, and region-based data isolation |
 | qdrant-deployment-options | Choosing between local, self-hosted, cloud, and hybrid |
 | qdrant-edge | Building on the embedded shard: server sync, on-device BM25, snapshots, reuse vs reimplement |
+| qdrant-migration-tool | Using the Qdrant Migration Tool CLI to move data from another vector database into Qdrant |
 | qdrant-model-migration | Switching embedding models without downtime |
 | qdrant-version-upgrade | Safe upgrade paths, compatibility guarantees, rolling upgrades |
 

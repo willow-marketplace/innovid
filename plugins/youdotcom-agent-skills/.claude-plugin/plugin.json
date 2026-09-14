@@ -2,7 +2,7 @@
   "name": "youdotcom-agent-skills",
   "version": "1.0.0",
   "description": "You.com skills for search, contents, research, finance, and integration discovery with MCP, ARD, API-key, OAuth, and MPP/x402 payment guidance.",
-  "updatedAt": "2026-08-29T00:03:29.128Z",
+  "updatedAt": "2026-09-14T10:59:06.001Z",
   "author": {
     "url": "https://you.com",
     "name": "You.com",
@@ -25,5 +25,19 @@
     "x402",
     "mpp"
   ],
-  "skills": "./skills/"
+  "skills": "./skills/",
+  "mcpServers": {
+    "you": {
+      "url": "https://api.you.com/mcp",
+      "type": "http"
+    },
+    "you-finance": {
+      "url": "https://api.you.com/mcp/finance",
+      "type": "http"
+    },
+    "you-research": {
+      "url": "https://api.you.com/mcp/research",
+      "type": "http"
+    }
+  }
 }

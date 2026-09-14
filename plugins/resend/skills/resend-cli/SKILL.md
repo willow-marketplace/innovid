@@ -83,7 +83,7 @@ Auth resolves: `RESEND_API_KEY` env > config file (`resend login --key`). Use `-
 | `segments` | create, get, list, update, delete, contacts |
 | `templates` | create, publish, duplicate, delete, list |
 | `topics` | create, update, delete, list |
-| `webhooks` | create, update, listen, delete, list |
+| `webhooks` | create, update, rotate-signing-secret, listen, delete, list, events (list, get, attempts, replay) |
 | `auth` | login, logout, switch, rename, remove |
 | `whoami` / `doctor` / `update` / `open` / `commands` | Utility commands |
 

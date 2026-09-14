@@ -30,14 +30,14 @@ Point this plugin at your Heroku account (via your authenticated Heroku CLI, rea
 
 **Infrastructure:**
 
-| Capability                 | Base LLM                          | This Plugin                                                                                                                                        |
-| -------------------------- | --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Terraform generation       | Generic templates                 | Your actual config translated — instance classes, storage sizes, region, VPC CIDRs, security groups                                                |
-| Security baseline          | Not included                      | `baseline.tf` always emitted: GuardDuty, CloudTrail, IMDSv2, ECR scanning, EBS encryption, budget alerts                                           |
-| Database migration tooling | "Use DMS"                         | Selects pg_dump / pgcopydb / DMS based on your actual database size; generates the right script                                                    |
-| Cost estimation            | Stale guesses                     | Three-tier pricing (Premium/Balanced/Optimized) using live AWS Pricing API, compared to your current bill                                          |
-| Migration plan             | Generic checklist                 | Phased timeline with Go/No-Go gates, rollback procedures, and data integrity checks                                                                |
-| Migration report           | Generic summary or missing detail | `migration-report.html` with cost tiers, security baseline (GuardDuty, etc.), combined TCO, and appendices — validated for structural completeness |
+| Capability                 | Base LLM                          | This Plugin                                                                                                                                                                                         |
+| -------------------------- | --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Terraform generation       | Generic templates                 | Your actual config translated — instance classes, storage sizes, region, VPC CIDRs, security groups                                                                                                 |
+| Security baseline          | Not included                      | `baseline.tf` always emitted by both `gcp-to-aws` and `heroku-to-aws` Generate: GuardDuty, CloudTrail, IMDSv2, EBS encryption, budget alerts; ECR scan-on-push where ECR repositories are generated |
+| Database migration tooling | "Use DMS"                         | Selects pg_dump / pgcopydb / DMS based on your actual database size; generates the right script                                                                                                     |
+| Cost estimation            | Stale guesses                     | Three-tier pricing (Premium/Balanced/Optimized) using live AWS Pricing API, compared to your current bill                                                                                           |
+| Migration plan             | Generic checklist                 | Phased timeline with Go/No-Go gates, rollback procedures, and data integrity checks                                                                                                                 |
+| Migration report           | Generic summary or missing detail | `migration-report.html` with cost tiers, security baseline (GuardDuty, etc.), combined TCO, and appendices — validated for structural completeness                                                  |
 
 **AI/Agentic:**
 
@@ -126,10 +126,11 @@ After the report is written, run the post-write validator:
 python3 migrate/plugins/migration-to-aws/scripts/validate-migration-report.py \
   "$MIGRATION_DIR/migration-report.html" \
   --estimation-infra "$MIGRATION_DIR/estimation-infra.json" \
-  --estimation-ai "$MIGRATION_DIR/estimation-ai.json"
+  --estimation-ai "$MIGRATION_DIR/estimation-ai.json" \
+  --aws-design "$MIGRATION_DIR/aws-design.json"
 ```
 
-Pass `--estimation-infra` / `--estimation-ai` only when those files exist. Resolve the script from the plugin root (`$PLUGIN_ROOT/scripts/validate-migration-report.py` in an installed copy).
+Pass `--estimation-infra` / `--estimation-ai` / `--aws-design` only when those files exist. Resolve the script from the plugin root (`$PLUGIN_ROOT/scripts/validate-migration-report.py` in an installed copy).
 
 **`REPORT_OK | structure=complete`** means required sections, TOC links, and appendix depth checks passed. It does **not** verify that every dollar figure matches the JSON — review numerics before executive sign-off. See [fixtures/README.md](fixtures/README.md) for the reference HTML + estimation JSON contract.
 

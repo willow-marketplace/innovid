@@ -35,6 +35,8 @@ import subprocess
 import sys
 import tempfile
 
+from . import extract as _extract
+from . import host as _host
 from . import spawn_guard
 from .types import HaikuResult, TokenUsage
 
@@ -103,6 +105,20 @@ def _resolve_claude_bin() -> str:
     return shutil.which("claude") or "claude"
 
 
+def _resolve_codex_bin() -> str:
+    """Full path to the ``codex`` executable, resolved before spawning (#460).
+
+    Mirrors ``_resolve_claude_bin()``: ``REMEMBER_CODEX_BIN`` overrides the
+    lookup, ``shutil.which`` honours PATHEXT on Windows, and a PATH that
+    resolves nothing falls back to the bare name so a spawn failure reports
+    what was actually tried rather than an internal resolution error.
+    """
+    override = os.environ.get("REMEMBER_CODEX_BIN", "").strip()
+    if override:
+        return override
+    return shutil.which("codex") or "codex"
+
+
 # CLAUDE_CODE_* vars are stripped as parent-session identity (#95) — but the
 # prefix is a proxy, not a definition, and one member of the family is the
 # child's *credentials*. Stripping CLAUDE_CODE_OAUTH_TOKEN leaves `claude -p`
@@ -113,6 +129,172 @@ _CHILD_ENV_KEEP = frozenset({"CLAUDE_CODE_OAUTH_TOKEN"})
 # Set on the child, read by scripts/resolve-paths.sh (#204). Shared here as a
 # constant so the tests pin one spelling against both sides of the contract.
 NESTED_SUMMARIZER_ENV = "REMEMBER_NESTED_SUMMARIZER"
+
+
+# ─── Host-native summarizer routing (#460) ─────────────────────────────────
+#
+# `claude -p` was the only summarizer this module ever shelled out to, so a
+# session run entirely inside Codex still paid Anthropic to remember an
+# OpenAI session, and needed an authenticated Claude CLI installed for no
+# reason a Codex user chose. `codex exec` (verified working against
+# codex-cli 0.150.1, #460) is the on-host equivalent and is already installed
+# wherever this problem occurs.
+#
+# REMEMBER_SUMMARIZER selects the provider: "claude" (always the Claude CLI --
+# the historical, only-ever behaviour), "codex" (always `codex exec`), or
+# "auto" (the default), which reads the TRANSCRIPT the host actually wrote
+# (#465) rather than its environment. A Claude Code session's own provider
+# resolution is therefore untouched by this feature: it was already
+# "claude", and "auto" still answers "claude" for it.
+#
+# "auto" used to ask pipeline.host.detect_host() -- env-var signatures
+# (#460, keyed correctly only after #463). #465 found that mechanism cannot
+# work for THIS call site: detect_host() runs inside the summarizer, which
+# is spawned from scripts/haiku's caller (pipeline/haiku.py -> _call_codex /
+# _call_claude), itself reached through scripts/save-session.sh ->
+# scripts/session-end-hook.sh, a process Codex spawns as a HOOK, not the
+# tool shell #464's own CODEX_SESSION_ID/CODEX_THREAD_ID fixture was
+# captured from. Measured against a live codex-cli 0.150.1 SessionEnd hook
+# invocation (env dumped from inside the hook, CLAUDE_CODE_* stripped):
+# neither CODEX_SESSION_ID nor CODEX_THREAD_ID reached the process at all --
+# only PLUGIN_ROOT/CLAUDE_PLUGIN_ROOT survived. So under "auto", every
+# default-configured Codex user's hook-triggered save kept resolving
+# "claude", #460's whole point, unreached.
+#
+# The replacement depends on what the host WROTE, not what it exported: the
+# hooks already trust and export REMEMBER_TRANSCRIPT_PATH
+# (pipeline.host.transcript_path()), and pipeline.extract.sniff_file_envelope()
+# already tells a Codex rollout from a Claude Code transcript by shape
+# (#443). A transcript a host wrote cannot be silently withdrawn the way a
+# compatibility env var can -- the failure mode #463 and #465 are both
+# instances of.
+#
+# pipeline.host.detect_host() itself is unchanged and still exercised
+# directly by tests/test_codex_signature_463.py (env-signature detection is
+# still a real, correct fact about a process); it is simply no longer the
+# mechanism this router calls for "auto".
+#
+# REMEMBER_SUMMARIZER_FALLBACK is the opt-in for what happens when the
+# resolved codex route cannot produce a result (binary missing, non-zero
+# exit, empty output, timeout): unset means "could not summarize", raised
+# loudly rather than silently retried against Anthropic's API; "claude" means
+# fall back to `claude -p`, exactly as though REMEMBER_SUMMARIZER=claude had
+# been set for this one call -- and it is logged every time it fires, because
+# it reproduces this issue's own billing complaint, on purpose, only because
+# the operator asked for it.
+_SUMMARIZER_PROVIDERS = frozenset({"claude", "codex", "auto"})
+
+
+def _resolve_summarizer_provider() -> str:
+    """REMEMBER_SUMMARIZER, validated, else "auto"."""
+    raw = os.environ.get("REMEMBER_SUMMARIZER", "").strip().lower()
+    if not raw:
+        return "auto"
+    if raw in _SUMMARIZER_PROVIDERS:
+        return raw
+    _warn(
+        f"WARNING: ignoring REMEMBER_SUMMARIZER={raw!r} -- must be one of "
+        f"{sorted(_SUMMARIZER_PROVIDERS)}; using 'auto'"
+    )
+    return "auto"
+
+
+def _resolve_summarizer_fallback() -> str | None:
+    """REMEMBER_SUMMARIZER_FALLBACK, validated, else None (no fallback)."""
+    raw = os.environ.get("REMEMBER_SUMMARIZER_FALLBACK", "").strip().lower()
+    if not raw:
+        return None
+    if raw == "claude":
+        return raw
+    _warn(
+        f"WARNING: ignoring REMEMBER_SUMMARIZER_FALLBACK={raw!r} -- 'claude' "
+        "is the only supported fallback target; not falling back"
+    )
+    return None
+
+
+def _choose_summarizer_provider() -> str:
+    """Which provider this call should use: "claude" or "codex".
+
+    "auto" (the default, and the only case that reads anything for a HOST
+    rather than an explicit choice) follows the TRANSCRIPT the host wrote,
+    not its environment (#465): pipeline.host.transcript_path() finds the
+    file the hook already exported (REMEMBER_TRANSCRIPT_PATH), and
+    pipeline.extract.sniff_file_envelope() sniffs that file's own first
+    parseable line for a Codex-shaped or Claude-Code-shaped envelope (#443).
+    No usable transcript (unset, unreadable, or a shape neither host wrote)
+    answers "claude" -- the historical default every host got before Codex
+    routing existed, and the safe side of an unrecognised signal either way.
+    A transcript that WAS exported but could not be sniffed (deleted between
+    export and this read, or a shape neither host wrote) logs why it fell to
+    "claude" -- an operator debugging a wrongly-billed session must be able
+    to tell "genuinely Claude Code" from "could not tell", the same
+    distinction every other UNKNOWN-shaped result in this module already
+    makes loudly (see pipeline.host.sniff_envelope()'s own docstring).
+    """
+    provider = _resolve_summarizer_provider()
+    if provider != "auto":
+        return provider
+    path = _host.transcript_path()
+    if not path:
+        # transcript_path() collapses two different facts into one None:
+        # the var was never set (ordinary -- no hook preamble, nothing to
+        # say), and the var WAS set but the file it names is gone (#477 --
+        # exported, then vanished before this read, the exact "deleted
+        # between export and this read" case the docstring above already
+        # promises a receipt for). Re-reading the environment here, rather
+        # than widening transcript_path()'s own return shape, keeps that
+        # function's contract ("a usable path or None") unchanged for every
+        # other caller.
+        raw = (os.environ.get(_host.TRANSCRIPT_PATH_VAR) or "").strip()
+        if raw:
+            _warn(
+                f"WARNING: REMEMBER_TRANSCRIPT_PATH={raw!r} names a "
+                "transcript that no longer exists (exported, then vanished "
+                "before this read) -- REMEMBER_SUMMARIZER=auto is falling "
+                "back to 'claude', which may not be correct"
+            )
+        return "claude"
+    envelope, envelope_unreadable, envelope_capped = _extract.sniff_file_envelope_status(path)
+    if envelope == "codex":
+        return "codex"
+    if envelope == "antigravity":
+        # #567: Antigravity has no summarizer provider of its own --
+        # _SUMMARIZER_PROVIDERS is still {"claude", "codex", "auto"} -- so
+        # "claude" is the correct answer here, the same as it is for a
+        # genuine Claude Code transcript. But unlike Claude Code, this is
+        # a DIFFERENT host's session being billed through `claude -p`, the
+        # exact shape #460/#477 already warn about elsewhere in this
+        # function; teaching sniff_envelope() the Antigravity shape (#563)
+        # moved this transcript out of the "unrecognised" arm below -- the
+        # only arm that used to warn -- into a silent fall-through, with
+        # no receipt for an operator debugging a wrongly-billed session.
+        _warn(
+            f"WARNING: transcript {path!r} is an Antigravity session -- "
+            "REMEMBER_SUMMARIZER=auto has no Antigravity-native summarizer "
+            "and is falling back to 'claude'"
+        )
+        return "claude"
+    if envelope == "unrecognised":
+        # #556: "unreadable or an unrecognised shape" used to be the whole
+        # story, but it collapsed a THIRD cause into "unrecognised shape" --
+        # the scan giving up at extract._ENVELOPE_SNIFF_SCAN_CAP without
+        # ever exhausting the file. sniff_file_envelope_status() (rather
+        # than the plain sniff_file_envelope() this used to call) is what
+        # makes the cap visible here, so the warning can name it instead of
+        # misfiling it under a shape genuinely never recognised.
+        if envelope_unreadable:
+            reason = "unreadable"
+        elif envelope_capped:
+            reason = "gave up after scanning too many unplaceable lines"
+        else:
+            reason = "an unrecognised shape"
+        _warn(
+            f"WARNING: could not identify the host from transcript {path!r} "
+            f"({reason}) -- REMEMBER_SUMMARIZER=auto "
+            "is falling back to 'claude', which may not be correct"
+        )
+    return "claude"
 
 
 def _child_env() -> dict[str, str]:
@@ -207,7 +389,7 @@ def _log_failed_spend(what_happened: str, stdout: object) -> None:
         _warn(f"call {what_happened} after spending tokens: {usage}")
     else:
         _warn(
-            f"call {what_happened}; tokens already spent are unknown — the "
+            f"call {what_happened}; tokens already spent are unknown -- the "
             "failure carried no usage block, so this run's reported cost is "
             "lower than what it actually cost"
         )
@@ -254,7 +436,7 @@ def _failure_detail(stdout: str, stderr: str) -> str:
         return "(no output on stdout or stderr)"
     joined = " | ".join(parts)
     if len(joined) > _FAILURE_DETAIL_MAX:
-        joined = joined[:_FAILURE_DETAIL_MAX] + "…"
+        joined = joined[:_FAILURE_DETAIL_MAX] + "..."
     return joined
 
 
@@ -329,7 +511,7 @@ def _accept_token(value: object, source: str) -> str | None:
         else:
             detail = f"a {type(value).__name__} value"
         _warn(
-            f"WARNING: ignoring {source} — not a plausible OAuth token "
+            f"WARNING: ignoring {source} -- not a plausible OAuth token "
             f"(want a whitespace-free string of at least {_MIN_TOKEN_LEN} "
             f"chars, got {detail}); the nested CLI will run unauthenticated "
             "unless the host provides a token of its own"
@@ -601,7 +783,7 @@ def _isolation_may_be_the_cause(stdout: str, stderr: str) -> bool:
             f"{', '.join(repr(f) for f in _SCANNED_FAILURE_FIELDS)}, the "
             f"{_SCANNED_FAILURE_LIST_FIELDS[0]!r} list, and stderr (#318). NOT "
             "retrying without hook isolation on the strength of an unrecognised "
-            "field — that decision may not be reachable from arbitrary content "
+            "field -- that decision may not be reachable from arbitrary content "
             "(#202). If this is a genuine auth failure, capture is failing "
             f"permanently and the fix is to add {field!r} to the scanned set: "
             "please file it against #320."
@@ -630,16 +812,159 @@ def _build_cmd(tools: list[str] | None, isolate_hooks: bool) -> list[str]:
     return cmd
 
 
+def _build_codex_cmd(output_file: str) -> list[str]:
+    """The nested ``codex exec`` invocation (#460).
+
+    ``--sandbox read-only``: this call summarizes, it does not act (mirrors
+    the Claude path's default empty ``--allowedTools``).
+    ``--skip-git-repo-check``: cwd is a temp dir, never a git repo.
+    ``--ephemeral``: no session file persisted for a one-shot summarizer call.
+    ``--ignore-user-config``: Codex's own equivalent of the Claude path's
+    ``--setting-sources ''`` hook isolation (#202) -- verified against
+    codex-cli 0.150.1 that omitting this flag runs the operator's own Codex
+    hooks (including this plugin's, if installed for Codex) inside the
+    nested call; ``CODEX_HOME`` auth is unaffected by it.
+    ``-o``: the model's final message, and nothing else Codex prints while it
+    runs, written to its own file -- avoids parsing progress/reasoning noise
+    out of stdout the way ``--output-format json`` lets the Claude path avoid
+    it.
+    ``-``: read the prompt from stdin, not argv (mirrors the Claude path's
+    E2BIG concern -- see ``call_haiku``'s docstring).
+    """
+    return [
+        _resolve_codex_bin(),
+        "exec",
+        "--sandbox", "read-only",
+        "--skip-git-repo-check",
+        "--ephemeral",
+        "--ignore-user-config",
+        "-C", tempfile.gettempdir(),
+        "-o", output_file,
+        "-",
+    ]
+
+
+def _call_codex(prompt: str, timeout: int = 120) -> HaikuResult:
+    """Call the on-host Codex CLI (``codex exec``) and return a structured
+    result (#460).
+
+    Same spawn-guard bound as the Claude path (#204): a codex-routed call is
+    still a summarizer spawn, and nothing distinguishes the two for the
+    purpose of the runaway-recursion cap.
+
+    Raises RuntimeError for anything that stops this from producing a
+    result -- codex missing, a non-zero exit, a timeout, or an empty final
+    message. The caller (``call_haiku``) decides what to do with that: raise
+    it further (the default -- "could not summarize", said loudly) or retry
+    via the Claude CLI (only when REMEMBER_SUMMARIZER_FALLBACK=claude was
+    set, and only for the ONE call that failed).
+    """
+    try:
+        slot = spawn_guard.claim(timeout=timeout)
+    except spawn_guard.SummarizerSpawnDeclined as declined:
+        _warn(f"WARNING: {declined}")
+        raise
+    if slot.degraded:
+        _warn(
+            "WARNING: the summarizer spawn guard could not use "
+            f"{spawn_guard.record_dir()} ({slot.degraded}); this spawn is "
+            "UNBOUNDED. Saves keep working -- an unusable runtime directory "
+            "must not become a permanent save outage (#204) -- but nothing "
+            "is counting summarizers until it is writable again."
+        )
+
+    fd, out_path = tempfile.mkstemp(prefix="remember-codex-out-", suffix=".txt")
+    os.close(fd)
+    try:
+        try:
+            result = subprocess.run(
+                _build_codex_cmd(out_path),
+                input=prompt,
+                capture_output=True,
+                text=True,
+                # codex emits UTF-8; same rationale as the Claude path (#91).
+                encoding="utf-8",
+                errors="replace",
+                timeout=timeout,
+                env=_child_env(),
+                cwd=tempfile.gettempdir(),
+            )
+        except FileNotFoundError as missing:
+            raise RuntimeError(f"codex CLI not found: {missing}") from missing
+        except subprocess.TimeoutExpired as timed_out:
+            # NOT _log_failed_spend: that helper is written for the Anthropic
+            # billing path (it hunts timed_out.stdout for Claude's
+            # `--output-format json` usage block and warns "tokens already
+            # spent are unknown"), and reusing it here would tell the operator
+            # an Anthropic cost was left unaccounted when this call was never
+            # billed to Anthropic in the first place -- self-contradicting the
+            # very reason this route exists. codex's own token/cost figures
+            # are a different provider's accounting and are not tracked here
+            # (see the HaikuResult construction below).
+            _warn(
+                f"WARNING: codex timed out after {timeout}s; codex's own "
+                "usage/cost for this call (a different provider's figures, "
+                "not tracked here) is unknown"
+            )
+            raise RuntimeError(f"codex timed out after {timeout}s") from timed_out
+
+        if result.returncode != 0:
+            raise RuntimeError(
+                f"codex exited {result.returncode}: "
+                f"{_failure_detail(result.stdout, result.stderr)}"
+            )
+
+        try:
+            with open(out_path, encoding="utf-8", errors="replace") as f:
+                text = f.read()
+        except OSError as unreadable:
+            raise RuntimeError(
+                f"codex exited 0 but its output file could not be read: {unreadable}"
+            ) from unreadable
+    finally:
+        slot.release()
+        try:
+            os.remove(out_path)
+        except OSError:
+            pass
+
+    if not text.strip():
+        raise RuntimeError(
+            "codex exited 0 but wrote no final message (-o file was empty)"
+        )
+
+    model_skipped = text.strip().upper().startswith("SKIP")
+    rejected = not model_skipped and (_is_non_summary(text) or _is_cli_notice(text))
+    return HaikuResult(
+        text=text,
+        # Not billed to Anthropic -- that is the whole point of this route --
+        # and codex's own token/cost accounting is a different provider's
+        # figures, not tracked here. Zero, not "unknown": nothing on this
+        # call touched the API these numbers price.
+        tokens=TokenUsage(),
+        is_skip=model_skipped or rejected,
+        is_rejected=rejected,
+        provider="codex",
+    )
+
+
 def call_haiku(
     prompt: str,
     tools: list[str] | None = None,
     timeout: int = 120,
 ) -> HaikuResult:
-    """Call Haiku via the Claude CLI and return a structured result.
+    """Call the summarizer and return a structured result.
 
-    Spawns a ``claude`` subprocess with ``--model haiku`` and
-    ``--output-format json``, waits for completion, and parses the
-    JSON response into a ``HaikuResult``.
+    Routes to one of two providers via ``_choose_summarizer_provider()``
+    (#460): a detected Codex host summarizes via ``codex exec``
+    (``_call_codex``, below), and every other host -- Claude Code, an
+    unrecognised host, or an explicit ``REMEMBER_SUMMARIZER=claude`` override
+    -- spawns a ``claude`` subprocess with ``--model haiku`` and
+    ``--output-format json``, waits for completion, and parses the JSON
+    response into a ``HaikuResult``. The codex route falls through to this
+    same claude path only when it fails AND ``REMEMBER_SUMMARIZER_FALLBACK=
+    claude`` was set; otherwise a failed codex route raises rather than
+    silently falling back.
 
     Args:
         prompt: The full prompt text to send to the model.
@@ -654,6 +979,36 @@ def call_haiku(
         RuntimeError: If the subprocess times out or exits with a non-zero
             return code, or if the JSON response cannot be parsed.
     """
+    provider = _choose_summarizer_provider()
+    if provider == "codex":
+        try:
+            return _call_codex(prompt, timeout=timeout)
+        except spawn_guard.SummarizerSpawnDeclined:
+            # A decline is "skip this span, try again later" (#204), not
+            # "this route is unavailable" -- never reinterpreted as a
+            # fallback trigger, which would just claim a second slot for the
+            # same span under a different provider.
+            raise
+        except RuntimeError as codex_error:
+            fallback = _resolve_summarizer_fallback()
+            if fallback != "claude":
+                raise RuntimeError(
+                    f"could not summarize: {codex_error} (host-native "
+                    "summarizer unavailable, and no fallback is configured "
+                    "-- set REMEMBER_SUMMARIZER_FALLBACK=claude to opt into "
+                    "the Claude CLI as a fallback, or REMEMBER_SUMMARIZER="
+                    "claude to always use it)"
+                ) from codex_error
+            _warn(
+                f"WARNING: codex summarization failed ({codex_error}); "
+                "falling back to claude -p because "
+                "REMEMBER_SUMMARIZER_FALLBACK=claude is set. This bills "
+                "Anthropic for what was meant to summarize on-host -- the "
+                "same complaint #460 was filed over, now opted into rather "
+                "than unconditional."
+            )
+            # Falls through to the claude -p path below.
+
     # Prompt goes on STDIN, not argv: a session extract can exceed Linux's
     # MAX_ARG_STRLEN (128KB per single argument), which raises E2BIG ("Argument
     # list too long") at exec time and silently kills saves of long sessions.
@@ -676,8 +1031,8 @@ def call_haiku(
         _warn(
             "WARNING: the summarizer spawn guard could not use "
             f"{spawn_guard.record_dir()} ({slot.degraded}); this spawn is "
-            "UNBOUNDED. Saves keep working — an unusable runtime directory must "
-            "not become a permanent save outage (#204) — but nothing is "
+            "UNBOUNDED. Saves keep working -- an unusable runtime directory must "
+            "not become a permanent save outage (#204) -- but nothing is "
             "counting summarizers until it is writable again."
         )
 
@@ -722,7 +1077,7 @@ def call_haiku(
                 f"WARNING: this CLI rejected {_HOOK_ISOLATION_FLAG} "
                 f"({_failure_detail(result.stdout, result.stderr)}); retrying "
                 "WITHOUT hook isolation so saves keep working. The nested call "
-                "will run with your hooks registered — a hook that blocks it "
+                "will run with your hooks registered -- a hook that blocks it "
                 "returns its block message as if it were the model's reply "
                 "(#202)."
             )
@@ -848,7 +1203,8 @@ def _parse_response(raw: str) -> HaikuResult:
     rejected = not model_skipped and (_is_non_summary(text) or _is_cli_notice(text))
 
     return HaikuResult(text=text, tokens=tokens,
-                       is_skip=model_skipped or rejected, is_rejected=rejected)
+                       is_skip=model_skipped or rejected, is_rejected=rejected,
+                       provider="claude")
 
 
 def _extract_tokens(data: dict) -> TokenUsage:

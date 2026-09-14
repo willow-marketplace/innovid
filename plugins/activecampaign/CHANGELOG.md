@@ -3,6 +3,11 @@
 All notable changes to the ActiveCampaign plugin are documented here.
 This project follows [Semantic Versioning](https://semver.org/).
 
+## [0.3.1] — claude.ai loader compatibility
+
+### Fixed
+- `.mcp.json` server type corrected from `"url"` to `"http"` (streamable HTTP), the valid remote type in the MCP config format. `"url"` is the Messages API connector format and was rejected by claude.ai's plugin loader; Claude Code tolerated it. Same endpoint, same transport — no server or install behavior changes.
+
 ## [0.3.0] — Agent Plugins standard adoption
 
 ### Added

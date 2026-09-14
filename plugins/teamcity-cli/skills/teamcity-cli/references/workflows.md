@@ -113,6 +113,17 @@ teamcity run start <job-id> --watch
 teamcity run start <job-id> --branch feature/my-branch --watch
 ```
 
+For jobs with unrelated VCS roots, pin each root independently (use VCS root IDs):
+
+```bash
+teamcity run start <job-id> --branch feature/game \
+  --revision GameRepo=<sha>@feature/game --revision AssetsRepo=@main
+```
+
+Unspecified roots keep normal TeamCity selection. Branch-only pins use the latest
+head TeamCity has fetched; explicit per-root SHAs are not resolved in local Git.
+
+
 **Start with parameters:**
 ```bash
 teamcity run start <job-id> -P "param1=value1" -P "param2=value2"
@@ -380,6 +391,8 @@ mvn teamcity-configs:generate -f .teamcity/pom.xml       # fallback
 
 Connections give jobs credentials for external services (GitHub, Docker registries, AWS, ...) without storing secrets per-job. Required before creating a VCS root that authenticates via OAuth.
 
+Connections listed or selected with `--project` include parent projects, including `_Root`. Delete an inherited connection from its owning project.
+
 **Inspect existing connections in a project:**
 ```bash
 teamcity project connection list --project <project-id>
@@ -387,7 +400,7 @@ teamcity project connection list --project <project-id>
 
 ### Connecting a GitHub repository (GitHub App)
 
-> **Always use this path for GitHub.** Don't `vcs create --auth password` with a personal access token — PATs tie infrastructure to one human, leak in job logs, and can't be revoked centrally. The four-step flow below produces a non-personal "Refreshable access token" tied to a service-identity App, which is what the TeamCity UI's "Sign in to GitHub App" button creates.
+> **Prefer a GitHub App connection for GitHub.** Authorization is per TeamCity user. TeamCity may copy a permanent token or reference a refreshable token; this flow does not guarantee a service identity.
 
 Creates a fresh GitHub App via GitHub's manifest flow — credentials are captured automatically, no PAT involved. Lets jobs clone, post commit statuses, and comment on PRs.
 
@@ -406,7 +419,8 @@ The output prints `Next steps:` with follow-up commands and the install link. Ca
 
 ```bash
 teamcity project connection authorize PROJECT_EXT_NN -p <project-id>
-# browser opens TeamCity's OAuth page → click Authorize on GitHub → tab self-closes.
+# Prints the URL and opens the browser; add --no-input to print it without opening.
+# Complete authorization in the browser; the tab closes on success.
 ```
 
 **3. Install the App on a repo** (one-time, per repo, on github.com):
@@ -424,7 +438,7 @@ teamcity project vcs create -p <project-id> \
   --url https://github.com/<owner>/<repo>.git
 ```
 
-TeamCity auto-fills `authMethod=ACCESS_TOKEN`, `username=oauth2`, and the proper `tokenId` from the connection's stored token. No manual property setup needed; the resulting VCS root uses a non-personal "Refreshable access token" — exactly what the UI's "Sign in to GitHub App" produces.
+To reference an existing stored token explicitly, replace `--connection-id` with `--token-id <full-token-id>`. The token must be permitted in this project; use `--username` if the provider requires a value other than `oauth2`. This writes `ACCESS_TOKEN` and `tokenId` without copying a secret; test the root in the TeamCity UI.
 
 **Non-interactive (agent) variant — bring your own GitHub App credentials:**
 
@@ -473,6 +487,8 @@ VCS roots and build features that reference the deleted connection break — cle
 
 ## VCS Roots
 
+`teamcity project vcs test <id>` tests saved credentials through the web UI endpoint; if access is blocked, use the printed UI link.
+
 For questions like "which repository URL and default branch does project `<id>` use", always discover attached VCS roots first, then inspect a concrete root.
 
 **List VCS roots in a project:**
@@ -513,6 +529,12 @@ teamcity project vcs delete <vcs-root-id> --yes   # skip confirmation
 ```
 
 ## Project Settings (Export & Status)
+
+**Import initial settings from VCS (keeps UI editing enabled; refuses existing configurations):**
+```bash
+teamcity project settings enable <project-id> --vcs-root <root-id>
+teamcity project settings status <project-id>
+```
 
 **Check versioned settings sync status (requires server connection):**
 ```bash
@@ -606,6 +628,8 @@ teamcity agent reboot <agent-id> --graceful
 ```
 
 ## Remote Agent Access
+
+`TEAMCITY_RO=1` or per-server `ro: true` blocks both commands below before connecting. Use server-side permissions, rather than this local guard alone, to restrict credential access.
 
 **Open interactive shell on an agent:**
 ```bash
@@ -890,7 +914,7 @@ teamcity pipeline create my-pipeline --project <project-id> --vcs-root <vcs-root
 
 **Validate pipeline YAML before pushing:**
 ```bash
-# Validates against server schema (cached locally for 24h)
+# Validates against the complete server schema with enabled runners/features (cached for 24h)
 teamcity pipeline validate
 
 # Validate a specific file
@@ -948,6 +972,8 @@ teamcity pipeline delete <pipeline-id> --yes   # skip confirmation
 | `403 Forbidden`              | Insufficient permissions  | Build config may require different access rights; check with TeamCity admin             |
 | `404 Not Found`              | Build deleted or wrong ID | Verify the build ID/URL; the build may have been cleaned up                             |
 | Connection refused / timeout | Server unreachable        | Check if TeamCity instance is accessible; verify server URL with `teamcity auth status` |
-| `Not authenticated`          | `TEAMCITY_URL` set without matching token, or no auth configured | Unset `TEAMCITY_URL` to use stored auth from `teamcity auth login`, or set both `TEAMCITY_URL` and `TEAMCITY_TOKEN` |
+| `Not authenticated`          | Missing or invalid credentials for the selected server | Run `teamcity auth login -s <url>` or override credentials with `TEAMCITY_TOKEN` |
 | `No server configured`       | Missing auth config       | Run `teamcity auth login -s <url>` or set `TEAMCITY_URL` and `TEAMCITY_TOKEN` env vars  |
 | `Network access blocked by sandbox` | Sandbox proxy blocking outbound requests | Add the server domain to the sandbox `allowedDomains`, or exclude `teamcity` from sandboxing |
+
+`project settings status` reports the server’s runtime message and missing DSL context parameters. Its “Recorded” timestamp is when the status was recorded, not the last successful sync.

@@ -1,6 +1,6 @@
 # Slack MCP and Skills Plugin
 
-A [Claude Code][claude-code] and [Cursor][cursor] plugin that brings Slack into your AI tools with a [Slack MCP Server][slack-mcp-docs] and set of Slack skills for both users and developers.
+A [Claude Code][claude-code], [Cursor][cursor], and [Codex][codex-cli] plugin that brings Slack into your AI tools with a [Slack MCP Server][slack-mcp-docs] and set of Slack skills for both users and developers.
 
 [![CI Build](https://github.com/slackapi/slack-skills-plugin/actions/workflows/ci-build.yml/badge.svg)](https://github.com/slackapi/slack-skills-plugin/actions/workflows/ci-build.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -26,6 +26,38 @@ The plugin is published on the [official Cursor Marketplace](https://cursor.com/
 ```
 
 This installs the skills, commands, and MCP server together. You'll be prompted to authenticate to your Slack workspace via OAuth on first use.
+
+### Codex
+
+The plugin is published as a Codex marketplace in this repository. Add the marketplace, then install the plugin:
+
+```sh
+codex plugin marketplace add slackapi/slack-skills-plugin
+codex plugin add slack@slack
+```
+
+Start a new Codex session to pick up the plugin, then invoke a skill by name with a `$` mention, for example `$block-kit`.
+
+Codex support currently ships the skills only; the MCP server is not yet wired into the Codex surface.
+
+### Other agents
+
+The skills install into other coding agents with [`npx skills`][npx-skills], no plugin marketplace required:
+
+```bash
+# Install the skills for a coding agent, named by its own identifier
+npx skills add slackapi/slack-skills-plugin -y -a <agent>
+
+# For example, Gemini CLI or OpenCode
+npx skills add slackapi/slack-skills-plugin -y -a gemini-cli
+npx skills add slackapi/slack-skills-plugin -y -a opencode
+```
+
+Other popular agents include `crush`, `devin`, `hermes-agent`, `openclaw`, and `pi`. See [supported agents][npx-skills] for the full list of agents and their identifiers. Add `-g` to install for your user instead of the current project.
+
+The `-y` flag installs every skill without prompting. Drop it to choose skills from a list, or pass `-s <skill>` to name the ones you want.
+
+This path carries the skills only: no commands, and no MCP server.
 
 ## Features
 
@@ -89,7 +121,9 @@ Working on the plugin itself? See the [maintainer's guide](.github/maintainers_g
 
 [claude-code]: https://claude.com/claude-code
 [cursor]: https://cursor.com
+[codex-cli]: https://developers.openai.com/codex/cli
 [slack-mcp-docs]: https://docs.slack.dev/ai/mcp-server/
+[npx-skills]: https://github.com/vercel-labs/skills#supported-agents
 [slack-cli]: https://tools.slack.dev/slack-cli
 [bolt]: https://tools.slack.dev/bolt-js
 [block-kit]: https://app.slack.com/block-kit-builder

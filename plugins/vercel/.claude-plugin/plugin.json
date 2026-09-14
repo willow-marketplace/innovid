@@ -2,7 +2,7 @@
   "name": "vercel",
   "version": "1.0.0",
   "description": "Build and deploy web apps and agents",
-  "updatedAt": "2026-08-29T00:03:34.091Z",
+  "updatedAt": "2026-09-14T10:59:07.810Z",
   "author": {
     "url": "https://github.com/vercel",
     "name": "Vercel"
@@ -52,6 +52,17 @@
           {
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/session-end-cleanup.mjs\""
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Skill",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/posttooluse-skill-telemetry.mjs\""
           }
         ]
       }

@@ -4,14 +4,27 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [1.3.0] - TBD
 
 ### Added
 
+- **`.transformList()` in the CEL reference** — the index-aware list transform (`list.transformList(i, v, expr)`) is now documented alongside `.map()`/`.filter()`, with guidance to prefer it over a workflow Loop when reshaping an array in a single action (e.g. adding multiple events/detections to a case, or building a delimited string with `.join(...)`).
+- **Request Human Input Entra ID note** — the human-in-the-loop use case now records that the responder authenticates through Entra ID (including business users who are not Falcon administrators), so approvers must be able to sign in with Entra ID for the approval gate to work.
+
+### Fixed
+
+- **`validate.py` no longer blocks the supported way to consume Inline.Python JSON output.** The validator flagged `${cs.json.decode(data['<action>.output_stdout']).field}` as a release-time failure, but a live probe (released and executed clean) confirmed the platform accepts it — matching the official SOAR guidance to `print(json.dumps(result))` and decode downstream with `cs.json.decode(...)`. The false-positive guard is removed and `inline-python-action.md` now documents the decode-and-dot-index pattern (guard with `cs.json.valid(...)` when stdout may be non-JSON).
+
+## [1.2.0] - 2026-09-08
+
+### Added
+
+- **Installable from the OpenAI/Codex, Cursor, and GitHub Copilot marketplaces.** Beyond the Anthropic marketplace, the plugin is now published to the OpenAI/Codex curated CLI marketplace (`codex plugin add crowdstrike-falcon-fusion@openai-api-curated`; ChatGPT-authenticated Codex installs via `/plugins`), the Cursor marketplace, and the GitHub Copilot (awesome-copilot) directory. The skills-only bundle now ships the square interface icon the OpenAI directory requires, and the README install table links each live listing plus the Falcon Fusion workflows walkthrough.
 - **CEL timestamp and time-math functions** in the CEL expressions reference — `cs.timestamp.parse(str, 'RFC3339')` plus the live-verified Unix-epoch-millisecond idiom (`int((… - timestamp('1970-01-01T00:00:00Z')).getMilliseconds())`) and `duration(...)` windowing. Includes a case-management pattern for building dynamic, time-scoped Event Search deep links from a detection's `Trigger.ObservedTime`.
 
 ### Fixed
 
+- **`monitor_execution.py` and `trigger_workflow.py --wait` no longer misreport a successful execution as a failure/timeout.** Both polled only for a `Succeeded` terminal status, but live testing against the execution-results API showed a normal successful execution reports `Completed` — so every successful run polled to its full timeout and exited non-zero. `get_execution_results.py`'s shared `TERMINAL_STATUSES` now includes `completed`, and a new `SUCCESS_STATUSES` set (both scripts' single source of truth for the exit-code decision) treats `succeeded` and `completed` as success.
 - **`validate.py` now flags `WorkflowCustomVariable.<name>` references to variables that nothing declares** — a release-only failure. A reference to a custom variable that no `CreateVariable` (or `UpdateVariable` setter) declares imports and validates cleanly, then fails at release with `property "..." contains unknown variable "WorkflowCustomVariable.<name>"`. The validator now collects declared variable names and reports an undeclared reference before you deploy.
 - **`validate.py` no longer rejects valid action IDs that aren't 32-char hex.** The action-ID check assumed every ID was a 32-character hex string (or a `<hex>_<hex>` / `<hex>~<hex>` compound), but real catalog actions carry other shapes — a 26-character ULID joined to a hex id (custom IOC / API-integration actions), unequal compound halves (event query actions), and longer hex strings (RTR actions). Those imported fine yet were flagged as invalid locally. IDs are now treated as opaque catalog identifiers, so the check still rejects placeholders (UPPER_SNAKE tokens, punctuation, all-same-character) without blocking real IDs. Docs updated to describe action IDs as identifiers you look up rather than "32-char hex".
 
@@ -76,7 +89,3 @@ First public release of Falcon Fusion Skills — AI coding assistant skills for 
 ### Editor and CLI Support
 
 - Tested with Claude Code. Experimental setup instructions for Codex, Copilot CLI, Cursor, and Antigravity CLI, written from each tool's own documentation but not yet verified end to end. The skills are plain markdown, so any assistant that reads local files can use them.
-
-[1.1.0]: https://github.com/CrowdStrike/fusion-skills/releases/tag/v1.1.0
-[1.0.1]: https://github.com/CrowdStrike/fusion-skills/releases/tag/v1.0.1
-[1.0.0]: https://github.com/CrowdStrike/fusion-skills/releases/tag/v1.0.0

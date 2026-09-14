@@ -1,5 +1,30 @@
 # shopify-plugin
 
+## 1.8.2
+
+### Patch Changes
+
+- 74fb50b: Route "build an app with [language/framework]" prompts to Shopify's official backend libraries: the `onboarding-dev`, `polaris-checkout-extensions`, `polaris-customer-account-extensions`, and `pos-ui` topics now name the `@shopify/shopify-app-react-router`, `@shopify/shopify-app-remix`, and `@shopify/shopify-app-express` packages for Node.js, `shopify_app` for Rails, `shopify_api` for Ruby without Rails, `shopify-app-php`, and `shopify-app-python`.
+- c2cdc8e: Guide merchants from a mock.shop reference catalog to a visible Shopify preview store, offer a matching reference catalog as the first step after preview creation, name a nameless merchant's store after the reference they pick, and bundle `scripts/import_mock_shop_catalog.mjs` so the import runs as one deterministic command: catalog, brand hero and logo, menus, pages, blog articles, and Horizon homepage wiring (a full-width hero banner with the top two collections featured beneath it).
+
+## 1.8.1
+
+### Patch Changes
+
+- 7ff9a83: Point the Hydrogen and Storefront GraphQL topics at mock.shop for building without a store: the store directory at mock.shop/llms.txt, the `/api` recipe, and the Hydrogen `--mock-shop` flag.
+
+## 1.8.0
+
+### Minor Changes
+
+- 240b92e: Add an `app-pricing` topic that routes supported app monetization to required unscoped Shopify.dev search, with explicit handoffs for Manual Pricing exceptions and merchant product subscriptions.
+
+### Patch Changes
+
+- 0c78d28: Publish each mirrored Shopify AI Toolkit npm release to ClawHub automatically.
+- 61e53ec: Publish matching `vX.Y.Z` tags and GitHub releases when versioned content reaches the public mirror.
+- 1df934b: Generated skills now bundle a once-per-turn `scripts/log_feedback.mjs` capability-scorecard finalizer, with a matching SKILL.md instruction and privacy notice. Skill telemetry emitters honor `SKILL_TELEMETRY_TEST_MODE=1` (print the would-be request to stderr instead of sending), matching the bash telemetry hook.
+
 ## 1.7.2
 
 ### Patch Changes

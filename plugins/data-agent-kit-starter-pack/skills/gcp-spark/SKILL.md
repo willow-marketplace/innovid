@@ -1,19 +1,19 @@
 ---
 name: gcp-spark
 description: |-
-  Develops and executes Spark code on Dataproc Clusters and Serverless.
+  Develops and executes Spark code on Managed Spark on Google Cloud (Dataproc Clusters and Serverless).
   Reads and writes data using BigLake Iceberg catalogs, BigQuery and Spanner.
   Debugs execution failures.
   Use when:
-  - Writing Spark ETL pipelines on GCP.
-  - Training or running inference with ML models with spark on GCP.
+  - Writing Spark ETL pipelines on Google Cloud Platform.
+  - Training or running inference with Machine Learning models with spark on Google Cloud Platform.
   - Managing Spark clusters, jobs, batches, and interactive sessions.
   Don't use when:
   - Writing generic Python scripts that don't use Spark.
   - Performing simple SQL queries that can be done directly in BigQuery.
 ---
 
-# Spark on Dataproc
+# Managed Spark on Google Cloud
 
 > [!IMPORTANT]
 >
@@ -52,12 +52,30 @@ description: |-
     next steps to resolve the issue. Do NOT scan all buckets for alternative
     fallback datasets when encountering GCS errors.
 3.  **Generate spark code**:
+
     *   **Output Format**: **ALWAYS** generate code in **Python Notebooks
         (.ipynb)** format. Generate scripts (.py) only if explicitly requested.
+    *   **Spark Connect for Notebooks**:
+
+        > [!IMPORTANT] When writing PySpark notebooks (.ipynb), you **MUST**
+        > initialize the Spark session using Google Cloud Managed Spark Connect
+        > (`google-cloud-spark-connect` library) to execute against Dataproc
+        > Serverless. Do **NOT** import or use
+        > `pyspark.sql.SparkSession.builder.getOrCreate()` or create local Spark
+        > clusters in notebooks.
+
+        Refer to `references/gcloud_dataproc.md` for detailed configuration.
+        Minimal initialization snippet:
+
+        ```python
+        from google.cloud.managed_spark_connect import ManagedSparkSession
+
+        spark = ManagedSparkSession.builder.getOrCreate()
+        ```
     *   **Read and Write data**: **ALWAYS** Refer to
         `references/read_write_data.md` when reading or writing data.
-    *   **ML Tasks**: Refer to `@skill:ml-best-practices` skill and
-        `references/ml_tasks.md` when generating ML code.
+    *   **Machine Learning Tasks**: Refer to `@skill:ml-best-practices` skill and
+        `references/ml_tasks.md` when generating Machine Learning code.
     *   **Spark Optimizations**: **ALWAYS** refer to
         `references/spark_optimizations.md` when generating spark code and apply
         optimization whenever applicable.
@@ -69,9 +87,10 @@ description: |-
     script using `jupyter nbconvert --to script your-notebook.ipynb` first. Then
     compile the resulting python script using `python3 -m py_compile
     your-script.py`. The same can be done for pyspark source code.
-6.  **Execute script**: When requested to run a job, script, session refer to
-    `references/gcloud_dataproc.md` on how to execute generated code on Managed
-    Spark. This DOES NOT apply when generating notebooks.
+6.  **Execute script or notebook**: When requested to run a job, script,
+    session, or execute notebook cells against Managed Spark, refer to
+    `references/gcloud_dataproc.md` on how to execute code on Dataproc
+    Serverless using Spark Connect or Dataproc jobs.
 
 --------------------------------------------------------------------------------
 
@@ -106,7 +125,7 @@ Before submitting a job, verify:
 
 ## IAM Requirements
 
-The Dataproc service account needs:
+The Managed Spark (Dataproc) service account needs:
 
 *   `roles/dataproc.worker`: Job execution
 *   `roles/biglake.admin`: Iceberg table management
@@ -119,4 +138,4 @@ The Dataproc service account needs:
 ## Spark resource management
 
 Refer to `references/gcloud_dataproc.md` for detailed guidelines on managing
-Spark clusters, jobs, batches, and interactive sessions.
+Spark clusters, jobs, batches, interactive sessions, and Spark Connect sessions.

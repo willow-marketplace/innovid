@@ -2,12 +2,33 @@
   "name": "cloud-sql-sqlserver",
   "version": "0.2.0",
   "description": "Connect to Cloud SQL for SQL Server",
-  "updatedAt": "2026-08-29T00:03:22.111Z",
+  "updatedAt": "2026-09-14T10:57:41.856Z",
   "author": {
     "name": "Google LLC",
     "email": "data-cloud-ai-integrations@google.com"
   },
   "homepage": "https://cloud.google.com/sql/docs/sqlserver",
   "repository": "https://github.com/gemini-cli-extensions/cloud-sql-sqlserver",
-  "skills": "./skills/"
+  "skills": "./skills/",
+  "mcpServers": {
+    "cloud-sql-mssql": {
+      "env": {
+        "CLOUD_SQL_MSSQL_USER": "${user_config.cloud_sql_mssql_user}",
+        "CLOUD_SQL_MSSQL_REGION": "${user_config.cloud_sql_mssql_region}",
+        "CLOUD_SQL_MSSQL_IP_TYPE": "${user_config.cloud_sql_mssql_ip_type}",
+        "CLOUD_SQL_MSSQL_PROJECT": "${user_config.cloud_sql_mssql_project}",
+        "CLOUD_SQL_MSSQL_DATABASE": "${user_config.cloud_sql_mssql_database}",
+        "CLOUD_SQL_MSSQL_INSTANCE": "${user_config.cloud_sql_mssql_instance}",
+        "CLOUD_SQL_MSSQL_PASSWORD": "${user_config.cloud_sql_mssql_password}"
+      },
+      "args": [
+        "-y",
+        "@toolbox-sdk/server@1.9.0",
+        "--prebuilt",
+        "cloud-sql-mssql",
+        "--stdio"
+      ],
+      "command": "npx"
+    }
+  }
 }

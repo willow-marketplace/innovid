@@ -10,6 +10,17 @@ Dev Container as a service the app reaches by **service name** (`sqldb,1433`),
 never `localhost`. Keep existing services intact; add the database, an init
 one-shot that creates `appdb`, and a `depends_on` gate.
 
+Verified on 2026-09-05 against the container image
+`sqldbpreview-dpgaeqhmgphzd4bk.azurecr.io/azure-sql/db-dev:latest`, reporting `EngineEdition`
+5, Edition `SQL Azure`, build `12.0.2000.8`. The four executable checks behind this skill
+passed: `docker compose config` accepting the file this skill emits, with the platform
+override, the escaped health check and both `depends_on` conditions; the same parse refusing
+an invented condition name, which is the control that stops the first check being vacuous;
+`sqlcmd` at `/opt/mssql-tools18/bin/sqlcmd` inside the engine image; and a running stack
+reporting the database container as `Running` before it is `healthy`, with its health log
+beginning on a failed check. The Compose parse was measured on 2026-09-04 on the Docker
+Compose CLI of the authoring host, not inside the image.
+
 ## Load-bearing facts (inlined; full detail in azuresql-db-container)
 
 - This is the **Azure SQL Database engine** (Private Preview), not the SQL
@@ -33,12 +44,13 @@ one-shot that creates `appdb`, and a `depends_on` gate.
 - Avoid `USE` to switch databases. In a user-database session (the
   Azure-faithful context where you develop), `USE` returns `Msg 40508`, exactly
   as in Azure SQL Database in the cloud. A `master` connection is a provisioning
-  provisioning session where the Azure statement filter is not enforced, so `USE` appears to work there, but `master` is for provisioning
+  session where the Azure statement filter is not enforced, so `USE` appears to work there, but `master` is for provisioning
   only, not application work. Always select the target database in the connection
   string (`Database=appdb`, or `-d appdb` for sqlcmd).
 - App connection string (single `SQL_CONNECTION_STRING` env var, service name host):
   `Server=sqldb,1433;Database=appdb;User Id=sa;Password=YourStr0ng_Passw0rd;TrustServerCertificate=true`
-  (use `User Id=`/`Password=`/`Database=`, not `Uid=`/`Pwd=`).
+  (house style spells it `User Id=`/`Password=`/`Database=`; `Uid=`/`Pwd=` are
+  valid synonyms).
 - The image does **NOT** auto-run `/docker-entrypoint-initdb.d/*.sql` (a
   Postgres/MySQL convention, not honored here). Seed in the init one-shot with
   `sqlcmd -d appdb -i seed.sql` AFTER `appdb` exists.
@@ -172,13 +184,9 @@ The app container reaches the database at `sqldb,1433` over the compose network.
 - Do not point the app at `localhost`; inside compose it is the `sqldb` service.
 - Do not rely on the app to create `appdb`, and do not assume the engine
   auto-creates it; the `sqldb-init` one-shot must run first.
-- Do not use `USE appdb` to switch databases. In a user-database session
-  (the Azure-faithful context where you develop), `USE` returns `Msg 40508`,
-  exactly as in Azure SQL Database in the cloud. A `master` connection is a
-  provisioning session where the Azure statement filter is not enforced,
-  so `USE` appears to work there, but `master` is for
-  provisioning only, not application work. Always select the target database in
-  the connection string (`Database=appdb`, or `-d appdb` for sqlcmd).
+- Do not use `USE appdb` to switch databases; a user-database session returns
+  `Msg 40508`, exactly as in Azure SQL Database in the cloud. Select the target
+  database in the connection string (`Database=appdb`, or `-d appdb` for sqlcmd).
 - Do not drop `--platform` / `platform: linux/amd64`; the image is x64 only.
 - Do not depend on `/docker-entrypoint-initdb.d/*.sql`; it is not honored here.
 - Do not call a non-x64 host "supported"; it runs under emulation only.

@@ -1,0 +1,22 @@
+{
+  "name": "qodo-standards",
+  "version": "2.0.8",
+  "description": "Optional Qodo rules discovery and standards administration workflows.",
+  "updatedAt": "2026-09-14T10:58:28.177Z",
+  "author": {
+    "url": "https://www.qodo.ai",
+    "name": "Qodo",
+    "email": "support@qodo.ai"
+  },
+  "homepage": "https://www.qodo.ai",
+  "repository": "https://github.com/qodo-ai/qodo-skills",
+  "keywords": [
+    "qodo",
+    "code-review",
+    "code-intelligence",
+    "standards",
+    "coding-agents"
+  ],
+  "displayName": "Qodo Standards",
+  "skills": "./skills/"
+}

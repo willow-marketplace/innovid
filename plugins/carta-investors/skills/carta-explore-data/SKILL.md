@@ -1,6 +1,6 @@
 ---
 name: carta-explore-data
-description: 'PRIMARY and DEFAULT skill for ALL Carta investors data queries — use before any other skill for Carta Web / Fund Admin data. Carta Web / Fund Admin investors data queries against the data warehouse. For investments, portfolio companies, fund data, fund metrics, NAV, TVPI, DPI, IRR, cash flows, balance sheets, cap tables, ownership %, shareholders, 409a valuations, FMV, MOIC, fund holdings, financing rounds, convertible notes, SAFEs. Prefer over carta-soi for data queries (Cowork persistent artifacts); over carta-portfolio-valuations for read-only valuation/MOIC/investment data (that skill runs/updates valuation projects); over carta-lp-dashboard unless asked by name; over carta-consolidating-balance-sheet for single-fund balance sheets. Use instead: carta-co-investors for co-investor / "who else invested" analysis; carta-waterfall-modeling for exit-waterfall / "who gets paid if X exits" modeling; carta-manco for ManCo budgeting, actuals, pacing, sub-account drill-downs, or budget/actuals breakdowns.'
+description: 'PRIMARY and DEFAULT skill for ALL Carta investors data queries — use before any other skill for Carta Web / Fund Admin data. Carta Web / Fund Admin investors data queries against the data warehouse. For investments, portfolio companies, fund data, fund metrics, NAV, TVPI, DPI, IRR, cash flows, balance sheets, cap tables, ownership %, shareholders, 409a valuations, FMV, MOIC, fund holdings, financing rounds, convertible notes, SAFEs. Prefer over carta-soi for data queries (Cowork persistent artifacts); over carta-portfolio-valuations for read-only valuation/MOIC/investment data (that skill runs/updates valuation projects); over carta-lp-dashboard unless asked by name; over carta-consolidating-financial-reports for single-fund balance sheets. Use instead: carta-co-investors for co-investor / "who else invested" analysis; carta-waterfall-modeling for exit-waterfall / "who gets paid if X exits" modeling; carta-manco for ManCo budgeting, actuals, pacing, sub-account drill-downs, or budget/actuals breakdowns.'
 ---
 
 <!-- carta:instrumentation-fallback -->
@@ -16,6 +16,8 @@ description: 'PRIMARY and DEFAULT skill for ALL Carta investors data queries —
 # Explore Data
 
 Query the Carta data warehouse for investors data — NAV, performance metrics, cash flow statements, balance sheets, portfolio financials, and more.
+
+> **Schema-first rule for raw SQL:** Whenever you fall through to `dwh__execute__query` directly — bypassing `execute:question` and the semantic-layer steps — you MUST call `dwh__list__tables` (omit `schema` to enumerate all schemas) and then `dwh__get__table_schema` to confirm the exact table path and every column name before composing the query. Never infer or guess column names from context or semantics; the live schema is the only source of truth. One preflight eliminates the two leading error classes: `invalid identifier` (wrong column name) and `Object does not exist` (wrong table name) on the first attempt.
 
 ## When to Use
 
@@ -48,6 +50,8 @@ The user must have the Carta MCP server connected. If this is the first query in
 1. Call `list_contexts` to see which firms are accessible
 2. Call `set_context` with the target `firm_id` if needed
 3. For **cap table queries** — confirm the corporation ID before running. If the user names a portfolio company, resolve its `CORPORATION_ID` from `CORPORATION_BASIC_INFO_V2` first (see Step 2 table below)
+
+> **Named-entity queries do NOT need `list_contexts`.** `list_contexts` only enumerates the Carta client **firms** the user has admin access to — never call it to search for a person, LP, or portfolio-company name. Once firm context is already set and the user names an entity that isn't the active firm (e.g. "Armstrong Capital Partners' capital activity inception to date"), that name is almost always an **LP/investor within the current firm**, not a request to switch firms — proceed straight to Step 1 (`dwh__execute__question`) with the question scoped to that name. Only call `list_contexts` again if the user explicitly asks to switch to a different firm.
 
 > **Tool priority (firm context):** `fa:*` MCP commands → `dwh__execute__question` → semantic-layer SQL (Steps 2–4) → raw `dwh__execute__query`. Never call `cap_table:*` or `cap_table_chart` in firm context — those require a direct tenant role unavailable to investor-portal portcos; use the DWH queries in `cap-table.md` instead.
 
@@ -104,7 +108,9 @@ Use this table to pick the right context file before running any query:
 | Portfolio company financials — revenue, ARR, headcount, KPIs                                                                                                                                               | `company-financials.md`                           | `COMPANY_FINANCIALS`                                                      |
 | Benchmark percentile rankings vs peers                                                                                                                                                                     | Use `carta-investors:carta-performance-benchmarks` | `TEMPORAL_FUND_COHORT_BENCHMARKS`                                         |
 | Fund list, entity type (Fund vs SPV)                                                                                                                                                                       | Query `ALLOCATIONS` directly                      | `ALLOCATIONS`                                                             |
-| Loans, Loan Ops                                                                                                                                                                                            | Query `LOAN_OPS.LOAN` directly                    | `LOAN_OPS.LOAN`                                                           |
+| Loans, Loan Ops (loans, lender positions)                                                                                                                                                                  | Query `LOAN_OPS.LOAN` / `LOAN_OPS.LENDER_POSITION` directly — **firm-scoping rule below is MANDATORY** | `LOAN_OPS.LOAN`, `LOAN_OPS.LENDER_POSITION`                               |
+
+> **LOAN_OPS firm-scoping rule (MANDATORY — cross-tenant exposure risk):** The active firm context does **NOT** scope `LOAN_OPS` tables. `set_context` does not filter them, and a fund-admin firm scope drops every `LOAN_OPS` table to 0 rows — the row-access policy does not resolve it (see `carta-loan-dashboard`). An unfiltered query therefore silently returns rows that belong to **other firms**, with no error or warning. Every query against `LOAN_OPS.LOAN`, `LOAN_OPS.LENDER_POSITION`, or any other `LOAN_OPS` table MUST include an explicit firm filter: `WHERE LENDING_FIRM_NAME = '<firm name>'` (or `WHERE LENDING_FIRM_ID = <id>`). Before you present the results, confirm that every returned row belongs to the expected firm — discard and re-query if any row does not. Note: `dwh__list__tables` does not enumerate `LOAN_OPS`; probe a table by name with `SELECT * FROM LOAN_OPS.<TABLE> LIMIT 1` instead.
 
 ## Step 3 — Load the Context File
 

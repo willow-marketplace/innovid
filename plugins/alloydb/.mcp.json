@@ -1,0 +1,24 @@
+{
+  "mcpServers": {
+    "alloydb-postgres": {
+      "env": {
+        "ALLOYDB_POSTGRES_USER": "${user_config.alloydb_postgres_user}",
+        "ALLOYDB_POSTGRES_REGION": "${user_config.alloydb_postgres_region}",
+        "ALLOYDB_POSTGRES_CLUSTER": "${user_config.alloydb_postgres_cluster}",
+        "ALLOYDB_POSTGRES_IP_TYPE": "${user_config.alloydb_postgres_ip_type}",
+        "ALLOYDB_POSTGRES_PROJECT": "${user_config.alloydb_postgres_project}",
+        "ALLOYDB_POSTGRES_DATABASE": "${user_config.alloydb_postgres_database}",
+        "ALLOYDB_POSTGRES_INSTANCE": "${user_config.alloydb_postgres_instance}",
+        "ALLOYDB_POSTGRES_PASSWORD": "${user_config.alloydb_postgres_password}"
+      },
+      "args": [
+        "-y",
+        "@toolbox-sdk/server@1.9.0",
+        "--prebuilt",
+        "alloydb-postgres",
+        "--stdio"
+      ],
+      "command": "npx"
+    }
+  }
+}

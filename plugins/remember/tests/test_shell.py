@@ -146,6 +146,7 @@ def test_cmd_extract_prints_shell_vars(capsys):
         position=10,
         human_count=3,
         assistant_count=2,
+        envelope="claude-code",
     )
     with patch("pipeline.shell.extract_session", return_value=fake_result):
         cmd_extract(session_id="sess-abc", project_dir="/tmp/fake")
@@ -156,6 +157,7 @@ def test_cmd_extract_prints_shell_vars(capsys):
     assert "ASSISTANT_COUNT=2" in output
     assert "EXCHANGE_COUNT=5" in output
     assert "EXTRACT_FILE=" in output
+    assert "ENVELOPE=claude-code" in output
 
     # Verify temp file was written with exchanges content
     for line in output.strip().split("\n"):
@@ -165,6 +167,61 @@ def test_cmd_extract_prints_shell_vars(capsys):
             assert "[human] hello" in content
             os.unlink(path)
             break
+
+
+def test_cmd_extract_prints_unrecognised_envelope(capsys):
+    """#443: save-session.sh needs ENVELOPE on the shell bridge to tell a
+    genuinely-quiet session apart from one it could not parse at all."""
+    fake_result = ExtractResult(
+        exchanges="",
+        position=2,
+        human_count=0,
+        assistant_count=0,
+        envelope="unrecognised",
+    )
+    with patch("pipeline.shell.extract_session", return_value=fake_result):
+        cmd_extract(session_id="sess-abc", project_dir="/tmp/fake")
+
+    output = capsys.readouterr().out
+    assert "ENVELOPE=unrecognised" in output
+
+
+def test_cmd_extract_prints_envelope_has_unmapped_step_flag(capsys):
+    """#575: an antigravity span with an unmapped step type rides the shell
+    bridge as ENVELOPE_HAS_UNMAPPED_STEP=1, so save-session.sh can quarantine
+    it instead of reporting a genuinely-quiet 0-exchange span."""
+    fake_result = ExtractResult(
+        exchanges="",
+        position=2,
+        human_count=0,
+        assistant_count=0,
+        envelope="antigravity",
+        envelope_has_unmapped_step=True,
+    )
+    with patch("pipeline.shell.extract_session", return_value=fake_result):
+        cmd_extract(session_id="sess-abc", project_dir="/tmp/fake")
+
+    output = capsys.readouterr().out
+    assert "ENVELOPE_HAS_UNMAPPED_STEP=1" in output
+
+
+def test_cmd_extract_prints_envelope_has_unmapped_step_flag_off_by_default(capsys):
+    """Paired negative control: an ordinary result (the flag's dataclass
+    default) must print 0, not merely omit the key -- save-session.sh reads
+    it unconditionally, so a missing key and an empty string would both
+    break its `[ "$ENVELOPE_HAS_UNMAPPED_STEP" = "1" ]` check the same way."""
+    fake_result = ExtractResult(
+        exchanges="[human] hi",
+        position=1,
+        human_count=1,
+        assistant_count=0,
+        envelope="claude-code",
+    )
+    with patch("pipeline.shell.extract_session", return_value=fake_result):
+        cmd_extract(session_id="sess-abc", project_dir="/tmp/fake")
+
+    output = capsys.readouterr().out
+    assert "ENVELOPE_HAS_UNMAPPED_STEP=0" in output
 
 
 # --- cmd_build_prompt ---
@@ -777,7 +834,19 @@ def test_main_dispatches_save_position():
     with patch("pipeline.shell.cmd_save_position") as mock_fn:
         with patch("sys.argv", ["shell.py", "save-position", "last.json", "sess-2", "99"]):
             main()
-    mock_fn.assert_called_once_with(last_save_file="last.json", session_id="sess-2", position=99)
+    mock_fn.assert_called_once_with(last_save_file="last.json", session_id="sess-2", position=99,
+                                     envelope=None, skip_lines=None)
+
+
+def test_main_dispatches_save_position_with_envelope_and_skip_lines(): # #450
+    """save-session.sh passes ENVELOPE and SKIP_LINES through so an
+    unrecognised-envelope span can be quarantined rather than lost."""
+    with patch("pipeline.shell.cmd_save_position") as mock_fn:
+        with patch("sys.argv", ["shell.py", "save-position", "last.json", "sess-2", "99",
+                                 "unrecognised", "7"]):
+            main()
+    mock_fn.assert_called_once_with(last_save_file="last.json", session_id="sess-2", position=99,
+                                     envelope="unrecognised", skip_lines=7)
 
 
 def test_main_dispatches_consolidate():

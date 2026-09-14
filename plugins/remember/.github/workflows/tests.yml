@@ -5,6 +5,25 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: read
+
+# Per branch or pull request, superseding. A second push to the same head cancels the
+# run it replaced rather than leaving two full 12-leg matrices racing each other on the
+# same commit range.
+#
+# `github.ref` is `refs/pull/N/merge` on a `pull_request` event and `refs/heads/main` on a
+# push, so the group is one pull request or one branch wide -- never constant, which would
+# serialise unrelated pull requests against each other.
+#
+# Cancellation is deliberately limited to pull requests. A push to `main` is the run a
+# release gate reads, and `cancelled` is not `success`: cancelling a main run to favour a
+# newer one leaves the older commit with no verdict at all, which is the absence this
+# repo's own CLAUDE.md warns reads exactly like a pass.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   pytest:
     runs-on: ${{ matrix.os }}
@@ -15,6 +34,15 @@ jobs:
         python-version: ["3.9", "3.10", "3.11", "3.12"]
     steps:
       - uses: actions/checkout@v7
+      - name: Fetch origin/main
+        # actions/checkout on a pull_request event checks out the merge ref
+        # with no local origin/main branch ref at all, so anything comparing
+        # against origin/main (tests/test_case_divergence_298.py's byte-pin
+        # guard) cannot resolve its base and would otherwise have to skip
+        # itself -- which is exactly how that guard went unexercised on
+        # every pull_request run (#442). Fetch it explicitly and cheaply;
+        # depth 1 is enough since only the tip of main is compared against.
+        run: git fetch --no-tags --depth=1 origin main:refs/remotes/origin/main
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v7
         with:
@@ -26,5 +54,19 @@ jobs:
       - name: Install Windows tzdata
         if: runner.os == 'Windows'
         run: pip install tzdata
+      # Defender's real-time scanner walks every file this job touches on the runner's
+      # own disk. Today the Windows legs barely notice: 92 modules blanket-skip on win32
+      # (#497), so they create almost no temp files and run faster than the Linux and
+      # macOS legs. The exclusion is here for when those skips lift -- at that point the
+      # Windows legs start doing the same file-heavy work, and the scanner is charged per
+      # fixture. Excluding the checkout and the runner temp directory removes that tax
+      # without touching what any test asserts; the exclusion lives only in the ephemeral
+      # runner VM. Ported from claude-jit-context#310, where it was measured, not guessed.
+      - name: Exclude the checkout and temp dir from Windows Defender scanning
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Add-MpPreference -ExclusionPath "${{ github.workspace }}"
+          Add-MpPreference -ExclusionPath "$env:RUNNER_TEMP"
       - name: Run tests
         run: pytest

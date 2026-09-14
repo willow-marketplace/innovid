@@ -1,6 +1,6 @@
 ---
 name: home
-description: "Renders the Carta CRM Home: a landing view with counts, open tasks, pipeline by stage, this week's meetings, and a directory of the prompts the plugin supports. Use this skill when the user says things like \"carta crm home\", \"show my crm home\", \"my crm dashboard\", \"what's in my pipeline today\", \"crm landing page\", or \"/home\". Read-only. Do NOT use it to look up a specific record — name the record instead and Claude picks the right search skill."
+description: "Renders the Carta CRM Home: a landing view with pipeline by stage, recent contacts, deals, object counts, latest notes, this week's meetings, and a directory of the prompts the plugin supports. Use this skill when the user says things like \"carta crm home\", \"show my crm home\", \"my crm dashboard\", \"what's in my pipeline today\", \"crm landing page\", or \"/home\". It is also the skill that decides whether the Home belongs in the conversation or on a published page, so start here even when the user may want a page. Read-only. Do NOT use it to look up a specific record — name the record instead and Claude picks the right search skill. For a fund firm's Carta Home use carta-investors' carta-home-build; for a company's cap table use carta-cap-table's carta-captable-home-build."
 ---
 
 <!-- carta:instrumentation-fallback -->
@@ -13,9 +13,9 @@ description: "Renders the Carta CRM Home: a landing view with counts, open tasks
 
 # Carta CRM Home
 
-The Home is one manifest tool plus one view. The server decides which cards this
+The Home is one manifest tool and two places to put it. The server decides which cards this
 organization may see, and the view fetches each card itself. Your job is to read the
-manifest, route a new user to the tutorial, and render the view.
+manifest, route a new user to the tutorial, pick where the Home goes, and render it.
 
 ## Step 1 — Read the manifest
 
@@ -66,7 +66,54 @@ yourself as well.
 
 When `firstTimeUser` is `false` or absent, continue to Step 3.
 
-## Step 3 — Render the Home
+## Step 3 — Pick where the Home goes
+
+There are two, and they are not alternatives of equal standing:
+
+- **In this conversation.** Step 4 renders it. This works everywhere the CRM MCP is
+  reachable, so it is the floor and the default.
+- **As a published page.** The `carta-crm-home-build` skill publishes it at a stable URL the
+  user can bookmark and reopen cold.
+
+**The page is available only when both of these hold**, so establish it before any rule
+below offers the page or invokes anything:
+
+- The `Artifact` tool is present. Without it this surface cannot publish at all.
+- The `carta-crm-home-build` skill is installed. It is internal today, so a published
+  install does not carry it and no build verb can reach it.
+
+Treat the page as unavailable whenever you cannot confirm both. Never name a page this
+surface cannot produce, and never invoke a skill you have not seen.
+
+Decide in this order, and stop at the first that answers.
+
+**1. What the user asked for.** A build or publish verb, such as "publish my crm home", "pin
+it", or "give me a link I can bookmark", names the page. When the page is available, invoke
+`carta-crm-home-build` and do not render here as well. When it is not, say in one line that a
+bookmarkable page is not available on this surface, then render in the conversation. A plain
+"show my crm home" names neither target, so carry on. A build verb is not a reason to invoke
+a skill that is absent.
+
+**2. What they already told you this session.** If they have already chosen, honour it
+without asking again, as long as that target is still available. A recorded choice for a
+target this surface cannot serve falls through to the next rule rather than failing.
+
+**3. What this surface can do.** If the page is unavailable, render in the conversation and
+say nothing about a page that cannot be built here. If it is available, both targets are
+open, so ask once, in one line:
+
+> Want this as a page you can bookmark, or just here in the chat?
+
+**Ask only when both are genuinely available.** A question with one real answer is friction,
+not a choice.
+
+**Do not persist the answer.** It holds for this session. Getting it wrong costs one sentence
+to redo, which is cheaper than a stored preference nobody remembers setting.
+
+If you cannot tell whether the page is available, render in the conversation. The floor is
+never the wrong answer, and it never depends on the published page existing.
+
+## Step 4 — Render the Home
 
 ```
 crm_view_tool({ "name": "crm:get_crm_home", "arguments": {} })
@@ -74,23 +121,49 @@ crm_view_tool({ "name": "crm:get_crm_home", "arguments": {} })
 
 The view renders the shell and then fetches every available card itself, in parallel,
 each with its own timeout. **Do not call the card tools yourself.** They are
-`get_crm_home_counts`, `get_crm_home_tasks`, `get_crm_home_pipeline` and
-`get_crm_home_meetings`, and calling them here duplicates every fetch the view is
-already making.
+`get_crm_home_pipeline`, `get_crm_home_contacts`, `get_crm_home_deals`,
+`get_crm_home_counts`, `get_crm_home_notes` and `get_crm_home_meetings`, and calling
+them here duplicates every fetch the view is already making.
+
+Read the card set from the manifest rather than from this list. The server ranks the
+cards by the caller's own measured tool use, so both which cards appear and the order
+they appear in vary per user.
 
 If `crm_view_tool` answers that the tool has no view, the MCP App bundle is off for this
 organization. Fall back to summarising the manifest you already hold from Step 1, and say
 the interactive Home needs the CRM UI enabled.
 
+### Close with the escape hatch
+
+A third answer exists, and it looks like success: `crm_view_tool` returns the manifest, no
+error, and the host mounts nothing. You cannot tell that apart from a Home that rendered —
+you never see the view — so do not guess, and do not claim it rendered.
+
+Say one line after the call, whenever the published page is available:
+
+> If nothing appeared above, say "publish my crm home" and I'll give you a page instead.
+
+One sentence, offered every time, costs a reader nothing and turns a blank surface into the
+page. Leave it out where `carta-crm-home-build` is unavailable, per the Step 3 checks —
+never name a page this surface cannot produce.
+
 ## What the cards mean
 
 | Card | Shows | When it is missing |
 |---|---|---|
-| Counts | Object counts across the tenant | — |
-| Open tasks | The user's own open tasks | — |
-| Pipeline by stage | Open deals grouped by stage | The deals module is off for this tenant |
-| Meetings this week | The user's next seven days | Interaction tracking is off for this tenant |
+| Pipeline by stage | Open deals grouped by stage | Absent from the manifest when the deals module is off |
+| Contacts added recently | Contacts added in the last 30 days | Never |
+| Deals | The tenant's deals | Absent from the manifest when the deals module is off |
+| Your CRM at a glance | Object counts across the tenant | Never |
+| Latest notes | The most recent notes | Never |
+| Meetings this week | The user's next seven days | Present but unavailable, with a reason, when interaction tracking is off |
 | What you can ask | Prompts the plugin supports | Never. It is static and always renders |
+
+Two gates behave differently, so a card goes missing in two different ways. A module
+gate drops its card from the manifest entirely, because a tenant that does not buy the
+module should not see the tile. An interactions gate keeps the card and marks it
+unavailable with a reason, because an absent tile would be indistinguishable from a
+genuinely empty week.
 
 A card the manifest marks unavailable carries a `reason`. Report the reason if the user
 asks why a card is absent. Do not offer to enable it: these are tenant permissions, not

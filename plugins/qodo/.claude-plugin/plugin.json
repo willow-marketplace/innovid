@@ -1,22 +1,22 @@
 {
   "name": "qodo",
-  "version": "0.6.1",
-  "description": "Shift-left code review skills that bring Qodo's quality standards and code review capabilities into your local development workflow. Catch issues before commit, enforce organizational standards, and resolve PR feedback directly in your agent.",
-  "updatedAt": "2026-08-29T00:03:07.378Z",
+  "version": "2.0.8",
+  "description": "Qodo setup, code intelligence, and review workflows.",
+  "updatedAt": "2026-09-14T10:58:28.270Z",
   "author": {
-    "name": "Qodo.ai",
+    "url": "https://www.qodo.ai",
+    "name": "Qodo",
     "email": "support@qodo.ai"
   },
-  "homepage": "https://github.com/qodo-ai/qodo-skills",
+  "homepage": "https://www.qodo.ai",
   "repository": "https://github.com/qodo-ai/qodo-skills",
   "keywords": [
     "qodo",
     "code-review",
-    "shift-left",
-    "rules",
-    "quality",
+    "code-intelligence",
     "standards",
-    "pr-review"
+    "coding-agents"
   ],
+  "displayName": "Qodo",
   "skills": "./skills/"
 }

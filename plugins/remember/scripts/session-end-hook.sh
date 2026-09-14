@@ -32,6 +32,9 @@
 #   bounded, non-blocking approach post-tool-hook.sh uses for `session_id`:
 #   never from a tty, and time-bounded (`read -t 1`) so a pipe held open with
 #   nothing in it costs at most a second rather than hanging session teardown.
+#   Read once, by the process Claude Code invoked; the detached child gets
+#   the same bytes through REMEMBER_SESSION_END_PAYLOAD and never touches
+#   stdin (it has /dev/null there).
 #
 #   `reason` is documented (Claude Code hooks reference, checked 2026-08) as
 #   one of clear/resume/logout/prompt_input_exit/other, but is treated here as
@@ -53,9 +56,12 @@
 #   CLAUDE_PROJECT_DIR   Project root (default: .)
 #
 # EXIT CODES
-#   0   Always, and immediately — the flush itself runs in a backgrounded
-#       subshell (see the flush section below) so this hook's own exit is not
-#       waiting on save-session.sh at all. A failed flush is reported loudly
+#   0   Always, and immediately — since #647 this process does nothing but
+#       read stdin and re-launch itself detached (see the detach section
+#       below), so its own exit waits on neither the path/tool preamble nor
+#       save-session.sh. Claude Code's SessionEnd budget is 1.5s shared
+#       across every hook on the event, and the preamble alone was measured
+#       past that on a slow Windows machine (#560). A failed flush is reported loudly
 #       once that subshell finishes (report_error(), which reaches both the
 #       daily log and hook-errors.log — surfaced by /remember:doctor) rather
 #       than swallowed silently: the other hooks in this plugin can afford
@@ -81,8 +87,6 @@ _HOOK_DIR="${BASH_SOURCE[0]%/*}"
 # hook does it.
 [ -n "${REMEMBER_NESTED_SUMMARIZER:-}" ] && exit 0
 
-source "$_HOOK_DIR/lib-clock.sh"
-
 # --- Read stdin: session_id and reason ---
 # Cleared, not merely left alone (#266) — see post-tool-hook.sh's identical
 # comment. This plugin can re-enter its own hooks from a nested session, and
@@ -91,14 +95,62 @@ source "$_HOOK_DIR/lib-clock.sh"
 # honest absent one.
 unset REMEMBER_HOOK_STDIN REMEMBER_HOOK_STDIN_FILE
 
-HOOK_STDIN=""
-if [ ! -t 0 ]; then
-    _line=""
-    while IFS= read -r -t 1 _line || [ -n "$_line" ]; do
-        HOOK_STDIN="$HOOK_STDIN$_line"
+# ── Detach BEFORE the preamble, not after it (#647, #560) ─────────────────
+# Claude Code gives SessionEnd a 1.5-second budget shared across every hook
+# registered for the event. #560 measured everything this script used to do
+# synchronously before forking its flush -- lib-clock.sh, resolve-paths.sh,
+# detect-tools.sh's python/jq probing, bootstrap-dirs.sh, log.sh -- at ~3.4s
+# on a slow Windows/Git-Bash machine, so the hook was cancelled before the
+# flush existed, on every exit. #561 declared `"timeout": 10` in
+# hooks/hooks.json to raise that ceiling. Claude Code's own reference says
+# "Timeouts set on plugin-provided hooks don't raise the budget", and
+# hooks.json ships inside a plugin: on the install route both reporters are
+# on, that declaration may do nothing at all, and the #647 reporter (0.29.1,
+# claude-plugins-official) still sees `Hook cancelled` on every exit.
+#
+# So this process now does the least it can: read stdin, hand the ENTIRE
+# job -- preamble, trace seed, flush -- to a detached copy of itself, exit.
+# Tens of milliseconds, on any machine, on any install route, under any
+# budget. The child is this same script re-entered with
+# REMEMBER_SESSION_END_DETACHED set and the payload carried in an env var
+# (never re-read from a stdin it no longer has). Both are unset again the
+# moment the child has consumed them, so nothing this hook spawns in turn
+# sees either.
+#
+# fd hygiene (#646): nothing above this line opens a descriptor beyond
+# 0/1/2, so redirecting those three is the whole set. If that ever changes,
+# close the extra ones here too -- an inherited dup of the client's pipe
+# keeps the client waiting for the child, hook exit notwithstanding.
+#
+# REMEMBER_SESSION_END_FOREGROUND=1 (opt-in, unset in production) runs the
+# old inline shape: no detach, stderr reaching the caller. The one thing
+# the detached path cannot do is report a store that could never be
+# created (#372) -- that warning went to this hook's own stderr because
+# there is no hook-errors.log to write to when the directory that would
+# hold it is what failed, and a detached child has no stderr the caller
+# can see. That report survives only in foreground mode; the trade is
+# stated in docs/hooks.md rather than left for someone to discover.
+if [ -n "${REMEMBER_SESSION_END_DETACHED:-}" ]; then
+    HOOK_STDIN="${REMEMBER_SESSION_END_PAYLOAD:-}"
+    unset REMEMBER_SESSION_END_DETACHED REMEMBER_SESSION_END_PAYLOAD
+else
+    HOOK_STDIN=""
+    if [ ! -t 0 ]; then
         _line=""
-    done
+        while IFS= read -r -t 1 _line || [ -n "$_line" ]; do
+            HOOK_STDIN="$HOOK_STDIN$_line"
+            _line=""
+        done
+    fi
+    if [ -z "${REMEMBER_SESSION_END_FOREGROUND:-}" ]; then
+        REMEMBER_SESSION_END_DETACHED=1 REMEMBER_SESSION_END_PAYLOAD="$HOOK_STDIN" \
+            nohup bash "${BASH_SOURCE[0]}" </dev/null >/dev/null 2>&1 &
+        disown 2>/dev/null || true
+        exit 0
+    fi
 fi
+
+source "$_HOOK_DIR/lib-clock.sh"
 
 # The same deliberately narrow extractor post-tool-hook.sh and
 # session-start-hook.sh use: the key must be followed by nothing but
@@ -108,6 +160,10 @@ fi
 # same reason that file gives for keeping its own copy: a hook that has to
 # survive a broken install is better served by a few duplicated lines than a
 # shared library it might fail to source.
+#
+# #494: whether a real host payload can nest a `cwd` key AHEAD of this
+# field is researched in scripts/user-prompt-hook.sh, next to its own
+# `_stdin_cwd` -- same extractor mechanism, same finding, not repeated here.
 _stdin_json_string() {
     local key="$1" raw="$2" rest prefix value
     case "$raw" in *"\"$key\""*) ;; *) return 1 ;; esac
@@ -124,8 +180,17 @@ STDIN_SESSION_ID=$(_stdin_json_string session_id "$HOOK_STDIN" 2>/dev/null) || S
 # stdin is not more trustworthy than a basename — same validation
 # post-tool-hook.sh applies before this id becomes a path component or an
 # argument to another script.
+#
+# #600: this value reaches save-session.sh's argv below (`bash "$SAVE_SCRIPT"
+# "$STDIN_SESSION_ID" --force`), and that script's own arg loop treats a
+# leading-dash value as a FLAG rather than a positional session id, exactly
+# the gap #576 already closed at the sibling agy-stop-hook.sh call site
+# (`case ... in ''|.|..|-*|*[!A-Za-z0-9._-]*)`). Without `-*` here, a
+# session_id of "--dry" passes this guard untouched and turns the last-
+# chance flush into a silent dry-run preview: no summary written, position
+# not advanced, log line reads like an ordinary run.
 case "$STDIN_SESSION_ID" in
-    ''|.|..|*[!A-Za-z0-9._-]*) STDIN_SESSION_ID="" ;;
+    ''|.|..|-*|*[!A-Za-z0-9._-]*) STDIN_SESSION_ID="" ;;
 esac
 
 SESSION_END_REASON=$(_stdin_json_string reason "$HOOK_STDIN" 2>/dev/null) || SESSION_END_REASON=""
@@ -157,8 +222,13 @@ export REMEMBER_TRANSCRIPT_PATH
 # ── The cwd the host handed us (#411) ─────────────────────────────────────
 # Same field, same reasoning as session-start-hook.sh's identical block:
 # exported for resolve-paths.sh (sourced below) to consult as its fallback
-# once CLAUDE_PROJECT_DIR is unset -- the state Codex and Gemini CLI leave it
-# in, since neither sets that variable. Data from a host payload, validated
+# once CLAUDE_PROJECT_DIR is unset -- still the state Codex leaves it in
+# (live-confirmed, #463); Gemini CLI's own bundled docs now say it DOES set
+# CLAUDE_PROJECT_DIR, as a compatibility alias (#456, unverified live --
+# #532), so this fallback is expected to go unused on Gemini rather than be
+# what makes it resolvable. It stays correct and needed for Codex and any
+# other host that genuinely leaves the variable unset. Data from a host
+# payload, validated
 # at the point of entry: only a carriage return or raw newline is rejected,
 # since a project directory legitimately contains slashes and dots and
 # cannot share STDIN_SESSION_ID's character allowlist. Whether the value
@@ -211,6 +281,94 @@ declare -F log >/dev/null 2>&1 || log() {
 declare -F report_error >/dev/null 2>&1 || report_error() { log "$1" "$2"; }
 log "hook" "session-end: reason=$SESSION_END_REASON session=${STDIN_SESSION_ID:-unresolved}"
 
+# ── The on-disk trace that this hook fired, written FIRST (#647) ──────────
+# Moved up here, ahead of the $REMEMBER_DIR and $SAVE_SCRIPT checks and
+# ahead of the flush itself, from the bottom of the file where it used to
+# sit immediately before the backgrounded subshell.
+#
+# Every exit path below this line -- a store that could not be created, a
+# missing save-session.sh on a half-finished install -- used to leave the
+# store in exactly the state an unregistered hook leaves it in: no
+# session-end-*.log at all. That is the only evidence scripts/doctor.sh
+# has, so it reported "SessionEnd has never fired for this project" and
+# blamed hook registration, which was correct about the file and wrong
+# about the cause. The #647 reporter went and audited a registration that
+# was fine.
+#
+# This is as early as the trace can go: it needs $REMEMBER_DIR, which
+# resolve-paths.sh and bootstrap-dirs.sh above are what establish, and
+# report_error(), which the log.sh source above is what defines. Nothing
+# between there and here can fail without being reported.
+#
+# On its own this move could not rescue a hook cancelled DURING that
+# preamble -- #560 measured the preamble at ~3.4s on a slow Windows/Git-
+# Bash machine against SessionEnd's 1.5s shared budget, and everything
+# this seed depends on is inside it. That is why the detach at the top of
+# this file now happens before the preamble rather than after it: by the
+# time this line runs, the process running it is the detached child, on
+# no budget at all. The two changes are one fix -- the detach makes this
+# line reachable on that machine, and this line is what makes the result
+# visible to /remember:doctor.
+# Checked and reported (#503): this mkdir is best-effort defensive
+# re-creation on top of bootstrap-dirs.sh's own earlier attempt, and a
+# failure here means the seed write two lines down cannot land either --
+# leaving $_END_LOG absent, which an ordinary housekeeping sweep cannot
+# then be blamed for reclaiming (there is nothing to reclaim), and which
+# scripts/doctor.sh's own SessionEnd-liveness check then misreports as
+# "SessionEnd has never fired for this project" -- a hook-registration
+# problem that does not exist. Reported the same way save-session.sh:428
+# reports its own fall-through, so a read-only store or a full disk shows
+# up as a fault rather than as silence.
+if ! mkdir -p "$REMEMBER_DIR/logs/autonomous" 2>/dev/null; then
+    report_error "session-end" "WARNING: could not create $REMEMBER_DIR/logs/autonomous -- this session's flush will not be recorded, and /remember:doctor may misreport SessionEnd as never having fired."
+fi
+# `$$` (this hook process's own PID) suffixes the second-granularity
+# timestamp so two SessionEnd hooks for the same project, ending inside the
+# same wall-clock second, no longer resolve to the same path (#488). That
+# collision was not contrived -- scripts/doctor.sh's own SessionEnd-liveness
+# comments already treat two concurrently open windows on one project as an
+# ordinary case, and PR #486 only made the collision harmless (both hooks
+# append rather than truncate) rather than absent: two flushes still
+# interleaved into one file, with no way for a reader to tell whose lines
+# were whose. `$$` is unique per invocation of THIS script -- it is not the
+# backgrounded subshell's own PID, which is assigned only after this line
+# runs -- so it is available before the header below is ever written, and
+# distinct siblings still get distinct files. scripts/doctor.sh's own
+# `session-end-*.log` glob (#370's SessionEnd-liveness check) needs no
+# change for this: the `*` already matches whatever follows the timestamp,
+# suffix included.
+_END_LOG="$REMEMBER_DIR/logs/autonomous/session-end-$(_remember_date +%H%M%S)-$$.log"
+# Seeded with a header line BEFORE the subshell below ever opens it, and the
+# subshell appends (`>>`) rather than truncates (`>`) -- not cosmetic (#483).
+# save-session.sh's own housekeeping sweep (unconditional on every flush
+# since #498, not tied to its NDC step) reclaims an empty file in this same
+# directory unconditionally (scripts/save-session.sh), and on an ordinary
+# successful flush NOTHING ever writes to this file: every
+# save-session.sh log line goes to its own daily narrative file, not to
+# stdout/stderr, so a `>`-truncated, still-empty $_END_LOG is exactly what
+# that same sweep -- run from INSIDE the process writing into it -- matches
+# and deletes. Two costs followed: the WARNING below named a path that was
+# already gone by the time anyone read it, and a healthy flush left nothing
+# on disk to confirm it ran at all. A non-empty file at open time is never
+# `-empty`, so it survives its own run's housekeeping while a genuinely
+# stale, still-empty log from an abandoned run is untouched by this and
+# keeps getting swept exactly as before.
+# `>>`, not `>`, is kept even now that `$$` makes an ordinary same-second
+# collision unreachable: a PID can still be recycled across a long-lived
+# store, and appending costs nothing when the file is otherwise guaranteed
+# fresh. Belt, not the buckle.
+# Checked and reported (#503): a failed seed write leaves $_END_LOG
+# absent or empty exactly as if it had never been opened, so the very
+# next housekeeping sweep reclaims it as an abandoned run's redirect
+# target -- and #483's original bug (no on-disk trace that SessionEnd
+# ever fired) is silently back for this session, with
+# scripts/doctor.sh's own liveness check then misreporting it as a hook
+# that never fired at all. Reported the same way save-session.sh:428
+# reports its own fall-through.
+if ! printf '%s [session-end] flush started\n' "$(_remember_date +%H:%M:%S)" >> "$_END_LOG" 2>/dev/null; then
+    report_error "session-end" "WARNING: could not seed $_END_LOG -- if this file stays absent or empty, an ordinary housekeeping sweep will reclaim it, and /remember:doctor may misreport this session as one where SessionEnd never fired."
+fi
+
 # bootstrap-dirs.sh's mkdir is best-effort, and by the time this line runs it
 # has already tried once for THIS invocation — so unlike an ordinary "nothing
 # to flush" exit, reaching here means that attempt just failed (read-only
@@ -219,13 +377,13 @@ log "hook" "session-end: reason=$SESSION_END_REASON session=${STDIN_SESSION_ID:-
 # can never be created and a session with nothing new to save are the same
 # line in hook-errors.log, which is no line at all.
 if [ ! -d "$REMEMBER_DIR" ]; then
-    report_error "session-end" "WARNING: $REMEMBER_DIR does not exist and could not be created — nothing was flushed at session end."
+    report_error "session-end" "WARNING: $REMEMBER_DIR does not exist and could not be created -- nothing was flushed at session end."
     exit 0
 fi
 
 SAVE_SCRIPT="$PIPELINE_DIR/scripts/save-session.sh"
 if [ ! -f "$SAVE_SCRIPT" ]; then
-    report_error "session-end" "WARNING: $SAVE_SCRIPT is missing — nothing was flushed at session end. Reinstall the plugin."
+    report_error "session-end" "WARNING: $SAVE_SCRIPT is missing -- nothing was flushed at session end. Reinstall the plugin."
     exit 0
 fi
 
@@ -260,8 +418,34 @@ fi
 # background fork writes (scripts/post-tool-hook.sh), not a second one: both
 # are "a save-session.sh is in flight" and nothing downstream needs to tell
 # them apart.
-mkdir -p "$REMEMBER_DIR/logs/autonomous" 2>/dev/null
-_END_LOG="$REMEMBER_DIR/logs/autonomous/session-end-$(_remember_date +%H%M%S).log"
+# REMEMBER_TEST_COMPLETION_MARKER (opt-in, unset in production): CI
+# iteration on #487 (PR #499) found the test harness's own PID-liveness
+# wait (tasklist, on Windows) does not reliably observe this backgrounded
+# flush finish on a real windows-latest runner -- $OSTYPE there reports
+# "cygwin", and its PID does not appear to line up with what `tasklist`
+# can find, so a test polling PID liveness alone gives up long before the
+# real flush -- which does complete -- is done, and asserts against a
+# still-running one. Rather than trust PID liveness at all, a caller that
+# sets this var gets an explicit, unambiguous completion line appended to
+# a file it names -- at zero cost to every real session, where the var is
+# never set and this whole block is a no-op.
+#
+# Unlike the $_END_LOG seed write just above, a failed marker write here
+# is NOT routed through report_error() (self-review finding, PR #499):
+# report_error writes to hook-errors.log, a real, user-facing file every
+# production session's own tests assert the CONTENTS of (see
+# TestSeedWriteFailureIsReported's own "WARNING" checks), and this whole
+# block is test-only opt-in scaffolding that must never add a line there
+# a real session could see. A failed marker write still is not silent:
+# bash reports a redirection failure it cannot honor to whatever this
+# block's own enclosing stderr already is, which for the first `printf`
+# below is this hook's own stderr (captured by the test harness as
+# `result.stderr`) and for the second, inside the subshell, is $_END_LOG
+# (which _dump_dir already surfaces in full on assertion failure).
+if [ -n "${REMEMBER_TEST_COMPLETION_MARKER:-}" ]; then
+    printf '%s session-end: about to launch subshell\n' "$(_remember_date +%H:%M:%S)" \
+        >> "$REMEMBER_TEST_COMPLETION_MARKER" 2>&1
+fi
 (
     if [ -n "$STDIN_SESSION_ID" ]; then
         bash "$SAVE_SCRIPT" "$STDIN_SESSION_ID" --force
@@ -269,10 +453,14 @@ _END_LOG="$REMEMBER_DIR/logs/autonomous/session-end-$(_remember_date +%H%M%S).lo
         bash "$SAVE_SCRIPT" --force
     fi
     _flush_status=$?
-    if [ "$_flush_status" -ne 0 ]; then
-        report_error "session-end" "WARNING: save-session.sh --force exited $_flush_status at session end — this session's unsaved tail may be lost. See $_END_LOG for what save-session.sh itself logged."
+    if [ -n "${REMEMBER_TEST_COMPLETION_MARKER:-}" ]; then
+        printf '%s session-end: save-session.sh exited status=%s\n' \
+            "$(_remember_date +%H:%M:%S)" "$_flush_status" >> "$REMEMBER_TEST_COMPLETION_MARKER" 2>&1
     fi
-) < /dev/null > "$_END_LOG" 2>&1 &
+    if [ "$_flush_status" -ne 0 ]; then
+        report_error "session-end" "WARNING: save-session.sh --force exited $_flush_status at session end -- this session's unsaved tail may be lost. See $_END_LOG for what save-session.sh itself logged."
+    fi
+) < /dev/null >> "$_END_LOG" 2>&1 &
 echo $! > "$REMEMBER_DIR/tmp/save-session.pid" 2>/dev/null
 disown 2>/dev/null || true
 

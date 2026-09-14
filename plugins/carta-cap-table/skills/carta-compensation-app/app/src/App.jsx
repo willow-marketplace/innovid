@@ -1,9 +1,28 @@
 import { useEffect, useState } from "react";
 import { C, FS, RADIUS, SANS, SERIF, GLOBAL_CSS } from "./ui/theme.js";
-import { useDashboardData } from "./state/useData.js";
+import { useDashboardData, apiToken } from "./state/useData.js";
 import Benchmarks from "./views/Benchmarks.jsx";
 import Scorecard from "./views/Scorecard.jsx";
+import RefreshPlanner from "./views/RefreshPlanner.jsx";
 import { Tag } from "./ui/components.jsx";
+
+// The ask box edits the app's own source, and the page reloads to pick the edit up
+// (source is transpiled in-browser — there is no HMR to swap a module in place). A
+// reload drops in-memory state, so the tab is parked here and restored on mount:
+// otherwise every accepted edit also silently sends the user back to Benchmarks,
+// which reads as the edit having broken something.
+const TAB_KEY = "ctc.tab";
+
+function storedTab() {
+  try {
+    return sessionStorage.getItem(TAB_KEY) || "benchmarks";
+  } catch {
+    // Private browsing and some embedded webviews throw on access rather than
+    // returning null, and a dashboard that will not open is worse than one that
+    // forgets which tab you were on.
+    return "benchmarks";
+  }
+}
 
 // Only shipped surfaces appear. Plan Modeling and Reports were previously declared
 // here as permanently-disabled "soon" tabs — that advertises a roadmap in the product
@@ -15,11 +34,42 @@ import { Tag } from "./ui/components.jsx";
 // whose roster sweep failed — has benchmarks but no roster, so the tab is omitted
 // rather than opening onto nothing. That is why the list is computed per load instead
 // of being a module constant.
-function tabsFor({ roster }) {
+// ⚠️ REFRESH PLANNER IS HIDDEN — WORK IN PROGRESS.
+//
+// The tab is built and its data pipeline works, but the workflow it belongs to is
+// unfinished: selecting employees, the grant settings screen and the issuance handoff
+// are still being built. A half-workflow in a customer-facing console reads as a
+// broken feature rather than an early one, so it stays off until the whole flow lands.
+//
+// TO RE-ENABLE: set this to true and delete this block. Nothing else needs changing —
+// the view, its data and its tests are all live and exercised. Remove the matching
+// notice in SKILL.md at the same time, or the docs will disagree with the app.
+const SHOW_REFRESH_PLANNER = false;
+
+// The refresh planner is gated on its OWN data, not the roster: it reads the equity
+// refresh report, and a corporation can legitimately have a benchmarked roster with no
+// equity report captured. Gating it on the roster would show a tab with nothing in it.
+function tabsFor({ roster, planner }) {
   return [
     { id: "benchmarks", label: "Benchmarks" },
     ...(roster ? [{ id: "scorecard", label: "Scorecard" }] : []),
+    ...(SHOW_REFRESH_PLANNER && planner ? [{ id: "planner", label: "Refresh Grant Planner" }] : []),
   ];
+}
+
+/** The identity props every view needs from the snapshot.
+ *
+ *  Exported so a test can assert the wiring without mounting the planner, which is
+ *  hidden behind SHOW_REFRESH_PLANNER. That matters more than it looks: every
+ *  planner test supplies `corporationId` itself, so for a long time they all passed
+ *  while the real caller here never passed it at all — the component was correct and
+ *  its integration was not. Assert this, and the PUT payload it ends up in.
+ */
+export function identityProps(snapshot) {
+  return {
+    corporation: snapshot?.source?.corporation,
+    corporationId: snapshot?.source?.corporationId,
+  };
 }
 
 function useGlobalCss() {
@@ -184,7 +234,7 @@ function Message({ title, body, tone }) {
 
 export default function App() {
   useGlobalCss();
-  const [tab, setTab] = useState("benchmarks");
+  const [tab, setTab] = useState(storedTab);
   // Declared with the other hooks, ABOVE the early returns below. React requires the
   // same hooks to run in the same order on every render, and the loading/error paths
   // return before the main body — so a useState placed after them runs on the loaded
@@ -196,7 +246,17 @@ export default function App() {
   // forever — so after a switch the pill and the dropdown disagreed about what was on
   // screen. One source, one update.
   const [activeGroup, setActiveGroup] = useState(null);
-  const { loading, error, snapshot, benchmarks, roster } = useDashboardData();
+  const { loading, error, snapshot, benchmarks, roster, planner } = useDashboardData();
+
+  // Park the open tab so a post-edit reload returns to it. Above the early returns,
+  // for the same hooks-order reason as the useState calls above.
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(TAB_KEY, tab);
+    } catch {
+      // Storage unavailable — the tab simply is not remembered. Not worth failing on.
+    }
+  }, [tab]);
 
   if (loading) return <Message title="Loading…" body="Reading the local snapshot." />;
   if (error) return <Message title="Couldn't load the dashboard" body={error} tone="warn" />;
@@ -227,26 +287,47 @@ export default function App() {
   // Only shown on the tab that can change it. On the Scorecard the control isn't
   // reachable, so a pill there would state a peer group the reader can't see chosen or
   // change — and after a switch on the other tab it would describe figures not on screen.
-  const activePeerLabel = tab === "benchmarks"
+  const tabs = tabsFor({ roster, planner });
+  // A tab parked in sessionStorage can name a surface that no longer exists — a
+  // hidden feature, or a data dir rebuilt without a roster. Falling back to the
+  // first real tab beats rendering a header over an empty page.
+  //
+  // Declared ABOVE activePeerLabel, which reads it: a const referenced before its
+  // declaration is a TDZ throw, not a hoisted undefined.
+  const activeTab = tabs.some((t) => t.id === tab) ? tab : tabs[0].id;
+
+  const activePeerLabel = activeTab === "benchmarks"
     ? (activeGroup?.label || benchmarks.peerGroup?.label || snapshot?.peerGroup?.label)
     : null;
-
-  const tabs = tabsFor({ roster });
 
   return (
     <div style={{ minHeight: "100vh", background: C.bg, fontFamily: SANS }}>
       <Header
         snapshot={snapshot} benchmarks={benchmarks} peerLabel={activePeerLabel}
-        tabs={tabs} tab={tab} setTab={setTab}
+        tabs={tabs} tab={activeTab} setTab={setTab}
       />
       <main style={{ paddingTop: 4 }}>
-        {tab === "benchmarks" && (
-          <Benchmarks data={benchmarks} onPeerGroupChange={setActiveGroup} />
+        {activeTab === "benchmarks" && (
+          <Benchmarks data={benchmarks} onPeerGroupChange={setActiveGroup} token={apiToken()} />
         )}
         {/* Guarded on roster as well as the tab id: a stale ?tab= or a roster that
             failed to load must not render the view against undefined. */}
-        {tab === "scorecard" && roster && (
-          <Scorecard roster={roster} corporation={snapshot?.source?.corporation} />
+        {activeTab === "scorecard" && roster && (
+          <Scorecard roster={roster} corporation={snapshot?.source?.corporation} token={apiToken()} />
+        )}
+        {/* Gated on the flag as well as the data: a stale sessionStorage tab would
+            otherwise restore someone onto a hidden view with no tab to leave by. */}
+        {/* identityProps carries corporationId, which is not cosmetic: useScenario
+            stamps it into scenarios.json and refuses to apply a saved cart whose id
+            disagrees. Omitted, that guard degrades to permissive and a copied data
+            dir applies one corporation's cohort to another. It is also what puts the
+            corporation into the issuance handoff prompt. */}
+        {SHOW_REFRESH_PLANNER && activeTab === "planner" && planner && (
+          <RefreshPlanner
+            planner={planner}
+            {...identityProps(snapshot)}
+            token={apiToken()}
+          />
         )}
       </main>
       {attribution && (

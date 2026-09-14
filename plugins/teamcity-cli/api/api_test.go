@@ -1194,7 +1194,7 @@ func TestRebootAgentCancelledContext(T *testing.T) {
 	skipIfGuest(T)
 	T.Parallel()
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(T.Context())
 	cancel() // Cancel immediately
 
 	// Bogus ID: the request must never be sent, and must never reboot the real agent.
@@ -1407,4 +1407,15 @@ func TestRequestHeadersServerSide(T *testing.T) {
 	require.True(T, found, "server logs must contain 'teamcity-cli/42.0.0-test'")
 	assert.Contains(T, logs, "user-agent")
 	assert.Contains(T, logs, "client: teamcity-cli/42.0.0-test")
+}
+
+func TestVersionedSettingsRuntimeStatus(t *testing.T) {
+	skipIfGuest(t)
+	t.Parallel()
+	status, err := client.GetVersionedSettingsStatus(testProject)
+	if err != nil {
+		require.ErrorContains(t, err, "never been enabled")
+		return
+	}
+	assert.NotEmpty(t, status.Message)
 }

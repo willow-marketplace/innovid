@@ -1,20 +1,17 @@
-import { test, before } from 'node:test'
+import { test, describe } from 'node:test'
 import assert from 'node:assert'
 import fs from 'fs'
+import os from 'os'
 import path from 'path'
 import { fileURLToPath } from 'url'
-import { getEmbeddings } from '../lib/embeddings.js'
-import calculateEmbeddings from '../lib/calculateEmbeddings.js'
+import { getEmbeddings, createEmbeddings } from '../lib/embeddings.js'
+import calculateEmbeddings, { getQueryDb } from '../lib/calculateEmbeddings.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const MODEL_DIR = path.resolve(__dirname, '..', 'models')
+const MODEL_DIR = path.resolve(__dirname, '..', '.cds', 'models', 'sentence-transformers', 'all-MiniLM-L6-v2')
 const REQUIRED_FILES = ['model.onnx', 'tokenizer.json', 'tokenizer_config.json']
 
-test.describe('embeddings', () => {
-  // Pre-download models once at the start to speed up all tests
-  before(async () => {
-    await calculateEmbeddings('initialization test')
-  })
+describe('embeddings', () => {
   test('should create embeddings for a test string', async () => {
     const results = await getEmbeddings('Node.js testing')
     assert(results.length, 'Results should be an array')
@@ -183,12 +180,119 @@ test.describe('embeddings', () => {
     assert(Math.abs(norm - 1.0) < 0.001, `Long string embedding should be normalized: ${norm}`)
   })
 
+  test('createEmbeddings preserves chunk order in output', async () => {
+    const chunks = [
+      'first chunk about cds init',
+      'second chunk about cds watch',
+      'third chunk about cds deploy',
+      'fourth chunk about service definitions',
+      'fifth chunk about entity projections'
+    ]
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'emb-order-test-'))
+    try {
+      const { outDir } = await createEmbeddings('test', chunks, tmpDir)
+      const meta = JSON.parse(fs.readFileSync(path.join(outDir, 'test.json'), 'utf-8'))
+      assert.deepStrictEqual(meta.chunks, chunks, 'output chunks must match input order exactly')
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true })
+    }
+  })
+
+  test('createEmbeddings writes metadata when provided', async () => {
+    const chunks = ['chunk about cds init', 'chunk about cds watch', 'chunk about cds deploy']
+    const metadata = [{ source: 'getting-started', label: 'node' }, { source: 'getting-started', label: 'java' }, { source: 'deploy', label: 'node' }]
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'emb-meta-test-'))
+    try {
+      const { outDir } = await createEmbeddings('test', chunks, tmpDir, { metadata })
+      const meta = JSON.parse(fs.readFileSync(path.join(outDir, 'test.json'), 'utf-8'))
+      assert.deepStrictEqual(meta.metadata, metadata, 'metadata must be written as-is')
+      assert.deepStrictEqual(meta.chunks, chunks, 'chunks must still be present alongside metadata')
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true })
+    }
+  })
+
+  test('createEmbeddings without metadata produces no metadata key', async () => {
+    const chunks = ['chunk about cds init']
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'emb-nometa-test-'))
+    try {
+      const { outDir } = await createEmbeddings('test', chunks, tmpDir)
+      const meta = JSON.parse(fs.readFileSync(path.join(outDir, 'test.json'), 'utf-8'))
+      assert.strictEqual(meta.metadata, undefined, 'metadata key must be absent when not provided')
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true })
+    }
+  })
+
+  test('createEmbeddings places output under capire.version folder', async () => {
+    const chunks = ['chunk about cds init']
+    const capire = { commitId: '__commit_id_1234__', cdsDependency: { node: '>=10.0', java: '>=5.0' } }
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'emb-capver-test-'))
+    try {
+      const { outDir } = await createEmbeddings('test', chunks, tmpDir, { capire })
+      assert.ok(outDir.endsWith('__commit_id_1234__'), `outDir should end with version folder, got: ${outDir}`)
+      const meta = JSON.parse(fs.readFileSync(path.join(outDir, 'test.json'), 'utf-8'))
+      assert.deepStrictEqual(meta.capire, capire)
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true })
+    }
+  })
+
+  test('createEmbeddings without capire uses MODEL_FOLDER only', async () => {
+    const chunks = ['chunk about cds init']
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'emb-nover-test-'))
+    try {
+      const { outDir } = await createEmbeddings('test', chunks, tmpDir)
+      const meta = JSON.parse(fs.readFileSync(path.join(outDir, 'test.json'), 'utf-8'))
+      assert.strictEqual(meta.capire, undefined)
+      const { MODEL_FOLDER } = await import('../lib/calculateEmbeddings.js')
+      assert.ok(outDir.endsWith(MODEL_FOLDER), `outDir should end with MODEL_FOLDER, got: ${outDir}`)
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true })
+    }
+  })
+
+  test('createEmbeddings throws when metadata length mismatches chunks', async () => {
+    const chunks = ['a', 'b', 'c']
+    const metadata = [{ x: 1 }, { x: 2 }] // one short
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'emb-metalen-test-'))
+    try {
+      await assert.rejects(
+        () => createEmbeddings('test', chunks, tmpDir, { metadata }),
+        /metadata length must match chunks length/
+      )
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true })
+    }
+  })
+
+  test('calculateEmbeddings with explicit model returns different dimensions as default', async () => {
+    const MODEL = 'nomic-ai/nomic-embed-text-v1.5'
+    const text = 'test query for model param'
+    const withoutModel = await calculateEmbeddings(text)
+    const withModel = await calculateEmbeddings(text, MODEL)
+    assert.notStrictEqual(withModel.length, withoutModel.length, 'explicit model must return different dim than default')
+  })
+
+  test('calculateEmbeddings reuses cache when called twice with same model', async () => {
+    const MODEL = 'nomic-ai/nomic-embed-text-v1.5'
+    const text = 'cache reuse test'
+    await calculateEmbeddings(text, MODEL)
+    const dbBefore = await getQueryDb(MODEL)
+    dbBefore.cached = true
+    await calculateEmbeddings(text, MODEL)
+    const dbAfter = await getQueryDb(MODEL)
+    assert.ok(dbAfter.cached, 'repeated call with same model must succeed')
+  })
+
+  test('calculateEmbeddings with undefined model falls back to default', async () => {
+    const result = await calculateEmbeddings('no model param test', undefined)
+    assert.strictEqual(result.length, 384, 'undefined model must use default and return 384-dim')
+  })
+
   test('should handle model corruption and re-download', async () => {
     // Create a temporary test directory to simulate corruption without affecting real models
-    const testModelDir = path.join(__dirname, 'temp_model_test')
-    if (!fs.existsSync(testModelDir)) {
-      fs.mkdirSync(testModelDir, { recursive: true })
-    }
+    const testModelDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cds-mcp-model-test-'))
 
     try {
       // Create a corrupted ONNX model file
@@ -209,19 +313,14 @@ test.describe('embeddings', () => {
       assert(true, 'Corruption detection logic works')
     } finally {
       // Clean up temp directory
-      if (fs.existsSync(testModelDir)) {
-        fs.rmSync(testModelDir, { recursive: true, force: true })
-      }
+      fs.rmSync(testModelDir, { recursive: true, force: true })
     }
   })
 })
 
 test('should handle tokenizer corruption and re-download', async () => {
   // Create a temporary test directory to simulate corruption
-  const testModelDir = path.join(__dirname, 'temp_tokenizer_test')
-  if (!fs.existsSync(testModelDir)) {
-    fs.mkdirSync(testModelDir, { recursive: true })
-  }
+  const testModelDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cds-mcp-tokenizer-test-'))
 
   try {
     // Create an invalid JSON tokenizer file
@@ -243,8 +342,6 @@ test('should handle tokenizer corruption and re-download', async () => {
     assert(true, 'Tokenizer corruption detection logic works')
   } finally {
     // Clean up temp directory
-    if (fs.existsSync(testModelDir)) {
-      fs.rmSync(testModelDir, { recursive: true, force: true })
-    }
+    fs.rmSync(testModelDir, { recursive: true, force: true })
   }
 })

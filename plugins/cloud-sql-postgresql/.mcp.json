@@ -1,0 +1,23 @@
+{
+  "mcpServers": {
+    "cloud-sql-postgres": {
+      "env": {
+        "CLOUD_SQL_POSTGRES_USER": "${user_config.cloud_sql_postgres_user}",
+        "CLOUD_SQL_POSTGRES_REGION": "${user_config.cloud_sql_postgres_region}",
+        "CLOUD_SQL_POSTGRES_IP_TYPE": "${user_config.cloud_sql_postgres_ip_type}",
+        "CLOUD_SQL_POSTGRES_PROJECT": "${user_config.cloud_sql_postgres_project}",
+        "CLOUD_SQL_POSTGRES_DATABASE": "${user_config.cloud_sql_postgres_database}",
+        "CLOUD_SQL_POSTGRES_INSTANCE": "${user_config.cloud_sql_postgres_instance}",
+        "CLOUD_SQL_POSTGRES_PASSWORD": "${user_config.cloud_sql_postgres_password}"
+      },
+      "args": [
+        "-y",
+        "@toolbox-sdk/server@1.9.0",
+        "--prebuilt",
+        "cloud-sql-postgres",
+        "--stdio"
+      ],
+      "command": "npx"
+    }
+  }
+}

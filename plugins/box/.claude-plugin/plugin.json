@@ -2,11 +2,11 @@
   "name": "box",
   "version": "1.0.0",
   "description": "Box Plugin for Claude Code to help with Box Platform integrations including content workflows, shared links, webhooks, metadata, and Box AI retrieval.",
-  "updatedAt": "2026-08-29T00:03:09.916Z",
+  "updatedAt": "2026-09-14T10:57:30.517Z",
   "author": {
     "name": "Box"
   },
-  "repository": "https://github.com/box/box-for-ai",
+  "repository": "https://github.com/box/skills",
   "keywords": [
     "box",
     "content",

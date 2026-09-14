@@ -1,7 +1,7 @@
 {
   "name": "@sap/mdk-mcp-server",
   "mcpName": "io.github.SAP/mdk-mcp-server",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "license": "Apache-2.0",
   "description": "Model Context Protocol (MCP) server for AI-assisted development of MDK applications.",
   "type": "module",
@@ -57,7 +57,7 @@
     "@sap/mdk-tools": "^1.16.0",
     "axios": "^1.18.1",
     "dotenv": "^17.2.3",
-    "i18next": "26.4.0",
+    "i18next": "26.4.2",
     "os-name": "7.0.0",
     "xml2js": "^0.6.2",
     "yo": "^4.3.1",
@@ -89,7 +89,7 @@
     "@octokit/request-error": "^7.0.0",
     "form-data": "^4.0.1",
     "tough-cookie": "^6.0.0",
-    "qs": "6.15.3",
+    "qs": "6.16.0",
     "diff": "^9.0.0",
     "tar": "^7.5.11",
     "fast-xml-parser": "^5.3.8",
@@ -128,7 +128,7 @@
     "adm-zip": "^0.6.0",
     "@sigstore/core": "^4.0.1",
     "sigstore": "^5.0.0",
-    "got": "^15.0.0",
+    "got": "^16.0.0",
     "js-yaml": "^4.1.0"
   },
   "mdkConfig": {

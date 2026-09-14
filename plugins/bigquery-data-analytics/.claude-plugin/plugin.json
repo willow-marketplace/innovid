@@ -1,13 +1,29 @@
 {
   "name": "bigquery-data-analytics",
-  "version": "0.2.3",
+  "version": "0.2.5",
   "description": "Connect, query, and generate data insights for BigQuery datasets and data.",
-  "updatedAt": "2026-08-29T00:03:30.973Z",
+  "updatedAt": "2026-09-14T10:57:50.744Z",
   "author": {
     "name": "Google LLC",
     "email": "data-cloud-ai-integrations@google.com"
   },
   "homepage": "https://cloud.google.com/bigquery",
   "repository": "https://github.com/gemini-cli-extensions/bigquery-data-analytics",
-  "skills": "./skills/"
+  "skills": "./skills/",
+  "mcpServers": {
+    "bigquery": {
+      "env": {
+        "BIGQUERY_PROJECT": "${user_config.bigquery_project}",
+        "BIGQUERY_LOCATION": "${user_config.bigquery_location}"
+      },
+      "args": [
+        "-y",
+        "@toolbox-sdk/server@1.10.0",
+        "--prebuilt",
+        "bigquery",
+        "--stdio"
+      ],
+      "command": "npx"
+    }
+  }
 }

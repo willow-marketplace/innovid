@@ -84,7 +84,7 @@ For each confirmed file, edit only the YAML frontmatter:
 
 - Replace the `model:` line with the resolved latest ID.
 - If a `# current as of YYYY-MM-DD …` comment is present (the convention used in `output-dev-prompt-file` examples and CLI scaffolds), update its date to today's (`date +%Y-%m-%d`). Match the comment by the literal `current as of ` prefix and only rewrite the date — leave the trailing text intact.
-- Leave `provider:`, `temperature:`, `maxTokens:`, `providerOptions:`, and the message body untouched.
+- Leave `provider:`, `temperature:`, `maxOutputTokens:` (or deprecated `maxTokens:`), `providerOptions:`, and the message body untouched.
 
 Refreshing the dated comment in the same edit keeps the "as of" convention coherent — without it, an upgraded prompt would have a fresh model paired with a stale date.
 
@@ -102,7 +102,7 @@ The Output SDK doesn't validate prompt model IDs at build time — invalid IDs o
 - **Within-family only.** This skill never upgrades Sonnet → Opus, never swaps Anthropic for OpenAI. To change tier or provider, edit prompts manually or use [`output-dev-prompt-file`](../output-dev-prompt-file/SKILL.md).
 - **Dated snapshots get bumped.** A pin like `claude-sonnet-4-20250514` becomes the unversioned alias `claude-sonnet-4-6`. If the pin was load-bearing for reproducibility, surface that and skip the file.
 - **`@vertex` and `bedrock` namespace suffixes.** Models like `claude-sonnet-4-20250514@vertex` or `anthropic.claude-sonnet-4-20250514-v1:0` need manual upgrade. The AI Gateway listing covers direct provider IDs only.
-- **Models.dev pricing lag.** Even after the upgrade, `calculateLLMCallCost` may return `total: null` for the brand-new model until [models.dev](https://models.dev) catches up. The runtime call still works.
+- **Models.dev pricing lag.** Even after the upgrade, `response.cost` may be incomplete with `total: null` for the brand-new model until [models.dev](https://models.dev) catches up. The runtime call still works.
 
 ## See also
 

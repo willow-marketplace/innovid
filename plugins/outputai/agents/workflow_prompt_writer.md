@@ -34,7 +34,7 @@ provider: anthropic
 # current as of 2026-05-04 — run output-dev-model-selection for the latest
 model: claude-sonnet-4-6
 temperature: 0.7
-maxTokens: 2000
+maxOutputTokens: 2000
 ---
 <system>You are a helpful assistant.</system>
 <user>{{ instructions }}</user>
@@ -48,12 +48,14 @@ The body is either message mode or instruction mode. After leading whitespace an
 |--------|------|-------------|
 | `provider` | string | LLM provider: `anthropic`, `openai`, `google-vertex`, `amazon-bedrock`, `azure`, `perplexity` |
 | `model` | string | Model identifier (provider-specific) |
-| `temperature` | number | Creativity (0.0-1.0, lower = more deterministic) |
-| `maxTokens` | number | Maximum response length |
+| `temperature` | number | Sampling temperature; supported range varies by provider |
+| `maxOutputTokens` | number | Maximum response length |
 
-Frontmatter is a **strict camelCase allowlist**. Unknown top-level keys throw `Invalid prompt file`. A snake_case alias of a known field fails with a suggestion (`max_tokens` -> use `maxTokens`). Put provider-specific keys (`effort`, `reasoningEffort`, `topP`) under `providerOptions`, which stays open.
+Frontmatter is a **strict camelCase allowlist**. Unknown top-level keys throw `Invalid prompt file`. A snake_case alias of a known field fails with a suggestion (`max_output_tokens` -> use `maxOutputTokens`). Put provider-specific keys (`effort`, `reasoningEffort`) under `providerOptions`, which stays open.
 
-Allowed top-level keys: `provider`, `model`, `temperature`, `maxTokens`, `maxSteps`, `skills`, `tools`, `providerOptions`, `messageOptions`, `n`, `maxImagesPerCall`, `size`, `aspectRatio`, `seed`.
+Allowed top-level keys: `provider`, `model`, `temperature`, `maxOutputTokens`, deprecated `maxTokens`, `topP`, `topK`, `presencePenalty`, `frequencyPenalty`, `stopSequences`, `seed`, `maxSteps`, `skills`, `tools`, `providerOptions`, `messageOptions`, `n`, `maxImagesPerCall`, `size`, `aspectRatio`.
+
+Use `maxOutputTokens` for new prompts. Deprecated `maxTokens` remains on the loaded config and populates `maxOutputTokens` when the canonical key is absent; when both are set, `maxOutputTokens` takes precedence.
 
 ### Provider Consistency
 
@@ -507,7 +509,7 @@ See `output-dev-skill-file` for the full skill creation guide.
 
 ## Using Prompts with Agent
 
-Prompts work with both `generateText` (single-shot) and the `Agent` class (multi-step tool loops). Agent extends AI SDK's `ToolLoopAgent` with Output prompt files and skills:
+Prompts work with both `generateText` (single-shot) and the `Agent` class (multi-step tool loops). Agent uses an internal AI SDK `ToolLoopAgent` through composition with Output prompt files and skills:
 
 ```typescript
 import { Agent, aiSdk } from '@outputai/llm';
@@ -573,7 +575,7 @@ provider: anthropic
 # current as of 2026-05-04 — run output-dev-model-selection for the latest
 model: claude-sonnet-4-6
 temperature: 0.7
-maxTokens: 4000
+maxOutputTokens: 4000
 ---
 ```
 

@@ -2,7 +2,7 @@
   "name": "aws-data-analytics",
   "version": "1.2.0",
   "description": "Data lake, analytics, search, and ETL workflows with S3 Tables, AWS Glue, Athena, Amazon Redshift, and Amazon OpenSearch Service. Covers managed Iceberg tables on S3 Tables, ingestion from JDBC databases (Oracle, SQL Server, PostgreSQL, MySQL, RDS), Amazon Redshift, Snowflake, BigQuery, and DynamoDB, AWS Glue Data Catalog inventory and asset discovery, federated Athena queries, vector storage and semantic search on Amazon S3 Vectors, and Amazon OpenSearch Service and Serverless (migration from Solr/Elasticsearch, provisioning, vector/semantic/hybrid search, log analytics, trace analytics).",
-  "updatedAt": "2026-08-29T00:03:06.956Z",
+  "updatedAt": "2026-09-14T10:57:25.929Z",
   "author": {
     "name": "Amazon Web Services"
   },
@@ -55,7 +55,7 @@
   "mcpServers": {
     "aws-mcp": {
       "args": [
-        "mcp-proxy-for-aws@1.6.4",
+        "mcp-proxy-for-aws-cli@latest",
         "https://aws-mcp.us-east-1.api.aws/mcp",
         "--skip-auth",
         "--metadata",

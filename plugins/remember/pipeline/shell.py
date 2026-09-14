@@ -31,7 +31,14 @@ import os
 import re
 import sys
 
-from .extract import _is_line_number, extract_session, read_positions
+from .extract import (
+    _is_line_number,
+    _validate_session_id,
+    clear_unread_envelope,
+    extract_session,
+    mark_unread_envelope,
+    read_positions,
+)
 from .haiku import _parse_response
 from .prompts import build_save_prompt, build_ndc_prompt
 
@@ -77,7 +84,9 @@ def cmd_extract(session_id: str, project_dir: str) -> None:
 
     Prints:
         POSITION, HUMAN_COUNT, ASSISTANT_COUNT, EXCHANGE_COUNT,
-        EXTRACT_FILE (path to temp file containing exchange text).
+        EXTRACT_FILE (path to temp file containing exchange text), ENVELOPE,
+        SKIP_LINES, UNREAD_SIDECAR_UNREADABLE, ENVELOPE_UNREADABLE,
+        ENVELOPE_CAPPED, ENVELOPE_HAS_UNMAPPED_STEP.
     """
     import tempfile
     remember_dir = os.environ.get("REMEMBER_DIR") or None
@@ -93,6 +102,51 @@ def cmd_extract(session_id: str, project_dir: str) -> None:
     print(f"ASSISTANT_COUNT={r.assistant_count}")
     print(f"EXCHANGE_COUNT={r.human_count + r.assistant_count}")
     print(f"EXTRACT_FILE={_shell_escape(extract_file)}")
+    # "unrecognised" is a transcript shape neither known host wrote -- distinct
+    # from a genuine 0-exchange session, which save-session.sh must not report
+    # the same way (#443).
+    print(f"ENVELOPE={_shell_escape(r.envelope)}")
+    # The JSONL line this extraction actually started reading from (#450) --
+    # ordinarily the saved position, but the earlier, still-unread point when
+    # a prior "unrecognised" envelope quarantined one. save-session.sh passes
+    # this straight to `save-position`, which is what either keeps the
+    # quarantine pinned to its earliest point or clears it once something has
+    # actually read that span.
+    print(f"SKIP_LINES={r.skip_lines}")
+    # #458: distinct from ENVELOPE/SKIP_LINES above -- this is the sidecar
+    # extract_session() consulted to CHOOSE those values, not the transcript
+    # itself. "1" means the unread-envelope.json quarantine sidecar exists
+    # but could not be trusted (a torn write, a disk fault, a truncated
+    # file), so this run resumed as though nothing were quarantined even
+    # though the sidecar may disagree -- the same silent-degrade #450's
+    # quarantine exists to catch, one level inside its own recovery path.
+    # Additive: no current consumer reads this key yet (that plumbing --
+    # reaching a shell-visible log line -- is a decision the issue
+    # explicitly left to whoever wires save-session.sh next), but the
+    # signal is on the bridge rather than only inside this process.
+    print(f"UNREAD_SIDECAR_UNREADABLE={1 if r.unread_sidecar_unreadable else 0}")
+    # #478: ENVELOPE="unrecognised" collapses two different facts -- the
+    # transcript could not even be opened (OSError), or it was opened and
+    # read to exhaustion and simply never named a known host shape. Additive
+    # for the same reason as UNREAD_SIDECAR_UNREADABLE above: no current
+    # consumer reads this key yet, but the distinction is on the bridge for
+    # whoever next revises save-session.sh:276's receipt, which today points
+    # every "unrecognised" case at the shape-sniffing function even when the
+    # real answer is "the file could not be read at all".
+    print(f"ENVELOPE_UNREADABLE={1 if r.envelope_unreadable else 0}")
+    # #556: ENVELOPE="unrecognised" with ENVELOPE_UNREADABLE=0 still collapses
+    # two different causes -- a file read to genuine exhaustion without ever
+    # naming a known host shape, and one that hit
+    # extract._ENVELOPE_SNIFF_SCAN_CAP and gave up before exhausting the
+    # file. Additive for the same reason as the two keys above: no current
+    # consumer reads this yet, but the distinction is on the bridge.
+    print(f"ENVELOPE_CAPPED={1 if r.envelope_capped else 0}")
+    # #575: distinct from ENVELOPE=="unrecognised" -- this fires for a KNOWN
+    # envelope (today, only "antigravity") whose read span still contained a
+    # step this build's pipeline.host adapter cannot map to a role. Read
+    # unconditionally by scripts/save-session.sh, so it prints 0 rather than
+    # being omitted for every other envelope.
+    print(f"ENVELOPE_HAS_UNMAPPED_STEP={1 if r.envelope_has_unmapped_step else 0}")
 
 
 def cmd_build_prompt(
@@ -202,6 +256,12 @@ def _emit_haiku_result(r, output_file: str = "") -> None:
     print(f"HAIKU_TEXT_FILE={_shell_escape(text_file)}")
     print(f"IS_SKIP={'true' if r.is_skip else 'false'}")
     print(f"IS_REJECTED={'true' if r.is_rejected else 'false'}")
+    # Which route produced this (#461): a plain "SKIP" in the log is
+    # ambiguous about which provider declined once more than one exists
+    # (#460). Threaded through rather than reconstructed at log time, since
+    # a call-haiku declines (spawn guard) before it even reaches whichever
+    # provider it would have used.
+    print(f"PROVIDER={_shell_escape(r.provider)}")
     print(f"TK_IN={r.tokens.input}")
     print(f"TK_OUT={r.tokens.output}")
     print(f"TK_CACHE={r.tokens.cache}")
@@ -251,7 +311,13 @@ def cmd_call_haiku(prompt_file: str, output_file: str = "", timeout: int = 120) 
 _POSITION_SLOTS = 32
 
 
-def cmd_save_position(last_save_file: str, session_id: str, position: int) -> None:
+def cmd_save_position(
+    last_save_file: str,
+    session_id: str,
+    position: int,
+    envelope: str | None = None,
+    skip_lines: int | None = None,
+) -> None:
     """Record the current extraction position for this session.
 
     Positions are keyed by session ID. A single slot meant two live sessions
@@ -268,7 +334,21 @@ def cmd_save_position(last_save_file: str, session_id: str, position: int) -> No
         last_save_file: Path to the last-save.json file.
         session_id: UUID of the session being saved.
         position: JSONL line number to resume from next time.
+        envelope: This run's ``ExtractResult.envelope`` (#450), or ``None``
+            from a caller that predates it (existing tests, an older
+            wrapper). ``None`` leaves the unread-envelope quarantine
+            untouched -- neither marked nor cleared -- so a caller that has
+            nothing to say about the envelope cannot accidentally erase a
+            quarantine some OTHER, envelope-aware caller set. ``"unrecognised"``
+            marks/keeps ``session_id`` quarantined from ``skip_lines``; any
+            other value clears it, because a save with a recognised envelope
+            means whatever quarantined span there was has now been read.
+        skip_lines: The line this run's extraction actually started from
+            (``ExtractResult.skip_lines``). Used as the quarantine mark point
+            when ``envelope`` is ``"unrecognised"``; falls back to
+            ``position`` if omitted.
     """
+    _validate_session_id(session_id)
     sessions = read_positions(last_save_file)
     # Re-insert at the end: dicts keep insertion order, so the oldest entry is
     # simply the first one, and a session that keeps saving keeps its slot.
@@ -329,11 +409,36 @@ def cmd_save_position(last_save_file: str, session_id: str, position: int) -> No
     # #140 fixed for last-save.json, reintroduced through its own mirror.
     # Best-effort: a session that is gone from the store losing its sidecar a
     # little late (a failed unlink here) is no worse than #353 not existing.
+    # `evicted_id` comes from a key already present in the persisted store, so
+    # a store written before #538 -- or hand-edited -- can hold one that fails
+    # `_validate_session_id` today. That must not abort the save that has
+    # already landed above: treat a rejected id the same as a failed unlink,
+    # never let it become worse than #353 not existing.
     for evicted_id in evicted:
         try:
+            _validate_session_id(evicted_id)
             os.remove(os.path.join(sidecar_dir, f"position.{evicted_id}"))
-        except OSError:
+        except (OSError, ValueError):
             pass
+
+    # #450: keep the unread-envelope quarantine in step with the position it
+    # rides beside. `envelope is None` means this caller (an existing test, a
+    # pre-#450 wrapper) has nothing to say about it -- touch nothing, so an
+    # envelope-unaware save cannot silently erase a quarantine some OTHER,
+    # envelope-aware save set for the same session.
+    unread_path = os.path.join(sidecar_dir, "unread-envelope.json")
+    if envelope == "unrecognised":
+        mark_unread_envelope(unread_path, session_id,
+                              skip_lines if skip_lines is not None else position)
+    elif envelope is not None:
+        clear_unread_envelope(unread_path, session_id)
+    # An evicted session's quarantine entry must not outlive it either, for
+    # the same reason as the position sidecar above: last-save.json has
+    # forgotten the session, so a surviving quarantine entry would still be
+    # consulted by a later extraction that can no longer even resume it
+    # against a real saved position.
+    for evicted_id in evicted:
+        clear_unread_envelope(unread_path, evicted_id)
 
 
 def cmd_read_position(last_save_file: str, session_id: str) -> None:
@@ -800,6 +905,8 @@ def main() -> None:
             last_save_file=sys.argv[2],
             session_id=sys.argv[3],
             position=int(sys.argv[4]),
+            envelope=sys.argv[5] if len(sys.argv) > 5 and sys.argv[5] != "" else None,
+            skip_lines=int(sys.argv[6]) if len(sys.argv) > 6 and sys.argv[6] != "" else None,
         )
     elif cmd == "consolidate-snapshot":
         cmd_consolidate_snapshot(staging_dir=sys.argv[2], snapshot_dir=sys.argv[3])

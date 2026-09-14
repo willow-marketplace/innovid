@@ -22,7 +22,6 @@ Before starting a phase:
 - Include every task/subtask that will be attempted in that phase.
 - Include the phase exit criteria.
 - Do not begin mutating work for the phase until this checklist has been posted.
-- If the phase requires explicit approval, ask for approval after the checklist and wait.
 
 During execution:
 - Before each major subsection, post a short update naming the exact section being worked on, using this format:
@@ -38,7 +37,6 @@ At the end of each phase:
   - Decisions or conflicts resolved
   - Remaining risks or follow-ups
 - Then show the required phase artifact for that phase and continue automatically.
-- Only ask for explicit approval after Phase 0 or if a genuine decision fork arises (see [Section 6](#6-decision-forks)). For Phases 1–4, the default is to continue automatically after the summary.
 
 ### Stable Task IDs
 
@@ -213,10 +211,17 @@ If `libraries_available_to_add_next_offset` is non-null, more org libraries are 
 
 ```
 // Search across all libraries (default)
-search_design_system({ query, fileKey, includeComponents: true, includeVariables: true, includeStyles: true })
+search_design_system({
+  queries: [
+    { entity: "component", query },
+    { entity: "variable", query },
+    { entity: "style", query }
+  ],
+  fileKey
+})
 
 // Search within a specific library only
-search_design_system({ query, fileKey, includeLibraryKeys: ["lk-abc123..."], includeComponents: true })
+search_design_system({ queries: [{ entity: "component", query }], fileKey, includeLibraryKeys: ["lk-abc123..."] })
 ```
 
 **Reuse if** all of these are true:
@@ -304,7 +309,6 @@ Collection: "Spacing"       modes: ["Value"]
 ## 9. Per-Phase Anti-Patterns
 
 **Phase 0 anti-patterns:**
-- ❌ Starting to create anything before scope is locked with user
 - ❌ Ignoring existing file conventions and imposing new ones
 - ❌ Skipping `search_design_system` before planning component creation
 
@@ -327,7 +331,7 @@ Collection: "Spacing"       modes: ["Value"]
 - ❌ Importing remote components then immediately detaching them
 
 **General anti-patterns:**
-- ❌ Retrying a failed script without understanding the error first
+- ❌ Retrying when `safeToRetryWithoutCanvasRead` is `false` before reading the canvas
 - ❌ Using name-prefix matching for cleanup (deletes user-owned nodes)
 - ❌ Building on unvalidated work from the previous step
 - ❌ Parallelizing use_figma calls (always sequential)

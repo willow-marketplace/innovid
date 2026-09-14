@@ -8,6 +8,7 @@ import {
 } from '@wix/evalforge-core';
 import { COMMENT_MARKER } from './comment';
 import { MD_RE, EVALS_RE } from './paths';
+import { REVIEW_COMMENT_MARKER, REVIEW_PENDING_MARKER } from './review-comment';
 
 type Octokit = ReturnType<typeof github.getOctokit>;
 export type { ChangedFile, Commenter };
@@ -18,6 +19,40 @@ export type Classification = {
   evalsModified: ChangedFile[];
   evalsRemoved: ChangedFile[];
 };
+
+const GIT_STATUS_MAP: Record<string, string> = {
+  A: 'added',
+  M: 'modified',
+  D: 'removed',
+  T: 'modified',
+};
+
+/**
+ * Parses `git diff --name-status <before> <after>` output into `ChangedFile[]`, for the
+ * merge-tag sweep (a push event, not a PR — there's no octokit file-list API to call here).
+ * Copy (C) is treated as added and type-change (T) as modified; renames (R<score>) carry
+ * both paths. Unrecognized status codes are skipped rather than guessed at.
+ */
+export function parseChangedFiles(diffOutput: string): ChangedFile[] {
+  const files: ChangedFile[] = [];
+  for (const line of diffOutput.split('\n')) {
+    if (!line.trim()) continue;
+    const parts = line.split('\t');
+    const letter = parts[0][0];
+    if (letter === 'R') {
+      files.push({ filename: parts[2], status: 'renamed', previousFilename: parts[1] });
+      continue;
+    }
+    if (letter === 'C') {
+      files.push({ filename: parts[2], status: 'added' });
+      continue;
+    }
+    const status = GIT_STATUS_MAP[letter];
+    if (!status) continue;
+    files.push({ filename: parts[1], status });
+  }
+  return files;
+}
 
 export function classifyChanges(files: ChangedFile[]): Classification {
   const classification: Classification = { mdFiles: [], evalsAdded: [], evalsModified: [], evalsRemoved: [] };
@@ -44,6 +79,50 @@ export function fail(message: string, blocking: boolean): void {
 
 export function makeCommenter(octokit: Octokit, owner: string, repo: string, prNumber: number): Commenter {
   return coreMakeCommenter(octokit, { owner, repo, prNumber, marker: COMMENT_MARKER }, {
+    warn: core.warning,
+    writeSummary: async (body: string) => { await core.summary.addRaw(body).write(); },
+  });
+}
+
+export type PendingCommenter = {
+  post: (body: string) => Promise<void>;
+  clear: () => Promise<void>;
+};
+
+/** Edited rather than re-posted: a new comment on every push notifies everyone watching the PR. */
+export function makeReviewPendingCommenter(
+  octokit: Octokit, owner: string, repo: string, prNumber: number,
+): PendingCommenter {
+  const post = coreMakeCommenter(octokit, { owner, repo, prNumber, marker: REVIEW_PENDING_MARKER }, {
+    warn: core.warning,
+    writeSummary: async (body: string) => { await core.summary.addRaw(body).write(); },
+  });
+
+  return {
+    post,
+    async clear(): Promise<void> {
+      try {
+        const stale: number[] = [];
+        for await (const page of octokit.paginate.iterator(octokit.rest.issues.listComments, {
+          owner, repo, issue_number: prNumber, per_page: 100,
+        })) {
+          for (const comment of page.data) {
+            if (comment.body?.includes(REVIEW_PENDING_MARKER)) stale.push(comment.id);
+          }
+        }
+        for (const comment_id of stale) {
+          await octokit.rest.issues.deleteComment({ owner, repo, comment_id });
+        }
+      } catch (error) {
+        core.warning(`Could not clear the skill review reminder: ${String(error)}`);
+      }
+    },
+  };
+}
+
+/** Its own marker: the upsert finds a comment by marker alone, so a shared one would collide. */
+export function makeReviewCommenter(octokit: Octokit, owner: string, repo: string, prNumber: number): Commenter {
+  return coreMakeCommenter(octokit, { owner, repo, prNumber, marker: REVIEW_COMMENT_MARKER }, {
     warn: core.warning,
     writeSummary: async (body: string) => { await core.summary.addRaw(body).write(); },
   });

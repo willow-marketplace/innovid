@@ -21,11 +21,39 @@ cannot live in here: a forge reads workflows only from `.github/workflows/` itse
 subdirectories are not supported and a symlink there fails outright. So it keeps the
 `oss-` prefix and carries the same note in its own header.
 
+## Exclude this directory from your own linter
+
+Every `.py` file here is vendored and replaced wholesale on every `/oss:scaffold`
+run, so a style finding your own linter (ruff, flake8, …) reports inside `.oss`
+is not actionable: any fix you make is reverted the next time this directory is
+regenerated. Add `.oss` to your linter's exclude list — for `ruff`, an `exclude`
+entry under `[tool.ruff]` in `pyproject.toml`.
+
 ## What is here
 
+Every file this directory holds, and nothing else — `/oss:scaffold` writes these and
+replaces them wholesale on every run.
+
+- `README.md` — this file. It ships beside the others because a directory of generated
+  files with no note is a directory somebody edits.
 - `assemble_changelog.py` — validates changelog fragments and folds them into
   `CHANGELOG.md` at release time. It lives in your repository rather than in the plugin
   because CI checks out your repository and nothing else.
+- `statusline.py` — renders one status line for this repository: the tracker board, how
+  many open issues still have no priority or lane label, how many `trap.d/` fragments are
+  waiting for `/oss:curate`, and whether the plugin copies you are running are current. It is
+  **opt-in, and nothing here calls it**: it stays inert until a `statusLine` entry in
+  `.claude/settings.json` points at it, so removing that entry stops it and breaks nothing else.
+  The command that entry runs is
+
+  ```bash
+  python3 "$CLAUDE_PROJECT_DIR"/.oss/statusline.py
+  ```
+
+  `/oss:scaffold` writes that entry only when the file has no `statusLine` at all; one you
+  already set is never touched, whatever it points at. Every field it prints has three
+  states and the third is `?` — a count nobody took, or a version comparison nobody could
+  make. `?` is never rounded up to `0` or to a tick.
 
 ## Running the fragment check yourself
 

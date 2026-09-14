@@ -2,7 +2,7 @@
   "mcpServers": {
     "activecampaign": {
       "url": "${user_config.server_url}",
-      "type": "url"
+      "type": "http"
     }
   }
 }

@@ -1,11 +1,14 @@
 ---
 name: stripe-docs
-description: Use when the user or agent needs to read, search, or look up Stripe documentation or API reference. Prefer this over curl or WebFetch for any docs.stripe.com content.
+description: Use when the user or agent needs to read, search, or look up Stripe documentation or API reference. Prefer this over curl or WebFetch for any docs.stripe.com content. Use to fetch gated documentation.
 ---
 
-Use `stripe docs` instead of fetching [docs.stripe.com](https://docs.stripe.com/.md) content directly with `curl` or `WebFetch`.
+Use `stripe docs` instead of fetching [docs.stripe.com](https://docs.stripe.com/.md) content directly with `curl` or `WebFetch`. If you don’t have the CLI installed, [install the Stripe CLI](https://docs.stripe.com/cli/install).
+
+Always use the latest CLI version. If the current CLI version is less than v1.50.9, you must [upgrade](https://docs.stripe.com/cli/install) to access gated documentation.
 
 - Fetches Markdown automatically
+- Fetches gated documentation. Users must log in using `stripe login` to access gated documentation.
 - Purpose-built for agents and terminal workflows
 
 ## Read a page by its web path

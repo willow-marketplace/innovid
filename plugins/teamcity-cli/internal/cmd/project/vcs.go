@@ -2,9 +2,9 @@ package project
 
 import (
 	"cmp"
-	"errors"
 	"fmt"
 	"io"
+	"net/url"
 	"strings"
 
 	"github.com/JetBrains/teamcity-cli/api"
@@ -223,7 +223,7 @@ func vcsPropertyLabel(name string) string {
 }
 
 func vcsRootEditURL(id string) string {
-	return fmt.Sprintf("%s/admin/editVcsRoot.html?vcsRootId=%s", config.ResolveServerURL(), id)
+	return config.ResolveServerURL() + "/admin/editVcsRoot.html?" + url.Values{"action": {"editVcsRoot"}, "vcsRootId": {id}}.Encode()
 }
 
 const (
@@ -267,7 +267,9 @@ type vcsCreateOptions struct {
 	keyPath      string
 	passphrase   string
 	connectionID string
+	tokenID      string
 	noTest       bool
+	json         bool
 }
 
 func newVcsCreateCmd(f *cmdutil.Factory) *cobra.Command {
@@ -279,7 +281,8 @@ func newVcsCreateCmd(f *cmdutil.Factory) *cobra.Command {
 		Long: `Create a new Git VCS root in a project.
 
 In interactive mode, guides you through URL, name, and authentication setup.
-Tests the connection before creating unless --no-test is specified.`,
+Tests the connection before creating unless --no-test is specified.
+Stored --token-id credentials must be tested in the TeamCity UI.`,
 		Example: `  # Interactive wizard
   teamcity project vcs create
 
@@ -313,6 +316,9 @@ Tests the connection before creating unless --no-test is specified.`,
 	cmd.Flags().StringVar(&opts.keyPath, "key-path", "", "Path to SSH key file on agent")
 	cmd.Flags().StringVar(&opts.passphrase, "passphrase", "", "SSH key passphrase")
 	cmd.Flags().StringVar(&opts.connectionID, "connection-id", "", "OAuth connection ID")
+	cmd.Flags().StringVar(&opts.tokenID, "token-id", "", "Stored token ID (requires --auth token; excludes --connection-id)")
+	cmd.MarkFlagsMutuallyExclusive("connection-id", "token-id")
+	cmd.Flags().BoolVar(&opts.json, "json", false, "Output the created VCS root as JSON")
 	cmd.Flags().BoolVar(&opts.noTest, "no-test", false, "Skip connection test before creating")
 
 	_ = cmd.RegisterFlagCompletionFunc("auth", completion.VCSAuthMethods())
@@ -327,7 +333,7 @@ func runVcsCreate(f *cmdutil.Factory, opts *vcsCreateOptions) error {
 		return err
 	}
 
-	interactive := f.IsInteractive()
+	interactive := !opts.json && f.IsInteractive()
 
 	if interactive {
 		if err := runInteractiveForm(f, &opts.project, api.PermissionEditProject, formField{title: "Repository URL", value: &opts.repoURL}); err != nil {
@@ -367,6 +373,9 @@ func runVcsCreate(f *cmdutil.Factory, opts *vcsCreateOptions) error {
 			}
 		}
 	}
+	if opts.tokenID != "" && authMethod != authToken {
+		return api.Validation("--token-id requires --auth token", "Use --auth token with a stored token ID")
+	}
 	if opts.connectionID != "" && authMethod != authToken {
 		return api.Validation(
 			"--connection-id requires --auth token",
@@ -390,8 +399,11 @@ func runVcsCreate(f *cmdutil.Factory, opts *vcsCreateOptions) error {
 	testReq.URL = repoURL
 	testReq.VcsName = "jetbrains.git"
 
-	if !opts.noTest && client.SupportsFeature("vcs_test_connection") {
-		if err := runConnectionTest(f, client, testReq, projectID); err != nil {
+	if opts.tokenID != "" && !opts.noTest && !f.JSONOutput && !opts.json {
+		f.Printer.Tip("Test the stored token connection in the TeamCity UI after creating the VCS root")
+	}
+	if opts.tokenID == "" && !opts.noTest && client.SupportsFeature("vcs_test_connection") {
+		if err := runConnectionTest(f, client, testReq, projectID, opts.json); err != nil {
 			return err
 		}
 	}
@@ -411,6 +423,9 @@ func runVcsCreate(f *cmdutil.Factory, opts *vcsCreateOptions) error {
 		return fmt.Errorf("failed to create VCS root: %w", err)
 	}
 
+	if opts.json {
+		return f.Printer.PrintJSON(created)
+	}
 	f.Printer.Success("Created VCS root %q (%s) in project %s", created.Name, created.ID, projectID)
 	return nil
 }
@@ -513,6 +528,14 @@ func resolveAuth(f *cmdutil.Factory, client api.ClientInterface, projectID, auth
 		testReq.IsPrivate = true
 
 	case authToken:
+		if opts.tokenID != "" {
+			props = append(props,
+				api.Property{Name: "authMethod", Value: "ACCESS_TOKEN"},
+				api.Property{Name: "tokenId", Value: opts.tokenID},
+				api.Property{Name: "username", Value: cmp.Or(opts.username, "oauth2")},
+			)
+			break
+		}
 		if opts.connectionID == "" {
 			if !interactive {
 				return nil, testReq, api.RequiredFlag("connection-id")
@@ -582,123 +605,66 @@ func inferAuthFromURL(repoURL string) string {
 func newVcsTestCmd(f *cmdutil.Factory) *cobra.Command {
 	var connectionID string
 	cmd := &cobra.Command{
-		Use:     "test <vcs-root-id>",
-		Short:   "Test a VCS root connection",
-		Long:    `Test the connection for an existing VCS root.`,
+		Use:   "test <vcs-root-id>",
+		Short: "Test a VCS root connection",
+		Long: `Test an existing VCS root using its saved settings and credentials through
+TeamCity's Test connection action. The server's web UI endpoints must be accessible.`,
 		Args:    cobra.ExactArgs(1),
 		Example: `  teamcity project vcs test MyProject_GitHubRepo`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runVcsTest(f, args[0], connectionID)
+			return runVcsTest(f, args[0])
 		},
 	}
-	cmd.Flags().StringVar(&connectionID, "connection-id", "", "Connection ID to test against (required for token-backed roots whose connection isn't returned by GET)")
+	cmd.Flags().StringVar(&connectionID, "connection-id", "", "Retained for compatibility; the saved root determines credentials")
 
 	return cmd
 }
 
-func runVcsTest(f *cmdutil.Factory, id, overrideConnID string) error {
+func runVcsTest(f *cmdutil.Factory, id string) error {
 	client, err := f.Client()
 	if err != nil {
 		return err
 	}
-
-	if !client.SupportsFeature("vcs_test_connection") {
-		return errors.New("connection testing requires TeamCity 2024.12 or later")
-	}
-
 	root, err := client.GetVcsRoot(id)
 	if err != nil {
 		return err
 	}
-
-	projectID := "_Root"
-	if root.Project != nil {
-		projectID = root.Project.ID
-	}
-
-	req, missingConn := buildTestRequestFromRoot(root)
-	if overrideConnID != "" {
-		ptype, err := lookupConnectionProviderType(client, projectID, overrideConnID)
-		if err != nil {
-			return err
-		}
-		if !vcsCapableProviders[ptype] {
-			return api.Validation(
-				fmt.Sprintf("connection %s (%s) cannot back a VCS root", overrideConnID, ptype),
-				"Use a GitHub/GitLab/Bitbucket/Azure DevOps/Space connection",
-			)
-		}
-		req.ConnectionID = overrideConnID
-	} else if missingConn {
-		return api.Validation(
-			fmt.Sprintf("VCS root %s authenticates via a connection that the server doesn't return on GET", id),
-			"Pass --connection-id <id> to test, or test from the TeamCity UI",
-		)
-	}
-	if err := runConnectionTest(f, client, req, projectID); err != nil {
+	if err := testSavedVcsRoot(f, client, root); err != nil {
 		return err
 	}
 	f.Printer.Success("Connection to %q is working", root.Name)
 	return nil
 }
 
-func runConnectionTest(f *cmdutil.Factory, client api.ClientInterface, req api.TestConnectionRequest, projectID string) error {
-	_, _ = fmt.Fprint(f.Printer.ErrOut, "Testing connection... ")
+func runConnectionTest(f *cmdutil.Factory, client api.ClientInterface, req api.TestConnectionRequest, projectID string, jsonOutput bool) error {
+	if !jsonOutput {
+		_, _ = fmt.Fprint(f.Printer.ErrOut, "Testing connection... ")
+	}
 	result, err := client.TestVcsConnection(req, projectID)
 	if err != nil {
-		_, _ = fmt.Fprintln(f.Printer.ErrOut, output.Red(output.Sym().Cross))
+		if !jsonOutput {
+			_, _ = fmt.Fprintln(f.Printer.ErrOut, output.Red(output.Sym().Cross))
+		}
 		return fmt.Errorf("connection test failed: %w", err)
 	}
 	if result.Status != "OK" {
-		_, _ = fmt.Fprintln(f.Printer.ErrOut, output.Red(output.Sym().Cross))
+		if !jsonOutput {
+			_, _ = fmt.Fprintln(f.Printer.ErrOut, output.Red(output.Sym().Cross))
+		}
 		msg := "connection test failed"
 		if len(result.Errors) > 0 {
 			msg = result.Errors[0].Message
 		}
-		if req.ConnectionID != "" && strings.Contains(msg, "Malformed request") {
+		if !jsonOutput && req.ConnectionID != "" && strings.Contains(msg, "Malformed request") {
 			f.Printer.Tip("First-time use of this connection requires authorization. Run: %s",
 				output.Cyan(fmt.Sprintf("teamcity project connection authorize %s -p %s", req.ConnectionID, projectID)))
 		}
 		return fmt.Errorf("%s", msg)
 	}
-	_, _ = fmt.Fprintln(f.Printer.ErrOut, output.Green(output.Sym().Check))
+	if !jsonOutput {
+		_, _ = fmt.Fprintln(f.Printer.ErrOut, output.Green(output.Sym().Check))
+	}
 	return nil
-}
-
-// buildTestRequestFromRoot builds a TestConnectionRequest from a fetched VCS root.
-// missingConn is true when the root authenticates via ACCESS_TOKEN but the
-// server didn't return connectionId on GET, so the caller must supply it.
-func buildTestRequestFromRoot(root *api.VcsRoot) (req api.TestConnectionRequest, missingConn bool) {
-	req = api.TestConnectionRequest{
-		VcsName:      root.VcsName,
-		ConnectionID: root.ConnectionID,
-	}
-
-	if root.Properties == nil {
-		return req, false
-	}
-
-	var authMethod string
-	for _, p := range root.Properties.Property {
-		switch p.Name {
-		case "url":
-			req.URL = p.Value
-		case "authMethod":
-			authMethod = p.Value
-		case "username":
-			req.Username = p.Value
-		case "teamcitySshKey":
-			req.SSHKey = &api.SSHKeyRef{Name: p.Value}
-		}
-	}
-
-	switch authMethod {
-	case "TEAMCITY_SSH_KEY", "PRIVATE_KEY_DEFAULT", "PRIVATE_KEY_FILE":
-		req.IsPrivate = true
-	}
-
-	missingConn = authMethod == "ACCESS_TOKEN" && req.ConnectionID == ""
-	return req, missingConn
 }
 
 type vcsDeleteOptions struct {

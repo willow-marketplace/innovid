@@ -54,8 +54,253 @@ _HOOK_DIR="${BASH_SOURCE[0]%/*}"
 # under the summarizer's temp dir and injects into its context.
 [ -n "${REMEMBER_NESTED_SUMMARIZER:-}" ] && exit 0
 
+# --- REMEMBER_HOOK_CWD (#417, #444) ---
+# resolve-paths.sh falls back to this variable when CLAUDE_PROJECT_DIR is
+# unset (#411). Cleared here first and unconditionally, before anything below
+# could set or inherit it -- the #417 leak this closes is a DIFFERENT
+# session's SessionStart-exported value surviving into a hook that has not
+# validated it, or (on a host that reuses one process environment across
+# invocations) a stale value this same hook wrote on a PREVIOUS run. This
+# hook now offers its own stdin `cwd` further down (#444, #479), but that
+# read has to happen after this unset, never instead of it, or the #417 leak
+# reopens. Clearing it here is cheap and unconditionally
+# correct regardless of whether that reuse is possible on any supported host:
+# on the common path CLAUDE_PROJECT_DIR is already set and this arm never
+# runs anyway.
+unset REMEMBER_HOOK_CWD
+
+# --- REMEMBER_TRANSCRIPT_PATH (#424) ---
+# pipeline/host.transcript_path() trusts this variable once it names a real
+# file, and pipeline/extract.py's find_session() returns that value BEFORE
+# the traversal validator (_validate_session_id) ever runs -- so a value set
+# anywhere in the ambient environment reads an arbitrary file straight into
+# the memory store, no `../` required. Only session-start-hook.sh and
+# session-end-hook.sh have a legitimate transcript_path to offer, extracted
+# fresh from their own stdin payload on every run. This hook has none and
+# must not silently consult whatever the process environment already holds,
+# for the same reason and under the same unestablished-reachability
+# reasoning as the REMEMBER_HOOK_CWD unset just above (#417).
+unset REMEMBER_TRANSCRIPT_PATH
+
+# --- Host-conditional stdout shape (#451) ---
+# Claude Code treats this hook's plain stdout as `additionalContext` -- that
+# is what the prompt stamp below is for, and every existing regression test
+# (#301, #280) pins it byte-for-byte. Codex's own UserPromptSubmit parser
+# does something different: it sniffs the first non-whitespace byte of
+# stdout, and `{` or `[` means "this claims to be my JSON contract"
+# (codex-rs/hooks/src/engine/output_parser.rs::looks_like_json, read from
+# openai/codex @ 2026-08-29 -- Codex ships no separate hooks.md). That
+# contract is user-prompt-submit.command.output.schema.json
+# (codex-rs/hooks/schema/generated/), consumed by
+# events/user_prompt_submit.rs::parse_completed. The plain stamp this hook
+# has always printed, "[HH:MM TZ -- user]", opens with `[` -- so Codex tries
+# to read it as that JSON contract, fails, and reports the hook run
+# HookRunStatus::Failed even though nothing failed. Plain text that does
+# NOT open with `{`/`[` is accepted by that same parser and appended as
+# additionalContext with status Completed, so the fix is not "never print
+# the stamp on this host", it is "print it inside the envelope Codex's own
+# schema names" -- see the tail of this file.
+#
+# CLAUDE_PROJECT_DIR is the signal used for this exact distinction in
+# resolve-paths.sh's own ENVIRONMENT block: Claude Code always sets it,
+# Codex documents no such variable and never does (live-confirmed, #463),
+# and until #456 this repo believed Gemini CLI never does either. #456
+# found that belief wrong: Gemini CLI's own bundled docs list
+# CLAUDE_PROJECT_DIR as a compatibility alias it DOES set
+# (tests/test_gemini_project_dir_var_456.py) -- unverified live, #532.
+#
+# #534 considered replacing this with a Codex-specific signature check
+# instead (CODEX_SESSION_ID/CODEX_THREAD_ID, the pair
+# pipeline/host.py's CODEX.signature_vars uses) so the JSON envelope would
+# be Codex-only by construction rather than riding on "CLAUDE_PROJECT_DIR
+# happens to be unset". That was tried and REJECTED: #465 already measured,
+# live, that neither CODEX_SESSION_ID nor CODEX_THREAD_ID reaches a process
+# Codex spawns as a HOOK (this script is one, registered in
+# hooks/hooks.codex.json) -- only a Codex TOOL-SHELL command sees them
+# (see pipeline/haiku.py's own note, and tests/test_codex_signature_463.py's
+# docstring). tests/fixtures/codex-env-463.txt, the fixture that pair is
+# pinned against, was itself captured from a tool-shell `codex exec … "run:
+# env | …"`, not from inside a hook -- so gating THIS script on those two
+# variables would silently disable the envelope on every real Codex
+# UserPromptSubmit invocation and reopen #451/#452 (every prompt on Codex
+# reads Failed again). Kept on CLAUDE_PROJECT_DIR instead: still exactly
+# right for Codex (confirmed absent, live), and for Gemini this flag now
+# also matches Gemini's own claimed behaviour (present -> plain stdout) --
+# REASONED, not observed, for any host besides Codex 0.150.1, same limit
+# as before #534. The JSON envelope is what Codex's own schema documents,
+# and is no worse than a bracket that collides with Codex's heuristic on
+# every host it has not been checked against either.
+if [ -n "${CLAUDE_PROJECT_DIR:-}" ]; then
+    _REMEMBER_HOST_JSON_STDOUT=0
+else
+    _REMEMBER_HOST_JSON_STDOUT=1
+fi
+
 source "$_HOOK_DIR/lib-clock.sh"
 source "$_HOOK_DIR/lib-env-cache.sh"
+
+# --- REMEMBER_HOOK_CWD from stdin (#444, moved ahead of the cache lookup
+# below for #479) ---
+# resolve-paths.sh's REMEMBER_HOOK_CWD fallback (#411) only ever gets a
+# value from session-start-hook.sh and session-end-hook.sh, which is why a
+# host that never sets CLAUDE_PROJECT_DIR (Codex -- confirmed live,
+# tests/fixtures/codex-env-463.txt) hit the FATAL in resolve-paths.sh on
+# this hook before #411/#444: the #417 unset above left it correct but with
+# no legitimate source of its own. Gemini CLI's own bundled docs say it DOES
+# set CLAUDE_PROJECT_DIR (#456, unverified live -- #532), so this fallback
+# is not what makes Gemini resolvable any more, but it stays correct and
+# still needed for Codex and any other host that genuinely leaves it unset.
+# UserPromptSubmit carries `cwd` on its own stdin payload on all three
+# hosts (#407's comparison table), so read it here regardless.
+#
+# THIS MUST RUN BEFORE _remember_env_cache_load BELOW (#479). That
+# function's own key, _remember_env_cache_path, falls back to
+# REMEMBER_HOOK_CWD when CLAUDE_PROJECT_DIR is unset (#469) -- which is
+# still Codex's own case (confirmed live) and can be true of other hosts
+# too, even though Gemini CLI's own docs now say it is not Gemini's (#456,
+# unverified live -- #532). Before #479 this read lived
+# inside the "cache missed" branch below, i.e. it only ever ran AFTER the
+# cache lookup this very variable was meant to key had already failed for
+# want of it: every UserPromptSubmit wrote a cache file and none ever read
+# one back -- verbatim the #469 symptom, still present on the one hook #469
+# exists to fix.
+#
+# Paying this unconditionally -- on the fast path too -- is a real change
+# from the #227 reasoning further up this file, which is about FORKED
+# processes (150-800ms each, per the COST section above). This read forks
+# nothing: it is a bash builtin loop over stdin the host has already
+# written and closed by the time this script starts, bounded in TIME only
+# below. Measured 2026-09-01 on macOS/bash 3.2 (this read's own semantics):
+# 50 runs of this exact read-and-parse loop against a realistic
+# UserPromptSubmit payload averaged 8.5ms end-to-end, against 9.5ms for a
+# no-op bash process doing nothing but consume the same stdin -- the loop's
+# own marginal cost does not clear that measurement's noise floor. The
+# alternative -- leaving the read on the slow path only -- keeps this hook
+# with no working fast path at all on Codex, and on any other host that
+# genuinely leaves CLAUDE_PROJECT_DIR unset, which is the choice #479
+# exists to make explicit rather than silent.
+#
+# WORST CASE, not just average case: before this change, a cache-HIT
+# invocation never touched stdin at all, so it could never block on it.
+# After this change every invocation, hit or miss, carries the same
+# `read -t 1` ceiling the slow path already had -- a host that leaves the
+# pipe open without writing/closing it now costs up to 1s on the hot path
+# too, not 0ms. Accepted deliberately, not overlooked: `post-tool-hook.sh`
+# already reads stdin unconditionally ahead of its own cache-load check
+# (see its REMEMBER_HOOK_CWD block), on the hook that fires roughly ten
+# times more often than this one, with no reported incident -- this is an
+# extension of that same accepted tradeoff to a second hook, not a new
+# risk class.
+#
+# Bounded in TIME only (`read -t 1`, never a tty), the same reasoning every
+# other stdin-reading hook in this repo already carries: a blocking read
+# here is not a slow prompt, it is a lost one (see the COST section above).
+# bash 3.2 has no sub-second -t, hence 1.
+_HOOK_STDIN=""
+if [ ! -t 0 ]; then
+    _line=""
+    while IFS= read -r -t 1 _line || [ -n "$_line" ]; do
+        _HOOK_STDIN="$_HOOK_STDIN$_line"
+        _line=""
+    done
+fi
+# The same deliberately narrow extractor session-start-hook.sh uses: the
+# key must be followed by nothing but whitespace and a colon before the
+# value's opening quote, so a `cwd` appearing inside some other field is
+# not mistaken for it.
+#
+# #494 -- REACHABILITY OF THE NESTED-BEFORE-TOP-LEVEL GAP (researched, not
+# assumed): tests/test_stdin_extractor_top_level_wins_447.py pins that THIS
+# function takes the FIRST `"cwd"` occurrence in the raw stdin text, so a
+# same-named key nested inside some other field wins over the top-level one
+# when it occurs earlier in the byte stream. Whether that shape is reachable
+# from a real host was the open half of #447/#493, settled here by reading
+# all three hosts' hook payload schemas:
+#
+#   Claude Code -- every hook payload (docs.claude.com/en/docs/claude-code/
+#   hooks) puts `cwd` in the shared top-level object (session_id,
+#   transcript_path, cwd, permission_mode, hook_event_name, ...), and
+#   `tool_input`/`tool_response` -- the only nested objects a hook payload
+#   ever carries -- are declared AFTER it in every documented example. No
+#   built-in tool's input schema uses a `cwd` parameter. NOT source-verified
+#   (Claude Code's hook serializer is not open source): docs-observed only.
+#
+#   Codex -- SOURCE-VERIFIED (codex-rs/core/src/hook_runtime.rs): the
+#   request structs declare `cwd` before `tool_input`, and serde's default
+#   struct serialization preserves declaration order, so `cwd` is
+#   guaranteed to serialize first. The built-in shell tool's own working-
+#   directory parameter is named `workdir`, not `cwd`.
+#
+#   Gemini CLI -- docs (github.com/google-gemini/gemini-cli, docs/hooks/
+#   reference.md) show the same shape: `cwd` in the shared base object,
+#   `tool_input` appended after it for BeforeTool/AfterTool. The built-in
+#   shell tool's directory parameter is named `dir_path`, not `cwd`.
+#   NOT source-verified (spread/construction order not confirmed): docs-
+#   observed only.
+#
+# The remaining theoretical opening on all three hosts is a THIRD-PARTY MCP
+# tool whose author names one of ITS OWN input parameters `cwd` -- `tool_input`
+# for an MCP call is passed through as an opaque value on every host checked,
+# unconstrained by any schema this plugin controls. But that still does not
+# reach the gap this file's extractor has: on every host and every payload
+# shape found, `tool_input` (the only place such a key could appear) is
+# positioned AFTER the top-level `cwd` field, not before it -- so even an
+# adversarial MCP tool parameter named `cwd` lands in the SAFE "nested-after"
+# case (tests/test_stdin_extractor_top_level_wins_447.py's first test), never
+# the "nested-before" one this comment is about. The gap the second test pins
+# is real as a property of THIS extractor's mechanism (first-occurrence
+# scanning, not top-level-aware), but no known, currently-shipped host payload
+# reaches it -- and a host is free to reorder its own schema in a future
+# release, which is why this stays documentation and a synthetic-input test
+# rather than a load-bearing guarantee. #340/#344's standing decision not to
+# acquire a JSON parser for a hook that must survive a broken install is
+# unchanged by this finding.
+_stdin_cwd() {
+    local raw="$1" rest prefix value
+    case "$raw" in *'"cwd"'*) ;; *) return 1 ;; esac
+    rest=${raw#*\"cwd\"}
+    prefix=${rest%%\"*}
+    case "$prefix" in *[!:[:space:]]*) return 1 ;; esac
+    value=${rest#*\"}
+    value=${value%%\"*}
+    [ -n "$value" ] || return 1
+    printf '%s' "$value"
+}
+# _stdin_cwd_into VARNAME RAW (#511): the same scan as _stdin_cwd above,
+# writing the result into VARNAME with `printf -v` instead of printing it
+# for a caller to capture with `$( )`. `_stdin_cwd` stays as it is --
+# tests/test_stdin_extractor_top_level_wins_447.py extracts and calls it
+# verbatim by name, print-and-capture, and this file's own extractor must
+# stay the thing that test actually exercises. But every real invocation of
+# this hook pays for that capture too, on every single prompt, for a value
+# that never needs to leave this process at all -- `$( )` forks a subshell
+# for the substitution itself regardless of how cheap the function body is,
+# same reasoning as lib-clock.sh's _remember_date_into. Kept in exact sync
+# with _stdin_cwd by hand (both are five lines of parameter expansion, not a
+# function this hook can safely delegate to a sourced library it might fail
+# to load -- see _stdin_cwd's own comment above).
+_stdin_cwd_into() {
+    local _var="$1" raw="$2" rest prefix value
+    case "$raw" in *'"cwd"'*) ;; *) return 1 ;; esac
+    rest=${raw#*\"cwd\"}
+    prefix=${rest%%\"*}
+    case "$prefix" in *[!:[:space:]]*) return 1 ;; esac
+    value=${rest#*\"}
+    value=${value%%\"*}
+    [ -n "$value" ] || return 1
+    printf -v "$_var" '%s' "$value"
+}
+# Validated the same way session-start-hook.sh validates its own copy: data
+# from a host payload, at the point of entry. A project directory
+# legitimately contains slashes and dots, so only an embedded newline or
+# carriage return is rejected -- whether the value actually names a
+# directory is decided in resolve-paths.sh, which falls back to the
+# existing derivation when it does not.
+_stdin_cwd_into REMEMBER_HOOK_CWD "$_HOOK_STDIN" || REMEMBER_HOOK_CWD=""
+case "$REMEMBER_HOOK_CWD" in
+    *$'\n'*|*$'\r'*) REMEMBER_HOOK_CWD="" ;;
+esac
+export REMEMBER_HOOK_CWD
 
 # --- Resolve paths ---
 # Two facts are needed below: REMEMBER_DIR (for the capture-gap notice) and
@@ -185,11 +430,14 @@ if [ "$_REMEMBER_STAMP" = "stable" ]; then
   # process.
   echo "[$_REMEMBER_WHO]"
 elif [ -n "$CTX_PCT" ]; then
-  _REMEMBER_NOW=$(_remember_date '+%H:%M %Z')
-  echo "[$_REMEMBER_NOW — $_REMEMBER_WHO — ${CTX_PCT}%]"
+  # _remember_date_into (#511), not `$(_remember_date ...)`: the latter forks
+  # a subshell for the substitution itself even when _remember_date's own
+  # builtin path forks nothing -- see lib-clock.sh for the full reasoning.
+  _remember_date_into _REMEMBER_NOW '+%H:%M %Z'
+  echo "[$_REMEMBER_NOW -- $_REMEMBER_WHO -- ${CTX_PCT}%]"
 else
-  _REMEMBER_NOW=$(_remember_date '+%H:%M %Z')
-  echo "[$_REMEMBER_NOW — $_REMEMBER_WHO]"
+  _remember_date_into _REMEMBER_NOW '+%H:%M %Z'
+  echo "[$_REMEMBER_NOW -- $_REMEMBER_WHO]"
 fi
 # Kept under `stable`, deliberately: it is gated on a threshold, so it changes
 # bytes only when it changes behaviour — and it is the only line here anybody
@@ -207,7 +455,41 @@ dispatch "after_user_prompt"
 # detect-tools.sh is deliberately NOT sourced here — it hard-exits when python
 # is missing, and this hook must never block a prompt. jq is resolved directly.
 JQ_BIN="${JQ:-jq}"
-if [ -z "$NOTICE_MSG" ]; then
+if [ "$_REMEMBER_HOST_JSON_STDOUT" = "1" ]; then
+    # --- Non-Claude-Code host (#451) ---
+    # See the comment at the top of this file. Whether or not there is a
+    # notice, this host's stdout must never open with the bare stamp -- so
+    # both are folded into the one JSON envelope Codex's own schema names,
+    # never printed raw the way the Claude Code branch below does.
+    if [ -z "$CTX" ] && [ -z "$NOTICE_MSG" ]; then
+        : # nothing to say -- printing nothing is Completed on every host
+    else
+        _JSON=""
+        if command -v "$JQ_BIN" >/dev/null 2>&1; then
+            _JSON=$("$JQ_BIN" -n --arg ctx "$CTX" --arg msg "$NOTICE_MSG" \
+                '(if $ctx != "" then {hookSpecificOutput:{hookEventName:"UserPromptSubmit",additionalContext:$ctx}} else {} end)
+                 + (if $msg != "" then {systemMessage:$msg} else {} end)' 2>/dev/null) || _JSON=""
+        fi
+        if [ -n "$_JSON" ]; then
+            printf '%s\n' "$_JSON"
+        else
+            # jq missing, or present but failed: stay silent on stdout
+            # rather than print the bracketed stamp raw -- that raw print
+            # is the exact defect this branch exists to avoid, and a bare
+            # `[`/`{` on this host reads as Failed regardless of WHY it is
+            # there. Silent on stdout is not silent everywhere, though:
+            # `jq` is already a hard dependency of this hook's slow path
+            # (bootstrap-dirs.sh, log.sh's own config reads), so its
+            # absence here is a symptom worth a diagnostic line -- logged
+            # only when `log()` is actually defined (the fast path never
+            # sources log.sh, so it never gets one; that path also never
+            # dispatches `after_user_prompt` for the same #227 cost reason,
+            # and losing this one diagnostic line there is the same trade).
+            declare -F log >/dev/null 2>&1 && log "hook" \
+                "user-prompt-hook: jq unavailable/failed on a non-Claude-Code host -- dropped this turn's Codex-safe stdout envelope (stamp/notice lost, not printed raw to avoid the #451 collision)"
+        fi
+    fi
+elif [ -z "$NOTICE_MSG" ]; then
     printf '%s\n' "$CTX"
 else
     # jq's status must not become this hook's status. Left as the last command

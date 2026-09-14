@@ -3,15 +3,23 @@ package io.quarkus.agent.mcp;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.Assumptions.*;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.StringReader;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Set;
+import java.util.jar.JarEntry;
+import java.util.jar.JarFile;
 import org.junit.jupiter.api.Test;
 
 class RagSqlLoaderTest {
 
     @Test
-    void discoversAggregatedArtifactForSnapshot() {
+    void discoversAggregatedArtifactForSnapshot() throws IOException {
         Path m2Repo = Path.of(System.getProperty("user.home"), ".m2", "repository");
         assumeTrue(Files.isDirectory(m2Repo.resolve("io/quarkus/quarkus-core")),
                 "Skipped: no local Quarkus artifacts in ~/.m2/repository");
@@ -26,19 +34,123 @@ class RagSqlLoaderTest {
         RagSqlLoader.RagFragment fragment = fragments.get(0);
         assertNotNull(fragment.source(), "Fragment should have a source identifier");
 
-        String sql = fragment.sql();
-        assertTrue(sql.contains("INSERT INTO rag_documents"), "SQL should contain INSERT statements");
-        assertTrue(sql.contains("quarkus-rest"), "SQL should contain REST guide data");
-        assertTrue(sql.contains("quarkus-arc"), "SQL should contain CDI guide data");
-        assertTrue(sql.contains("::vector"), "SQL should contain vector casts");
-        assertTrue(sql.contains("::jsonb"), "SQL should contain jsonb casts");
+        long insertCount = 0;
+        long chars = 0;
+        boolean hasRest = false;
+        boolean hasArc = false;
+        boolean hasVector = false;
+        boolean hasJsonb = false;
+        // Read line by line rather than materialising the SQL: the aggregated artifact is tens of
+        // MB, and above a size threshold it is discovered as a streamed fragment whose sql() is
+        // null, so there is nothing to materialise anyway.
+        try (BufferedReader reader = openFragment(fragment)) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                chars += line.length() + 1;
+                if (line.startsWith("INSERT INTO")) {
+                    insertCount++;
+                }
+                hasRest |= line.contains("quarkus-rest");
+                hasArc |= line.contains("quarkus-arc");
+                hasVector |= line.contains("::vector");
+                hasJsonb |= line.contains("::jsonb");
+            }
+        }
 
-        long insertCount = sql.lines()
-                .filter(line -> line.startsWith("INSERT INTO"))
-                .count();
+        assertTrue(hasRest, "SQL should contain REST guide data");
+        assertTrue(hasArc, "SQL should contain CDI guide data");
+        assertTrue(hasVector, "SQL should contain vector casts");
+        assertTrue(hasJsonb, "SQL should contain jsonb casts");
         assertTrue(insertCount > 7000, "Should have 7000+ inserts, got: " + insertCount);
 
-        System.out.println("Discovered SQL: " + sql.length() + " chars, " + insertCount + " INSERTs");
+        System.out.println("Discovered SQL: " + chars + " chars, " + insertCount + " INSERTs"
+                + (fragment.streamJarPath() != null ? " (streamed)" : " (in memory)"));
+    }
+
+    /**
+     * Reads a fragment's SQL whichever way it was discovered: small fragments carry their SQL
+     * in {@code sql()}, large ones only point at the jar to stream from.
+     */
+    private static BufferedReader openFragment(RagSqlLoader.RagFragment fragment) throws IOException {
+        if (fragment.sql() != null) {
+            return new BufferedReader(new StringReader(fragment.sql()));
+        }
+        JarFile jar = new JarFile(fragment.streamJarPath().toFile());
+        JarEntry entry = jar.getJarEntry("META-INF/quarkus-rag-data.sql");
+        if (entry == null) {
+            entry = jar.getJarEntry("META-INF/quarkus-rag.sql");
+        }
+        assertNotNull(entry, "Streamed fragment should point at a jar containing RAG SQL");
+        return new BufferedReader(new InputStreamReader(jar.getInputStream(entry), StandardCharsets.UTF_8)) {
+            @Override
+            public void close() throws IOException {
+                super.close();
+                jar.close();
+            }
+        };
+    }
+
+    @Test
+    void fingerprintChangesWhenFragmentContentChanges() {
+        String before = "INSERT INTO rag_documents ... '{\"source\":\"quarkus-rest\"}'::jsonb);";
+        String after = before + "\nINSERT INTO rag_documents ... more content;";
+
+        assertNotEquals(RagSqlLoader.fingerprint("3.21.0", before),
+                RagSqlLoader.fingerprint("3.21.0", after),
+                "A regenerated fragment must not look identical to the one already loaded");
+    }
+
+    @Test
+    void fingerprintChangesWhenQuarkusVersionChanges() {
+        String sql = "INSERT INTO rag_documents ... '{\"source\":\"quarkus-rest\"}'::jsonb);";
+
+        assertNotEquals(RagSqlLoader.fingerprint("3.21.0", sql),
+                RagSqlLoader.fingerprint("3.22.0", sql),
+                "The version is injected into row metadata, so it is part of the loaded content");
+    }
+
+    @Test
+    void fingerprintIsStableForIdenticalContent() {
+        String sql = "INSERT INTO rag_documents ... '{\"source\":\"quarkus-rest\"}'::jsonb);";
+
+        assertEquals(RagSqlLoader.fingerprint("3.21.0", sql), RagSqlLoader.fingerprint("3.21.0", sql));
+    }
+
+    @Test
+    void extractSourcesFindsEverySourceInAnAggregatedFragment() {
+        String sql = """
+                DELETE FROM rag_documents WHERE metadata->>'source' = 'quarkus-documentation';
+                INSERT INTO rag_documents (...) VALUES ('1', '[]'::vector, 'a', '{"source":"quarkus-rest"}'::jsonb);
+                INSERT INTO rag_documents (...) VALUES ('2', '[]'::vector, 'b', '{"source":"quarkus-arc"}'::jsonb);
+                INSERT INTO rag_documents (...) VALUES ('3', '[]'::vector, 'c', '{"source":"quarkus-rest"}'::jsonb);
+                """;
+
+        assertEquals(Set.of("quarkus-documentation", "quarkus-rest", "quarkus-arc"),
+                RagSqlLoader.extractSources(sql, "fallback"));
+    }
+
+    @Test
+    void extractSourcesIgnoresJsonQuotedInsideAGuidesOwnText() {
+        // Verbatim shape from the core docs artifact: a platform-descriptor example in
+        // quarkus-platform-bom. Treating it as a row source would make a reload delete rows
+        // for 'acme-platform', which is harmless only for as long as nothing owns that name.
+        String sql = """
+                INSERT INTO rag_documents (...) VALUES ('1', '[]'::vector, '"codestart-data" : {
+                  "quarkus-magic-codestart" : {
+                    "magic" : {
+                      "source" : "acme-platform"
+                    }
+                  }
+                }', '{"source":"quarkus-platform-bom","quarkus_version":"3.38.1"}'::jsonb);
+                """;
+
+        assertEquals(Set.of("quarkus-platform-bom"), RagSqlLoader.extractSources(sql, "fallback"));
+    }
+
+    @Test
+    void extractSourcesFallsBackWhenFragmentNamesNoSource() {
+        assertEquals(Set.of("quarkus-hibernate-orm"),
+                RagSqlLoader.extractSources("INSERT INTO rag_documents VALUES (1);", "quarkus-hibernate-orm"));
     }
 
     @Test

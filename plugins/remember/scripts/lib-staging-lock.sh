@@ -62,6 +62,13 @@
 #   degrades to "retire it next run", not to data loss. Re-measure before
 #   changing this number — that is the whole point of #226.
 #
+# CROSS-HOST CONTRACT: same as lib-lock.sh's own header (#491). This file
+# never reads any per-session identifier of its own -- staging.lock is one
+# fixed lock directory shared by every writer regardless of host, and
+# staging_append is keyed by *today_file* (a day), never by session, so a
+# Claude Code save and a Codex save contend for it identically. See
+# tests/test_cross_host_lock_contract_491.py.
+#
 
 [ -n "${_REMEMBER_LIB_STAGING_LOCK_SOURCED:-}" ] && return 0
 _REMEMBER_LIB_STAGING_LOCK_SOURCED=1
@@ -110,9 +117,18 @@ declare -F log >/dev/null 2>&1 || log() {
     printf '%s [%s] %s\n' "$(_remember_date +%H:%M:%S)" "$1" "$2" >&2
 }
 declare -F report_error >/dev/null 2>&1 || report_error() {
-    log "$1" "$2"
+    # #636: flattened before either write, same reason and same tr as
+    # log.sh's own report_error() (#618) -- $2 is a caller's own,
+    # potentially untrusted, error text, and this stub is the fifth writer
+    # of hook-errors.log #618 did not cover (only log.sh's four were
+    # touched there). Without this, an embedded newline/CR in $2 forges a
+    # second entry in the file /remember:doctor tails and maintainers ask
+    # reporters to paste.
+    local _msg
+    _msg="$(printf '%s' "$2" | LC_ALL=C tr '[:cntrl:]' ' ')"
+    log "$1" "$_msg"
     [ -d "${REMEMBER_DIR:-}/logs" ] || return 0
-    printf '%s\n' "$(_remember_date +%H:%M:%S) [$1] $2" \
+    printf '%s\n' "$(_remember_date +%H:%M:%S) [$1] $_msg" \
         >> "${REMEMBER_DIR}/logs/hook-errors.log" 2>/dev/null || true
     return 0
 }
@@ -232,7 +248,7 @@ staging_append() {
         _after=$(wc -c < "$_today" 2>/dev/null | tr -d ' ')
         case "$_after" in (''|*[!0-9]*) _after=0 ;; esac
         if [ "$_after" -ge "$_warn_bytes" ]; then
-            report_error "staging" "WARNING: ${_today} has grown past ${_warn_bytes}b — this file is append-only and only a SUCCESSFUL consolidation round retires it. Sustained lock contention, a full disk, or consolidation having stopped (check features.ndc_compression and hook-errors.log for consolidation failures) will keep appending the same kind of span here without bound. Nothing was dropped or truncated."
+            report_error "staging" "WARNING: ${_today} has grown past ${_warn_bytes}b -- this file is append-only and only a SUCCESSFUL consolidation round retires it. Sustained lock contention, a full disk, or consolidation having stopped (check features.ndc_compression and hook-errors.log for consolidation failures) will keep appending the same kind of span here without bound. Nothing was dropped or truncated."
         fi
     fi
 }

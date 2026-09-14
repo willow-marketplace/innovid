@@ -271,15 +271,24 @@ export REMEMBER_STORE_ROOT
 
 _project_cfg="${REMEMBER_DIR}/config.json"
 SYS_TMPDIR="${TMPDIR:-/tmp}"
-_merged_cfg="${SYS_TMPDIR}/remember-config-$$.json"
-
-# Create it private BEFORE any layer is written into it. Every entry point
-# sources resolve-paths.sh (umask 077, #68) first, so this is belt-and-braces
-# there — but this file documents itself as sourceable on its own, and since
-# the merged config can carry `haiku.oauth_token` (a live OAuth credential) its
-# mode must not depend on the caller having set a umask. jq's `>`, the Python
-# fallback's open(), and `cp` all write into the existing file and keep its mode.
-(umask 077; : > "$_merged_cfg") 2>/dev/null || true
+# mktemp, not a PID-suffixed literal path (#429). ${SYS_TMPDIR} is a SHARED,
+# often world-writable directory, and a name built from `$$` is predictable
+# from the outside the instant this process starts. The shell's `>`
+# redirection, jq's `>`, and Python's `open(path, "w")` all follow a symlink
+# when opening their target and truncate on open, before a byte is written —
+# so a symlink pre-seeded at the predictable name does not just get
+# truncated, it receives the actual write that follows: the merged config,
+# which per the comment below can carry a live `haiku.oauth_token`, lands at
+# whatever path the attacker's symlink pointed to. mktemp both creates the
+# file atomically (closing the create/open race a separate `: >` leaves open)
+# and names it unpredictably, and is already 0600 on every mktemp this repo
+# relies on (GNU and BSD/macOS alike) — no umask needed, and matching
+# save-session.sh's six existing uses and #427's fix to doctor.sh.
+# No trailing content after the X's: BSD/macOS mktemp only substitutes a run
+# of X's at the very END of the template (verified against this file's own
+# platform), so "...XXXXXX.json" is left LITERAL there -- not randomized at
+# all, defeating the fix while looking identical to the working GNU form.
+_merged_cfg=$(mktemp "${SYS_TMPDIR}/remember-config-XXXXXX" 2>/dev/null) || _merged_cfg=""
 
 # Build an array of files that actually exist.
 _cfg_sources=()
@@ -287,7 +296,18 @@ _cfg_sources=()
 [ -f "$_user_cfg"     ] && _cfg_sources+=("$_user_cfg")
 [ -f "$_project_cfg"  ] && _cfg_sources+=("$_project_cfg")
 
-if [ "${#_cfg_sources[@]}" -gt 0 ] && command -v jq >/dev/null 2>&1; then
+# An empty $_merged_cfg means mktemp itself failed (an unwritable/unusable
+# SYS_TMPDIR -- rare, but no longer impossible now that this is mktemp
+# instead of a literal path #429 could always name). `jq ... > "$_merged_cfg"`
+# and `cp ... "$_merged_cfg"` with an EMPTY path are a shell redirect/target
+# error the caller never asked for and 2>/dev/null does not catch (that
+# suppresses the invoked COMMAND's stderr, not the shell's own
+# redirection-setup failure), so skip the merge attempts entirely rather than
+# let that leak: REMEMBER_CONFIG ends up empty either way, which every
+# consumer already treats the same as a genuinely-absent config file.
+if [ -z "$_merged_cfg" ]; then
+    :
+elif [ "${#_cfg_sources[@]}" -gt 0 ] && command -v jq >/dev/null 2>&1; then
     # Deep-merge: later files override earlier ones. Strip `_`-prefixed keys —
     # convention: `_*` are user-facing docs (_comments/_purpose/_notes), never runtime data.
     jq -s 'reduce .[] as $x ({}; . * $x) | with_entries(select(.key | startswith("_") | not))' "${_cfg_sources[@]}" > "$_merged_cfg" 2>/dev/null \
@@ -299,6 +319,11 @@ elif [ "${#_cfg_sources[@]}" -gt 0 ]; then
     # ${REMEMBER_DIR}/config.json (time_format, model, cooldowns.*,
     # thresholds.*, git_backup.*) was previously invisible on any machine
     # without jq — this made config() (log.sh) irrelevant to those users.
+    # Resolves PYTHON on first use (#662) when detect-tools.sh was sourced in
+    # lazy mode; a no-op everywhere else (PYTHON already set, or the
+    # resolver was never defined because this ran without detect-tools.sh at
+    # all -- both tolerated by the ${PYTHON:-python3} fallback below).
+    declare -f _remember_python >/dev/null 2>&1 && _remember_python
     "${PYTHON:-python3}" - "$_merged_cfg" "${_cfg_sources[@]}" > /dev/null 2>&1 <<'PYMERGE' || cp "$_bundled_cfg" "$_merged_cfg" 2>/dev/null
 import json
 import sys
@@ -333,7 +358,18 @@ export REMEMBER_CONFIG
 
 # Register cleanup of the tmp file when the outermost script exits.
 # Use a subshell-safe append to avoid overwriting any existing trap.
-_existing_trap=$(trap -p EXIT 2>/dev/null | sed "s/trap -- '//;s/' EXIT//")
+# #679 (part of #660): `trap -p EXIT | sed "s/trap -- '//;s/' EXIT//"` forked
+# a `sed` to strip four characters at a known, fixed offset -- `trap -p`
+# itself is a builtin (no fork either way), so parameter expansion removes
+# the ONLY fork this line ever paid, with no behaviour change: stripping a
+# prefix/suffix a string does not have leaves it unchanged, matching sed on
+# empty input the same way (no existing trap -> both leave _existing_trap
+# empty). Sanctioned in tests/test_case_divergence_298.py's
+# _SANCTIONED_DIVERGENCE, same mechanism #429/#662/#665 already used for
+# this exact file.
+_t=$(trap -p EXIT 2>/dev/null)
+_existing_trap="${_t#trap -- \'}"
+_existing_trap="${_existing_trap%\' EXIT}"
 if [ -n "$_existing_trap" ]; then
     # shellcheck disable=SC2064
     trap "${_existing_trap}; rm -f '${_merged_cfg}'" EXIT
@@ -341,7 +377,7 @@ else
     # shellcheck disable=SC2064
     trap "rm -f '${_merged_cfg}'" EXIT
 fi
-unset _existing_trap
+unset _existing_trap _t
 
 # Clean up local variables to avoid polluting the caller's namespace.
 unset _bundled_cfg _user_cfg _project_cfg _cfg_sources _data_dir_raw _val _merged_cfg _cfg_candidate

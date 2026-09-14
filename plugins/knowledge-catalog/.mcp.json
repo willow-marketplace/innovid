@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "dataplex": {
+      "env": {
+        "DATAPLEX_PROJECT": "${user_config.dataplex_project}"
+      },
+      "args": [
+        "-y",
+        "@toolbox-sdk/server@1.9.0",
+        "--prebuilt",
+        "dataplex",
+        "--stdio"
+      ],
+      "command": "npx"
+    }
+  }
+}

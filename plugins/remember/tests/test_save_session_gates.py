@@ -60,6 +60,9 @@ if cmd == "extract":
     print("ASSISTANT_COUNT=1")
     print(f"EXCHANGE_COUNT={os.environ['STUB_EXCHANGE_COUNT']}")
     print(f"EXTRACT_FILE={path}")
+    print(f"ENVELOPE={os.environ.get('STUB_ENVELOPE', 'claude-code')}")
+    print(f"SKIP_LINES={os.environ.get('STUB_SKIP_LINES', '0')}")
+    print(f"ENVELOPE_HAS_UNMAPPED_STEP={os.environ.get('STUB_ENVELOPE_HAS_UNMAPPED_STEP', '0')}")
 elif cmd == "save-position":
     last_save_file, session_id, position = sys.argv[2], sys.argv[3], sys.argv[4]
     import json
@@ -93,12 +96,21 @@ elif cmd == "call-haiku":
         with open(os.environ["STUB_MEMORY_FILE"], "a") as f:
             f.write(os.environ["STUB_APPEND_DURING_NDC"])
     if is_ndc and os.environ.get("STUB_REPLACE_DURING_NDC"):
-        # Stand in for now.md being REPLACED with something shorter while the
-        # compression is in flight — a rotation, or another NDC round that
-        # committed its own tail first. The snapshot offset then points past
-        # the end of a file it no longer describes (#223).
+        # Stand in for now.md being REPLACED while the compression is in
+        # flight — a rotation, or another NDC round that committed its own
+        # tail first. The snapshot offset then points past the end of a file
+        # it no longer describes (#223), or — if the replacement happens to
+        # be at least as long as the snapshot — into the WRONG file, one the
+        # offset was never taken from at all (#614).
         with open(os.environ["STUB_MEMORY_FILE"], "w") as f:
             f.write(os.environ["STUB_REPLACE_DURING_NDC"])
+        # A real "another round already committed" bumps the generation
+        # counter as part of that commit (#614's own fix) — reproduce that
+        # here so this stub models what actually produces a replacement, not
+        # just its byte-level shape.
+        gen_file = os.path.join(os.path.dirname(os.environ["STUB_MEMORY_FILE"]), "tmp", "ndc-generation")
+        with open(gen_file, "w") as f:
+            f.write("1")
     if is_ndc and os.environ.get("STUB_HOLD_LOCK_DURING_NDC"):
         # Take the save lock and keep it, so the NDC commit that runs after
         # this call returns is guaranteed to find it held by a LIVE process
@@ -146,6 +158,11 @@ elif cmd == "call-haiku":
     print("IS_SKIP=" + ("true" if (rejected or (not is_ndc and skipping)) else "false"))
     print("IS_REJECTED=" + ("true" if rejected else "false"))
     print(f"HAIKU_TEXT_FILE={path}")
+    # Which route produced this (#460/#461) -- defaults to "claude" so every
+    # pre-#460 test in this file, which never sets STUB_PROVIDER, is
+    # unaffected: save-session.sh reads it with the same ${PROVIDER:-claude}
+    # fallback the real pipeline.shell always overrides on a live call.
+    print(f"PROVIDER={os.environ.get('STUB_PROVIDER', 'claude')}")
     print("TK_IN=0"); print("TK_OUT=0"); print("TK_CACHE=0"); print("TK_COST=0")
 elif cmd == "build-ndc-prompt":
     # Must be non-empty: save-session.sh gates the NDC run on `[ -s ... ]`.
@@ -155,7 +172,8 @@ elif cmd == "build-ndc-prompt":
 
 
 def _make_env(tmp_path: Path, *, exchanges: int, humans: int, position: int = 500,
-              config: Optional[dict] = None):
+              config: Optional[dict] = None, envelope: str = "claude-code",
+              envelope_has_unmapped_step: bool = False):
     """Build a project + stub plugin and return the env for running save-session.sh."""
     project = tmp_path / "project"
     (project / ".remember" / "tmp").mkdir(parents=True)
@@ -203,6 +221,8 @@ def _make_env(tmp_path: Path, *, exchanges: int, humans: int, position: int = 50
         "STUB_POSITION": str(position),
         "STUB_HUMAN_COUNT": str(humans),
         "STUB_EXCHANGE_COUNT": str(exchanges),
+        "STUB_ENVELOPE": envelope,
+        "STUB_ENVELOPE_HAS_UNMAPPED_STEP": "1" if envelope_has_unmapped_step else "0",
         "STUB_MEMORY_FILE": str(project / ".remember" / "now.md"),
         # Keep the clock on `date`, where a PATH shim can still reach it (#227).
         #
@@ -288,6 +308,12 @@ def _suppress_ndc(project: Path):
     (project / ".remember" / "tmp" / "last-ndc.ts").write_text(str(int(time.time())))
 
 
+def _memory_log_text(project: Path) -> str:
+    log_dir = project / ".remember" / "logs"
+    logs = sorted(log_dir.glob("memory-*.log")) if log_dir.is_dir() else []
+    return logs[-1].read_text() if logs else ""
+
+
 class TestNoWorkSessionAdvancesPosition:
 
     def test_zero_exchanges_advances_position(self, tmp_path):
@@ -302,6 +328,88 @@ class TestNoWorkSessionAdvancesPosition:
             "the same lines and exits identically, once per cooldown, forever"
         )
         assert "call-haiku" not in calls.read_text(), "no summary should be attempted"
+
+    def test_zero_exchanges_logs_the_ordinary_message_for_a_known_envelope(self, tmp_path):
+        """Positive control for the test below: a genuinely quiet Claude Code
+        span still gets the plain "0 exchanges" wording, not the unrecognised
+        one -- so the two log messages are provably distinguishable rather
+        than the unrecognised-envelope test only checking a stub that always
+        prints the same thing (#443)."""
+        env, project, plugin, calls, sid = _make_env(tmp_path, exchanges=0, humans=0,
+                                                     position=5, envelope="claude-code")
+        result = _run(plugin, env, sid)
+
+        assert result.returncode == 0, subprocess_failure_detail(result, project / ".remember")
+        log_text = _memory_log_text(project)
+        assert "0 exchanges" in log_text
+        assert "unrecognised" not in log_text
+
+    def test_unrecognised_envelope_is_logged_loud_not_as_a_quiet_session(self, tmp_path):
+        """A transcript shape neither known host wrote must be reported as
+        unrecognised in the log -- not silently folded into the same "0
+        exchanges" wording a genuinely empty session gets, which is the exact
+        silent failure #443 exists to prevent. Position still advances: there
+        is nothing more this run can do with an unreadable transcript."""
+        env, project, plugin, calls, sid = _make_env(tmp_path, exchanges=0, humans=0,
+                                                     position=5, envelope="unrecognised")
+        result = _run(plugin, env, sid)
+
+        assert result.returncode == 0, subprocess_failure_detail(result, project / ".remember")
+        log_text = _memory_log_text(project)
+        assert "unrecognised" in log_text, log_text
+        assert _saved_position(project) == 5
+
+    def test_antigravity_unmapped_step_is_quarantined_like_unrecognised(self, tmp_path):
+        """#575: a KNOWN envelope (antigravity) that still read 0 exchanges
+        because every step's own `type` was one pipeline.host cannot map
+        must be routed through the SAME #450 quarantine "unrecognised" gets
+        -- save-position must see "unrecognised" as the envelope it acts on,
+        even though the log and $ENVELOPE keep saying "antigravity" (the
+        honest host name), so a future build that learns the step type can
+        still recover the span instead of it being silently gone the moment
+        the position advances."""
+        env, project, plugin, calls, sid = _make_env(
+            tmp_path, exchanges=0, humans=0, position=7,
+            envelope="antigravity", envelope_has_unmapped_step=True,
+        )
+        result = _run(plugin, env, sid)
+
+        assert result.returncode == 0, subprocess_failure_detail(result, project / ".remember")
+        log_text = _memory_log_text(project)
+        assert "antigravity" in log_text and "unmapped" in log_text, log_text
+        save_position_calls = [
+            line for line in calls.read_text().splitlines() if line.startswith("save-position")
+        ]
+        assert len(save_position_calls) == 1
+        assert "unrecognised" in save_position_calls[0], (
+            "the envelope save-position acts on must be 'unrecognised' so the span is "
+            f"quarantined, not lost: {save_position_calls[0]!r}"
+        )
+        assert _saved_position(project) == 7
+
+    def test_antigravity_without_unmapped_step_is_not_quarantined(self, tmp_path):
+        """Paired negative control: a genuinely-quiet antigravity span (no
+        unmapped step seen) must NOT be quarantined -- proving the flag
+        above means "an unmapped step was actually seen", not "any 0-exchange
+        antigravity span", which a stub that always quarantines would also
+        pass the positive test with."""
+        env, project, plugin, calls, sid = _make_env(
+            tmp_path, exchanges=0, humans=0, position=9,
+            envelope="antigravity", envelope_has_unmapped_step=False,
+        )
+        result = _run(plugin, env, sid)
+
+        assert result.returncode == 0, subprocess_failure_detail(result, project / ".remember")
+        log_text = _memory_log_text(project)
+        assert "0 exchanges" in log_text
+        assert "unmapped" not in log_text
+        save_position_calls = [
+            line for line in calls.read_text().splitlines() if line.startswith("save-position")
+        ]
+        assert len(save_position_calls) == 1
+        assert "antigravity" in save_position_calls[0]
+        assert "unrecognised" not in save_position_calls[0]
+        assert _saved_position(project) == 9
 
 
 class TestMinHumanGate:
@@ -605,3 +713,148 @@ class TestNoWorkSkipRule:
 
         header = (project / ".remember" / "now.md").read_text().strip().splitlines()[0]
         assert header.endswith("| feature/a|b"), f"branch truncated: {header!r}"
+
+
+class TestMixedSpanQuarantine583:
+    """#583: a MIXED read span -- some exchanges the pipeline COULD map, plus
+    at least one step type it could not -- must be quarantined exactly like
+    an all-unmapped span (#575), at every save-position call site, not just
+    the EXCHANGE_COUNT==0 one this file already covers above. exchanges=3
+    here stands in for "3 mapped exchanges alongside 1 unmapped step in the
+    same span" -- EXCHANGE_COUNT>0 is exactly what routes the #575 branch
+    around every one of the four sites below today."""
+
+    def test_ordinary_successful_save_quarantines_a_mixed_span(self, tmp_path):
+        """The everyday path: Haiku summarized the mapped exchanges and the
+        result was appended to now.md. That summary is real, but it does not
+        cover the unmapped step -- so this must still quarantine, or the
+        step's content is gone the moment the position advances and any
+        earlier quarantine mark is cleared."""
+        env, project, plugin, calls, sid = _make_env(
+            tmp_path, exchanges=3, humans=3, position=42,
+            envelope="antigravity", envelope_has_unmapped_step=True,
+        )
+        env["STUB_HAIKU_TEXT"] = "## 10:00 | main\n\n- did some mapped work\n"
+        env["STUB_SKIP_LINES"] = "17"
+        _suppress_ndc(project)
+
+        result = _run(plugin, env, sid)
+
+        assert result.returncode == 0, subprocess_failure_detail(result, project / ".remember")
+        save_position_calls = [
+            line for line in calls.read_text().splitlines() if line.startswith("save-position")
+        ]
+        assert len(save_position_calls) == 1
+        assert "unrecognised" in save_position_calls[0], (
+            "a mixed span (3 mapped exchanges + 1 unmapped step) must be quarantined "
+            f"the same way an all-unmapped span is, not saved clean: {save_position_calls[0]!r}"
+        )
+        assert "17" in save_position_calls[0], (
+            "skip_lines must ride along so the quarantine points at the still-unread "
+            f"part of the span, not just the new position: {save_position_calls[0]!r}"
+        )
+        assert _saved_position(project) == 42
+
+    def test_ordinary_successful_save_of_a_fully_mapped_span_is_not_quarantined(self, tmp_path):
+        """Paired negative control: a mixed-shaped span that in fact had NO
+        unmapped step must save clean -- proving the assertion above means
+        "an unmapped step was actually seen", not "any antigravity span with
+        EXCHANGE_COUNT>0", which a stub that always quarantines would also
+        pass the positive test with."""
+        env, project, plugin, calls, sid = _make_env(
+            tmp_path, exchanges=3, humans=3, position=42,
+            envelope="antigravity", envelope_has_unmapped_step=False,
+        )
+        env["STUB_HAIKU_TEXT"] = "## 10:00 | main\n\n- did some mapped work\n"
+        _suppress_ndc(project)
+
+        result = _run(plugin, env, sid)
+
+        assert result.returncode == 0, subprocess_failure_detail(result, project / ".remember")
+        save_position_calls = [
+            line for line in calls.read_text().splitlines() if line.startswith("save-position")
+        ]
+        assert len(save_position_calls) == 1
+        assert "unrecognised" not in save_position_calls[0]
+        assert _saved_position(project) == 42
+
+    def test_skip_path_quarantines_a_mixed_span(self, tmp_path):
+        """The model judged the mapped exchanges not worth recording (SKIP).
+        That verdict says nothing about the unmapped step it never saw --
+        the extract text handed to Haiku never included it -- so this must
+        still quarantine."""
+        env, project, plugin, calls, sid = _make_env(
+            tmp_path, exchanges=3, humans=3, position=55,
+            envelope="antigravity", envelope_has_unmapped_step=True,
+        )
+        env["STUB_SKIP_LINES"] = "9"
+
+        result = _run(plugin, env, sid)
+
+        assert result.returncode == 0, subprocess_failure_detail(result, project / ".remember")
+        save_position_calls = [
+            line for line in calls.read_text().splitlines() if line.startswith("save-position")
+        ]
+        assert len(save_position_calls) == 1
+        assert "unrecognised" in save_position_calls[0], save_position_calls[0]
+        assert _saved_position(project) == 55
+
+    def test_skip_path_of_fully_mapped_span_is_not_quarantined(self, tmp_path):
+        """Paired negative control for the SKIP path."""
+        env, project, plugin, calls, sid = _make_env(
+            tmp_path, exchanges=3, humans=3, position=55,
+            envelope="antigravity", envelope_has_unmapped_step=False,
+        )
+
+        result = _run(plugin, env, sid)
+
+        assert result.returncode == 0, subprocess_failure_detail(result, project / ".remember")
+        save_position_calls = [
+            line for line in calls.read_text().splitlines() if line.startswith("save-position")
+        ]
+        assert len(save_position_calls) == 1
+        assert "unrecognised" not in save_position_calls[0]
+        assert _saved_position(project) == 55
+
+    def test_reject_gate_quarantines_a_mixed_span(self, tmp_path):
+        """Haiku's reply for the mapped exchanges was not an entry header, so
+        it is discarded by the reject gate -- that discard is about the
+        mapped content, not the unmapped step, which must still quarantine."""
+        env, project, plugin, calls, sid = _make_env(
+            tmp_path, exchanges=3, humans=3, position=63,
+            envelope="antigravity", envelope_has_unmapped_step=True,
+        )
+        env["STUB_HAIKU_TEXT"] = "Shall I proceed with that?\n"
+        env["STUB_SKIP_LINES"] = "4"
+
+        result = _run(plugin, env, sid)
+
+        assert result.returncode == 0, subprocess_failure_detail(result, project / ".remember")
+        save_position_calls = [
+            line for line in calls.read_text().splitlines() if line.startswith("save-position")
+        ]
+        assert len(save_position_calls) == 1
+        assert "unrecognised" in save_position_calls[0], save_position_calls[0]
+        assert _saved_position(project) == 63
+
+    def test_give_up_after_max_failures_quarantines_a_mixed_span(self, tmp_path):
+        """The span is dropped unsummarized after repeated Haiku failures --
+        that give-up is about the summarizer, not about the unmapped step,
+        which must still quarantine rather than being silently dropped along
+        with the rest."""
+        env, project, plugin, calls, sid = _make_env(
+            tmp_path, exchanges=3, humans=3, position=71,
+            envelope="antigravity", envelope_has_unmapped_step=True,
+        )
+        env["STUB_HAIKU_FAIL"] = "1"
+        env["STUB_SKIP_LINES"] = "6"
+
+        for _ in range(3):
+            _run(plugin, env, sid)
+
+        save_position_calls = [
+            line for line in calls.read_text().splitlines() if line.startswith("save-position")
+        ]
+        assert len(save_position_calls) == 1, save_position_calls
+        assert "unrecognised" in save_position_calls[0], save_position_calls[0]
+        assert _saved_position(project) == 71

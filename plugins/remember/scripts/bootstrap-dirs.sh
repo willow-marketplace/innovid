@@ -105,9 +105,9 @@ fi
 # --- Relocate the per-invocation merged config out of the shared OS temp
 # root, and sweep what a killed process left behind (#362) ---
 #
-# lib-memory-dir.sh (sourced above) writes REMEMBER_CONFIG to
-# $SYS_TMPDIR/remember-config-$$.json and relies solely on its own EXIT trap
-# to remove it. On Windows/Git Bash that trap does not reliably fire for this
+# lib-memory-dir.sh (sourced above) writes REMEMBER_CONFIG to an
+# unpredictable mktemp-named path under $SYS_TMPDIR (#429) and relies solely
+# on its own EXIT trap to remove it. On Windows/Git Bash that trap does not reliably fire for this
 # plugin's short-lived hook processes -- the harness kills the process rather
 # than letting it exit through a path that runs the trap -- so the file
 # leaked forever. One machine accumulated 23,908 of them directly in %TEMP%,
@@ -140,8 +140,26 @@ if [ -d "$REMEMBER_DIR/tmp" ]; then
     # plugin's own hook scripts never run anywhere near this long, so this
     # cannot collide with a legitimately still-running invocation. This is
     # the backstop for the case the EXIT trap never fires at all.
-    find "$REMEMBER_DIR/tmp" -maxdepth 1 -name 'remember-config-*.json' \
-        -mmin +30 -exec rm -f {} + 2>/dev/null || true
+    #
+    # Gated on there being any candidate at all (#666): `find` ran
+    # unconditionally on EVERY hook invocation before this, even on a store
+    # where the EXIT trap has never once failed to fire and the glob below
+    # matches nothing. A glob array costs no fork; `find` still does the
+    # real mtime filtering once something is actually there to check.
+    # `shopt -p nullglob` exits 1 (even though it prints correctly) whenever
+    # the option is currently OFF -- which it is by default -- so capturing
+    # it via `var=$(...)` would abort any caller running under `set -e`.
+    # `shopt -q` in a plain `&&` conditional never has that problem.
+    _remember_stale_cfg_was_nullglob=0
+    shopt -q nullglob && _remember_stale_cfg_was_nullglob=1
+    shopt -s nullglob
+    _remember_stale_cfg_candidates=("$REMEMBER_DIR/tmp"/remember-config-*.json)
+    [ "$_remember_stale_cfg_was_nullglob" = 1 ] || shopt -u nullglob
+    if [ "${#_remember_stale_cfg_candidates[@]}" -gt 0 ]; then
+        find "$REMEMBER_DIR/tmp" -maxdepth 1 -name 'remember-config-*.json' \
+            -mmin +30 -exec rm -f {} + 2>/dev/null || true
+    fi
+    unset _remember_stale_cfg_candidates _remember_stale_cfg_was_nullglob
 
     # Move THIS invocation's file in, and repoint REMEMBER_CONFIG and the EXIT
     # trap at its new home. Best-effort: a failed mv (cross-device, the
@@ -197,7 +215,17 @@ if [ -d "$REMEMBER_DIR/tmp" ]; then
         # text is $SYS_TMPDIR-rooted and therefore not user-controlled, so
         # it is chained here exactly as before -- only the path THIS block
         # owns goes through the %q fix above.
-        _remember_existing_trap=$(trap -p EXIT 2>/dev/null | sed "s/trap -- '//;s/' EXIT//;s/'\\\\''/'/g")
+        # #679 (part of #660): `trap -p` is a builtin -- `sed` was the only
+        # fork this line paid, at a fixed offset plus one quote-collapse
+        # (undoing `trap -p`'s own re-quoting of an embedded `'`).
+        # Parameter expansion does the identical strip+collapse with zero
+        # forks -- proven byte-identical to the old sed output in
+        # tests/test_session_start_spawn_reduction_679.py.
+        _remember_trap_raw=$(trap -p EXIT 2>/dev/null)
+        _remember_existing_trap="${_remember_trap_raw#trap -- \'}"
+        _remember_existing_trap="${_remember_existing_trap%\' EXIT}"
+        _remember_existing_trap="${_remember_existing_trap//\'\\\'\'/\'}"
+        unset _remember_trap_raw
         if [ -n "$_remember_existing_trap" ]; then
             # shellcheck disable=SC2064
             trap "${_remember_existing_trap}; rm -f ${_remember_relocated_cfg_q}" EXIT
@@ -277,13 +305,55 @@ fi
 # make. Redirecting the whole group puts the shell's own diagnostic inside the
 # suppressed scope.
 if [ -d "$REMEMBER_DIR" ]; then
-    case "$REMEMBER_DIR" in
-        "$_mem_proj"/*)
+    # #519: both sides forward-slashed before the case-glob match --
+    # REMEMBER_DIR and _mem_proj both arrive backslash-separated on
+    # msys/cygwin (resolve-paths.sh's own _remember_normalize_win_path),
+    # and a bash `case` pattern only ever recognises '/' as a path
+    # separator, so an in-project store's REMEMBER_DIR silently never
+    # matched "$_mem_proj"/* there -- no .gitignore was ever written. This
+    # is NOT the #401 doctor.sh baseline (that reads .install-marker,
+    # written unconditionally, just above, unaffected by this gate): the
+    # real, still-live consequence is hooks.d/after_save/50-git-backup.sh's
+    # own protective .gitignore going missing for that store, so its
+    # memory content is not excluded from `git add -A`/`git status`
+    # inside the user's own project repository the way the file's comment
+    # near the top of this block documents. The write itself still targets
+    # the real (unmodified) REMEMBER_DIR; only the comparison is
+    # normalized.
+    #
+    # The gate is duplicated INLINE here rather than calling the shared
+    # `_remember_forward_slash` (scripts/resolve-paths.sh, #517) directly
+    # (self-review/CI finding, job 100934963344, ubuntu-latest 3.9):
+    # this file's own USAGE header says every caller sources resolve-paths.sh
+    # first, but that is not true of every REAL caller -- tests/test_external_data_dir.py
+    # and tests/test_worktree_memory.py's own `_run_bootstrap()` harnesses
+    # source only detect-tools.sh and bootstrap-dirs.sh, never resolve-paths.sh,
+    # and neither of those two sources it transitively either. There,
+    # `_remember_forward_slash` is undefined, the command substitution below
+    # would run it as an unknown external command (bash: ... command not
+    # found, exit 127) and silently substitute an EMPTY string, so the case
+    # pattern would never match and .gitignore would never be written for
+    # ANY REMEMBER_DIR, forward-slash or not -- exactly the regression CI
+    # caught (test_gitignore_written_in_legacy_mode /
+    # test_worktree_remember_is_gitignored, both asserting on real, ordinary
+    # POSIX paths with no backslash involved at all). Same reasoning
+    # hooks.d/before_session_start/50-git-restore.sh's own #519 fix already
+    # documents for the identical reason.
+    _mem_bd_glob_dir="$REMEMBER_DIR"
+    _mem_bd_glob_proj="$_mem_proj"
+    case "$OSTYPE" in
+        msys|cygwin)
+            _mem_bd_glob_dir="${_mem_bd_glob_dir//\\//}"
+            _mem_bd_glob_proj="${_mem_bd_glob_proj//\\//}"
+            ;;
+    esac
+    case "$_mem_bd_glob_dir" in
+        "$_mem_bd_glob_proj"/*)
             [ -f "$REMEMBER_DIR/.gitignore" ] || { echo '*' > "$REMEMBER_DIR/.gitignore"; } 2>/dev/null
             ;;
     esac
 fi
-unset _mem_proj
+unset _mem_proj _mem_bd_glob_dir _mem_bd_glob_proj
 
 # --- Redirect stderr to hook-errors.log ---
 # This replaces the 2>> that was in hooks.json. Now the directory is

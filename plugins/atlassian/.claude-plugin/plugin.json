@@ -2,14 +2,15 @@
   "name": "atlassian",
   "version": "1.0.0",
   "description": "Connect to Atlassian products including Jira and Confluence. Search and create issues, access documentation, manage sprints, and integrate your development workflow with Atlassian's collaboration tools.",
-  "updatedAt": "2026-08-29T00:03:03.525Z",
+  "updatedAt": "2026-09-14T10:57:21.093Z",
   "author": {
     "name": "Atlassian"
   },
+  "displayName": "Atlassian MCP",
   "skills": "./skills/",
   "mcpServers": {
     "atlassian": {
-      "url": "https://mcp.atlassian.com/v1/mcp/authv2",
+      "url": "https://mcp.atlassian.com/v2/mcp",
       "type": "http"
     }
   }

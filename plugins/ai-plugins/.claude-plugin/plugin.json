@@ -2,7 +2,7 @@
   "name": "ai-plugins",
   "version": "1.0.0",
   "description": "Endor Labs workflow agents and setup for Claude Code.",
-  "updatedAt": "2026-08-29T00:03:02.023Z",
+  "updatedAt": "2026-09-14T10:57:20.381Z",
   "author": {
     "url": "https://www.endorlabs.com/",
     "name": "Endor Labs"
@@ -21,6 +21,7 @@
     "AppSec",
     "OSS Upgrade Investigator"
   ],
+  "displayName": "Endor Labs Agent Kit",
   "skills": "./skills/",
   "agents": [
     "./agents/sca-remediation.md",

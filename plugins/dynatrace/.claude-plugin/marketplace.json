@@ -1,0 +1,11 @@
+{
+  "name": "dynatrace-for-ai",
+  "owner": { "name": "Dynatrace" },
+  "plugins": [
+    {
+      "name": "dynatrace",
+      "description": "Dynatrace observability skills and knowledge packages for AI coding agents.",
+      "source": "./"
+    }
+  ]
+}

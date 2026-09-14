@@ -895,6 +895,14 @@ allOf:
                 materialize:
                     description: Whether to materialize the model as a table or view.
                     type: boolean
+                on_schema_change:
+                    default: fail
+                    description: Controls what happens when an incremental run, such as a new partition, produces columns that do not match the model's existing table. With `fail` (the default), the run fails and reports which columns are new and which are missing. With `ignore`, the existing table keeps the columns it already has, so new columns are discarded and columns missing from the new data are left empty for the incoming rows. With `append_new_columns`, new columns are added to the table and left empty for the rows already in it, while columns missing from the new data are kept and left empty for the incoming rows. Column types of the existing table are always preserved, so DuckDB converts the incoming values to fit and fails the run if a value cannot be converted. Only applies to incremental models using the `merge` or `partition_overwrite` strategy, and only when the output connector is DuckDB.
+                    enum:
+                        - ignore
+                        - fail
+                        - append_new_columns
+                    type: string
                 partition_by:
                     description: Column or expression to partition the table by
                     type: string

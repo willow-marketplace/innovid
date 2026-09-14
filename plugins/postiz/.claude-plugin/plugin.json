@@ -1,8 +1,8 @@
 {
   "name": "postiz",
-  "version": "2.0.16",
+  "version": "2.0.18",
   "description": "Social media automation CLI for scheduling posts, managing integrations, uploading media, and tracking analytics across 28+ platforms including X, LinkedIn, Reddit, YouTube, TikTok, Instagram, and more",
-  "updatedAt": "2026-08-29T00:03:06.188Z",
+  "updatedAt": "2026-09-14T10:58:26.910Z",
   "author": {
     "url": "https://github.com/nevo-david",
     "name": "Nevo David",

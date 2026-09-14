@@ -1,0 +1,18 @@
+{
+  "mcpServers": {
+    "firestore": {
+      "env": {
+        "FIRESTORE_PROJECT": "${user_config.firestore_project}",
+        "FIRESTORE_DATABASE": "${user_config.firestore_database}"
+      },
+      "args": [
+        "-y",
+        "@toolbox-sdk/server@1.9.0",
+        "--prebuilt",
+        "firestore",
+        "--stdio"
+      ],
+      "command": "npx"
+    }
+  }
+}

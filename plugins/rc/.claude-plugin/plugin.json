@@ -2,7 +2,7 @@
   "name": "rc",
   "version": "2.2.0",
   "description": "Set up RevenueCat, integrate it, and access data.",
-  "updatedAt": "2026-08-29T00:03:09.686Z",
+  "updatedAt": "2026-09-14T10:58:31.191Z",
   "author": {
     "url": "https://www.revenuecat.com",
     "name": "RevenueCat",
@@ -17,5 +17,6 @@
     "monetization",
     "iap",
     "mcp"
-  ]
+  ],
+  "displayName": "RevenueCat"
 }

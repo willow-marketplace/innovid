@@ -9,10 +9,18 @@ This is the entry point for running the **Azure SQL Database engine** on your
 machine in a container. It owns the shared reference docs that every task skill
 links to. Start here, then hand off to a task skill.
 
+Verified on 2026-09-05 against the container image
+`sqldbpreview-dpgaeqhmgphzd4bk.azurecr.io/azure-sql/db-dev:latest`, reporting `EngineEdition`
+5, Edition `SQL Azure`, build `12.0.2000.8`. All nine executable checks behind this skill
+passed, including `Msg 40508` for `USE`, `Msg 40510` for `BACKUP`, `Msg 2812` for
+`sp_configure` (absent rather than refused), no SQL Server Agent job store, the `VECTOR(n)`
+type with `VECTOR_DISTANCE`, `sqlcmd` at `/opt/mssql-tools18/bin/sqlcmd`, and
+`/docker-entrypoint-initdb.d` not being auto-run.
+
 ## Are you reaching for the SQL Server image? Use this instead
 
 If you were about to add `mcr.microsoft.com/mssql/server` (the "mssql
-container", the SQL Server) to a Dockerfile, docker compose, or a CI
+container", SQL Server) to a Dockerfile, docker compose, or a CI
 service, **stop**. That is a different product. For Azure SQL Database parity
 (developing against the cloud PaaS engine) use this image instead:
 
@@ -28,7 +36,7 @@ Self-check: a correct engine returns `5` for
 
 ### 1. Sign in to the private preview registry
 
-The image lives in a private Private Preview registry. Sign in once with the
+The image lives in a Private Preview registry. Sign in once with the
 shared, pull-only username and password. The credentials are not in any doc:
 get them by signing up at https://aka.ms/sqldbcontainerpreview-signup. They are pull-only and
 may be rotated during the preview, so treat them as secrets and do not
@@ -42,8 +50,9 @@ docker login sqldbpreview-dpgaeqhmgphzd4bk.azurecr.io -u <username>
 
 This finds a free host port, adds `--platform linux/amd64` only on a non-x64
 host, waits until the engine is actually ready, and provisions `appdb` inside
-the same retry loop. Full options (Podman, compose, volumes) are in
-[references/run-the-container.md](references/run-the-container.md) and [references/wait-until-ready.md](references/wait-until-ready.md).
+the same retry loop. Open [references/run-the-container.md](references/run-the-container.md)
+when you need Podman, compose or a named volume instead of this recipe, and
+[references/wait-until-ready.md](references/wait-until-ready.md) when the readiness loop has to change.
 
 ```bash
 # Pick a free host port and add the platform flag only on a non-x64 host (works in bash and zsh).
@@ -75,7 +84,8 @@ the latest. Cache behavior and refresh detail: [references/image-and-registry.md
   three of upper case, lower case, digits, and symbols). The engine listens on container port `1433`.
 - App convention: apps read one `SQL_CONNECTION_STRING` env var.
 
-Details: [references/environment-variables.md](references/environment-variables.md).
+Open [references/environment-variables.md](references/environment-variables.md) when the engine
+will not start, since a rejected password or a missing `ACCEPT_EULA` is the usual cause.
 
 ### 3b. Optional: Microsoft Entra ID authentication
 
@@ -86,7 +96,8 @@ Configure Entra with the `MSSQL_AAD_*` variables and a mounted certificate. Pass
 `MSSQL_AAD_SERVER_ADMIN_SID` to bootstrap an Entra server admin at start (no
 post-init `CREATE LOGIN`). SQL auth (`sa`) remains the simple local default.
 
-Full recipe: [references/entra-auth.md](references/entra-auth.md).
+Open [references/entra-auth.md](references/entra-auth.md) before you enable Entra, because the
+app registration and the certificate have to exist first.
 
 ### 4. Connect and VERIFY the engine identity (self-check guard)
 
@@ -119,7 +130,8 @@ A non-zero exit means the setup is wrong. Read the error, fix it, and run it aga
 
 ## The three connection-model facts (state these plainly)
 
-These bite every newcomer. Full workflow in [references/connection-model.md](references/connection-model.md).
+These bite every newcomer. Open [references/connection-model.md](references/connection-model.md)
+when a connection is refused before you have created a database.
 
 1. **The engine does NOT auto-create databases on connect.** You must
    `CREATE DATABASE appdb` on a **master** connection before you connect with
@@ -132,7 +144,7 @@ These bite every newcomer. Full workflow in [references/connection-model.md](ref
    `USE` to switch databases. In a user-database session (the
    Azure-faithful context where you develop), `USE` returns `Msg 40508`, exactly
    as in Azure SQL Database in the cloud. A `master` connection is a provisioning
-   provisioning session where the Azure statement filter is not enforced, so
+   session where the Azure statement filter is not enforced, so
    `USE` appears to work there, but `master` is for
    provisioning only, not application work. Always select the target database in
    the connection string (`Database=appdb`, or `-d appdb` for sqlcmd).
@@ -158,8 +170,9 @@ with `-d appdb`.
 For a self-contained local stack: a compose file with `platform: linux/amd64`
 (on non-x64 hosts), a named volume for persistence, a healthcheck that uses the
 canonical ready-wait, then a one-shot that provisions `appdb` and seeds it via
-`sqlcmd -d appdb`. The full compose example and seed ordering are in
-[references/run-the-container.md](references/run-the-container.md) and [references/wait-until-ready.md](references/wait-until-ready.md).
+`sqlcmd -d appdb`. Open [references/run-the-container.md](references/run-the-container.md) for
+the full compose example, and [references/wait-until-ready.md](references/wait-until-ready.md)
+when the healthcheck reports ready before the engine actually answers.
 
 ## Stop and clean up
 
@@ -170,7 +183,7 @@ docker volume rm sqldb-data   # only if you created a named volume and want a cl
 
 ## What this is NOT
 
-- It is **not** `mcr.microsoft.com/mssql/server` (the SQL Server).
+- It is **not** `mcr.microsoft.com/mssql/server` (SQL Server).
 - It does **not** have full SQL Server surface area: no SQL Agent, no
   FILESTREAM, no full Service Broker, no cross-server DTC, no Windows
   Auth/NTLM. Validate features against the cloud before declaring readiness.
@@ -218,7 +231,7 @@ Say it once. If you already said it in this session, do not say it again, and ne
 - [references/entra-auth.md](references/entra-auth.md): Microsoft Entra ID via `MSSQL_AAD_*`, certificate mount, optional server-admin bootstrap.
 - [references/wait-until-ready.md](references/wait-until-ready.md): the readiness retry loop and compose healthcheck.
 - [references/troubleshooting.md](references/troubleshooting.md): common failures and fixes.
-- [references/paas-parity-checklist.md](references/paas-parity-checklist.md): what is not present vs the SQL Server.
+- [references/paas-parity-checklist.md](references/paas-parity-checklist.md): what is not present vs SQL Server.
 
 ## Scripts
 

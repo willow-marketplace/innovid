@@ -38,8 +38,8 @@ reapply the default, re-call the stakeholder lookup, or ask ([Hard rule
     "issue_date":              <user, YYYY-MM-DD>,                # always
     "vesting_template":        <template.id | null>,              # always — null only after explicit "No vesting"
     "vesting_start_date":      <issue_date as MM/DD/YYYY>,        # non-milestone template (CharField)
-    "grant_expiration_date":   <issue_date + 10 years as MM/DD/YYYY>,  # always — silent default; CharField (MM/DD/YYYY only)
-    "exemption":               <autofill per so_type>,            # US — default Section 4(a)(2)
+    "grant_expiration_date":   <plan term from issue_date as MM/DD/YYYY>,  # always — silent default; CharField (MM/DD/YYYY only)
+    "exemption":               <autofill per so_type, or omit>, # US — omit; server defaults to Rule 701
     "document_set_id":         <doc_set.id>,                      # always
     "acceleration_template":   <template.id or omit>,             # optional — only meaningful once vesting is set
     "notes":                   <user or omit>,                    # optional
@@ -90,8 +90,8 @@ render it without recomputing it.
 
 ### Document-set resolution
 
-The zero-templates stop lives in [SKILL.md § Account-setup gate (option grant
-only)](../SKILL.md#account-setup-gate-option-grant-only), which runs on **both** adapters in
+The zero-templates stop lives in [SKILL.md § Account-setup gate (option grant and
+PIU)](../SKILL.md#account-setup-gate-option-grant-and-piu), which runs on **both** adapters in
 Phase 0.5 immediately after `issuance_init` returns, before any surface is built, reading
 `document_sets.count` under its own section name. This helper, like every section in [SKILL.md §
 Shared resolution helpers](../SKILL.md#shared-resolution-helpers), is a fallback that runs only

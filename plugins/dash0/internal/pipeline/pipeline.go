@@ -8,6 +8,7 @@
 package pipeline
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -52,6 +53,13 @@ func ReadEvent(r io.Reader) (map[string]any, error) {
 	if err != nil {
 		return nil, fmt.Errorf("reading stdin: %w", err)
 	}
+	// Drop a UTF-8 byte-order mark. Windows tooling adds one readily — a
+	// PowerShell pipeline into a native command writes whatever encoding the
+	// console carries, and Encoding.UTF8 emits a BOM — and the JSON decoder
+	// rejects it as `invalid character 'ï'`. internal/config skips one for the
+	// same reason.
+	raw = bytes.TrimPrefix(raw, []byte("\ufeff"))
+
 	var event map[string]any
 	if err := json.Unmarshal(raw, &event); err != nil {
 		return nil, fmt.Errorf("parsing JSON from stdin: %w", err)
@@ -271,6 +279,20 @@ func Process(event map[string]any, cfg otlp.Config, dataDir string, now time.Tim
 	}
 
 	return res, nil
+}
+
+// IsSafeSessionID reports whether sessionID may be used as a path segment.
+//
+// Process substitutes a random id for one that is missing or unsafe, but it does
+// that inside itself. A caller that joins a path or removes a directory BEFORE
+// handing the event over — cmd/copilot-on-event does both — has to ask first, or
+// an empty id resolves SessionDir to dataDir itself and "../x" escapes it.
+//
+// It answers only "is this a usable path segment". A caller that owns other
+// entries beside the session directories has to rule those names out itself:
+// this says yes to "bin" and to any other real directory name.
+func IsSafeSessionID(sessionID string) bool {
+	return sessionIDPattern.MatchString(sessionID)
 }
 
 // SessionDir returns the per-session scratch directory under dataDir for the

@@ -21,10 +21,25 @@
 #   --dry          Preview mode — show extracted exchanges, do not call Haiku
 #
 # ENVIRONMENT
-#   REMEMBER_DEBUG   Set to "1"/"0" for verbose logging. Unset, the `debug`
-#                    config option decides; unset there too, this script is
-#                    verbose (its long-standing default) while the git-backup
-#                    hook is quiet.
+#   REMEMBER_DEBUG            Set to "1"/"0" for verbose logging. Unset, the
+#                             `debug` config option decides; unset there too,
+#                             this script is verbose (its long-standing
+#                             default) while the git-backup hook is quiet.
+#   REMEMBER_TRANSCRIPT_PATH  Trusted input for a manual run (#431). When set,
+#                             pipeline.host.transcript_path() hands it to
+#                             find_session() verbatim -- existence-checked
+#                             only, no containment check -- the same as the
+#                             hook-spawned path this script normally runs on.
+#                             session-start-hook.sh and session-end-hook.sh
+#                             export it freshly, from their own validated
+#                             stdin payload, on every run; post-tool-hook.sh
+#                             and user-prompt-hook.sh (which spawn this script
+#                             with no transcript_path of their own to offer)
+#                             clear it before doing anything else (#424/#430).
+#                             This script does neither: run by hand, it
+#                             inherits whatever your shell already holds,
+#                             deliberately. Unset it yourself before a manual
+#                             run if you do not want that.
 #
 # DEPENDENCIES
 #   python3, claude CLI (Haiku), git, date, mktemp
@@ -72,6 +87,134 @@ LOCK_DIR="${REMEMBER_DIR}/tmp/save.lock"
 # without pinning a lock for half a minute — same shape as _LOCK_ADOPT_AFTER.
 NDC_COMMIT_LOCK_TIMEOUT="${REMEMBER_NDC_COMMIT_LOCK_TIMEOUT:-30}"
 MEMORY_FILE="${REMEMBER_DIR}/now.md"
+# Monotonic counter, bumped by every NDC commit that lands (#614). The
+# byte-count staleness check below (NDC_LIVE_BYTES < NDC_SRC_BYTES) only
+# catches a replacement that ends up SHORTER than the snapshot it is being
+# checked against. Two overlapping NDC rounds -- reachable when a second
+# round's cooldown gate opens while the first round's Haiku call, or its own
+# NDC_COMMIT_LOCK_TIMEOUT wait, is still in flight (e.g. a laptop sleep/wake
+# spanning the hour-long cooldown) -- can have the FIRST round's commit
+# already retire+replace now.md with its own tail before the SECOND round
+# reaches its own commit check. If enough was appended in between that the
+# replacement is still >= the second round's now-meaningless offset, the size
+# check alone passes and `tail -c +N` slices into bytes the second round's
+# own Haiku call never summarized -- content that then exists nowhere. See
+# Step 8 for where this is read and bumped, both under LOCK_DIR.
+NDC_GEN_FILE="${REMEMBER_DIR}/tmp/ndc-generation"
+# Read NDC_GEN_FILE, distinguishing "never created" (legitimately generation 0
+# -- no commit has ever landed) from "exists but a read of it failed" (a
+# permission or I/O error, or a reader racing the truncating `>` this file's
+# own writer uses to bump it below). #614's mismatch check compares two such
+# reads; collapsing both failure shapes to the same 0 -- what a bare
+# `cat ... || echo 0` does -- makes two independent failures compare equal to
+# each other and to a legitimately absent file, and the guard goes silent
+# exactly when it can least afford to (#619). Echoes a generation number, or
+# the literal "unreadable", which a numeric generation can never equal.
+ndc_read_gen() {
+    # -e follows a symlink and is false for BOTH "nothing was ever created
+    # here" and "a symlink was created here and its target is now gone" --
+    # it cannot tell those apart. -L catches the second: a path that is a
+    # symlink, dangling or not, is a path something created, so it belongs
+    # on the "exists" side of this check, falling through to the failed
+    # `cat` below rather than being read as a fresh, legitimate 0.
+    if [ ! -e "$NDC_GEN_FILE" ] && [ ! -L "$NDC_GEN_FILE" ]; then
+        echo 0
+        return 0
+    fi
+    # Something is at this path but is not a REGULAR file -- a FIFO, a
+    # character device, a directory, a socket, or a symlink to one of
+    # those. `cat` on a directory fails fast, but `cat` on a FIFO with no
+    # writer present BLOCKS forever (no O_NONBLOCK, no timeout anywhere in
+    # this script), and `cat` on a character device like /dev/zero streams
+    # unboundedly into the capture below instead of ever hitting EOF. -f
+    # follows symlinks to their final target, so this also catches a
+    # symlink into a FIFO. Same check ts_marker_read() below already makes
+    # for its own marker file (#625); backported here for #634 (#619's own
+    # fix only widened the existence test, never added this one). Every
+    # such case is "unreadable" -- a value this generation counter can
+    # never legitimately hold -- without ever attempting to read it.
+    if [ ! -f "$NDC_GEN_FILE" ]; then
+        echo unreadable
+        return 0
+    fi
+    local _ndc_gen
+    _ndc_gen=$(cat "$NDC_GEN_FILE" 2>/dev/null)
+    case "$_ndc_gen" in
+        (''|*[!0-9]*) echo unreadable ;;
+        (*) echo "$_ndc_gen" ;;
+    esac
+}
+# Same shape as ndc_read_gen above, generalised to any timestamp marker file:
+# echoes 0 only when the marker was never created (see the -e/-L comment
+# inside ndc_read_gen above for why a DANGLING symlink is NOT this case --
+# -L is true for it, so it falls through to "unreadable" below instead, the
+# same as ndc_read_gen's own dangling-symlink handling), and the literal
+# "unreadable" when it exists but a read of it failed, or is not a plain
+# regular file (see the type check below), or produced something that is
+# not a plain non-negative integer -- a value neither state can ever equal.
+# Reused at both COOLDOWN_MARKER and NDC_MARKER below
+# so the collapse #619 fixed for NDC_GEN_FILE -- `cat FILE 2>/dev/null ||
+# echo 0`, which cannot tell "never created" from "a read failed" -- does not
+# reappear at either one (#625). Lower stakes here than at NDC_GEN_FILE: an
+# unreadable marker reads as maximally old, so the cooldown it guards is
+# bypassed (an extra Haiku call) rather than data silently lost -- but a
+# durably unreadable marker (crashed mid-write, replaced by a directory,
+# permissions never fixed) was defeating that cooldown on every single
+# invocation with nothing in the log to say so, which is the same silence
+# #619 closed, just with a cheaper failure mode.
+ts_marker_read() {
+    local _marker="$1"
+    if [ ! -e "$_marker" ] && [ ! -L "$_marker" ]; then
+        echo 0
+        return 0
+    fi
+    # Something is at this path (or a symlink chains to something, dangling
+    # or not) but is not a REGULAR file -- a directory, a FIFO, a socket, a
+    # device, or a symlink to one of those. `cat` on a directory fails fast,
+    # but `cat` on a FIFO with no writer present BLOCKS forever (no O_NONBLOCK,
+    # no timeout anywhere in this script), and `cat` on a character device
+    # like /dev/zero streams unboundedly into the capture below instead of
+    # ever hitting EOF. -f follows symlinks to their final target, so this
+    # also catches a symlink into a FIFO. Every such case is "unreadable" --
+    # a value this marker can never legitimately hold -- without ever
+    # attempting to read it, so a marker of the wrong TYPE degrades to a
+    # WARNING the same as an unreadable one, rather than hanging the whole
+    # script on the read this function exists to make safe (self-review, #625).
+    if [ ! -f "$_marker" ]; then
+        echo unreadable
+        return 0
+    fi
+    local _val
+    _val=$(cat "$_marker" 2>/dev/null)
+    case "$_val" in
+        (''|*[!0-9]*) echo unreadable ;;
+        (*) echo "$_val" ;;
+    esac
+}
+# The write-side twin of the type check every marker READ above carries
+# (#653, release gate 3 finding on v0.31.0). `{ … > "$FILE"; } 2>/dev/null
+# || true` looks like it degrades a bad marker, and for a permission
+# failure it does -- but a `>` on a FIFO with no reader blocks in open(2)
+# before any redirection error exists for the `2>/dev/null` or the `|| true`
+# to catch. So a FIFO at $COOLDOWN_MARKER passed ts_marker_read() as
+# `unreadable`, was reported, and then hung the post-save write while this
+# process still held LOCK_DIR -- the hang #634/#642 were opened to remove,
+# one line later, with every later save queueing behind it. Every marker
+# write goes through this; the guard is the same `-f` the reads use, so a
+# marker of the wrong TYPE is refused and reported rather than opened.
+# tests/test_marker_write_fifo_653.py pins both the helper and that every
+# write site is behind it.
+marker_write_ok() {
+    local _path="$1" _tag="$2"
+    if [ -e "$_path" ] && [ ! -f "$_path" ]; then
+        # "could not write" is the phrase every marker-write WARNING in this
+        # file shares and its tests key on; this is one more reason it could
+        # not, not a new class of message.
+        report_error "$_tag" "WARNING: could not write $_path -- it exists but is not a regular file, and opening it is refused (a FIFO here would block this process forever). Remove or replace it."
+        return 1
+    fi
+    return 0
+}
 # Which day now.md's contents belong to (#141) — see Step 7.
 NOW_DAY_FILE="${REMEMBER_DIR}/tmp/now-day"
 LAST_SAVE_FILE="${REMEMBER_DIR}/tmp/last-save.json"
@@ -154,7 +297,7 @@ if [ "$FORCE" = true ]; then
     if lock_acquire "$LOCK_DIR" "$FORCE_LOCK_TIMEOUT"; then
         HAVE_LOCK=true
     else
-        log "lock" "ERROR: --force waited ${FORCE_LOCK_TIMEOUT}s for save.lock and another save still held it — nothing was flushed this call"
+        log "lock" "ERROR: --force waited ${FORCE_LOCK_TIMEOUT}s for save.lock and another save still held it -- nothing was flushed this call"
         exit 1
     fi
 else
@@ -173,15 +316,51 @@ if [ -z "$SESSION_ID" ]; then
 fi
 
 # --- Validate session ID (UUID format: hex + hyphens only) ---
-if ! [[ "$SESSION_ID" =~ ^[a-f0-9-]+$ ]]; then
+# Anchored to a hex digit at position 1 (#500): the un-anchored
+# `^[a-f0-9-]+$` admitted a leading hyphen, so an option-shaped id
+# ("-e", "--", "-adef") could reach this far and then, further down,
+# REMEMBER_BRANCH_CMD's own argv[1] -- read as a flag by whatever
+# argument parser the operator's resolver happens to use. A session id
+# is never meant to start with '-'; the anchor just says so.
+if ! [[ "$SESSION_ID" =~ ^[a-f0-9][a-f0-9-]*$ ]]; then
     log "save" "ERROR: invalid session ID: $(echo "$SESSION_ID" | head -c 40)"
     exit 1
 fi
 
 # --- Cooldown ---
 [ "$FORCE" = true ] && log "force" "bypassing cooldown + min msgs"
-if [ -f "$COOLDOWN_MARKER" ] && [ "$DRY_RUN" != true ] && [ "$FORCE" != true ]; then
-    LAST_MOD=$(cat "$COOLDOWN_MARKER" 2>/dev/null || echo 0)
+if [[ ( -e "$COOLDOWN_MARKER" || -L "$COOLDOWN_MARKER" ) && "$DRY_RUN" != true && "$FORCE" != true ]]; then
+    LAST_MOD=$(ts_marker_read "$COOLDOWN_MARKER")
+    if [ "$LAST_MOD" = "unreadable" ]; then
+        # #625: this marker exists but neither this read nor an earlier one
+        # got usable content from it -- either the read itself failed (a
+        # permission or I/O error, a non-regular file such as a directory)
+        # or it succeeded and returned something that is not a plain
+        # timestamp (empty, or corrupted by an interrupted write). Either
+        # way this round cannot trust the value. That is NOT the same fact
+        # as "no save has ever landed", which is what a bare
+        # `cat ... || echo 0` used to make it look like -- silently, forever,
+        # on every single invocation, for a marker that is durably broken
+        # rather than merely racing a writer. Fail OPEN (proceed with the
+        # save; see the module-level discussion of ts_marker_read above for
+        # why that is the right call here) but SAY SO.
+        report_error "cooldown" "WARNING: $COOLDOWN_MARKER exists but its value could not be used (a read failure, or content that is not a plain timestamp) -- treating the cooldown as expired and saving now. This will recur on every save until the marker holds a valid timestamp again, or is removed."
+        LAST_MOD=0
+    fi
+    # By this point LAST_MOD is always "0" or all-digits: ts_marker_read
+    # above already intercepts anything else (a failed read, or content that
+    # is not a plain timestamp) and this if/fi already converted its
+    # "unreadable" sentinel to 0. So the `case` a few lines down -- and the
+    # multi-paragraph history below explaining what happens when *raw,
+    # unvalidated* marker content reaches `$(( ))` -- describes a route that
+    # can no longer be taken through THIS read site. It is kept as a
+    # defensive backstop (a value slipping past ts_marker_read some other
+    # way, or a future edit that reads $COOLDOWN_MARKER directly again) and
+    # because moving 30 years of #326/#258 history for a case that no longer
+    # fires costs more than the one stale sentence, but do not read the
+    # comment block below as describing THIS path's normal behaviour anymore
+    # (#625).
+    #
     # Unvalidated file content inside $(( )) is evaluated as an ARITHMETIC
     # EXPRESSION, so one stray byte is a syntax error, not a bad number. Same
     # read, same guard, as 50-git-backup.sh's cooldown marker (#258).
@@ -238,8 +417,15 @@ if [ -f "$COOLDOWN_MARKER" ] && [ "$DRY_RUN" != true ] && [ "$FORCE" != true ]; 
         # PROCEED, reset, and SAY SO -- three states, not two. Clamping in
         # silence would trade a mute stuck throttle for a mute wrong value,
         # which is the same defect one layer along.
-        report_error "cooldown" "WARNING: $COOLDOWN_MARKER is $(( 0 - ELAPSED ))s ahead of now — the clock moved back, or the marker is corrupt in a way a digits-only check cannot see. Resetting it and saving; the cooldown resumes from now."
-        date +%s > "$COOLDOWN_MARKER" 2>/dev/null || true
+        report_error "cooldown" "WARNING: $COOLDOWN_MARKER is $(( 0 - ELAPSED ))s ahead of now -- the clock moved back, or the marker is corrupt in a way a digits-only check cannot see. Resetting it and saving; the cooldown resumes from now."
+        # #643: same `{ ...; }` grouping as the guarded write below -- a bare
+        # `2>/dev/null` placed AFTER a `>` redirection only takes effect once
+        # that redirection has already succeeded, so a failing `>` here (this
+        # self-heal write, not the guarded one #635 fixed) would otherwise
+        # leak bash's own raw diagnostic before the suppression applies.
+        if marker_write_ok "$COOLDOWN_MARKER" cooldown; then
+            { date +%s > "$COOLDOWN_MARKER"; } 2>/dev/null || true
+        fi
     elif [ "$ELAPSED" -lt "$SAVE_COOLDOWN" ]; then
         debug_enabled 1 && log "cooldown" "${ELAPSED}s < ${SAVE_COOLDOWN}s, skip"
         exit 0
@@ -253,8 +439,39 @@ dispatch "before_save"
 log "extract" "session $SESSION_ID"
 safe_eval <<< "$(cd "$PIPELINE_DIR" && $PYTHON -m pipeline.shell extract "$SESSION_ID" "$PROJECT_DIR")"
 CLEANUP_FILES+=("$EXTRACT_FILE")
-date +%s > "$COOLDOWN_MARKER"
-log "extract" "${EXCHANGE_COUNT} exchanges (${HUMAN_COUNT} human)"
+# #625: unguarded, this write crashes the WHOLE script under `set -e` when
+# the marker cannot be written -- the same durable state (a directory in its
+# place, or a permission that blocks both read and write) that makes
+# ts_marker_read report "unreadable" above. That is a harder failure than
+# the "fails open to an extra Haiku call" this cooldown is documented to
+# cost: the save that just ran would be lost entirely, past the point of no
+# return, rather than merely re-running its cooldown next time. Guarded the
+# same way the self-heal write in the ELAPSED<0 branch already is, so a
+# durably broken marker degrades to "the cooldown keeps re-triggering" (a
+# warning already given above) instead of "this save never completed".
+# #635: `2>/dev/null` placed AFTER a `>` redirection only takes effect once
+# that redirection has already succeeded -- a failing `>` (the marker is a
+# directory, a permission is denied, etc.) is reported by bash to the REAL
+# stderr before `2>/dev/null` is ever applied, leaking bash's own raw
+# diagnostic line (into the agent's stream, or duplicated into
+# hook-errors.log alongside the WARNING below, depending on what already
+# redirected fd 2 upstream) rather than being silenced by it. Wrapping the
+# whole write in a `{ ...; }` group applies `2>/dev/null` to the group as a
+# unit, suppressing the group's own redirection failure too -- kept (rather
+# than dropped) so this line degrades identically whether the surrounding
+# process already flattened stderr or not.
+if marker_write_ok "$COOLDOWN_MARKER" cooldown; then
+    { date +%s > "$COOLDOWN_MARKER"; } 2>/dev/null \
+        || report_error "cooldown" "WARNING: could not write $COOLDOWN_MARKER after this save -- the cooldown will not reflect it, and every future save will hit the same unreadable/unwritable marker until it is fixed or removed."
+fi
+if [ "$ENVELOPE" = "unrecognised" ]; then
+    # A transcript shape neither Claude Code nor Codex wrote -- NOT a quiet
+    # session. Reporting it as "0 exchanges" would be indistinguishable from
+    # one, which is exactly the silent failure #443 exists to prevent.
+    log "extract" "unrecognised transcript envelope, 0 exchanges read (not a quiet session -- see pipeline/host.sniff_envelope)"
+else
+    log "extract" "${EXCHANGE_COUNT} exchanges (${HUMAN_COUNT} human)"
+fi
 
 # Nothing in this span at all: advance the saved position before leaving (#147).
 # The position is only written after a *successful* save (:211), so an early exit
@@ -262,12 +479,43 @@ log "extract" "${EXCHANGE_COUNT} exchanges (${HUMAN_COUNT} human)"
 # :131 *is* written, the next run re-extracted the identical span and exited
 # identically, once per cooldown window, forever. There is nothing to summarize
 # in an empty span, so advancing loses no memory and breaks the loop.
+#
+# "unrecognised" is NOT the same zero as a genuinely quiet session (#450): the
+# span was never actually read, only skipped, so simply advancing here would
+# make it unrecoverable the moment a later build learns to parse this
+# envelope. The position still advances -- that is what keeps #147's loop
+# closed -- but $ENVELOPE and $SKIP_LINES ride along to `save-position`,
+# which quarantines the span (in unread-envelope.json, keyed by session) at
+# its earliest still-unread point instead of losing it. A future run of THIS
+# session, once its envelope is recognised, resumes extraction from the
+# quarantine point rather than from $POSITION, and the quarantine is cleared
+# the moment that happens. See pipeline.extract.mark_unread_envelope /
+# clear_unread_envelope and pipeline.shell.cmd_save_position for the other
+# half.
 if [ "$EXCHANGE_COUNT" -eq 0 ]; then
     if [ "$DRY_RUN" = false ]; then
-        log "extract" "0 exchanges, skip — position → $POSITION"
-        cd "$PIPELINE_DIR" && $PYTHON -m pipeline.shell save-position "$LAST_SAVE_FILE" "$SESSION_ID" "$POSITION"
+        # #575: a KNOWN envelope (today, only "antigravity") can still read
+        # 0 exchanges because every step in the span had a `type` this
+        # build's pipeline.host adapter cannot map to a role -- the same
+        # unrecoverable-silent-loss shape "unrecognised" exists to prevent,
+        # just discovered one level deeper (the file WAS placed, but part of
+        # it could not be read). Route it through the identical #450
+        # quarantine by passing "unrecognised" as the envelope save-position
+        # sees, even though $ENVELOPE itself (used for logging above and
+        # everywhere else) stays the real, honest host name.
+        if [ "$ENVELOPE" = "unrecognised" ]; then
+            log "extract" "unrecognised envelope, skip -- position -> $POSITION (span quarantined from line $SKIP_LINES for a future build)"
+            SAVE_ENVELOPE="$ENVELOPE"
+        elif [ "$ENVELOPE_HAS_UNMAPPED_STEP" = "1" ]; then
+            log "extract" "$ENVELOPE envelope with an unmapped step type, skip -- position -> $POSITION (span quarantined from line $SKIP_LINES for a future build)"
+            SAVE_ENVELOPE="unrecognised"
+        else
+            log "extract" "0 exchanges, skip -- position -> $POSITION"
+            SAVE_ENVELOPE="$ENVELOPE"
+        fi
+        cd "$PIPELINE_DIR" && $PYTHON -m pipeline.shell save-position "$LAST_SAVE_FILE" "$SESSION_ID" "$POSITION" "$SAVE_ENVELOPE" "$SKIP_LINES"
     else
-        log "extract" "0 exchanges, skip (dry run — position unchanged)"
+        log "extract" "0 exchanges, skip (dry run -- position unchanged)"
     fi
     exit 0
 fi
@@ -319,14 +567,14 @@ fi
 # and can be. Same trade as the NDC tail arm below (see Step 8) — report the
 # read you could not make, do not act on a value you do not have.
 NO_PREVIOUS_ENTRY="(no previous entry)"
-LAST_ENTRY_UNAVAILABLE="(previous entry unavailable — now.md could not be read; earlier work may already be recorded)"
+LAST_ENTRY_UNAVAILABLE="(previous entry unavailable -- now.md could not be read; earlier work may already be recorded)"
 TMP_LAST_ENTRY=$(mktemp "${TMPDIR:-/tmp}"/remember-last-entry-XXXXXX)
 CLEANUP_FILES+=("$TMP_LAST_ENTRY")
 if [ ! -f "$MEMORY_FILE" ]; then
     printf '%s\n' "$NO_PREVIOUS_ENTRY" > "$TMP_LAST_ENTRY"
 elif [ ! -r "$MEMORY_FILE" ]; then
     printf '%s\n' "$LAST_ENTRY_UNAVAILABLE" > "$TMP_LAST_ENTRY"
-    log "prompt" "ERROR: now.md exists but is not readable — last entry sent as unavailable, not as absent"
+    log "prompt" "ERROR: now.md exists but is not readable -- last entry sent as unavailable, not as absent"
 else
     # `grep -n ... | tail -1 | cut` reported the exit status of `cut`, which
     # succeeds on empty input, so grep failing on an unreadable or vanished
@@ -338,7 +586,7 @@ else
     LAST_ENTRY_HEADERS=$(grep -n '^## ' "$MEMORY_FILE") || HEADER_GREP_RC=$?
     if [ "$HEADER_GREP_RC" -gt 1 ]; then
         printf '%s\n' "$LAST_ENTRY_UNAVAILABLE" > "$TMP_LAST_ENTRY"
-        log "prompt" "ERROR: header search over now.md failed (grep rc ${HEADER_GREP_RC}) — last entry sent as unavailable, not as absent"
+        log "prompt" "ERROR: header search over now.md failed (grep rc ${HEADER_GREP_RC}) -- last entry sent as unavailable, not as absent"
     else
         LAST_LINE="${LAST_ENTRY_HEADERS##*$'\n'}"
         LAST_LINE="${LAST_LINE%%:*}"
@@ -353,17 +601,69 @@ else
             # cannot stand behind, and a mid-word truncation reads to the
             # summarizer as content rather than as damage.
             printf '%s\n' "$LAST_ENTRY_UNAVAILABLE" > "$TMP_LAST_ENTRY"
-            log "prompt" "ERROR: reading the last entry from now.md failed — sent as unavailable, not as absent (this save may duplicate work already recorded)"
+            log "prompt" "ERROR: reading the last entry from now.md failed -- sent as unavailable, not as absent (this save may duplicate work already recorded)"
         fi
     fi
 fi
 
 # --- Step 3: Build prompt ---
-# $REMEMBER_BRANCH wins when set, so users running Claude Code from a non-git
-# directory (e.g., $HOME) can supply a meaningful identity for the today-*.md
-# header instead of the literal "unknown" fallback. Empty string is treated as
-# unset so an accidental `export REMEMBER_BRANCH=` doesn't propagate.
-BRANCH="${REMEMBER_BRANCH:-$(cd "$PROJECT_DIR" && git branch --show-current 2>/dev/null || echo "unknown")}"
+# BRANCH RESOLUTION START -- identity slot for the "## HH:MM | <branch>" header.
+# Order:
+#   1. $REMEMBER_BRANCH wins when set. Empty string is treated as unset so an
+#      accidental `export REMEMBER_BRANCH=` doesn't propagate.
+#   2. $REMEMBER_BRANCH_CMD, invoked as `$REMEMBER_BRANCH_CMD "$SESSION_ID"`.
+#      Sessions of one project share $PROJECT_DIR, so step 3 below resolves
+#      to the SAME branch for every one of them -- concurrent sessions in a
+#      single project need a slot that differs per writer, and $SESSION_ID is
+#      the value already in scope that does (#481). What a session id should
+#      map to is site-specific (a local registry of named sessions, a short
+#      hash, ...), so this is a hook rather than a new built-in default.
+#      A non-zero exit or empty stdout falls through to step 3 rather than
+#      propagating a broken command's silence into the header -- but ONLY
+#      when $REMEMBER_BRANCH_CMD failed to run at all is that silent: a
+#      command that IS configured and DID fail logs a WARNING first, so a
+#      typoed path or a resolver that starts failing later reads as a
+#      reported fault rather than as "never configured" (the same reasoning
+#      the ERROR logs a few steps above this one already apply to a torn
+#      now.md read).
+#   3. `git branch --show-current` in $PROJECT_DIR, for users running Claude
+#      Code from a non-git directory (e.g. $HOME) this yields nothing.
+#   4. The literal "unknown".
+#
+# $CMD_BRANCH becomes $BRANCH, which is substituted verbatim into the
+# summarizer prompt (pipeline/prompts.py's {{BRANCH}}) with no bound of
+# its own on embedded control characters (#501). $(...) only strips a
+# TRAILING newline, so a resolver that prints more than one line -- or a
+# lone carriage return with no line feed, which a naive terminal reads
+# as "return to column 0 mid-line" the same way an embedded newline is
+# -- would write arbitrary content at column 0 of the prompt. Bounded
+# here, before BRANCH is ever set, by rejecting the result outright on
+# either character -- same as a non-zero exit or empty stdout above:
+# falls through to the git branch lookup, logged the same way, rather
+# than silently truncating to the first line (a truncation a reader of
+# the log could not tell apart from the resolver only ever having meant
+# to print one line).
+if [ -n "${REMEMBER_BRANCH:-}" ]; then
+    BRANCH="$REMEMBER_BRANCH"
+else
+    BRANCH=""
+    if [ -n "${REMEMBER_BRANCH_CMD:-}" ]; then
+        if CMD_BRANCH=$("$REMEMBER_BRANCH_CMD" "$SESSION_ID" 2>/dev/null) && [ -n "$CMD_BRANCH" ]; then
+            case "$CMD_BRANCH" in
+                *$'\n'*|*$'\r'*)
+                    log "branch" "WARNING: REMEMBER_BRANCH_CMD ($REMEMBER_BRANCH_CMD) printed multi-line (or carriage-return-bearing) output for session $SESSION_ID -- refusing to use it unbounded, falling back to git branch lookup"
+                    ;;
+                *)
+                    BRANCH="$CMD_BRANCH"
+                    ;;
+            esac
+        else
+            log "branch" "WARNING: REMEMBER_BRANCH_CMD ($REMEMBER_BRANCH_CMD) exited non-zero or printed nothing for session $SESSION_ID -- falling back to git branch lookup"
+        fi
+    fi
+    [ -z "$BRANCH" ] && BRANCH="$(cd "$PROJECT_DIR" && git branch --show-current 2>/dev/null || echo "unknown")"
+fi
+# BRANCH RESOLUTION END
 TIME_FORMAT=$(config ".time_format" "24h")
 if [ "$TIME_FORMAT" = "12h" ]; then
     # Force uppercase AM/PM: %p is locale-dependent (lowercase on many Linux systems).
@@ -398,6 +698,33 @@ FAILURE_MARKER="${REMEMBER_DIR}/tmp/last-summary-failure"
 MAX_FAILURES=$(config ".thresholds.max_summary_failures" 3)
 case "$MAX_FAILURES" in ''|*[!0-9]*) MAX_FAILURES=3 ;; esac
 
+# #583: every save-position call site below this point runs only once
+# EXCHANGE_COUNT -gt 0 (the EXCHANGE_COUNT -eq 0 branch above already
+# quarantines a wholly-unmapped span per #575) -- a give-up, a reject, a
+# SKIP, or an ordinary successful append. None of those verdicts says
+# anything about an unmapped step that rode along in the SAME span: the
+# extract text handed to every one of those paths never included it, so
+# whatever the verdict was, the step's content is not in it. $ENVELOPE,
+# $ENVELOPE_HAS_UNMAPPED_STEP and $SKIP_LINES are all set once by the
+# extract step (:275ish) and never reassigned afterwards -- call-haiku
+# prints HAIKU_TEXT_FILE/IS_SKIP/IS_REJECTED/PROVIDER/TK_*, none of which
+# collide with these names -- so this generalizes unchanged to every site
+# below, mixed span or not: a mapped-only span passes $ENVELOPE straight
+# through exactly as before, and a span carrying an unmapped step is routed
+# through the identical #450 quarantine mechanism the all-unmapped case
+# uses, accepting the same re-extraction/duplicate-summary risk on a future
+# recovery that #575 already accepted for that case (see #583's own "what
+# would settle it" section for the alternative this deliberately does not
+# build: real per-step-range tracking).
+save_position_span() {
+    if [ "$ENVELOPE" != "unrecognised" ] && [ "$ENVELOPE_HAS_UNMAPPED_STEP" = "1" ]; then
+        log "extract" "$ENVELOPE envelope with an unmapped step type, skip -- position -> $POSITION (span quarantined from line $SKIP_LINES for a future build)"
+        cd "$PIPELINE_DIR" && $PYTHON -m pipeline.shell save-position "$LAST_SAVE_FILE" "$SESSION_ID" "$POSITION" "unrecognised" "$SKIP_LINES"
+    else
+        cd "$PIPELINE_DIR" && $PYTHON -m pipeline.shell save-position "$LAST_SAVE_FILE" "$SESSION_ID" "$POSITION" "$ENVELOPE"
+    fi
+}
+
 record_summary_failure() {
     [ "$MAX_FAILURES" -eq 0 ] && return 0
     _prev_key=""
@@ -416,12 +743,12 @@ record_summary_failure() {
     fi
 
     if [ "$_count" -ge "$MAX_FAILURES" ]; then
-        log "haiku" "WARNING: ${_count} consecutive failures on this span — dropping it unsummarized and advancing position → $POSITION (see thresholds.max_summary_failures)"
-        cd "$PIPELINE_DIR" && $PYTHON -m pipeline.shell save-position "$LAST_SAVE_FILE" "$SESSION_ID" "$POSITION"
+        log "haiku" "WARNING: ${_count} consecutive failures on this span -- dropping it unsummarized and advancing position -> $POSITION (see thresholds.max_summary_failures)"
+        save_position_span
         rm -f "$FAILURE_MARKER"
-    else
+    elif marker_write_ok "$FAILURE_MARKER" summary; then
         echo "$_key $_count" > "$FAILURE_MARKER"
-        log "haiku" "failure ${_count}/${MAX_FAILURES} on this span — will retry next run"
+        log "haiku" "failure ${_count}/${MAX_FAILURES} on this span -- will retry next run"
     fi
 }
 
@@ -507,8 +834,8 @@ if [ "$IS_SKIP" != "true" ]; then
         # does, or this span would be re-summarized on every run forever.
         log "validate" "REJECTED (not an entry header): $(echo "$FIRST_LINE" | head -c 80)"
         keep_rejected_text "$HAIKU_TEXT_FILE" "validate"
-        cd "$PIPELINE_DIR" && $PYTHON -m pipeline.shell save-position "$LAST_SAVE_FILE" "$SESSION_ID" "$POSITION"
-        log "validate" "position → $POSITION"
+        save_position_span
+        log "validate" "position -> $POSITION"
         rm -f "$FAILURE_MARKER"
         exit 0
     else
@@ -553,11 +880,16 @@ if [ "$IS_SKIP" = "true" ]; then
     # stops growing, and max_summary_failures never notices because that counts
     # hard errors and this call succeeded.
     if [ "${IS_REJECTED:-false}" = "true" ]; then
-        log "haiku" "REJECTED (not a summary — refusal or clarification): $(head -c 80 "$HAIKU_TEXT_FILE" 2>/dev/null)"
+        log "haiku" "REJECTED (provider: ${PROVIDER:-claude}; not a summary -- refusal or clarification): $(head -c 80 "$HAIKU_TEXT_FILE" 2>/dev/null)"
         keep_rejected_text "$HAIKU_TEXT_FILE" "haiku"
     fi
-    log "haiku" "SKIP — position → $POSITION"
-    cd "$PIPELINE_DIR" && $PYTHON -m pipeline.shell save-position "$LAST_SAVE_FILE" "$SESSION_ID" "$POSITION"
+    # provider is logged here (#461): a plain "SKIP" is ambiguous about which
+    # route declined once more than one summarizer exists (#460) -- a bare
+    # host guess from the branch name or the log's surrounding lines would be
+    # reconstruction, the exact failure mode #443's envelope field exists to
+    # avoid. This is the value the call itself reported using.
+    log "haiku" "SKIP (provider: ${PROVIDER:-claude}) -- position -> $POSITION"
+    save_position_span
     # A SKIP is a successful summarization (the model judged the span not worth
     # recording) and it advances the position, so it must clear the failure
     # count too — otherwise a stale count survives and a later single failure
@@ -577,7 +909,14 @@ fi
 # the first thing session-start injects into context and the first thing the
 # summarizer reads, for a fact only the pipeline needs.
 if [ ! -s "$MEMORY_FILE" ]; then
-    printf '%s\n' "$TODAY_DATE" > "$NOW_DAY_FILE" 2>/dev/null || true
+    # #643: `{ ...; }` grouping -- a bare `2>/dev/null` placed AFTER a `>`
+    # redirection only takes effect once that redirection has already
+    # succeeded, so a failing `>` (permission denied, NOW_DAY_FILE's parent
+    # replaced by something read-only) would otherwise leak bash's own raw
+    # diagnostic before the suppression applies (same class as #635).
+    if marker_write_ok "$NOW_DAY_FILE" now-day; then
+        { printf '%s\n' "$TODAY_DATE" > "$NOW_DAY_FILE"; } 2>/dev/null || true
+    fi
 fi
 # Built beside now.md and renamed over it, not appended in two operations
 # (#247). The two appends — a separator, then the entry — are both under
@@ -618,12 +957,12 @@ fi
 # different glob (now.md.ndc-*).
 append_failed() {
     rm -f "$APPEND_TMP" 2>/dev/null
-    log "write" "ERROR: cannot write now.md — $1"
+    log "write" "ERROR: cannot write now.md -- $1"
     exit 1
 }
 rm -f "${MEMORY_FILE}".append-* 2>/dev/null
 APPEND_TMP=$(mktemp "${MEMORY_FILE}.append-XXXXXX") || {
-    log "write" "ERROR: cannot write now.md — no temp could be created beside it"
+    log "write" "ERROR: cannot write now.md -- no temp could be created beside it"
     exit 1
 }
 # `2>&1 >file` — stderr to the capture, THEN stdout to the file, in that order.
@@ -642,9 +981,9 @@ APPEND_ERR=$({ printf '\n' && cat "$HAIKU_TEXT_FILE"; } 2>&1 >> "$APPEND_TMP") \
 # here keeps the position, so the span is summarized again next run.
 APPEND_ERR=$(mv "$APPEND_TMP" "$MEMORY_FILE" 2>&1) \
     || append_failed "commit failed: ${APPEND_ERR:-unknown error}"
-log "write" "appended: $(head -1 "$HAIKU_TEXT_FILE" | cut -c1-80)"
-cd "$PIPELINE_DIR" && $PYTHON -m pipeline.shell save-position "$LAST_SAVE_FILE" "$SESSION_ID" "$POSITION"
-log "write" "position → $POSITION"
+log "write" "appended (provider: ${PROVIDER:-claude}): $(head -1 "$HAIKU_TEXT_FILE" | cut -c1-80)"
+save_position_span
+log "write" "position -> $POSITION"
 rm -f "$FAILURE_MARKER"
 
 # --- Dispatch: after_save ---
@@ -661,7 +1000,7 @@ if [ "$(config '.features.ndc_compression' true)" != "true" ]; then
     RUN_NDC=false
     log "ndc" "disabled by features.ndc_compression"
 fi
-if [ "$RUN_NDC" = true ] && [ -f "$NDC_MARKER" ]; then
+if [[ "$RUN_NDC" = true && ( -e "$NDC_MARKER" || -L "$NDC_MARKER" ) ]]; then
     # Same read and same guard as the save cooldown above. For an UNPARSEABLE
     # marker the abandoned body is the whole `if`, so `RUN_NDC=false` never runs
     # and this save compresses despite the cooldown -- and `date +%s >
@@ -671,7 +1010,22 @@ if [ "$RUN_NDC" = true ] && [ -f "$NDC_MARKER" ]; then
     # An OUT-OF-RANGE marker is the opposite and does not self-heal (#326): it
     # parses, so `RUN_NDC=false` DOES run, and the rewrite below is inside the
     # branch that decision skips. Handled in the range arm.
-    NDC_MOD=$(cat "$NDC_MARKER" 2>/dev/null || echo 0)
+    NDC_MOD=$(ts_marker_read "$NDC_MARKER")
+    if [ "$NDC_MOD" = "unreadable" ]; then
+        # #625: same collapse #619 fixed for NDC_GEN_FILE, at this marker
+        # instead -- see ts_marker_read's own comment above. Fail OPEN
+        # (compress now) but SAY SO, rather than silently defeating this
+        # cooldown on every invocation for as long as the marker cannot be
+        # trusted -- whether that is a failed read or content that is not a
+        # plain timestamp.
+        report_error "ndc" "WARNING: $NDC_MARKER exists but its value could not be used (a read failure, or content that is not a plain timestamp) -- treating the cooldown as expired and compressing now. This will recur on every save until the marker holds a valid timestamp again, or is removed."
+        NDC_MOD=0
+    fi
+    # As at the cooldown site above: NDC_MOD is always "0" or all-digits by
+    # this point, so the `case` below and the UNPARSEABLE-vs-OUT-OF-RANGE
+    # comments that follow describe a route ts_marker_read already
+    # intercepts -- kept as a defensive backstop, not this path's normal
+    # behaviour (#625).
     case "$NDC_MOD" in
         ''|*[!0-9]*) NDC_MOD=0 ;;
     esac
@@ -683,8 +1037,14 @@ if [ "$RUN_NDC" = true ] && [ -f "$NDC_MARKER" ]; then
         # ahead of now sets RUN_NDC=false and thereby skips the only line that
         # would have healed it: now.md is never compressed again and grows
         # without bound, which is the one file every later read walks.
-        report_error "ndc" "WARNING: $NDC_MARKER is $(( 0 - NDC_ELAPSED ))s ahead of now — the clock moved back, or the marker is corrupt in a way a digits-only check cannot see. Resetting it and compressing; the cooldown resumes from now."
-        date +%s > "$NDC_MARKER" 2>/dev/null || true
+        report_error "ndc" "WARNING: $NDC_MARKER is $(( 0 - NDC_ELAPSED ))s ahead of now -- the clock moved back, or the marker is corrupt in a way a digits-only check cannot see. Resetting it and compressing; the cooldown resumes from now."
+        # #643: same `{ ...; }` grouping as the guarded write below -- see
+        # the COOLDOWN_MARKER self-heal write above for why a bare
+        # `2>/dev/null` after a `>` does not suppress the redirection's OWN
+        # failure.
+        if marker_write_ok "$NDC_MARKER" ndc; then
+            { date +%s > "$NDC_MARKER"; } 2>/dev/null || true
+        fi
     elif [ "$NDC_ELAPSED" -lt "$NDC_COOLDOWN" ]; then
         RUN_NDC=false
     fi
@@ -696,7 +1056,24 @@ fi
 # date put them in the new day's file and downstream consolidation then
 # attributed them to the wrong day (#141). Falls back to today for a now.md
 # written before this marker existed, or left behind by an interrupted run.
-NDC_DAY=$(cat "$NOW_DAY_FILE" 2>/dev/null | tr -d '[:space:]')
+# #642: same regular-file type check as ndc_read_gen() (#634) and
+# ts_marker_read() (#625) -- a FIFO or character device at $NOW_DAY_FILE
+# would otherwise hang `cat` forever (FIFO, no writer) or stream unboundedly
+# (character device); a non-regular NOW_DAY_FILE falls through to the same
+# "*" branch below that an absent or garbage-content one already takes --
+# but not silently (#654, release gate 3 on v0.31.0): the siblings fixed
+# for this class report `unreadable`, and an unreported fallback here is a
+# previous day's entries attributed to today with nothing in the log, the
+# misattribution this marker exists to prevent (#141). Absence stays quiet;
+# it is the ordinary first-run state.
+if [ -f "$NOW_DAY_FILE" ]; then
+    NDC_DAY=$(cat "$NOW_DAY_FILE" 2>/dev/null | tr -d '[:space:]')
+elif [ -e "$NOW_DAY_FILE" ]; then
+    report_error "now-day" "WARNING: $NOW_DAY_FILE exists but is not a regular file -- treating it as absent, so this round's entries are attributed to today ($TODAY_DATE). Remove or replace it."
+    NDC_DAY=""
+else
+    NDC_DAY=""
+fi
 case "$NDC_DAY" in
     ([0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]) ;;
     (*) NDC_DAY="$TODAY_DATE" ;;
@@ -704,15 +1081,31 @@ esac
 TODAY_FILE="${REMEMBER_DIR}/today-${NDC_DAY}.md"
 
 if [ "$RUN_NDC" = true ]; then
-    log "ndc" "now.md → today-${NDC_DAY}.md"
-    date +%s > "$NDC_MARKER"
+    log "ndc" "now.md -> today-${NDC_DAY}.md"
+    # #625: same reasoning as the COOLDOWN_MARKER write above -- unguarded,
+    # this crashes the whole script under `set -e` for a durably broken
+    # marker instead of merely leaving the compression cooldown to
+    # re-trigger next time.
+    # #635: same `{ ...; }` grouping as the COOLDOWN_MARKER write above --
+    # see that comment for why a bare `2>/dev/null` after the `>` does not
+    # suppress the redirection's OWN failure.
+    if marker_write_ok "$NDC_MARKER" ndc; then
+        { date +%s > "$NDC_MARKER"; } 2>/dev/null \
+            || report_error "ndc" "WARNING: could not write $NDC_MARKER after this compression -- the cooldown will not reflect it, and every future save will hit the same unreadable/unwritable marker until it is fixed or removed."
+    fi
     NDC_SRC_BYTES=$(wc -c < "$MEMORY_FILE" | tr -d ' ')
+    # Read under LOCK_DIR, which this (parent) process still holds at this
+    # point in the script — see #614's NDC_GEN_FILE comment above. A prior
+    # round's committed generation is the value this round's own offset is
+    # only valid against; anything else means a commit has landed since and
+    # the offset no longer describes a real boundary in the live file.
+    NDC_SRC_GEN=$(ndc_read_gen)
     NDC_PROMPT=$(mktemp "${TMPDIR:-/tmp}"/remember-ndc-XXXXXX)
 
     cd "$PIPELINE_DIR" && $PYTHON -m pipeline.shell build-ndc-prompt "$MEMORY_FILE" "$NDC_PROMPT"
 
     if [ -s "$NDC_PROMPT" ]; then
-        (set +e  # don't inherit set -e — a haiku non-zero exit must not kill the subshell
+        (set +e  # don't inherit set -e -- a haiku non-zero exit must not kill the subshell
             NDC_ERR=$(mktemp "${TMPDIR:-/tmp}"/remember-ndc-err-XXXXXX)
             # 180s (not the 120s default): NDC compresses a whole now.md.
             NDC_VARS=$(cd "$PIPELINE_DIR" && $PYTHON -m pipeline.shell call-haiku "$NDC_PROMPT" "" 180 2>"$NDC_ERR")
@@ -736,6 +1129,7 @@ if [ "$RUN_NDC" = true ]; then
                 # failure mode that writes into permanent memory.
                 IS_SKIP=false
                 IS_REJECTED=false
+                PROVIDER=claude
                 safe_eval <<< "$NDC_VARS"
                 NDC_TEXT=$(cat "$HAIKU_TEXT_FILE")
                 # Before the branch, not inside the success arm: the call has
@@ -752,8 +1146,39 @@ if [ "$RUN_NDC" = true ]; then
                 # today-*.md as if it were a day summary. Not lost memory —
                 # corrupted memory, written into the permanent record with no
                 # log line. now.md is left intact so the next round retries.
-                if [ "$IS_SKIP" = "true" ] || [ "${IS_REJECTED:-false}" = "true" ]; then
-                    log "ndc" "REJECTED (not a summary — refusal or clarification): $(head -c 80 "$HAIKU_TEXT_FILE" 2>/dev/null)"
+                #
+                # #597: IS_REJECTED alone is not enough. DEFAULT_REJECT_PATTERN
+                # (pipeline/haiku.py) is anchored to English refusal stems, and
+                # #593 put the reply in the conversation's OWN language into
+                # now.md in ordinary use for the first time -- a Chinese,
+                # French, Spanish, German or Japanese refusal comes back with
+                # IS_REJECTED=false and would otherwise pass straight through
+                # here. Widening the pattern to more languages reproduces the
+                # same bug with a longer list, so the second gate checks SHAPE
+                # instead of content: compress-ndc.prompt.txt requires every
+                # genuine reply to open with a "## " header -- a single entry,
+                # a merged time-blocked range ("## 08:48-09:22 | branch", which
+                # the prompt explicitly asks the model to produce when several
+                # entries share a subject), or a whole-day header -- and no
+                # refusal opens that way in any language.
+                #
+                # Deliberately NOT ENTRY_HEADER_ERE (the summarize path's check
+                # a few hundred lines up, `^## HH:MM \|`): that shape demands
+                # exactly one HH:MM time, and the merged-range header the
+                # prompt asks for fails it on sight -- rejecting a CORRECT
+                # compression instead of a refusal, which is this same failure
+                # mode with the trigger swapped. The plain "## " check is the
+                # one thing every legitimate shape shares that no refusal does.
+                case "$(head -1 "$HAIKU_TEXT_FILE" 2>/dev/null)" in
+                    ('## '*) NDC_LOOKS_LIKE_HEADER=true ;;
+                    (*) NDC_LOOKS_LIKE_HEADER=false ;;
+                esac
+                if [ "$IS_SKIP" = "true" ] || [ "${IS_REJECTED:-false}" = "true" ] || [ "$NDC_LOOKS_LIKE_HEADER" = "false" ]; then
+                    if [ "$IS_SKIP" = "true" ] || [ "${IS_REJECTED:-false}" = "true" ]; then
+                        log "ndc" "REJECTED (provider: ${PROVIDER:-claude}; not a summary -- refusal or clarification): $(head -c 80 "$HAIKU_TEXT_FILE" 2>/dev/null)"
+                    else
+                        log "ndc" "REJECTED (not a header -- reply does not open with '## '): $(head -c 80 "$HAIKU_TEXT_FILE" 2>/dev/null)"
+                    fi
                     keep_rejected_text "$HAIKU_TEXT_FILE" "ndc"
                 elif [ -n "$NDC_TEXT" ]; then
                     # Under staging.lock, not save.lock and not nothing (#225).
@@ -776,7 +1201,7 @@ if [ "$RUN_NDC" = true ]; then
                     # and today-*.md never sees the duplicate at all.
                     if ! staging_lock_acquire "$STAGING_LOCK_TIMEOUT"; then
                         NDC_STAGED=false
-                        log "ndc" "SKIPPED: staging.lock held for the whole ${STAGING_LOCK_TIMEOUT}s wait (a consolidation is retiring staging files) — today-${NDC_DAY}.md not appended and now.md left untouched, so the next round re-summarizes this span with no duplicate"
+                        log "ndc" "SKIPPED: staging.lock held for the whole ${STAGING_LOCK_TIMEOUT}s wait (a consolidation is retiring staging files) -- today-${NDC_DAY}.md not appended and now.md left untouched, so the next round re-summarizes this span with no duplicate"
                     else
                         NDC_STAGED=true
                         staging_append "$TODAY_FILE" "$HAIKU_TEXT_FILE"
@@ -827,8 +1252,38 @@ if [ "$RUN_NDC" = true ]; then
                         case "$NDC_LIVE_BYTES" in
                             (''|*[!0-9]*) NDC_LIVE_BYTES=0 ;;
                         esac
+                        # #614: size alone cannot tell a legitimate append from
+                        # a REPLACEMENT that happens to still be >= this
+                        # round's snapshot -- and a replacement is exactly what
+                        # another NDC round's own commit produces (its own
+                        # tail, written over now.md by its own `mv`). Read
+                        # under the same LOCK_DIR this block already holds:
+                        # any generation other than the one this round started
+                        # against means such a commit has landed since, and
+                        # this round's offset no longer describes a real
+                        # boundary in the live file, regardless of size.
+                        NDC_LIVE_GEN=$(ndc_read_gen)
                         if [ "$NDC_LIVE_BYTES" -lt "$NDC_SRC_BYTES" ]; then
-                            log "ndc" "SKIPPED commit: now.md is ${NDC_LIVE_BYTES}b, below the ${NDC_SRC_BYTES}b snapshot this offset was taken from — left untouched (today-${NDC_DAY}.md may now hold a duplicate of this span)"
+                            log "ndc" "SKIPPED commit: now.md is ${NDC_LIVE_BYTES}b, below the ${NDC_SRC_BYTES}b snapshot this offset was taken from -- left untouched (today-${NDC_DAY}.md may now hold a duplicate of this span)"
+                        elif [ "$NDC_SRC_GEN" = "unreadable" ] || [ "$NDC_LIVE_GEN" = "unreadable" ]; then
+                            # #619: a marker that EXISTS but could not be read is
+                            # not the same fact as one that was never created --
+                            # ndc_read_gen only ever returns 0 for the latter. A
+                            # failed read tells this round nothing about whether
+                            # another round committed since its snapshot, so it
+                            # must not be treated as "no commit landed" just
+                            # because a bare `cat ... || echo 0` used to produce
+                            # that same 0 for both cases.
+                            # #626: a durably unreadable marker (crashed
+                            # mid-write, replaced by a directory, permissions
+                            # never fixed) makes every future round land here
+                            # forever, with no hint of the way out -- deleting
+                            # it is safe (it only ever resets generation
+                            # tracking to 0) and is the one thing an operator
+                            # reading this line cannot otherwise know.
+                            log "ndc" "SKIPPED commit: could not read ${NDC_GEN_FILE} (src=${NDC_SRC_GEN}, live=${NDC_LIVE_GEN}) -- now.md left untouched, this round cannot tell whether another round committed since its snapshot (today-${NDC_DAY}.md may now hold a duplicate of this span). If this recurs, ${NDC_GEN_FILE} is likely durably unreadable rather than merely racing a writer -- delete it to reset generation tracking to 0 and unblock future commits."
+                        elif [ "$NDC_LIVE_GEN" != "$NDC_SRC_GEN" ]; then
+                            log "ndc" "SKIPPED commit: another NDC round already committed since this round's snapshot (generation ${NDC_SRC_GEN} -> ${NDC_LIVE_GEN}) -- now.md left untouched, this round's offset no longer describes a real boundary (today-${NDC_DAY}.md may now hold a duplicate of this span)"
                         else
                             # Beside now.md, not in $TMPDIR (#242). #142's whole
                             # argument for why this commit is safe is "mv-over is
@@ -861,7 +1316,12 @@ if [ "$RUN_NDC" = true ]; then
                             # run without LOCK_DIR.
                             rm -f "${MEMORY_FILE}".ndc-* 2>/dev/null
                             NDC_TAIL=$(mktemp "${MEMORY_FILE}.ndc-XXXXXX")
-                            if tail -c +$(( NDC_SRC_BYTES + 1 )) "$MEMORY_FILE" > "$NDC_TAIL" 2>/dev/null; then
+                            # #643: `{ ...; }` grouping around the `>` -- same class as
+                            # #635/above: a failing `>` here (disk full, $NDC_TAIL
+                            # removed from under this, etc.) would otherwise leak
+                            # bash's own raw diagnostic before `2>/dev/null` takes
+                            # effect.
+                            if { tail -c +$(( NDC_SRC_BYTES + 1 )) "$MEMORY_FILE" > "$NDC_TAIL"; } 2>/dev/null; then
                                 NDC_KEPT=$(wc -c < "$NDC_TAIL" | tr -d ' ')
                                 # Same guard as NDC_LIVE_BYTES above. Unsanitized,
                                 # a non-numeric NDC_KEPT makes `[ -gt 0 ]` fail the
@@ -910,11 +1370,49 @@ if [ "$RUN_NDC" = true ]; then
                                 # the reason this stamp exists — see #141 for the flush
                                 # design that would close it.
                                     if [ "$NDC_KEPT" -gt 0 ]; then
-                                        printf '%s\n' "$(_remember_date +%Y-%m-%d)" > "$NOW_DAY_FILE" 2>/dev/null || true
+                                        # #643: `{ ...; }` grouping -- same class as
+                                        # the fresh-stamp write above.
+                                        if marker_write_ok "$NOW_DAY_FILE" now-day; then
+                                            { printf '%s\n' "$(_remember_date +%Y-%m-%d)" > "$NOW_DAY_FILE"; } 2>/dev/null || true
+                                        fi
                                     else
                                         rm -f "$NOW_DAY_FILE"
                                     fi
                                     [ "$NDC_KEPT" -gt 0 ] && log "ndc" "kept ${NDC_KEPT}b appended during compression"
+                                    # #614: retire this round's own offset for
+                                    # every OTHER live round (there can be at
+                                    # most one concurrently reachable given
+                                    # the hour-long cooldown, but nothing here
+                                    # depends on that staying true). Written
+                                    # under the same LOCK_DIR this commit just
+                                    # used, right after the mv that makes it
+                                    # true.
+                                    #
+                                    # `10#$NDC_SRC_GEN` (#332's own fix,
+                                    # applied here too): the digit-only guard
+                                    # above accepts a leading zero ("08"),
+                                    # which bash arithmetic reads as octal and
+                                    # "08"/"09" are not valid octal digits --
+                                    # feeding a bare NDC_SRC_GEN into `$(( ))`
+                                    # without that prefix would abort the
+                                    # statement instead of bumping the
+                                    # counter. record_summary_failure() hit
+                                    # this exact shape and fixed it the same
+                                    # way (see its own `10#$_prev_count`).
+                                    #
+                                    # Logged, not `|| true` alone: a failed
+                                    # write here leaves the on-disk generation
+                                    # at its PRE-commit value even though the
+                                    # commit itself already landed (the mv
+                                    # above already succeeded) -- silently
+                                    # reopening the exact #614 window this
+                                    # check exists to close, for any other
+                                    # round that snapshotted the same
+                                    # generation. Matches the sibling mv
+                                    # failure's own logging a few lines above.
+                                    if marker_write_ok "$NDC_GEN_FILE" ndc && ! NDC_GEN_ERR=$(echo $(( 10#$NDC_SRC_GEN + 1 )) > "$NDC_GEN_FILE" 2>&1); then
+                                        log "ndc" "WARNING: could not bump ${NDC_GEN_FILE} past ${NDC_SRC_GEN} -- a later round that started from this same generation will not detect that this commit already landed: ${NDC_GEN_ERR:-unknown error}"
+                                    fi
                                 else
                                     # now.md still holds every byte it had, so the
                                     # marker describing that content is still
@@ -956,10 +1454,10 @@ if [ "$RUN_NDC" = true ]; then
                         # nothing past this point touches now.md.
                         lock_release "$LOCK_DIR" || true
                     elif [ "$NDC_STAGED" = true ]; then
-                        log "ndc" "SKIPPED commit: another save held the lock for the whole ${NDC_COMMIT_LOCK_TIMEOUT}s wait, now.md left untouched (today-${NDC_DAY}.md now holds a duplicate of this span — the routine outcome of losing this race, not an error)"
+                        log "ndc" "SKIPPED commit: another save held the lock for the whole ${NDC_COMMIT_LOCK_TIMEOUT}s wait, now.md left untouched (today-${NDC_DAY}.md now holds a duplicate of this span -- the routine outcome of losing this race, not an error)"
                     fi
                     NDC_OUT_BYTES=$(wc -c < "$HAIKU_TEXT_FILE" | tr -d ' ')
-                    [ "$NDC_SRC_BYTES" -gt 0 ] && log "ndc" "${NDC_SRC_BYTES}→${NDC_OUT_BYTES}b (-$(( (NDC_SRC_BYTES - NDC_OUT_BYTES) * 100 / NDC_SRC_BYTES ))%)"
+                    [ "$NDC_SRC_BYTES" -gt 0 ] && log "ndc" "${NDC_SRC_BYTES}->${NDC_OUT_BYTES}b (-$(( (NDC_SRC_BYTES - NDC_OUT_BYTES) * 100 / NDC_SRC_BYTES ))%)"
                 else
                     log "ndc" "ERROR: produced empty result"
                 fi
@@ -972,7 +1470,147 @@ if [ "$RUN_NDC" = true ]; then
         log "ndc" "ERROR: prompt empty"
         rm -f "$NDC_PROMPT"
     fi
+fi
 
-    # Housekeeping: remove empty autonomous logs
-    find "${REMEMBER_DIR}/logs/autonomous" -name "*.log" -empty -delete 2>/dev/null
+# --- Housekeeping: reclaim aged autonomous logs (#487, #488, #498, #502) ---
+#
+# Runs unconditionally, independent of RUN_NDC/features.ndc_compression
+# (#498): this directory's only retention used to live inside the
+# `if [ "$RUN_NDC" = true ]` block above by accident of placement, so
+# setting features.ndc_compression=false silently disabled ALL
+# logs/autonomous/ housekeeping too, with autonomous_log_retention_days
+# left configured and doing nothing -- and nothing told an operator the
+# setting was inert. Moved out here so it always runs on an ordinary flush,
+# regardless of whether NDC compression itself ran this round.
+#
+# An empty one is swept immediately -- an abandoned run's redirect target
+# that never got a header written into it. That used to be this directory's
+# ONLY retention (#483), and it stopped covering session-end-*.log the
+# moment #483 seeded $_END_LOG with a header before its own subshell ever
+# opens the file: every one of those is non-empty by construction now, so
+# an empty-only sweep never reclaims that class again, and the
+# accumulation is #487's own report of it.
+#
+# The age-keyed sweep below is the fix for that: over BOTH file classes
+# (save-*.log and session-end-*.log share the "*.log" glob), rather than
+# keyed to emptiness -- emptiness was always a proxy for staleness, and it
+# is the proxy that produced #483 in the first place. A log this script
+# itself just wrote (this run's own save-*.log, or the
+# session-end-hook.sh-seeded header this same flush is appending into) has
+# an mtime of now and is nowhere near the cutoff, so neither branch below
+# can delete output a caller might still want to read.
+#
+# A portable stat-based loop, not `find -mtime "+N" -delete` /
+# `find -empty -delete` (#502): `find` is the one command on this path with
+# a real PATH-shadowing risk on Windows Git Bash (System32's find.exe
+# takes none of the flags either sweep needs and would fail silently into
+# the swallowed stderr the old `2>/dev/null` carried, degrading "reclaim"
+# into a silent always-keep with nothing surfaced) -- and, independent of
+# shadowing, `find`'s own day-rounding `-mtime` arithmetic is one more
+# place for a platform-specific off-by-one to hide where nothing would
+# report it. session-start-hook.sh already documents the identical
+# PATH-shadowing risk for its own `-mmin` sweep and takes the same
+# stat-based way around it; `stat` here uses the same
+# GNU-first-then-BSD-fallback order already used there, at doctor.sh:257
+# and at lib-lock.sh:183.
+_AUTONOMOUS_LOG_RETENTION_DAYS=$(config ".thresholds.autonomous_log_retention_days" 7)
+case "$_AUTONOMOUS_LOG_RETENTION_DAYS" in (''|*[!0-9]*) _AUTONOMOUS_LOG_RETENTION_DAYS=7 ;; esac
+# CI (job 100831279309 and its 3.10/3.11/3.12 siblings on PR #499): every
+# windows-latest leg left both the backdated file AND this run's own fresh
+# log in place -- no deletion at any age, default retention or configured,
+# NDC on or off. resolve-paths.sh's own `_remember_normalize_win_path`
+# rewrites CLAUDE_PROJECT_DIR to a fully backslash-separated Windows-native
+# form on msys/cygwin (Claude Code hands it over as `/c/Users/...`, and
+# #263/#448 convert that to `C:\Users\...` so the three shell slug sites
+# and Python's `_session_dir` agree with Claude Code's own slugging) --
+# and REMEMBER_DIR is lib-memory-dir.sh's legacy `"${proj}/${data_dir}"`,
+# so on Windows it is backslash-separated end to end, same as PROJECT_DIR.
+#
+# Every ordinary file op downstream of that (mkdir -p, >>, stat, rm -f)
+# still works with a backslash-laden path, because the MSYS runtime that
+# implements those syscalls translates it -- which is exactly why the
+# earlier mkdir, the header write and the mtime read in this same flush
+# all succeed on that leg. bash's own glob does not get that translation:
+# it recognises only '/' as a path-component boundary, on every platform
+# including Windows Git Bash, because that is POSIX glob(3)'s own
+# definition of a pathname, not a filesystem property -- so
+# "${REMEMBER_DIR}/logs/autonomous"/*.log, with REMEMBER_DIR entirely
+# backslashes, has no '/' anywhere before "logs", and bash looks for a
+# single literal directory ENTRY named the whole backslash string, finds
+# none, and the glob expands to nothing: the loop body never runs, for
+# any file, at any age, which is exactly the "nothing was ever removed"
+# shape both failing assertions and the NDC-disabled variant share.
+#
+# Forward-slashing only the directory argument fixes the glob without
+# touching REMEMBER_DIR itself (every other consumer of that variable
+# still gets the form the rest of the script -- and the Windows slug
+# matching #263/#448 exist for -- expects). A no-op on POSIX, where this
+# never contains a backslash to begin with; pinned portably in
+# tests/test_autonomous_log_retention_487.py's own glob-mechanism test,
+# since a real Windows-native REMEMBER_DIR cannot be constructed on a
+# POSIX filesystem at all (POSIX mkdir/open treat backslash as an
+# ordinary filename character rather than a separator, so the two
+# platforms would stop disagreeing and the bug would not reproduce).
+#
+# Gated on $OSTYPE, not applied unconditionally (self-review finding):
+# backslash is a perfectly ordinary, legal filename character on POSIX,
+# and `_remember_normalize_win_path` above is ITSELF gated the same way,
+# for the same reason -- it never rewrites CLAUDE_PROJECT_DIR outside
+# msys/cygwin, so REMEMBER_DIR only ever carries a backslash-as-separator
+# on those two. An unconditional `${REMEMBER_DIR//\\//}` would silently
+# mangle a real POSIX project directory whose name happens to contain a
+# literal `\` (e.g. copied from somewhere that allowed it) into a
+# different, generally nonexistent path -- turning a working retention
+# sweep into a silently broken one for that one directory, on the
+# platform this fix has no business touching at all.
+case "$OSTYPE" in
+    msys|cygwin) _remember_auto_dir="${REMEMBER_DIR//\\//}" ;;
+    *) _remember_auto_dir="$REMEMBER_DIR" ;;
+esac
+for _remember_auto_log in "${_remember_auto_dir}/logs/autonomous"/*.log; do
+    [ -f "$_remember_auto_log" ] || continue
+    if [ ! -s "$_remember_auto_log" ]; then
+        rm -f "$_remember_auto_log" 2>/dev/null \
+            || log "housekeeping" "WARNING: could not remove empty $_remember_auto_log"
+        continue
+    fi
+    _remember_auto_mtime=$(stat -c %Y "$_remember_auto_log" 2>/dev/null) \
+        || _remember_auto_mtime=$(stat -f %m "$_remember_auto_log" 2>/dev/null) \
+        || _remember_auto_mtime=""
+    # Could-not-tell (stat failed, or printed something non-numeric) is the
+    # safe direction, same as session-start-hook.sh's identical guard: skip
+    # this file rather than coerce garbage into a comparable age and risk
+    # reclaiming something this read could not actually confirm is old.
+    case "$_remember_auto_mtime" in
+        (''|*[!0-9]*)
+            log "housekeeping" "WARNING: could not read mtime of $_remember_auto_log -- leaving it in place"
+            continue
+            ;;
+    esac
+    _remember_auto_now=$(_remember_date +%s)
+    case "$_remember_auto_now" in
+        (''|*[!0-9]*)
+            log "housekeeping" "WARNING: could not read the clock -- skipping the retention sweep for $_remember_auto_log"
+            continue
+            ;;
+    esac
+    _remember_auto_age_days=$(( (10#$_remember_auto_now - 10#$_remember_auto_mtime) / 86400 ))
+    if [ "$_remember_auto_age_days" -gt "$_AUTONOMOUS_LOG_RETENTION_DAYS" ]; then
+        rm -f "$_remember_auto_log" 2>/dev/null \
+            || log "housekeeping" "WARNING: could not remove aged (${_remember_auto_age_days}d) $_remember_auto_log"
+    fi
+done
+unset _remember_auto_dir _remember_auto_log _remember_auto_mtime _remember_auto_now _remember_auto_age_days
+
+# --- Pre-render the SessionStart MEMORY context cache (#668) ---
+# This script only ever runs via `nohup ... & disown` (session-end-hook.sh's
+# stop path calls it detached), so everything from here on is already
+# outside the interactive session -- the same reasoning session-start-hook.sh
+# itself documents for its OWN consolidation trigger. Refreshing the cache
+# here, right after the memory files this save may have just written/rotated
+# have landed, is what lets the NEXT SessionStart skip re-reading them.
+PLUGIN_ROOT="${PLUGIN_ROOT:-$PIPELINE_DIR}"
+if source "$(dirname "$0")/lib-memory-context.sh" 2>/dev/null; then
+    _remember_memory_paths
+    _remember_start_cache_context_publish
 fi

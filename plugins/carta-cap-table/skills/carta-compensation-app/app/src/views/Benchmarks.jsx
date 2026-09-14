@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { C, FS, RADIUS, SANS } from "../ui/theme.js";
 import ExportButton from "../ui/ExportButton.jsx";
-import { MultiSelect, Select, Th, Td } from "../ui/components.jsx";
-import { compareRows, jobLabel, levelLabel, trackOf, TRACK_LABELS } from "../model/taxonomy.js";
+import { MultiSelect, Select, Tag, Th, Td } from "../ui/components.jsx";
+import AskBar from "../ui/AskBar.jsx";
+import { compareRows, jobLabel, levelLabel, trackOf, TRACK_LABELS, PERCENTILES } from "../model/taxonomy.js";
 import { money, equityValue, EQUITY_REPS } from "../model/format.js";
 import { csvFilename, downloadCsv, toCsv } from "../model/csv.js";
 
-const PCTS = ["p25", "p50", "p75", "p90"];
+// PCTS keys come from the registry — adding a percentile is a one-line change there.
+const PCTS = PERCENTILES.map((p) => p.key);
 
 // The three metrics as ONE table: a single Level column on the left, then a percentile
 // block per metric. Each metric previously rendered its own standalone table in a
@@ -22,12 +24,11 @@ const METRIC_BLOCKS = [
 
 /** All three metrics for one job/track group, sharing one Level column. */
 function MetricTable({ rows, currency, equityRep }) {
-  // tableLayout:fixed keeps the declared widths authoritative so nowrap currency cells
-  // can't widen the table past its container; minWidth is the legibility floor for
-  // 13 columns (Level + 3x4 percentiles) — below it the wrapper scrolls instead of
-  // letting "$145,000$164,000" mash together.
+  // tableLayout:fixed keeps declared widths authoritative; minWidth scales with
+  // PCTS length so the wrapper scrolls before currency cells mash together.
+  const minWidth = 260 + PCTS.length * 3 * 75;
   return (
-    <table style={{ width: "100%", minWidth: 1180, tableLayout: "fixed" }}>
+    <table style={{ width: "100%", minWidth, tableLayout: "fixed" }}>
       <thead>
         {/* Group row names each metric over its four percentiles; without it the table
             reads as P25/P50/P75/P90 three times with nothing saying which is which. */}
@@ -44,19 +45,30 @@ function MetricTable({ rows, currency, equityRep }) {
         <tr>
           <Th>Level</Th>
           {METRIC_BLOCKS.map((m) =>
-            PCTS.map((pct) => (
-              <Th key={`${m.key}-${pct}`} align="right">{pct.toUpperCase()}</Th>
+            PERCENTILES.map((p) => (
+              <Th key={`${m.key}-${p.key}`} align="right">
+                {p.label}
+                {!p.fetched && (
+                  <> <Tag tone="notice" title={p.tooltip}>Estimated</Tag></>
+                )}
+              </Th>
             )))}
         </tr>
       </thead>
       <tbody>
         {rows.map((r) => {
           const track = trackOf(r.ladder, r.level);
+          const est = r.provenance && r.provenance !== "fetched";
           return (
             <tr key={`${r.job}-${r.ladder}-${r.level}`}>
               {/* The level name is the one variable-width cell; let it ellipsize rather
                   than widen the table past its container. */}
-              <Td ellipsis title={levelLabel(r.level, track)}>{levelLabel(r.level, track)}</Td>
+              <Td ellipsis title={levelLabel(r.level, track)}>
+                {levelLabel(r.level, track)}
+                {est && (
+                  <> <Tag tone="notice" title={r.provenanceNote || "User-added row"}>Estimated</Tag></>
+                )}
+              </Td>
               {METRIC_BLOCKS.map((m) =>
                 PCTS.map((pct) => (
                   <Td key={`${m.key}-${pct}`} align="right" mono>
@@ -73,7 +85,7 @@ function MetricTable({ rows, currency, equityRep }) {
   );
 }
 
-export default function Benchmarks({ data, onPeerGroupChange }) {
+export default function Benchmarks({ data, onPeerGroupChange, token }) {
   // A SET of job codes, empty meaning "all". Empty-as-all rather than seeding the set
   // with every code: the two states look identical on screen but behave differently the
   // moment the peer group switches, because a different bucket can cover a different set
@@ -345,6 +357,15 @@ export default function Benchmarks({ data, onPeerGroupChange }) {
                 : `Download ${activeSel.size} of ${jobs.length} job areas as CSV — raw percentile values`
           }
           disabled={!visible.length}
+        />
+      </div>
+
+      {/* Sits with this tab's controls rather than in a bar of its own: it acts on
+          what is below it, so a request here reads as "change this view". */}
+      <div style={{ marginBottom: 18 }}>
+        <AskBar
+          token={token}
+          placeholder="Ask Claude to change this page — e.g. add an interpolated P60 column"
         />
       </div>
 

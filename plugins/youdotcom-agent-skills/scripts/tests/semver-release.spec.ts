@@ -6,6 +6,9 @@ import { createVersionUpdates, isPluginReleasePath } from '../semver-release.ts'
 
 describe('semver release', () => {
   test('classifies plugin manifests and marketplaces as plugin release paths', () => {
+    expect(isPluginReleasePath('plugin.json')).toBe(true)
+    expect(isPluginReleasePath('mcp.json')).toBe(true)
+    expect(isPluginReleasePath('.mcp.json')).toBe(true)
     expect(isPluginReleasePath('.claude-plugin/plugin.json')).toBe(true)
     expect(isPluginReleasePath('.claude-plugin/marketplace.json')).toBe(true)
     expect(isPluginReleasePath('.codex-plugin/plugin.json')).toBe(true)
@@ -14,6 +17,8 @@ describe('semver release', () => {
     expect(isPluginReleasePath('.cursor-plugin/marketplace.json')).toBe(true)
     expect(isPluginReleasePath('.plugin/plugin.json')).toBe(true)
     expect(isPluginReleasePath('.github/plugin/marketplace.json')).toBe(true)
+    expect(isPluginReleasePath('.grok-plugin/plugin.json')).toBe(true)
+    expect(isPluginReleasePath('.grok-plugin/marketplace.json')).toBe(true)
     expect(isPluginReleasePath('skills/you-web/SKILL.md')).toBe(false)
   })
 
@@ -39,18 +44,19 @@ describe('semver release', () => {
               },
             },
             npm: {},
-            pypi: {},
             clawhub: {},
           },
         }),
       )
 
       for (const path of [
+        'plugin.json',
         '.claude-plugin/plugin.json',
         '.codex-plugin/plugin.json',
         '.cursor-plugin/plugin.json',
         '.plugin/plugin.json',
         '.kimi-plugin/plugin.json',
+        '.grok-plugin/plugin.json',
       ]) {
         await mkdir(dirname(join(repoRoot, path)), { recursive: true })
         await writeFile(join(repoRoot, path), `${JSON.stringify({ name: 'you', version: '1.2.3' })}\n`)
@@ -61,6 +67,7 @@ describe('semver release', () => {
         '.agents/plugins/marketplace.json',
         '.cursor-plugin/marketplace.json',
         '.github/plugin/marketplace.json',
+        '.grok-plugin/marketplace.json',
       ]) {
         await mkdir(dirname(join(repoRoot, path)), { recursive: true })
         await writeFile(
@@ -72,15 +79,18 @@ describe('semver release', () => {
       const updates = await createVersionUpdates({ repoRoot, planPath: 'plan.json' })
       const updatedByPath = new Map(updates.map((update) => [update.path, JSON.parse(update.content)]))
 
+      expect(updatedByPath.get('plugin.json')?.version).toBe('1.2.4')
       expect(updatedByPath.get('.claude-plugin/plugin.json')?.version).toBe('1.2.4')
       expect(updatedByPath.get('.codex-plugin/plugin.json')?.version).toBe('1.2.4')
       expect(updatedByPath.get('.cursor-plugin/plugin.json')?.version).toBe('1.2.4')
       expect(updatedByPath.get('.plugin/plugin.json')?.version).toBe('1.2.4')
       expect(updatedByPath.get('.kimi-plugin/plugin.json')?.version).toBe('1.2.4')
+      expect(updatedByPath.get('.grok-plugin/plugin.json')?.version).toBe('1.2.4')
       expect(updatedByPath.get('.claude-plugin/marketplace.json')?.plugins[0].version).toBe('1.2.4')
       expect(updatedByPath.get('.agents/plugins/marketplace.json')?.plugins[0].version).toBe('1.2.4')
       expect(updatedByPath.get('.cursor-plugin/marketplace.json')?.plugins[0].version).toBe('1.2.4')
       expect(updatedByPath.get('.github/plugin/marketplace.json')?.plugins[0].version).toBe('1.2.4')
+      expect(updatedByPath.get('.grok-plugin/marketplace.json')?.plugins[0].version).toBe('1.2.4')
     } finally {
       await rm(repoRoot, { force: true, recursive: true })
     }
@@ -108,7 +118,6 @@ describe('semver release', () => {
             },
             plugins: {},
             npm: {},
-            pypi: {},
             clawhub: {},
           },
         }),
@@ -117,50 +126,6 @@ describe('semver release', () => {
       const updates = await createVersionUpdates({ repoRoot, planPath: 'plan.json' })
 
       expect(updates).toEqual([])
-    } finally {
-      await rm(repoRoot, { force: true, recursive: true })
-    }
-  })
-
-  test('bumps Hermes PyPI package and plugin versions together', async () => {
-    const repoRoot = await mkdtemp(join(tmpdir(), 'agent-skills-release-'))
-
-    try {
-      await writeFile(
-        join(repoRoot, 'plan.json'),
-        JSON.stringify({
-          schemaVersion: 1,
-          baseRef: 'HEAD~1',
-          headRef: 'HEAD',
-          generatedAt: '2026-07-22T00:00:00.000Z',
-          changes: ['packages/hermes/plugin.yaml'],
-          units: {
-            skills: {},
-            plugins: {},
-            npm: {},
-            pypi: {
-              'hermes-youdotcom': {
-                bump: 'minor',
-                paths: ['packages/hermes/plugin.yaml'],
-                rationale: ['Hermes package changed'],
-              },
-            },
-            clawhub: {},
-          },
-        }),
-      )
-
-      await mkdir(join(repoRoot, 'packages/hermes'), { recursive: true })
-      await writeFile(join(repoRoot, 'packages/hermes/pyproject.toml'), 'version = "1.2.3"\n')
-      await writeFile(join(repoRoot, 'packages/hermes/package.json'), `${JSON.stringify({ version: '1.2.3' })}\n`)
-      await writeFile(join(repoRoot, 'packages/hermes/plugin.yaml'), 'name: youdotcom\nversion: 1.2.3\n')
-
-      const updates = await createVersionUpdates({ repoRoot, planPath: 'plan.json' })
-      const updatedByPath = new Map(updates.map((update) => [update.path, update.content]))
-
-      expect(updatedByPath.get('packages/hermes/pyproject.toml')).toContain('version = "1.3.0"')
-      expect(JSON.parse(updatedByPath.get('packages/hermes/package.json') ?? '{}').version).toBe('1.3.0')
-      expect(updatedByPath.get('packages/hermes/plugin.yaml')).toContain('version: 1.3.0')
     } finally {
       await rm(repoRoot, { force: true, recursive: true })
     }

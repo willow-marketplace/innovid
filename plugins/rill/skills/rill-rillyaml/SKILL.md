@@ -286,6 +286,12 @@ allOf:
                 rill.metrics.approximate_comparisons_two_phase_limit:
                     description: 'Row-limit threshold under which metrics comparison queries use a two-phase strategy (base values first, comparison values second). Default: 250.'
                     type: integer
+                rill.metrics.druid_mvd_filtered_group_by:
+                    description: 'Narrow unnested (multi-value) dimensions to the filtered values when grouping in Druid, so results contain only the filtered values rather than every value co-occurring in matching rows. Default: false.'
+                    type: boolean
+                rill.metrics.druid_mvd_filtered_search:
+                    description: 'Extends rill.metrics.druid_mvd_filtered_group_by to dimension search (ILIKE filters) using MV_FILTER_REGEX, so search results contain only values matching the search text. Requires Druid 35.0.0 or newer. Default: false.'
+                    type: boolean
                 rill.metrics.exactify_druid_topn:
                     description: 'Split Druid TopN queries into two queries to improve measure accuracy, at the cost of performance. Default: false.'
                     type: boolean

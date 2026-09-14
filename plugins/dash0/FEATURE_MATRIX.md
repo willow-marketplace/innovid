@@ -19,7 +19,8 @@ properties can be populated.
 | Per-session state dir | `$CLAUDE_PLUGIN_DATA` (required) | `$CURSOR_PLUGIN_DATA` › `$DASH0_PLUGIN_DATA` › `~/.local/state/dash0-agent-plugin/cursor` | `$CODEX_PLUGIN_DATA` › `$DASH0_PLUGIN_DATA` › `~/.local/state/dash0-agent-plugin/codex` | `$COPILOT_PLUGIN_DATA` › `$DASH0_PLUGIN_DATA` › `~/.local/state/dash0-agent-plugin/copilot` |
 | Hooks registered in | plugin manifest `claude/hooks.json` | `~/.cursor/hooks.json` (merged) | `~/.codex/config.toml` (managed block) | plugin package `copilot/hooks.json` |
 | Wired hook events | 24 | 9 | 10 | 4 |
-| Supported OS/arch | `darwin`,`linux` × `amd64`,`arm64` | same | same | same |
+| Supported OS/arch | `darwin`,`linux`,`windows` × `amd64`,`arm64` | same | same | same |
+| Windows hook invocation | `claude-on-event.sh` under Git Bash (required) | `cursor-on-event.ps1` — Cursor runs hook commands through PowerShell | `codex-on-event.ps1` via `commandWindows` | `copilot-on-event.ps1` via the `powershell` key |
 | Unsupported platform | hook fails | hook fails | hook fails | fails open (untraced) |
 
 `›` reads as "else". Of the three prefixed variables only `COPILOT_PLUGIN_DATA` is
@@ -89,7 +90,7 @@ demo generator uses them).
 | `cache_creation.input_tokens` | Yes | Yes | No | No | Codex/Copilot don't report it. |
 | Reasoning tokens | Yes | No | No | Yes | Claude reads `output_tokens_details.thinking_tokens`; Codex parses but doesn't emit; Copilot reads its own field. Claude and Copilot share the key `gen_ai.usage.reasoning.output_tokens` and both emit it only when > 0, so one query covers both and absence means no thinking. |
 | Reasoning level (`gen_ai.request.reasoning.level`) | Yes | No | No | No | Claude Code puts `effort` on every span-producing payload. The request-side counterpart to the row above: which setting bought that thinking. No other runtime reports a level to the hook — Codex's rollout carries reasoning *tokens* but no effort field. |
-| Sub-agent `invoke_agent` span + parenting | Yes | Partial | Yes | Partial | Cursor: `subagentStart` dropped; the stop span dangles under the chat span. Copilot: sub-agent chat rounds fold into the parent turn (flat token attribution); their tool calls re-parent under the spawning `task` span. |
+| Sub-agent `invoke_agent` span + parenting | Yes | Partial | Yes | Yes | Cursor: `subagentStart` dropped; the stop span dangles under the chat span. Copilot: sourced from the native-OTel file, since its hooks give a sub-agent a session of its own with nothing linking it to the parent — the tree is `chat → execute_tool task → invoke_agent → execute_tool`, and `gen_ai.agent.id` is the spawning `call_…` id. Sub-agent chat rounds still fold into the parent turn (flat token attribution), so the agent span carries no usage of its own. |
 | MCP server attribute (`dash0.gen_ai.tool.mcp_server`) | Yes (real server) | Partial (placeholder `cursor`) | Yes (real server) | Yes (real server) | |
 | Tool-call duration | Native | Native | Reconstructed from `PreToolUse` | Native (from OTel file) | |
 | Session title (`gen_ai.conversation.name`) | Yes | No | No | No | Only Claude has a transcript reader. |
@@ -106,12 +107,12 @@ demo generator uses them).
 | | Claude Code | Cursor | Codex | Copilot CLI |
 |---|---|---|---|---|
 | Marketplace | `/plugin install dash0@…` | No (local-plugin dir scan) | `codex plugin add dash0-agent-plugin@dash0` | `copilot plugin install dash0-agent-plugin@dash0` (after `marketplace add`) |
-| `curl \| bash` installer | No | `install-cursor.sh` | `install-codex.sh` | No (marketplace only) |
-| Uninstaller | via `/plugin` | `uninstall-cursor.sh` | `uninstall-codex.sh` | via `copilot plugin` |
+| `curl \| bash` installer | No | `install-cursor.sh`, `install-cursor.ps1` on Windows | `install-codex.sh`, `install-codex.ps1` on Windows | No (marketplace only) |
+| Uninstaller | via `/plugin` | `uninstall-cursor.sh`, `uninstall-cursor.ps1` on Windows | `uninstall-codex.sh`, `uninstall-codex.ps1` on Windows | via `copilot plugin` |
 | Local dev | `claude --plugin-dir …` ([guide](claude/README.md)) | symlink into `~/.cursor/plugins/local/` ([guide](cursor/README.md)) | `emit-codex-hooks` ([guide](codex/README.md#build--run-locally)) | `copilot-local-dev` skill ([guide](copilot/README.md#build--run-locally)) |
-| Binary delivery | download + checksum (`on-event.sh`) | download + checksum (`cursor-on-event.sh`) | download + checksum (`codex-on-event.sh`) | download + checksum (`copilot-on-event.sh`) |
+| Binary delivery | download + checksum (`on-event.sh`) | download + checksum (`cursor-on-event.sh`, `.ps1` on Windows) | download + checksum (`codex-on-event.sh`, `.ps1` on Windows) | download + checksum (`copilot-on-event.sh`, `.ps1` on Windows) |
 | Hook trust step | None | None | Yes — reproduced trust-hash in `config.toml` (installer) or manual `/hooks` (marketplace path) | None (restart `copilot`) |
-| Extra requirement | — | `jq` | — | launch function (native OTel) via `dash0-configure` |
+| Extra requirement | Git for Windows, on Windows only | `jq`, except on Windows | — | launch function (native OTel) via `dash0-configure`; bash, zsh, or PowerShell |
 
 ## Debugging
 
