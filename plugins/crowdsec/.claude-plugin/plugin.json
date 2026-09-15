@@ -2,7 +2,7 @@
   "name": "crowdsec",
   "version": "0.3.0",
   "description": "CrowdSec skills: an operational skill (install/configure/operate/debug the engine, cscli, bouncers, WAF and bot detection across bare-metal/Docker/Kubernetes) and a Service API skill (drive the premium Console cloud API — blocklists, allowlists, firewall integrations, metrics, decisions).",
-  "updatedAt": "2026-09-15T00:30:08.216Z",
+  "updatedAt": "2026-09-15T00:43:11.610Z",
   "author": {
     "url": "https://github.com/crowdsecurity",
     "name": "CrowdSec"

@@ -2,7 +2,7 @@
   "name": "claude-code-sentry-monitor",
   "version": "1.0.0",
   "description": "Sentry AI Agent Monitoring for Claude Code — traces sessions and tool calls as OpenTelemetry spans in Sentry.",
-  "updatedAt": "2026-09-15T00:30:08.213Z",
+  "updatedAt": "2026-09-15T00:43:11.607Z",
   "author": {
     "name": "Sergiy Dybskiy"
   },
