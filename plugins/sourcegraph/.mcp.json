@@ -1,7 +1,7 @@
 {
   "mcpServers": {
     "sourcegraph": {
-      "url": "${SOURCEGRAPH_ENDPOINT}/.api/mcp",
+      "url": "${SOURCEGRAPH_ENDPOINT}/.api/mcp/all",
       "type": "http",
       "headers": {
         "Authorization": "token ${SOURCEGRAPH_ACCESS_TOKEN}"

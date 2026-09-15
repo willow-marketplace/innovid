@@ -56,6 +56,12 @@ Locate every site that can produce this error:
 - Error factory functions
 - Middleware or interceptors that wrap errors
 
+If you don't have an exact symbol yet, `code_finder` can surface candidate throw sites from a description in one call:
+
+```
+code_finder: "repo:X where is 'ExactErrorMessageHere' thrown or constructed"
+```
+
 Read each throw site with `read_file` to understand the exact condition.
 
 ### 4. Trace the Full Call Chain
@@ -69,8 +75,11 @@ Walk the chain upward until you reach the entry point (HTTP handler, queue consu
 
 For complex chains, use:
 ```
-deepsearch_read: "How does the X flow work from entry point to error site?"
+deepsearch: "How does the X flow work from entry point to error site?"
+deepsearch_read: <URL or read token returned above>
 ```
+
+`deepsearch` runs the research job; `deepsearch_read` only reads its output, so always call `deepsearch` first.
 
 ### 5. Find All Affected Code Paths
 
@@ -85,6 +94,8 @@ Confirm whether:
 - Other callers rely on the current (buggy) behaviour
 - Tests exist that cover these paths
 - The same bug can surface elsewhere
+
+If the bug pattern shows up across many files, use `evaluator` to count and group affected call sites instead of tallying `keyword_search`/`find_references` results manually.
 
 ### 6. Check Recent Changes
 
@@ -129,4 +140,6 @@ Match your fix to the established pattern so it stays consistent with the codeba
 - Check tests first: a failing test often tells you more than the code does
 - Recent diffs narrow suspects dramatically — check them early
 - If `keyword_search` returns too many results, scope with `file:` or `lang:` filters
-- Use `deepsearch_read` when the bug spans multiple layers and you need architectural context
+- Use `deepsearch` (then `deepsearch_read` to fetch its output) when the bug spans multiple layers and you need architectural context
+- Use `code_finder` when you have a description of the bug but no exact symbol to start from
+- Use `evaluator` to aggregate impact across many files instead of manually counting search results

@@ -3,6 +3,8 @@ set -euo pipefail
 
 rm -rf public
 cp -r skills public
+mkdir -p public/meta
+cp -r meta/qdrant-advisor public/meta/qdrant-advisor
 
 find public -name '*.md' -print0 | xargs -0 perl -pi -e 's|https://search\.qdrant\.tech/md/|/md/|g'
 

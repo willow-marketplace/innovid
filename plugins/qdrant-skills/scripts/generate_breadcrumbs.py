@@ -43,10 +43,17 @@ def collect_names(public_dir):
 
 
 def build_breadcrumb(segments, names, root_title, root_url):
-    """Render 'Root › ancestor › ... › leaf' with every ancestor linked."""
+    """Render 'Root › ancestor › ... › leaf' with every ancestor linked.
+
+    Returns None if an ancestor segment isn't itself a skill (no SKILL.md,
+    e.g. a plain container directory like meta/) — there's no hub page to
+    link to, so the leaf isn't part of the skills/ breadcrumb hierarchy.
+    """
     crumbs = [f"[{root_title}]({root_url})"]
     for depth in range(1, len(segments)):
         ancestor = segments[:depth]
+        if ancestor not in names:
+            return None
         name, url = names[ancestor]
         crumbs.append(f"[{name}]({url})")
     leaf_name, _leaf_url = names[segments]
@@ -80,6 +87,8 @@ def run(public_dir):
         if len(segments) < 2:
             continue
         breadcrumb = build_breadcrumb(segments, names, root_title, root_url)
+        if breadcrumb is None:
+            continue
         filepath = os.path.join(public_dir, *segments, "SKILL.md")
         if inject(filepath, breadcrumb):
             injected += 1

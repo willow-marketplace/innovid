@@ -1,8 +1,8 @@
 {
   "name": "langfuse",
-  "version": "1.7.2",
+  "version": "1.7.4",
   "description": "Skills for working with Langfuse, the open-source LLM engineering platform for tracing, prompt management, and evaluation.",
-  "updatedAt": "2026-09-14T10:59:00.721Z",
+  "updatedAt": "2026-09-15T00:03:51.416Z",
   "author": {
     "name": "Langfuse",
     "email": "support@langfuse.com"

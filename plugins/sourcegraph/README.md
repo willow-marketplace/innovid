@@ -2,7 +2,7 @@
 
 Sourcegraph plugin for Claude Code that adds:
 
-- Sourcegraph MCP server connectivity (code search, navigation, Deep Search)
+- Sourcegraph MCP server connectivity (code search, navigation, Deep Search, Code Finder, evaluator)
 - `searching-sourcegraph` skill for disciplined search workflows (with supporting workflows and query patterns)
 
 ## Prerequisites
@@ -54,7 +54,7 @@ If you only want the Sourcegraph MCP tools without the skills, add the server di
 
 ```bash
 claude mcp add --transport http sourcegraph \
-  "${SOURCEGRAPH_ENDPOINT}/.api/mcp" \
+  "${SOURCEGRAPH_ENDPOINT}/.api/mcp/all" \
   --header "Authorization: token ${SOURCEGRAPH_ACCESS_TOKEN}"
 ```
 
@@ -94,9 +94,20 @@ The plugin installs one skill: `searching-sourcegraph`. Claude auto-invokes it w
 
 ## MCP Details
 
-- Endpoint: `${SOURCEGRAPH_ENDPOINT}/.api/mcp`
+- Endpoint: `${SOURCEGRAPH_ENDPOINT}/.api/mcp/all` (full tool suite: code search, navigation, Deep Search, Code Finder, evaluator)
 - Transport: HTTP (`"type": "http"`)
 - Auth header: `Authorization: token <token>`
+
+Sourcegraph's MCP server exposes several endpoints depending on how many tools you want:
+
+| Endpoint | Tools exposed |
+|----------|----------------|
+| `/.api/mcp` | Curated default set: `read_file`, `list_files`, `keyword_search`, `nls_search`, `list_repos`, `commit_search`, `diff_search`, `deepsearch_read` |
+| `/.api/mcp/all` | Full suite — everything above, plus `go_to_definition`, `find_references`, `compare_revisions`, `get_contributor_repos`, `deepsearch`, `code_finder`, `evaluator` |
+| `/.api/mcp/deepsearch` | Deep Search only: `deepsearch`, `deepsearch_read` |
+| `/.api/mcp/v1` | **Deprecated.** Full suite under legacy `sg_`-prefixed tool names, kept for backward compatibility |
+
+This plugin uses `/.api/mcp/all` because the `searching-sourcegraph` skill and its workflows rely on code navigation and Deep Search tools that aren't in the curated default set.
 
 ## Built from
 

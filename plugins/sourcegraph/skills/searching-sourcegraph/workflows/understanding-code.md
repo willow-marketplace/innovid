@@ -17,12 +17,19 @@ Task Progress:
 ### 1. Get the Big Picture
 
 ```
-deepsearch_read: "How does order fulfillment work in this codebase?"
+deepsearch: "How does order fulfillment work in this codebase?"
+deepsearch_read: <URL or read token returned by the deepsearch call above>
 ```
 
-Deep Search provides architectural understanding. Ask "how" and "why" questions.
+`deepsearch` initiates the research job and returns a URL/token; `deepsearch_read` only reads back an existing job's results, so it must be called after `deepsearch`, never on its own. Deep Search provides architectural understanding. Ask "how" and "why" questions.
 
 ### 2. Find Entry Points
+
+```
+code_finder: "repo:X entry points for order fulfillment: route handlers, event listeners, CLI commands"
+```
+
+`code_finder` returns candidate files and line ranges in one call. If you already know the exact route pattern, `keyword_search` is faster:
 
 ```
 keyword_search: "repo:X file:src/routes export.*order"
@@ -60,3 +67,5 @@ Tests reveal:
 - Read 2-3 related files before synthesising
 - Tests are documentation—read them
 - Check for architecture docs in `docs/` or README files
+- Use `code_finder` to jump straight to relevant files when you don't yet know exact symbols or paths
+- Use `evaluator` if you need to tally or cross-reference results across many files (e.g. counting how many handlers still use a deprecated pattern)

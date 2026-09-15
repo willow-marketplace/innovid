@@ -32,6 +32,7 @@ Collect:
 Check that the new code follows established conventions in the codebase:
 
 ```
+code_finder: "repo:^github.com/org/repo$ existing implementations of <concept> for comparison"
 nls_search: "repo:^github.com/org/repo$ how is <concept> typically implemented"
 keyword_search: "repo:^github.com/org/repo$ file:src/<area>/ <pattern or function name>"
 ```
@@ -73,8 +74,11 @@ Verify:
 For deeper impact analysis:
 
 ```
-deepsearch_read: "How is <changed component> used across the system?"
+deepsearch: "How is <changed component> used across the system?"
+deepsearch_read: <URL or read token returned above>
 ```
+
+`deepsearch` runs the research job; `deepsearch_read` only reads its output, so always call `deepsearch` first.
 
 ### 5. Review Test Coverage
 
@@ -111,6 +115,8 @@ Look for:
 - Recent fixes the PR might accidentally revert
 - Patterns established in nearby recent work
 
+If the PR touches a pattern repeated across many files (e.g. a renamed helper, a changed error-handling convention), use `evaluator` to count and cross-reference how many call sites are consistent vs. still on the old pattern, rather than eyeballing each `keyword_search`/`diff_search` result.
+
 ### 7. Flag Inconsistencies and Missing Conventions
 
 After searching, compile review comments around:
@@ -127,5 +133,7 @@ After searching, compile review comments around:
 - Use `find_references` before flagging a changed signature as breaking; verify actual impact
 - Read tests first — they often clarify the intended contract faster than the implementation
 - Check recent commits in the same path; the PR may be part of a larger sequence of changes
-- Use `deepsearch_read` when the change touches a system you're unfamiliar with before reviewing it
+- Use `deepsearch` (then `deepsearch_read` to fetch its output) when the change touches a system you're unfamiliar with before reviewing it
 - Scope searches to the affected directory or module to reduce noise
+- Use `code_finder` to quickly pull up comparable implementations or existing tests instead of iterating on search queries by hand
+- Use `evaluator` when consistency-checking a pattern change across many files or repos

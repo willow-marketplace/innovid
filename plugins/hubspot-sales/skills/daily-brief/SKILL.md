@@ -1,178 +1,47 @@
 ---
 name: daily-brief
-description: |-
-  Generates a prioritised daily brief from HubSpot data plus any connected apps (calendar, email, Slack, meeting notes). Shows today's meetings, surfaces GTM tasks with effort-aware scheduling, deduplicates suggestions against existing HubSpot tasks, and outputs as readable markdown.
-  ALWAYS use this skill when the user wants their day laid out — "good morning", "daily brief", "morning brief", "what do I need to do today", "what's on my plate", "what should I focus on", "catch me up", "today's priorities", "what's urgent", "what's due today", "show me my day", or any morning planning request. Trigger proactively when a user opens Claude first thing with no specific ask.
+description: Brief the user on their day. Pull today's (or a named day's) meetings and, for each, synthesize the current state of play, a suggested focus or objective, and any follow-ups needed. Uses browse_engagements for the schedule, then account_research, contact_research, and conversation_intelligence per meeting. Use when someone says "what's on my plate today", "brief me for my meetings", "prep my day", or wants a morning rundown before back-to-back calls. Because it researches every meeting, it can consume meaningful AI credits — it confirms scope before fanning out across a full day.
 ---
 
 # Daily Brief
 
-> **Tool names** below are expected names for the HubSpot MCP connector. If a named tool isn't available, check for updates to the skill and/or alternates in the HubSpot toolset as available tools may change
+Give the user a fast, per-meeting rundown of their day: where each account stands, the one thing to drive, and what to follow up on.
 
-Surfaces GTM tasks and meetings, flags at-risk contacts and deals, and **suggests** new tasks — never creates tasks automatically.
+## Prerequisites
 
----
+`browse_engagements` (the schedule) requires an active calendar/meeting integration; `conversation_intelligence` requires at least one connected meeting or email source. `account_research`, `contact_research`, and `conversation_intelligence` all consume AI credits, and this skill calls them once per meeting — so a full day of meetings can be credit-heavy. Confirm scope before fanning out (see Workflow step 2). If no integration is connected, report that and point the user to their ZoomInfo admin.
 
-## Phase 1 — Fetch HubSpot data (required)
+## Input
 
-If `get_organization_details` fails, stop: "I couldn't reach your HubSpot account. Make sure the HubSpot connector is connected, then try again."
+Provided via `$ARGUMENTS`:
 
-**A. Portal + owner** — `get_organization_details` and `get_user_details` in parallel. Store `portalId`, `uiDomain`, `userId`, `hubspot_owner_id`.
+- **Day** (optional) — defaults to today. "Tomorrow", "Monday", or a date all work.
+- **Filter** (optional) — e.g. "customer meetings only", "just external", a specific account. Defaults to external meetings (ones with non-colleague participants).
 
-**B. Existing open tasks** — `search_crm_objects`:
-- objectType: tasks
-- filter: hs_task_status = NOT_STARTED AND hs_timestamp ≤ today+5d
-- properties: hs_task_subject, hs_task_body, hs_timestamp, hs_task_status, hs_task_type, hubspot_owner_id, hs_object_id
-- limit: 25
+## Workflow
 
-**C. Cold contacts** — `search_crm_objects`:
-- objectType: contacts
-- filter: hs_last_sales_activity_date < today-14d AND has associated open deal
-- properties: firstname, lastname, email, hs_last_sales_activity_date, hubspot_owner_id, hs_object_id
-- limit: 5
+1. **Get the schedule.** Call `browse_engagements` with a window covering the target day (`engagementType: MEETINGS`, `sort: chronological`). Drop internal-only meetings (no external participants) unless the user asked for everything.
 
-**D. Stalling deals** — `search_crm_objects`:
-- objectType: deals
-- filter: hs_last_sales_activity_date < today-7d AND closedate ≤ today+30d AND not closedwon/closedlost
-- properties: dealname, amount, closedate, dealstage, hs_last_sales_activity_date, hubspot_owner_id, hs_object_id
-- limit: 5
+2. **Size it and confirm.** Count the external meetings. Each one fans out three AI-credit calls (`account_research`, `contact_research`, `conversation_intelligence`), so the spend adds up quickly — even a handful of meetings is a non-trivial number of AI credits. If there are more than a few (roughly 3+), tell the user the meeting count, note that each is researched with several AI-credit calls, and offer to scope down (external customer meetings only, the most important few, or a named subset) before proceeding. This pause keeps a packed calendar from turning into a large unprompted credit spend.
 
-Run A–D simultaneously. After results return, filter B–D to the current user's `hubspot_owner_id`.
+3. **Research each meeting (parallel, bounded).** For the in-scope meetings, fan out per meeting: `account_research` (kept light — this is a day view, not a full brief), `contact_research` for the attendees, and `conversation_intelligence` scoped to the account or the specific engagement for recent state and open items. Parallelize across meetings, but respect the volume you confirmed in step 2. Keep each CI query scoped to one account or engagement; CI cannot search by topic, filter by call type, or count mentions, and only reasons over the last few engagements — base each card on what it returns, not on it having full history.
 
----
+4. **Synthesize one card per meeting.** Frame each around the single most useful outcome for that meeting. Pull follow-ups from prior commitments surfaced by CI. Do not pad cards with generic firmographics — lead with what changes how the user shows up.
 
-## Phase 2 — Fetch from available connectors
+## Output Format
 
-Silently attempt each available connector simultaneously. Skip silently if absent or failing.
+### Your day — [N] meetings ([date])
 
-| Connector | What to fetch |
-|---|---|
-| Calendar | Today's events. Store title, start time, end time, attendee names. |
-| Email (e.g. Gmail) | Unread threads from known contacts with open deals, up to 10. Store sender, subject, thread ID. |
-| Slack | Recent @mentions in last 24h related to customers or deals, up to 5. |
-| Meeting notes (Granola, Fellow, Gong, etc.) | Recent customer meeting summaries with action items. |
-| Project management (Asana, Linear, Jira) | Tasks referencing customer names or deal-related work, overdue or due today. |
+For each meeting, in time order:
 
-Skip any connector data that is clearly non-customer-facing (e.g. internal team syncs, admin tasks).
+**[time] · [title] — [account]**
+- **State of play**: 1-2 lines on where things stand (from CI + research).
+- **Focus**: the one outcome to drive in this meeting.
+- **Follow-ups**: open commitments or items to close, from prior conversations (or "none surfaced").
+- **Who's in the room**: attendees with role, one line.
 
----
+Close with a single **Watch-outs** line across the day if anything connects (a renewal clock, a slipping deal, an exec sitting in) — only if it is evidence-based, not generic.
 
-## Phase 3 — Filter and classify GTM tasks
+### When the day is empty or data is thin
 
-### 3A — GTM filter
-
-From Phase 1B, keep only tasks that are sales or customer-facing. A task qualifies if any of:
-- `hs_task_type` is CALL, EMAIL, or MEETING
-- Subject contains: follow up, reach out, call, email, demo, proposal, contract, outreach, pitch, meeting, customer, client, prospect
-- Task body references a contact or company name
-
-Drop internal tasks (e.g. "Update spreadsheet", "Team sync", "Review internal doc" with no customer context).
-
-### 3B — Effort classification
-
-Assign each GTM task an effort level and visibility window:
-
-| Effort | Examples | Show if due within |
-|---|---|---|
-| Quick (<1hr) | Reply email, check-in call, send update | 1 day (today + overdue) |
-| Half-day | Demo prep, discovery prep, deck review | 2 days |
-| Multi-day | Proposal, RFP, contract draft, onboarding plan | 5 days |
-
-Infer effort from task subject/type. Default to Quick if unclear.
-
-### 3C — Urgency classification
-
-- **Overdue** — hs_timestamp before today
-- **Due today** — hs_timestamp is today
-- **Upcoming** — within effort window, after today
-
-Surface overdue + due today first, then upcoming tasks within their effort window. Hide anything beyond its window.
-
----
-
-## Phase 4 — Suggest new GTM tasks (deduplicated)
-
-Build a `coveredSet` from Phase 3 tasks: extract all contact and deal names referenced in existing task subjects and bodies. Any suggestion that would cover the same contact or deal is a duplicate — skip it.
-
-From Phases 1–2 (minus covered), generate GTM suggestions only:
-
-| Signal | Suggestion | Effort | Due |
-|---|---|---|---|
-| Cold contact (14+ days no activity, open deal) | "Follow up with [Name]" | Quick | Today |
-| Stalling deal (7+ days no activity, close ≤ 30d) | "Re-engage [Deal Name]" | Quick | Today |
-| Unread email from contact with open deal | "Reply to [Name] re: [subject]" | Quick | Today |
-| Meeting today with prospect/customer | "Prep for meeting with [Name]" | Half-day | 1h before meeting |
-| Meeting notes with open action items | "Follow up on action items — [Meeting]" | Quick | Today |
-| Proposal/contract discussed in recent meeting | "Draft proposal for [Company]" | Multi-day | Today (start now) |
-
-Do not suggest anything internal, team-facing, or non-customer.
-
-Each suggestion must include: hs_task_subject (verb-led, max 80 chars), hs_task_body (signal sentence), hs_timestamp (due date), hs_task_status: NOT_STARTED, hubspot_owner_id, associated record.
-
----
-
-## Phase 5 — Output the brief as markdown
-
-Render the brief as structured markdown in this order. Omit any section that has no items — no placeholders.
-
-```
-## Daily Brief — [Weekday, Month D]
-
-### Meetings
-- **[HH:MM AM/PM]** — [Title] · [Attendee, Attendee]
-
-### Tasks
-**Overdue**
-- [Task subject] *([type] · [N days overdue])*
-
-**Due today**
-- [Task subject] *([type])*
-
-**Upcoming**
-- [Task subject] *([type] · due [date])*
-
-### Signals
-**Cold contacts** (14+ days no activity, open deal)
-- [First Last] — last contact [N days] ago · [Deal name]
-
-**Stalling deals** (7+ days no activity, closing ≤30d)
-- [Deal name] — [stage] · closes [date] · [N days] since last touch
-
-### Suggested tasks
-- **[Verb-led subject]** — [signal context] · *[Quick / Half-day / Multi-day]*
-
-Reply "add all" to create all suggested tasks in HubSpot, or name specific ones.
-```
-
-Link each contact and deal name to their HubSpot record: `[Name](https://[uiDomain]/contacts/[portalId]/contact/[id])`.
-
----
-
-## Phase 6 — Offer to schedule the brief
-
-After the brief, offer to set up a recurring morning brief in one line:
-
-> "Say 'schedule it' to get this every morning — what time works best?"
-
-If the user agrees, ask for their preferred time if they haven't provided one. Create a scheduled task at that time with prompt: "Run the daily brief skill. Output as markdown. Fetch from all available connectors. Surface existing GTM tasks and suggest new ones — do not auto-create any tasks." Confirm: "Done — you'll get your brief every morning at [time]."
-
----
-
-## Phase 7 — Add suggested tasks to HubSpot
-
-When the user replies "add all" or names specific tasks:
-
-For each selected task, call `manage_crm_objects` createRequest, objectType: tasks — hs_task_subject, hs_task_body, hs_timestamp, hs_task_status: NOT_STARTED, hubspot_owner_id. Run all creates in parallel.
-
-**Completing tasks**: if the user asks to mark a task complete, call `manage_crm_objects` update, hs_task_status: COMPLETED. Confirm: "Marked complete."
-
-Confirm adds: "Added [N] tasks to HubSpot."
-
----
-
-## Edge cases
-
-- **No existing tasks**: omit Tasks section; still show Signals and Suggested Tasks if signals exist.
-- **HubSpot only**: skip Phase 2 connectors; render with HubSpot-only data.
-- **Owner ID unavailable**: skip owner filtering; note "Showing all records — owner filter unavailable."
-- **All sections empty**: "You're all caught up — no overdue tasks, cold contacts, or stalling deals right now."
+If no meetings are found, say the day looks clear (for the chosen filter) rather than erroring. For any meeting with no conversation data, base its card on research only and note that no prior-conversation context was available.

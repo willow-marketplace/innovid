@@ -2,7 +2,7 @@
   "name": "cloud-sql-sqlserver",
   "version": "0.2.0",
   "description": "Connect to Cloud SQL for SQL Server",
-  "updatedAt": "2026-09-14T10:57:41.856Z",
+  "updatedAt": "2026-09-15T00:02:36.011Z",
   "author": {
     "name": "Google LLC",
     "email": "data-cloud-ai-integrations@google.com"

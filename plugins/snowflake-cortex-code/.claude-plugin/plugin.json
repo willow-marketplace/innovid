@@ -2,7 +2,7 @@
   "name": "snowflake-cortex-code",
   "version": "3.3.1",
   "description": "Automatically route Snowflake prompts from Claude Code to Cortex Code for execution.",
-  "updatedAt": "2026-09-14T10:58:40.908Z",
+  "updatedAt": "2026-09-15T00:03:35.205Z",
   "author": {
     "name": "Snowflake"
   },

@@ -17,6 +17,12 @@ Task Progress:
 ### 1. Find Similar Implementations
 
 ```
+code_finder: "repo:^github.com/org/repo$ existing CRUD feature similar to user settings"
+```
+
+`code_finder` runs its own search loop and returns candidate files with line ranges in one call — faster than iterating on `nls_search`/`keyword_search` manually. Fall back to `nls_search` for a broader semantic pass if `code_finder` doesn't surface a good match:
+
+```
 nls_search: "repo:^github.com/org/repo$ user settings CRUD"
 ```
 
@@ -60,3 +66,4 @@ Before creating new helpers, check if reusable utilities exist:
 - Match the style of surrounding code
 - Check tests for usage examples of utilities
 - Look at recent PRs for similar features
+- Use `code_finder` as the first move when you're not yet sure where similar code lives; it's cheaper than several rounds of manual search

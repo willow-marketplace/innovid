@@ -58,13 +58,22 @@ Locate all sites that produce this error:
 - Middleware or interceptors that wrap errors
 - Error factory functions
 
+If you don't have an exact symbol yet, `code_finder` can locate candidate throw sites from a description:
+
+```
+code_finder: "repo:X where is the 'ExactErrorMessageHere' error thrown or constructed"
+```
+
 Read each throw site with `read_file` to understand the exact trigger condition.
 
 ### 4. Understand the Context
 
 ```
-deepsearch_read: "When does <error> occur and what are the expected conditions?"
+deepsearch: "When does <error> occur and what are the expected conditions?"
+deepsearch_read: <URL or read token returned above>
 ```
+
+`deepsearch` runs the research job; `deepsearch_read` only reads its output, so always call `deepsearch` first.
 
 Get a deeper understanding of:
 - Conditions that trigger the error or failure
@@ -100,6 +109,12 @@ Confirm whether:
 - The same failure can surface in other environments (staging, canary)
 - There are existing error handling paths that should have caught this
 
+If the error appears in many places, use `evaluator` to tally affected files/repos programmatically instead of counting `keyword_search`/`find_references` results by hand:
+
+```
+evaluator: "Count how many files under repo:X match ErrBuildFailed and group by directory"
+```
+
 ## Tips
 
 - Extract exact symbols from stack traces — they are the fastest search terms
@@ -107,4 +122,6 @@ Confirm whether:
 - Errors frequently have multiple throw sites; always use `find_references` to find all of them
 - Recent diffs narrow suspects dramatically — check them early
 - For runtime exceptions in production, search for the error constant and its callers before looking at logs
-- Use `deepsearch_read` when the failure spans multiple layers and you need architectural context
+- Use `deepsearch` (then `deepsearch_read` to fetch its output) when the failure spans multiple layers and you need architectural context
+- Use `code_finder` when you have a description of the failure but no exact symbol to search for yet
+- Use `evaluator` when impact analysis requires aggregating or cross-referencing results across many files or repos

@@ -6,6 +6,10 @@ Real-world search examples for common tasks.
 
 **"Where is authentication handled?"**
 ```
+code_finder: "repo:^github.com/org/repo$ authentication middleware and token validation"
+```
+Or, for a broader semantic pass:
+```
 nls_search: "repo:^github.com/org/repo$ authentication middleware validation"
 ```
 
@@ -23,13 +27,17 @@ keyword_search: "repo:^github.com/org/repo$ \.query\(\|\.execute\("
 
 **"How does user signup work end-to-end?"**
 ```
-deepsearch_read: "Trace the user signup flow from form submission to database creation"
+deepsearch: "Trace the user signup flow from form submission to database creation"
+deepsearch_read: <URL or read token returned above>
 ```
 
 **"What happens when a payment fails?"**
 ```
-deepsearch_read: "How does the system handle failed payment attempts?"
+deepsearch: "How does the system handle failed payment attempts?"
+deepsearch_read: <URL or read token returned above>
 ```
+
+`deepsearch` runs the research job and returns a URL/read token; `deepsearch_read` only reads back an existing job's results — it never takes a question directly, so always call `deepsearch` first.
 
 ## Debugging
 
@@ -66,4 +74,16 @@ find_references: repo="github.com/org/repo" path="src/utils/format.ts" symbol="f
 **"Where is this type defined?"**
 ```
 go_to_definition: repo="github.com/org/repo" path="src/api/handler.ts" symbol="UserResponse"
+```
+
+## Aggregating Results
+
+**"How many services still call the deprecated `formatDate` helper?"**
+```
+evaluator: "Run keyword_search for formatDate calls across repo:github.com/org/ and count matches grouped by repo"
+```
+
+**"Cross-reference which files changed in the last month also reference the old auth flow"**
+```
+evaluator: "Combine diff_search results (last 30 days) with keyword_search for 'legacyAuth' and list files present in both"
 ```

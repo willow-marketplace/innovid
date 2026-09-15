@@ -120,9 +120,9 @@ export function createSection(config: SectionConfig) {
     return (
       <>
         <Banner id="docs-announcement" height="30px">
-          💥 BREAKING CHANGE: All metric scores are now HIGHER THE BETTER.{" "}
-          <Link href="/changelog/changelog-2026#breaking-change">
-            Read changelog →
+          🎉 NEW: Persistent local storage with SQLite.{" "}
+          <Link href="/blog/introducing-sqlite-local-storage">
+            Read the post →
           </Link>
         </Banner>
         <LanguageScopedDocsLayout

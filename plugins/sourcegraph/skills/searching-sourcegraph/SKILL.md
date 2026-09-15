@@ -11,15 +11,18 @@ Search before you build. Existing patterns reduce tokens, ensure consistency, an
 
 **Start here:**
 
-1. **Know the exact symbol or pattern?** → `keyword_search`
-2. **Know the concept, not the code?** → `nls_search`
-3. **Need to understand how/why?** → `deepsearch` → `deepsearch_read`
-4. **Tracing a symbol's usage?** → `find_references`
-5. **Need full implementation?** → `go_to_definition` → `read_file`
-6. **Need to know what repos a user has worked on?** → `get_contributor_repos`
+1. **Don't know the exact symbol, file, or even which directory?** → `code_finder`
+2. **Know the exact symbol or pattern?** → `keyword_search`
+3. **Know the concept, not the code?** → `nls_search`
+4. **Need to understand how/why?** → `deepsearch` → `deepsearch_read`
+5. **Tracing a symbol's usage?** → `find_references`
+6. **Need full implementation?** → `go_to_definition` → `read_file`
+7. **Need to know what repos a user has worked on?** → `get_contributor_repos`
+8. **Need to tally, cross-reference, or compute over many search results?** → `evaluator`
 
 | Goal | Tool |
 |------|------|
+| Locate relevant files/lines from a description | `code_finder` |
 | Concepts/semantic search | `nls_search` |
 | Exact code patterns | `keyword_search` |
 | Trace usage | `find_references` |
@@ -33,6 +36,15 @@ Search before you build. Existing patterns reduce tokens, ensure consistency, an
 | Track changes | `diff_search` |
 | Compare versions | `compare_revisions` |
 | Find repos a user has worked on | `get_contributor_repos` |
+| Aggregate/cross-reference results programmatically | `evaluator` |
+
+**About the newer tools:**
+
+- **`code_finder`** — an agentic search tool: give it a natural-language description of what you're looking for and it runs its own search loop over the repo, returning matching file paths and line ranges with a short note on each. It's faster and cheaper than chaining several `keyword_search`/`nls_search` + `read_file` calls, so reach for it first when you don't yet know the exact symbol or file to target. It also powers file discovery inside Deep Search.
+- **`evaluator`** — runs a sandboxed Lua script that can itself call `keyword_search`, regex, `commit_search`, or `diff_search` and then aggregate, cross-reference, or compute over the results. Use it instead of manually eyeballing raw output when you need counts, joins, or filters across many results (e.g. "how many files under `src/api/` still call the deprecated helper").
+- **`deepsearch`** initiates a multi-step research job over the codebase and returns a URL/token; **`deepsearch_read`** reads back the resulting conversation.
+
+**Endpoint note:** this plugin's MCP server is configured against `/.api/mcp/all`, which exposes the full tool suite above (including `code_finder` and `evaluator`). Sourcegraph's default `/.api/mcp` endpoint only exposes a curated subset (`read_file`, `list_files`, `keyword_search`, `nls_search`, `list_repos`, `commit_search`, `diff_search`, `deepsearch_read`) and won't have code navigation, `code_finder`, or `evaluator` — and notably lacks `deepsearch` itself, so on that endpoint `deepsearch_read` can only fetch results of a job started elsewhere (e.g. the web UI), not run a new one. If any of those tools are missing, check that `.mcp.json` points at `/.api/mcp/all`, not `/.api/mcp`.
 
 ## Scoping (Always Do This)
 
@@ -64,7 +76,7 @@ Combine filters: `repo:^github.com/myorg/backend$ file:src/handlers lang:typescr
 - Then scope subsequent searches to those repos
 
 **When the user is implementing a new feature:**
-- Search for similar existing implementations first
+- Use `code_finder` to locate similar existing implementations first
 - Read tests for usage examples
 - Check for shared utilities before creating new ones
 
@@ -93,18 +105,21 @@ For detailed step-by-step workflows, see:
 ## Efficiency Rules
 
 **Minimise tool calls:**
-- Chain searches logically: search → read → references → definition
+- Chain searches logically: `code_finder`/search → read → references → definition
 - Don't re-search for the same pattern; use results from prior calls
 - Prefer `keyword_search` over `nls_search` when you have exact terms (faster, more precise)
+- Prefer `code_finder` over several rounds of `keyword_search`/`nls_search` + `read_file` when you're still narrowing down where the relevant code lives
 
 **Batch your understanding:**
 - Read 2-3 related files before synthesising, rather than reading one and asking questions
 - Use `deepsearch` + `deepsearch_read` for "how does X work" instead of multiple keyword searches
+- Use `evaluator` instead of manually cross-referencing multiple raw result sets when you need counts, joins, or filters across many matches
 
 **Avoid common token waste:**
 - Don't search all repos when you know the target repo
 - Don't use `deepsearch` for simple "find all" queries — `keyword_search` is faster
 - Don't re-read files you've already seen in this conversation
+- Don't hand-tally results across many `keyword_search`/`commit_search`/`diff_search` calls — use `evaluator` to aggregate programmatically instead
 
 ## Query Patterns
 
@@ -144,12 +159,15 @@ For more patterns, see `query-patterns.md`.
 | Searching all repos | Add `repo:^github.com/org/repo$` |
 | Too many results | Add `file:` pattern or keywords |
 | Missing relevant code | Try `nls_search` for semantic matching |
-| Not understanding context | Use `deepsearch_read` |
+| Not understanding context | Call `deepsearch` to run the research job, then `deepsearch_read` to fetch its output |
 | Guessing patterns | Read implementations with `read_file` |
+| Many rounds of trial-and-error search | Use `code_finder` to locate candidates in one call |
+| Manually tallying results across many searches | Use `evaluator` to aggregate/cross-reference programmatically |
 
 ## Principles
 
 - Start narrow, expand if needed
-- Chain tools: search → read → find references → definition
+- Chain tools: `code_finder` → search → read → find references → definition
 - Check tests for usage examples
 - Read before generating
+- Reach for `evaluator` rather than eyeballing raw output when a question requires aggregating across many results

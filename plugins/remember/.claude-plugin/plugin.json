@@ -2,7 +2,7 @@
   "name": "remember",
   "version": "1.0.0",
   "description": "Continuous memory for Claude Code. Extracts, summarizes, and compresses conversations into tiered daily logs. Claude remembers what you did yesterday.",
-  "updatedAt": "2026-09-14T10:58:34.435Z",
+  "updatedAt": "2026-09-15T00:03:28.470Z",
   "author": {
     "name": "Digital Process Tools"
   },
