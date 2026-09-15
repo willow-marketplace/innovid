@@ -2,7 +2,7 @@
   "name": "greptile",
   "version": "1.0.0",
   "description": "AI code review agent for GitHub and GitLab. View and resolve Greptile's PR review comments directly from Claude Code.",
-  "updatedAt": "2026-09-14T19:48:43.806Z",
+  "updatedAt": "2026-09-15T00:30:08.131Z",
   "author": {
     "url": "https://greptile.com",
     "name": "Greptile"
