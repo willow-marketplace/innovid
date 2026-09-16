@@ -2,7 +2,7 @@
   "name": "stripe",
   "version": "1.0.0",
   "description": "Stripe development plugin for Claude",
-  "updatedAt": "2026-09-16T00:31:14.782Z",
+  "updatedAt": "2026-09-16T12:04:50.453Z",
   "author": {
     "url": "https://stripe.com",
     "name": "Stripe"
@@ -42,6 +42,17 @@
         ]
       }
     ],
+    "PostToolUseFailure": [
+      {
+        "matcher": "^mcp__(?:plugin_stripe_stripe|stripe)__.*$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node"
+          }
+        ]
+      }
+    ],
     "PostToolUse": [
       {
         "matcher": "Agent",
@@ -56,17 +67,6 @@
     "SessionStart": [
       {
         "matcher": "startup",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node"
-          }
-        ]
-      }
-    ],
-    "PostToolUseFailure": [
-      {
-        "matcher": "^mcp__(?:plugin_stripe_stripe|stripe)__.*$",
         "hooks": [
           {
             "type": "command",

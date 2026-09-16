@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "informatica-data-exploration": {
+      "url": "",
+      "type": "http"
+    },
+    "informatica-catalog-discovery": {
+      "url": "",
+      "type": "http"
+    }
+  }
+}

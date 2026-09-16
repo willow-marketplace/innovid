@@ -44,7 +44,7 @@ CIRCLE_APP_ID=           # App ID from Wallets > User Controlled > Configurator
 Uses `@circle-fin/user-controlled-wallets` for all server-side operations (user creation, challenge creation, transaction queries).
 
 ```typescript
-import { initiateUserControlledWalletsClient } from "@circle-fin/user-controlled-wallets";
+import { initiateUserControlledWalletsClient, Blockchain, TokenBlockchain } from "@circle-fin/user-controlled-wallets";
 
 const circleClient = initiateUserControlledWalletsClient({
   apiKey: process.env.CIRCLE_API_KEY!,
@@ -113,7 +113,7 @@ All sensitive operations (wallet creation, transactions, signing) follow this pa
 ### Authentication Methods
 
 | Method | Console Setup | How `userToken` Is Obtained |
-|--------|--------------|----------------------------|
+| --- | --- | --- |
 | PIN | None | Backend calls `createUserToken({ userId })` (60 min expiry) |
 | Email OTP | SMTP config | SDK login callback after OTP verification |
 | Social Login | OAuth client ID | SDK login callback after OAuth redirect |
@@ -174,7 +174,7 @@ Always wait until a terminal state before treating any transaction as done. For 
 ## Error Handling
 
 | Error Code | Meaning | Action |
-|------------|---------|--------|
+| --- | --- | --- |
 | 155106 | User already initialized | Fetch existing wallets instead of creating |
 | 155104 | Invalid user token | Re-authenticate user (token expired) |
 | 155101 | Invalid device token / User not found | Re-create device token or user |

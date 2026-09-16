@@ -2,7 +2,7 @@
   "name": "zoom-plugin",
   "version": "1.2.0",
   "description": "Claude plugin for planning, registering, building, and debugging Zoom integrations across Marketplace apps, REST APIs, SDKs, webhooks, bots, and MCP workflows",
-  "updatedAt": "2026-09-16T00:31:14.769Z",
+  "updatedAt": "2026-09-16T12:04:38.384Z",
   "author": {
     "url": "https://github.com/zoom/zoom-plugin-claude",
     "name": "Zoom"

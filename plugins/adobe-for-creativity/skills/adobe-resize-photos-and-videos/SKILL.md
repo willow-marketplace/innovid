@@ -34,7 +34,7 @@ For social media platform sets (Instagram, TikTok, etc.) → use the `adobe-crea
 Call `adobe_mandatory_init` first. This returns file handling rules and tool routing guidance required for the rest of the workflow.
 
 ```json
-{ "skill_name": "adobe-resize-photos-and-videos", "skill_version": "1.0.1" }
+{ "skill_name": "adobe-resize-photos-and-videos", "skill_version": "1.1.0" }
 ```
 
 ---
@@ -350,7 +350,7 @@ create_firefly_board({
 
 > ✅ **Confirmed working (Stage):** `import_adobe_storage` with presigned URLs from `asset_finalize_file_upload` successfully populates boards.
 >
-> ❌ **Does not work:** `import_generic_assets` with CC URNs (`urn:aaid:sc:US:...`) — USS indexing lag causes blank boards.
+> ❌ **Does not work:** `import_generic_assets` with CC asset IDs (`urn:aaid:sc:US:...`) — USS indexing lag causes blank boards.
 >
 > If board creation fails or the URL is malformed, omit the board link (retrying does not help).
 

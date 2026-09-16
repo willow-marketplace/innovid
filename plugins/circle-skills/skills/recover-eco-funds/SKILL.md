@@ -141,7 +141,7 @@ These APIs are supporting evidence. If the response says `WaitingForRefund`, con
 Classify the state:
 
 | Observed state | Action |
-|---|---|
+| --- | --- |
 | Intent still before deadline | Wait or escalate; do not refund |
 | Intent fulfilled/completed | Reconcile Gateway or destination funds; do not refund |
 | Legacy intent, deadline passed, unfulfilled, vault funded | Run the Eco self-refund leg |

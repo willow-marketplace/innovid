@@ -35,7 +35,7 @@ IMPORTANT: Do NOT register a secret on the developer's behalf -- they must gener
 ```typescript
 import { initiateDeveloperControlledWalletsClient } from '@circle-fin/developer-controlled-wallets';
 
-const client = initiateDeveloperControlledWalletsClient({
+const circleDeveloperSdk = initiateDeveloperControlledWalletsClient({
   apiKey: process.env.CIRCLE_API_KEY,
   entitySecret: process.env.ENTITY_SECRET,
 });
@@ -127,7 +127,7 @@ For debugging failed or denied transactions, see [Transaction Errors](https://de
 ### Best Practices
 
 - ALWAYS read the correct reference files before implementing.
-- NEVER use `client.getWallet` or `client.getWallets` for balances -- these endpoints never return balance data. See reference file for correct approach.
+- NEVER use `circleDeveloperSdk.getWallet` or `circleDeveloperSdk.getWallets` for balances -- these endpoints never return balance data. See reference file for correct approach.
 - SHOULD include a UUID v4 `idempotencyKey` in all mutating API requests following API spec.
 - ALWAYS ensure EOA wallets hold native tokens (ETH, MATIC, SOL, etc.) for gas before outbound transactions. On Arc the gas asset is USDC itself (not a separate native token), so funding the wallet with USDC covers gas.
 - ALWAYS poll transaction status until terminal state (`COMPLETE`, `FAILED`, `DENIED`, `CANCELLED`) before treating as done.

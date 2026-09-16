@@ -38,15 +38,17 @@ Call `visualize:read_me` with `modules: ["mockup"]`, then `visualize:show_widget
 
 Keep this table as the source of truth — update it if the underlying `adobe-for-creativity` skills change:
 
-| Capability                      | Icon               | Description                                         | Example prompt                                       | Skill                             | Powered by                   |
-| ------------------------------- | ------------------ | --------------------------------------------------- | ---------------------------------------------------- | --------------------------------- | ---------------------------- |
-| Design from a template          | `ti-layout-grid`   | Flyers, posters, social posts, invites, resumes.    | "make me a flyer for a farmers market"               | `/adobe-design-from-template`     | Adobe Express                |
-| Batch edit photos               | `ti-wand`          | A consistent look across a whole set of images.     | "give these travel photos a warm, cohesive look"     | `/adobe-batch-edit-photos`        | Photoshop, Lightroom presets |
-| Retouch portraits               | `ti-users`         | Walk-away batch processing for shoots and events.   | "batch process this folder of wedding portraits"     | `/adobe-retouch-portraits`        | Lightroom, Photoshop         |
-| Resize photos and videos        | `ti-crop`          | Exact pixel dimensions or aspect ratios, on demand. | "resize this video to 1080x1920 for reels"           | `/adobe-resize-photos-and-videos` | Photoshop, Premiere          |
-| Prep for social platforms       | `ti-device-mobile` | Platform-ready crops and exports in one pass.       | "get this ready for Instagram, TikTok, and LinkedIn" | `/adobe-create-social-variations` | Adobe Express, Photoshop     |
-| Highlight reels                 | `ti-movie`         | Cut long footage into a punchy sizzle reel.         | "turn this hour of footage into a 60-second reel"    | `/adobe-edit-quick-cut`           | Premiere (Quick Cut)         |
-| Personalize a document at scale | `ti-file-text`     | Merge a CSV into badges, certificates, mailers.     | "merge this CSV into event badges"                   | `/adobe-create-pdfs-from-data`    | InDesign                     |
+| Capability                      | Icon               | Description                                                          | Example prompt                                       | Skill                             | Powered by                   |
+| ------------------------------- | ------------------ | -------------------------------------------------------------------- | ---------------------------------------------------- | --------------------------------- | ---------------------------- |
+| Review and highlight a document | `ti-highlight`     | Smart highlights and comments on any PDF — risks, key dates, totals. | "highlight what matters in this contract"            | `/adobe-document-review`          | Acrobat                      |
+| Design from a template          | `ti-layout-grid`   | Flyers, posters, social posts, invites, resumes.                     | "make me a flyer for a farmers market"               | `/adobe-design-from-template`     | Adobe Express                |
+| Batch edit photos               | `ti-wand`          | A consistent look across a whole set of images.                      | "give these travel photos a warm, cohesive look"     | `/adobe-batch-edit-photos`        | Photoshop, Lightroom presets |
+| Retouch portraits               | `ti-users`         | Walk-away batch processing for shoots and events.                    | "batch process this folder of wedding portraits"     | `/adobe-retouch-portraits`        | Lightroom, Photoshop         |
+| Resize photos and videos        | `ti-crop`          | Exact pixel dimensions or aspect ratios, on demand.                  | "resize this video to 1080x1920 for reels"           | `/adobe-resize-photos-and-videos` | Photoshop, Premiere          |
+| Prep for social platforms       | `ti-device-mobile` | Platform-ready crops and exports in one pass.                        | "get this ready for Instagram, TikTok, and LinkedIn" | `/adobe-create-social-variations` | Adobe Express, Photoshop     |
+| Highlight reels                 | `ti-movie`         | Cut long footage into a punchy sizzle reel.                          | "turn this hour of footage into a 60-second reel"    | `/adobe-edit-quick-cut`           | Premiere (Quick Cut)         |
+| Personalize a document at scale | `ti-file-text`     | Merge a CSV into badges, certificates, mailers.                      | "merge this CSV into event badges"                   | `/adobe-create-pdfs-from-data`    | InDesign                     |
+| Find and preview fonts          | `ti-typography`    | Search, preview, and pair licensable Adobe Fonts typefaces.          | "find a bold display font for a poster"              | `/adobe-fonts`                    | Adobe Fonts                  |
 
 > **Text-only fallback** *(only if `visualize:read_me`/`visualize:show_widget` are unavailable)* —
 > skip both `visualize` calls and render the same table as a plain markdown list, one entry per

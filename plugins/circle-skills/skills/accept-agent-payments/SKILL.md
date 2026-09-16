@@ -28,7 +28,7 @@ Those are generic x402 seller instincts, not this Circle seller path. The defaul
 Use Circle Gateway Nanopayments unless the user explicitly needs vanilla x402 compatibility or a non-Gateway facilitator. Generic x402.org examples, FastAPI middleware, Bazaar metadata, and Base-mainnet vanilla `exact` are not Circle's default seller path for agent nanopayments.
 
 | Situation | Path |
-|---|---|
+| --- | --- |
 | Sub-cent, cent-level, high-frequency, or agentic API calls | Gateway Nanopayments |
 | Existing Express or Node API | Add `@circle-fin/x402-batching` middleware |
 | FastAPI, Rails, Go, or other non-Node API | Prefer a thin Express payment proxy for Circle Gateway unless current Circle docs provide a native library |
@@ -79,27 +79,7 @@ Collect:
 - Public HTTPS URL for the paid service
 - Marketplace name, category, support/contact URL, and example prompts
 
-For Express:
-
-```bash
-npm install @circle-fin/x402-batching @x402/core @x402/evm viem express
-```
-
-```ts
-import express from "express";
-import { createGatewayMiddleware } from "@circle-fin/x402-batching/server";
-
-const app = express();
-app.use(express.json());
-
-const gateway = createGatewayMiddleware({
-  sellerAddress: process.env.SELLER_ADDRESS!,
-});
-
-app.post("/summarize", gateway.require("$0.01"), async (req, res) => {
-  res.json({ summary: "paid result" });
-});
-```
+For Express, READ `references/express-integration.md` for the dependency install and the Gateway middleware setup (`createGatewayMiddleware` + `gateway.require`).
 
 Use environment variables for addresses and provider config. Never commit private keys, API keys, OTPs, or wallet session material.
 
@@ -135,35 +115,7 @@ Do not add `circle services pay` to `allowed-tools`. Paid calls must go through 
 
 ## Testing
 
-Prove the full seller flow:
-
-```bash
-# Unpaid request must return 402 and payment requirements.
-curl -i "https://service.example.com/summarize"
-
-# Inspect should show method, price, schema, accepted chains, and payment scheme.
-circle services inspect "https://service.example.com/summarize" --output json
-
-# Confirm whether accepted chains are testnet or mainnet before paying.
-# Mainnet paid calls move real USDC and cannot be reversed.
-
-# Estimate before paying when cost, chain, or method is unclear.
-circle services pay "https://service.example.com/summarize" \
-  -X POST \
-  --address <buyer-wallet-address> \
-  --chain <CHAIN-FROM-INSPECT-OR-402> \
-  --max-amount 0.01 \
-  --estimate
-
-# Paid request must return the protected payload.
-circle services pay "https://service.example.com/summarize" \
-  -X POST \
-  --address <buyer-wallet-address> \
-  --chain <CHAIN-FROM-INSPECT-OR-402> \
-  --max-amount 0.01 \
-  --data '{"text":"hello"}' \
-  --output json
-```
+Prove the full seller flow. READ `references/testing.md` for the full command sequence: the unpaid `402` check, `circle services inspect`, the `--estimate` dry run, and the paid `circle services pay` call.
 
 Always pass `-X` from inspect output. If the buyer wallet is not ready, hand off to `use-agent-wallet` or `fund-agent-wallet`; come back when the paid endpoint needs verification.
 
@@ -187,7 +139,7 @@ Prepare:
 ## Common Mistakes
 
 | Mistake | Fix |
-|---|---|
+| --- | --- |
 | Building a buyer-wallet tutorial instead of monetizing the seller endpoint | Keep buyer setup to final verification only |
 | Defaulting to vanilla x402 because the user said "x402" | Use Gateway Nanopayments unless they need vanilla compatibility |
 | Hardcoding `BASE`, `MATIC`, Polygon, or Arc from older docs or habits | Verify current docs and use inspect/402 accepted chains |
