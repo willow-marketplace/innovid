@@ -2,7 +2,7 @@
   "name": "duckdb-skills",
   "version": "0.2.4",
   "description": "DuckDB-powered skills for Claude Code: read any data file, attach and query DuckDB databases, search DuckDB/DuckLake docs, search past session logs, and install/update DuckDB extensions.",
-  "updatedAt": "2026-09-15T00:43:11.554Z",
+  "updatedAt": "2026-09-16T00:05:08.951Z",
   "author": {
     "url": "https://github.com/duckdb",
     "name": "duckdb"

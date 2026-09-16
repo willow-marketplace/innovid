@@ -206,6 +206,7 @@ fi
 # The drive-form regex lives in a variable: a bracket expression containing a
 # backslash is not portable to write inline on the right of `=~`.
 _remember_normalize_win_path() {
+    local LC_ALL=C  # bracket ranges below are byte-wise, not collated (#695)
     local _in="$1" _drive="" _rest=""
     local _re='^([a-zA-Z]):[/\](.*)$'
     case "$OSTYPE" in
@@ -223,7 +224,15 @@ _remember_normalize_win_path() {
                 _rest="${BASH_REMATCH[2]}"
             fi
             if [ -n "$_drive" ]; then
-                _drive=$(printf '%s' "$_drive" | tr '[:lower:]' '[:upper:]')
+                # `LC_ALL=C` on the command, not just the function's `local`:
+                # `local` on a name the environment never exported leaves it
+                # unexported, so the child keeps the caller's locale. On a host
+                # whose language is set through LANG alone -- what setting a
+                # system language actually produces -- Turkish case rules then
+                # map `i` to the dotted `İ`, two bytes in a slot that holds one
+                # ASCII drive letter. The `local` above still does its own job:
+                # the bracket ranges bash matches itself (#695).
+                _drive=$(printf '%s' "$_drive" | LC_ALL=C tr '[:lower:]' '[:upper:]')
                 _rest="${_rest//\//\\}"
                 printf '%s' "${_drive}:\\${_rest}"
                 return 0

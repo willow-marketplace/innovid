@@ -22,13 +22,16 @@
 // still have runway. Same field, opposite direction, deliberately.
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { C, FS, RADIUS } from "../ui/theme.js";
+import { C, CARD_TITLE, FS, RADIUS } from "../ui/theme.js";
 import ExportButton from "../ui/ExportButton.jsx";
 import { MultiSelect, Select, TableAlign, Tag, Th, Td, useMediaQuery } from "../ui/components.jsx";
 import { csvFilename, downloadCsv, toCsv } from "../model/csv.js";
 import { shares } from "../model/format.js";
 import { formatTenure, tenureMonths } from "../model/tenure.js";
-import { applyFilters, levelRank, totalEquity } from "../model/cohort.js";
+import {
+  applyFilters, levelRank, PRIOR_GRANTS, priorGrantsMode, totalEquity,
+} from "../model/cohort.js";
+import { applyPredicate } from "../model/predicate.js";
 import { DEFAULT_GRANT_REASON, reasonFor } from "../model/grantReason.js";
 import {
   addAll, cartRows, diff, headerState, hiddenCount, reconcile, removeAll, toggle,
@@ -39,7 +42,7 @@ import SettingsStep from "./planner/SettingsStep.jsx";
 import ReviewStep from "./planner/ReviewStep.jsx";
 import PoolBar from "./planner/PoolBar.jsx";
 import ScenarioBar from "./planner/ScenarioBar.jsx";
-import AskBar from "../ui/AskBar.jsx";
+import FilterBox, { CommittedFilters } from "./planner/FilterBox.jsx";
 import {
   eligibility, grantForRow, planTotals, policyToSettings,
 } from "../model/policy.js";
@@ -50,7 +53,7 @@ const VESTING_WINDOWS = [6, 12, 18, 24];
 
 /** No filters applied — what a scenario means when it stores no `filters` key. */
 const NO_FILTERS = Object.freeze({
-  hasPriorGrants: false,
+  hasPriorGrants: PRIOR_GRANTS.ANY,
   jobAreas: [],
   levelMin: null,
   levelMax: null,
@@ -221,13 +224,17 @@ export default function RefreshPlanner({ planner, corporation, corporationId, to
   const availability = planner.availability || {};
   const recon = planner.reconciliation || {};
 
-  const [hasGrants, setHasGrants] = useState(false);
+  const [hasGrants, setHasGrants] = useState(PRIOR_GRANTS.ANY);
   // A Set, not an array — MultiSelect reads `.has`/`.size` on it. The filter model
   // takes an array, so this is converted at that boundary rather than here.
   const [areas, setAreas] = useState(() => new Set());
   const [levelMin, setLevelMin] = useState(null);
   const [levelMax, setLevelMax] = useState(null);
   const [vestWindow, setVestWindow] = useState(0);
+  // Claude-authored filters, stacked after the four presets. A list rather than
+  // one slot: "engineering" and "hired before 2023" are two separate thoughts,
+  // and each has to be removable on its own.
+  const [claudeFilters, setClaudeFilters] = useState([]);
 
   // The cart. Held here rather than in the table so the panel, the counts and the
   // export all read one source.
@@ -240,6 +247,7 @@ export default function RefreshPlanner({ planner, corporation, corporationId, to
   const [dropped, setDropped] = useState(0);
   const {
     saved, savedOverrides, savedReasons, savedSettings, savedFilters,
+    savedClaudeFilters,
     scenarios, activeId,
     loading: cartLoading, conflict, saving, futureDoc, save, reload,
     switchScenario, createScenario, duplicateScenario, renameScenario, deleteScenario,
@@ -270,11 +278,14 @@ export default function RefreshPlanner({ planner, corporation, corporationId, to
     // The cohort filters, restored so a reload lands on the same list. Absent means
     // this scenario never recorded any, which is the initial state already.
     const f = savedFilters || NO_FILTERS;
-    setHasGrants(f.hasPriorGrants);
+    setHasGrants(priorGrantsMode(f.hasPriorGrants));
     setAreas(new Set(f.jobAreas));
     setLevelMin(f.levelMin === null ? null : String(f.levelMin));
     setLevelMax(f.levelMax === null ? null : String(f.levelMax));
     setVestWindow(f.excludeVestingWithinMonths);
+    // Adopted in the same one-shot gate as the presets, so a scenario's whole
+    // filter state arrives together rather than in two renders.
+    setClaudeFilters(savedClaudeFilters || []);
     // Settings are adopted through the same one-shot gate rather than their own
     // effect: the policy-defaulting effect below fires whenever `settings` is null,
     // and a second effect racing it would flip the target between the scenario's
@@ -284,7 +295,8 @@ export default function RefreshPlanner({ planner, corporation, corporationId, to
     setSettings(savedSettings || null);
     // Hand-set grants belong to the draft that recorded them.
     if (!savedOverrides || !savedOverrides.size) setOverrides(new Map());
-  }, [cartLoading, activeId, saved, savedOverrides, savedReasons, savedSettings, savedFilters, all]);
+  }, [cartLoading, activeId, saved, savedOverrides, savedReasons, savedSettings,
+      savedFilters, savedClaudeFilters, all]);
 
   // The corporation's policy, and the settings the user is modelling with. The
   // settings START as the policy and diverge only when edited — `null` until the
@@ -363,10 +375,19 @@ export default function RefreshPlanner({ planner, corporation, corporationId, to
     excludeVestingWithinMonths: vestWindow,
   }), [hasGrants, areas, levelMin, levelMax, vestWindow]);
 
-  const { rows, removed } = useMemo(
-    () => applyFilters(all, currentFilters, availability, asOf),
-    [all, currentFilters, availability, asOf],
-  );
+  const { rows, removed } = useMemo(() => {
+    const preset = applyFilters(all, currentFilters, availability, asOf);
+    if (!claudeFilters.length) return preset;
+    // Claude's filters narrow what the presets left, and `removed` counts BOTH —
+    // "N excluded by filters" is one number about one cohort, and splitting it
+    // would make the user reconcile two counts to learn how many people are gone.
+    //
+    // Each predicate was validated before it was committed (FilterBox refuses an
+    // invalid one), so evaluate() only ever sees a predicate that passed the gate.
+    const kept = claudeFilters.reduce(
+      (rows_, f) => applyPredicate(rows_, f.node, { asOf }), preset.rows);
+    return { rows: kept, removed: all.length - kept.length };
+  }, [all, currentFilters, availability, asOf, claudeFilters]);
 
   // Cart figures, all derived from the one Set. `visibleIds` is the filtered view,
   // which is what select-all acts on — reaching past the filters would add people
@@ -394,6 +415,29 @@ export default function RefreshPlanner({ planner, corporation, corporationId, to
     saveFilters({ levelMax: v === null ? null : Number(v) });
   };
   const updateVestWindow = (v) => { setVestWindow(v); saveFilters({ excludeVestingWithinMonths: v }); };
+
+  // Claude's filters persist the same way the presets do, so a narrowed cohort
+  // survives a reload and comes across on duplicate. The NEXT list is passed
+  // explicitly rather than read back from state, which has not committed yet.
+  const saveClaudeFilters = (next) => save({ claudeFilters: next });
+
+  const addClaudeFilter = ({ text, node, sentence }) => {
+    // The sentence is stored alongside the predicate rather than re-derived on
+    // read: it is what the user approved, and describe() is free to improve its
+    // wording later without silently rewriting what a saved plan says it does.
+    const next = [...claudeFilters, {
+      id: `f${Date.now()}${Math.random().toString(36).slice(2, 6)}`,
+      text, node, sentence,
+    }];
+    setClaudeFilters(next);
+    saveClaudeFilters(next);
+  };
+
+  const removeClaudeFilter = (id) => {
+    const next = claudeFilters.filter((f) => f.id !== id);
+    setClaudeFilters(next);
+    saveClaudeFilters(next);
+  };
 
   // The user edited the policy they are modelling with. Distinct from the effect
   // above that DEFAULTS settings from the corporation's policy: that one must not
@@ -486,8 +530,7 @@ export default function RefreshPlanner({ planner, corporation, corporationId, to
   // would vanish exactly when the pool is missing. Composing here also means all
   // three steps get both without changing their props — the switcher has to be
   // reachable from the review step, not only from the cohort one.
-  const poolBar = (
-    <div style={{ display: "grid", gap: 12 }}>
+  const scenarioBar = (
       <ScenarioBar
         scenarios={scenarios}
         activeId={activeId}
@@ -501,12 +544,39 @@ export default function RefreshPlanner({ planner, corporation, corporationId, to
         onDelete={deleteScenario}
         onReload={reload}
       />
-      <PoolBar
-        available={planner.poolAvailableShares ?? null}
-        planned={plannedTotals.totals.totalShares}
-        reserved={planner.poolReservedShares ?? null}
-        outstanding={planner.poolOutstandingShares ?? null}
-      />
+  );
+
+  const poolOnly = (
+    <PoolBar
+      available={planner.poolAvailableShares ?? null}
+      planned={plannedTotals.totals.totalShares}
+      reserved={planner.poolReservedShares ?? null}
+      outstanding={planner.poolOutstandingShares ?? null}
+    />
+  );
+
+  /** The header every step shows: which draft, and what it has to spend.
+   *
+   *  One row, scenario on the LEFT — it names the thing the rest of the screen is
+   *  about, so it reads first. The pool takes the flexible column because its bar
+   *  chart uses whatever width it is given, where the scenario tile's contents are
+   *  a fixed set of controls.
+   *
+   *  No alignItems:"start" — these are two cards of similar size side by side, and
+   *  a step between their bottom edges reads as a mistake rather than as a
+   *  difference in content. Stretch is the default, so this is the absence of a
+   *  line; removing it later would silently misalign them.
+   *
+   *  Stacks below the breakpoint, scenario first, which is the same order.
+   */
+  const poolBar = (
+    <div style={{
+      display: "grid",
+      gridTemplateColumns: wide ? "minmax(0, 430px) minmax(0, 1fr)" : "minmax(0, 1fr)",
+      gap: 12,
+    }}>
+      {scenarioBar}
+      {poolOnly}
     </div>
   );
 
@@ -526,6 +596,9 @@ export default function RefreshPlanner({ planner, corporation, corporationId, to
         onOverride={setOverride}
         reasons={reasons}
         onReason={setReason}
+        // Through updateCart, the same path step 1's checkbox takes, so the two
+        // screens write one cart and the removal persists like any other change.
+        onRemove={(id) => updateCart(toggle(cart, id))}
         token={token}
       />
     );
@@ -566,17 +639,67 @@ export default function RefreshPlanner({ planner, corporation, corporationId, to
         background: C.surface, border: `1px solid ${C.border}`, borderRadius: RADIUS,
         padding: 16,
       }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
-          <span style={{ fontSize: FS.lg, fontWeight: 600, color: C.text }}>
-            Refresh cohort
-          </span>
-          {/* Only tenure is modelled — the equity figures are the report's own and
-              carry no tag, because tagging a value the product already displays is
-              as misleading as leaving a derived one untagged. */}
-          <Tag tone="notice" title="Tenure is calculated in this console from the report's hire date. Every other figure is Carta's own, as shown in the Equity Refresh Report.">
-            Tenure is modelled
-          </Tag>
-        </div>
+        {/* The whole tile folds. Collapsed it is a heading and a count — which is
+            the one thing someone scrolling past needs to know is still true.
+
+            A second <details>, nested inside the first's sibling: the Claude box
+            folds on its own because it is occasional even when the filters are in
+            use, and this folds the filters too once a cohort is settled. Both are
+            <details> for the same reasons — real keyboard and screen-reader
+            behaviour, and findable by in-page search while shut. */}
+        <details open className="ctc-fold">
+          {/* The whole summary is the hit target — that is how <details> works, and
+              it is worth keeping — but a heading you can click is not an AFFORDANCE.
+              The browser's own marker is a small OS triangle that reads as
+              decoration, so it is hidden (in the global stylesheet, since
+              ::-webkit-details-marker cannot be set inline) and replaced by a
+              labelled control on the right that says what it does. */}
+          <summary style={{
+            display: "flex", alignItems: "center", gap: 10, cursor: "pointer",
+            marginBottom: 4,
+          }}>
+            {/* An h2, like the scenario title beside it: this names the step, so
+                it should reach a screen reader as a heading rather than as a bold
+                span. margin:0 because the shared style carries no reset. */}
+            <h2 style={{ ...CARD_TITLE, color: C.text, margin: 0 }}>
+              Refresh cohort
+            </h2>
+            {/* Only tenure is modelled — the equity figures are the report's own and
+                carry no tag, because tagging a value the product already displays is
+                as misleading as leaving a derived one untagged. */}
+            <Tag tone="notice" title="Tenure is calculated in this console from the report's hire date. Every other figure is Carta's own, as shown in the Equity Refresh Report.">
+              Tenure is modelled
+            </Tag>
+            {/* The count rides on the SUMMARY so it survives collapsing. A folded
+                tile that does not say how many are excluded is how a narrowed
+                cohort becomes invisible. */}
+            {removed > 0 && <Tag>{removed} excluded by filters</Tag>}
+
+            {/* A span, not a button: a <button> inside a <summary> swallows the
+                click that would toggle it, so this is the label for a control the
+                summary already is. aria-hidden for the same reason — the summary
+                announces the open state itself, and a screen reader hearing both
+                would hear it twice. */}
+            <span
+              aria-hidden="true"
+              style={{
+                marginLeft: "auto", display: "inline-flex", alignItems: "center",
+                // Grey, not link blue: this reveals what is already on the page
+                // rather than navigating anywhere, and blue among these controls
+                // read as the one link on a tile full of fields.
+                gap: 6, fontSize: FS.sm, color: C.textSubtle,
+              }}
+            >
+              <span className="ctc-fold-label" />
+              <span className="ctc-fold-chevron" style={{ display: "inline-flex" }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                  strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                  style={{ stroke: "currentColor" }}>
+                  <path d="M6 9l6 6 6-6" />
+                </svg>
+              </span>
+            </span>
+          </summary>
         <div style={{ fontSize: FS.sm, color: C.textSubtle, lineHeight: 1.55 }}>
           Equity figures come from CTC's Equity Refresh Report and tie out against it.
         </div>
@@ -590,11 +713,28 @@ export default function RefreshPlanner({ planner, corporation, corporationId, to
               reason="This build captured no equity for any employee, so prior grants cannot be determined. Say 'refresh' to re-fetch."
             />
           ) : (
-            <Checkbox
-              label="Has prior grants"
-              checked={hasGrants}
+            // A dropdown, not a checkbox. A checkbox has two states and this
+            // filter has three, and the one it could not express — has NONE — is
+            // the one a refresh cycle asks for most: who has never been granted.
+            //
+            // The definition sits UNDER the control rather than in a title. It is
+            // the one filter here whose meaning is not obvious from its name
+            // ("prior" could mean any grant ever, including cancelled ones), and a
+            // definition only reachable by hovering is one most people never read.
+            // NOT wrapped with its help text. The row aligns on flex-END, so a
+            // wrapper's bottom edge is what lines up — and with the help text
+            // inside, that bottom was the text, which lifted the field 37px above
+            // every other control. The definition moved below the row instead.
+            <Select
+              label="Prior grants"
+              value={hasGrants}
               onChange={updateHasGrants}
-              title="Keeps only employees holding at least one live grant. Cancelled and forfeited awards are already excluded by Carta."
+              options={[
+                { value: PRIOR_GRANTS.ANY, label: "Any" },
+                { value: PRIOR_GRANTS.HAS, label: "Has prior grants" },
+                { value: PRIOR_GRANTS.NONE, label: "No prior grants" },
+              ]}
+              minWidth={170}
             />
           )}
 
@@ -648,25 +788,74 @@ export default function RefreshPlanner({ planner, corporation, corporationId, to
           )}
         </div>
 
-        {removed > 0 && (
-          <div style={{ marginTop: 12 }}>
-            <Tag>{removed} excluded by filters</Tag>
+        {/* Under the row, not inside a control. "Prior grants" is the one filter
+            here whose name does not settle its meaning — it could be read as any
+            grant ever, including cancelled ones — so the definition is on screen
+            rather than in a title attribute. Below the row because the row aligns
+            on flex-end, where a taller control lifts its own field out of line. */}
+        {availability.grants !== false && (
+          <div style={{
+            marginTop: 8, fontSize: FS.xs, color: C.textQuiet, lineHeight: 1.5,
+          }}>
+            Prior grants means a live grant. Cancelled and forfeited awards are
+            already excluded by Carta.
           </div>
         )}
 
-        {/* The controls above narrow the cohort. This changes the console itself —
-            a different job, which is why it sits under its own rule rather than
-            reading as a fifth filter. */}
+        {/* A FILTER, not a source edit — the one box on this console that means
+            something different from the others.
+
+            Elsewhere the ask box edits the app and reloads, which is right for
+            "add a P60 column". Here that would be wrong: "show only engineering"
+            is a filter over these rows, and as a code change it is durable,
+            invisible in the UI, and undoable only by asking again. So it produces
+            a predicate that behaves like the four presets above — previewed,
+            readable, removable, and saved with the scenario. */}
         <div style={{
           marginTop: 14, paddingTop: 14, borderTop: `1px solid ${C.border}`,
+          display: "grid", gap: 8,
         }}>
-          <div style={{ fontSize: FS.sm, fontWeight: 600, color: C.textSubtle, marginBottom: 8 }}>
-            Change this page
-          </div>
-          <AskBar
-            token={token}
-            placeholder="Ask Claude to change this page — e.g. add a column for unvested shares"
-          />
+          {/* The filters already applied stay on screen whether the box below is
+              open or not. An active filter is silently narrowing the cohort, and
+              putting one behind a collapsed section is how someone ends up looking
+              at 25 of 134 employees with no visible reason why. */}
+          <CommittedFilters filters={claudeFilters} onRemove={removeClaudeFilter} />
+
+          {/* COLLAPSED BY DEFAULT. The input, its examples and the space the
+              preview needs ran to 151px — a third of a tile that already filled
+              half the fold before the first employee row. Authoring a filter is a
+              deliberate act a few times a session; the preset controls above are
+              what people touch on every visit, so this is the part that folds.
+
+              A <details>, not a hand-rolled toggle: it opens on click and on
+              Enter, announces its own state, and is findable by the browser's own
+              in-page search even while closed — three things a div with an onClick
+              would each need building and would probably get wrong. */}
+          <details className="ctc-fold">
+            {/* The same control as the tile's own fold, so two nested collapsing
+                sections do not each teach a different gesture. */}
+            {/* Chevron FIRST here, unlike the tile's fold. This summary is one
+                short label, so a marker at the end floats away from the words it
+                belongs to; the tile's summary is a heading with tags after it,
+                where a right-hand control reads as belonging to the whole row. */}
+            <summary style={{
+              display: "flex", alignItems: "center", gap: 6,
+              fontSize: FS.sm, color: C.textSubtle, cursor: "pointer",
+            }}>
+              <span aria-hidden="true" className="ctc-fold-chevron"
+                style={{ display: "inline-flex", color: C.textSubtle }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                  strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                  style={{ stroke: "currentColor" }}>
+                  <path d="M6 9l6 6 6-6" />
+                </svg>
+              </span>
+              Add a Claude generated filter
+            </summary>
+            <div style={{ marginTop: 8 }}>
+              <FilterBox rows={rows} asOf={asOf} onApply={addClaudeFilter} />
+            </div>
+          </details>
         </div>
 
         {/* Gaps a filter cannot judge, surfaced rather than left for a reader to
@@ -687,6 +876,7 @@ export default function RefreshPlanner({ planner, corporation, corporationId, to
             )}
           </div>
         )}
+        </details>
       </div>
 
       {/* Table and cart side by side, the cart narrow and sticky. minmax(0,1fr)

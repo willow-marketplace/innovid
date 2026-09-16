@@ -34,7 +34,7 @@ from issuance_fields import (  # noqa: E402
     build_legends,
     build_option_plans,
     build_option_type,
-    build_relationship_select,
+    build_relationship_select_deferred,
     build_rule144_reason_select,
     build_share_classes,
     build_stakeholder_kind,
@@ -43,6 +43,8 @@ from issuance_fields import (  # noqa: E402
     build_threshold_value_type,
     build_vesting,
     cert_no_vesting,
+    corresponding_interest_js_constants,
+    corresponding_interest_row,
     default_legend_id,
     default_so_type,
     esc,
@@ -75,7 +77,11 @@ STYLES = REFS / "cowork-styles.css"
 # batch is big enough for N identical blocks to be pure waste AND no row carries
 # terms of its own. Either condition failing means a mixed batch, which only the
 # per-row repeater can express.
-BATCH_MODE_MIN_ROWS = 10
+#
+# Three, not ten: a 7-grantee uniform batch rendered 100,803 chars per-row against
+# 44,988 in batch mode, and the per-row layout was the default. The document is a
+# show_widget payload, so its size is a real cost on every issuance.
+BATCH_MODE_MIN_ROWS = 3
 
 # A row key here means "this person's terms differ from the batch", which is what
 # disqualifies batch mode. Identity and amount fields are per-person by nature and
@@ -269,6 +275,11 @@ def build_shared_terms(security_type: str, data: Dict[str, Any], knowns: Dict[st
             f'<div class="toggle-row wrap">{build_docsets(docsets, None)}</div>',
             sectype="piu",
         ))
+        # Shared terms expand onto every submitted row, so the batch can carry a
+        # designation the per-row table has no column for.
+        ci_row = corresponding_interest_row(classes, knowns.get("share_class_prefix"))
+        if ci_row:
+            rows_html.append(ci_row)
         rows_html.append(advanced_accordion_piu(row, accel_templates, no_vesting, {}))
     else:
         price_default = knowns.get("price_per_share_default", "")
@@ -397,7 +408,7 @@ def build_batch_rows(rows: List[Dict[str, Any]]) -> str:
         email = esc(row.get("email", ""))
         qty = row.get("quantity", "")
         qty = "" if qty is None else esc(qty)
-        rel_select = build_relationship_select(str(row.get("relationship") or ""))
+        rel_select = build_relationship_select_deferred(str(row.get("relationship") or ""))
         kind_toggle = build_stakeholder_kind(str(row.get("stakeholder_kind") or ""))
         out.append(
             f'<tr data-batch-row data-row-key="{key}">'
@@ -470,6 +481,9 @@ def render(security_type: str, data: Dict[str, Any], knowns: Dict[str, Any],
         "HEADER_SUB": build_header_sub(rows, noun),
         "BATCH_MODE": "true" if batch else "false",
         "SO_TYPE_CONSTANTS": so_type_js_constants(),
+        "CORRESPONDING_INTEREST_CONSTANTS": corresponding_interest_js_constants(
+            results(data.get("share_classes"))
+        ),
         "BATCH_ERRORS_HTML": build_batch_error_banner(knowns.get("batch_errors")),
         # Only the active layout is rendered; the other stays an empty slot so a
         # hidden duplicate can never be collected on submit.

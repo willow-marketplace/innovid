@@ -87,6 +87,10 @@ def so_type_js_constants() -> str:
     The form JS re-toggles the HMRC / ATO / employment-related rows on every option-type
     change, so it needs these client-side. Emitting them keeps the browser's answer to
     "which types report to HMRC" identical to the server's. Sorted for deterministic output.
+
+    RELATIONSHIP_CHOICES rides along in payload order, not sorted: 15 options repeated
+    per batch row is pure waste, so a batch row ships an empty <select> that the form
+    fills from this list.
     """
     def _arr(values: Any) -> str:
         return json.dumps(sorted(values), separators=(",", ":"))
@@ -94,11 +98,32 @@ def so_type_js_constants() -> str:
     return (
         "const HMRC_SO_TYPES = {hmrc};\n"
         "const ATO_SO_TYPES = {ato};\n"
-        "const EMPLOYMENT_RELATED_SO_TYPES = {emp};"
+        "const EMPLOYMENT_RELATED_SO_TYPES = {emp};\n"
+        "const RELATIONSHIP_CHOICES = {rel};"
     ).format(
+        rel=json.dumps(list(RELATIONSHIP_CHOICES), separators=(",", ":")),
         hmrc=_arr(HMRC_SO_TYPES),
         ato=_arr(ATO_SO_TYPES),
         emp=_arr(EMPLOYMENT_RELATED_SO_TYPES),
+    )
+
+
+def corresponding_interest_js_constants(classes: List[Dict[str, Any]]) -> str:
+    """Per-unit-class `has_corresponding_interest`, keyed by prefix, as a JS `const`.
+
+    The gate is a property of the *selected* class, so clicking a different unit
+    class can change the answer. The form re-toggles the row on every such click
+    and needs the whole map client-side to do it.
+
+    A class that omits the key reads as False: carta-web drops the field entirely
+    for an issuer without the ManCo→OpCo feature, and absence must never raise.
+    """
+    flags = {
+        str(c.get("prefix", "")): bool(c.get("has_corresponding_interest"))
+        for c in classes
+    }
+    return "const CORRESPONDING_INTEREST_BY_PREFIX = {flags};".format(
+        flags=json.dumps(flags, separators=(",", ":"), sort_keys=True)
     )
 
 
@@ -491,24 +516,31 @@ def build_docsets(sets: List[Dict[str, Any]], preferred_id: Optional[str] = None
     return "".join(btns)
 
 
+def default_share_class_prefix(classes: List[Dict[str, Any]],
+                               prefill_prefix: Optional[str]) -> Optional[str]:
+    """The prefix `build_share_classes` pre-selects: the named class, else the
+    sole class, else the last one (the fetched list carries no creation
+    timestamp, so last by ascending `id` is the best proxy for newest).
+
+    Shared so a gate asking "which class is selected" cannot disagree with the
+    buttons."""
+    if prefill_prefix is not None:
+        return prefill_prefix
+    if len(classes) == 1:
+        return str(classes[0].get("prefix", ""))
+    return str(classes[-1].get("prefix", "")) if classes else None
+
+
 def build_share_classes(classes: List[Dict[str, Any]], prefill_prefix: Optional[str],
                         force_blank: bool = False) -> str:
     """Button text is `(<prefix>) <name>` (e.g. `(CS) Common`) — the bare name
     alone left the user guessing which prefix a class maps to when several
-    classes share a name. Pre-selects the prompt-named class; else the most
-    recently created one (no creation timestamp in the fetched list, so last
-    entry by ascending `id` is the best available proxy); falls back to the
-    only class when there's just one.
+    classes share a name. See `default_share_class_prefix` for what pre-selects.
 
     ``force_blank`` selects nothing (see build_vesting) — "most recently
     created" is a reasonable guess for a prompt that named no class, and a
     dangerous one for a file that named a class we couldn't match."""
-    only_prefix = str(classes[0].get("prefix", "")) if len(classes) == 1 else None
-    latest_prefix = str(classes[-1].get("prefix", "")) if classes else None
-    chosen_prefix = (
-        None if force_blank
-        else (prefill_prefix if prefill_prefix is not None else (only_prefix or latest_prefix))
-    )
+    chosen_prefix = None if force_blank else default_share_class_prefix(classes, prefill_prefix)
     btns = []
     for c in classes:
         prefix = str(c.get("prefix", ""))
@@ -516,7 +548,7 @@ def build_share_classes(classes: List[Dict[str, Any]], prefill_prefix: Optional[
         display = f"({prefix}) {name}" if prefix else name
         btns.append(
             '<button type="button" class="toggle{s}" data-group="shareclass" data-value="{v}" data-label="{l}" '
-            'onclick="pick(this)">{disp}</button>'.format(
+            'onclick="pickShareClass(this)">{disp}</button>'.format(
                 s=sel(prefix == chosen_prefix), v=esc(prefix), l=esc(name), disp=esc(display)
             )
         )
@@ -639,6 +671,23 @@ def build_relationship_select(relationship: str) -> str:
     ).format(s=sel(not rel), opts=rel_options)
 
 
+def build_relationship_select_deferred(relationship: str) -> str:
+    """An empty relationship `<select>` the form fills from RELATIONSHIP_CHOICES.
+
+    Same class and `onchange` contract as build_relationship_select, so
+    collectIdentity() and missingIdentity() treat the two identically. For batch
+    rows only: repeating 15 options per row costs ~893 chars each and the options
+    never vary by row. `data-rel` carries the row's own value for the filler to
+    re-select; an off-picklist roster value survives because the filler prepends
+    any value it does not find.
+    """
+    rel = relationship or ""
+    return (
+        '<select class="stake-relationship" aria-label="Relationship" '
+        'data-rel="{v}" onchange="onStakeInput()"></select>'
+    ).format(v=esc(rel))
+
+
 def build_grant_reason_select(reason: Optional[str]) -> str:
     opts = ['<option value="">Select a reason…</option>']
     extra = [reason] if reason and reason not in GRANT_REASON_CHOICES else []
@@ -706,6 +755,35 @@ def kv_row(
         f'<div class="kv-label">{esc(label)}{mark}</div>'
         f'<div class="kv-input">{input_html}{build_import_note(notes)}</div>'
         f'</div>'
+    )
+
+
+def corresponding_interest_row(
+    classes: List[Dict[str, Any]], preferred_prefix: Optional[Any],
+    value: Optional[Any] = None, notes: Optional[List[Dict[str, Any]]] = None,
+) -> str:
+    """The Corresponding interest row, or "" when no unit class carries the link.
+
+    The link is per unit class, so the row enters the DOM as soon as *any* class
+    has it and `syncCorrespondingInterest()` shows or hides it on each class
+    change. Omitting it whenever no class qualifies is what keeps a corp without
+    the ManCo→OpCo feature from sending the key at all.
+    """
+    if not any(c.get("has_corresponding_interest") for c in classes):
+        return ""
+    chosen_prefix = default_share_class_prefix(classes, preferred_prefix)
+    selected = next(
+        (c for c in classes if str(c.get("prefix", "")) == str(chosen_prefix)), None
+    )
+    return kv_row(
+        "Corresponding interest",
+        f'<p class="field-hint">Yes also issues the matching interest in the linked operating '
+        f'company.</p>'
+        f'<div class="toggle-row">{build_corresponding_interest(value)}</div>',
+        sectype="piu",
+        conditional_on="corresponding_interest",
+        hidden=not (selected is not None and selected.get("has_corresponding_interest")),
+        notes=notes,
     )
 
 
@@ -1224,9 +1302,6 @@ def _piu_block_rows(
     no_vesting_piu = cert_no_vesting(row, knowns)
     vesting_start = row.get("vesting_start_date") or today
     vest_wrap_style = "" if not no_vesting_piu else ' style="display:none;"'
-    selected_class = next(
-        (c for c in classes if str(c.get("prefix", "")) == str(preferred_prefix)), None
-    )
 
     rows_html.append(kv_row(
         "Unit class",
@@ -1300,17 +1375,12 @@ def _piu_block_rows(
         sectype="piu",
         notes=notes.pop("document_set_id", None),
     ))
-    # Rendered only when the unit class carries the ManCo->OpCo link, which
-    # carta-web serializes only for issuers that have the feature.
-    if selected_class is not None and selected_class.get("has_corresponding_interest"):
-        rows_html.append(kv_row(
-            "Corresponding interest",
-            f'<p class="field-hint">Yes also issues the matching interest in the linked operating '
-            f'company.</p>'
-            f'<div class="toggle-row">{build_corresponding_interest(row.get("corresponding_interest"))}</div>',
-            sectype="piu",
-            notes=notes.pop("corresponding_interest", None),
-        ))
+    ci_row = corresponding_interest_row(
+        classes, preferred_prefix, row.get("corresponding_interest"),
+        notes.pop("corresponding_interest", None),
+    )
+    if ci_row:
+        rows_html.append(ci_row)
     rows_html.append(advanced_accordion_piu(row, accel_templates, no_vesting_piu, notes))
     return rows_html
 

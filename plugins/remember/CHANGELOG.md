@@ -7,6 +7,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.33.0] - 2026-09-15 — Turkish-locale collation stops silently dropping bridge variables, the SessionStart hook defers 20 subprocesses off its foreground path, and the release audit's three composition defects are fixed (#660, #672, #686, #695)
+
+### Changed
+
+- Changed: the SessionStart hook does less before it answers. Work whose result
+  the first turn does not need -- previous-session recovery, the capture-gap
+  check, the slug and case-divergence records, publishing the start-context
+  cache, and the `before_session_start` dispatch when `git_restore.enabled` is
+  false and no third-party hook is registered -- now runs in a detached phase
+  after the memory context has been emitted. Rendering a memory file under 16KB
+  no longer forks `cat`, `REMEMBER_ROOT` no longer forks `dirname`, and
+  `mkdir -p` on an existing `tmp/` is skipped. Foreground subprocess count per
+  start drops from 49 to 29; on Git Bash, where a fork costs 10-50x what it
+  costs on Linux, that is most of the hook's own cost. Measured on CI: the
+  hook's traced cold run on windows-latest falls from 2.32s to 1.60s on a
+  baseline store and 2.87s to 2.16s on a 20MB one; on ubuntu-latest from 148ms
+  to 102ms. Part of #660.
+- Changed: `REMEMBER_DEFER=0` runs that deferred phase inline instead. It
+  exists for tests that assert on one of those side effects and need it to have
+  happened by the time the hook exits; the default is deferred. Part of #660.
+- Fixed: two concurrent `dispatch` calls shared one capture file
+  (`tmp/dispatch-stdout.$$` -- `$$` is the shell's pid and does not change in a
+  subshell), so the background dispatch's cleanup could delete the file the
+  foreground one was still writing and a plugin's injected context vanished
+  with no error on any channel. The capture files are now named per event.
+  Found while deferring the `before_session_start` dispatch for #660.
+
+### Fixed
+
+- Fixed the Windows Git-Bash benchmark's hook-dir probe: it invoked the literal `bash` (which resolves to the WSL launcher and emits UTF-16LE/NUL-interleaved output, exit 127 on a missing distribution) instead of `resolve_bash()`'s Git Bash, and its output decoding is now UTF-16LE-aware (#672).
+
+- Fixed: the `handoff_mode: "per_session"` degrade notice (#363) silently
+  stopped printing in default (in-project) storage mode when no session_id
+  reached the SessionStart hook. The notice fired only in external storage
+  mode or when a session_id resolved, so a user on default storage whose
+  per_session request quietly fell back to the shared `remember.md` got no
+  indication of it. Fixes #686.
+
+- Fixed: under a Turkish locale (`tr_TR`, and `az_AZ` the same way) no save ever completed. `safe_eval` in `scripts/log.sh` matches the pipeline's `KEY=VALUE` output with `^([A-Z_][A-Z0-9_]*)=`, and `[A-Z]` is a POSIX bracket range matched by the locale's collation rather than by byte value -- Turkish collation does not place `I` inside `A`..`Z`, so every bridge variable whose name carries an `I` (`EXTRACT_FILE`, `POSITION`, `SKIP_LINES`) was silently dropped while the counts still arrived. The run passed its "0 exchanges" gate and died in `build-prompt` on `FileNotFoundError: ''`, thousands of times over. `safe_eval` now matches under `LC_ALL=C` for the duration of the function, the same guard `config()` already carries in that file (#695).
+- Fixed: `scripts/save-session.sh` now stops at the bridge, with an error naming `EXTRACT_FILE`, instead of calling `build-prompt` with an empty path. Whatever the reason the extract step's output loses a variable, the report should name the crossing rather than surface as a Python traceback from `open('')` (#695).
+
+- Fixed: a memory file whose size was never measured was emitted through bash's `read` rather than `cat`. `_remember_wc_size_get_into` returned `0` for a path it held no measurement for, and the render loop rewrote anything non-numeric to `0` as well, so `_remember_emit_file`'s own "no usable size" arm was unreachable and the 16 KB threshold added in this same release was defeated in exactly the degraded case it was written for -- a 4 MB file on the session-start foreground path, measured at 24.1s on windows-latest. The batched `wc -c` can fail wholesale, which leaves every file unmeasured at once. An unmeasured size is now kept distinct from zero at all three of the getter's call sites, and each says `size unknown` rather than printing `0 bytes` -- or an empty `( bytes)` -- for a file nobody measured (#695).
+- Fixed: the #695 source scanner credited a nested function's `local LC_ALL=C` to its enclosing function. `_function_spans` closed a function at the first `}` at column 0, and #660's deferred-phase work defines `capture_was_seen` at column 0 inside `_remember_deferred_phase` -- so 148 lines that hold no such declaration were reported as protected. Neither change contained the defect on its own; it existed only once both had landed. The parser now tracks nesting with a stack and attributes a declaration only to the lines it governs (#695).
+- Fixed: the capture-gap notice's own tests raced the phase that writes it. #660 moved the check into the deferred phase, where it is the last thing that phase does, so a hook that has returned says nothing about whether the check has run -- the positive assertions failed intermittently (caught on `macos-latest` 3.10, green on the other eleven legs) and, worse, all six negative assertions passed just as well against a phase that had not reached the check yet or had died before it. The positives now poll on the default deferred path, which is what proves the phase reaches its end; the negatives run the phase inline, where "did not fire" is a verdict rather than a race (#695).
+
+- Fixed: a config key containing an `I` disabled the config-data cache outright on a Turkish-locale host. `_remember_cfg_flatten_cache_valid_line` validated each cache line with `[[ =~ ^_RCFG_[A-Za-z0-9_]+= ]]`, and inside `[[ =~ ]]` a bracket range is matched by the locale's collation rather than by byte value -- Turkish collation does not place `I` inside `A`..`Z`. The line read as malformed, the cache was refused, and every hook fell back to re-reading and re-flattening the config on every invocation, permanently, with nothing said (#695).
+- Fixed: `_remember_normalize_win_path` stopped recognising the Windows drive `I:` under the same collation, and its `tr '[:lower:]' '[:upper:]'` mapped a lower-case `i:` drive to a dotted `İ` under Turkish case rules -- a two-byte character where one ASCII letter has to go. The `tr` needed its own `LC_ALL=C` prefix rather than the function's `local`: `local` on a name the environment never exported leaves it unexported, so on a host whose language is set through `LANG` alone the child process kept the user's locale (#695).
+- Changed: eleven further bracket ranges across `scripts/` and `hooks.d/` now match under `LC_ALL=C`, scoped to their own function. Measured on glibc, only `[[ =~ ]]` collates -- `case` patterns and `${v//[!...]/}` compare bytes -- so these were not broken, but one line makes them immune and the rule is now uniform. A new source scanner (`tests/test_locale_ranges_695.py`) fails the suite when a letter range appears outside an `LC_ALL=C` scope, with a written reason required for each allowlisted exemption (#695).
+
 ## [0.32.0] - 2026-09-13 — SessionStart's fork-reduction series closes out with three opt-out caches (memory, config, tool-detection), 22+ more subshell forks cut from the hot path, and a Windows benchmark that finally runs in CI -- plus the release-audit fix moving the #668 config cache out of the project tree and validating it line-by-line before eval, and the privacy/terms pages the plugin directory listing requires (#656, #657, #660, #662-#669, #673, #679, #682, #683)
 
 ### Added
@@ -2756,7 +2805,8 @@ Fixes [#9](https://github.com/Digital-Process-Tools/claude-remember/issues/9), a
 
 ## [0.1.0] — Initial release
 
-[Unreleased]: https://github.com/Digital-Process-Tools/claude-remember/compare/v0.32.0...HEAD
+[Unreleased]: https://github.com/Digital-Process-Tools/claude-remember/compare/v0.33.0...HEAD
+[0.33.0]: https://github.com/Digital-Process-Tools/claude-remember/releases/tag/v0.33.0
 [0.32.0]: https://github.com/Digital-Process-Tools/claude-remember/releases/tag/v0.32.0
 [0.31.0]: https://github.com/Digital-Process-Tools/claude-remember/releases/tag/v0.31.0
 [0.30.0]: https://github.com/Digital-Process-Tools/claude-remember/releases/tag/v0.30.0

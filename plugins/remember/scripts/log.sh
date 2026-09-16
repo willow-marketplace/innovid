@@ -271,6 +271,7 @@ sys.stdout.write("\n".join(out))
 #    narrower than a blanket `source` of a file whose contents were never
 #    inspected at all.
 _remember_cfg_flatten_cache_path() {
+    local LC_ALL=C  # bracket ranges below are byte-wise, not collated (#695)
     [ -n "${REMEMBER_DIR:-}" ] || return 1
     local _key="${REMEMBER_DIR//[!a-zA-Z0-9]/-}"
     # Same tail-keep truncation as _remember_env_cache_path
@@ -381,6 +382,7 @@ _remember_cfg_flatten_cache_valid_value() {
 # allowed to be, and the #682 block comment above this whole section for
 # what <name> is guaranteed to be (and why that guarantee holds).
 _remember_cfg_flatten_cache_valid_line() {
+    local LC_ALL=C  # bracket ranges below are byte-wise, not collated (#695)
     local _line="$1"
     [[ "$_line" =~ ^_RCFG_[A-Za-z0-9_]+= ]] || return 1
     _remember_cfg_flatten_cache_valid_value "${_line#*=}"
@@ -965,6 +967,24 @@ log_tokens() {
 # Usage:
 #   safe_eval <<< "$(python3 -m pipeline.shell extract ...)"
 safe_eval() {
+    # `local LC_ALL=C` for the duration of this function only (restored on
+    # return, never leaks to the caller -- and the caller's locale is what
+    # every log timestamp and every later `[[ =~ ]]` in save-session.sh
+    # reads). `[A-Z]` below is a POSIX bracket RANGE, and a range is matched
+    # by the locale's COLLATION order, not by byte value. Turkish collation
+    # (tr_TR; az_AZ the same way) orders dotted and dotless i around the
+    # Latin letters such that `I` does not fall inside `A`..`Z` -- so on a
+    # Turkish-locale host every bridge variable whose name carries an `I`
+    # was silently skipped here: EXTRACT_FILE, POSITION, SKIP_LINES. The
+    # counts (EXCHANGE_COUNT, HUMAN_COUNT -- no `I`) still arrived and still
+    # passed the "0 exchanges" gate, so the run went all the way to
+    # build-prompt with an empty path and died on `FileNotFoundError: ''`.
+    # One reporter's hook-errors.log held 5,071 of them: no save had ever
+    # completed on that host, whose only unusual property is its language
+    # (#695). This is the same trap `config()` and
+    # _remember_cfg_flatten_cache_valid_value already guard against, the
+    # same way, in this file.
+    local LC_ALL=C
     while IFS= read -r line; do
         # Strip trailing CR — Python on Windows emits \r\n, which corrupts
         # numeric values and trips integer tests downstream (issue #84).
@@ -1472,8 +1492,24 @@ dispatch() {
         # The capture file, prepared once and only once a hook is about to run.
         # Overwritten per hook (`2>` truncates), removed when the loop ends.
         if [ -z "$_err_file" ] && [ -z "$_err_unavailable" ]; then
-            _err_file="$REMEMBER_DIR/tmp/dispatch-stderr.$$"
-            _out_file="$REMEMBER_DIR/tmp/dispatch-stdout.$$"
+            # $event in the name, not just $$ (#660). `$$` is the SHELL's pid
+            # and does NOT change inside a subshell, so once session-start
+            # began deferring its before_session_start dispatch into a
+            # background child, that child and the foreground
+            # after_session_start dispatch named the same two files: the
+            # background one's end-of-loop `rm -f` deleted the capture the
+            # foreground one was still writing, and the after_session_start
+            # hook's output -- context a plugin injects -- vanished with no
+            # error anywhere. Caught by
+            # test_marketplace_hooks_d_dispatches_from_plugin, which asserts
+            # that output reaches stdout.
+            #
+            # $BASHPID would be the more general fix and is deliberately not
+            # used: it is bash 4.0+, and macOS still ships bash 3.2 as
+            # /bin/bash. The event name is enough -- two dispatches of the
+            # SAME event never run concurrently in one process.
+            _err_file="$REMEMBER_DIR/tmp/dispatch-stderr.$event.$$"
+            _out_file="$REMEMBER_DIR/tmp/dispatch-stdout.$event.$$"
             # `|| true`, and it is load-bearing: `A || B` where BOTH fail is a
             # failed compound command, and every caller of dispatch runs under
             # `set -e`. Without it, a store whose tmp/ cannot be created aborts

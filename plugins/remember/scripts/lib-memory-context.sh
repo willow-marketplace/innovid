@@ -73,7 +73,28 @@ _REMEMBER_LIB_MEMORY_CONTEXT_LOADED=1
 _remember_memory_paths() {
     [ -n "${TODAY:-}" ] || TODAY=$(_remember_date '+%Y-%m-%d')
 
-    REMEMBER_ROOT=$(dirname "$REMEMBER_DIR")
+    # Parameter expansion, not a `dirname` fork (#660) -- the pattern #230
+    # established for this repo and session-start-hook.sh:60 already uses.
+    # `dirname` is reproduced exactly, edge cases included, and
+    # tests/test_dirname_without_a_fork_660.py compares the two against a
+    # table of paths rather than trusting this comment:
+    #   trailing slashes are stripped first ("/a/b/" -> "/a")
+    #   no slash at all answers "." ("x" -> ".")
+    #   the root's parent is the root ("/a" -> "/", "/" -> "/")
+    _remember_root_scratch="$REMEMBER_DIR"
+    while [ "${_remember_root_scratch%/}" != "$_remember_root_scratch" ] \
+        && [ "$_remember_root_scratch" != "/" ]; do
+        _remember_root_scratch="${_remember_root_scratch%/}"
+    done
+    case "$_remember_root_scratch" in
+        (/) REMEMBER_ROOT="/" ;;
+        (*/*)
+            REMEMBER_ROOT="${_remember_root_scratch%/*}"
+            [ -n "$REMEMBER_ROOT" ] || REMEMBER_ROOT="/"
+            ;;
+        (*) REMEMBER_ROOT="." ;;
+    esac
+    unset _remember_root_scratch
     if [ -f "$REMEMBER_DIR/identity.md" ]; then
         IDENTITY_FILE="$REMEMBER_DIR/identity.md"
     elif [ -f "$REMEMBER_ROOT/identity.md" ] && [ "$REMEMBER_ROOT" != "$PROJECT_DIR" ]; then
@@ -112,6 +133,7 @@ _remember_memory_paths() {
 # no subshell, and has worked since bash 2.x -- confirmed directly against
 # the real `/bin/bash` 3.2.57 this repo ships behind on stock macOS.
 _remember_wc_size_set() {
+    local LC_ALL=C  # bracket ranges below are byte-wise, not collated (#695)
     local _remember_wc_size_key="_remember_wcsz_${1//[!A-Za-z0-9]/_}"
     printf -v "$_remember_wc_size_key" '%s' "$2"
 }
@@ -119,9 +141,75 @@ _remember_wc_size_set() {
 # substitution forks a subshell even when nothing inside it forks a real
 # process, and this is called once per memory file on the render's hot path.
 _remember_wc_size_get_into() {
+    local LC_ALL=C  # bracket ranges below are byte-wise, not collated (#695)
     local _remember_wc_size_outvar="$1"
     local _remember_wc_size_key="_remember_wcsz_${2//[!A-Za-z0-9]/_}"
-    printf -v "$_remember_wc_size_outvar" '%s' "${!_remember_wc_size_key:-0}"
+    # `-` and not `:-0`: a file this cache holds no entry for is UNMEASURED,
+    # and `0` is a measurement. Laundering the two together made
+    # _remember_emit_file's own "no usable size" arm unreachable -- `0` is a
+    # digit string and `0 -gt 16384` is false, so an unmeasured file of ANY
+    # size took the read path that the 16 KB threshold exists to keep it off
+    # (#695 round-1 audit). The batched `wc -c` can fail wholesale, which
+    # leaves every file in that state at once.
+    printf -v "$_remember_wc_size_outvar" '%s' "${!_remember_wc_size_key-}"
+}
+
+# Args: $1 -- a file. $2 -- its size in bytes. Writes its bytes to stdout,
+# unchanged, using whichever of the two ways is actually cheaper AT THAT SIZE.
+#
+# Replaces an unconditional `cat "$MFILE"` (#660). A fork is expensive on Git
+# Bash, so a small file is cheaper read by the shell -- but bash's `read`
+# processes the delimiter byte by byte, and that is catastrophic at size.
+# Measured on windows-latest, five iterations each (the workflow's own
+# "cat vs read probe" step, which exists to keep this honest):
+#
+#     size     cat      read
+#     4KB      0.197s   0.025s     <- read wins by 8x
+#     256KB    0.092s   1.505s     <- read loses by 16x
+#     4MB      0.099s   24.129s    <- read loses by 240x
+#
+# ubuntu-latest has the same shape (4MB: 0.008s vs 0.879s), so this is not a
+# Windows quirk. The first version of this function used `read`
+# unconditionally and made the big-store arms of the benchmark measurably
+# SLOWER -- a fork-count optimisation that cost seconds, which is exactly what
+# counting forks alone cannot see.
+#
+# The threshold is deliberately well below the ~34KB crossover implied by
+# those numbers: being wrong towards `cat` costs one fork, being wrong towards
+# `read` costs seconds.
+#
+# `read -d ''` reads to the first NUL -- i.e. the whole file, for text -- into
+# a variable, using no subprocess at all, and `printf %s` writes it back
+# verbatim. It returns non-zero at EOF having ALREADY set the variable, which
+# is why the `|| :` is correct rather than sloppy.
+#
+# What this deliberately is NOT: `printf '%s\n' "$(<"$1")"`. Command
+# substitution strips EVERY trailing newline and the printf adds exactly one
+# back, so a file ending in two newlines, or in none, renders differently from
+# what is on disk -- silently, in the model's injected context.
+# tests/test_render_is_byte_identical_660.py pins all six shapes and carries a
+# demonstration that the naive form fails them.
+#
+# A file containing a literal NUL would be truncated here where `cat` would
+# have passed it through. Memory files are markdown this plugin wrote itself;
+# a NUL in one is already a corrupted store, and injecting the bytes after it
+# was never the more useful behaviour.
+_remember_emit_file() {
+    local _remember_emit_max="${REMEMBER_EMIT_READ_MAX:-16384}"
+    case "${2:-}" in
+        (''|*[!0-9]*)
+            # No usable size: `cat` is the one that cannot go quadratic.
+            cat "$1"
+            return 0
+            ;;
+    esac
+    if [ "$2" -gt "$_remember_emit_max" ]; then
+        cat "$1"
+        return 0
+    fi
+    local _remember_file_body=""
+    IFS= read -r -d '' _remember_file_body < "$1" || :
+    printf '%s' "$_remember_file_body"
 }
 
 _remember_render_memory_section() {
@@ -159,6 +247,7 @@ _remember_render_memory_section() {
 
     echo "=== MEMORY ==="
     local MEMORY_INJECT_MAX_BYTES=""
+    # (see _remember_emit_file, above, for why the render no longer forks cat)
     config_into MEMORY_INJECT_MAX_BYTES ".thresholds.memory_inject_max_bytes" 200000
     case "$MEMORY_INJECT_MAX_BYTES" in (''|*[!0-9]*) MEMORY_INJECT_MAX_BYTES=200000 ;; esac
     local OVERSIZED_MEMORY="" BASENAME MFILE_BYTES
@@ -198,15 +287,21 @@ _remember_render_memory_section() {
     # (CI's macOS legs caught it on #675; bash 5 hides it).
     [ "${#_remember_present[@]}" -gt 0 ] && for MFILE in "${_remember_present[@]}"; do
             _remember_wc_size_get_into MFILE_BYTES "$MFILE"
-            case "$MFILE_BYTES" in (''|*[!0-9]*) MFILE_BYTES=0 ;; esac
-            if [ "$MEMORY_INJECT_MAX_BYTES" -gt 0 ] && [ "$MFILE_BYTES" -gt "$MEMORY_INJECT_MAX_BYTES" ]; then
+            # An unmeasured size stays unmeasured (empty), rather than being
+            # rewritten to 0: `_remember_emit_file` reads it as "no usable
+            # size" and picks `cat`, the arm that cannot go quadratic. The
+            # oversize check below is skipped for it because there is nothing
+            # to compare -- failing open to injecting the file, the same way a
+            # file measured under the cap is injected (#695 round-1 audit).
+            case "$MFILE_BYTES" in (*[!0-9]*) MFILE_BYTES="" ;; esac
+            if [ -n "$MFILE_BYTES" ] && [ "$MEMORY_INJECT_MAX_BYTES" -gt 0 ] && [ "$MFILE_BYTES" -gt "$MEMORY_INJECT_MAX_BYTES" ]; then
                 OVERSIZED_MEMORY="${OVERSIZED_MEMORY}${MFILE} (${MFILE_BYTES} bytes)
 "
                 continue
             fi
             BASENAME="${MFILE##*/}"
             echo "--- $BASENAME ---"
-            cat "$MFILE"
+            _remember_emit_file "$MFILE" "$MFILE_BYTES"
             echo ""
     done
     if [ -n "$OVERSIZED_MEMORY" ]; then
@@ -239,7 +334,12 @@ _remember_render_memory_section() {
         # Same empty-array guard as the main loop above (bash < 4.4 + set -u).
         [ "${#_remember_deferred[@]}" -gt 0 ] && DEFERRED_MEMORY=$(for MFILE in "${_remember_deferred[@]}"; do
             _remember_wc_size_get_into MFILE_BYTES "$MFILE"
-            printf '%s (%s bytes)\n' "$MFILE" "$MFILE_BYTES"
+            # "(0 bytes)" for a file nobody measured reads exactly like an
+            # empty file. Say which one it is (#695 round-1 audit).
+            case "$MFILE_BYTES" in
+                (''|*[!0-9]*) printf '%s (size unknown)\n' "$MFILE" ;;
+                (*) printf '%s (%s bytes)\n' "$MFILE" "$MFILE_BYTES" ;;
+            esac
         done)
         if [ -n "$DEFERRED_MEMORY" ]; then
             echo "--- not re-injected at compact (delivered at session start); read or grep on request ---"
@@ -282,7 +382,16 @@ _remember_render_memory_section() {
             done < <(wc -c "${_remember_newest_arr[@]}")
             for _remember_newest_line in "${_remember_newest_arr[@]}"; do
                 _remember_wc_size_get_into _remember_newest_bytes "$_remember_newest_line"
-                printf '%s (%s bytes)\n' "$_remember_newest_line" "$_remember_newest_bytes"
+                # The third of this getter's three call sites, and the one the
+                # round-1 repair missed: since that repair the getter can
+                # answer with the empty string, so an unformatted `%s bytes`
+                # here renders `( bytes)` -- a number-shaped slot holding
+                # nothing. Same three states as the deferred listing above
+                # (#695 round-2 audit).
+                case "$_remember_newest_bytes" in
+                    (''|*[!0-9]*) printf '%s (size unknown)\n' "$_remember_newest_line" ;;
+                    (*) printf '%s (%s bytes)\n' "$_remember_newest_line" "$_remember_newest_bytes" ;;
+                esac
             done
         fi
         if [ "$ROTATED_COUNT" -gt "$ROTATED_LIST_MAX" ]; then

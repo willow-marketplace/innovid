@@ -109,8 +109,9 @@ omitted entirely for a corp confirmed non-LLC, not merely hidden), notes.
 authorized total) · `<Threshold|Hurdle>` value (**never** pre-filled) · `<Threshold|Hurdle>`
 value type (`Per unit` / `Overall` only) · issue date · board approval (today / other /
 **none** — optional and clearable here) · vesting schedule + start date (opt-in, as certs) ·
-documents · corresponding interest (Yes/No, **only** when the selected unit class reports
-`has_corresponding_interest`) · a collapsed **More fields** accordion: acceleration (once
+documents · corresponding interest (Yes/No, shown **only** while the selected unit class
+reports `has_corresponding_interest`, and re-evaluated on every unit-class click — see
+[piu-fields.md](piu-fields.md#corresponding-interest)) · a collapsed **More fields** accordion: acceleration (once
 vesting is set), security number, consideration price, notes. Threshold labels take
 `knowns.threshold_noun` — "Hurdle" on the UK growth-shares preset. Never on a PIU block:
 exercise price, option type, price per share, legend, Rule 144.
@@ -181,7 +182,7 @@ a compact per-person table.
 
 **When to use it.** `build_cowork_form.py` decides this itself — it activates batch mode when
 **both** hold:
-- More than 10 rows (`knowns.rows.length > 10`, or an equivalent headcount signal per [Hard
+- More than 3 rows (`knowns.rows.length > 3`, or an equivalent headcount signal per [Hard
   rule 11](../SKILL.md#hard-rules)).
 - Every row's non-personal terms are identical or unset — i.e. the prompt/`knowns` gave one
   shared set of batch-level terms (option type, exercise price, vesting, document set, etc. for

@@ -11,7 +11,7 @@
 // untagged: one is Carta's number, the other is ours.
 
 import { useMemo, useState } from "react";
-import { C, FS, RADIUS } from "../../ui/theme.js";
+import { C, CARD_TITLE, FS, RADIUS } from "../../ui/theme.js";
 import { Select, TableAlign, Tag, Th, Td, useMediaQuery } from "../../ui/components.jsx";
 import { shares } from "../../model/format.js";
 import {
@@ -200,6 +200,45 @@ function EquityUnitToggle({ unit, onUnit, equityUnits }) {
 }
 
 
+/** Take one employee out of the cycle, from the screen where you notice.
+ *
+ *  This table is where the consequence of including someone is visible — their
+ *  benchmark, their modelled grant, where it sits in the range — and so it is
+ *  where the decision "not them, not this cycle" actually gets made. Before this,
+ *  acting on it meant going back to step 1 and finding the row again.
+ *
+ *  It removes from the CART, the same state step 1's checkbox writes, so the two
+ *  screens stay one source of truth and the removal persists with the scenario
+ *  like any other cart change. No confirm: it is one click to undo from step 1,
+ *  and a dialog on a reversible action trains people to dismiss dialogs.
+ */
+function RemoveCell({ name, onRemove }) {
+  const [hover, setHover] = useState(false);
+  return (
+    <Td align="center">
+      <button
+        type="button"
+        onClick={onRemove}
+        onMouseEnter={() => setHover(true)}
+        onMouseLeave={() => setHover(false)}
+        // Names the person, not the column: a screen reader hearing "remove"
+        // fourteen times learns nothing about which row it is on.
+        aria-label={`Remove ${name} from this cycle`}
+        title={`Remove ${name} from this cycle`}
+        style={{
+          display: "inline-flex", alignItems: "center", justifyContent: "center",
+          width: 24, height: 24, padding: 0, borderRadius: RADIUS,
+          border: "none", background: hover ? C.rowHover : "transparent",
+          color: hover ? C.textDefault : C.textQuiet,
+          font: "inherit", fontSize: FS.md, lineHeight: 1, cursor: "pointer",
+        }}
+      >
+        ✕
+      </button>
+    </Td>
+  );
+}
+
 /** The Grant reason column — why this grant is being made.
  *
  *  NOT a free-text note. The value rides into Carta through the handoff CSV, where
@@ -326,7 +365,7 @@ function GrantCell({
 
 export default function SettingsStep({
   rows, policySettings, settings, onSettings, onBack, onNext, asOf,
-  overrides, onOverride, reasons, onReason, poolBar, equityUnits, token,
+  overrides, onOverride, reasons, onReason, onRemove, poolBar, equityUnits, token,
 }) {
   // Shares by default: the report's own figure, and the only unit that needs
   // no corporation-level input.
@@ -334,7 +373,6 @@ export default function SettingsStep({
   const units = availableUnits(equityUnits);
   const ownershipAvailable = units.includes(OWNERSHIP);
   const valueAvailable = units.includes(VALUE);
-  const [showIneligible, setShowIneligible] = useState(true);
   // Below this the two columns stack; the grants table needs the room.
   const wide = useMediaQuery("(min-width: 1100px)");
 
@@ -362,7 +400,12 @@ export default function SettingsStep({
     () => planTotals(eligible.map((j) => j.row), settings, policySettings, overrides),
     [eligible, settings, policySettings, overrides]);
 
-  const shown = showIneligible ? judged : eligible;
+  // Everyone the cart holds, eligible or not. There was a "Show ineligible"
+  // toggle here, defaulted ON, so it only ever removed information from the
+  // screen — and hiding an ineligible row makes someone in the cart vanish from
+  // this step, which is how "why isn't Bo getting anything?" stops having an
+  // answer on screen. They stay, with their reason, contributing to no total.
+  const shown = judged;
 
   const setCadence = (months) => {
     // Only a CADENCE change rescales. Editing the target directly is the user
@@ -378,7 +421,32 @@ export default function SettingsStep({
     <div style={{ padding: "18px 24px 28px", display: "grid", gap: 16 }}>
       <Nav onBack={onBack} onNext={onNext} />
 
+      {/* Scenario and pool, composed by the planner so all three steps share one
+          header. Reads before the numbers below it: which draft, and what it has
+          to spend. */}
       {poolBar}
+
+      {/* The box that edits this page. It was at the FOOT of the page — y=4713 of
+          a 4953px page, below all 83 grant rows — which is indistinguishable from
+          not being here at all.
+
+          Open, not folded. This step has one of these where the cohort step has
+          two nested ones competing for the same tile; there is nothing here for it
+          to crowd out, so a fold would only hide it again. */}
+      <div style={{
+        background: C.surface, border: `1px solid ${C.border}`, borderRadius: RADIUS,
+        padding: 16,
+      }}>
+        <div style={{
+          fontSize: FS.sm, color: C.textSubtle, marginBottom: 8,
+        }}>
+          Change this page
+        </div>
+        <AskBar
+          token={token}
+          placeholder="Ask Claude to change this page — e.g. add a column for unvested shares"
+        />
+      </div>
 
       <div style={{
         background: C.surface, border: `1px solid ${C.border}`, borderRadius: RADIUS, padding: 16,
@@ -461,9 +529,11 @@ export default function SettingsStep({
             gap: 12, flexWrap: "wrap", marginBottom: 10,
           }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <span style={{ fontSize: FS.lg, fontWeight: 600, color: C.text }}>
+              {/* The shared card title, as an h2 — it names this panel, and a bold
+                  span reaches a screen reader as neither. */}
+              <h2 style={{ ...CARD_TITLE, color: C.text, margin: 0 }}>
                 Refresh grant policy
-              </span>
+              </h2>
               {overridden && (
                 <Tag
                   tone="notice"
@@ -611,17 +681,6 @@ export default function SettingsStep({
               </span>
               <EquityUnitToggle unit={unit} onUnit={setUnit} equityUnits={equityUnits} />
             </div>
-            <label style={{
-              display: "inline-flex", alignItems: "center", gap: 7, cursor: "pointer",
-              fontSize: FS.md, color: C.textDefault,
-            }}>
-              <input
-                type="checkbox"
-                checked={showIneligible}
-                onChange={(e) => setShowIneligible(e.target.checked)}
-              />
-              Show ineligible
-            </label>
           </div>
           <div style={{ overflowX: "auto" }}>
             <TableAlign align="right">
@@ -631,7 +690,7 @@ export default function SettingsStep({
                     <Th width="15%" align="left">Name</Th>
                     <Th width="7%" align="left">Level</Th>
                     <Th width="9%" align="left">Area</Th>
-                    <Th width="11%" align="left">Specialization</Th>
+                    <Th width="9%" align="left">Specialization</Th>
                     <Th width="7%">Tenure</Th>
                     <Th width="10%">Benchmark</Th>
                     {/* Range before Grant: the corridor is the recommendation and the
@@ -643,7 +702,11 @@ export default function SettingsStep({
                         naming the same number differently. */}
                     <Th width="14%">Suggested Range</Th>
                     <Th width="12%">Grant</Th>
-                    <Th width="15%" align="left">Grant reason</Th>
+                    <Th width="13%" align="left">Grant reason</Th>
+                    {/* No header text: the column is one control per row,
+                        and "Remove" above a column of ✕ buttons labels the
+                        column rather than saying anything new. */}
+                    <Th width="4%" align="center"><span aria-hidden="true" /></Th>
                   </tr>
                 </thead>
                 <tbody>
@@ -705,6 +768,10 @@ export default function SettingsStep({
                           reasons={reasons}
                           onChange={onReason}
                         />
+                        <RemoveCell
+                          name={row.full_name || row.external_id}
+                          onRemove={() => onRemove(row.external_id)}
+                        />
                       </tr>
                     );
                   })}
@@ -718,32 +785,6 @@ export default function SettingsStep({
             calculated here instead — the tooltip on each cell says which.
           </div>
         </div>
-      </div>
-
-      {/* BELOW the policy/grants grid, not inside it, because it acts on both:
-          "add a column for unvested shares" is a table change, "show the target as
-          a multiple" is a policy one, and a box parked within either half would
-          read as belonging to that half.
-
-          It must stay outside the grid. As a grid child it becomes the second
-          child and so takes the second COLUMN, which pushes the grants panel to a
-          row of its own underneath the policy panel — the table then renders below
-          the policy at the narrow column's width however wide the window is.
-          Spanning both columns does not fix it either: source order puts the span
-          in row 2 and the grants panel in row 3, still stacked. */}
-      <div style={{
-        background: C.surface, border: `1px solid ${C.border}`, borderRadius: RADIUS,
-        padding: 16,
-      }}>
-        <div style={{
-          fontSize: FS.sm, fontWeight: 600, color: C.textSubtle, marginBottom: 8,
-        }}>
-          Change this page
-        </div>
-        <AskBar
-          token={token}
-          placeholder="Ask Claude to change this page — e.g. add a column for unvested shares"
-        />
       </div>
 
       <Nav onBack={onBack} onNext={onNext} />

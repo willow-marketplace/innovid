@@ -24,9 +24,15 @@ exploration). If it isn't installed, use the AI-tool commands below and
 
 ## Prerequisites
 
-1. **CLI installed**: Run `databricks --version` to check.
-   - **If the CLI is missing or outdated (< v0.292.0): STOP. Do not proceed or work around a missing CLI.**
-   - **Read the [CLI Installation](databricks-cli-install.md) reference file and follow the instructions to guide the user through installation.**
+1. **CLI installed and current**: the CLI must be >= v1.0.0. A CLI that is present but
+   too old is not "good enough" — it must be upgraded, not worked around.
+   - **Run the floor check in [CLI Installation](databricks-cli-install.md).** If it reports
+     `UPGRADE` or `INSTALL`: STOP and follow that reference file to upgrade or install — do
+     not proceed or tell the user their CLI is fine.
+   - **If another skill routed you here to upgrade** (it needs a newer CLI than v1.0.0 — e.g.
+     `databricks-setup-local` needs v1.12.0), that skill already detected the gap. A passing
+     v1.0.0 floor check is not enough: follow the Update / repair procedures to install the
+     latest stable, which satisfies any skill's floor.
    - Note: In sandboxed environments (Cursor IDE, containers), install commands write outside the workspace and may be blocked. Present the install command to the user and ask them to run it in their own terminal.
    - **Exception:** If CLI installation is blocked (sandboxed containers, restricted environments), ask the user whether to fall back to direct REST API calls using `DATABRICKS_HOST` and `DATABRICKS_TOKEN` environment variables if present in the shell. See the [Databricks REST API docs](https://docs.databricks.com/api/workspace/introduction).
 

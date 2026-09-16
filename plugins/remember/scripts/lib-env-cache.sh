@@ -113,6 +113,7 @@ _REMEMBER_LIB_ENV_CACHE_LOADED=1
 # more than this); lib-env-cache.sh's copy exists specifically because this
 # one runs on the hot path, so it gets the `_into` treatment from the start.
 _remember_env_cache_normalize_into() {
+    local LC_ALL=C  # bracket ranges below are byte-wise, not collated (#695)
     local _var="$1" _in="$2" _drive="" _rest=""
     local _re='^([a-zA-Z]):[/\](.*)$'
     case "$OSTYPE" in
@@ -128,7 +129,15 @@ _remember_env_cache_normalize_into() {
                 _rest="${BASH_REMATCH[2]}"
             fi
             if [ -n "$_drive" ]; then
-                _drive=$(printf '%s' "$_drive" | tr '[:lower:]' '[:upper:]')
+                # `LC_ALL=C` on the command, not just the function's `local`:
+                # `local` on a name the environment never exported leaves it
+                # unexported, so the child keeps the caller's locale. On a host
+                # whose language is set through LANG alone -- what setting a
+                # system language actually produces -- Turkish case rules then
+                # map `i` to the dotted `İ`, two bytes in a slot that holds one
+                # ASCII drive letter. The `local` above still does its own job:
+                # the bracket ranges bash matches itself (#695).
+                _drive=$(printf '%s' "$_drive" | LC_ALL=C tr '[:lower:]' '[:upper:]')
                 _rest="${_rest//\//\\}"
                 printf -v "$_var" '%s:\\%s' "$_drive" "$_rest"
                 return 0
@@ -139,6 +148,7 @@ _remember_env_cache_normalize_into() {
 }
 
 _remember_env_cache_path() {
+    local LC_ALL=C  # bracket ranges below are byte-wise, not collated (#695)
     # Pinned once per process (#469): this function runs both BEFORE
     # resolve-paths.sh (from _remember_env_cache_load, when CLAUDE_PROJECT_DIR
     # is still unset on Codex -- and on any other host that genuinely never

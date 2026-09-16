@@ -64,6 +64,7 @@
   });
 
   {{SO_TYPE_CONSTANTS}}
+  {{CORRESPONDING_INTEREST_CONSTANTS}}
 
   const MAX_SUGGESTIONS = 8;
 
@@ -117,6 +118,20 @@
     if (e.key === 'Escape') document.querySelectorAll('.stake-suggestions').forEach(b => b.style.display = 'none');
   });
 
+  // Batch rows ship an empty relationship <select> (one option list, not one per
+  // row). An off-picklist roster value is prepended so it is never silently lost.
+  function fillRelationshipOptions(scope) {
+    (scope || document).querySelectorAll('.stake-relationship:empty').forEach(sel => {
+      const want = sel.dataset.rel || '';
+      const values = RELATIONSHIP_CHOICES.includes(want) || !want
+        ? RELATIONSHIP_CHOICES
+        : [want].concat(RELATIONSHIP_CHOICES);
+      sel.appendChild(new Option('Select relationship…', ''));
+      values.forEach(v => sel.appendChild(new Option(v, v)));
+      sel.value = want;
+    });
+  }
+
   function allBlocks() { return Array.from(document.querySelectorAll('[data-stake-block]')); }
   function allBatchRows() { return Array.from(document.querySelectorAll('[data-batch-row]')); }
 
@@ -150,6 +165,21 @@
     pick(btn);
     const scope = btn.closest('[data-stake-block]') || btn.closest('[data-shared-terms]');
     if (scope) syncSoTypeConditionals(scope);
+  }
+
+  // The corresponding-interest link is a property of the unit class, so the
+  // answer changes with the selection. An unknown prefix reads as no link.
+  function syncCorrespondingInterest(scope) {
+    const classBtn = scope.querySelector('[data-group="shareclass"].selected');
+    const prefix = classBtn ? classBtn.dataset.value : null;
+    toggleConditional(scope, 'corresponding_interest',
+      !!CORRESPONDING_INTEREST_BY_PREFIX[prefix]);
+  }
+
+  function pickShareClass(btn) {
+    pick(btn);
+    const scope = btn.closest('[data-stake-block]') || btn.closest('[data-shared-terms]');
+    if (scope) syncCorrespondingInterest(scope);
   }
 
   function pickLegend(btn) {
@@ -296,6 +326,7 @@
 
     toggleVestingStartFor(clone);
     if (SEC_TYPE === 'option_grant') syncSoTypeConditionals(clone);
+    if (SEC_TYPE === 'piu') syncCorrespondingInterest(clone);
     const cR144 = clone.querySelector('.block-rule144-date');
     const r144Selected = clone.querySelector('[data-group="rule144"].selected');
     if (cR144) cR144.style.display = (r144Selected && r144Selected.dataset.value === 'other') ? 'block' : 'none';
@@ -372,7 +403,12 @@
       const el = clone.querySelector(sel);
       if (el) el.value = '';
     });
+    // A clone inherits the source's filled options and its value; reset both so
+    // the new person starts blank and fillRelationshipOptions() sees it as empty.
+    const relClone = clone.querySelector('.stake-relationship');
+    if (relClone) { relClone.innerHTML = ''; relClone.dataset.rel = ''; }
     body.appendChild(clone);
+    fillRelationshipOptions(clone);
     renumberBlocks();
     const nameInput = clone.querySelector('.stake-name-in');
     if (nameInput) nameInput.focus();
@@ -542,6 +578,7 @@
       const planBtn = scope.querySelector('[data-group="optionplan"].selected');
       const thresholdBtn = scope.querySelector('[data-group="thresholdtype"].selected');
       const docsetBtn = scope.querySelector('[data-group="docset"].selected');
+      const ciRow = scope.querySelector('[data-conditional="corresponding_interest"]');
       const ciBtn = scope.querySelector('[data-group="correspondinginterest"].selected');
       const vestSel = scope.querySelector('.block-vesting-select');
       const noVesting = !vestSel || vestSel.value === '__none__';
@@ -558,7 +595,12 @@
       row.vesting_start_date = noVesting ? null : (scope.querySelector('.block-vesting-start-date')?.value || null);
       row.document_set_id = docsetBtn ? docsetBtn.dataset.value : null;
       row.document_set_label = docsetBtn ? docsetBtn.dataset.label : null;
-      row.corresponding_interest = ciBtn ? ciBtn.dataset.value === 'yes' : null;
+      // Omit the key entirely for a unit class with no link, mirroring the row's
+      // visibility — carta-web drops the field there, so null is not the same as
+      // absent. Only a visible row can answer it.
+      if (ciRow && ciRow.style.display !== 'none') {
+        row.corresponding_interest = ciBtn ? ciBtn.dataset.value === 'yes' : null;
+      }
       row.prefix_number = scope.querySelector('.block-prefix-number')?.value || '';
       row.cash_paid = scope.querySelector('.block-cash-paid')?.value || '';
       row.is_flexible_issue_date = !!scope.querySelector('.block-flexible-issue-date')?.checked;
@@ -728,6 +770,9 @@
   function initScopeDisplay(scope) {
     toggleVestingStartFor(scope);
     if (SEC_TYPE === 'option_grant') syncSoTypeConditionals(scope);
+    // applySecType() clears the inline display on every [data-sectype] row of
+    // the active type, which re-shows a conditional row built hidden.
+    if (SEC_TYPE === 'piu') syncCorrespondingInterest(scope);
     const nameInput = scope.querySelector('.stake-name-in');
     if (nameInput && nameInput.value.trim()) applyRosterAutofill(nameInput);
   }
@@ -743,6 +788,7 @@
     allBlocks().forEach(initScopeDisplay);
     const shared = sharedTermsScope();
     if (shared) initScopeDisplay(shared);
+    fillRelationshipOptions();
     allBatchRows().forEach(r => {
       const n = r.querySelector('.stake-name-in');
       if (n && n.value.trim()) applyRosterAutofill(n);
