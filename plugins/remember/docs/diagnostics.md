@@ -33,5 +33,28 @@ Consolidation refuses to build a prompt larger than `thresholds.consolidate_max_
 
 **Which file moves is decided by arithmetic, not by guessing.** Dropping `archive.md` is tried first; `recent.md` is rotated only when dropping it is what brings the round under the cap. If the past-day staging files are over the cap *on their own*, nothing is rotated at all — no rotation available would change the next round, so moving `recent.md` would split an unconsolidated span for nothing. `/remember:doctor` distinguishes the two: the self-healing shape is a `WARN` that tells you to do nothing, and the shape that needs you is a `FAIL` that reaches the verdict line.
 
+## Profiling a hook: where your trace goes
+
+`bootstrap-dirs.sh` redirects fd 2 into `logs/hook-errors.log` so a hook's stderr never leaks into the host's transcript. Bash's own `xtrace` stream is on fd 2 too, so `bash -x scripts/session-start-hook.sh` used to produce a trace that covered only the part of the run before that line — silently, and from partway through ([#690](https://github.com/Digital-Process-Tools/claude-remember/issues/690)). Measured on macOS: `wall 0.71s`, traced span `0.07s`. A truncated trace does not look truncated; it reads as a complete profile of a fast hook, and every fork count and per-step attribution derived from it describes a fraction of the run.
+
+Two ways to profile, and the first is the better one:
+
+```bash
+# Best: trace on its own fd, stderr still captured in the log
+exec 9>/tmp/trace.txt
+BASH_XTRACEFD=9 PS4='+$EPOCHREALTIME ' bash -x scripts/session-start-hook.sh < payload.json
+
+# Also fine: trace on fd 2, which the hook now leaves alone
+PS4='+$EPOCHREALTIME ' bash -x scripts/session-start-hook.sh < payload.json
+```
+
+In the second shape the hook prints one line saying it is **not** redirecting stderr, so the absence of `hook-errors.log` entries during a profiling run is stated rather than discovered. `REMEMBER_TRACE=1` asks for the same thing without `bash -x`, for a profiler that is not bash's own xtrace.
+
+**`BASH_XTRACEFD` needs bash 4.1 or newer.** Stock macOS ships bash 3.2 as `/bin/bash`, which silently ignores the variable -- xtrace stays on fd 2 no matter what it names. The redirect knows this and stands down on that floor too, exactly as it does for a bare fd-2 trace, so a profile taken with the "best" shape above still survives on an old bash; it just lands on fd 2 like the plain case rather than in its own file.
+
 Its "Recent errors" section tails **`<your memory store>/logs/hook-errors.log`**. That file is where a hook's own stderr goes: `bootstrap-dirs.sh` points every coding agent hook's stderr at it, and a hook that exits non-zero is reported there with its exit status and its own first lines ([#277](https://github.com/Digital-Process-Tools/claude-remember/issues/277)). It is the single most useful thing to attach to a bug report — most of what makes a plugin failure hard to diagnose from the outside is already written in it, and a report that includes it usually skips a whole round of questions.
+
+## SessionStart duration ([#706](https://github.com/Digital-Process-Tools/claude-remember/issues/706))
+
+`/remember:doctor` also reports the most recently recorded `session-start took Ns` line from the daily log — `session-start-hook.sh` writes one on every start, always, whether or not it was slow enough to also show up in the session itself (see `session_start_slow_threshold_s` in [Configuration](configuration.md)). The plugin cannot tell a slow host from a slow plugin and does not try to; it only says how long it took, which is what points a user at the right question to ask next instead of hours of "the memory plugin feels slow" with nothing to check it against.
 

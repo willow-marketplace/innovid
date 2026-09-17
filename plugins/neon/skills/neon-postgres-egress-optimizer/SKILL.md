@@ -8,7 +8,7 @@ description: Diagnose and fix excessive Postgres egress (network data transfer) 
 If the `neon` skill is not installed, fetch it from https://neon.com/docs/ai/skills/neon/SKILL.md or install it with:
 
 ```bash
-npx skills add neondatabase/agent-skills --skill neon
+neon skills -s neon -y
 ```
 
 # Postgres Egress Optimizer

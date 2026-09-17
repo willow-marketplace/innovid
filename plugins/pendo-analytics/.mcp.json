@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "novus": {
+      "url": "https://novus-api.pendo.io/mcp",
+      "type": "http"
+    },
+    "pendo-external": {
+      "url": "https://app.pendo.io/mcp/v0/shttp",
+      "type": "http"
+    }
+  }
+}

@@ -76,7 +76,7 @@ run on every invocation regardless.
 
 | Step | Run it? | What it does | Detail |
 |---|---|---|---|
-| 0 | always | Capture the firm, probe the local cache, emit the greeting | [firm-resolution.md](references/firm-resolution.md) |
+| 0 | always | Say hello, run the surface check, capture the firm, probe the local cache, finish the greeting | [firm-resolution.md](references/firm-resolution.md) |
 | 1 | **skipped** whenever 0.2 already knows the firm — a warm OR soft cache hit | Resolve the firm | [firm-lookup.md](references/firm-lookup.md) |
 | 2 | **skipped** whenever 0.2 already knows the entity — a warm OR soft cache hit | Resolve the ManCo entity (GP entity as fallback) | [firm-lookup.md](references/firm-lookup.md) |
 | 2.5 | always | Cache check — decides **only** whether Step 3 runs, and hands it the year/month window to query | [budget-ingest.md](references/budget-ingest.md) |
@@ -126,9 +126,10 @@ never a narration of "checking MCP" or "resolving firm", and never a
 paste of any MCP response. Everything from firm resolution through the
 datadir build runs silently. Speak only at:
 
-- Step 0 — the greeting (always); its local cache probe (0.2) may also ask a
-  resume picker, or "which firm", before the greeting fires — both are local,
-  no MCP
+- Step 0 — the greeting: its opening line (0.0) fires before any check runs,
+  the surface check and local cache probe (0.2) follow silently, and 0.2 may
+  itself ask a resume picker, or "which firm" — both local, no MCP — before
+  the rest of the greeting completes
 - Step 1 — firm disambiguation, if several firms match
 - Step 2 — the entity confirmation, on every build: a picker when the firm
   has several management companies, a yes/no when it has one, and always an
@@ -149,6 +150,18 @@ datadir build runs silently. Speak only at:
 - Step 6 — the offer to update, on a re-invocation
 - Any hard error (MCP unauth, no data, port range exhausted)
 
+**Every entry above that is a question is a tool call, not a rhetorical
+one.** Wherever this page or a reference file says "ask," "confirm," or
+"offer," the next thing you do is invoke `AskUserQuestion` — never write
+the question as chat text and carry on, and never resolve it yourself
+(a best guess, a default, "probably X so I'll proceed") to skip the round
+trip. This applies most where the honest answer is "it's ambiguous" —
+Step 4.7's per-row mapping questions above all — since that is exactly
+where working through the ambiguity yourself feels like progress and is
+actually the thing this skill exists to not do. If you notice you are
+about to fetch, build, or write based on something no `AskUserQuestion`
+has actually confirmed, stop and ask first.
+
 Do not paste raw command output, MCP JSON, SQL result headers, or step
 labels. The user sees the greeting, any prompt that genuinely needs an
 answer, and the URL.
@@ -160,6 +173,22 @@ datadir", "Datadir built successfully", "Now checking the local dashboard
 cache for…" are all output the user did not ask for and cannot act on.
 Between the greeting and the URL, a tool call is the whole turn — issue it
 and say nothing.
+
+**A failed command is troubleshot exactly as silently as a working one runs —
+everywhere in this skill, not only in the step that happened to fail.**
+"Found the plugin root. Now retrying the surface check with the correct
+path and a writable uv cache dir" and "Running a command" are the same
+violation as the phrases above, just triggered by an error instead of an
+ordinary step: the reader gets a plugin path, a cache directory, and a
+retry count — infrastructure trivia they did not ask about and cannot act
+on, dressed up as an update. Whatever it takes to get a script to run — a
+different path, a different flag, a second attempt — is exactly as silent
+as the attempt that would have worked the first time; the correct visible
+trace of a script needing several tries is nothing at all. Only when every
+reasonable attempt is exhausted does this break silence, and even then with
+one plain-English line about what's actually wrong (see
+[errors.md](references/errors.md)) — never an account of what was tried
+before that.
 
 ## Errors and deferred work
 

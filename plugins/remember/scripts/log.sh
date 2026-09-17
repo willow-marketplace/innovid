@@ -858,6 +858,48 @@ MEMORY_LOG_DATE=""
 _remember_date_into MEMORY_LOG_DATE +%Y-%m-%d
 MEMORY_LOG_FILE="${REMEMBER_LOG_DIR}/memory-${MEMORY_LOG_DATE}.log"
 
+# #705: MEMORY_LOG_DATE above is a snapshot, not a subscription -- a process
+# that sources log.sh and then lives across midnight (a long-running
+# session, a backgrounded save, a consolidation round that starts at 23:58)
+# would otherwise keep writing into the file named for the day it was
+# SOURCED, forever. The fix cannot re-fork `date` on every log() call --
+# that is exactly the cost #660/#665 removed from this hot path -- so
+# log() instead compares its own already-computed HH:MM:SS timestamp
+# against the previous call's (both zero-padded 24h strings, so a plain
+# lexicographic `<` is a correct earlier-than-later test) and only pays for
+# a fresh MEMORY_LOG_DATE when the clock has visibly gone backwards, i.e.
+# wrapped through midnight. Seeded here, at source time, with the SAME
+# instant MEMORY_LOG_DATE above was computed from, so even the very first
+# log() call after a source-time-then-sleep-past-midnight gap detects the
+# rollover -- an empty seed would miss exactly that first call.
+_REMEMBER_LOG_LAST_TIME=""
+_remember_date_into _REMEMBER_LOG_LAST_TIME +%H:%M:%S
+
+# Self-review finding: the time-decrease check above only catches a day
+# change whose NEXT log() call happens to land at an earlier time-of-day
+# than the one before it -- true for the 23:58-consolidation case the issue
+# names, but not for a process that logs INFREQUENTLY across a multi-day
+# idle gap and then happens to log again at a later time-of-day than its
+# last call (e.g. 10:00 two days ago, 10:05 today -- never "goes backward",
+# so MEMORY_LOG_DATE would stay pinned to the stale date indefinitely,
+# reintroducing the exact bug #705 fixes under a different timing).
+# EPOCHSECONDS (bash >= 5) is a builtin variable, not a fork, so a SECOND,
+# independent check -- has at least a full day of real time elapsed since
+# the last call, regardless of time-of-day -- is free to add on that
+# platform and closes this gap with no added cost. Below bash 5 there is no
+# forkless way to read elapsed real seconds, so this second check is simply
+# unavailable there and the time-decrease check above is what covers it,
+# same as before this addition.
+_REMEMBER_LOG_LAST_EPOCH=""
+[ "${BASH_VERSINFO[0]:-0}" -ge 5 ] && _REMEMBER_LOG_LAST_EPOCH="$EPOCHSECONDS"
+# Overridable only for tests (mirrors REMEMBER_NO_PRINTF_T in lib-clock.sh):
+# a real 86400s gap cannot be waited out in a test, so this lets one prove
+# the SAME comparison below with a real, short sleep instead of a fake clock
+# -- EPOCHSECONDS is a live builtin that cannot be pinned by assignment
+# (confirmed: `EPOCHSECONDS=1000` does not stick), so there is no shim-based
+# way to fake it the way `date` is faked elsewhere in this file's tests.
+_REMEMBER_LOG_DAY_SECONDS="${_REMEMBER_LOG_DAY_SECONDS_TEST:-86400}"
+
 # Log a timestamped message to the daily pipeline log file.
 #
 # Args:
@@ -900,6 +942,19 @@ log() {
     local component="$1"
     local message="$2"
     local timestamp
+    # Self-review finding: `[[ STR1 < STR2 ]]` sorts by the shell's current
+    # LC_COLLATE, not by byte value -- `_remember_cfg_flatten_cache_path`
+    # (above, #695) already scopes `local LC_ALL=C` for exactly this class
+    # of bug (a Turkish locale's dotless-i reordering broke a bracket RANGE
+    # there). No real-world locale is known to reorder plain ASCII digits or
+    # `:` against each other, but the #705 comparison below is exactly the
+    # kind of thing that silently misfires (or silently fails to fire,
+    # reintroducing #705 itself) under one that did, and this function runs
+    # on every single log line, in every locale a host happens to be in.
+    # Scoped to this function only, restored on return -- the same
+    # `${timestamp}` printed to the log a few lines down must still read in
+    # the CALLER's own locale/timezone, unaffected by this.
+    local LC_ALL=C
     # `_remember_date_into` (lib-clock.sh, #511) writes straight into
     # `timestamp` with `printf -v` -- no command-substitution subshell on
     # top of the already-forkless builtin path (#665, part of #660). The
@@ -908,6 +963,43 @@ log() {
     # `$( )` was adding on top of that, exactly the way config_into (above,
     # #665) does for config().
     _remember_date_into timestamp +%H:%M:%S
+    # #705: a lexicographic compare against the PREVIOUS call's timestamp,
+    # not a second clock read -- both are zero-padded "HH:MM:SS", so a
+    # string that sorts BEFORE the last one means the clock wrapped through
+    # midnight since then. No fork on the (overwhelming) common case where
+    # nothing wrapped; MEMORY_LOG_DATE is only re-forked (still via the
+    # same forkless builtin path on bash >= 4.2 -- an actual fork only on
+    # the REMEMBER_TZ/bash-3.2 paths, and only once per day, not per line)
+    # on the rare call where it did.
+    #
+    # Self-review finding: the time-decrease check alone only catches a day
+    # change whose NEXT call happens to land at an earlier time-of-day than
+    # the one before it. A second, independent condition below closes the
+    # gap it leaves open -- an infrequently-logging process whose next call,
+    # after a multi-day idle gap, happens to land at a LATER time-of-day
+    # than its last one (so the string never "goes backward") -- using
+    # EPOCHSECONDS (bash >= 5, a builtin, not a fork) to ask "has at least a
+    # full day of real time elapsed", independent of time-of-day. Below
+    # bash 5, `_REMEMBER_LOG_LAST_EPOCH` is empty and this second condition
+    # never contributes, leaving exactly the time-decrease behaviour from
+    # before this addition -- there is no forkless way to read elapsed real
+    # seconds on that platform, and forking `date` here would be the exact
+    # per-line cost this whole fix exists to avoid.
+    local _remember_log_rolled=0 _remember_log_now_epoch
+    if [ -n "$_REMEMBER_LOG_LAST_TIME" ] && [[ "$timestamp" < "$_REMEMBER_LOG_LAST_TIME" ]]; then
+        _remember_log_rolled=1
+    elif [ -n "$_REMEMBER_LOG_LAST_EPOCH" ]; then
+        _remember_log_now_epoch="$EPOCHSECONDS"
+        if [ $(( _remember_log_now_epoch - _REMEMBER_LOG_LAST_EPOCH )) -ge "$_REMEMBER_LOG_DAY_SECONDS" ]; then
+            _remember_log_rolled=1
+        fi
+    fi
+    if [ "$_remember_log_rolled" = 1 ]; then
+        _remember_date_into MEMORY_LOG_DATE +%Y-%m-%d
+        MEMORY_LOG_FILE="${REMEMBER_LOG_DIR}/memory-${MEMORY_LOG_DATE}.log"
+    fi
+    _REMEMBER_LOG_LAST_TIME="$timestamp"
+    [ -n "$_REMEMBER_LOG_LAST_EPOCH" ] && _REMEMBER_LOG_LAST_EPOCH="$EPOCHSECONDS"
     # #621 tried twice to gate this fork behind a cheap in-shell
     # pre-check (a message rarely carries a control byte at all, and log()
     # runs on the per-tool-call hot path) -- unconditional `[[:cntrl:]]`,

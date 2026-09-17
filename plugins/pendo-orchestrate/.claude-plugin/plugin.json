@@ -1,0 +1,28 @@
+{
+  "name": "pendo-orchestrate",
+  "version": "1.0.0",
+  "description": "Create, configure, and edit draft Orchestrate email journeys via Pendo MCP — multi-email journeys and conditional split flows. Activation in Orchestrate UI.",
+  "updatedAt": "2026-09-17T00:02:34.745Z",
+  "author": {
+    "name": "Pendo",
+    "email": "plugins@pendo.io"
+  },
+  "homepage": "https://github.com/pendo-io/claude-pendo-plugin",
+  "repository": "https://github.com/pendo-io/claude-pendo-plugin",
+  "keywords": [
+    "pendo",
+    "orchestrate",
+    "journeys",
+    "email",
+    "lifecycle",
+    "product-management"
+  ],
+  "displayName": "Pendo Orchestrate",
+  "skills": "./skills/",
+  "mcpServers": {
+    "pendo-external": {
+      "url": "https://app.pendo.io/mcp/v0/shttp",
+      "type": "http"
+    }
+  }
+}

@@ -2,7 +2,7 @@
   "name": "unreal-engine-skills-for-claude-code",
   "version": "3.1.0",
   "description": "Control Unreal Editor directly from Claude Code via MCP. Hundreds of tools exposed via Unreal's ToolsetRegistry across 30+ toolsets: actors, blueprints, materials, Niagara, Control Rigs, Sequencer, State Trees, widgets, Gameplay Ability System, automation testing, and more.",
-  "updatedAt": "2026-09-16T12:04:20.773Z",
+  "updatedAt": "2026-09-17T00:02:53.794Z",
   "author": {
     "name": "Thomas Mansencal",
     "email": "thomas.mansencal@epicgames.com"

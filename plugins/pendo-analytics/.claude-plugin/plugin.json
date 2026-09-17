@@ -1,0 +1,30 @@
+{
+  "name": "pendo-analytics",
+  "version": "1.1.0",
+  "description": "Bring Pendo analytics into Claude Code with skills for account health, feature adoption, session replays, feedback analysis, and data-informed planning",
+  "updatedAt": "2026-09-17T00:02:56.794Z",
+  "author": {
+    "name": "Pendo",
+    "email": "plugins@pendo.io"
+  },
+  "homepage": "https://github.com/pendo-io/claude-pendo-plugin",
+  "repository": "https://github.com/pendo-io/claude-pendo-plugin",
+  "keywords": [
+    "pendo",
+    "analytics",
+    "customer-success",
+    "product-management"
+  ],
+  "displayName": "Pendo Analytics",
+  "skills": "./skills/",
+  "mcpServers": {
+    "novus": {
+      "url": "https://novus-api.pendo.io/mcp",
+      "type": "http"
+    },
+    "pendo-external": {
+      "url": "https://app.pendo.io/mcp/v0/shttp",
+      "type": "http"
+    }
+  }
+}

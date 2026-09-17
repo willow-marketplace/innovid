@@ -1,7 +1,0 @@
-{
-  "$id": "definitions/Service",
-  "title": "Service",
-  "pattern": "(^\/.+\/Services\/).*(.+\\.service)$|(^Services\/).*(.+\\.service)$",
-  "type": "string",
-  "description": "Reference to a defined OData service in the `Services` folder"
-}

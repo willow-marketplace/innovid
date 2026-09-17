@@ -1,0 +1,32 @@
+{
+  "name": "clay",
+  "version": "2.24.1",
+  "description": "Build with Clay in Claude Code",
+  "updatedAt": "2026-09-17T00:03:02.882Z",
+  "author": {
+    "name": "Clay"
+  },
+  "skills": "./skills/",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/approve-cli.sh claude"
+          }
+        ]
+      },
+      {
+        "matcher": "Skill",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/approve-skills.sh claude"
+          }
+        ]
+      }
+    ]
+  }
+}

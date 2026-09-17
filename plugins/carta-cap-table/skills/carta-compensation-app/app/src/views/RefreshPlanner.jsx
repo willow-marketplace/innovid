@@ -384,8 +384,12 @@ export default function RefreshPlanner({ planner, corporation, corporationId, to
     //
     // Each predicate was validated before it was committed (FilterBox refuses an
     // invalid one), so evaluate() only ever sees a predicate that passed the gate.
-    const kept = claudeFilters.reduce(
-      (rows_, f) => applyPredicate(rows_, f.node, { asOf }), preset.rows);
+    // Only the ones switched on. A disabled filter is kept so it can be switched
+    // back — re-describing a filter someone spent a prompt writing is the cost
+    // this avoids — but it narrows nothing while it is off.
+    const kept = claudeFilters
+      .filter((f) => f.enabled !== false)
+      .reduce((rows_, f) => applyPredicate(rows_, f.node, { asOf }), preset.rows);
     return { rows: kept, removed: all.length - kept.length };
   }, [all, currentFilters, availability, asOf, claudeFilters]);
 
@@ -421,14 +425,20 @@ export default function RefreshPlanner({ planner, corporation, corporationId, to
   // explicitly rather than read back from state, which has not committed yet.
   const saveClaudeFilters = (next) => save({ claudeFilters: next });
 
-  const addClaudeFilter = ({ text, node, sentence }) => {
+  const addClaudeFilter = ({ text, node, sentence, name }) => {
     // The sentence is stored alongside the predicate rather than re-derived on
     // read: it is what the user approved, and describe() is free to improve its
     // wording later without silently rewriting what a saved plan says it does.
     const next = [...claudeFilters, {
       id: `f${Date.now()}${Math.random().toString(36).slice(2, 6)}`,
-      text, node, sentence,
+      text, node, sentence, name, enabled: true,
     }];
+    setClaudeFilters(next);
+    saveClaudeFilters(next);
+  };
+
+  const toggleClaudeFilter = (id, enabled) => {
+    const next = claudeFilters.map((f) => (f.id === id ? { ...f, enabled } : f));
     setClaudeFilters(next);
     saveClaudeFilters(next);
   };
@@ -786,6 +796,16 @@ export default function RefreshPlanner({ planner, corporation, corporationId, to
               hint="Removes employees about to fully vest — the opposite of the CTC report's filter, which keeps them."
             />
           )}
+
+          {/* Claude's filters sit WITH the presets, one dropdown each, labelled
+              with what they do. They narrow this cohort exactly as the four
+              controls beside them do, so the row that shows the filters in force
+              has to show them too. */}
+          <CommittedFilters
+            filters={claudeFilters}
+            onToggle={toggleClaudeFilter}
+            onRemove={removeClaudeFilter}
+          />
         </div>
 
         {/* Under the row, not inside a control. "Prior grants" is the one filter
@@ -815,23 +835,21 @@ export default function RefreshPlanner({ planner, corporation, corporationId, to
           marginTop: 14, paddingTop: 14, borderTop: `1px solid ${C.border}`,
           display: "grid", gap: 8,
         }}>
-          {/* The filters already applied stay on screen whether the box below is
-              open or not. An active filter is silently narrowing the cohort, and
-              putting one behind a collapsed section is how someone ends up looking
-              at 25 of 134 employees with no visible reason why. */}
-          <CommittedFilters filters={claudeFilters} onRemove={removeClaudeFilter} />
+          {/* OPEN by default. It was collapsed to buy back the 151px the input,
+              its examples and the preview space cost — but a box nobody can see is
+              a box nobody uses, and this is the one control on the screen a reader
+              would not guess exists. The presets look like filters; a prompt does
+              not, unless it is on screen.
 
-          {/* COLLAPSED BY DEFAULT. The input, its examples and the space the
-              preview needs ran to 151px — a third of a tile that already filled
-              half the fold before the first employee row. Authoring a filter is a
-              deliberate act a few times a session; the preset controls above are
-              what people touch on every visit, so this is the part that folds.
+              It still folds, which is what the collapse was really for: once the
+              cohort is settled it is 151px of a tile you are done with. The
+              default just stops it hiding the feature on first look.
 
               A <details>, not a hand-rolled toggle: it opens on click and on
               Enter, announces its own state, and is findable by the browser's own
               in-page search even while closed — three things a div with an onClick
               would each need building and would probably get wrong. */}
-          <details className="ctc-fold">
+          <details open className="ctc-fold">
             {/* The same control as the tile's own fold, so two nested collapsing
                 sections do not each teach a different gesture. */}
             {/* Chevron FIRST here, unlike the tile's fold. This summary is one

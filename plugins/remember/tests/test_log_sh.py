@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 import os
+import shlex
 import shutil
 import subprocess
 import sys
@@ -1027,3 +1028,303 @@ class TestConfigRefusesRatherThanGuesses:
         )
         assert result.returncode == 0, result.stderr
         assert result.stdout.strip() == "sonnet"
+
+
+def _make_fake_date_shim(fake_dir, date_queue_lines, time_queue_lines):
+    """A `date` on PATH that pops canned answers off two queues, one per
+    format string, and records every call it saw.
+
+    #705's fix must recompute MEMORY_LOG_DATE only when a real day rollover
+    is detected, using the same forkless builtin path as everything else on
+    this hot path -- so the test forces the fork path with
+    REMEMBER_NO_PRINTF_T=1 and puts this shim in front of PATH to control
+    what "now" answers on each call, one canned value at a time.
+    """
+    fake_dir.mkdir(parents=True, exist_ok=True)
+    (fake_dir / "date-queue").write_text("\n".join(date_queue_lines) + "\n")
+    (fake_dir / "time-queue").write_text("\n".join(time_queue_lines) + "\n")
+    (fake_dir / "date-calls.log").write_text("")
+    fake_date = fake_dir / "date"
+    fake_date.write_text(
+        '#!/bin/bash\n'
+        'here="$(cd "$(dirname "$0")" && pwd)"\n'
+        'echo "$1" >> "$here/date-calls.log"\n'
+        'case "$1" in\n'
+        '  +%Y-%m-%d) f="$here/date-queue" ;;\n'
+        '  +%H:%M:%S) f="$here/time-queue" ;;\n'
+        '  *) f="" ;;\n'
+        'esac\n'
+        'if [ -z "$f" ]; then\n'
+        '  exec /usr/bin/env -S date "$@"\n'
+        'fi\n'
+        'line=$(head -n1 "$f")\n'
+        'tail -n +2 "$f" > "$f.tmp" && mv "$f.tmp" "$f"\n'
+        'echo "$line"\n'
+    )
+    fake_date.chmod(0o755)
+    # #488 (tests/test_session_end_log_names_488.py): Path.chmod(0o755) run
+    # by a native Windows Python only ever toggles the read-only attribute --
+    # there is no POSIX execute bit on that platform for it to set, so a shim
+    # this process creates may carry none of whatever MSYS2's own exec()/
+    # PATH-search checks for, and Git Bash falls through to the REAL `date`
+    # on PATH instead of this one. Best-effort second attempt: ask bash
+    # itself (already resolved as `_BASH`, real Git Bash on Windows) to
+    # chmod the file, which goes through MSYS2's own permission layer
+    # instead of Windows Python's. Deliberately best-effort (`check=False`)
+    # -- `_assert_date_shim_took_or_skip` below is the second line of
+    # defence if this ALSO does not make MSYS treat the file as executable.
+    if os.name == "nt" and _BASH is not None:
+        subprocess.run(
+            [_BASH, "-c", f"chmod +x {shlex.quote(_bash_path(fake_date))}"],
+            capture_output=True, timeout=10, check=False,
+        )
+    return fake_date
+
+
+def _assert_date_shim_took_or_skip(fake_dir) -> None:
+    """Detect whether `_make_fake_date_shim`'s `date` on PATH actually
+    intercepted log.sh's `date` calls, and skip the calling test with a
+    specific, stated reason if it did not -- rather than asserting a false
+    failure against #705's own fix. The shim appends to `date-calls.log` on
+    EVERY invocation it receives, real-format or not, so an empty log after
+    the subprocess has run means Git Bash resolved the real `date` on PATH
+    instead of this one (the #488 class), never that the shim ran and saw
+    no calls -- log.sh always calls `date` at least once to build
+    MEMORY_LOG_DATE.
+    """
+    calls_log = fake_dir / "date-calls.log"
+    if calls_log.is_file() and calls_log.read_text().strip():
+        return
+    if os.name != "nt":
+        # The #488 class this guards against is specific to a native
+        # Windows Python's Path.chmod(0o755) not reliably reaching MSYS2's
+        # own executable check -- on POSIX, chmod actually sets the bit and
+        # the shim is expected to take every time. Skipping here too would
+        # convert a genuine "log.sh/session-start-hook.sh stopped calling
+        # date" regression into a silent SKIP with a Windows-flavoured
+        # excuse that is simply false on this platform. Returning without
+        # skipping lets the caller's own assertions fail loudly instead.
+        return
+    pytest.skip(
+        "the date PATH shim (_make_fake_date_shim) did not intercept "
+        "log.sh's `date` calls on this platform -- date-calls.log stayed "
+        "empty, consistent with the real `date` binary answering instead "
+        "(#488's own class: a chmod'd-by-native-Windows-Python shim is not "
+        "always treated as executable by Git Bash/MSYS2's PATH search). "
+        "#705's own fix is not what this pins and is unaffected either way."
+    )
+
+
+def test_a_process_alive_across_midnight_files_the_write_under_the_new_day(tmp_path):
+    """#705: MEMORY_LOG_DATE was computed once at source time and never
+    revisited. A process that sources log.sh before midnight and then calls
+    log() after midnight must file that write under the NEW day, not
+    whatever day it was when the file was sourced.
+
+    The bar: would this test still pass if the code did nothing? No -- before
+    the fix, FILE2 below equals FILE1 (both "2026-01-01"), because nothing
+    ever looks at the clock again after source time.
+    """
+    project = _make_project(tmp_path, None)
+    fake_dir = tmp_path / "fakebin"
+    _make_fake_date_shim(
+        fake_dir,
+        date_queue_lines=["2026-01-01", "2026-01-02"],
+        time_queue_lines=["23:59:00", "23:59:30", "00:05:00"],
+    )
+    script = f"""
+    set -e
+    export PROJECT_DIR="{_bash_path(project)}"
+    export REMEMBER_NO_PRINTF_T=1
+    export PATH="{_bash_path(fake_dir)}:$PATH"
+    source "{_bash_path(LOG_SH)}"
+    log component "before midnight"
+    echo "FILE1=$MEMORY_LOG_FILE"
+    log component "after midnight"
+    echo "FILE2=$MEMORY_LOG_FILE"
+    """
+    env = {**os.environ}
+    result = subprocess.run([_BASH, "-c", script], env=env, capture_output=True, text=True)
+    assert result.returncode == 0, f"log.sh failed: {result.stderr}"
+    _assert_date_shim_took_or_skip(fake_dir)
+    parsed = {}
+    for line in result.stdout.strip().splitlines():
+        if "=" in line:
+            k, v = line.split("=", 1)
+            parsed[k] = v
+    assert parsed["FILE1"].endswith("memory-2026-01-01.log"), parsed
+    assert parsed["FILE2"].endswith("memory-2026-01-02.log"), (
+        f"a log() call after midnight kept writing into yesterday's file: {parsed}"
+    )
+
+
+def test_log_does_not_refork_date_for_the_day_when_nothing_rolled_over(tmp_path):
+    """Positive control for the test above: the recompute path must fire
+    ONLY on an actual day rollover, never on every log() call -- that would
+    reintroduce the exact per-line fork #660/#665 removed. Without this
+    control, a naive fix that always re-forks `date +%Y-%m-%d` in log()
+    would also pass the midnight test above.
+    """
+    project = _make_project(tmp_path, None)
+    fake_dir = tmp_path / "fakebin"
+    _make_fake_date_shim(
+        fake_dir,
+        date_queue_lines=["2026-01-01"],
+        time_queue_lines=["10:00:00", "10:00:05", "10:00:10"],
+    )
+    script = f"""
+    set -e
+    export PROJECT_DIR="{_bash_path(project)}"
+    export REMEMBER_NO_PRINTF_T=1
+    export PATH="{_bash_path(fake_dir)}:$PATH"
+    source "{_bash_path(LOG_SH)}"
+    log component "one"
+    log component "two"
+    echo "FILE=$MEMORY_LOG_FILE"
+    """
+    env = {**os.environ}
+    result = subprocess.run([_BASH, "-c", script], env=env, capture_output=True, text=True)
+    assert result.returncode == 0, f"log.sh failed: {result.stderr}"
+    _assert_date_shim_took_or_skip(fake_dir)
+    file_line = next(l for l in result.stdout.strip().splitlines() if l.startswith("FILE="))
+    assert file_line.endswith("memory-2026-01-01.log"), file_line
+    calls = (fake_dir / "date-calls.log").read_text().splitlines()
+    day_calls = [c for c in calls if c == "+%Y-%m-%d"]
+    assert len(day_calls) == 1, (
+        f"date was re-forked for the day component when no midnight crossing "
+        f"happened -- exactly one call (at source time) is allowed: {calls}"
+    )
+
+
+def _bash_major_version(bash) -> int:
+    """0 on any failure -- the caller treats 0 as "skip", never as "bash 0"."""
+    if not bash:
+        return 0
+    result = subprocess.run(
+        [bash, "-c", 'echo "${BASH_VERSINFO[0]:-0}"'],
+        capture_output=True, text=True,
+    )
+    try:
+        return int(result.stdout.strip())
+    except ValueError:
+        return 0
+
+
+@pytest.mark.skipif(
+    _bash_major_version(_BASH) < 5,
+    reason="the EPOCHSECONDS-based long-gap check only exists on bash >= 5 -- "
+    "log.sh's own comment says there is no forkless equivalent below it, so "
+    "this class is genuinely untested there, not silently skipped",
+)
+def test_a_multi_day_idle_gap_recomputes_even_when_time_never_decreases(tmp_path):
+    """Self-review finding on the #705 fix itself: the time-decrease check
+    ALONE only catches a day change whose NEXT log() call happens to land at
+    an EARLIER time-of-day than the one before it (the 23:58-consolidation
+    case the issue names). An infrequently-logging process whose next call,
+    after a multi-day idle gap, lands at a LATER time-of-day than its last
+    call never trips that check -- the string never "goes backward" -- which
+    would silently reintroduce #705 under a different timing.
+
+    EPOCHSECONDS cannot be pinned by direct assignment (confirmed: it is a
+    live bash builtin, the same trap this repo's own lib-clock.sh docs name
+    for EPOCHREALTIME), so this drives the REAL comparison with a real, short
+    sleep and `_REMEMBER_LOG_DAY_SECONDS_TEST` standing in for a real 86400s
+    day -- REMEMBER_NO_PRINTF_T=1 still forces the `+%Y-%m-%d`/`+%H:%M:%S`
+    fork path (shimmed, so the two calendar dates below are fully
+    controlled), while $EPOCHSECONDS itself is untouched by that variable
+    and ticks for real.
+
+    #715: a 1-second simulated day and a 1.5s sleep raced ordinary shell
+    startup jitter -- EPOCHSECONDS has 1-second wall-clock granularity, and
+    `_REMEMBER_LOG_LAST_EPOCH` is captured at SOURCE time (log.sh, module
+    load), before this script's first `log()` call ("call one") ever runs.
+    On a loaded CI runner, sourcing log.sh plus setting up the fake `date`
+    shim can itself span a real 1-second tick, so the idle-gap check could
+    already read `>= 1` on call one -- a day early, before the deliberate
+    sleep below ever executes -- which is exactly the flake CI hit (FILE1
+    one day ahead, FILE2 with an empty date component because the shim's
+    second queued date was consumed early, on call one, leaving nothing
+    queued for call two). Widened to a 5s simulated day and an 8s sleep:
+    comfortably above realistic source-to-first-call startup jitter (so
+    call one does not roll over spuriously) and comfortably below the real
+    elapsed gap the deliberate sleep produces (so call two reliably does).
+    """
+    project = _make_project(tmp_path, None)
+    fake_dir = tmp_path / "fakebin"
+    _make_fake_date_shim(
+        fake_dir,
+        date_queue_lines=["2026-01-01", "2026-01-02"],
+        time_queue_lines=["10:00:00", "10:00:05", "10:00:10"],
+    )
+    script = f"""
+    set -e
+    export PROJECT_DIR="{_bash_path(project)}"
+    export REMEMBER_NO_PRINTF_T=1
+    export _REMEMBER_LOG_DAY_SECONDS_TEST=5
+    export PATH="{_bash_path(fake_dir)}:$PATH"
+    source "{_bash_path(LOG_SH)}"
+    log component "call one"
+    echo "FILE1=$MEMORY_LOG_FILE"
+    sleep 8
+    log component "call two, later time-of-day, same string-compare direction"
+    echo "FILE2=$MEMORY_LOG_FILE"
+    """
+    env = {**os.environ}
+    result = subprocess.run([_BASH, "-c", script], env=env, capture_output=True, text=True)
+    assert result.returncode == 0, f"log.sh failed: {result.stderr}"
+    _assert_date_shim_took_or_skip(fake_dir)
+    parsed = {}
+    for line in result.stdout.strip().splitlines():
+        if "=" in line:
+            k, v = line.split("=", 1)
+            parsed[k] = v
+    assert parsed["FILE1"].endswith("memory-2026-01-01.log"), parsed
+    assert parsed["FILE2"].endswith("memory-2026-01-02.log"), (
+        f"an idle-gap rollover where time-of-day never decreased was not "
+        f"detected by the EPOCHSECONDS-based check: {parsed}"
+    )
+
+
+@pytest.mark.skipif(
+    _bash_major_version(_BASH) < 5,
+    reason="the EPOCHSECONDS-based long-gap check only exists on bash >= 5",
+)
+def test_the_idle_gap_check_does_not_fire_under_a_day_that_has_not_elapsed(tmp_path):
+    """POSITIVE CONTROL for the test above, using the same shape of shim
+    (only the day-length threshold changed) -- proving the previous test's
+    pass is not just "the shim always advances the date regardless of the
+    epoch check", the same way
+    test_log_does_not_refork_date_for_the_day_when_nothing_rolled_over pairs
+    with the plain midnight test above it. Its own real `sleep 1.5` below is
+    intentionally UNCHANGED by #715's widening above -- at a 999999s
+    threshold it is nowhere near either margin, so it was never part of the
+    race that test's docstring describes.
+    """
+    project = _make_project(tmp_path, None)
+    fake_dir = tmp_path / "fakebin"
+    _make_fake_date_shim(
+        fake_dir,
+        date_queue_lines=["2026-01-01"],
+        time_queue_lines=["10:00:00", "10:00:05", "10:00:10"],
+    )
+    script = f"""
+    set -e
+    export PROJECT_DIR="{_bash_path(project)}"
+    export REMEMBER_NO_PRINTF_T=1
+    export _REMEMBER_LOG_DAY_SECONDS_TEST=999999
+    export PATH="{_bash_path(fake_dir)}:$PATH"
+    source "{_bash_path(LOG_SH)}"
+    log component "call one"
+    sleep 1.5
+    log component "call two"
+    echo "FILE=$MEMORY_LOG_FILE"
+    """
+    env = {**os.environ}
+    result = subprocess.run([_BASH, "-c", script], env=env, capture_output=True, text=True)
+    assert result.returncode == 0, f"log.sh failed: {result.stderr}"
+    _assert_date_shim_took_or_skip(fake_dir)
+    file_line = next(l for l in result.stdout.strip().splitlines() if l.startswith("FILE="))
+    assert file_line.endswith("memory-2026-01-01.log"), (
+        f"the epoch-based check fired despite the configured day length "
+        f"({999999}s) not having elapsed: {file_line}"
+    )

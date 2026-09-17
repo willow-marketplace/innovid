@@ -5,7 +5,7 @@
       "type": "http",
       "headers": {
         "Authorization": "Bearer ${DT_PLATFORM_TOKEN}",
-        "X-Http-Source": "dynatrace-for-ai/7.0.0"
+        "X-Http-Source": "dynatrace-for-ai/8.0.0"
       }
     }
   }

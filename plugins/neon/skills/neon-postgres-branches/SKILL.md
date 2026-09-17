@@ -8,7 +8,7 @@ description: Choose and create the right Neon branch type for testing and develo
 If the `neon` skill is not installed, fetch it from https://neon.com/docs/ai/skills/neon/SKILL.md or install it with:
 
 ```bash
-npx skills add neondatabase/agent-skills --skill neon
+neon skills -s neon -y
 ```
 
 # Lakebase Postgres Branching

@@ -360,6 +360,64 @@ unset _mem_proj _mem_bd_glob_dir _mem_bd_glob_proj
 # guaranteed to exist before we open the file.
 # Guard: only redirect if the logs dir was actually created (read-only
 # filesystems, Docker read-only mounts, etc. will skip this gracefully).
-if [ -d "$REMEMBER_DIR/logs" ]; then
-    exec 2>> "$REMEMBER_DIR/logs/hook-errors.log"
+#
+# Second guard (#690): bash's own xtrace stream is on fd 2 unless
+# BASH_XTRACEFD says otherwise, so this one line also swallowed every
+# `bash -x` profile of these hooks -- from this point on, into a log file the
+# profiler never reads, with nothing anywhere saying the rest was lost. A
+# truncated trace does not look truncated; it looks like a complete profile of
+# a fast hook, and every number derived from it (fork counts, per-step
+# attributions, "the largest gap is X") then describes a fraction of the run
+# while reading as though it described all of it. Measured on macOS while
+# building the #660 diagnostic: wall 0.71s, traced span 0.07s.
+#
+# So the redirect stands EXCEPT where doing it would swallow a trace somebody
+# deliberately started:
+#   - xtrace is on, and going to fd 2 (BASH_XTRACEFD unset or 2);
+#   - or REMEMBER_TRACE=1, for a profiler that is not bash's own xtrace.
+# A trace on its own fd (BASH_XTRACEFD=9) is untouched by the redirect, so
+# that case keeps it -- the stderr leak this redirect exists to stop (#643)
+# is not worth trading for a problem that is already solved.
+#
+# Third guard, below BOTH of the above (round-2 #690, found on GitHub's own
+# macOS runners): BASH_XTRACEFD was added in bash 4.1. Stock macOS ships bash
+# 3.2 as `/bin/bash` -- the same floor tests/test_session_start_fork_tax_665.py
+# already names for $BASHPID -- and 3.2 silently ignores the variable, so
+# xtrace stays on real fd 2 no matter what BASH_XTRACEFD says. Trusting the
+# variable's TEXT on that floor reproduces the exact #690 symptom this file
+# exists to fix: the guard reads "9", concludes the trace is safely
+# elsewhere, and redirects fd 2 into hook-errors.log anyway -- while the
+# trace, which never left fd 2, goes with it. Checked directly against
+# BASH_VERSINFO, the same version test lib-clock.sh and lib-lock.sh already
+# run before relying on a bash-4+ feature, rather than assumed.
+_remember_bd_has_xtracefd=0
+if [ "${BASH_VERSINFO[0]:-0}" -gt 4 ] 2>/dev/null; then
+    _remember_bd_has_xtracefd=1
+elif [ "${BASH_VERSINFO[0]:-0}" -eq 4 ] 2>/dev/null && [ "${BASH_VERSINFO[1]:-0}" -ge 1 ] 2>/dev/null; then
+    _remember_bd_has_xtracefd=1
 fi
+if [ -d "$REMEMBER_DIR/logs" ]; then
+    _remember_bd_keep_fd2=""
+    case "$-" in
+        (*x*)
+            if [ "$_remember_bd_has_xtracefd" = "0" ]; then
+                _remember_bd_keep_fd2="an xtrace is running (this bash predates BASH_XTRACEFD, added in 4.1, so xtrace stays on fd 2 regardless of the variable)"
+            elif [ "${BASH_XTRACEFD:-2}" = "2" ]; then
+                _remember_bd_keep_fd2="an xtrace is running on fd 2"
+            fi
+            ;;
+    esac
+    [ "${REMEMBER_TRACE:-}" = "1" ] && _remember_bd_keep_fd2="REMEMBER_TRACE=1"
+    if [ -n "$_remember_bd_keep_fd2" ]; then
+        # Said out loud, on the stream being kept: this hook's stderr is now in
+        # the operator's terminal rather than in the log they would otherwise
+        # go and read, and silence about that is its own small version of the
+        # defect above.
+        printf 'remember: %s, so stderr is NOT being redirected to %s -- point BASH_XTRACEFD at its own fd to get both (#690)\n' \
+            "$_remember_bd_keep_fd2" "$REMEMBER_DIR/logs/hook-errors.log" >&2
+    else
+        exec 2>> "$REMEMBER_DIR/logs/hook-errors.log"
+    fi
+    unset _remember_bd_keep_fd2
+fi
+unset _remember_bd_has_xtracefd
