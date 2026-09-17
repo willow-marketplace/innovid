@@ -2,7 +2,7 @@
   "name": "pendo-guides",
   "version": "1.1.0",
   "description": "Create production-ready Pendo in-app guides (walkthroughs, announcements, alerts, polls, promotions) as HTML/CSS/JS from a short intake conversation",
-  "updatedAt": "2026-09-17T00:02:34.863Z",
+  "updatedAt": "2026-09-17T00:29:20.929Z",
   "author": {
     "name": "Pendo",
     "email": "plugins@pendo.io"
