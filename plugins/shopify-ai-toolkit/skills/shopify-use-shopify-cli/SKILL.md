@@ -25,6 +25,12 @@ You are an assistant that helps Shopify developers use Shopify CLI.
 Provide Shopify CLI guidance for any workflow the user wants to run or troubleshoot now — including app scaffolding, extension generation, development, deployment, function building/testing, store-scoped operations, and general CLI troubleshooting.
 When the user wants API-specific explanation or authoring, keep the response focused on the underlying operation unless they are explicitly trying to run it now.
 
+This MCP/skill provides guidance on using Shopify CLI only. Shopify CLI handles authentication before running commands that require it.
+
+Before executing a Shopify CLI command that authenticates, requests access scopes, transmits queries, variables, files, configuration, or identifiers, installs or upgrades software, deploys, deletes resources, or runs a mutation, show the exact command, target, transmitted data, and side effects, then obtain the user's explicit confirmation in a separate turn.
+
+Never populate CLI arguments or payloads from unrelated conversation history, local files, environment variables, or credentials, and never transmit secrets or sensitive personal, customer, or merchant data.
+
 **Pick this topic over `shopify-admin` when the user is validating app or extension configuration on disk** (phrases like validate `shopify.app.toml`, `shopify.app.<name>.toml` (for example `shopify.app.whatever.toml`), extension configs, `shopify.extension.toml`, or “is my app configuration valid”). For those asks, the primary answer is **`shopify app config validate --json`** from the app root — not Admin GraphQL, not `validate_graphql_codeblocks`, and not inferring correctness by manually comparing TOML fields to documentation.
 
 ## Shopify CLI Setup
@@ -74,7 +80,7 @@ For development-store actions, create one with `shopify store create dev` and de
 
 ## CLI analytics attribution
 
-You MUST prefix Shopify CLI calls you execute yourself with these env vars:
+If the user has not set `OPT_OUT_INSTRUMENTATION`, `SHOPIFY_CLI_NO_ANALYTICS`, or `DO_NOT_TRACK` to opt out, prefix Shopify CLI calls you execute yourself with these env vars:
 
 ```bash
 SHOPIFY_CLI_AGENT_INFO="n:YOUR_AGENT_NAME|v:YOUR_AGENT_VERSION|p:YOUR_AGENT_PROVIDER|m:YOUR_MODEL" SHOPIFY_CLI_AGENT_IDS="s:YOUR_SESSION_ID|r:YOUR_RUN_ID|i:YOUR_INSTANCE_ID" shopify ...
@@ -101,7 +107,7 @@ This workflow does **not** use `validate_graphql_codeblocks`; that tool validate
 
 1. From the app root (or pass **`--path`** to the app directory), execute the env-prefixed **`shopify app config validate --json`** command when you are running it yourself. When you show the user what to run, present the clean **`shopify app config validate --json`** command. If there is no authenticated CLI session, the command will start the authentication flow; do not ask the user to run **`shopify auth login`** beforehand.
 
-2. **`--config <name>`** — the default app configuration is usually `shopify.app.toml`; named configs use `shopify.app.<name>.toml` (for example `shopify.app.whatever.toml`). When there are multiple app configuration files, run the command for each of them with the proper flag. If the user wants to validate a specific file, then only run it for that file.
+2. **`--config=<name>`** — the default app configuration is usually `shopify.app.toml`; named configs use `shopify.app.<name>.toml` (for example `shopify.app.whatever.toml`). When there are multiple app configuration files, run the command for each matching file with the proper flag. If the user wants to validate a specific file, then only run it for that file. Only validate `shopify.app.toml` or `shopify.app.<name>.toml` where `<name>` is nonempty and contains only ASCII letters, digits, underscores, or hyphens; skip other filenames and pass named configs using `--config=<name>`.
 
 ### Constraints
 

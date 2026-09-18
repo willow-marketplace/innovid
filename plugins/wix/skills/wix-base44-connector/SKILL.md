@@ -45,8 +45,13 @@ management tools, or do both.
 
 **A site for visitors** — use a visitor token for public reads and actions on behalf of the
 visitor, never the admin connector token. Call Wix directly from the browser through one shared
-visitor client (Write the code, below). Redirect sessions for Wix-hosted flows also require a
-visitor token minted for the headless OAuth app; see Visitor authentication and Wix-hosted flows below.
+visitor client (Write the code, below). Every handoff to a Wix-hosted page and back — checkout,
+and any other page where the visitor pays — runs on a visitor token minted for the headless OAuth
+app; a redirect session created with the admin token returns `403`. See Visitor authentication and
+Wix-hosted flows below.
+**The OAuth app is a one-call prerequisite, not a dead end**: `wx.ensureOAuthApp` returns its
+`clientId`, creating the app when the site has none, so it is a visitor flow's first step — never
+a reason to move the flow onto the admin token or leave it for later.
 Anyone can mint an anonymous visitor token from the
 OAuth app's public `clientId`; no visitor login is required. APIs for the "current visitor"
 use that token to identify whose data and state to access. This applies both to a standalone
@@ -58,7 +63,8 @@ visitor tokens. A custom headless management site extending the Wix back office 
 flow too. Ad hoc management calls in `exec_tool` also use the admin token. Backend functions
 also handle work requiring the owner's permissions, such as webhooks, scheduled jobs, and
 explicitly authorized elevated operations. For an app with both visitor and admin features,
-keep each feature on its corresponding flow.
+keep each feature on its corresponding flow. A site with no OAuth app yet is still a visitor
+app: create the app with `wx.ensureOAuthApp` and keep the visitor features on the visitor flow.
 
 ```
 visitor pages ──(visitor token)────────────────────────► wixapis.com
@@ -90,6 +96,7 @@ const wx = require(require("path").resolve(P));
 - `wx.bash(cmd)` — shell over saved files (GNU grep/sed; awk is mawk; no rg)
 - `wx.spec(docsUrl | code)` — a method's exact schema, plus the titles of the docs' own request examples saved at `examplesPath`; pass a hit's docsUrl (direct load), or raw code to query the index yourself
 - `wx.mgmtRecipes(q?)` — management-recipe index; no arg → categories, a word → matching recipes
+- `wx.ensureOAuthApp(token, { name, redirectUris, redirectDomains })` — the headless OAuth app, found by name or created, with the redirect lists merged into whatever it already allows; returns `{ clientId, created }`. `clientId` is what the browser mints visitor tokens from. Run it whenever `context` reports no OAuth app, or before any Wix-hosted flow that returns to this app — see Visitor authentication and Wix-hosted flows
 - `wx.installApp(appDefId, siteId, token)` — install a Wix app on the site (Apps Installer). If discovery finds an API whose app isn't installed on the site, install it first — that's a one-call prerequisite, **not** a reason to fall back to a hand-built alternative. `appDefId` from `search` or the Apps-Created-by-Wix table; `siteId` from `context` (the site report)
 
 Search makes one combined request across REST, management recipes, and Headless by default.
@@ -113,6 +120,10 @@ return await wx.context(accessToken);
 One report: installed apps **with ids** (incl. Stores' catalog version — V1 vs V3 decides its
 endpoints), the OAuth app id (**also the visitor `clientId`**), locale, currency, CMS collections.
 An empty report = bad token, never an empty site.
+
+No OAuth app in the report means the site has none **yet**. For anything a visitor operates,
+create it with `wx.ensureOAuthApp` — one call, returns the `clientId` the frontend mints visitor
+tokens from — and build the feature on the visitor flow.
 
 Reports over 4,000 characters are saved in full to a temporary Markdown file. The result includes
 its path, byte and line counts, and a heading outline. Read that file to inspect the site context.
@@ -329,13 +340,15 @@ return await wx.post("<a public read from Learn Wix>", { query: {} }, visitorTok
 
 **Any Wix-hosted flow that returns the visitor to your app needs the headless OAuth app's
 redirect config set.** This covers redirect sessions *and* sending a buyer to the Wix-hosted
-checkout `checkoutUrl` and back — any flow where Wix redirects to a URL on your app. Use the
-OAuth app's `clientId` from `wx.context()`; if the report has no OAuth app, create one with the
-admin connector token as shown below, then mint a visitor token from its `clientId` (anonymous
-visitors do not need to log in). **Always set `allowedRedirectUris` and `allowedRedirectDomains`
-when you create it** — an OAuth app created with a name only cannot complete any return, and the
-break is silent (create-checkout and the anonymous token still succeed) until a real buyer is
-redirected and stranded on Wix.
+checkout `checkoutUrl` and back — any flow where Wix redirects to a URL on your app.
+
+**Step one of any visitor flow: `wx.ensureOAuthApp` with this app's own URLs.** It returns the
+`clientId` the frontend mints visitor tokens from (anonymous visitors do not need to log in),
+creating the OAuth app when the site has none and adding your URLs to its lists when it already
+has one. Returns only complete for URLs in those lists, and a missing one breaks silently —
+create-checkout and the anonymous token still succeed — until a real buyer is redirected and
+stranded on Wix. It is idempotent by name: never create a second OAuth app for the same Base44
+app, or the first `clientId`'s returns stop working.
 
 ```js
 // Register BOTH of this app's own URLs — its preview URL and its published URL — so returns work
@@ -355,20 +368,14 @@ const returnDomains = appOrigins.map(origin => new URL(origin).hostname);
 // OAuth redirect configuration: exact login URLs versus domains for other returns.
 // https://dev.wix.com/docs/go-headless/authentication/setup/allow-redirect-uris-and-domains.md
 const { accessToken: adminToken } = await base44.asServiceRole.connectors.getConnection("wix");
-const { oAuthApp } = await wx.post("https://www.wixapis.com/oauth-app/v1/oauth-apps", {
-  oAuthApp: {
-    name: "My App",
-    // Login callbacks: the authorization request's redirect URI must match exactly.
-    allowedRedirectUris: loginCallbacks,
-    // Returns from Wix-hosted flows: hostnames only, allowing URLs under each domain.
-    allowedRedirectDomains: returnDomains,
-  },
-}, adminToken);
-const clientId = oAuthApp.id; // Public visitor client ID, used by the frontend client above.
-
-// If destinations change later, update this OAuth app rather than creating another.
-// Read its existing lists and merge new entries before updating, preserving old entries.
-// https://dev.wix.com/docs/api-reference/business-management/headless/oauth-apps/update-oauth-app.md
+const { clientId, created } = await wx.ensureOAuthApp(adminToken, {
+  name: "My App",                     // this app's name; the lookup key on later runs
+  redirectUris: loginCallbacks,       // login callbacks: matched exactly by the auth request
+  redirectDomains: returnDomains,     // returns from Wix-hosted flows: hostnames only
+});
+// clientId is the public visitor client id the frontend client above mints from.
+// When destinations change later — a custom domain, a renamed app — call this again with the
+// new URLs: it updates the same OAuth app and preserves the entries already there.
 
 ```
 

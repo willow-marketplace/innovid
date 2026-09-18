@@ -44,6 +44,18 @@ disruptive (e.g. no interactive turn is available to wait on). Once resolved —
 answer or by default — use that prefix as `<SERVER>` for every tool call in this step
 and after.
 
+**Meta-tools are never routed through `call_tool`.** `list_contexts`, `set_context`,
+`search_tools`, `discover`, `get_current_user`, and `welcome` are each their own
+top-level tool under `<SERVER>` — call them directly, e.g. `mcp__<SERVER>__list_contexts(...)`.
+Never pass one of their names into `call_tool(name="list_contexts", ...)` or
+`call_tool(name="search_tools", ...)` — the proxy's registry only holds Fund
+Admin/DWH domain commands (`fa__...`, `dwh__execute__query`), so a meta-tool name
+sent through it comes back `Unknown tool`, and `search_tools` sent through it comes
+back refusing the call outright ("synthetic search tool and cannot be called via the
+call_tool proxy"). If a **direct** call to one of these meta-tools itself comes back
+`Unknown tool`, the fix is to re-check `<SERVER>` above — not to retry the same name
+through `call_tool`.
+
 **Classify `<CARTA_ENVIRONMENT>` from `<SERVER>`'s name** — served to the
 dashboard's Snowplow tracker so nonprod usage isn't misattributed as
 production. A name containing `test`/`sandbox`/`demo`/`preprod`/
@@ -58,7 +70,7 @@ to Step 4's build command.
 Pass it on **every** `list_contexts`, `set_context`, and `call_tool` call:
 
 ```
-_instrumentation_v2={"skills": ["carta-investors:carta-manco-reporting"]}
+_instrumentation_v2={...}
 ```
 
 Add `"model": "<the running model id>"` only if you can introspect it; omit
@@ -68,10 +80,10 @@ above — do not surface this to the user.
 
 Resolve firm identity via `mcp__<SERVER>__list_contexts`. If `<FIRM_ID_HINT>`
 was captured in Step 0.1 (user pasted a firm URL or UUID), call
-`list_contexts(firm_id=<FIRM_ID_HINT>, _instrumentation_v2={"skills": ["carta-investors:carta-manco-reporting"]})` or `firm_uuid=<FIRM_ID_HINT>` for an exact
+`list_contexts(firm_id=<FIRM_ID_HINT>, _instrumentation_v2={...})` or `firm_uuid=<FIRM_ID_HINT>` for an exact
 lookup — skip the fuzzy name path entirely. Otherwise:
 
-Call `mcp__<SERVER>__list_contexts(firm_name="<FIRM_NAME_INPUT>", _instrumentation_v2={"skills": ["carta-investors:carta-manco-reporting"]})`. **Important:** the endpoint does fuzzy/relevance matching against the caller's permission set and will return a *fallback* firm even when nothing truly matches the input token — do NOT trust the top hit blindly. Sanity-check every response as follows:
+Call `mcp__<SERVER>__list_contexts(firm_name="<FIRM_NAME_INPUT>", _instrumentation_v2={...})`. **Important:** the endpoint does fuzzy/relevance matching against the caller's permission set and will return a *fallback* firm even when nothing truly matches the input token — do NOT trust the top hit blindly. Sanity-check every response as follows:
 
 1. **Normalize** `<FIRM_NAME_INPUT>` → `<TOKEN>` (strip whitespace, lowercase, remove punctuation like `-`, `,`, `.`).
 2. Compute the same normalization on each returned firm's canonical name → `<CANON>`.
@@ -113,7 +125,7 @@ Then classify the narrowed clean-match set:
 - **Zero clean matches but non-empty fuzzy results** → do NOT silently accept a fuzzy fallback. Present the top 3 fuzzy results via `AskUserQuestion` with the framing *"No firm exactly matched '<FIRM_NAME_INPUT>' — did you mean one of these?"* plus a "None of these — retype" option. Only proceed once the user picks.
 - **Zero results across all variants** → tell the user *"No firm found matching '<FIRM_NAME_INPUT>'. Want to try a different name?"* and re-prompt via `AskUserQuestion`.
 
-Then `mcp__<SERVER>__set_context(firm_id=<FIRM_UUID>, _instrumentation_v2={"skills": ["carta-investors:carta-manco-reporting"]})` to activate the firm.
+Then `mcp__<SERVER>__set_context(firm_id=<FIRM_UUID>, _instrumentation_v2={...})` to activate the firm.
 
 
 ## Step 2 — Resolve ManCo entity (BUILD path only)
@@ -123,7 +135,19 @@ Then `mcp__<SERVER>__set_context(firm_id=<FIRM_UUID>, _instrumentation_v2={"skil
 Reached in the same cases as Step 1 (a MISS, or `<FORCE_REFRESH>`) — never
 on a WARM HIT or a soft hit, both of which already know the entity.
 
-Call `mcp__<SERVER>__call_tool(name="fa__list__entities", arguments={}, _instrumentation_v2={"skills": ["carta-investors:carta-manco-reporting"]})`.
+Call `mcp__<SERVER>__call_tool(name="fa__list__entities", arguments={"entity_types": "management_co,fund"}, _instrumentation_v2={"skills": ["carta-investors:carta-manco-reporting"]})`.
+`entity_types` takes a comma-separated string, not a list — see `carta-soi`'s and
+`carta-portfolio-analytics-routing`'s `fa__list__entities` calls for the same convention.
+
+**Always pass `entity_types` — never fetch this unfiltered.** A firm with many
+`GP Entity`/`SPV`/`Elimination Entity`/`Holding` records (none of which this skill
+ever uses) can push the unfiltered response past `fa__list__entities`'s size cap,
+failing the whole call with `ToolError: response too large` instead of returning
+anything. Both `management_co` and `fund` are requested together — not just
+`management_co` — because this same response also becomes `entities.json` (see
+[data-fetch.md](data-fetch.md)'s "Save all results"), the fund roster Step 4 reads
+each fund's `carta_id` from for the fee-chart drill-down link. Narrowing to
+`management_co` alone would fix this call but silently break that later one.
 
 A firm's entity list is mostly funds. `fa__list__entities` returns
 `Fund`, `GP Entity`, `Management Co`, `SPV`, `Elimination Entity` and

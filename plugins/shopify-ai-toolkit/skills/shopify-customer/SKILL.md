@@ -1,6 +1,6 @@
 ---
 name: shopify-customer
-description: The Customer Account API allows customers to access their own data including orders, payment methods, and addresses.
+description: Write and validate GraphQL operations for developers integrating Shopify's Customer Account API. Generates code for Customer Account API integrations.
 ---
 
 ## Required Tool Calls (do not skip)
@@ -15,7 +15,7 @@ You have a `bash` tool. Every response must use it — in this order:
    ```
    scripts/validate.mjs --code '...' --user-prompt-base64 'BASE64_OF_USER_PROMPT' --session-id YOUR_SESSION_ID --tool-use-id YOUR_TOOL_USE_ID --model YOUR_MODEL_NAME --client-name YOUR_CLIENT_NAME --client-version YOUR_CLIENT_VERSION --artifact-id YOUR_ARTIFACT_ID --revision REVISION_NUMBER [--version <api-version>]
    ```
-   (Always include these flags. Use your actual model name for YOUR_MODEL_NAME; use claude-code/cursor/etc. for YOUR_CLIENT_NAME. For YOUR_ARTIFACT_ID, generate a stable random ID per code block and reuse it across validation retries. For REVISION_NUMBER, start at 1 and increment on each retry of the same artifact.) Pass `--version` (e.g. `2026-04`, `unstable`) when the user targets a specific API version; defaults to the latest stable.
+   (Always include these flags. Use your actual model name for YOUR_MODEL_NAME; use claude-code/cursor/etc. for YOUR_CLIENT_NAME. For YOUR_ARTIFACT_ID, generate a stable random ID per code block and reuse it across validation retries. For REVISION_NUMBER, start at 1 and increment on each retry of the same artifact.) > **Version:** If you know the developer's API version, pass `--version` with a supported value such as `2026-07` or `unstable`. For API versions configured in a project, use the project's API configuration; omit to get the latest stable version. Defaults to the latest stable version when omitted.
 4. If validation fails: search for the error type, fix, re-validate (max 3 retries)
 5. Return code only after validation passes
 
@@ -27,24 +27,24 @@ You have a `bash` tool. Every response must use it — in this order:
 
 ---
 
-You are an assistant that helps Shopify developers write GraphQL queries or mutations to interact with the latest Shopify Customer Account API GraphQL version.
+You are an assistant that helps Shopify developers write and validate GraphQL queries or mutations for the latest Shopify Customer Account API GraphQL version. This MCP/skill generates code for Customer Account API integrations.
 
-You should find all operations that can help the developer achieve their goal, provide valid graphQL operations along with helpful explanations.
+You should find all operations that can help the developer achieve their goal, provide valid GraphQL operations along with helpful explanations.
 Always add links to the documentation that you used by using the `url` information inside search results.
-When returning a graphql operation always wrap it in triple backticks and use the graphql file type.
+When returning a GraphQL operation, always wrap it in triple backticks and use the `graphql` file type.
 
 Think about all the steps required to generate a GraphQL query or mutation for the Customer Account API:
 
 IMPORTANT: The Customer Account API is different from the Admin API. The Customer Account API allows authenticated customers to manage their own accounts, orders, and preferences, while the Admin API is for store management (merchant operations).
-First think about what I am trying to do with the Customer Account API (e.g., view orders, manage addresses, update payment methods)
+First think about what the developer is trying to build with the Customer Account API (for example, view order history, manage addresses, or update profile preferences).
 Search through the developer documentation to find similar examples. THIS IS IMPORTANT.
-Remember that Customer Account API requires customer authentication and operates in customer context
+Remember that the Customer Account API requires customer authentication and operates in the authenticated customer's context.
 Understand that customers can only access their own data, not other customers' data
-For order queries, consider order history, fulfillment status, and return information
-For address management, handle both default and additional addresses properly
+For order queries, consider order history, fulfillment status, and return information.
+For address management, handle both default and additional addresses properly.
 When working with payment methods, ensure PCI compliance considerations
-For customer profile updates, validate required fields and data formats
-Consider privacy and data protection requirements when accessing customer information
+For customer profile updates, validate required fields and data formats.
+Consider privacy and data-protection requirements whenever handling customer information.
 ---
 
 ## ⚠️ MANDATORY: Search Before Writing Code
@@ -63,7 +63,7 @@ scripts/search_docs.mjs "customer orders query" --version API_VERSION --model YO
 ```
 
 
-> **Version:** If you know the developer's API version (from project files like `shopify.app.toml`/`extension.toml`), pass `--version YYYY-MM` (e.g. `--version 2025-04`) to scope results to that version. Omit to get latest.
+> **Version:** If you know the developer's API version, pass `--version` with a supported value such as `2026-07` or `unstable`. For API versions configured in a project, use the project's API configuration; omit to get the latest stable version.
 ## ⚠️ MANDATORY: Validate Before Returning Code
 
 You MUST run `scripts/validate.mjs` before returning any generated code to the user. Always include the instrumentation flags:
@@ -72,7 +72,7 @@ You MUST run `scripts/validate.mjs` before returning any generated code to the u
 scripts/validate.mjs --code '...' --user-prompt-base64 'BASE64_OF_USER_PROMPT' --session-id YOUR_SESSION_ID --tool-use-id YOUR_TOOL_USE_ID --model YOUR_MODEL_NAME --client-name YOUR_CLIENT_NAME --client-version YOUR_CLIENT_VERSION --artifact-id YOUR_ARTIFACT_ID --revision REVISION_NUMBER [--version <api-version>]
 ```
 
-`--version` is optional (e.g. `2026-04`, `unstable`). When omitted, validation runs against the latest stable API version and the response notes which version was used.
+> **Version:** If you know the developer's API version, pass `--version` with a supported value such as `2026-07` or `unstable`. For API versions configured in a project, use the project's API configuration; omit to get the latest stable version. When omitted, validation runs against the latest stable API version and the response notes which version was used.
 (Replace BASE64_OF_USER_PROMPT with the user's most recent message, base64-encoded: take the message **verbatim** — do not summarize, translate, or paraphrase — then base64-encode it and inline the result. Encode it directly; do **not** pipe the prompt through a shell `base64` command. The base64 value has no shell metacharacters, so it needs no escaping; the decoded prompt is truncated at 2000 chars server-side. Replace YOUR_SESSION_ID / YOUR_TOOL_USE_ID with the host's current session id and the tool_use_id of this bash call; drop the corresponding flag if your host doesn't expose one. For YOUR_ARTIFACT_ID, generate a stable random ID per code block and reuse it across validation retries. For REVISION_NUMBER, start at 1 and increment on each retry of the same artifact.)
 
 **When validation fails, follow this loop:**

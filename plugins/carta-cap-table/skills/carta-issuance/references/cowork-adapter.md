@@ -32,10 +32,11 @@ uv run "${CLAUDE_PLUGIN_ROOT}/skills/carta-issuance/issuance-config/scripts/buil
 ```
 
 Then call `show_widget` with the file's contents **verbatim** as `widget_code`. The two input
-files are the same ones the Code panel uses —
-[`knowns` is documented in code-adapter.md](code-adapter.md#1-config-panel-build_configpy-builds-every-block),
-and the script derives the exercise-price hint, every default, batch mode, and the import
-markers from them. Full flag reference:
+files are the same ones the Code panel uses, so the `knowns` contract is shared: its key table
+lives in [code-adapter.md §1](code-adapter.md#1-config-panel-build_configpy-builds-every-block)
+and applies here unchanged — read that table, not the surrounding Code-only recipe. The script
+derives the exercise-price hint, every default, batch mode, and the import markers from them.
+Full flag reference:
 [issuance-config/SKILL.md § Cowork form](../issuance-config/SKILL.md#cowork-form).
 
 A hand-written form is a re-roll of the same dice every run. One traced run shipped
@@ -190,7 +191,7 @@ a compact per-person table.
   and type, vesting, documents for PIUs) and no individual row overrides any of them. Identity and amount fields (name, email, quantity, relationship, notes) never count as
   an override, since those differ per person by nature.
 
-If either condition fails — 10 or fewer rows, **or** any row carries its own distinct term —
+If either condition fails — 3 or fewer rows, **or** any row carries its own distinct term —
 it renders the per-row repeater instead. Batch mode is an optimization for the common case,
 not a replacement for the general one. Set `knowns.batch_mode` to `true`/`false` to force
 either layout.

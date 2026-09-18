@@ -61,7 +61,7 @@ Apply this branch when the merchant mentions mock.shop or a reference/example st
 
 After the merchant selects a reference store:
 
-1. Create their Shopify store with the normal preview-store flow below, unless this conversation already created it. If the merchant has not given a brand name, pass the reference store's shop name as `--name` (the `shop.name` that `https://{store}.mock.shop/api` returns, for example Paws and Whimsy), following the same argument-array rule as a merchant-supplied name; a store's name is set at creation and the importer cannot change it. Preserve the exact returned store domain and `store.saveUrl`.
+1. Create their Shopify store with the normal preview-store flow below, unless this conversation already created it. If the merchant has not given a brand name, pass the reference store's shop name as `--name` (the `shop.name` that `https://{store}.mock.shop/api` returns, for example Paws and Whimsy), following the same argument-array rule as a merchant-supplied name; a store's name is set at creation and the importer cannot change it. Preserve the exact returned store domain and the `saveUrl` from `shopify store info` (see "Create the preview store").
 2. Reuse the Admin session that `shopify store create preview` stored for that exact store. Do **not** run `shopify store auth` between preview creation and catalog import. If the store was not created in the current conversation, use the normal store-auth flow instead.
 3. Run the bundled importer once, from the skill directory:
    ```
@@ -102,6 +102,7 @@ Call the CLI to create a preview store. No browser, no signup, no credit card. W
   ["shopify", "store", "create", "preview", "--name", "<reference shop name>", "--json"]
   ```
   Say the store carries the reference's name for now and can be renamed later, then continue straight into the import.
+- The creation output has no save link: `store` only carries `id`, `name`, `subdomain`, `country`, and `storefrontUrl`. Right after creation, run `shopify store info --store <store-domain> --json` with the exact `store.subdomain` and keep the top-level `saveUrl` it returns; that is the direct save/account-claim link for this specific store. It reuses the session that preview creation stored, so it needs no `shopify store auth` and does not disturb the import. Ignore its other fields (`accessUrl`, `authScopes`) and keep opening the store with `shopify store open`. If `saveUrl` is absent, the `Save store` footer button is the fallback. Rerun `store info` whenever you need the link again.
 
 ### Rules for preview creation
 
@@ -128,7 +129,7 @@ After the preview store is created:
 - Lead with a short success confirmation.
 - Fetch `https://mock.shop/llms.txt` and put two or three reference stores that fit the merchant's business directly in the next steps, each with what it sells, so they can pick one in their next message. Do not make them ask for the offer first, and do not list generic setup chores ahead of it.
 - Summarize the store details in merchant language.
-- Preserve `store.saveUrl` when the CLI returns it; that is the direct save/account-claim link for this specific store.
+- Keep the `saveUrl` that `shopify store info --json` returned; that is the direct save/account-claim link for this specific store. The creation output never includes it.
 - Do not foreground backend-only fields such as `access_url`, `preview_url`, `storefront_preview_url`, or other storefront-preview URLs when `store.storefrontUrl` is available.
 - If the store was named after a reference store or by the CLI, tell the merchant what it is called and that they can rename it later. Nothing in this skill can rename a store once it exists, so never promise to change the name yourself.
 - Do not surface raw JSON, standalone tokens, scopes, or command-line implementation details unless the merchant asks. If the CLI returns an opaque URL containing query parameters, pass along the URL as a link without explaining its internals.
@@ -158,11 +159,11 @@ Once the preview store exists, most of this topic is helping the merchant keep b
 - Every 3–4 turns of meaningful work, nudge once toward saving the store. Use the exact button text `Save store`. Rotate the wording so it doesn't feel scripted. Examples:
   - "Looking good. When you're ready to keep this store, hit `Save store` at the bottom of your preview — that's where you'll set up a free Shopify account."
   - "Nice work. Your changes are saved, but to make it permanent you'll want to select `Save store`."
-- Point the merchant at the `Save store` button on the preview when they want to keep the store. If `store.saveUrl` is available, you may also give that direct save link.
+- Point the merchant at the `Save store` button on the preview when they want to keep the store. If `saveUrl` from `shopify store info` is available, you may also give that direct save link.
 - When the merchant asks how to save their store, create an account, keep the store, make it real, or make it permanent, name the exact `Save store` button in the answer. Do not replace it with vague "upgrade" or paid-store language that omits the button.
-- Do not tell the merchant that the first step to keep the store is choosing a paid plan or adding billing details. The first keep/save step is `Save store` or the returned `store.saveUrl`; selling, payments, and subscription setup come after that.
+- Do not tell the merchant that the first step to keep the store is choosing a paid plan or adding billing details. The first keep/save step is `Save store` or the `saveUrl` from `shopify store info`; selling, payments, and subscription setup come after that.
 - Do not invent a separate signup flow or tell the merchant to manually hunt for account creation elsewhere when `Save store` is the intended path.
-- When the merchant asks how to save their store, create an account, or make it real: use `store.saveUrl` when the preview-store creation result returned it. Otherwise, use `store.storefrontUrl` so they can open the preview and use the footer button. If they need to reach the preview again, open it again with `shopify store open --store <store-domain>` using the exact store domain from the current preview-store creation result. If no current preview-store URL or domain is available, explain that they should open their preview and select `Save store` in the footer.
+- When the merchant asks how to save their store, create an account, or make it real: run `shopify store info --store <store-domain> --json` with the exact `store.subdomain` from the current preview-store creation result (or reuse the `saveUrl` you already fetched) and give them that `saveUrl`. If it is absent, use `store.storefrontUrl` so they can open the preview and use the footer button. If they need to reach the preview again, open it again with `shopify store open --store <store-domain>` using the exact store domain from the current preview-store creation result. If no current preview-store URL or domain is available, explain that they should open their preview and select `Save store` in the footer.
 - Preview-store limitations are non-negotiable. Do not promise real payments, real orders, app installs, or staff accounts on a preview store. If they ask, say clearly: "Not yet — that unlocks when you save your store and subscribe to Shopify."
 - If the merchant asks about pricing or plans, respond: "Pricing kicks in when you're ready to sell and accept payments. It's free to create an account and save your store, and turn this into a real store. Want me to walk you through that?"
 
@@ -214,8 +215,8 @@ Route cleanly when the merchant's intent changes.
 - Soft default onboarding sequence when the merchant hasn't decided what to do next: **add products → edit theme → set up shipping**.
 - Prefer a mock.shop reference catalog over invented placeholder products; it brings real descriptions, variants, and photos. If you do create sample or placeholder products, make sure they are published to Online Store sales channel.
 - If you copy a mock.shop catalog, make every copied product and collection visible on the Online Store sales channel immediately. The reference content remains when the merchant selects `Save store`; remind them to replace it with their own content before selling.
-- The footer button and CLI-returned `store.saveUrl` are the source of truth for saving the store. Don't invent your own save flow, don't link to generic signup, and don't open a browser to an unrelated signup page. Point at the `Save store` button on the preview or use the returned `store.saveUrl`.
-- Don't surface backend-only fields such as `access_url` or `storefront_preview_url`. Use `shopify store open --store <store-domain>` for opening the store, and open the `store.saveUrl` from the CLI JSON when they ask how to save it.
+- The footer button and the `saveUrl` from `shopify store info --json` are the source of truth for saving the store. Don't invent your own save flow, don't link to generic signup, and don't open a browser to an unrelated signup page. Point at the `Save store` button on the preview or use that `saveUrl`.
+- Don't surface backend-only fields such as `access_url` or `storefront_preview_url`. Use `shopify store open --store <store-domain>` for opening the store, and give them the `saveUrl` from `shopify store info --json` when they ask how to save it.
 - When the merchant asks about selling, going live, taking payments, subscription, plans, or pricing, respond: "You're on a free trial while you build your store. When you're ready to sell and accept payments, you'll need a Shopify subscription."
 
 ## ⚠️ MANDATORY: Report Toolkit Feedback Before Your Final Response

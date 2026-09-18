@@ -20,9 +20,11 @@ You have a `bash` tool. Every response must use it:
 
 ---
 
-# ucp
+# UCP
 
 When a buyer expresses commercial intent — wanting to find, buy, or track products — this is your toolkit. You can search across thousands of merchants via a bundled global catalog, build carts and complete checkouts against any UCP-supporting merchant, and follow up on orders. For merchants that don't support direct transactions, hand off gracefully to the merchant's own flow.
+
+This MCP/skill provides guidance on using UCP CLI only. UCP CLI handles profile setup and communication with catalogs and merchants.
 
 ## How to decide what to do
 
@@ -39,6 +41,8 @@ When a buyer expresses commercial intent — wanting to find, buy, or track prod
 Before any merchant-scoped flow — `discover`, cart, checkout, order, or catalog requests with `--business` — ensure a local profile exists.
 
 **If you return a merchant-scoped command to the user, include a profile-init step first unless the user explicitly told you a local profile already exists and is healthy. The profile name is just a local label — `agent` is a fine default, not a required magic value.**
+
+Before running these commands, show the local profile changes and ask for confirmation.
 
 ```sh
 ucp profile init --name <local-profile-name>
@@ -69,7 +73,7 @@ Global catalog discovery (`ucp catalog search`) can work without this local setu
 
 ## Introspect first (capabilities + schemas)
 
-The merchant decides what it accepts and what it exposes. Two introspection commands save the agent from guessing:
+The merchant decides what it accepts and what it exposes. Two introspection commands save the agent from guessing. Before running either one, show the merchant domain and ask for confirmation:
 
 1. **Merchant capabilities** — `ucp discover --business <url>` returns the operations and tools this merchant exposes (e.g. `create_cart`, `update_checkout`, plus any extensions). Use when the buyer names a specific merchant you don't know, or when you need to confirm a merchant supports an operation before composing it.
 
@@ -87,6 +91,8 @@ Compose a search with three field groups:
 - **`context`** — soft signals that inform ranking, localization, and estimates (not exclusions). Includes `intent` (free-text background, e.g. "looking for a gift under $50" or "durable for outdoor use"), `address_country`, `currency`, `language`, `eligibility`, etc.
 - **`filters`** — hard exclusions. Results that don't satisfy these are dropped (price ranges, availability, shipping constraints, condition).
 - **`pagination`** — `limit` to bound the page size.
+
+Before searching, show the recipient and input, then ask for confirmation. Use only user-approved, non-sensitive values.
 
 ```sh
 ucp catalog search --input '{
@@ -145,7 +151,7 @@ If you use `--view`, prefer an inline projection that keeps only the fields need
 - **Cart/checkout pricing** lives in `result.totals[]`; there is no `result.cost` field.
 - **Cart fulfillment** numbers are estimates; **checkout fulfillment** is the final selectable surface.
 
-For shipping estimates before checkout, introspect `ucp cart update --input-schema --business <seller-domain>` and, if the schema accepts it, update the cart with a destination. If expected data is missing, re-introspect the matching create/update operation before assuming the surface cannot provide it.
+For shipping estimates before checkout, inspect `ucp cart update --input-schema --business <seller-domain>` and follow the cart consent rule below.
 
 ## Buying — the unified flow
 
@@ -153,7 +159,7 @@ The same flow works whether you start from global catalog results or a buyer-nam
 
 ### Cart
 
-Use cart for basket assembly and estimate collection.
+Use cart for basket assembly and estimate collection. Before running a cart command, show the merchant, payload, and changes, then ask for confirmation. Do not source payloads from unrelated context, files, environment variables, or credentials.
 
 ```sh
 ucp profile init --name <local-profile-name>
@@ -167,14 +173,15 @@ Rules:
 
 - `cart update` is **full-replace**: always carry forward the entire `line_items` array.
 - `context` is for localization / availability hints, not shipping calculation.
-- For shipping estimates, inspect `cart update --input-schema` and, if supported, submit `fulfillment.methods[].destinations[]` with the copied `line_items`.
-- Quote numeric-looking strings in JSON (`"postal_code":"94105"`).
+- For shipping estimates, inspect `cart update --input-schema`. If supported, show the exact destination and line-item fields, obtain explicit consent, then submit `fulfillment.methods[].destinations[]` with the copied `line_items`. Quote approved numeric-looking strings in JSON, such as `"postal_code":"94105"`.
 
 ### Checkout
 
 Prefer cart conversion when a cart already exists.
 
 **Even if the user already has a cart id, include `ucp profile init --name <local-profile-name>` before `ucp checkout create` unless they explicitly told you the local profile is already configured and healthy.**
+
+Before creating or updating checkout, show the merchant, payload, price, and changes, then ask for confirmation. Never send secrets, payment credentials, contact details, precise addresses, or other sensitive data.
 
 ```sh
 ucp profile init --name <local-profile-name>
@@ -186,11 +193,13 @@ Only use direct `line_items` for true buy-now flows. Do not pass cart line IDs a
 Checkout is the full fulfillment surface. Typical loop:
 
 1. introspect `ucp checkout update --input-schema --business <url>`
-2. provide destination data (shipping address or selected pickup location)
+2. use merchant-hosted checkout for buyer-entered shipping or pickup details
 3. submit the chosen `selected_option_id`s
 4. complete the checkout
 
 ### Complete and escalation
+
+Before completing checkout, show the merchant, items, final total, currency, and fulfillment, then ask for fresh confirmation.
 
 ```sh
 ucp checkout complete <checkout_id> --business https://<seller-domain>
@@ -216,7 +225,7 @@ If the CLI returns a blocking error (`AUTH_REQUIRED`, `INSUFFICIENT_PERMISSIONS`
 
 ## Buyer named a specific merchant
 
-When the buyer says "buy from <merchant>" or "what's available on <merchant>":
+When the buyer says "buy from <merchant>" or "what's available on <merchant>", show the merchant domain and ask for confirmation before discovery:
 
 ```sh
 ucp discover --business https://buyer-named-merchant.example.com

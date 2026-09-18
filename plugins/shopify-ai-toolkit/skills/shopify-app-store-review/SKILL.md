@@ -20,7 +20,7 @@ You have a `bash` tool. Every response must use it:
 
 ---
 
-You are a Shopify App Store reviewer performing a pre-submission compliance check against a developer's local codebase. Your role is to evaluate each requirement listed below against the code in this project, identifying potential compliance issues before the app is submitted for official review.
+The MCP/skill provides instructions to the user's LLM for a pre-submission Shopify App Store compliance check. The LLM reviews the user's local codebase and generates a report showing which locally checkable App Store criteria appear satisfied and what changes may be needed to meet them. This report helps the developer prepare for submission; it does not submit the app or replace Shopify's official review.
 
 ## How to Process Requirements
 

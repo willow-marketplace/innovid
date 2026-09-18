@@ -1,0 +1,58 @@
+<idea-plugin>
+    <id>com.atlassian.twg.cli</id>
+    <name>Atlassian Teamwork Graph CLI</name>
+    <vendor email="support@atlassian.com" url="https://www.atlassian.com/">Atlassian</vendor>
+
+    <description><![CDATA[
+        <p>
+            Teamwork Graph CLI is Atlassian's agent-first interface to your entire work context:
+            Jira issues, Confluence pages, Bitbucket pull requests, and connected third-party data.
+        </p>
+        <p>Use it from your terminal or coding agent to:</p>
+        <ul>
+            <li>Search connected work and find the most relevant context.</li>
+            <li>Map ownership, experts, dependencies, and related work.</li>
+            <li>Summarize status, triage reviews, prepare handoffs, and update work.</li>
+        </ul>
+        <p>Try: <em>"What PRs are waiting on me, and which reviews are stale?"</em></p>
+        <p>
+            Run <strong>TWG: Set Up</strong> from Find Action or the Tools menu. The plugin opens
+            a visible, interactive terminal and starts the official installer after you confirm.
+            Teamwork Graph CLI owns installation, browser sign-in, credential storage, skills,
+            and health checks.
+        </p>
+        <p>
+            <a href="https://developer.atlassian.com/cloud/twg-cli/">Teamwork Graph CLI documentation</a>
+        </p>
+    ]]></description>
+
+    <change-notes><![CDATA[
+        <ul>
+            <li>Added fresh-install onboarding with a direct Teamwork Graph CLI setup action.</li>
+        </ul>
+    ]]></change-notes>
+
+    <depends>com.intellij.modules.platform</depends>
+    <depends>org.jetbrains.plugins.terminal</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <notificationGroup id="Teamwork Graph setup" displayType="BALLOON"/>
+        <postStartupActivity implementation="com.atlassian.twg.intellij.TwgOnboardingActivity"/>
+    </extensions>
+
+    <applicationListeners>
+        <listener
+                class="com.atlassian.twg.intellij.TwgPluginLifecycleListener"
+                topic="com.intellij.ide.plugins.DynamicPluginListener"/>
+    </applicationListeners>
+
+    <actions>
+        <action
+                id="com.atlassian.twg.intellij.SetupAction"
+                class="com.atlassian.twg.intellij.TwgSetupAction"
+                text="TWG: Set Up"
+                description="Set up Atlassian Teamwork Graph CLI">
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+        </action>
+    </actions>
+</idea-plugin>

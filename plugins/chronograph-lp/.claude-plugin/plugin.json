@@ -1,0 +1,28 @@
+{
+  "name": "chronograph-lp",
+  "version": "0.2.4",
+  "description": "Portfolio monitoring and analytics for private capital LP teams. Cashflow forecasting, commitment pacing, look-through exposure scans, and GP-meeting prep against your Chronograph data.",
+  "updatedAt": "2026-09-18T00:02:50.569Z",
+  "author": {
+    "url": "https://www.chronograph.pe/",
+    "name": "Chronograph"
+  },
+  "homepage": "https://www.chronograph.pe/",
+  "repository": "https://github.com/chronograph-pe/chronograph-lp-claude-plugin",
+  "keywords": [
+    "private capital",
+    "private equity",
+    "portfolio monitoring",
+    "fund analytics",
+    "limited partner"
+  ],
+  "displayName": "Chronograph LP",
+  "skills": "./skills/",
+  "agents": [
+    "./agents/chronograph-cashflow-forecast.md",
+    "./agents/chronograph-commitment-pacing-planner.md",
+    "./agents/chronograph-gp-meeting-prep.md",
+    "./agents/chronograph-look-through-exposure-scan.md",
+    "./agents/chronograph-lp-analyst.md"
+  ]
+}

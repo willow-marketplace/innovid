@@ -2,11 +2,24 @@
   "name": "zyte-web-data",
   "version": "1.0.0",
   "description": "Zyte Web Data for Claude Code",
-  "updatedAt": "2026-09-17T00:29:20.821Z",
+  "updatedAt": "2026-09-18T00:03:51.130Z",
   "author": {
     "name": "Zyte"
   },
   "homepage": "https://github.com/zytedata/claude-skills",
   "repository": "https://github.com/zytedata/claude-skills",
-  "skills": "./skills/"
+  "skills": "./skills/",
+  "hooks": {
+    "Stop": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv"
+          }
+        ]
+      }
+    ]
+  }
 }

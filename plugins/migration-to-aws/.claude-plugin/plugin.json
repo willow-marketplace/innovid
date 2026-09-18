@@ -2,7 +2,7 @@
   "name": "migration-to-aws",
   "version": "1.5.0",
   "description": "This no-cost tool assesses your current cloud provider's usage, geography, and billing data to estimate and compare AWS services and pricing, and recommends migration or continued use of your current provider. Supports GCP and Heroku migrations. AWS pricing is based on current published pricing and may vary over time. The tool may generate a .migration folder containing comparison and migration execution data, which you may delete upon completion or use to migrate to AWS.",
-  "updatedAt": "2026-09-17T00:29:20.836Z",
+  "updatedAt": "2026-09-18T00:03:30.080Z",
   "author": {
     "name": "Amazon Web Services"
   },
@@ -66,7 +66,8 @@
     "./agents/llm2bedrock-code-rewriter.md",
     "./agents/llm2bedrock-log-ingestor.md",
     "./agents/llm2bedrock-prompt-evaluator.md",
-    "./agents/llm2bedrock-report-generator.md"
+    "./agents/llm2bedrock-report-generator.md",
+    "./agents/generic-phase-worker-rwx.md"
   ],
   "mcpServers": {
     "awspricing": {

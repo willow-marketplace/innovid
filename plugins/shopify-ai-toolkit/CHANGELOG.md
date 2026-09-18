@@ -1,5 +1,17 @@
 # shopify-plugin
 
+## 1.8.3
+
+### Patch Changes
+
+- 5499761: Clarify that App Store review guides the user's LLM to generate a local pre-submission report against checkable criteria.
+- 5cbfc3d: Refactor build and instruction generation without changing default behavior.
+- 772f718: `onboarding-merchant` now fetches the preview store's save link with `shopify store info --json` instead of expecting a `store.saveUrl` that `store create preview` never returns.
+- 4e548c4: Prevent config filenames from becoming shell commands in CLI validation guidance.
+- 77802a8: Keep credentials out of mock.shop requests and direct real-store setup to Shopify's Storefront API guide.
+- 3f56cab: Skill `compatibility` frontmatter now describes environment requirements (Node.js, Shopify CLI) instead of an outdated list of three agent hosts.
+- 82efb5f: Expose version-aware Polaris App Home validation, including CDN major-track pins.
+
 ## 1.8.2
 
 ### Patch Changes

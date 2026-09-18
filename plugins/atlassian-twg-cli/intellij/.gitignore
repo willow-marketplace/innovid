@@ -1,0 +1,11 @@
+.gradle/
+.idea/
+.intellijPlatform/
+build/
+out/
+
+# Plugin-signing credentials must be supplied through environment variables.
+*.crt
+*.jks
+*.p12
+*.pem

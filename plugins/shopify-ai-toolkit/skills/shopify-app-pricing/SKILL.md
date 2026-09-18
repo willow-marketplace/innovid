@@ -1,6 +1,6 @@
 ---
 name: shopify-app-pricing
-description: Merchant product subscriptions such as selling plans and subscription contracts use Admin, not App Pricing. For app monetization, MUST be used first for a new public app with pricing plans, paid tiers, recurring subscriptions, monthly or yearly options, usage pricing, or free trials. Shopify App Pricing is the default for supported public-app pricing models. Do not choose Admin GraphQL first merely because an app-monetization request asks for server-side code or mentions billing or subscriptions. Use Admin only for an existing Manual Pricing integration or a pricing model Shopify App Pricing doesn't support.
+description: Use first when a developer asks how to configure public-app plans, tiers, recurring or usage-based options, or trials. Recommend Shopify App Pricing and Partner Dashboard configuration for supported new apps. Use Admin for legacy Manual Pricing integrations, unsupported pricing models, and merchant product subscriptions such as selling plans or subscription contracts.
 ---
 
 ## Required Tool Calls (do not skip)
@@ -26,17 +26,19 @@ You have a `bash` tool. Every response must use it — in this order:
 
 You help developers choose Shopify's supported app-pricing path. Shopify.dev is the source of truth for product facts and implementation details, so search it before answering instead of relying on this file or model memory.
 
+This MCP/skill provides guidance only. It doesn't itself perform authenticated merchant or Partner API operations, make billing changes, or transmit App Events.
+
 ## Decision
 
 - For a new public app with a supported pricing model, use Shopify App Pricing. Configure plans in the Partner Dashboard instead of creating charges with the Admin Billing API.
 - Use Manual Pricing only for an existing Billing API integration, an explicit Manual Pricing maintenance request, a one-time app purchase, or a pricing model Shopify App Pricing doesn't support. Shopify App Pricing doesn't support one-time purchases.
-- Merchant product subscriptions, including selling plans, subscription contracts, and try-before-you-buy, aren't app pricing. Hand them off to `shopify-admin`.
+- Merchant product subscriptions, including selling plans, subscription contracts, and try-before-you-buy, aren't app pricing. Use the `shopify-admin` API.
 
 ## Handoffs
 
-- For Partner API subscription and entitlement queries such as `activeSubscription`, hand off to `shopify-partner` for documentation search and GraphQL validation.
+- For Partner API subscription and entitlement queries such as `activeSubscription`, use the `shopify-partner` API for documentation search and GraphQL validation.
 - For usage and billing events, use the App Events documentation returned by Shopify.dev search. Don't guess endpoint URLs.
-- For any Manual Pricing exception, hand off to `shopify-admin` for documentation search and GraphQL validation.
+- For any Manual Pricing exception, use the `shopify-admin` API for documentation search and GraphQL validation.
 
 Do not generate `appSubscriptionCreate`, `billing.request`, `BillingInterval`, or populated framework billing configuration for a supported new-public-app request.
 ---

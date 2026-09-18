@@ -33,4 +33,4 @@ fi
 ln -s "$REPO_DIR/.hermes-plugin" "$PLUGIN_LINK"
 
 echo "✓ Installed. Launch hermes and run /plugins to verify."
-echo "  Expected: ✓ shopify-plugin v1.8.2 (22 skills, 1 cli command)"
+echo "  Expected: ✓ shopify-plugin v1.8.3 (22 skills, 1 cli command)"

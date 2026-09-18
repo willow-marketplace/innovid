@@ -1,0 +1,10 @@
+# Do not rerun dependency installation before test/package scripts. Explicit
+# pnpm installs remain responsible for dependency-state validation.
+verifyDepsBeforeRun: false
+
+# These optional dependencies are not needed to compile, test, or package the
+# extension locally. Keep their lifecycle scripts disabled unless a future
+# publishing/signing flow requires them.
+allowBuilds:
+  '@vscode/vsce-sign': false
+  keytar: false

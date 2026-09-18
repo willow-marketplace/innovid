@@ -2,7 +2,7 @@
   "name": "aws-startup-advisor",
   "version": "2.0.1",
   "description": "Personalized AWS guidance built on patterns from 350,000+ startups—architecture, cost, security, and migration, from day-one account setup to production-ready infrastructure. Migrate to AWS from GCP or Heroku—including your entire AI stack: OpenAI/Gemini/Anthropic SDK rewrites to Amazon Bedrock, agentic systems (LangChain, CrewAI, AutoGen) to AWS-native runtimes, and Temporal workers. Includes AWS Activate credits eligibility and 60+ exclusive startup offers. Built by AWS Startup Solutions Architects, with multi-account, multi-region support.",
-  "updatedAt": "2026-09-17T00:29:20.890Z",
+  "updatedAt": "2026-09-18T00:03:24.605Z",
   "author": {
     "name": "Amazon Web Services"
   },
@@ -80,7 +80,8 @@
     "./agents/llm2bedrock-code-rewriter.md",
     "./agents/llm2bedrock-log-ingestor.md",
     "./agents/llm2bedrock-prompt-evaluator.md",
-    "./agents/llm2bedrock-report-generator.md"
+    "./agents/llm2bedrock-report-generator.md",
+    "./agents/generic-phase-worker-rwx.md"
   ],
   "hooks": {
     "SessionStart": [

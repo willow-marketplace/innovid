@@ -264,11 +264,40 @@ jobs:
           jq '.name = "you"' "${CLAWHUB_PACKAGE_DIR}/package.json" > "${CLAWHUB_PACKAGE_DIR}/package.json.tmp"
           mv "${CLAWHUB_PACKAGE_DIR}/package.json.tmp" "${CLAWHUB_PACKAGE_DIR}/package.json"
           bunx clawhub login --token "${CLAWHUB_TOKEN}" --no-browser
-          bunx clawhub package publish "${CLAWHUB_PACKAGE_DIR}" \
-            --source-path packages/openclaw \
-            --source-repo youdotcom-oss/agent-skills \
-            --family bundle-plugin \
-            --owner youdotcom-oss \
-            --name you \
-            --version "${VERSION}" \
-            --source-commit "${SOURCE_COMMIT}"
+          for attempt in 1 2 3; do
+            if bunx clawhub package publish "${CLAWHUB_PACKAGE_DIR}" \
+              --source-path packages/openclaw \
+              --source-repo youdotcom-oss/agent-skills \
+              --family bundle-plugin \
+              --owner youdotcom-oss \
+              --name you \
+              --version "${VERSION}" \
+              --source-commit "${SOURCE_COMMIT}"; then
+              break
+            fi
+            if [[ "${attempt}" == 3 ]]; then
+              exit 1
+            fi
+            echo "ClawHub publish failed (attempt ${attempt}/3); retrying in 30s"
+            sleep 30
+          done
+
+  release:
+    name: Create dated release
+    if: ${{ !cancelled() && inputs.publish_artifacts && contains(needs.*.result, 'failure') == false && contains(needs.*.result, 'cancelled') == false }}
+    needs: [plan, apply, publish-npm, publish-clawhub]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Create dated tag and GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.PUBLISH_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_SHA: ${{ needs.apply.outputs.release_sha }}
+        run: |
+          tag="v$(date -u +%Y.%m.%d)-${RELEASE_SHA:0:7}"
+          gh release create "${tag}" \
+            --target "${RELEASE_SHA}" \
+            --title "${tag}" \
+            --generate-notes

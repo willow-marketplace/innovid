@@ -1,0 +1,29 @@
+{
+  "name": "chronograph-gp",
+  "version": "0.2.4",
+  "description": "Portfolio monitoring, valuations, and analytics for private capital GP teams. Portfolio-company one-pagers, fund quarterly review packs, markup/markdown briefs, TVPI attribution, and budget-vs-actuals against your Chronograph data.",
+  "updatedAt": "2026-09-18T00:02:48.310Z",
+  "author": {
+    "url": "https://www.chronograph.pe/",
+    "name": "Chronograph"
+  },
+  "homepage": "https://www.chronograph.pe/",
+  "repository": "https://github.com/chronograph-pe/chronograph-gp-claude-plugin",
+  "keywords": [
+    "private capital",
+    "private equity",
+    "portfolio monitoring",
+    "fund analytics",
+    "general partner"
+  ],
+  "displayName": "Chronograph GP",
+  "skills": "./skills/",
+  "agents": [
+    "./agents/chronograph-budget-vs-actuals-variance.md",
+    "./agents/chronograph-fund-quarterly-review-pack.md",
+    "./agents/chronograph-gp-analyst.md",
+    "./agents/chronograph-markup-markdown-brief.md",
+    "./agents/chronograph-portfolio-company-one-pager.md",
+    "./agents/chronograph-tvpi-attribution-by-company.md"
+  ]
+}
