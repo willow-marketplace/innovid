@@ -735,7 +735,7 @@
         "mcp"
       ],
       "category": "development",
-      "updatedAt": "2026-09-18T00:03:54.699Z"
+      "updatedAt": "2026-09-18T00:04:17.479Z"
     },
     {
       "name": "microsoft-docs",
@@ -1280,7 +1280,7 @@
         "serverless"
       ],
       "category": "deployment",
-      "updatedAt": "2026-09-18T00:03:51.607Z"
+      "updatedAt": "2026-09-18T00:04:12.142Z"
     },
     {
       "name": "valtown",
@@ -1387,7 +1387,7 @@
         "evaluation"
       ],
       "category": "monitoring",
-      "updatedAt": "2026-09-18T00:03:49.912Z"
+      "updatedAt": "2026-09-18T00:04:11.303Z"
     },
     {
       "name": "zscaler",
@@ -1399,7 +1399,7 @@
       },
       "homepage": "https://github.com/zscaler/zscaler-mcp-server",
       "category": "security",
-      "updatedAt": "2026-09-18T00:03:54.445Z"
+      "updatedAt": "2026-09-18T00:04:17.415Z"
     },
     {
       "name": "zoominfo",
@@ -1480,7 +1480,7 @@
         "mcp"
       ],
       "category": "productivity",
-      "updatedAt": "2026-09-18T00:03:50.669Z"
+      "updatedAt": "2026-09-18T00:04:12.362Z"
     },
     {
       "name": "windsor-ai",
@@ -1511,7 +1511,7 @@
         "business-intelligence"
       ],
       "category": "productivity",
-      "updatedAt": "2026-09-18T00:04:07.002Z"
+      "updatedAt": "2026-09-18T00:04:12.369Z"
     },
     {
       "name": "wix",
@@ -1533,7 +1533,7 @@
         "wix-apps"
       ],
       "category": "development",
-      "updatedAt": "2026-09-18T00:03:55.353Z"
+      "updatedAt": "2026-09-18T00:04:18.949Z"
     },
     {
       "name": "sumup",
@@ -1817,7 +1817,7 @@
       "homepage": "https://github.com/zytedata/claude-skills",
       "repository": "https://github.com/zytedata/claude-skills",
       "category": "automation",
-      "updatedAt": "2026-09-18T00:03:51.130Z"
+      "updatedAt": "2026-09-18T00:04:12.650Z"
     },
     {
       "name": "telegram",
@@ -3281,7 +3281,7 @@
         "mcp"
       ],
       "category": "development",
-      "updatedAt": "2026-09-18T00:03:58.319Z"
+      "updatedAt": "2026-09-18T00:04:14.892Z"
     },
     {
       "name": "save-to-spotify",
@@ -4708,7 +4708,7 @@
       ],
       "category": "database",
       "displayName": "Convex",
-      "updatedAt": "2026-09-18T00:03:51.498Z"
+      "updatedAt": "2026-09-18T00:04:11.886Z"
     },
     {
       "name": "amplitude",
@@ -4721,7 +4721,7 @@
         "email": "support@amplitude.com"
       },
       "category": "monitoring",
-      "updatedAt": "2026-09-18T00:03:50.669Z"
+      "updatedAt": "2026-09-18T00:04:12.362Z"
     },
     {
       "name": "aws-dev-toolkit",
@@ -6591,7 +6591,7 @@
       ],
       "category": "productivity",
       "displayName": "ActiveCampaign",
-      "updatedAt": "2026-09-18T00:04:07.002Z"
+      "updatedAt": "2026-09-18T00:04:12.369Z"
     },
     {
       "name": "scandit-sdk",
@@ -6715,7 +6715,7 @@
       ],
       "category": "productivity",
       "displayName": "HubSpot Sales",
-      "updatedAt": "2026-09-18T00:03:50.669Z"
+      "updatedAt": "2026-09-18T00:04:12.362Z"
     },
     {
       "name": "dynatrace",
@@ -6729,7 +6729,7 @@
       "repository": "https://github.com/Dynatrace/dynatrace-for-ai",
       "category": "monitoring",
       "displayName": "Dynatrace",
-      "updatedAt": "2026-09-18T00:03:53.987Z"
+      "updatedAt": "2026-09-18T00:04:17.496Z"
     },
     {
       "name": "blackrock-advisor-center-plugin",
@@ -6927,7 +6927,7 @@
       ],
       "category": "productivity",
       "displayName": "Zocks Advisor Intelligence",
-      "updatedAt": "2026-09-18T00:03:48.980Z"
+      "updatedAt": "2026-09-18T00:04:11.094Z"
     },
     {
       "name": "chronograph-lp",
