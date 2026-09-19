@@ -2,7 +2,7 @@
   "name": "posthog",
   "version": "1.1.63",
   "description": "Access PostHog analytics, feature flags, experiments, error tracking, and insights directly from your AI coding tool. Optionally capture Claude Code sessions to PostHog LLM Analytics.",
-  "updatedAt": "2026-09-19T00:04:15.063Z",
+  "updatedAt": "2026-09-19T00:29:15.473Z",
   "author": {
     "url": "https://posthog.com",
     "name": "PostHog",

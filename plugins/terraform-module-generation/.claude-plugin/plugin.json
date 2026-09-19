@@ -2,7 +2,7 @@
   "name": "terraform-module-generation",
   "version": "1.0.0",
   "description": "Terraform module generation and refactoring skills for Claude Code, including module design and Terraform Stacks.",
-  "updatedAt": "2026-09-18T00:34:51.877Z",
+  "updatedAt": "2026-09-19T00:29:15.570Z",
   "author": {
     "url": "https://github.com/hashicorp",
     "name": "HashiCorp"
