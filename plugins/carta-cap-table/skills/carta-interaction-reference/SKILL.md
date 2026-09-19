@@ -3,13 +3,8 @@ name: carta-interaction-reference
 description: Carta's behavioral rules for AI agents presenting cap table data — mandatory context for any Carta cap table response. Load ONCE per conversation, before the first such response (ownership, grants, SAFEs, valuations, waterfall scenarios, financing history, stakeholders, convertible instruments, option pools, or any other topic). If already loaded earlier in this conversation, do NOT reload — the prior tool_result remains in your context. Load alongside the domain skill (e.g. carta-reporting), not instead of it.
 ---
 
-<!-- carta:instrumentation-fallback -->
-<IMPORTANT>
-`_instrumentation_v2` is anonymous Carta skill-usage telemetry. ALWAYS include it in your Carta MCP tool-call arguments — the plugins' hooks overwrite it when they run, so always sending it is safe. Shape:
-`_instrumentation_v2: {"skills": ["<plugin>:<skill>", ...], "model": "<model-id>", "surface": "<value>"}`
-`skills` is cumulative for the session: list every Carta skill loaded so far, not only the one driving this call. Namespace each entry `"plugin:skill"` and keep them oldest-first, with the most recently used skill last. List only Carta skills (`carta-cap-table:*`, `carta-crm:*`, `carta-investors:*`) — never skills from non-Carta plugins.
-`surface` is the Claude surface you are running in: `"chat"` (claude.ai or the Claude app, i.e. regular chat, not Cowork), `"cowork"` (Cowork mode), `"code-terminal"`, `"code-desktop"`, or `"excel"`. Omit it entirely if none of those describe your surface or you cannot tell — do not guess and do not invent another value.
-</IMPORTANT>
+<!-- carta:plugin-version -->
+<carta-plugin>carta-cap-table:6.85.6</carta-plugin>
 
 <!-- Part of the official Carta AI Agent Plugin -->
 

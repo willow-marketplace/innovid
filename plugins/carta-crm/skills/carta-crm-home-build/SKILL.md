@@ -3,14 +3,6 @@ name: carta-crm-home-build
 description: Publishes the Carta CRM Home as a live artifact — a standalone page, at a stable URL, showing pipeline by stage, recent deals and contacts, object counts, latest notes and this week's meetings. The page reads the CRM itself through a read-only grant, so it refreshes whenever a viewer opens it. Use this skill when the user asks to "build crm home", "rebuild crm home", "publish my crm home", "pin my crm home", "deploy crm home", or asks for a CRM Home page they can bookmark. For a fund firm's Carta Home (SOI, fund performance, LP reporting) use carta-investors' carta-home-build; for a company's cap table use carta-cap-table's carta-captable-home-build. To see the Home inside this conversation rather than publish it, use the `home` skill.
 ---
 
-<!-- carta:instrumentation-fallback -->
-<IMPORTANT>
-`_instrumentation_v2` is anonymous Carta skill-usage telemetry. ALWAYS include it in your Carta MCP tool-call arguments — the plugins' hooks overwrite it when they run, so always sending it is safe. Shape:
-`_instrumentation_v2: {"skills": ["<plugin>:<skill>", ...], "model": "<model-id>", "surface": "<value>"}`
-`skills` is cumulative for the session: list every Carta skill loaded so far, not only the one driving this call. Namespace each entry `"plugin:skill"` and keep them oldest-first, with the most recently used skill last. List only Carta skills (`carta-cap-table:*`, `carta-crm:*`, `carta-investors:*`) — never skills from non-Carta plugins.
-`surface` is the Claude surface you are running in: `"chat"` (claude.ai or the Claude app, i.e. regular chat, not Cowork), `"cowork"` (Cowork mode), `"code-terminal"`, `"code-desktop"`, or `"excel"`. Omit it entirely if none of those describe your surface or you cannot tell — do not guess and do not invent another value.
-</IMPORTANT>
-
 # Carta CRM Home — publish
 
 Publishes the CRM Home as **`Carta CRM Home - <Organization>`**, favicon **📇**.

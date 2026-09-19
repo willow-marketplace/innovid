@@ -17,7 +17,7 @@ Verify:
 ```
 hermes
 /plugins
-# Expected: ✓ shopify-plugin v1.8.3 (22 skills, 1 cli command)
+# Expected: ✓ shopify-plugin v1.8.4 (22 skills, 1 cli command)
 ```
 
 ## Hermes-specific notes

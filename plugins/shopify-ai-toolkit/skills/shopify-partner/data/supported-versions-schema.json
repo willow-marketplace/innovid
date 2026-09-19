@@ -139,8 +139,15 @@
   ],
   "polaris-admin-extensions": [
     {
-      "name": "2026-04",
+      "name": "2026-10",
+      "releaseCandidate": true
+    },
+    {
+      "name": "2026-07",
       "latestVersion": true
+    },
+    {
+      "name": "2026-04"
     },
     {
       "name": "2026-01"

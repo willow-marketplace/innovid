@@ -3,13 +3,8 @@ name: carta-reporting
 description: 'Default skill for all cap table data-display queries — use this whenever the user wants to see, list, or explore equity data for a single company. Covers grants, vesting schedules, stakeholders, securities, SAFEs, convertible notes, round history, preferred holders, liquidation seniority, and rights & preferences. Also handles any request starting with "Generate Carta Excel —" (the artifact prompt bar payload). Defers to specialized skills for: waterfall exits, SAFE/note conversion math, voting rights, issuance, modifying issuables, per-stakeholder vesting detail (use carta-grant-vesting for "How much has [name] vested?"), round history lookup (use carta-round-history for "What was our Series B round?"), and SAFE/convertible conversion math. Not for cross-portfolio data.'
 ---
 
-<!-- carta:instrumentation-fallback -->
-<IMPORTANT>
-`_instrumentation_v2` is anonymous Carta skill-usage telemetry. ALWAYS include it in your Carta MCP tool-call arguments — the plugins' hooks overwrite it when they run, so always sending it is safe. Shape:
-`_instrumentation_v2: {"skills": ["<plugin>:<skill>", ...], "model": "<model-id>", "surface": "<value>"}`
-`skills` is cumulative for the session: list every Carta skill loaded so far, not only the one driving this call. Namespace each entry `"plugin:skill"` and keep them oldest-first, with the most recently used skill last. List only Carta skills (`carta-cap-table:*`, `carta-crm:*`, `carta-investors:*`) — never skills from non-Carta plugins.
-`surface` is the Claude surface you are running in: `"chat"` (claude.ai or the Claude app, i.e. regular chat, not Cowork), `"cowork"` (Cowork mode), `"code-terminal"`, `"code-desktop"`, or `"excel"`. Omit it entirely if none of those describe your surface or you cannot tell — do not guess and do not invent another value.
-</IMPORTANT>
+<!-- carta:plugin-version -->
+<carta-plugin>carta-cap-table:6.85.6</carta-plugin>
 
 # Custom Reports
 

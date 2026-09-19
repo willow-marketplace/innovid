@@ -3,14 +3,6 @@ name: search-companies
 description: Searches for and retrieves company records from the Carta CRM. Use this skill when the user says things like "find a company", "search companies", "look up a company", "show me company details for [name]", "full details on [name]", "tell me about [name]", "get company by ID", "get company by domain", "list companies", "what companies do we have", or "/search-companies". Returns company details including ID, name, and custom fields. The company ID returned can be used with the update-company skill.
 ---
 
-<!-- carta:instrumentation-fallback -->
-<IMPORTANT>
-`_instrumentation_v2` is anonymous Carta skill-usage telemetry. ALWAYS include it in your Carta MCP tool-call arguments — the plugins' hooks overwrite it when they run, so always sending it is safe. Shape:
-`_instrumentation_v2: {"skills": ["<plugin>:<skill>", ...], "model": "<model-id>", "surface": "<value>"}`
-`skills` is cumulative for the session: list every Carta skill loaded so far, not only the one driving this call. Namespace each entry `"plugin:skill"` and keep them oldest-first, with the most recently used skill last. List only Carta skills (`carta-cap-table:*`, `carta-crm:*`, `carta-investors:*`) — never skills from non-Carta plugins.
-`surface` is the Claude surface you are running in: `"chat"` (claude.ai or the Claude app, i.e. regular chat, not Cowork), `"cowork"` (Cowork mode), `"code-terminal"`, `"code-desktop"`, or `"excel"`. Omit it entirely if none of those describe your surface or you cannot tell — do not guess and do not invent another value.
-</IMPORTANT>
-
 ## Overview
 
 Look up companies in the Carta CRM. A request about **one named company** renders that

@@ -9,13 +9,8 @@ owner: carta-cap-table maintainers (#cap-table-eng)
 allowed-tools: []
 ---
 
-<!-- carta:instrumentation-fallback -->
-<IMPORTANT>
-`_instrumentation_v2` is anonymous Carta skill-usage telemetry. ALWAYS include it in your Carta MCP tool-call arguments — the plugins' hooks overwrite it when they run, so always sending it is safe. Shape:
-`_instrumentation_v2: {"skills": ["<plugin>:<skill>", ...], "model": "<model-id>", "surface": "<value>"}`
-`skills` is cumulative for the session: list every Carta skill loaded so far, not only the one driving this call. Namespace each entry `"plugin:skill"` and keep them oldest-first, with the most recently used skill last. List only Carta skills (`carta-cap-table:*`, `carta-crm:*`, `carta-investors:*`) — never skills from non-Carta plugins.
-`surface` is the Claude surface you are running in: `"chat"` (claude.ai or the Claude app, i.e. regular chat, not Cowork), `"cowork"` (Cowork mode), `"code-terminal"`, `"code-desktop"`, or `"excel"`. Omit it entirely if none of those describe your surface or you cannot tell — do not guess and do not invent another value.
-</IMPORTANT>
+<!-- carta:plugin-version -->
+<carta-plugin>carta-cap-table:6.85.6</carta-plugin>
 
 # issuance-review artifact
 
@@ -89,8 +84,7 @@ string for certificates (no equity plan concept there) and for a plan-less or mi
 batch; the template then renders nothing, and the per-row **Equity plan** column carries it. A highlighted `<div class="card section
 plan-card">` (blue left-accent bar, tinted background) naming the resolved
 equity plan and its exercise periods — elevated out of `SUBHEADING`'s plain
-text into its own card (design feedback: the plan name used to be buried in a
-subheading line with no visual weight). Built once by `build_review.py`'s
+text into its own card for visual weight. Built once by `build_review.py`'s
 `build_plan_card()` from the **first** resolved row's `plan_name` /
 `exercise_periods_text` (every row in one draft set shares the same
 `equity_plan_id` — Phase 1's Option-plan reconciliation — so there's nothing to
@@ -177,7 +171,7 @@ Each `ROW_PER_GRANTEE` (every cell plain text):
 ```
 
 - Every `*_OR_DASH` = the resolved value, or `—` when the row doesn't carry it. **Source field
-  names are the Row-template keys** (`../../SKILL.md#row-templates`) — `BOARD_DATE_OR_DASH`
+  names are the Row-template keys** (`../references/engine.md#row-templates`) — `BOARD_DATE_OR_DASH`
   reads `board_approval_date` (never present on a pending row — that's how the KPI strip's
   Pending-board-approval count works), `VESTING_START_OR_DASH` reads `vesting_start_date`.
   Neither is the short `board_date`/`vesting_start` name a stale prior version of this table
@@ -196,7 +190,7 @@ Each `ROW_PER_GRANTEE` (every cell plain text):
   with a stderr message) if any row carries a `vesting_template` id and `--vesting-templates`
   came back empty — this used to silently render `"Custom"` for a perfectly real selection
   whenever the reference-data file wasn't threaded through, which is actively misleading
-  (this skill can never set genuinely custom vesting — Hard rule 7). An id that's still
+  (this skill can never set genuinely custom vesting — engine rule 2). An id that's still
   unresolved despite a non-empty list (e.g. a template deleted after being fetched) renders
   `"Selected — details unavailable"`, never `"Custom"`.
   - **Pass the raw fetched result to `--vesting-templates`/`--share-classes` — don't
@@ -284,7 +278,7 @@ the save-server (the **side-panel** JSON — see
 Cowork path the parent skill confirms with one `AskUserQuestion` instead of this JSON
 contract — see [cowork-adapter.md §3](../references/cowork-adapter.md#3-confirm--one-askuserquestion)). **No `rows`** — the panel is read-only, so there is nothing on the surface
 to collect; `carta-issuance` builds the mutate payload straight from its own Phase-1-resolved
-rows (see [carta-issuance SKILL.md](../SKILL.md#build-the-mutate-payload-from-your-phase-1-resolved-rows)).
+rows (see [carta-issuance engine.md](../references/engine.md#build-the-mutate-payload-from-your-phase-1-resolved-rows)).
 The save-server write wakes `carta-issuance` via the submit-watcher; the generic wake /
 panel-close / no-poll mechanics live once in
 [../references/artifact-flow.md](../references/artifact-flow.md) §3, §5. On **Confirm &

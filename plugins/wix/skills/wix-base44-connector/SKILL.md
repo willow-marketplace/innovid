@@ -45,10 +45,12 @@ management tools, or do both.
 
 **A site for visitors** — use a visitor token for public reads and actions on behalf of the
 visitor, never the admin connector token. Call Wix directly from the browser through one shared
-visitor client (Write the code, below). Every handoff to a Wix-hosted page and back — checkout,
-and any other page where the visitor pays — runs on a visitor token minted for the headless OAuth
-app; a redirect session created with the admin token returns `403`. See Visitor authentication and
-Wix-hosted flows below.
+visitor client (Write the code, below).
+**Checkout runs on a visitor token, never the admin token** — including a checkout this app
+creates for the visitor. The admin token *will* hand back a checkout URL, and that is the trap: it
+belongs to the site rather than the buyer (no cart persistence, no abandoned-checkout recovery, no
+attribution), and a redirect session refuses it outright (`403`). Returns reach this app only from
+URLs in the OAuth app's redirect list; see Visitor authentication and Wix-hosted flows below.
 **The OAuth app is a one-call prerequisite, not a dead end**: `wx.ensureOAuthApp` returns its
 `clientId`, creating the app when the site has none, so it is a visitor flow's first step — never
 a reason to move the flow onto the admin token or leave it for later.
@@ -66,11 +68,21 @@ explicitly authorized elevated operations. For an app with both visitor and admi
 keep each feature on its corresponding flow. A site with no OAuth app yet is still a visitor
 app: create the app with `wx.ensureOAuthApp` and keep the visitor features on the visitor flow.
 
+**An app with no login still serves visitors.** `asServiceRole` governs this app's own data
+access, and says nothing about which identity Wix sees: a public page's Wix calls still run on a
+visitor token. Reach for the admin token because a feature is owner-side, never because nobody
+signs in — a checkout sent through it makes the site the buyer.
+
 ```
 visitor pages ──(visitor token)────────────────────────► wixapis.com
 admin pages   ──► base44/functions/… ──(admin token)────► wixapis.com
 exec_tool     ──(admin token, ad hoc management)────────► wixapis.com
 ```
+
+**The connected site owns its payments.** Whatever the visitor buys is paid on the Wix-hosted page
+this app hands them off to, with the provider the site already has. Base44's
+`<available_payment_providers>` note is about checkout that Base44 hosts instead — it does not
+apply to these flows, and asks nothing of them, whichever providers it names or rules out.
 
 ## The helpers
 

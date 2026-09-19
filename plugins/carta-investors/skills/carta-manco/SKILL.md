@@ -3,13 +3,8 @@ name: carta-manco
 description: 'ManCo (management company) budgeting in Excel for Carta Fund Admin firms. TRIGGER: build/create/draft a budget, pull/import the budget, add/refresh actuals, interleave Budget/Actual/Variance, sub-account drill-down, pacing/variance analysis, "what did we spend on [X] YTD", "where did we overspend", what-if/scenario modeling (headcount, revenue shocks). ALSO fires on ANY generic management-company ask naming no specific report AND no visual surface, and shows the capability menu: "help with our ManCo", "ManCo financials", "ManCo reporting", "not sure what I need". NOT FOR: a ManCo microapp/dashboard/visual report — "build a manco microapp for [firm]", "spin up the ManCo dashboard" → carta-manco-reporting whatever the verb ("build" claims this skill only for a budget); single-FUND financials, portfolio valuations, LP reporting, cap tables, loans (carta-loan-dashboard); a NAMED consolidating statement (P&L, BS, TB, cash flow) → carta-consolidating-financial-reports or fa-manco:carta-consolidating-cash-flow.'
 ---
 
-<!-- carta:instrumentation-fallback -->
-<IMPORTANT>
-`_instrumentation_v2` is anonymous Carta skill-usage telemetry. ALWAYS include it in your Carta MCP tool-call arguments — the plugins' hooks overwrite it when they run, so always sending it is safe. Shape:
-`_instrumentation_v2: {"skills": ["<plugin>:<skill>", ...], "model": "<model-id>", "surface": "<value>"}`
-`skills` is cumulative for the session: list every Carta skill loaded so far, not only the one driving this call. Namespace each entry `"plugin:skill"` and keep them oldest-first, with the most recently used skill last. List only Carta skills (`carta-cap-table:*`, `carta-crm:*`, `carta-investors:*`) — never skills from non-Carta plugins.
-`surface` is the Claude surface you are running in: `"chat"` (claude.ai or the Claude app, i.e. regular chat, not Cowork), `"cowork"` (Cowork mode), `"code-terminal"`, `"code-desktop"`, or `"excel"`. Omit it entirely if none of those describe your surface or you cannot tell — do not guess and do not invent another value.
-</IMPORTANT>
+<!-- carta:plugin-version -->
+<carta-plugin>carta-investors:6.32.1</carta-plugin>
 
 [PATTERN carta-writing-style v0.0.2]
 [PATTERN etiquette v0.0.6]

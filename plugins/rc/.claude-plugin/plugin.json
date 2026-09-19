@@ -1,8 +1,8 @@
 {
   "name": "rc",
-  "version": "2.2.1",
+  "version": "2.3.0",
   "description": "Set up RevenueCat, integrate it, and access data.",
-  "updatedAt": "2026-09-18T00:03:45.630Z",
+  "updatedAt": "2026-09-19T00:04:12.620Z",
   "author": {
     "url": "https://www.revenuecat.com",
     "name": "RevenueCat",

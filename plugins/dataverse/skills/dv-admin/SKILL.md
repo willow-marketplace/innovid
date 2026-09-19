@@ -21,7 +21,7 @@ description: Environment-level Dataverse administration — bulk delete, retenti
 | **Python SDK — recyclebinconfigs** | Recycle bin on/off + retention days | CREATE/PATCH `recyclebinconfigs` entity record |
 | **Python SDK — settingdefinition + organizationsettings** | App-level / plan-level security role toggles | Look up `settingdefinition` by `uniquename` → CREATE or PATCH `organizationsettings` row with `value` |
 
-ERP batch admin: see [`references/erp-batch.md`](references/erp-batch.md).
+ERP batch admin: see [`references/erp-batch.md`](references/erp-batch.md). Planning-only ERP requests may read skills/references, but make no environment calls or file writes.
 
 Do NOT write Python scripts for operations PAC CLI can handle. Do NOT mix mechanisms (e.g., don't hand-PATCH an org column that PAC CLI already covers).
 

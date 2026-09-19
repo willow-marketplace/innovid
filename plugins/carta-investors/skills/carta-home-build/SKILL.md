@@ -3,13 +3,8 @@ name: carta-home-build
 description: Builds or rebuilds the Carta Home live artifact — a Cowork dashboard home page that works for any Carta firm. Shows a live Schedule of Investments, Fund Performance benchmarks, P&L (from STATEMENT_OF_OPS), Balance Sheet (from MONTHLY_NAV_CALCULATIONS), LP Reporting, Portfolio Valuations (top holdings by MOIC), ManCo expense actuals by category, Form ADV regulatory AUM, and a Skill Directory with one-click copyable prompts. The artifact auto-detects the active firm from the Carta MCP context — no hardcoded firm name needed. Use this skill whenever the user asks to "build the carta home artifact", "rebuild carta home", "set up the carta home page", "deploy carta home", or "restore the carta home dashboard". For a company's cap table use carta-cap-table's carta-captable-home-build; for a CRM home of pipeline, deals and contacts use carta-crm's carta-crm-home-build.
 ---
 
-<!-- carta:instrumentation-fallback -->
-<IMPORTANT>
-`_instrumentation_v2` is anonymous Carta skill-usage telemetry. ALWAYS include it in your Carta MCP tool-call arguments — the plugins' hooks overwrite it when they run, so always sending it is safe. Shape:
-`_instrumentation_v2: {"skills": ["<plugin>:<skill>", ...], "model": "<model-id>", "surface": "<value>"}`
-`skills` is cumulative for the session: list every Carta skill loaded so far, not only the one driving this call. Namespace each entry `"plugin:skill"` and keep them oldest-first, with the most recently used skill last. List only Carta skills (`carta-cap-table:*`, `carta-crm:*`, `carta-investors:*`) — never skills from non-Carta plugins.
-`surface` is the Claude surface you are running in: `"chat"` (claude.ai or the Claude app, i.e. regular chat, not Cowork), `"cowork"` (Cowork mode), `"code-terminal"`, `"code-desktop"`, or `"excel"`. Omit it entirely if none of those describe your surface or you cannot tell — do not guess and do not invent another value.
-</IMPORTANT>
+<!-- carta:plugin-version -->
+<carta-plugin>carta-investors:6.32.1</carta-plugin>
 
 # Carta Home — Build / Redeploy
 

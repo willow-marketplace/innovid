@@ -3,13 +3,8 @@ name: carta-compensation-benchmarks
 description: "Retrieves Carta Total Compensation market benchmarks (salary, equity, total cash) for a role. Output to chat or CSV. Market benchmarks are triggered by queries like: \"sales benchmarks\", \"comp benchmarks\", \"market rate\", \"what does a [role] pay\", \"put benchmarks in a CSV\", \"get benchmarks\", \"get carta's market benchmarks\", \"show me benchmarks for [role]\", \"compensation ranges for [role]\", \"p25/p50/p75 for [role]\". Do NOT use for job classification or role mapping — use carta-compensation-rolematcher for that. Do NOT use for \"how is OUR company positioned vs market\", \"who at our company is below market\", or \"our internal pay bands vs benchmarks\" — those are roster-level positioning, use carta-compensation-scorecard. Do NOT use for fund performance benchmarks (use carta-performance-benchmarks) or portfolio structural metrics like SAFE terms and option pool sizes (use carta-market-benchmarks)."
 ---
 
-<!-- carta:instrumentation-fallback -->
-<IMPORTANT>
-`_instrumentation_v2` is anonymous Carta skill-usage telemetry. ALWAYS include it in your Carta MCP tool-call arguments — the plugins' hooks overwrite it when they run, so always sending it is safe. Shape:
-`_instrumentation_v2: {"skills": ["<plugin>:<skill>", ...], "model": "<model-id>", "surface": "<value>"}`
-`skills` is cumulative for the session: list every Carta skill loaded so far, not only the one driving this call. Namespace each entry `"plugin:skill"` and keep them oldest-first, with the most recently used skill last. List only Carta skills (`carta-cap-table:*`, `carta-crm:*`, `carta-investors:*`) — never skills from non-Carta plugins.
-`surface` is the Claude surface you are running in: `"chat"` (claude.ai or the Claude app, i.e. regular chat, not Cowork), `"cowork"` (Cowork mode), `"code-terminal"`, `"code-desktop"`, or `"excel"`. Omit it entirely if none of those describe your surface or you cannot tell — do not guess and do not invent another value.
-</IMPORTANT>
+<!-- carta:plugin-version -->
+<carta-plugin>carta-cap-table:6.85.6</carta-plugin>
 
 # Benchmark Query
 

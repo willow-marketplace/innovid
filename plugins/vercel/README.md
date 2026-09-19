@@ -46,13 +46,13 @@ A text-form relational graph covering:
 - Common cross-product workflows
 - Migration awareness for sunset products
 
-### Skills (35 skills)
+### Skills (36 skills)
 
 | Skill                   | Covers                                                                                                                               |
 | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | `access-protected-vercel-deployment` | Authenticated CLI and browser access to protected preview and production deployments using `vc curl`, OIDC, and Trusted Sources |
 | `ai-gateway`            | Unified model API, provider routing, failover, cost tracking, 100+ models                                                            |
-| `ai-sdk`                | AI SDK v6 — text/object generation, streaming, tool calling, agents, MCP, providers, embeddings                                      |
+| `ai-sdk`                | AI SDK 7 — text/object generation, streaming, tool calling, agents, MCP, providers, embeddings                                       |
 | `auth`                  | Authentication integrations — Clerk, Descope, Auth0 setup for Next.js with Marketplace provisioning                                  |
 | `bootstrap`             | Project bootstrapping orchestrator — linking, env provisioning, db setup, first-run commands                                         |
 | `build-agents`          | Default eve-first agent builder — create AI agents, agent apps, tools, channels, schedules, and Slack agents                         |
@@ -70,21 +70,22 @@ A text-form relational graph covering:
 | `next-forge`            | Production SaaS monorepo starter — Turborepo, Clerk, Prisma/Neon, Stripe, shadcn/ui                                                  |
 | `next-upgrade`          | Next.js version upgrades — codemods, migration guides, dependency updates                                                            |
 | `nextjs`                | App Router, Server Components, Server Actions, Cache Components, routing, rendering strategies                                       |
+| `queues`                | Vercel Queues — durable topics, `@vercel/queue` publish/consume, consumer groups, retries, delays, idempotency, Queues vs Workflows   |
 | `react-best-practices`  | React/Next.js performance optimization — 64 rules across 8 categories                                                                |
 | `routing-middleware`    | Request interception before cache, rewrites, redirects, personalization — Edge/Node.js/Bun runtimes                                  |
 | `runtime-cache`         | Ephemeral per-region key-value cache, tag-based invalidation, shared across Functions/Middleware/Builds                              |
 | `shadcn`                | shadcn/ui — CLI, component installation, custom registries, theming, Tailwind CSS integration                                        |
 | `turbopack`             | Next.js bundler, HMR, configuration, Turbopack vs Webpack                                                                            |
-| `vercel-agent`          | AI-powered code review, incident investigation, SDK installation, PR analysis                                                        |
+| `vercel-agent`          | Vercel Agent chat (dashboard, Slack), code review, investigations, approved actions, product installation                            |
 | `vercel-cli`            | All CLI commands — deploy, env, dev, domains, cache management, MCP integration, marketplace                                         |
 | `vercel-connect`        | Managed OAuth tokens and third-party connections for apps, MCP servers, and eve agents                                               |
 | `vercel-firewall`       | DDoS protection, WAF rules, rate limiting, bot filtering, and IP controls                                                            |
-| `vercel-functions`      | Serverless, Edge, Fluid Compute, streaming, Cron Jobs, configuration                                                                 |
+| `vercel-functions`      | Node.js, Bun, Python, and Rust runtimes on Fluid Compute, streaming, WebSockets, Cron Jobs, configuration                         |
 | `vercel-sandbox`        | Ephemeral Firecracker microVMs for running untrusted/AI-generated code safely                                                        |
 | `vercel-services`       | Multiple frontends and backends in one project, with public rewrites and private service bindings                                    |
 | `vercel-storage`        | Blob, Global Config (formerly Edge Config), Neon Postgres, Upstash Redis, migration from sunset packages                             |
 | `verification`          | Full-story verification — infers user story, verifies end-to-end browser → API → data → response                                     |
-| `workflow`              | Workflow SDK — durable execution, DurableAgent, steps, Worlds, pause/resume                                                          |
+| `workflow`              | Workflow SDK — durable execution, WorkflowAgent, steps, Worlds, pause/resume                                                         |
 
 ### Agents (3 specialists)
 
@@ -255,14 +256,14 @@ Exits non-zero if any `SKILL.md` is stale. Add to CI to catch drift.
 vercel-plugin/
 ├── .plugin/plugin.json              # Plugin manifest
 ├── vercel.md                        # Ecosystem graph + conventions (injected via SessionStart hook)
-├── skills/                          # 35 skills
+├── skills/                          # 36 skills
 │   ├── ai-sdk/                      # Upstream-synced skill example:
 │   │   ├── overlay.yaml             #   Plugin injection metadata
 │   │   ├── upstream/                #   Pure upstream content
 │   │   │   ├── SKILL.md
-│   │   │   └── references/
+│   │   │   └── references/          #   Only when the upstream repo ships them
 │   │   ├── SKILL.md                 #   Build output (overlay + upstream)
-│   │   └── references/              #   Copied from upstream at build time
+│   │   └── references/              #   Copied from upstream at build time (when present)
 │   ├── ai-elements/                 # Plugin-only skill example:
 │   │   └── SKILL.md                 #   Entirely ours
 │   └── ...
@@ -286,22 +287,22 @@ bun run build:manifest # Stage 3: Generate skill-manifest.json
 bun run build:from-skills # Stage 4: Resolve template includes
 ```
 
-## Ecosystem Coverage (March 2026)
+## Ecosystem Coverage (September 2026)
 
 - Next.js 16 (App Router, Cache Components, Proxy, View Transitions)
-- AI SDK v6 (Agents, MCP, DevTools, Reranking, Image Editing)
+- AI SDK 7 (Agents, WorkflowAgent, harnesses, MCP, DevTools, telemetry)
 - AI Elements (pre-built React components for AI interfaces)
 - Chat SDK (multi-platform chat bots — Slack, Telegram, Teams, Discord)
-- Workflow SDK (DurableAgent, Worlds, open source)
+- Workflow SDK (WorkflowAgent, Worlds, open source)
 - AI Gateway (100+ models, provider routing, cost tracking)
-- Vercel Functions (Fluid Compute, streaming, Cron Jobs)
+- Vercel Functions (Fluid Compute, Node.js/Bun/Python/Rust, streaming, WebSockets, Cron Jobs)
 - Vercel Services (multiple frontends and backends, public rewrites, private bindings)
 - Storage (Blob, Global Config, Neon Postgres, Upstash Redis)
 - Routing Middleware (request interception, Edge/Node.js/Bun runtimes)
 - Runtime Cache API (per-region KV cache, tag-based invalidation)
 - Vercel Flags (feature flags, Flags Explorer, gradual rollouts, A/B testing)
 - Vercel Queues (durable event streaming, topics, consumer groups, retries)
-- Vercel Agent (AI code review, incident investigation)
+- Vercel Agent (chat, code review, investigations, approved actions)
 - Vercel Sandbox (Firecracker microVMs for untrusted code)
 - Sign in with Vercel (OAuth 2.0/OIDC identity provider)
 - Auth integrations (Clerk, Descope, Auth0)

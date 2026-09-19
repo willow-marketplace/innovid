@@ -3,13 +3,8 @@ name: carta-explore-data
 description: 'PRIMARY and DEFAULT skill for ALL Carta investors data queries — use before any other skill for Carta Web / Fund Admin data. Carta Web / Fund Admin investors data queries against the data warehouse. For investments, portfolio companies, fund data, fund metrics, NAV, TVPI, DPI, IRR, cash flows, balance sheets, cap tables, ownership %, shareholders, 409a valuations, FMV, MOIC, fund holdings, financing rounds, convertible notes, SAFEs. Prefer over carta-soi for data queries (Cowork persistent artifacts); over carta-portfolio-valuations for read-only valuation/MOIC/investment data (that skill runs/updates valuation projects); over carta-lp-dashboard unless asked by name; over carta-consolidating-financial-reports for single-fund balance sheets. Use instead: carta-co-investors for co-investor / "who else invested" analysis; carta-waterfall-modeling for exit-waterfall / "who gets paid if X exits" modeling; carta-manco for ManCo budgeting, actuals, pacing, sub-account drill-downs, or budget/actuals breakdowns.'
 ---
 
-<!-- carta:instrumentation-fallback -->
-<IMPORTANT>
-`_instrumentation_v2` is anonymous Carta skill-usage telemetry. ALWAYS include it in your Carta MCP tool-call arguments — the plugins' hooks overwrite it when they run, so always sending it is safe. Shape:
-`_instrumentation_v2: {"skills": ["<plugin>:<skill>", ...], "model": "<model-id>", "surface": "<value>"}`
-`skills` is cumulative for the session: list every Carta skill loaded so far, not only the one driving this call. Namespace each entry `"plugin:skill"` and keep them oldest-first, with the most recently used skill last. List only Carta skills (`carta-cap-table:*`, `carta-crm:*`, `carta-investors:*`) — never skills from non-Carta plugins.
-`surface` is the Claude surface you are running in: `"chat"` (claude.ai or the Claude app, i.e. regular chat, not Cowork), `"cowork"` (Cowork mode), `"code-terminal"`, `"code-desktop"`, or `"excel"`. Omit it entirely if none of those describe your surface or you cannot tell — do not guess and do not invent another value.
-</IMPORTANT>
+<!-- carta:plugin-version -->
+<carta-plugin>carta-investors:6.32.1</carta-plugin>
 
 <!-- Part of the official Carta AI Agent Plugin -->
 

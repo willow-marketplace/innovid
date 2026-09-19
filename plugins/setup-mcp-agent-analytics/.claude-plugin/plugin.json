@@ -2,7 +2,7 @@
   "name": "setup-mcp-agent-analytics",
   "version": "1.0.0",
   "description": "Detect an MCP server's language (Python, TypeScript, or Go) and instrument it with the matching Pendo SDK so MCP tool calls flow into Pendo Agent Analytics",
-  "updatedAt": "2026-09-18T00:03:50.600Z",
+  "updatedAt": "2026-09-19T00:04:16.758Z",
   "author": {
     "name": "Pendo",
     "email": "plugins@pendo.io"

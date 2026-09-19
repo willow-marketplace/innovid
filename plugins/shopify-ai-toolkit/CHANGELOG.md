@@ -1,5 +1,11 @@
 # shopify-plugin
 
+## 1.8.4
+
+### Patch Changes
+
+- f6c3d26: Route App Home UI extensions (`admin.app.home.render`) to Admin UI Extensions instead of the iframe App Home surface, and bundle Admin UI Extensions `2026-07` so `s-form` validates there.
+
 ## 1.8.3
 
 ### Patch Changes

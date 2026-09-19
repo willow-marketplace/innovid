@@ -1,0 +1,33 @@
+{
+  "name": "wingspan",
+  "version": "0.1.0",
+  "description": "Ask Claude about the contractors you pay through Wingspan, what you owe them, and what is holding up a payment — then onboard contractors and log payments as drafts, with a preview before anything is written.",
+  "updatedAt": "2026-09-19T00:04:06.854Z",
+  "author": {
+    "name": "Wingspan Engineering",
+    "email": "engineering@wingspan.app"
+  },
+  "homepage": "https://github.com/wingspanHQ/mcp-claude-plugin",
+  "repository": "https://github.com/wingspanHQ/mcp-claude-plugin",
+  "keywords": [
+    "wingspan",
+    "contractors",
+    "payments",
+    "payables",
+    "onboarding",
+    "1099",
+    "mcp"
+  ],
+  "displayName": "Wingspan",
+  "skills": "./skills/",
+  "mcpServers": {
+    "wingspan": {
+      "url": "https://api.wingspan.app/v3/mcp",
+      "type": "http",
+      "oauth": {
+        "scopes": "offline_access",
+        "authServerMetadataUrl": "https://api.wingspan.app/.well-known/oauth-authorization-server"
+      }
+    }
+  }
+}

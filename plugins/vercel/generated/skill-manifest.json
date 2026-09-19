@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-15T19:12:21.043Z",
+  "generatedAt": "2026-09-18T20:23:30.660Z",
   "version": 2,
   "skills": {
     "access-protected-vercel-deployment": {
@@ -429,11 +429,11 @@
         },
         {
           "pattern": "\\bmaxSteps\\s*:",
-          "message": "maxSteps was removed in AI SDK v6 — use stopWhen: stepCountIs(N) instead (import stepCountIs from ai). Run Skill(ai-sdk) for migration guidance.",
+          "message": "maxSteps was removed in AI SDK v6 — use stopWhen: isStepCount(N) instead (import isStepCount from ai; stepCountIs in AI SDK 6). Run Skill(ai-sdk) for migration guidance.",
           "severity": "recommended",
-          "skipIfFileContains": "stepCountIs",
+          "skipIfFileContains": "stepCountIs|isStepCount",
           "upgradeToSkill": "ai-sdk",
-          "upgradeWhy": "Guides the migration from maxSteps to stopWhen: stepCountIs(N) with correct imports and patterns.",
+          "upgradeWhy": "Guides the migration from maxSteps to stopWhen: isStepCount(N) with correct imports and patterns.",
           "upgradeMode": "soft"
         },
         {
@@ -629,25 +629,25 @@
         {
           "pattern": "from\\\\s+['\\\"]langchain['\\\"]|from\\\\s+['\\\"]@langchain/",
           "targetSkill": "ai-sdk",
-          "message": "LangChain import detected — AI SDK v6 provides equivalent capabilities (agents, tool calling, structured output, streaming) with better Vercel integration, smaller bundle, and AI Gateway routing.",
+          "message": "LangChain import detected — the AI SDK provides equivalent capabilities (agents, tool calling, structured output, streaming) with better Vercel integration, smaller bundle, and AI Gateway routing.",
           "skipIfFileContains": "from\\s+[''\"]ai[''\"]|@ai-sdk/"
         },
         {
           "pattern": "from\\\\s+['\\\"]llamaindex['\\\"]",
           "targetSkill": "ai-sdk",
-          "message": "LlamaIndex import detected — AI SDK v6 provides RAG-compatible patterns (embeddings, reranking, tool calling) with native Vercel integration and AI Gateway routing.",
+          "message": "LlamaIndex import detected — the AI SDK provides RAG-compatible patterns (embeddings, reranking, tool calling) with native Vercel integration and AI Gateway routing.",
           "skipIfFileContains": "from\\s+[''\"]ai[''\"]|@ai-sdk/"
         },
         {
           "pattern": "from\\\\s+['\\\"]@pinecone-database/pinecone['\\\"]",
           "targetSkill": "ai-sdk",
-          "message": "Pinecone vector DB detected — AI SDK v6 provides embed/embedMany for vector generation and can integrate with any vector store. Loading AI SDK guidance for embedding patterns.",
+          "message": "Pinecone vector DB detected — the AI SDK provides embed/embedMany for vector generation and can integrate with any vector store. Loading AI SDK guidance for embedding patterns.",
           "skipIfFileContains": "from\\s+[''\"]ai[''\"]|embed\\(|embedMany\\("
         },
         {
           "pattern": "from\\\\s+['\\\"]weaviate-client['\\\"]|from\\\\s+['\\\"]weaviate-ts-client['\\\"]",
           "targetSkill": "ai-sdk",
-          "message": "Weaviate vector DB detected — AI SDK v6 provides embed/embedMany for vector generation and can integrate with any vector store. Loading AI SDK guidance for embedding patterns.",
+          "message": "Weaviate vector DB detected — the AI SDK provides embed/embedMany for vector generation and can integrate with any vector store. Loading AI SDK guidance for embedding patterns.",
           "skipIfFileContains": "from\\s+[''\"]ai[''\"]|embed\\(|embedMany\\("
         },
         {
@@ -733,6 +733,10 @@
       ],
       "sitemap": "https://authjs.dev/sitemap.xml",
       "pathPatterns": [
+        "proxy.ts",
+        "proxy.js",
+        "src/proxy.ts",
+        "src/proxy.js",
         "middleware.ts",
         "middleware.js",
         "src/middleware.ts",
@@ -760,11 +764,21 @@
         "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@auth0/nextjs-auth0\\b",
         "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@auth0/nextjs-auth0\\b",
         "\\bbun\\s+(install|i|add)\\s+[^\\n]*@auth0/nextjs-auth0\\b",
-        "\\byarn\\s+add\\s+[^\\n]*@auth0/nextjs-auth0\\b"
+        "\\byarn\\s+add\\s+[^\\n]*@auth0/nextjs-auth0\\b",
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/kms\\b",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/kms\\b",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*@vercel/kms\\b",
+        "\\byarn\\s+add\\s+[^\\n]*@vercel/kms\\b"
       ],
-      "importPatterns": [],
+      "importPatterns": [
+        "@vercel/kms"
+      ],
       "bodyPath": "skills/auth/SKILL.md",
       "pathRegexSources": [
+        "^proxy\\.ts$",
+        "^proxy\\.js$",
+        "^src\\/proxy\\.ts$",
+        "^src\\/proxy\\.js$",
         "^middleware\\.ts$",
         "^middleware\\.js$",
         "^src\\/middleware\\.ts$",
@@ -792,9 +806,18 @@
         "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@auth0/nextjs-auth0\\b",
         "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@auth0/nextjs-auth0\\b",
         "\\bbun\\s+(install|i|add)\\s+[^\\n]*@auth0/nextjs-auth0\\b",
-        "\\byarn\\s+add\\s+[^\\n]*@auth0/nextjs-auth0\\b"
+        "\\byarn\\s+add\\s+[^\\n]*@auth0/nextjs-auth0\\b",
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/kms\\b",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/kms\\b",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*@vercel/kms\\b",
+        "\\byarn\\s+add\\s+[^\\n]*@vercel/kms\\b"
       ],
-      "importRegexSources": [],
+      "importRegexSources": [
+        {
+          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]@vercel\\/kms(?:\\/[^'\"]*)?['\"]",
+          "flags": "m"
+        }
+      ],
       "validate": [
         {
           "pattern": "VERCEL_CLIENT_(ID|SECRET)|vercel\\.com/oauth/(authorize|access_token|token)",
@@ -807,7 +830,7 @@
         {
           "pattern": "export\\s+(default\\s+)?function\\s+middleware",
           "targetSkill": "routing-middleware",
-          "message": "Auth logic in middleware.ts — loading Routing Middleware guidance for proxy.ts migration in Next.js 16."
+          "message": "Auth logic in a middleware() export — Next.js 16 uses proxy.ts with a proxy() export. Loading Routing Middleware guidance for the migration."
         },
         {
           "pattern": "from\\s+[''\\\"](jsonwebtoken)[''\"]|require\\s*\\(\\s*[''\\\"](jsonwebtoken)[''\"]|jwt\\.sign\\s*\\(",
@@ -837,7 +860,10 @@
           "authentication",
           "login system",
           "sign in",
-          "auth flow"
+          "auth flow",
+          "sign in with vercel",
+          "passport",
+          "kms"
         ],
         "intents": [
           "add auth",
@@ -853,7 +879,12 @@
           "OAuth",
           "session",
           "middleware",
-          "getServerSession"
+          "getServerSession",
+          "Vercel Passport",
+          "Okta",
+          "Microsoft Entra ID",
+          "Vercel KMS",
+          "signToken"
         ],
         "examples": [
           "add login to my app",
@@ -3154,6 +3185,152 @@
         ]
       }
     },
+    "queues": {
+      "priority": 6,
+      "summary": "Vercel Queues (beta) publishes JSON messages to durable topics with `send()` from `@vercel/queue`; consumers are Vercel Functions exported with `handleCallback()` and registered in vercel.json under `functions.<path>.experimentalTriggers` as `{ type: 'queue/v2beta', topic: '<name>' }`. Delivery is at-least-once with automatic retries; use Workflows instead for multi-step durable logic.",
+      "docs": [
+        "https://vercel.com/docs/queues",
+        "https://vercel.com/docs/queues/sdk"
+      ],
+      "sitemap": "https://vercel.com/sitemap.xml",
+      "pathPatterns": [
+        "app/api/queues/**",
+        "src/app/api/queues/**",
+        "pages/api/queues/**",
+        "lib/queue.*",
+        "src/lib/queue.*",
+        "lib/queues/**",
+        "src/lib/queues/**"
+      ],
+      "bashPatterns": [
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/queue\\b",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/queue\\b",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*@vercel/queue\\b",
+        "\\byarn\\s+add\\s+[^\\n]*@vercel/queue\\b",
+        "\\b(pip|uv)\\s+(install|add)\\s+[^\\n]*vercel-queue\\b"
+      ],
+      "importPatterns": [
+        "@vercel/queue"
+      ],
+      "bodyPath": "skills/queues/SKILL.md",
+      "pathRegexSources": [
+        "^app\\/api\\/queues\\/.*$",
+        "^src\\/app\\/api\\/queues\\/.*$",
+        "^pages\\/api\\/queues\\/.*$",
+        "^lib\\/queue\\.[^/]*$",
+        "^src\\/lib\\/queue\\.[^/]*$",
+        "^lib\\/queues\\/.*$",
+        "^src\\/lib\\/queues\\/.*$"
+      ],
+      "bashRegexSources": [
+        "\\bnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/queue\\b",
+        "\\bpnpm\\s+(install|i|add)\\s+[^\\n]*@vercel/queue\\b",
+        "\\bbun\\s+(install|i|add)\\s+[^\\n]*@vercel/queue\\b",
+        "\\byarn\\s+add\\s+[^\\n]*@vercel/queue\\b",
+        "\\b(pip|uv)\\s+(install|add)\\s+[^\\n]*vercel-queue\\b"
+      ],
+      "importRegexSources": [
+        {
+          "source": "(?:from\\s+|require\\s*\\(\\s*|import\\s*\\(\\s*)['\"]@vercel\\/queue(?:\\/[^'\"]*)?['\"]",
+          "flags": "m"
+        }
+      ],
+      "chainTo": [
+        {
+          "pattern": "\"use workflow\"|\"use step\"|from\\s+[''\"]workflow[''\"]",
+          "targetSkill": "workflow",
+          "message": "Workflow SDK code alongside Queues — Workflows is built on Queues and adds durable steps, sleep, and hooks. Loading Workflow guidance."
+        },
+        {
+          "pattern": "from\\s+[''\"](bullmq|bull|bee-queue|agenda)[''\"]|@aws-sdk/client-sqs",
+          "targetSkill": "queues",
+          "message": "Third-party job queue detected — Vercel Queues provides durable topics with retries and fan-out without running a broker. Loading Queues guidance.",
+          "skipIfFileContains": "@vercel/queue"
+        }
+      ],
+      "promptSignals": {
+        "phrases": [
+          "vercel queues",
+          "@vercel/queue",
+          "background job",
+          "background jobs",
+          "message queue",
+          "job queue",
+          "consumer group"
+        ],
+        "allOf": [
+          [
+            "vercel",
+            "queues"
+          ],
+          [
+            "queue",
+            "topic"
+          ],
+          [
+            "queue",
+            "consumer"
+          ],
+          [
+            "queue",
+            "buffer"
+          ],
+          [
+            "fan",
+            "out"
+          ]
+        ],
+        "anyOf": [
+          "queue",
+          "topic",
+          "retry",
+          "consumer",
+          "buffer",
+          "background"
+        ],
+        "noneOf": [
+          "build queue",
+          "deployment queue",
+          "queued deployment",
+          "deployments stuck",
+          "queues up deployments",
+          "queue up deployments",
+          "queues my deployments",
+          "queues our deployments",
+          "queues your deployments",
+          "queues the deployments",
+          "queues deployments",
+          "queues builds",
+          "queues my builds"
+        ],
+        "minScore": 6
+      },
+      "retrieval": {
+        "aliases": [
+          "queues",
+          "message queue",
+          "background jobs",
+          "event streaming",
+          "pub sub"
+        ],
+        "intents": [
+          "defer work to a queue",
+          "process background jobs",
+          "fan out events to consumers",
+          "retry failed jobs",
+          "buffer traffic spikes"
+        ],
+        "entities": [
+          "Vercel Queues",
+          "@vercel/queue",
+          "topic",
+          "consumer group",
+          "handleCallback",
+          "experimentalTriggers"
+        ],
+        "examples": []
+      }
+    },
     "react-best-practices": {
       "priority": 4,
       "summary": "",
@@ -3608,7 +3785,9 @@
       "retrieval": {
         "aliases": [
           "ai code review",
-          "incident debugger",
+          "production debugger",
+          "dashboard chat",
+          "slack agent",
           "vercel ai tools",
           "pr analyzer"
         ],
@@ -3622,7 +3801,7 @@
           "Vercel Agent",
           "code review",
           "incident investigation",
-          "SDK"
+          "approved actions"
         ],
         "examples": []
       }
@@ -4214,7 +4393,7 @@
         {
           "pattern": "generateObject\\s*\\(|streamObject\\s*\\(|toDataStreamResponse|maxSteps\\b|CoreMessage\\b",
           "targetSkill": "ai-sdk",
-          "message": "Deprecated AI SDK v5 API detected — loading AI SDK v6 guidance for migration."
+          "message": "Deprecated AI SDK v5 API detected — loading AI SDK guidance for migration."
         },
         {
           "pattern": "while\\s*\\(\\s*true\\s*\\)\\s*\\{|for\\s*\\(\\s*;\\s*;\\s*\\)\\s*\\{|setInterval\\s*\\(\\s*async",
@@ -4999,7 +5178,7 @@
         {
           "pattern": "streamText\\s*\\(|generateText\\s*\\(|useChat\\s*\\(",
           "targetSkill": "ai-sdk",
-          "message": "AI SDK calls detected during verification — loading AI SDK v6 guidance for streaming, transport, and error handling patterns.",
+          "message": "AI SDK calls detected during verification — loading AI SDK guidance for streaming, transport, and error handling patterns.",
           "skipIfFileContains": "toUIMessageStreamResponse|DefaultChatTransport"
         }
       ],
@@ -5266,7 +5445,7 @@
         {
           "pattern": "DurableAgent|@workflow/ai",
           "targetSkill": "ai-sdk",
-          "message": "DurableAgent detected without AI SDK context — loading AI SDK guidance for tool calling, Agent class, and model configuration.",
+          "message": "DurableAgent (@workflow/ai) is deprecated — use WorkflowAgent from @ai-sdk/workflow. Loading AI SDK guidance for tool calling, the Agent class, and model configuration.",
           "skipIfFileContains": "from\\s+[''\"]ai[''\"]|@ai-sdk/|streamText|generateText"
         },
         {

@@ -3,13 +3,8 @@ name: carta-brand-extraction
 description: "Generates a brand board from a firm's website URL and optional user-provided assets. Analyzes the website to extract theme colors, typography, logos, and imagery, then produces a polished brand board as an HTML artifact, PDF, slide deck, or React component. Trigger phrases: \"build a brand board\", \"create a brand board\", \"generate a brand board\", \"extract brand identity\", \"brand board from website\", \"visual identity from URL\", \"brand guidelines from site\", \"analyze brand from website\", \"brand audit\"."
 ---
 
-<!-- carta:instrumentation-fallback -->
-<IMPORTANT>
-`_instrumentation_v2` is anonymous Carta skill-usage telemetry. ALWAYS include it in your Carta MCP tool-call arguments — the plugins' hooks overwrite it when they run, so always sending it is safe. Shape:
-`_instrumentation_v2: {"skills": ["<plugin>:<skill>", ...], "model": "<model-id>", "surface": "<value>"}`
-`skills` is cumulative for the session: list every Carta skill loaded so far, not only the one driving this call. Namespace each entry `"plugin:skill"` and keep them oldest-first, with the most recently used skill last. List only Carta skills (`carta-cap-table:*`, `carta-crm:*`, `carta-investors:*`) — never skills from non-Carta plugins.
-`surface` is the Claude surface you are running in: `"chat"` (claude.ai or the Claude app, i.e. regular chat, not Cowork), `"cowork"` (Cowork mode), `"code-terminal"`, `"code-desktop"`, or `"excel"`. Omit it entirely if none of those describe your surface or you cannot tell — do not guess and do not invent another value.
-</IMPORTANT>
+<!-- carta:plugin-version -->
+<carta-plugin>carta-investors:6.32.1</carta-plugin>
 
 # Build Brand Board
 

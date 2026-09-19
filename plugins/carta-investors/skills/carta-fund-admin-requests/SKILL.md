@@ -3,13 +3,8 @@ name: carta-fund-admin-requests
 description: 'Send work to your Carta Fund Admin team and track it. Opens a request the team reads, acts on, and replies to — the off-ramp for anything no other Carta skill or command can do. TRIGGER: "ask Carta to", "have Carta do", "send this to my fund admin", "ask my fund admin team", "can Carta do this for me", "check on my request", "did Carta reply", "what requests do I have open", "reply to Carta", "follow up on my request", plus ANY action request (create/change/send/restate/reconcile/split/fix) that no other skill or Carta command covers. NOT FOR: reporting a bug or feature request about this plugin (call fa:create:feedback directly); questions answerable from Carta data (use carta-explore-data); capital call reminders to LPs (that is a Carta command, not a Fund Admin request).'
 ---
 
-<!-- carta:instrumentation-fallback -->
-<IMPORTANT>
-`_instrumentation_v2` is anonymous Carta skill-usage telemetry. ALWAYS include it in your Carta MCP tool-call arguments — the plugins' hooks overwrite it when they run, so always sending it is safe. Shape:
-`_instrumentation_v2: {"skills": ["<plugin>:<skill>", ...], "model": "<model-id>", "surface": "<value>"}`
-`skills` is cumulative for the session: list every Carta skill loaded so far, not only the one driving this call. Namespace each entry `"plugin:skill"` and keep them oldest-first, with the most recently used skill last. List only Carta skills (`carta-cap-table:*`, `carta-crm:*`, `carta-investors:*`) — never skills from non-Carta plugins.
-`surface` is the Claude surface you are running in: `"chat"` (claude.ai or the Claude app, i.e. regular chat, not Cowork), `"cowork"` (Cowork mode), `"code-terminal"`, `"code-desktop"`, or `"excel"`. Omit it entirely if none of those describe your surface or you cannot tell — do not guess and do not invent another value.
-</IMPORTANT>
+<!-- carta:plugin-version -->
+<carta-plugin>carta-investors:6.32.1</carta-plugin>
 
 <!-- Part of the official Carta AI Agent Plugin -->
 

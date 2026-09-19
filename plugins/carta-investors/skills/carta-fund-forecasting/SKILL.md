@@ -3,13 +3,8 @@ name: carta-fund-forecasting
 description: "Fund Forecasting (Tactyc) read-only analytics — fund performance and per-investment metrics for funds IN FUND FORECASTING (Tactyc) ONLY. A SEPARATE domain from Carta Web / Fund Admin, with its own funds and data — use carta-explore-data for those (data-warehouse, cap-table, accounting) queries. Metrics: TVPI, DPI, RVPI, gross/net IRR, MOIC, NAV, unrealized FMV, realized proceeds, committed/contributed/called capital, planned reserves, management fees & expenses, waterfall tiers and net proceeds to LP/GP, and per-company MOIC/IRR/FMV/ownership %/holding period/round events. Also route here for the Fund Forecasting app URL (fund-forecasting.app.carta.com) or 'Tactyc'. If the user hasn't said which system the fund is in, ask first — don't assume Fund Forecasting. Reports existing data only — no scenarios, no build/edit. NOT the interactive 'fund modeling' micro-app / firm-level scenario console (reprice companies, exit & IRR scenarios, reserves planning) — use carta-fund-modeling (Fund Admin data, not Tactyc)."
 ---
 
-<!-- carta:instrumentation-fallback -->
-<IMPORTANT>
-`_instrumentation_v2` is anonymous Carta skill-usage telemetry. ALWAYS include it in your Carta MCP tool-call arguments — the plugins' hooks overwrite it when they run, so always sending it is safe. Shape:
-`_instrumentation_v2: {"skills": ["<plugin>:<skill>", ...], "model": "<model-id>", "surface": "<value>"}`
-`skills` is cumulative for the session: list every Carta skill loaded so far, not only the one driving this call. Namespace each entry `"plugin:skill"` and keep them oldest-first, with the most recently used skill last. List only Carta skills (`carta-cap-table:*`, `carta-crm:*`, `carta-investors:*`) — never skills from non-Carta plugins.
-`surface` is the Claude surface you are running in: `"chat"` (claude.ai or the Claude app, i.e. regular chat, not Cowork), `"cowork"` (Cowork mode), `"code-terminal"`, `"code-desktop"`, or `"excel"`. Omit it entirely if none of those describe your surface or you cannot tell — do not guess and do not invent another value.
-</IMPORTANT>
+<!-- carta:plugin-version -->
+<carta-plugin>carta-investors:6.32.1</carta-plugin>
 
 # Fund Forecasting
 

@@ -3,14 +3,6 @@ name: home
 description: "Renders the Carta CRM Home: a landing view with pipeline by stage, recent contacts, deals, object counts, latest notes, this week's meetings, and a directory of the prompts the plugin supports. Use this skill when the user says things like \"carta crm home\", \"show my crm home\", \"my crm dashboard\", \"what's in my pipeline today\", \"crm landing page\", or \"/home\". It is also the skill that decides whether the Home belongs in the conversation or on a published page, so start here even when the user may want a page. Read-only. Do NOT use it to look up a specific record — name the record instead and Claude picks the right search skill. For a fund firm's Carta Home use carta-investors' carta-home-build; for a company's cap table use carta-cap-table's carta-captable-home-build."
 ---
 
-<!-- carta:instrumentation-fallback -->
-<IMPORTANT>
-`_instrumentation_v2` is anonymous Carta skill-usage telemetry. ALWAYS include it in your Carta MCP tool-call arguments — the plugins' hooks overwrite it when they run, so always sending it is safe. Shape:
-`_instrumentation_v2: {"skills": ["<plugin>:<skill>", ...], "model": "<model-id>", "surface": "<value>"}`
-`skills` is cumulative for the session: list every Carta skill loaded so far, not only the one driving this call. Namespace each entry `"plugin:skill"` and keep them oldest-first, with the most recently used skill last. List only Carta skills (`carta-cap-table:*`, `carta-crm:*`, `carta-investors:*`) — never skills from non-Carta plugins.
-`surface` is the Claude surface you are running in: `"chat"` (claude.ai or the Claude app, i.e. regular chat, not Cowork), `"cowork"` (Cowork mode), `"code-terminal"`, `"code-desktop"`, or `"excel"`. Omit it entirely if none of those describe your surface or you cannot tell — do not guess and do not invent another value.
-</IMPORTANT>
-
 # Carta CRM Home
 
 The Home is one manifest tool and two places to put it. The server decides which cards this

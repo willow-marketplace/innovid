@@ -3,13 +3,8 @@ name: carta-consolidating-financial-reports
 description: 'Builds multi-entity consolidating financial reports in Excel: consolidating P&L (income statement), balance sheet, and trial balance — individually or all three together. Resolves the firm, the entities to include, the reporting period, and the target workbook, then builds the chosen report(s). TRIGGER on "consolidating financial reports", "consolidating P&L", "firm-wide income statement", "P&L for all entities", "P&L by tag", "P&L by department", "consolidating balance sheet", "BS by entity", "balance sheet of all entities", "consolidating trial balance", "TB by entity", "all three consolidating reports", "the full financial package". ALSO fires on a generic ask with no report named — "consolidating financials", "firm-wide financial statements" — and shows the report menu. NOT FOR: single-fund/entity financials, ManCo budgets/actuals/pacing/what-if (carta-manco), consolidating cash flow (carta-manco), SOI, co-investors, Form ADV, LP reporting, cap tables, Fund Admin requests (carta-fund-admin-requests).'
 ---
 
-<!-- carta:instrumentation-fallback -->
-<IMPORTANT>
-`_instrumentation_v2` is anonymous Carta skill-usage telemetry. ALWAYS include it in your Carta MCP tool-call arguments — the plugins' hooks overwrite it when they run, so always sending it is safe. Shape:
-`_instrumentation_v2: {"skills": ["<plugin>:<skill>", ...], "model": "<model-id>", "surface": "<value>"}`
-`skills` is cumulative for the session: list every Carta skill loaded so far, not only the one driving this call. Namespace each entry `"plugin:skill"` and keep them oldest-first, with the most recently used skill last. List only Carta skills (`carta-cap-table:*`, `carta-crm:*`, `carta-investors:*`) — never skills from non-Carta plugins.
-`surface` is the Claude surface you are running in: `"chat"` (claude.ai or the Claude app, i.e. regular chat, not Cowork), `"cowork"` (Cowork mode), `"code-terminal"`, `"code-desktop"`, or `"excel"`. Omit it entirely if none of those describe your surface or you cannot tell — do not guess and do not invent another value.
-</IMPORTANT>
+<!-- carta:plugin-version -->
+<carta-plugin>carta-investors:6.32.1</carta-plugin>
 
 [PATTERN carta-writing-style v0.0.2]
 [PATTERN etiquette v0.0.6]

@@ -3,13 +3,8 @@ name: carta-manco-reporting
 description: 'Visual ManCo (management company) reporting dashboard/microapp — React SPA on Carta Fund Admin data. TRIGGER: any ManCo dashboard/microapp/report/financials ask under ANY verb (spin up, open, launch, build, create, run) — P&L drill-down, expenses, Budget vs Actuals, Management Fee Income by Fund, income-vs-expenses charts, journal-entry detail. DISAMBIGUATION: "build" means render this dashboard, not draft a budget, so a microapp/dashboard ask ALWAYS routes here, firm named or not; a generic ManCo ask naming a firm routes here; firm-absent with no visual surface → carta-manco. NOT FOR: budgets/actuals (→ carta-manco); consolidating statements (→ carta-consolidating-financial-reports); scaffolding a NEW microapp skill from scratch (a developer tool, not this dashboard).'
 ---
 
-<!-- carta:instrumentation-fallback -->
-<IMPORTANT>
-`_instrumentation_v2` is anonymous Carta skill-usage telemetry. ALWAYS include it in your Carta MCP tool-call arguments — the plugins' hooks overwrite it when they run, so always sending it is safe. Shape:
-`_instrumentation_v2: {"skills": ["<plugin>:<skill>", ...], "model": "<model-id>", "surface": "<value>"}`
-`skills` is cumulative for the session: list every Carta skill loaded so far, not only the one driving this call. Namespace each entry `"plugin:skill"` and keep them oldest-first, with the most recently used skill last. List only Carta skills (`carta-cap-table:*`, `carta-crm:*`, `carta-investors:*`) — never skills from non-Carta plugins.
-`surface` is the Claude surface you are running in: `"chat"` (claude.ai or the Claude app, i.e. regular chat, not Cowork), `"cowork"` (Cowork mode), `"code-terminal"`, `"code-desktop"`, or `"excel"`. Omit it entirely if none of those describe your surface or you cannot tell — do not guess and do not invent another value.
-</IMPORTANT>
+<!-- carta:plugin-version -->
+<carta-plugin>carta-investors:6.32.1</carta-plugin>
 
 # ManCo Reporting Dashboard
 

@@ -3,14 +3,6 @@ name: tutorial
 description: 'Interactive ~5-minute walkthrough of the Carta CRM plugin. Covers plugin overview, setup verification, how to kick off each skill, and a demo walkthrough of 4 realistic CRM scenarios. Trigger phrases: "carta crm tutorial", "show me the crm tutorial", "how do I use carta crm", "walk me through carta crm", "getting started with crm", "demo carta crm", "crm tutorial". Do NOT use for real data lookups (searching, adding, or updating CRM records) — just describe what you need in plain language and Claude picks the right action. A returning user who asks for a landing view, a dashboard or "/home" wants the `home` skill, not this walkthrough.'
 ---
 
-<!-- carta:instrumentation-fallback -->
-<IMPORTANT>
-`_instrumentation_v2` is anonymous Carta skill-usage telemetry. ALWAYS include it in your Carta MCP tool-call arguments — the plugins' hooks overwrite it when they run, so always sending it is safe. Shape:
-`_instrumentation_v2: {"skills": ["<plugin>:<skill>", ...], "model": "<model-id>", "surface": "<value>"}`
-`skills` is cumulative for the session: list every Carta skill loaded so far, not only the one driving this call. Namespace each entry `"plugin:skill"` and keep them oldest-first, with the most recently used skill last. List only Carta skills (`carta-cap-table:*`, `carta-crm:*`, `carta-investors:*`) — never skills from non-Carta plugins.
-`surface` is the Claude surface you are running in: `"chat"` (claude.ai or the Claude app, i.e. regular chat, not Cowork), `"cowork"` (Cowork mode), `"code-terminal"`, `"code-desktop"`, or `"excel"`. Omit it entirely if none of those describe your surface or you cannot tell — do not guess and do not invent another value.
-</IMPORTANT>
-
 # Carta CRM Tutorial
 
 **Prerequisites:** Active Carta CRM subscription. Skill runs interactively — pause after each section for user input. All demo data is fictional.

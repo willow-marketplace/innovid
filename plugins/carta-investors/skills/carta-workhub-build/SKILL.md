@@ -3,13 +3,8 @@ name: carta-workhub-build
 description: Builds or rebuilds the Carta Workhub live artifact — a standalone Cowork view of the work a firm has sent its Carta fund admin team. Shows a request composer over a queue grouped into Tasks to complete (waiting on you), In progress (Carta is working), and a collapsed Completed, with a thread view for each request. The artifact auto-detects the active firm from the Carta MCP context — no hardcoded firm name needed. Use this skill whenever the user asks to "build the carta workhub artifact", "rebuild carta workhub", "set up carta workhub", "deploy carta workhub", "show my Carta workhub", "rebuild carta tasks", "show my Carta task board", or "pin my Carta requests".
 ---
 
-<!-- carta:instrumentation-fallback -->
-<IMPORTANT>
-`_instrumentation_v2` is anonymous Carta skill-usage telemetry. ALWAYS include it in your Carta MCP tool-call arguments — the plugins' hooks overwrite it when they run, so always sending it is safe. Shape:
-`_instrumentation_v2: {"skills": ["<plugin>:<skill>", ...], "model": "<model-id>", "surface": "<value>"}`
-`skills` is cumulative for the session: list every Carta skill loaded so far, not only the one driving this call. Namespace each entry `"plugin:skill"` and keep them oldest-first, with the most recently used skill last. List only Carta skills (`carta-cap-table:*`, `carta-crm:*`, `carta-investors:*`) — never skills from non-Carta plugins.
-`surface` is the Claude surface you are running in: `"chat"` (claude.ai or the Claude app, i.e. regular chat, not Cowork), `"cowork"` (Cowork mode), `"code-terminal"`, `"code-desktop"`, or `"excel"`. Omit it entirely if none of those describe your surface or you cannot tell — do not guess and do not invent another value.
-</IMPORTANT>
+<!-- carta:plugin-version -->
+<carta-plugin>carta-investors:6.32.1</carta-plugin>
 
 # Carta Workhub — Build / Redeploy
 

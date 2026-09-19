@@ -3,13 +3,8 @@ name: carta-compliance-routing
 description: 'Routes to Form ADV for regulatory filing data. Trigger on any of: "Form ADV", "Schedule D", "regulatory AUM", "Form PF", "annual filing", "annual amendment", "SEC filing", "total AUM", "AUM for filing", "AUM for the SEC", "regulatory assets", "AUM across all funds", "filing season", "RAUM", "how much AUM to report", "pull our Form ADV data", /carta-compliance-routing. NOT FOR: 409A valuations, cap table ownership, LP reporting, fund financials, performance benchmarks, SPA document views, SPA coverage audits.'
 ---
 
-<!-- carta:instrumentation-fallback -->
-<IMPORTANT>
-`_instrumentation_v2` is anonymous Carta skill-usage telemetry. ALWAYS include it in your Carta MCP tool-call arguments — the plugins' hooks overwrite it when they run, so always sending it is safe. Shape:
-`_instrumentation_v2: {"skills": ["<plugin>:<skill>", ...], "model": "<model-id>", "surface": "<value>"}`
-`skills` is cumulative for the session: list every Carta skill loaded so far, not only the one driving this call. Namespace each entry `"plugin:skill"` and keep them oldest-first, with the most recently used skill last. List only Carta skills (`carta-cap-table:*`, `carta-crm:*`, `carta-investors:*`) — never skills from non-Carta plugins.
-`surface` is the Claude surface you are running in: `"chat"` (claude.ai or the Claude app, i.e. regular chat, not Cowork), `"cowork"` (Cowork mode), `"code-terminal"`, `"code-desktop"`, or `"excel"`. Omit it entirely if none of those describe your surface or you cannot tell — do not guess and do not invent another value.
-</IMPORTANT>
+<!-- carta:plugin-version -->
+<carta-plugin>carta-investors:6.32.1</carta-plugin>
 
 # carta-compliance-routing — Compliance Router
 

@@ -2,7 +2,7 @@
   "name": "zocks-advisor",
   "version": "1.0.0",
   "description": "Seven skills for financial advisors, built exclusively on Zocks' structured meeting intelligence: behavioral profiles and relationship temperature, attrition-risk ranking, a held-away asset pipeline, client journey dossiers, annual review packs, next-best-action analysis, and a two-horizon tax opportunity scan. Every skill requires the Zocks MCP connection and refuses to run without it — no transcript uploads or other connectors can substitute.",
-  "updatedAt": "2026-09-18T00:04:11.094Z",
+  "updatedAt": "2026-09-19T00:04:02.820Z",
   "author": {
     "url": "https://zocks.io",
     "name": "Zocks"

@@ -3,13 +3,8 @@ name: carta-fund-modeling
 description: 'Spin up an interactive local web console for FIRM-LEVEL scenario modeling over Carta Fund Admin data — a React app to reprice portfolio companies and model exits ACROSS MULTIPLE COMPANIES, with five tabs: Overview (fund-family rollup, investment pacing, concentration), Companies (per-company repricing + LP make-whole waterfall + carry banking, plus a plan of dated partial sales, each at its own price — secondary proceeds off the table before the exit), Exit & IRR (exit scenarios, XIRR, GP & LP returns, plus a per-fund DPI/RVPI/TVPI glidepath in the LP Returns view), Reserves (per-fund dry-powder planning), and Cohort Standing (peer-cohort + S&P-equivalent benchmarking). Scenarios persist locally. Invoke with a firm name, e.g. "fund modeling for Demo Capital" or "model portfolio scenarios for a firm". Fund Admin only. NOT Tactyc/Fund Forecasting — use carta-fund-forecasting for Tactyc funds. NOT for single-exit waterfalls on one company. NOT read-only fund data queries — use carta-explore-data.'
 ---
 
-<!-- carta:instrumentation-fallback -->
-<IMPORTANT>
-`_instrumentation_v2` is anonymous Carta skill-usage telemetry. ALWAYS include it in your Carta MCP tool-call arguments — the plugins' hooks overwrite it when they run, so always sending it is safe. Shape:
-`_instrumentation_v2: {"skills": ["<plugin>:<skill>", ...], "model": "<model-id>", "surface": "<value>"}`
-`skills` is cumulative for the session: list every Carta skill loaded so far, not only the one driving this call. Namespace each entry `"plugin:skill"` and keep them oldest-first, with the most recently used skill last. List only Carta skills (`carta-cap-table:*`, `carta-crm:*`, `carta-investors:*`) — never skills from non-Carta plugins.
-`surface` is the Claude surface you are running in: `"chat"` (claude.ai or the Claude app, i.e. regular chat, not Cowork), `"cowork"` (Cowork mode), `"code-terminal"`, `"code-desktop"`, or `"excel"`. Omit it entirely if none of those describe your surface or you cannot tell — do not guess and do not invent another value.
-</IMPORTANT>
+<!-- carta:plugin-version -->
+<carta-plugin>carta-investors:6.32.1</carta-plugin>
 
 [PATTERN carta-writing-style v0.0.2]
 [PATTERN etiquette v0.0.6]
