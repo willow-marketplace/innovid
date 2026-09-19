@@ -2,7 +2,7 @@
   "name": "supabase",
   "version": "1.0.0",
   "description": "Official Supabase plugin for Claude Code with bundled Supabase skills and MCP access for project management, database work, auth, storage, and Postgres best practices.",
-  "updatedAt": "2026-09-19T00:29:15.366Z",
+  "updatedAt": "2026-09-19T00:42:54.236Z",
   "author": {
     "url": "https://supabase.com",
     "name": "Supabase"

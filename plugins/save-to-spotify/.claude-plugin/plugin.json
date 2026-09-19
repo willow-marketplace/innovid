@@ -2,7 +2,7 @@
   "name": "save-to-spotify",
   "version": "1.0.0",
   "description": "Create polished audio episodes with TTS narration, rich timelines, cover images, and save them to Spotify via the save-to-spotify CLI.",
-  "updatedAt": "2026-09-19T00:29:15.443Z",
+  "updatedAt": "2026-09-19T00:42:54.303Z",
   "author": {
     "url": "https://github.com/spotify",
     "name": "Spotify"

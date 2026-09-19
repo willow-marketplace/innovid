@@ -2,7 +2,7 @@
   "name": "math-olympiad",
   "version": "1.0.0",
   "description": "Solve competition math (IMO, Putnam, USAMO) with adversarial verification that catches what self-verification misses. Fresh-context verifiers attack proofs with specific failure patterns. Calibrated abstention over bluffing.",
-  "updatedAt": "2026-09-19T00:29:15.378Z",
+  "updatedAt": "2026-09-19T00:42:54.246Z",
   "author": {
     "name": "Anthropic",
     "email": "support@anthropic.com"
