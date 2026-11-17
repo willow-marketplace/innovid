@@ -2,7 +2,7 @@
   "name": "packer-hcp",
   "version": "1.0.0",
   "description": "HCP Packer registry integration for tracking and managing image metadata.",
-  "updatedAt": "2026-11-04T02:04:32.970Z",
+  "updatedAt": "2026-11-17T14:42:13.987Z",
   "author": {
     "url": "https://github.com/hashicorp",
     "name": "HashiCorp"

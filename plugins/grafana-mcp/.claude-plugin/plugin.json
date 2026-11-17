@@ -2,7 +2,7 @@
   "name": "grafana-mcp",
   "version": "1.0.0",
   "description": "For self-hosted Grafana, or any Grafana with a service-account token: dashboards, Prometheus, Loki, alerting, incidents, and OnCall via the Grafana MCP server, run locally in Docker.",
-  "updatedAt": "2026-11-17T00:01:42.480Z",
+  "updatedAt": "2026-11-17T14:42:13.933Z",
   "author": {
     "name": "Grafana Labs",
     "email": "grafana-assistant@grafana.com"
