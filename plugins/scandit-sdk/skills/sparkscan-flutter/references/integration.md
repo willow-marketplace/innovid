@@ -11,9 +11,7 @@ SparkScan is a pre-built scanning UI for high-volume single-scanning workflows. 
   - `permission_handler` (for the runtime camera permission on Android)
 - Flutter `>=3.22.0`, Dart SDK `>=3.0.0 <4.0.0`.
 - After editing `pubspec.yaml`, run `flutter pub get` to fetch the packages.
-- A valid Scandit license key:
-  - Sign in at https://ssl.scandit.com to generate one.
-  - No account yet? Sign up at https://ssl.scandit.com/dashboard/sign-up?p=test.
+- A valid Scandit license key — see **Licence key** in this skill's `SKILL.md`.
 - Camera permissions configured by the app:
   - iOS: add `NSCameraUsageDescription` to `ios/Runner/Info.plist`.
   - Android: the manifest permission is declared by the plugin; request at runtime with `permission_handler`.
@@ -29,7 +27,7 @@ After providing the code, show this setup checklist:
 **Setup checklist:**
 1. Add `scandit_flutter_datacapture_barcode` and `permission_handler` to `pubspec.yaml`, then run `flutter pub get`.
 2. Add `NSCameraUsageDescription` to `ios/Runner/Info.plist` with a short usage explanation.
-3. Replace `-- ENTER YOUR SCANDIT LICENSE KEY HERE --` with the key from https://ssl.scandit.com.
+3. Replace `-- ENTER YOUR SCANDIT LICENSE KEY HERE --` with your key (see **Licence key** in `SKILL.md`).
 4. Ensure `main()` calls `WidgetsFlutterBinding.ensureInitialized()` and then `await ScanditFlutterDataCaptureBarcode.initialize()` before `runApp(...)`.
 5. Call `Permission.camera.request()` from `permission_handler` before the first scan (usually in `initState()` of the scanning page).
 
@@ -264,6 +262,23 @@ All colors use Flutter's `Color` type (e.g. `Color(0xFFFF5500)` or `Colors.red`)
 | `SparkScanView.defaultBrush` | `Brush` (static) | Default highlight brush. |
 | `SparkScanView.hardwareTriggerSupported` | `bool` (static) | Whether hardware trigger is available on this device. |
 
+### Scanning mode and preview
+
+`SparkScanViewSettings.defaultScanningMode` picks target mode (aim-to-scan) and the preview behavior. `SparkScanPreviewBehavior.persistent` keeps the camera preview visible when not scanning. Set it on the `SparkScanViewSettings` you pass to `SparkScanView.forContext`. If that settings object is a `late final` field, set the mode where the field is first assigned, since it can be assigned only once:
+
+```dart
+final sparkScanViewSettings = SparkScanViewSettings()
+  // ignore: deprecated_member_use
+  ..defaultScanningMode = SparkScanScanningModeTarget.fromPreviewBehavior(
+    SparkScanScanningBehavior.single,
+    SparkScanPreviewBehavior.persistent,
+  );
+```
+
+For the regular (non-target) mode with a persistent preview, use `SparkScanScanningModeDefault.fromPreviewBehavior(SparkScanScanningBehavior.single, SparkScanPreviewBehavior.persistent)` instead.
+
+> `SparkScanScanningModeTarget` and `SparkScanScanningModeDefault` are deprecated since 8.6 in favor of `SparkScanSettings.selectionMode` (`SelectionMode.on` for target mode, `SelectionMode.off` for the default mode, from `scandit_flutter_datacapture_core`), so `flutter analyze` reports `deprecated_member_use` unless you add the `ignore` comment. At 8.6 `defaultScanningMode` is still the only way to set the preview behavior. From 8.7 the view settings expose `previewBehavior` and `scanningBehavior` directly; they are 8.7+ only, so do not use them against 8.6.x.
+
 ## Step 8 — Custom Feedback
 
 By default SparkScan provides visual and haptic feedback on each scan. To customize feedback per-barcode (e.g., reject invalid codes), implement `SparkScanFeedbackDelegate` on the BLoC and assign it to `sparkScanView.feedbackDelegate`.
@@ -335,7 +350,7 @@ class _HomePageState extends State<HomePage> implements SparkScanViewUiListener 
   void didTapLabelCaptureButton(SparkScanView view) { /* ... */ }
 
   @override
-  void didChangeViewState(SparkScanViewState newState) { /* expanded/collapsed */ }
+  void didChangeViewState(SparkScanViewState newState) { /* initial, idle, inactive, active, error */ }
 }
 ```
 

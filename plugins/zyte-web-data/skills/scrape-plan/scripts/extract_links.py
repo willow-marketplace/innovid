@@ -1,5 +1,11 @@
 # /// script
-# dependencies = ["parsel", "html-text"]
+# dependencies = [
+#   "parsel",
+#   "html-text",
+#   # Security floors for indirect dependencies.
+#   "lxml>=6.1.0",
+#   "lxml-html-clean>=0.4.5",
+# ]
 # ///
 """Extract links from an HTML file with structural context.
 
@@ -143,7 +149,7 @@ def base_url_from_meta(html_file):
     """Read base URL from meta.json in the same directory as the HTML file."""
     meta_path = os.path.join(os.path.dirname(html_file), "meta.json")
     if os.path.exists(meta_path):
-        with open(meta_path) as f:
+        with open(meta_path, encoding="utf-8") as f:
             meta = json.load(f)
         return meta.get("final_url") or meta.get("url")
     return None
@@ -183,6 +189,8 @@ def process_file(html_file, args, prefix=None, base_url_override=None, link_limi
 
 
 def main():
+    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
     t_start = time.monotonic()
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("html_files", nargs="+", help="Path(s) to HTML file(s)")

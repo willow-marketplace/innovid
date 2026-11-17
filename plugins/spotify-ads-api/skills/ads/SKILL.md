@@ -18,6 +18,17 @@ api() { "$PLUGIN_ROOT/scripts/api-request.sh" ads "$@"; }
 
 Before the first Ads API v3 call, read and follow `$PLUGIN_ROOT/skills/api-reference/references/live-openapi.md`.
 
+Before sending any output to a human user, read and follow `$PLUGIN_ROOT/skills/api-reference/references/language-standards.md`.
+
+Also read `$PLUGIN_ROOT/skills/api-reference/references/api-behaviors.md` for API behaviour the spec does not express (estimates and min-audience-threshold handling, geo lookup, micro-amounts, Reserved pricing).
+
+Critical rules:
+
+- Send only fields the live spec defines for the operation; include every field it marks required, including ones whose description says "required" (e.g. `targets.placements`).
+- Set `placements` when creating an ad set and on every audience estimate, using only values the ad product catalog allows for that product's ad sets (and any narrower limit the objective's spec description states). On ad set updates, keep a valid `placements` in the merged result.
+- Never resend a request body that was rejected with a 4xx unchanged; fix it from the error first.
+- Before VALIDATE/PUBLISH, refetch `draft_hierarchy_version` from the draft campaign.
+
 To retrieve settings values (TOKEN, AD_ACCOUNT_ID, AUTO_EXECUTE, BASE_URL, SDK_HEADER, SKILL_HEADER, PLUGIN_VERSION) for use outside API calls, run `api --env`. The output is eval-safe, so `eval $(api --env)` assigns them all.
 
 ## Parsing Arguments
@@ -59,14 +70,14 @@ Prompt for required fields:
   - Platforms (optional) → `"platforms": ["ANDROID", "DESKTOP", "IOS"]` (**NOT "MOBILE" or "CONNECTED_DEVICE"**)
   - Placements (required) → `"placements": ["MUSIC"]`
 - **bid_strategy** — plain string: `MAX_BID`, `COST_PER_RESULT`, `AUTOBID`, or `UNSET`. Default to `MAX_BID`.
-- **bid_micro_amount** (required with MAX_BID or COST_PER_RESULT, not required with AUTOBID) — ask for the bid cap in the ad account's billing currency, convert to micro-amount. This is the maximum CPM. Example: $15 USD = `15000000`, ¥160 JPY = `160000000`
+- **bid_micro_amount** (on the ad set: required with MAX_BID or COST_PER_RESULT, omitted with AUTOBID; this omission applies only to ad set payloads, not audience estimates) — ask for the bid cap in the ad account's billing currency, convert to micro-amount. This is the maximum CPM. Example: $15 USD = `15000000`, ¥160 JPY = `160000000`
 
 Important: Convert amounts to micro-amounts by multiplying by 1,000,000. This applies to both `budget.micro_amount` and `bid_micro_amount`.
 
 **Ad set validation guardrails before any POST:**
 - Never send zero or negative `budget.micro_amount`; ask for a positive budget and convert it to micro-units.
 - Never send `bid_micro_amount: 0` with `MAX_BID` or `COST_PER_RESULT`; ask for a positive bid cap.
-- Do not send `bid_micro_amount` with `bid_strategy=UNSET` unless the API response or user-provided source explicitly requires it.
+- For auction buys with `bid_strategy=UNSET`, omit `bid_micro_amount` unless the current API contract or user-provided source requires it. For Reserved buys, follow the live product rules and use the fixed rate returned by `reserved_prices` as `bid_micro_amount`.
 - Keep `budget` to `micro_amount` and `type`; do not include `currency` on ad set create payloads.
 - Valid `targets.platforms` values are only `ANDROID`, `DESKTOP`, and `IOS`; never send `WEB`, `MOBILE`, `CONNECTED_DEVICE`, or `ad_platforms`.
 - Do not send `cost_model`, `skippable`, `is_skippable`, or `ad_platforms` in ad set create payloads.
@@ -145,7 +156,7 @@ Response includes `id`, `type`, `name`, and `parent_geo_name` for each geo.
 5. Build `geo_targets` object with appropriate IDs
 6. NEVER fall back to country-only without asking user first
 
-**Pre-flight audience estimate:** Before executing the POST, run an audience estimate to validate targeting:
+**Pre-flight audience estimate:** Before executing the POST, run an audience estimate to validate targeting. If the parent campaign uses `CONTENT` or `FPMNG`, follow `skills/api-reference/references/api-behaviors.md` (Reserved Pricing and Forecasting) first: fetch the fixed rate for the planned product, dates, format, and targeting; use `cost_micro` in both the ad set and audience estimate as `bid_micro_amount`; set `ad_product` and the returned currency in the estimate, and resolve the other product-specific fields from the current OpenAPI contract and live catalog. Report the fixed rate separately from forecast CPM and bid suggestions. The generic example below is for auction buys.
 
 ```bash
 api POST "estimates/audience" \
@@ -161,6 +172,8 @@ api POST "estimates/audience" \
   }'
 ```
 
+**Estimate payload checks** (most estimate 400s come from these): send the request body as one JSON object containing every field the live spec marks required for `POST /estimates/audience`; set `budget.currency` to the ad account's billing currency (never omit it); always include `bid_micro_amount`, even when `bid_strategy` is `AUTOBID` (the AUTOBID no-bid exception applies only to ad set payloads); always send `targets.placements` with at least one placement the ad product catalog allows for the chosen ad product; and omit `targets.platforms` when the catalog does not allow platform targeting for that product.
+
 **Note:** This endpoint is NOT scoped under `/ad_accounts/{id}/` — it's at the top level: `POST /estimates/audience`. Use the base URL directly followed by `/estimates/audience`.
 
 Display the estimate summary:
@@ -172,13 +185,15 @@ Audience Estimate:
   Estimated CPM: $12.50 – $18.00
 ```
 
-If the audience is too small (low projected users or 400 error), warn the user and suggest:
+If the audience is too small (low projected users or a "Min audience threshold was not met" 400), warn the user and suggest:
 - Broadening the age range
 - Adding more platforms
 - Switching from VIDEO to AUDIO format (lower thresholds)
 - Expanding geo targeting
 
-Ask whether to proceed, adjust targeting, or cancel before creating the ad set.
+A "Min audience threshold was not met" 400 means the targeting is too narrow. Do not resend the same request, and do not widen the targeting on your own. Show `bid_suggestion` only when the response includes it, ask the user how to broaden the targeting, then estimate again with their choice.
+
+If the estimate came back valid but low, ask whether to proceed, adjust targeting, or cancel before creating the ad set. After a threshold 400, do not offer to proceed with the same targeting; offer only to adjust targeting or cancel.
 
 **Create the draft ad set:**
 
@@ -246,6 +261,8 @@ Prompt for required fields:
       {"measurement_event": "CLICKED", "measurement_partner": "DCM", "url": "https://ad.doubleclick.net/ddm/trackclk/..."}
     ]
     ```
+
+**Paused is not an ad set or ad status**: ad set and ad statuses have no `PAUSED` (only campaigns do). Pause or resume an ad set or ad with a live PATCH of `{"delivery":"OFF"}` or `{"delivery":"ON"}` (an ad set PATCH carrying `delivery` must contain only that field), and find paused ad sets from the read-only `is_paused` response field, never `statuses=PAUSED`. **Ad sets for a campaign**: `api GET "ad_accounts/{ad_account_id}/ad_sets?campaign_ids=$CAMPAIGN_ID"`. There is no nested `/campaigns/{id}/ad_sets` route. **Updates are PATCH, never PUT**: the spec defines no PUT on Ads API v3 endpoints.
 
 ```bash
 api POST "ad_accounts/{ad_account_id}/drafts/ads" \

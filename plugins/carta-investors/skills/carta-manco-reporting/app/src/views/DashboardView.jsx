@@ -11,6 +11,7 @@ import FundSelector from "./FundSelector.jsx";
 import DateRangeControls from "./DateRangeControls.jsx";
 import { fmtCurrencyShort, displayCurrency } from "../charts/chartTheme.js";
 import { dimensionOf } from "../ui/dimension.js";
+import { cutoffDate } from "./budgetPeriods.js";
 import { Capped } from "../shell/AppShell.jsx";
 import { sans, inkNum, INK, PAPER, LINE, FAINT, MICRO, GREEN, RED, FS } from "../ui/theme.js";
 import { H1, H2, HoverCard, HelpCircleIcon } from "../ui/components.jsx";
@@ -19,10 +20,10 @@ import CashDetailCard from "./CashDetailCard.jsx";
 import { hasCashDetail } from "../ui/cashDetail.js";
 import ExportButton from "../ui/ExportButton.jsx";
 import ThemeToggleButton from "../ui/ThemeToggleButton.jsx";
-import { slugify } from "../ui/exportHtml.js";
-import { trackClick } from "../analytics.js";
-
-const DASHBOARD_EXPORT_ID = "manco-export-dashboard";
+import AskClaudeButton from "../ui/AskClaudeButton.jsx";
+import { exportPropsFor } from "../ui/exportHtml.js";
+import { trackClick, trackRender } from "../analytics.js";
+import { DASHBOARD_EXPORT_ID } from "../ui/exportIds.js";
 
 // KPI summary strip — one bordered card holding all four stats, matching
 // carta-fund-modeling's MetricBar/StatBar "Summary" tile pattern exactly:
@@ -30,6 +31,10 @@ const DASHBOARD_EXPORT_ID = "manco-export-dashboard";
 // ABOVE its value, spaced by an unbroken flex row rather than a grid of
 // separate boxes.
 function KpiStrip({ ops, cash }) {
+  // The Worker omits cash entirely when the ManCo has no bank accounts, so
+  // this reads through a null cash as well as a null balance.
+  const cashMissing = cash?.balance == null;
+  useEffect(() => { if (cashMissing) trackRender("MancoReporting.Dashboard.CashUnavailable"); }, [cashMissing]);
   const netIncome = ops.total_income - ops.total_expenses;
   const netIsPos  = netIncome >= 0;
   return (
@@ -51,15 +56,15 @@ function KpiStrip({ ops, cash }) {
         sub="Total income less total expenses"
         valueColor={netIsPos ? GREEN : RED}
       />
-      <Tile
+      {cash && <Tile
         value={fmtCurrencyShort(cash.balance)}
         label="Cash Balance"
         sub={cashSubtitle(cash)}
         detail={hasCashDetail(cash) ? <CashDetailCard cash={cash} /> : null}
         detailLabel="Cash balance by account"
-        // Last tile in the strip — a left-anchored card runs off its edge.
         detailAlign="right"
-      />
+        onDetailOpen={() => trackClick("MancoReporting.Dashboard.CashDetailHover")}
+      />}
     </div>
   );
 }
@@ -98,7 +103,7 @@ export function cashSubtitle(cash) {
 // Label-above-value order, per StatTile's `labelPos="top"` default (Ink's
 // real Tile spec) — label, then value (marginTop: 6). The sub text now sits
 // behind a (?) hint on the label, matching the drilldown drawer's HoverTip.
-function Tile({ value, label, sub, valueColor, detail, detailLabel, detailAlign }) {
+function Tile({ value, label, sub, valueColor, detail, detailLabel, detailAlign, onDetailOpen }) {
   const shown = <span style={{ ...styles.tileVal, color: valueColor || INK }}>{value}</span>;
   return (
     <div style={styles.tile}>
@@ -112,7 +117,7 @@ function Tile({ value, label, sub, valueColor, detail, detailLabel, detailAlign 
       </div>
       <div>
         {detail
-          ? <HoverCard card={detail} label={detailLabel} align={detailAlign}>{shown}</HoverCard>
+          ? <HoverCard card={detail} label={detailLabel} align={detailAlign} onOpen={onDetailOpen}>{shown}</HoverCard>
           : shown}
       </div>
     </div>
@@ -196,7 +201,7 @@ export function vendorNote(v) {
   return `${fmtCurrencyShort(v.unattributed_amount, 0)} (${pct}% of expenses) has no vendor on the entry and is not shown.`;
 }
 
-export default function DashboardView({ snapshot, accountsData, drilldown, dark, onToggleTheme }) {
+export default function DashboardView({ snapshot, accountsData, drilldown, dark, onToggleTheme, chatOpen, onToggleChat }) {
   const { ops, cash, monthlyCashflow, budget, feeSchedule, spendByGL } = snapshot;
   const vendorSpend = snapshot.vendorSpend;
   const varianceByCategory = snapshot.varianceByCategory;
@@ -208,8 +213,15 @@ export default function DashboardView({ snapshot, accountsData, drilldown, dark,
   // one of its values knows where to read that value from.
   const dimension = dimensionOf(accountsData) || dimensionOf(snapshot);
   const asOf = snapshot?.asOf || "2026-07-15";
-  const ytdWindow = ytdWindowLabel(asOf);
-  const ytdShort  = ytdShortLabel(asOf);
+  // The spend-by-GL budget column is clamped to the ledger's own last
+  // posted month (build_manco_datadir.py's as_of_month clamp, worker.js's
+  // buildBudget call); its caption names the same window, not the later
+  // fetch date. The fee-income caption follows the same cutoff for a
+  // different reason — its booked series is the ManCo's own fee entries,
+  // not a budget column, so it reads only as far as the ledger does.
+  const ytdCutoff = cutoffDate(snapshot) || asOf;
+  const ytdWindow = ytdWindowLabel(ytdCutoff);
+  const ytdShort  = ytdShortLabel(ytdCutoff);
 
   // Lifted date-range state for the breakdown pane. Default = YTD through
   // the snapshot's as-of date.
@@ -225,7 +237,7 @@ export default function DashboardView({ snapshot, accountsData, drilldown, dark,
     ? ({ vendor }) => drilldown.openVendor(vendor)
     : undefined;
   const onSpendSelect = drilldown
-    ? ({ name }) => drilldown.openAccount(name)
+    ? ({ name }) => drilldown.openAccount(name, { from: "dashboard" })
     : undefined;
   // A variance bar is a budget category, which can span several GL accounts
   // ("Travel" covering airfare, hotels and taxis). Drill on the category's
@@ -260,11 +272,11 @@ export default function DashboardView({ snapshot, accountsData, drilldown, dark,
     const yr = Number(asOf.slice(0, 4));
     const start = `${yr}-${String(month).padStart(2, "0")}-01`;
     const end = `${yr}-${String(month).padStart(2, "0")}-${new Date(yr, month, 0).getDate()}`;
-    drilldown.openDateRangeCategory(start, end, category, categoryColorOf(category));
+    drilldown.openDateRangeCategory(start, end, category, categoryColorOf(category), "chart");
   };
   // Breakdown-row click: drill into the category using the current date range.
   const onBreakdownSelect = ({ category }) => {
-    if (drilldown) drilldown.openDateRangeCategory(dateRange.start, dateRange.end, category, categoryColorOf(category));
+    if (drilldown) drilldown.openDateRangeCategory(dateRange.start, dateRange.end, category, categoryColorOf(category), "breakdown");
   };
   const onFeeIncomeSelect = drilldown
     ? ({ fund, yearLabel, isProjected }) => {
@@ -272,7 +284,27 @@ export default function DashboardView({ snapshot, accountsData, drilldown, dark,
           (feeSchedule?.funds || []).map(f => [f.name, f.color])
         );
         if (!isProjected) {
-          drilldown.openFundYear(fund, yearLabel, { color: colorByName[fund] });
+          // A year still billing has quarters the schedule expects and the
+          // ledger has not seen. The drawer says what happened; without
+          // these it cannot say what is still to come.
+          // Only the year still billing: the quarters are that year's, so
+          // hanging them off a closed year dates them to the wrong one.
+          const expected = /YTD/i.test(yearLabel)
+            ? (feeSchedule?.expectedRemaining || []).find(f => f.name === fund)
+            : null;
+          // A year the ManCo booked without naming the fund has no journal
+          // of its own to show. The schedule that split it is the account.
+          const basis = (feeSchedule?.scheduleBasis || {})[fund] || {};
+          const basisQuarters = basis[String(parseInt(yearLabel, 10))] || null;
+          drilldown.openFundYear(fund, yearLabel, {
+            color: colorByName[fund],
+            expectedQuarters: expected?.quarters || null,
+            expectedTotal: expected?.amount ?? null,
+            basisQuarters,
+            basisTotal: basisQuarters
+              ? basisQuarters.reduce((s, q) => s + q.amount, 0)
+              : null,
+          });
           return;
         }
         const projLabels = feeSchedule?.projectedLabels || [];
@@ -304,6 +336,18 @@ export default function DashboardView({ snapshot, accountsData, drilldown, dark,
   // Reset the projection toggle when snapshot changes.
   useEffect(() => { setShowProjections(true); }, [feeSchedule]);
 
+  // A card the firm's data can't fill is left out, not shown empty — so its
+  // absence has to be reported, or a missing card reads as one nobody used.
+  useEffect(() => {
+    if (!(vendorSpend?.vendors?.length > 0)) trackRender("MancoReporting.Dashboard.VendorSpendHidden");
+    if (!feeSchedule) trackRender("MancoReporting.Dashboard.FeeIncomeHidden");
+    if (!budget || !ops) trackRender("MancoReporting.Dashboard.BudgetChartHidden");
+    // SpendByGL only stands in when there is no variance chart.
+    if (!varianceByCategory?.budgets?.length && !spendByGL?.accounts?.length) {
+      trackRender("MancoReporting.Dashboard.SpendByGLHidden");
+    }
+  }, [snapshot]);
+
   return (
     // The page no longer caps its own width; this view keeps the width it
     // has always had. Only the budget tables want more.
@@ -313,16 +357,11 @@ export default function DashboardView({ snapshot, accountsData, drilldown, dark,
         actions={
           <div data-export-exclude style={{ display: "flex", gap: 8 }}>
             {onToggleTheme && <ThemeToggleButton dark={dark} onToggle={onToggleTheme} />}
-            <ExportButton
-              targetId={DASHBOARD_EXPORT_ID}
-              entityName={snapshot?.firmName || "ManCo"}
-              pageLabel="Dashboard"
-              asOf={snapshot?.asOf}
-              filenameBase={`${slugify(snapshot?.firmName) || "manco"}-dashboard`}
-              events={{ click: "MancoReporting.Dashboard.ExportHtml",
-                       succeeded: "MancoReporting.Dashboard.ExportHtmlSucceeded",
-                       failed: "MancoReporting.Dashboard.ExportHtmlFailed" }}
-            />
+            {onToggleChat && <AskClaudeButton open={chatOpen} onToggle={onToggleChat} />}
+            <ExportButton {...exportPropsFor(snapshot, {
+              targetId: DASHBOARD_EXPORT_ID, pageLabel: "Dashboard",
+              slug: "dashboard", eventPage: "Dashboard",
+            })} />
           </div>
         }
       >Dashboard</H1>
@@ -401,7 +440,7 @@ export default function DashboardView({ snapshot, accountsData, drilldown, dark,
           showProjections={showProjections}
           onSelect={onFeeIncomeSelect}
           title="Management Fee Income by Fund"
-          sub={`Year-to-date management fees received from each fund entity (${ytdShort}), for each year.`}
+          sub={`Management fee income the company booked against each fund. Closed years are full years; ${ytdShort} is booked to date plus what the fee schedule still expects.`}
           headerControl={
             <div data-export-exclude style={{ display: "flex", gap: 8, alignItems: "center" }}>
               <FundSelector

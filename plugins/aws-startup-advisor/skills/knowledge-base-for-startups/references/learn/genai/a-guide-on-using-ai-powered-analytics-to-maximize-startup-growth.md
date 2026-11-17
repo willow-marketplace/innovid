@@ -5,7 +5,7 @@ title: "A guide on using AI-powered analytics to maximize startup growth"
 
 ## A guide on using AI-powered analytics to maximize startup growth
 
-_Explore the how and why of using AI-powered analytics to optimize your startup_
+> _Explore the how and why of using AI-powered analytics to optimize your startup_
 
 **Author:** Derrick Selempo, Startup Solutions Architect at Amazon Web Services (AWS)
 
@@ -67,6 +67,8 @@ This AI analytics approach aims to structure insights and reasoning within estab
 A decision-making algorithm is designed to analyze data and generate insights in alignment with a decision that a human user will need to make. It leverages data-driven techniques like machine learning to process information, and recommend actions or choices consistent with predefined objectives.
 
 Decision-making algorithms are often engineered to identify a recommended decision or provide a quantitative score to inform the final choice. For instance, a fintech startup can develop a credit scoring algorithm to evaluate the credit risk of loan applicants.
+
+**AWS Startup Advisor safety note — credit decisions:** For credit or lending applications, model outputs must support qualified human reviewers and must not be the sole basis for approval or denial. Obtain legal and compliance review before deployment, test for fairness and bias across relevant applicant groups, and monitor outcomes throughout operation. See the [AWS Responsible AI guidance](https://aws.amazon.com/ai/responsible-ai/).
 
 **How AWS can help startups implement:**
 

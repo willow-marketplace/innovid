@@ -6,7 +6,6 @@ import dev.langchain4j.data.embedding.Embedding;
 import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.store.embedding.EmbeddingMatch;
 import dev.langchain4j.store.embedding.EmbeddingSearchRequest;
-import dev.langchain4j.store.embedding.EmbeddingSearchResult;
 import dev.langchain4j.store.embedding.filter.Filter;
 import dev.langchain4j.store.embedding.filter.comparison.ContainsString;
 import dev.langchain4j.store.embedding.pgvector.PgVectorEmbeddingStore;
@@ -15,7 +14,10 @@ import io.quarkiverse.mcp.server.ToolArg;
 import io.quarkiverse.mcp.server.ToolResponse;
 import jakarta.inject.Inject;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -60,6 +62,15 @@ public class DocSearchTools {
             "quarkus", "java", "jakarta", "the", "a", "an", "how", "to", "with",
             "using", "and", "or", "for", "in", "on", "is", "it", "this", "that");
 
+    /**
+     * What each keyword narrows a search to, matched as a substring of a row's {@code extension}.
+     * pgvector turns {@link ContainsString} into a case-sensitive Postgres regex ({@code ~}), so this
+     * only holds while keys and values stay lowercase and free of regex metacharacters, which
+     * extension artifact ids are.
+     * A value is usually a whole extension name, but a keyword shared by a family of them maps to
+     * the part they have in common - {@code oidc} reaches every {@code quarkus-oidc*} extension.
+     * Built once per database by {@link KeywordIndexBuilder}.
+     */
     private final ConcurrentHashMap<String, String> keywordToExtension = new ConcurrentHashMap<>();
 
     private static final Map<String, String> SYNONYMS = Map.ofEntries(
@@ -142,8 +153,12 @@ public class DocSearchTools {
             }
 
             if (embeddingClient.isFailed()) {
-                return ToolResponse.error(
-                        "Documentation search is unavailable: " + embeddingClient.getFailureMessage());
+                String failure = embeddingClient.getFailureMessage();
+                if (containerManager.retryWarmUpIfFailed()) {
+                    return ToolResponse.success("Documentation search failed to start (" + failure
+                            + "). Retrying now; please try again in a few seconds.");
+                }
+                return ToolResponse.error("Documentation search is unavailable: " + failure);
             }
             if (!embeddingClient.isReady()) {
                 return ToolResponse.success(
@@ -157,37 +172,31 @@ public class DocSearchTools {
                     LOG.infof("Using Quarkus %s docs for project at %s", quarkusVersion, projectDir);
                 }
             }
-            PgVectorEmbeddingStore store = ensureInitialized(quarkusVersion, projectDir);
+            List<EmbeddingMatch<TextSegment>> rawMatches;
+            try {
+                rawMatches = findMatches(query, extension, quarkusVersion, projectDir);
+            } catch (RuntimeException e) {
+                // The shared container may have been restarted on new ports, or replaced, by another
+                // MCP server or the user: resolve it afresh and try once more. Other failures (timeouts,
+                // a failed image pull) would only take as long again, so they are not retried.
+                if (!isConnectionFailure(e)) {
+                    throw e;
+                }
+                LOG.warnf("Doc search could not reach the doc database (%s) — reconnecting and retrying",
+                        e.getMessage());
+                reconnect(quarkusVersion);
+                rawMatches = findMatches(query, extension, quarkusVersion, projectDir);
+            }
+
+            containerManager.markUsed(quarkusVersion);
+            containerManager.markUsed(null);
 
             // Check for newly added extensions (rate-limited)
             if (projectDir != null && !projectDir.isBlank()) {
                 maybeLoadIncrementalRagData(quarkusVersion, projectDir);
             }
 
-            Embedding queryEmbedding = new Embedding(embeddingClient.embed(query));
-
-            String effectiveExtension = extension;
-            if ((effectiveExtension == null || effectiveExtension.isBlank())) {
-                effectiveExtension = inferExtension(query);
-                if (effectiveExtension != null) {
-                    LOG.debugf("Auto-inferred extension filter: %s", effectiveExtension);
-                }
-            }
-
-            Filter sourceFilter = null;
-            if (effectiveExtension != null && !effectiveExtension.isBlank()) {
-                sourceFilter = new ContainsString("extension", effectiveExtension.trim());
-            }
-
-            EmbeddingSearchRequest searchRequest = EmbeddingSearchRequest.builder()
-                    .queryEmbedding(queryEmbedding)
-                    .filter(sourceFilter)
-                    .maxResults(SEARCH_CANDIDATES)
-                    .minScore(minScore)
-                    .build();
-
-            EmbeddingSearchResult<TextSegment> result = store.search(searchRequest);
-            List<EmbeddingMatch<TextSegment>> matches = result.matches().stream()
+            List<EmbeddingMatch<TextSegment>> matches = rawMatches.stream()
                     .filter(m -> m.embedded() != null && !isJunkChunk(m.embedded()))
                     .toList();
 
@@ -235,6 +244,61 @@ public class DocSearchTools {
             LOG.error("Doc search failed", e);
             return ToolResponse.error("Doc search failed: " + e.getMessage());
         }
+    }
+
+    private List<EmbeddingMatch<TextSegment>> findMatches(String query, String extension, String quarkusVersion,
+            String projectDir) {
+        PgVectorEmbeddingStore store = ensureInitialized(quarkusVersion, projectDir);
+        containerManager.ensureEmbeddingServer();
+
+        Embedding queryEmbedding = new Embedding(embeddingClient.embed(query));
+
+        String effectiveExtension = extension;
+        if ((effectiveExtension == null || effectiveExtension.isBlank())) {
+            effectiveExtension = inferExtension(query);
+            if (effectiveExtension != null) {
+                LOG.debugf("Auto-inferred extension filter: *%s*", effectiveExtension);
+            }
+        }
+
+        Filter sourceFilter = null;
+        if (effectiveExtension != null && !effectiveExtension.isBlank()) {
+            sourceFilter = new ContainsString("extension", effectiveExtension.trim());
+        }
+
+        EmbeddingSearchRequest searchRequest = EmbeddingSearchRequest.builder()
+                .queryEmbedding(queryEmbedding)
+                .filter(sourceFilter)
+                .maxResults(SEARCH_CANDIDATES)
+                .minScore(minScore)
+                .build();
+
+        return store.search(searchRequest).matches();
+    }
+
+    /** True if the failure means a doc container could not be reached at the address this server cached. */
+    static boolean isConnectionFailure(Throwable e) {
+        for (Throwable t = e; t != null; t = t.getCause()) {
+            if (t instanceof java.net.ConnectException || t instanceof java.net.NoRouteToHostException) {
+                return true;
+            }
+            // SQLState class 08: connection exception (refused, broken, cannot be established)
+            if (t instanceof java.sql.SQLException sql && sql.getSQLState() != null
+                    && sql.getSQLState().startsWith("08")) {
+                return true;
+            }
+            if (t.getCause() == t) {
+                break;
+            }
+        }
+        return false;
+    }
+
+    /** Drops every cached connection to the doc containers so the next search resolves them again. */
+    private void reconnect(String quarkusVersion) {
+        embeddingStores.remove(quarkusVersion != null ? quarkusVersion : DEFAULT_VERSION_KEY);
+        containerManager.invalidate(quarkusVersion);
+        containerManager.invalidate(null);
     }
 
     private PgVectorEmbeddingStore ensureInitialized(String quarkusVersion, String projectDir) {
@@ -290,11 +354,15 @@ public class DocSearchTools {
         }
         lastIncrementalCheck.put(key, now);
 
-        try {
-            containerManager.loadIncrementalRagData(quarkusVersion, projectDir);
-        } catch (Exception e) {
-            LOG.debugf("Incremental RAG check failed: %s", e.getMessage());
-        }
+        // In the background: it can wait minutes on the load lock while another MCP server sharing
+        // the container is loading, and the search it piggybacks on already has its results
+        Thread.ofVirtual().name("rag-incremental-check").start(() -> {
+            try {
+                containerManager.loadIncrementalRagData(quarkusVersion, projectDir);
+            } catch (Exception e) {
+                LOG.debugf("Incremental RAG check failed: %s", e.getMessage());
+            }
+        });
     }
 
     private boolean isJunkChunk(TextSegment segment) {
@@ -391,10 +459,15 @@ public class DocSearchTools {
     }
 
     private String inferExtension(String query) {
+        return inferExtension(keywordToExtension, query);
+    }
+
+    /** The filter for the longest keyword in {@code index} that {@code query} contains, or null. */
+    static String inferExtension(Map<String, String> index, String query) {
         String queryLower = query.toLowerCase();
         String bestMatch = null;
         int bestLength = 0;
-        for (Map.Entry<String, String> entry : keywordToExtension.entrySet()) {
+        for (Map.Entry<String, String> entry : index.entrySet()) {
             String keyword = entry.getKey();
             if (queryLower.contains(keyword) && keyword.length() > bestLength) {
                 bestMatch = entry.getValue();
@@ -405,6 +478,7 @@ public class DocSearchTools {
     }
 
     void buildKeywordIndex(String jdbcUrl, String user, String password) {
+        KeywordIndexBuilder builder = new KeywordIndexBuilder();
         try (java.sql.Connection conn = java.sql.DriverManager.getConnection(jdbcUrl, user, password);
                 java.sql.Statement stmt = conn.createStatement();
                 java.sql.ResultSet rs = stmt.executeQuery(
@@ -414,45 +488,111 @@ public class DocSearchTools {
                                 + "FROM rag_documents "
                                 + "WHERE metadata->>'extension' IS NOT NULL")) {
             while (rs.next()) {
-                String ext = rs.getString("ext");
-                if (ext == null || ext.isBlank()) {
-                    continue;
-                }
-                String extLower = ext.toLowerCase().trim();
-                registerKeywordsFromExtensionName(extLower, ext);
-
-                String topics = rs.getString("topics");
-                if (topics != null) {
-                    registerKeywords(topics, ext);
-                }
-                String categories = rs.getString("categories");
-                if (categories != null) {
-                    registerKeywords(categories, ext);
-                }
+                builder.add(rs.getString("ext"), rs.getString("topics"), rs.getString("categories"));
             }
-            LOG.infof("Built keyword index with %d entries from RAG metadata", keywordToExtension.size());
         } catch (Exception e) {
+            // Publish nothing rather than a partial index: a keyword that only one extension had
+            // claimed by the time the scan failed could be contested in the full data, and an empty
+            // index is rebuilt on the next connection while a partial one never is.
             LOG.debugf("Failed to build keyword index: %s", e.getMessage());
+            return;
         }
+        Map<String, String> index = builder.build();
+        keywordToExtension.putAll(index);
+        LOG.infof("Built keyword index with %d entries from RAG metadata (%d contested keyword(s) left unmapped)",
+                index.size(), builder.claimCount() - index.size());
     }
 
-    private void registerKeywordsFromExtensionName(String extLower, String ext) {
-        keywordToExtension.putIfAbsent(extLower, ext);
-        String withoutPrefix = extLower.replaceFirst("^quarkus-", "");
-        keywordToExtension.putIfAbsent(withoutPrefix, ext);
-        for (String part : withoutPrefix.split("-")) {
-            if (part.length() > 2 && !GENERIC_KEYWORDS.contains(part)) {
-                keywordToExtension.putIfAbsent(part, ext);
+    /**
+     * Works out what each keyword should filter on, over all extensions at once rather than one
+     * row at a time. A keyword more than one extension claims used to go to whichever row the
+     * {@code DISTINCT} scan happened to return first, which became a real problem once an external
+     * RAG artifact started tagging rows per guide: {@code quarkus-langchain4j-oidc-model-auth-provider}
+     * claims the bare keyword {@code oidc} alongside the thirteen core {@code quarkus-oidc*}
+     * extensions, and the winner was whatever Postgres listed first.
+     */
+    static final class KeywordIndexBuilder {
+
+        private final Map<String, Set<String>> claims = new HashMap<>();
+        private final Set<String> fromExtensionName = new HashSet<>();
+
+        /** Records the keywords {@code ext} lays claim to, from its own name and its doc metadata. */
+        void add(String ext, String topics, String categories) {
+            if (ext == null || ext.isBlank()) {
+                return;
+            }
+            String extLower = ext.toLowerCase().trim();
+            String withoutPrefix = extLower.replaceFirst("^quarkus-", "");
+
+            claimFromName(extLower, ext);
+            claimFromName(withoutPrefix, ext);
+            for (String part : withoutPrefix.split("-")) {
+                claimFromName(part, ext);
+            }
+            claimAll(topics, ext);
+            claimAll(categories, ext);
+        }
+
+        private void claimFromName(String keyword, String ext) {
+            if (claim(keyword, ext)) {
+                fromExtensionName.add(keyword);
             }
         }
-    }
 
-    private void registerKeywords(String text, String ext) {
-        for (String token : text.toLowerCase().split("[,\\s]+")) {
-            String trimmed = token.trim();
-            if (trimmed.length() > 2 && !GENERIC_KEYWORDS.contains(trimmed)) {
-                keywordToExtension.putIfAbsent(trimmed, ext);
+        private void claimAll(String text, String ext) {
+            if (text == null) {
+                return;
             }
+            for (String token : text.toLowerCase().split("[,\\s]+")) {
+                claim(token.trim(), ext);
+            }
+        }
+
+        private boolean claim(String keyword, String ext) {
+            if (keyword.length() <= 2 || GENERIC_KEYWORDS.contains(keyword)) {
+                return false;
+            }
+            claims.computeIfAbsent(keyword, k -> new LinkedHashSet<>()).add(ext);
+            return true;
+        }
+
+        /** How many distinct keywords were claimed, mapped or not. */
+        int claimCount() {
+            return claims.size();
+        }
+
+        Map<String, String> build() {
+            Map<String, String> index = new HashMap<>();
+            for (Map.Entry<String, Set<String>> claim : claims.entrySet()) {
+                String filter = resolve(claim.getKey(), claim.getValue());
+                if (filter != null) {
+                    index.put(claim.getKey(), filter);
+                }
+            }
+            return index;
+        }
+
+        /**
+         * What a keyword should filter on, or null when that cannot be decided.
+         * <p>
+         * {@link #inferExtension} feeds a {@link ContainsString} filter, which acts as a substring
+         * match over the row's {@code extension} (strictly a Postgres regex, but name-derived
+         * keywords are plain lowercase {@code [a-z0-9-]}). So a keyword taken from an extension's own name can
+         * simply filter on itself: {@code oidc} reaches every {@code quarkus-oidc*} extension, and
+         * {@code langchain4j} reaches all thirty-odd of its own, instead of being awarded to one
+         * arbitrary member of the family. Naming a single extension would hide the rest, and
+         * dropping the keyword would let a shorter, narrower one win the inference instead -
+         * "langchain4j chat memory" would end up filtered to the Redis chat-memory store.
+         * <p>
+         * A keyword that appears only in doc metadata has no such anchor, so it is usable only
+         * while exactly one extension claims it. Anything still contested is dropped, which costs
+         * no more than an unfiltered search.
+         */
+        private String resolve(String keyword, Set<String> claimants) {
+            if (fromExtensionName.contains(keyword)) {
+                return keyword;
+            }
+            return claimants.size() == 1 ? claimants.iterator().next() : null;
         }
     }
 

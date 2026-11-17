@@ -40,11 +40,12 @@ locally.
 
 ## The engine and the connection contract
 
-- Image: `sqldbpreview-dpgaeqhmgphzd4bk.azurecr.io/azure-sql/db-dev:latest` (x64 /
-  linux/amd64, Private Preview registry). Sign in first:
+- Image: `sqldbpreview-dpgaeqhmgphzd4bk.azurecr.io/azure-sql/db-dev:latest`
+  (multi-architecture: linux/amd64 and linux/arm64, Private Preview registry). Sign in first:
   `docker login sqldbpreview-dpgaeqhmgphzd4bk.azurecr.io` with the shared pull-only credentials
-  from https://aka.ms/sqldbcontainerpreview-signup (they may rotate). On a non-x64 host add
-  `--platform linux/amd64` (Docker) or `platform: linux/amd64` (compose).
+  from https://aka.ms/sqldbcontainerpreview-signup (they may rotate). The runtime
+  selects the matching architecture; use a platform override only to explicitly
+  test x64 emulation.
 - Do **NOT** use `mcr.microsoft.com/mssql/server` (the SQL Server image).
 - Required env: `ACCEPT_EULA=Y` and a complex `MSSQL_SA_PASSWORD` (example literal:
   `YourStr0ng_Passw0rd`). The engine listens on 1433.
@@ -58,11 +59,11 @@ locally.
 
 ```bash
 HOST_PORT=1433; while lsof -nP -iTCP:"$HOST_PORT" -sTCP:LISTEN >/dev/null 2>&1; do HOST_PORT=$((HOST_PORT+1)); done
-PLATFORM=(); case "$(docker info -f '{{.Architecture}}' 2>/dev/null)" in x86_64|amd64) ;; *) PLATFORM=(--platform linux/amd64);; esac
+MSSQL_SA_PASSWORD="${MSSQL_SA_PASSWORD:-Aa1%$(openssl rand -hex 16)}"
 docker rm -f sqldb 2>/dev/null
-docker run -d --name sqldb "${PLATFORM[@]}" -e "ACCEPT_EULA=Y" -e "MSSQL_SA_PASSWORD=YourStr0ng_Passw0rd" \
-  -p "$HOST_PORT:1433" sqldbpreview-dpgaeqhmgphzd4bk.azurecr.io/azure-sql/db-dev:latest
-until docker exec sqldb /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "YourStr0ng_Passw0rd" -C -b -l 2 \
+docker run -d --name sqldb -e "ACCEPT_EULA=Y" -e "MSSQL_SA_PASSWORD=$MSSQL_SA_PASSWORD" \
+  -p "127.0.0.1:$HOST_PORT:1433" sqldbpreview-dpgaeqhmgphzd4bk.azurecr.io/azure-sql/db-dev:latest
+until docker exec sqldb /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "$MSSQL_SA_PASSWORD" -C -b -l 2 \
   -Q "IF DB_ID('appdb') IS NULL CREATE DATABASE appdb;" >/dev/null 2>&1; do sleep 2; done
 echo "ready on localhost,$HOST_PORT"
 ```
@@ -71,7 +72,7 @@ The canonical string the app consumes (replace `1433` with the chosen `HOST_PORT
 occupied):
 
 ```
-Server=localhost,1433;Database=appdb;User Id=sa;Password=YourStr0ng_Passw0rd;TrustServerCertificate=true
+Server=localhost,1433;Database=appdb;User Id=sa;Password=$MSSQL_SA_PASSWORD;TrustServerCertificate=true
 ```
 
 ## Pooling: reuse connections, do not reopen per query
@@ -142,8 +143,7 @@ driver-specific keywords, not by inventing new env vars.
 - Do not set an unbounded pool; do not open a new connection per query instead of pooling.
 - Do not invent extra env vars; keep the single `SQL_CONNECTION_STRING` contract.
 - Do not write a local throttling diagnostic against `sys.dm_db_resource_stats` or `sys.dm_user_db_resource_governance`; neither view exists on this engine.
-- Do not use the `mcr.microsoft.com/mssql/server` SQL Server image, and do not call a non-x64
-  host "supported".
+- Do not use the `mcr.microsoft.com/mssql/server` SQL Server image.
 
 ## References
 

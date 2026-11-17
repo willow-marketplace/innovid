@@ -5,12 +5,14 @@ description: "Clay workflows — version history: view snapshots, see what chang
 
 # Workflow snapshots & version history
 
+Before using this skill, read the `clay` entry skill if you haven’t already this session, and follow its access guidance.
+
 Snapshots are immutable, point-in-time captures of the entire workflow graph — nodes, edges, prompts, scripts, tools, and positions.
 
 ## Key concepts
 
 - **Automatic creation**: after every graph-mutating node edit
-  (`clay workflows nodes` create|update|delete; Sculptor: `edit_node`) and when a
+  (`clay workflows nodes` create|update|delete) and when a
   run starts. `data[0]` is newest-by-`createdAt`, **not** necessarily the current
   graph. Sharing/binding a trigger onto an existing node does **not** snapshot —
   undo that create by deleting the trigger, not restore. Settings-only trigger
@@ -33,13 +35,11 @@ The same snapshot table holds two roles:
 
 Publishing marks a snapshot of the current draft as a numbered release; it does not create a separate store. See the workflows entry-point skill's `publishing.md` for draft vs live.
 
-**This skill is for undo/history** (`list` / `get` / `restore`). Publishing is a separate command (`clay workflows publish`); there is no CLI to list only published versions.
-
-`clay workflows snapshots list` projects only `id`, `hash`, `createdAt`, `nodeCount`, and `edgeCount`. It does **not** show `version` / `name` / which snapshot is live. Treat the list as newest-first history, not a release picker — after a restore it is not a linear undo stack.
+**This skill is for undo/history** (`list` / `get` / `restore`). Publishing is a separate command (`clay workflows publish`). `clay workflows snapshots list` returns only the most recent snapshots (newest first) and is not a complete or reliable index of published versions — an older release can fall outside its window. To map a version like "V4" to its snapshot id (e.g. to filter runs by version), use `clay workflows versions list <workflowId>`, which lists every published version with its `number`, `label`, and `id`; select by the unique `number` for a `V{n}` version (or by `label` for a named one) and use that `id`.
 
 ## CLI reference
 
-If `clay` isn't on PATH or `clay whoami` fails on auth, run the `setup` skill.
+For tool access or authentication problems, read the `clay` entry skill before continuing.
 
 ### List recent snapshots
 
@@ -49,7 +49,26 @@ clay workflows snapshots list <workflowId>
 
 Returns `{ data: [...] }`, newest first, each with `id`, `hash`, `createdAt`, and
 `nodeCount`/`edgeCount`. So `data[0]` is the most recent snapshot by `createdAt`,
-which may not be the current graph (see restore above).
+which may not be the current graph (see restore above). This list is capped at the
+most recent snapshots — to look up a published version, use `versions list` (below).
+
+### List published versions (label → snapshot id)
+
+```bash
+clay workflows versions list <workflowId>
+```
+
+Returns `{ data: [...] }` of every published version, ordered by version `number`
+descending, each with `id`, `number`, `name`, `label`, and `publishedAt`. This is the
+complete, reliable index for mapping a version the user names ("V4", or a published name)
+to its snapshot `id` — e.g. to filter runs by version. Published names are not guaranteed
+unique, so a `label` can match more than one entry; prefer the unique `number`
+(`select(.number==4)`) when the user names a `V{n}` version, and only match on `label` for a
+named version. Unlike `snapshots list`, it is not
+capped and excludes draft-history snapshots. Note the highest `number` is not necessarily
+the currently-live version: restoring an older version and republishing reuses that
+version's number, so it can outrank later ones. To find which version a run actually used,
+read `workflowSnapshot.id` from a recent run row (`clay workflows runs query run` / `runs list`) rather than assuming `data[0]`.
 
 ### Show a snapshot (whole graph, or one node)
 
@@ -130,7 +149,7 @@ the pre-edit graph.
 
 Trigger create only snapshots when it allocates a **new** canvas node. Sharing an existing
 `workflowNodeId` is not in the snapshot hash — undo that create with
-`clay workflows triggers delete` (Sculptor: surface delete), not restore. Settings-only
+`clay workflows triggers delete`, not restore. Settings-only
 trigger update/delete also are not snapshotted: revert or recreate the settings; do not
 delete the trigger and do not restore.
 
@@ -141,12 +160,10 @@ skipped — `.data[1]` may be an older unrelated snapshot; do not restore it. If
 had no prior snapshot, wait until the post-layout row has landed before treating
 `.data[1]` as the undo target.
 
-**Compare `snapshots get` vs the current graph** (`clay workflows graph get --mode full`;
-Sculptor: MCP `read` with `mode: "full"`) to tell current from newest-by-`createdAt`. If no
+**Compare `snapshots get` vs the current graph** (`clay workflows graph get --mode full`) to tell current from newest-by-`createdAt`. If no
 row matches, the post-edit snapshot may still be in flight — poll or restore `.data[0]`
-(step 4); do not search for a snapshot of the unsnapshotted current graph. Only use
-`Bash(clay *)` / `Bash(jq *)` — poll by repeating `list`, not a shell `for`/`seq`/`sleep`
-loop (those are outside this skill's `allowed-tools`).
+(step 4); do not search for a snapshot of the unsnapshotted current graph. Poll by repeating the snapshot list operation rather than running a shell
+`for`/`seq`/`sleep` loop.
 
 ```bash
 clay workflows snapshots list <workflowId> | jq -r '.data[0].id'   # newest — not always current

@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "shopify": {
+      "type": "http",
+      "url": "https://setup.shopify.com/mcp",
+      "auth": { "CLIENT_ID": "2a457b21c946d5bc8d1675d1b3b8c2d6" }
+    }
+  }
+}

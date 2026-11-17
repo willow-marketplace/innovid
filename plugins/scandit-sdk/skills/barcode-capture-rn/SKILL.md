@@ -1,6 +1,6 @@
 ---
 name: barcode-capture-rn
-description: Scandit Barcode Capture (`BarcodeCapture`) in React Native projects — the low-level, full-control single-barcode scanning mode (BarcodeCapture + DataCaptureView + BarcodeCaptureOverlay), without the pre-built SparkScan UI. Use for integration, symbology configuration, result handling, viewfinder and feedback customization, SDK version migration, or troubleshooting.
+description: Scandit Barcode Capture (`BarcodeCapture`) in React Native projects — the low-level, full-control single-barcode scanning mode (BarcodeCapture + DataCaptureView + BarcodeCaptureOverlay), without the pre-built SparkScan UI. Use for integration, symbology configuration, result handling, viewfinder and feedback customization, SDK version migration, replacing a third-party scanner (react-native-vision-camera, expo-camera), or troubleshooting.
 ---
 
 # BarcodeCapture React Native Skill
@@ -14,9 +14,9 @@ Your training data may contain outdated or incorrect Scandit SDK APIs. The Barco
 React Native-specific gotchas worth flagging:
 - `DataCaptureContext.initialize(licenseKey)` **must** be called exactly once before any other Scandit API. It sets up `DataCaptureContext.sharedInstance`, which is the singleton everything else reads from. Do not construct multiple contexts.
 - **Never call `dataCaptureContext.dispose()`.** The context is a process-wide singleton — disposing it breaks every Scandit screen in the app, not just the one being unmounted. On screen unmount call `dataCaptureContext.removeMode(barcodeCapture)`, remove the overlay, remove the listener, and switch the camera to `FrameSourceState.Off`. That is the complete cleanup; do not add `dispose()`.
-- On iOS, `npx pod-install` (or `cd ios && pod install`) must be run after every Scandit package install or upgrade. Android auto-links via Gradle — no manual step there.
+- On iOS, `npx pod-install@1.2.1` (or `cd ios && pod install`) must be run after every Scandit package install or upgrade. Android auto-links via Gradle — no manual step there.
 - Metro's bundler cache frequently masks Scandit package upgrades. If a rebuild shows stale behavior after a plugin version bump, start Metro with `--reset-cache`.
-- BarcodeCapture is **not** a self-contained view component. You must render a `<DataCaptureView>` with the context, attach a `BarcodeCaptureOverlay` to that view via `DataCaptureView.addOverlay(...)`, and drive the camera yourself with `Camera.default` + `dataCaptureContext.setFrameSource(camera)` + `camera.switchToDesiredState(FrameSourceState.On)`. Tearing all of that down on unmount is the integrator's responsibility.
+- BarcodeCapture is **not** a self-contained view component. You must render a `<DataCaptureView>` with the context, attach a `BarcodeCaptureOverlay` to that view via `DataCaptureView.addOverlay(...)`, and drive the camera yourself with `Camera.default` + `dataCaptureContext.setFrameSource(camera)` + `camera.switchToDesiredState(FrameSourceState.On)`. Tearing all of that down on unmount is the integrator's responsibility. On SDK 8.7+ `BarcodeCaptureAioView` inside a root `ScanditProvider` is the self-contained alternative; see the **SDK 8.7+: BarcodeCaptureAioView** section of `references/third-party-migration.md`.
 - Inside `didScan`, set `barcodeCapture.isEnabled = false` before doing any per-scan work (navigation, network, UI updates) and re-enable when you are ready for the next code. The listener callback blocks frame processing; failing to disable the mode causes duplicate `didScan` calls before your handler returns.
 - Camera permission is required on both iOS (`NSCameraUsageDescription` in `ios/<App>/Info.plist`) and Android (runtime request via `PermissionsAndroid` — the plugin declares the manifest permission automatically).
 
@@ -26,6 +26,7 @@ Based on the user's request, load the appropriate reference file before respondi
 
 - **Integrating BarcodeCapture from scratch** (e.g. "add BarcodeCapture to my app", "set up barcode scanning", "how do I use BarcodeCapture in React Native", "how do I add a viewfinder") → read [references/integration.md](references/integration.md) and follow the instructions there.
 - **Migrating or upgrading an existing BarcodeCapture integration** (e.g. "upgrade from v6 to v7", "migrate my BarcodeCapture", "bump the Scandit packages to v8", "what changed between SDK versions") → read [references/migration.md](references/migration.md) and follow the instructions there.
+- **Replacing a third-party scanner with BarcodeCapture** (e.g. "replace react-native-vision-camera useCodeScanner with Scandit", "migrate from vision-camera v5 / expo-camera CameraView to Scandit", "switch from my barcode scanner library to BarcodeCapture") → read [references/third-party-migration.md](references/third-party-migration.md) and follow the instructions there.
 
 ## API Usage Policy
 
@@ -42,6 +43,20 @@ URL structures vary across SDK versions and package paths (e.g. `api/ui/` subdir
 React Native apps can be written with class components or function components. Examples in this skill use **function components with hooks** because they match the official React Native samples and the current React Native convention. Even if the target project still contains legacy class components elsewhere, write new BarcodeCapture code as function components — do not rewrite the rest of the app's component style, but keep the BarcodeCapture integration itself on the current idiom (`useRef`, `useEffect`, `useFocusEffect`, `useMemo`).
 
 Examples are in **TypeScript** (`.tsx`). If the target project is plain JavaScript (`.js` / `.jsx`), drop the type annotations and keep the same imports and structure.
+
+## Licence key
+
+Scanning needs a Scandit licence key. For this skill the licence product is `native` and the licence platforms are `ios` and `android`.
+
+Work through these in order — never block the user on MCP:
+
+1. **The Scandit MCP server is connected** — call `ensure_scanner_setup` with product `native` and platforms `ios` and `android`, `app_identifier` (the app's bundle or application id; for web, its production domain, never `localhost`) and `env_var` `SCANDIT_LICENSE_KEY`. Do not run the command it returns. Then call `get_license_key` with the key's id, from that result or from `list_license_keys`; if `list_license_keys` shows the key is not a trial, ask the user before fetching it. Show at most a masked preview in chat; never print a full key.
+2. **It is not connected** — tell the user once that they can connect the remote Scandit MCP server, `https://ssl.scandit.com/mcp`, in their MCP client, then continue from step 1. Do not edit MCP client configuration yourself.
+
+   Authentication is browser-based, so it is **not supported headless or in CI**. The server provisions **trial** keys only; it never creates, revokes, or modifies production licences.
+3. **The user declines, or has no MCP client** — they generate a key themselves at <https://ssl.scandit.com> (no account yet: <https://ssl.scandit.com/dashboard/sign-up?p=test>) and paste it in.
+
+**Then put the key into the code**: write it into the licence-key call in place of the placeholder — the key `get_license_key` returned, or the one the user pastes or gives you — still showing only a masked preview in chat. Do not search the project, its files or the environment for a key.
 
 ## References
 

@@ -18,6 +18,10 @@ api() { "$PLUGIN_ROOT/scripts/api-request.sh" monitor "$@"; }
 
 Before the first Ads API v3 call, read and follow `$PLUGIN_ROOT/skills/api-reference/references/live-openapi.md`.
 
+Before sending any output to a human user, read and follow `$PLUGIN_ROOT/skills/api-reference/references/language-standards.md`.
+
+Also read `$PLUGIN_ROOT/skills/api-reference/references/api-behaviors.md` for API behaviour the spec does not express (reporting quirks, `SPEND` currency, micro-amounts).
+
 To retrieve settings values (TOKEN, AD_ACCOUNT_ID, AUTO_EXECUTE, BASE_URL, SDK_HEADER, SKILL_HEADER, PLUGIN_VERSION) for use outside API calls, run `api --env`. The output is eval-safe, so `eval $(api --env)` assigns them all.
 
 ## Parsing Arguments
@@ -45,6 +49,8 @@ api GET "ad_accounts/{ad_account_id}/campaigns?statuses=ACTIVE&limit=50&sort_dir
 ```bash
 api GET "ad_accounts/{ad_account_id}/ad_sets?statuses=ACTIVE&limit=50&sort_direction=DESC"
 ```
+
+**Ad sets for a campaign**: `api GET "ad_accounts/{ad_account_id}/ad_sets?campaign_ids=$CAMPAIGN_ID"`. There is no nested `/campaigns/{id}/ad_sets` route. **Paused is not an ad set or ad status**: ad set and ad statuses have no `PAUSED` (only campaigns do). Pause or resume an ad set or ad with a live PATCH of `{"delivery":"OFF"}` or `{"delivery":"ON"}` (an ad set PATCH carrying `delivery` must contain only that field), and find paused ad sets from the read-only `is_paused` response field, never `statuses=PAUSED`.
 
 #### 3. Today's campaign metrics
 
@@ -156,7 +162,8 @@ api GET "ad_accounts/{ad_account_id}/ad_sets?campaign_ids=$CAMPAIGN_ID&limit=50"
 #### 3. All ads under the campaign
 
 ```bash
-api GET "ad_accounts/{ad_account_id}/ads?campaign_ids=$CAMPAIGN_ID&limit=50"
+api GET "ad_accounts/{ad_account_id}/ads?ad_set_ids=$AD_SET_ID_1&ad_set_ids=$AD_SET_ID_2&limit=50"
+# ads have no campaign_ids filter: pass the campaign's ad set IDs as repeated ad_set_ids
 ```
 
 Extract active and paused ad set IDs from Step 2 and build repeated query parameters before fetching ad set metrics:

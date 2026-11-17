@@ -5,7 +5,7 @@ description: "Surfaces a single, genuinely relevant AWS Activate partner offer a
 
 # Contextual Offers for Startups
 
-An **offer layer** that runs _after_ another AWS Startup Advisor skill has produced a recommendation, migration plan, or build. It surfaces **one genuinely relevant AWS Activate offer as optional context** — never changing the technical advice, never pushing, always dismissible.
+An **offer layer** that runs _after_ another AWS Startup Advisor skill has produced a recommendation, migration plan, or build. It surfaces **one genuinely relevant AWS Activate offer as a quiet, always-dismissible line** — mandatory to append whenever a relevant offer exists, never changing the technical advice, never pushing.
 
 It is consulted by the recommendation-producing skills in this plugin:
 
@@ -42,7 +42,7 @@ These are the binding trust doctrine. Every behavior and every piece of copy mus
 | - | ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
 | 1 | **Merit first, always**                          | The recommendation is decided on technical fit. Offers never influence it.                                                                           | Offer lookup happens _only after_ the recommendation is final. The recommendation logic has no access to offer or commercial data. |
 | 2 | **Contextual, never push**                       | An offer attaches only to the founder's own active, relevant thread. We never proactively advertise.                                                 | No proactive surfacing. Never in an alerts/notifications channel. One line, only when the relevance rule below is met.             |
-| 3 | **Relevance-gated to what the founder surfaced** | An offer appears only when it genuinely serves what the founder is building/migrating or a product that was recommended — never a manufactured need. | The relevance rule below, with a high bar and "show one or none."                                                                  |
+| 3 | **Relevance-gated to what the founder surfaced** | An offer appears only when it genuinely serves what the founder is building/migrating or a product that was recommended — never a manufactured need. When it does, surfacing it is mandatory. | The relevance rule below, with a high bar; surface exactly one when it clears the bar, none otherwise.                                                                  |
 | 4 | **Quiet and dismissible**                        | Offer mentions are visually subordinate to the guidance — one line, no imagery, easily ignored or muted.                                             | A single inline line. No banners, cards, badges, toasts, or color-loud UI in chat.                                                 |
 | 5 | **Honest and transparent**                       | Always clearly labeled as an AWS Activate partner offer. Never disguised as neutral advice.                                                          | Copy is explicit: "has an exclusive offer via AWS Activate."                                                                       |
 | 6 | **Founder in control**                           | Founders can mute offers entirely and never lose the underlying guidance.                                                                            | Mute (see Mute control); frequency caps; never repeat a dismissed or already-shown offer in a session.                             |
@@ -62,10 +62,11 @@ Surface an offer only when **both** hold:
 
 - The match **must tie to something the founder actually surfaced** — their stated intent or a component in the finalized recommendation. Never a generic upsell ("your stack could use monitoring") when they gave no such signal.
 - **High bar.** Require a specific, direct match. If the match is weak, or you would be inferring a need the founder did not express and the recommendation does not clearly involve, **show nothing**.
-- **Show one or none.** Choose the single best-matching offer above the bar. If none clears it, append nothing. Never list multiple. When more than one offer clears the bar, break the tie deterministically: prefer (1) the offer whose Keywords/Summary most directly match the specific product or component the founder surfaced, then (2) one not already shown or dismissed this session, then (3) the higher concrete stated value.
-- **Merit-first is absolute.** If you notice an offered product looking more attractive because of its offer, stop — the merit pick stands; the offer is only a footnote to something already decided.
+- **When one clears the bar, surfacing is mandatory — show exactly one.** Choose the single best-matching offer above the bar and append it as the last step of the answer, under the AWS pick; do not omit it. For a single-service pick (auth, payments, vector DB, observability, etc.) where missing budget/team/traffic inputs would not change the pick, assume an early-stage (pre-PMF) startup unless the founder says otherwise and answer in one turn without a stage-only question; this never overrides the recommending skill's required discovery (architect-for-startups Step 1 for an architecture/design request missing 2+ critical inputs, or the discovery/confirmation gates of start-building-for-startups and agent-advisor). If none clears it, append nothing. Never list multiple. When more than one offer clears the bar, break the tie deterministically: prefer (1) the offer whose Keywords/Summary most directly match the specific product or component the founder surfaced, then (2) one not already shown or dismissed this session, then (3) the higher concrete stated value.
+- **Merit-first is absolute.** If you notice an offered product looking more attractive because of its offer, stop — the merit pick stands; the offer is only a footnote to something already decided. A partner product is never the pick unless the founder named it or a skill in this plugin can install/configure it.
+- **Never compete with what they already run.** Never surface an offer that competes with a product or provider the founder already uses (e.g. existing auth provider → no Auth0 unless it is Auth0, and then only as a credit on what they run, never a prompt to switch; existing vector DB such as Pinecone → no Qdrant). In a migration, an offer may only be a credit on a product the design kept or selected (e.g. Databricks on AWS for an Azure Databricks workspace) — never one that competes with a service in the design or the IaC Generate emits (e.g. Confluent vs MSK/SNS/SQS, Pulumi vs the emitted Terraform), and none for a specialist-deferred resource (e.g. BigQuery). The transparent-alternative rule below applies only to new needs, never to something the founder already runs.
 
-- **Competing alternative, surfaced transparently.** When the merit pick for a need is an AWS-native service and a relevant partner offer exists for that same need, you may still surface it, framed as an optional alternative: state the AWS-native service as the recommendation, then present the partner as an alternative that happens to have an Activate offer. The offer never changes the pick. This keeps merit-first in the wording while not appearing to bury a competitor, and it remains subject to the high bar, one-per-response, and show-one-or-none controls. Example: the recommendation is Amazon Cognito for auth and an Auth0 offer exists — surface Auth0 as an optional alternative, with Cognito stated as the recommendation.
+- **Competing alternative, surfaced transparently.** When the merit pick for a need is an AWS-native service and a relevant partner offer exists for that same need, you must still surface it when the offer is appropriate for the founder's stage (stage gates in the recommending skill's references apply — e.g. no Datadog line for an early-stage founder, per `architect-for-startups/references/observability.md`), framed as an optional alternative: state the AWS-native service as the recommendation, then present the partner as an alternative that happens to have an Activate offer. The offer never changes the pick. This keeps merit-first in the wording while not appearing to bury a competitor, and it remains subject to the high bar, one-per-response, and show-exactly-one controls. Example: the recommendation is Amazon Cognito for auth and an Auth0 offer exists — surface Auth0 as an optional alternative, with Cognito stated as the recommendation.
 
 AWS-native services do not have offers of their own. When a relevant partner alternative to an AWS-native pick exists, surface it transparently per the rule above; when none is relevant, append nothing, and that is the correct outcome, not a gap.
 
@@ -84,15 +85,15 @@ Chat renders markdown only, so **do not** build a card (headings, bold headline 
 Format (construct the redeem link per **Tracked redeem link** below):
 
 ```
-***<Offer name>** has an exclusive offer via AWS Activate — <value>, <eligibility, condensed with no criterion dropped>. [Redeem →](<offer source_url>)*
+***<Offer name>** has an exclusive offer via AWS Activate — <value>, <eligibility, condensed with no criterion dropped>. [Redeem →](<offer source_url>?source=ide-startupAdvisor-<host>)*
 ```
 
-The redeem link is the offer's bare canonical `source_url`; tracking parameters get appended to it once finalized (see **Tracked redeem link**).
+The redeem link is the offer's canonical `source_url` with a `source` attribution param appended (see **Tracked redeem link**); the `<host>` segment is filled from your execution context, and only the query param is added — the destination is never changed.
 
 Example (illustrative only — always use the real values and `source_url` from the offer's detail file):
 
 ```
-***Stripe** has an exclusive offer via AWS Activate — $500 in credits, for eligible Activate members. [Redeem →](https://aws.amazon.com/startups/offers/stripe)*
+***Stripe** has an exclusive offer via AWS Activate — $500 in credits, for eligible Activate members. [Redeem →](https://aws.amazon.com/startups/offers/stripe?source=ide-startupAdvisor-claude)*
 ```
 
 - One line, italic, single offer, single Redeem link.
@@ -102,20 +103,26 @@ Example (illustrative only — always use the real values and `source_url` from 
 **When the offer is an alternative to an AWS-native recommendation**, keep it to one line and lead with the AWS pick so merit-first is clear:
 
 ```
-*<AWS service> is the recommendation. If you prefer a managed alternative, **<Offer>** has an AWS Activate offer — <value>, <eligibility, condensed with no criterion dropped>. [Redeem →](<offer source_url>)*
+*<AWS service> is the recommendation. If you prefer a managed alternative, **<Offer>** has an AWS Activate offer — <value>, <eligibility, condensed with no criterion dropped>. [Redeem →](<offer source_url>?source=ide-startupAdvisor-<host>)*
 ```
 
 Example (only when the recommendation was AWS-native and the founder's need maps — use real values from the offer file):
 
 ```
-*Amazon Cognito is the recommendation for auth. If you prefer a managed alternative, **Auth0** has an AWS Activate offer — 1 year free, for venture-backed startups under $5M funding, under $1M ARR, and under two years since incorporation. [Redeem →](https://aws.amazon.com/startups/offers/auth0)*
+*Amazon Cognito is the recommendation for auth. If you prefer a managed alternative, **Auth0** has an AWS Activate offer — 1 year free, for venture-backed startups under $5M funding, under $1M ARR, and under two years since incorporation. [Redeem →](https://aws.amazon.com/startups/offers/auth0?source=ide-startupAdvisor-claude)*
 ```
 
 ## Tracked redeem link
 
-Append unique tracking parameters to each offer's canonical `source_url` that attribute the click to AWS Startup Advisor, carrying a Startup Advisor source identifier plus the offer slug and a surface source tag. The AWS Exclusive Offers program team logs these clicks in their tracking, and the team requests the attributed click data from them for reporting; no redirect and no first-party endpoint are built. Confirm the exact parameter names and values with the Exclusive Offers program team so clicks are attributable to AWS Startup Advisor in their tracking; do not invent an unofficial scheme, and only append parameters to the canonical `source_url` (never change the destination).
+Append one `source` attribution query param to each offer's canonical `source_url` that attributes the click to AWS Startup Advisor and carries the host/surface. The AWS Exclusive Offers program team logs these clicks in their tracking, and the team requests the attributed click data from them for reporting; no redirect and no first-party endpoint are built. Only append the query param to the canonical `source_url` — never change the destination or path.
 
-Until the program team confirms the scheme, emit the canonical `source_url` **exactly as-is, with no parameters appended** — a bare `source_url` is a real, working redeem link today. Once the parameter names and values are confirmed, append them to the `source_url` only (never change the destination). <!-- TODO(program-team): confirm the exact tracking parameter names/values, then append them to the source_url. -->
+Build the param value as `ide-startupAdvisor-<host>`, where `<host>` is the agent's own execution environment:
+
+- Claude Code (this plugin running in Claude Code) → `claude` → `ide-startupAdvisor-claude`
+- AWS Startup Advisor IDE extension / VS Code → `vscode`, Cursor → `cursor`, Kiro → `kiro`, Codex → `codex`
+- Any other or unknown host → the generic fallback `ide-startupAdvisor` (no host suffix)
+
+You (the agent running this skill) fill `<host>` from your own runtime context, because a static SKILL.md cannot self-detect the host; when you cannot tell, use the generic fallback. Append it to the canonical `source_url`: if the url has no query string use `?source=<token>`, otherwise `&source=<token>`. Do not add any other params (offer slug, campaign, etc.); only `source` is in scope.
 
 This is the skill's entire role in tracking: emit the correctly-tagged link. It does not record the click itself. In the Claude Code plugin, clicks are captured only through these URL parameters in the Exclusive Offers team's tracking. In the AWS Startup Advisor IDE extension the click is additionally captured client-side to attach the AWS account ID when signed in (or an anonymized identifier when not). Display/impression counting is not possible on these surfaces and is out of scope.
 

@@ -37,7 +37,7 @@ LabVoice is available as both a smart device and a mobile app. The digital assis
 
 ![LabVoice](https://d22k7geae6sy8h.cloudfront.net/files/64a2f77e9449f00008ef2409/8ljn2ttg1-labvoice2.gif)
 
-All of this is made possible thanks to LabVoice's integration with AWS. According to Steve McCoy, Head of Sales at LabVoice, LabVoice's implementation of AWS services goes beyond cloud storage and computing—the AWS platform is fundamental to LabVoice's operations.
+All of this is made possible thanks to LabVoice's integration with AWS. According to Steve McCoy, Head of Sales at LabVoice, LabVoice's implementation of AWS services goes beyond cloud storage and computing—AWS services are fundamental to LabVoice's operations.
 
 In particular, LabVoice relies on conversational AI service [Amazon Lex](https://aws.amazon.com/lex/) and text-to-speech software [Amazon Polly](https://aws.amazon.com/polly/) to deliver a complete digital lab assistant experience. Steve explains that the team uses these tools as a foundation on which they develop additions and extensions that are science specific.
 
@@ -55,7 +55,7 @@ The technology could assist workers in a wide array of fields, from agriculture 
 
 ## Author
 
-**Megan Crowley**
+### Megan Crowley
 
 Megan Crowley is a Senior Technical Writer on the Startup Content Team at AWS. With an earlier career as a high school English teacher, she is driven by a relentless enthusiasm for contributing to content that is equal parts educational and inspirational. Sharing startups' stories with the world is the most rewarding part of her role at AWS. In her spare time, Megan can be found woodworking, in the garden, and at antique markets.
 

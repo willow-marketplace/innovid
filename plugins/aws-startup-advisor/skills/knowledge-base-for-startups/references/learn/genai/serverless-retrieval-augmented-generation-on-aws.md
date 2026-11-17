@@ -23,7 +23,7 @@ The process starts with the ingestion of documents into a serverless architectur
 
 Storing these vectors in [LanceDB](https://lancedb.com/), a serverless vector database backed by Amazon S3, facilitates efficient retrieval and management, ensuring that only relevant information is used to augment the LLM's responses. This approach not only enhances the accuracy and relevance of generated content but also significantly reduces operational costs by leveraging a pay-for-what-you-use model.
 
-Have a look at the code [here](https://github.com/giusedroid/serverless-embeddings-lancedb-bedrock).
+Have a look at the code [in the serverless-embeddings-lancedb-bedrock repository](https://github.com/giusedroid/serverless-embeddings-lancedb-bedrock).
 
 ## What are embeddings?
 
@@ -49,7 +49,7 @@ Users can forward their input to our Inference function via Lambda URL. This is 
 
 A known limitation of this inference system is cold-starting-up our vector database within a new Lambda function. Since LanceDB references a database stored in S3, when a new Lambda execution environment is created - we have to load in the database to be able to make our vector searches. This only happens when you're scaling up or nobody has asked a question in awhile, which means it's a rather small trade-off for the cost-savings of a fully serverless architecture.
 
-Have a look at the code [here](https://github.com/shafkevi/lambda-bedrock-s3-streaming-rag).
+Have a look at the code [in the lambda-bedrock-s3-streaming-rag repository](https://github.com/shafkevi/lambda-bedrock-s3-streaming-rag).
 
 ## Navigating the Economics of Serverless RAG
 

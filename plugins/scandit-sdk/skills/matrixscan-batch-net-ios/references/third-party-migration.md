@@ -1,5 +1,11 @@
 # Third-Party Multi-Barcode Scanner → MatrixScan Batch Migration (.NET for iOS)
 
+## Migration principles
+
+- **Authority.** When this guide and the API reference disagree, trust the API reference — and a runtime check in the user's project — over this guide. Say which source you followed and why in the summary.
+- **Behaviour changes.** Never present a visual or behaviour change (new default, different overlay look, changed feedback, changed scan timing) as a 1:1 rename. List each one in the summary as a judgment call the user must confirm.
+- **Compatibility layer.** When the scanning code sits behind a shared scanner library or wrapper that other code calls, keep that library's public API frozen (same types, method names, callbacks) and replace only the third-party scanner calls underneath with Scandit ones.
+
 ## Before anything else
 
 Read the existing code. Do not ask the user to describe what their scanner does. Identify:
@@ -52,20 +58,25 @@ When configuring `BarcodeBatchSettings`, map symbologies from the old scanner us
 
 ### Symbology mapping
 
-| AVFoundation `AVMetadataObjectType` | ZXing.Net / ZXing.Net.Mobile `BarcodeFormat` | Scandit `Symbology.*` |
+<!-- BEGIN GENERATED symbology-table sources=avfoundation-net-enum,zxing-net style=csharp -->
+| AVFoundation `AVMetadataObjectType` | ZXing.Net / ZXing.Net.Mobile `BarcodeFormat` | Scandit `Symbology` |
 |---|---|---|
 | `QRCode` | `QR_CODE` | `Symbology.Qr` |
 | `EAN13Code` | `EAN_13` | `Symbology.Ean13Upca` |
 | `EAN8Code` | `EAN_8` | `Symbology.Ean8` |
+| (no direct type; subset of EAN-13) | `UPC_A` | `Symbology.Ean13Upca` (UPC-A is read by the EAN-13/UPC-A symbology) |
 | `UPCECode` | `UPC_E` | `Symbology.Upce` |
 | `Code39Code` / `Code39Mod43Code` | `CODE_39` | `Symbology.Code39` |
 | `Code93Code` | `CODE_93` | `Symbology.Code93` |
 | `Code128Code` | `CODE_128` | `Symbology.Code128` |
-| `ITF14Code` / `Interleaved2of5Code` | `ITF` | `Symbology.InterleavedTwoOfFive` |
-| (not supported directly) | `CODABAR` | `Symbology.Codabar` |
+| `ITF14Code` / `Interleaved2of5Code` | `ITF` | `Symbology.InterleavedTwoOfFive` (no ITF-14 symbology; ITF-14 is a 14-digit Interleaved 2 of 5) |
+| (no AVFoundation equivalent) | `CODABAR` | `Symbology.Codabar` |
 | `DataMatrixCode` | `DATA_MATRIX` | `Symbology.DataMatrix` |
 | `AztecCode` | `AZTEC` | `Symbology.Aztec` |
 | `PDF417Code` | `PDF_417` | `Symbology.Pdf417` |
+
+**Recommended default set** when the source scanned every format and nothing in the app narrows it: `Symbology.Qr`, `Symbology.Ean13Upca`, `Symbology.Ean8`, `Symbology.Upce`, `Symbology.Code39`, `Symbology.Code93`, `Symbology.Code128`, `Symbology.InterleavedTwoOfFive`, `Symbology.Codabar`, `Symbology.DataMatrix`, `Symbology.Aztec`, `Symbology.Pdf417`.
+<!-- END GENERATED symbology-table -->
 
 AVFoundation has no `UPC_A` constant of its own — UPC-A is reported as `EAN13Code` with a leading `0`. The Scandit equivalent is `Symbology.Ean13Upca` (which decodes both EAN-13 and UPC-A natively).
 

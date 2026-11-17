@@ -1,0 +1,708 @@
+# Fill in a Carta KYC form
+
+Carta Workhub's KYC branch: `carta-workhub-build/SKILL.md` sends a Workhub KYC card's chat, or
+a user who asks to fill in their KYC, here. Its steps run inside this skill.
+
+Help the signed-in user fill in **their own** KYC forms, the way a compliance analyst would:
+an investor's own KYC tasks, or, for a GP, the KYC of one of their firm's funds (Step 1b), one
+task or several in one chat (Batch mode). Work in a loop: say what each open task still needs, read the documents the user shares against
+what the form asks, save the answers the user confirms, and go round again until nothing is
+left that Claude can fill. Then the user does what only the form can (Step 2) in a form reloaded
+after the last save, and the form is submitted: from the chat only where Carta's submit check is
+enforced for the form, which covers what the form checks except the RBI/CBI answers (Step 10),
+otherwise by the user in the form (Step 9).
+
+## When to Use
+
+- "Help me fill in my KYC form."
+- "Complete my Carta identity verification from these documents."
+- "What does my KYC form still need?"
+- "Submit my KYC." / "Is my KYC ready to submit?"
+- "Here's my passport and our formation documents, can you do the KYC?"
+- "This isn't working, I want to give feedback on the KYC form."
+- "Help me complete our fund's KYC due diligence."
+- "Fill in all my KYC forms." / "Do all my KYC tasks." / "Help with these three KYC forms." (Batch mode)
+- A Carta Workhub KYC card's prompt, which names this skill's KYC branch and an
+  `evaluation_reference_id`, with a `fund_uuid` for a fund's KYC.
+- A Carta Workhub **Fill all** or **Fill selected** prompt, which names this skill's KYC branch
+  in batch mode and either "every open KYC task" or several `evaluation_reference_id`s (Batch
+  mode).
+
+## Rules
+
+- **Submit only through Step 10, and only once the user says to.** `kyc__mutate__submission`
+  is the only command that submits, and it submits only where Carta's submit check is enforced
+  for the form, which covers what the form checks except the RBI/CBI answers (Step 10); everywhere
+  else it hands the form back to the user. Saving answers only fills the
+  form in. Never say a KYC is submitted unless that command returned `submitted: true`.
+- **Declarations in Carta's words only.** A declaration is a legal statement the user makes.
+  Show each one exactly as `attestationPrompts` words it, record only the ones the user agrees
+  to, and never write, shorten or reword one yourself (Step 6d).
+- **Upload only what the user shared, after asking.** In Claude Code or Cowork, upload a
+  document the user gave you as a file on their computer, once they confirm it (Step 7). In
+  claude.ai chat there is no `Bash`, so every document is the user's to upload in the form:
+  tell them which one, for which party. Never upload a file the user did not give you.
+- **Show before you save.** Every answer goes to the user in a table first. Save only
+  what they confirm, and save their correction instead when they give one.
+- **Only what a document or the user states.** Never guess, infer or fill a value from
+  memory. A field nothing answers stays empty and goes on the "still needed" list.
+- **Only the user's own tasks.** Work only on an evaluation `kyc__list__tasks` returned, or,
+  for a GP, one `fa__list__fund-kyc-task` returned (Step 1b). The write commands refuse any other.
+- **Keep identity numbers out of the chat.** When you show a tax id, passport or national
+  id number, show its last four characters only.
+- **One of you at a time.** A save writes the party's whole record, and the form saves its
+  own copy whenever a step advances, so each can undo the other. While Claude saves (Steps
+  4–8), tell the user the form is for looking only (no uploads, no added parties, no edits),
+  whenever you list what they must do in it and when it opens beside the chat. The user acts
+  in the form only at Step 9, after reloading it. Once Step 9 starts, save again only after
+  the user says they have finished in the form, and ask them to reload it before they edit it
+  again. In Batch mode this holds for every form in the batch: all of them are for looking only
+  until the hand-back.
+- **The form has the last word.** It runs checks nothing here can, such as a proof of address
+  dated within the last six months, and an upload from here skips them. Before anyone uploads a
+  time-limited document, tell the user its date and that a reviewer may refuse one that is too
+  old.
+
+## Step 1 — List the tasks, then open the chosen task's form
+
+```
+read_tool({"name": "kyc__list__tasks", "arguments": {}})
+```
+
+The result holds `tasks` and `count`. Each task carries `task_type`, `evaluation_reference_id`,
+a fund, partner or entity name, `form_url` (the task's own form), `completion_status` and
+`completion_reopen`.
+
+A Carta Workhub KYC card's prompt names one task's `evaluation_id`: that task is chosen, so
+read it by that id and open its form as below, and start with it without asking which. When the
+result no longer holds it, say it is no longer waiting on them and go on with the rest.
+
+Tell the user, task by task, by its fund or entity name (never the reference id):
+
+| `completion_status` | Say |
+| --- | --- |
+| `EVALUATION_COMPLETION_STATUS_NOT_STARTED` | Not started |
+| `EVALUATION_COMPLETION_STATUS_IN_PROGRESS` | In progress, and what is still missing, sorted as Step 2 shows (the form-only group waits for Step 9) |
+| `EVALUATION_COMPLETION_STATUS_COMPLETE` | Ready to check and submit |
+| `EVALUATION_COMPLETION_STATUS_SUBMITTED` | Submitted, nothing to do |
+| `null` | Its status could not be read; offer to look at it anyway |
+
+When `completion_reopen` is set, say why the task is back with them under it, e.g.
+"reopened by compliance for periodic review" (`reason`, `reopenedByRole`).
+
+- No tasks: tell the user nothing is waiting on them, and stop.
+- One unfinished: that task is chosen.
+- Several unfinished, asked in chat with no Workhub card: ask the scope first (Batch mode,
+  "Choose the scope"). On **Just one**, ask with `AskUserQuestion` which to start with, one
+  option per task, leaving out any task already found not to be a v2 form.
+
+Once a task is chosen, by the card or by the user, open its form beside the chat. Read the task
+by its `evaluation_id`:
+
+```
+read_tool({"name": "kyc__list__tasks", "arguments": {"evaluation_id": "<evaluation_reference_id>"}})
+```
+
+The result leads with `next_step`, `companion_url` (that task's own form, `/kyc/task/<id>/`)
+and `how_to_reply`: open the `companion_url` beside the chat as `next_step` says, following
+`how_to_reply`.
+
+If `kyc__list__tasks` is not found, KYC through Claude is not available for this account
+yet. Tell the user to fill in the form on Carta, and stop.
+
+### Step 1b — A GP's fund KYC
+
+Go here instead of the read above when the prompt comes from a Carta Workhub KYC card for a fund
+(it names `fa__list__fund-kyc-task`, a `fund_uuid` and the fund's `evaluation_reference_id`), or a GP asks about their fund's KYC ("Complete KYC
+due diligence"). Read the firm's fund KYC tasks assigned to the user, for the fund the prompt
+names when it names one:
+
+```
+read_tool({"name": "fa__list__fund-kyc-task", "arguments": {"fund_uuid": "<fund_uuid>"}})
+```
+
+Leave out `fund_uuid` to list every fund's task. The read is for the active Carta firm: when it
+says no firm is set, do what its message says and read again; never list another firm's funds.
+With `fund_uuid`, the result leads with `companion_url`, that fund's KYC
+form: follow its `how_to_reply` and open it beside the chat. Each task carries `task_type`,
+`evaluation_reference_id`, `fund_name`, `form_url`, `completion_status` and `completion_reopen`,
+so say what each needs with the table above, by `fund_name`.
+
+From here, a fund task is the user's task for every later step: pass its
+`evaluation_reference_id` as `evaluation_id`, and its form is the one the user reloads,
+checks and submits (`form_url`, or the `companion_url` each save returns). The fund is the
+evaluation's main entity, and its general partners and large investors are its parties.
+
+- No tasks: tell the user no fund KYC is waiting on them at this firm, and stop.
+- The user named a fund the result has no task for: tell them no fund KYC is waiting on them
+  for that fund, and stop. Never start another fund's task in its place.
+- Several unfinished, asked in chat with no Workhub card: ask the scope first (Batch mode,
+  "Choose the scope"). On **Just one**, ask with `AskUserQuestion` which fund to start with, one
+  option per task, by `fund_name`, leaving out any task already found not to be a v2 form.
+- `fa__list__fund-kyc-task` not found: KYC through Claude is not available for this account
+  yet. Tell the user to fill in the fund's KYC on Carta, and stop.
+
+## Batch mode — several tasks in one chat
+
+Batch mode fills several KYC tasks in one chat. It starts in one of two ways:
+
+- **A Carta Workhub prompt.** **Fill all** names "every open KYC task" and no ids: list both
+  reads below and take every unfinished task. **Fill selected** names each task's
+  `evaluation_reference_id`, and `fund_uuid` for a fund task: take exactly those, matching ids
+  without regard to case. A named task neither read returns is no longer waiting on the user:
+  leave it out and say so in the hand-back. Ask no scope question.
+- **A chat ask with no card**, such as "help me fill in my KYC forms", once Step 1 has listed
+  more than one unfinished task: ask the scope ("Choose the scope", below).
+
+**The tasks.** Own tasks come from Step 1's read and fund tasks from Step 1b's read with no
+`fund_uuid`, which lists the active Carta firm's funds only. Read the fund list too when the
+prompt names `fa__list__fund-kyc-task`, the user asks about their funds' KYC, or Fill all sent
+the prompt. When it is not found or the user has no Carta firm, go on with Step 1's tasks; never
+set another firm to find more, and never mix in another firm's funds. A task both reads return
+is one task, the fund's. Leave out every submitted task.
+
+### Choose the scope
+
+Ask with `AskUserQuestion`: **All N unfinished tasks** (N the count) / **Choose which** /
+**Just one**.
+
+- **All N unfinished tasks:** every unfinished task listed.
+- **Choose which:** ask once more with `AskUserQuestion` (`multiSelect: true`), one option per
+  unfinished task by its fund or entity name (never the reference id). A question takes two to
+  four options, so split the tasks into as few questions as it takes (five tasks: three and two;
+  nine: four, three and two), and send up to four questions in one call, the rest in the next.
+  The batch is every task picked across them; none picked, ask what they would like to do.
+- **Just one:** Step 1's single-task flow.
+
+Leave out a task already found not to be a v2 form. With one task left, it is not a batch: go on
+as for one task.
+
+### Collect documents once per party
+
+Before asking for any document, read Step 2 for every task in the batch, paced as below. Then
+sort what is missing by party across the tasks, not by task: a person or entity that is a party
+in several tasks is asked for once, and each document they share is read once and answers every
+task where they are a party.
+
+Step 2 returns no names, so a task's main party is known by the task's fund or entity name, and
+a supporting party by what the user tells you. Treat two parties as the same only when they
+match exactly: an individual by name and date of birth, an entity by name and registration
+number, as a document or the user states them. When the match is not exact (a different
+spelling, a middle name on one, no date of birth or registration number to compare), ask with
+`AskUserQuestion` whether they are the same, naming both and the tasks they are in: **Same
+person** (or **Same entity**) / **Different**. Never assume.
+
+### Work one task at a time
+
+Go through the batch one task at a time, in the order listed. Start each task by opening its
+form beside the chat: read it by its `evaluation_id` as Step 1 does, or by its `fund_uuid` as
+Step 1b does for a fund task. Then run Steps 3 and 5–8 on that task alone:
+
+- **Save:** one Step 5 table per party and one **Save these answers** question per task, even
+  when the same answers go to several tasks. Never ask once for several tasks: each save is its
+  own confirmation.
+- **Upload:** ask Step 7's upload question per party in this task, for this task's form. A file
+  uploaded to one task's form is not on another's: ask again for the next task, naming that
+  task's form.
+- **Declined or stopped:** on **Stop** at a save question, save nothing more for that task; on
+  **Don't upload**, upload nothing for that party. Either way, keep the task in the hand-back
+  with what is left, and go on to the next task.
+- **Skipped:** a task found not to be a v2 form, refused, or no longer waiting on the user is
+  left out of the rest of the batch, with its reason kept for the hand-back. Go on to the next.
+
+**Pace and context.** Keep reads to at most 3 at once and writes to one task at a time: a bulk
+run of about 530 evaluations once used up the KYC database's connections. When a task is done,
+keep only a short note of it (the task, the fields saved, the documents uploaded, what is left
+in the form), not its documents' contents or its reads, so a long batch stays within the chat.
+Keep what each shared document states only while a task still to come needs it.
+
+### Hand back the batch
+
+When the last task is done, give one list of every task in the batch, by its fund or entity
+name, each with Step 9's summary and its `form_url`. List the skipped tasks with their reason
+(not a v2 form: fill it on Carta; refused; no longer waiting on you). Step 9's reload, finish
+and submit instructions, and its rule never to call a KYC done or submitted, hold for every form
+in the list. Step 9's submit question, and Step 10, are offered per task: one question and one
+submission for each task that is ready to submit (Step 2) with nothing left for the form, never one for
+several.
+
+## Step 2 — Read what the task still needs, and who can fill it
+
+```
+read_tool({"name": "kyc__get__evaluation_completion",
+           "arguments": {"evaluation_id": "<evaluation_reference_id>"}})
+```
+
+It reads:
+
+| Part | What it says |
+| --- | --- |
+| `parties[].missing[]` | per party (`entityId`, `relationType`), each required field (`fieldId`) and document (`fileType`, `anyOf`) not yet answered, with the form's `label`. An item with a `subFieldPath` is one question inside a field or document: a proof of address that is on file can still be owed its issue date, listed with `fileType` `FILE_TYPE_PROOF_OF_ADDRESS` and `subFieldPath` `["issueDate"]` |
+| `rosterShortfalls[]` | a role with too few or too many people or entities (`minCount`/`maxCount`) |
+| `ownershipShortfalls[]` | a member whose ownership is not stated or is below the role's `minOwnershipPct` |
+| `roleMismatches[]` | a member of a kind its role does not take, or in a role no rule defines |
+| `brokenValidations[]` | an answer or document that breaks a rule (`entityId`, `fieldId` or `fileType`, `subFieldPath`, and the rule's own `message`), such as a proof of address that is too old. `status` can read `COMPLETE` while this is not empty |
+| `reopen` | why the form is back with the user |
+
+A task is **ready to submit** when it reads `COMPLETE` and lists no `brokenValidations`. Show each
+broken rule to the user in its own words and fix it like a missing item: a new answer, or a new
+document. Sort each broken rule into the two groups below as you would the same field or document
+if it were missing.
+
+Sort every item into one of two groups, and say both to the user, and that the second group
+waits for Step 9:
+
+- **Claude can fill it:** a field `kyc__mutate__answers` takes (Step 6), on a party already on
+  the form (it has an `entityId` here), and a member's ownership in `ownershipShortfalls`; the
+  tax fields `taxReportingDetails`, `fatcaDetails`, `crsDetails` and `rbiCbiDetails` (Step 6b);
+  the Investor Profile fields `accreditations`, `accreditationType` and `investorExperiences`
+  (Step 6c); and the declarations `accuracyDeclaration`, `backgroundCheckConsent`,
+  `taxDeclaration` and `luxInvestorProtectionDeclaration` (Step 6d). With
+  `Bash` (Claude Code or Cowork), also a document for such a party that the user shares as a
+  file (Step 7), unless it is already on the Step 9 list: a document declined, refused or
+  failed in this session is left for the form and never asked about or sent again. The same
+  goes for a field the form answers with a file, listed below.
+- **Only the form can fill it:** every document in claude.ai chat, and any the user does not
+  share as a file; a person or entity a `rosterShortfalls` role still needs, or one in
+  `roleMismatches` (the user adds, removes or changes it in the form); the nature of business
+  (`businessNature`), which the form picks from a closed list Carta's API does not give, so never
+  propose a value for it; the CRS certification and signature (part of `crsDetails`), which only
+  the user gives in the form, so a `crsDetails` still missing after its answers are saved counts
+  as form-only; an Investor Profile questionnaire the user did not answer in full (Step 6c); and
+  the sections Step 6 leaves to the form.
+
+A missing field with one of these `fieldId`s is answered by a file, not a value. Treat it as a
+document, under the `fileType` shown (the form's own field-to-document table). Uploading the file
+answers the field: a certificate uploaded as `FILE_TYPE_FORMATION_DOCUMENT` clears
+`formationDocuments`.
+
+| `fieldId` | Upload as |
+| --- | --- |
+| `documentVerification` | `FILE_TYPE_GOVERNMENT_ISSUED_ID`: that party's passport or other government-issued ID |
+| `governmentId` | `FILE_TYPE_GOVERNMENT_ISSUED_ID` |
+| `proofOfAddress` | `FILE_TYPE_PROOF_OF_ADDRESS` |
+| `w8w9` | `FILE_TYPE_TAX_DOCUMENT` |
+| `formationDocuments` | `FILE_TYPE_FORMATION_DOCUMENT`: a certificate of incorporation or other formation document |
+| `certificateOfIncorporation` | `FILE_TYPE_CERTIFICATE_OF_INCORPORATION` |
+| `certificateOfRegistration` | `FILE_TYPE_CERTIFICATE_OF_REGISTRATION` |
+| `memorandumAndArticlesOfAssociation` | `FILE_TYPE_MEMORANDUM_AND_ARTCILES_OF_ASSOCIATION` (the type is spelled so) |
+| `partnershipAgreement` | `FILE_TYPE_PARTNERSHIP_AGREEMENT` |
+| `declarationOfTrust` | `FILE_TYPE_DECLARATION_OF_TRUST` |
+| `registerOfShareholders` | `FILE_TYPE_REGISTER_OF_SHAREHOLDERS` |
+| `registerOfDirectors` | `FILE_TYPE_REGISTER_OF_DIRECTORS` |
+| `registerOfPartners` | `FILE_TYPE_REGISTER_OF_PARTNERS` |
+| `structureChart` | `FILE_TYPE_STRUCTURE_CHART`: the ownership chart |
+| `signatoryList` | `FILE_TYPE_SIGNATORY_LIST` |
+| `certifiedBoardApproval` | `FILE_TYPE_CERTIFIED_BOARD_APPROVAL` |
+| `certificateOfIncumbency` | `FILE_TYPE_CERTIFICATE_OF_INCUMBENCY` |
+| `proofOfWealth` | `FILE_TYPE_PROOF_OF_WEALTH` |
+| `comfortLetter` | `FILE_TYPE_COMFORT_LETTER` |
+| `proofOfRegulationDoc` | `FILE_TYPE_PROOF_OF_REGULATION` |
+| `selfCertificationForm` | `FILE_TYPE_CRS_SELF_CERTIFICATION` |
+| `proofOfProfessionalClient` | `FILE_TYPE_PROOF_OF_PROFESSIONAL_CLIENT` |
+| `proofOfWellInformed` | `FILE_TYPE_PROOF_OF_WELL_INFORMED` |
+| `proofOfInstitutionalStatus` | `FILE_TYPE_PROOF_OF_INSTITUTIONAL_STATUS` |
+| `ppmOrOfferingMemorandum` | `FILE_TYPE_OFFERING_MEMORANDUM` |
+
+Step 3 describes `documentVerification` as nothing to supply, because the form fills it with an
+identity check of its own. A government ID uploaded in Step 7 answers it just the same, and the
+form then no longer asks for it. A US individual's form often lists no document at all and asks
+for the ID only this way.
+
+A proof of address listed with `subFieldPath` `["issueDate"]` is owed the date the document was
+issued, which the form checks against its age limit. Step 7d sends it with the document as `issue_date`
+when `kyc__create__document` takes that argument. When that command offers none, the
+document can be attached but its issue date cannot be given from here: list it on the Step 9 list
+for the form, as a field only the form can fill. Do not guess a date.
+
+A roster shortfall is for the user to fix in the form at Step 9. If they then ask you to fill
+the new party, read this again for its `entityId` once they say they have finished in the
+form.
+
+A form returned for more information can read `IN_PROGRESS` with every list empty: what the
+reviewer asked for is not listed here. Tell the user to open its form (the task's `form_url`) and
+read the request there.
+
+## Step 3 — Read what the form asks for
+
+```
+read_tool({"name": "kyc__get__form_configuration",
+           "arguments": {"evaluation_id": "<evaluation_reference_id>"}})
+```
+
+It gives the shapes and labels of what Step 2 listed as missing. It describes the investor
+(the main party), in three parts:
+
+| Part | What it says |
+| --- | --- |
+| `checks[].fields[]` | the questions: `fieldId`, `required`, `name`, `description` |
+| `checks[].documents[]` | the documents: `fileType`, `required`, `anyOf` (any one of these types will do), `fieldId` for a document the firm wrote itself |
+| `supportingEntityRules[]` | the people or entities the investor must add in the form: `relationType` (beneficial owner, control person, trustee…), `roleKey` for a role the firm wrote itself (empty for a standard role), `minCount`/`maxCount`, `minOwnershipPct` |
+
+This read describes the investor only. To learn what a saved person or entity is asked for, read
+it again with `entity_id` (and, for a party that holds several roles, `relation_type` and
+`role_key` from the rule Step 6 has the user pick), once per
+party: never take a supporting party's questions from any other part of the investor's read.
+
+## Step 4 — Read the user's documents
+
+Ask the user for the documents that answer what Claude can fill: an ID for each individual,
+formation documents and an ownership chart for an entity. Read each one they share with
+`Read`, and note what it states against each `fieldId`, per party, keeping which document each
+answer came from.
+
+With `Bash` (Claude Code or Cowork), ask for them as files on the user's computer, so the ones
+the form asks for can be uploaded too (Step 7). Keep each file's path with what you read from
+it.
+
+## Step 5 — Propose the answers
+
+Show one table per party: the question's `name`, the proposed value, and the document it
+came from, masked as the Rules say. Below it, list what is still needed.
+
+Ask with `AskUserQuestion`: `Save these answers` / `I'll correct some first` /
+`Stop`. Save only on `Save these answers`, and ask again after any correction.
+
+## Step 6 — Save the answers
+
+One call per party. The field id **is** the property name, placed under `individual` or
+`institution` by the party's kind, except the keys the table below puts beside them:
+
+```
+call_tool({"name": "kyc__mutate__answers",
+           "arguments": {"evaluation_id": "<evaluation_reference_id>",
+                         "answers": {"individual": {"firstName": "…", "lastName": "…",
+                                                    "dateOfBirth": {"year": 1990, "month": 1, "day": 2}}}}})
+```
+
+Add `"entity_id"` (from Step 2) to save a supporting party's answers. Never save a supporting
+party's answers without it: they would land on the investor. Only the fields you send change;
+every other answer stays as it was.
+
+A party that holds several roles (a beneficial owner who is also a control person, say) needs
+the role the answers are for. When a save is refused for that, ask the user which role with
+`AskUserQuestion`: one option per role in the investor's `supportingEntityRules` (Step 3) that
+Step 2 lists for that `entityId`, by its name. Then send the same call again with that rule's
+`relationType` as `"relation_type"`, and its `roleKey` as `"role_key"` when it isn't empty.
+
+Shapes the form refuses otherwise:
+
+| Field | Send |
+| --- | --- |
+| `dateOfBirth` and any other date | `{"year": 1990, "month": 1, "day": 2}`, never `"1990-01-02"` |
+| `ownershipPercentage`, `ownershipInterests`, `controlByOtherMeans`, `isUsResident`, `isUsPerson`, `isSpecifiedUsPerson` | beside `individual`/`institution`, not inside; `ownershipPercentage` as `{"value": "25"}`, never `25` |
+| an address | the **whole** address object. A section you send replaces the stored one, so a partial address loses the rest. |
+| a field the other kind declares, or one the firm wrote | under `individual`/`institution` as `customFields`, keyed by its camelCase `fieldId` |
+| `taxInfo` (tax residencies) | the **whole** list, one row per residency, and never without a residency row: a party's `taxInfo` always starts with at least one. A number outside the US: `{"taxCountry": "GB", "taxIdType": "TAX_ID_TYPE_TIN", "taxId": "…"}`; no number: `{"taxCountry": "VG", "taxIdMissingReason": "…"}` (the user's own reason). A row with a number and no `taxIdType` still owes the reason |
+| `utr` (UK Unique Taxpayer Reference) | not a field of its own: one more `taxInfo` row, `{"taxCountry": "GB", "taxIdType": "TAX_ID_TYPE_UTR", "taxId": "…"}`, sent after the party's residency rows, never alone: the form drops a lone UTR row on its next save. A party whose only UK number is its UTR still sends a residency row for `GB`, `{"taxCountry": "GB", "taxIdMissingReason": "…"}` (the user's own reason it has no other number), then the UTR row. Without a UTR, the same UTR row with `"taxIdMissingReason": "…"` (the user's own reason) in place of `taxId` |
+
+Not answered here: the tax records, the Investor Profile and the declarations, which have
+commands of their own (Steps 6b–6d), and the nature of business (`businessNature`), a closed list
+only the form offers: never propose or save a value for it.
+
+The result names the `saved_fields`, never their values. A refusal names what went wrong;
+fix the shape it points at and try once more, then leave that field for the user.
+
+### 6b — Tax reporting, FATCA and CRS
+
+```
+call_tool({"name": "kyc__mutate__tax_records",
+           "arguments": {"evaluation_id": "<evaluation_reference_id>",
+                         "records": {"taxReportingDetails": {"<sub-field Step 2 names>": "…"},
+                                     "fatcaDetails": {"isForeignFinancialInstitution": "OPTIONAL_BOOL_VALUE_FALSE"}}}})
+```
+
+Keys are the tax records Step 2 lists, each holding the sub-fields Step 2 names. Save
+`taxReportingDetails` first, or in the same call; the other records are refused until it is
+saved. Yes/no answers are `OPTIONAL_BOOL_VALUE_TRUE` / `OPTIONAL_BOOL_VALUE_FALSE`. Add `entity_id` for a supporting party.
+Only the answers you send change. The CRS certification and signature are the user's to give in
+the form: never send them. Show the answers in Step 5's table first, as for any other answer.
+
+### 6c — Investor Profile
+
+Read the party's form (Step 3) first. Under its `accreditations` field, each accreditation type
+lists its statements (the options of its `statements` sub-field, with their wording) and, for a
+statement with a question of its own, that question (the `name` of its `answers` sub-field).
+Under `investorExperiences`, each question lists its answers. Show the user each statement and
+question in those words, and save only what they choose:
+
+```
+call_tool({"name": "kyc__mutate__investor_profile",
+           "arguments": {"evaluation_id": "<evaluation_reference_id>",
+                         "accreditations": {"<ACCREDITATION_TYPE_…>": {"statements": ["<ACCREDITATION_VALUE_…>"],
+                                                                       "<ACCREDITATION_VALUE_…>": {"answers": ["…"]}}},
+                         "investor_experiences": {"<INVESTOR_EXPERIENCE_TYPE_…>": ["<INVESTOR_EXPERIENCE_VALUE_…>"]}}})
+```
+
+`accreditations` replaces the whole questionnaire. Before a call carrying `accreditations`, ask
+every accreditation type Step 3 lists for the party, and send them all in that one call. If the
+user does not answer every type, send no `accreditations`, and put the questionnaire on the
+form-only list for Step 9.
+A party with several roles needs `relation_type` (and `role_key`) naming the one whose form words
+the profile; the profile is the party's, so save it once.
+
+### 6d — Declarations
+
+The party's form (Step 3) lists `attestationPrompts`: each `attestationType`, `title`, `text`,
+`required` and `requiresChoice`. Show each prompt's `title` and `text` exactly, one by one or in a
+list, and ask with `AskUserQuestion`: `I agree` / `I don't agree` for each declaration, and `Yes` /
+`No` for a prompt with `requiresChoice` (the firm sharing question, which has no default). Then
+record what they chose:
+
+```
+call_tool({"name": "kyc__mutate__attestations",
+           "arguments": {"evaluation_id": "<evaluation_reference_id>",
+                         "agreed": ["ATTESTATION_TYPE_ACCURACY", "ATTESTATION_TYPE_BACKGROUND_CHECK"],
+                         "declined": ["ATTESTATION_TYPE_FIRM_SHARING_AGREEMENT"]}})
+```
+
+`agreed` takes only what the user agreed to; `declined` takes only a `requiresChoice` prompt they
+answered No. The command stores Carta's own wording, never yours. A `required` declaration left
+unagreed keeps the form from being submitted. Add `entity_id` for a supporting party's own
+declarations; it is never asked the firm sharing question.
+
+## Step 7 — Upload the documents the user shared
+
+For each document Step 2 lists, and each field it lists that a file answers, by its `label`
+and party:
+
+- The user gave it as a file on their computer, and you have `Bash` → upload it as below.
+- Otherwise (claude.ai chat, a document shown only as a picture in the chat, or none shared) →
+  add it to the Step 9 list, with any time-limited warning the Rules ask for. Do not send the
+  user to upload it yet.
+
+> **If this plugin's files can't be found:** a path that still shows an unreplaced `${…}`
+> variable, or a "not found" when you run the send script, means the skill loaded before this
+> session's computer link was ready. Invoke this skill once more with the Skill tool and use the
+> paths that copy gives. If they're still unreplaced, put the document on the Step 9 list. Don't
+> search the disk for them.
+
+### 7a — Check the files and ask once per party
+
+Take every document to upload for one party together. Check their files in one call, without
+opening them again:
+
+```bash
+ls -l "<file_path_1>" "<file_path_2>"
+```
+
+In Cowork, a file the user attached has a path under `/sessions/<session_id>/mnt/uploads/`;
+use that path here and in 7c. Missing, unreadable or a directory → ask for the right path for
+those files once, else put them on the Step 9 list. Carry on with the files that passed.
+
+Then ask once for this party, listing every file with the requirement it answers:
+
+> **Upload these documents for <party name>?** They go on your KYC form for
+> <fund or entity name>, where Carta's compliance team reviews them. You can remove any of
+> them in the form before you submit.
+>
+> | File | Uploads as |
+> | --- | --- |
+> | `<file_name>` | <label> |
+
+Add the time-limited warning the Rules ask for under any file it applies to. Use
+`AskUserQuestion`:
+
+- Several files: `Upload all` ← recommended / `Choose which` / `Don't upload`.
+- One file: `Upload this document` / `Don't upload`.
+
+On `Upload all` or `Upload this document`, run 7b–7d for each listed file in turn, asking
+nothing between files. On `Choose which`, ask once more with `AskUserQuestion`
+(`multiSelect: true`), one option per file named by its file name and label. Split the files
+into as few questions as it takes, each with two to four options (five files: three and two),
+and upload only the files picked. On `Don't upload` or anything else, upload nothing.
+
+The answer covers exactly the files listed in this question, once: never a file added later, a
+file for another party, or a later round. Every listed file not uploaded goes on the Step 9
+list, so it is never asked about again (Step 2).
+
+### 7b — Get an upload link
+
+```
+call_tool({"name": "kyc__create__document_upload_link",
+           "arguments": {"evaluation_id": "<evaluation_reference_id>"}})
+```
+
+Returns `url`, `fields` and `upload_id`. Get it only when you are about to send this file, and
+once: never fetch links ahead for later files.
+
+### 7c — Send the file
+
+Run this on one line, exactly as written: `allowed-tools` matches the command text, so any other
+form makes the user approve every file. `<fields_json>` is 7b's `fields` object as JSON,
+unchanged. Single-quote every value; a value containing `'` is written `'\''`.
+
+```bash
+uv run "${CLAUDE_PLUGIN_ROOT}/skills/carta-upload-firm-document/scripts/send_to_storage.py" '<url>' '<fields_json>' '<file_path>'
+```
+
+The script checks that `url` is Carta's document storage and that the file exists, and prints
+one JSON line:
+
+- `{"status": 204}` or any other `2xx` → sent. Go to 7d.
+- `{"status": 403}` → the link most likely expired. Get **one** fresh link (7b) and send once
+  more. That and 7d's resend are the only retries: at most two sends per document.
+- Any other status, a second failure, `{"error": "connection"}` or `{"error": "refused", …}` →
+  nothing is attached. Put the document on the Step 9 list, say it could not be uploaded, and go
+  on. Do not change the command and try again, and do not try another way to upload.
+
+### 7d — Attach it to the form
+
+```
+call_tool({"name": "kyc__create__document",
+           "arguments": {"evaluation_id": "<evaluation_reference_id>",
+                         "upload_id": "<upload_id from 7b>", "file_name": "<file_name>",
+                         "file_type": "<fileType from Step 2>"}})
+```
+
+Add `"entity_id"` for a supporting party's document, exactly as in Step 6: without it the
+document lands on the investor. Add `"field_id"` for a document the firm wrote itself
+(`FILE_TYPE_OTHER`). When `anyOf` lists several types, send the one this file is. For a field a
+file answers, send the `fileType` from Step 2's table.
+
+A document the completion read lists with `subFieldPath` `["issueDate"]` (a proof of address, say) is
+owed its issue date, and one listed with `["expiryDate"]` its expiry date. Send them with the
+document as `"issue_date"` and `"expiry_date"`, each `{"year": 2026, "month": 10, "day": 20}`
+(never `"2026-10-20"`), and only the one it lists:
+
+```
+call_tool({"name": "kyc__create__document",
+           "arguments": {"evaluation_id": "<evaluation_reference_id>",
+                         "upload_id": "<upload_id from 7b>", "file_name": "<file_name>",
+                         "file_type": "FILE_TYPE_PROOF_OF_ADDRESS",
+                         "issue_date": {"year": 2026, "month": 10, "day": 20}}})
+```
+
+Send the date printed on the document. If the document shows none, ask the user for it, and never
+infer it from the upload date. If `read_tool` shows that `kyc__create__document` has no such
+argument, attach the document without it and put the date on the Step 9 list for the form.
+
+Tell the user it was uploaded, for which party, and which issue date, if any, was sent with it.
+
+A refusal that says kyc-service "attached no document" cannot tell two causes apart: the file
+did not reach storage (an expired link, a failed send), or its format is not accepted. When this
+document has been sent only once, get one fresh link (7b), send it again (7c) and attach again.
+If it was already sent twice, or the attach is refused again, upload nothing more: put it on the
+Step 9 list and tell the user the form may need a clear PDF or image of it. Any other refusal,
+put the document on the Step 9 list.
+
+## Step 8 — Go round again
+
+Read the task's completion again (Step 2) and tell the user what Claude can still fill or
+upload. Repeat Steps 4–7 until nothing is left that Claude can fill or upload, or the user
+stops. Then move to their next
+unfinished task (Step 1, or Step 1b for a fund's KYC), or in Batch mode the next task in the
+batch.
+
+## Step 9 — The user finishes each form
+
+For each task that is ready to submit (Step 2), or has only items the form can fill, Claude has finished
+saving. Tell the user to reload its form (the task's `form_url`, from Step 1 or Step 1b) and
+check every answer there, doing whatever is left. It is then submitted in the form, or from the
+chat through Step 10. The form runs its own checks and may still ask for something. Summarise
+per task:
+
+- what was saved and which documents were uploaded, per party,
+- what the user still has to do in the form: everything Step 2 puts under "Only the form can
+  fill it", and the documents on the Step 9 list with their warnings.
+
+For a task that is ready to submit (Step 2) with nothing left for the form, ask with `AskUserQuestion`:
+`Submit it now` / `I'll check the form first`. Go to Step 10 only on `Submit it now`; on
+`I'll check the form first`, submit nothing and leave the form to the user.
+
+Never say a KYC is done or submitted: it is filled in, waiting for the user to finish and
+submit it, in the form or through Step 10.
+
+## Step 10 — Submit, where Carta's submit check is enforced for the form
+
+Run this only on `Submit it now` (Step 9), or when the user asks to submit, for a task that is
+ready to submit (Step 2); once Step 9 has started, only after the user says they have finished in the form.
+Answering `Submit it now` counts as saying so: do not ask again.
+
+The form also checks the RBI/CBI answers (`rbiCbiDetails`), which Carta's submit check does not.
+Before submitting, read the form configuration (Step 3) for the main party, and for each party on
+the form with its `entity_id`, unless it was already read for this task in this chat. When any of
+them lists `rbiCbiDetails`, check with the user that each of its answers is saved, and leave the
+submission to the form if any is not.
+
+```
+call_tool({"name": "kyc__mutate__submission",
+           "arguments": {"evaluation_id": "<evaluation_reference_id>", "firm_sharing_answered": true}})
+```
+
+Send `firm_sharing_answered: true` only when the user answered this task's firm sharing prompt
+(this `evaluation_id`) in Step 6d and it was recorded with `kyc__mutate__attestations`; otherwise
+send `false`. The command asks the user to confirm before it submits, then:
+
+| Result | Do |
+| --- | --- |
+| `submitted: true` | Tell the user it is submitted to Carta for review |
+| `handoff_reason: submit_not_enabled` or `gate_not_enforced` | Submitting from the chat is not available for this form yet: send the user to reload the form, check it and submit it there (Step 9) |
+| `handoff_reason: not_complete` | Read Step 2 again and go on filling; nothing was submitted |
+| `handoff_reason: firm_sharing_unanswered` | Ask the `firm_sharing_prompt` it returns (Step 6d), record the answer, then call again |
+| refused, listing parties and broken rules | Nothing was submitted. Fix each item with the command for its field (Steps 6–7), read Step 2 again, and offer to submit once it is ready to submit |
+
+## If a command is refused
+
+| Refusal | Do |
+| --- | --- |
+| not one of the user's open KYC tasks | go back to Step 1, or Step 1b for a fund's KYC |
+| not a v2 form (Step 2 or Step 3) | tell the user to fill that form on Carta, leave it out of the task choice, and move to their next unfinished task (Step 1, or Step 1b for a fund's KYC); in Batch mode, skip it and go on with the batch |
+| several roles (Step 3 or Step 6) | ask the user which role with `AskUserQuestion`, offering the investor's `supportingEntityRules` roles (Step 3) by name, then ask or save again with that rule's `relationType` as `relation_type`, and its `roleKey` as `role_key` when it isn't empty |
+| no access | the user cannot open this evaluation; stop |
+| refused these answers | a value's shape is wrong, or the form can no longer be edited; check the shape table, else stop |
+| attached no document (Step 7d) | after one send, get a fresh link and send once more; refused again, put it on the Step 9 list and say the form may need a clear PDF or image (Step 7d) |
+| sign-in not accepted | ask the user to reconnect Carta |
+| does not ask that declaration, statement or answer (Steps 6c–6d) | read the party's form again (Step 3) and use only what it lists |
+| refused these tax answers (Step 6b) | check each value's shape and the order in Step 6b; else leave it for the form |
+| anything this table does not resolve, or a refusal that comes back after the fix | file feedback (below), then tell the user what you could not do |
+
+## When something gets stuck, file feedback
+
+Offer to file a report to Carta whenever this skill gets stuck: a command errors or is
+refused and the table above does not resolve it, a result is wrong or unusable, a step is too
+slow, the user needs something this skill cannot do, or the user is stuck or unhappy. File one
+when the user asks to give feedback, too.
+
+1. Write the report, following the argument table and **No personal data** below.
+2. When you offer it on your own (`source: claude`), show the `requestBody` you will send and
+   ask once:
+   > **Send this report to Carta?** "<the requestBody>"
+   > Carta's team reads it to fix the KYC skill. It holds no personal data, and it cannot be
+   > taken back once sent.
+
+   Use `AskUserQuestion` with options `Send this report` / `Don't send`. Continue only on
+   `Send this report`. On `Don't send` or anything else, do not call the command: tell the user
+   nothing was sent and carry on with their work.
+
+   When the user asked to give feedback (`source: user`), that request is the yes: show the
+   `requestBody` and send it without asking again.
+3. Send it:
+
+```
+call_tool({"name": "kyc__create__feedback",
+           "arguments": {"requestType": "bug", "source": "claude",
+                         "affectedSkill": "carta-investors:carta-workhub-build",
+                         "step": "save_answers", "problem": "command_error",
+                         "command": "kyc:mutate:answers", "errorCode": "INVALID_ARGUMENT",
+                         "requestBody": "Saving the company's registered address was refused twice; the shape table did not say which key was wrong."}})
+```
+
+| Argument | Send |
+| --- | --- |
+| `requestType` | `bug`, or `feature_request` when the user needs something this skill cannot do |
+| `source` | `claude` when you file it on your own, `user` when the user asked to give feedback |
+| `step` | where it got stuck: `list_tasks` (Steps 1 and 1b), `read_completion` (Steps 2 and 8), `read_form_configuration` (Step 3), `read_documents` (Step 4), `propose_answers` (Step 5), `save_answers` (Step 6), `upload_documents` (Step 7), `finish_in_form` (Steps 9 and 10), else `other`. In Batch mode, the step of the task it got stuck on: choosing the scope is `list_tasks`, the hand-back `finish_in_form` |
+| `problem` | `command_error`, `wrong_or_unusable_result`, `too_slow`, `cannot_do`, `unclear_instructions`, `user_unhappy` or `other` |
+| `command`, `errorCode` | the `kyc:` command involved and the error's code (an HTTP status or gRPC code name), when there is one |
+| `requestBody` | what went wrong, in up to 500 characters of general terms |
+
+**No personal data in a report.** Describe the problem, never the user's data: no names, no
+numbers, dates, addresses, emails or ids, and nothing a document or the user said. Write "the
+company's form configuration was too large to read", not the company's name. The command refuses
+a report that holds a number, date, email, URL or id, but it cannot spot a name, an address or
+what a document said: leaving those out is up to you. When a report is refused, rewrite it in
+general terms and send it once more through the same steps, asking again when you offered it on
+your own, then stop.
+
+One report per problem, not one per retry, and never let a report hold up the user's work.

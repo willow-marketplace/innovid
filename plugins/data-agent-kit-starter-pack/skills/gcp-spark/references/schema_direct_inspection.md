@@ -5,8 +5,8 @@
 Biglake tables are often specified in format `catalog.schema.table`, the first
 segment is the **Catalog Name**, NOT a GCP project ID.
 
-Prefer using `@skill:discovering-gcp-data-assets` skill to find and lookup
-schema and use the following examples as a fallback mechanisms:
+Prefer using `@skill:discover-assets` skill to find and lookup schema and use
+the following examples as a fallback mechanisms:
 
 ### 1. Cloud Spanner
 
@@ -30,7 +30,9 @@ gcloud sql instances describe <INSTANCE_ID> --project=<PROJECT_ID>
 
 If the user specifies a GCS bucket or folder instead of specific files, you
 **MUST** explore the folder contents first to identify relevant files using
-`gcloud storage ls gs://<GCS_BUCKET>/<PATH>` command.
+`gcloud storage objects list "gs://<GCS_BUCKET>/<PATH>/**" --limit=100
+--format="value(name)"` command. In case of errors, cap GCS discovery attempts
+at **3 retries max**.
 
 ## For CSV file
 

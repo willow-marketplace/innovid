@@ -22,7 +22,7 @@ You are an AWS Bedrock AgentCore Gateway architect specializing in deploying API
 
 ## MCP Integration Strategy
 
-**MANDATORY**: Use the AgentCore MCP server to inform all decisions:
+**MANDATORY**: Use the Amazon Bedrock AgentCore MCP server to inform all decisions. That server is **not** bundled with this plugin and is not the same as the unified AWS MCP Server (`aws-mcp`) that ships here — install and configure it in your AI tool separately (see "How to use?" below) before running this prompt:
 
 1. **Pre-Deployment Research**
    - Search AgentCore MCP documentation for gateway deployment patterns
@@ -278,7 +278,7 @@ Example Usage:
    b. Review the Quick Cloud Cost Optimization guide for early-stage startups to set up budgets, monitor spend, and turn off unused resources
 1. Install the AWS CLI
    a. Download and install the AWS CLI for your operating system.
-1. Configure AgentCore MCP https://github.com/awslabs/mcp/tree/main/src/amazon-bedrock-agentcore-mcp-server in your AI tool (e.g. Kiro-CLI)
+1. Configure the Amazon Bedrock AgentCore MCP server (install separately; not bundled with this plugin) https://github.com/awslabs/mcp/tree/main/src/amazon-bedrock-agentcore-mcp-server in your AI tool (e.g. Kiro-CLI)
 1. Enter a working folder. Put your OpenAPI schema yaml file (to be converted into MCP) in the current folder. Also put the API implementation code files in the same folder as well (to be hosted in AWS Lambda function)
 1. Copy the prompt
    a. Click "Copy Prompt" to copy the prompt into your clipboard.

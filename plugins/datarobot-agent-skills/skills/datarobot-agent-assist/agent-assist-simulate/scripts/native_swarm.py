@@ -15,21 +15,27 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
-from pydantic import ValidationError
-
 from artifacts import (
-    one_line,
-    resolve_project_file,
-    resolve_swarm_dir,
-    resolve_under_root,
-    scenario_id,
     load_criteria,
     load_json,
     load_native_config,
     load_spec,
     merge_metrics,
+    one_line,
+    resolve_project_file,
+    resolve_spec_path,
+    resolve_swarm_dir,
+    resolve_under_root,
+    scenario_id,
     write_json,
 )
+from native_execution import (
+    RESULT_FILENAME,
+    STATE_FILENAME,
+    NativeRunState,
+    initialize,
+)
+from pydantic import ValidationError
 from swarm_contracts import (
     AgentSpec,
     Scenario,
@@ -38,12 +44,6 @@ from swarm_contracts import (
     SwarmPreparation,
     SwarmResults,
     SwarmTask,
-)
-from native_execution import (
-    RESULT_FILENAME,
-    STATE_FILENAME,
-    NativeRunState,
-    initialize,
 )
 
 _SCRIPTS_DIR = Path(__file__).parent
@@ -83,7 +83,7 @@ def _run_worker(
     ]
     if rejection_note:
         cmd += ["--rejection-note", rejection_note]
-    result = subprocess.run(cmd, capture_output=True, text=True)
+    result = subprocess.run(cmd, capture_output=True, text=True, check=False)
     if result.returncode != 0:
         print(result.stderr or result.stdout, file=sys.stderr)
     return result.returncode == 0
@@ -109,7 +109,9 @@ def _run_tool_executor(
         ",".join(sorted(readonly_tools)),
     ]
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+        result = subprocess.run(
+            cmd, capture_output=True, text=True, timeout=timeout, check=False
+        )
     except subprocess.TimeoutExpired:
         print(f"tool_executor timed out after {timeout}s", file=sys.stderr)
         return False
@@ -132,6 +134,7 @@ def _submit(run_dir: Path, response_path: Path) -> tuple[dict[str, object], str 
         ],
         capture_output=True,
         text=True,
+        check=False,
     )
     if result.returncode != 0:
         stderr = result.stderr or ""
@@ -154,6 +157,7 @@ def _fail(run_dir: Path, reason: str) -> None:
         ],
         capture_output=True,
         text=True,
+        check=False,
     )
     if result.returncode != 0:
         print(
@@ -357,6 +361,7 @@ def run(
     timeout: int,
 ) -> SwarmResults:
     """Prepare, drive all scenarios in parallel, and aggregate results."""
+    spec_path = resolve_spec_path(spec_path)
     preparation = prepare(
         spec_path, criteria_path, config_path, runs_dir, implementation_paths
     )
@@ -442,7 +447,7 @@ def prepare(
     implementation_paths: list[Path] | None = None,
 ) -> SwarmPreparation:
     """Validate inputs and initialize one isolated run per confirmed scenario."""
-    resolved_spec = spec_path.resolve()
+    resolved_spec = resolve_spec_path(spec_path).resolve()
     if not resolved_spec.is_file():
         raise ValueError(f"agent spec does not exist: {resolved_spec}")
     project_root = resolved_spec.parent
@@ -514,7 +519,7 @@ def aggregate(
     output_path: Path,
 ) -> SwarmResults:
     """Validate complete criteria coverage and write ordered aggregate results."""
-    resolved_spec = spec_path.resolve()
+    resolved_spec = resolve_spec_path(spec_path).resolve()
     if not resolved_spec.is_file():
         raise ValueError(f"agent spec does not exist: {resolved_spec}")
     project_root = resolved_spec.parent

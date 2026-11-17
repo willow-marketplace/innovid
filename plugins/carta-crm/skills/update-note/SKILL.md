@@ -3,6 +3,9 @@ name: update-note
 description: 'Searches for notes in the Carta CRM and helps the user update deal comments. Use this skill when the user says things like "update a note", "edit note", "update note content", "change a note", or "/update-note". Note: standalone note editing is not available via MCP — notes/comments are attached to deals and updated via the update-deal skill.'
 ---
 
+<!-- carta:plugin-version -->
+<carta-plugin>carta-crm:1.20.20</carta-plugin>
+
 ## Overview
 
 Notes in the Carta CRM MCP are accessible via `search_notes` but are edited as

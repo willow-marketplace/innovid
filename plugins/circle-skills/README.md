@@ -15,8 +15,8 @@ Monetize an HTTP endpoint for agents with USDC pay-per-call payments. Defaults t
 ### use-usdc
 Interact with USDC on EVM chains and Solana. Use to check balances, send transfers, approve spending, and verify transactions. Supports ERC-20 patterns, SPL token operations, and Associated Token Accounts (ATAs) on Solana.
 
-### bridge-stablecoin
-Build browser or server apps that bridge USDC between chains using Circle's CCTP. Includes browser-wallet and server adapters, UX patterns, progress tracking, destination chain linking, and App Kit or Bridge Kit implementation patterns for EVM and Solana.
+### bridge-tokens
+Build browser or server apps that bridge tokens between chains with Circle's App Kit or Bridge Kit. Bridges USDC across CCTP chains (EVM + Solana) and CCTPx registry aliases or token IDs on their supported EVM routes through the same `kit.bridge()` call. Includes browser-wallet and server adapters, UX patterns, progress tracking, destination chain linking, and transfer-speed (FAST/SLOW) handling.
 
 ### use-arc
 Build on Arc, Circle's blockchain where USDC is the native gas token. Covers chain configuration, smart contract deployment (Foundry/Hardhat), frontend integration (viem/wagmi), and bridging USDC to Arc via CCTP.
@@ -42,6 +42,9 @@ Build embedded crypto wallets where users control their own assets. Supports Web
 ### use-circle-cli
 The holistic stablecoin CLI (`@circle-fin/cli`, command `circle`) for AI agents. Acts as the front door to Circle's full agent stack (wallet management, crosschain transfers, paid services, Gateway/Nanopayments, smart contracts, and spending policy) and routes to the specialized skills below for deep flows.
 
+### setup
+First-run onboarding for AI agents using Circle's agent wallet. Installs the Circle CLI, gets the user's Terms consent, installs Circle skills, logs in, creates and funds a wallet, then finds and pays for a marketplace service, linking to the dedicated skills for each step. Served at https://agents.circle.com/skills/setup.md.
+
 ### use-agent-wallet
 Bootstrap a non-custodial USDC agent wallet with the Circle CLI. Covers install check, terms acceptance, login, wallet creation, and status inspection, then hands off to the dedicated payment, funding, and policy skills.
 
@@ -59,6 +62,9 @@ Set spending limits and controls for an agent wallet via the Circle CLI. The nar
 
 ### swap-tokens
 Swap tokens in browser or server apps with Circle's App Kit (`@circle-fin/app-kit`) or standalone Swap Kit (`@circle-fin/swap-kit`). Covers keyless swaps, browser-wallet and server adapters, and direct same-chain or cross-chain routes.
+
+### buy-crypto
+Embed Circle's hosted onramp widget so users can buy crypto with fiat (bank transfer, debit card, Apple Pay, Google Pay) into their wallet, using App Kit (`kit.onramp`) or the standalone Onramp Kit (`@circle-fin/onramp-kit`). Covers testnet vs mainnet API keys, production KYB and `referrerDomain` for card payments, the server session route, inline iframe and popup modes, CSP, asset scoping, and lifecycle events.
 
 ### unify-balance
 Manage a unified USDC balance across chains in browser or server apps with Circle's Unified Balance Kit or App Kit. Covers EVM and Solana wallet-provider adapters plus `deposit()`, `spend()`, and `getBalances()` flows.

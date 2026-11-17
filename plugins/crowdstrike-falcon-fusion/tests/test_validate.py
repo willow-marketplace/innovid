@@ -331,6 +331,8 @@ actions:
         assert any("missing a 'type'" in i for i in issues)
 
     def test_valid_trigger_types_accepted(self, tmp_path):
+        # Inbound webhook is covered separately by test_inbound_webhook_trigger_accepted
+        # (it has a distinct webhook_config shape and no event field).
         for trigger_type in ("Signal", "Scheduled", "SubModel"):
             f = tmp_path / f"trigger_{trigger_type}.yaml"
             content = VALID_WORKFLOW.replace("type: On demand", f"type: {trigger_type}")
@@ -350,6 +352,25 @@ actions:
             assert not any("invalid trigger type" in i.lower() for i in issues)
             assert not any("missing an 'event'" in i for i in issues)
 
+    def test_inbound_webhook_trigger_accepted(self, tmp_path):
+        # Inbound webhook is the fifth valid trigger.type. It has no 'event'
+        # field and carries a webhook_config block instead; the validator must
+        # not reject it as an invalid type or demand an event.
+        f = tmp_path / "inbound_webhook.yaml"
+        content = VALID_WORKFLOW.replace(
+            "type: On demand",
+            "type: Inbound webhook\n"
+            "  version_constraint: 0.0.2\n"
+            "  webhook_config:\n"
+            "    name: My Webhook\n"
+            "    auth_config:\n"
+            "      auth_type: basic_auth",
+        )
+        f.write_text(content)
+        issues = validate.structural_check(str(f))
+        assert not any("invalid trigger type" in i.lower() for i in issues)
+        assert not any("missing an 'event'" in i for i in issues)
+
     def test_signal_trigger_missing_event(self, tmp_path):
         # A Signal trigger with no 'event' field must fail — without it the
         # import API returns code 2003 "unknown trigger event named ".
@@ -367,6 +388,94 @@ actions:
         f.write_text(content)
         issues = validate.structural_check(str(f))
         assert not any("missing an 'event'" in i for i in issues)
+
+    @staticmethod
+    def _signal_workflow(event, pinned, reads_trigger):
+        device_id = "${data['Trigger.Detection.DetectionID']}" if reads_trigger else "abc"
+        pin = "\n  version_constraint: ~1" if pinned else ""
+        return f"""\
+# Created by the CrowdStrike Falcon Fusion authoring skill
+name: Test Workflow
+trigger:
+  type: Signal
+  event: {event}
+  name: Detection{pin}
+  next:
+    - ContainHost
+actions:
+  ContainHost:
+    id: aabbccdd11223344aabbccdd11223344
+    name: Contain device
+    properties:
+      device_id: {device_id}
+output_fields: []
+"""
+
+    def _pin_issues(self, tmp_path, **kwargs):
+        f = tmp_path / "signal_pin.yaml"
+        f.write_text(self._signal_workflow(**kwargs))
+        return [i for i in validate.structural_check(str(f)) if "no version_constraint" in i]
+
+    def test_unpinned_ngsiem_trigger_reading_trigger_fields_errors(self, tmp_path):
+        # Confirmed live: release fails without the trigger's version_constraint.
+        issues = self._pin_issues(tmp_path, event="Investigatable/NGSIEM", pinned=False, reads_trigger=True)
+        assert len(issues) == 1 and issues[0].startswith("ERROR")
+
+    def test_pinned_ngsiem_trigger_passes(self, tmp_path):
+        assert not self._pin_issues(tmp_path, event="Investigatable/NGSIEM", pinned=True, reads_trigger=True)
+
+    def test_unpinned_trigger_that_reads_no_trigger_fields_passes(self, tmp_path):
+        # Releases either way when nothing reads a Trigger.* field.
+        assert not self._pin_issues(tmp_path, event="Investigatable/NGSIEM", pinned=False, reads_trigger=False)
+
+    def test_unpinned_other_signal_trigger_only_warns(self, tmp_path):
+        # Not confirmed beyond NG-SIEM, so other Signal events get a warning.
+        issues = self._pin_issues(tmp_path, event="PhishingEmail/MicrosoftO365", pinned=False, reads_trigger=True)
+        assert len(issues) == 1 and issues[0].startswith("WARNING")
+
+    @staticmethod
+    def _ondemand_workflow(ref):
+        return f"""\
+# Created by the CrowdStrike Falcon Fusion authoring skill
+name: Test Workflow
+trigger:
+  type: On demand
+  name: On demand
+  next:
+    - ContainHost
+  parameters:
+    $schema: https://json-schema.org/draft-07/schema
+    properties:
+      device_id:
+        type: string
+    required:
+      - device_id
+    type: object
+actions:
+  ContainHost:
+    id: aabbccdd11223344aabbccdd11223344
+    name: Contain device
+    properties:
+      device_id: {ref}
+output_fields: []
+"""
+
+    def _prefix_issues(self, tmp_path, ref):
+        f = tmp_path / "ondemand_prefix.yaml"
+        f.write_text(self._ondemand_workflow(ref))
+        return [i for i in validate.structural_check(str(f)) if "has no prefix" in i or "no prefix" in i]
+
+    def test_ondemand_param_read_with_trigger_prefix_errors(self, tmp_path):
+        # Confirmed live: release rejects data['Trigger.<param>'] on On demand.
+        issues = self._prefix_issues(tmp_path, "${data['Trigger.device_id']}")
+        assert len(issues) == 1 and issues[0].startswith("ERROR")
+
+    def test_ondemand_param_read_bare_passes(self, tmp_path):
+        assert not self._prefix_issues(tmp_path, "${data['device_id']}")
+
+    def test_ondemand_unrelated_trigger_field_passes(self, tmp_path):
+        # Only names declared as parameters are checked.
+        assert not self._prefix_issues(tmp_path, "${data['Trigger.device_id_other']}")
 
     def test_non_signal_trigger_needs_no_event(self, tmp_path):
         # On demand / SubModel triggers do not require an event field.
@@ -921,6 +1030,12 @@ actions:
         passed, messages = validate.validate_file(str(f), preflight_only=True)
         assert passed is True
         assert any("header comment" in m for m in messages)
+
+    def test_missing_file_fails_without_crashing(self, tmp_path):
+        """A typo'd path must fail validation, not raise FileNotFoundError mid-batch."""
+        passed, messages = validate.validate_file(str(tmp_path / "nope.yaml"), preflight_only=False)
+        assert passed is False
+        assert any("File not found" in m for m in messages)
 
 
 class TestStructuralEdgeCases:
@@ -1572,6 +1687,45 @@ disconnected_nodes: []
         f.write_text(content)
         issues = validate.structural_check(str(f))
         assert not any("Unknown top-level key" in i for i in issues)
+
+    def test_summary_key_allowed(self, tmp_path):
+        """`summary` (the console execution-summary template) appears in real
+        console exports and is allowed."""
+        content = """\
+# Header
+name: Export shape with summary
+trigger:
+  type: On demand
+  next:
+    - InitVars
+actions:
+  InitVars:
+    id: 702d15788dbbffdf0b68d8e2f3599aa4
+    class: CreateVariable
+    name: Create variable
+    version_constraint: ~1
+    next:
+      - a
+    properties:
+      variable_schema:
+        properties:
+          workflow-result:
+            type: string
+        type: object
+  a:
+    id: aabbccdd11223344aabbccdd11223344
+    name: A
+summary: |-
+    ${data['WorkflowCustomVariable.workflow-result']}
+"""
+        f = tmp_path / "summary.yaml"
+        f.write_text(content)
+        issues = validate.structural_check(str(f))
+        # Assert no errors at all, not just the absence of the specific
+        # top-level-key error — a fixture meant to demonstrate a valid shape
+        # should be fully clean, or a different, unrelated defect in it (e.g.
+        # an undeclared variable) could slip through unnoticed.
+        assert not any(i.startswith("ERROR") for i in issues), issues
 
 
 class TestApiValidate:
@@ -2531,6 +2685,79 @@ actions:
         issues = validate.structural_check(str(f))
         assert not any("_cs_inline_output_schema" in i for i in issues)
 
+    def test_http_action_in_loop_null_safe_ref_without_schema_flagged(self, tmp_path):
+        # Inside a loop, read with the null-safe data[?'...'] form: still needs a schema.
+        f = tmp_path / "loopnoschema.yaml"
+        f.write_text("""\
+# Header
+name: Test
+trigger:
+  type: On demand
+  next:
+    - Loop
+loops:
+  Loop:
+    for:
+      input: emails
+    trigger:
+      next:
+        - Lookup
+    actions:
+      Lookup:
+        id: 1ba474f407d9228fc8fa02cdce8ae8ef
+        class: Inline.HTTPRequest
+        version_constraint: ~1
+        name: Cloud HTTP Request
+        next:
+          - Record
+        properties:
+          http_transaction:
+            request_http_method: GET
+            request_content_type: NONE
+      Record:
+        id: 6c6eab39063fa3b72d98c82af60deb8a
+        class: UpdateVariable
+        version_constraint: ~1
+        properties:
+          WorkflowCustomVariable:
+            status: ${data[?'Lookup.body.status'].orValue('')}
+""")
+        issues = validate.structural_check(str(f))
+        assert any("'Lookup'" in i and "_cs_inline_output_schema" in i for i in issues)
+
+    def test_http_builtin_outputs_need_no_schema(self, tmp_path):
+        # response_status_code and friends exist on every HTTP action.
+        f = tmp_path / "statuscode.yaml"
+        f.write_text("""\
+# Header
+name: Test
+trigger:
+  type: On demand
+  next:
+    - Enrich
+actions:
+  Enrich:
+    id: 1ba474f407d9228fc8fa02cdce8ae8ef
+    class: Inline.HTTPRequest
+    version_constraint: ~1
+    name: Cloud HTTP Request
+    next:
+      - Log
+    properties:
+      http_transaction:
+        request_http_method: GET
+        request_content_type: NONE
+  Log:
+    id: 04c59ceb6dff9e6cd89e5f5cf13121ab
+    name: Write to log repo
+    properties:
+      custom_json:
+        code: ${data['Enrich.response_status_code']}
+        body: ${data['Enrich.raw_response_body']}
+""")
+        issues = validate.structural_check(str(f))
+        assert not any("_cs_inline_output_schema" in i for i in issues)
+
     def test_event_query_minimal_shape_flagged(self, tmp_path):
         f = tmp_path / "eq_minimal.yaml"
         content = """\
@@ -2719,6 +2946,56 @@ actions:
         f.write_text(content)
         issues = validate.structural_check(str(f))
         assert not any("MitreAttack" in i for i in issues)
+
+    def test_recon_edr_trigger_field_flagged(self, tmp_path):
+        """EDRs.Email/HostName are advertised by trigger discovery but release
+        rejects them on the Recon notification trigger (confirmed live)."""
+        f = tmp_path / "recon_edrs.yaml"
+        content = """\
+# Header
+name: Test
+trigger:
+  type: Signal
+  event: ReconNotification
+  version_constraint: ~1
+  next:
+    - Log
+actions:
+  Log:
+    id: 04c59ceb6dff9e6cd89e5f5cf13121ab
+    name: Write to log repo
+    properties:
+      custom_json:
+        email: ${data['Trigger.ReconNotification.EDRs.Email']}
+        host: ${data['Trigger.ReconNotification.EDRs.HostName']}
+"""
+        f.write_text(content)
+        issues = validate.structural_check(str(f))
+        assert any("EDRs.Email" in i and "ERROR" in i for i in issues)
+        assert any("EDRs.HostName" in i and "ERROR" in i for i in issues)
+        assert any("Get exposed data records" in i for i in issues)
+
+    def test_recon_edr_guard_scoped_to_recon_trigger(self, tmp_path):
+        """The guard only runs for workflows on the Recon notification trigger."""
+        f = tmp_path / "recon_edrs_on_demand.yaml"
+        content = """\
+# Header
+name: Test
+trigger:
+  type: On demand
+  next:
+    - Log
+actions:
+  Log:
+    id: 04c59ceb6dff9e6cd89e5f5cf13121ab
+    name: Write to log repo
+    properties:
+      custom_json:
+        email: ${data['Trigger.ReconNotification.EDRs.Email']}
+"""
+        f.write_text(content)
+        issues = validate.structural_check(str(f))
+        assert not any("Get exposed data records" in i for i in issues)
 
     def test_event_query_detection_id_literal_not_flagged(self, tmp_path):
         """A non-?arg reference to detection.id (no hydration join) is not flagged."""
@@ -3440,3 +3717,208 @@ output_fields: []
         issues = validate.structural_check(str(f))
         matches = [i for i in issues if "url_indicator" in i]
         assert len(matches) == 1, matches
+
+    def test_hyphenated_variable_name_declared_passes(self, tmp_path):
+        # A hyphenated name (e.g. `resolved-user-id`) must not be truncated at
+        # the first `-` and false-flagged as undeclared.
+        f = tmp_path / "hyphenated.yaml"
+        f.write_text(self._BASE.replace("{ref}", "url_enrichment").replace(
+            "url_enrichment:\n            type: string",
+            "resolved-user-id:\n            type: string",
+        ).replace("url_enrichment']}", "resolved-user-id']}"))
+        issues = validate.structural_check(str(f))
+        assert not any("undefined WorkflowCustomVariable" in i for i in issues), issues
+
+    def test_hyphenated_variable_name_undeclared_flagged(self, tmp_path):
+        # The hyphenated name must still be caught in full (not just its
+        # pre-hyphen prefix) when genuinely undeclared.
+        f = tmp_path / "hyphenated_undef.yaml"
+        f.write_text(self._BASE.replace("{ref}", "resolved-user-id"))
+        issues = validate.structural_check(str(f))
+        assert any(
+            "resolved-user-id" in i and i.startswith("ERROR") for i in issues
+        ), issues
+
+    def test_hyphen_before_digit_does_not_swallow_arithmetic(self, tmp_path):
+        # A hyphen immediately followed by a digit is CEL subtraction, not part
+        # of the name — `WorkflowCustomVariable.retries-1` (no spaces) means
+        # "retries minus 1". If `retries` is declared, this must NOT be
+        # false-flagged as an undeclared `retries-1`.
+        content = """\
+# Created by the CrowdStrike Falcon Fusion authoring skill
+name: Retry gate
+trigger:
+  type: On demand
+  name: On demand
+  next:
+    - InitVars
+actions:
+  InitVars:
+    id: 702d15788dbbffdf0b68d8e2f3599aa4
+    class: CreateVariable
+    name: Create variable
+    version_constraint: ~1
+    next:
+      - Gate
+    properties:
+      variable_schema:
+        properties:
+          retries:
+            type: integer
+        type: object
+conditions:
+  Gate:
+    cel_expression: WorkflowCustomVariable.retries-1 > 0
+    next:
+      - InitVars
+output_fields: []
+"""
+        f = tmp_path / "arithmetic.yaml"
+        f.write_text(content)
+        issues = validate.structural_check(str(f))
+        assert not any("undefined WorkflowCustomVariable" in i for i in issues), issues
+
+
+
+class TestFakeVariableEmail:
+    """A fake @example.com-style email seeded into a WorkflowCustomVariable is a
+    placeholder that dead-ends at runtime, exactly like a hardcoded Send email
+    `to:` recipient — and referencing the variable in `to:` hides it from the
+    recipient guard. These cover the structural-tier check that flags a fake
+    email assigned to a variable (CreateVariable default or UpdateVariable setter).
+    """
+
+    def _wf(self, var_block):
+        return f"""\
+# Created by the CrowdStrike Falcon Fusion authoring skill
+name: Approval Request
+trigger:
+  type: On demand
+  name: On demand
+  next:
+    - InitVars
+actions:
+{var_block}
+  Send:
+    id: 07413ef9ba7c47bf5a242799f59902cc
+    name: Send email
+    version_constraint: ~1
+    properties:
+      to:
+        - ${{data['WorkflowCustomVariable.approver_email']}}
+      subject: Approval
+      msg: Please review
+      msg_type: text
+output_fields: []
+"""
+
+    def test_create_variable_fake_email_default_flagged(self, tmp_path):
+        block = """\
+  InitVars:
+    id: 702d15788dbbffdf0b68d8e2f3599aa4
+    class: CreateVariable
+    name: Create variable
+    version_constraint: ~1
+    next:
+      - Send
+    properties:
+      variable_schema:
+        properties:
+          approver_email:
+            type: string
+            default: approver@example.com
+        type: object"""
+        f = tmp_path / "cv_default.yaml"
+        f.write_text(self._wf(block))
+        issues = validate.structural_check(str(f))
+        assert any(
+            i.startswith("ERROR") and "approver_email" in i and "placeholder email" in i
+            for i in issues
+        ), issues
+
+    def test_update_variable_fake_email_setter_flagged(self, tmp_path):
+        block = """\
+  InitVars:
+    id: 702d15788dbbffdf0b68d8e2f3599aa4
+    class: CreateVariable
+    name: Create variable
+    version_constraint: ~1
+    next:
+      - SetVar
+    properties:
+      variable_schema:
+        properties:
+          approver_email:
+            type: string
+        type: object
+  SetVar:
+    id: 6c6eab39063fa3b72d98c82af60deb8a
+    class: UpdateVariable
+    name: Update variable
+    version_constraint: ~1
+    next:
+      - Send
+    properties:
+      WorkflowCustomVariable:
+        approver_email: approver@example.com"""
+        f = tmp_path / "uv_setter.yaml"
+        f.write_text(self._wf(block))
+        issues = validate.structural_check(str(f))
+        assert any(
+            i.startswith("ERROR") and "approver_email" in i and "placeholder email" in i
+            for i in issues
+        ), issues
+
+    def test_variable_without_default_passes(self, tmp_path):
+        # Declaring the variable with no hardcoded default (console-configured) is
+        # the correct pattern — nothing to flag.
+        block = """\
+  InitVars:
+    id: 702d15788dbbffdf0b68d8e2f3599aa4
+    class: CreateVariable
+    name: Create variable
+    version_constraint: ~1
+    next:
+      - Send
+    properties:
+      variable_schema:
+        properties:
+          approver_email:
+            type: string
+        type: object"""
+        f = tmp_path / "no_default.yaml"
+        f.write_text(self._wf(block))
+        issues = validate.structural_check(str(f))
+        assert not any("placeholder email" in i for i in issues), issues
+
+    def test_variable_set_from_data_reference_passes(self, tmp_path):
+        # Binding the variable from a trigger parameter (a data reference, not a
+        # literal address) is correct — nothing to flag.
+        block = """\
+  InitVars:
+    id: 702d15788dbbffdf0b68d8e2f3599aa4
+    class: CreateVariable
+    name: Create variable
+    version_constraint: ~1
+    next:
+      - SetVar
+    properties:
+      variable_schema:
+        properties:
+          approver_email:
+            type: string
+        type: object
+  SetVar:
+    id: 6c6eab39063fa3b72d98c82af60deb8a
+    class: UpdateVariable
+    name: Update variable
+    version_constraint: ~1
+    next:
+      - Send
+    properties:
+      WorkflowCustomVariable:
+        approver_email: ${data['request_approver_email']}"""
+        f = tmp_path / "data_ref.yaml"
+        f.write_text(self._wf(block))
+        issues = validate.structural_check(str(f))
+        assert not any("placeholder email" in i for i in issues), issues

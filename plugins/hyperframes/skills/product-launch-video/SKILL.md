@@ -1,6 +1,6 @@
 ---
 name: product-launch-video
-description: ">"
+description: product-launch-video
 ---
 
 # product-launch-video - dispatch entry

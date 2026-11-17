@@ -1,44 +1,67 @@
-import { writeFile, mkdir, unlink } from 'node:fs/promises'
+import fs from 'fs/promises'
 import { randomUUID } from 'node:crypto'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import cds from '@sap/cds'
+import { configuredNonEmptyString } from './utils.js'
+import { DEFAULT_MODEL } from './api.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const MODEL = 'sentence-transformers/all-MiniLM-L6-v2'
-export const UNKNOWN_CDS_VERSION = "latest"
-export const DEFAULT_DIR = path.join(__dirname, '..', 'embeddings')
+export const MODEL_CACHE_ROOT = fileURLToPath(new URL('../', import.meta.url))
+export const UNKNOWN_CDS_VERSION = 'latest'
+export let DEFAULT_DIR = path.join(__dirname, '..', 'embeddings')
+export function setEmbeddingsDir(dir) {
+  DEFAULT_DIR = dir
+}
 export const DEFAULT_EMBEDDINGS_URL = `https://cap.cloud.sap/resources/embeddings`
 
-let _activeModel = process.env.CDS_MCP_MODEL || MODEL
-export function setActiveModel(m) { _activeModel = m || MODEL }
-export function getActiveModel() { return _activeModel }
-export function getActiveModelFolder() { return toDirName(_activeModel) }
-export function getActiveEmbeddingsDir() { return path.join(DEFAULT_DIR, getActiveModelFolder()) }
+let _activeModel = configuredNonEmptyString('CDS_MCP_MODEL', DEFAULT_MODEL)
+export function setActiveModel(m) {
+  _activeModel = m || DEFAULT_MODEL
+}
+export function getActiveModel() {
+  return _activeModel
+}
+export function getActiveModelFolder() {
+  return toDirName(_activeModel)
+}
+export function getActiveEmbeddingsDir() {
+  return path.join(DEFAULT_DIR, getActiveModelFolder())
+}
 
 export function toDirName(model) {
   return model.replace(/\//g, '--')
 }
 
 async function connectEmbedDb(dbFile, model = _activeModel) {
-  return cds.connect.to('embed-db', {
+  const config = {
     kind: 'sqlite',
-    embedding: { model },
+    embedding: { model, root: MODEL_CACHE_ROOT },
     impl: '@cap-js/ai/lib/sqlite/AISQLiteService.js',
     credentials: { url: dbFile ?? ':memory:' }
-  })
+  }
+  return cds.connect.to('embed-db', config)
 }
 
 // only for docs-resources embeddings creation
-export async function createEmbeddings(id, chunks, dir = DEFAULT_DIR, { dbFile, metadata, capire, model = _activeModel } = {}) {
+export async function createEmbeddings(
+  id,
+  chunks,
+  canonicalChunks,
+  { dir = DEFAULT_DIR, dbFile, metadata, capire, model = _activeModel } = {}
+) {
   if (!chunks.length) throw new Error('No chunks to save')
   if (metadata !== undefined && metadata.length !== chunks.length)
     throw new Error('metadata length must match chunks length')
+  if (canonicalChunks.length !== chunks.length)
+    throw new Error('canonicalChunks length must match chunks length')
 
   const modelFolderName = toDirName(model)
   const versionFolder = capire?.commitId
-  const outDir = versionFolder ? path.join(dir, modelFolderName, versionFolder) : path.join(dir, modelFolderName)
-  if (dbFile) await unlink(dbFile).catch(() => {})
+  const outDir = versionFolder
+    ? path.join(dir, modelFolderName, versionFolder)
+    : path.join(dir, modelFolderName)
+  if (dbFile) await fs.unlink(dbFile).catch(() => {})
 
   const db = await connectEmbedDb(dbFile, model)
 
@@ -50,9 +73,9 @@ export async function createEmbeddings(id, chunks, dir = DEFAULT_DIR, { dbFile, 
     )
   `)
 
-  const rows = chunks.map(c => ({ ID: randomUUID(), chunk: c }))
+  const rows = chunks.map((c) => ({ ID: randomUUID(), chunk: c }))
   const values = rows.map(() => '(?, ?)').join(',')
-  const params = rows.flatMap(r => [r.ID, r.chunk])
+  const params = rows.flatMap((r) => [r.ID, r.chunk])
   await db.run(`INSERT INTO Docs(ID, chunk) VALUES ${values}`, params)
 
   const stored = await db.run('SELECT chunk, emb FROM Docs ORDER BY rowid')
@@ -60,21 +83,26 @@ export async function createEmbeddings(id, chunks, dir = DEFAULT_DIR, { dbFile, 
 
   const dim = JSON.parse(stored[0].emb).length
   const flat = new Float32Array(stored.length * dim)
-  const orderedChunks = stored.map((r, i) => {
+  stored.forEach((r, i) => {
     flat.set(JSON.parse(r.emb), i * dim)
-    return r.chunk
   })
 
-  await mkdir(outDir, { recursive: true })
+  await fs.mkdir(outDir, { recursive: true })
   const binPath = path.join(outDir, `${id}.bin`)
   const jsonPath = path.join(outDir, `${id}.json`)
-  await unlink(binPath).catch(() => {})
-  await unlink(jsonPath).catch(() => {})
-  await writeFile(binPath, Buffer.from(flat.buffer))
-  const json = { dim, count: stored.length, model, chunks: orderedChunks }
+  await fs.unlink(binPath).catch(() => {})
+  await fs.unlink(jsonPath).catch(() => {})
+  await fs.writeFile(binPath, Buffer.from(flat.buffer))
+  const json = {
+    dim,
+    count: stored.length,
+    model,
+    createdAt: new Date().toISOString(),
+    chunks: canonicalChunks
+  }
   if (capire !== undefined) json.capire = capire
   if (metadata !== undefined) json.metadata = metadata
-  await writeFile(jsonPath, JSON.stringify(json, null, 2))
+  await fs.writeFile(jsonPath, JSON.stringify(json, null, 2))
 
   return { dim, count: stored.length, outDir, modelFolderName }
 }

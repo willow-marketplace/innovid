@@ -405,7 +405,7 @@ The client uses a configuration class:
 @dataclass
 class MCPConfig:
     mcp_server_url: str = "http://localhost:6969"
-    openai_model: str = "gpt-5-mini"
+    openai_model: str = "gpt-5.6-terra"
     openai_api_key: str = os.getenv("OPENAI_API_KEY")
 ```
 
@@ -413,7 +413,7 @@ For STDIO transport, additional options are available:
 ```python
 @dataclass
 class MCPConfig:
-    openai_model: str = "gpt-5-mini"
+    openai_model: str = "gpt-5.6-terra"
     openai_api_key: str = os.getenv("OPENAI_API_KEY")
     mcp_stdio_server_command: str = "uv run example-mcp-server --mode stdio"
 ```
@@ -451,6 +451,24 @@ uv run python -m example_client.main_stdio
 You: What is 2+2?
 You: Calculate the square root of 144
 You: Generate a random number between 1 and 100
+```
+
+## Tool Results and Errors
+
+Tools generated from an MCP server (sync and async) read the SDK result in this order:
+
+1. If the server returned `structuredContent` that is not `None`, it is validated against the tool's output schema. This includes empty values. Data that does not fit the schema is rejected, not repaired.
+2. If the SDK result has no structured content, the tool falls back to JSON in the text content and validates that the same way.
+
+If the server reports an error, the generated tool raises `RuntimeError` before it parses any output. This covers an SDK `CallToolResult` with `isError=True`, and a mapping that validates strictly as a `CallToolResult` with `isError=True`. The error message is built only from the text blocks. If there are none, you get a generic message saying the tool reported an error without text. Structured content, `_meta`, and image, audio or resource blocks are never copied into the message or the logs.
+
+A tool that returns its own mapping with an `isError` key is not treated as an error unless the mapping is a valid `CallToolResult`. For example, `{"isError": True, "name": "x", "content": "article"}` is ordinary output data, because `content` is a string and not a list of MCP content blocks.
+
+```python
+try:
+    result = tool.run(tool.input_schema(**arguments))
+except RuntimeError as error:
+    print(f"Server reported a tool error: {error}")
 ```
 
 ## Best Practices

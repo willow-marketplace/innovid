@@ -1,12 +1,12 @@
 import asyncio
 import json
 import logging
-from typing import Any, Dict, List, Type, Optional, Union, Tuple, cast
+from typing import Any, Dict, List, Type, Optional, Union, Tuple, cast, Protocol, Callable
 from contextlib import AsyncExitStack
 import shlex
 import types
 
-from pydantic import create_model, Field, BaseModel
+from pydantic import create_model, Field, BaseModel, JsonValue, ValidationError
 
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.sse import sse_client
@@ -18,6 +18,7 @@ from atomic_agents.base.base_io_schema import BaseIOSchema
 from atomic_agents.base import BaseTool, BaseResource, BasePrompt
 from atomic_agents.connectors.mcp.schema_transformer import SchemaTransformer
 from atomic_agents.connectors.mcp.mcp_definition_service import (
+    _transport_endpoint,
     MCPAttributeType,
     MCPDefinitionService,
     MCPToolDefinition,
@@ -34,6 +35,7 @@ class MCPToolOutputSchema(BaseIOSchema):
 
     Used as a fallback when the MCP server does not provide an outputSchema definition.
     Tools with MCP-provided outputSchema will have typed output schemas instead.
+    When a result has no content blocks, its structuredContent is returned directly.
     """
 
     result: Any = Field(..., description="The result returned by the MCP tool.")
@@ -52,6 +54,178 @@ class MCPPromptOutputSchema(BaseIOSchema):
     content: str = Field(..., description="The content of the MCP prompt.")
 
 
+class _ModelDumpPayload(Protocol):
+    model_dump: Callable[[], dict[str, JsonValue]]
+
+
+class _TextToolContent(Protocol):
+    text: JsonValue | bytes | bytearray
+
+
+class _DataToolContent(Protocol):
+    data: JsonValue
+
+
+_ToolContentItem = BaseModel | JsonValue | _TextToolContent | _DataToolContent
+_ToolResult = BaseModel | JsonValue | tuple[object, ...] | list[object]
+_ToolContent = BaseModel | JsonValue | tuple[_ToolContentItem, ...] | list[_ToolContentItem]
+
+
+class _GeneratedMCPTool(Protocol):
+    mcp_tool_name: str
+    mcp_endpoint: str | None
+    transport_type: MCPTransportType
+    output_schema: type[BaseIOSchema]
+
+
+def _validated_tool_envelope(tool_result: _ToolResult) -> mcp.types.CallToolResult | None:
+    if isinstance(tool_result, mcp.types.CallToolResult):
+        return tool_result
+    if isinstance(tool_result, dict):
+        try:
+            return mcp.types.CallToolResult.model_validate(tool_result, strict=True)
+        except ValidationError:
+            return None
+    return None
+
+
+def _tool_error_diagnostic(envelope: mcp.types.CallToolResult) -> str:
+    text_parts = [block.text.strip() for block in envelope.content if isinstance(block, mcp.types.TextContent)]
+    return "\n".join(filter(None, text_parts)) or "MCP tool reported an error without text content"
+
+
+def _raise_tool_execution_error(tool_result: _ToolResult) -> None:
+    envelope = _validated_tool_envelope(tool_result)
+    if envelope is not None and envelope.isError:
+        raise RuntimeError(_tool_error_diagnostic(envelope))
+
+
+def _validate_structured_tool_output(
+    structured_data: JsonValue | _ModelDumpPayload, output_schema: type[BaseIOSchema], tool_name: str
+) -> BaseIOSchema:
+    if isinstance(structured_data, dict):
+        return output_schema(**structured_data)
+    elif hasattr(structured_data, "model_dump"):
+        model_dump: Callable[[], dict[str, JsonValue]] = getattr(structured_data, "model_dump")
+        return output_schema(**model_dump())
+    logger.error(
+        f"Unexpected structuredContent type for tool '{tool_name}': "
+        f"got {type(structured_data).__name__}, expected dict or BaseModel. "
+        f"Content: {structured_data!r}"
+    )
+    raise TypeError(
+        f"MCP tool '{tool_name}' returned structuredContent with unexpected type "
+        f"{type(structured_data).__name__}. Expected dict or BaseModel."
+    )
+
+
+def _log_invalid_tool_json(text: str | bytes | bytearray, tool_name: str, error: json.JSONDecodeError) -> None:
+    logger.debug(
+        f"Tool '{tool_name}' content is not valid JSON: {error}. " f"Content preview: {text[:200]!r}..."
+        if len(text) > 200
+        else f"Content: {text!r}"
+    )
+
+
+def _validate_json_text_tool_output(
+    text: JsonValue | bytes | bytearray, output_schema: type[BaseIOSchema], tool_name: str
+) -> BaseIOSchema | None:
+    try:
+        # Invalid adapter text must keep json.loads' native TypeError and the existing data fallback.
+        parsed: JsonValue = json.loads(text)  # pyright: ignore[reportArgumentType]
+        if isinstance(parsed, dict):
+            return output_schema(**parsed)
+        logger.debug(
+            f"Tool '{tool_name}' content parsed as JSON but was "
+            f"{type(parsed).__name__}, not dict. Trying other extraction methods."
+        )
+    except json.JSONDecodeError as error:
+        if isinstance(text, (str, bytes, bytearray)):
+            _log_invalid_tool_json(text, tool_name, error)
+    except TypeError as error:
+        logger.warning(f"Tool '{tool_name}' content.text has unexpected type {type(text).__name__}: {error}")
+    return None
+
+
+def _validate_tool_content_item(
+    content_item: _ToolContentItem, output_schema: type[BaseIOSchema], tool_name: str
+) -> BaseIOSchema | None:
+    if hasattr(content_item, "text"):
+        text: JsonValue | bytes | bytearray = getattr(content_item, "text")
+        parsed_output = _validate_json_text_tool_output(text, output_schema, tool_name)
+        if parsed_output is not None:
+            return parsed_output
+    if hasattr(content_item, "data"):
+        data: JsonValue = getattr(content_item, "data")
+        if isinstance(data, dict):
+            return output_schema(**data)
+    return None
+
+
+def _validate_tool_content_output(
+    content: _ToolContent, output_schema: type[BaseIOSchema], tool_name: str
+) -> BaseIOSchema | None:
+    if content and isinstance(content, (list, tuple)) and len(content) > 0:
+        return _validate_tool_content_item(content[0], output_schema, tool_name)
+    return None
+
+
+def _validate_model_tool_output(
+    tool_result: BaseModel, output_schema: type[BaseIOSchema], tool_name: str
+) -> BaseIOSchema | None:
+    structured_data: JsonValue | _ModelDumpPayload = getattr(tool_result, "structuredContent", None)
+    if structured_data is not None:
+        return _validate_structured_tool_output(structured_data, output_schema, tool_name)
+    elif hasattr(tool_result, "content"):
+        content: _ToolContent = getattr(tool_result, "content")
+        return _validate_tool_content_output(content, output_schema, tool_name)
+    return None
+
+
+def _validate_mapping_tool_output(tool_result: dict[str, JsonValue], output_schema: type[BaseIOSchema]) -> BaseIOSchema:
+    if "structuredContent" in tool_result:
+        # Malformed mapping payloads must keep the constructor's native keyword-unpacking TypeError.
+        return output_schema(**tool_result["structuredContent"])  # pyright: ignore[reportCallIssue]
+    elif "content" in tool_result:
+        content = tool_result["content"]
+        if isinstance(content, dict):
+            return output_schema(**content)
+    return output_schema(**tool_result)
+
+
+def _validate_typed_tool_output(tool_result: _ToolResult, output_schema: type[BaseIOSchema], tool_name: str) -> BaseIOSchema:
+    if isinstance(tool_result, BaseModel):
+        parsed_output = _validate_model_tool_output(tool_result, output_schema, tool_name)
+        if parsed_output is not None:
+            return parsed_output
+    elif isinstance(tool_result, dict):
+        return _validate_mapping_tool_output(tool_result, output_schema)
+    logger.error(
+        f"Could not parse structured output for tool '{tool_name}'. "
+        f"Expected typed output but got: type={type(tool_result).__name__}, "
+        f"value={tool_result!r}"
+    )
+    raise ValueError(
+        f"MCP tool '{tool_name}' has outputSchema but returned unparseable result. "
+        f"Received type: {type(tool_result).__name__}. Check MCP server implementation."
+    )
+
+
+def _render_generic_tool_output(tool_result: _ToolResult, output_schema: type[BaseIOSchema]) -> BaseIOSchema:
+    envelope = _validated_tool_envelope(tool_result)
+    if envelope is not None and not envelope.content and envelope.structuredContent is not None:
+        return output_schema(**{"result": envelope.structuredContent})
+
+    content: _ToolContent | _ToolResult
+    if isinstance(tool_result, BaseModel) and hasattr(tool_result, "content"):
+        content = getattr(tool_result, "content")
+    elif isinstance(tool_result, dict) and "content" in tool_result:
+        content = tool_result["content"]
+    else:
+        content = tool_result
+    return output_schema(**{"result": content})
+
+
 class MCPFactory:
     """Factory for creating MCP tool classes."""
 
@@ -67,7 +241,8 @@ class MCPFactory:
         Initialize the factory.
 
         Args:
-            mcp_endpoint: URL of the MCP server (for SSE/HTTP stream) or the full command to run the server (for STDIO)
+            mcp_endpoint: MCP server base URL or explicit /mcp or /sse endpoint (for SSE/HTTP stream),
+                or the full command to run the server (for STDIO). Query parameters are preserved.
             transport_type: Type of transport to use (SSE, HTTP_STREAM, or STDIO)
             client_session: Optional pre-initialized ClientSession for reuse
             event_loop: Optional event loop for running asynchronous operations
@@ -171,7 +346,7 @@ class MCPFactory:
                     )
 
                 # Async implementation
-                async def run_tool_async(self, params: InputSchema) -> OutputSchema:  # type: ignore
+                async def run_tool_async(self: _GeneratedMCPTool, params: BaseIOSchema) -> BaseIOSchema:
                     bound_tool_name = self.mcp_tool_name
                     bound_mcp_endpoint = self.mcp_endpoint  # May be None when using external session
                     bound_transport_type = self.transport_type
@@ -200,13 +375,13 @@ class MCPFactory:
                             elif bound_transport_type == MCPTransportType.HTTP_STREAM:
                                 # HTTP Stream transport - use trailing slash to avoid redirect
                                 # See: https://github.com/modelcontextprotocol/python-sdk/issues/732
-                                http_endpoint = f"{bound_mcp_endpoint}/mcp/"
+                                http_endpoint = _transport_endpoint(bound_mcp_endpoint, "/mcp/")
                                 logger.debug(f"Executing tool '{bound_tool_name}' via HTTP Stream: endpoint={http_endpoint}")
                                 http_transport = await stack.enter_async_context(streamablehttp_client(http_endpoint))
                                 read_stream, write_stream, _ = http_transport
                             elif bound_transport_type == MCPTransportType.SSE:
                                 # SSE transport (deprecated)
-                                sse_endpoint = f"{bound_mcp_endpoint}/sse"
+                                sse_endpoint = _transport_endpoint(bound_mcp_endpoint, "/sse")
                                 logger.debug(f"Executing tool '{bound_tool_name}' via SSE: endpoint={sse_endpoint}")
                                 sse_transport = await stack.enter_async_context(sse_client(sse_endpoint))
                                 read_stream, write_stream = sse_transport
@@ -239,106 +414,15 @@ class MCPFactory:
                             # Legacy behaviour – open a fresh connection per invocation.
                             tool_result = await _connect_and_call()
 
-                        # Process the result based on whether we have a typed output schema.
-                        # Extraction precedence for typed schemas:
-                        # 1. structuredContent attribute (MCP spec primary path)
-                        # 2. content[0].text parsed as JSON (some servers return JSON as text)
-                        # 3. content[0].data dict (structured data in content item)
-                        # 4. Dict with structuredContent/content keys
-                        # 5. Direct dict usage as fallback
-                        has_typed_schema = getattr(self, "_has_typed_output_schema", False)
-                        BoundOutputSchema = self.output_schema
+                        _raise_tool_execution_error(tool_result)
+                        output_schema = self.output_schema
+                        if getattr(self, "_has_typed_output_schema", False):
+                            return _validate_typed_tool_output(tool_result, output_schema, bound_tool_name)
+                        return _render_generic_tool_output(tool_result, output_schema)
 
-                        if has_typed_schema:
-                            # For typed output schemas, try to extract structured content
-                            # MCP tools with output schemas return structured data
-                            if isinstance(tool_result, BaseModel) and hasattr(tool_result, "structuredContent"):
-                                # Use structured content if available (MCP spec)
-                                structured_data = tool_result.structuredContent
-                                if isinstance(structured_data, dict):
-                                    return BoundOutputSchema(**structured_data)
-                                elif hasattr(structured_data, "model_dump"):
-                                    return BoundOutputSchema(**structured_data.model_dump())
-                                else:
-                                    # Unexpected type for structuredContent
-                                    logger.error(
-                                        f"Unexpected structuredContent type for tool '{bound_tool_name}': "
-                                        f"got {type(structured_data).__name__}, expected dict or BaseModel. "
-                                        f"Content: {structured_data!r}"
-                                    )
-                                    raise TypeError(
-                                        f"MCP tool '{bound_tool_name}' returned structuredContent with unexpected type "
-                                        f"{type(structured_data).__name__}. Expected dict or BaseModel."
-                                    )
-                            elif isinstance(tool_result, BaseModel) and hasattr(tool_result, "content"):
-                                # Try to parse content as structured data
-                                content = tool_result.content
-                                # Ensure content is a list/tuple before indexing
-                                if content and isinstance(content, (list, tuple)) and len(content) > 0:
-                                    first_content = content[0]
-                                    # Check for text content that might be JSON
-                                    if hasattr(first_content, "text"):
-                                        try:
-                                            parsed = json.loads(first_content.text)
-                                            if isinstance(parsed, dict):
-                                                return BoundOutputSchema(**parsed)
-                                            else:
-                                                logger.debug(
-                                                    f"Tool '{bound_tool_name}' content parsed as JSON but was "
-                                                    f"{type(parsed).__name__}, not dict. Trying other extraction methods."
-                                                )
-                                        except json.JSONDecodeError as e:
-                                            logger.debug(
-                                                f"Tool '{bound_tool_name}' content is not valid JSON: {e}. "
-                                                f"Content preview: {first_content.text[:200]!r}..."
-                                                if len(first_content.text) > 200
-                                                else f"Content: {first_content.text!r}"
-                                            )
-                                        except TypeError as e:
-                                            logger.warning(
-                                                f"Tool '{bound_tool_name}' content.text has unexpected type "
-                                                f"{type(first_content.text).__name__}: {e}"
-                                            )
-                                    # Check for structured content in the content item
-                                    if hasattr(first_content, "data") and isinstance(first_content.data, dict):
-                                        return BoundOutputSchema(**first_content.data)
-                            elif isinstance(tool_result, dict):
-                                if "structuredContent" in tool_result:
-                                    return BoundOutputSchema(**tool_result["structuredContent"])
-                                elif "content" in tool_result:
-                                    content = tool_result["content"]
-                                    if isinstance(content, dict):
-                                        return BoundOutputSchema(**content)
-                            # Fallback: try to use tool_result directly if it's a dict
-                            if isinstance(tool_result, dict):
-                                return BoundOutputSchema(**tool_result)
-                            # If we have a typed schema but couldn't extract structured content,
-                            # this is an error - we cannot fall through to generic handling
-                            # because the typed schema doesn't have a 'result' field.
-                            logger.error(
-                                f"Could not parse structured output for tool '{bound_tool_name}'. "
-                                f"Expected typed output but got: type={type(tool_result).__name__}, "
-                                f"value={tool_result!r}"
-                            )
-                            raise ValueError(
-                                f"MCP tool '{bound_tool_name}' has outputSchema but returned unparseable result. "
-                                f"Received type: {type(tool_result).__name__}. "
-                                f"Check MCP server implementation."
-                            )
-
-                        # Generic output schema handling (original behavior) - only for tools without typed schemas
-                        if isinstance(tool_result, BaseModel) and hasattr(tool_result, "content"):
-                            actual_result_content = tool_result.content
-                        elif isinstance(tool_result, dict) and "content" in tool_result:
-                            actual_result_content = tool_result["content"]
-                        else:
-                            actual_result_content = tool_result
-
-                        return BoundOutputSchema(result=actual_result_content)
-
-                    except Exception as e:
-                        logger.error(f"Error executing MCP tool '{bound_tool_name}': {e}", exc_info=True)
-                        raise RuntimeError(f"Failed to execute MCP tool '{bound_tool_name}': {e}") from e
+                    except Exception as error:
+                        logger.error(f"Error executing MCP tool '{bound_tool_name}': {error}", exc_info=True)
+                        raise RuntimeError(f"Failed to execute MCP tool '{bound_tool_name}': {error}") from error
 
                 # Create sync wrapper
                 def run_tool_sync(self, params: InputSchema) -> OutputSchema:  # type: ignore
@@ -350,7 +434,7 @@ class MCPFactory:
                         try:
                             return cast(asyncio.AbstractEventLoop, loop).run_until_complete(self.arun(params))
                         except AttributeError as e:
-                            raise RuntimeError(f"Failed to execute MCP tool '{tool_name}': {e}") from e
+                            raise RuntimeError(f"Failed to execute MCP tool '{self.mcp_tool_name}': {e}") from e
                     else:
                         # Legacy behaviour – run in new event loop.
                         return asyncio.run(self.arun(params))
@@ -569,7 +653,7 @@ class MCPFactory:
                             elif bound_transport_type == MCPTransportType.HTTP_STREAM:
                                 # HTTP Stream transport - use trailing slash to avoid redirect
                                 # See: https://github.com/modelcontextprotocol/python-sdk/issues/732
-                                http_endpoint = f"{bound_mcp_endpoint}/mcp/"
+                                http_endpoint = _transport_endpoint(bound_mcp_endpoint, "/mcp/")
                                 logger.debug(
                                     f"Reading resource '{self.mcp_resource_name}' via HTTP Stream: endpoint={http_endpoint}"
                                 )
@@ -577,7 +661,7 @@ class MCPFactory:
                                 read_stream, write_stream, _ = http_transport
                             elif bound_transport_type == MCPTransportType.SSE:
                                 # SSE transport (deprecated)
-                                sse_endpoint = f"{bound_mcp_endpoint}/sse"
+                                sse_endpoint = _transport_endpoint(bound_mcp_endpoint, "/sse")
                                 logger.debug(f"Reading resource '{self.mcp_resource_name}' via SSE: endpoint={sse_endpoint}")
                                 sse_transport = await stack.enter_async_context(sse_client(sse_endpoint))
                                 read_stream, write_stream = sse_transport
@@ -627,17 +711,17 @@ class MCPFactory:
                             if actual_content and len(actual_content) > 0:
                                 # Get mimeType from the first content item
                                 first_content = actual_content[0]
-                                actual_mime = getattr(first_content, "mimeType", mime_type)
+                                actual_mime = getattr(first_content, "mimeType", self._mime_type)
                             else:
-                                actual_mime = mime_type
+                                actual_mime = self._mime_type
                         elif isinstance(resource_result, dict) and "contents" in resource_result:
                             actual_content = resource_result["contents"]
-                            actual_mime = resource_result.get("mime_type", mime_type)
+                            actual_mime = resource_result.get("mime_type", self._mime_type)
                         else:
                             actual_content = resource_result
-                            actual_mime = mime_type
+                            actual_mime = self._mime_type
 
-                        return OutputSchema(content=actual_content, mime_type=actual_mime)
+                        return self.output_schema(content=actual_content, mime_type=actual_mime)
 
                     except Exception as e:
                         logger.error(f"Error reading MCP resource '{self.mcp_resource_name}': {e}", exc_info=True)
@@ -653,7 +737,7 @@ class MCPFactory:
                         try:
                             return cast(asyncio.AbstractEventLoop, loop).run_until_complete(self.aread(params))
                         except AttributeError as e:
-                            raise RuntimeError(f"Failed to read MCP resource '{resource_name}': {e}") from e
+                            raise RuntimeError(f"Failed to read MCP resource '{self.mcp_resource_name}': {e}") from e
                     else:
                         # Legacy behaviour – run in new event loop.
                         return asyncio.run(self.aread(params))
@@ -670,6 +754,7 @@ class MCPFactory:
                     "_event_loop": self.event_loop,
                     "working_directory": self.working_directory,
                     "uri": uri,
+                    "_mime_type": mime_type,
                 }
 
                 # Create the class using new_class() for proper generic type support
@@ -788,13 +873,13 @@ class MCPFactory:
                             elif bound_transport_type == MCPTransportType.HTTP_STREAM:
                                 # HTTP Stream transport - use trailing slash to avoid redirect
                                 # See: https://github.com/modelcontextprotocol/python-sdk/issues/732
-                                http_endpoint = f"{bound_mcp_endpoint}/mcp/"
+                                http_endpoint = _transport_endpoint(bound_mcp_endpoint, "/mcp/")
                                 logger.debug(f"Getting prompt '{bound_prompt_name}' via HTTP Stream: endpoint={http_endpoint}")
                                 http_transport = await stack.enter_async_context(streamablehttp_client(http_endpoint))
                                 read_stream, write_stream, _ = http_transport
                             elif bound_transport_type == MCPTransportType.SSE:
                                 # SSE transport (deprecated)
-                                sse_endpoint = f"{bound_mcp_endpoint}/sse"
+                                sse_endpoint = _transport_endpoint(bound_mcp_endpoint, "/sse")
                                 logger.debug(f"Getting prompt '{bound_prompt_name}' via SSE: endpoint={sse_endpoint}")
                                 sse_transport = await stack.enter_async_context(sse_client(sse_endpoint))
                                 read_stream, write_stream = sse_transport
@@ -855,7 +940,7 @@ class MCPFactory:
                                 texts.append(str(content))
                         final_content = "\n\n".join(texts)
 
-                        return OutputSchema(content=final_content)
+                        return self.output_schema(content=final_content)
 
                     except Exception as e:
                         logger.error(f"Error getting MCP prompt '{bound_prompt_name}': {e}", exc_info=True)
@@ -871,7 +956,7 @@ class MCPFactory:
                         try:
                             return cast(asyncio.AbstractEventLoop, loop).run_until_complete(self.agenerate(params))
                         except AttributeError as e:
-                            raise RuntimeError(f"Failed to get MCP prompt '{prompt_name}': {e}") from e
+                            raise RuntimeError(f"Failed to get MCP prompt '{self.mcp_prompt_name}': {e}") from e
                     else:
                         # Legacy behaviour – run in new event loop.
                         return asyncio.run(self.agenerate(params))

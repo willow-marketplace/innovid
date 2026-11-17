@@ -81,7 +81,7 @@ Pick your AI client below to install the official Atlassian MCP Server. Each but
       <br><sub>Search and create Jira issues via GitHub Copilot.</sub>
     </td>
     <td align="center" width="180">
-      <a href="https://chatgpt.com/apps/atlassian-rovo/connector_692de805e3ec8191834719067174a384">
+      <a href="https://chatgpt.com/plugins/plugin_asdk_app_6a83901dde988191b3f3cefdcc19acfa">
         <img src="https://img.shields.io/badge/ChatGPT-10A37F?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2ZmZmZmZiI+PHBhdGggZD0iTTEyIDIgMyA3djEwbDkgNSA5LTVWN3ptMCAyLjMgNi41IDMuNkwxMiAxMS41IDUuNSA3Ljl6TTUgOS42bDYgMy4zdjYuOGwtNi0zLjN6bTE0IDB2Ni44bC02IDMuM3YtNi44eiIvPjwvc3ZnPg==&logoColor=white" alt="Add to ChatGPT"><br>
         <b>Add to ChatGPT</b>
       </a>
@@ -175,7 +175,8 @@ This repository publishes the same MCP server and skills in several package form
 | [Agent Plugins v1](https://agent-plugins.org/) | [`plugin.json`](plugin.json) and [`mcp.json`](mcp.json) | [`skills/`](skills/) |
 | Claude Code plugin | [`.claude-plugin/plugin.json`](.claude-plugin/plugin.json) and [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json) | [`.mcp.json`](.mcp.json) and [`skills/`](skills/) |
 | Cursor plugin | [`.cursor-plugin/plugin.json`](.cursor-plugin/plugin.json) | [`.mcp.json`](.mcp.json) and [`skills/`](skills/) |
-| Gemini extension | [`gemini-extension.json`](gemini-extension.json) | MCP server configuration embedded in the manifest |
+| Gemini Agent plugin | [`.gemini-plugin/plugin.json`](.gemini-plugin/plugin.json) | [`.mcp.json`](.mcp.json) and the listed [`skills/`](skills/) |
+| Gemini CLI extension | [`gemini-extension.json`](gemini-extension.json) | MCP server configuration embedded in the manifest |
 | MCP Registry | [`server.json`](server.json) | Remote server metadata |
 
 The skills in [`skills/`](skills/) target the `/v2/mcp` endpoint and are what every packaged plugin
@@ -408,6 +409,7 @@ If you're an admin preparing your organization to use the Atlassian MCP Server, 
   Use the **Rovo MCP server** settings page in Atlassian Administration to control which external AI tools and domains are allowed to connect. By default, Atlassian-supported domains are allowed; you can add trusted domains or block supported ones. Domain controls apply to OAuth 2.1 connections. For details, see [Available Atlassian MCP server domains](https://support.atlassian.com/security-and-access-policies/docs/available-atlassian-rovo-mcp-server-domains/).
 * **IP controls:**
   If your organization uses IP allowlisting for Atlassian Cloud apps, requests made through the Atlassian MCP Server must originate from an IP address allowed by your organization's IP allowlist for the relevant app. For configuration details, see [Specify IP addresses for product access](https://support.atlassian.com/security-and-access-policies/docs/specify-ip-addresses-for-product-access/).
+  Bitbucket Cloud IP restrictions are configured separately by workspace administrators under **Workspace settings → Access controls**. See [Control access to private content in a workspace](https://support.atlassian.com/bitbucket-cloud/docs/control-access-to-private-content-in-a-workspace/).
 * **End-user controls:**
   Individual users can revoke their own app authorizations from their profile settings.
 * **Audit logging:**
@@ -416,7 +418,11 @@ If you're an admin preparing your organization to use the Atlassian MCP Server, 
 ### Troubleshooting common issues
 
 * **"You don't have permission to connect from this IP address. Please ask your admin for access."**
-  This usually indicates that IP allowlisting is enabled and the user's current IP address isn't allowed to access Jira, Confluence, Jira Service Management, Bitbucket, or Compass via the Atlassian MCP Server. Ask your site or organization admin to review the IP allowlist configuration and add the relevant network or VPN IP ranges if appropriate.
+  This usually indicates that IP allowlisting is enabled and the request's source IP address isn't allowed to access the relevant app via the Atlassian MCP Server. Ask your site, organization, or Bitbucket workspace administrator to review the applicable IP allowlist.
+
+  Hosted AI clients can send requests from the AI provider's outbound IP addresses rather than the user's corporate network or VPN. Being on an allowed VPN may therefore be insufficient. Ask your administrator to review the provider's published outbound IP ranges and approve the required access. For OpenAI-hosted connectors, see [OpenAI's IP egress guidance](https://developers.openai.com/api/docs/guides/ip-addresses). Local MCP connections can use the local network's outbound IP address. See [how IP allowlisting works with Atlassian MCP](https://support.atlassian.com/security-and-access-policies/docs/control-atlassian-mcp-server-settings/#How-IP-allowlisting-works-with-Atlassian-MCP).
+* **OAuth sign-in succeeds, but tool calls return 403.**
+  Successful sign-in does not guarantee that tool calls will pass IP restrictions. A 403 can also indicate insufficient scopes, app permissions, or another access policy. Confirm the denial reason before changing an IP allowlist.
 
 ---
 

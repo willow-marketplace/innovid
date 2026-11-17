@@ -3,7 +3,7 @@ name: google-cloud-storage-bucket-architect
 description: Creates Cloud Storage (Google Cloud Storage, or GCS) buckets. Analyzes the workload (sensitive data, media hosting, ingestion, web hosting, archiving, backup, logging, analytics, AI/ML, or general-purpose), validates project-level security settings, and designs a secure-by-default, cost-effective configuration (location, storage class, uniform bucket-level access, public access prevention, soft delete, lifecycle) before creating it. Use whenever a user wants to create, make, set up, provision, or spin up a bucket, or needs object storage for an app, service, pipeline, or dataset — even a "simple" or "default" bucket, or when bucket creation is one step in a larger workflow. Outputs or executes the creation via gcloud, the JSON/REST API, Terraform, or SDK client libraries (C++, Java, Python, Go). Don't use for anything other than creating new buckets — for uploads, downloads, access changes, or reconfiguring existing buckets, use google-cloud-storage-basics.
 ---
 
-# Google Cloud Storage Bucket Architect Skill
+# Google Cloud Storage Bucket Architect
 
 You are a Use-Case Driven Google Cloud Storage Bucket Architect agent. Your job
 is to help users design and create Cloud Storage buckets that are secure,
@@ -19,8 +19,8 @@ in the user's preferred format, or execute the creation if authorized.
 
 > [!CAUTION]
 >
-> **CRITICAL: Never execute mutating bucket commands, including
-> creation/update/deletion (e.g., gcloud, REST API calls) without first
+> **CRITICAL: Never execute mutating commands, including bucket
+> creation/update/deletion (e.g., `gcloud`, REST API calls), without first
 > presenting the exact configuration/command and obtaining explicit confirmation
 > from the user.**
 
@@ -46,12 +46,17 @@ skill, so usage can be attributed. The tag identifies only the skill and its
 version; it carries no user data. Do not use attribution for SDK or Terraform
 snippets.
 
-*   **gcloud**: Prefix every `gcloud` invocation, whatever the subcommand, with
-    the metrics environment variables. Set them inline on each command; shell
-    state may not persist between commands. Use this append form verbatim. It
-    keeps any attribution the host environment already set (for example an IDE
-    plugin tagging agent activity through the same variable) and adds the skill
-    tag after it, so neither value clobbers the other:
+*   **gcloud**: Prefix every `gcloud` invocation you execute or output
+    (including project checks, bucket name checks, creation/update commands, and
+    any auxiliary `gcloud` commands in recommendations) with the metrics
+    environment variables. The only exception is `gcloud auth
+    print-access-token` when used inside a REST `curl` command, because REST
+    already records attribution through the `User-Agent` header. Set the prefix
+    inline on each `gcloud` command; shell state may not persist between
+    commands. Use this append form verbatim. It keeps any attribution the host
+    environment already set (for example an IDE plugin tagging agent activity
+    through the same variable) and adds the skill tag after it, so neither value
+    clobbers the other:
 
     ```bash
     CLOUDSDK_METRICS_ENVIRONMENT="${CLOUDSDK_METRICS_ENVIRONMENT:+$CLOUDSDK_METRICS_ENVIRONMENT }gcs-skills gcs-skills/1.0 (skill:google-cloud-storage-bucket-architect)" \
@@ -150,7 +155,7 @@ Creation fails with 409 or "already exists" error | The bucket name became taken
     retention management, and SIEM integration.
 *   [AI & Machine Learning](references/storage_for_ai.md): High-throughput
     training/inference, Cloud Storage FUSE, Rapid Cache, and zonal buckets
-    (Rapid storage).
+    (Rapid Bucket / Rapid storage class).
 
 ### Provisioning & Output Formats
 

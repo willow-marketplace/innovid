@@ -70,7 +70,7 @@ Your training data is unlikely to contain ID Bolt's API at all, and is very like
 
 ## Minimal integration shape
 
-Prerequisites: `npm install @scandit/web-id-bolt`. A license key entitled for ID Bolt comes from the Scandit dashboard (free test account at <https://ssl.scandit.com/dashboard/sign-up?p=id-bolt>). The service URL is `https://app.id-scanning.com` (a Scandit-hosted alias). There are **no** engine/WASM files to host.
+Prerequisites: `npm install @scandit/web-id-bolt`. A license key entitled for ID Bolt — see **Licence key** below. The service URL is `https://app.id-scanning.com` (a Scandit-hosted alias). There are **no** engine/WASM files to host.
 
 ```ts
 import {
@@ -101,11 +101,14 @@ async function startIdBolt() {
     locale: "en-US",
     onCompletion: (result) => {
       if (result.capturedId) {
-        console.log("Document type:", result.capturedId.documentType);
-        console.log("Full name:", result.capturedId.fullName);
-        console.log("Document number:", result.capturedId.documentNumber);
-        console.log("Date of birth:", result.capturedId.dateOfBirth);
-        console.log("Date of expiry:", result.capturedId.dateOfExpiry);
+        // Your UI. Personal data — never log it.
+        showResult(
+          result.capturedId.documentType,
+          result.capturedId.fullName,
+          result.capturedId.documentNumber,
+          result.capturedId.dateOfBirth,
+          result.capturedId.dateOfExpiry,
+        );
       }
     },
     onCancellation: (reason) => {
@@ -141,6 +144,20 @@ Notes:
 ## API Usage Policy
 
 Only use APIs that exist in `@scandit/web-id-bolt` and the referenced documentation. Do not invent or guess method signatures, parameters, or property names — and especially do not borrow them from the ID Capture SDK, which is a different package. When unsure whether an API exists or how to call it, fetch the documentation before responding. Do not tell the user to check the docs themselves. After answering, include the relevant link so they can explore further. **Never construct or guess documentation URLs** — fetch the API overview and follow links from there.
+
+## Licence key
+
+Scanning needs a Scandit licence key. For this skill the licence product is `id-bolt` and the licence platform is `webassembly`.
+
+Work through these in order — never block the user on MCP:
+
+1. **The Scandit MCP server is connected** — call `ensure_scanner_setup` with product `id-bolt` and platforms `webassembly`, `app_identifier` (the app's bundle or application id; for web, its production domain, never `localhost`) and `env_var` `SCANDIT_LICENSE_KEY`. Do not run the command it returns. Then call `get_license_key` with the key's id, from that result or from `list_license_keys`; if `list_license_keys` shows the key is not a trial, ask the user before fetching it. Show at most a masked preview in chat; never print a full key.
+2. **It is not connected** — tell the user once that they can connect the remote Scandit MCP server, `https://ssl.scandit.com/mcp`, in their MCP client, then continue from step 1. Do not edit MCP client configuration yourself.
+
+   Authentication is browser-based, so it is **not supported headless or in CI**. The server provisions **trial** keys only; it never creates, revokes, or modifies production licences.
+3. **The user declines, or has no MCP client** — they generate a key themselves at <https://ssl.scandit.com> (no account yet: <https://ssl.scandit.com/dashboard/sign-up?p=id-bolt>) and paste it in.
+
+**Then put the key into the code**: write it into the licence-key call in place of the placeholder — the key `get_license_key` returned, or the one the user pastes or gives you — still showing only a masked preview in chat. Do not search the project, its files or the environment for a key.
 
 ## References
 

@@ -12,9 +12,9 @@ AWS resilience baseline assessment framework with RTO/RPO gap analysis, prioriti
 
 ## AWS Startup Resiliency Baseline (AWS SRB) Evaluation
 
-Prerequisite: This prompt requires the AWS Knowledge MCP server. If it isn't already installed and available to you, see the setup instructions at <https://github.com/awslabs/mcp/tree/main/src/aws-knowledge-mcp-server> and configure it before re-running this prompt.
+Prerequisite: This prompt uses the unified AWS MCP Server (`aws-mcp`), which ships with this plugin and is already configured once the plugin is installed — there is nothing extra to set up. It provides every tool this prompt calls: `aws___search_documentation` and `aws___read_documentation` for AWS documentation, `aws___recommend` for related pages, `aws___get_regional_availability` and `aws___list_regions` for regional checks, and `aws___call_aws` for read-only queries against your own account when you need to verify a live configuration.
 
-You are an AWS Solutions Architect conducting a comprehensive resilience evaluation using the AWS Startup Resiliency Baseline (AWS SRB) framework with AWS Knowledge MCP Server tools.
+You are an AWS Solutions Architect conducting a comprehensive resilience evaluation using the AWS Startup Resiliency Baseline (AWS SRB) framework with the unified AWS MCP Server tools.
 
 ## Assessment Objective
 
@@ -136,7 +136,7 @@ Evaluate startup's resilience posture, identify critical gaps, and provide presc
 
 ### MCP Tool Usage
 
-**Step 1: Search for AWS SRB RTO/RPO guidance**
+#### Step 1: Search for AWS SRB RTO/RPO guidance
 
 ```
 Tool: aws___search_documentation
@@ -145,7 +145,7 @@ Parameters:
   topics: ["general"]
 ```
 
-**Step 2: Read detailed RTO/RPO implementation guide**
+#### Step 2: Read detailed RTO/RPO implementation guide
 
 ```
 Tool: aws___read_documentation
@@ -153,7 +153,7 @@ Parameters:
   url: [Use the most relevant URL from Step 1 search results]
 ```
 
-**Step 3: Verify regional service availability for resilience services**
+#### Step 3: Verify regional service availability for resilience services
 
 ```
 Tool: aws___get_regional_availability
@@ -163,7 +163,7 @@ Parameters:
   filters: ["AWS Resilience Hub", "AWS Backup"]
 ```
 
-**Step 4: If user doesn't know RTO/RPO targets, search for industry benchmarks**
+#### Step 4: If user doesn't know RTO/RPO targets, search for industry benchmarks
 
 ```
 Tool: aws___search_documentation
@@ -197,7 +197,7 @@ Parameters:
 
 ### MCP Tool Usage
 
-**Step 1: Search for Multi-AZ deployment best practices**
+#### Step 1: Search for Multi-AZ deployment best practices
 
 ```
 Tool: aws___search_documentation
@@ -206,7 +206,7 @@ Parameters:
   topics: ["reference_documentation", "general"]
 ```
 
-**Step 2: Read service-specific Multi-AZ configuration**
+#### Step 2: Read service-specific Multi-AZ configuration
 
 ```
 Tool: aws___read_documentation
@@ -214,7 +214,7 @@ Parameters:
   url: [Use URL from Step 1 results that covers RDS Multi-AZ]
 ```
 
-**Step 3: Check regional availability of Multi-AZ services**
+#### Step 3: Check regional availability of Multi-AZ services
 
 ```
 Tool: aws___get_regional_availability
@@ -224,7 +224,7 @@ Parameters:
   filters: ["RDS+CreateDBInstance", "EC2+RunInstances"]
 ```
 
-**Step 4: Search for AWS Well-Architected resilience patterns**
+#### Step 4: Search for AWS Well-Architected resilience patterns
 
 ```
 Tool: aws___search_documentation
@@ -254,7 +254,7 @@ Parameters:
 
 ### MCP Tool Usage
 
-**Step 1: Search for AWS Resilience Hub setup**
+#### Step 1: Search for AWS Resilience Hub setup
 
 ```
 Tool: aws___search_documentation
@@ -263,7 +263,7 @@ Parameters:
   topics: ["reference_documentation"]
 ```
 
-**Step 2: Read AWS Resilience Hub implementation guide**
+#### Step 2: Read AWS Resilience Hub implementation guide
 
 ```
 Tool: aws___read_documentation
@@ -271,7 +271,7 @@ Parameters:
   url: [Use URL from Step 1 results for Resilience Hub getting started]
 ```
 
-**Step 3: Search for AWS Fault Injection Simulator experiments**
+#### Step 3: Search for AWS Fault Injection Simulator experiments
 
 ```
 Tool: aws___search_documentation
@@ -280,7 +280,7 @@ Parameters:
   topics: ["reference_documentation", "general"]
 ```
 
-**Step 4: Read FIS experiment templates**
+#### Step 4: Read FIS experiment templates
 
 ```
 Tool: aws___read_documentation
@@ -309,7 +309,7 @@ Parameters:
 
 ### MCP Tool Usage
 
-**Step 1: Search for CloudWatch monitoring best practices**
+#### Step 1: Search for CloudWatch monitoring best practices
 
 ```
 Tool: aws___search_documentation
@@ -318,7 +318,7 @@ Parameters:
   topics: ["reference_documentation", "general"]
 ```
 
-**Step 2: Read CloudWatch alarm configuration guide**
+#### Step 2: Read CloudWatch alarm configuration guide
 
 ```
 Tool: aws___read_documentation
@@ -326,7 +326,7 @@ Parameters:
   url: [Use URL from Step 1 results for CloudWatch alarms]
 ```
 
-**Step 3: Search for X-Ray distributed tracing setup**
+#### Step 3: Search for X-Ray distributed tracing setup
 
 ```
 Tool: aws___search_documentation
@@ -335,7 +335,7 @@ Parameters:
   topics: ["reference_documentation"]
 ```
 
-**Step 4: Search for CloudWatch Synthetics for synthetic monitoring**
+#### Step 4: Search for CloudWatch Synthetics for synthetic monitoring
 
 ```
 Tool: aws___search_documentation
@@ -365,7 +365,7 @@ Parameters:
 
 ### MCP Tool Usage
 
-**Step 1: Search for incident response best practices**
+#### Step 1: Search for incident response best practices
 
 ```
 Tool: aws___search_documentation
@@ -374,7 +374,7 @@ Parameters:
   topics: ["general"]
 ```
 
-**Step 2: Read AWS incident response guide**
+#### Step 2: Read AWS incident response guide
 
 ```
 Tool: aws___read_documentation
@@ -382,7 +382,7 @@ Parameters:
   url: [Use URL from Step 1 results for incident response]
 ```
 
-**Step 3: Search for AWS Systems Manager automation**
+#### Step 3: Search for AWS Systems Manager automation
 
 ```
 Tool: aws___search_documentation
@@ -969,13 +969,13 @@ Parameters:
 
 ### Required Access
 
-- AWS MCP Server integration enabled
+- Unified AWS MCP Server (`aws-mcp`) available — it ships with this plugin, so no separate install is needed
 - AWS account access (read-only sufficient for assessment)
 - Basic understanding of AWS services and resilience concepts (RTO/RPO, Multi-AZ, disaster recovery)
 
 Tools Required:
 
-- AWS MCP Server with access to: aws___search_documentation, aws___read_documentation, aws___get_regional_availability, aws___recommend
+- `aws-mcp` with access to: aws___search_documentation, aws___read_documentation, aws___get_regional_availability, aws___recommend, aws___call_aws
 
 ### Setup Instructions
 

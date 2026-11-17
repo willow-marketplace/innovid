@@ -42,6 +42,7 @@ export const NOTICE_TINT = "var(--ink-color-global-brand-yellow-20)"; // subtle 
 const BLUE           = "var(--ink-color-global-link-default)";
 const FAINT          = "var(--ink-color-global-text-subtle)";
 const SHADE          = "var(--ink-color-global-surface-lightgray-default)";
+const STRIPE         = "var(--ink-color-global-highlight-strong)";
 export const SIDEBAR_PANEL_BG = "var(--sidebar-panel-bg)"; // Companies-tab Performance sidebar (special exception — no Ink match)
 const ACCENT         = "var(--ink-button-background-color-primary-base-default)";
 export const MICRO          = "var(--micro-text)"; // local override — Ink text-very-subtle dark (#394040) is near-invisible
@@ -53,14 +54,29 @@ export const EASE_OUT       = "cubic-bezier(.2,.7,.2,1)";
 // primary-button surface — flat brand-black (inverts to white on dark)
 export const GRAD_DARK = "var(--ink-button-background-color-primary-base-default)";
 
+// Categorical fund palette using Ink data-viz token hex values. SVG fill attributes
+// need literal hex (CSS vars don't resolve as SVG presentation attributes), so we
+// inline the resolved values from --ink-color-global-data-viz-* tokens.
+export const PALETTE = [
+  "#1A1A1A", // brand-black (lead fund — no data-viz token; Carta primary)
+  "#285DA3", // data-viz-blue-3
+  "#2D9E90", // data-viz-positive-3 (teal)
+  "#DDB31F", // data-viz-yellow-3
+  "#58B8BC", // data-viz-turquoise-3
+  "#94B524", // data-viz-lime-3
+  "#B29990", // data-viz-brown-3
+  "#656B6B", // data-viz-neutral-3
+  "#E52431", // data-viz-negative-3
+  "#CECFCF", // brand-gray-30 (10th slot fallback)
+];
+
 // .tape range-input thumb size (px) — single source of truth for the CSS below and
 // any consumer computing a track-relative position accounting for thumb width.
 export const TAPE_THUMB = 14;
 
 // Inter is now loaded as a real webfont from the rsms.me CDN (see the <link> in
 // index.html) — this mirrors Ink's REAL, actually-shipped stack, not a generic "system
-// font stack" pattern (confirmed in real fund-admin: `@carta/ink/dist/ink.css`'s `body`
-// rule is literally `font-family: "Inter var", "Open Sans", "Helvetica Neue", helvetica,
+// font stack" pattern (Ink's own stylesheet sets `body` to `font-family: "Inter var", "Open Sans", "Helvetica Neue", helvetica,
 // arial, sans-serif`). This app doesn't load Ink's synthetic `"Inter Fallback"` face, so
 // that name is dropped; `Inter` stays first (now backed by the CDN link, not just an
 // opportunistic locally-installed match), then Ink's own real fallback chain verbatim.
@@ -82,7 +98,7 @@ export const serif = { fontFamily: "\"SangBleu Versailles\", Georgia, serif" };
 export const tightSans = { fontFamily: SANS, letterSpacing: "-0.02em" };
 // NOT a monospace typeface — same SANS/Inter family as `sans`, just with
 // tabular-nums figures for column/value alignment. Named after Ink's real
-// `.ink-num` recipe (theme-with-ink/tokens.css), which this mirrors — never
+// `.ink-num` recipe, which this mirrors — never
 // switch to an actual monospace font for numeric alignment.
 export const inkNum = { fontFamily: SANS, fontVariantNumeric: "tabular-nums", letterSpacing: "0" };
 
@@ -122,18 +138,34 @@ export const FS = {
 };
 
 // Single source of truth for eyebrow (uppercase small-caps label) letter-spacing.
-// Was three ad-hoc values (0.09/0.05/0.04em) across ~7 call sites, none of which
-// landed inside Ink's documented eyebrow spec (theme-with-ink/brand.md: 0.06-0.08em).
+// One value inside Ink's eyebrow range (0.06-0.08em), shared by every eyebrow label.
 export const EYEBROW_TRACKING = "0.07em";
 
-// Ink's real Small 1 / Small 2 — both 12px/20px leading (theme-with-ink/tokens.css
-// `--ink-font-global-{size,leading}-small-{1,2}`); the only difference is weight
+// Ink's real Small 1 / Small 2 — both 12px/20px leading
+// (`--ink-font-global-{size,leading}-small-{1,2}`); the only difference is weight
 // (small-1: 500, small-2: 400). `FS.body` already holds this pixel value (the
 // FS-scale comment above documents it as "= Ink small-1") but with no fixed
 // weight of its own — these give it a properly-weighted, nameable style object
 // instead of leaving weight to each call site.
 export const SMALL_1 = { ...sans, fontSize: FS.body, lineHeight: "20px", fontWeight: 500 };
 export const SMALL_2 = { ...sans, fontSize: FS.body, lineHeight: "20px", fontWeight: 400 };
+
+// Columns of the scenario tile grid (.scenario-tiles) on the Scenarios page.
+export const TILE_COLUMNS = 3;
+
+// Size of a scenario tile's ⋯ button (.tile-kebab); the tile's title row is this tall.
+export const TILE_CONTROL = 24;
+
+// Ink's NewCheckbox box (.ink-chk .box), a square this many px on a side.
+export const CHECKBOX_SIZE = 20;
+
+// A radio (.radio-item, Carta's shadcn RadioGroupItem) is this many px across; a
+// scenario tile lays out its corner radio from it too.
+export const RADIO_SIZE = 16;
+
+// Stacking of the pinned table header's clone (.sticky-clone-slot), portalled to the
+// body; layers that must cover it (the scenario menu's sidebar) stack from it.
+export const PINNED_Z = 30;
 
 export const GLOBAL_CSS = `
   /* Self-hosted — the woff2 lives at public/fonts/ (copied verbatim into dist/fonts/ by
@@ -164,6 +196,52 @@ export const GLOBAL_CSS = `
     --tag-yellow-fg:   light-dark(var(--ink-color-global-brand-yellow-80), var(--ink-color-global-brand-yellow-20));
     --tag-yellow-bg:   light-dark(var(--ink-color-global-brand-yellow-20), var(--ink-color-global-brand-yellow-100));
     --stripe-repriced: light-dark(var(--ink-color-global-brand-yellow-50), var(--ink-color-global-brand-yellow-70));
+    /* Data-viz rungs Ink leaves untokenized (it tokenizes level 3 only): the
+       Companies map's fund fills and its on-fill change colors, the Net TVPI
+       sensitivity chart's swing bars (level 2), the Investment pacing chart's
+       fund fills (level 2) and the Overview fund series. Brand aliases
+       where Ink has the color; turquoise, brown and lime are hex. */
+    --local-data-viz-blue-1:      var(--ink-color-global-brand-blue-40);
+    --local-data-viz-blue-2:      var(--ink-color-global-brand-blue-60);
+    --local-data-viz-blue-4:      var(--ink-color-global-brand-blue-90);
+    --local-data-viz-yellow-1:    var(--ink-color-global-brand-yellow-40);
+    --local-data-viz-yellow-2:    var(--ink-color-global-brand-yellow-50);
+    --local-data-viz-yellow-4:    var(--ink-color-global-brand-yellow-80);
+    --local-data-viz-turquoise-1: #ABE8E8;
+    --local-data-viz-turquoise-2: #68D7D9;
+    --local-data-viz-turquoise-4: #1A6B6E;
+    --local-data-viz-brown-1:     #E0D6D2;
+    --local-data-viz-brown-2:     #C9B8B1;
+    --local-data-viz-brown-4:     #7B6056;
+    --local-data-viz-lime-1:      #DDFB74;
+    --local-data-viz-lime-2:      #C9EC56;
+    --local-data-viz-lime-4:      #738C12;
+    --local-data-viz-positive-1:  var(--ink-color-global-brand-green-40);
+    --local-data-viz-positive-2:  var(--ink-color-global-brand-green-60);
+    --local-data-viz-positive-4:  var(--ink-color-global-brand-green-90);
+    --local-data-viz-negative-1:  var(--ink-color-global-brand-red-50);
+    --local-data-viz-negative-2:  var(--ink-color-global-brand-red-60);
+    --local-data-viz-negative-4:  var(--ink-color-global-brand-red-90);
+    /* Firm Overview fund colors: Level 2, then Level 4 past seven funds. On the dark
+       surface Blue L2 steps to Blue L1, and Level 4 to Level 3 (Blue L2 for blue). */
+    --ov-series-blue-2:      light-dark(var(--local-data-viz-blue-2), var(--local-data-viz-blue-1));
+    --ov-series-turquoise-2: var(--local-data-viz-turquoise-2);
+    --ov-series-brown-2:     var(--local-data-viz-brown-2);
+    --ov-series-yellow-2:    var(--local-data-viz-yellow-2);
+    --ov-series-lime-2:      var(--local-data-viz-lime-2);
+    --ov-series-positive-2:  var(--local-data-viz-positive-2);
+    --ov-series-negative-2:  var(--local-data-viz-negative-2);
+    --ov-series-blue-4:      light-dark(var(--local-data-viz-blue-4), var(--local-data-viz-blue-2));
+    --ov-series-turquoise-4: light-dark(var(--local-data-viz-turquoise-4), var(--ink-color-global-data-viz-turquoise-3));
+    --ov-series-brown-4:     light-dark(var(--local-data-viz-brown-4), var(--ink-color-global-data-viz-brown-3));
+    --ov-series-yellow-4:    light-dark(var(--local-data-viz-yellow-4), var(--ink-color-global-data-viz-yellow-3));
+    --ov-series-lime-4:      light-dark(var(--local-data-viz-lime-4), var(--ink-color-global-data-viz-lime-3));
+    --ov-series-positive-4:  light-dark(var(--local-data-viz-positive-4), var(--ink-color-global-data-viz-positive-3));
+    --ov-series-negative-4:  light-dark(var(--local-data-viz-negative-4), var(--ink-color-global-data-viz-negative-3));
+    /* Firm Overview's one accent for single-colour marks: Ink's data-viz Blue L3, which
+       disappears on the dark surface, so dark steps to Blue L1. */
+    --ov-accent:       light-dark(var(--ink-color-global-data-viz-blue-3), var(--local-data-viz-blue-1));
+    --ov-track:        light-dark(#ECEDED, #2A2D2D);
     --row-selected:    light-dark(rgba(40,93,163,.07), rgba(139,171,214,.12));
     --total-row-bg:    var(--ink-color-global-feedback-info-subtle);
     --hue-up:          light-dark(var(--ink-color-global-brand-green-70), rgba(91,192,179,.85));
@@ -263,6 +341,10 @@ export const GLOBAL_CSS = `
   .numin:hover:not(:focus):not(:disabled) { border-color: ${FAINT} !important; }
   .numin:focus { border-color: ${BLUE} !important; box-shadow: var(--focus-ring); outline: none; }
   .numin:focus-visible, button:focus-visible, select:focus-visible { outline: none; box-shadow: var(--focus-ring); border-radius: 4px; }
+  /* Companies map boxes are clipped to their layout rect, so their ring is inset,
+     in the box's text colour: chosen per fill to read on it (a fixed blue would
+     vanish on the map's blue fills) */
+  .map-tile:focus-visible { box-shadow: inset 0 0 0 2px currentColor; border-radius: 0; }
   input[type=search].numin { -webkit-appearance: none; appearance: none; }
 
   /* Ink's real Input/TextInput field: 36px height, 4px radius, 10px L/R padding,
@@ -305,11 +387,23 @@ export const GLOBAL_CSS = `
   .railitem.active { background: var(--accent-soft); color: ${ACCENT}; }
   .railitem.active::before { content: ""; position: absolute; left: 0; top: 8px; bottom: 8px; width: 2px; background: ${ACCENT}; }
 
-  /* ── side-nav (also the narrow header) ── active = accent-soft wash + black text ── */
-  .navitem { position: relative; border-radius: 0; }
+  /* ── side-nav ── real Ink SideNav treatment: full-bleed rows (no border-radius —
+     .sn__item has none), active = page background + a 3px orange left stripe + bold
+     label, per theme-with-ink/resources/components-sidenav.html's .sn__item.is-active. ── */
+  .navitem { position: relative; border-radius: 0; background: transparent; transition: background-color .05s linear; }
   .navitem:hover { background: ${SHADE}; }
-  .navitem.active { background: var(--accent-soft); border: 1px solid transparent !important; box-shadow: none; color: ${ACCENT}; }
-  .addslice:hover { background: ${SHADE} !important; }
+  .navitem.active { background: var(--ink-color-global-surface-background-default); box-shadow: inset 3px 0 0 0 ${STRIPE}; font-weight: 500; }
+  .navitem.active:hover { background: ${SHADE}; }
+  /* Ink SideNav icon: a 16px glyph in a 22px tile (3px padding). The active row's tile
+     turns orange (dark glyph — I's color prop handles the glyph; this only draws the
+     tile). Corners stay square, unlike Ink's 2px radius. */
+  .navitem-icon { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; flex: none; }
+  .navitem.active .navitem-icon { background: ${STRIPE}; }
+  /* Jump-link chips (JumpLinks) — flat grey pills; the section in view turns solid. */
+  .jumpchip { display: inline-flex; align-items: center; gap: 6px; border: none; border-radius: 999px; padding: 6px 13px 6px 10px; cursor: pointer;
+    background: ${SHADE}; color: var(--ink-color-global-text-default); transition: background-color 120ms ease-out, color 120ms ease-out; }
+  .jumpchip:hover { background: var(--ink-color-global-surface-lightgray-hover); }
+  .jumpchip.active { background: var(--ink-color-global-text-default); color: var(--ink-color-global-surface-background-default); }
 
   .statcell { transition: background .1s ${EASE}; border-radius: 0; }
   .statcell:hover { background: ${SHADE}; }
@@ -362,7 +456,7 @@ export const GLOBAL_CSS = `
      to the table's .table-scroll wrapper (or the table itself, when there's no
      such wrapper) so a horizontally-scrolled clone doesn't render past the real
      table's visible width; see useStickyHeader's hEl tracking in ui/table.jsx. */
-  .sticky-clone-slot { position: fixed; z-index: 30; overflow: hidden; }
+  .sticky-clone-slot { position: fixed; z-index: ${PINNED_Z}; overflow: hidden; }
   table.ledger.sticky-clone { table-layout: fixed; }
   table.ledger.sticky-clone th { background: ${PAPER}; box-shadow: inset 0 -1px ${BORDER_DEFAULT}; }
   table.ledger td { font-weight: 400; line-height: 24px; padding: 10px 12px; }
@@ -405,15 +499,13 @@ export const GLOBAL_CSS = `
   th[aria-sort="ascending"] .ink-sort-icon__asc { fill: ${INK}; }
   th[aria-sort="descending"] .ink-sort-icon__desc { fill: ${INK}; }
 
-  /* Ink's standard underline Tab recipe (theme-with-ink components.md "## Tab") —
+  /* Ink's standard underline Tab recipe —
      the active indicator is a 3px bottom border on the item itself, never a
      separate pill/element. disabled tabs get the muted-text/no-hover treatment
      inline styles apply on top of these rules (see Companies.jsx usage). */
-  /* Matches theme-with-ink's HorizontalNav resource (components-horizontalnav.html)
-     exactly — the "## Tab" recipe in components.md is a looser generic approximation
-     (8px-padded 3px border-bottom, 24px leading) that reads with a visibly bigger
-     gap between the label and its underline than the real product. HorizontalNav's
-     own measured spec: 44px-tall items with the label vertically centered, a 2px
+  /* Matches Ink's HorizontalNav, not the looser generic Tab recipe (8px-padded 3px
+     border-bottom, 24px leading), which leaves a visibly bigger gap between the label
+     and its underline than the real product. HorizontalNav's own measured spec: 44px-tall items with the label vertically centered, a 2px
      underline pinned to the bottom edge via ::after (not part of the box's own
      padding/border), 14px/20px type, weight 400 → 500 on the active item. */
   .ink-tabs { display: flex; align-items: center; gap: 24px; height: 44px; border-bottom: 1px solid var(--ink-color-global-border-subtle); }
@@ -422,21 +514,29 @@ export const GLOBAL_CSS = `
   .ink-tab.is-active { color: ${INK}; font-weight: 500; }
   .ink-tab.is-active::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--ink-color-global-border-active); }
 
-  /* Ink's real NewCheckbox recipe (theme-with-ink resources/components-checkbox.html) —
+  /* Ink's real NewCheckbox recipe —
      20px square, 4px radius, box stays WHITE in both themes (only the border/glyph
      recolor), Gray-90 check glyph, 8px gap to the label, 14px/20px type. Focus and
      hover key off the real (visually-hidden) <input>'s own pseudo-classes via the
      sibling ".box" span, rather than a manually-toggled "is-*" class — no JS
      needed to keep the states in sync. */
   .ink-chk { display: inline-flex; align-items: center; gap: 8px; font: 400 ${FS.value}px/20px ${SANS}; color: ${INK}; cursor: pointer; user-select: none; position: relative; }
-  .ink-chk input { position: absolute; opacity: 0; pointer-events: none; width: 20px; height: 20px; }
-  .ink-chk .box { flex: 0 0 auto; width: 20px; height: 20px; border: 1px solid var(--ink-color-global-border-default); border-radius: 4px; background: var(--ink-color-global-brand-white); display: inline-flex; align-items: center; justify-content: center; transition: border-color .12s ease, box-shadow .12s ease; }
+  .ink-chk input { position: absolute; opacity: 0; pointer-events: none; width: ${CHECKBOX_SIZE}px; height: ${CHECKBOX_SIZE}px; }
+  .ink-chk .box { flex: 0 0 auto; width: ${CHECKBOX_SIZE}px; height: ${CHECKBOX_SIZE}px; border: 1px solid var(--ink-color-global-border-default); border-radius: 4px; background: var(--ink-color-global-brand-white); display: inline-flex; align-items: center; justify-content: center; transition: border-color .12s ease, box-shadow .12s ease; }
   .ink-chk .box svg { display: block; width: 14px; height: 14px; opacity: 0; color: #394040; }
   .ink-chk:hover .box { border-color: var(--ink-color-global-border-hover); }
   .ink-chk input:checked ~ .box svg { opacity: 1; }
   .ink-chk input:focus-visible ~ .box { border-color: var(--ink-color-global-border-focus-default); box-shadow: 0 0 0 4px var(--ink-color-global-border-focus-light); }
   .ink-chk input:disabled ~ .box { background: var(--ink-color-global-surface-disabled); border-color: var(--ink-color-global-border-disabled); }
   .ink-chk input:disabled ~ .box svg { color: var(--ink-color-global-text-disabled); }
+  /* Radio — Carta's shadcn RadioGroupItem: a 16px ring in the input border, clear (a
+     faint fill in dark mode); checked, it fills with the primary colour around a dot in
+     the primary foreground. */
+  .radio-item { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box;
+    width: ${RADIO_SIZE}px; height: ${RADIO_SIZE}px; border-radius: 50%; border: 1px solid ${BORDER_DEFAULT};
+    background: light-dark(transparent, rgb(255 255 255 / 0.045)); transition: border-color .12s ease; }
+  .radio-item.is-checked { background: var(--ink-button-background-color-primary-base-default); border-color: var(--ink-button-background-color-primary-base-default); }
+  .radio-item.is-checked::after { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--ink-button-font-color-primary-base); }
   .ink-chk:has(input:disabled) { cursor: not-allowed; color: var(--ink-color-global-text-disabled); }
 
   /* Ink Tag variants — "mini" size for dense tables: 20px height, 11px text, 4px radius.
@@ -452,8 +552,11 @@ export const GLOBAL_CSS = `
   .card { background: ${PAPER}; border: 1px solid ${LINE}; border-radius: 0; box-shadow: none; }
   .card:hover { box-shadow: var(--shadow-hover); }
   /* Ink's real Tile has no hover elevation — StatBar (components.jsx) opts out of the
-     app's usual card-lifts-on-hover convention to match. */
-  .card.stat-bar:hover { box-shadow: none; }
+     app's usual card-lifts-on-hover convention to match. A boxed empty state has nothing
+     to act on, so it doesn't lift either. */
+  .card.stat-bar:hover, .card.empty-card:hover { box-shadow: none; }
+  /* The Firm Overview dashboard's cards stay flat on hover too. */
+  .ov-bento > .card:hover { box-shadow: none; }
   .panel { background: ${PAPER}; border: 1px solid ${LINE}; border-radius: 0; box-shadow: none; }
   .panel:hover { box-shadow: var(--shadow-hover); }
 
@@ -461,6 +564,77 @@ export const GLOBAL_CSS = `
      viewports (a shrink-to-fit would make the tick labels illegible) ── */
   .bench-bars { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
   @media (max-width: 860px) { .bench-bars { grid-template-columns: 1fr; gap: 18px; } }
+
+  /* ── Scenario tiles: rows of TILE_COLUMNS on the Scenarios page, one column in the sidebar menu's panel ── */
+  /* Every row as tall as the tallest, so a short add tile matches the scenario tiles. */
+  .scenario-tiles { display: grid; grid-template-columns: repeat(${TILE_COLUMNS}, minmax(0, 1fr)); grid-auto-rows: 1fr; gap: 16px; }
+  .scenario-tiles.is-stacked { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  /* Tiles are choice cards: a radio in the top right corner marks the choice (one of
+     a set); hovering the tile hovers it, as hovering a radio's label does. The active
+     tile takes a faint tint. Keyboard focus gets Ink's ring. */
+  .scenario-tile { transition: border-color 120ms ease-out, background-color 120ms ease-out; }
+  .scenario-tile.is-add { background: transparent; border: 1px dashed var(--ink-color-global-border-default); }
+  /* A tile with an actions menu sits in a .scenario-tile-wrap beside its kebab (a
+     button can't nest in the tile's button); hovering the kebab keeps the tile lit. */
+  .scenario-tile:hover, .scenario-tile-wrap:hover > .scenario-tile { border-color: var(--ink-color-global-border-hover); box-shadow: none; }
+  /* The active tile takes Carta's shadcn choice-card checked state (FieldLabel's
+     has-data-checked): a faint primary tint and border, primary at 5% / 30% (10% / 20%
+     in dark mode); its filled radio carries the choice. */
+  .scenario-tile.is-active, .scenario-tile.is-active:hover, .scenario-tile-wrap:hover > .scenario-tile.is-active {
+    --tile-checked: ${ACCENT};
+    --tile-tint: 5%; --tile-edge: 30%;
+    background: color-mix(in srgb, var(--tile-checked) var(--tile-tint), var(--ink-color-global-surface-background-default));
+    border-color: color-mix(in srgb, var(--tile-checked) var(--tile-edge), transparent); }
+  html.dark .scenario-tile.is-active, html.dark .scenario-tile.is-active:hover, html.dark .scenario-tile-wrap:hover > .scenario-tile.is-active { --tile-tint: 10%; --tile-edge: 20%; }
+  .scenario-tile:focus-visible { outline: none; border-color: var(--ink-color-global-border-focus-default); box-shadow: 0 0 0 4px var(--ink-color-global-border-focus-light); }
+  .scenario-tile:hover .radio-item:not(.is-checked), .scenario-tile-wrap:hover .radio-item:not(.is-checked) { border-color: var(--ink-color-global-border-hover); }
+  /* Tile actions "⋯" trigger — a quiet square icon button. */
+  .tile-kebab { display: inline-flex; align-items: center; justify-content: center; width: ${TILE_CONTROL}px; height: ${TILE_CONTROL}px;
+    padding: 0; border: none; border-radius: 0; background: transparent; color: var(--ink-color-global-text-subtle); cursor: pointer; }
+  .tile-kebab:hover, .tile-kebab[aria-expanded="true"] { background: var(--ink-color-global-surface-lightgray-hover); color: var(--ink-color-global-text-default); }
+  .tile-kebab:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--ink-color-global-border-focus-default); }
+  /* Welcome card (WelcomeCard.jsx), after Carta Home's "What's new" feature card:
+     a warm paper surface in three columns — a "Get started" tag over the steps on
+     white, a serif headline + call to action, and Baseline's figures as a lifted preview. */
+  .welcome-card { --welcome-paper: light-dark(#FAF7F2, #1E1C19); position: relative;
+    display: grid; grid-template-columns: 300px minmax(0, 1.2fr) minmax(0, .85fr); grid-template-rows: minmax(240px, auto);
+    border: 1px solid var(--ink-color-global-surface-lightgray-hover); background: var(--welcome-paper); }
+  /* The steps follow Ink Labs' MVE Step: a 16px ornament (Ink Status, medium) beside
+     each headline. They aren't a progress tracker, so every ornament is the same: its
+     number on the primary button's fill (black, white in dark mode), matching Add scenario.
+     A 2px line joins each to the next in place of MVE's 8px rail. */
+  .welcome-index { display: flex; flex-direction: column; align-items: flex-start; gap: 20px; padding: 24px 20px;
+    background: var(--ink-color-global-surface-background-default); border-right: 1px solid var(--ink-color-global-surface-lightgray-hover); }
+  .welcome-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 20px; }
+  .welcome-step { position: relative; display: grid; grid-template-columns: 16px minmax(0, 1fr); column-gap: 12px; }
+  .welcome-step-orn { width: 16px; height: 16px; margin-top: 2px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
+    font-size: ${FS.micro}px; font-weight: 600; line-height: 1; color: var(--ink-button-font-color-primary-base); background: ${ACCENT}; }
+  .welcome-step:not(:last-child)::after { content: ""; position: absolute; left: 7px; top: 22px; bottom: -18px; width: 2px;
+    background: var(--ink-color-global-border-subtle); }
+  .welcome-step-title { font-size: ${FS.value}px; line-height: 20px; font-weight: 400; color: var(--ink-color-global-text-default); }
+  .welcome-pitch { display: flex; flex-direction: column; justify-content: center; align-items: flex-start; gap: 14px; padding: 36px; }
+  .welcome-chip { padding: 3px 6px; background: var(--ink-color-global-surface-lightgray-hover); font-size: ${FS.micro}px; font-weight: 500;
+    letter-spacing: ${EYEBROW_TRACKING}; text-transform: uppercase; color: var(--ink-color-global-text-default); }
+  .welcome-preview { display: flex; align-items: center; margin-left: -24px; padding: 40px 24px 24px 0; }
+  /* Baseline's figures as a lifted card, laid out as the scenario switcher's Baseline
+     tile. It isn't clickable, so unlike other .cards it doesn't react on hover. */
+  .welcome-baseline { flex: 1; filter: drop-shadow(0 8px 12px rgba(0, 0, 0, .06)); }
+  .welcome-baseline.card:hover { box-shadow: none; }
+  /* ── Firm Overview dashboard: the hero, then rows of compact widgets, each a
+     12-column grid. Below 1180px the hero's two cards stack and every other widget
+     takes half or the whole row; below 760px each widget takes the whole row. */
+  .ov-bento { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 16px; }
+  .ov-span-3 { grid-column: span 3; } .ov-span-4 { grid-column: span 4; } .ov-span-5 { grid-column: span 5; }
+  .ov-span-6 { grid-column: span 6; } .ov-span-7 { grid-column: span 7; } .ov-span-8 { grid-column: span 8; }
+  .ov-span-9 { grid-column: span 9; } .ov-span-12 { grid-column: span 12; }
+  .ov-row:hover { background: var(--row-hover); }
+  @media (max-width: 1180px) {
+    .ov-span-3, .ov-span-4, .ov-span-5 { grid-column: span 6; }
+    .ov-span-6, .ov-span-7, .ov-span-8, .ov-span-9, .ov-summary-card { grid-column: span 12; }
+  }
+  @media (max-width: 760px) {
+    .ov-bento > * { grid-column: span 12; }
+  }
 
   #print-report { display: none; }
   @media print {

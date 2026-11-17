@@ -2,7 +2,7 @@
   "name": "resend",
   "version": "1.0.5",
   "description": "Send and receive emails, build with React Email, follow deliverability best practices",
-  "updatedAt": "2026-09-19T00:42:54.288Z",
+  "updatedAt": "2026-11-17T00:02:10.594Z",
   "author": {
     "url": "https://resend.com",
     "name": "Resend",
@@ -17,11 +17,12 @@
     "notifications",
     "agent-inbox"
   ],
+  "logo": "assets/app-icon.svg",
   "skills": "./skills/",
   "mcpServers": {
     "resend": {
       "url": "https://mcp.resend.com/mcp",
-      "type": "http"
+      "type": "streamable-http"
     }
   }
 }

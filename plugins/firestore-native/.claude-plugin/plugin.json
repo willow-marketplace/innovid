@@ -1,21 +1,17 @@
 {
   "name": "firestore-native",
-  "version": "0.3.4",
+  "version": "0.3.5",
   "description": "Connect and interact with Firestore databases, collections, and documents.",
-  "updatedAt": "2026-09-19T00:42:54.330Z",
+  "updatedAt": "2026-11-17T00:01:40.111Z",
   "author": {
     "name": "Google LLC",
     "email": "data-cloud-ai-integrations@google.com"
   },
   "homepage": "https://cloud.google.com/firestore",
-  "repository": "https://github.com/gemini-cli-extensions/firestore-native",
+  "repository": "https://github.com/GoogleCloudPlatform/firestore-native-plugin",
   "skills": "./skills/",
   "mcpServers": {
     "firestore": {
-      "env": {
-        "FIRESTORE_PROJECT": "${user_config.firestore_project}",
-        "FIRESTORE_DATABASE": "${user_config.firestore_database}"
-      },
       "args": [
         "-y",
         "@toolbox-sdk/server@1.9.0",
@@ -23,6 +19,7 @@
         "firestore",
         "--stdio"
       ],
+      "type": "stdio",
       "command": "npx"
     }
   }

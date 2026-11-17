@@ -1,5 +1,12 @@
 # SparkScan Web Migration Guide
 
+## Migration principles
+
+- **Authority.** When this guide and the API reference disagree, trust the API reference — and a runtime check in the user's project — over this guide. Say which source you followed and why in the summary.
+- **Behaviour changes.** Never present a visual or behaviour change (new default, different overlay look, changed feedback, changed scan timing) as a 1:1 rename. List each one in the summary as a judgment call the user must confirm.
+- **Compatibility layer.** When the scanning code sits behind a shared scanner library or wrapper that other code calls, keep that library's public API frozen (same types, method names, callbacks) and change only the Scandit calls underneath.
+- **Dual-version code.** When code must run on both the old and the target version, branch at run time on a symbol this guide lists as removed in the target version — never on a version string, and never on the presence of the new API. A deprecated symbol that is still present proves nothing about the installed version. Example: `BarcodeCapture.forContext` is unchanged on Web and deprecated-but-present on React Native, Capacitor and Cordova v8, so probing it cannot tell v7 from v8.
+
 ## Step 1: Detect the installed SDK version
 
 Before making any changes, find out which version of the Scandit SDK the project currently has installed.
@@ -119,7 +126,7 @@ The default scan intention is now `ScanIntention.Smart`. If the project explicit
 > If the user wants to use `ScanIntention.Smart` or `ScanIntention.SmartSelection`, browser multithreading must be enabled. This requires the server to set the following HTTP headers on the HTML page and serving the sdc-lib files:
 >
 > - `Cross-Origin-Opener-Policy: same-origin`
-> - `Cross-Origin-Embedder-Policy: require-corp` (self-hosted SDK) or `credentialless` (CDN-hosted SDK)
+> - `Cross-Origin-Embedder-Policy: require-corp` (self-hosted or CDN-hosted SDK; Safari does not support `credentialless`)
 >
 > See the [multithreading guide](https://docs.scandit.com/sdks/web/matrixscan/get-started/#improve-runtime-performance-by-enabling-browser-multithreading) and [cross-origin headers guide](https://docs.scandit.com/sdks/web/matrixscan/get-started/#configure-cross-origin-headers).
 
@@ -144,8 +151,21 @@ const context = await DataCaptureContext.create();
 ```
 
 **New (v8):**
+
+The multithreading check runs in parallel with `forLicenseKey()`. Import `showMultithreadingWarning` from the `multithreading-warning` helper module in [Loading the SDK from a CDN](integration.md#loading-the-sdk-from-a-cdn) in `references/integration.md`; the page needs no markup for the dialog.
+
 ```typescript
-import { DataCaptureContext } from "@scandit/web-datacapture-core";
+import { BrowserHelper, DataCaptureContext } from "@scandit/web-datacapture-core";
+import { barcodeCaptureLoader } from "@scandit/web-datacapture-barcode";
+import { showMultithreadingWarning } from "./multithreading-warning";
+
+BrowserHelper.checkMultithreadingSupport()
+    .then((supported) => {
+        if (!supported) {
+            showMultithreadingWarning();
+        }
+    })
+    .catch(console.error);
 
 await DataCaptureContext.forLicenseKey("-- ENTER YOUR SCANDIT LICENSE KEY HERE --", {
     libraryLocation: new URL("sdc-lib", document.baseURI).toString(),

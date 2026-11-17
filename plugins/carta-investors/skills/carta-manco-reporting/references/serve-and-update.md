@@ -1,10 +1,44 @@
 # Building, serving, and updating the dashboard
 
-Steps 4 through 6 in full: assembling the datadir, reusing or
-launching the server, and the post-launch offer to change things.
+Step 0.5, and Steps 4 through 7 in full: the Claude CLI preflight, assembling the
+datadir, reusing or launching the server, and the post-launch offer to change things.
 
 
 > Steps referenced here that are documented elsewhere: **Step 2.75** → [budget-ingest.md](budget-ingest.md); **Step 3** → [data-fetch.md](data-fetch.md).
+
+## Step 0.5 — Claude CLI preflight
+
+Report sharing (`scripts/share_bridge.py`) runs a headless `claude` session that
+inherits the operator's own Carta connector. That needs the `claude` CLI — the
+Claude Code binary, from Anthropic — installed and signed in. Look for it now, before
+the data-fetch wait in Steps 2.5-3, so Step 5b can pass the path it finds.
+
+**This step only looks. The skill never installs anything — not the `claude` CLI, and
+not through npm or a downloaded script.** It never fails the skill, never adds a wait
+to the launch, and prints nothing to the user. The dashboard itself needs none of
+this — only report sharing and chat do. A launch without a working `claude` CLI still
+proceeds; sharing and chat show their own install prompt when the operator tries them
+(see [report-sharing.md](report-sharing.md)).
+
+```bash
+uv run "${CLAUDE_PLUGIN_ROOT}/skills/carta-manco-reporting/scripts/preflight_claude.py" check
+```
+
+The search covers an explicit `MANCO_CLAUDE_BIN` override, PATH, the usual install
+locations, and the binary of the Claude Code session running this skill
+(`CLAUDE_CODE_EXECPATH`) — so a desktop or IDE user with nothing on PATH is still
+found, same as this skill's own session right now.
+
+**`claude_source=session` means the path is only good for now.** In Claude Desktop it
+is the app's own bundled binary, which auto-update deletes, and `serve.py` can outlive
+it (up to the 24h idle timeout). It works today, so use it; if it later disappears,
+sharing and chat report the missing CLI themselves.
+
+- `claude_bin=<path>` — whatever `claude_source` says — capture the path for Step 5b.
+  Say nothing to the user, whatever `claude_auth=` says: a signed-out CLI only affects
+  sharing and chat, which report their own problem when the operator tries them.
+- `claude_bin=none` — omit `--claude-bin` in Step 5b. `serve.py` runs the same search
+  itself, so a CLI the operator installs later is picked up without a relaunch.
 
 ## How the app is served — no build step for app edits
 
@@ -15,8 +49,23 @@ not run a build after changing app source; there is nothing to rebuild.
 
 - `--web-dir` → `webapp/` — the shell: `index.html`, `sw.js`, the vendored
   runtime under `vendor/`, and `fonts/`.
-- `--src-dir` → `app/src` — the canonical source, served verbatim at
-  `/src/*`.
+- `--src-dir` → this firm's own per-firm copy of the source, `<user_src_dir>`
+  (`<dashboard_dir>/src`), served verbatim at `/src/*`.
+
+**Every edit goes to `<dashboard_dir>/src` — never to `app/src` or `raw/*`.**
+`app/src` is the plugin's own shared source, installed once and read by every
+firm using this plugin; `raw/*` is this firm's fetched ledger data. Patching
+either one edits something this session doesn't own: an `app/src` edit is
+lost on the next plugin update and leaks into every other firm's dashboard
+until then, and a `raw/*` edit silently diverges the cache from what was
+actually fetched. The one place a UI tweak belongs is `<user_src_dir>`,
+Step 5b's `--src-dir` — the per-firm copy `serve.py` already defaults to
+even when `--src-dir` is omitted (see `_default_src_dir` in `scripts/serve.py`).
+
+**After any edit under `<user_src_dir>`, reload the page to verify it** —
+`serve.py` reads source per request with no build step, so a refresh is the
+whole feedback loop. An edit isn't confirmed until it has been seen rendered
+after a reload; counting braces or re-reading the diff is not verification.
 
 `webapp/sw.js` is a module service worker that intercepts every same-origin
 `.jsx` request and transpiles it with Sucrase in the browser, caching on a
@@ -58,31 +107,45 @@ reporting their absence as a gap.
 
 **SILENT** — no user-facing output in this step. Next allowed output: Step 5's URL.
 
-Runs on every invocation, including a warm-cache one that skipped Step 3.
+Runs on every invocation, right after Step 3 — including one where Step 3 fell back
+to the cached actuals.
 It reads `raw/` and takes seconds, and it is where the budget state
 resolved in Step 2.75 is actually applied — skipping it would serve a
 snapshot built under whatever the answer used to be.
 
-**`<AS_OF>` on the cache-hit path (Step 3 skipped) is `raw_as_of` from Step
-2.5's `manco_paths.py resolve` output — not today's date.** The raw journal
-entries under `raw/` are however old `raw_age_days` says they are — Step
-2.5 now skips Step 3 on any warm cache regardless of age, so that can be
-days, not just hours. Stamping the snapshot with today's date would make
-the dashboard claim data through today while `raw/` is actually that much
-older. When Step 3 *did* run this invocation, `<AS_OF>` is the value it
-just computed and wrote to `.fetched-at` — the two paths agree by
-construction.
+**`<AS_OF>` is `as_of` from Step 2.5's `manco_paths.py resolve` output** —
+the date Step 3 just pulled the actuals through and wrote to `.fetched-at`.
+The one exception is Step 3's cached-actuals fallback
+([data-fetch.md](data-fetch.md)): no pull ran, so `<AS_OF>` is `raw_as_of`,
+the date of the data actually under `raw/` — stamping today on it would claim
+numbers nobody fetched. Never compute either by hand.
 
 Run the build script:
 
 ```bash
-uv run "${CLAUDE_PLUGIN_ROOT}/skills/carta-manco-reporting/scripts/build_manco_datadir.py" \
+<UV_BIN> run "${CLAUDE_PLUGIN_ROOT}/skills/carta-manco-reporting/scripts/build_manco_datadir.py" \
   --firm-name "<FIRM_NAME>" --firm-uuid "<FIRM_UUID>" --firm-carta-id <FIRM_CARTA_ID> \
   --manco-name "<MANCO_NAME>" --manco-uuid "<MANCO_UUID>" --manco-carta-id <MANCO_CARTA_ID> \
   --manco-entity-id <MANCO_ENTITY_ID> \
   --raw-dir "<raw_dir>" --dashboard-dir "<dashboard_dir>" \
-  --as-of "<AS_OF>" --carta-environment "<CARTA_ENVIRONMENT>"
+  --as-of "<AS_OF>" --carta-environment "<CARTA_ENVIRONMENT>" --user-id <USER_PK> \
+  --no-sync-sweep
 ```
+
+`<USER_PK>` is `pk` from `get_current_user`, fetched per
+`${CLAUDE_PLUGIN_ROOT}/references/launch-user-id.md` (Build path; the plugin's `references/`,
+not this skill's). The script saves it as `<dashboard_dir>/.user-id` before Step 5.2's own
+push reads it. Leave the flag out only when this run has no Carta MCP; never pass a
+placeholder.
+
+**Always pass `--no-sync-sweep`.** A build without it spawns a detached `claude`-CLI
+own-sync sweep — it errors for an operator with no working `claude` CLI (or one signed
+out), and even where it works it is a second, separate path to the same Carta connector
+this session already has. `--no-sync-sweep` skips that sweep only: Step 5.2, when the user
+asks for it, pushes every owned report itself, through this session's own connector, with no
+`claude` CLI and no detached process. In-app Share ([report-sharing.md](report-sharing.md))
+goes through the `claude` CLI bridge regardless — a separate path to Carta from own-sync,
+which `--no-sync-sweep` leaves untouched.
 
 `<CARTA_ENVIRONMENT>` is `"production"` or `"nonprod"`, classified in Step 1
 (from `<SERVER>`'s name) or carried from Step 0.2's cache probe on a WARM
@@ -93,32 +156,151 @@ isn't misattributed as production.
 If the script exits non-zero, read its stderr, surface the first line to the user in plain English, and stop.
 
 
+## Step 4.8 — Sync the user's app source
+
+**SILENT unless a minor or major update needs a decision, or `check` fails** (one line
+saying app updates were skipped, or, on a first run with no per-firm copy, the error's
+first line before stopping). No other user-facing output in this step.
+
+Run the sync check:
+
+```bash
+uv run python3 "${CLAUDE_PLUGIN_ROOT}/skills/carta-manco-reporting/scripts/sync_src.py" \
+  --skill-dir "${CLAUDE_PLUGIN_ROOT}/skills/carta-manco-reporting" \
+  --data-dir "<dashboard_dir>" check
+```
+
+If `check` exits non-zero (a malformed SKILL.md, for instance), do not ask the user what to
+do, and never edit SKILL.md to work around it.
+
+- **If `<dashboard_dir>/src` already exists**, proceed straight to Step 5 without
+  `--src-dir`: `serve.py`'s `_default_src_dir` serves that existing per-firm copy, so the
+  dashboard still comes up. Tell the user in one line that app updates were skipped this run.
+- **Otherwise** there is no per-firm copy to fall back to — `_default_src_dir` would call
+  `init`, which runs the same parse and fails the same way. Follow this file's rule for a
+  failing script, above: read stderr, surface the first line to the user in plain English,
+  and stop.
+
+Parse the JSON output and act on `status`:
+
+### `new` — first run
+Call `init` to seed the user's copy, then proceed to Step 5 with `--src-dir <user_src_dir>`:
+```bash
+uv run python3 "${CLAUDE_PLUGIN_ROOT}/skills/carta-manco-reporting/scripts/sync_src.py" \
+  --skill-dir "${CLAUDE_PLUGIN_ROOT}/skills/carta-manco-reporting" \
+  --data-dir "<dashboard_dir>" init
+```
+
+### `current` — up to date
+No action. Pass `--src-dir <user_src_dir>` to `serve.py` in Step 5 and continue.
+
+Before either path below writes anything, archive the user's current (pre-merge) src —
+this is the undo point Step 6 offers back later:
+```bash
+uv run python3 "${CLAUDE_PLUGIN_ROOT}/skills/carta-manco-reporting/scripts/sync_src.py" \
+  --skill-dir "${CLAUDE_PLUGIN_ROOT}/skills/carta-manco-reporting" \
+  --data-dir "<dashboard_dir>" archive
+```
+
+### `patch_update` — silent merge
+A patch bump carries no user-visible change. Merge silently:
+
+1. For each file in `plugin_changed_files`:
+   - If it appears in `user_modified_files`: read `<snapshot_dir>/<file>` (base), `<user_src_dir>/<file>` (user's version), and `<plugin_src_dir>/<file>` (plugin's version). Write the intelligently merged result to `<user_src_dir>/<file>`.
+   - Otherwise: copy `<plugin_src_dir>/<file>` → `<user_src_dir>/<file>` directly.
+2. Run `finalize` to advance the snapshot and version stamp:
+   ```bash
+   uv run python3 "${CLAUDE_PLUGIN_ROOT}/skills/carta-manco-reporting/scripts/sync_src.py" \
+     --skill-dir "${CLAUDE_PLUGIN_ROOT}/skills/carta-manco-reporting" \
+     --data-dir "<dashboard_dir>" finalize
+   ```
+3. Proceed to Step 5 with `--src-dir <user_src_dir>`. No user-facing message.
+
+### `needs_decision` — minor or major update, one or more new things
+
+`check`'s `modules` array is the option list — one entry per declared `whats-new` item,
+plus an auto "Other changes in this update" entry for anything not attributed to one (see
+[sync_src.py](../scripts/sync_src.py)'s `attribute_modules`, which caps the list at 16).
+
+`AskUserQuestion` takes at most 4 options per question, so never put the modules and the
+apply/skip choices in one question. Open with a single-select `AskUserQuestion`, listing
+every module's `summary` in the question text:
+
+> **New in the ManCo Dashboard:** `<summary 1>` · `<summary 2>` · … — your own edits to
+> any file are kept either way.
+
+- **Apply everything** *(recommended)* → every module.
+- **Choose individually** *(only when there are 2+ modules)* → ask once more, below.
+- **Skip everything** → no module.
+
+**Choose individually** is one `AskUserQuestion` call with `multiSelect: true`: the modules
+in order, split into consecutive questions of at most 4 options each (up to 4 questions),
+one option per module with its `summary` as the label. Every module left unticked is
+skipped — there are no apply/skip options in this call.
+
+The picked modules' `files` (flattened, deduped) are what gets applied.
+
+For that resulting file set (call it `<applied_files>`, comma-joined — possibly empty):
+1. For each file in it:
+   - If it appears in `user_modified_files`: 3-way merge using `<snapshot_dir>/<file>` as base, preserving the user's customizations while applying the plugin's changes. Write the result to `<user_src_dir>/<file>`.
+   - Otherwise: copy `<plugin_src_dir>/<file>` → `<user_src_dir>/<file>`.
+2. Run `finalize --files "<applied_files>"`:
+   ```bash
+   uv run python3 "${CLAUDE_PLUGIN_ROOT}/skills/carta-manco-reporting/scripts/sync_src.py" \
+     --skill-dir "${CLAUDE_PLUGIN_ROOT}/skills/carta-manco-reporting" \
+     --data-dir "<dashboard_dir>" finalize --files "<applied_files>"
+   ```
+   `.version` advances regardless — the user has been asked about this version. **But
+   unlike the patch path, this only snapshots the files in `<applied_files>`.** A
+   module's file left out of that list keeps its pre-update snapshot entry, so it still
+   looks changed against `plugin_src` on the next version bump — that module is offered
+   again rather than silently written off. A file never gets copied into
+   `<user_src_dir>` unless its module was applied, so skipping a module leaves the
+   user's own version of its files untouched, same as before.
+3. Tell the user to reload the page — no server restart needed.
+
+**`--files ""` for "Skip everything"**: passing an empty string is exactly this —
+no file gets copied, and only `.version` advances. There's no separate "skip" verb.
+
+**Why serve.py does not need a restart after a merge**: `serve.py` reads source files
+per-request from `--src-dir`. The `user_src_dir` is `<dashboard_dir>/src/` — stable
+across runs for a given firm/ManCo. Writing merged files there is enough; a page reload
+picks them up from the already-running server.
+
 ## Step 5 — Launch the dashboard
 
-**First check that Step 4.7 is done** ([budget-unresolved.md](budget-unresolved.md)).
-A build that left budget lines with
-no Carta account has a question to ask before this page is worth showing —
-those lines render a budget against an empty actual, which reads as spend
-that never happened. Ask, record, rebuild, and come back here. Every other
-question in this skill waits until the URL is out; that one cannot.
+**First check that Steps 4.6 and 4.7 are done** ([budget-unresolved.md](budget-unresolved.md)).
+4.6 asks for a COA mapping file, but only when the native mapping (a
+mapping tab, the workbook's own formulas, and its own GL codes) covers
+under half the budget. 4.7 is what always runs: a build that left budget
+lines with no Carta account has a question to ask before this page is
+worth showing — those lines render a budget against an empty actual, which
+reads as spend that never happened. Ask, record, rebuild, and come back
+here. Every other question in this skill waits until the URL is out; these
+two cannot.
 
 Two things happen here, in order: **reuse-or-launch**, then **emit the
 URL**. Then go to Step 6 — the URL is not the end of the run.
 
 ### 5a — Reuse if it's already up
 
-**Check this before anything else. Never compute a port first.** Read
-`<dashboard_dir>/.port` and `<dashboard_dir>/.token`, and if the port has
-a listener, confirm it is this firm's server rather than someone else's
-process on the same port:
+**Check this before anything else. Never compute a port first.** Ask the
+recorded server whether it is still up for this data dir — it reads `.port`
+and `.token`, confirms the port answers with this firm's snapshot rather than
+someone else's process on the same port, and opens the dashboard in the
+user's browser exactly as a launch does:
 
 ```bash
-curl -sf -o /dev/null -w '%{http_code}' \
-  "http://127.0.0.1:<port>/api/snapshot?t=<token>"
+python3 "${CLAUDE_PLUGIN_ROOT}/skills/carta-manco-reporting/scripts/serve.py" \
+  --data-dir "<dashboard_dir>" --reopen
 ```
 
-A `200` means our server, for this data dir, still serving. **Reuse it** —
-skip the launch, emit that same URL, and go to Step 6.
+Exit `0` (it prints `[serve] manco-reporting at <url>`) means our server,
+for this data dir, still serving, and the browser is now open on it.
+**Reuse it** — skip the launch, write `pk` to `<dashboard_dir>/.user-id` per
+`${CLAUDE_PLUGIN_ROOT}/references/launch-user-id.md` (Reusing a running
+server), emit that printed URL, and go to Step 6. Exit `3` means nothing of
+ours is up: go to 5b.
 
 This matters more than it looks. Treating an occupied port as "find
 another one" hands out a new URL on every invocation — 8787, then 8788,
@@ -142,14 +324,28 @@ it.
 ```bash
 LOG="<dashboard_dir>/serve.log"
 nohup python3 "${CLAUDE_PLUGIN_ROOT}/skills/carta-manco-reporting/scripts/serve.py" \
-  --data-dir "<dashboard_dir>" > "$LOG" 2>&1 &
+  --data-dir "<dashboard_dir>" \
+  --src-dir "<user_src_dir>" --detach > "$LOG" 2>&1 &
 ```
 
-**Only when the session already carries `pk`** from `get_current_user` (a connected Carta
-MCP has it from bootstrap), append `--user-id <pk>` so telemetry names a real user. Never
-call the MCP just to get it — firm-resolution.md's Step 0 says not to call
-`mcp__<SERVER>__welcome` at all, and this launch stays on that same MCP-free footing when
-`pk` isn't already in hand. Never substitute the email or a placeholder.
+`<user_src_dir>` is the `user_src_dir` value from Step 4.8's `check` output.
+
+Append `--claude-bin "<path>"` with the path Step 0.5's `check` found (a
+`claude_source=session` path included); omit it when `check` found none. `serve.py` runs the same search itself
+when it's omitted, and finds the binary again if the given path disappears (a
+Claude Code auto-update deletes old versions), so the flag is a hint rather than
+a requirement.
+
+To test report sharing with one particular connector (a test connector, say), add
+`--share-mcp-server <connector_name>` so shares use only that one — see
+[report-sharing.md](report-sharing.md).
+
+`--detach` forks and daemonizes the server so it outlives this launching
+process/session — the same flag `carta-fund-modeling`'s `serve.py` uses.
+Cleanup is now the idle timeout (`--idle-timeout`, 24h default), not the
+launcher going away.
+
+Append `--user-id <pk>` per `${CLAUDE_PLUGIN_ROOT}/references/launch-user-id.md` (the plugin's `references/`, not this skill's).
 
 Pass `PORT=8787` **only** when the firm has no `.port` yet — a first-ever
 launch. If 8787 is taken, try up to 8797; if all ten are busy, say which
@@ -166,11 +362,18 @@ carries the port actually bound and the token actually in use, which is
 the only pair guaranteed to be right — composing one from what we intended
 is how a user ends up with a URL that 403s or points at a dead port.
 
-Emit exactly one URL for the user:
+Emit exactly one URL for the user as message text, never only inside a tool's output. Put it
+at the start of the message that makes the next tool call (Step 6's menu, or a later step's
+first call), and keep going in that same message. Never fold the `serve.py` log read into the
+same Bash call as a later step's command:
 
 ```
 Dashboard: http://127.0.0.1:<port>/?t=<token>
 ```
+
+**This line is verbatim, with the real URL in it.** Never replace it with a description of
+the dashboard ("it's running at a local address", "the dashboard is live") and never leave it
+out: the printed link is the only way the user opens the dashboard.
 
 Then one orientation line, e.g. *"`<FIRM_NAME>` — `<MANCO_NAME>` · through `<AS_OF>`. Click any chart bar or category row to drill into journal entries."*
 
@@ -195,6 +398,170 @@ they start reading, not discover it a row at a time.
 Silent when the build printed no `gaps:` line — a report with nothing to
 disclose says nothing. Never list which lines; the counts orient, and
 Step 6 is where the unresolved ones get resolved.
+
+
+## Step 5.2 — Push to the hosted app from this session, only when asked
+
+**Not part of the default run.** Never push to the hosted app on your own after the dashboard
+launches. Run this step only when the user asks to put their reports on the hosted app (e.g.
+"push my reports to the hosted app", "sync this to the online app") — including by accepting
+Step 6's own **Push to the hosted app** offer, the one place this flow invites it rather than
+waiting to be asked — only when this run has a Carta MCP (`<SERVER>`), and only after Step 5
+has emitted the URL. Step 4 always builds with
+`--no-sync-sweep`, so no sweep ever runs for a dashboard built this way, and `own_sync.py
+--plan` plans a push for every owned report that is new or changed unconditionally, without
+waiting on or deferring to one.
+
+Planning also needs to settle any rename made on the hosted app onto the local report
+first — otherwise a plan built after a rename would resend the pre-rename name and silently
+overwrite it (`own_sync.reconcile_names` already protects the sweep from exactly this; a
+session push needs the same protection, via `--mirrors` below). That needs a live
+Carta listing, which only the sub-agent's connector can make — so the whole thing, listing
+included, runs inside the sub-agent's brief, not as a separate command here.
+
+First, get this dashboard's fund_uuid — a local read, no Carta call:
+
+```bash
+<UV_BIN> run "${CLAUDE_PLUGIN_ROOT}/skills/carta-manco-reporting/scripts/import_shared_reports.py" context --data-dir "<dashboard_dir>"
+```
+
+It prints `{"fund_uuid": "<fund_uuid>"}`. Then dispatch **one** fresh-context sub-agent
+(Agent tool, `subagent_type: general-purpose`, which inherits this session's tools, its
+Carta connector included) with the brief below, filling in `<SERVER>`, `<UV_BIN>`,
+`<dashboard_dir>` and `<fund_uuid>` verbatim, and wait for it to finish.
+
+**Once it returns — whatever it answered — remove the whole plan directory:**
+```bash
+rm -rf "<dashboard_dir>/.own-sync-plan"
+```
+A plan the brief's own step 4 or 5 already consumed (`--record`/`--retire`) is already gone;
+one it never got to (a refused or failed push the brief's own cap skipped, a `conflict`, or
+the sub-agent stopping early) would otherwise sit there and make the dashboard's own Sync
+control (`serve.py`'s `_run_own_sync`) refuse those reports until the next `--plan` clears
+it for you — skip this step and that refusal outlives this run.
+
+Sub-agent brief:
+
+> 1. Call `mcp__<SERVER>__call_tool` with `name` = `fa__get__budget_reports` and
+>    `arguments` = `{"fund_uuid": "<fund_uuid>"}`. Write the response unchanged to
+>    `<dashboard_dir>/.own-sync-mirrors.json`.
+> 2. Run `<UV_BIN> run "${CLAUDE_PLUGIN_ROOT}/skills/carta-manco-reporting/scripts/own_sync.py" --data-dir "<dashboard_dir>" --plan --mirrors "<dashboard_dir>/.own-sync-mirrors.json"`,
+>    with the Bash tool's `timeout: 600000`. It waits for this dashboard's own-sync lock to
+>    be free — held by a sweep (only from a build made without `--no-sync-sweep`) or another
+>    `--plan`, neither expected here — then settles any hosted rename onto the local report,
+>    then prints `{"pushes": [...]}`. Exit 3
+>    (`{"error": "no_user_id"}`) or `{"pushes": []}`: nothing to push — answer exactly
+>    `nothing_to_push` and stop; don't call Carta again. If the command times out, answer
+>    exactly `failed: own-sync lock held too long` and stop.
+> 3. For each `{report_id, command, arguments_file}` the plan named: read `arguments_file`.
+>    Call `mcp__<SERVER>__call_tool` with `name` = `command` and `arguments` = that file's
+>    JSON object, unchanged: no field added, dropped or retyped, and never as a quoted
+>    string. A hook compares the call to the file and refuses any difference.
+> 4. On success, run `<UV_BIN> run "${CLAUDE_PLUGIN_ROOT}/skills/carta-manco-reporting/scripts/own_sync.py" --data-dir "<dashboard_dir>" --record <report_id> --uuid <the response's report.uuid>`.
+>    If it prints a `delete_uuid`, call `mcp__<SERVER>__call_tool` with `name` =
+>    `fa__delete__budget_report` and `arguments` = `{"fund_uuid": "<fund_uuid>", "report_uuid": <delete_uuid>}`.
+>    If it prints `"error": "conflict"` instead, answer exactly `failed: conflict`, push
+>    nothing more for this report, and delete nothing — the uuid it named is another
+>    report's live mirror, not this one's to touch.
+> 5. If a `fa__mutate__budget_report` call answers **not found** — the hosted app's own
+>    Delete, most likely, deliberate, not a glitch — run `<UV_BIN> run
+>    "${CLAUDE_PLUGIN_ROOT}/skills/carta-manco-reporting/scripts/own_sync.py" --data-dir
+>    "<dashboard_dir>" --retire <report_id>` and push nothing more for this report: its
+>    own-sync link is retired locally (so a later run never recreates it just because the
+>    payload or name moved since), and there is nothing left to delete upstream either.
+> 6. If it answers **not the owner** instead, run the same script with `--plan --recreate
+>    <report_id>` (no `--mirrors`: a recreate always plans, never defers) and push the one
+>    create it prints, once.
+>
+> You get at most **2** push calls (create or update) per report, the recreate included. A
+> refused or failed push does not earn a third: not with the arguments rewritten, not
+> through another tool, not by splitting the payload. Then skip that report and go on. The
+> `fa__delete__budget_report` call for a `delete_uuid` is not a push: always make it, once,
+> whatever the push count. Never call Carta for anything but the commands above. Finish with
+> one line per report pushed, `pushed` or `needs_human: <report_id>: <the error's first
+> line>`, or exactly `nothing_to_push` if step 2 applied.
+
+Since the user asked, answer with one line: the reports pushed, or that everything was
+already on the hosted app (`nothing_to_push`), or, for `failed: own-sync lock held too long`,
+that another push is still running and to ask again in a few minutes. For each `needs_human:`
+line, say in one sentence which report isn't on the hosted app yet and the reason. Never retry
+it in this run.
+
+
+## Step 5.3 — Give the hosted app's link, only when asked
+
+**Not part of the default run.** A build ends on the local dashboard's URL alone; never offer
+the hosted link unprompted. Run this step only when the user asks for the hosted app or its
+link (e.g. "is this on the hosted app?", "give me the online link") — at any point once Step 5
+has emitted the URL, after Step 5.2 has returned (when 5.2 ran at all). It never pushes
+anything and makes no Carta call:
+
+```bash
+<UV_BIN> run "${CLAUDE_PLUGIN_ROOT}/skills/carta-manco-reporting/scripts/manco_paths.py" hosted-url --dashboard-dir "<dashboard_dir>"
+```
+
+The link is a bare link to the firm itself, no report or tab — the firm's hosted landing page
+lists all of the user's reports, so one link works for any report, a workbook-backed Budget vs
+Actuals or Carta's own budget alike. `hosted-url` reads the firm's name and uuid straight from
+`<dashboard_dir>`'s own snapshot.json/accounts.json — the values Step 4's build recorded for
+this dashboard (its `--firm-name`/`--firm-uuid` args). Never pass or compose a firm name by
+hand here; the local cache slug (`manco_paths.slugify`) in particular can differ from the slug
+the hosted app itself routes on.
+
+Give the link on one line: *"On the hosted app: `<url>`"*. Never open a tab for it. When this
+run hasn't pushed their reports (Step 5.2), add one line offering to — the hosted app shows only
+what has been pushed there.
+
+
+## Step 5.4 — Load reports shared with you, only when asked
+
+**Not part of the default run.** Never load shared reports on your own after the dashboard
+launches; the app's **Load shared reports** button in the sidebar does it whenever the user
+wants. Run this step only when the user asks in chat to load the reports shared with them (the
+app suggests that prompt when its own load can't reach Carta), and only when this run has a
+Carta MCP (`<SERVER>`) — after Step 5 has emitted the URL and Step 5.2 has returned (when it
+ran at all).
+
+Dispatch **one** fresh-context sub-agent (Agent tool, `subagent_type: general-purpose`,
+which inherits this session's whole tool surface, its Carta connector included) with the
+brief below, filling in `<SERVER>`, `<UV_BIN>` and `<dashboard_dir>` verbatim, and wait for
+it to finish. A payload is up to 256 KB, so it stays out of this
+conversation.
+
+`import_shared_reports.py import` merges what's pulled, then rebuilds the dashboard — even
+when nothing changed. That rebuild replays the build's own recorded argv
+(`.build-args.json`), `--no-sync-sweep` included, so it spawns no `claude`-CLI sweep either
+— there is nothing for Step 5.2's `--plan` to wait on or race against. This step runs after
+5.2 has returned, so its messages never interleave with 5.2's. A pulled report is stored with `state: "shared-in"`, which `own_sync`'s push path
+treats as read-only, so nothing this step's rebuild does re-pushes it as the owner's own.
+
+Sub-agent brief:
+
+> Follow [report-sharing.md](report-sharing.md)'s "Loading shared reports from chat" steps
+> 1-4, using server `<SERVER>`, `<UV_BIN>` and data dir `<dashboard_dir>`. Read-only Carta
+> calls only — `fa__get__budget_reports` and `fa__get__budget_report`, each at most once
+> per report — and never edit a response before writing it to `pulled.json`, and never
+> write outside `<dashboard_dir>`. When step 5 would
+> say sharing isn't turned on for you yet, answer exactly `not_enabled` instead of saying so.
+> On any other failure, stop after one try — never retry, never vary the call, never fall
+> back to another command — and answer exactly `failed: <the error's first line>`.
+> Otherwise, after step 4's `import` prints its counts, answer exactly one line: `pulled
+> added=<N> adopted=<N> updated=<N> removed=<N> skipped=<N> duplicate_dropped=<N>`.
+
+- **`not_enabled`** — one line: sharing isn't turned on for them yet.
+- **`pulled added=0 adopted=0 updated=0 ...`** — one line: no new or changed reports shared
+  with them.
+- **`pulled added=<N> adopted=<P> updated=<M> ...`** with `N`, `P` or `M` above 0 — one line:
+  *"Loaded `<N+P+M>` reports — they're
+  in the Budget vs Actuals sidebar (reload the tab if it's already open)."*
+- **`duplicate_dropped`** never changes which of those lines you say; it is a Carta-side
+  cleanup signal, not something this pull changed locally. It counts the user's own
+  `is_owner` budget_report rows this pull found that are copies of a report already on the
+  dashboard, or of one it adopted just now (same name, same budget content). It skipped them
+  rather than adding a second local copy, and recorded them so they count here once, on
+  the pull that first sees them, never again on a later pull.
+- **`failed: <reason>`** — one line: *"Couldn't load reports shared with you yet (`<reason>`)
+  — use **Load shared reports** in the sidebar to retry."* Never retry it in this run.
 
 
 ## Step 5.5 — Offer to open the account rows up
@@ -274,8 +641,13 @@ size, which is the number the operator will check against their statement
 of operations and find wrong.
 
 Offer the budget's own lines, plus "leave it where it is". Record the
-answer as `{"scope": {"source": "...", "category": "...", "value": "..."}}`
-against that row's `addr` in `budget-mapping.json`, then re-run Step 4.
+answer against that row's `addr` — `--tag "<category>=<value>"` for a
+reporting tag, `--vendor "<vendor>"` or `--sub "<sub_account>"` for those
+— then re-run Step 4:
+
+```bash
+uv run "${CLAUDE_PLUGIN_ROOT}/skills/carta-manco-reporting/scripts/record_mapping.py" scope "<dashboard_dir>" "<addr>" --tag "<category>=<value>" --source operator
+```
 
 **Use `addr`, not the row's position or label alone.** The rows a client
 picks here are usually the subtotals a workbook builds its own sections
@@ -311,37 +683,132 @@ run** — an explicit `--budget-workbook` arg counts as an answer. They have
 already said what they wanted; asking again reads as not having listened.
 
 **On a re-invocation** — the dashboard came back from persisted refs
-without asking anything — the URL goes out first, then the offer. Someone
+without asking anything — the URL goes out first, then the offer. "First"
+means visible: the `Dashboard: http://127.0.0.1:…` line and its orientation
+line are reply text the user reads before the question card appears, never
+only your own thinking, and the question's own text carries the URL too (below). Someone
 re-opening a dashboard they built last week usually wants to look at it,
 and only sometimes wants to update it. Making them answer questions before
 they can see it inverts that.
 
-After the orientation line, ask a single `AskUserQuestion`:
+Before asking, check for an undo point:
+```bash
+uv run python3 "${CLAUDE_PLUGIN_ROOT}/skills/carta-manco-reporting/scripts/sync_src.py" \
+  --skill-dir "${CLAUDE_PLUGIN_ROOT}/skills/carta-manco-reporting" \
+  --data-dir "<dashboard_dir>" rollback --list
+```
+Add the **Undo the last dashboard update** option below only when `archives` is
+non-empty — an app-source update has to have actually happened (Step 4.8) for there to
+be anything to undo, so most invocations omit it.
 
-> **Anything to update?** The dashboard is live at the link above.
+**Only when this run has a Carta MCP (`<SERVER>`)** — Step 5.2 can't run without one, so
+there's nothing to offer without it — also check whether a report already on the hosted
+app has moved since its last push. A plain read of reports.json, writing nothing and
+taking no lock (never `own_sync.py --plan`: that writes plan files under the dashboard
+dir and holds the own-sync lock for as long as a sweep or a session's own push might be
+using it, neither of which this is worth blocking on just to decide whether to ask a
+question):
+```bash
+uv run python3 -c "
+import json, pathlib
+reports = json.loads(pathlib.Path('<dashboard_dir>/reports.json').read_text()).get('reports', [])
+due = []
+for r in reports:
+    sync = r.get('own_sync') or {}
+    if sync.get('uuid') and not sync.get('retired') and (sync.get('dirty') or sync.get('pushed_name') != r['name']):
+        due.append(r['name'])
+print(json.dumps(due))
+"
+```
+These are exactly the fields the dashboard's own Sync control reads (`reportState.js`'s
+`ownSync()`) — a report whose own-sync has a uuid, isn't retired, and either came back
+`dirty` from the last build or was renamed locally since its last push. Add the **Push to
+the hosted app** option below whenever this prints a non-empty list. An empty list —
+every own-synced report already matches what's live, or none has ever been synced —
+means nothing to offer here; Step 5.2 remains reachable by asking for it directly.
 
-- **Nothing — just looking** ← put first; it is the common case
-- **Refresh the Carta data** → re-run Step 3, then Step 4
-- **Point at a different or updated Excel budget** → re-run Step 2.75a-ii
-  onward with the new path, replacing the workbook ref
-- **Change which tabs feed Budget vs Actuals** → re-run Step 2.75a-ii
-  against the workbook already on file, so the operator can add or drop
-  sheets without re-supplying it
-- **Resolve the lines that found no actuals** → the fallback for lines
-  left unanswered at Step 4.7, or ones a later re-parse introduced. Offer
-  it whenever the build printed a mapping-decision count, and lead with
-  the one table Step 4.7 describes rather than a question per line
+After the orientation line, ask a single `AskUserQuestion`. Actuals are
+re-pulled from the warehouse on every invocation (Step 2.5/Step 3, see
+[data-fetch.md](data-fetch.md)), so the menu has no data-refresh option. The
+exception is a run where the pull couldn't run and Step 3 served the cached
+`raw/` (data-fetch.md's "serve the cache, dated as itself"): the numbers on
+screen are then as of `raw_as_of`, not current. If the operator asks, through
+the free-text option, to retry the pull, go back to Step 2.6 and Step 3, then
+Step 4.
+
+> **Anything to update?** The dashboard is live at `<the Step 5 URL>`.
+
+Put the real URL in the question text, every time: a question card can hide the
+text before it, and the link must stay in view while the user decides.
+
+Order the options so the one most likely to be why the operator came back
+leads the list. `AskUserQuestion` takes at most four options: two are always
+present and the rest are conditional — mapping decisions, the hosted push, and the
+undo point below. Merge any new option into an existing one before showing a fifth;
+when all three conditionals apply in the same turn, drop **Undo the last dashboard
+update** for this turn (nothing about an archive goes stale, so it can wait) rather
+than widening past four, and still honor it through the free-text option if the
+operator asks for it by name.
+
+- **Resolve outstanding mapping decisions** *(only when Step 4's `gaps:`
+  line reports budget lines that need a mapping decision or accounts that
+  carry spend no budget line reports)* — lead with this one whenever it applies: an
+  operator who left a question open last time is more likely back to
+  finish it than to ask for anything else. It covers both directions Step
+  4.7 asks about — a budget line that found no matching Carta account,
+  and a Carta account carrying spend no budget line reports — whichever
+  the operator left unanswered, or a later re-parse introduced. Lead with
+  the one table Step 4.7 describes rather than a question per line. A row
+  already confirmed doesn't resurface here on its own — it isn't
+  unresolved — but the operator can still name one directly ("row 3
+  should be the fee account instead", "account 7105 belongs on the
+  marketing line") through the free-text option below; record the new
+  answer with `record_mapping.py` the same way Step 4.7 does (see
+  [budget-unresolved.md](budget-unresolved.md)'s "Recording answers") and
+  rebuild.
+- **Push to the hosted app** *(only when the check above printed a non-empty list)* —
+  next in line after mapping decisions: an operator back to resolve a
+  mapping gap and an operator back because something changed since their last push
+  are both reasons tied to data moving, so this and the option above are the two
+  most likely to be why someone returned. Mark it `← recommended` whenever it's the
+  only conditional option showing. Selecting it runs Step 5.2 (below) and reports
+  what it pushed — this is the one place in the flow that offers it; Step 5.2 itself
+  still only runs when asked, whether that ask comes from here or from the operator
+  naming it directly.
+- **Make an edit or customize the dashboard** → free text: ask what to
+  change, then apply it under `<user_src_dir>` the same way "How the app
+  is served" above describes — never to `app/src` or `raw/*`. No rebuild
+  needed; reload the page to verify, per that section's rule, before
+  telling the operator it's done.
+- **Add a report tab or change the budget workbook** → re-run Step 2.75a-ii.
+  If the operator gives a new workbook path, use it and replace the workbook
+  ref; otherwise run against the workbook already on file, which lets them add
+  a sheet as a new report or drop a tab that's no longer wanted.
+- **Undo the last dashboard update** *(only when an archive exists)* → restore the
+  most recent entry from `rollback --list` (newest-first; take `archives[0].id`):
+  ```bash
+  uv run python3 "${CLAUDE_PLUGIN_ROOT}/skills/carta-manco-reporting/scripts/sync_src.py" \
+    --skill-dir "${CLAUDE_PLUGIN_ROOT}/skills/carta-manco-reporting" \
+    --data-dir "<dashboard_dir>" rollback --to "<archive_id>"
+  ```
+  Then say *"Reverted to the version before your last update — refresh the page to see
+  it."* and skip straight to the reload line below (no rebuild needed — rollback already
+  wrote `<user_src_dir>` and `.version` directly). This restores the app source only; it
+  never touches cached firm data or the budget/workbook refs.
 
 Anything else the operator types goes through `AskUserQuestion`'s free-text
 option — treat it as a request and route it to the matching step.
 
-**After any change, rebuild (Step 4) and tell them to reload the page —
-do not relaunch the server.** `serve.py` reads the data files per request
-and sends `Cache-Control: no-store`, and the port and token persist in the
-data dir, so the URL already in their browser picks up the rebuild on a
-refresh. Restarting would hand them a second URL for the same dashboard
-and leave an orphaned process on the old port.
+**After a data or mapping change, rebuild (Step 4) and tell them to reload
+the page — do not relaunch the server.** `serve.py` reads the data files
+per request and sends `Cache-Control: no-store`, and the port and token
+persist in the data dir, so the URL already in their browser picks up the
+rebuild on a refresh. Restarting would hand them a second URL for the same
+dashboard and leave an orphaned process on the old port. A pure UI edit
+under `<user_src_dir>` needs no Step-4 rebuild at all — that is the whole
+point of "How the app is served" above.
 
-Say one line: *"Rebuilt — refresh the page to see it."* Then offer the
+Say one line — *"Rebuilt — refresh the page to see it"* after a rebuild,
+*"Done — refresh the page to see it"* after a UI-only edit. Then offer the
 same question again, so several changes can be made in one sitting, until
-the operator picks "Nothing".
+the operator has nothing left to change.

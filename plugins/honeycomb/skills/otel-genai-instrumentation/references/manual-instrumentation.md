@@ -450,7 +450,7 @@ def run_agent(client, model, messages, tools, agent_name, agent_id, conversation
             ) as chat_span:
                 # Capture input messages for full conversation visibility
                 chat_span.set_attribute("gen_ai.input.messages", json.dumps(
-                    [{"role": m["role"], "parts": [{"type": "text", "text": m.get("content", "")}]}
+                    [{"role": m["role"], "parts": [{"type": "text", "content": m.get("content", "")}]}
                      for m in messages]
                 ))
 
@@ -471,7 +471,7 @@ def run_agent(client, model, messages, tools, agent_name, agent_id, conversation
                 for choice in response.choices:
                     msg = choice.message
                     if msg.content:
-                        output_parts.append({"type": "text", "text": msg.content})
+                        output_parts.append({"type": "text", "content": msg.content})
                     if msg.tool_calls:
                         for tc in msg.tool_calls:
                             output_parts.append({
@@ -552,7 +552,7 @@ async function runAgent(client, model, messages, tools, agentName, agentId, conv
             chatSpan.setAttribute("gen_ai.input.messages", JSON.stringify(
               messages.map((m) => ({
                 role: m.role,
-                parts: [{ type: "text", text: m.content ?? "" }],
+                parts: [{ type: "text", content: m.content ?? "" }],
               }))
             ));
 
@@ -570,7 +570,7 @@ async function runAgent(client, model, messages, tools, agentName, agentId, conv
             const outputParts = [];
             const msg = resp.choices[0].message;
             if (msg.content) {
-              outputParts.push({ type: "text", text: msg.content });
+              outputParts.push({ type: "text", content: msg.content });
             }
             if (msg.tool_calls) {
               for (const tc of msg.tool_calls) {

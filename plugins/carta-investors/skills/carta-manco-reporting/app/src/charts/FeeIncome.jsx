@@ -14,7 +14,8 @@ export default function FeeIncome({
   showProjections = false, onSelect, title, sub, headerControl,
 }) {
   if (!feeSchedule) return null;
-  const { labels: actualLabels, funds, projectedLabels = [], projectedFunds = [] } = feeSchedule;
+  const { labels: actualLabels, funds, projectedLabels = [], projectedFunds = [],
+          expectedRemaining = [] } = feeSchedule;
 
   const allLabels = showProjections ? [...actualLabels, ...projectedLabels] : actualLabels;
   const labels = allLabels.slice(yearStartIdx);
@@ -41,6 +42,32 @@ export default function FeeIncome({
     ? Math.max(0, actualCount - offset)
     : undefined;
 
+  // What the year still expects, stacked on the in-progress column. The YTD
+  // bar otherwise reads as a collapse against every prior year, when what it
+  // shows is a year that has not finished billing.
+  const expectedByFund = new Map(expectedRemaining.map((f) => [f.name, f.amount]));
+  const expectedTotal = visible.reduce((sum, f) => sum + (expectedByFund.get(f.name) || 0), 0);
+
+  // "Hide projections" hides every estimate, including this year's. The
+  // quarters it has yet to bill are a projection like any other.
+  const showExpected = showProjections && provisionalFrom != null && expectedTotal > 0;
+
+  // Every estimate sits above every booked figure, in the fund's own
+  // colour: the bar reads as what the ledger holds, then what is to come.
+  const plotted = showExpected
+    ? [...series, ...series.map((s, si) => ({
+        name: `${s.name} — expected`,
+        color: s.color,
+        estimated: true,
+        legendHidden: true,
+        values: labels.map((_, i) =>
+          (i === provisionalFrom ? (expectedByFund.get(visible[si].name) || 0) : 0)),
+      }))]
+    : series;
+
+  // The estimates are the second half of the list, one per fund in order.
+  const fundAt = (seriesIndex) => visible[seriesIndex % visible.length];
+
   return (
     <InkBarChart
       id="fee-income"
@@ -50,17 +77,23 @@ export default function FeeIncome({
       headerControl={headerControl}
       orientation="vertical"
       layout="stacked"
-      series={series}
+      series={plotted}
       labels={labels.map(cleanLabel)}
       provisionalFrom={provisionalFrom}
+      // Booked is booked, whether or not the estimate above it is shown.
+      // Hatching the column would fade the ledger's own figures.
+      provisionalPaint={false}
       projectedFrom={projectedFrom}
       legend
       onSelect={onSelect
-        ? (seriesIndex, i) => onSelect({
-            fund: visible[seriesIndex].name,
-            yearLabel: allLabels[offset + i],
-            isProjected: projectedFrom != null && i >= projectedFrom,
-          })
+        ? (seriesIndex, i) => {
+            const fund = fundAt(seriesIndex);
+            return fund && onSelect({
+              fund: fund.name,
+              yearLabel: allLabels[offset + i],
+              isProjected: projectedFrom != null && i >= projectedFrom,
+            });
+          }
         : undefined}
       formatValue={fmtCurrencyShort}
       valueTicks={4}
@@ -69,10 +102,13 @@ export default function FeeIncome({
         const isProjected = projectedFrom != null && i >= projectedFrom;
         const isProvisional = !isProjected && provisionalFrom != null && i >= provisionalFrom;
         const note = isProjected ? " · projected" : isProvisional ? " · in progress" : "";
+        // Read in the order the bar stacks: what is still expected on top,
+        // what the ledger holds beneath it, each biggest first.
         const segs = s
-          .map((ser) => ({ name: ser.name, color: ser.color, v: ser.values[i] || 0 }))
+          .map((ser) => ({ name: ser.name, color: ser.color,
+                           v: ser.values[i] || 0, estimated: !!ser.estimated }))
           .filter((seg) => seg.v > 0)
-          .sort((a, b) => b.v - a.v);
+          .sort((a, b) => (b.estimated - a.estimated) || (b.v - a.v));
         const total = segs.reduce((sum, seg) => sum + seg.v, 0);
         if (!total) return `<div class="ink-chart__tip-head">${escapeHtml(rawLabel + note)}</div>`;
         return (

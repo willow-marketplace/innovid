@@ -11,10 +11,28 @@ export const CLI_OUTDATED_MESSAGE =
   'A newer Stripe CLI version is available. Updating with `npm i -g @stripe/cli@latest` can provide the latest Stripe integration guidance.';
 
 const commandOptions = {
+  cwd: new URL('../', import.meta.url),
+  shell: false,
   encoding: 'utf8',
   stdio: ['ignore', 'pipe', 'pipe'],
   timeout: CLI_COMMAND_TIMEOUT_MS,
 };
+
+// The child inherits process.env, so opt out by setting the variable only for
+// the duration of the (synchronous) call, then restore it.
+function runUntracked(run, command, args) {
+  const previous = process.env.STRIPE_CLI_TELEMETRY_OPTOUT;
+  process.env.STRIPE_CLI_TELEMETRY_OPTOUT = '1';
+  try {
+    return run(command, args, commandOptions);
+  } finally {
+    if (previous === undefined) {
+      delete process.env.STRIPE_CLI_TELEMETRY_OPTOUT;
+    } else {
+      process.env.STRIPE_CLI_TELEMETRY_OPTOUT = previous;
+    }
+  }
+}
 
 const silentCommandOptions = {
   ...commandOptions,
@@ -26,7 +44,7 @@ function parseVersion(output) {
 }
 
 function getInstalledCli(run) {
-  const result = run('stripe', ['--version'], commandOptions);
+  const result = runUntracked(run, 'stripe', ['--version']);
   return {
     installed: result.error?.code !== 'ENOENT',
     version:
@@ -51,7 +69,11 @@ export function cliInstalled(run = spawnSync) {
 
 export function cliLoggedIn(run = spawnSync) {
   try {
-    const result = run('stripe', ['whoami', '--format', 'json'], commandOptions);
+    const result = runUntracked(run, 'stripe', [
+      'whoami',
+      '--format',
+      'json',
+    ]);
     const payload = JSON.parse(result.stdout ?? '');
     return payload.authenticated;
   } catch {
@@ -69,9 +91,6 @@ export function reportSkillUsage(skillName, run = spawnSync) {
     skillName,
   ];
 
-  if (process.env.STRIPE_API_KEY) {
-    args.push('--api-key', process.env.STRIPE_API_KEY);
-  }
   try {
     run('stripe', args, silentCommandOptions);
   } catch {

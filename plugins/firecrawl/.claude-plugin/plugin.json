@@ -1,11 +1,20 @@
 {
   "name": "firecrawl",
-  "version": "1.0.9",
-  "description": "Scrape, search, crawl, and map the web with a single command.",
-  "updatedAt": "2026-09-19T00:42:54.334Z",
+  "version": "2.8.0",
+  "description": "Firecrawl, the context API for AI agents: search the web, developer sources, government publications, and scientific papers, read the pages your searches find, and look up structured data from Alexandria providers.",
+  "updatedAt": "2026-11-17T00:02:39.699Z",
   "author": {
     "name": "Firecrawl"
   },
   "skills": "./skills/",
-  "commands": "./commands/"
+  "commands": "./commands/",
+  "mcpServers": {
+    "firecrawl": {
+      "url": "https://mcp.firecrawl.dev/v2/mcp-search",
+      "type": "http",
+      "headers": {
+        "X-Firecrawl-Origin": "firecrawl-claude-plugin"
+      }
+    }
+  }
 }

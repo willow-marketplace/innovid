@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import ChatPanel from "../ui/ChatPanel.jsx";
 import { onFromApp, postToApp } from "./bridge.js";
+import { FRAME_PARAM } from "../route.js";
 
 export function reloadApp() {
   const f = document.getElementById("fm-app");
@@ -19,7 +20,7 @@ function readChatOpen() {
   }
 }
 
-export default function OuterShell() {
+export default function OuterShell({ features }) {
   const [chatOpen, setChatOpen] = useState(readChatOpen);
   const [anchor, setAnchor] = useState(null);
   const [pinMode, setPinMode] = useState(false);
@@ -36,7 +37,7 @@ export default function OuterShell() {
   // reload the iframe and drop in-app state.
   const [src] = useState(() => {
     const u = new URL(window.location.href);
-    u.searchParams.set("frame", "1");
+    u.searchParams.set(FRAME_PARAM, "1");
     return u.pathname + u.search;
   });
   // One serve.py serves one firm's data dir, so a single stable session id is
@@ -58,7 +59,7 @@ export default function OuterShell() {
   useEffect(() => onFromApp("route", ({ firm, tab } = {}) => {
     const url = new URL(window.location.href);
     url.pathname = firm ? `/firm/${encodeURIComponent(firm)}${tab ? `/${tab}` : ""}` : "/";
-    url.searchParams.delete("frame");
+    url.searchParams.delete(FRAME_PARAM);
     if (url.href !== window.location.href) window.history.replaceState({}, "", url);
   }), []);
 
@@ -151,10 +152,10 @@ export default function OuterShell() {
                 postToApp(el, "chat-state", { open: chatOpenRef.current });
               }}
               style={{ flex: 1, border: 0, height: "100vh" }} />
-      {/* Always rendered (never unmounted) so ChatPanel's message/anchor state
-          persists across open/close — only visibility toggles. The open-chat
-          control itself now lives in the app's topbar (see toggle-chat above). */}
-      <div data-testid="chat-rail"
+      {/* Where chat is available, the rail stays mounted across open/close so
+          ChatPanel's message/anchor state persists — only visibility toggles. The
+          open-chat control itself lives in the app's topbar (see toggle-chat above). */}
+      {features.askClaude && <div data-testid="chat-rail"
            style={{ display: chatOpen ? "flex" : "none", flexDirection: "column",
                     width: 360, height: "100vh", boxSizing: "border-box", padding: 12,
                     borderLeft: "1px solid var(--ink-color-global-border-subtle)",
@@ -172,7 +173,7 @@ export default function OuterShell() {
                    pinMode={pinMode} onTogglePinMode={togglePinMode}
                    models={models} defaultModel={defaultModel}
                    onClose={() => setChatOpen(false)} />
-      </div>
+      </div>}
     </div>
   );
 }

@@ -32,12 +32,12 @@ Replace `mcr.microsoft.com/mssql/server:<tag>` with the engine image:
 sqldbpreview-dpgaeqhmgphzd4bk.azurecr.io/azure-sql/db-dev:latest
 ```
 
-Keep `ACCEPT_EULA=Y` and the `sa` password. The image is x64 only; on a non-x64 host add `--platform linux/amd64` (Docker) or `platform: linux/amd64` (compose). In a shell snippet that adds the flag conditionally, build it as an array so it is safe in both bash and zsh:
+Keep `ACCEPT_EULA=Y` and the `sa` password. The image provides `linux/amd64` and `linux/arm64` variants; current container runtimes select the matching architecture automatically.
 
 ```bash
-PLATFORM=(); case "$(docker info -f '{{.Architecture}}' 2>/dev/null)" in x86_64|amd64) ;; *) PLATFORM=(--platform linux/amd64);; esac
-docker run -d --name sqldb "${PLATFORM[@]}" -e "ACCEPT_EULA=Y" -e "MSSQL_SA_PASSWORD=YourStr0ng_Passw0rd" \
-    -p 1433:1433 sqldbpreview-dpgaeqhmgphzd4bk.azurecr.io/azure-sql/db-dev:latest
+MSSQL_SA_PASSWORD="${MSSQL_SA_PASSWORD:-Aa1%$(openssl rand -hex 16)}"
+docker run -d --name sqldb -e "ACCEPT_EULA=Y" -e "MSSQL_SA_PASSWORD=${MSSQL_SA_PASSWORD:?Set MSSQL_SA_PASSWORD}" \
+    -p 127.0.0.1:1433:1433 sqldbpreview-dpgaeqhmgphzd4bk.azurecr.io/azure-sql/db-dev:latest
 ```
 
 ### 4. Fix the connection model
@@ -47,7 +47,7 @@ The Azure SQL Database engine does **not** auto-create databases, and the connec
 ```bash
 # The engine is not ready the instant docker run returns; retry until it accepts connections.
 # -b makes a SQL error set the exit code so a transient startup error (Msg 913) is retried, not masked.
-until docker exec sqldb /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "YourStr0ng_Passw0rd" -C -b -l 2 \
+until docker exec sqldb /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "$MSSQL_SA_PASSWORD" -C -b -l 2 \
     -Q "IF DB_ID('appdb') IS NULL CREATE DATABASE appdb;" >/dev/null 2>&1; do
   sleep 2
 done
@@ -68,7 +68,7 @@ These exist in SQL Server but **not** in Azure SQL Database; remove or replace a
 ### 6. Verify you are on the real engine
 
 ```bash
-docker exec sqldb /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "YourStr0ng_Passw0rd" -C -b \
+docker exec sqldb /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "$MSSQL_SA_PASSWORD" -C -b \
     -d appdb -Q "SELECT SERVERPROPERTY('EngineEdition') AS EngineEdition, SERVERPROPERTY('Edition') AS Edition;"
 ```
 
@@ -79,13 +79,13 @@ Expect `EngineEdition = 5` and `Edition = SQL Azure`. The SQL Server image retur
 ## Validation rules
 
 - No `mcr.microsoft.com/mssql/server` remains in compose, Dockerfiles, run scripts, CI, or Dev Container.
-- `--platform linux/amd64` is added on non-x64 hosts (compose `platform:` or the array-form shell snippet).
+- The runtime selects the matching architecture for supported x64 and ARM64 hosts.
 - `appdb` is created on a `master` connection before the app connects with `Database=appdb`; no `USE` to switch databases.
 - At least one SQL Server-only feature is flagged (or the app confirmed not to use any).
 - `EngineEdition = 5` against the running container.
 
 ## Do not
 
-- Do not keep the SQL Server image or call a non-x64 host "supported".
+- Do not keep the SQL Server image.
 - Do not develop against `master`; do real work on the user database.
 - Do not commit the SA password or the registry credentials.

@@ -9,6 +9,10 @@
           },
           {
             "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/modules/core/local-shadow-trigger.mjs\" session_start"
+          },
+          {
+            "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/claude-register-align-watch-paths.mjs\""
           },
           {

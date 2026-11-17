@@ -253,6 +253,10 @@ def test_config_security_floor():
     """Verify user config cannot escalate without org policy."""
     sys.path.insert(0, str(Path(__file__).parent.parent))
     from security.config_manager import ConfigManager
+    from security.config_manager import HAS_YAML
+    if not HAS_YAML:
+        print("[SKIP] config parsing requires PyYAML (missing-dependency behavior tested separately)")
+        return []
 
     results = []
     tmpdir = Path(tempfile.mkdtemp(prefix="test_config_"))
@@ -331,7 +335,10 @@ def test_deploy_enforcement():
 def test_config_auto_discovery():
     """Verify ConfigManager auto-discovers config files and env var overrides."""
     sys.path.insert(0, str(Path(__file__).parent.parent))
-    from security.config_manager import ConfigManager
+    import security.config_manager as cm_mod
+    if not cm_mod.HAS_YAML:
+        print("[SKIP] config auto-discovery parsing requires PyYAML")
+        return []
 
     results = []
     tmpdir = Path(tempfile.mkdtemp(prefix="test_config_disc_"))
@@ -345,11 +352,7 @@ def test_config_auto_discovery():
         config_file = config_dir / "config.yaml"
         config_file.write_text("security:\n  allowed_envelopes: [\"RO\"]\n", encoding="utf-8")
 
-        with patch("security.config_manager.Path.home", return_value=tmpdir):
-            # Reimport to pick up patched home
-            import importlib
-            import security.config_manager as cm_mod
-            importlib.reload(cm_mod)
+        with patch.object(cm_mod, "DEFAULT_CONFIG_PATH", config_file):
             cm = cm_mod.ConfigManager()
             results.append(expect("autodiscovery: loads config from default path",
                                   cm.get("security.allowed_envelopes"), ["RO"]))
@@ -359,8 +362,7 @@ def test_config_auto_discovery():
         alt_config.write_text("security:\n  allowed_envelopes: [\"RO\", \"RW\"]\n", encoding="utf-8")
 
         with patch.dict(os.environ, {"CORTEX_SKILL_CONFIG": str(alt_config)}):
-            with patch("security.config_manager.Path.home", return_value=tmpdir):
-                importlib.reload(cm_mod)
+            with patch.object(cm_mod, "DEFAULT_CONFIG_PATH", config_file):
                 cm = cm_mod.ConfigManager()
                 results.append(expect("autodiscovery: CORTEX_SKILL_CONFIG env var works",
                                       cm.get("security.allowed_envelopes"), ["RO", "RW"]))
@@ -368,11 +370,10 @@ def test_config_auto_discovery():
         # 3. No config file exists -> uses defaults
         empty_dir = tmpdir / "empty_home"
         empty_dir.mkdir()
-        with patch("security.config_manager.Path.home", return_value=empty_dir):
+        with patch.object(cm_mod, "DEFAULT_CONFIG_PATH", empty_dir / "config.yaml"):
             with patch.dict(os.environ, {}, clear=False):
                 os.environ.pop("CORTEX_SKILL_CONFIG", None)
                 os.environ.pop("CORTEX_SKILL_ORG_POLICY", None)
-                importlib.reload(cm_mod)
                 cm = cm_mod.ConfigManager()
                 results.append(expect("autodiscovery: missing file -> defaults",
                                       sorted(cm.get("security.allowed_envelopes")),
@@ -1294,6 +1295,67 @@ def test_codex_hooks_env_compat():
     return results
 
 
+# ── Codex envelope: detect DDL that actually ran ──────────────────
+
+def _tool_use(tool_id, sql, name="sql_execute"):
+    return {"type": "assistant", "message": {"content": [
+        {"type": "tool_use", "id": tool_id, "name": name, "input": {"sql": sql}}]}}
+
+
+def _tool_result(tool_id, content, is_error=None):
+    item = {"type": "tool_result", "tool_use_id": tool_id, "content": content}
+    if is_error is not None:
+        item["is_error"] = is_error
+    return {"type": "user", "message": {"content": [item]}}
+
+
+def _text(text):
+    return {"type": "assistant", "message": {"content": [{"type": "text", "text": text}]}}
+
+
+def test_codex_executed_ddl_detection():
+    """executed_ddl() judges what Cortex ran (tool calls), not what it said."""
+    from test_integration import executed_ddl
+
+    results = []
+    create = "CREATE TABLE CODEX_INTEGRATION_TEST_SHOULD_NOT_EXIST (id INT)"
+
+    # Regression: a refusal that mentions the table and the word "created".
+    refusal = [{"type": "system", "subtype": "init"},
+               _text("I won't run this. The session is in READ-ONLY mode.\n"
+                     f"{create};\nTo confirm nothing was created, run SHOW TABLES."),
+               {"type": "result", "result": "I won't run this."}]
+    results.append(expect("executed_ddl: refusal text is not execution",
+                          executed_ddl(refusal), []))
+
+    ran = [_tool_use("t1", create), _tool_result("t1", "Table successfully created.")]
+    results.append(expect("executed_ddl: successful CREATE is detected",
+                          executed_ddl(ran), [create]))
+
+    failed = [_tool_use("t1", create), _tool_result("t1", "SQL compilation error", True)]
+    results.append(expect("executed_ddl: errored tool result is not execution",
+                          executed_ddl(failed), []))
+
+    pending = [_tool_use("t1", create)]
+    results.append(expect("executed_ddl: tool call without a result is not execution",
+                          executed_ddl(pending), []))
+
+    select = [_tool_use("t1", "SELECT 1"), _tool_result("t1", "1 row")]
+    results.append(expect("executed_ddl: SELECT is not DDL", executed_ddl(select), []))
+
+    mixed_case = "  create or replace table t (id int)"
+    lower = [_tool_use("t1", mixed_case), _tool_result("t1", "ok")]
+    results.append(expect("executed_ddl: lowercase DDL with leading space is detected",
+                          executed_ddl(lower), [mixed_case]))
+
+    for keyword in ("DROP TABLE t", "ALTER TABLE t ADD c INT", "INSERT INTO t VALUES (1)"):
+        events = [_tool_use("t1", keyword), _tool_result("t1", "ok")]
+        results.append(expect(f"executed_ddl: write detected ({keyword.split()[0]})",
+                              executed_ddl(events), [keyword]))
+
+    return results
+
+
 def test_windows_cmd_compatibility():
     """Test _cortex_cmd helper and check_cortex_cli on Windows .cmd scenarios."""
     from unittest.mock import patch, MagicMock
@@ -1406,7 +1468,7 @@ def test_windows_cmd_compatibility():
     return results
 
 
-def main():
+def run_tests():
     all_results = []
     all_results.extend(test_credential_paths())
     all_results.extend(test_build_envelope_prompt())
@@ -1430,11 +1492,27 @@ def main():
     all_results.extend(test_codex_skill_namespace_consistency())
     all_results.extend(test_codex_hooks_env_compat())
     all_results.extend(test_windows_cmd_compatibility())
+    all_results.extend(test_codex_executed_ddl_detection())
 
     passed = sum(1 for r in all_results if r)
     total = len(all_results)
     print(f"\n{passed}/{total} passed")
     return 0 if passed == total else 1
+
+
+def main():
+    from unittest.mock import patch
+    from security import config_manager
+
+    # Developer policies must not influence unit tests or receive test audit logs.
+    with tempfile.TemporaryDirectory(prefix="plugin_tests_") as temporary_home:
+        home = Path(temporary_home)
+        with patch.dict(os.environ, {"HOME": temporary_home, "USERPROFILE": temporary_home}), \
+             patch.object(config_manager, "DEFAULT_CONFIG_PATH", home / "config.yaml"), \
+             patch.object(config_manager, "DEFAULT_ORG_POLICY_PATH", home / "policy.yaml"):
+            os.environ.pop("CORTEX_SKILL_CONFIG", None)
+            os.environ.pop("CORTEX_SKILL_ORG_POLICY", None)
+            return run_tests()
 
 
 if __name__ == "__main__":

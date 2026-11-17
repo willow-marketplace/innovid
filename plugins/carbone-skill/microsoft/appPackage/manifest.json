@@ -1,0 +1,34 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/teams/v1.30/MicrosoftTeams.schema.json",
+  "manifestVersion": "1.30",
+  "version": "2.3.0",
+  "id": "fbcff75e-fd36-4d28-961a-984eee61f8f5",
+  "developer": {
+    "name": "Carbone",
+    "websiteUrl": "https://carbone.io",
+    "privacyUrl": "https://carbone.io/company/privacy-policy.html",
+    "termsOfUseUrl": "https://carbone.io/company/terms-of-service.html"
+  },
+  "icons": {
+    "color": "color.png",
+    "outline": "outline.png"
+  },
+  "name": {
+    "short": "Carbone",
+    "full": "Carbone document generation"
+  },
+  "description": {
+    "short": "Branded PDF, Word, Excel and PowerPoint documents from your approved templates",
+    "full": "Carbone fills your company's approved templates with data from the conversation and returns finished PDF, Word, Excel and PowerPoint files: invoices, quotes, contracts, certificates, statements, labels and reports. The template fixes the layout, so every document matches your brand and the same data always gives the same document. More than 800 companies worldwide use Carbone in production.\n\nWhat the agent does:\n- Fills your stored Word, Excel, PowerPoint and HTML templates with values typed in the chat or pasted from an email, a CRM export or an Excel table.\n- Generates one document, or up to 100 in one request as a ZIP or a single PDF.\n- Designs a new template for PDF or Word output, shows a PDF proof and saves it to your library.\n- Lists your templates by category and tag, shows the data each one expects, and manages versions.\n- Formats dates, numbers and amounts for each country, and renders multilingual templates.\n- Adds watermarks and open passwords to PDFs, and converts pasted HTML, or files shared by public link, to PDF.\nTemplates can include line-item tables with totals, conditional sections, images, charts, QR codes and barcodes.\n\nExample requests:\n- \"Fill my Invoice template: invoice INV-2026-0142 for Northwind Traders, 3 consulting days at 850 EUR, due in 30 days.\"\n- \"Use my Training Certificate template to create one certificate per person in a single PDF: Alice Martin, Bruno Costa, Chen Wei.\"\n- \"Generate my Invoice template in French and in English, with translated labels and local date and amount formats.\"\n\nAccount and pricing: a Carbone account is required. Copilot shows the Carbone sign-in on first use, where an account can be created. Without a Carbone Cloud plan, every document is a watermarked PDF preview. A Carbone Cloud plan removes the watermark and unlocks every format.\n\nData and delivery: Carbone Cloud is hosted in France. Only templates are stored; the data sent for rendering is not. Each document arrives as a one-time download link, valid for one hour.\n\nLimitations: the agent reads pasted text and public HTTPS links, not files attached to the chat or stored in OneDrive or SharePoint. Word, Excel and PowerPoint templates are uploaded in Carbone Studio or from a public link.\n\nAI-generated content: Copilot uses AI to prepare data and new templates and can make mistakes; Carbone then renders the template exactly. Review each document before sharing it. To report harmful or inappropriate content, or for support, email support@carbone.io."
+  },
+  "accentColor": "#A544C5",
+  "copilotAgents": {
+    "declarativeAgents": [
+      {
+        "id": "carbone",
+        "file": "declarativeAgent.json"
+      }
+    ]
+  },
+  "validDomains": []
+}

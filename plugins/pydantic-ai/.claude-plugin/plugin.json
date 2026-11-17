@@ -1,8 +1,8 @@
 {
   "name": "pydantic-ai",
   "version": "1.0.0",
-  "description": "Build production-grade AI agents with Pydantic AI — tools, capabilities, structured output, streaming, and testing patterns",
-  "updatedAt": "2026-09-19T00:42:54.265Z",
+  "description": "Build production-grade AI agents with Pydantic AI — tools, capabilities, structured output, streaming, and testing patterns — and port existing agents over from LangChain, the OpenAI Agents SDK, Google ADK, Mastra, Agno, Pi, the Claude Agent SDK, and the Vercel AI SDK",
+  "updatedAt": "2026-11-17T00:02:05.006Z",
   "author": {
     "name": "Pydantic",
     "email": "support@pydantic.dev"

@@ -16,14 +16,23 @@ commands:
     description: "Install pnpm and the dependencies"
     steps:
       - run:
-          name: Disable Corepack
-          command: sudo corepack disable
-      - run:
           name: Install pnpm
-          command: sudo npm i -g pnpm@11.14.0
+          command: sudo npm i -g pnpm@12.8.2
       - run:
           name: Install dependencies
           command: pnpm install --frozen-lockfile
+
+  install_ssh_keys_command:
+    description: "Install SSH keys"
+    steps:
+      - add_ssh_keys:
+          fingerprints:
+            - "a0:41:a2:56:c8:7d:3f:29:41:d1:87:92:fd:50:2b:6b"
+      - run:
+          name: Add GitHub to known_hosts
+          command: |
+            mkdir -p ~/.ssh
+            ssh-keyscan github.com >> ~/.ssh/known_hosts
 
   gpg_credentials_command:
     description: "Setup GPG configuration"
@@ -47,11 +56,12 @@ commands:
             git config --global user.signingkey 3F615B600F38B27B
             git config --global commit.gpgsign true
             git config --global tag.gpgSign true
+            git remote set-url origin git@github.com:ckeditor/skills.git
 
 jobs:
   tests:
     docker:
-      - image: cimg/node:24.11.0
+      - image: cimg/node:26.10.0
     resource_class: small
     steps:
       - checkout
@@ -65,7 +75,7 @@ jobs:
 
   trigger_release_process:
     docker:
-      - image: cimg/node:24.11.0
+      - image: cimg/node:26.10.0
     resource_class: small
     steps:
       - checkout
@@ -103,11 +113,11 @@ jobs:
 
   release_project:
     docker:
-      - image: cimg/node:24.11.0
+      - image: cimg/node:26.10.0
     resource_class: small
     steps:
       - checkout
-      - add_ssh_keys
+      - install_ssh_keys_command
       - bootstrap_repository_command
       - run:
           name: Verify the trigger commit from the repository

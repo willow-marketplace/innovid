@@ -5,7 +5,7 @@ description: Install, upgrade, authenticate, or repair `twg` for your coding age
 
 # TWG Setup
 
-Recognized installer hosts: `claude-code`, `codex`, `copilot`, `cursor`, `devin`, `gemini`, `hermes`, `intellij`, `opencode`, `pi`, `qoder`, `vscode`.
+Recognized installer hosts: `antigravity`, `claude-code`, `codex`, `copilot`, `cursor`, `devin`, `gemini`, `hermes`, `intellij`, `opencode`, `pi`, `qoder`, `vscode`.
 
 ## Unix / macOS
 
@@ -33,6 +33,7 @@ if [ -z "$TWG_BIN" ]; then
 fi
 [ -n "$TWG_BIN" ] && "$TWG_BIN" doctor || true
 ```
+
 
 ## Windows PowerShell
 
@@ -67,73 +68,40 @@ if ($TWG_BIN) {
 }
 ```
 
+
 ## Common flow
 
 Infer the current host from runtime context; never ask the user to identify it. Use its
 plugin argument when recognized; omit it only when the host is genuinely unknown. Do not
 narrate the plugin argument or describe attribution or analytics to the user.
 
-1. Run the OS-specific **Inspect** block.
-2. If the CLI is missing:
-   - Full interactive terminal: after explicit approval, run the installer command
-     outside the sandbox only if prompts remain visible and answerable.
-   - Limited terminal or failed download: give the OS installer command to the user; include the
-     plugin argument for a recognized host. Do not execute it.
-3. If an interactive stage does not finish, do not retry it or start another interactive command.
-   Give the user only the interactive command for that unfinished stage, using matching
-   installer-reported remediation when present. Do not include `doctor` or other follow-up
-   commands; step 4 owns them. Add `When it finishes, reply done.` Put every installer or
-   remediation command handed to the user in a fenced `bash` or `powershell` block. Use raw URLs;
-   never render a command inline or as a Markdown link.
-4. After full installer success, or after the user replies `done`, run `doctor` yourself. Never
-   ask the user to run it or paste its output, and never reinstall for auth, permission, or
-   command errors.
+1. Run the OS-specific **Inspect** block. If a sandboxed run does not find `twg`, ask for approval
+   to run the block unsandboxed. A sandbox can hide the home directory, so a sandboxed result does
+   not prove that `twg` is absent.
+2. If the CLI is missing, give the user the OS-specific installer command with the plugin
+   argument for a recognized host. Do not execute it, even in an interactive terminal. End with
+   `When it finishes, reply done.` Do not include `doctor` or another follow-up command.
+3. After the user replies `done`, run the OS-specific **Inspect** block yourself so `doctor`
+   verifies the installation. Never ask the user to run `doctor` or paste its output, and never
+   reinstall for auth, permission, or command errors.
 
-## Terminal capability
-
-Setup can prompt for agreement consent, required OAuth, and optional Bitbucket configuration.
-
-- Full interactive terminal: the agent can continuously read prompts and send input after the
-  process starts.
-- Limited terminal: non-TTY, partial TTY, background TTY without continued input, or any
-  session where post-start input is unavailable or uncertain.
-- Only a full interactive terminal may run installation or interactive `twg setup`,
-  `twg login`, and `twg setup bitbucket` outside the sandbox.
-- With a limited terminal, do not start an interactive flow; give the applicable installer or
-  remediation command to the user.
-- Run each interactive command once in the foreground. If input becomes unavailable or the
-  command is interrupted, stop only that task and follow step 3. Do not background, poll, sleep,
-  guess answers or phase, retry, launch a replacement, or kill by process name. Show only OAuth
-  URLs and codes emitted by the active attempt; never invent or reuse them.
-- Before requesting approval, explain that the installer downloads `twg`, writes it to the
-  standard location, and installs global skills.
-- Installer execution requires explicit approval; a setup request alone is not approval.
-- Installer command means only an OS installer command above, never a `twg ...` command.
-
-## Setup behavior
-
-- Agreement: show the full text and links; relay the user's yes/no response.
-- Skills: install globally.
-- OAuth: required; show verification URL and user code verbatim; user completes browser auth.
-- Upkeep: host scheduler; refreshes OAuth outside restricted agent sandboxes.
-- Bitbucket: optional; browser opens token creation; user may skip and configure later.
-- Other third-party connections: optional; configure later.
-- Secrets: user enters tokens, passwords, API keys, and 2FA/OTP codes. Never request or expose
-  them. Never expose OAuth `device_code`.
+Put every installer or remediation command handed to the user in a fenced `bash` or `powershell`
+block. Use raw URLs; never render a command inline or as a Markdown link. The user completes
+agreements, browser authentication, optional connections, and secret entry in their own terminal.
+Never request or expose tokens, passwords, API keys, 2FA/OTP codes, or OAuth `device_code`.
 
 ## Doctor remediation
 
-Use this section only for a pre-existing install, after full installer success, or after the user
-completes a handed-off interactive step and replies `done`.
-Run only the reported fix.
+Use this section only for a pre-existing install or after the user replies `done`. Run only the
+reported fix.
 
-- With a full interactive terminal, run auth or setup fixes outside the sandbox.
-- Otherwise give the matching interactive remediation command to the user unchanged.
-- Run noninteractive fixes, including skill refresh, directly.
-
-- OAuth: `twg login --force`; then `twg doctor`.
-- Initial/general setup: `twg setup`; then `twg doctor`.
-- Optional Bitbucket: `twg setup bitbucket`; then `twg doctor`.
+- Give interactive auth and setup fixes to the user; never execute them yourself. Put the command
+  in the matching fenced block, end with `When it finishes, reply done.`, and rerun `doctor`
+  yourself after that reply.
+- Run noninteractive fixes, including skill refresh, directly, then rerun `doctor`.
+- OAuth: `twg login --force`.
+- Initial/general setup: `twg setup`.
+- Optional Bitbucket: `twg setup bitbucket`.
 
 ### Skill refresh
 
@@ -142,6 +110,15 @@ the standard agent skill location:
 
 ```text
 twg skills install --yes
+```
+
+Use `twg skills list` to check saved quarantine policy.
+Quarantined skills keep fresh content but have no global discovery links.
+Refresh does not clear this policy.
+Restore only when the user asks to enable the skill:
+
+```bash
+twg skills restore <exact-name> --yes
 ```
 
 After a skill install or refresh, reload or start a new agent session.
@@ -157,8 +134,8 @@ at setup or ask the user to choose a new task.
 
 Only when the user's request was setup alone, offer a few useful TWG prompts:
 
-- Use `twg work query` and `twg collaborators` to brief me on my last 7 days: top three workstreams, key people involved, blockers, and next actions.
-- I was out for [N days]. Catch me up on [topic]: material changes, decisions, blockers, conversations I should respond to, and my top three next actions.
+- Summarize my last 7 days: workstreams, key people, blockers, next actions. Use `twg work query` and `twg collaborators`.
+- I was away for [N days]. Catch me up on [topic]: updates, decisions, blockers, replies, next actions.
 - Who should I talk to about [topic]? Identify the owner and up to three experts, explain why each is relevant, and tell me whom to contact first.
 - What's the latest status of [project]? Include the owner, last update, blockers or risks, and next milestone.
 - Find the three most useful current design docs or PRDs for [topic]. Explain what each establishes and flag stale or conflicting guidance.

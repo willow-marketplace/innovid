@@ -58,9 +58,9 @@ Find the function below, then open the matching sub-file for full signatures, pa
 | MOD | `MOD(N, Div)` | Remainder |
 | QUOTIENT | `QUOTIENT(N, Div)` | Integer part |
 | POWER | `POWER(N, P)` | |
-| ROUND | `ROUND(N [, Digits])` | 0–14 digits; out of range → BLANK |
-| ROUNDUP | `ROUNDUP(N [, Digits])` | Away from zero |
-| ROUNDDOWN | `ROUNDDOWN(N [, Digits])` | Toward zero |
+| ROUND | `ROUND(N [, Digits])` | Nearest; 0–14 digits; out of range → BLANK |
+| ROUNDUP | `ROUNDUP(N [, Digits])` | Rounds up (away from zero) |
+| ROUNDDOWN | `ROUNDDOWN(N [, Digits])` | Rounds down (toward zero) |
 | TRUNC | `TRUNC(N [, KeptDigits])` | KeptDigits Integer only (not Metric); negative → BLANK |
 | CEILING | `CEILING(N)` | Toward +∞; `CEILING(-2.36)` → -2 |
 | FLOOR | `FLOOR(N)` | Toward -∞; `FLOOR(-2.36)` → -3 |
@@ -109,9 +109,9 @@ Find the function below, then open the matching sub-file for full signatures, pa
 | EOMONTH | `EOMONTH(Date [, MonthOff])` | Last day of month |
 | STARTOFMONTH | `STARTOFMONTH(Date [, MonthOff])` | First day of month |
 | INPERIOD | `INPERIOD(Date, TimeDim)` | TRUE/BLANK |
-| DAYSINPERIOD | `DAYSINPERIOD(TimeDim [, Start] [, End] [, WorkDays] [, Holidays])` | Integer; no Day dim |
+| DAYSINPERIOD | `DAYSINPERIOD(TimeDim [, Start] [, End] [, WorkDays] [, Holidays])` | Integer; no Day dim; **Start incl, End excl** (+1 for inclusive) |
 | PRORATA | `PRORATA(TimeDim [, Start] [, End] [, WorkDays] [, Holidays])` | 0–1; **Start incl, End excl** (+1 for inclusive) |
-| NETWORKDAYS | `NETWORKDAYS(From, To, WorkDays, Holidays)` | **End excluded** |
+| NETWORKDAYS | `NETWORKDAYS(From, To [, WorkDays] [, Holidays])` | **End excluded** (+1 for inclusive); no weekend filter without WorkDays |
 | MONTHTODATE | `MONTHTODATE(Metric [, Agg])` | Resets each month |
 | QUARTERTODATE | `QUARTERTODATE(Metric [, Agg])` | Resets each quarter |
 | YEARTODATE | `YEARTODATE(Metric [, Agg])` | Resets each year |

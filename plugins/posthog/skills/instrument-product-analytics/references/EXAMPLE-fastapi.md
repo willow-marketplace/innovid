@@ -117,7 +117,7 @@ The `/api/test-error` endpoint demonstrates manual exception capture. Use `?capt
 ## Project Structure
 
 ```
-basics/fastapi/
+example-apps/fastapi/
 ├── app/
 │   ├── __init__.py              # Package marker
 │   ├── config.py                # Pydantic Settings configuration
@@ -1554,7 +1554,7 @@ fastapi>=0.109.0
 uvicorn>=0.27.0
 sqlalchemy>=2.0.0
 python-dotenv>=1.0.0
-posthog>=3.0.0
+posthog>=7,<8
 pydantic>=2.0.0
 pydantic-settings>=2.0.0
 jinja2>=3.0.0

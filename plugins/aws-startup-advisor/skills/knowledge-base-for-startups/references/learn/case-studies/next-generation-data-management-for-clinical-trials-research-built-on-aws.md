@@ -5,7 +5,7 @@ title: "Next generation data management for clinical trials & research built on 
 
 ## Next generation data management for clinical trials & research built on AWS
 
-_Guest post by Steve Bilawey, Co-Founder & Chief Business Officer, Precision Digital Health_
+> _Guest post by Steve Bilawey, Co-Founder & Chief Business Officer, Precision Digital Health_
 
 ## Data and Automation in Drug Development
 
@@ -47,7 +47,7 @@ PDH's SUMMA platform enables compliant evidence generation powered by AWS techno
 
 SUMMA's powerful and precise data capabilities allow for the use of advanced ML/AI techniques. To establish new patterns and insights for clinical discovery, SUMMA's automation and linking capability enables broader impact across large volumes of data, in less time. SUMMA operationalizes ML/AI by automating and transforming the ML/AI into standard data flows that generate actionable predictive outputs for business users.
 
-**Case Study: Machine Learning for Treatment and Prevention in Osteoarthritis**
+### Case Study: Machine Learning for Treatment and Prevention in Osteoarthritis
 
 Using ML, PDH developed a model to identify predictive risk factors leading to early osteoarthritis diagnosis, accurate treatment, and prevention of knee replacement. The SUMMA platform prepared and transformed data to generate key clinical risk factors that would rapidly assess and risk stratify patients. The application of this model aided in early diagnosis and demonstrated a 90% accuracy rate in predicting osteoarthritis one year in advance. Additionally, SUMMA was able to automate the clinical workflow for targeting the patients accurately.
 
@@ -65,6 +65,6 @@ To learn more about how PDH can power your clinical research, visit [https://pre
 
 ---
 
-_Author: AWS Editorial Team_
+> _Author: AWS Editorial Team_
 
 The AWS Startups Content Marketing Team collaborates with startups of all sizes and across all sectors to deliver exceptional content that educates, entertains, and inspires.

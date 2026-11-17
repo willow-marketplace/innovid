@@ -37,7 +37,7 @@ With plans to expand their product to other industries within Financial Services
 
 For other founders who want to achieve similar success, Augie's advice is two-fold. "Once you've identified a problem and you are passionate about solving it, have the conviction to go and do it. The entrepreneurial process itself—paired with passion and diligence—will give you the answers you need to successfully execute your plan." He also advises, "There are a lot of benefits on the AWS side that I had no idea about: their [entrepreneurship program](https://aws.amazon.com/startups/startup-programs/) has been super helpful and [AWS Activate](https://aws.amazon.com/activate/) provides credits for startups. It's like you help startup firms live rent-free for the first few months or years. Memo to startup founders: Knock on the AWS door. They will help."
 
-_Special thanks to Ashley Wax, Demand Generation Representative_
+> _Special thanks to Ashley Wax, Demand Generation Representative_
 
 ## Other Posts in This Series
 

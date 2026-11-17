@@ -1,6 +1,6 @@
 ---
 name: motion-graphics
-description: ">"
+description: motion-graphics
 ---
 
 # motion-graphics — dispatch entry

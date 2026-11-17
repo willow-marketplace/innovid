@@ -1,5 +1,12 @@
 # MatrixScan Batch Capacitor Migration Guide
 
+## Migration principles
+
+- **Authority.** When this guide and the API reference disagree, trust the API reference — and a runtime check in the user's project — over this guide. Say which source you followed and why in the summary.
+- **Behaviour changes.** Never present a visual or behaviour change (new default, different overlay look, changed feedback, changed scan timing) as a 1:1 rename. List each one in the summary as a judgment call the user must confirm.
+- **Compatibility layer.** When the scanning code sits behind a shared scanner library or wrapper that other code calls, keep that library's public API frozen (same types, method names, callbacks) and change only the Scandit calls underneath.
+- **Dual-version code.** When code must run on both the old and the target version, branch at run time on a symbol this guide lists as removed in the target version — never on a version string, and never on the presence of the new API. A deprecated symbol that is still present proves nothing about the installed version. Example: `BarcodeBatch.forContext` exists in v7 and is removed in v8, so probing it tells v7 from v8; `DataCaptureContext.forLicenseKey` is deprecated but still present in v8, so probing it cannot.
+
 ## Step 1: Detect the installed SDK version
 
 Before making any changes, find out which version of the Scandit Capacitor plugins the project currently has installed.
@@ -116,7 +123,7 @@ Replace every call to `DataCaptureContext.forLicenseKey(...)` with `DataCaptureC
 
 ### Capture mode factory: `BarcodeBatch.forContext` → `new BarcodeBatch`
 
-The static factory method is deprecated in v8. Construct the mode directly and register it with the context via `setMode`.
+The static factory method was removed in 8.0. Construct the mode directly and register it with the context via `setMode`.
 
 **v7:**
 ```javascript
@@ -137,77 +144,9 @@ The `new BarcodeBatch(settings)` constructor no longer takes the context — bin
 
 ---
 
-## Migrating from a third-party scanner: `@capacitor-mlkit/barcode-scanning` (ML Kit) → MatrixScan Batch
+## Migrating from a third-party scanner
 
-When a project uses Capawesome's `@capacitor-mlkit/barcode-scanning` plugin for continuous
-multi-barcode scanning and wants to move to Scandit MatrixScan Batch, this is a **replacement**, not
-a property rename. ML Kit reports raw detections on a stream; BarcodeBatch tracks barcodes across
-frames with stable identifiers. The migration removes the ML Kit surface and rebuilds the scanner
-with the BarcodeBatch flow from `integration.md`.
-
-### Remove the ML Kit surface
-
-Delete these from the project:
-
-- The `import { BarcodeScanner, BarcodeFormat } from '@capacitor-mlkit/barcode-scanning';` import.
-- `BarcodeScanner.addListener('barcodesScanned', ...)` and the handle it returns.
-- `BarcodeScanner.startScan(...)` / `BarcodeScanner.stopScan()`.
-- Any use of the ML Kit `BarcodeFormat` enum (e.g. `BarcodeFormat.Ean13`).
-
-Uninstall the plugin (`npm uninstall @capacitor-mlkit/barcode-scanning`) once nothing references it.
-
-### Map ML Kit `BarcodeFormat` values to Scandit `Symbology`
-
-Enable the equivalent Scandit symbologies in `BarcodeBatchSettings`. ML Kit's `BarcodeFormat`
-members map to `Symbology` as follows:
-
-| ML Kit `BarcodeFormat` | Scandit `Symbology` |
-|---|---|
-| `BarcodeFormat.Ean13` | `Symbology.EAN13UPCA` |
-| `BarcodeFormat.Ean8` | `Symbology.EAN8` |
-| `BarcodeFormat.UpcA` | `Symbology.EAN13UPCA` (UPC-A is decoded by the EAN-13/UPC-A symbology) |
-| `BarcodeFormat.UpcE` | `Symbology.UPCE` |
-| `BarcodeFormat.Code128` | `Symbology.Code128` |
-| `BarcodeFormat.Code39` | `Symbology.Code39` |
-| `BarcodeFormat.Code93` | `Symbology.Code93` |
-| `BarcodeFormat.Codabar` | `Symbology.Codabar` |
-| `BarcodeFormat.Itf` | `Symbology.InterleavedTwoOfFive` |
-| `BarcodeFormat.QrCode` | `Symbology.QR` |
-| `BarcodeFormat.DataMatrix` | `Symbology.DataMatrix` |
-| `BarcodeFormat.Pdf417` | `Symbology.PDF417` |
-| `BarcodeFormat.Aztec` | `Symbology.Aztec` |
-
-> Enable only the symbologies the app actually used — each extra symbology adds processing cost.
-
-### Preserve dedup and the summary
-
-ML Kit code typically deduplicates on `barcode.rawValue` (a `Set`) and accumulates a list/summary
-of unique codes. Keep that behavior. Two options:
-
-- **Direct port**: keep deduping on the barcode data — read `trackedBarcode.barcode.data` in
-  `didUpdateSession` and add to the existing `Set` / summary exactly as before.
-- **Upgrade (recommended)**: BarcodeBatch already tracks each physical barcode with a stable
-  `identifier`, so iterate `session.addedTrackedBarcodes` (new this frame) and dedupe on the tracking
-  identifier — this avoids re-emitting the same physical barcode and is more robust than value
-  dedupe. Prune your state with `session.removedTrackedBarcodes` when codes leave the frame.
-
-Field mapping for the data your old code read off each ML Kit `Barcode`:
-
-| ML Kit `Barcode` field | BarcodeBatch equivalent |
-|---|---|
-| `barcode.rawValue` | `trackedBarcode.barcode.data` |
-| `barcode.format` | `trackedBarcode.barcode.symbology` |
-| (none — no tracking) | `trackedBarcode.identifier` (stable per physical barcode) |
-
-### Rebuild with the BarcodeBatch flow
-
-Follow `integration.md`: `ScanditCaptureCorePlugin.initializePlugins()` first, then
-`DataCaptureContext.initialize`, camera via `BarcodeBatch.createRecommendedCameraSettings()` +
-`Camera.withSettings` + `context.setFrameSource`, `BarcodeBatchSettings` with the mapped
-symbologies, `new BarcodeBatch(settings)` + `context.setMode`, a `didUpdateSession` listener that
-runs your (preserved) dedup/summary logic, `DataCaptureView.forContext` + `connectToElement`, then
-camera on and `barcodeBatch.isEnabled = true`. Show the setup checklist (install the two
-`scandit-capacitor-datacapture-*` packages, `npx cap sync`, iOS `NSCameraUsageDescription`).
+Replacing `@capacitor-mlkit/barcode-scanning` (or another third-party scanner) is not a version upgrade — read [third-party-migration.md](third-party-migration.md) instead.
 
 ---
 

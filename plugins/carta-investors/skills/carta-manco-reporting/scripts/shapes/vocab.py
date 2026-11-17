@@ -36,6 +36,15 @@ from __future__ import annotations
 
 import re
 
+# The outline's own two top-level P&L sections (`pnl_outline.py`'s own
+# `row["section"]` values) — defined once here, not in `pnl_outline.py`
+# itself, so a reader that can't import that module (it needs `openpyxl`;
+# this file needs only `re`) can still match against the same strings.
+# `build_manco_datadir.py` and `parse_budget_workbook.py`'s plausibility
+# check both read a row's `section` against these.
+SECTION_INCOME = "Income"
+SECTION_OPEX = "Operating Expenses"
+
 # Mapping-sheet sections that span every department rather than naming one.
 # These are accounting concepts, not organizational units: a row filed under
 # them applies firm-wide, so deriving a department alias from one would
@@ -75,6 +84,19 @@ def normalize(s) -> str:
     if not isinstance(s, str):
         return ""
     return _WS_RX.sub(" ", _PUNCT_RX.sub(" ", s.strip().lower())).strip()
+
+
+_COMMENT_WORDS = {"comment", "comments", "note", "notes"}
+_HEADER_QUALIFIER_RX = re.compile(r"\s*[(:\u2014\u2013-].*$")
+
+
+def is_comment_header(label) -> bool:
+    """True when a header cell names the comments column. A firm often
+    qualifies it ("Comments (Sep-26 is the last full month)", "Notes:"), so
+    the word is read before any parenthetical, colon or dash."""
+    if not isinstance(label, str):
+        return False
+    return normalize(_HEADER_QUALIFIER_RX.sub("", label.strip())) in _COMMENT_WORDS
 
 
 def is_cross_cutting(section) -> bool:

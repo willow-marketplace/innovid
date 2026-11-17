@@ -1,3 +1,16 @@
+> [!IMPORTANT]
+> **Moved to [rootlyhq/agent-skills](https://github.com/rootlyhq/agent-skills).**
+>
+> This is a legacy repository. Use the canonical repository for new installations,
+> updates, and ongoing Rootly agent-plugin development. Start with the
+> [installation guide](https://github.com/rootlyhq/agent-skills/blob/main/docs/install.md).
+>
+> The canonical 1.x plugin is read-only. Legacy write actions are not fully carried
+> over; review the [migration guide](https://github.com/rootlyhq/agent-skills/blob/main/docs/migration.md)
+> and validate your workflows before disabling an existing installation.
+>
+> The documentation below is retained for legacy installations.
+
 <p align="center">
   <img src="assets/logo.png" alt="Rootly for Claude Code" width="500" />
 </p>

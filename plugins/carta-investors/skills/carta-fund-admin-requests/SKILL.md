@@ -4,7 +4,7 @@ description: 'Send work to your Carta Fund Admin team and track it. Opens a requ
 ---
 
 <!-- carta:plugin-version -->
-<carta-plugin>carta-investors:6.32.1</carta-plugin>
+<carta-plugin>carta-investors:7.49.2</carta-plugin>
 
 <!-- Part of the official Carta AI Agent Plugin -->
 
@@ -21,18 +21,28 @@ Names are verbatim. `<SERVER>` is whichever Carta MCP server this session has.
 | Intent | Call |
 |---|---|
 | Send a new request | `call_tool({"name": "fa__create__fund-admin-message", "arguments": {"message": "<message>"}})` |
-| Read a request + Carta's replies | `call_tool({"name": "fa__list__workflow-message", "arguments": {"workflow_id": <workflow_id>}})` |
+| Check that file upload is available | `search_tools({"query": "fa__create__document-content"})` |
+| Upload a file the user attached | `call_tool({"name": "fa__create__document-content", "arguments": {"filename": "<file_name>", "content_base64": "<file_base64>"}})` |
+| Read a request + Carta's replies | `read_tool({"name": "fa__list__workflow-message", "arguments": {"workflow_id": <workflow_id>}})` |
 | Reply on an existing request | `call_tool({"name": "fa__create__workflow-message", "arguments": {"workflow_id": <workflow_id>, "message": "<message>"}})` |
-| List a firm's requests (**staff only**) | `call_tool({"name": "fa__list__workflow", "arguments": {"firm_uuid": "<firm_uuid>", "template_type": "request-generic", "page_size": 50}})` |
+| List the firm's requests | `read_tool({"name": "fa__list__firm-workflow", "arguments": {"workflow_templates": ["request-generic", "request-gp-interactive-agentic"], "statuses": ["active"]}})` |
+| List tasks waiting on the user | `read_tool({"name": "fa__list__gp-workhub-active-task", "arguments": {"pending_actor": "customer"}})` |
 
-`fa__create__fund-admin-message` takes **no** `firm_uuid` — the request is always
-about the session's active firm. It returns `{"workflow_id": <id>}`, the case number.
+None of these take a `firm_uuid` — they always act on the session's active firm.
+`fa__create__fund-admin-message` returns `{"workflow_id": <id>}`, the case number.
+Both send calls also take `"attachment_tokens": ["<token>"]`, the `token`s the
+uploads returned, at most 15. Leave it out when nothing is attached.
 
 ---
 
 ## Gate 0 — session + access
 
 1. Call `welcome`, then `get_current_user`.
+
+   > **Checkpoint**: Once `welcome` succeeds, call `mcp__<SERVER>__skill_checkpoint(skill_name="carta-investors:carta-fund-admin-requests", checkpoint_label="skill_started")` before proceeding. `<SERVER>` is the server you called `welcome` on above. If the tool is deferred, load it first with `ToolSearch(query: "select:mcp__<SERVER>__skill_checkpoint")`. If it is still unavailable, or any checkpoint call fails, carry on: checkpoints never stop a run. A run that has not recorded `skill_started` records no other checkpoint.
+
+   Each run records each checkpoint at most once, and exactly one of `skill_finished` or `skill_failed`. A step reached again later in the same run (a case opened from the Flow 2 list, a reply after reading a thread, a refresh of the list, a redraft after **Edit first**) does not checkpoint again.
+
 2. No Fund Admin access (`fund_admin_access` false) → surface verbatim and stop:
 
    > Sending work to a Carta Fund Admin team needs a Carta Fund Administration
@@ -80,6 +90,8 @@ markdown does not block execution and you will answer your own question:
 | Ask Carta to fix it | Proceed to Flow 1. |
 | Both | Answer from data first, then return to Flow 1 and confirm before sending. |
 
+> **Checkpoint**: Call `mcp__<SERVER>__skill_checkpoint(skill_name="carta-investors:carta-fund-admin-requests", checkpoint_label="skill_finished")` when the user picks **Look into it**, as you hand off.
+
 ## Flow 1 — Send a request
 
 **Never send an unconfirmed message.** It leaves Carta on the user's behalf, so
@@ -87,17 +99,43 @@ they see the exact text first, every time.
 
 1. **Draft it.** Write the message yourself from what the user said. Include the
    fund or entity name, the period, the amounts, and the outcome they want.
-   Detail is what lets the team act without coming back to ask.
-2. **Confirm.** Call the `AskUserQuestion` **tool** with the drafted message
-   quoted in full. Do not render the choices as a markdown list — a written list
-   is not a gate, and the send must block on a real user turn:
+   Detail is what lets the team act without coming back to ask. Name each file the
+   user attached and say what it is, so the team knows what to ask for if one does
+   not attach.
+2. **Check attachments**, only when the user attached files. Look up
+   `fa__create__document-content` with `search_tools`. Upload is available only
+   when it comes back first. Its help states the largest file it takes. Each file
+   within that limit will be attached, up to 15 per message: the first 15 that fit.
+   A file that is too large, every file past those 15, or any file when upload is
+   not available, stays described in the message only: tell the user the team will
+   ask for it.
+3. **Confirm.** Call the `AskUserQuestion` **tool** with the drafted message
+   quoted in full and the names of the files that will be attached (at most 15).
+   Do not render the choices as a markdown list — a written list is not a gate,
+   and the send must block on a real user turn:
    - **Send it** — send as drafted
    - **Edit first** — take their changes, redraft, confirm again
    - **Don't send** — stop, no message, no fallback
-3. **Send** on approval, then report:
+4. **Send** on approval. Upload first, right before the send, because an upload's
+   token expires after about 30 minutes. Call `fa__create__document-content` once
+   per file that will be attached and keep each result's `token`. Then send with
+   those tokens, never more than 15, as `attachment_tokens`. A failed upload never
+   holds the send: send without that file, and tell the user it did not attach and
+   the team will ask for it.
+5. **Open the progress page** when the result carries `companion_url`. Do what its
+   `next_step` says: it opens the page beside the chat. If it does not open, for
+   example because the browser pane is blocked, say so: the link as text in the
+   report is then how the user opens it. Never build that URL yourself.
+6. **Report:**
 
-   > Sent to your Carta team — case **<workflow_id>**. They'll pick it up and reply
-   > here. I'll check for a response whenever you ask.
+   > Sent to your Carta team — case **<workflow_id>**. You can follow its
+   > progress at <companion_url>. They'll pick it up and reply here. I'll check for
+   > a response whenever you ask.
+
+   Leave out the progress sentence when there is no `companion_url`. Name only the
+   files whose tokens were sent.
+
+> **Checkpoint**: Call `mcp__<SERVER>__skill_checkpoint(skill_name="carta-investors:carta-fund-admin-requests", checkpoint_label="skill_finished")` after the report in step 6, or when the user picks **Don't send**.
 
 Never estimate a turnaround. Never say "within 24 hours" or similar — you do not
 know the queue.
@@ -108,53 +146,65 @@ One call opens one case. Two unrelated asks are two calls, not one merged messag
 
 ## Flow 2 — What's open
 
-Staff callers list with `fa__list__workflow`. Non-staff callers have no list
-command yet, so ask for the case number instead:
+1. List open requests with `fa__list__firm-workflow`. It returns one page at a
+   time: pass `after` = the previous `next` until `has_next` is false. Its rows
+   cover requests filed in Carta and through this assistant. Requests sent from
+   this assistant can carry the type `request-gp-interactive-agentic` instead of
+   `request-generic`, so always filter on both.
+2. List tasks waiting on the user with `fa__list__gp-workhub-active-task`, paged
+   the same way. Keep rows whose `workflow_template` is `request-generic` or
+   `request-gp-interactive-agentic`; their `workflow_id`s are the requests that
+   need the user.
+3. For the **Completed** count, list `fa__list__firm-workflow` with
+   `"statuses": ["complete", "canceled"]`, paged the same way, and count the rows
+   across all pages. Skip it when the user only asked what is open.
 
-> I can pull up a specific request if you have its case number. Listing every open
-> request isn't available to your account yet.
+`count` covers one page only. Build every group and count from all pages.
 
-Group listed rows into three. **Read `status` first** — it is an integer, and `2`
-and `3` are terminal, so they outrank whoever the row is pending on:
+Group the requests into three:
 
-| Group | Comes from | Means |
+| Group | Comes from | Status reads |
 |---|---|---|
-| **Completed** | `status` is `2` (complete) or `3` (canceled) | Closed |
-| **Tasks to complete** | `last_task.template` is `pending-customer` | Carta replied; needs the user |
-| **In progress** | `last_task.template` is `pending-carta` or `new` | Carta has it |
+| **Tasks to complete** | `status` is `active` and its `workflow_id` is in step 2 | Ready for you |
+| **In progress** | `status` is `active`, not in step 2 | Working |
+| **Completed** | `status` is `complete` or `canceled` | Done / Canceled |
 
-An unrecognised `last_task.template` goes under **In progress** — show it rather
-than hide it. Age comes from `last_activity_at`, falling back to `created_at`.
+Age comes from `last_activity_at`, falling back to `created_at`.
 
-Status reads **Sent** (`new`) / **Working** (`pending-carta`) / **Ready for you**
-(`pending-customer`) / **Done** (`status` 2) / **Canceled** (`status` 3) — the same
-words the Carta Workhub artifact uses. Each is an event the payload can prove; there
-is deliberately no "received", because nothing marks a read.
+Do not build a URL yourself. A row links out only through `_links.web_url`; a row
+with an empty `url` has no page and no link.
 
-There is **no `state` field and no `_links` block** on this payload. Do not read
-either, and do not build a URL yourself. A row links out only when it carries
-`workflow_cta_url`; `workflow_detail_url` is a `/staff/` route a customer cannot
-open, so it is never used as a link.
+**Track request.** When a row's `_links.kind` is `request_companion`, its
+`_links.web_url` is the request's tracker page, where the user follows it in
+Carta. Show it as `[Track request](<web_url>)` after the label, and leave the
+label itself unlinked. The link can sit on the request's row from step 1 or on its
+task from step 2; use whichever carries it. Never turn `request_companion_url`,
+an in-app path, into a link yourself. A row with no such link shows none.
 
 Render each group as its own table, `#` first so the user can open one by number:
 
 | # | Request | Status | Age |
 |---|---|---|---|
-| 1 | [Split the Q3 capital call](<workflow_cta_url>) | Ready for you | 2d |
+| 1 | [Split the Q3 capital call](<web_url>) | Ready for you | 2d |
+| 2 | Restate the August accrual · [Track request](<web_url>) | Working | 1d |
 
-`request-generic` is a DM workflow, so it has **no subject**. Take the request
-label from `request_type` when it names a real job; when it is empty or generic
-(`other`, `general`, `request-generic`), fall back to
-`thread_metadata.message_snippet`, and read the opening message of the thread if
-you need a better one. Trim to one line. Link the label itself — never a separate
-"Open" or "View" column. Show **Tasks to complete** first, then **In progress**;
-collapse **Completed** to a count unless asked.
+`request-generic` and `request-gp-interactive-agentic` are DM workflows, so they
+have **no subject**. Take the request label from `display_name` when it names a
+real job; when it is empty or one of fund-admin's fallback names (`Request`,
+`New request`, `Processing new request`, `Review request`, `Request completed`),
+read the opening message with
+`fa__list__workflow-message` — only for the rows you show.
+Trim to one line. Link the label itself — never a separate "Open" or "View"
+column. Show **Tasks to complete** first, then **In progress**; collapse
+**Completed** to a count unless asked.
 
 Close with:
 
 ```
 Enter a number to open that case, or: [N] New request  [R] Refresh
 ```
+
+> **Checkpoint**: Call `mcp__<SERVER>__skill_checkpoint(skill_name="carta-investors:carta-fund-admin-requests", checkpoint_label="skill_finished")` after the closing line.
 
 ---
 
@@ -179,20 +229,30 @@ State plainly whether the ball is with Carta or the user, then:
 3 - Back to queue
 ```
 
+> **Checkpoint**: Call `mcp__<SERVER>__skill_checkpoint(skill_name="carta-investors:carta-fund-admin-requests", checkpoint_label="skill_finished")` after the options.
+
 ## Flow 4 — Reply
 
 Same confirmation as Flow 1, including the `AskUserQuestion` tool: draft, show the
 exact text, get an explicit yes, then `fa__create__workflow-message` on the same
 `workflow_id`. Read the thread first so the reply answers what was actually asked.
-Confirm with:
+Files the user attached go with the reply exactly as in Flow 1: check upload, name
+the files in the confirm, upload after the yes, and pass the tokens as
+`attachment_tokens`. Confirm with:
 
 > Reply sent on case **<workflow_id>**.
 
+Name only the files whose tokens were sent.
+
 Then offer **Back to queue**.
+
+> **Checkpoint**: Call `mcp__<SERVER>__skill_checkpoint(skill_name="carta-investors:carta-fund-admin-requests", checkpoint_label="skill_finished")` after the confirmation.
 
 ---
 
 ## If something goes wrong
+
+> **Checkpoint on every stop before this run has recorded `skill_finished`**, once this run has recorded `skill_started` and whether or not this table lists it: call `mcp__<SERVER>__skill_checkpoint(skill_name="carta-investors:carta-fund-admin-requests", checkpoint_label="skill_failed", notes="<one-line reason>")` instead of `skill_finished`. If the call fails, stop as planned. That includes Gate 0's stops and a send that returns no `workflow_id`. `skill_finished` means the run reached an end this skill plans for: a report, an answer, a hand-off, or the user choosing **Don't send**. A stop that reached none of these is a failure, and counting it as finished makes failed runs look like fast successful ones. Rows that recover and continue (asking in Gate 1, stopping to call `AskUserQuestion` after a written list, setting the firm and retrying once, asking to confirm a case number, describing a file that can't be attached) do not checkpoint. Only Gate 0's `welcome` and `get_current_user` calls come before `skill_started`, because the Carta server takes `welcome` first; a stop there records nothing.
 
 | Situation | Response |
 |---|---|
@@ -202,7 +262,6 @@ Then offer **Back to queue**.
 | Messaging not enabled for the account | Gate 0 message; stop — no retry, no other channel |
 | No active firm in the session | Call `list_contexts`, then `set_context`; retry once |
 | `fa__create__fund-admin-message` returns no `workflow_id` | Say the request may not have been created and to check with their Carta team before resending — do **not** resend automatically, it would open a second case |
-| User asks to list requests but is not staff | Flow 2 non-staff message; ask for a case number |
 | `workflow_id` not found | Wrong case number — ask them to confirm it |
-| User wants to attach a file | Not supported yet: describe the document in the message and say the team will ask for it |
-| User is reporting a plugin bug | Not a Fund Admin request — call `fa:create:feedback` directly |
+| A file can't be attached: upload not available, file too large, more than 15 files, or the upload failed | Describe the document in the message and say the team will ask for it. Never hold the send for it |
+| User is reporting a plugin bug | Not a Fund Admin request — call `fa:create:feedback` directly, then call `mcp__<SERVER>__skill_checkpoint(skill_name="carta-investors:carta-fund-admin-requests", checkpoint_label="skill_finished")` |

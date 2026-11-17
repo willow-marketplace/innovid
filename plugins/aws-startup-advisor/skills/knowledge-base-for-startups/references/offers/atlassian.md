@@ -13,4 +13,4 @@ Many of today’s most successful startups, including Cloudflare, Canva, Rivian,
 
 Eligible startups\* get up to 50 seats free for one year for the following products: Jira, Confluence, Jira Product Discovery, Compass, Bitbucket & Loom.
 
-_\*Conditions apply.  Complete details can be found [here](https://www.atlassian.com/software/startups?utm_source=partner-email&utm_medium=comarketing&utm_campaign=P:atlassian%7CO:%7CI:a4s-vc-aws%7C)._
+_\*Conditions apply.  Complete details can be found [on the Atlassian for Startups page](https://www.atlassian.com/software/startups?utm_source=partner-email&utm_medium=comarketing&utm_campaign=P:atlassian%7CO:%7CI:a4s-vc-aws%7C)._

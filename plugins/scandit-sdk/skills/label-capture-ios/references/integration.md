@@ -12,7 +12,7 @@ If the user has no existing app yet, offer the official iOS sample as the fastes
 
 Tell the user to clone the repo and open the sample's Xcode project. Once they have it open, help them:
 
-1. Replace `-- ENTER YOUR SCANDIT LICENSE KEY HERE --` (in `ScanViewController.swift`) with their key from <https://ssl.scandit.com>
+1. Replace `-- ENTER YOUR SCANDIT LICENSE KEY HERE --` (in `ScanViewController.swift`) with your key (see **Licence key** in `SKILL.md`).
 2. Adjust the label definition to match their use case (fields, symbologies, regex patterns)
 3. Build and run on a real device (the simulator has no camera)
 
@@ -39,9 +39,7 @@ Only proceed to the manual integration steps below if the user already has an ex
 
   After the user picks fields in Question A below, list exactly which products to add. Rules of thumb: a label whose only barcode is a **plain `CustomBarcode`** (no text field) gets the first three; a label with **any text field** adds `ScanditLabelCaptureText`; a label with **any data-typed/semantic barcode builder** (`SerialNumberBarcode` / `IMEIOneBarcode` / `IMEITwoBarcode` / `PartNumberBarcode`) **also** adds `ScanditLabelCaptureText` even if it has no text field; and a label with `UnitPriceText` / `TotalPriceText` adds both `ScanditLabelCaptureText` and `ScanditPriceLabel`.
 
-- A valid Scandit license key:
-  - Sign in at <https://ssl.scandit.com> to generate one.
-  - No account yet? Sign up at <https://ssl.scandit.com/dashboard/sign-up?p=test>.
+- A valid Scandit license key — see **Licence key** in this skill's `SKILL.md`.
 - `NSCameraUsageDescription` in `Info.plist`
 
 ## Interactive Label Definition
@@ -148,7 +146,7 @@ If no whole-label factory fits, build the label from individual fields below —
 - For `CustomBarcode`: which **symbologies**? Mention to the user that enabling only the symbologies they actually need improves scanning performance and accuracy. iOS symbology enum values use camelCase: `.ean13UPCA`, `.code128`, `.gs1DatabarExpanded`, `.qr`, `.dataMatrix`, etc. — never the Android-style underscore form `.EAN13_UPCA`.
 - For `CustomText`: what **regex pattern** should the text match? See the regex notes below.
 
-> **Regex engine limits — keep patterns simple.** The SDK's value/anchor regex engine is built on the standard library `std::regex` (ECMAScript grammar), **not** PCRE/PCRE2. It supports standard character classes (`\d`, `[A-Z]`), quantifiers (`{2}`, `+`, `*`, `?`), alternation (`a|b`), and capture/non-capture groups. It does **not** support **lookbehind** (`(?<= …)` / `(?<! …)`), **named groups** (`(?<name> …)`), or **Unicode property escapes** (`\p{L}`, `\p{Nd}`) — those throw at pattern compilation and the field will silently never match. Lookahead (`(?= …)`) and backreferences (`\1`) happen to compile, but prefer to avoid them too: keep value/anchor regexes to the simple subset above. If a user pastes a complex regex from another engine (Python, PCRE, .NET), rewrite it without those constructs.
+> **Keep regexes bounded.** The SDK regex engine is PCRE2. Lookahead and lookbehind (`(?=…)`, `(?!…)`, `(?<=…)`, `(?<!…)`) are supported in value and anchor regexes; a negative lookahead or lookbehind keeps a value regex from matching inside a longer number (for example card-number digits read as an expiry date). Give every value regex explicit length limits (`\d{2}`, `{4,6}`) rather than open-ended `+`/`*`.
 - For `ExpiryDateText` / `PackingDateText`: does the user need a specific date format? If so, pass `.labelDateFormat(LabelDateFormat(componentFormat: .MDY, acceptPartialDates: false))` (substitute the component order and partial-date flag for the user's case). Optional — these builders ship with a sensible default.
 - For `DateText`: a `LabelDateFormat` is **required** at construction. Pass it directly to the initializer: `DateText(name: "Date", labelDateFormat: LabelDateFormat(componentFormat: .MDY, acceptPartialDates: false))`.
 
@@ -506,7 +504,7 @@ WeightText(name: "Weight")
 
 This works on every pre-built text builder (`ExpiryDateText`, `PackingDateText`, `WeightText`, `UnitPriceText`, `TotalPriceText`) and is the recommended pattern.
 
-**Keep regexes simple.** The SDK regex engine is the standard library `std::regex` (ECMAScript grammar), **not** PCRE/PCRE2. It supports standard character classes (`\d`, `[A-Z]`), quantifiers (`{2}`, `+`, `*`, `?`), alternation (`a|b`), and groups (`(...)`). **Lookbehind assertions (`(?<= ...)` / `(?<! ...)`), named groups (`(?<name> ...)`), and Unicode property escapes (`\p{...}`) are not supported** — they throw at pattern compilation, so the field silently never matches. Lookahead (`(?= ...)`) and backreferences (`\1`) do compile, but prefer to avoid them — stick to the simple subset above. If a user pastes a complex regex from a different engine (Python, PCRE, .NET), rewrite it without those constructs.
+**Keep regexes bounded.** The SDK regex engine is PCRE2. Lookahead and lookbehind (`(?=…)`, `(?!…)`, `(?<=…)`, `(?<!…)`) are supported in value and anchor regexes; a negative lookahead or lookbehind keeps a value regex from matching inside a longer number (for example card-number digits read as an expiry date). Give every value regex explicit length limits (`\d{2}`, `{4,6}`) rather than open-ended `+`/`*`.
 
 ## Supported characters
 
@@ -849,7 +847,7 @@ After the integration code and overlay choice are in place, show this checklist:
    - **If the label has a data-typed/semantic barcode field** (`SerialNumberBarcode`, `PartNumberBarcode`, `IMEIOneBarcode`, `IMEITwoBarcode`): also link `ScanditLabelCaptureText` **even if there is no text field** — these builders' models ship in that product (see the ⚠️ note in Prerequisites). A plain `CustomBarcode` does not need it.
    - **If the label has a price field** (`UnitPriceText` or `TotalPriceText`): also link `ScanditPriceLabel` (in addition to `ScanditLabelCaptureText`, not instead of it).
    - List only the products this specific label needs. `ScanditLabelCaptureText` is *not* needed for a plain-`CustomBarcode` barcode-only label, but it **is** required for a semantic-barcode (IMEI / serial / part-number) label or any text/price label. A missing text/price/semantics product is a common failure: the `DataCaptureView` reports a missing-resource error, or text/semantic fields produce no result.
-2. Replace `-- ENTER YOUR SCANDIT LICENSE KEY HERE --` with your license key from <https://ssl.scandit.com>.
+2. Replace `-- ENTER YOUR SCANDIT LICENSE KEY HERE --` with your key (see **Licence key** in `SKILL.md`).
 3. Add `NSCameraUsageDescription` to your `Info.plist` with a user-facing reason string.
 4. Add a `UIView` outlet named `containerView` to your view controller (or replace `containerView` with `view` to use the whole VC's view).
 5. Build and run on a real device — the simulator has no camera.

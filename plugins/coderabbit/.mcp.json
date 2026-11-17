@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "coderabbit": {
+      "url": "https://mcp.coderabbit.ai/",
+      "type": "http",
+      "oauth": {
+        "scopes": "connection account:read usage:read pull_requests:read review"
+      }
+    }
+  }
+}

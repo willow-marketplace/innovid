@@ -135,6 +135,7 @@ describe("api/mcp handler", () => {
     delete process.env.AGENT_CALL_WINDOW_MS;
     delete process.env.DEBUG;
     delete process.env.DEFAULT_SEARCH_TYPE;
+    delete process.env.DYNAMIC_HIGHLIGHTS;
     delete process.env.ENABLED_TOOLS;
     delete process.env.EXA_API_KEY;
     delete process.env.EXA_API_KEY_BYPASS;
@@ -584,24 +585,97 @@ describe("api/mcp handler", () => {
     expect(initializeMcpServerMock).toHaveBeenCalled();
   });
 
-  it("accepts instant as a defaultSearchType query parameter", async () => {
+  it.each(["auto", "lite", "fast", "instant"])(
+    "accepts %s as a defaultSearchType query parameter",
+    async (type) => {
+      const { config } = await callHandleRequest(
+        new Request(`https://mcp.exa.ai/mcp?defaultSearchType=${type}`),
+      );
+
+      expect(config).toMatchObject({ defaultSearchType: type });
+    },
+  );
+
+  it.each(["", "FAST", "neural", "deep"])(
+    "ignores the defaultSearchType query parameter %o, which names no search type",
+    async (type) => {
+      const { config } = await callHandleRequest(
+        new Request(`https://mcp.exa.ai/mcp?defaultSearchType=${type}`),
+      );
+
+      expect(config).toBeDefined();
+      expect(config!.defaultSearchType).toBeUndefined();
+    },
+  );
+
+  it.each(["auto", "lite", "fast", "instant"])(
+    "falls back to DEFAULT_SEARCH_TYPE=%s from the environment",
+    async (type) => {
+      process.env.DEFAULT_SEARCH_TYPE = type;
+
+      const { config } = await callHandleRequest(new Request("https://mcp.exa.ai/mcp"));
+
+      expect(config).toMatchObject({ defaultSearchType: type });
+    },
+  );
+
+  it("prefers ?defaultSearchType over DEFAULT_SEARCH_TYPE", async () => {
+    process.env.DEFAULT_SEARCH_TYPE = "fast";
+
     const { config } = await callHandleRequest(
-      new Request("https://mcp.exa.ai/mcp?defaultSearchType=instant"),
+      new Request("https://mcp.exa.ai/mcp?defaultSearchType=lite"),
     );
 
-    expect(config).toMatchObject({
-      defaultSearchType: "instant",
-    });
+    expect(config).toMatchObject({ defaultSearchType: "lite" });
   });
 
-  it("falls back to DEFAULT_SEARCH_TYPE from the environment", async () => {
-    process.env.DEFAULT_SEARCH_TYPE = "instant";
+  it.each([
+    ["?dynamicHighlights=true", true],
+    ["?dynamicHighlights=false", false],
+    ["?dynamicHighlights=yes", undefined],
+    ["", undefined],
+  ])("reads %o as dynamicHighlights %o", async (query, expected) => {
+    const { config } = await callHandleRequest(new Request(`https://mcp.exa.ai/mcp${query}`));
+
+    expect(config).toBeDefined();
+    expect(config!.dynamicHighlights).toBe(expected);
+  });
+
+  it("falls back to DYNAMIC_HIGHLIGHTS from the environment", async () => {
+    process.env.DYNAMIC_HIGHLIGHTS = "true";
 
     const { config } = await callHandleRequest(new Request("https://mcp.exa.ai/mcp"));
 
-    expect(config).toMatchObject({
-      defaultSearchType: "instant",
-    });
+    expect(config).toMatchObject({ dynamicHighlights: true });
+  });
+
+  it("prefers ?dynamicHighlights over DYNAMIC_HIGHLIGHTS", async () => {
+    process.env.DYNAMIC_HIGHLIGHTS = "true";
+
+    const { config } = await callHandleRequest(
+      new Request("https://mcp.exa.ai/mcp?dynamicHighlights=false"),
+    );
+
+    expect(config).toMatchObject({ dynamicHighlights: false });
+  });
+
+  it("falls back to DEFAULT_SEARCH_TYPE when ?defaultSearchType is invalid", async () => {
+    process.env.DEFAULT_SEARCH_TYPE = "lite";
+
+    const { config } = await callHandleRequest(
+      new Request("https://mcp.exa.ai/mcp?defaultSearchType=deep"),
+    );
+
+    expect(config).toMatchObject({ defaultSearchType: "lite" });
+  });
+
+  it("ignores a DEFAULT_SEARCH_TYPE that names no search type", async () => {
+    process.env.DEFAULT_SEARCH_TYPE = "deep";
+
+    const { config } = await callHandleRequest(new Request("https://mcp.exa.ai/mcp"));
+
+    expect(config).toBeDefined();
+    expect(config!.defaultSearchType).toBeUndefined();
   });
 
   it("uses agentCallWindowMs from the query parameter before the environment", async () => {

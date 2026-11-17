@@ -3,6 +3,9 @@ name: deal-flow-analytics
 description: Aggregates recent deal flow in the Carta CRM into a dealmaker-facing report, auto-discovering which fields matter for this tenant's schema. Use this skill when the user says things like "deal flow analytics", "analyze our deal flow", "review deals added in the last 12 months", "who introduced most of our deals", "breakdown of deals by sector", "where is our deal flow coming from", or "/deal-flow-analytics". Defaults to a trailing-12-month window but accepts any date range or dimension the user specifies. Returns counts and concentration callouts per dimension, not a list of individual deals — use search-deals for that.
 ---
 
+<!-- carta:plugin-version -->
+<carta-plugin>carta-crm:1.20.20</carta-plugin>
+
 ## Overview
 
 Every tenant configures its own custom deal fields, so the dimensions worth

@@ -1,0 +1,24 @@
+{
+  "name": "govtribe",
+  "description": "GovTribe MCP connection and government contracting skills for Claude.",
+  "owner": {
+    "name": "GovTribe",
+    "url": "https://govtribe.com"
+  },
+  "plugins": [
+    {
+      "name": "govtribe",
+      "displayName": "GovTribe",
+      "source": "./",
+      "description": "Government contracting research, capture, pricing, proposals, and source-backed document workflows using GovTribe.",
+      "category": "productivity",
+      "tags": [
+        "government-contracting",
+        "research",
+        "capture",
+        "pricing",
+        "proposals"
+      ]
+    }
+  ]
+}

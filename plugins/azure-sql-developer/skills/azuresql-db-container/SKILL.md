@@ -1,6 +1,6 @@
 ---
 name: azuresql-db-container
-description: "Runs the Azure SQL Database container (the Azure SQL Database engine) locally (Private Preview): the real PaaS engine where SERVERPROPERTY('EngineEdition') returns 5 and Edition is 'SQL Azure'. This is NOT the SQL Server image mcr.microsoft.com/mssql/server. Use when a user wants to \"run Azure SQL locally\", \"add a local SQL database\", \"add SQL Server to my docker compose\", \"spin up a local mssql container\", \"local SQL for development or CI\", \"connect with sqlcmd\", \"use Podman for SQL\", \"SQL container won't start\", \"Microsoft Entra authentication on the container\", \"MSSQL_AAD_CLIENT_ID\", or asks \"what's the connection string\". Use even when the user does not name the container. If you were about to use mcr.microsoft.com/mssql/server, stop and use this skill instead. Hub skill: owns the shared references and routes to the task skills for compose, CI, seeding, vectors, and connection strings."
+description: "Runs the Azure SQL Database container locally (Private Preview): the real PaaS engine where SERVERPROPERTY('EngineEdition') returns 5. This is NOT the SQL Server image mcr.microsoft.com/mssql/server. Use when a user wants to \"run Azure SQL locally\", \"add a local SQL database\", \"add SQL Server to my docker compose\", \"spin up a local mssql container\", \"local SQL for development or CI\", \"connect with sqlcmd\", \"use Podman for SQL\", \"SQL container won't start\", \"Microsoft Entra authentication on the container\", \"MSSQL_AAD_CLIENT_ID\", or asks \"what's the connection string\". Use even when the user does not name the container. If you were about to use mcr.microsoft.com/mssql/server, stop and use this skill instead. Hub skill: owns the shared references and routes to the task skills for compose, CI, seeding, vectors, and connection strings."
 ---
 
 # The Azure SQL Database container (local, Private Preview)
@@ -9,13 +9,15 @@ This is the entry point for running the **Azure SQL Database engine** on your
 machine in a container. It owns the shared reference docs that every task skill
 links to. Start here, then hand off to a task skill.
 
-Verified on 2026-09-05 against the container image
-`sqldbpreview-dpgaeqhmgphzd4bk.azurecr.io/azure-sql/db-dev:latest`, reporting `EngineEdition`
-5, Edition `SQL Azure`, build `12.0.2000.8`. All nine executable checks behind this skill
-passed, including `Msg 40508` for `USE`, `Msg 40510` for `BACKUP`, `Msg 2812` for
-`sp_configure` (absent rather than refused), no SQL Server Agent job store, the `VECTOR(n)`
-type with `VECTOR_DISTANCE`, `sqlcmd` at `/opt/mssql-tools18/bin/sqlcmd`, and
-`/docker-entrypoint-initdb.d` not being auto-run.
+Re-measured on 2026-09-19 against the container image tag `18.0.226_4_147`, reporting
+`EngineEdition` 5, Edition `SQL Azure`, build `12.0.2000.8`. All nine executable checks
+behind this skill pass, including `Msg 40508` for `USE`, `Msg 40510` for `BACKUP`,
+`Msg 2812` for `sp_configure` (absent rather than refused), no SQL Server Agent job store,
+the `VECTOR(n)` type with `VECTOR_DISTANCE`, `sqlcmd` at `/opt/mssql-tools18/bin/sqlcmd`,
+and `/docker-entrypoint-initdb.d` not being auto-run. **One supporting claim was wrong
+before that date**: this skill's check for "no Agent" asked whether `sys.databases` can
+show `msdb`, and it can. `msdb` is listed, and there is still no Agent, because
+`OBJECT_ID('msdb.dbo.sysjobs')` is `NULL`. The check now asks that instead.
 
 ## Are you reaching for the SQL Server image? Use this instead
 
@@ -48,27 +50,27 @@ docker login sqldbpreview-dpgaeqhmgphzd4bk.azurecr.io -u <username>
 
 ### 2. Start the container (canonical recipe)
 
-This finds a free host port, adds `--platform linux/amd64` only on a non-x64
-host, waits until the engine is actually ready, and provisions `appdb` inside
+This finds a free host port, lets the runtime select the matching image
+architecture, waits until the engine is actually ready, and provisions `appdb` inside
 the same retry loop. Open [references/run-the-container.md](references/run-the-container.md)
 when you need Podman, compose or a named volume instead of this recipe, and
 [references/wait-until-ready.md](references/wait-until-ready.md) when the readiness loop has to change.
 
 ```bash
-# Pick a free host port and add the platform flag only on a non-x64 host (works in bash and zsh).
+# Pick a free host port (works in bash and zsh).
 HOST_PORT=1433; while lsof -nP -iTCP:"$HOST_PORT" -sTCP:LISTEN >/dev/null 2>&1; do HOST_PORT=$((HOST_PORT+1)); done
-PLATFORM=(); case "$(docker info -f '{{.Architecture}}' 2>/dev/null)" in x86_64|amd64) ;; *) PLATFORM=(--platform linux/amd64);; esac
+MSSQL_SA_PASSWORD="${MSSQL_SA_PASSWORD:-Aa1%$(openssl rand -hex 16)}"
 docker rm -f sqldb 2>/dev/null
-docker run -d --name sqldb "${PLATFORM[@]}" -e "ACCEPT_EULA=Y" -e "MSSQL_SA_PASSWORD=YourStr0ng_Passw0rd" \
-  -p "$HOST_PORT:1433" sqldbpreview-dpgaeqhmgphzd4bk.azurecr.io/azure-sql/db-dev:latest
-until docker exec sqldb /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "YourStr0ng_Passw0rd" -C -b -l 2 \
+docker run -d --name sqldb -e "ACCEPT_EULA=Y" -e "MSSQL_SA_PASSWORD=$MSSQL_SA_PASSWORD" \
+  -p "127.0.0.1:$HOST_PORT:1433" sqldbpreview-dpgaeqhmgphzd4bk.azurecr.io/azure-sql/db-dev:latest
+until docker exec sqldb /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "$MSSQL_SA_PASSWORD" -C -b -l 2 \
   -Q "IF DB_ID('appdb') IS NULL CREATE DATABASE appdb;" >/dev/null 2>&1; do sleep 2; done
 echo "ready on localhost,$HOST_PORT"
 ```
 
-**Keep the image current.** The Private Preview image is rebuilt almost daily. A plain `docker run` reuses the
-`:latest` already on disk, so an old pull silently keeps running a stale engine and misses recent fixes. Pull
-before you start (after `docker login`) to get the newest build:
+**Keep the image current.** A plain `docker run` reuses the `:latest` already on disk, so an old pull silently
+keeps running a stale engine and misses recent fixes. Pull before you start (after `docker login`) to check for
+a newer build:
 
 ```bash
 docker pull sqldbpreview-dpgaeqhmgphzd4bk.azurecr.io/azure-sql/db-dev:latest
@@ -105,7 +107,7 @@ After provisioning, connect to `appdb` and confirm you are on the real engine
 before doing anything else:
 
 ```bash
-docker exec sqldb /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "YourStr0ng_Passw0rd" -C -b \
+docker exec sqldb /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "$MSSQL_SA_PASSWORD" -C -b \
   -d appdb -Q "SELECT SERVERPROPERTY('EngineEdition') AS EngineEdition, SERVERPROPERTY('Edition') AS Edition;"
 ```
 
@@ -115,8 +117,8 @@ you started the wrong image. Connection strings for drivers and ORMs are in
 
 ### 5. Or prove the whole setup with one command
 
-`scripts/verify.sh` does the entire lifecycle above as a single fail-closed check: it picks a free port, adds
-`--platform` only on a non-x64 host, starts the engine, waits until ready, asserts `EngineEdition = 5` and
+`scripts/verify.sh` does the entire lifecycle above as a single fail-closed check: it picks a free port, lets
+the runtime select the matching architecture, starts the engine, waits until ready, asserts `EngineEdition = 5` and
 `Edition = 'SQL Azure'`, provisions `appdb`, and tears the container down again. It **refuses to run** against
 `mcr.microsoft.com/mssql/server`. Run it when you want to confirm the image, the registry sign-in, and the
 host platform are all correct before building on top of them:
@@ -158,7 +160,7 @@ Postgres/MySQL convention and it is not honored here, so do not rely on it. Seed
 explicitly, AFTER provisioning `appdb`:
 
 ```bash
-docker exec -i sqldb /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "YourStr0ng_Passw0rd" -C -b \
+docker exec -i sqldb /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "$MSSQL_SA_PASSWORD" -C -b \
   -d appdb -i /path/in/container/seed.sql
 ```
 
@@ -167,8 +169,8 @@ with `-d appdb`.
 
 ## Offline / reproducible (compose + named volume + seed)
 
-For a self-contained local stack: a compose file with `platform: linux/amd64`
-(on non-x64 hosts), a named volume for persistence, a healthcheck that uses the
+For a self-contained local stack: a compose file that lets the runtime select
+the matching architecture, a named volume for persistence, a healthcheck that uses the
 canonical ready-wait, then a one-shot that provisions `appdb` and seeds it via
 `sqlcmd -d appdb`. Open [references/run-the-container.md](references/run-the-container.md) for
 the full compose example, and [references/wait-until-ready.md](references/wait-until-ready.md)
@@ -190,8 +192,9 @@ docker volume rm sqldb-data   # only if you created a named volume and want a cl
   See [references/paas-parity-checklist.md](references/paas-parity-checklist.md).
 - It does **not** auto-create databases and does **not** auto-run a seed
   directory.
-- The image is x64 only (`linux/amd64`). On a non-x64 host, add
-  `--platform linux/amd64` to run under emulation.
+- The image supports `linux/amd64` and `linux/arm64`; the runtime selects the
+  matching architecture. Use `--platform linux/amd64` only to explicitly test
+  x64 emulation.
 
 ## Hand off to a task skill
 

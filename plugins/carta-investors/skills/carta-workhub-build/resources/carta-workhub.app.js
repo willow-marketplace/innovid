@@ -34,18 +34,57 @@ _mcpNamespace();  // start resolving at load so the sync render paths see a sett
 async function _mcp(tool, args) {
   const mcp = await _mcpNamespace();
   if (!mcp) throw new Error("Carta connector unavailable in this view");
+  const finish = whTimingStart(tool, args);
   try {
-    return await mcp.callTool(
+    const res = await mcp.callTool(
       CARTA_MCP_SERVER,
       tool,
       Object.assign({}, args, { _instrumentation_v2: { skills: ['carta-investors:carta-workhub-build'], from_ui: true } })
     );
+    finish(res);
+    return res;
   } catch (err) {
+    finish(null, err);
     // A failed tool belongs to the caller that asked, so return an envelope. Connector
     // codes (needs_reauth, server_not_connected) rethrow — those are page-level.
     if (err?.code === "tool_error") return { isError: true, code: err.code, result: err.result, content: [{ type: "text", text: err.message ?? "tool error" }] };
     throw err;
   }
+}
+
+// Carta names each command's tool with "__" for ":". The page reaches them through
+// read_tool and call_tool, which the connector always lists.
+function mcpToolName(command) {
+  return command.replaceAll(":", "__");
+}
+
+function mcpRead(command, params) {
+  return _mcp("read_tool", { name: mcpToolName(command), arguments: params || {} });
+}
+
+function mcpWrite(command, params) {
+  return _mcp("call_tool", { name: mcpToolName(command), arguments: params || {} });
+}
+
+function _mcpFirstToolName(res) {
+  for (const c of _mcpResultCandidates(res)) {
+    const list = Array.isArray(c) ? c : Array.isArray(c && c.result) ? c.result : null;
+    if (list) return (list[0] && list[0].name) || null;
+  }
+  return null;
+}
+
+// search_tools ranks an exact tool name first only when the viewer may call it.
+async function mcpCommandListed(command) {
+  const name = mcpToolName(command);
+  const res = await _mcp("search_tools", { query: name });
+  return Boolean(res && !res.isError && _mcpFirstToolName(res) === name);
+}
+
+// Gates a view whose reads sit behind a server-side flag the task list lacks.
+const _mcpCommandProbes = {};
+function mcpCommandAvailable(command) {
+  return _mcpCommandProbes[command] ??= mcpCommandListed(command).catch(() => false);
 }
 
 // ── Snowplow UI-event tracking via @carta/mcp-ui-tracker (window.mcpUiTracker) ──
@@ -77,6 +116,34 @@ function showToast(msg) {
 
 function tryParse(str) { try { return JSON.parse(str); } catch { return null; } }
 
+// An artifact cannot post into a chat, and an MCP App renders only when Claude calls its
+// tool there. So the Workhub opens a new Claude Desktop chat with the prompt prefilled, for
+// the GP to send. It also tries to put the prompt on the clipboard, in case the link handler
+// does not fire. The copy is best-effort (a sandboxed frame or non-secure context can block
+// it), so the toast says the prompt is on the clipboard only when the copy worked.
+const CLAUDE_NEW_CHAT_URL = "claude://claude.ai/new?q=";
+function openClaudeChat(prompt) {
+  // Started inside the click's user gesture, which some hosts require. writeText can also
+  // throw synchronously, so that counts as a failed copy too.
+  let copy;
+  try { copy = navigator.clipboard?.writeText ? navigator.clipboard.writeText(prompt) : Promise.reject(); }
+  catch { copy = Promise.reject(); }
+  const copied = Promise.resolve(copy).then(() => true, () => false);
+  // A hidden link opened as a new window, so the protocol handler fires without the
+  // artifact's own frame navigating to the claude:// URL, which blanks it.
+  const a = document.createElement("a");
+  a.href = CLAUDE_NEW_CHAT_URL + encodeURIComponent(prompt);
+  a.target = "_blank";
+  a.rel = "noopener";
+  a.style.display = "none";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  return copied.then(ok => showToast(ok
+    ? "Opening a new Claude chat. Send the prompt there; it is on your clipboard too."
+    : "Opening a new Claude chat. Send the prompt there."));
+}
+
 // A tool result carries its payload in different shapes per host and server
 // version, so collect every plausible one and let the caller pick.
 function _mcpResultCandidates(res) {
@@ -106,13 +173,19 @@ function extractContextsPayload(res) {
 let _benchmarkFirmId = null;
 
 // The section carries the composer, so show it even when the queue fails to load.
+// `msg` is the reason every queue tab shows.
 function farShowSection(msg) {
   const s = document.getElementById('far-section');
   if (s) s.style.display = '';
-  if (msg) showToast(msg);
+  // Boot failed before the queue was read: settle it as empty so no later render
+  // brings the loader back.
+  if (_farRows === null) _farRows = [];
+  if (msg) _farTabErrors = Object.fromEntries(FAR_QUEUE_TABS.map(key => [key, msg]));
+  renderFarSection();
 }
 
 async function bootCartaWorkhub() {
+  whTimingMark("boot");
   if (!(await mcpAvailable())) {
     farShowSection('Carta is not connected in this view.');
     return;
@@ -132,9 +205,14 @@ async function bootCartaWorkhub() {
     const active = payload ? (payload.firms.find(f => f && f.is_active) ?? payload.firms[0]) : null;
     const firmId = active && active.firm_id != null ? String(active.firm_id) : null;
     if (!firmId) throw new Error("no firm in context");
+    whTimingMark(active.is_active ? "firm already active" : "firm not active, setting context");
 
-    // The server needs an active firm even when the id is passed explicitly.
-    try { await _mcp("set_context", { firm_id: firmId }); } catch (e) { /* best effort */ }
+    // The server needs an active firm even when the id is passed explicitly. Setting
+    // one takes seconds, so a firm Carta already has active is left as it is.
+    if (!active.is_active) {
+      try { await _mcp("set_context", { firm_id: firmId }); } catch (e) { /* best effort */ }
+    }
+    whTimingMark("context ready");
     _benchmarkFirmId = firmId;
 
     farSetFirmName(active.firm_name);
@@ -142,7 +220,7 @@ async function bootCartaWorkhub() {
     await farFetchRequests();
   } catch (e) {
     console.error('[carta-workhub boot]', e);
-    farShowSection('Could not load your requests. Reopen the artifact to retry.');
+    farShowSection('Could not read your firm from Carta.');
   }
 }
 

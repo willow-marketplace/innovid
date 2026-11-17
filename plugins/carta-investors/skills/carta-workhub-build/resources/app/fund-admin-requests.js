@@ -1,35 +1,12 @@
-// ── Fund Admin requests: composer bar + grouped queue + thread overlay ──
-// Depends on carta-workhub.app.js: _mcp, escHtml, showToast, trackWorkhub,
-// _mcpResultCandidates, _benchmarkFirmId.
+// ── Carta Workhub queue: composer bar, tabbed task queue, request thread overlay ──
+// Depends on carta-workhub.app.js: _mcp, mcpRead, mcpWrite, mcpCommandListed, escHtml,
+// showToast, trackWorkhub, _mcpResultCandidates, _benchmarkFirmId.
 
-// Who the case waits on, from last_task.template. An unrecognised value shows
-// as in-progress rather than disappearing.
-const FAR_GROUP_BY_PENDING = {
+// The tab for the open task's pending_actor; an unknown value shows as with Carta.
+const FAR_TAB_BY_PENDING = {
   'pending-customer': 'todo',
   'pending-carta': 'progress',
-  'new': 'progress',
 };
-
-// fa:list:workflow returns WorkflowStatus as an integer, not a string.
-const FAR_STATUS_COMPLETE = 2;
-const FAR_STATUS_CANCELED = 3;
-
-// TaskStatus PENDING and ACTIVE — the task statuses that still await someone.
-const FAR_OPEN_TASK_STATUSES = [0, 1];
-
-// Each label is an event the payload can prove. There is no "received" here:
-// nothing marks a read, so it would be a guess presented as a fact.
-const FAR_STATUS_LABEL = {
-  'new': 'Sent',
-  'pending-carta': 'Working',
-  'pending-customer': 'Ready',
-};
-// `canceled` rides on the row because it comes from the int status, not from
-// last_task.template — which keeps naming a pending actor after the case closes.
-function farStatusLabel(row) {
-  if (row.group === 'done') return row.canceled ? 'Canceled' : 'Done';
-  return FAR_STATUS_LABEL[row.state] ?? 'Working';
-}
 
 // Ids of requests this artifact created. Only read when no list command is
 // reachable — see farFetchRequests() for why that path is partial.
@@ -43,7 +20,10 @@ const FAR_PLANS_KEY = 'cartaWorkhub.plannedRequests';
 // request_type 'other'. So the type is carried two ways: as the message's first
 // line (durable, and the team reads it) and cached here to avoid refetching.
 const FAR_TYPES_KEY = 'cartaWorkhub.requestTypes';
-const FAR_GENERIC_TYPES = new Set(['', 'other', 'general', 'request-generic', 'request generic']);
+// fund-admin's fallback names for a request with no subject line or message.
+const FAR_GENERIC_TITLES = new Set([
+  '', 'request', 'new request', 'processing new request', 'review request', 'request completed',
+]);
 const FAR_HYDRATE_MAX = 8;   // bounded: a title is not worth a fetch storm
 
 // Storage throws on an opaque origin, which is what a data: URL artifact gets.
@@ -63,13 +43,39 @@ function farStorageOk() {
   return _farStorageOk;
 }
 
-const FAR_PAGE_SIZE = 50;
-const FAR_DONE_PREVIEW = 5;   // completed rows shown before "+ N more"
+// Under carta-mcp's cap of 40 so a page of its widest rows, each carrying its
+// task_display_group, stays inside the 40k-character reply budget (~1,100 a row).
+const FAR_LIST_PAGE_SIZE = 35;
+const FAR_LIST_MAX_PAGES = 25;   // bounds a cursor that never ends
+const FAR_DONE_MAX_PAGES = 3;    // Completed is recent work; its full history is not worth the wait
+// How far back Completed reaches. The list comes newest-started first and stops
+// at FAR_DONE_MAX_PAGES, so old work finished recently can fall past the cap.
+const FAR_DONE_DAYS = 90;
+const FAR_REQUEST_TEMPLATE = TASK_TEMPLATE_REQUEST;
+const FAR_ACTIVE_TASKS_COMMAND = 'fa:list:gp-workhub-active-task';
+// The tabs Carta fills, each from its own read.
+const FAR_QUEUE_TABS = ['todo', 'progress', 'done'];
+// Connector codes _mcp rethrows: the whole page is cut off, not one read.
+const FAR_PAGE_LEVEL_CODES = ['needs_reauth', 'server_not_connected'];
+const FAR_LOAD_DETAIL_MAX = 200;   // chars of a failed read's own message
+const FAR_FINISHED_STATUSES = ['complete', 'canceled'];
 const FAR_TITLE_MAX = 72;     // chars of the opening message used as a title
 
 let _farRows = null;          // null = not fetched; [] = none; [...] = rows
+let _farEarly = null;         // { parts, rows } of the first load's reads, shown until _farRows lands
 let _farPartial = false;      // true when rows came from the localStorage path
-let _farDoneOpen = false;
+let _farDoneCapped = false;   // Completed stopped at FAR_DONE_MAX_PAGES with more to read
+let _farTabErrors = {};       // tab key → what Carta said when that tab's read failed
+let _farRetrying = false;     // a retry is out, so the failed tabs show their loader
+let _farLoadedAt = null;      // when the queue last read without a failure
+let _farRefreshing = false;   // a re-read is out while the last good cards stay on screen
+let _farRefreshFailed = false;
+let _farRefreshTriedAt = 0;
+// Work finishes in a chat elsewhere, so the page re-reads when the viewer comes back to it.
+// A read pages through the whole queue, so a return within this window does not repeat one.
+const FAR_REFRESH_MIN_AGE_MS = 30000;
+// A quick read would flash by unseen; the status stays up this long so a refresh is noticed.
+const FAR_REFRESH_MIN_SHOWN_MS = 700;
 const _farThreadCache = {};   // workflow_id → normalized messages
 
 // ── Result unwrapping ──
@@ -82,6 +88,46 @@ function farResults(res) {
     if (c && Array.isArray(c.results)) return c.results;
     if (Array.isArray(c)) return c;
   }
+  return null;
+}
+
+function farPage(res) {
+  if (!res || res.isError) return null;
+  return _mcpResultCandidates(res).find(c => c && Array.isArray(c.results)) ?? null;
+}
+
+// What a failed read said, for the load-error banner.
+function farErrorText(res) {
+  const text = (res?.content ?? []).filter(c => c?.type === 'text').map(c => c.text).join(' ').trim();
+  return text || 'Carta sent no answer.';
+}
+
+// Every row of a cursor-paged list, or null if a page fails or pages remain past
+// maxPages — a short list must not read as complete. `partialOk` keeps what was
+// read at the cap, marked `capped`, for a list that is only displayed. `onFail`
+// hears why a walk came back short, a thrown call included.
+async function farWalk(command, params, { maxPages = FAR_LIST_MAX_PAGES, partialOk = false, onFail = () => {} } = {}) {
+  const rows = [];
+  let after = null;
+  for (let page = 0; page < maxPages; page++) {
+    let res;
+    try {
+      res = await mcpRead(command, Object.assign({}, params, { size: FAR_LIST_PAGE_SIZE }, after ? { after } : {}));
+    } catch (e) {
+      onFail(e?.message || String(e));
+      throw e;
+    }
+    const body = farPage(res);
+    if (!body) {
+      onFail(farErrorText(res));
+      return null;
+    }
+    rows.push(...body.results);
+    if (!body.has_next || !body.next) return rows;
+    after = body.next;
+  }
+  if (partialOk) return Object.assign(rows, { capped: true });
+  onFail(`The list ran past ${maxPages} pages.`);
   return null;
 }
 
@@ -298,7 +344,7 @@ function farParseFields(text) {
   return { fields, lead, rest };
 }
 
-// request-generic is a DM workflow, so `subject` is always null. The opening
+// A request is a DM workflow, so `subject` is always null. The opening
 // message is the only human-readable label the thread has.
 function farTitleFrom(text) {
   const line = String(text ?? '').split('\n').find(l => l.trim()) ?? '';
@@ -333,93 +379,110 @@ function farNormalizeMessages(rows) {
     .sort((a, b) => farMs(a.at) - farMs(b.at));
 }
 
-// "Pending Carta" → "pending-carta". status_presentation is the display string;
-// last_task.template already carries the machine form, so it wins.
 function farPendingState(w) {
-  const fromTask = String(w.last_task?.template ?? '').toLowerCase();
-  if (fromTask) return fromTask;
-  const shown = String(w.status_presentation?.status ?? '').toLowerCase().replace(/\s+/g, '-');
-  if (shown) return shown;
-  return farPendingFromTasks(w);
+  const actor = String(w.pending_actor ?? '').toLowerCase();
+  return actor ? 'pending-' + actor : '';
 }
 
-// fa:list:workflow names no pending actor of its own — it carries the tasks and
-// each one says whose turn it is. The open task is the one that answers.
-function farPendingFromTasks(w) {
-  const open = (w.tasks || []).find(t => t && FAR_OPEN_TASK_STATUSES.includes(t.status));
-  if (!open) return '';
-  if (open.is_pending_customer) return 'pending-customer';
-  if (open.is_pending_carta) return 'pending-carta';
-  return '';
+function farWorkflowName(w) {
+  return farUnwrap(w.workflow_display_name ?? w.display_name);
 }
 
-// "investment wire" → "Investment wire". request_type names the job, so it beats
-// message_snippet, which is whichever message landed last.
+function farIsGenericTitle(name) {
+  return FAR_GENERIC_TITLES.has(String(name ?? '').trim().toLowerCase());
+}
+
+// The type this artifact sent wins over the row's name.
 function farRequestTitle(w) {
-  const remembered = farReadTypes()[String(w.id ?? w.workflow_id)];
+  const remembered = farReadTypes()[String(w.workflow_id)];
   if (remembered) return remembered;
-  const type = String(w.request_type ?? '').trim();
-  if (type && !FAR_GENERIC_TYPES.has(type.toLowerCase())) {
-    return type.charAt(0).toUpperCase() + type.slice(1);
-  }
-  const raw = farRawRequest(w);
-  if (raw) return farTitleFrom(raw);
-  // message_snippet is whichever message landed last, so it can be Carta's
-  // reply. Only used until farHydrateTitles reads the opening message.
-  const snippet = farUnwrap(w.thread_metadata?.message_snippet);
-  if (snippet) return farTitleFrom(snippet);
-  return 'Request to Carta';
+  const name = farWorkflowName(w);
+  return farIsGenericTitle(name) ? 'Request to Carta' : farTitleFrom(name);
 }
 
-// The request as sent. fa:list:workflow carries it on the row, so the title does
-// not depend on reading the thread back.
-function farRawRequest(w) {
-  return farUnwrap(w.additional_info ?? w.context_json?.additional_info);
-}
-
-// True when the row carries no type we can trust, so its title is a placeholder.
 function farNeedsTitle(w) {
-  if (farReadTypes()[String(w.id ?? w.workflow_id)]) return false;
-  if (farRawRequest(w)) return false;
-  const type = String(w.request_type ?? '').trim().toLowerCase();
-  return FAR_GENERIC_TYPES.has(type);
+  if (farReadTypes()[String(w.workflow_id)]) return false;
+  return farIsGenericTitle(farWorkflowName(w));
 }
 
-function farNormalizeWorkflow(w) {
-  const status = Number(w.status);
-  // Set only when the pending task is the GP's review, so a card knows to open
-  // the capital call panel rather than the thread.
-  const ccr = ccrIsReviewTask(w) ? ccrTargetFor(w) : null;
-  const pending = ccr ? 'pending-customer' : farPendingState(w);
-  const group = (status === FAR_STATUS_COMPLETE || status === FAR_STATUS_CANCELED)
-    ? 'done'
-    : (FAR_GROUP_BY_PENDING[pending] ?? 'progress');
+// The group fund-admin filed a task or workflow under. A row without a usable one
+// (a backend that predates the field, or a malformed value) shows under Other. The id
+// is written into the filter chips' onclick, so only a slug is accepted.
+function farDisplayGroupOf(w) {
+  const g = w.task_display_group;
+  const valid = typeof g?.id === 'string' && /^[a-z0-9][a-z0-9-]*$/.test(g.id)
+    && typeof g.name === 'string' && g.name.trim() !== '' && Number.isFinite(g.order);
+  return valid ? { id: g.id, name: g.name.trim(), order: g.order } : TASK_GROUP_OTHER;
+}
+
+// A task names the step it waits on; a finished workflow only has its own name.
+function farTaskTitle(w) {
+  return farUnwrap(w.display_name ?? w.workflow_display_name) || null;
+}
+
+// carta-mcp marks a row's link with this kind when it opens the request's tracker page.
+const FAR_TRACK_KIND = 'request_companion';
+
+// An open task carries pending_actor; a finished workflow carries status. The
+// request-only sources carry no template, so a row without one is a request.
+// `reviews` is whether this viewer may open the capital call review panel; `apps` are
+// carta-mcp's Workhub task apps, how each kind of task opens in a chat for this viewer.
+function farNormalizeWorkflow(w, reviews = true, apps = []) {
+  const closed = FAR_FINISHED_STATUSES.includes(w.status);
+  const isRequest = TASK_TEMPLATES_REQUEST.includes(w.workflow_template ?? FAR_REQUEST_TEMPLATE);
+  // A request's link to its tracker is offered once, as Track request, not as the Carta link.
+  // carta-mcp alone builds that link from fund-admin's path.
+  const tracked = isRequest && w._links?.kind === FAR_TRACK_KIND;
+  // A review task opens in a chat when this viewer has an opening for it, else the
+  // capital call panel, else Carta. Either way it is the GP's turn: the active-task list holds
+  // only decisions the GP owes.
+  const reviewApp = ccrIsReviewTask(w) ? farTaskAppFor(w, apps) : null;
+  const ccr = !reviewApp && reviews && ccrIsReviewTask(w) ? ccrTargetFor(w) : null;
+  const pending = ccr || reviewApp ? 'pending-customer' : farPendingState(w);
   return {
-    id: w.id ?? w.workflow_id,
-    title: ccr ? CCR_CARD_TITLE : farRequestTitle(w),
-    subtitle: ccr ? ccrFundLabel(w) : null,
-    firm: w.firm?.name?.trim() || null,
-    group,
+    id: w.workflow_id,
+    title: isRequest ? farRequestTitle(w) : (farTaskTitle(w) ?? (ccr ? CCR_CARD_TITLE : 'Task from Carta')),
+    subtitle: String(w.entity_name ?? '').trim() || null,
+    tab: closed ? 'done' : (FAR_TAB_BY_PENDING[pending] ?? 'progress'),
+    displayGroup: farDisplayGroupOf(w),
     state: pending,
-    canceled: status === FAR_STATUS_CANCELED,
-    // A review card is already named, and its thread is the workflow's own
-    // history rather than a request someone typed.
-    needsTitle: ccr ? false : farNeedsTitle(w),
+    canceled: w.status === 'canceled',
+    // Only a request is a thread someone typed, so only its title can be improved
+    // from the opening message.
+    thread: isRequest,
+    needsTitle: isRequest && farNeedsTitle(w),
     requested: w.created_at ?? null,
-    lastActivity: w.last_activity_at ?? w.last_communication_at ?? w.created_at ?? null,
-    // Deliberately NOT workflow_detail_url — that is a /staff/ route, so linking
-    // a customer to it sends them somewhere they cannot open.
-    webUrl: w.workflow_cta_url ?? null,
+    completed: w.completed_date ?? null,
+    lastActivity: w.last_activity_at ?? w.created_at ?? null,
+    webUrl: tracked ? null : farSafeHref(w._links?.web_url),
+    trackUrl: tracked ? farSafeHref(w._links.web_url) : null,
+    objectId: w.object_id ?? null,
     ccr,
+    // A package task always opens the tracker for its period, never Carta.
+    frt: frtTargetFor(w),
+    // A task waiting on the GP that has a companion page or MCP App opens it in a new chat.
+    app: pending === 'pending-customer' && !closed ? (reviewApp ?? farTaskAppFor(w, apps)) : null,
   };
 }
 
-// list_contexts answers "Unknown" for some firms even though the workflow rows
-// carry the real name, so the placeholder is treated as no answer rather than
-// printed at the customer. First real name wins; a later blank cannot clear it.
+// How a task opens in a chat, with the params its row fills, or null when no entry covers
+// its template (and task step, for an entry limited to some) or the row fills none of the
+// entry's openings. A task row names no firm, so the firm the Workhub shows fills firm_uuid.
+function farTaskAppFor(w, apps) {
+  const entry = apps.find(a => a.template === w.workflow_template
+    && (!a.tasks?.length || a.tasks.includes(w.task_template)));
+  const opening = entry ? taskOpeningFor(entry, Object.assign({ firm_uuid: _benchmarkFirmId }, w)) : null;
+  return opening ? Object.assign(opening, { label: entry.label, entity: w.entity_name }) : null;
+}
+
+let _farFirmName = null;   // names the firm in a prompt that opens an MCP App chat
+
+// list_contexts answers "Unknown" for some firms; that is no answer. First real
+// name wins; a later blank cannot clear it.
 function farSetFirmName(name) {
   const clean = String(name ?? '').trim();
   if (!clean || clean.toLowerCase() === 'unknown') return;
+  _farFirmName ??= clean;
   const sub = document.getElementById('far-firm');
   if (sub) sub.textContent = clean;
 }
@@ -501,19 +564,19 @@ function farWritePlans(plans) {
   }
 }
 
-// Two sentences: where the plan lives, then what has not happened yet. Storage
-// is localStorage, so "this computer" is the normal case; the session wording is
-// the fallback for an origin that cannot store at all.
+// The Drafts tab's description: what a draft is, then where it lives. Storage is
+// localStorage, so "this computer" is the normal case; the session wording is the
+// fallback for an origin that cannot store at all.
 function farPlanTip() {
   return farStorageOk()
-    ? 'Planned work is saved on this computer. Nothing goes to Carta until you send.'
-    : 'Planned work is saved in this session only. Nothing goes to Carta until you send.';
+    ? 'Requests you haven’t sent yet. They are saved on this computer only — nothing goes to Carta until you send.'
+    : 'Requests you haven’t sent yet. They are saved in this session only — nothing goes to Carta until you send.';
 }
 
 function farPlanScopeNote() {
   return farStorageOk()
-    ? 'Save as plan keeps it on this computer only, until you send it.'
-    : 'Save as plan keeps it for this session only — this artifact cannot save it.';
+    ? 'Save as draft keeps it on this computer only, until you send it.'
+    : 'Save as draft keeps it for this session only — this artifact cannot save it.';
 }
 
 async function farSavePlan() {
@@ -548,14 +611,14 @@ async function farSavePlan() {
   _farPlanId = (at === -1 ? next[next.length - 1] : next[at]).planId;
   _farPicked.compose = [];
   closeFarCompose();
-  showToast(((at === -1 ? 'Saved as a plan' : 'Plan updated')
+  showToast(((at === -1 ? 'Saved as a draft' : 'Draft updated')
     + (farStorageOk() ? ' on this computer.' : ' for this session.')
     + ' Nothing has gone to Carta yet.')
     + (dropped === 0 ? '' : reason === 'big'
-      ? ` ${dropped === 1 ? 'Your file was' : 'Your files were'} too large to keep with a plan —`
+      ? ` ${dropped === 1 ? 'Your file was' : 'Your files were'} too large to keep with a draft —`
         + ' attach again when you send.'
       : ` There was no room to keep ${dropped === 1 ? 'your file' : 'your files'} —`
-        + ' discard an old plan, or attach again when you send.'));
+        + ' discard an old draft, or attach again when you send.'));
   renderFarSection();
 }
 
@@ -592,7 +655,8 @@ function farPlanRows() {
     id: p.planId,
     planId: p.planId,
     title: farTitleFrom(p.message),
-    group: 'planned',
+    tab: 'planned',
+    displayGroup: TASK_GROUP_OTHER,
     state: 'planned',
     requested: p.requested,
     lastActivity: p.requested,
@@ -601,7 +665,7 @@ function farPlanRows() {
 }
 
 // Hydrate ids this artifact created by reading each thread. No workflow state is
-// available here, so the group comes from who spoke last and nothing reads "done".
+// available here, so the tab comes from who spoke last and nothing reads "done".
 async function farFetchFromIds() {
   const ids = farReadIds();
   const rows = [];
@@ -612,8 +676,10 @@ async function farFetchFromIds() {
     rows.push({
       id,
       title: farTitleFrom(msgs[0].text),
-      group: last.isStaff ? 'todo' : 'progress',
+      tab: last.isStaff ? 'todo' : 'progress',
+      displayGroup: TASK_GROUP_OTHER,
       state: last.isStaff ? 'pending-customer' : 'pending-carta',
+      thread: true,
       requested: msgs[0].at,
       lastActivity: last.at,
       webUrl: null,
@@ -622,47 +688,179 @@ async function farFetchFromIds() {
   return rows;
 }
 
-// Three sources, most complete first. fa:list:workflow is staff-only and
-// fa:list:fund-admin-message may not be deployed, so the id path is the floor.
-async function farFetchRequests() {
-  let loaded = false;
-  try {
-    const scoped = await _mcp('fetch', {
-      command: 'fa:list:fund-admin-message',
-      params: { page_size: FAR_PAGE_SIZE },
-    });
-    let rows = farResults(scoped);
-
-    if (!rows && _benchmarkFirmId) {
-      // Takes only `statuses` and rejects every other param; the firm comes from
-      // the session context set at boot. Capital calls under review ride along.
-      const listed = await _mcp('fetch', { command: 'fa:list:workflow', params: {} });
-      rows = farResults(listed);
+// One card per workflow; the task waiting on the GP decides its tab.
+function farOneTaskPerWorkflow(tasks) {
+  const waitsOnGp = (t) => farPendingState(t) === 'pending-customer';
+  const byWorkflow = new Map();
+  for (const t of tasks) {
+    const seen = byWorkflow.get(t.workflow_id);
+    if (!seen || (waitsOnGp(t) && !waitsOnGp(seen))) {
+      byWorkflow.set(t.workflow_id, t);
     }
+  }
+  return [...byWorkflow.values()];
+}
+
+// Finished within FAR_DONE_DAYS; a workflow with no date to go on stays.
+function farRecentlyFinished(w, now = Date.now()) {
+  const at = farMs(w.completed_date ?? w.last_activity_at);
+  return !at || now - at <= FAR_DONE_DAYS * 86400000;
+}
+
+// The task list takes no template filter, so the rest are dropped here.
+function farQueueTasks(open) {
+  return farOneTaskPerWorkflow(open.filter(t => TASK_TEMPLATES_WITH_TILES.includes(t.workflow_template)));
+}
+
+// One tab's read: Needs Action and With Carta are the task list's two pending_actor halves,
+// Completed the finished workflows. Null on failure; `onFail` hears why.
+function farReadTab(key, onFail) {
+  const read = key === 'done'
+    ? farWalk('fa:list:firm-workflow', {
+      workflow_templates: TASK_TEMPLATES_WITH_TILES,
+      statuses: FAR_FINISHED_STATUSES,
+    }, { maxPages: FAR_DONE_MAX_PAGES, partialOk: true, onFail })
+    : farWalk(FAR_ACTIVE_TASKS_COMMAND, { pending_actor: key === 'todo' ? 'customer' : 'carta' }, { onFail });
+  return read.catch(e => {
+    if (FAR_PAGE_LEVEL_CODES.includes(e?.code)) throw e;
+    return null;
+  });
+}
+
+// Every read the queue needs, started together. A task's created_at is when its current
+// task opened, so the filed dates are read too; they only date cards, so a failure there is
+// not reported.
+function farQueueReads(onFail) {
+  return {
+    todo: farReadTab('todo', d => onFail('todo', d)),
+    progress: farReadTab('progress', d => onFail('progress', d)),
+    filed: farWalk('fa:list:firm-workflow', {
+      workflow_templates: [...TASK_TEMPLATES_REQUEST, CCR_WORKFLOW_TEMPLATE],
+      statuses: ['active'],
+    }, { partialOk: true }).catch(() => null),
+    done: farReadTab('done', d => onFail('done', d)),
+  };
+}
+
+// The queue from whichever reads have landed; an absent or failed part adds nothing.
+function farComposeQueue(parts) {
+  const filed = new Map((parts.filed ?? []).map(w => [w.workflow_id, w.created_at]));
+  const tasks = farQueueTasks((parts.todo ?? []).concat(parts.progress ?? []))
+    .map(t => Object.assign({}, t, { created_at: filed.get(t.workflow_id) ?? t.created_at }));
+  // A workflow that finished between the reads shows once, as open.
+  const openIds = new Set(tasks.map(t => t.workflow_id));
+  return tasks.concat((parts.done ?? []).filter(w => !openIds.has(w.workflow_id) && farRecentlyFinished(w)));
+}
+
+// Whether a tab's own reads have landed. With Carta needs Needs Action's too, so a
+// workflow also waiting on the GP never shows there first; Completed needs both, so one
+// still open is not shown as finished.
+function farTabRead(parts, key) {
+  const open = Boolean(parts.todo) && Boolean(parts.progress);
+  return key === 'todo' ? Boolean(parts.todo) : key === 'progress' ? open : key === 'done' ? open && Boolean(parts.done) : true;
+}
+
+// The queue from every read that answered. `failures` gets each failed tab's reason;
+// `onPart` hears each read as it lands.
+async function farFetchQueue(onPart, failures = {}) {
+  const reads = farQueueReads((key, detail) => { failures[key] = detail; });
+  const parts = {};
+  await Promise.all(Object.entries(reads).map(([key, read]) => read.then(rows => {
+    parts[key] = rows;
+    onPart?.(Object.assign({}, parts));
+  })));
+  // A workflow waiting on both sides belongs in Needs Action, so With Carta fails with it.
+  if (!parts.todo && parts.progress) {
+    parts.progress = null;
+    failures.progress ??= failures.todo;
+  }
+  _farDoneCapped = Boolean(parts.done?.capped);
+  return farComposeQueue(parts);
+}
+
+// The first load paints each tab as its reads land, until the whole queue replaces it.
+function farPaintParts(parts, reviews, apps) {
+  if (_farRows !== null) return;
+  const rows = ccrQueueRows(farComposeQueue(parts).map(w => farNormalizeWorkflow(w, reviews, apps)))
+    .filter(r => farTabRead(parts, r.tab));
+  _farEarly = { parts, rows };
+  farPickFirstTab();
+  renderFarSection();
+  whTimingMark(`painted ${FAR_QUEUE_TABS.filter(key => farTabRead(parts, key)).join(', ') || 'no tab'}`);
+}
+
+// The task queue, with the workflow ids this artifact recorded as its floor.
+// With `keepOnFailure`, a read that fails in any part leaves the queue on screen as it was
+// and resolves false, so a background refresh never blanks cards the viewer is looking at.
+async function farFetchRequests({ keepOnFailure = false } = {}) {
+  const prev = keepOnFailure
+    ? { rows: _farRows, partial: _farPartial, capped: _farDoneCapped, errors: _farTabErrors }
+    : null;
+  let loaded = false;
+  // Local, so a read still out from an earlier load cannot report into this one.
+  const failures = {};
+  try {
+    const flags = Promise.all([ccrReviewAvailable(), workhubTaskApps()]);
+    const onPart = _farRows === null
+      ? (parts) => flags.then(([reviews, apps]) => farPaintParts(parts, reviews, apps))
+        .catch(e => console.error('[far] early paint —', e))
+      : null;
+    let rows = null;
+    let reviews = true;
+    let apps = [];
+
+    if (_benchmarkFirmId) [rows, [reviews, apps]] = await Promise.all([farFetchQueue(onPart, failures), flags]);
 
     if (rows) {
       _farPartial = false;
-      _farRows = rows.map(farNormalizeWorkflow).filter(r => r.id != null);
-      farSetFirmName(_farRows.find(r => r.firm)?.firm);
+      _farRows = rows.map(w => farNormalizeWorkflow(w, reviews, apps)).filter(r => r.id != null);
+      // With the whole task list failed, the requests filed from here still show.
+      if (failures.todo && failures.progress) {
+        const shown = new Set(_farRows.map(r => String(r.id)));
+        _farRows = _farRows.concat((await farFetchFromIds()).filter(r => !shown.has(String(r.id))));
+        _farPartial = true;
+      }
     } else {
       _farPartial = true;
       _farRows = await farFetchFromIds();
     }
-    _farRows = ccrWithSeedRow(_farRows);
+    _farRows = ccrQueueRows(_farRows);
     loaded = true;
   } catch (e) {
     console.error('[far] request list unavailable —', e);
+    const cutOff = FAR_PAGE_LEVEL_CODES.includes(e?.code);
+    const detail = cutOff ? 'Carta needs to be reconnected. Reconnect it, then press Retry.' : e?.message || String(e);
+    FAR_QUEUE_TABS.forEach(key => { if (cutOff || !(key in failures)) failures[key] = detail; });
     _farPartial = true;
-    _farRows = ccrWithSeedRow([]);
+    _farRows = ccrQueueRows([]);
   }
-  renderFarSection();
-  // Period cards come from a second read, so the queue paints first and they join it.
-  if (await frtAttachPeriodRows().catch(e => { console.error('[frt] tracker cards —', e); return false; })) {
+  const failed = !loaded || Object.keys(failures).length > 0;
+  if (prev && failed) {
+    _farRows = prev.rows;
+    _farPartial = prev.partial;
+    _farDoneCapped = prev.capped;
+    _farTabErrors = prev.errors;
     renderFarSection();
+    return false;
   }
+  if (!failed) {
+    _farLoadedAt = new Date();
+    _farRefreshTriedAt = Date.now();
+  }
+  _farTabErrors = Object.assign({}, failures);
+  renderFarSection();
+  whTimingMark("queue painted");
+  // A seeded build's period card comes from a second read, so the queue paints first
+  // and it joins. The opening tab waits for it: it can be the only work on the GP.
+  await frtAttachPeriodRows().catch(e => { console.error('[frt] tracker cards —', e); return false; });
+  // KYC forms come from their own reads, so they join after the task list has painted.
+  await kycAttachRows().catch(e => { console.error('[kyc] KYC cards —', e); return false; });
+  farPickFirstTab();
+  renderFarSection();
   // Hydration only improves titles, so it stays outside the try above — sharing
   // that catch let a cosmetic failure reset _farRows and blank a loaded queue.
   if (loaded) await farHydrateTitles().catch(e => console.error('[far] title hydration —', e));
+  return true;
 }
 
 // A row created on another device has no cached type and a generic request_type,
@@ -689,10 +887,7 @@ async function farHydrateTitles() {
 async function farFetchThread(workflowId) {
   if (_farThreadCache[workflowId]) return _farThreadCache[workflowId];
   try {
-    const res = await _mcp('fetch', {
-      command: 'fa:list:workflow-message',
-      params: { workflow_id: Number(workflowId) },
-    });
+    const res = await mcpRead('fa:list:workflow-message', { workflow_id: Number(workflowId) });
     const rows = farResults(res);
     if (!rows) {
       console.error('[far] fa:list:workflow-message failed —', res?.content?.[0]?.text ?? res);
@@ -730,17 +925,36 @@ function farRenderSent() {
   overlay.classList.add('far-overlay-visible');
 }
 
-// ── Sorting & view ──
+// ── Tabs, filters, sorting & view ──
 
-// The queue is grouped by status and rendered into fixed containers, so a sort by
-// status is a no-op — it reorders rows that are then re-partitioned by the same
-// key. Requested date is the only axis with anything to say, so the control is a
-// direction instead of a field.
+// Each tab is one of a row's groups. Its description says what the tab holds;
+// Drafts says where its rows are kept instead (farPlanTip).
+const FAR_TABS = [
+  { key: 'planned', label: 'Drafts', date: 'Drafted', pill: 'gray' },
+  { key: 'todo', label: 'Needs Action', date: 'As of', pill: 'orange',
+    description: 'Waiting on you. Review, approve or reply to move these forward.' },
+  { key: 'progress', label: 'With Carta', date: 'Started', pill: 'blue',
+    description: 'Carta is working on these. Nothing is needed from you until one moves to Needs Action.' },
+  { key: 'done', label: 'Completed', date: 'Completed', pill: 'gray',
+    description: 'Recently finished work.' },
+];
+const FAR_GROUP_PREVIEW = 5;   // items a display group shows before "Show N more"
+
+// A sort by tab or display group is a no-op — the queue is partitioned by both — so
+// the date is the only axis, and the control is a direction instead of a field.
 let _farSort = 'newest';
 let _farView = 'board';
+let _farTab = 'todo';
+let _farTabChosen = false;    // set once the viewer picks a tab, or the first load picks one
+// Where the first load lands when Needs Action is empty: the next tab holding work.
+const FAR_TAB_OPEN_ORDER = ['todo', 'progress', 'planned', 'done'];
+const _farFilter = {};        // tab → display group id, absent for All
+const _farMore = {};          // 'tab:display group id' → true once expanded
 
-const FAR_LIST_ICON = '<svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><circle cx="2" cy="4" r="1.2"/><rect x="5" y="3" width="9" height="2" rx="1"/><circle cx="2" cy="8" r="1.2"/><rect x="5" y="7" width="9" height="2" rx="1"/><circle cx="2" cy="12" r="1.2"/><rect x="5" y="11" width="9" height="2" rx="1"/></svg>';
-const FAR_BOARD_ICON = '<svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/><rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg>';
+const FAR_LIST_ICON = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M21 9H3"/><path d="M21 15H3"/></svg>';
+const FAR_BOARD_ICON = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>';
+const FAR_OUT_ICON = '<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10l6-6M5 4h5v5"/></svg>';
+const FAR_COPY_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>';
 
 function farSetSort(value) {
   _farSort = value;
@@ -754,42 +968,118 @@ function farToggleView() {
   renderFarSection();
 }
 
+function farRenderViewButton() {
+  const viewBtn = document.getElementById('far-view-btn');
+  if (!viewBtn) return;
+  const isList = _farView === 'list';
+  viewBtn.innerHTML = isList ? FAR_BOARD_ICON : FAR_LIST_ICON;
+  viewBtn.setAttribute('aria-label', isList ? 'Switch to card view' : 'Switch to list view');
+  viewBtn.title = isList ? 'Switch to card view' : 'Switch to list view';
+}
+
+// The toolbar is on screen while the queue loads, so the toggle draws its icon now.
+farRenderViewButton();
+
+// The first load opens on work rather than on an empty Needs Action; after
+// that the tab only changes when the viewer changes it.
+function farPickFirstTab() {
+  if (_farTabChosen) return;
+  // Before the full queue lands only Needs Action is known, and only work there decides.
+  if (_farRows === null) {
+    if (_farTab === 'todo' && _farEarly?.rows.some(r => r.tab === 'todo')) _farTabChosen = true;
+    return;
+  }
+  _farTabChosen = true;
+  const rows = _farRows.concat(farPlanRows());
+  if (rows.some(r => r.tab === _farTab)) return;
+  _farTab = FAR_TAB_OPEN_ORDER.find(k => rows.some(r => r.tab === k)) ?? _farTab;
+}
+
+function farSetTab(key) {
+  if (!FAR_TABS.some(t => t.key === key)) return;
+  _farTab = key;
+  _farTabChosen = true;
+  trackWorkhub('click', 'CartaWorkhub.FundAdminRequests.Tab');
+  renderFarSection();
+}
+
+function farSetFilter(groupId) {
+  if (groupId === 'all') delete _farFilter[_farTab];
+  else _farFilter[_farTab] = groupId;
+  trackWorkhub('click', 'CartaWorkhub.FundAdminRequests.Filter');
+  renderFarSection();
+}
+
+function farShowMore(groupId) {
+  _farMore[_farTab + ':' + groupId] = true;
+  trackWorkhub('click', 'CartaWorkhub.FundAdminRequests.ShowMore');
+  renderFarSection();
+}
+
+// The date a row is filed under: when it finished for Completed, else when it
+// started. Sorting and the card's date line read the same one.
+function farRowDate(r) {
+  return r.tab === 'done' ? (r.completed ?? r.lastActivity ?? r.requested) : r.requested;
+}
+
 function farSorted(rows) {
   const dir = _farSort === 'oldest' ? -1 : 1;
-  return rows.slice().sort((a, b) =>
-    dir * (farMs(b.requested) - farMs(a.requested)));
+  return rows.slice().sort((a, b) => dir * (farMs(farRowDate(b)) - farMs(farRowDate(a))));
 }
 
 // ── Rendering ──
 
-function farAgo(ts) {
-  const d = farToDate(ts);
-  if (!d) return '';
-  const ms = Date.now() - d.getTime();
-  if (ms < 0) return '';
-  const mins = Math.floor(ms / 60000);
-  if (mins < 60) return `${Math.max(1, mins)}m`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h`;
-  return `${Math.floor(hrs / 24)}d`;
+// The display groups the rows name, by id. A group from the payload wins over one the
+// queue filed its own row under, so a draft or a seed card shows fund-admin's name and
+// order whenever any payload row carries its group.
+function farDisplayGroupCatalog(rows) {
+  const catalog = new Map();
+  for (const { displayGroup: g } of rows) {
+    const known = catalog.get(g.id);
+    if (!known || (known.order === undefined && g.order !== undefined)) catalog.set(g.id, g);
+  }
+  return catalog;
 }
 
-function farPlanCard(r) {
-  const card = document.createElement('div');
-  card.className = 'far-card far-card-planned';
-  card.innerHTML = `
-    <div class="far-card-head">
-      <div class="far-card-title">${escHtml(r.title ?? 'Planned request')}</div>
-      <span class="far-status-tag far-status-tag-planned">Not sent yet</span>
-    </div>
-    ${r.requested ? `<div class="far-card-sub">Drafted ${escHtml(farDate(r.requested))}</div>` : ''}
-    <div class="far-card-footer">
-      <button class="far-card-discard" data-far-plan="${escHtml(r.planId)}">Discard</button>
-      <button class="far-card-view" data-far-plan="${escHtml(r.planId)}">Review and send &rarr;</button>
-    </div>`;
-  card.querySelector('.far-card-view').addEventListener('click', () => farReviewPlan(r.planId));
-  card.querySelector('.far-card-discard').addEventListener('click', () => farDiscardPlan(r.planId));
-  return card;
+// A tab's rows by display group, in fund-admin's order. A group no payload row names
+// has no order and follows the rest; Other is always last.
+function farDisplayGroupSections(rows, catalog) {
+  const rank = (g) => [g.id === TASK_GROUP_OTHER.id ? 1 : 0, g.order ?? Infinity];
+  const byId = new Map();
+  for (const r of rows) {
+    const id = r.displayGroup.id;
+    if (!byId.has(id)) byId.set(id, { displayGroup: catalog.get(id) ?? r.displayGroup, rows: [] });
+    byId.get(id).rows.push(r);
+  }
+  return [...byId.values()].sort((a, b) => {
+    const [ao, an] = rank(a.displayGroup);
+    const [bo, bn] = rank(b.displayGroup);
+    return ao - bo || an - bn || a.displayGroup.name.localeCompare(b.displayGroup.name);
+  });
+}
+
+function farDisplayGroupIcon(id, size) {
+  const icon = Object.hasOwn(TASK_GROUP_ICONS, id) ? TASK_GROUP_ICONS[id] : TASK_GROUP_DEFAULT_ICON;
+  return `<svg class="far-display-group-icon" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none"`
+    + ` stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"`
+    + ` aria-hidden="true">${icon}</svg>`;
+}
+
+// Neither the page nor the app can run in the Workhub, so the GP sends a prefilled prompt in a new chat.
+function farOpenTaskApp(app) {
+  trackWorkhub('click', 'CartaWorkhub.Queue.OpenAppInChat');
+  openClaudeChat(frtAppPrompt(app, _farFirmName));
+}
+
+// What a card does when opened: the panels this page owns, else the row's page
+// in Carta. A row with neither is shown but opens nothing.
+function farOpenAction(r) {
+  if (r.app) return () => farOpenTaskApp(r.app);
+  if (r.kyc) return () => kycOpenInChat(r.kyc);
+  if (r.ccr) return () => openCapitalCallReview(r.ccr, r.title);
+  if (r.frt) return () => openFinancialReportingTracker(r.frt, r.title);
+  if (r.thread) return () => openFarThread(r.id);
+  return null;
 }
 
 // Carta timestamps arrive without an offset and are UTC. `new Date` reads a
@@ -830,43 +1120,6 @@ function farDate(ts) {
   return `${d.getDate()} ${month}${year}`;
 }
 
-function farCard(r, withTime) {
-  if (r.group === 'planned') return farPlanCard(r);
-  const isTodo = r.group === 'todo';
-  const isDone = r.group === 'done';
-  const card = document.createElement('div');
-  card.className = 'far-card' + (isTodo ? ' far-card-todo' : '');
-  const tagClass = isTodo ? 'far-status-tag-todo' : isDone ? 'far-status-tag-done' : 'far-status-tag-progress';
-  const dateLabel = isTodo ? 'As of' : 'Requested';
-  card.innerHTML = `
-    <div class="far-card-head">
-      <div class="far-card-title">${escHtml(r.title ?? 'Request to Carta')}</div>
-      <span class="far-status-tag ${tagClass}">${escHtml(farStatusLabel(r))}</span>
-    </div>
-    ${(() => { const e = r.subtitle ?? r.firm ?? null; const d = r.requested ? (dateLabel + ' ' + escHtml(withTime ? farStamp(r.requested) : farDate(r.requested))) : null; const parts = [e ? escHtml(e) : null, d].filter(Boolean); return parts.length ? `<div class="far-card-sub">${parts.join(' · ')}</div>` : ''; })()}
-    <div class="far-card-footer">
-      <button class="far-card-view">${isTodo ? 'Review' : 'View'} &rarr;</button>
-      ${r.footnote ? `<span class="far-card-age">${escHtml(r.footnote)}</span>` : ''}
-    </div>`;
-  card.querySelector('.far-card-view').addEventListener('click', () =>
-    r.ccr ? openCapitalCallReview(r.ccr, r.title)
-      : r.frt ? openFinancialReportingTracker(r.frt, r.title)
-      : openFarThread(r.id));
-  return card;
-}
-
-function farRenderGroup(key, rows) {
-  const wrap = document.getElementById('far-group-' + key);
-  const cards = document.getElementById('far-cards-' + key);
-  if (!wrap || !cards) return;
-  wrap.style.display = rows.length > 0 ? '' : 'none';
-  const label = wrap.querySelector('.far-group-count');
-  if (label) label.textContent = String(rows.length);
-  cards.innerHTML = '';
-  const sameDay = farSameDayKeys(rows);
-  rows.forEach(r => cards.appendChild(farCard(r, sameDay.has(farDayKey(r.requested)))));
-}
-
 function farDayKey(ts) {
   const d = farToDate(ts);
   return d ? d.toDateString() : '';
@@ -876,99 +1129,328 @@ function farDayKey(ts) {
 // like nothing happened. Those get the time as well.
 function farSameDayKeys(rows) {
   const counts = {};
-  rows.forEach(r => { const k = farDayKey(r.requested); if (k) counts[k] = (counts[k] ?? 0) + 1; });
+  rows.forEach(r => { const k = farDayKey(farRowDate(r)); if (k) counts[k] = (counts[k] ?? 0) + 1; });
   return new Set(Object.keys(counts).filter(k => counts[k] > 1));
 }
 
-function farRenderDone(rows) {
-  const wrap = document.getElementById('far-group-done');
-  const list = document.getElementById('far-cards-done');
-  if (!wrap || !list) return;
-  wrap.style.display = rows.length > 0 ? '' : 'none';
-  const label = wrap.querySelector('.far-group-count');
-  if (label) label.textContent = String(rows.length);
-
-  const toggle = document.getElementById('far-done-toggle');
-  if (toggle) toggle.textContent = _farDoneOpen ? '▾' : '▸';
-  list.style.display = _farDoneOpen ? '' : 'none';
-  if (!_farDoneOpen) return;
-
-  const shown = rows.slice(0, FAR_DONE_PREVIEW);
-  const rest = rows.length - shown.length;
-  list.innerHTML = shown.map(r => `
-    <div class="far-done-row" data-far-id="${escHtml(r.id)}">
-      <span class="far-done-check">✓</span>
-      <span class="far-done-title">${escHtml(r.title ?? 'Request to Carta')}</span>
-      <span class="far-done-age">${escHtml(farAgo(r.lastActivity))}</span>
-    </div>`).join('') + (rest > 0 ? `<div class="far-done-more">+ ${rest} more</div>` : '');
-  list.querySelectorAll('.far-done-row').forEach(el =>
-    el.addEventListener('click', () => openFarThread(el.dataset.farId)));
+// "As of 4 Oct · Due 9 Oct": the tab's date word, then any footnote the row carries.
+function farDateLine(r, withTime) {
+  const ts = farRowDate(r);
+  const label = r.canceled ? 'Canceled' : (FAR_TABS.find(t => t.key === r.tab) ?? FAR_TABS[2]).date;
+  const parts = [ts ? `${label} ${withTime ? farStamp(ts) : farDate(ts)}` : null, r.footnote].filter(Boolean);
+  return parts.join(' · ');
 }
 
-function toggleFarDone() {
-  trackWorkhub('click', 'CartaWorkhub.FundAdminRequests.ExpandCompleted');
-  _farDoneOpen = !_farDoneOpen;
+// A card opens its own panel (a button), Carta in a new tab (a link), or nothing.
+function farItemShell(r, cls) {
+  const open = farOpenAction(r);
+  if (open) {
+    const el = document.createElement('button');
+    el.type = 'button';
+    el.className = cls;
+    el.addEventListener('click', open);
+    return { el, external: false };
+  }
+  if (r.webUrl) {
+    const el = document.createElement('a');
+    el.className = cls;
+    el.href = r.webUrl;
+    el.target = '_blank';
+    el.rel = 'noopener noreferrer';
+    return { el, external: true };
+  }
+  const el = document.createElement('div');
+  el.className = cls + ' far-item-static';
+  return { el, external: false };
+}
+
+// Marks a card that leaves the page: a task app's new Claude chat, whose prompt is also copied
+// to the clipboard, or Carta in a new tab. A KYC card carries no mark.
+function farOutLabel(r, external) {
+  if (r.app) return `<span class="far-item-out">Copy ${FAR_COPY_ICON}</span>`;
+  if (external) return `<span class="far-item-out">Carta ${FAR_OUT_ICON}</span>`;
+  return '';
+}
+
+function farCard(r, withTime) {
+  if (r.tab === 'planned') return farPlanCard(r);
+  const { el, external } = farItemShell(r, 'far-card');
+  el.innerHTML = `
+    <span class="far-card-head">
+      <span class="far-card-main">
+        <span class="far-card-title">${escHtml(r.title ?? 'Request to Carta')}</span>
+        ${r.subtitle ? `<span class="far-card-sub">${escHtml(r.subtitle)}</span>` : ''}
+      </span>
+      ${farDisplayGroupIcon(r.displayGroup.id, 26)}
+    </span>
+    <span class="far-card-footer">
+      <span class="far-card-date">${escHtml(farDateLine(r, withTime))}</span>
+      ${farOutLabel(r, external)}
+    </span>
+    ${r.detail ? `<span class="far-card-detail">${escHtml(r.detail)}</span>` : ''}`;
+  return el;
+}
+
+// Draft actions shared by the card and list views.
+const FAR_PLAN_ACTIONS = '<span class="far-plan-actions">'
+  + '<button type="button" class="far-card-discard">Discard</button>'
+  + '<button type="button" class="far-card-view">Review and send</button></span>';
+
+function farWirePlanActions(el, r) {
+  el.querySelector('.far-card-view').addEventListener('click', () => farReviewPlan(r.planId));
+  el.querySelector('.far-card-discard').addEventListener('click', () => farDiscardPlan(r.planId));
+}
+
+function farPlanCard(r) {
+  const card = document.createElement('div');
+  card.className = 'far-card far-card-planned';
+  card.innerHTML = `
+    <span class="far-card-head">
+      <span class="far-card-main">
+        <span class="far-card-title">${escHtml(r.title ?? 'Draft request')}</span>
+      </span>
+      ${farDisplayGroupIcon(r.displayGroup.id, 26)}
+    </span>
+    <span class="far-card-footer">
+      <span class="far-card-date">${escHtml(farDateLine(r, false))}</span>
+      ${FAR_PLAN_ACTIONS}
+    </span>`;
+  farWirePlanActions(card, r);
+  return card;
+}
+
+function farListRow(r, withTime) {
+  const planned = r.tab === 'planned';
+  const { el, external } = planned
+    ? { el: Object.assign(document.createElement('div'), { className: 'far-row far-row-planned' }), external: false }
+    : farItemShell(r, 'far-row');
+  // A KYC row's own line leads the date, so the row's ellipsis cuts the date, not the reason.
+  const meta = [r.subtitle, r.detail, farDateLine(r, withTime)].filter(Boolean).join(' · ');
+  el.innerHTML = `
+    ${farDisplayGroupIcon(r.displayGroup.id, 20)}
+    <span class="far-row-title">${escHtml(r.title ?? 'Request to Carta')}</span>
+    <span class="far-row-meta">${escHtml(meta)}</span>
+    ${planned ? FAR_PLAN_ACTIONS : ''}
+    ${farOutLabel(r, external)}`;
+  if (planned) farWirePlanActions(el, r);
+  return el;
+}
+
+function farRenderTabs(byTab) {
+  const nav = document.getElementById('far-tabs');
+  if (!nav) return;
+  nav.innerHTML = FAR_TABS.map(t => {
+    // Completed stops at a page cap, so its count is a floor. No + on an empty count.
+    const n = byTab[t.key].length;
+    const count = farTabLoading(t.key) ? '…'
+      : farTabFailed(t.key) && n === 0 ? '–'
+      : n + (t.key === 'done' && _farDoneCapped && n > 0 ? '+' : '');
+    const on = t.key === _farTab;
+    return `<button type="button" class="far-tab${on ? ' far-tab-active' : ''}" aria-pressed="${on}"`
+      + ` onclick="farSetTab('${t.key}')">${escHtml(t.label)}`
+      + `<span class="far-tab-count far-pill-${t.pill}" data-far-count="${t.key}">${count}</span></button>`;
+  }).join('');
+}
+
+function farRenderChips(groups, active, total) {
+  const chips = document.getElementById('far-chips');
+  if (!chips) return;
+  chips.style.display = total > 0 ? '' : 'none';
+  const chip = (key, name, count) => {
+    const on = key === active;
+    return `<button type="button" class="far-chip${on ? ' far-chip-active' : ''}" aria-pressed="${on}"`
+      + ` onclick="farSetFilter('${key}')" data-far-chip="${key}">${escHtml(name)}`
+      + `<span class="far-chip-count">${count}</span></button>`;
+  };
+  chips.innerHTML = chip('all', 'All', total)
+    + groups.map(g => chip(g.displayGroup.id, g.displayGroup.name, g.rows.length)).join('');
+}
+
+function farRenderGroups(groups, withLabels) {
+  const wrap = document.getElementById('far-groups');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  wrap.className = 'far-groups far-tab-' + _farTab;
+  const isList = _farView === 'list';
+  groups.forEach(g => {
+    const key = g.displayGroup.id;
+    const expanded = _farMore[_farTab + ':' + key];
+    const shown = expanded ? g.rows : g.rows.slice(0, FAR_GROUP_PREVIEW);
+    const hidden = g.rows.length - shown.length;
+    const section = document.createElement('div');
+    section.className = 'far-display-group';
+    section.dataset.farDisplayGroup = key;
+    const label = withLabels ? document.createElement('div') : null;
+    if (label) {
+      label.className = 'far-display-group-label';
+      label.textContent = g.displayGroup.name;
+    }
+    // KYC compliance fills several forms in one chat, from buttons beside its name.
+    const actions = key === TASK_GROUP_KYC.id ? kycGroupActions(g.rows) : null;
+    if (actions) {
+      const head = document.createElement('div');
+      head.className = 'far-display-group-head';
+      if (label) head.appendChild(label);
+      head.appendChild(actions);
+      section.appendChild(head);
+    } else if (label) {
+      section.appendChild(label);
+    }
+    const items = document.createElement('div');
+    items.className = isList ? 'far-rows' : 'far-cards';
+    const sameDay = farSameDayKeys(shown);
+    shown.forEach(r => {
+      const withTime = sameDay.has(farDayKey(farRowDate(r)));
+      items.appendChild(kycPickable(r, isList ? farListRow(r, withTime) : farCard(r, withTime)));
+    });
+    section.appendChild(items);
+    if (hidden > 0) {
+      const more = document.createElement('button');
+      more.type = 'button';
+      more.className = 'far-more';
+      more.textContent = `Show ${hidden} more`;
+      more.addEventListener('click', () => farShowMore(key));
+      section.appendChild(more);
+    }
+    wrap.appendChild(section);
+  });
+}
+
+// The queue on screen: the tabs read so far, until the whole queue lands.
+function farShownRows() {
+  return _farRows ?? _farEarly?.rows ?? [];
+}
+
+// Until the first fetch lands, an empty tab means "not read yet", not "nothing here".
+// Drafts live in this artifact, so that tab is never waiting on Carta.
+function farTabLoading(key) {
+  if (key === 'planned') return false;
+  if (_farRows !== null) return _farRetrying && farTabFailed(key);
+  return !(_farEarly && farTabRead(_farEarly.parts, key));
+}
+
+// A tab whose read failed is not empty, only unknown.
+function farTabFailed(key) {
+  return key in _farTabErrors;
+}
+
+function farTabLabel(key) {
+  return FAR_TABS.find(t => t.key === key).label;
+}
+
+// "A", "A and B", "A, B and C".
+function farJoinNames(names) {
+  return names.length < 3 ? names.join(' and ') : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+}
+
+// What Carta said when a tab's read failed, cut to fit the banner.
+function farTabErrorText(key) {
+  const detail = String(_farTabErrors[key] ?? '').trim();
+  return detail.length > FAR_LOAD_DETAIL_MAX ? detail.slice(0, FAR_LOAD_DETAIL_MAX - 1) + '…' : detail;
+}
+
+// A failed open tab shows its reason and names the other failed tabs; a tab that loaded
+// gets one line naming them. All failed: one message on every tab, Drafts included.
+function farRenderLoadError(key) {
+  const banner = document.getElementById('far-load-error');
+  if (!banner) return;
+  const failed = FAR_QUEUE_TABS.filter(k => farTabFailed(k) && !farTabLoading(k));
+  const all = failed.length === FAR_QUEUE_TABS.length;
+  const full = all || failed.includes(key);
+  const retry = '<button type="button" class="far-btn-secondary far-load-error-retry" onclick="farRetryLoad()">Retry</button>';
+  banner.style.display = failed.length ? '' : 'none';
+  banner.classList[full ? 'remove' : 'add']('far-load-error-compact');
+  if (!failed.length) {
+    banner.innerHTML = '';
+  } else if (all) {
+    // A failed boot gives every tab one reason; say it once.
+    const reasons = [...new Set(failed.map(farTabErrorText))];
+    const detail = reasons.length === 1
+      ? `<p class="far-load-error-detail">${escHtml(reasons[0])}</p>`
+      : `<ul class="far-load-error-list">${failed.map(k =>
+        `<li><b>${escHtml(farTabLabel(k))}:</b> ${escHtml(farTabErrorText(k))}</li>`).join('')}</ul>`;
+    banner.innerHTML = `
+    <div class="far-load-error-body">
+      <p class="far-load-error-head">Couldn't load your work from Carta.</p>
+      ${detail}
+    </div>${retry}`;
+  } else if (full) {
+    const others = failed.filter(k => k !== key).map(farTabLabel);
+    banner.innerHTML = `
+    <div class="far-load-error-body">
+      <p class="far-load-error-head">Couldn't load ${escHtml(farTabLabel(key))} from Carta.</p>
+      <p class="far-load-error-detail">${escHtml(farTabErrorText(key))}</p>
+      ${others.length ? `<p class="far-load-error-detail">${escHtml(farJoinNames(others))} couldn't load either.</p>` : ''}
+    </div>${retry}`;
+  } else {
+    banner.innerHTML = `<p class="far-load-error-head">${escHtml(farJoinNames(failed.map(farTabLabel)))} couldn't load.</p>${retry}`;
+  }
+}
+
+// Reads the queue again while the loaded tabs keep their cards; with no firm yet, reboots.
+function farRetryLoad() {
+  trackWorkhub('click', 'CartaWorkhub.Queue.RetryLoad');
+  _farRetrying = true;
+  renderFarSection();
+  const load = _benchmarkFirmId ? farFetchRequests() : bootCartaWorkhub();
+  load.catch(e => console.error('[far] retry —', e)).finally(() => {
+    _farRetrying = false;
+    renderFarSection();
+  });
+}
+
+// What the refresh status says. Time is the last good read, so a failed refresh still
+// tells the viewer how old the cards are.
+function farRefreshLabel(refreshing, failed, at) {
+  if (refreshing) return 'Refreshing…';
+  const time = at ? at.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '';
+  if (failed) return time ? `Couldn't refresh. Showing ${time}.` : "Couldn't refresh.";
+  return time ? `Updated ${time}` : '';
+}
+
+function farRenderRefresh() {
+  const box = document.getElementById('far-refresh');
+  if (!box) return;
+  // Before the first read lands, the loader says it; the Retry banner covers a failed one.
+  box.style.display = _farRows === null || !_benchmarkFirmId ? 'none' : '';
+  const status = document.getElementById('far-refresh-status');
+  const label = farRefreshLabel(_farRefreshing, _farRefreshFailed, _farLoadedAt);
+  if (status) status.textContent = label;
+  const btn = document.getElementById('far-refresh-btn');
+  if (btn) btn.disabled = _farRefreshing;
+}
+
+// Re-reads the queue in the background. The cards on screen stay until the new read lands in
+// full; a failed read keeps them and says so.
+async function farRefresh() {
+  if (_farRefreshing || _farRetrying || _farRows === null || !_benchmarkFirmId) return;
+  _farRefreshing = true;
+  _farRefreshTriedAt = Date.now();
+  farRenderRefresh();
+  const shown = new Promise(resolve => setTimeout(resolve, FAR_REFRESH_MIN_SHOWN_MS));
+  try {
+    _farRefreshFailed = !(await farFetchRequests({ keepOnFailure: true }));
+  } catch (e) {
+    console.error('[far] refresh —', e);
+    _farRefreshFailed = true;
+  }
+  await shown;
+  _farRefreshing = false;
   renderFarSection();
 }
 
-function farListRow(r) {
-  const isPlanned = r.group === 'planned';
-  const isTodo = r.group === 'todo';
-  const isDone = r.group === 'done';
-  const statusLabel = isPlanned ? 'Planned' : isTodo ? 'Tasks to complete' : isDone ? 'Completed' : 'In progress';
-  const tagClass = isPlanned ? 'far-status-tag-planned' : isTodo ? 'far-status-tag-todo' : isDone ? 'far-status-tag-done' : 'far-status-tag-progress';
-  const actionLabel = isPlanned ? 'Review and send' : isTodo ? 'Review' : 'View';
-
-  const tr = document.createElement('tr');
-  tr.className = 'far-list-row';
-  const entity = r.subtitle ?? r.firm ?? null;
-  tr.innerHTML =
-    `<td class="far-list-cell far-list-status"><span class="far-status-tag ${tagClass}">${escHtml(statusLabel)}</span></td>` +
-    `<td class="far-list-cell far-list-title">${escHtml(r.title ?? 'Request to Carta')}</td>` +
-    `<td class="far-list-cell far-list-entity">${entity ? escHtml(entity) : '<span class="far-list-empty">—</span>'}</td>` +
-    `<td class="far-list-cell far-list-date">${escHtml(r.requested ? farDate(r.requested) : '—')}</td>` +
-    `<td class="far-list-cell far-list-action"><button class="far-card-view">${escHtml(actionLabel)} →</button></td>` +
-    `<td class="far-list-cell far-list-overflow"><div class="far-overflow-wrap">` +
-    `<button class="far-overflow-btn" aria-label="More options">⋮</button>` +
-    `<div class="far-overflow-menu" hidden>${isPlanned ? `<button class="far-overflow-item far-card-discard">Discard</button>` : `<span class="far-overflow-empty">No actions</span>`}</div>` +
-    `</div></td>`;
-
-  tr.querySelector('.far-card-view').addEventListener('click', () =>
-    isPlanned ? farReviewPlan(r.planId)
-      : r.ccr ? openCapitalCallReview(r.ccr, r.title) : openFarThread(r.id));
-
-  const btn = tr.querySelector('.far-overflow-btn');
-  const menu = tr.querySelector('.far-overflow-menu');
-  btn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    const wasHidden = menu.hidden;
-    document.querySelectorAll('.far-overflow-menu').forEach(m => { m.hidden = true; });
-    menu.hidden = !wasHidden;
-  });
-
-  const discard = tr.querySelector('.far-overflow-item');
-  if (discard) discard.addEventListener('click', () => farDiscardPlan(r.planId));
-
-  return tr;
+function farRefreshClick() {
+  trackWorkhub('click', 'CartaWorkhub.Queue.Refresh');
+  farRefresh();
 }
 
-function farRenderList(rows) {
-  const listView = document.getElementById('far-list-view');
-  if (!listView) return;
-  listView.innerHTML = '';
-  if (!rows.length) return;
-  const table = document.createElement('table');
-  table.className = 'far-list-table';
-  table.innerHTML = '<thead><tr>' +
-    '<th class="far-list-th">Status</th><th class="far-list-th">Request</th>' +
-    '<th class="far-list-th">Entity</th><th class="far-list-th">Date</th>' +
-    '<th class="far-list-th"></th><th class="far-list-th"></th>' +
-    '</tr></thead>';
-  const tbody = document.createElement('tbody');
-  rows.forEach(r => tbody.appendChild(farListRow(r)));
-  table.appendChild(tbody);
-  listView.appendChild(table);
+// Work done in a chat elsewhere shows up when the viewer comes back to this page.
+function farRefreshOnReturn() {
+  if (document.hidden || Date.now() - _farRefreshTriedAt < FAR_REFRESH_MIN_AGE_MS) return;
+  farRefresh();
 }
+document.addEventListener('visibilitychange', farRefreshOnReturn);
+window.addEventListener('focus', farRefreshOnReturn);
 
 // The composer never hides — a section that vanishes takes the entry point with it.
 function renderFarSection() {
@@ -976,41 +1458,36 @@ function renderFarSection() {
   if (!section) return;
   section.style.display = '';
 
-  const rows = farSorted((_farRows ?? []).concat(farPlanRows()));
-  const isList = _farView === 'list';
+  const rows = farSorted(farShownRows().concat(farPlanRows()));
+  const byTab = Object.fromEntries(FAR_TABS.map(t => [t.key, rows.filter(r => r.tab === t.key)]));
+  const tab = FAR_TABS.find(t => t.key === _farTab);
+  const tabRows = byTab[tab.key];
+  const groups = farDisplayGroupSections(tabRows, farDisplayGroupCatalog(rows));
+  const active = groups.some(g => g.displayGroup.id === _farFilter[tab.key]) ? _farFilter[tab.key] : 'all';
 
-  const listView = document.getElementById('far-list-view');
-  const groups = ['planned', 'todo', 'progress', 'done'];
+  farRenderTabs(byTab);
+  farRenderChips(groups, active, tabRows.length);
+  farRenderGroups(active === 'all' ? groups : groups.filter(g => g.displayGroup.id === active), active === 'all');
 
-  if (isList) {
-    groups.forEach(k => { const g = document.getElementById('far-group-' + k); if (g) g.style.display = 'none'; });
-    if (listView) { listView.style.display = rows.length ? '' : 'none'; farRenderList(rows); }
-  } else {
-    if (listView) listView.style.display = 'none';
-    farRenderGroup('planned', rows.filter(r => r.group === 'planned'));
-    farRenderGroup('todo', rows.filter(r => r.group === 'todo'));
-    farRenderGroup('progress', rows.filter(r => r.group === 'progress'));
-    farRenderDone(rows.filter(r => r.group === 'done'));
-  }
+  const desc = document.getElementById('far-tab-desc');
+  if (desc) desc.textContent = tab.key === 'planned' ? farPlanTip() : tab.description;
 
-  const sortWrap = document.getElementById('far-sort-wrap');
-  if (sortWrap) sortWrap.style.display = rows.length > 1 ? '' : 'none';
+  const sort = document.getElementById('far-sort');
+  if (sort) sort.value = _farSort;
 
-  const viewBtn = document.getElementById('far-view-btn');
-  if (viewBtn) {
-    viewBtn.innerHTML = isList ? FAR_BOARD_ICON : FAR_LIST_ICON;
-    viewBtn.setAttribute('aria-label', isList ? 'Switch to board view' : 'Switch to list view');
-    viewBtn.title = isList ? 'Switch to board view' : 'Switch to list view';
-  }
+  farRenderViewButton();
 
   const note = document.getElementById('far-partial-note');
   if (note) note.style.display = _farPartial && rows.length > 0 ? '' : 'none';
 
+  const loading = farTabLoading(tab.key);
+  const loader = document.getElementById('far-loading');
+  if (loader) loader.style.display = loading ? '' : 'none';
   const empty = document.getElementById('far-empty');
-  if (empty) empty.style.display = rows.length === 0 ? '' : 'none';
+  if (empty) empty.style.display = !loading && tabRows.length === 0 && !farTabFailed(tab.key) ? '' : 'none';
 
-  const tip = document.getElementById('far-plan-tip');
-  if (tip) tip.textContent = farPlanTip();
+  farRenderLoadError(tab.key);
+  farRenderRefresh();
 }
 
 
@@ -1077,7 +1554,7 @@ function openFarCompose(resume) {
       </div>
       <div class="far-panel-footer">
         <button class="far-btn-secondary" onclick="closeFarCompose()">Cancel</button>
-        <button class="far-btn-secondary" id="far-compose-plan" onclick="farSavePlan()">Save as plan</button>
+        <button class="far-btn-secondary" id="far-compose-plan" onclick="farSavePlan()">Save as draft</button>
         <button class="far-btn-primary" id="far-compose-review" onclick="reviewFarCompose()">Review request</button>
       </div>
       <p class="far-compose-caveat">${farPlanScopeNote()}</p>
@@ -1216,10 +1693,10 @@ async function submitFarCompose() {
       return;
     }
 
-    const res = await _mcp('mutate', {
-      command: 'fa:create:fund-admin-message',
-      params: tokens.length ? { message, attachment_tokens: tokens } : { message },
-    });
+    const res = await mcpWrite(
+      'fa:create:fund-admin-message',
+      tokens.length ? { message, attachment_tokens: tokens } : { message },
+    );
     if (res.isError) throw new Error(res.content?.[0]?.text ?? 'Unknown error');
     const id = farWorkflowId(res);
     if (id == null) throw new Error('no workflow id returned');
@@ -1233,8 +1710,10 @@ async function submitFarCompose() {
     _farRows = (_farRows ?? []).concat({
       id,
       title: label ?? farTitleFrom(message),
-      group: 'progress',
+      tab: 'progress',
+      displayGroup: TASK_GROUP_OTHER,
       state: 'pending-carta',
+      thread: true,
       canceled: false,
       // Without `requested` the card shows a blank date and sorts to the bottom.
       requested: now,
@@ -1258,12 +1737,14 @@ let _farOpenThreadId = null;
 async function openFarThread(workflowId) {
   trackWorkhub('click', 'CartaWorkhub.FundAdminRequests.OpenThread');
   _farOpenThreadId = workflowId;
-  const row = (_farRows ?? []).find(r => String(r.id) === String(workflowId));
+  const row = farShownRows().find(r => String(r.id) === String(workflowId));
   const overlay = farEnsureOverlay('far-thread-overlay', 'far-overlay');
   overlay.innerHTML = `
     <div class="far-panel far-panel-thread">
-      <div class="far-panel-header">
+      <div class="far-panel-header far-thread-header">
         <span class="far-panel-title">${escHtml(row?.title ?? 'Request to Carta')}</span>
+        ${row?.trackUrl ? `<a class="far-track-request" href="${escHtml(row.trackUrl)}" target="_blank" rel="noopener noreferrer"`
+          + ` onclick="trackWorkhub('click', 'CartaWorkhub.FundAdminRequests.TrackRequest')">Track request ↗</a>` : ''}
         <button class="far-panel-close" onclick="closeFarThread()" aria-label="Close">✕</button>
       </div>
       <div class="far-panel-body" id="far-thread-body">
@@ -1412,14 +1893,12 @@ function farResolveViewer() {
   return _farViewerProbe;
 }
 
-// Staff-gated, so most viewers cannot attach. discover() runs the same access
-// check; fetch() rejects writes on method first, so it would answer yes for all.
+// Staff-gated, so most viewers cannot attach. search_tools runs the same access check.
 function farUploadAvailable() {
   if (!_farUploadProbe) {
     _farUploadProbe = (async () => {
       try {
-        const res = await _mcp('discover', { domain: FAR_UPLOAD_COMMAND });
-        if (res && !res.isError) return true;
+        if (await mcpCommandListed(FAR_UPLOAD_COMMAND)) return true;
         console.info('[far attach] attaching is not available to this viewer');
         return false;
       } catch (e) {
@@ -1566,10 +2045,7 @@ async function farUploadPicked(key, onProgress) {
     try {
       // Restored from a plan the bytes are already encoded; a fresh pick is not.
       const content_base64 = item.b64 ?? await farFileToBase64(item.file);
-      const res = await _mcp('mutate', {
-        command: FAR_UPLOAD_COMMAND,
-        params: { filename: item.name, content_base64 },
-      });
+      const res = await mcpWrite(FAR_UPLOAD_COMMAND, { filename: item.name, content_base64 });
       if (res.isError) throw new Error(res.content?.[0]?.text ?? 'upload rejected');
       const token = farDocToken(res);
       if (!token) throw new Error('upload returned no token');
@@ -1608,12 +2084,12 @@ async function submitFarReply() {
     }
     const sentFiles = (_farPicked.reply ?? []).map(f => ({ name: f.name, href: null }));
 
-    const res = await _mcp('mutate', {
-      command: 'fa:create:workflow-message',
-      params: tokens.length
+    const res = await mcpWrite(
+      'fa:create:workflow-message',
+      tokens.length
         ? { workflow_id: Number(workflowId), message, attachment_tokens: tokens }
         : { workflow_id: Number(workflowId), message },
-    });
+    );
     if (res.isError) throw new Error(res.content?.[0]?.text ?? 'Unknown error');
 
     // The thread is cached, so append rather than refetch — and the ball is back
@@ -1624,8 +2100,8 @@ async function submitFarReply() {
       authorId: _farViewerId, at: new Date().toISOString(), attachments: sentFiles,
     });
     _farThreadCache[workflowId] = msgs;
-    const row = (_farRows ?? []).find(r => String(r.id) === String(workflowId));
-    if (row) { row.group = 'progress'; row.state = 'pending-carta'; row.lastActivity = new Date().toISOString(); }
+    const row = farShownRows().find(r => String(r.id) === String(workflowId));
+    if (row) { row.tab = 'progress'; row.state = 'pending-carta'; row.lastActivity = new Date().toISOString(); }
 
     if (box) box.value = '';
     _farPicked.reply = [];
@@ -1641,10 +2117,6 @@ async function submitFarReply() {
     if (btn) { btn.disabled = false; btn.textContent = 'Send'; }
   }
 }
-
-document.addEventListener('click', () => {
-  document.querySelectorAll('.far-overflow-menu').forEach(m => { m.hidden = true; });
-});
 
 document.addEventListener('keydown', (e) => {
   if (e.key !== 'Escape') return;

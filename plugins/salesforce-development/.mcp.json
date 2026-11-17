@@ -1,0 +1,39 @@
+{
+  "mcpServers": {
+    "salesforce-lsp": {
+      "args": [
+        "${CLAUDE_PLUGIN_ROOT}/bin/sf-lsp-host.bundled.js"
+      ],
+      "type": "stdio",
+      "command": "node"
+    },
+    "salesforce-headless-360": {
+      "env": {
+        "SF_HEADLESS_360_ENABLED": "${user_config.headless_360_enabled}"
+      },
+      "args": [
+        "${CLAUDE_PLUGIN_ROOT}/scripts/sf-headless-360-optin.js",
+        "${CLAUDE_PLUGIN_ROOT}/scripts/sf-mcp-proxy.bundled.js",
+        "headless-360"
+      ],
+      "type": "stdio",
+      "command": "node"
+    },
+    "salesforce-metadata-experts": {
+      "args": [
+        "${CLAUDE_PLUGIN_ROOT}/scripts/sf-mcp-proxy.bundled.js",
+        "metadata-experts"
+      ],
+      "type": "stdio",
+      "command": "node"
+    },
+    "salesforce-metadata-grounding": {
+      "args": [
+        "${CLAUDE_PLUGIN_ROOT}/scripts/sf-mcp-proxy.bundled.js",
+        "metadata-grounding"
+      ],
+      "type": "stdio",
+      "command": "node"
+    }
+  }
+}

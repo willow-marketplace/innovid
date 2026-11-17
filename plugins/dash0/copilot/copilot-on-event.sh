@@ -20,13 +20,17 @@
 set -u
 
 AGENT="copilot"
-VERSION="0.1.28"
+VERSION="0.1.32"
 
 # Where the downloaded binary lives. Copilot sets COPILOT_PLUGIN_DATA for a
 # marketplace install; the XDG path is the fallback for a manual one.
 BASE="${COPILOT_PLUGIN_DATA:-${XDG_STATE_HOME:-$HOME/.local/state}/dash0-agent-plugin/copilot}"
 
-# >>> shared bootstrap — byte-identical across cursor, codex and copilot >>>
+# Total seconds the binary download may take, or empty for no cap, so a slow link
+# still finishes and the stall bound in the shared region ends a dead one.
+DOWNLOAD_MAX_TIME=""
+
+# >>> shared bootstrap - byte-identical across the fail-open POSIX bootstraps >>>
 # test/consistency asserts these three regions match, so a fix lands in all of
 # them or in none. Everything agent-specific is declared above.
 
@@ -104,12 +108,17 @@ if [ ! -x "$BINARY" ]; then
   URL="${BASE_URL}/${ASSET}"
   CHECKSUMS_URL="${BASE_URL}/checksums.txt"
 
+  # Abort a stalled transfer: an unreachable host must not hold a hook or a
+  # server's exporter for minutes. With curl, a slow one runs until
+  # DOWNLOAD_MAX_TIME, if the agent sets one. wget ignores that cap: its timeout
+  # is per read, so it bounds only a stall.
   if command -v curl &>/dev/null; then
-    curl -fsSL -o "$TMP" "$URL" || fail_open "download failed: $URL"
-    CHECKSUMS=$(curl -fsSL "$CHECKSUMS_URL") || fail_open "checksums fetch failed"
+    STALL=(--connect-timeout 10 --speed-limit 1024 --speed-time 30)
+    CHECKSUMS=$(curl -fsSL "${STALL[@]}" --max-time 15 "$CHECKSUMS_URL") || fail_open "checksums fetch failed"
+    curl -fsSL "${STALL[@]}" ${DOWNLOAD_MAX_TIME:+--max-time "$DOWNLOAD_MAX_TIME"} -o "$TMP" "$URL" || fail_open "download failed: $URL"
   elif command -v wget &>/dev/null; then
-    wget -qO "$TMP" "$URL" || fail_open "download failed: $URL"
-    CHECKSUMS=$(wget -qO- "$CHECKSUMS_URL") || fail_open "checksums fetch failed"
+    CHECKSUMS=$(wget -qO- --timeout=30 --tries=2 "$CHECKSUMS_URL") || fail_open "checksums fetch failed"
+    wget -qO "$TMP" --timeout=30 --tries=2 "$URL" || fail_open "download failed: $URL"
   else
     fail_open "neither curl nor wget found"
   fi

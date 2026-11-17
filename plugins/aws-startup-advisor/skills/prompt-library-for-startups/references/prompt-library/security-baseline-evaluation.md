@@ -12,9 +12,9 @@ AWS security baseline assessment framework with risk scoring and remediation roa
 
 ## AWS Startup Security Baseline (AWS SSB) Evaluation - Comprehensive Security Posture Assessment
 
-Prerequisite: This prompt requires the AWS Knowledge MCP server. If it isn't already installed and available to you, see the setup instructions at <https://github.com/awslabs/mcp/tree/main/src/aws-knowledge-mcp-server> and configure it before re-running this prompt.
+Prerequisite: This prompt uses the unified AWS MCP Server (`aws-mcp`), which ships with this plugin and is already configured once the plugin is installed — there is nothing extra to set up. It provides every tool this prompt calls: `aws___search_documentation` and `aws___read_documentation` for the AWS Startup Security Baseline prescriptive guidance, `aws___list_regions` and `aws___get_regional_availability` for regional checks, and `aws___call_aws` for read-only queries against your own account when you need to verify a live configuration.
 
-You are a cloud security architect with access to AWS Knowledge MCP Server tools. Use these tools to provide data-driven, documentation-backed security baseline evaluation and remediation guidance based on the AWS Startup Security Baseline (AWS SSB) prescriptive guidance.
+You are a cloud security architect with access to the unified AWS MCP Server tools. Use these tools to provide data-driven, documentation-backed security baseline evaluation and remediation guidance based on the AWS Startup Security Baseline (AWS SSB) prescriptive guidance.
 
 ## Current Environment Context
 
@@ -59,11 +59,11 @@ Workload-level controls protect your applications, data, and resources running i
 
 ---
 
-## Control Evaluation Methodology (Using AWS Knowledge MCP Tools)
+## Control Evaluation Methodology (Using AWS MCP Server Tools)
 
 ### Step 1: Access AWS SSB Prescriptive Guidance
 
-**Tool: `aws_search_documentation`**
+**Tool: `aws___search_documentation`**
 
 Search for the latest AWS Startup Security Baseline documentation:
 
@@ -71,7 +71,7 @@ Search for the latest AWS Startup Security Baseline documentation:
 - Query: "AWS SSB account security controls implementation"
 - Query: "AWS SSB workload security controls best practices"
 
-**Tool: `aws_read_documentation`**
+**Tool: `aws___read_documentation`**
 
 Read detailed implementation guides for each control category:
 
@@ -101,7 +101,7 @@ Systematically evaluate each account-level control using MCP tools for validatio
 
 **MCP Validation:**
 
-- Search: `aws_search_documentation("AWS root user security best practices MFA")`
+- Search: `aws___search_documentation("AWS root user security best practices MFA")`
 - Read: Detailed MFA setup guide from search results
 - Verify: Regional availability of MFA services if using hardware tokens
 
@@ -114,8 +114,8 @@ Systematically evaluate each account-level control using MCP tools for validatio
 **Remediation Guidance:**
 If RED or YELLOW, use MCP tools to find implementation steps:
 
-- Search: `aws_search_documentation("enable MFA root user step by step")`
-- Search: `aws_search_documentation("delete root user access keys")`
+- Search: `aws___search_documentation("enable MFA root user step by step")`
+- Search: `aws___search_documentation("delete root user access keys")`
 - Estimated Implementation Time: 15-30 minutes
 
 ---
@@ -137,7 +137,7 @@ If RED or YELLOW, use MCP tools to find implementation steps:
 
 **MCP Validation:**
 
-- Search: `aws_search_documentation("IAM password policy configuration best practices")`
+- Search: `aws___search_documentation("IAM password policy configuration best practices")`
 - Read: IAM password policy documentation for current recommendations
 
 **Risk Rating:**
@@ -148,7 +148,7 @@ If RED or YELLOW, use MCP tools to find implementation steps:
 
 **Remediation Guidance:**
 
-- Search: `aws_search_documentation("set IAM password policy console CLI")`
+- Search: `aws___search_documentation("set IAM password policy console CLI")`
 - Estimated Implementation Time: 10 minutes
 
 ---
@@ -170,9 +170,9 @@ If RED or YELLOW, use MCP tools to find implementation steps:
 
 **MCP Validation:**
 
-- Search: `aws_search_documentation("CloudTrail multi-region trail setup")`
-- Search: `aws_search_documentation("CloudTrail S3 bucket security best practices")`
-- Check: `aws_get_regional_availability(region="<your-region>", resource_type="api", filters=["CloudTrail+CreateTrail"])`
+- Search: `aws___search_documentation("CloudTrail multi-region trail setup")`
+- Search: `aws___search_documentation("CloudTrail S3 bucket security best practices")`
+- Check: `aws___get_regional_availability(region="<your-region>", resource_type="api", filters=["CloudTrail+CreateTrail"])`
 
 **Risk Rating:**
 
@@ -182,8 +182,8 @@ If RED or YELLOW, use MCP tools to find implementation steps:
 
 **Remediation Guidance:**
 
-- Search: `aws_search_documentation("CloudTrail log file validation enable")`
-- Search: `aws_search_documentation("CloudTrail CloudWatch Logs integration")`
+- Search: `aws___search_documentation("CloudTrail log file validation enable")`
+- Search: `aws___search_documentation("CloudTrail CloudWatch Logs integration")`
 - Estimated Implementation Time: 30-45 minutes
 
 ---
@@ -203,7 +203,7 @@ If RED or YELLOW, use MCP tools to find implementation steps:
 
 **MCP Validation:**
 
-- Search: `aws_search_documentation("AWS Budgets setup cost monitoring")`
+- Search: `aws___search_documentation("AWS Budgets setup cost monitoring")`
 - Read: AWS Budgets best practices documentation
 
 **Risk Rating:**
@@ -214,7 +214,7 @@ If RED or YELLOW, use MCP tools to find implementation steps:
 
 **Remediation Guidance:**
 
-- Search: `aws_search_documentation("create AWS Budget alert threshold")`
+- Search: `aws___search_documentation("create AWS Budget alert threshold")`
 - Estimated Implementation Time: 15 minutes
 
 ---
@@ -236,9 +236,9 @@ If RED or YELLOW, use MCP tools to find implementation steps:
 
 **MCP Validation:**
 
-- Search: `aws_search_documentation("Amazon GuardDuty enable setup")`
-- Search: `aws_search_documentation("GuardDuty findings response automation")`
-- Check: `aws_get_regional_availability(region="<your-region>", resource_type="api", filters=["GuardDuty+CreateDetector"])`
+- Search: `aws___search_documentation("Amazon GuardDuty enable setup")`
+- Search: `aws___search_documentation("GuardDuty findings response automation")`
+- Check: `aws___get_regional_availability(region="<your-region>", resource_type="api", filters=["GuardDuty+CreateDetector"])`
 
 **Risk Rating:**
 
@@ -248,7 +248,7 @@ If RED or YELLOW, use MCP tools to find implementation steps:
 
 **Remediation Guidance:**
 
-- Search: `aws_search_documentation("GuardDuty SNS notification setup")`
+- Search: `aws___search_documentation("GuardDuty SNS notification setup")`
 - Estimated Implementation Time: 20-30 minutes
 
 ---
@@ -267,7 +267,7 @@ If RED or YELLOW, use MCP tools to find implementation steps:
 
 **MCP Validation:**
 
-- Search: `aws_search_documentation("AWS Trusted Advisor security checks")`
+- Search: `aws___search_documentation("AWS Trusted Advisor security checks")`
 - Read: Trusted Advisor best practices documentation
 
 **Risk Rating:**
@@ -278,7 +278,7 @@ If RED or YELLOW, use MCP tools to find implementation steps:
 
 **Remediation Guidance:**
 
-- Search: `aws_search_documentation("Trusted Advisor security recommendations")`
+- Search: `aws___search_documentation("Trusted Advisor security recommendations")`
 - Estimated Implementation Time: 30 minutes (initial review), 15 minutes (ongoing monthly)
 
 ---
@@ -298,7 +298,7 @@ If RED or YELLOW, use MCP tools to find implementation steps:
 
 **MCP Validation:**
 
-- Search: `aws_search_documentation("AWS account alternate contacts security")`
+- Search: `aws___search_documentation("AWS account alternate contacts security")`
 
 **Risk Rating:**
 
@@ -308,7 +308,7 @@ If RED or YELLOW, use MCP tools to find implementation steps:
 
 **Remediation Guidance:**
 
-- Search: `aws_search_documentation("add alternate contact AWS account")`
+- Search: `aws___search_documentation("add alternate contact AWS account")`
 - Estimated Implementation Time: 10 minutes
 
 ---
@@ -330,8 +330,8 @@ If RED or YELLOW, use MCP tools to find implementation steps:
 
 **MCP Validation:**
 
-- Search: `aws_search_documentation("IAM user best practices least privilege")`
-- Search: `aws_search_documentation("IAM access key rotation")`
+- Search: `aws___search_documentation("IAM user best practices least privilege")`
+- Search: `aws___search_documentation("IAM access key rotation")`
 
 **Risk Rating:**
 
@@ -341,8 +341,8 @@ If RED or YELLOW, use MCP tools to find implementation steps:
 
 **Remediation Guidance:**
 
-- Search: `aws_search_documentation("enforce MFA IAM users")`
-- Search: `aws_search_documentation("IAM credential report audit")`
+- Search: `aws___search_documentation("enforce MFA IAM users")`
+- Search: `aws___search_documentation("IAM credential report audit")`
 - Estimated Implementation Time: 1-2 hours (initial audit and remediation)
 
 ---
@@ -368,9 +368,9 @@ Systematically evaluate each workload-level control:
 
 **MCP Validation:**
 
-- Search: `aws_search_documentation("AWS Secrets Manager best practices rotation")`
-- Search: `aws_search_documentation("Systems Manager Parameter Store SecureString")`
-- Check: `aws_get_regional_availability(region="<your-region>", resource_type="api", filters=["SecretsManager+CreateSecret"])`
+- Search: `aws___search_documentation("AWS Secrets Manager best practices rotation")`
+- Search: `aws___search_documentation("Systems Manager Parameter Store SecureString")`
+- Check: `aws___get_regional_availability(region="<your-region>", resource_type="api", filters=["SecretsManager+CreateSecret"])`
 
 **Risk Rating:**
 
@@ -380,8 +380,8 @@ Systematically evaluate each workload-level control:
 
 **Remediation Guidance:**
 
-- Search: `aws_search_documentation("migrate secrets to Secrets Manager")`
-- Search: `aws_search_documentation("enable automatic secret rotation")`
+- Search: `aws___search_documentation("migrate secrets to Secrets Manager")`
+- Search: `aws___search_documentation("enable automatic secret rotation")`
 - Estimated Implementation Time: 2-4 hours (depending on number of secrets)
 
 ---
@@ -402,8 +402,8 @@ Systematically evaluate each workload-level control:
 
 **MCP Validation:**
 
-- Search: `aws_search_documentation("IAM roles EC2 instances best practices")`
-- Search: `aws_search_documentation("security group rules least privilege")`
+- Search: `aws___search_documentation("IAM roles EC2 instances best practices")`
+- Search: `aws___search_documentation("security group rules least privilege")`
 
 **Risk Rating:**
 
@@ -413,8 +413,8 @@ Systematically evaluate each workload-level control:
 
 **Remediation Guidance:**
 
-- Search: `aws_search_documentation("attach IAM role to EC2 instance")`
-- Search: `aws_search_documentation("security group best practices restrict access")`
+- Search: `aws___search_documentation("attach IAM role to EC2 instance")`
+- Search: `aws___search_documentation("security group best practices restrict access")`
 - Estimated Implementation Time: 1-3 hours (depending on number of resources)
 
 ---
@@ -436,10 +436,10 @@ Systematically evaluate each workload-level control:
 
 **MCP Validation:**
 
-- Search: `aws_search_documentation("RDS encryption at rest enable")`
-- Search: `aws_search_documentation("S3 bucket default encryption")`
-- Search: `aws_search_documentation("EBS encryption by default")`
-- Check: `aws_get_regional_availability(region="<your-region>", resource_type="api", filters=["KMS+CreateKey", "RDS+CreateDBInstance"])`
+- Search: `aws___search_documentation("RDS encryption at rest enable")`
+- Search: `aws___search_documentation("S3 bucket default encryption")`
+- Search: `aws___search_documentation("EBS encryption by default")`
+- Check: `aws___get_regional_availability(region="<your-region>", resource_type="api", filters=["KMS+CreateKey", "RDS+CreateDBInstance"])`
 
 **Risk Rating:**
 
@@ -449,8 +449,8 @@ Systematically evaluate each workload-level control:
 
 **Remediation Guidance:**
 
-- Search: `aws_search_documentation("enable encryption existing RDS database")`
-- Search: `aws_search_documentation("S3 bucket encryption migration")`
+- Search: `aws___search_documentation("enable encryption existing RDS database")`
+- Search: `aws___search_documentation("S3 bucket encryption migration")`
 - Estimated Implementation Time: 2-4 hours (may require downtime for some services)
 
 ---
@@ -472,9 +472,9 @@ Systematically evaluate each workload-level control:
 
 **MCP Validation:**
 
-- Search: `aws_search_documentation("Application Load Balancer HTTPS listener")`
-- Search: `aws_search_documentation("CloudFront HTTPS redirect")`
-- Search: `aws_search_documentation("RDS SSL connection")`
+- Search: `aws___search_documentation("Application Load Balancer HTTPS listener")`
+- Search: `aws___search_documentation("CloudFront HTTPS redirect")`
+- Search: `aws___search_documentation("RDS SSL connection")`
 
 **Risk Rating:**
 
@@ -484,8 +484,8 @@ Systematically evaluate each workload-level control:
 
 **Remediation Guidance:**
 
-- Search: `aws_search_documentation("configure HTTPS ALB listener ACM")`
-- Search: `aws_search_documentation("enforce SSL RDS connections")`
+- Search: `aws___search_documentation("configure HTTPS ALB listener ACM")`
+- Search: `aws___search_documentation("enforce SSL RDS connections")`
 - Estimated Implementation Time: 1-2 hours
 
 ---
@@ -505,9 +505,9 @@ Systematically evaluate each workload-level control:
 
 **MCP Validation:**
 
-- Search: `aws_search_documentation("VPC endpoints AWS services setup")`
-- Search: `aws_search_documentation("VPC endpoint policies security")`
-- Check: `aws_get_regional_availability(region="<your-region>", resource_type="api", filters=["EC2+CreateVpcEndpoint"])`
+- Search: `aws___search_documentation("VPC endpoints AWS services setup")`
+- Search: `aws___search_documentation("VPC endpoint policies security")`
+- Check: `aws___get_regional_availability(region="<your-region>", resource_type="api", filters=["EC2+CreateVpcEndpoint"])`
 
 **Risk Rating:**
 
@@ -517,7 +517,7 @@ Systematically evaluate each workload-level control:
 
 **Remediation Guidance:**
 
-- Search: `aws_search_documentation("create VPC endpoint S3 DynamoDB")`
+- Search: `aws___search_documentation("create VPC endpoint S3 DynamoDB")`
 - Estimated Implementation Time: 30-60 minutes
 
 ---
@@ -539,8 +539,8 @@ Systematically evaluate each workload-level control:
 
 **MCP Validation:**
 
-- Search: `aws_search_documentation("VPC network segmentation best practices")`
-- Search: `aws_search_documentation("VPC Flow Logs enable")`
+- Search: `aws___search_documentation("VPC network segmentation best practices")`
+- Search: `aws___search_documentation("VPC Flow Logs enable")`
 
 **Risk Rating:**
 
@@ -550,8 +550,8 @@ Systematically evaluate each workload-level control:
 
 **Remediation Guidance:**
 
-- Search: `aws_search_documentation("migrate resources to custom VPC")`
-- Search: `aws_search_documentation("create private subnet database tier")`
+- Search: `aws___search_documentation("migrate resources to custom VPC")`
+- Search: `aws___search_documentation("create private subnet database tier")`
 - Estimated Implementation Time: 4-8 hours (significant architectural change)
 
 ---
@@ -575,8 +575,8 @@ Systematically evaluate each workload-level control:
 
 **MCP Validation:**
 
-- Search: `aws_search_documentation("centralized logging architecture AWS")`
-- Search: `aws_search_documentation("CloudWatch Logs retention policy")`
+- Search: `aws___search_documentation("centralized logging architecture AWS")`
+- Search: `aws___search_documentation("CloudWatch Logs retention policy")`
 
 **Risk Rating:**
 
@@ -586,8 +586,8 @@ Systematically evaluate each workload-level control:
 
 **Remediation Guidance:**
 
-- Search: `aws_search_documentation("enable VPC Flow Logs CloudWatch")`
-- Search: `aws_search_documentation("ALB access logs S3")`
+- Search: `aws___search_documentation("enable VPC Flow Logs CloudWatch")`
+- Search: `aws___search_documentation("ALB access logs S3")`
 - Estimated Implementation Time: 2-3 hours
 
 ---
@@ -609,9 +609,9 @@ Systematically evaluate each workload-level control:
 
 **MCP Validation:**
 
-- Search: `aws_search_documentation("CloudWatch alarms security events")`
-- Search: `aws_search_documentation("AWS Config rules security compliance")`
-- Check: `aws_get_regional_availability(region="<your-region>", resource_type="api", filters=["SecurityHub+EnableSecurityHub", "Config+PutConfigRule"])`
+- Search: `aws___search_documentation("CloudWatch alarms security events")`
+- Search: `aws___search_documentation("AWS Config rules security compliance")`
+- Check: `aws___get_regional_availability(region="<your-region>", resource_type="api", filters=["SecurityHub+EnableSecurityHub", "Config+PutConfigRule"])`
 
 **Risk Rating:**
 
@@ -621,8 +621,8 @@ Systematically evaluate each workload-level control:
 
 **Remediation Guidance:**
 
-- Search: `aws_search_documentation("create CloudWatch alarm root user login")`
-- Search: `aws_search_documentation("AWS Config rules security best practices")`
+- Search: `aws___search_documentation("create CloudWatch alarm root user login")`
+- Search: `aws___search_documentation("AWS Config rules security best practices")`
 - Estimated Implementation Time: 2-4 hours
 
 ---
@@ -644,8 +644,8 @@ Systematically evaluate each workload-level control:
 
 **MCP Validation:**
 
-- Search: `aws_search_documentation("AWS incident response best practices")`
-- Search: `aws_search_documentation("security incident forensics AWS")`
+- Search: `aws___search_documentation("AWS incident response best practices")`
+- Search: `aws___search_documentation("security incident forensics AWS")`
 
 **Risk Rating:**
 
@@ -655,7 +655,7 @@ Systematically evaluate each workload-level control:
 
 **Remediation Guidance:**
 
-- Search: `aws_search_documentation("incident response plan template")`
+- Search: `aws___search_documentation("incident response plan template")`
 - Estimated Implementation Time: 4-8 hours (initial plan creation)
 
 ---
@@ -735,31 +735,32 @@ For each control, provide:
 
 **Required Access:**
 
-- AWS Knowledge MCP Server integration enabled in AI assistant
+- Unified AWS MCP Server (`aws-mcp`) available — it ships with this plugin, so no separate install is needed
 - AWS account access (read-only sufficient for assessment)
 - Basic understanding of AWS services (EC2, RDS, S3, IAM)
 
 **Tools Required:**
 
 - AI assistant with MCP support
-- Access to MCP tools: aws_search_documentation, aws_read_documentation, aws_get_regional_availability, aws_list_regions
+- Access to these `aws-mcp` tools: aws___search_documentation, aws___read_documentation, aws___get_regional_availability, aws___list_regions, aws___call_aws
 
 ### Set-up Instructions
 
-**Step 1: Prepare Assessment Context**
+#### Step 1: Prepare Assessment Context
+
 Gather the following information:
 
 - Startup Profile: Company name, funding stage, industry, current scale
 - AWS Environment: Services in use, account structure, team size
 - Security Goals: Primary objectives, timeline, budget, compliance requirements
 
-**Step 2: Configure the Prompt**
+#### Step 2: Configure the Prompt
 
 - Copy the complete prompt composition
 - Replace all bracketed placeholders [LIKE_THIS] with your specific information
 - Ensure all sections are completed, especially Current Environment Context
 
-**Step 3: Execute Assessment**
+#### Step 3: Execute Assessment
 
 - Submit configured prompt to AI assistant with MCP support
 - Assistant will systematically assess each control using MCP tools

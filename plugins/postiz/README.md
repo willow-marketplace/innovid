@@ -2,6 +2,26 @@
   <img src="assets/logo.svg" alt="Postiz" width="96" />
 </p>
 
+<p align="center">
+  <strong>Schedule posts with agents to:</strong><br />
+  <a href="https://postiz.com/chatgpt">ChatGPT</a> ·
+  <a href="https://postiz.com/claude">Claude</a> ·
+  <a href="https://postiz.com/claude-cowork">Claude Cowork</a> ·
+  <a href="https://postiz.com/claude-code">Claude Code</a> ·
+  <a href="https://postiz.com/codex">Codex</a> ·
+  <a href="https://postiz.com/cursor">Cursor</a> ·
+  <a href="https://postiz.com/openclaw">OpenClaw</a> ·
+  <a href="https://postiz.com/hermes">Hermes Agent</a> ·
+  <a href="https://postiz.com/grok-bot">Grok Bot</a> ·
+  <a href="https://postiz.com/grok-build">Grok Build</a> ·
+  <a href="https://postiz.com/muse">Muse</a> ·
+  <a href="https://postiz.com/perplexity-computer">Perplexity Computer</a> ·
+  <a href="https://postiz.com/nanoclaw">nanoclaw</a> ·
+  <a href="https://postiz.com/paperclip">Paperclip</a> ·
+  <a href="https://postiz.com/mcp">MCP Server</a> ·
+  <a href="https://postiz.com/agent">AI Agents CLI</a>
+</p>
+
 ## Install as a skill
 
 ```bash
@@ -174,6 +194,9 @@ postiz integrations:trigger youtube-456 getPlaylists
 
 # Get LinkedIn companies
 postiz integrations:trigger linkedin-789 getCompanies
+
+# Find a LinkedIn company page to tag, by its exact vanity name
+postiz integrations:trigger linkedin-789 mention -d '{"query":"microsoft"}'
 ```
 
 ---
@@ -229,6 +252,7 @@ postiz posts:create --json post.json
 - `-s, --date` - Schedule date in ISO 8601 format (REQUIRED)
 - `-t, --type` - Post type: "schedule" or "draft" (default: "schedule")
 - `-m, --media` - Comma-separated media URLs for corresponding `-c`
+- `--alt` - Comma-separated alt texts for the media of the corresponding `-m`, same order (use `--json` with `image[].alt` for alt texts containing commas)
 - `-i, --integrations` - Comma-separated integration IDs (required)
 - `-d, --delay` - Delay between comments in minutes (default: 0)
 - `--settings` - Platform-specific settings as JSON string
@@ -352,10 +376,66 @@ PATH=$(echo "$RESULT" | jq -r '.path')
 postiz posts:create -c "Check out my video!" -s "2024-12-31T12:00:00Z" -m "$PATH" -i "tiktok-id"
 ```
 
+**Adjust media to the platforms' limits**
+
+Platforms reject media that is too large, too small or in an encoding they don't accept. Add `--adjust` (off by default) to adjust the file after the upload: videos get their short side scaled to 1080 px (long side at most 1920 px) and are re-encoded to H.264 MP4 with AAC audio, images are only scaled down to fit 1080 x 1920 and keep their format.
+```bash
+postiz upload video.mp4 --adjust
+postiz media:status <id>       # "processing" until the adjusted file is in place, then "ready"
+```
+
+The status is `processing` until the adjusted file replaces the original at the same `path`, usually within seconds. Poll `media:status` and wait until it is `ready` before publishing a post with this `path`: a post published while it is `processing` uses the original, unadjusted file. If the adjustment fails, the original is kept and used for publishing, and the status is `ready` with a `warning`. Without `--adjust` the upload is synchronous and the `path` is ready immediately.
+
+**Reuse already uploaded media**
+
+Files already in your media library do not need uploading again. List them (newest first, 18 per page) and reuse a file's `path`:
+```bash
+postiz media:list
+postiz media:list -s banner    # filter by original file name (case-insensitive)
+postiz media:list -p 2         # page number, starting at 1
+```
+
+Returns an object with `pages` (the total page count) and `results`, a list of files with `id`, `name`, `originalName`, `path` (the URL to reuse in a post) and `createdAt`.
+
 **Why this is required:**
 - **TikTok, Instagram, YouTube** only accept URLs from trusted domains
 - **Security:** Platforms verify media sources to prevent abuse
 - **Reliability:** Postiz ensures your media is always accessible
+
+---
+
+### Clipping
+
+Turn a long YouTube video into short vertical clips with burned-in captions. The best parts are picked automatically and every clip is saved to your media library. Pass integrations to also get a **draft** post per clip on every channel (nothing is scheduled or published).
+
+**Start a clipping**
+```bash
+postiz clipping:create "https://www.youtube.com/watch?v=VIDEO_ID"
+postiz clipping:create "https://www.youtube.com/watch?v=VIDEO_ID" -n 3 -f crop -i "tiktok-id,instagram-id"
+```
+
+| Option | Alias | Description |
+|--------|-------|-------------|
+| `--integrations` | `-i` | Comma-separated integration IDs to create a draft post for every clip |
+| `--clips` | `-n` | Maximum number of clips, 1-10 (default: 5) |
+| `--fit` | `-f` | `blur` (default) keeps the whole picture over a blurred copy of itself, `crop` fills the clip and cuts the sides |
+
+Returns `{"id": "<clipping-id>"}` right away — clipping takes several minutes.
+
+**Check the status and get the clips**
+```bash
+postiz clipping:status <clipping-id>
+```
+
+The `status` moves through `analysing`, `transcribing` (only when the video has no usable captions), `picking` and `rendering`, and ends on `completed` or `failed`. When completed, every clip carries its `title`, `content`, hosted video `path` and `thumbnail`. When failed, `error` says why and the clipping minutes are given back.
+
+**List clippings**
+```bash
+postiz clipping:list
+postiz clipping:list --page 2
+```
+
+Clipping uses the clipping minutes of your subscription: one minute for every minute of the source video. Only one clipping runs at a time per account.
 
 ---
 
@@ -641,6 +721,11 @@ The CLI interacts with these Postiz API endpoints:
 | `/public/v1/analytics/:integration` | GET | Get platform analytics |
 | `/public/v1/analytics/post/:postId` | GET | Get post analytics |
 | `/public/v1/upload` | POST | Upload media |
+| `/public/v1/media` | GET | List uploaded media (optional `?page=`, `?search=`) |
+| `/public/v1/media/:id/status` | GET | Status of a media uploaded with `adjust` |
+| `/public/v1/clipping` | POST | Start clipping a YouTube video |
+| `/public/v1/clipping` | GET | List clippings (optional `?page=`) |
+| `/public/v1/clipping/:id` | GET | Get a clipping and its clips |
 
 ---
 
@@ -753,6 +838,9 @@ postiz posts:status <id> --status draft           # Move to draft (stops workflo
 postiz posts:status <id> --status schedule        # Queue draft for publishing
 postiz posts:settings <id> --settings '{}'        # Patch a post's settings (merged; DRAFT/QUEUE only)
 postiz upload <file>                              # Upload media
+postiz upload <file> --adjust                     # Upload and adjust to the platforms' limits
+postiz media:status <id>                          # Check an --adjust upload
+postiz media:list -s <name>                       # Find already uploaded media to reuse
 
 # Analytics
 postiz analytics:platform <id>                    # Platform analytics (7 days)
@@ -772,14 +860,7 @@ postiz posts:create --help                        # Command help
 
 ## Contributing
 
-This CLI is part of the [Postiz monorepo](https://github.com/gitroomhq/postiz-app).
-
-To contribute:
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes in `apps/cli/`
-4. Run tests: `pnpm run build`
-5. Submit a pull request
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setup and the pull request checklist (version bump, changelog entry, docs and release steps).
 
 ---
 

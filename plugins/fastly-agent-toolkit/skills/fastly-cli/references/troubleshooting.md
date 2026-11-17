@@ -20,9 +20,9 @@ Version 1 is unlocked — add domain, backend, and snippets all on `--version 1`
 
 Snippet/custom VCL commands are under `fastly service vcl` (e.g. `fastly service vcl snippet create`, `fastly service vcl custom create`), NOT `fastly vcl snippet create`.
 
-## `--content` is inline
+## `--content` and missing files
 
-The `--content` flag on snippet/custom VCL commands takes inline VCL code, not a file path. To load from a file: `--content "$(cat file.vcl)"`.
+On snippet/custom VCL commands, `--content` reads the file if the path exists, otherwise uploads the value as inline VCL. A mistyped path becomes the VCL body.
 
 On `fastly service vcl snippet describe`, `--content` means "print only the raw VCL body". It cannot be combined with `--json` or `--verbose`.
 
@@ -44,8 +44,12 @@ The CLI flag for certificate authority is `--cert-auth` (not `--certificate-auth
 
 ## Token safety for REST API calls
 
-NEVER use `fastly auth show --reveal` in an AI agent context — it exposes the API token in the conversation. Use `$(fastly auth show TOKEN_NAME --reveal --quiet | awk '/^Token:/ {print $2}')` with an explicit stored token name. Without a name, it fails when the CLI is authenticated via `FASTLY_API_TOKEN` or another non-stored source. Similarly, `--debug-mode` prints secrets to stdout — avoid it unless the user requests it.
+Use `$(fastly auth token)` in the authenticated command; no output filtering is needed.
+To select a specific stored token, use `$(fastly auth token --token TOKEN_NAME)`.
+The command refuses terminal output, but agent-captured stdout may be non-terminal, so never run it standalone or echo its result.
 
 ## Debug mode
 
-`fastly --debug-mode <command>` or `FASTLY_DEBUG_MODE=true` — prints API token in output, use with caution.
+`fastly --debug-mode <command>` and `FASTLY_DEBUG_MODE=true` expose API tokens in output.
+Do not run commands with debug mode enabled in an agent session, even at the user's request.
+If debug mode is needed, ask the user to run it in a separate terminal and share only a summary with credentials and other private data removed, not the raw output.

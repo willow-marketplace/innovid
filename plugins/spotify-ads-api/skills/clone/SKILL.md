@@ -20,6 +20,10 @@ api() { "$PLUGIN_ROOT/scripts/api-request.sh" clone "$@"; }
 
 Before the first Ads API v3 call, read and follow `$PLUGIN_ROOT/skills/api-reference/references/live-openapi.md`.
 
+Before sending any output to a human user, read and follow `$PLUGIN_ROOT/skills/api-reference/references/language-standards.md`.
+
+Also read `$PLUGIN_ROOT/skills/api-reference/references/api-behaviors.md` for API behaviour the spec does not express (micro-amounts, geo lookup, estimates, retry safety).
+
 To retrieve settings values (TOKEN, AD_ACCOUNT_ID, AUTO_EXECUTE, BASE_URL, SDK_HEADER, SKILL_HEADER, PLUGIN_VERSION) for use outside API calls, run `api --env`. The output is eval-safe, so `eval $(api --env)` assigns them all.
 
 ## Parsing Arguments
@@ -46,12 +50,15 @@ api GET "ad_accounts/{ad_account_id}/campaigns/$CAMPAIGN_ID"
 api GET "ad_accounts/{ad_account_id}/ad_sets?campaign_ids=$CAMPAIGN_ID&limit=50&sort_direction=DESC"
 ```
 
+**Ad sets for a campaign**: `api GET "ad_accounts/{ad_account_id}/ad_sets?campaign_ids=$CAMPAIGN_ID"`. There is no nested `/campaigns/{id}/ad_sets` route.
+
 Paginate with `offset` if `total_results > 50`.
 
 #### Fetch all ads under the campaign
 
 ```bash
-api GET "ad_accounts/{ad_account_id}/ads?campaign_ids=$CAMPAIGN_ID&limit=50&sort_direction=DESC"
+api GET "ad_accounts/{ad_account_id}/ads?ad_set_ids=$AD_SET_ID_1&ad_set_ids=$AD_SET_ID_2&limit=50&sort_direction=DESC"
+# ads have no campaign_ids filter: pass the campaign's ad set IDs as repeated ad_set_ids
 ```
 
 Paginate with `offset` if `total_results > 50`.
@@ -110,7 +117,7 @@ If budget type is LIFETIME and the user changed dates, verify that `end_time` is
 
 #### Audience estimate validation
 
-If targeting, dates, objective, bid, or budget changed for any cloned ad set, run a pre-flight audience estimate before creating it:
+If targeting, dates, objective, bid, or budget changed for any cloned ad set, run a pre-flight audience estimate before creating it.
 
 ```bash
 api POST "estimates/audience" \
@@ -126,7 +133,7 @@ api POST "estimates/audience" \
   }'
 ```
 
-If the API returns a min-audience-threshold error, pause before creating that ad set and suggest broader targeting or a lower-threshold format.
+If the API returns "Min audience threshold was not met" (400), the targeting is too narrow. Pause before creating that ad set. Do not resend the same request, and do not widen the targeting on your own. Ask the user how to broaden it (for example broader targeting or a lower-threshold format), then estimate again with their choice.
 
 ### Step 4.5: Validate the Clone Against Ad Product Rules
 

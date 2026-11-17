@@ -1,11 +1,33 @@
 {
   "name": "auth0",
-  "version": "2.1.0",
-  "description": "A single unified Auth0 skill that detects your framework, feature, and tooling, then loads the right reference guides for adding authentication — login, MFA, Organizations, ACUL, custom domains, branding, JWT validation, migration, and debugging — to any app.",
-  "updatedAt": "2026-09-19T00:42:54.197Z",
+  "version": "2.8.0",
+  "description": "Add Auth0 authentication to any app: login, MFA, SSO, Organizations, RBAC, custom domains, and branding. Debug auth errors and migrate from other providers.",
+  "updatedAt": "2026-11-17T00:01:11.227Z",
   "author": {
+    "url": "https://auth0.com",
     "name": "Auth0",
     "email": "support@auth0.com"
   },
+  "homepage": "https://auth0.com/docs/quickstart/agent-skills",
+  "repository": "https://github.com/auth0/agent-skills",
+  "keywords": [
+    "auth0",
+    "authentication",
+    "authorization",
+    "oauth",
+    "oidc",
+    "mfa",
+    "sso",
+    "rbac",
+    "jwt",
+    "sdk",
+    "migration",
+    "security",
+    "universal-login",
+    "custom-domains",
+    "acul",
+    "quickstart"
+  ],
+  "displayName": "Auth0",
   "skills": "./skills/"
 }

@@ -5,7 +5,7 @@ title: "How Citus Health uses AWS to provide secure and real-time virtual patien
 
 ## How Citus Health uses AWS to provide secure and real-time virtual patient care
 
-_by Vincent Zheng, AWS Associate Startup Solutions Architect, and Christine Samson, AWS Startup Solutions Architect Manager_
+> _by Vincent Zheng, AWS Associate Startup Solutions Architect, and Christine Samson, AWS Startup Solutions Architect Manager_
 
 Prior to starting Citus Health, Co-Founder and CEO Melissa Kozak spent eight years providing direct care to patients receiving home infusion therapy, in which patients are administered medication intravenously or subcutaneously. Throughout her time as a nurse, she identified a gap in tools available to patients to connect directly with their care providers when they had questions or were experiencing issues. Kozak recalled a moment in which a patient's IV pump had been beeping all night long; he reached out to an on-call service, where he was transferred three times and then disconnected, resulting in missing his dose. With the help of Citus Health's Co-Founder Shadid Shah, a thought leader in the digital health care space who had built and deployed multiple electronic health record systems in his career, they were able to bring the idea of patient-centric communication tools and resources to life.
 

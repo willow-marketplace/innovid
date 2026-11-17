@@ -10,6 +10,7 @@
 #   ./run-ab-test.sh --no-skill   # no plugin vs local skills (1 baseline run, timed)
 #   ./run-ab-test.sh --fresh      # force baseline re-run even if cached
 #   ./run-ab-test.sh --skip-deploy        # author + validate only (no live API)
+#   ./run-ab-test.sh --release-check      # also release each deployed workflow
 #   ./run-ab-test.sh --skip-plugin-manage # don't disable/enable installed plugins
 #
 # Smart baseline caching:
@@ -19,7 +20,8 @@
 #
 # Uses claude --plugin-dir to load the plugin from either:
 #   RED:   a temp checkout of the baseline ref (default: main)
-#   GREEN: the local working tree
+#   GREEN: a git-archive snapshot of the local working tree (committed and
+#          uncommitted tracked changes), extracted the same way as RED
 #
 set -euo pipefail
 
@@ -29,6 +31,7 @@ NO_SKILL=0
 FRESH=0
 SKIP_DEPLOY=0
 SKIP_PLUGIN_MANAGE_ARG=0
+RELEASE_CHECK=0
 BASELINE_REF=main
 BASELINE_TIMEOUT=1800  # 30 minutes default for no-skill baseline
 
@@ -50,6 +53,10 @@ while [[ $# -gt 0 ]]; do
       SKIP_PLUGIN_MANAGE_ARG=1
       shift
       ;;
+    --release-check)
+      RELEASE_CHECK=1
+      shift
+      ;;
     --ref)
       BASELINE_REF="$2"
       shift 2
@@ -63,7 +70,7 @@ while [[ $# -gt 0 ]]; do
       shift
       ;;
     *)
-      echo "Usage: $0 [--no-skill] [--fresh] [--skip-deploy] [--skip-plugin-manage] [--ref <git-ref>] [--timeout <seconds>] [N]"
+      echo "Usage: $0 [--no-skill] [--fresh] [--skip-deploy] [--skip-plugin-manage] [--release-check] [--ref <git-ref>] [--timeout <seconds>] [N]"
       exit 1
       ;;
   esac
@@ -78,69 +85,68 @@ BASELINE_JSON="$AB_RESULTS_DIR/baseline.json"
 # Pass-through flag for the inner test harness.
 EXTRA_TEST_FLAGS=()
 [ "$SKIP_DEPLOY" = "1" ] && EXTRA_TEST_FLAGS+=(--skip-deploy)
-
-# Find the generated workflow YAML under a run directory (top-level 'trigger:').
-find_workflow_file() {
-  local dir="$1" f
-  while IFS= read -r f; do
-    [ -n "$f" ] || continue
-    if grep -qE '^trigger:' "$f" 2>/dev/null; then
-      echo "$f"; return
-    fi
-  done < <(find "$dir" \( -name "*.yaml" -o -name "*.yml" \) -maxdepth 3 2>/dev/null)
-  echo ""
-}
+[ "$RELEASE_CHECK" = "1" ] && EXTRA_TEST_FLAGS+=(--release-check)
 
 # Clean up deployed Fusion workflows from a phase directory.
 #
-# Deletes via the Workflows delete API (scripts/cleanup_workflows.py, FalconPy
-# delete_definitions) — no browser. Collects the workflow names deployed by each
-# run in the phase, then deletes them by name. Skipped entirely in --skip-deploy
-# mode, where nothing was imported.
+# Deletes via the Workflows delete API (delete_workflow.py, FalconPy
+# delete_definitions) — no browser. Deletes exactly the definition IDs the
+# phase's runs imported (the import script's "Imported — ID: <id>" line in each
+# run log), never by name: a model-chosen name can match a real workflow that
+# already exists in the tenant. Skipped entirely in --skip-deploy mode, where
+# nothing was imported.
 cleanup_phase_workflows() {
   local phase_dir="$1"
   [ "$SKIP_DEPLOY" = "1" ] && return 0
   [ -d "$phase_dir" ] || return 0
 
-  # Collect the workflow names deployed in this phase.
-  local names=()
-  for dir in "$phase_dir"/run-*/; do
-    [ -d "$dir" ] || continue
-    local wf_file wf_name
-    wf_file=$(find_workflow_file "$dir")
-    [ -n "$wf_file" ] || continue
-    # Strip the "name:" prefix and any surrounding quotes. Uses three simple
-    # substitutions rather than one lazy-quantified capture group, because BSD
-    # (macOS) sed rejects the '.+?' non-greedy operator with "RE error:
-    # repetition-operator operand invalid".
-    wf_name=$(grep -m1 -E '^name:' "$wf_file" 2>/dev/null \
-      | sed -E "s/^name:[[:space:]]*//; s/^[\"']//; s/[\"'][[:space:]]*$//")
-    [ -n "$wf_name" ] && names+=("$wf_name")
+  local ids=()
+  local log def_id
+  for log in "$phase_dir"/run-*.log; do
+    [ -f "$log" ] || continue
+    while IFS= read -r def_id; do
+      [ -n "$def_id" ] && ids+=(--id "$def_id")
+    done < <(grep -oE 'Imported — ID: [a-f0-9]{32}' "$log" 2>/dev/null | grep -oE '[a-f0-9]{32}')
   done
 
-  if [ ${#names[@]} -eq 0 ]; then
+  if [ ${#ids[@]} -eq 0 ]; then
     return 0
   fi
 
-  local cleanup_py="$REPO_ROOT/scripts/cleanup_workflows.py"
-  if [ ! -f "$cleanup_py" ]; then
-    echo "  NOTE: scripts/cleanup_workflows.py not found — skipping cleanup."
-    echo "        Remove these manually in Falcon console → Fusion → Workflows:"
-    printf '          - %s\n' "${names[@]}"
-    return 0
-  fi
-
-  echo "  Deleting ${#names[@]} workflow(s) via the delete API..."
+  local delete_py="$REPO_ROOT/skills/deployment/scripts/delete_workflow.py"
+  echo "  Deleting $(( ${#ids[@]} / 2 )) imported workflow(s) by definition ID..."
   # Best-effort: a failed delete must never abort the A/B run, so swallow
-  # non-zero exit. cleanup_workflows.py reports per-name.
-  python3 "$cleanup_py" --names "${names[@]}" || \
+  # non-zero exit. delete_workflow.py reports what it deleted.
+  python3 "$delete_py" "${ids[@]}" --yes || \
     echo "  NOTE: cleanup reported issues (see output above). Continuing."
 }
 
 BASELINE_SHA_FILE="$AB_RESULTS_DIR/baseline-main-sha"
 OPTIMIZED_JSON="$AB_RESULTS_DIR/optimized.json"
 MAIN_EXTRACT_DIR="$AB_RESULTS_DIR/main-branch"
+GREEN_EXTRACT_DIR="$AB_RESULTS_DIR/local-branch"
 mkdir -p "$AB_RESULTS_DIR"
+
+# GREEN is extracted the same way as RED rather than loaded from the working tree.
+# An A/A run (identical skills on both sides) showed a working-tree GREEN reading
+# extra reference docs in 9 of 10 runs against 4 of 10 for the extracted RED, so
+# the two phases must differ only in the skills under test. `git stash create`
+# snapshots uncommitted tracked changes without touching the working tree or the
+# stash list; untracked files can't be archived, so they're reported instead.
+extract_green() {
+  local snap
+  snap=$(git -C "$REPO_ROOT" stash create 2>/dev/null)
+  [ -n "$snap" ] || snap=HEAD
+  rm -rf "$GREEN_EXTRACT_DIR"
+  mkdir -p "$GREEN_EXTRACT_DIR"
+  git -C "$REPO_ROOT" archive "$snap" | tar -x -C "$GREEN_EXTRACT_DIR"
+  local untracked
+  untracked=$(git -C "$REPO_ROOT" ls-files --others --exclude-standard -- skills common hooks use-cases scripts 2>/dev/null)
+  if [ -n "$untracked" ]; then
+    echo "WARNING: untracked files are not in the GREEN snapshot; commit or git add them to test them:"
+    printf '  %s\n' $untracked
+  fi
+}
 
 # Run the harness in place from the repo. The baseline (RED) plugin is extracted
 # to a separate dir via `git archive` and loaded with --plugin-dir; the working
@@ -155,7 +161,22 @@ if [ "$NO_SKILL" != "1" ] && [ "$FRESH" != "1" ]; then
 
   if [ -f "$BASELINE_JSON" ] && [ -f "$BASELINE_SHA_FILE" ] && [ -n "$CURRENT_BASELINE_SHA" ]; then
     CACHED_SHA=$(cat "$BASELINE_SHA_FILE")
-    if [ "$CACHED_SHA" = "$CURRENT_BASELINE_SHA" ]; then
+    # A baseline saved before test-skill.sh read tokens from the result event
+    # double-counted them, so it can't be compared with a new run.
+    if [ "$RELEASE_CHECK" = "1" ] && ! jq -e '[.release_results[]? | select(. != null)] | length > 0' "$BASELINE_JSON" >/dev/null 2>&1; then
+      echo "========================================="
+      echo "  BASELINE HAS NO RELEASE CHECK"
+      echo "========================================="
+      echo "  --release-check needs release results for both phases. Re-running RED phase."
+      echo ""
+    elif ! jq -e '.token_source == "result_event"' "$BASELINE_JSON" >/dev/null 2>&1; then
+      echo "========================================="
+      echo "  OUTDATED BASELINE DETECTED"
+      echo "========================================="
+      echo "  The cached baseline counted tokens per streamed message, which"
+      echo "  double-counts. Re-running RED phase."
+      echo ""
+    elif [ "$CACHED_SHA" = "$CURRENT_BASELINE_SHA" ]; then
       SKIP_RED=1
       BASELINE_RUNS=$(jq -r '.runs // 0' "$BASELINE_JSON" 2>/dev/null || echo "?")
       echo "========================================="
@@ -221,7 +242,7 @@ else
 fi
 echo "  Repo root:     $REPO_ROOT"
 echo "  Baseline ref:  $BASELINE_REF (${MAIN_EXTRACT_DIR:-N/A})"
-echo "  Local branch:  $REPO_ROOT"
+echo "  Local branch:  $REPO_ROOT (snapshot in $GREEN_EXTRACT_DIR)"
 [ "$SKIP_DEPLOY" = "1" ] && echo "  Mode:          author + validate only (--skip-deploy)"
 if [ "$SKIP_RED" != "1" ]; then
   echo "  RED results:   $RED_DIR"
@@ -230,6 +251,7 @@ echo "  GREEN results: $GREEN_DIR"
 echo ""
 
 # ── Pre-flight: ensure local plugin differs from baseline ────
+extract_green
 if [ "$NO_SKILL" != "1" ]; then
   if [ "$SKIP_RED" = "1" ] && [ ! -d "$MAIN_EXTRACT_DIR" ]; then
     echo "Extracting $BASELINE_REF for pre-flight check..."
@@ -241,8 +263,8 @@ if [ "$NO_SKILL" != "1" ]; then
   PREFLIGHT_DIFF=0
   # All six skills live under skills/; common/, hooks/, and use-cases/ stay at root.
   for dir in skills common hooks use-cases; do
-    if [ -d "$MAIN_EXTRACT_DIR/$dir" ] || [ -d "$REPO_ROOT/$dir" ]; then
-      if ! diff -rq "$MAIN_EXTRACT_DIR/$dir" "$REPO_ROOT/$dir" >/dev/null 2>&1; then
+    if [ -d "$MAIN_EXTRACT_DIR/$dir" ] || [ -d "$GREEN_EXTRACT_DIR/$dir" ]; then
+      if ! diff -rq "$MAIN_EXTRACT_DIR/$dir" "$GREEN_EXTRACT_DIR/$dir" >/dev/null 2>&1; then
         PREFLIGHT_DIFF=1
         break
       fi
@@ -250,8 +272,8 @@ if [ "$NO_SKILL" != "1" ]; then
   done
   # Also check top-level files that affect plugin behavior.
   for f in CLAUDE.md hooks.json; do
-    if [ -f "$MAIN_EXTRACT_DIR/$f" ] || [ -f "$REPO_ROOT/$f" ]; then
-      if ! diff -q "$MAIN_EXTRACT_DIR/$f" "$REPO_ROOT/$f" >/dev/null 2>&1; then
+    if [ -f "$MAIN_EXTRACT_DIR/$f" ] || [ -f "$GREEN_EXTRACT_DIR/$f" ]; then
+      if ! diff -q "$MAIN_EXTRACT_DIR/$f" "$GREEN_EXTRACT_DIR/$f" >/dev/null 2>&1; then
         PREFLIGHT_DIFF=1
         break
       fi
@@ -383,7 +405,7 @@ echo "========================================="
 echo ""
 
 "$TEST_SKILL" --save "$OPTIMIZED_JSON" --baseline "$BASELINE_JSON" --runs "$RUNS" --dir "$GREEN_DIR" \
-  --plugin-dir "$REPO_ROOT" --skip-plugin-manage "${EXTRA_TEST_FLAGS[@]+"${EXTRA_TEST_FLAGS[@]}"}"
+  --plugin-dir "$GREEN_EXTRACT_DIR" --skip-plugin-manage "${EXTRA_TEST_FLAGS[@]+"${EXTRA_TEST_FLAGS[@]}"}"
 
 echo ""
 echo "========================================="

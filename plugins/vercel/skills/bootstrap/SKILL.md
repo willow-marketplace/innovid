@@ -41,6 +41,17 @@ cp .env.example .env.local
 
 ## Resource Setup: Postgres
 
+### Prisma ORM projects
+
+If the repo has `prisma/schema.prisma`, provision Prisma Postgres with these steps instead of the preferred path below:
+
+```bash
+vercel integration guide prisma
+vercel integration add prisma --scope <team>
+```
+
+It sets `DATABASE_URL` to the direct connection string and `DATABASE_URL_POOLED` to the pooled one. Then verify and pull env vars as in step 3 of the preferred path below. For production traffic from Vercel Functions, read `DATABASE_URL_POOLED` and fall back to `DATABASE_URL`. Keep `DATABASE_URL` for Prisma CLI commands such as migrations, the Prisma Postgres serverless driver (`@prisma/adapter-ppg` or `@prisma/ppg`), session-dependent work such as `LISTEN`/`NOTIFY`, and queries that run longer than 10 minutes. If the project has no `DATABASE_URL_POOLED`, its database was created before October 29, 2026: add the variable as described in the `vercel-storage` skill.
+
 ### Preferred path (Vercel-managed Neon)
 
 1. Read integration setup guidance:
@@ -77,8 +88,8 @@ Generate a high-entropy secret without printing it, then store it in Vercel and 
 
 ```bash
 AUTH_SECRET="$(node -e "console.log(require('node:crypto').randomBytes(32).toString('base64url'))")"
-printf "%s" "$AUTH_SECRET" | vercel env add AUTH_SECRET preview production
-printf "%s" "$AUTH_SECRET" | vercel env add AUTH_SECRET development  # development cannot share a command with preview/production
+printf "%s" "$AUTH_SECRET" | vercel env add AUTH_SECRET production,preview
+printf "%s" "$AUTH_SECRET" | vercel env add AUTH_SECRET development  # separate command: development-only adds default to Config
 unset AUTH_SECRET
 vercel env pull .env.local --yes
 ```
@@ -144,7 +155,7 @@ Return a final bootstrap summary in this format:
 ```md
 ## Bootstrap Result
 - **Linked Project**: <team>/<project>
-- **Resource Path**: vercel-integration-neon | dashboard-neon | neon-cli
+- **Resource Path**: vercel-integration-prisma | vercel-integration-neon | dashboard-neon | neon-cli
 - **Env Keys**: <count> required, <count> present, <count> missing
 - **Secrets**: AUTH_SECRET set in Vercel (value never shown)
 - **Migration Status**: not-run | success | failed (<step>)
@@ -159,12 +170,10 @@ Return a final bootstrap summary in this format:
 
 ## next-forge Projects
 
-If the project was scaffolded with `npx next-forge init` (detected by `pnpm-workspace.yaml` + `packages/auth` + `packages/database` + `@repo/*` imports):
+If the project was scaffolded with `npx next-forge init` (detected by `packages/auth` + `packages/database` + `@repo/*` imports; package manager is chosen at init):
 
 1. Env files are per-app (`apps/app/.env.local`, `apps/web/.env.local`, `apps/api/.env.local`) plus `packages/database/.env`.
-2. Run `pnpm migrate` (not `db:push`) — it runs `prisma format` + `prisma generate` + `prisma db push`.
-3. Minimum env vars: `DATABASE_URL`, `CLERK_SECRET_KEY`, `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_WEB_URL`, `NEXT_PUBLIC_API_URL`.
-4. Optional services (Stripe, Resend, PostHog, etc.) can be skipped initially — but remove their `@repo/*` imports from app `env.ts` files to avoid validation errors.
+2. Run the `migrate` script with the repo's package manager (not `db:push`) — it runs `prisma format` + `prisma generate` + `prisma migrate dev` and prompts for a migration name.
+3. Minimum env vars: `DATABASE_URL`, `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_WEB_URL`, `NEXT_PUBLIC_API_URL` (URLs are pre-configured for local dev).
+4. Optional services (Clerk, Stripe, Resend, PostHog, etc.) can be skipped initially — integrations whose keys are unset are skipped at runtime. Delete the empty `KEY=""` placeholders copied from `.env.example`: an empty string fails the `keys.ts` format checks.
 5. Deploy as 3 separate Vercel projects with root directories `apps/app`, `apps/api`, `apps/web`.
-
-=> skill: next-forge — Full next-forge monorepo guide

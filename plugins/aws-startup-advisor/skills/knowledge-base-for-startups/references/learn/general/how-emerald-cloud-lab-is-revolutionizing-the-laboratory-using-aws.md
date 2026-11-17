@@ -5,7 +5,7 @@ title: "How Emerald Cloud Lab is revolutionizing the laboratory using AWS"
 
 ## How Emerald Cloud Lab is revolutionizing the laboratory using AWS
 
-_Guest post by Ben Smith, VP of Engineering and Kevin J. Hou, Scientific Computing Engineer, Emerald Cloud Lab_
+> _Guest post by Ben Smith, VP of Engineering and Kevin J. Hou, Scientific Computing Engineer, Emerald Cloud Lab_
 
 [Emerald Cloud Lab](https://www.emeraldcloudlab.com/) (ECL) provides access to a highly automated laboratory, equipped with over 200 unique pieces of scientific instrumentation, to any scientist with a computer and internet connection. Our wet lab – picture lab benches, hazardous chemicals, lab coats, and safety glasses – has diverse experimental capabilities with an emphasis on biotechnology, and supports a variety of enterprises including drug development, consumer products, and academic research.
 

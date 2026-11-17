@@ -16,7 +16,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Setup Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.x"
 
@@ -33,12 +33,21 @@ jobs:
       - name: Validate Claude marketplace
         run: |
           set -euo pipefail
-          claude plugin validate .
+          claude plugin validate .claude-plugin/marketplace.json --strict
 
       - name: Validate Claude plugin payload
         run: |
           set -euo pipefail
-          claude plugin validate .
+          claude plugin validate .claude-plugin/plugin.json --strict
+
+      - name: Validate portable plugin schemas
+        run: |
+          set -euo pipefail
+          uvx check-jsonschema --schemafile https://agent-plugins.org/schemas/1.0.0/plugin.schema.json plugin.json
+          uvx check-jsonschema --schemafile https://agent-plugins.org/schemas/1.0.0/mcp.schema.json mcp.json
+
+      - name: Check plugin consistency
+        run: python3 scripts/validate-plugins.py
 
       - name: Check root plugin layout
         run: |

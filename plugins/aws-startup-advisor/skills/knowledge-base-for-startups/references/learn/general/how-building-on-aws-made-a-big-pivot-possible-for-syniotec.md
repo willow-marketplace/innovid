@@ -77,7 +77,7 @@ The company is aware of the great need they will be able to fill as the construc
 
 ## About the Author
 
-**Bonnie McClure**
+### Bonnie McClure
 
 Bonnie is an editor specializing in creating accessible, engaging content for all audiences and platforms. She is dedicated to delivering comprehensive editorial guidance to provide a seamless user experience. When she's not advocating for the Oxford comma, you can find her spending time with her two large dogs, practicing her sewing skills, or testing out new recipes in the kitchen.
 

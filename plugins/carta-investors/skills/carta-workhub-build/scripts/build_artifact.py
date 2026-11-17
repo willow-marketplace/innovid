@@ -4,8 +4,8 @@
 """Assemble the self-contained carta-workhub Cowork artifact from its source parts.
 
 Inlines the CSS + config + app JS into the template and substitutes the Carta MCP
-server id, producing ONE self-contained HTML file ready for create_artifact /
-update_artifact. The model never has to read the large HTML: to change the composer
+server id, producing ONE self-contained HTML file ready for the Artifact tool's
+publish action. The model never has to read the large HTML: to change the composer
 tiles, edit resources/carta-workhub.config.js; to change logic, edit the app JS under
 resources/; then re-run this.
 
@@ -36,44 +36,35 @@ import hashlib
 import json
 import re
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
+
+_LIB = next(p for p in Path(__file__).resolve().parents if (p / "lib" / "live_artifact_render").is_dir()) / "lib"
+sys.path.insert(0, str(_LIB))
+
+from live_artifact_render import read_skill_version  # noqa: E402
 
 SKILL_DIR = Path(__file__).resolve().parent.parent
 RES = SKILL_DIR / "resources"
 
-SKILL_NAME = SKILL_DIR.name
-VERSIONS_FILE = SKILL_DIR.parent.parent / ".claude-plugin" / "skill-versions.json"
-# A built artifact can never update itself, so it carries its version with it and
-# compares against the published one at runtime. Strict major.minor.patch: the
-# comparison is semver, and the banner fires on major/minor only.
-SEMVER_RE = re.compile(r"^\d+\.\d+\.\d+$")
+# The part list, its order and the template markers live in artifact_parts.json. App
+# parts are concatenated in order into the one app-JS slot; the pdf.js worker bundle goes
+# first because it defines globalThis.pdfjsWorker, which the library looks for when asked
+# to parse. pdf.js is vendored because the artifact's CSP blocks every external host — see
+# resources/vendor/README.md.
+PARTS = json.loads((SKILL_DIR / "scripts" / "artifact_parts.json").read_text())
+APP_JS_PARTS = PARTS["app_js_parts"]
+PDFJS_PARTS = PARTS["pdfjs_parts"]
 
-# App-layer JS is assembled from multiple source files, concatenated in this
-# order into the single __CARTA_WORKHUB_APP_JS__ slot below. Concatenation order
-# doesn't matter functionally today (function/let declarations, no cross-file
-# execution-order dependencies) — list shared/core logic first by convention.
-# Add new feature files here as carta-workhub.app.js gets split further.
-APP_JS_PARTS = [
-    "carta-workhub.app.js",
-    "app/fund-admin-requests.js",
-    "app/capital-call-review.js",
-    "app/financial-reporting-tracker.js",
-    "app/version-check.js",
-]
 
-MARKERS = {
-    "carta-workhub.css": r"/\*\s*__CARTA_WORKHUB_CSS__\s*\*/",
-    "carta-workhub.tracker.js": r"/\*\s*__CARTA_WORKHUB_TRACKER_JS__\s*\*/",
-    "carta-workhub.config.js": r"/\*\s*__CARTA_WORKHUB_CONFIG_JS__\s*\*/",
-}
-APP_JS_MARKER = r"/\*\s*__CARTA_WORKHUB_APP_JS__\s*\*/"
+def marker_re(token):
+    return r"/\*\s*" + token + r"\s*\*/"
 
-# pdf.js renders the notice PDF in the capital call review panel. Vendored because
-# the artifact's CSP blocks every external host — see resources/vendor/README.md.
-# The worker bundle goes first: it defines globalThis.pdfjsWorker, which the library
-# looks for when asked to parse.
-PDFJS_PARTS = ["vendor/pdf.worker.min.js", "vendor/pdf.min.js"]
-PDFJS_MARKER = r"/\*\s*__PDFJS_VENDOR_JS__\s*\*/"
+
+MARKERS = {name: marker_re(token) for name, token in PARTS["markers"].items()}
+APP_JS_MARKER = marker_re(PARTS["app_js_marker"])
+PDFJS_MARKER = marker_re(PARTS["pdfjs_marker"])
+PLACEHOLDER_RE = re.compile(r"\{\{[A-Z_]+\}\}")
 
 
 def close_script_safe(js):
@@ -92,31 +83,8 @@ def compute_build_id(template, parts):
     return h.hexdigest()[:8]
 
 
-def read_version():
-    """Return this skill's version from the plugin's skill-versions registry.
-
-    Fails the build rather than defaulting: a wrong version is worse than no build,
-    because it either suppresses a real update banner forever or shows one that can
-    never be satisfied.
-    """
-    label = "{}[{}]".format(VERSIONS_FILE.name, SKILL_NAME)
-    if not VERSIONS_FILE.exists():
-        sys.exit("ERROR: {} is missing".format(VERSIONS_FILE))
-    try:
-        data = json.loads(VERSIONS_FILE.read_text())
-    except ValueError as exc:
-        sys.exit("ERROR: {} is not valid JSON: {}".format(VERSIONS_FILE.name, exc))
-    entry = data.get(SKILL_NAME)
-    if not isinstance(entry, dict):
-        sys.exit('ERROR: {} needs an entry like {{"version": "1.2.3"}}'.format(label))
-    version = entry.get("version")
-    if not isinstance(version, str) or not SEMVER_RE.match(version):
-        sys.exit('ERROR: {} needs a "version" like "1.2.3", got {!r}'.format(label, version))
-    return version
-
-
 def build(mcp_server, ccr_fund_uuid="", ccr_activity_id="", frt_seed_period=""):
-    template = (RES / "carta-workhub.template.html").read_text()
+    template = (RES / PARTS["template"]).read_text()
     parts = {name: (RES / name).read_text() for name in MARKERS}
     parts.update({name: (RES / name).read_text() for name in APP_JS_PARTS})
     parts.update({name: (RES / name).read_text() for name in PDFJS_PARTS})
@@ -141,26 +109,30 @@ def build(mcp_server, ccr_fund_uuid="", ccr_activity_id="", frt_seed_period=""):
     out = re.sub(APP_JS_MARKER, lambda _m, c=app_js: c, out, count=1)
 
     # Leftover build-time markers would mean an incomplete assembly — fail loudly.
-    for token in ("__CARTA_WORKHUB_CSS__", "__CARTA_WORKHUB_TRACKER_JS__", "__CARTA_WORKHUB_CONFIG_JS__", "__CARTA_WORKHUB_APP_JS__", "__PDFJS_VENDOR_JS__"):
+    for token in [*PARTS["markers"].values(), PARTS["app_js_marker"], PARTS["pdfjs_marker"]]:
         if token in out:
             sys.exit("ERROR: unresolved marker {} after assembly".format(token))
 
-    out = out.replace("{{CARTA_MCP_SERVER}}", mcp_server)
-    if "{{CARTA_MCP_SERVER}}" in out:
-        sys.exit("ERROR: {{CARTA_MCP_SERVER}} still present after substitution")
-
-    # Empty is the normal case: the panel then opens only from a task card.
-    out = out.replace("{{CCR_FUND_UUID}}", ccr_fund_uuid or "")
-    out = out.replace("{{CCR_ACTIVITY_ID}}", ccr_activity_id or "")
-    # Empty is the normal case: tracker cards then exist only for periods that need the GP.
-    out = out.replace("{{FRT_SEED_PERIOD}}", frt_seed_period or "")
-
-    out = out.replace("{{BUILD_ID}}", build_id)
-
-    version = read_version()
-    out = out.replace("{{ARTIFACT_VERSION}}", version)
-    if "{{ARTIFACT_VERSION}}" in out:
-        sys.exit("ERROR: {{ARTIFACT_VERSION}} still present after substitution")
+    # Every placeholder the template and parts carry is named in artifact_parts.json.
+    values = {
+        "{{CARTA_MCP_SERVER}}": mcp_server,
+        # Empty is the normal case: the panel then opens only from a task card.
+        "{{CCR_FUND_UUID}}": ccr_fund_uuid or "",
+        "{{CCR_ACTIVITY_ID}}": ccr_activity_id or "",
+        # Empty is the normal case: tracker cards then exist only for periods that need the GP.
+        "{{FRT_SEED_PERIOD}}": frt_seed_period or "",
+        "{{BUILD_ID}}": build_id,
+    }
+    version = read_skill_version(SKILL_DIR)
+    values["{{ARTIFACT_VERSION}}"] = version
+    values["{{BUILT_AT}}"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    for placeholder in PARTS["placeholders"]:
+        if placeholder not in values:
+            sys.exit("ERROR: no value for {} (listed in artifact_parts.json)".format(placeholder))
+        out = out.replace(placeholder, values[placeholder])
+    left = PLACEHOLDER_RE.search(out)
+    if left:
+        sys.exit("ERROR: {} still present after substitution".format(left.group(0)))
 
     return out, build_id, version
 

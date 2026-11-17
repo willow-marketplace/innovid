@@ -6,3 +6,10 @@ minimumReleaseAgeExclude:
 # Snyk comes with `@ckeditor/ckeditor5-dev-ci`, but nothing in this repository uses it, so its post-install script is denied.
 allowBuilds:
   snyk: false
+
+overrides:
+  'glob@^13': '^14.0.3'
+  'minimatch@^10': '^11.0.3'
+
+autoDedupe: true
+verifyDepsBeforeRun: false

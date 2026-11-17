@@ -71,7 +71,24 @@ export class PostizAPI {
     });
   }
 
-  async upload(file: Buffer, filename: string) {
+  async listMedia(page?: number, search?: string) {
+    const params = new URLSearchParams();
+    if (page) params.append('page', String(page));
+    if (search) params.append('search', search);
+    const queryString = params.toString();
+    return this.request(
+      queryString ? `/public/v1/media?${queryString}` : '/public/v1/media',
+      { method: 'GET' }
+    );
+  }
+
+  async getMediaStatus(id: string) {
+    return this.request(`/public/v1/media/${id}/status`, {
+      method: 'GET',
+    });
+  }
+
+  async upload(file: Buffer, filename: string, adjust?: boolean) {
     const formData = new FormData();
     const extension = filename.split('.').pop()?.toLowerCase() || '';
 
@@ -117,6 +134,7 @@ export class PostizAPI {
     const type = mimeTypes[extension] || 'application/octet-stream';
 
     const blob = new Blob([file], { type });
+    if (adjust) formData.append('adjust', 'true');
     formData.append('file', blob, filename);
 
     const url = `${this.apiUrl}/public/v1/upload`;
@@ -203,6 +221,31 @@ export class PostizAPI {
     return this.request(`/public/v1/integration-trigger/${integrationId}`, {
       method: 'POST',
       body: JSON.stringify({ methodName, data }),
+    });
+  }
+
+  async createClipping(data: {
+    url: string;
+    integrations?: string[];
+    clips?: number;
+    fit?: 'crop' | 'blur';
+  }) {
+    return this.request('/public/v1/clipping', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async listClippings(page?: number) {
+    const query = page ? `?page=${encodeURIComponent(String(page))}` : '';
+    return this.request(`/public/v1/clipping${query}`, {
+      method: 'GET',
+    });
+  }
+
+  async getClipping(id: string) {
+    return this.request(`/public/v1/clipping/${id}`, {
+      method: 'GET',
     });
   }
 }

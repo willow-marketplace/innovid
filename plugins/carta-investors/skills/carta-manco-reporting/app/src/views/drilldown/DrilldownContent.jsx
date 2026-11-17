@@ -31,6 +31,7 @@ export default function DrilldownContent({
   selection,
   entries,
   fundFeeEntries,
+  mancoFeeEntries = [],
   feeScheduleTerms,
   spendByGL,
   buildJournalUrl,
@@ -52,26 +53,26 @@ export default function DrilldownContent({
   }, [selection, spendByGL]);
   // For fund-year drills, filter the fund-side fee entries (separate dataset
   // than ManCo entries). For other drill kinds, use the ManCo entries as before.
+  // A fee figure on this report is the ManCo's, so its journals are the
+  // ManCo's. An older cache has no such dataset and keeps the fund side.
+  const feeEntries = mancoFeeEntries.length ? mancoFeeEntries : fundFeeEntries;
   const filtered = useMemo(() => {
-    if (selection?.kind === "fund-year") {
-      return filterFundFeeEntries(fundFeeEntries, selection);
+    if (selection?.kind === "fund-year"
+        || (selection?.kind === "outline-cell" && selection.fundMatch)) {
+      // A row answered to the funds' ledger reads there; everything else
+      // reads the ManCo's, which is whose report this is.
+      const src = selection.crossEntityGl?.length ? fundFeeEntries : feeEntries;
+      return filterFundFeeEntries(src, selection);
     }
-    // Outline cells on a per-fund management-fee line resolve from the
-    // fund-side dataset too — the ManCo's own GL 4160 aggregates Fund II
-    // + Fund III and can't be split by fund.
-    if (selection?.kind === "outline-cell" && selection.fundMatch) {
-      return filterFundFeeEntries(fundFeeEntries, selection);
-    }
-    // A total can cover both kinds of line — per-fund fee lines resolve
-    // against the fund-side dataset, everything else against the ManCo's
-    // own entries — so it draws from both and the drawer holds the whole
-    // of what the figure summed.
+    // The ManCo's entries already hold its fee lines, so drawing the fee
+    // side again would list every fee entry twice.
     if (selection?.kind === "outline-total") {
       return [...filterEntries(entries, selection, topCategoryNames),
-              ...filterFundFeeEntries(fundFeeEntries, selection)];
+              ...(mancoFeeEntries.length
+                  ? [] : filterFundFeeEntries(fundFeeEntries, selection))];
     }
     return filterEntries(entries, selection, topCategoryNames);
-  }, [entries, fundFeeEntries, selection, topCategoryNames]);
+  }, [entries, fundFeeEntries, mancoFeeEntries, feeEntries, selection, topCategoryNames]);
 
   // Contracted LPA fee terms for a fund-year drill — a different dataset
   // than the fee actuals above (what the LPA says vs. what was booked).
@@ -148,7 +149,7 @@ export default function DrilldownContent({
   // month. Also respect the tag filter so the graph updates as pills toggle.
   const categoryMoM = useMemo(() => {
     if (selection?.kind !== "date-range-category") return null;
-    const monthly = [0, 0, 0, 0, 0, 0, 0];
+    const monthly = new Array(12).fill(0);
     const topSet = new Set(topCategoryNames);
     const matchesOther = (e) => e.kind === "expense" && !topSet.has(e.account);
     const categoryHits = entries.filter(e =>
@@ -158,6 +159,14 @@ export default function DrilldownContent({
     for (const e of filtered2) monthly[e.mo - 1] += e.amount;
     return monthly;
   }, [entries, selection, topCategoryNames, selectedTagKeys]);
+
+  // A drill that shows no entry list says why, once per selection. The empty
+  // list itself is EntriesTable's to report.
+  const stateEvent = !selection ? null
+    : selection.isProjected ? "MancoReporting.Drilldown.ProjectedYear"
+    : agg.count === 0 && mergeScheduleQuarters(selection).length > 0 ? "MancoReporting.Drilldown.ScheduleOnly"
+    : null;
+  useEffect(() => { if (stateEvent) trackRender(stateEvent); }, [selection]);
 
   if (!selection) return null;
 
@@ -175,6 +184,14 @@ export default function DrilldownContent({
   // `aggFiltered.total`: the tag pills below narrow the entry list, and a
   // variance that moved as pills toggled would be measuring a subset of the
   // actual against the whole budget.
+  // A year the ledger holds nothing for, but the schedule does — a
+  // closed year before the ManCo's books begin, or one it booked as a
+  // lump. Its figure is the schedule's, and there are no entries to
+  // count, so the entry furniture would only report zero.
+  const scheduleQuarters = mergeScheduleQuarters(selection);
+  const scheduleTotal = scheduleQuarters.reduce((sum, q) => sum + q.amount, 0);
+  const scheduleOnly = agg.count === 0 && scheduleQuarters.length > 0;
+
   const hasBudget = typeof selection.budget === "number";
   const variance = hasBudget && typeof selection.actual === "number"
     ? selection.actual - selection.budget
@@ -197,8 +214,10 @@ export default function DrilldownContent({
               cell the reader clicked, and a Total that moved as they ticked
               a box would stop being the thing they came to check — the
               footer carries the filtered figure instead. */}
-          <StatBlock label="Total" value={fmtCurrencyWhole(agg.total)} valueColor={netColor} />
-          <StatBlock label="Entries" value={String(agg.count)} />
+          <StatBlock label="Total"
+            value={fmtCurrencyWhole(scheduleOnly ? scheduleTotal : agg.total)}
+            valueColor={netColor} />
+          {!scheduleOnly && <StatBlock label="Entries" value={String(agg.count)} />}
           {hasBudget && (
             <StatBlock
               label="Budget"
@@ -306,6 +325,7 @@ export default function DrilldownContent({
             monthlyActual={agg.monthly}
             budget={selection.budget}
             period={selection.period}
+            months={selection.months}
             // Same favorable-side rule as varianceColor() above: exceeding
             // budget is good for income, bad for expense.
             actualColor={(selection.polarity === "income"
@@ -344,26 +364,41 @@ export default function DrilldownContent({
       )}
 
       {/* Journal-entry table — narrowed by selected tags. */}
-      <div>
-        <div style={S.jeHeader}>
-          <ChartTitle>Carta journal entries</ChartTitle>
+      {!scheduleOnly && (
+        <div>
+          <div style={S.jeHeader}>
+            <ChartTitle>Carta journal entries</ChartTitle>
+          </div>
+          <EntriesTable
+            entries={tagFiltered}
+            buildJournalUrl={buildJournalUrl}
+          />
         </div>
-        <EntriesTable
-          entries={tagFiltered}
-          buildJournalUrl={buildJournalUrl}
+      )}
+
+      {/* What the schedule still expects, after what posted — the quarters
+          ahead follow the entries behind, in the order they happen. */}
+      {/* One table for the year's schedule: the quarters split out of a
+          lump the ManCo booked, and the quarters it has yet to bill. */}
+      {(selection.basisQuarters?.length || selection.expectedQuarters?.length) > 0 && (
+        <FeeScheduleSummary
+          quarters={mergeScheduleQuarters(selection)}
+          yearLabel={selection.yearLabel}
         />
-      </div>
+      )}
 
       {/* What the filters currently add up to. Sticky, because the answer
           to "what did I just narrow this to" should not require scrolling
           to the end of the list to read. The count is of the whole filtered
           set, not of the rows built so far, and the total with it. */}
-      <div style={S.footer}>
-        <span style={S.footerCount}>
-          {`${aggFiltered.count} of ${agg.count} journal entries visible`}
-        </span>
-        <span style={S.footerTotal}>{fmtCurrencyWhole(aggFiltered.total)}</span>
-      </div>
+      {!scheduleOnly && (
+        <div style={S.footer}>
+          <span style={S.footerCount}>
+            {`${aggFiltered.count} of ${agg.count} journal entries visible`}
+          </span>
+          <span style={S.footerTotal}>{fmtCurrencyWhole(aggFiltered.total)}</span>
+        </div>
+      )}
     </div>
   );
 }
@@ -420,7 +455,10 @@ function ReportingTagsFilter({ allTags, selectedTagKeys, onApply,
   // isn't — it closes over the draft — so the ref keeps it current instead
   // of committing whatever the draft was when the panel opened.
   const applyRef = useRef(null);
-  useOutsideClose(open, () => applyRef.current?.(), [triggerRef, panelRef]);
+  useOutsideClose(open, () => {
+    trackClick("MancoReporting.Drilldown.FilterApplyOnClose");
+    applyRef.current?.();
+  }, [triggerRef, panelRef]);
 
   // Portaled + position:fixed (as in carta-fund-modeling's GlobalFilter): a
   // plain absolute popover would get clipped by the drawer's own scroll body.
@@ -576,7 +614,7 @@ function ReportingTagsFilter({ allTags, selectedTagKeys, onApply,
                       {accounts.map(a => (
                         <label key={a.acct_type} className="gf-check-row">
                           <input type="checkbox" checked={draftAccounts.has(a.acct_type)}
-                                 onChange={() => toggleDraftAccount(a.acct_type)} />
+                                 onChange={() => { trackClick("MancoReporting.Drilldown.ToggleAccountFilter"); toggleDraftAccount(a.acct_type); }} />
                           <span style={S.checkLabel}>{a.acct_type} — {a.name}</span>
                           <span style={S.checkAmount}>{fmtCurrencyShort(a.amount, 1)}</span>
                         </label>
@@ -593,7 +631,7 @@ function ReportingTagsFilter({ allTags, selectedTagKeys, onApply,
                         return (
                           <label key={k} className="gf-check-row">
                             <input type="checkbox" checked={draft.has(k)}
-                                   onChange={() => toggleDraft(k)} />
+                                   onChange={() => { trackClick("MancoReporting.Drilldown.ToggleTagFilter"); toggleDraft(k); }} />
                             <span style={S.checkLabel}>{t.value}</span>
                             <span style={S.checkAmount}>{fmtCurrencyShort(t.amount, 1)}</span>
                           </label>
@@ -630,7 +668,7 @@ const GF_PANEL_HEIGHT = 416;
 const GF_PANEL_MIN_HEIGHT = 240;
 const GF_PANEL_MARGIN = 16;
 
-// Same contract as BudgetPeriodControls.jsx's useOutsideClose, generalized
+// Same contract as ui/useOutsideClose.js, generalized
 // to N refs (trigger + portaled panel).
 function useOutsideClose(open, close, refs) {
   useEffect(() => {
@@ -738,6 +776,73 @@ function formatQtrDate(iso) {
 // Projected year drawer: fee schedule (unchanged, same as every other
 // fund-year drill) plus a per-quarter summary below it, mirroring Carta's
 // own Management fees page.
+// The year's schedule, in one list. A quarter split out of a lump the
+// ManCo booked and a quarter it has yet to bill are both the schedule's
+// account of the year — two tables said so twice.
+function mergeScheduleQuarters(selection) {
+  const tag = (qs, booked) => (qs || []).map((q) => ({ ...q, booked }));
+  return [...tag(selection.basisQuarters, true),
+          ...tag(selection.expectedQuarters, false)]
+    .sort((a, b) => String(a.quarterLabel).localeCompare(String(b.quarterLabel)));
+}
+
+// Quarters a still-billing year expects and has not seen. Same table as the
+// projected-year summary, so a reader moving between them reads one thing.
+function FeeScheduleSummary({ quarters, yearLabel }) {
+  const stillExpected = quarters
+    .filter((q) => !q.booked)
+    .reduce((sum, q) => sum + q.amount, 0);
+  return (
+    <div>
+      <div style={SP.summaryHeaderRow}>
+        <ChartTitle>Fee schedule by quarter — {yearLabel}</ChartTitle>
+      </div>
+      <div style={SP.qtrHeader}>
+        <span style={SP.qtrPeriod}>Period</span>
+        <span style={SP.qtrDate}>Start</span>
+        <span style={SP.qtrDate}>End</span>
+        <span style={SP.qtrRate}>Fee %</span>
+        <span style={SP.qtrAmountHeader}>Fees + Savings - Reductions</span>
+      </div>
+      <ul style={SP.qtrList}>
+        {quarters.map(q => (
+          <li key={q.quarterLabel} style={SP.qtrRow}>
+            <div style={SP.qtrMainRow}>
+              <span style={SP.qtrPeriod}>
+                {q.quarterLabel}
+                <div style={SP.qtrPeriodName}>
+                  {q.periodName}
+                  {" · "}
+                  {q.booked ? "booked" : "not yet billed"}
+                  {/* Same quiet treatment an inferred entry carries: the
+                      figure is the schedule's, not a journal's. */}
+                  <span style={SP.inferred}
+                        title="Worked out from the fee schedule.">
+                    {" "}inferred
+                  </span>
+                </div>
+              </span>
+              <span style={SP.qtrDate}>{formatQtrDate(q.startDate)}</span>
+              <span style={SP.qtrDate}>{formatQtrDate(q.endDate)}</span>
+              <span style={SP.qtrRate}>{(Math.round(q.feeRate * 100 * 10000) / 10000)}%</span>
+              <span style={SP.qtrAmount}>{fmtCurrencyExact(q.amount)}</span>
+            </div>
+            {q.basis && <div style={SP.qtrBasisRow}>Basis: {q.basis}</div>}
+          </li>
+        ))}
+      </ul>
+      {stillExpected > 0 && (
+        // Only the quarters still to come. A booked quarter is already in
+        // the entries above, and adding it here would count it twice.
+        <div style={SP.qtrBasisRow}>
+          Still expected: {fmtCurrencyExact(stillExpected)}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
 function ProjectedFeeSummary({ selection, scheduleTerms }) {
   const { projectedAmounts = [], committedCapital, yearLabel, fund } = selection;
   const isBucket = fund === "Other funds";  // several real funds summed — no single schedule to show
@@ -936,6 +1041,10 @@ const SP = {
   qtrPeriod: {
     flex: 1,
     minWidth: 64,
+  },
+  inferred: {
+    color: MICRO,
+    fontStyle: "italic",
   },
   qtrPeriodName: {
     ...sans,

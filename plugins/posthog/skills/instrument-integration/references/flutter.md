@@ -1,16 +1,57 @@
 > AI agents: this is one page from PostHog's docs. Full index of Markdown docs for LLMs: https://posthog.com/llms.txt
 
-# Flutter - Docs
+# Flutter
 
-Copy page
+Canonical URL: https://posthog.com/docs/libraries/flutter
 
-# Flutter - Docs
+> **Cloud region:** This page uses US Cloud hosts. For an EU Cloud project, use `https://eu.posthog.com` instead of `https://us.posthog.com` (app host for links).
+
+## On this page
+
+- [Install with the wizard](#install-with-the-wizard)
+- [Installation](#installation)
+- [Capturing events](#capturing-events)
+- [Identifying users](#identifying-users)
+- [Get the current user's distinct ID](#get-the-current-users-distinct-id)
+- [Alias](#alias)
+- [Anonymous vs identified events](#anonymous-vs-identified-events)
+- [Super properties](#super-properties)
+- [Group analytics](#group-analytics)
+- [Feature flags](#feature-flags)
+- [Experiments (A/B tests)](#experiments-ab-tests)
+- [Error tracking](#error-tracking)
+- [Logs](#logs)
+- [Session replay](#session-replay)
+- [Surveys](#surveys)
+- [Push notifications](#push-notifications)
+- [Flush](#flush)
+- [Offline behavior](#offline-behavior)
+- [Opt out of data capture](#opt-out-of-data-capture)
+- [Amending or dropping events](#amending-or-dropping-events)
+- [Debug mode](#debug-mode)
 
 This is an optional library you can install if you're working with Flutter. It uses an internal queue to make calls fast and non-blocking. It also batches requests and flushes asynchronously, making it perfect to use in any part of your mobile app.
 
 PostHog supports the iOS, macOS, Android, and Web platforms.
 
+## Install with the wizard
+
+Run this command in your project directory to add PostHog to your Flutter project. The wizard detects your framework, installs the SDK, and sets up your first events.
+
+`npx @posthog/wizard`
+
+Or set it up manually by following the rest of this guide.
+
 ## Installation
+
+> **CocoaPods is becoming read-only.** [CocoaPods has announced](https://blog.cocoapods.org/CocoaPods-Specs-Repo/) the following schedule for its public specs repository:
+>
+> -   November 2–6, 2026: A read-only dry run will prevent us from publishing new PostHog iOS SDK versions to CocoaPods.
+> -   December 2, 2026 onward: The repository will be permanently read-only. New PostHog iOS SDK versions will only be available through Swift Package Manager (SPM).
+>
+> Existing native SDK versions will remain available through CocoaPods. To keep receiving native SDK updates on iOS and macOS, migrate your Flutter app to SPM. The `posthog_flutter` package supports SPM, and Flutter 3.44 and later enable it by default. On earlier Flutter versions that support SPM, or if you disabled it, run `flutter config --enable-swift-package-manager`, then rebuild your app. Follow [Flutter's SPM migration guide](https://docs.flutter.dev/packages-and-plugins/swift-package-manager/for-app-developers) for project setup and troubleshooting.
+>
+> This change does not affect `posthog_flutter` releases on pub.dev, Android, or web.
 
 PostHog is available for install via [Pub](https://pub.dev/packages/posthog_flutter).
 
@@ -24,14 +65,14 @@ To start, add `posthog_flutter` to your `pubspec.yaml`:
 
 pubspec.yaml
 
-PostHog AI
-
 ```yaml
 # rest of your code
+
 dependencies:
   flutter:
     sdk: flutter
   posthog_flutter: ^5.26.0
+
 # rest of your code
 ```
 
@@ -48,8 +89,6 @@ Automatically:
 Add your PostHog configuration to your `AndroidManifest.xml` file located in the `android/app/src/main`:
 
 android/app/src/main/AndroidManifest.xml
-
-PostHog AI
 
 ```xml
 <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="your.package.name">
@@ -69,8 +108,6 @@ Add your PostHog configuration to your `AndroidManifest.xml` file located in the
 
 android/app/src/main/AndroidManifest.xml
 
-PostHog AI
-
 ```xml
 <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="your.package.name">
     <application>
@@ -84,14 +121,14 @@ In both cases, you'll also need to update the minimum Android SDK version to `23
 
 android/app/build.gradle
 
-PostHog AI
-
 ```kotlin
 // rest of your config
+
     defaultConfig {
         minSdkVersion 23
         // rest of your config
     }
+
 // rest of your config
 ```
 
@@ -106,8 +143,6 @@ Automatically:
 Add your PostHog configuration to the `Info.plist` file located in the `ios/Runner` directory:
 
 ios/Runner/Info.plist
-
-PostHog AI
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -132,8 +167,6 @@ Add your PostHog configuration to the `Info.plist` file located in the `ios/Runn
 
 ios/Runner/Info.plist
 
-PostHog AI
-
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -152,18 +185,12 @@ For CocoaPods projects, set it in your `Podfile`:
 
 ios/Podfile
 
-PostHog AI
-
 ```yaml
 platform :ios, '13.0'
 # rest of your config
 ```
 
 For Swift Package Manager projects without a `Podfile`, set the **Minimum Deployments** version to iOS 13.0 for the `Runner` target in Xcode (**Runner > General > Minimum Deployments**). After you change **Minimum Deployments**, regenerate the iOS project's configuration files:
-
-Terminal
-
-PostHog AI
 
 ```bash
 flutter build ios --config-only
@@ -175,13 +202,11 @@ If you followed the automatic SDK setup, then there's no more configuration need
 
 If you followed the manual SDK setup:
 
-Dart
-
-PostHog AI
-
 ```dart
 import 'package:flutter/material.dart';
+
 import 'package:posthog_flutter/posthog_flutter.dart';
+
 Future<void> main() async {
   // init WidgetsFlutterBinding if not yet
   WidgetsFlutterBinding.ensureInitialized();
@@ -202,13 +227,12 @@ Add your `Web snippet` (which you can find in [your project settings](https://us
 
 web/index.html
 
-PostHog AI
-
 ```html
 <!DOCTYPE html>
 <html>
   <head>
     <!-- ... other head elements ... -->
+
     <script async>
       !(function (t, e) {
         var o, n, p, r;
@@ -264,23 +288,57 @@ PostHog AI
       })(document, window.posthog || []);
       posthog.init("<ph_project_token>", {
         api_host: "https://us.i.posthog.com", // 'https://us.i.posthog.com' or 'https://eu.i.posthog.com'
-        defaults: "2026-05-30",
+        defaults: "2026-08-30",
       });
     </script>
   </head>
+
   <!-- other elements -->
 </html>
 ```
 
 For more information please check: /docs/libraries/js
 
+### Reproducible Android builds and Shorebird
+
+The Flutter SDK uses the native PostHog Android SDK, which depends on the PostHog core library. The Flutter package permits a range of Android SDK versions, so Gradle can select a newer native version even when your `posthog_flutter` version hasn't changed. Your `pubspec.lock` doesn't lock these Gradle dependencies.
+
+This matters for [Shorebird](https://docs.shorebird.dev/code-push/troubleshooting/) patches, which can't update native Android code. To keep PostHog's native dependencies consistent between a release and its patches, pin both native libraries before creating the release:
+
+1.  Inspect the versions selected for your release build. From your app's `android` directory, run:
+
+    ```bash
+    ./gradlew :app:dependencyInsight --dependency com.posthog --configuration releaseRuntimeClasspath
+    ```
+
+    If you use product flavors, replace `releaseRuntimeClasspath` with your release variant's configuration, such as `productionReleaseRuntimeClasspath`. Record the selected versions of `com.posthog:posthog-android` and `com.posthog:posthog`; their version numbers differ.
+
+2.  Add strict constraints to your app's `android/app/build.gradle.kts`. Replace the placeholders with the versions selected together in the previous step:
+
+    ```kotlin
+    dependencies {
+        constraints {
+            implementation("com.posthog:posthog-android") {
+                version { strictly("<android-sdk-version>") }
+            }
+            implementation("com.posthog:posthog") {
+                version { strictly("<core-version>") }
+            }
+        }
+    }
+    ```
+
+    For a Groovy `build.gradle`, use the same dependency declarations with `version { strictly "<version>" }` inside each constraint. A plain version declaration can still be upgraded during Gradle conflict resolution; [strict constraints](https://docs.gradle.org/current/userguide/dependency_versions.html#sec:rich-version-constraints) enforce the selected versions.
+
+3.  Run the dependency report again, build your app, and verify that events arrive in PostHog. Commit the constraints and `pubspec.lock`, and use the same versions for the release and its patches.
+
+For an existing Shorebird release, use the native versions recorded for that release, not versions resolved by a fresh build today. Pinning PostHog alone doesn't freeze other plugins or your build tools. For broader dependency control, see [Gradle dependency locking](https://docs.gradle.org/current/userguide/dependency_locking.html).
+
+Pins also prevent automatic native bug fixes. When upgrading PostHog, review the pins, select compatible native versions together, and test event capture before shipping a new app-store release. Don't upgrade native dependencies in a Dart-only patch or force an old version below the Flutter package's required minimum.
+
 ## Capturing events
 
 You can send custom events using `capture`:
-
-Dart
-
-PostHog AI
 
 ```dart
 await Posthog().capture(
@@ -292,11 +350,7 @@ await Posthog().capture(
 
 ### Setting event properties
 
-Optionally, you can include additional information with the event by including a [properties](/docs/data/events.md#event-properties) object:
-
-Dart
-
-PostHog AI
+Optionally, you can include additional information with the event by including a [properties](https://posthog.com/docs/data/events.md#event-properties) object:
 
 ```dart
 await Posthog().capture(
@@ -312,12 +366,14 @@ await Posthog().capture(
 
 PostHog autocapture automatically tracks the following events for you:
 
--   **Application Opened** - when the app is opened from a closed state or when the app comes to the foreground (e.g. from the app switcher)
--   **Application Backgrounded** - when the app is sent to the background by the user
--   **Application Installed** - when the app is installed.
--   **Application Updated** - when the app is updated.
--   **$screen** - when the user navigates, once you add the `PosthogObserver`
--   **$exception** - when the app throws exceptions.
+-   **Application Opened** – when the app is opened from a closed state or when the app comes to the foreground (e.g. from the app switcher)
+-   **Application Backgrounded** – when the app is sent to the background by the user
+-   **Application Installed** – when the app is installed.
+-   **Application Updated** – when the app is updated.
+-   **$screen** – when the user navigates, once you add the `PosthogObserver`
+-   **$exception** – when the app throws exceptions.
+-   **$autocapture** – when the user interacts with elements on Flutter Web, captured by posthog-js (see [Interaction autocapture](#interaction-autocapture))
+-   **$rageclick** – when the user rapidly taps in the same area (iOS/macCatalyst by default, Flutter Web via posthog-js)
 
 ### Capturing screen views
 
@@ -331,14 +387,12 @@ This works with any routing package, not just the plain `Navigator` API. Add the
 
 Add the `PosthogObserver` to record screen views automatically:
 
-Dart
-
-PostHog AI
-
 ```dart
 import 'package:flutter/material.dart';
 import 'package:posthog_flutter/posthog_flutter.dart';
+
 void main() => runApp(MyApp());
+
 class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -356,10 +410,6 @@ class MyApp extends StatelessWidget {
 
 Name your routes:
 
-Dart
-
-PostHog AI
-
 ```dart
 ...
 MaterialPageRoute(builder: (context) => const HomeScreenRoute(),
@@ -372,14 +422,11 @@ MaterialPageRoute(builder: (context) => const HomeScreenRoute(),
 
 Add the `PosthogObserver` to record screen views automatically:
 
-Dart
-
-PostHog AI
-
 ```dart
 import 'package:flutter/material.dart';
 import 'package:posthog_flutter/posthog_flutter.dart';
 import 'package:go_router/go_router.dart';
+
 // GoRouter configuration
 final _router = GoRouter(
   routes: [
@@ -388,6 +435,7 @@ final _router = GoRouter(
   // The PosthogObserver records screen views automatically
   observers: [PosthogObserver()],
 );
+
 class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -401,10 +449,6 @@ class MyApp extends StatelessWidget {
 
 Name your routes:
 
-Dart
-
-PostHog AI
-
 ```dart
 ...
 GoRoute(
@@ -414,21 +458,59 @@ GoRoute(
 ...
 ```
 
+### Interaction autocapture
+
+The Flutter SDK doesn't autocapture taps or other widget interactions on iOS or Android. On Flutter Web, interaction autocapture and rage clicks come from [posthog-js](https://posthog.com/docs/libraries/js.md), which you configure in the `posthog.init` call in your `web/index.html`. The Flutter SDK doesn't call `posthog.init` itself, so these options don't go in `PostHogConfig`.
+
+### Rage click autocapture
+
+> **Note:** On iOS and macCatalyst, the native SDK captures `$rageclick` by default through `PostHogConfig.rageClickConfig`. These events don't name the widget. Android doesn't support rage clicks. See the [iOS rage click configuration](https://posthog.com/docs/libraries/ios/configuration.md#autocapture-configuration) for the thresholds.
+
+On Flutter Web, a `$rageclick` event names the widget a user tapped, but only after you enable autocapture in posthog-js and semantics in Flutter. Without both, you either get no rage clicks or rage clicks that only report `flutter-view`.
+
+1.  **Enable autocapture and rage clicks in `web/index.html`.** posthog-js detects rage clicks inside its autocapture click handler, so `$rageclick` doesn't fire while `autocapture` is off.
+
+    ```javascript
+    posthog.init('<ph_project_token>', {
+      api_host: 'https://us.i.posthog.com',
+      autocapture: true,
+      rageclick: true,
+    })
+    ```
+
+    If you want to limit autocapture to tappable widgets, use `css_selector_allowlist: ['[role="button"]']`. Don't use `element_allowlist: ['button']` – Flutter's semantics nodes are `flt-semantics` elements, not `<button>` elements, so that allowlist matches nothing. Rage clicks go through the same allowlist check as `$autocapture`, so an allowlist that matches no semantics node drops rage clicks too.
+
+2.  **Enable semantics in `main.dart`.** Flutter Web draws your app into a single canvas, so by default every click targets the `flutter-view` element and `$rageclick` has no `$el_text`. With semantics on, Flutter places a `flt-semantics` node over each widget and tappable nodes receive the click. `$rageclick` then includes the widget label and `role` in `$elements_chain`. Which field carries the label depends on how Flutter renders the semantics node: a leaf button puts the label in DOM text, which fills `$el_text`, while a node with children puts it in `aria-label`.
+
+    ```dart
+    import 'package:flutter/semantics.dart';
+    
+    void main() {
+      WidgetsFlutterBinding.ensureInitialized();
+      SemanticsBinding.instance.ensureSemantics();
+      runApp(const MyApp());
+    }
+    ```
+
+    Semantics also changes how Flutter Web delivers taps. On a tappable widget, the engine sends a semantic tap action instead of raw pointer events. `onPressed` and `onTap` keep working, but code that relies on `Listener`, `onTapDown`/`onTapUp`, custom gesture recognizers, or drags that start on a button needs testing. Flutter already turns semantics on when a screen reader is active, so assistive-technology users get this behavior today. A custom Dart rage click detector built on raw pointer events can't coexist with semantics on the same widgets, so choose one approach.
+
+3.  **Optional: give key widgets a stable identifier.** Wrap a widget in `Semantics(identifier: 'cashier_deposit', child: ...)` and the identifier appears in `$elements_chain` as `attr__flt-semantics-identifier`. Flutter puts the identifier on a parent `group` node rather than on the button node itself, so filter with **Elements chain contains** `cashier_deposit` instead of matching the clicked element.
+
+Semantics adds per-frame work on web. If a screen has many widgets, profile it before and after you turn semantics on.
+
+These steps work with Flutter 3.44.8 and posthog-js 1.438.0.
+
 ## Identifying users
 
-> We highly recommend reading our section on [Identifying users](/docs/integrate/identifying-users.md) to better understand how to correctly use this method.
+> We highly recommend reading our section on [Identifying users](https://posthog.com/docs/integrate/identifying-users.md) to better understand how to correctly use this method.
 
 Using `identify`, you can associate events with specific users. This enables you to gain full insights as to how they're using your product across different sessions, devices, and platforms.
 
 An `identify` call has the following arguments:
 
 -   **userId:** Required. A unique identifier for your user. Typically either their email or database ID.
--   **userProperties:** Optional. A dictionary with key:value pairs to set the [person properties](/docs/product-analytics/person-properties.md)
--   **userPropertiesSetOnce:** Optional. Similar to `userProperties`. [See the difference between `userProperties` and `userPropertiesSetOnce`](/docs/product-analytics/person-properties.md#what-is-the-difference-between-set-and-set_once)
-
-Dart
-
-PostHog AI
+-   **userProperties:** Optional. A dictionary with key:value pairs to set the [person properties](https://posthog.com/docs/product-analytics/person-properties.md)
+-   **userPropertiesSetOnce:** Optional. Similar to `userProperties`. [See the difference between `userProperties` and `userPropertiesSetOnce`](https://posthog.com/docs/product-analytics/person-properties.md#what-is-the-difference-between-set-and-set_once)
 
 ```dart
 await Posthog().identify(
@@ -454,23 +536,19 @@ Sometimes, you want to assign multiple distinct IDs to a single user. This is he
 
 In this case, you can use `alias` to assign another distinct ID to the same user.
 
-Dart
-
-PostHog AI
-
 ```dart
 await Posthog().alias(
   alias: 'distinct_id',
 );
 ```
 
-We strongly recommend reading our docs on [alias](/docs/product-analytics/identify.md#alias-assigning-multiple-distinct-ids-to-the-same-user) to best understand how to correctly use this method.
+We strongly recommend reading our docs on [alias](https://posthog.com/docs/product-analytics/identify.md#alias-assigning-multiple-distinct-ids-to-the-same-user) to best understand how to correctly use this method.
 
 ## Anonymous vs identified events
 
-PostHog captures two types of events: [**anonymous** and **identified**](/docs/data/anonymous-vs-identified-events.md)
+PostHog captures two types of events: [**anonymous** and **identified**](https://posthog.com/docs/data/anonymous-vs-identified-events.md)
 
-**Identified events** enable you to attribute events to specific users, and attach [person properties](/docs/product-analytics/person-properties.md). They're best suited for logged-in users.
+**Identified events** enable you to attribute events to specific users, and attach [person properties](https://posthog.com/docs/product-analytics/person-properties.md). They're best suited for logged-in users.
 
 Scenarios where you want to capture identified events are:
 
@@ -478,7 +556,7 @@ Scenarios where you want to capture identified events are:
 -   Doing user segmented product analysis
 -   Growth and marketing teams wanting to analyze the *complete* conversion lifecycle
 
-**Anonymous events** are events without individually identifiable data. They're best suited for [web analytics](/docs/web-analytics.md) or apps where users aren't logged in.
+**Anonymous events** are events without individually identifiable data. They're best suited for [web analytics](https://posthog.com/docs/web-analytics.md) or apps where users aren't logged in.
 
 Scenarios where you want to capture anonymous events are:
 
@@ -486,25 +564,21 @@ Scenarios where you want to capture anonymous events are:
 -   Content-focused sites
 -   B2C apps where users don't sign up or log in
 
-Under the hood, the key difference between identified and anonymous events is that for identified events we create a [person profile](/docs/data/persons.md) for the user, whereas for anonymous events we do not.
+Under the hood, the key difference between identified and anonymous events is that for identified events we create a [person profile](https://posthog.com/docs/data/persons.md) for the user, whereas for anonymous events we do not.
 
 > **Important:** Due to the reduced cost of processing them, anonymous events can be up to 4x cheaper than identified ones, so we recommended you only capture identified events when needed.
 
 ### How to capture anonymous events
 
-The Flutter SDK captures anonymous events by default. However, this may change depending on your `personProfiles` [config](/docs/libraries/flutter.md#person-profiles-anonymous-vs-identified-persons) when initializing PostHog:
+The Flutter SDK captures anonymous events by default. However, this may change depending on your `personProfiles` [config](https://posthog.com/docs/libraries/flutter.md#anonymous-vs-identified-events) when initializing PostHog:
 
-1.  `personProfiles: PostHogPersonProfiles.identifiedOnly` *(recommended)* *(default)* - Anonymous events are captured by default. PostHog only captures identified events for users where [person profiles](/docs/data/persons.md) have already been created.
+1.  `personProfiles: PostHogPersonProfiles.identifiedOnly` *(recommended)* *(default)* - Anonymous events are captured by default. PostHog only captures identified events for users where [person profiles](https://posthog.com/docs/data/persons.md) have already been created.
 
 2.  `personProfiles: PostHogPersonProfiles.always` - Capture identified events for all events.
 
 3.  `personProfiles: PostHogPersonProfiles.never` - Capture anonymous events for all events.
 
 For example:
-
-Dart
-
-PostHog AI
 
 ```dart
 final config = PostHogConfig('<ph_project_token>');
@@ -514,13 +588,13 @@ config.personProfiles = PostHogPersonProfiles.identifiedOnly;
 
 ### How to capture identified events
 
-If you've set the [`personProfiles` config](/docs/libraries/flutter.md#person-profiles-anonymous-vs-identified-persons) to `PostHogPersonProfiles.identifiedOnly` (the default option), anonymous events are captured by default. Then, to capture identified events, call any of the following functions:
+If you've set the [`personProfiles` config](https://posthog.com/docs/libraries/flutter.md#anonymous-vs-identified-events) to `PostHogPersonProfiles.identifiedOnly` (the default option), anonymous events are captured by default. Then, to capture identified events, call any of the following functions:
 
--   [`identify()`](/docs/product-analytics/identify.md)
--   [`alias()`](/docs/product-analytics/identify.md#alias-assigning-multiple-distinct-ids-to-the-same-user)
--   [`group()`](/docs/product-analytics/group-analytics.md)
+-   [`identify()`](https://posthog.com/docs/product-analytics/identify.md)
+-   [`alias()`](https://posthog.com/docs/product-analytics/identify.md#alias-assigning-multiple-distinct-ids-to-the-same-user)
+-   [`group()`](https://posthog.com/docs/product-analytics/group-analytics.md)
 
-When you call any of these functions, it creates a [person profile](/docs/data/persons.md) for the user. Once this profile is created, all subsequent events for this user will be captured as identified events.
+When you call any of these functions, it creates a [person profile](https://posthog.com/docs/data/persons.md) for the user. Once this profile is created, all subsequent events for this user will be captured as identified events.
 
 Alternatively, you can set `personProfiles` to `PostHogPersonProfiles.always` to capture identified events by default.
 
@@ -532,29 +606,23 @@ They are set using `Posthog().register`, which takes a key and value, and they p
 
 For example, take a look at the following call:
 
-Dart
-
-PostHog AI
-
 ```dart
 import 'package:posthog_flutter/posthog_flutter.dart';
+
 await Posthog().register("team_id", 22);
 ```
 
 The call above ensures that every event sent by the user will include `"team_id": 22`. This way, if you filtered events by property using `team_id = 22`, it would display all events captured on that user after the `Posthog().register` call, since they all include the specified super property.
 
-However, please note that this does not store properties against the User, only against their events. To store properties against the User object, you should use `Posthog().identify`. More information on this can be found on the [Sending User Information section](#sending-user-information).
+However, please note that this does not store properties against the User, only against their events. To store properties against the User object, you should use `Posthog().identify`. More information on this can be found on the [Sending User Information section](#identifying-users).
 
 ### Removing stored super properties
 
 Super properties are persisted across sessions so you have to explicitly remove them if they are no longer relevant. In order to stop sending a super property with events, you can use `Posthog().unregister`, like so:
 
-Dart
-
-PostHog AI
-
 ```dart
 import 'package:posthog_flutter/posthog_flutter.dart';
+
 await Posthog().unregister("team_id");
 ```
 
@@ -564,24 +632,21 @@ If you are doing this as part of a user logging out you can instead simply use `
 
 ## Group analytics
 
-Group analytics allows you to associate the events for that person's session with a group (e.g. teams, organizations, etc.). See [Group Analytics](/docs/product-analytics/group-analytics.md) for Flutter examples and implementation details.
+Group analytics allows you to associate the events for that person's session with a group (e.g. teams, organizations, etc.). See [Group Analytics](https://posthog.com/docs/product-analytics/group-analytics.md) for Flutter examples and implementation details.
 
-> **Note:** This is a paid feature and is not available on the open-source or free cloud plan. Learn more on the [pricing page](/pricing.md).
+> **Note:** This is a paid feature and is not available on the open-source or free cloud plan. Learn more on the [pricing page](https://posthog.com/pricing.md).
 
 ## Feature flags
 
-PostHog's [feature flags](/docs/feature-flags.md) enable you to safely deploy and roll back new features as well as target specific users and groups with them.
+PostHog's [feature flags](https://posthog.com/docs/feature-flags.md) enable you to safely deploy and roll back new features as well as target specific users and groups with them.
 
 ### Boolean feature flags
-
-Dart
-
-PostHog AI
 
 ```dart
 final result = await Posthog().getFeatureFlagResult('flag-key');
 if (result != null && result.enabled) {
   // Do something differently for this user
+
   // Optional: fetch the payload from the same evaluation result
   final matchedFlagPayload = result.payload;
 }
@@ -589,14 +654,11 @@ if (result != null && result.enabled) {
 
 ### Multivariate feature flags
 
-Dart
-
-PostHog AI
-
 ```dart
 final result = await Posthog().getFeatureFlagResult('flag-key');
 if (result != null && result.variant == 'variant-key') { // replace 'variant-key' with the key of your variant
   // Do something differently for this user
+
   // Optional: fetch the payload from the same evaluation result
   final matchedFlagPayload = result.payload;
 }
@@ -611,10 +673,6 @@ Every time a user opens the app, we send a request in the background to fetch th
 This means that for most screens, the feature flags are available immediately – **except for the first time a user visits**.
 
 To handle this, you can use the `onFeatureFlags` callback in your config to be notified when flags are loaded:
-
-Dart
-
-PostHog AI
 
 ```dart
 final config = PostHogConfig('<ph_project_token>');
@@ -631,10 +689,6 @@ await Posthog().setup(config);
 
 Feature flag values are cached. If something has changed with your user and you'd like to refetch their flag values, call:
 
-Dart
-
-PostHog AI
-
 ```dart
 await Posthog().reloadFeatureFlags();
 ```
@@ -646,10 +700,6 @@ Since there is a delay between initializing PostHog and fetching feature flags, 
 To have your feature flags available immediately, you can initialize PostHog with precomputed values until it has had a chance to fetch them. This is called bootstrapping. After the SDK fetches feature flags from PostHog, it will use those flag values instead of bootstrapped ones.
 
 Set `config.bootstrap` before calling `setup()` to seed identity and flag values before the first `/flags` response (requires the Flutter SDK `5.31.0`+):
-
-Dart
-
-PostHog AI
 
 ```dart
 final config = PostHogConfig('<ph_project_token>');
@@ -674,15 +724,11 @@ The values are forwarded to the native iOS and Android SDKs:
 
 The feature-flags-loaded signal fires as soon as bootstrapped flags are applied, so startup logic can read them immediately. These SDKs don't support the `sessionID` bootstrap option. When person profiles are set to `never`, the SDK preserves a different anonymous identity instead of merging it into an identified bootstrap.
 
-On Flutter web, `bootstrap` is not applied, so configure it in your `posthog.init({...})` snippet instead. See the [SDK bootstrapping guide](/docs/libraries/bootstrapping.md) for the cross-SDK overview.
+On Flutter web, `bootstrap` is not applied, so configure it in your `posthog.init({...})` snippet instead. See the [SDK bootstrapping guide](https://posthog.com/docs/libraries/bootstrapping.md) for the cross-SDK overview.
 
 ### Setting properties for flag evaluation
 
 If a flag targets person or group properties, you can send those properties inline with the next flag evaluation request instead of waiting for a `$set` event to be ingested. This avoids the race where a flag returns a stale value right after you set a property.
-
-Dart
-
-PostHog AI
 
 ```dart
 // Person properties — included in the next flag evaluation request
@@ -690,55 +736,52 @@ await Posthog().setPersonPropertiesForFlags({
   'storefront_country': 'US',
   'is_beta_user': true,
 });
+
 // Group properties
 await Posthog().setGroupPropertiesForFlags('company', {'plan': 'enterprise'});
 ```
 
-By default these reload feature flags, and the returned `Future` completes once the reload finishes, so the next `getFeatureFlag` reflects the new properties. Pass `reloadFeatureFlags: false` to set several properties before reloading. Use `resetPersonPropertiesForFlags()` and `resetGroupPropertiesForFlags()` to clear them. See [property overrides for flag evaluation](/docs/feature-flags/property-overrides.md) for details.
+By default these reload feature flags, and the returned `Future` completes once the reload finishes, so the next `getFeatureFlag` reflects the new properties. Pass `reloadFeatureFlags: false` to set several properties before reloading. Use `resetPersonPropertiesForFlags()` and `resetGroupPropertiesForFlags()` to clear them. See [property overrides for flag evaluation](https://posthog.com/docs/feature-flags/property-overrides.md) for details.
 
 ## Experiments (A/B tests)
 
-Since [experiments](/docs/experiments/start-here.md) use feature flags, the code for running an experiment is very similar to the feature flags code. See [feature flag code examples](/docs/feature-flags/adding-feature-flag-code?tab=Flutter.md) for Flutter implementation details.
+Since [experiments](https://posthog.com/docs/experiments/start-here.md) use feature flags, the code for running an experiment is very similar to the feature flags code. See [feature flag code examples](https://posthog.com/docs/feature-flags/adding-feature-flag-code?tab=Flutter.md) for Flutter implementation details.
 
-It's also possible to [run experiments without using feature flags](/docs/experiments/running-experiments-without-feature-flags.md).
+It's also possible to [run experiments without using feature flags](https://posthog.com/docs/experiments/running-experiments-without-feature-flags.md).
 
 ## Error tracking
 
-To set up error tracking in your project, see the [error tracking docs](/docs/error-tracking.md).
+To set up error tracking in your project, see the [error tracking docs](https://posthog.com/docs/error-tracking.md).
 
 ## Logs
 
-To set up [logs](/docs/logs.md) in your Flutter app, follow the [Flutter logs installation guide](/docs/logs/installation/flutter.md). The SDK exposes `Posthog().logger.{trace,debug,info,warn,error,fatal}` (and `Posthog().captureLog` for full control) for sending structured records to PostHog Logs, with batching, offline persistence, and a rate cap built in.
+To set up [logs](https://posthog.com/docs/logs.md) in your Flutter app, follow the [Flutter logs installation guide](https://posthog.com/docs/logs/installation/flutter.md). The SDK exposes `Posthog().logger.{trace,debug,info,warn,error,fatal}` (and `Posthog().captureLog` for full control) for sending structured records to PostHog Logs, with batching, offline persistence, and a rate cap built in.
 
 ## Session replay
 
 > **Note:** Session replay is supported on Flutter Web, Android, and iOS.
 
-To set up [session replay web](/docs/session-replay.md) or [mobile session replay](/docs/session-replay/mobile.md) in your project, all you need to do is install the Flutter SDK, follow the [additional installation instructions](/docs/session-replay/installation/flutter.md), and enable "Record user sessions" in [your project settings](https://us.posthog.com/settings/project-replay) and enable the `sessionReplay` option.
+To set up [session replay web](https://posthog.com/docs/session-replay.md) or [mobile session replay](https://posthog.com/docs/session-replay/mobile.md) in your project, all you need to do is install the Flutter SDK, follow the [additional installation instructions](https://posthog.com/docs/session-replay/installation/flutter.md), and enable "Record user sessions" in [your project settings](https://us.posthog.com/settings/project-replay) and enable the `sessionReplay` option.
 
-If you're using Flutter Web, also enable the [Canvas capture](/docs/session-replay/canvas-recording.md) in [your project settings](https://us.posthog.com/settings/project-replay). This is needed as Flutter renders your app using a browser canvas element.
+If you're using Flutter Web, also enable the [Canvas capture](https://posthog.com/docs/session-replay/canvas-recording.md) in [your project settings](https://us.posthog.com/settings/project-replay). This is needed as Flutter renders your app using a browser canvas element.
 
-On Flutter Web, masking (`maskAllTexts`, `maskAllImages`, `PostHogMaskWidget`) applies inside that canvas too — declare `session_recording.canvasCapture.maskRegionsFn` in the `posthog.init` call in your `web/index.html` to enable it (requires PostHog Flutter SDK 5.34.0+ and posthog-js 1.408.0+). See [masking on Flutter Web](/docs/session-replay/privacy.md) under the Flutter tab.
+On Flutter Web, masking (`maskAllTexts`, `maskAllImages`, `PostHogMaskWidget`) applies inside that canvas too — declare `session_recording.canvasCapture.maskRegionsFn` in the `posthog.init` call in your `web/index.html` to enable it (requires PostHog Flutter SDK 5.34.0+ and posthog-js 1.408.0+). See [masking on Flutter Web](https://posthog.com/docs/session-replay/privacy.md) under the Flutter tab.
 
 ## Surveys
 
 > **Note:** Surveys are supported in Flutter for **Web**, **iOS**, and **Android** platforms.
 
-[Surveys](/docs/surveys.md) launched with [popover presentation](/docs/surveys/creating-surveys.md#presentation) are automatically shown to users matching the [display conditions](/docs/surveys/creating-surveys.md#display-conditions) you set up.
+[Surveys](https://posthog.com/docs/surveys.md) launched with [popover presentation](https://posthog.com/docs/surveys/creating-surveys.md#presentation) are automatically shown to users matching the [display conditions](https://posthog.com/docs/surveys/creating-surveys.md#display-conditions) you set up.
 
 ## Push notifications
 
-The Flutter SDK can register a device for [Workflows](/docs/workflows.md) push notifications and capture when a user opens one. For setup, including automatic and manual registration, capturing opens, opting out, and identity verification, see [Push notifications](/docs/workflows/push-notifications.md).
+The Flutter SDK can register a device for [Workflows](https://posthog.com/docs/workflows.md) push notifications and capture when a user opens one. For setup, including automatic and manual registration, capturing opens, opting out, and identity verification, see [Push notifications](https://posthog.com/docs/workflows/push-notifications.md).
 
 ## Flush
 
 You can configure how many events queue before flushing with `flushAt`. Setting this to `1` will send events immediately and will use more battery. The default is `20`.
 
 You can also configure the flush interval with `flushInterval` (default 30 seconds), after which queued events are sent regardless of how many have been gathered:
-
-Dart
-
-PostHog AI
 
 ```dart
 final config = PostHogConfig('<ph_project_token>');
@@ -747,10 +790,6 @@ config.flushInterval = const Duration(seconds: 30);
 ```
 
 You can also manually flush the queue to start sending events immediately instead of waiting for the next batch:
-
-Dart
-
-PostHog AI
 
 ```dart
 await Posthog().flush();
@@ -770,29 +809,17 @@ The PostHog Flutter SDK will continue to capture events when the device is offli
 
 You can disable data collection for a user at any time using the `disable()` method:
 
-Dart
-
-PostHog AI
-
 ```dart
 await Posthog().disable();
 ```
 
 This prevents any future events from being sent. It doesn't remove events already captured for the user. To opt the user back in:
 
-Dart
-
-PostHog AI
-
 ```dart
 await Posthog().enable();
 ```
 
 To check if a user is opted out:
-
-Dart
-
-PostHog AI
 
 ```dart
 await Posthog().isOptOut();
@@ -806,13 +833,10 @@ Since version 5.13.0, you can provide `beforeSend` callbacks when initializing t
 
 `beforeSend` gives you one place to edit or redact information before it is sent to PostHog. For example:
 
-Dart
-
-PostHog AI
-
 ```dart
 final config = PostHogConfig('<ph_project_token>');
 config.host = 'https://us.i.posthog.com';
+
 config.beforeSend = [
   (event) {
     // Redact email from properties
@@ -822,16 +846,13 @@ config.beforeSend = [
     return event;
   },
 ];
+
 await Posthog().setup(config);
 ```
 
 ### Dropping events
 
 Return `null` from the callback to drop the event:
-
-Dart
-
-PostHog AI
 
 ```dart
 config.beforeSend = [
@@ -851,12 +872,9 @@ You can stop specific screens from being autocaptured by filtering them in your 
 
 Because it's just a function, you can filter however you like – an **ignorelist** (drop the screens you name), an **allowlist** (invert the check to capture only the screens you name), or any custom rule such as a name prefix, a regex, or a check against the event's properties.
 
-Dart
-
-PostHog AI
-
 ```dart
 const ignoredScreens = {'Splash', 'Debug'};
+
 config.beforeSend = [
   (event) {
     final screenName = event.properties?['$screen_name'];
@@ -889,10 +907,6 @@ If you're not seeing the expected events being captured, the feature flags being
 
 You can enable debug mode during initialization by setting the `debug` option to `true` in the `PostHogConfig` object. A common pattern is to set this to `true` in development environments only using environment variables.
 
-Dart
-
-PostHog AI
-
 ```dart
 final config = PostHogConfig('<ph_project_token>');
 config.host = 'https://us.i.posthog.com';
@@ -904,19 +918,7 @@ This will enable verbose logs about the inner workings of the SDK.
 
 You can also enable debug by calling the `Posthog().debug()` method in your code.
 
-Dart
-
-PostHog AI
-
 ```dart
 await Posthog().debug(true);
 await Posthog().debug(false);
 ```
-
-### Still have questions?
-
-Ask PostHog AI
-
-### Was this page useful?
-
-HelpfulCould be better

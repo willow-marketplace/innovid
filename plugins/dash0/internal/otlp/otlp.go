@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/dash0hq/dash0-agent-plugin/internal/identity"
@@ -114,6 +115,73 @@ type Config struct {
 	// OS-derived user.name is dropped instead of reported. For orgs that would
 	// rather have no attribution than an approximate one.
 	OmitIdentityFallback bool
+
+	// Set only on a batch-local copy by WithSpanContext. nil retains the
+	// existing per-event resolution behavior for other integrations.
+	spanContext *[]Attribute
+}
+
+// WithSpanContext resolves workspace and identity attributes once for a batch.
+// Call after configuring privacy and selecting the workspace, not globally.
+func (c Config) WithSpanContext() Config {
+	attrs := append(vcsSpanAttributesAt(""), identitySpanAttributes(c)...)
+	c.spanContext = &attrs
+	return c
+}
+
+// WithVCSDir is WithSpanContext for one span whose work happened in dir rather
+// than in the process's working directory. Identity is unchanged — it is not a
+// property of a folder — so only the repository attributes are re-resolved.
+//
+// An empty dir, or a dir outside a working tree, falls back to the batch
+// context the caller already holds: a span is never left without the
+// repository its turn ran in because one tool reached outside it.
+func (c Config) WithVCSDir(dir string) Config {
+	if dir == "" {
+		return c
+	}
+	vcsAttrs := vcsSpanAttributesAt(dir)
+	if vcsAttrs == nil {
+		return c
+	}
+	// Copied, never appended to: the slice is the memoized one, so appending
+	// identity would write into its spare capacity and every later span
+	// resolving the same directory would share — and overwrite — those slots.
+	attrs := make([]Attribute, 0, len(vcsAttrs)+4)
+	attrs = append(attrs, vcsAttrs...)
+	attrs = append(attrs, identitySpanAttributes(c)...)
+	c.spanContext = &attrs
+	return c
+}
+
+// VCSDir reports dir when it is inside a git working tree, and "" otherwise, so
+// a caller can choose between candidate directories before building a span.
+func VCSDir(dir string) string {
+	if dir == "" || vcsSpanAttributesAt(dir) == nil {
+		return ""
+	}
+	return dir
+}
+
+func contextSpanAttributes(c Config) []Attribute {
+	if c.spanContext != nil {
+		return *c.spanContext
+	}
+	return append(vcsSpanAttributesAt(""), identitySpanAttributes(c)...)
+}
+
+// toolContextSpanAttributes is contextSpanAttributes for a tool span.
+//
+// Only Amp resolves a batch context, and it names the directory of each tool
+// call itself, from typed input the event no longer carries. Every other
+// harness has no batch context and falls through to toolVCSSpanAttributes,
+// which reads the repository of the file the tool named — the branch an agent
+// editing a linked worktree by absolute path is actually working on.
+func toolContextSpanAttributes(event map[string]any, c Config) []Attribute {
+	if c.spanContext != nil {
+		return *c.spanContext
+	}
+	return append(toolVCSSpanAttributes(event), identitySpanAttributes(c)...)
 }
 
 // ValidateURL reports whether OTLPUrl is usable, and clears it when it is not.
@@ -259,7 +327,18 @@ func sendOTLP(cfg Config, path string, payload []byte) error {
 			httpReq.Header.Set("Dash0-Dataset", cfg.Dataset)
 		}
 
+		started := time.Now()
+		if cfg.Debug {
+			debugLog(cfg, "otlp", fmt.Appendf(nil, `{"attempt":%d,"phase":"start"}`, attempt))
+		}
 		resp, err := http.DefaultClient.Do(httpReq)
+		if cfg.Debug {
+			status := 0
+			if resp != nil {
+				status = resp.StatusCode
+			}
+			debugLog(cfg, "otlp", fmt.Appendf(nil, `{"attempt":%d,"phase":"finish","status":%d,"elapsed_ms":%d}`, attempt, status, time.Since(started).Milliseconds()))
+		}
 		if err != nil {
 			cancel()
 			lastErr = fmt.Errorf("sending OTLP request: %w", err)
@@ -421,11 +500,19 @@ var userInfoKeys = map[string]bool{
 	"cwd": true,
 }
 
+// userIdentityKeys lists event fields that identify the user outright, so
+// Config.OmitUserInfo drops them instead of redacting them. user_email is
+// Cursor's signed-in account.
+var userIdentityKeys = map[string]bool{
+	"user_email": true,
+}
+
 // attrKeyMap maps event field names to OTLP semantic convention attribute keys.
 var attrKeyMap = map[string]string{
 	"session_id":          "gen_ai.conversation.id",
 	"cwd":                 "process.working_directory",
 	"model":               "gen_ai.request.model",
+	"response_model":      "gen_ai.response.model",
 	"tool_name":           "gen_ai.tool.name",
 	"tool_input":          "gen_ai.tool.call.arguments",
 	"tool_response":       "gen_ai.tool.call.result",
@@ -524,6 +611,9 @@ func eventAttributes(event map[string]any, cfg Config) []Attribute {
 	var attrs []Attribute
 	for k, v := range event {
 		if attrSkipKeys[k] {
+			continue
+		}
+		if cfg.OmitUserInfo && userIdentityKeys[k] {
 			continue
 		}
 		if cfg.OmitUserInfo && userInfoKeys[k] {
@@ -674,14 +764,85 @@ func teamSpanAttributes(cfg Config) []Attribute {
 	return []Attribute{{Key: "dash0.team.name", Value: StringVal(cfg.TeamName)}}
 }
 
-// vcsSpanAttributes returns dash0.gen_ai.vcs.* span attributes derived from the
-// current git state. Returns nil if not inside a git repository.
+// detectVCSAt is indirected so tests can pin a result instead of depending on
+// the host's checkout.
+var detectVCSAt = vcs.DetectAt
+
+// vcsDirCache memoizes per directory. A turn can carry 512 tool calls, each
+// needing up to four git subprocesses, and they overwhelmingly name the same
+// handful of folders. A hook process handles one event and exits, so this is
+// never stale within its lifetime; a nil entry is a cached "not a repository".
+var (
+	vcsDirCacheMu sync.Mutex
+	vcsDirCache   = map[string][]Attribute{}
+)
+
+// ResetVCSDirCache drops the memoized directories. Production never calls it —
+// a hook process exits after one event — but a test process stands in for
+// several and must not inherit another case's checkout.
+func ResetVCSDirCache() {
+	vcsDirCacheMu.Lock()
+	defer vcsDirCacheMu.Unlock()
+	vcsDirCache = map[string][]Attribute{}
+}
+
+// vcsSpanAttributesAt is vcsSpanAttributes for a named directory. An empty dir
+// is the process's working directory, which is what every harness but Amp uses.
+func vcsSpanAttributesAt(dir string) []Attribute {
+	// The current directory is deliberately not cached: pipeline.ChdirToEventCwd
+	// moves it between events, so a memoized answer for "" would be the previous
+	// event's repository. Only an explicitly named directory is stable.
+	if dir == "" {
+		return vcsInfoAttributes(detectVCSAt(""))
+	}
+	vcsDirCacheMu.Lock()
+	defer vcsDirCacheMu.Unlock()
+	if cached, ok := vcsDirCache[dir]; ok {
+		return cached
+	}
+	attrs := vcsInfoAttributes(detectVCSAt(dir))
+	vcsDirCache[dir] = attrs
+	return attrs
+}
+
+// toolVCSSpanAttributes is vcsSpanAttributesAt for a tool call. A tool that names
+// a file (Edit, Write, Read, NotebookEdit) reports the working tree holding that
+// file, which can be a linked worktree on another branch than the CWD's: agents
+// edit worktrees by absolute path without changing directory.
+//
+// The file's repository is kept only when it is the CWD's, or the CWD is in
+// none. Otherwise reading a file in an unrelated private repository would
+// export that repository's URL, which omit_io does not cover.
+func toolVCSSpanAttributes(event map[string]any) []Attribute {
+	cwdInfo := vcs.Detect()
+	input, _ := event["tool_input"].(map[string]any)
+	for _, key := range []string{"file_path", "notebook_path"} {
+		if path, _ := input[key].(string); path != "" {
+			// A failed call can name a directory that does not exist, which git
+			// cannot start in; ask from the nearest one that does.
+			dir := filepath.Dir(path)
+			for {
+				if _, err := os.Stat(dir); err == nil || filepath.Dir(dir) == dir {
+					break
+				}
+				dir = filepath.Dir(dir)
+			}
+			if info := vcs.DetectAt(dir); info != nil && (cwdInfo == nil || info.RepositoryURLFull == cwdInfo.RepositoryURLFull) {
+				return vcsInfoAttributes(info)
+			}
+			break
+		}
+	}
+	return vcsInfoAttributes(cwdInfo)
+}
+
+// vcsInfoAttributes builds the dash0.gen_ai.vcs.* attributes for one detection
+// result. Returns nil outside a repository.
 //
 // User identity is NOT here: it is emitted by identitySpanAttributes, which
 // must run even outside a repository (Cursor spawns hooks with a CWD that isn't
 // always a working tree, and the user is still the user).
-func vcsSpanAttributes(cfg Config) []Attribute {
-	info := vcs.Detect()
+func vcsInfoAttributes(info *vcs.Info) []Attribute {
 	if info == nil {
 		return nil
 	}
@@ -768,11 +929,12 @@ func redactHomeDir(path string) string {
 	}
 	home = filepath.Clean(home)
 	path = filepath.Clean(path)
-	if path == home {
+	relative, err := filepath.Rel(home, path)
+	if err != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
+		return path
+	}
+	if relative == "." {
 		return "~"
 	}
-	if strings.HasPrefix(path, home+string(filepath.Separator)) {
-		return "~" + path[len(home):]
-	}
-	return path
+	return filepath.Join("~", relative)
 }

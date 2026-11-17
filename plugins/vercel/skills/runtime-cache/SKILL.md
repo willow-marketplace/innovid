@@ -12,8 +12,8 @@ You are an expert in the Vercel Runtime Cache — an ephemeral caching layer for
 The Runtime Cache is a **per-region key-value store** accessible from Vercel Functions, Routing Middleware, and Builds. It supports **tag-based invalidation** for granular cache control.
 
 - **Regional**: Each Vercel region has its own isolated cache
-- **Isolated**: Scoped per project AND per deployment environment (`preview` vs `production`)
-- **Persistent across deployments**: Cached data survives new deploys; invalidation via TTL or `expireTag`
+- **Isolated**: Scoped per deployment environment (`preview` vs `production`); scoped per project on Pro/Enterprise, but shared across all projects on a Hobby team
+- **Persistent across deployments**: Cached data survives new deploys (except Next.js 16 `use cache: remote` entries, keyed per build); invalidation via TTL or `expireTag`
 - **Ephemeral**: Fixed storage limit per project; LRU eviction when full
 - **Framework-agnostic**: Works with any framework via `@vercel/functions`
 
@@ -35,7 +35,7 @@ await cache.set('user:123', userData, {
   name: 'user-profile',           // human-readable label for observability
 });
 
-// Retrieve cached data (returns value or undefined)
+// Retrieve cached data (returns value or null)
 const data = await cache.get('user:123');
 
 // Delete a specific key
@@ -51,7 +51,7 @@ await cache.expireTag(['users', 'user:123']); // multiple tags
 ```ts
 const cache = getCache({
   namespace: 'api',                    // prefix for keys
-  namespaceSeparator: ':',             // separator (default)
+  namespaceSeparator: '$',             // separator (default)
   keyHashFunction: (key) => sha256(key), // custom key hashing
 });
 ```
@@ -157,9 +157,9 @@ async function getData() {
 
 ```bash
 # Purge all cached data
-vercel cache purge                    # CDN + Data cache
+vercel cache purge                    # CDN + Runtime + Data cache
 vercel cache purge --type cdn         # CDN only
-vercel cache purge --type data        # Data cache only
+vercel cache purge --type data        # Runtime + Data cache
 vercel cache purge --yes              # skip confirmation
 
 # Invalidate by tag (stale-while-revalidate)
@@ -199,7 +199,7 @@ return Response.json(product, {
 | Property | Limit |
 |----------|-------|
 | Item size | 2 MB |
-| Tags per Runtime Cache item | 64 |
+| Tags per Runtime Cache item | 128 |
 | Tags per CDN item | 128 |
 | Max tag length | 256 bytes |
 | Tags per bulk REST API call | 16 |
@@ -230,4 +230,4 @@ Monitor hit rates, invalidation patterns, and storage usage in the Vercel Dashbo
 - 📖 docs: https://vercel.com/docs/runtime-cache
 - 📖 changelog: https://vercel.com/changelog/introducing-the-runtime-cache-api
 - 📖 CLI cache: https://vercel.com/docs/cli/cache
-- 📖 CDN cache purging: https://vercel.com/docs/cdn-cache/purge
+- 📖 CDN cache purging: https://vercel.com/docs/caching/cdn-cache/purge

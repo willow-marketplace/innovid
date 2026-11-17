@@ -219,3 +219,240 @@ class TestNdcRefusalIsRejectedNotAppended:
         assert "did some work" in now_md.read_text(), (
             "the entry written by the main summarize call is gone from now.md"
         )
+
+
+def _ndc_call_line(calls_log: Path) -> str:
+    """The line the STUB_SHELL_NDC call-haiku branch logs for the NDC call
+    itself (the main summarize call logs a shorter line with fewer args)."""
+    lines = [
+        line for line in calls_log.read_text().splitlines()
+        if line.startswith("call-haiku") and len(line.split(" ")) >= 4
+    ]
+    assert lines, f"no NDC call-haiku invocation found in the calls log: {calls_log.read_text()}"
+    return lines[-1]
+
+
+class TestNdcTimeoutIsConfigurable:
+    """#788 fix 1: the NDC call had a hard 180s timeout with no config key.
+    Output length scales with input length, so a `now.md` large enough to
+    need longer than 180s timed out on every run, was left untouched, and
+    kept growing -- a one-way ratchet. `thresholds.ndc_timeout_seconds` lets
+    an install raise the budget instead of being stuck."""
+
+    def test_configured_timeout_reaches_the_call(self, tmp_path):
+        env, project, plugin, calls, sid = _ndc_env(tmp_path, config={"ndc_timeout_seconds": 42})
+
+        result = _run(plugin, env, sid)
+        assert result.returncode == 0, subprocess_failure_detail(result, project / ".remember")
+        _wait_for_calls_to_settle(calls)
+
+        line = _ndc_call_line(calls)
+        assert line.split(" ")[-1] == "42", (
+            f"configured thresholds.ndc_timeout_seconds=42 did not reach the "
+            f"call-haiku invocation: {line!r}"
+        )
+
+    def test_default_timeout_is_still_180(self, tmp_path):
+        """Negative control: with no override the default must not move."""
+        env, project, plugin, calls, sid = _ndc_env(tmp_path)
+
+        result = _run(plugin, env, sid)
+        assert result.returncode == 0, subprocess_failure_detail(result, project / ".remember")
+        _wait_for_calls_to_settle(calls)
+
+        line = _ndc_call_line(calls)
+        assert line.split(" ")[-1] == "180", (
+            f"the unconfigured NDC timeout is no longer 180s: {line!r}"
+        )
+
+    def test_malformed_timeout_falls_back_and_is_logged(self, tmp_path):
+        """#816: a malformed thresholds.ndc_timeout_seconds must not be
+        silently swapped for the 180s default -- the daily log must name
+        what was discarded, matching run-consolidation.sh's sibling guard."""
+        env, project, plugin, calls, sid = _ndc_env(tmp_path, config={"ndc_timeout_seconds": "18O"})
+
+        result = _run(plugin, env, sid)
+        assert result.returncode == 0, subprocess_failure_detail(result, project / ".remember")
+        _wait_for_calls_to_settle(calls)
+
+        line = _ndc_call_line(calls)
+        assert line.split(" ")[-1] == "180", (
+            f"a malformed thresholds.ndc_timeout_seconds did not fall back to 180: {line!r}"
+        )
+
+        logs = "".join(p.read_text() for p in (project / ".remember" / "logs").glob("*.log"))
+        assert "18O" in logs, (
+            f"the malformed thresholds.ndc_timeout_seconds value was discarded "
+            f"with no trace of what it was: {logs!r}"
+        )
+        assert "ndc_timeout_seconds" in logs, (
+            f"the log line does not even name the config key that failed to parse: {logs!r}"
+        )
+
+    def test_valid_override_is_not_logged_as_malformed(self, tmp_path):
+        """Positive control: a genuinely valid override must not trip the
+        new warning."""
+        env, project, plugin, calls, sid = _ndc_env(tmp_path, config={"ndc_timeout_seconds": 42})
+
+        result = _run(plugin, env, sid)
+        assert result.returncode == 0, subprocess_failure_detail(result, project / ".remember")
+        _wait_for_calls_to_settle(calls)
+
+        logs = "".join(p.read_text() for p in (project / ".remember" / "logs").glob("*.log"))
+        assert "ndc_timeout_seconds" not in logs, (
+            f"a valid configured timeout was reported as malformed: {logs!r}"
+        )
+
+
+class TestNdcTimeoutDestructiveValuesRejected:
+    """#823: the #816 guard above only rejects empty/non-digit strings -- a
+    configured 0 or a value large enough to overflow pipeline.shell's own
+    subprocess.run(timeout=...) call (observed: OverflowError inside PyTime_t
+    at 9e9/1e10) reached call-haiku unchanged, matching run-consolidation.sh's
+    sibling defect."""
+
+    def test_zero_is_rejected_and_logged(self, tmp_path):
+        env, project, plugin, calls, sid = _ndc_env(tmp_path, config={"ndc_timeout_seconds": 0})
+
+        result = _run(plugin, env, sid)
+        assert result.returncode == 0, subprocess_failure_detail(result, project / ".remember")
+        _wait_for_calls_to_settle(calls)
+
+        line = _ndc_call_line(calls)
+        assert line.split(" ")[-1] == "180", (
+            f"a configured timeout of 0 was not rejected and fell through to "
+            f"the call-haiku invocation unchanged: {line!r}"
+        )
+
+        logs = "".join(p.read_text() for p in (project / ".remember" / "logs").glob("*.log"))
+        assert "ndc_timeout_seconds" in logs, (
+            f"a configured timeout of 0 (times out every run immediately) "
+            f"was not reported at all: {logs!r}"
+        )
+
+    def test_huge_value_is_rejected_and_logged(self, tmp_path):
+        env, project, plugin, calls, sid = _ndc_env(tmp_path, config={"ndc_timeout_seconds": 9000000000})
+
+        result = _run(plugin, env, sid)
+        assert result.returncode == 0, subprocess_failure_detail(result, project / ".remember")
+        _wait_for_calls_to_settle(calls)
+
+        line = _ndc_call_line(calls)
+        assert line.split(" ")[-1] == "180", (
+            f"a configured timeout of 9000000000 was not rejected and fell "
+            f"through to the call-haiku invocation unchanged: {line!r}"
+        )
+
+        logs = "".join(p.read_text() for p in (project / ".remember" / "logs").glob("*.log"))
+        assert "ndc_timeout_seconds" in logs, (
+            f"a configured timeout of 9000000000s (crashes with OverflowError "
+            f"downstream) was not reported at all: {logs!r}"
+        )
+
+    def test_moderately_large_value_is_not_rejected(self, tmp_path):
+        """Positive control: a large but sane override (1 hour) must not
+        trip either new guard."""
+        env, project, plugin, calls, sid = _ndc_env(tmp_path, config={"ndc_timeout_seconds": 3600})
+
+        result = _run(plugin, env, sid)
+        assert result.returncode == 0, subprocess_failure_detail(result, project / ".remember")
+        _wait_for_calls_to_settle(calls)
+
+        line = _ndc_call_line(calls)
+        assert line.split(" ")[-1] == "3600", (
+            f"a sane 3600s override did not reach the call-haiku invocation: {line!r}"
+        )
+
+        logs = "".join(p.read_text() for p in (project / ".remember" / "logs").glob("*.log"))
+        assert "ndc_timeout_seconds" not in logs, (
+            f"a sane 3600s override was reported as malformed/too large: {logs!r}"
+        )
+
+
+class TestNdcTolerantOfShortPreamble:
+    """#788 fix 4 (minor): a genuine compression can arrive with a short
+    preamble before the first real '## ' header ("I'll compress the log
+    directly...Here's the maximally compressed version:"). Checking only
+    line 1 rejected the whole reply and let now.md keep growing for no
+    reason."""
+
+    def test_short_preamble_is_accepted_and_stripped(self, tmp_path):
+        env, project, plugin, calls, sid = _ndc_env(tmp_path)
+        env["STUB_NDC_TEXT"] = (
+            "I'll compress the log directly. Here's the maximally compressed version:\n"
+            "## 2026-07-25\n\n- compressed summary\n"
+        )
+
+        result = _run(plugin, env, sid)
+        assert result.returncode == 0, subprocess_failure_detail(result, project / ".remember")
+        _wait_for_calls_to_settle(calls)
+
+        logs = "".join(p.read_text() for p in (project / ".remember" / "logs").glob("*.log"))
+        assert "REJECTED" not in logs, (
+            f"a genuine compression behind a one-line preamble was rejected: {logs}"
+        )
+        today_files = list((project / ".remember").glob("today-*.md"))
+        written = "".join(f.read_text() for f in today_files)
+        assert "compressed summary" in written, (
+            f"the compression behind the preamble never reached today-*.md: {written!r}"
+        )
+        assert "I'll compress the log directly" not in written, (
+            f"the preamble itself was written into permanent memory: {written!r}"
+        )
+
+    def test_long_preamble_is_still_rejected(self, tmp_path):
+        """Positive control: a header found well past the short window is
+        still treated as a non-conforming reply, not silently accepted."""
+        env, project, plugin, calls, sid = _ndc_env(tmp_path)
+        env["STUB_NDC_TEXT"] = (
+            "line one\nline two\nline three\nline four\nline five\n"
+            "## 2026-07-25\n\n- compressed summary\n"
+        )
+
+        result = _run(plugin, env, sid)
+        assert result.returncode == 0, subprocess_failure_detail(result, project / ".remember")
+        _wait_for_calls_to_settle(calls)
+
+        logs = "".join(p.read_text() for p in (project / ".remember" / "logs").glob("*.log"))
+        assert "REJECTED" in logs, (
+            f"a header found only after a long preamble was accepted instead of "
+            f"rejected as non-conforming: {logs}"
+        )
+        today_files = list((project / ".remember").glob("today-*.md"))
+        written = "".join(f.read_text() for f in today_files)
+        assert "compressed summary" not in written, (
+            f"a long preamble reached today-*.md: {written!r}"
+        )
+
+    def test_refusal_with_header_shaped_line_keeps_its_full_text(self, tmp_path):
+        """A genuine refusal can itself mention a "## " line (a model
+        describing the expected format while declining to produce it). The
+        header-search must not run at all once the model's own verdict is
+        already SKIP/REJECTED -- otherwise the destructive strip would
+        corrupt the diagnostic copy keep_rejected_text exists to preserve,
+        discarding exactly the preamble that explains why it was rejected."""
+        env, project, plugin, calls, sid = _ndc_env(tmp_path)
+        refusal = (
+            "I cannot compress this conversation.\n"
+            "The expected format would look like:\n"
+            "## example-header-i-am-not-producing\n"
+        )
+        env["STUB_NDC_TEXT"] = refusal
+        env["STUB_NDC_REJECTED"] = "1"
+
+        result = _run(plugin, env, sid)
+        assert result.returncode == 0, subprocess_failure_detail(result, project / ".remember")
+        _wait_for_calls_to_settle(calls)
+
+        parked = list((project / ".remember" / "tmp").glob("rejected-*.md"))
+        assert parked, "no rejected-text diagnostic file was parked at all"
+        parked_text = parked[0].read_text()
+        assert "I cannot compress this conversation" in parked_text, (
+            f"the refusal preamble was stripped out of the parked diagnostic "
+            f"copy, even though this reply was already a known REJECTED verdict: {parked_text!r}"
+        )
+
+        logs = "".join(p.read_text() for p in (project / ".remember" / "logs").glob("*.log"))
+        assert "I cannot compress this conversation" in logs, (
+            f"the REJECTED log line no longer shows the actual refusal text: {logs}"
+        )

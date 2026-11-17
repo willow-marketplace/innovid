@@ -5,6 +5,44 @@ All notable changes to the RevenueCat AI Toolkit will be documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.1](https://github.com/RevenueCat/ai-toolkit/compare/v2.5.0...v2.5.1) (2026-10-30)
+
+
+### Fixed
+
+* **skills:** match the slimmer dashboard ads prompt ([#82](https://github.com/RevenueCat/ai-toolkit/issues/82)) ([60e5348](https://github.com/RevenueCat/ai-toolkit/commit/60e5348bc566acdfc5b725cec1a176842125ffae))
+
+## [2.5.0](https://github.com/RevenueCat/ai-toolkit/compare/v2.4.0...v2.5.0) (2026-10-30)
+
+
+### Added
+
+* **skills:** add an ads integration skill ([#72](https://github.com/RevenueCat/ai-toolkit/issues/72)) ([955f625](https://github.com/RevenueCat/ai-toolkit/commit/955f625bf7276c3b9d152dc9de829cfc5854d05c))
+
+## [2.4.0](https://github.com/RevenueCat/ai-toolkit/compare/v2.3.1...v2.4.0) (2026-10-29)
+
+
+### Added
+
+* **revenuecat-migrate:** add CocoaPods to Swift Package Manager path ([#75](https://github.com/RevenueCat/ai-toolkit/issues/75)) ([8b8988c](https://github.com/RevenueCat/ai-toolkit/commit/8b8988ce2d1cb4addc3f30b591d15310c2d1ecba))
+
+
+### Fixed
+
+* claude marketplace validation warnings ([#71](https://github.com/RevenueCat/ai-toolkit/issues/71)) ([369f6da](https://github.com/RevenueCat/ai-toolkit/commit/369f6da07003314a02fba133047a7f089e91c4bb))
+* **skills:** Android and KMP platform file audit findings ([#67](https://github.com/RevenueCat/ai-toolkit/issues/67)) ([b87a47a](https://github.com/RevenueCat/ai-toolkit/commit/b87a47a63421fb0f03134bfb0e7918addc922313))
+* **skills:** Android and KMP snippets that do not compile ([#66](https://github.com/RevenueCat/ai-toolkit/issues/66)) ([33b2866](https://github.com/RevenueCat/ai-toolkit/commit/33b286624a97a12989ca73e25c135f4b5471a8ff))
+* **skills:** stop assuming CocoaPods for React Native and Flutter iOS installs ([#74](https://github.com/RevenueCat/ai-toolkit/issues/74)) ([ed54242](https://github.com/RevenueCat/ai-toolkit/commit/ed542429ba638bafe209a25e95a38c1cad2dd126))
+
+## [2.3.1] – 2026-09-18
+
+### Changed
+
+- **revenuecat-paywall-design** and **revenuecat-cli** — Upload paywall images and fonts with `rc media-assets upload` / `rc fonts upload`. MCP has no Media Gallery or font upload tools; do not fall back to the dashboard in a browser. Without a shell, the user uploads the file.
+- **revenuecat-cli** — Check that `rc` is installed (`rc --version`, else `npx @revenuecat/cli` or ask before `brew`/`npm install -g`) and logged in (`rc auth status`) before the first command. The CLI does not share the MCP server's login.
+
+---
+
 ## [2.3.0] – 2026-09-18
 
 ### Added
@@ -170,6 +208,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Store-specific setup instructions (App Store Connect, Google Play Console)
 - Configuration validation and issue highlighting
 
+[2.3.1]: https://github.com/RevenueCat/ai-toolkit/compare/v2.3.0...v2.3.1
 [2.3.0]: https://github.com/RevenueCat/ai-toolkit/compare/v2.2.1...v2.3.0
 [2.2.1]: https://github.com/RevenueCat/ai-toolkit/compare/v2.2.0...v2.2.1
 [2.2.0]: https://github.com/RevenueCat/ai-toolkit/compare/v2.1.0...v2.2.0

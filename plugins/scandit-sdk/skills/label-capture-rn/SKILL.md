@@ -14,7 +14,7 @@ Your training data may contain outdated or incorrect Scandit Label Capture APIs.
 React Native-specific gotchas worth flagging:
 - **Listener method names are iOS-style on React Native.** The Validation Flow listener uses `didCaptureLabelWithFields(fields)` and `didSubmitManualInputForField(field, oldValue, newValue)` — NOT the web equivalents `onValidationFlowLabelCaptured` / `onManualInput`. If you see web-style listener names suggested, they are wrong on React Native.
 - `DataCaptureContext.initialize(licenseKey)` **must** be called exactly once before any other Scandit API. It sets up `DataCaptureContext.sharedInstance`, which is the singleton everything else reads from. Do not construct multiple contexts. (The official `LabelCaptureSimpleSample` uses the legacy `DataCaptureContext.forLicenseKey(...)` form — both work, but new integrations should use `initialize` for consistency with the rest of the v8 RN docs.)
-- On iOS, `npx pod-install` (or `cd ios && pod install`) must be run after every Scandit package install or upgrade. Android auto-links via Gradle.
+- On iOS, `npx pod-install@1.2.1` (or `cd ios && pod install`) must be run after every Scandit package install or upgrade. Android auto-links via Gradle.
 - Metro's bundler cache frequently masks Scandit package upgrades. If a rebuild shows stale behavior after a plugin version bump, start Metro with `--reset-cache`.
 - Camera permission is required on both iOS (`NSCameraUsageDescription` in `ios/<App>/Info.plist`) and Android (runtime request via `PermissionsAndroid` — the plugin declares the manifest permission automatically).
 - Field definitions on RN are **class-based**, not builder-based: `CustomBarcode.initWithNameAndSymbologies(name, [...])`, `new ExpiryDateText(name)`, `field.optional = true`, `LabelCaptureSettings.settingsFromLabelDefinitions([...], {})`. There is no `LabelCaptureSettingsBuilder` / `LabelDefinitionBuilder` and no v8.5 factory-function sugar — those are web-only.
@@ -54,6 +54,20 @@ URL structures vary across SDK versions and package paths (e.g. `api/ui/` subdir
 React Native apps can be written with class components or function components. Examples in this skill use **function components with hooks** because they match the official `LabelCaptureSimpleSample` and the current React Native convention. Even if the target project still contains legacy class components elsewhere, write new Label Capture code as function components — do not rewrite the rest of the app's component style, but keep the Label Capture integration itself on the current idiom (`useRef`, `useEffect`, `useMemo`, imperative `ref` callback for view-level properties).
 
 Examples are in **TypeScript** (`.tsx`). If the target project is plain JavaScript (`.js` / `.jsx`), drop the type annotations and keep the same imports and structure.
+
+## Licence key
+
+Scanning needs a Scandit licence key. For this skill the licence product is `native` and the licence platforms are `ios` and `android`.
+
+Work through these in order — never block the user on MCP:
+
+1. **The Scandit MCP server is connected** — call `ensure_scanner_setup` with product `native` and platforms `ios` and `android`, `app_identifier` (the app's bundle or application id; for web, its production domain, never `localhost`) and `env_var` `SCANDIT_LICENSE_KEY`. Do not run the command it returns. Then call `get_license_key` with the key's id, from that result or from `list_license_keys`; if `list_license_keys` shows the key is not a trial, ask the user before fetching it. Show at most a masked preview in chat; never print a full key.
+2. **It is not connected** — tell the user once that they can connect the remote Scandit MCP server, `https://ssl.scandit.com/mcp`, in their MCP client, then continue from step 1. Do not edit MCP client configuration yourself.
+
+   Authentication is browser-based, so it is **not supported headless or in CI**. The server provisions **trial** keys only; it never creates, revokes, or modifies production licences.
+3. **The user declines, or has no MCP client** — they generate a key themselves at <https://ssl.scandit.com> (no account yet: <https://ssl.scandit.com/dashboard/sign-up?p=test>) and paste it in.
+
+**Then put the key into the code**: write it into the licence-key call in place of the placeholder — the key `get_license_key` returned, or the one the user pastes or gives you — still showing only a masked preview in chat. Do not search the project, its files or the environment for a key.
 
 ## References
 

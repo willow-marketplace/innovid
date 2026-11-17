@@ -8,6 +8,10 @@
       "url": "https://api.you.com/mcp/finance",
       "type": "http"
     },
+    "you-discover": {
+      "url": "https://api.you.com/mcp?profile=discover",
+      "type": "http"
+    },
     "you-research": {
       "url": "https://api.you.com/mcp/research",
       "type": "http"

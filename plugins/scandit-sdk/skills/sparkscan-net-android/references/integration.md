@@ -63,9 +63,7 @@ Do **not** guess, do **not** reuse a version from training data, and do **not** 
   ```
 
   If the project already has an `Application` subclass, add the two `Initialize()` calls to its existing `OnCreate()` rather than creating a second one (Android will refuse to load two `[Application]`-decorated classes). **This step is only required on Scandit SDK 8.0+ — earlier majors (6.x, 7.x) self-initialized, so for those versions skip this file entirely.**
-- A valid Scandit license key:
-  - Sign in at https://ssl.scandit.com to generate one.
-  - No account yet? Sign up at https://ssl.scandit.com/dashboard/sign-up?p=test.
+- A valid Scandit license key — see **Licence key** in this skill's `SKILL.md`.
 - `AndroidManifest.xml` setup — two concerns:
 
   1. **Camera entries** (top-level, sibling to `<application>`):
@@ -107,7 +105,7 @@ After providing the code, show this setup checklist:
 5. Create `MainApplication.cs` with `ScanditCaptureCore.Initialize()` and `ScanditBarcodeCapture.Initialize()` (SDK 8.0+).
 6. Set `Theme = "@style/Theme.AppCompat.Light.NoActionBar"` on the `[Activity]` attribute (required by `AppCompatActivity`).
 7. Wrap the activity layout in `<com.scandit.datacapture.barcode.spark.ui.SparkScanCoordinatorLayout>` (see Step 5 for the full XML).
-8. Replace `-- ENTER YOUR SCANDIT LICENSE KEY HERE --` with your key from https://ssl.scandit.com.
+8. Replace `-- ENTER YOUR SCANDIT LICENSE KEY HERE --` with your key (see **Licence key** in `SKILL.md`).
 
 ## Step 1 — Create the DataCaptureContext
 
@@ -923,6 +921,16 @@ viewSettings.DefaultScanningMode = new SparkScanScanningModeTarget(
 ```
 
 `SparkScanScanningModeDefault` and `SparkScanScanningModeTarget` are constructed with `new`. There is no parameterless constructor in the .NET binding — the `(SparkScanScanningBehavior, SparkScanPreviewBehavior)` constructor is required.
+
+To keep the camera preview visible while the user is not scanning, pass `SparkScanPreviewBehavior.Persistent` as the preview behavior:
+
+```csharp
+viewSettings.DefaultScanningMode = new SparkScanScanningModeTarget(
+    scanningBehavior: SparkScanScanningBehavior.Single,
+    previewBehavior: SparkScanPreviewBehavior.Persistent);
+```
+
+`SparkScanScanningModeDefault` takes the same `previewBehavior` argument. `SparkScanSettings.SelectionMode` (`Scandit.DataCapture.Core.Source.SelectionMode.On` for target mode) is the settings-level alternative. From 8.7 the view settings also expose `PreviewBehavior` directly; it is 8.7+ only, so do not use it against 8.6.x.
 
 To let users switch modes from the toolbar at runtime:
 

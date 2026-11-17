@@ -1,5 +1,6 @@
 {
   "name": "firecrawl",
+  "description": "Firecrawl, the context API for AI agents, as a hosted search MCP plugin for Claude Code.",
   "owner": {
     "name": "Firecrawl"
   },
@@ -7,20 +8,28 @@
     {
       "name": "firecrawl",
       "source": "./",
-      "description": "Scrape, search, crawl, and map the web with a single command.",
+      "version": "2.8.0",
+      "description": "Firecrawl, the context API for AI agents: search the web, developer sources, government publications, and scientific papers, read the pages your searches find, and look up structured data from Alexandria providers.",
       "skills": [
-        "./skills/firecrawl-agent",
+        "./skills/brand-identity",
+        "./skills/business-contact-research",
+        "./skills/design",
+        "./skills/enrich-lead",
+        "./skills/fantasy-sports",
+        "./skills/find-leads",
         "./skills/firecrawl",
-        "./skills/firecrawl-crawl",
-        "./skills/firecrawl-download",
-        "./skills/firecrawl-interact",
-        "./skills/firecrawl-map",
-        "./skills/firecrawl-monitor",
-        "./skills/firecrawl-parse",
-        "./skills/firecrawl-scrape",
-        "./skills/firecrawl-search",
-        "./skills/firecrawl-developer-index",
-        "./skills/firecrawl-research-index"
+        "./skills/firecrawl-deep-research",
+        "./skills/flights-and-hotels",
+        "./skills/job-postings",
+        "./skills/local-businesses",
+        "./skills/markets-and-filings",
+        "./skills/news-coverage",
+        "./skills/prices-and-plans",
+        "./skills/property-listings",
+        "./skills/read-docs",
+        "./skills/read-literature",
+        "./skills/seo-audit",
+        "./skills/video-transcripts"
       ]
     }
   ]

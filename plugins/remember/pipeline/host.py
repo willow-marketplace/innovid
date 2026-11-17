@@ -50,8 +50,8 @@ inventing a seam rather than recording one:
 
 - **Event names.** Bindings live in each host's own manifest, which is the file
   that has to name them anyway. A mapping table here would be read by nobody.
-- **The summarizer.** ``pipeline/haiku.py`` shells ``claude -p`` or
-  ``codex exec``, chosen by ``pipeline.haiku._choose_summarizer_provider()``
+- **The summarizer.** ``pipeline/summarizer.py`` shells ``claude -p`` or
+  ``codex exec``, chosen by ``pipeline.summarizer._choose_summarizer_provider()``
   -- "auto" reads the TRANSCRIPT the host wrote (``transcript_path()`` below
   plus ``pipeline.extract.sniff_file_envelope()``), not ``detect_host()``
   (#465; ``detect_host()`` was the original #460 mechanism, but the env-var
@@ -61,7 +61,7 @@ inventing a seam rather than recording one:
   still not here: each provider's auth model and output shape (Anthropic's
   ``--output-format json`` vs. Codex's ``-o <file>``) stay different enough
   that one would either leak one CLI's shape into the other or hide a
-  distinction ``pipeline/haiku.py`` actually needs, so the provider dispatch
+  distinction ``pipeline/summarizer.py`` actually needs, so the provider dispatch
   lives beside the CLI calls it dispatches to, and only WHICH host is running
   lives here.
 - **Path resolution in shell.** ``scripts/resolve-paths.sh`` runs before Python
@@ -105,11 +105,11 @@ class Host:
     # least-specific within a host; the registry is ordered across hosts.
     signature_vars: tuple[str, ...] = field(default=())
 
-    def plugin_root(self, env: Mapping[str, str]) -> str | None:
-        return _first_set(env, self.plugin_root_vars)
+    def plugin_root(self, values: Mapping[str, str]) -> str | None:
+        return _first_set(values, self.plugin_root_vars)
 
-    def project_dir(self, env: Mapping[str, str]) -> str | None:
-        return _first_set(env, self.project_dir_vars)
+    def project_dir(self, values: Mapping[str, str]) -> str | None:
+        return _first_set(values, self.project_dir_vars)
 
 
 CLAUDE_CODE = Host(
@@ -200,7 +200,7 @@ UNKNOWN = Host(name="unknown", plugin_root_vars=(), project_dir_vars=())
 #
 # A third, explicit AMBIGUOUS state was considered instead of silently
 # picking one. It was rejected here because, at the time, detect_host() had
-# exactly one consumer (pipeline.haiku._choose_summarizer_provider) and that
+# exactly one consumer (pipeline.summarizer._choose_summarizer_provider) and that
 # consumer's own contract was already binary -- "codex under a detected
 # Codex host, claude everywhere else" -- so AMBIGUOUS would have collapsed
 # into the same "claude" branch as UNKNOWN with no behavioural difference
@@ -209,7 +209,7 @@ UNKNOWN = Host(name="unknown", plugin_root_vars=(), project_dir_vars=())
 #
 # #465: that consumer no longer calls detect_host() at all -- the env-var
 # signature this function reads does not survive into the process that
-# actually runs the summarizer (see pipeline/haiku.py's own note on
+# actually runs the summarizer (see pipeline/summarizer.py's own note on
 # _choose_summarizer_provider), so summarizer routing now reads the
 # transcript the host wrote instead. detect_host() stays here as a correct,
 # directly-tested fact about a process's environment
@@ -228,32 +228,51 @@ PLUGIN_ROOT_VARS: tuple[str, ...] = tuple(
 )
 
 
-def _first_set(env: Mapping[str, str], names: tuple[str, ...]) -> str | None:
+def _environment_values() -> dict[str, str]:
+    """The variables the registry above names, each read from the process
+    environment by its literal name (#898 round 10: never a name held in a
+    variable). tests/test_literal_env_reads_898.py pins that this covers
+    every name the registry and TRANSCRIPT_PATH_VAR declare."""
+    return {
+        "CLAUDE_PLUGIN_ROOT": os.environ.get("CLAUDE_PLUGIN_ROOT", ""),
+        "PLUGIN_ROOT": os.environ.get("PLUGIN_ROOT", ""),
+        "CLAUDE_PROJECT_DIR": os.environ.get("CLAUDE_PROJECT_DIR", ""),
+        "CLAUDE_CODE_ENTRYPOINT": os.environ.get("CLAUDE_CODE_ENTRYPOINT", ""),
+        "CLAUDE_CODE_SESSION_ID": os.environ.get("CLAUDE_CODE_SESSION_ID", ""),
+        "CODEX_SESSION_ID": os.environ.get("CODEX_SESSION_ID", ""),
+        "CODEX_THREAD_ID": os.environ.get("CODEX_THREAD_ID", ""),
+        "ANTIGRAVITY_CONVERSATION_ID": os.environ.get("ANTIGRAVITY_CONVERSATION_ID", ""),
+        "REMEMBER_TRANSCRIPT_PATH": os.environ.get("REMEMBER_TRANSCRIPT_PATH", ""),
+    }
+
+
+def _first_set(values: Mapping[str, str], names: tuple[str, ...]) -> str | None:
     for name in names:
-        value = env.get(name, "")
+        value = values.get(name, "")
         if value.strip():
             return value
     return None
 
 
-def detect_host(env: Mapping[str, str] | None = None) -> Host:
-    """Identify the hosting CLI from its environment.
+def detect_host(overrides: Mapping[str, str] | None = None) -> Host:
+    """Identify the hosting CLI from its environment, or from ``overrides``
+    standing in for it.
 
     Returns ``UNKNOWN`` rather than guessing or raising. A host nobody has
     described yet is a normal state here, not a failure: the stdin payload is
     what the pipeline actually needs, and it arrives regardless.
     """
-    env = os.environ if env is None else env
+    values = _environment_values() if overrides is None else overrides
     for host in REGISTRY:
-        if _first_set(env, host.signature_vars) is not None:
+        if _first_set(values, host.signature_vars) is not None:
             return host
     return UNKNOWN
 
 
-def plugin_root(env: Mapping[str, str] | None = None) -> str | None:
+def plugin_root(overrides: Mapping[str, str] | None = None) -> str | None:
     """The plugin install directory, under whichever name this host uses."""
-    env = os.environ if env is None else env
-    return _first_set(env, PLUGIN_ROOT_VARS)
+    values = _environment_values() if overrides is None else overrides
+    return _first_set(values, PLUGIN_ROOT_VARS)
 
 
 # ─── Transcript line envelopes (#443) ──────────────────────────────────────
@@ -425,7 +444,7 @@ def antigravity_step_is_unmapped(obj: dict) -> bool:
     return isinstance(step_type, str) and step_type not in _ANTIGRAVITY_STEP_ROLES
 
 
-def transcript_path(env: Mapping[str, str] | None = None) -> str | None:
+def transcript_path(overrides: Mapping[str, str] | None = None) -> str | None:
     """The transcript path the host handed us, if it is usable.
 
     Returns ``None`` for anything the caller could not open — unset, blank, a
@@ -477,8 +496,10 @@ def transcript_path(env: Mapping[str, str] | None = None) -> str | None:
     says so loudly (a WARN naming the value) rather than silently trusting it,
     so the decision is never mistaken for an oversight.
     """
-    env = os.environ if env is None else env
-    value = (env.get(TRANSCRIPT_PATH_VAR) or "").strip()
+    if overrides is None:
+        value = (os.environ.get("REMEMBER_TRANSCRIPT_PATH") or "").strip()
+    else:
+        value = (overrides.get("REMEMBER_TRANSCRIPT_PATH") or "").strip()
     if not value:
         return None
     if not os.path.isfile(value):

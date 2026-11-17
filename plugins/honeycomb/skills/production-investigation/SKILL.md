@@ -1,6 +1,6 @@
 ---
 name: production-investigation
-description: 'Structured workflows for investigating production issues in Honeycomb — the sequence of tool calls (context priming, broad query, BubbleUp, trace analysis, verification) and how to chain results between steps to reach root causes. Trigger phrases: "investigate production issue", "debug latency spike", "find root cause", "use BubbleUp", "analyze traces", "debug an outage", "why is my API slow", "errors are increasing", "health check", "SLO burning", or any request to investigate or debug production problems.'
+description: 'Workflows for investigating production issues in Honeycomb: context priming, broad query, BubbleUp, trace analysis, verification, and chaining results between steps to a root cause. Trigger phrases: "investigate production issue", "debug latency spike", "find root cause", "use BubbleUp", "analyze traces", "debug an outage", "why is my API slow", "errors are increasing", "health check", "SLO burning".'
 ---
 
 # Honeycomb Production Investigation

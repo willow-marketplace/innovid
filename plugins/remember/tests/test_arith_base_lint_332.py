@@ -51,6 +51,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from tests._compiled_hooks import is_compiled_text
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
 SHELL_DIRS = ("scripts", "hooks.d")
@@ -59,6 +61,17 @@ SHELL_DIRS = ("scripts", "hooks.d")
 _DIGIT_ARM = re.compile(r"\*\[!0-9\]\*")
 # `case "$VAR" in`, `case $VAR in`, `case "${VAR}" in`.
 _CASE_HEAD = re.compile(r"\bcase\s+\"?\$\{?(\w+)\}?\"?\s+in\b")
+
+# The same guard as a test: `[[ "$X" == *[!0-9]* ]]` (#898 round 19 removed
+# every shipped `case`) or the earlier `[ "${X#*[!0-9]}" != "$X" ]`. #899 added
+# a third shape, `[[ "$X" != *[!0-9]* ]]` (the same glob, negated polarity --
+# "stays set" rather than "gets rejected"), and a fourth, the helper call
+# `_remember_is_uint "$X"` (log.sh), which wraps the same `!=` test. #908: both
+# were invisible here -- _guarded_names only ever saw the `==` form.
+_DIGIT_TEST = re.compile(
+    r"\$\{(\w+)#\*\[!0-9\]\}"
+    r"|\[\[ \"?\$\{?(\w+)\}?\"? (?:==|!=) \*\[!0-9\]\* \]\]"
+    r"|(?<!\w)_remember_is_uint \"?\$\{?(\w+)\}?\"?")
 
 # How far above a digit-rejecting arm the `case` head may sit. The single-line
 # form puts them on the same line; the block form in this repo spans two.
@@ -70,6 +83,7 @@ def _guarded_names(text: str) -> set:
     lines = text.splitlines()
     names = set()
     for i, line in enumerate(lines):
+        names.update(n for pair in _DIGIT_TEST.findall(line) for n in pair if n)
         if not _DIGIT_ARM.search(line):
             continue
         for j in range(i, max(-1, i - _CASE_LOOKBACK) - 1, -1):
@@ -138,6 +152,31 @@ def _shell_files():
         yield from sorted((REPO_ROOT / directory).rglob("*.sh"))
 
 
+def _sweep(paths):
+    """One `path:line  $name  in  span` row per finding across PATHS.
+
+    A compiled hook (#900) is skipped: it is a dozen libraries in one file, so
+    a name guarded in one function would flag an unrelated use of the same
+    name in another -- and every file it was compiled from is swept as source
+    by the plain pytest job on every leg (tests/test_compiled_hook_pins_900.py).
+    """
+    offenders = []
+    for path in paths:
+        text = path.read_text(encoding="utf-8", errors="replace")
+        if is_compiled_text(text):
+            continue
+        names = _guarded_names(text)
+        if not names:
+            continue
+        for line, name, span in _unbased_uses(text, names):
+            try:
+                rel = path.relative_to(REPO_ROOT)
+            except ValueError:
+                rel = path
+            offenders.append(f"  {rel}:{line}  ${name}  in  {span}")
+    return offenders
+
+
 def test_no_case_guarded_value_reaches_arithmetic_without_a_radix():
     """The sweep. One finding fails the build and names file, line and variable.
 
@@ -146,15 +185,7 @@ def test_no_case_guarded_value_reaches_arithmetic_without_a_radix():
     on an empty string is itself an error on bash 5, and the `case` is also what
     rejects a space-padded value that arithmetic would otherwise accept.
     """
-    offenders = []
-    for path in _shell_files():
-        text = path.read_text(encoding="utf-8", errors="replace")
-        names = _guarded_names(text)
-        if not names:
-            continue
-        for line, name, span in _unbased_uses(text, names):
-            rel = path.relative_to(REPO_ROOT)
-            offenders.append(f"  {rel}:{line}  ${name}  in  {span}")
+    offenders = _sweep(_shell_files())
 
     assert not offenders, (
         "a value guarded by a digits-only `case` reaches `$(( ))` with no "
@@ -184,9 +215,74 @@ def test_the_detector_finds_a_planted_instance():
     assert [f[1] for f in found] == ["LAST"], found
 
 
+TEST_FORM_GUARD = (
+    'LAST=$(cat "$f")\n'
+    'if [ -z "$LAST" ] || [[ "$LAST" == *[!0-9]* ]]; then LAST=0; fi\n'
+)
+
+
+def test_the_detector_finds_the_test_form_guard():
+    """#898 round 19: the guard is a `[ ]` test now that no shipped script
+    carries a `case`; the detector must still see it, and still accept 10#."""
+    planted = TEST_FORM_GUARD + "ELAPSED=$(( $(date +%s) - LAST ))\n"
+    assert _guarded_names(planted) == {"LAST"}
+    assert [f[1] for f in _unbased_uses(planted, {"LAST"})] == ["LAST"]
+    fixed = TEST_FORM_GUARD + "ELAPSED=$(( $(date +%s) - 10#$LAST ))\n"
+    assert _unbased_uses(fixed, _guarded_names(fixed)) == []
+
+
 def test_the_detector_finds_it_through_the_dollar_form_too():
     planted = PLANTED_GUARD + "ELAPSED=$(( $(date +%s) - $LAST ))\n"
     assert [f[1] for f in _unbased_uses(planted, _guarded_names(planted))] == ["LAST"]
+
+
+NEQ_FORM_GUARD = (
+    'LAST=$(cat "$f")\n'
+    '[ -n "$LAST" ] && [[ "$LAST" != *[!0-9]* ]] || LAST=0\n'
+)
+
+
+def test_the_detector_finds_the_neq_test_form_guard():
+    """#908/#899: `[[ "$X" != *[!0-9]* ]]` is the negated-polarity twin of the
+    `==` form -- "stays set" rather than "gets rejected" -- and lib-lock.sh
+    ships it for `_LOCK_SELF`, `_mtime` and `_pid`. Must still be found, and
+    10# still accepted."""
+    planted = NEQ_FORM_GUARD + "ELAPSED=$(( $(date +%s) - LAST ))\n"
+    assert _guarded_names(planted) == {"LAST"}
+    assert [f[1] for f in _unbased_uses(planted, {"LAST"})] == ["LAST"]
+    fixed = NEQ_FORM_GUARD + "ELAPSED=$(( $(date +%s) - 10#$LAST ))\n"
+    assert _unbased_uses(fixed, _guarded_names(fixed)) == []
+
+
+def test_the_detector_does_not_mistake_an_unrelated_bang_eq_for_the_guard():
+    """A plain string inequality is not the digits-only guard -- only the
+    exact `*[!0-9]*` glob on the right makes it one."""
+    src = 'if [[ "$MODE" != "quiet" ]]; then echo noisy; fi\n'
+    assert _guarded_names(src) == set()
+
+
+UINT_HELPER_GUARD = (
+    'LAST=$(cat "$f")\n'
+    '_remember_is_uint "$LAST" || LAST=0\n'
+)
+
+
+def test_the_detector_finds_the_is_uint_helper_call():
+    """#908/#899: `_remember_is_uint "$X"` (log.sh) wraps the same `!=` test
+    and is called ~11 times across log.sh and session-start-hook.sh. Must
+    still be found, and 10# still accepted."""
+    planted = UINT_HELPER_GUARD + "ELAPSED=$(( $(date +%s) - LAST ))\n"
+    assert _guarded_names(planted) == {"LAST"}
+    assert [f[1] for f in _unbased_uses(planted, {"LAST"})] == ["LAST"]
+    fixed = UINT_HELPER_GUARD + "ELAPSED=$(( $(date +%s) - 10#$LAST ))\n"
+    assert _unbased_uses(fixed, _guarded_names(fixed)) == []
+
+
+def test_the_detector_does_not_mistake_a_similarly_named_helper_for_is_uint():
+    """A different helper name must not be read as the is-uint guard -- the
+    match requires the exact name with a word boundary in front of it."""
+    src = '_remember_is_uint_like "$X" || X=0\n'
+    assert _guarded_names(src) == set()
 
 
 def test_the_detector_accepts_the_fixed_form():

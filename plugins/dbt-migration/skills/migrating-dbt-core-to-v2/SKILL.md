@@ -34,9 +34,11 @@ Hard rules:
 
 ## Repro Command Behavior
 
-By default this skill uses `dbt compile` to reproduce and validate errors. The command can be customized:
-- If the user specifies a different command (e.g. `dbt build`, `dbt test --select tag:my_tag`), use that instead
-- If a `repro_command.txt` file exists in the project root, use the command from that file
+The base command defaults to `dbt compile`, or a different command if the user specifies one (e.g. `dbt build`, `dbt test --select tag:my_tag`), or the contents of `repro_command.txt` if that file exists in the project root.
+
+**Normalize the static-analysis mode on whichever command you land on**: if it does not already contain a `--static-analysis` flag, append `--static-analysis strict`. If it already specifies one explicitly (e.g. `--static-analysis off` or `unsafe`), leave it as-is — do not append a second, conflicting flag. This applies whether the command came from the user or from `repro_command.txt`; a file containing bare `dbt compile` still gets `strict` appended.
+
+Plain `dbt compile` still performs full parsing, graph building, and config compilation, and surfaces real failures from those checks. But without strict mode, static analysis findings about column/schema existence are only reported as warnings, not build-blocking failures. A project can report zero *errors* under plain `dbt compile` while strict mode fails it on real column-existence problems. Always run with strict mode at least once before telling the user the project is v2-compatible.
 
 ## Step 0: Validate Credentials with dbt debug
 
@@ -76,6 +78,8 @@ That's fine — proceed to Step 1. But if connection errors appear later during 
 3. Check for autofix log files
 
 ### If NOT run yet:
+If the project is in git, record a baseline first: run `git stash create` and note the SHA (use `HEAD` if it prints nothing), and note the output of `git status --porcelain`.
+
 Prompt the user to run [dbt-autofix](https://github.com/dbt-labs/dbt-autofix) (a first-party tool maintained by dbt Labs that automatically fixes common deprecation patterns):
 ```bash
 uvx --from git+https://github.com/dbt-labs/dbt-autofix.git dbt-autofix deprecations
@@ -87,9 +91,9 @@ uvx --from git+https://github.com/dbt-labs/dbt-autofix.git dbt-autofix deprecati
 Before analyzing any migration errors, you MUST understand what autofix changed:
 
 1. **Review the git diff** (if project is in git):
-   ```bash
-   git diff HEAD~1
-   ```
+   - Baseline recorded before autofix: `git diff <baseline-sha>`. New `??` entries in `git status --porcelain` are files autofix created.
+   - Autofix already committed: `git show <autofix-commit>`.
+   - Otherwise: `git diff HEAD`. It may include the user's own uncommitted work, so confirm against the autofix logs before attributing a change to autofix.
 
 2. **Read autofix logs** (if available):
    - Look for autofix output files
@@ -102,6 +106,7 @@ Before analyzing any migration errors, you MUST understand what autofix changed:
    - What YAML structures changed?
    - What Jinja modifications were made?
    - Were any package versions updated? (autofix upgrades packages that require it)
+   - **Placement, not just correctness**: autofix can insert a technically-valid change in a structurally wrong place (e.g., a new flag landing in the middle of an unrelated comment block, separated from its sibling flags by blank lines/comments — still parses correctly, but breaks readability and makes existing doc comments inaccurate). This won't show up as a compile error. Check placement and any comments/counts that reference the changed block (e.g., "pins all N flags"), not just whether the new value is correct.
 
 **Why this matters**: Some migration errors may be CAUSED by autofix bugs or incorrect transformations. Understanding what autofix changed helps you:
 - Identify if a current error was introduced by autofix
@@ -133,6 +138,8 @@ Use the 4-category framework to triage errors. For the full pattern catalog see 
 - Plain dict `.meta_get()` error (dbt1501) — `dict.meta_get()` to `dict.get()`
 - Unused schema.yml entries (dbt1005) — remove orphaned YAML entries
 - Source name mismatches (dbt1005) — align source references with YAML definitions
+- Case-sensitive column identifier mismatch (dbt0227 UnresolvedIdentifier, or dbt0209 FunctionResolutionFailed only when the message shows a quoted/reserved column with a casing mismatch — other `FunctionResolutionFailed` causes are not this pattern) — a common v2-strict-mode pattern. See [Case-Sensitive Identifier Mismatches](references/error-patterns-reference.md#case-sensitive-identifier-mismatches) for the fix procedure
+- Static analysis false positive on a PRODUCTION model (dbt0227, dbt0209 identifier/column-existence findings only) — only after [warehouse verification](references/classification-categories.md#verifying-against-the-real-warehouse-before-classifying-as-category-d) confirms it's a cache artifact, not a real bug. See [guardrails](references/classification-categories.md#guardrail-suppressing-static-analysis-on-production-models) before applying `static_analysis: off`
 - YAML syntax errors (dbt1013) — fix YAML syntax
 - Unexpected config keys (dbt1060) — move custom keys to `meta:`
 - Package version issues (dbt8999) — update versions, use exact pins. `dbt1065` package compatibility warnings (e.g. `Package '<package_name>' requires dbt version [>=1.2.0, <2.0.0]`) are not errors — autofix handles package upgrades. If `dbt1065` warnings persist after autofix, no manual action is needed.
@@ -163,6 +170,8 @@ Category D signals:
 - Known GitHub issues — **always search proactively**: use `WebFetch` with URL `https://api.github.com/search/issues?q=repo:dbt-labs/dbt-fusion+<error_code>+<keywords>&type=issues` to find existing issues. Don't tell the user to search manually — do it yourself.
 - Engine crashes — `panic!`, `internal error`, `RUST_BACKTRACE`
 - Adapter methods not implemented — `not yet implemented: Adapter::method`
+
+**Before classifying `UnresolvedIdentifier`/`FunctionResolutionFailed` as Category D**, complete [warehouse verification](references/classification-categories.md#verifying-against-the-real-warehouse-before-classifying-as-category-d) first — the error message alone can't distinguish a real bug from a cache artifact.
 
 ## Pattern Matching Priority Order
 
@@ -226,6 +235,8 @@ Recommendation: [What should happen next]
 
 **Handle cascading errors**: Fixing one error often reveals another underneath. This is expected. Report new errors and classify them.
 
+**Same-node latent duplicates**: static analysis reports only the FIRST error per node, even when a file has multiple instances of the exact same bug (e.g. two reserved-word columns quoted with the wrong case in the same SELECT). After fixing a reported error, re-scan the rest of that same file for the identical pattern before considering the node done — don't wait for a recompile to surface it one at a time.
+
 **Track progress**:
 ```
 Progress Update:
@@ -265,4 +276,5 @@ Next: [What to do next]
 - **After each fix, validate**: Re-run the repro command and check for cascading errors
 - **Success = progress**: Not reaching 100% in one pass is expected — many issues need v2 fixes
 - **Consider `dbt debug` first**: If you see connection or credential errors during triage, suggest running `dbt debug` to verify the environment
+- **Verify before classifying as Category D or suppressing on a production model**: see [Verifying Against the Real Warehouse](references/classification-categories.md#verifying-against-the-real-warehouse-before-classifying-as-category-d)
 - **Focus on errors**: For `dbt1065` package version compatibility warnings specifically (e.g. `Package '<package_name>' requires dbt version [>=1.2.0, <2.0.0]`) — ignore these. Autofix upgrades packages that need it; if `dbt1065` warnings remain after autofix, no manual package updates are needed.

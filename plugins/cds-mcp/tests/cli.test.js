@@ -6,83 +6,23 @@ import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import fs from 'fs/promises'
 import os from 'os'
-import { DEFAULT_DIR, getActiveModel, toDirName } from '../lib/calculateEmbeddings.js'
-import { buildTestBundle, getManifestEtagPath, TEST_COMMIT_ID } from './helpers/testBundle.js'
+import { DEFAULT_DIR } from '../lib/calculateEmbeddings.js'
+import { seedCliTestBundle, runCliCommand } from './helpers/test-bundle.js'
+const TEST_COMMIT_ID = '__test_bundle__'
 
 const sampleProjectPath = join(dirname(fileURLToPath(import.meta.url)), 'sample')
 const cdsMcpPath = join(dirname(fileURLToPath(import.meta.url)), '../index.js')
-const mockFetchUrl = new URL('./helpers/mock-fetch.mjs', import.meta.url).href
 
-const testBundleDir = join(DEFAULT_DIR, toDirName(getActiveModel()), TEST_COMMIT_ID)
-const manifestEtagPath = getManifestEtagPath()
-const bundlePath = join(os.tmpdir(), `cds-mcp-test-bundle-${process.pid}.bin`)
-let savedEtag = null
-
-function runCliCommand(args, options = {}) {
-  return new Promise((resolve, reject) => {
-    const child = spawn('node', [cdsMcpPath, ...args], {
-      ...options,
-      stdio: 'pipe'
-    })
-
-    let stdout = ''
-    let stderr = ''
-
-    child.stdout.on('data', data => {
-      stdout += data.toString()
-    })
-
-    child.stderr.on('data', data => {
-      stderr += data.toString()
-    })
-
-    child.on('close', code => {
-      resolve({ code, stdout, stderr })
-    })
-
-    child.on('error', error => {
-      reject(error)
-    })
-  })
-}
-
-const noFetchEnv = {
-  ...process.env,
-  NODE_OPTIONS:
-    '--import "data:text/javascript,globalThis.fetch = () => { throw new Error(\'fetch disabled in offline mode\') }"'
-}
+let ctx
 
 before(async () => {
-  // Save any real etag that exists before our subprocess tests overwrite it.
-  savedEtag = await fs.readFile(manifestEtagPath, 'utf-8').catch(() => null)
-
-  // Build real bundle, write to temp file for subprocess mock-fetch.mjs.
-  const frame = await buildTestBundle()
-  await fs.writeFile(bundlePath, frame)
-
-  // Pre-seed versioned embeddings dir for offline tests.
-  // resolveLocalVersion() last-resort scan will find this dir.
-  await fs.mkdir(testBundleDir, { recursive: true })
-  const metaLen = frame.readUInt32BE(0)
-  const metaBytes = frame.subarray(4, 4 + metaLen)
-  const binBytes = frame.subarray(4 + metaLen)
-  await fs.writeFile(join(testBundleDir, 'code-chunks.json'), metaBytes)
-  await fs.writeFile(join(testBundleDir, 'code-chunks.bin'), binBytes)
+  ctx = await seedCliTestBundle()
 })
 
-after(async () => {
-  await fs.rm(testBundleDir, { recursive: true, force: true }).catch(() => {})
-  await fs.unlink(bundlePath).catch(() => {})
-  if (savedEtag !== null) {
-    await fs.mkdir(dirname(manifestEtagPath), { recursive: true })
-    await fs.writeFile(manifestEtagPath, savedEtag)
-  } else {
-    await fs.rm(dirname(manifestEtagPath), { recursive: true, force: true }).catch(() => {})
-  }
-})
+after(() => ctx.cleanup())
 
 describe('CLI usage', () => {
-  test('search_model subcommand works', async () => {
+  test('search_model returns matching definitions for a project path', async () => {
     const result = await runCliCommand(['search_model', sampleProjectPath, 'Books', 'entity'])
 
     assert.equal(result.code, 0, 'Command should exit with code 0')
@@ -95,41 +35,56 @@ describe('CLI usage', () => {
   })
 
   test('search_model accepts an explicit project path outside the CLI working directory', async () => {
-    const result = await runCliCommand(['--offline', 'search_model', sampleProjectPath, 'Books', 'entity'], {
-      cwd: os.tmpdir()
-    })
+    const result = await runCliCommand(
+      ['--offline', 'search_model', sampleProjectPath, 'Books', 'entity'],
+      {
+        cwd: os.tmpdir()
+      }
+    )
 
     assert.equal(result.code, 0, 'Command should exit with code 0')
     assert.equal(JSON.parse(result.stdout)[0].name, 'AdminService.Books')
   })
 
-  test('search_model accepts sibling model imports for an explicitly trusted CLI project', async t => {
+  test('search_model accepts sibling model imports for an explicitly trusted CLI project', async (t) => {
     const monorepo = await fs.mkdtemp(join(os.tmpdir(), 'cds-mcp-cli-monorepo-'))
     const cwd = await fs.mkdtemp(join(os.tmpdir(), 'cds-mcp-cli-cwd-'))
     t.after(() =>
-      Promise.all([fs.rm(monorepo, { recursive: true, force: true }), fs.rm(cwd, { recursive: true, force: true })])
+      Promise.all([
+        fs.rm(monorepo, { recursive: true, force: true }),
+        fs.rm(cwd, { recursive: true, force: true })
+      ])
     )
     const project = join(monorepo, 'app')
-    await Promise.all([fs.mkdir(join(project, 'srv'), { recursive: true }), fs.mkdir(join(monorepo, 'shared'))])
-    await fs.writeFile(join(monorepo, 'shared', 'model.cds'), 'entity SharedBooks { key ID: Integer; }')
+    await Promise.all([
+      fs.mkdir(join(project, 'srv'), { recursive: true }),
+      fs.mkdir(join(monorepo, 'shared'))
+    ])
+    await fs.writeFile(
+      join(monorepo, 'shared', 'model.cds'),
+      'entity SharedBooks { key ID: Integer; }'
+    )
     await fs.writeFile(
       join(project, 'srv', 'service.cds'),
       "using { SharedBooks } from '../../shared/model'; service MonorepoService { entity Books as projection on SharedBooks; }"
     )
 
-    const result = await runCliCommand(['--offline', 'search_model', project, 'SharedBooks', 'entity'], { cwd })
+    const result = await runCliCommand(
+      ['--offline', 'search_model', project, 'SharedBooks', 'entity'],
+      { cwd }
+    )
 
     assert.equal(result.code, 0, result.stderr)
     assert.equal(JSON.parse(result.stdout)[0].name, 'SharedBooks')
   })
 
-  test('search_docs subcommand works', async () => {
+  test('search_docs returns document chunks separated by --- for a query', async () => {
     const result = await runCliCommand(['search_docs', 'select statement'], {
       env: {
         ...process.env,
-        CDS_MCP_TEST_BUNDLE_PATH: bundlePath,
+        CDS_MCP_TEST_BUNDLE_PATH: ctx.bundlePath,
         CDS_MCP_TEST_BUNDLE_VERSION: TEST_COMMIT_ID,
-        NODE_OPTIONS: `--import "${mockFetchUrl}"`
+        NODE_OPTIONS: `--import "${ctx.mockScriptUrl}"`
       }
     })
 
@@ -139,11 +94,34 @@ describe('CLI usage', () => {
     assert(result.stdout.includes('---'), 'Output should contain document separators')
   })
 
+  test('search_docs produces no output on stderr', async () => {
+    const result = await runCliCommand(['search_docs', 'select statement'], {
+      env: {
+        ...process.env,
+        CDS_MCP_TEST_BUNDLE_PATH: ctx.bundlePath,
+        CDS_MCP_TEST_BUNDLE_VERSION: TEST_COMMIT_ID,
+        NODE_OPTIONS: `--import "${ctx.mockScriptUrl}"`
+      }
+    })
+
+    assert.equal(result.code, 0, 'Command should exit with code 0')
+    assert.equal(result.stderr, '', `Expected no stderr output, got: ${result.stderr}`)
+    const lines = result.stdout.split('\n')
+    assert.equal(
+      lines[0].includes('headingPath:'),
+      true,
+      'stdout should start with output and nothing else'
+    )
+  })
+
   test('invalid tool name shows error', async () => {
     const result = await runCliCommand(['invalid_tool', 'arg1'])
 
     assert.equal(result.code, 1, 'Command should exit with code 1')
-    assert(result.stderr.includes("Tool 'invalid_tool' not found"), 'Should show tool not found error')
+    assert(
+      result.stderr.includes("Tool 'invalid_tool' not found"),
+      'Should show tool not found error'
+    )
     assert(result.stderr.includes('Available tools:'), 'Should list available tools')
   })
 
@@ -154,6 +132,83 @@ describe('CLI usage', () => {
     assert(result.stdout.includes('Usage: cds-mcp'), 'Should show usage line')
     assert(result.stdout.includes('--help'), 'Should list --help option')
     assert(result.stdout.includes('search_model'), 'Should list search_model tool')
+    assert(result.stdout.includes('createCapireEmbeddings'), 'Should list embedding command')
+  })
+
+  test('createCapireEmbeddings rejects unknown generation flags', async () => {
+    const result = await runCliCommand(['createCapireEmbeddings', '--foo'])
+
+    assert.equal(result.code, 1)
+    assert(result.stderr.includes("Unknown option '--foo'"), result.stderr)
+    assert(!result.stderr.includes('Usage: cds-mcp'), 'Should use the generation argument parser')
+  })
+
+  for (const flag of ['--offline', '--download']) {
+    test(`createCapireEmbeddings rejects ${flag}`, async () => {
+      const result = await runCliCommand(['createCapireEmbeddings', flag])
+      assert.equal(result.code, 1)
+      assert(result.stderr.includes(`Unknown option '${flag}'`), result.stderr)
+    })
+  }
+
+  test('createCapireEmbeddings rejects positional input', async () => {
+    const result = await runCliCommand(['createCapireEmbeddings', 'input.md'])
+    assert.equal(result.code, 1)
+    assert(result.stderr.includes('Unexpected argument'), result.stderr)
+  })
+
+  test('server commands reject generation-only flags', async () => {
+    const result = await runCliCommand(['search_docs', 'query', '--min-tokens', '0'])
+    assert.equal(result.code, 1)
+    assert(result.stderr.includes('Usage: cds-mcp'), result.stderr)
+  })
+
+  test('createCapireEmbeddings reports input errors', async (t) => {
+    const root = await fs.mkdtemp(join(os.tmpdir(), 'cds-mcp-cli-input-'))
+    t.after(() => fs.rm(root, { recursive: true, force: true }))
+    const input = join(root, 'empty.md')
+    await fs.writeFile(input, '')
+
+    const result = await runCliCommand([
+      'createCapireEmbeddings',
+      '--model',
+      'fixture/custom-model',
+      '--input',
+      input
+    ])
+
+    assert.equal(result.code, 1)
+    assert(result.stderr.includes('Markdown text is required'), result.stderr)
+  })
+
+  test('createCapireEmbeddings rejects invalid publication metadata before generation', async (t) => {
+    const root = await fs.mkdtemp(join(os.tmpdir(), 'cds-mcp-metadata-'))
+    t.after(() => fs.rm(root, { recursive: true, force: true }))
+    const file = join(root, 'metadata.json')
+    for (const [text, error] of [
+      ['{', 'SyntaxError'],
+      ['null', 'JSON object'],
+      ['[]', 'JSON object'],
+      ['{"commitId":"../outside"}', 'single directory name'],
+      ['{"commitId":".."}', 'single directory name'],
+      ['{"commitId":123}', 'single directory name']
+    ]) {
+      await fs.writeFile(file, text)
+      for (const input of [text, file]) {
+        const result = await runCliCommand(['createCapireEmbeddings', '--capireMetadata', input])
+        assert.equal(result.code, 1)
+        assert.equal(result.stdout, '')
+        assert(result.stderr.includes(error), result.stderr)
+      }
+    }
+    const missing = await runCliCommand([
+      'createCapireEmbeddings',
+      '--capireMetadata',
+      join(root, 'missing.json')
+    ])
+    assert.equal(missing.code, 1)
+    assert.equal(missing.stdout, '')
+    assert(missing.stderr.includes('ENOENT'), missing.stderr)
   })
 
   test('--version shows version number', async () => {
@@ -181,9 +236,9 @@ describe('CLI usage', () => {
     const result = await runCliCommand(['--download'], {
       env: {
         ...process.env,
-        CDS_MCP_TEST_BUNDLE_PATH: bundlePath,
+        CDS_MCP_TEST_BUNDLE_PATH: ctx.bundlePath,
         CDS_MCP_TEST_BUNDLE_VERSION: TEST_COMMIT_ID,
-        NODE_OPTIONS: `--import "${mockFetchUrl}"`
+        NODE_OPTIONS: `--import "${ctx.mockScriptUrl}"`
       }
     })
 
@@ -193,48 +248,22 @@ describe('CLI usage', () => {
     assert(typeof output.updated === 'boolean', 'Should return an updated boolean')
   })
 
-  test('--offline search_docs works without downloading', async () => {
-    const result = await runCliCommand(['--offline', 'search_docs', 'select statement'], {
-      env: noFetchEnv
-    })
-
-    assert.equal(result.code, 0, 'Command should exit with code 0')
-    assert(result.stdout.length > 0, 'Should produce output')
-    assert(result.stdout.includes('---'), 'Output should contain document separators')
-  })
-
-  test('--offline is incompatible with --download', async () => {
-    const result = await runCliCommand(['--offline', '--download'])
-
-    assert.equal(result.code, 1, 'Command should exit with code 1')
-    assert(result.stderr.includes('must be the only argument'), 'Should show error message')
-  })
-
-  test('CDS_MCP_OFFLINE=true search_docs works without downloading', async () => {
-    const result = await runCliCommand(['search_docs', 'select statement'], {
-      env: { ...noFetchEnv, CDS_MCP_OFFLINE: 'true' }
-    })
-
-    assert.equal(result.code, 0, 'Command should exit with code 0')
-    assert(result.stdout.length > 0, 'Should produce output')
-    assert(result.stdout.includes('---'), 'Output should contain document separators')
-  })
-
   test('no arguments starts MCP server mode', async () => {
-    const child = spawn('node', [cdsMcpPath], {
-      stdio: 'pipe'
+    let stderr = ''
+    const child = spawn('node', [cdsMcpPath], { stdio: 'pipe' })
+    child.stderr.on('data', (d) => {
+      stderr += d
     })
 
-    // Give the server a moment to start
-    await new Promise(resolve => setTimeout(resolve, 100))
+    await new Promise((resolve) => setTimeout(resolve, 100))
 
-    // Kill the process
     child.kill('SIGTERM')
+    const exitCode = await new Promise((resolve) => child.on('close', resolve))
 
-    // Wait for it to close
-    await new Promise(resolve => child.on('close', resolve))
-
-    assert(true, 'MCP server should start and be killable')
+    assert(
+      exitCode === 0 || exitCode === null,
+      `server crashed on startup (code=${exitCode}): ${stderr}`
+    )
   })
 
   test('--model flag routes bundle download under model-scoped dir', async () => {
@@ -247,9 +276,9 @@ describe('CLI usage', () => {
       const result = await runCliCommand(['--model', altModel, '--download'], {
         env: {
           ...process.env,
-          CDS_MCP_TEST_BUNDLE_PATH: bundlePath,
+          CDS_MCP_TEST_BUNDLE_PATH: ctx.bundlePath,
           CDS_MCP_TEST_BUNDLE_VERSION: TEST_COMMIT_ID,
-          NODE_OPTIONS: `--import "${mockFetchUrl}"`
+          NODE_OPTIONS: `--import "${ctx.mockScriptUrl}"`
         }
       })
 
@@ -259,12 +288,18 @@ describe('CLI usage', () => {
 
       // Bundle written under the alt model dir
       const bundleJson = join(altDir, TEST_COMMIT_ID, 'code-chunks.json')
-      const exists = await fs.access(bundleJson).then(() => true).catch(() => false)
+      const exists = await fs
+        .access(bundleJson)
+        .then(() => true)
+        .catch(() => false)
       assert.ok(exists, `bundle must land under ${altDir}`)
 
       // Etag written under alt model's own etags subdir
       const etagFile = join(altDir, 'etags')
-      const etagExists = await fs.access(etagFile).then(() => true).catch(() => false)
+      const etagExists = await fs
+        .access(etagFile)
+        .then(() => true)
+        .catch(() => false)
       assert.ok(etagExists, `etag dir must land under ${etagFile}`)
     } finally {
       await fs.rm(altDir, { recursive: true, force: true }).catch(() => {})
@@ -282,15 +317,18 @@ describe('CLI usage', () => {
         env: {
           ...process.env,
           CDS_MCP_MODEL: altModel,
-          CDS_MCP_TEST_BUNDLE_PATH: bundlePath,
+          CDS_MCP_TEST_BUNDLE_PATH: ctx.bundlePath,
           CDS_MCP_TEST_BUNDLE_VERSION: TEST_COMMIT_ID,
-          NODE_OPTIONS: `--import "${mockFetchUrl}"`
+          NODE_OPTIONS: `--import "${ctx.mockScriptUrl}"`
         }
       })
 
       assert.equal(result.code, 0, 'Command should exit with code 0')
       const bundleJson = join(altDir, TEST_COMMIT_ID, 'code-chunks.json')
-      const exists = await fs.access(bundleJson).then(() => true).catch(() => false)
+      const exists = await fs
+        .access(bundleJson)
+        .then(() => true)
+        .catch(() => false)
       assert.ok(exists, `bundle must land under ${altDir}`)
     } finally {
       await fs.rm(altDir, { recursive: true, force: true }).catch(() => {})

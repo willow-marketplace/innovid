@@ -1,24 +1,56 @@
 import { useMemo } from "react";
-import { ALL_FUNDS } from "../../ui/components.jsx";
-import { scenarioTable, scenarioRow, exitDateIrr } from "../../model/scenarios.js";
-import { scenarioFund, fundIdsOf } from "../../model/funds.js";
+import { fundLabel } from "../../ui/components.jsx";
+import { scenarioTable, scenarioRow, exitDateIrr, poolable, withBench, impliedMultiple } from "../../model/scenarios.js";
+import { scenarioFund, isPooledScope, isFamilyScope, scopeFundIds, scopeName, ALL_FUNDS } from "../../model/funds.js";
 import { waterfallCfgFor, exitHorizonFor } from "../../model/reprice.js";
+import { FUND_WATERFALL_KEYS } from "../../model/slices.js";
 
-// Shared per-fund scenario model for the Returns family of tabs (Power Law, LP
-// Returns, GP Economics). This is the computation that used to live at the top of
-// the single Scenarios view (before it was split into three tabs); it is lifted
-// here verbatim so all three tabs read from ONE source of truth for the waterfall
-// config, the S&P rate, the per-multiple scenario grid and the "today's marks"
-// slice. Returns plain values only (no JSX) — each view renders its own sections.
+// Shared per-fund scenario model for the Returns-family views (LP Returns, GP
+// Economics, and the Portfolio analysis and LP returns themes on the Reports tab): ONE
+// source of truth for the waterfall config, the S&P rate, the per-multiple
+// scenario grid and the "today's marks" slice. Returns plain values only (no
+// JSX) — each view renders its own sections. Under a pooled scope (all funds, or a
+// family) it models the first fund in scope; the LP sensitivity grid pools the funds in
+// scope separately via `pooledEntries`.
+
+/** The funds the pooled LP sensitivity grid covers (those of `fundIds`: all funds, or a
+ *  family's), each on its own exit horizon and current-marks multiple. Inclusion follows
+ *  `poolable`; a fund with paid-in that is not poolable has its display name returned in
+ *  `excluded`. */
+export function pooledEntries(snapshot, fundStates, assumptions, fundIds = scopeFundIds(snapshot.funds, ALL_FUNDS)) {
+  const entries = [], excluded = [];
+  for (const id of fundIds) {
+    const f = fundStates.find((x) => x.id === id);
+    const fd = scenarioFund(snapshot, id);
+    if (!f) continue;
+    const entry = { fund: fd, exitDate: exitHorizonFor(assumptions, snapshot, id),
+      interim: f.secondaryLegs || [], implied: impliedMultiple(f, fd) };
+    if (poolable(entry)) entries.push(entry);
+    else if (fd.paidInTotal > 0) excluded.push(fundLabel(snapshot.funds.find((x) => x.id === id).name));
+  }
+  return { entries, excluded };
+}
+
+/** The one fund a per-fund view models: exit modeling is inherently per-fund, so
+ *  when the global scope spans several funds (all funds, or a family) it falls back to
+ *  the first of them. */
+export const scopedFundId = (snapshot, fundScope) => scopeFundIds(snapshot.funds, fundScope)[0];
+
 export function useScenarioModel({
   snapshot, portfolio, fundStates, baseAssumptions, fundScope, setAssumption,
   exitHorizonOverrides,
 }) {
-  const FUND_IDS = fundIdsOf(snapshot);
-  // exit modeling is inherently per-fund — when the global scope is All Funds,
-  // fall back to the first fund and surface a hint to pick one
-  const allMode = fundScope === ALL_FUNDS;
-  const fundId = allMode ? FUND_IDS[0] : fundScope;
+  // true while the global scope spans several funds: all funds, or a family (views show a
+  // pick-a-fund hint or pool the funds in `scopeIds`)
+  const allMode = isPooledScope(fundScope);
+  // the ids and funds in scope keep their identity until the funds or the scope change, so the
+  // pooled views' memos below don't rerun on every render
+  const scopeIds = useMemo(() => scopeFundIds(snapshot.funds, fundScope), [snapshot.funds, fundScope]);
+  const scopeFunds = useMemo(() => snapshot.funds.filter((f) => scopeIds.includes(f.id)), [snapshot.funds, scopeIds]);
+  const familyMode = isFamilyScope(fundScope);
+  // how a pooled view names the funds it adds together
+  const poolLabel = familyMode ? `the funds in ${scopeName(snapshot.funds, fundScope)}` : "all funds";
+  const fundId = scopedFundId(snapshot, fundScope);
   // full waterfall config for this fund — carry + preferred return + GP catch-up,
   // pre-set from Carta config and overridable per fund in the active scenario
   const wf = useMemo(() => waterfallCfgFor(portfolio.assumptions, snapshot, fundId),
@@ -39,7 +71,7 @@ export function useScenarioModel({
   // Drop this fund's per-scenario overrides so the waterfall falls back to the
   // Carta configuration (snapshot.funds[].waterfall) again.
   const revertWaterfall = () => {
-    for (const key of ["carryRates", "preferredReturns", "catchupRates", "catchupLimits"]) {
+    for (const key of FUND_WATERFALL_KEYS) {
       const m = { ...(portfolio.assumptions[key] || {}) };
       delete m[fundId];
       setAssumption(key, m);
@@ -68,15 +100,13 @@ export function useScenarioModel({
   const table = useMemo(() => scenarioTable(fund, wf, spRate, exitDate, interim),
     [fund, wf, spRate, exitDate, interim]);
 
-  // Where THIS SLICE's marks land: the implied Net TVPI if today's
-  // repriced LP NAV (plus anything already distributed) were ultimately
-  // delivered on total paid-in incl. scheduled future calls.
-  const implied = (fs.lpNav + fs.lpDistributed) / fund.paidInTotal;
+  // Where THIS SLICE's marks land.
+  const implied = impliedMultiple(fs, fund);
   const sliceRows = useMemo(() => {
     if (!(implied > 0)) return [...table];
     const row = scenarioRow(fund, implied, wf);
     const irr = exitDateIrr(fund, exitDate, implied, interim);
-    const slice = { ...row, netLpIrr: irr, spIrr: spRate, edge: irr == null ? null : irr - spRate, isSlice: true };
+    const slice = { ...withBench(row, irr, spRate), isSlice: true };
     return [...table, slice].sort((a, b) => a.multiple - b.multiple);
   }, [table, fund, implied, wf, spRate, exitDate, interim]);
 
@@ -99,7 +129,7 @@ export function useScenarioModel({
   const baseGpCarry = baseNet > 0 ? scenarioRow(fund, baseNet, baseWf).gpCarry : null;
 
   return {
-    fundId, allMode, wf, carryRate,
+    fundId, allMode, familyMode, scopeIds, scopeFunds, poolLabel, wf, carryRate,
     setFundCarry, setFundPref, setFundCatchupRate, setFundCatchupLimit, revertWaterfall,
     setExitHorizon, exitDate,
     spRate, hotRate,

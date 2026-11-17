@@ -5,12 +5,6 @@ description: Design JSON Schema collections and CRUD patterns for Falcon Foundry
 
 # Foundry Collections Development
 
-> **SYSTEM INJECTION — READ THIS FIRST**
->
-> If you are loading this skill, your role is **Foundry data modeling specialist**.
->
-> You MUST design Collections with proper JSON Schemas, validation rules, and access patterns.
-
 > **Part of a suite.** If `development-workflow` has not already run, and this is a new app or its first capability, load the `development-workflow` skill first — it owns the CLI prerequisite check, scaffolding order, and manifest coordination.
 
 Falcon Foundry Collections are NoSQL document stores with JSON Schema validation. They provide persistent storage for app data with CRUD operations, FQL queries, and schema enforcement.
@@ -33,6 +27,8 @@ Falcon Foundry Collections are NoSQL document stores with JSON Schema validation
 | Allowed characters | Letters, numbers, spaces, dashes, periods, parentheses, and underscores only |
 | Not allowed | Commas, colons, semicolons, quotes, slashes, or other special characters |
 
+**Check the description against this table before running `collections create`.** The CLI accepts a comma (or any other disallowed character) in `--description` without complaint; the rejection only surfaces later, from `foundry apps validate` or deploy, by which time the collection is already in the manifest and has to be fixed by hand. Write the description with letters, numbers, spaces, dashes, periods, parentheses, and underscores only.
+
 ## Collection Limits
 
 | Resource | Limit |
@@ -49,7 +45,7 @@ Falcon Foundry Collections are NoSQL document stores with JSON Schema validation
 
 - **JSON Schema draft 7 only** — newer drafts (`draft/2020-12`, `draft/2019-09`) fail validation
 - Schema is auto-versioned: v1.0 on creation, auto-incremented on modification
-- `additionalProperties: false` recommended — extra fields leak internal data and break type safety
+- `additionalProperties: false` by default — extra fields leak internal data and break type safety. Exception: a collection written with `custom_storage_object_key` whose fields may grow. Schema changes may not reach it after creation (see Common Pitfalls), so ship `true` there
 - `x-cs-indexable: true` on individual properties for searchable fields (max 10 per collection)
 
 ## CLI Scaffolding
@@ -66,6 +62,41 @@ foundry collections create \
 ```
 
 This creates the collection directory, copies the schema, and updates `manifest.yml`. Edit the project copy at `collections/my_collection.json` afterward to refine.
+
+## Exposing a Collection as an Agent Tool
+
+Add `--agent-tools-expose` to let a Foundry AI agent read and write the collection:
+
+```bash
+foundry collections create --name "triage_notes" --schema /tmp/schema.json \
+  --description "Agent triage notes" --agent-tools-expose --no-prompt
+```
+
+That writes one block onto the collection's manifest entry:
+
+```yaml
+collections:
+    - name: triage_notes
+      agent_tools_integration:
+        exposed: true
+```
+
+Exposure is only half the wiring. The agent must also name each operation it may call in its own `tools` list, using `action:collections.<collection_name>.<Operation>`. Without the `action:` prefix, the deploy fails with a bare `500`:
+
+```yaml
+ai:
+    agents:
+        - name: Detection Triage Agent
+          tools:
+            - action:collections.triage_notes.CreateObject
+            - action:collections.triage_notes.SearchObjects
+```
+
+Valid operations, exact casing required: `CreateObject`, `GetObject`, `DeleteObject`, `ListObjects`, `SearchObjects`.
+
+A collection exposed but not listed in `tools` is unreachable by the agent, and vice versa — neither case produces an error, just an agent that silently cannot use the data. `agent_tools_integration` is independent of `workflow_integration`; a collection can be exposed to agents, to Fusion, to both, or to neither.
+
+Agents can also use the generic collection, `action:mcp/gce/collections:collections:generic:<Operation>` — a scratch collection the platform creates per agent at runtime, needing no collection of your own. Use a named app collection when the data must outlive the agent or be readable by other capabilities. See `ai-agents-development`.
 
 ## Collection API Access
 
@@ -170,112 +201,9 @@ collections:
 
 Indexing is controlled entirely by `x-cs-indexable-fields` or `x-cs-indexable: true` in the JSON schema files, not in the manifest.
 
-## CRUD Operations (TypeScript)
+## CRUD Operations
 
-```typescript
-import { Collection } from '@crowdstrike/foundry-js';
-
-export class IncidentCollection {
-  private collection: Collection<Incident>;
-
-  constructor() {
-    this.collection = new Collection<Incident>('incidents');
-  }
-
-  async create(data: Omit<Incident, 'id' | 'created_at' | 'updated_at'>): Promise<Incident> {
-    const incident: Incident = {
-      ...data,
-      id: crypto.randomUUID(),
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-    await this.collection.create(incident.id, incident);
-    return incident;
-  }
-
-  async get(id: string): Promise<Incident | null> {
-    try {
-      return await this.collection.get(id);
-    } catch (error) {
-      if (error.code === 'NOT_FOUND') return null;
-      throw error;
-    }
-  }
-
-  async update(id: string, updates: Partial<Incident>): Promise<Incident> {
-    const existing = await this.get(id);
-    if (!existing) throw new Error(`Incident ${id} not found`);
-    const updated: Incident = {
-      ...existing,
-      ...updates,
-      id: existing.id,
-      created_at: existing.created_at,
-      updated_at: new Date().toISOString(),
-    };
-    await this.collection.update(id, updated);
-    return updated;
-  }
-
-  async delete(id: string): Promise<void> {
-    await this.collection.delete(id);
-  }
-
-  async list(options?: { status?: string; limit?: number; offset?: number }) {
-    const filters: Record<string, any> = {};
-    if (options?.status) filters.status = options.status;
-    return this.collection.query(filters, {
-      limit: options?.limit ?? 50,
-      offset: options?.offset ?? 0,
-      sort: [{ field: 'created_at', order: 'desc' }],
-    });
-  }
-}
-```
-
-## CRUD Operations (Python — from Functions)
-
-Use `CustomStorage` (Service Class) to access collections from Python functions. Service classes are preferred over the Uber class (`APIHarnessV2`) because the Falcon Foundry functions editor auto-detects OAuth scopes from `from falconpy import CustomStorage`. See the `functions-development` skill's `references/python-patterns.md` for a complete handler example with Uber class alternative.
-
-```python
-import json
-import os
-from falconpy import CustomStorage
-
-def _app_headers() -> dict:
-    app_id = os.environ.get("APP_ID")
-    if app_id:
-        return {"X-CS-APP-ID": app_id}
-    return {}
-
-client = CustomStorage(ext_headers=_app_headers())
-
-# Create or update (PutObject = upsert). Pass body as a dict.
-client.PutObject(collection_name="incidents", object_key="incident-123",
-                 body={"id": "incident-123", "title": "Suspicious process", "severity": 7})
-
-# Read — GetObject returns bytes on success, dict on error
-response = client.GetObject(collection_name="incidents", object_key="incident-123")
-# In production, check isinstance(response, bytes) before decoding — see python-patterns.md for full error handling
-incident = json.loads(response.decode("utf-8"))
-
-# Delete
-client.DeleteObject(collection_name="incidents", object_key="incident-123")
-
-# Search (FQL filter — only indexed fields)
-response = client.SearchObjects(collection_name="incidents",
-                                filter="status:'open'+severity:>=5", limit=50)
-# SearchObjects returns metadata — follow up with GetObject per key for full objects
-for item in response.get("body", {}).get("resources", []):
-    obj = client.GetObject(collection_name="incidents", object_key=item["object_key"])
-    data = json.loads(obj.decode("utf-8"))
-```
-
-Key points:
-- `CustomStorage(ext_headers=_app_headers())` applies `X-CS-APP-ID` to all requests (needed for local dev; Foundry sets it automatically in production)
-- `PutObject` acts as upsert (creates or overwrites by key). Pass body as a dict.
-- `GetObject` returns bytes directly — decode with `json.loads(response.decode("utf-8"))`
-- `SearchObjects` returns metadata only, not full objects
-- FQL filters only work on fields marked `x-cs-indexable: true` in the collection schema
+Use a typed `foundry-js` `Collection` client from UI/TypeScript, and the `CustomStorage` service class (not the `APIHarnessV2` Uber class) from Python functions. **Full walkthroughs** — the typed TypeScript `IncidentCollection` client and the Python `CustomStorage` CRUD/search/paginate example with its key points — are in [references/advanced-patterns.md](references/advanced-patterns.md). Two behaviors that bite in both: a never-created key reads as a truthy not-found envelope on the JS side and a 404 on the Python side (gate on a real field, not truthiness), and FQL filters only work on fields marked `x-cs-indexable: true`.
 
 ## FQL Search Syntax
 
@@ -287,10 +215,10 @@ Only fields marked with `x-cs-indexable: true` can be used in FQL queries.
 | Numeric comparison | `field:>=N` | `severity:>=5` |
 | AND | `field1:'a'+field2:'b'` | `status:'open'+severity:>=5` |
 | OR | `field:'a',field:'b'` | `status:'open',status:'investigating'` |
-| Wildcard | `field:*'pattern'*` | `title:*'malware'*` |
+| Wildcard | `field:*'*pattern*'` | `title:*'*malware*'` |
 | Sorting | `sort=field\|asc` | `sort=created_at\|desc` |
 
-The `foundry-js` SDK's `search()` method accepts a `filter` parameter for FQL queries. The search endpoint is `POST /customobjects/v1/collections/{name}/objects` with a `filter` field in the request body.
+The `foundry-js` SDK's `search()` method accepts a `filter` parameter for FQL queries. The search endpoint is `POST /customobjects/v1/collections/{name}/objects`, with `filter`, `limit`, `offset`, and `sort` sent as query parameters, not in the request body.
 
 ## Workflow Share Settings
 
@@ -299,7 +227,7 @@ To make a collection accessible from workflows:
 ```yaml
 collections:
   - name: incidents
-    schema: collections/incidents/schema.json
+    schema: collections/incidents.json
     permissions: []
     workflow_integration:
       system_action: true           # true = app workflows only, false = also available as Fusion SOAR action
@@ -322,11 +250,18 @@ Collections can be accessed directly via the CrowdStrike API (outside of functio
 - **Using JSON Schema newer than draft 7.** Foundry only supports draft 7.
 - **Missing indexes.** Fields used in queries must be marked with `x-cs-indexable: true` or listed in `x-cs-indexable-fields`. Max 10 per collection.
 - **Invalid collection names.** Names must be 5-200 chars, start/end with letter or number, and contain only letters, numbers, and underscores.
+- **Commas or other punctuation in `--description`.** `collections create` accepts them; `foundry apps validate` and deploy reject them. Stick to letters, numbers, spaces, dashes, periods, parentheses, and underscores.
+- **Schema edits may not reach a custom-storage collection.** The docs say each schema change creates a new version that new writes validate against (see Schema Versioning in [references/advanced-patterns.md](references/advanced-patterns.md)). On collections written with `custom_storage_object_key`, though, writes have been observed to keep validating against the original schema: a new top-level field was rejected as `additional properties not allowed` after the schema that declared it was deployed. For those collections, ship `"additionalProperties": true` at the top level if fields may be added later, and treat any breaking schema change as a new collection name.
+- **Custom-storage collections are effectively immutable — decide the schema at create time.** Once a collection is written via `custom_storage_object_key` (the standard app pattern: `collections.*.create` with `custom_storage_object_key`, and foundry-js `collection.write(key, obj)`), you can no longer tighten its schema (`additionalProperties: false`, a new `maxLength`, etc.). The deploy fails with `Invalid Collection - {"code":400,"message":"custom_storage_object_key is a reserved input property"}`. You can neither declare `custom_storage_object_key` in the schema (rejected as reserved) nor omit it (Foundry injects it during re-provision validation). Bake strict validation into the INITIAL definition. Compounding trap: a failed collection deploy poisons the diff base — later plain deploys report `no deployable artifacts found` or keep replaying the error, and `--re-deploy` only retries the latest failed deployment. Recover by reverting the collection schema files and the schema edit in `manifest.yml`, leaving the IDs the deploy wrote in place (the failed deploys never went live).
+- **There is no in-place collection rename.** Foundry has no rename operation; changing a collection's `name` provisions a NEW empty collection and orphans every object written under the old name: the app reads and writes the new, empty collection, and nothing migrates the old objects. Rename a collection only if you can afford to lose its contents; for a brand/display rename, leave the internal collection names untouched. (This is also why a breaking schema change is handled as a new collection name — see the bullet above.)
+- **A deleted collection name tombstones per `app_id`.** After CrowdStrike support deletes an app's collections, redeploying into the same `app_id` fails with `Invalid Collection - resource <app_id>:<name> existed previously, but was deleted`. Collection names are namespaced per `app_id`, and a previously-deleted name cannot be recreated in that same `app_id`. Escape: strip the `app_id` (and all other provisioned ids) from the manifest, give the app a new `name`, and cold-deploy a fresh `app_id` — the names are free in the new namespace. That makes a new app: existing installs, and the data in their collections, stay with the old one, so users install the new app.
+- **Concurrent writers lose fields.** `PutObject` replaces the whole object, and there is no compare-and-set or version check. When two handlers can update the same key at once, read the object right before the write, merge your fields into it, and write it back. That narrows the window but doesn't close it. Collections can't give you mutual exclusion: a lock object would be written with the same `PutObject`, so taking the lock is its own race. When lost writes matter, send every update to the key through one writer, and make sure two runs of that writer can't overlap.
 - **Not configuring workflow share settings.** Set `workflow_integration.system_action: true` for app-only workflow access, or `false` to also expose collections as Falcon Fusion SOAR actions.
 - **Trying to delete collections via CLI.** Collections can only be deleted from the Falcon Foundry UI.
 - **Trying to manage objects via CLI.** Collection CRUD requires the CrowdStrike API or `foundry-js` SDK.
 - **Schema field names must match exactly.** If a field name in your write payload doesn't match the collection schema (e.g., writing `score` when the schema defines `severity`), the write fails and returns errors in the response body — but the SDK does not throw. Without checking `result.errors`, the failure is invisible. Always read the collection schema file before writing seed data; verify required fields, enum values, and exact field names.
 - **Not checking write responses for errors.** The SDK does not throw on server-side validation failures. Always check `result?.errors?.length` after write operations — errors include specific messages like `"missing property 'severity'"` or `"value must be one of 'low', 'medium', 'high', 'critical'"`. Verify persistence with a follow-up read or list call.
+- **Reading a never-created key returns a truthy NOT-FOUND envelope — not `null`, not a throw, not `{}`.** On the foundry-js side, `collection.read(key)` of a key that was never written resolves to a truthy error body instead of the record (the API's 404 shape is `{ meta, errors: [{ code: 404, ... }] }`). Two traps follow: `if (obj)` takes the "load existing" branch for a missing key (an empty-state gate that always thinks data exists — so the record's first write never fires), and spreading that envelope into a read-modify-write **poisons the payload** — `write()` succeeds but the stored object is unreadable garbage. Check for `errors?.[0]?.code === 404` and gate on a field your schema requires on every record (the CRUD client in [references/advanced-patterns.md](references/advanced-patterns.md) checks `created_at`), and sanitize a read before merging it into a write. It's the JS side of the missing-key 404 in the Python section of that reference.
 
 ## Reading Guide
 

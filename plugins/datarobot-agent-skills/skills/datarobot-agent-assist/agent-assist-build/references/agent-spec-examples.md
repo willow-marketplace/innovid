@@ -1,4 +1,4 @@
-# agent_spec.md Examples
+# agent_spec.yaml Examples
 
 Field definitions and structure: [agent-spec-schema.md](agent-spec-schema.md).
 
@@ -107,6 +107,34 @@ frontend:
     - "Revenue Forecast - charts expected vs actual with confidence bands"
     - "At-Risk Deals - highlights deals with low probability or stalled activity"
   requirements: "Charts should use a dark theme. Pipeline table must be sortable and filterable by owner and stage."
+```
+
+---
+
+## Example 4: On-prem Agent (DataRobot-deployed LLM)
+
+Use when the instance has no LLM Gateway catalog and the agent routes to an
+existing text-generation deployment instead.
+
+```yaml
+model: datarobot/datarobot-deployed-llm
+llm_deployment_id: "6a43eb5f10dbecadbebc5b2b"
+system_prompt: You are an internal documentation assistant. Answer questions using
+  the search_docs tool and cite the document titles you used.
+tools:
+  - function_name: search_docs
+    inputs:
+      - arg_name: query
+        type: str
+    out:
+      - arg_name: matches
+        type: list
+        object_schema: "list of {title: str, excerpt: str}"
+examples:
+  - How do I configure runtime parameters?
+  - Where is the deployment checklist documented?
+frontend:
+  type: chat
 ```
 
 ---

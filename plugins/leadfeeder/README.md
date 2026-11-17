@@ -1,6 +1,6 @@
 # Leadfeeder MCP Plugin
 
-Turn website visitor intelligence into pipeline. Six skills covering the full B2B prospecting loop — from identifying your hottest accounts to finding the right buyer and adding them to your list.
+Turn website visitor intelligence into pipeline. Skills covering the full B2B prospecting loop — from identifying your hottest accounts to finding the right buyer and adding them to your list.
 
 ---
 

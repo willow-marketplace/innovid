@@ -1,8 +1,8 @@
 {
   "name": "zyte-web-data",
   "version": "1.0.0",
-  "description": "Zyte Web Data for Claude Code",
-  "updatedAt": "2026-09-19T00:42:54.237Z",
+  "description": "Zyte Agentic Web Data for Claude Code",
+  "updatedAt": "2026-11-17T00:02:43.377Z",
   "author": {
     "name": "Zyte"
   },
@@ -10,6 +10,17 @@
   "repository": "https://github.com/zytedata/claude-skills",
   "skills": "./skills/",
   "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv"
+          }
+        ]
+      }
+    ],
     "Stop": [
       {
         "matcher": "*",
@@ -21,5 +32,11 @@
         ]
       }
     ]
+  },
+  "mcpServers": {
+    "zyte": {
+      "url": "https://mcp.zyte.com/v1/mcp",
+      "type": "http"
+    }
   }
 }

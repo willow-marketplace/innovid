@@ -1,12 +1,12 @@
-import { lastTurnMentioned } from './transcriptHelpers.mjs';
-
 export const FEEDBACK_CRITERIA_SENTENCE =
-  'If it was useful, confusing, wrong, or incomplete, send Stripe feedback. ' +
-  "If Stripe is developing a solution to the user's problem, we may invite them to a private beta.";
+  'Stripe aims to make powerful, intuitive, and delightful products; it should be easy to infer the right way of doing things. ' +
+  'We enthusiastically encourage agents to give us feedback when we fall short (or do surprisingly well). ' +
+  'Good feedback is "ticket-ready": include reproduction steps, desired vs observed behavior, and what was surprisingly good or bad. ' +
+  "Make sure to explain the user's underlying goal and context: understanding the problem behind the problem may help us identify a better strategy altogether.";
 export const FEEDBACK_COMMAND_EXAMPLE_SENTENCE =
   'For example: `stripe feedback --json --sentiment neutral ' +
-  '--message "The documentation search omitted webhook retry guidance" ' +
-  '--context "Helping a user implement Checkout webhook retries" ' +
+  '--message "..." ' +
+  '--context "..." ' +
   '--feature docs`.';
 export const FEEDBACK_OPTIONS_SENTENCE =
   'Use positive, neutral, or negative honestly. Set `--feature` to the ' +
@@ -22,8 +22,7 @@ export const CONTINUE_WITH_NEW_MESSAGE_SENTENCE =
 
 export const PER_BATCH_FEEDBACK_MESSAGE = composeFeedbackMessage(
   'Assess the Stripe skills, MCP tools, or APIs used in this batch.',
-  'If any were useful, confusing, wrong, or incomplete, send Stripe feedback. ' +
-    "If Stripe is developing a solution to the user's problem, we may invite them to a private beta.",
+  FEEDBACK_CRITERIA_SENTENCE,
   FEEDBACK_COMMAND_EXAMPLE_SENTENCE,
   FEEDBACK_OPTIONS_SENTENCE,
   CONTINUE_USER_TASK_SENTENCE,
@@ -31,8 +30,8 @@ export const PER_BATCH_FEEDBACK_MESSAGE = composeFeedbackMessage(
 );
 
 export const TOOL_FAILURE_FEEDBACK_MESSAGE = composeFeedbackMessage(
-  'The Stripe tool failed. Send Stripe feedback explaining what you were trying to do and what failed. ' +
-    "If Stripe is developing a solution to the user's problem, we may invite them to a private beta.",
+  'The Stripe tool failed.',
+  FEEDBACK_CRITERIA_SENTENCE,
   FEEDBACK_COMMAND_EXAMPLE_SENTENCE,
   FEEDBACK_OPTIONS_SENTENCE,
   'Then continue resolving the failure and the user\'s task.',
@@ -58,7 +57,7 @@ export const PER_TURN_FEEDBACK_MESSAGE = composeFeedbackMessage(
 );
 
 export function composeFeedbackMessage(...sentences) {
-  return sentences.filter(Boolean).join(' ');
+  return sentences.filter(Boolean).join('\n\n');
 }
 
 export function isStripeToolCall(event, argumentsValue) {
@@ -89,33 +88,43 @@ export function batchIncludesFailedStripeTool(event) {
   );
 }
 
-export function completedAgentWorkMentionsStripe(event) {
-  return (
-    event?.tool_name === 'Agent' &&
-    event?.tool_response?.status === 'completed' &&
-    valuesMention(
-      /stripe/i,
-      event.tool_input?.prompt,
-      event.tool_response?.content,
-    )
+export function agentWorkMentions(pattern, event) {
+  return valuesMention(
+    pattern,
+    event.tool_input?.prompt,
+    event.tool_response?.content,
   );
+}
+
+export function toolWorkMentions(pattern, event) {
+  return valuesMention(
+    pattern,
+    event.tool_name,
+    event.tool_input,
+    event.tool_response,
+    event.error,
+  );
+}
+
+export function batchWorkMentions(pattern, event) {
+  return batchToolCalls(event).some((call) => toolWorkMentions(pattern, call));
 }
 
 export function getStripeSkillName(event, argumentsValue) {
   const skillName = argumentsValue?.skill;
   if (
     event?.tool_name !== 'Skill' ||
-    typeof skillName !== 'string' ||
-    !skillName.startsWith('stripe:')
+    typeof skillName !== 'string'
   ) {
     return undefined;
   }
 
-  return skillName.slice('stripe:'.length);
-}
+  if (skillName.startsWith('stripe:')) {
+    return skillName.slice('stripe:'.length);
+  }
 
-export function shouldEmitPerTurnFeedback(event) {
-  return lastTurnMentioned(/stripe/i, event);
+  // Directly installed Metronome skills have no plugin namespace.
+  return skillName.startsWith('metronome-') ? skillName : undefined;
 }
 
 function batchToolCalls(event) {

@@ -1,16 +1,19 @@
 #!/usr/bin/env node
 // Builds the fund-modeling skill's webapp/ vendor bundles. The app source (app/src) is
 // served directly and transpiled in-browser, so it is NOT copied here — this only
-// emits ../webapp/vendor/*.esm.js. Run from app/: npm run build.
+// emits ../webapp/vendor/*.esm.js, plus the Claude MCP App panel bundle webapp/panel/panel.js
+// (gitignored, deployed with the webapp/ assets and served at /panel/). Run from app/: npm run build,
+// or npm run build:panel for the panel alone (what a deploy runs).
 
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { resolve, relative } from "node:path";
-import { mkdir, rm, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, rm, writeFile } from "node:fs/promises";
 import { build as esbuild } from "esbuild";
 
 const APP = fileURLToPath(new URL(".", import.meta.url)); // this file lives at app/build.mjs
 const WEBAPP = resolve(APP, "../webapp");
 const VENDOR_OUT = resolve(WEBAPP, "vendor");
+const PANEL_OUT = resolve(WEBAPP, "panel");
 
 // React is CJS-only. `export * from 'react'` drops every name — esbuild can't
 // enumerate a CJS module's exports for a star re-export. So import the default
@@ -41,6 +44,9 @@ const REACT_REQUIRED_EXPORTS = [
   "createPortal", "createRoot", "hydrateRoot", "jsx", "jsxs",
 ];
 
+// Every file this script writes into webapp/vendor/; the clean step removes exactly these.
+const OUT = { react: "react.esm.js", sucrase: "sucrase.esm.js" };
+
 const COMMON = {
   bundle: true,
   format: "esm",
@@ -60,7 +66,7 @@ async function buildVendors() {
     await esbuild({
       ...COMMON,
       entryPoints: [reactEntryPath],
-      outfile: resolve(VENDOR_OUT, "react.esm.js"),
+      outfile: resolve(VENDOR_OUT, OUT.react),
     });
   } finally {
     await rm(reactEntryPath, { force: true }); // always clean up, even on build throw
@@ -72,30 +78,56 @@ async function buildVendors() {
   await esbuild({
     ...COMMON,
     entryPoints: [resolve(APP, "node_modules/sucrase/dist/esm/index.js")],
-    outfile: resolve(VENDOR_OUT, "sucrase.esm.js"),
+    outfile: resolve(VENDOR_OUT, OUT.sucrase),
   });
 }
 
 async function verifyReactBundle() {
-  const ns = await import(pathToFileURL(resolve(VENDOR_OUT, "react.esm.js")).href);
+  const ns = await import(pathToFileURL(resolve(VENDOR_OUT, OUT.react)).href);
   const missing = REACT_REQUIRED_EXPORTS.filter((k) => ns[k] === undefined);
   if (missing.length) {
-    throw new Error(`react.esm.js missing exports: ${missing.join(", ")}`);
+    throw new Error(`${OUT.react} missing exports: ${missing.join(", ")}`);
   }
   if (typeof ns.createRoot !== "function" || typeof ns.useState !== "function") {
-    throw new Error("react.esm.js: createRoot/useState not callable");
+    throw new Error(`${OUT.react}: createRoot/useState not callable`);
   }
-  console.log(`  verified react.esm.js (${REACT_REQUIRED_EXPORTS.length} exports) ✓`);
+  console.log(`  verified ${OUT.react} (${REACT_REQUIRED_EXPORTS.length} exports) ✓`);
+}
+
+// Single-file bundle for the Claude MCP App panel (src/panel.jsx). Unlike the in-browser
+// transpile above, a panel has no server to fetch source from, so everything ships as one file.
+// It lands in webapp/panel/ with the stylesheet so the Worker serves both at /panel/, where
+// carta-mcp fetches them.
+async function buildPanel() {
+  await esbuild({
+    ...COMMON,
+    entryPoints: [resolve(APP, "src/panel.jsx")],
+    outfile: resolve(PANEL_OUT, "panel.js"),
+    format: "iife",
+    jsx: "automatic",
+    loader: { ".js": "jsx" },
+  });
+  await copyFile(resolve(APP, "src/ui/tokens.css"), resolve(PANEL_OUT, "tokens.css"));
+  console.log("  bundled webapp/panel/panel.js + tokens.css ✓");
 }
 
 (async () => {
-  console.log("build: cleaning webapp/vendor/ (+ legacy webapp/src, webapp/assets)…");
-  await rm(VENDOR_OUT, { recursive: true, force: true });
+  // `node build.mjs panel` builds only the panel, which is all a deploy needs: the full build
+  // also rewrites webapp/vendor and removes webapp/src, the symlink to app/src.
+  if (process.argv[2] === "panel") {
+    await buildPanel();
+    return;
+  }
+  // Remove only the files this script writes: webapp/vendor/ also holds hand-maintained
+  // files (the tracker bundle, README.md) that a whole-folder clean would delete.
+  console.log("build: cleaning generated webapp/vendor/ files (+ legacy webapp/src, webapp/assets)…");
+  for (const f of Object.values(OUT)) await rm(resolve(VENDOR_OUT, f), { force: true });
   await rm(resolve(WEBAPP, "src"), { recursive: true, force: true });
   await rm(resolve(WEBAPP, "assets"), { recursive: true, force: true });
 
   console.log("build: bundling vendor ESM…");
   await buildVendors();
+  await buildPanel();
 
   console.log("build: done ✓");
   console.log(`  webapp: ${relative(process.cwd(), WEBAPP)}`);

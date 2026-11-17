@@ -5,7 +5,7 @@ description: 'Use when a developer wants to build or validate Block Kit layouts 
 
 # Block Kit
 
-Help the developer build a rich Block Kit layout. If `$0` is provided, it specifies the target surface (`message`, `modal`, or `home-tab`).
+Help the developer build a rich Block Kit layout. If `$0` is exactly `message`, `modal`, or `home-tab`, treat it as the target surface. Otherwise (including if it's empty or any other value), ignore it and determine the surface in Step 1.
 
 This skill walks through surface selection, layout planning, JSON generation, and validation. Block types, elements, and fields come from the live docs (see **Source of Truth** below) — discover them and read each component's schema there, never from memory.
 
@@ -108,10 +108,13 @@ Ask the developer to describe what they want their layout to look like or accomp
 If they need inspiration, suggest examples — several map directly onto a ready-made template in `references/common-patterns.md` (named in parentheses), which you can start from in Step 3:
 
 - "A feedback form with a text input and a category selector" (Simple Form Modal)
-- "A notification message with an alert banner, description, and Approve/Reject buttons" (Notification Alert / Approval Message)
+- "A deploy-failure notification with a description and next-step buttons" (Notification Alert), or "an approval request with Approve/Reject buttons" (Approval Message)
 - "A dashboard home tab with a welcome header, key metrics in fields, and quick-action buttons" (Dashboard Home Tab)
 - "A settings modal with dropdowns, checkboxes, and a time picker" (Settings Modal with Multiple Input Types)
 - "A table of sprint tasks with status and points" (Data Table)
+- "A deploy summary with bold text, a link, and a bullet list" (Rich Text Section)
+- "A row-level '⋯' menu for edit/duplicate/delete actions" (Row Actions with Overflow Menu)
+- "A product card with an image, price, and Add to Cart button" (Card Preview)
 
 Get enough detail to plan the layout before generating any JSON.
 
@@ -123,7 +126,13 @@ Based on the developer's description:
 
 1. **Fetch only what you need** from the live docs:
    - WebFetch the master index (`https://docs.slack.dev/reference/block-kit.md`) to confirm the block and element types you plan to use exist and to grab links to their pages.
-   - Check `references/common-patterns.md` (the one local reference file) if the request matches a common pattern; start from the template instead of building from scratch.
+   - Consult `references/design-principles.md` for design appropriateness — which block fits the shape of the content (table vs. stacked sections, card vs. loose blocks), emphasis, reading order, and accessibility. It is guidance on building layouts that read well, not on validity. Depending on the layout, also consult:
+     - `references/modal-design.md` for modals and forms: titles and submit labels, input labels and hints, multi-step flows, validation errors, and loading or success states.
+     - `references/home-tab-design.md` for Home tabs: what goes at the top, empty and first-run states, keeping the view current, different views per role, and review surfaces for agents.
+     - `references/data-display-design.md` for numbers and records: choosing between `section` fields, `table`, `data_table`, and `data_visualization` charts, and presenting each clearly.
+     - `references/agent-progress-design.md` for showing an agent's work with `plan` and `task_card` blocks or streamed task updates.
+     - `references/human-in-the-loop.md` for approval gates, approving several proposed actions in one message, clarifying choices, and edit-before-send.
+   - Check `references/common-patterns.md` if the request matches a common pattern; start from the template instead of building from scratch.
    - Defer reading individual component pages until Step 4, when you build each block's fields.
 2. Propose a numbered block outline. For example:
 
@@ -132,7 +141,7 @@ Based on the developer's description:
    2. section: Summary text with a datepicker accessory
    3. divider
    4. section: Status fields (Name, Role, Team)
-   5. actions: "Approve" button (primary) and "Reject" button (danger)
+   5. actions: "Approve Report" button (primary) and "Reject" button (unstyled)
    ```
 
 3. Present the outline to the developer and ask for approval or changes before generating JSON.
@@ -142,7 +151,9 @@ Based on the developer's description:
 - Block count limit: 50 for messages, 100 for modals/home tabs
 - Modal-specific: if using `input` blocks, the modal payload must include a `submit` field
 - Table: only one `table` block per message
-- Surface compatibility (whether a block is valid on the chosen surface) and element compatibility (whether an element is allowed inside a given block) are not always spelled out on a component's doc page. Build the layout from the docs, and let `blocks.validate` in Step 5 confirm it. It is the authoritative check.
+- Charts: at most two `data_visualization` blocks per message
+- Alert: the `alert` block is available only in modals. In messages, state severity in words in a `header` or `section`.
+- Surface compatibility (whether a block is valid on the chosen surface) and element compatibility (whether an element is allowed inside a given block) are not always spelled out on a component's doc page. Check `references/design-principles.md`'s surface and limits table for these. **`blocks.validate` in Step 5 does not enforce them** — it checks block and element shape only, and will return `ok: true` for a block on the wrong surface or over a count limit. Don't treat a pass there as confirmation of surface or count compliance.
 
 ---
 
@@ -157,13 +168,9 @@ Once the layout is approved, build each block from its live doc page, fetching e
 - For modals, include `title`, `submit`, `close`, and `callback_id`; for home tabs, the `type: "home"` wrapper
 - Use `mrkdwn` text for rich formatting, `plain_text` where required (headers, labels, modal title)
 
-**mrkdwn vs. the `markdown` block:** `section` and `context` blocks format text with Slack's `mrkdwn` (`*bold*`, `_italic_`, `~strike~`, `` `code` ``) — use these for short, interactive layouts. The separate `markdown` block (Messages only) renders _standard_ markdown (`**bold**`, headings, tables, numbered lists) and is meant for AI/LLM-generated or long-form content that already exists in standard markdown. Reach for it when the developer has such content or needs those features in the message body; there is a cumulative 12,000-character limit across all `markdown` blocks in one message.
+**mrkdwn vs. the `markdown` block:** `section` and `context` blocks format text with Slack's `mrkdwn` (`*bold*`, not `**bold**`). The separate `markdown` block (messages only) renders standard markdown and is for AI/LLM-generated or long-form content that is already in standard markdown. `references/design-principles.md`, **Text: rich_text, mrkdwn, and the markdown block**, explains when to use each, including `rich_text` for formatted text you build in code.
 
-**Accessibility** is easy to skip and hard to retrofit, so build it in now:
-
-- Give images descriptive `alt_text` (what the image shows, not just "image"), and make sure image-heavy layouts also carry the key information as text
-- Summarize the layout in the message's `text` fallback (notifications and screen readers show it instead of the blocks)
-- Use `header` blocks for logical section headings — they convey document structure to assistive tech
+**Accessibility** is easy to skip and hard to retrofit, so build it in now. Apply `references/design-principles.md`, **Accessibility and fallback**, as you write each block: it covers the `text` fallback, `alt_text`, color and emoji, button labels, and text equivalents for tables and charts.
 
 Present the complete payload to the developer in the Step 1 surface structure.
 
@@ -181,9 +188,9 @@ Prefer the Slack CLI when it's available, since it reuses the slack-cli skill's 
 
 **Path A: Slack CLI (preferred).**
 
-Use the `slack:slack-cli` skill, **Step 1: Detect the Slack CLI**, to check whether the public CLI is installed and resolve its command (`SLACK_CMD`).
+Load the `slack-cli` skill (with your skill tool, if you have one) before running any command, and follow its **Step 1: Detect the Slack CLI** to check whether the public CLI is installed and resolve its command (`SLACK_CMD`). Don't check for the CLI yourself first: a `slack` on `PATH` isn't always the public CLI, and that step tells them apart.
 
-If the CLI is available, use the `slack:slack-cli` skill, **Step 4: Calling Web API Methods (`slack api`)**, to invoke it. That step covers the `SLACK_CMD api <method> key=value …` syntax. Run `SLACK_CMD api --help` first to confirm the syntax **and the flag that skips authentication**. `blocks.validate` needs no token, so call it without authentication. Don't hard-code that flag from memory; read it from the help output so this stays correct if it's ever renamed. Pass the payload as a positional `key=value` argument: `blocks=<JSON array>` for messages, or `view=<JSON view object>` for modals and home tabs.
+If the CLI is available, use the `slack-cli` skill, **Step 4: Calling Web API Methods (`slack api`)**, to invoke it. That step covers the `SLACK_CMD api <method> key=value …` syntax. Run `SLACK_CMD api --help` first to confirm the syntax **and the flag that skips authentication**. `blocks.validate` needs no token, so call it without authentication. Don't hard-code that flag from memory; read it from the help output so this stays correct if it's ever renamed. Pass the payload as a positional `key=value` argument: `blocks=<JSON array>` for messages, or `view=<JSON view object>` for modals and home tabs.
 
 **Path B: curl (fallback, when the CLI isn't installed).**
 
@@ -244,7 +251,7 @@ Present the validated payload, then help the developer put it to use.
 
 ### Send it
 
-Building the payload is this skill's job; sending it (`chat.postMessage`, `views.open`, `views.publish`, and the token/scope handling around them) belongs to the Web API layer. To call the right method — via the Slack CLI, raw curl, or a Bolt SDK — use the `slack:slack-api` skill, **Step 4: Call the Method (Manage)**, passing this payload as the method's `blocks` argument (messages) or `view` argument (modals and home tabs). That skill matches the argument names to the SDK or HTTP call so we don't duplicate them here.
+Building the payload is this skill's job; sending it (`chat.postMessage`, `views.open`, `views.publish`, and the token/scope handling around them) belongs to the Web API layer. To call the right method — via the Slack CLI, raw curl, or a Bolt SDK — use the `slack-api` skill, **Step 4: Call the Method (Manage)**, passing this payload as the method's `blocks` argument (messages) or `view` argument (modals and home tabs). That skill matches the argument names to the SDK or HTTP call so we don't duplicate them here.
 
 ### Preview it
 
@@ -252,11 +259,11 @@ Help the developer view their layout with the **Block Kit Builder**. Prefer the 
 
 **Path A: Slack CLI (preferred).**
 
-Use the `slack:slack-cli` skill, **Step 1: Detect the Slack CLI**, to check whether the public CLI is installed and resolve its command (`SLACK_CMD`).
+Load the `slack-cli` skill (with your skill tool, if you have one) before running any command, and follow its **Step 1: Detect the Slack CLI** to check whether the public CLI is installed and resolve its command (`SLACK_CMD`). Don't check for the CLI yourself first: a `slack` on `PATH` isn't always the public CLI, and that step tells them apart.
 
 If the CLI is available, run `SLACK_CMD blocks preview --help` to see how to pass the blocks and open the preview. The command loads the blocks into the Block Kit Builder in the developer's browser.
 
-Because you run the CLI non-interactively, this command also needs a `--team` flag. Resolve the team ID with the `slack:slack-cli` skill, **Step 2: Command Discovery via Help**, whose "Resolving `--app` and `--team` values" guidance covers running `SLACK_CMD auth list`; Any authenticated workspace works for a preview, if several are available, pick one and mention which you used rather than blocking on the choice.
+Because you run the CLI non-interactively, this command also needs a `--team` flag. Resolve the team ID with the `slack-cli` skill, **Step 2: Command Discovery via Help**, whose "Resolving `--app` and `--team` values" guidance covers running `SLACK_CMD auth list`; Any authenticated workspace works for a preview, if several are available, pick one and mention which you used rather than blocking on the choice.
 
 **Path B: Block Kit Builder link (fallback, when the CLI isn't installed).**
 
@@ -272,5 +279,5 @@ Ask whether the developer wants to add, modify, remove, or reorder blocks, or bu
 
 ## Notes
 
-- **Scope:** this skill owns building and validating the Block Kit payload — choosing the surface, composing the JSON from the live docs, and confirming it with `blocks.validate`. Sending it lives in the Web API layer (`slack:slack-api`), and CLI detection/auth in `slack:slack-cli`.
+- **Scope:** this skill owns building and validating the Block Kit payload — choosing the surface, composing the JSON from the live docs, and confirming it with `blocks.validate`. Sending it lives in the Web API layer (the `slack-api` skill), and CLI detection/auth in the `slack-cli` skill.
 - **`blocks.validate` needs no auth** — it's a public method, so it works without a token whether you call it via the CLI or curl. Always validate before finalizing (Step 5).

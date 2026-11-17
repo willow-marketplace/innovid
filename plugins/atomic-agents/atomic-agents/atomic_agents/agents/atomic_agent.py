@@ -2,7 +2,7 @@ import instructor
 from instructor import Mode
 from instructor.processing.multimodal import Image, Audio, PDF
 from pydantic import BaseModel, Field
-from typing import Optional, Type, Generator, AsyncGenerator, get_args, get_origin, Dict, List, Callable, Any
+from typing import Optional, Type, Generator, AsyncGenerator, get_args, get_origin, Dict, List, Callable, Union, Any
 import logging
 from atomic_agents.context.chat_history import ChatHistory
 from atomic_agents.context.base_chat_history import BaseChatHistory
@@ -18,24 +18,70 @@ import json
 from instructor.dsl.partial import PartialBase
 from jiter import from_json
 
+# Instructor modes whose prepared request carries the output schema as a
+# tool/function definition instead of text inside the messages. Token accounting
+# must agree with the actual request, so these modes are counted with a tools
+# definition while all other modes append the schema to the system message.
+# Keep aligned with Instructor's per-mode request preparation; the parametrized
+# test in tests/agents/test_agent_mode_consistency.py prepares a request per
+# mode and asserts this set matches what is actually sent.
+# Mode.COHERE_TOOLS is deliberately absent: despite its name, its prepared
+# request embeds the schema in an instruction message and sends no tool.
+_TOOL_MODES = frozenset(
+    {
+        Mode.FUNCTIONS,
+        Mode.PARALLEL_TOOLS,
+        Mode.TOOLS,
+        Mode.TOOLS_STRICT,
+        Mode.RESPONSES_TOOLS,
+        Mode.RESPONSES_TOOLS_WITH_INBUILT_TOOLS,
+        Mode.ANTHROPIC_TOOLS,
+        Mode.ANTHROPIC_REASONING_TOOLS,
+        Mode.ANTHROPIC_PARALLEL_TOOLS,
+        Mode.MISTRAL_TOOLS,
+        Mode.VERTEXAI_TOOLS,
+        Mode.VERTEXAI_PARALLEL_TOOLS,
+        Mode.GEMINI_TOOLS,
+        Mode.GENAI_TOOLS,
+        Mode.XAI_TOOLS,
+        Mode.CEREBRAS_TOOLS,
+        Mode.FIREWORKS_TOOLS,
+        Mode.WRITER_TOOLS,
+        Mode.BEDROCK_TOOLS,
+    }
+)
+
+# Events emitted by AtomicAgent itself, not accepted by Instructor's hook registry.
+_LOCAL_HOOK_EVENTS = frozenset({"token:counted"})
+
+
+def _is_instructor_hook(event: str) -> bool:
+    return event not in _LOCAL_HOOK_EVENTS
+
+
+# Instructor multimodal objects that can be lowered to a chat-format content part.
+_InstructorMedia = Union[Image, Audio, PDF]
+
 
 def model_from_chunks_patched(cls, json_chunks, **kwargs):
+    kwargs.setdefault("strict", None)
     potential_object = ""
     partial_model = cls.get_partial_model()
     for chunk in json_chunks:
         potential_object += chunk
         obj = from_json((potential_object or "{}").encode(), partial_mode="trailing-strings")
-        obj = partial_model.model_validate(obj, strict=None, **kwargs)
+        obj = partial_model.model_validate(obj, **kwargs)
         yield obj
 
 
 async def model_from_chunks_async_patched(cls, json_chunks, **kwargs):
+    kwargs.setdefault("strict", None)
     potential_object = ""
     partial_model = cls.get_partial_model()
     async for chunk in json_chunks:
         potential_object += chunk
         obj = from_json((potential_object or "{}").encode(), partial_mode="trailing-strings")
-        obj = partial_model.model_validate(obj, strict=None, **kwargs)
+        obj = partial_model.model_validate(obj, **kwargs)
         yield obj
 
 
@@ -65,8 +111,12 @@ class BasicChatOutputSchema(BaseIOSchema):
 
 
 class AgentConfig(BaseModel):
-    client: instructor.core.client.Instructor = Field(..., description="Client for interacting with the language model.")
-    model: str = Field(default="gpt-5-mini", description="The model to use for generating responses.")
+    client: instructor.Instructor = Field(..., description="Client for interacting with the language model.")
+    name: Optional[str] = Field(
+        default=None,
+        description="Stable name for this agent in logs and traces, for example the role it plays. Defaults to the class name.",
+    )
+    model: str = Field(default="gpt-5.6-terra", description="The model to use for generating responses.")
     history: Optional[BaseChatHistory] = Field(default=None, description="History component for storing chat history.")
     system_prompt_generator: Optional[BaseSystemPromptGenerator] = Field(
         default=None,
@@ -91,10 +141,19 @@ class AgentConfig(BaseModel):
         ),
     )
     model_config = {"arbitrary_types_allowed": True}
-    mode: Mode = Field(default=Mode.TOOLS, description="The Instructor mode used for structured outputs (TOOLS, JSON, etc.).")
-    model_api_parameters: Optional[dict] = Field(None, description="Additional parameters passed to the API provider.")
+    mode: Optional[Mode] = Field(
+        default=None,
+        description=(
+            "The Instructor mode used for structured outputs (TOOLS, JSON, etc.). "
+            "Drives token accounting only: modes that transmit the schema as a tool "
+            "definition count it as a tool, others append it to the system message. "
+            "When None, the client's mode is used; an explicit mode must agree with "
+            "the client's mode on how the schema is transmitted, or a warning is logged."
+        ),
+    )
+    model_api_parameters: Optional[dict] = Field(default=None, description="Additional parameters passed to the API provider.")
     max_context_tokens: Optional[int] = Field(
-        None,
+        default=None,
         description=(
             "Maximum tokens for the full context (system prompt + history + tools). "
             "When exceeded, oldest conversation turns are automatically trimmed to stay within limit. "
@@ -163,24 +222,6 @@ class AtomicAgent[InputSchema: BaseIOSchema, OutputSchema: BaseIOSchema]:
         ```
     """
 
-    @classmethod
-    def __init_subclass__(cls, **kwargs):
-        """
-        Hook called when a class is subclassed.
-
-        Captures generic type parameters during class creation and stores them as class attributes
-        to work around the unreliable __orig_class__ attribute in modern Python generic syntax.
-        """
-        super().__init_subclass__(**kwargs)
-        if hasattr(cls, "__orig_bases__"):
-            for base in cls.__orig_bases__:
-                if get_origin(base) is AtomicAgent:
-                    args = get_args(base)
-                    if len(args) == 2:
-                        cls._input_schema_cls = args[0]
-                        cls._output_schema_cls = args[1]
-                        break
-
     def __init__(self, config: AgentConfig):
         """
         Initializes the AtomicAgent.
@@ -188,21 +229,21 @@ class AtomicAgent[InputSchema: BaseIOSchema, OutputSchema: BaseIOSchema]:
         Args:
             config (AgentConfig): Configuration for the chat agent.
         """
+        self.name = config.name
         self.client = config.client
         self.model = config.model
         self.history = config.history if config.history is not None else ChatHistory()
         self.system_prompt_generator = config.system_prompt_generator or SystemPromptGenerator()
         self.system_role = config.system_role
         self.assistant_role = config.assistant_role
-        if config.tool_result_role is not None:
-            self.tool_result_role = config.tool_result_role
-        else:
-            # Auto-detect: Gemini drops mid-conversation "system" messages,
-            # so default to "user" for Gemini backends (identified by assistant_role="model")
-            self.tool_result_role = "user" if config.assistant_role == "model" else "system"
+        self.tool_result_role = (
+            config.tool_result_role
+            if config.tool_result_role is not None
+            else self._default_tool_result_role(config.assistant_role)
+        )
         self.initial_history = self.history.copy()
         self.current_user_input = None
-        self.mode = config.mode
+        self.mode = self._resolve_mode(config)
         self.model_api_parameters = config.model_api_parameters or {}
         self.max_context_tokens = config.max_context_tokens
 
@@ -210,11 +251,86 @@ class AtomicAgent[InputSchema: BaseIOSchema, OutputSchema: BaseIOSchema]:
         self._hook_handlers: Dict[str, List[Callable]] = {}
         self._hooks_enabled: bool = True
 
+    @staticmethod
+    def _default_tool_result_role(assistant_role: str) -> str:
+        """
+        Picks the role for tool results when AgentConfig does not override it.
+
+        Gemini drops mid-conversation "system" messages, so Gemini backends
+        (identified by assistant_role="model") receive tool results as user
+        messages; every other backend uses "system".
+        """
+        return "user" if assistant_role == "model" else "system"
+
     def reset_history(self):
         """
         Resets the history to its initial state.
         """
         self.history = self.initial_history.copy()
+
+    @staticmethod
+    def _client_mode(client: instructor.Instructor) -> Optional[Mode]:
+        """
+        The mode of an Instructor client, when it exposes one.
+
+        `AgentConfig` only accepts Instructor clients, but a client double or a
+        custom client can still lack a comparable `mode` attribute; None is
+        returned for them.
+        """
+        mode = getattr(client, "mode", None)
+        return mode if isinstance(mode, Mode) else None
+
+    @staticmethod
+    def _modes_disagree(config_mode: Mode, client_mode: Optional[Mode]) -> bool:
+        """
+        Whether the two modes transmit the output schema differently.
+
+        Only the transmission matters for token accounting: two modes that both
+        send the schema as a tool definition are accounted for identically even
+        when they target different providers.
+        """
+        if client_mode is None:
+            return False
+        return (config_mode in _TOOL_MODES) != (client_mode in _TOOL_MODES)
+
+    @staticmethod
+    def _warn_mode_mismatch(config_mode: Mode, client_mode: Mode) -> None:
+        """Warns that token accounting will silently disagree with the API calls."""
+        logging.getLogger(__name__).warning(
+            "AgentConfig.mode (%s) and the Instructor client's mode (%s) disagree on how the "
+            "output schema is transmitted, so token accounting will silently disagree with "
+            "the actual API calls. Create the Instructor client with %s as well, or omit "
+            "AgentConfig.mode to follow the client automatically.",
+            config_mode.name,
+            client_mode.name,
+            config_mode.name,
+        )
+
+    @staticmethod
+    def _resolve_mode(config: AgentConfig) -> Mode:
+        """
+        Resolves the effective Instructor mode used for token accounting.
+
+        The API call format is decided by the mode the Instructor client was created
+        with, so `AgentConfig.mode` follows the client by default. An explicitly
+        configured mode that disagrees with the client on how the schema is
+        transmitted warns, because token accounting then silently disagrees with
+        the actual API calls.
+
+        Args:
+            config (AgentConfig): Configuration for the chat agent.
+
+        Returns:
+            Mode: The mode to use for token accounting.
+        """
+        client_mode = AtomicAgent._client_mode(config.client)
+
+        if config.mode is None:
+            return client_mode if client_mode is not None else Mode.TOOLS
+
+        if AtomicAgent._modes_disagree(config.mode, client_mode):
+            AtomicAgent._warn_mode_mismatch(config.mode, client_mode)
+        return config.mode
 
     def add_tool_result(self, content: BaseIOSchema) -> None:
         """
@@ -231,49 +347,35 @@ class AtomicAgent[InputSchema: BaseIOSchema, OutputSchema: BaseIOSchema]:
         """
         self.history.add_message(self.tool_result_role, content)
 
+    def _resolve_schema_types(self) -> tuple[Type[BaseIOSchema], Type[BaseIOSchema]]:
+        """Resolve AtomicAgent's schemas through the instance's specialized bases."""
+
+        def resolve(base: Any, bindings: Dict[Any, Any]) -> Optional[tuple[Any, Any]]:
+            origin = get_origin(base) or base
+            arguments = tuple(bindings.get(argument, argument) for argument in get_args(base))
+            if origin is AtomicAgent:
+                return (arguments[0], arguments[1]) if len(arguments) == 2 else None
+
+            bindings = {**bindings, **dict(zip(getattr(origin, "__parameters__", ()), arguments))}
+            # Read only bases declared on this class; inherited __orig_bases__
+            # can skip a specialization introduced by an intermediate subclass.
+            for parent in origin.__dict__.get("__orig_bases__", origin.__bases__):
+                schemas = resolve(parent, bindings)
+                if schemas is not None:
+                    return schemas
+            return None
+
+        return resolve(getattr(self, "__orig_class__", type(self)), {}) or (BasicChatInputSchema, BasicChatOutputSchema)
+
     @property
     def input_schema(self) -> Type[BaseIOSchema]:
-        """
-        Returns the input schema for the agent.
-
-        Uses a three-level fallback mechanism:
-        1. Class attributes from __init_subclass__ (handles subclassing)
-        2. Instance __orig_class__ (handles direct instantiation)
-        3. Default schema (handles untyped usage)
-        """
-        # Inheritance pattern: MyAgent(AtomicAgent[Schema1, Schema2])
-        if hasattr(self.__class__, "_input_schema_cls"):
-            return self.__class__._input_schema_cls
-
-        # Dynamic instantiation: AtomicAgent[Schema1, Schema2]()
-        if hasattr(self, "__orig_class__"):
-            TI, _ = get_args(self.__orig_class__)
-            return TI
-
-        # No type info available
-        return BasicChatInputSchema
+        """Return the concrete input schema, or the default for an untyped agent."""
+        return self._resolve_schema_types()[0]
 
     @property
     def output_schema(self) -> Type[BaseIOSchema]:
-        """
-        Returns the output schema for the agent.
-
-        Uses a three-level fallback mechanism:
-        1. Class attributes from __init_subclass__ (handles subclassing)
-        2. Instance __orig_class__ (handles direct instantiation)
-        3. Default schema (handles untyped usage)
-        """
-        # Inheritance pattern: MyAgent(AtomicAgent[Schema1, Schema2])
-        if hasattr(self.__class__, "_output_schema_cls"):
-            return self.__class__._output_schema_cls
-
-        # Dynamic instantiation: AtomicAgent[Schema1, Schema2]()
-        if hasattr(self, "__orig_class__"):
-            _, TO = get_args(self.__orig_class__)
-            return TO
-
-        # No type info available
-        return BasicChatOutputSchema
+        """Return the concrete output schema, or the default for an untyped agent."""
+        return self._resolve_schema_types()[1]
 
     def _build_system_messages(self) -> List[Dict]:
         """
@@ -297,7 +399,8 @@ class AtomicAgent[InputSchema: BaseIOSchema, OutputSchema: BaseIOSchema]:
 
         Called before building the messages list. Uses the full context token count
         (system prompt + history + tools) via get_context_token_count().
-        Removes oldest turns one at a time until the context fits within the limit.
+        Removes oldest turns one at a time until the context fits within the limit,
+        preserving the current turn so the request never loses its latest input.
 
         Turn-preserving: always removes complete turns, never individual messages.
 
@@ -327,6 +430,8 @@ class AtomicAgent[InputSchema: BaseIOSchema, OutputSchema: BaseIOSchema]:
         for turn_id in turn_ids_ordered:
             if total_tokens <= self.max_context_tokens:
                 break
+            if turn_id == self.history.current_turn_id:
+                continue
 
             self.history.delete_turn_id(turn_id)
             new_result = self.get_context_token_count()
@@ -391,9 +496,8 @@ class AtomicAgent[InputSchema: BaseIOSchema, OutputSchema: BaseIOSchema]:
         """
         from instructor.processing.schema import generate_openai_schema
 
-        # Only return tools for TOOLS-based modes
-        tools_modes = {Mode.TOOLS, Mode.TOOLS_STRICT, Mode.PARALLEL_TOOLS}
-        if self.mode in tools_modes:
+        # Only return tools for modes that transmit the schema as a tool definition
+        if self.mode in _TOOL_MODES:
             return [
                 {
                     "type": "function",
@@ -444,39 +548,63 @@ class AtomicAgent[InputSchema: BaseIOSchema, OutputSchema: BaseIOSchema]:
             content = message.get("content")
 
             if isinstance(content, list):
-                # Multimodal content - convert to OpenAI format
-                serialized_content = []
-                for item in content:
-                    if isinstance(item, str):
-                        # Text content - wrap in OpenAI text format
-                        serialized_content.append({"type": "text", "text": item})
-                    elif isinstance(item, (Image, Audio, PDF)):
-                        # Multimodal object - use instructor's to_openai method
-                        try:
-                            serialized_content.append(item.to_openai(Mode.JSON))
-                        except Exception as e:
-                            # Log the error and use placeholder for token estimation
-                            logger = logging.getLogger(__name__)
-                            media_type = type(item).__name__
-                            logger.warning(
-                                f"Failed to serialize {media_type} for token counting: {e}. "
-                                f"Using placeholder for estimation."
-                            )
-                            serialized_content.append({"type": "text", "text": f"[{media_type.lower()} content]"})
-                    elif isinstance(item, dict):
-                        # get_history() emits pre-lowered content-part dicts (e.g. video).
-                        # LiteLLM's token counter only accepts text and image_url parts,
-                        # so estimate them with a placeholder.
-                        serialized_content.append({"type": "text", "text": f"[{item.get('type', 'unknown')} content]"})
-                    else:
-                        # Unknown type - convert to string
-                        serialized_content.append({"type": "text", "text": str(item)})
-                serialized.append({"role": message["role"], "content": serialized_content})
+                # Multimodal content - convert to the chat format the counter accepts
+                serialized.append(
+                    {
+                        "role": message["role"],
+                        "content": [self._token_count_content_part(item) for item in content],
+                    }
+                )
             else:
                 # Simple text content - keep as is
                 serialized.append(message)
 
         return serialized
+
+    @staticmethod
+    def _token_count_content_part(item: object) -> Dict[str, Any]:
+        """
+        Converts one history content part to the chat format the token counter accepts.
+
+        Args:
+            item: A text part, an instructor multimodal object, or a content-part dict.
+                Anything else is counted as its string form.
+
+        Returns:
+            Dict[str, Any]: The content part in LiteLLM-compatible format.
+        """
+        if isinstance(item, str):
+            # Text content - wrap in OpenAI text format
+            return {"type": "text", "text": item}
+        if isinstance(item, (Image, Audio, PDF)):
+            return AtomicAgent._serialize_media_for_token_count(item)
+        if isinstance(item, dict):
+            # get_history() emits pre-lowered content-part dicts (e.g. video).
+            # LiteLLM's token counter only accepts text and image_url parts,
+            # so estimate them with a placeholder.
+            return {"type": "text", "text": f"[{item.get('type', 'unknown')} content]"}
+        # Unknown type - convert to string
+        return {"type": "text", "text": str(item)}
+
+    @staticmethod
+    def _serialize_media_for_token_count(item: _InstructorMedia) -> Dict[str, Any]:
+        """
+        Serializes an instructor media object to the chat format the token counter accepts.
+
+        LiteLLM's counter only accepts chat-format content parts, so media is normalized
+        to that format regardless of the agent's mode (Responses-format parts such as
+        input_image raise). Serialization failures degrade to a text placeholder so
+        counting still works.
+        """
+        try:
+            return item.to_openai(Mode.JSON)
+        except Exception as e:
+            # Log the error and use placeholder for token estimation
+            media_type = type(item).__name__
+            logging.getLogger(__name__).warning(
+                f"Failed to serialize {media_type} for token counting: {e}. Using placeholder for estimation."
+            )
+            return {"type": "text", "text": f"[{media_type.lower()} content]"}
 
     def get_context_token_count(self) -> TokenCountResult:
         """
@@ -574,17 +702,15 @@ class AtomicAgent[InputSchema: BaseIOSchema, OutputSchema: BaseIOSchema]:
             OutputSchema: The response from the chat agent.
         """
         assert not isinstance(
-            self.client, instructor.core.client.AsyncInstructor
+            self.client, instructor.AsyncInstructor
         ), "The run method is not supported for async clients. Use run_async instead."
-
-        # Trim history BEFORE adding new user message to protect the new input
-        self._trim_context()
 
         if user_input:
             self.history.initialize_turn()
             self.current_user_input = user_input
             self.history.add_message("user", user_input)
 
+        self._trim_context()
         self._prepare_messages()
         response = self.client.chat.completions.create(
             messages=self.messages,
@@ -611,16 +737,15 @@ class AtomicAgent[InputSchema: BaseIOSchema, OutputSchema: BaseIOSchema]:
             OutputSchema: The final response from the chat agent.
         """
         assert not isinstance(
-            self.client, instructor.core.client.AsyncInstructor
+            self.client, instructor.AsyncInstructor
         ), "The run_stream method is not supported for async clients. Use run_async instead."
-
-        self._trim_context()
 
         if user_input:
             self.history.initialize_turn()
             self.current_user_input = user_input
             self.history.add_message("user", user_input)
 
+        self._trim_context()
         self._prepare_messages()
 
         response_stream = self.client.chat.completions.create_partial(
@@ -637,7 +762,9 @@ class AtomicAgent[InputSchema: BaseIOSchema, OutputSchema: BaseIOSchema]:
             yield partial_response
 
         if last_response:
-            full_response_content = self.output_schema(**last_response.model_dump())
+            # model_dump() keys the data by field name, so accept field names
+            # for output schemas whose fields have an alias.
+            full_response_content = self.output_schema.model_validate(last_response.model_dump(), by_name=True)
             self.history.add_message(self.assistant_role, full_response_content)
             self._prepare_messages()
             return full_response_content
@@ -656,15 +783,14 @@ class AtomicAgent[InputSchema: BaseIOSchema, OutputSchema: BaseIOSchema]:
             NotAsyncIterableError: If used as an async generator (in an async for loop).
                                    Use run_async_stream() method instead for streaming responses.
         """
-        assert isinstance(self.client, instructor.core.client.AsyncInstructor), "The run_async method is for async clients."
-
-        self._trim_context()
+        assert isinstance(self.client, instructor.AsyncInstructor), "The run_async method is for async clients."
 
         if user_input:
             self.history.initialize_turn()
             self.current_user_input = user_input
             self.history.add_message("user", user_input)
 
+        self._trim_context()
         self._prepare_messages()
 
         response = await self.client.chat.completions.create(
@@ -685,13 +811,13 @@ class AtomicAgent[InputSchema: BaseIOSchema, OutputSchema: BaseIOSchema]:
         Yields:
             OutputSchema: Partial responses from the chat agent.
         """
-        assert isinstance(self.client, instructor.core.client.AsyncInstructor), "The run_async method is for async clients."
-        self._trim_context()
+        assert isinstance(self.client, instructor.AsyncInstructor), "The run_async method is for async clients."
         if user_input:
             self.history.initialize_turn()
             self.current_user_input = user_input
             self.history.add_message("user", user_input)
 
+        self._trim_context()
         self._prepare_messages()
 
         response_stream = self.client.chat.completions.create_partial(
@@ -708,7 +834,8 @@ class AtomicAgent[InputSchema: BaseIOSchema, OutputSchema: BaseIOSchema]:
             yield partial_response
 
         if last_response:
-            full_response_content = self.output_schema(**last_response.model_dump())
+            # See run_stream(): accept field names for aliased output schemas.
+            full_response_content = self.output_schema.model_validate(last_response.model_dump(), by_name=True)
             self.history.add_message(self.assistant_role, full_response_content)
             self._prepare_messages()
 
@@ -756,6 +883,8 @@ class AtomicAgent[InputSchema: BaseIOSchema, OutputSchema: BaseIOSchema]:
         """
         Registers a hook handler for a specific event.
 
+        Local events use a snapshot of the registered handlers for each dispatch.
+
         Args:
             event (str): The event name (e.g., 'parse:error', 'completion:kwargs', etc.)
             handler (Callable): The callback function to handle the event
@@ -765,7 +894,7 @@ class AtomicAgent[InputSchema: BaseIOSchema, OutputSchema: BaseIOSchema]:
         self._hook_handlers[event].append(handler)
 
         # Register with instructor client if it supports hooks
-        if hasattr(self.client, "on"):
+        if _is_instructor_hook(event) and self._hooks_enabled and hasattr(self.client, "on"):
             self.client.on(event, handler)
 
     def unregister_hook(self, event: str, handler: Callable) -> None:
@@ -780,7 +909,7 @@ class AtomicAgent[InputSchema: BaseIOSchema, OutputSchema: BaseIOSchema]:
             self._hook_handlers[event].remove(handler)
 
             # Remove from instructor client if it supports hooks
-            if hasattr(self.client, "off"):
+            if _is_instructor_hook(event) and self._hooks_enabled and hasattr(self.client, "off"):
                 self.client.off(event, handler)
 
     def clear_hooks(self, event: Optional[str] = None) -> None:
@@ -790,16 +919,11 @@ class AtomicAgent[InputSchema: BaseIOSchema, OutputSchema: BaseIOSchema]:
         Args:
             event (Optional[str]): The event name to clear, or None to clear all
         """
-        if event:
-            if event in self._hook_handlers:
-                # Clear from instructor client first
-                if hasattr(self.client, "clear"):
-                    self.client.clear(event)
-                self._hook_handlers[event].clear()
-        else:
-            # Clear all hooks
-            if hasattr(self.client, "clear"):
-                self.client.clear()
+        events = [event] if event else list(self._hook_handlers)
+        for registered_event in events:
+            for handler in list(self._hook_handlers.get(registered_event, [])):
+                self.unregister_hook(registered_event, handler)
+        if not event:
             self._hook_handlers.clear()
 
     def _dispatch_hook(self, event: str, *args, **kwargs) -> None:
@@ -814,7 +938,7 @@ class AtomicAgent[InputSchema: BaseIOSchema, OutputSchema: BaseIOSchema]:
         if not self._hooks_enabled or event not in self._hook_handlers:
             return
 
-        for handler in self._hook_handlers[event]:
+        for handler in tuple(self._hook_handlers[event]):
             try:
                 handler(*args, **kwargs)
             except Exception as e:
@@ -824,11 +948,27 @@ class AtomicAgent[InputSchema: BaseIOSchema, OutputSchema: BaseIOSchema]:
 
     def enable_hooks(self) -> None:
         """Enable hook processing."""
+        if self._hooks_enabled:
+            return
         self._hooks_enabled = True
+        if hasattr(self.client, "on"):
+            for event, handlers in self._hook_handlers.items():
+                if not _is_instructor_hook(event):
+                    continue
+                for handler in handlers:
+                    self.client.on(event, handler)
 
     def disable_hooks(self) -> None:
         """Disable hook processing."""
+        if not self._hooks_enabled:
+            return
         self._hooks_enabled = False
+        if hasattr(self.client, "off"):
+            for event, handlers in self._hook_handlers.items():
+                if not _is_instructor_hook(event):
+                    continue
+                for handler in handlers:
+                    self.client.off(event, handler)
 
     @property
     def hooks_enabled(self) -> bool:
@@ -928,11 +1068,11 @@ if __name__ == "__main__":
         """
         if streaming:
             client = instructor.from_openai(AsyncOpenAI())
-            config = AgentConfig(client=client, model="gpt-5-mini")
+            config = AgentConfig(client=client, model="gpt-5.6-terra")
             agent = AtomicAgent[BasicChatInputSchema, BasicChatOutputSchema](config)
         else:
             client = instructor.from_openai(OpenAI())
-            config = AgentConfig(client=client, model="gpt-5-mini")
+            config = AgentConfig(client=client, model="gpt-5.6-terra")
             agent = AtomicAgent[BasicChatInputSchema, BasicChatOutputSchema](config)
 
         # Display agent information before starting the chat

@@ -1,8 +1,8 @@
 {
   "name": "code-modernization",
   "version": "1.0.0",
-  "description": "Modernize legacy codebases (COBOL, legacy Java/C++/.NET, monolith web apps) with a structured preflight / assess / map / extract-rules / brief / (reimagine | transform | uplift) / harden / status workflow. Cross-stack rewrites, greenfield reimagining, and same-stack version uplifts (e.g. .NET Framework → .NET 8); an interactive topology viewer; specialist agents; and optional dynamic-workflow orchestration with adversarial verification.",
-  "updatedAt": "2026-09-19T00:42:54.172Z",
+  "description": "Guided modernization for any legacy codebase: start with /modernize, get an assessment, an interactive map, the business rules mined from the code, and a plan you approve, then an upgrade, a rewrite or a rebuild with independent proof that the new code behaves like the old. Includes security hardening, a one-page report, specialist agents, and an optional live progress pane (early access).",
+  "updatedAt": "2026-11-17T00:01:29.804Z",
   "author": {
     "name": "Anthropic",
     "email": "support@anthropic.com"
@@ -10,12 +10,68 @@
   "commands": "./commands/",
   "agents": [
     "./agents/architecture-critic.md",
-    "./agents/business-rules-extractor.md",
-    "./agents/legacy-analyst.md",
-    "./agents/scaffolder.md",
     "./agents/security-auditor.md",
     "./agents/test-engineer.md",
     "./agents/uplift-migrator.md",
-    "./agents/version-delta-analyst.md"
-  ]
+    "./agents/business-rules-extractor.md",
+    "./agents/legacy-analyst.md",
+    "./agents/version-delta-analyst.md",
+    "./agents/scaffolder.md"
+  ],
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}/scripts/telemetry.sh\" command"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}/scripts/telemetry.sh\" state"
+          },
+          {
+            "type": "command",
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}/scripts/telemetry.sh\" run"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}/scripts/telemetry.sh\" health"
+          }
+        ]
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}/scripts/telemetry.sh\" failure"
+          }
+        ]
+      }
+    ],
+    "StopFailure": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}/scripts/telemetry.sh\" failure"
+          }
+        ]
+      }
+    ]
+  }
 }

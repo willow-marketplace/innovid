@@ -67,6 +67,6 @@ Reach out to your account representative to inquire about engagement models and 
 
 ## Author
 
-**Jessica Koh**
+### Jessica Koh
 
 Jessica Koh is a Global Business Lead in SaaS Factory at AWS. She works with partners and customers to streamline their current processes and workforce in order to operate more efficiently and become more customer-focused. She has over 20 years of systems integration, operations, and customer success and support experience. Throughout her career, Jessica has held leadership positions where she increased revenue in new markets, working cross functions and leading new initiatives across hardware and software products.

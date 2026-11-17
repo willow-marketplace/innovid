@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "runway-dev": {
+      "url": "https://dev.runwayml.com/mcp/claude",
+      "type": "http"
+    }
+  }
+}

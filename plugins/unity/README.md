@@ -1,102 +1,11 @@
 # Unity
 
-Unity's official game development plugin. Build, monetize, and operate Unity games
-with guidance grounded in Unity's documented practices.
+Unity's official plugin for coding agents, with curated skills for game development, monetization, and performance optimization.
 
-Available for **Claude Code** and **Codex**.
+The skills give your agent Unity's documented practices for everyday work: starting a project, managing packages,
+building UI with UI Toolkit, uGUI or IMGUI, 2D sprites and tilemaps, physics, audio, localization, URP rendering and
+post-processing, Shader Graph, multiplayer services, Vivox voice chat, in-app purchases and LevelPlay ads. The plugin
+installs one skill, `using-unity`, which lists them all; the agent reads only the skill your request needs.
 
-## Install
-
-**Claude Code** — these two are slash commands, so type them inside a Claude Code
-session rather than in a terminal:
-
-```
-/plugin marketplace add Unity-Technologies/unity-agent-plugin
-```
-
-```
-/plugin install unity@unity-agent-plugin
-```
-
-From a terminal instead, use the `claude` CLI. Installs done this way load the next
-time you start Claude Code, or when you run `/reload-plugins` in an open session:
-
-```bash
-claude plugin marketplace add Unity-Technologies/unity-agent-plugin
-claude plugin install unity@unity-agent-plugin
-```
-
-**Codex**
-
-```bash
-codex plugin marketplace add Unity-Technologies/unity-agent-plugin
-```
-
-```bash
-codex plugin add unity@unity-agent-plugin
-```
-
-### Verify it worked
-
-Each agent surfaces an installed plugin differently.
-
-**Claude Code** — type `/unity:` and the skills appear in the command list. `/plugin`
-also shows `unity` as installed and enabled.
-
-**Codex** — run `codex plugin list`:
-
-```
-PLUGIN                    STATUS              VERSION
-unity@unity-agent-plugin  installed, enabled  0.1.6-beta
-```
-
-### Manual install
-
-If you can't use the marketplace commands, clone the repo and link it into your personal skills directory instead:
-
-```bash
-git clone https://github.com/Unity-Technologies/unity-agent-plugin.git
-ln -s "$(pwd)/unity-agent-plugin" ~/.claude/skills/unity
-```
-
-It loads automatically in every project from your next session onward.
-
-## Usage
-
-Once installed, your agent uses the relevant skill automatically when you ask it to
-do something in your Unity project. For example:
-
-> "Add in-app purchases so players can buy a coin pack"
->
-> "I want to build a settings screen"
->
-> "My pixel art looks blurry and jitters when the camera moves"
->
-> "Show rewarded video ads so players can earn coins"
->
-> "Create a hexagonal tile palette for my level"
->
-> "Chinese characters show up as empty boxes in my TextMeshPro labels"
->
-> "Review my ScriptableRendererFeature for Render Graph problems"
-
-In Claude Code the skills also appear in the slash menu, so you can pick one
-explicitly instead of describing the task.
-
-## Works with
-
-Unity 6+.
-
-## Issues and feedback
-
-Found a bug or have a suggestion? Post in the
-[Unity Discussions forum](https://discussions.unity.com/).
-
-## Brand guidelines
-
-See [Unity's branding and trademark guidelines](https://unity.com/legal/branding-trademarks)
-for displaying any Unity marks or icons contained in this repo.
-
-## License
-
-[Unity Companion License](LICENSE.md).
+Install steps and usage are in the
+[full README](https://github.com/Unity-Technologies/unity-agent-plugin#readme).

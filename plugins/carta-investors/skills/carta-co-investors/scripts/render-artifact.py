@@ -7,14 +7,26 @@
 long-comment-ok: positional-argument contract for a CLI entry point
 Usage:
     uv run render-artifact.py <output> <artifact_id> <mcp_server> \\
-        <firm_uuid> <firm_name> <firm_carta_id> <base_url> [vehicles_file]
+        <firm_uuid> <firm_name> <firm_carta_id> <base_url>
 """
 
 import html
 import json
-import re
 import sys
 from pathlib import Path
+
+_LIB = next(p for p in Path(__file__).resolve().parents if (p / "lib" / "live_artifact_render").is_dir()) / "lib"
+sys.path.insert(0, str(_LIB))
+
+from live_artifact_render import (  # noqa: E402
+    ARTIFACT_ID_RE,
+    BASE_URL_RE,
+    CARTA_ID_RE,
+    MCP_SERVER_RE,
+    UUID_RE,
+    check_path_under_cwd,
+    js_safe_json,
+)
 
 TEMPLATE = Path(__file__).resolve().parent.parent / "references" / "artifact.html"
 CANONICAL = Path(__file__).resolve().parent.parent / "canonical-investors.json"
@@ -25,69 +37,6 @@ PLACEHOLDERS = (
     "{{FIRM_UUID}}",
     "{{CARTA_MCP_SERVER}}",
 )
-
-UUID_RE = re.compile(
-    r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
-    re.IGNORECASE,
-)
-# Connector display names are viewer-facing text, so reject only what would escape
-# the JS string literal they land in.
-MCP_SERVER_RE = re.compile(r"^[^\r\n\'\"<>\\]{1,120}$")
-ARTIFACT_ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]*[a-z0-9]$")
-CARTA_ID_RE = re.compile(r"^[0-9]{1,19}$")
-# The page concatenates this into an href, so a quote or javascript: scheme would
-# land inside the link. Require a plain https origin.
-BASE_URL_RE = re.compile(r"^https://[A-Za-z0-9.\-]+(:[0-9]{1,5})?$")
-
-
-def js_safe_json(obj) -> str:
-    """JSON-encode for embedding in a <script> block.
-
-    A <script type="application/json"> block closes on the first </script> in its
-    content, so an unescaped name could close the block early and leak its tail.
-    """
-    return (
-        json.dumps(obj, ensure_ascii=False)
-        .replace("<", "\\u003c")
-        .replace(">", "\\u003e")
-        .replace("&", "\\u0026")
-        .replace("'", "\\u0027")
-    )
-
-
-def check_path_under_cwd(p: Path, label: str):
-    """Resolve p, or return None if it escapes CWD or lands in /tmp.
-
-    A prompt-injected LLM could pass an arbitrary path; this is the enforcement.
-    """
-    resolved = p.resolve()
-    if not resolved.is_relative_to(Path.cwd().resolve()):
-        print(f"error: {label} must be under the current working directory: {resolved}", file=sys.stderr)
-        return None
-    if resolved.is_relative_to(Path("/tmp").resolve()):
-        print(f"error: {label} must not be under /tmp: {resolved}", file=sys.stderr)
-        return None
-    return resolved
-
-
-def load_vehicle_names(path: Path):
-    """Read the firm's own vehicle names, or return None on error."""
-    if not path.is_file():
-        print(f"error: vehicles_file not found or not a regular file: {path}", file=sys.stderr)
-        return None
-    try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError as e:
-        print(f"error: vehicles_file is not valid JSON: {e}", file=sys.stderr)
-        return None
-    if not isinstance(data, list):
-        print(f"error: vehicles_file must contain a JSON array, got {type(data).__name__}", file=sys.stderr)
-        return None
-    for i, name in enumerate(data):
-        if not isinstance(name, str) or not name.strip():
-            print(f"error: vehicle name #{i} must be a non-empty string, got {name!r}", file=sys.stderr)
-            return None
-    return [n.strip() for n in data]
 
 
 def load_canonical_groupings():
@@ -141,16 +90,15 @@ def validate_args(artifact_id, mcp_server, firm_uuid, firm_name, firm_carta_id, 
 
 
 def main() -> int:
-    if len(sys.argv) not in (8, 9):
+    if len(sys.argv) != 8:
         print(
             "usage: render-artifact.py <output> <artifact_id> <mcp_server> "
-            "<firm_uuid> <firm_name> <firm_carta_id> <base_url> [vehicles_file]",
+            "<firm_uuid> <firm_name> <firm_carta_id> <base_url>",
             file=sys.stderr,
         )
         return 2
 
     output, artifact_id, mcp_server, firm_uuid, firm_name, firm_carta_id, base_url = sys.argv[1:8]
-    vehicles_file = sys.argv[8] if len(sys.argv) == 9 else None
 
     if not validate_args(artifact_id, mcp_server, firm_uuid, firm_name, firm_carta_id, base_url):
         return 1
@@ -158,26 +106,6 @@ def main() -> int:
     out_path = check_path_under_cwd(Path(output), "output path")
     if out_path is None:
         return 1
-
-    # The firm's own name always matches; the file only adds vehicles named
-    # differently from it.
-    vehicle_names = [firm_name.strip()]
-    if vehicles_file is None:
-        # The firm name alone rarely matches its funds ("Acme Ventures" vs "Acme
-        # Fund VI, LP"), so without this list the firm tops its own report.
-        print(
-            "warning: no vehicles_file — only the firm name will be excluded from "
-            "the co-investor list. Pass every fa:list:entities name.",
-            file=sys.stderr,
-        )
-    else:
-        vehicles_path = check_path_under_cwd(Path(vehicles_file), "vehicles_file path")
-        if vehicles_path is None:
-            return 1
-        extra = load_vehicle_names(vehicles_path)
-        if extra is None:
-            return 1
-        vehicle_names.extend(n for n in extra if n not in vehicle_names)
 
     groupings = load_canonical_groupings()
     if groupings is None:
@@ -198,7 +126,6 @@ def main() -> int:
         "firm_carta_id": firm_carta_id,
         "base_url": base_url,
         "canonical_groupings": groupings,
-        "firm_vehicle_names": vehicle_names,
     }
 
     content = content.replace("{{STATE_JSON}}", js_safe_json(state_obj))

@@ -26,7 +26,10 @@ Web-specific gotchas worth flagging:
 - The module loader is `barcodeCaptureLoader()` (from `@scandit/web-datacapture-barcode`) — there is no separate loader for BarcodeAr.
 - **Custom highlight/annotation elements** must implement `BarcodeArHighlight` / `BarcodeArAnnotation` as Web Components extending `HTMLElement`. They must have `position: absolute`, `will-change: transform`, and implement `updatePosition(point, transformOrigin, rotationAngle)` which the SDK calls every frame. Add `[hidden] { display: none }` for SDK visibility management. Register once with `customElements.define` guarded by `if (!customElements.get(tag))`.
 - `session.addedTrackedBarcodes` returns `Record<string, TrackedBarcode>` (a dictionary), **not** an array — use `Object.values(session.addedTrackedBarcodes)` to iterate. Same for `session.allTrackedBarcodes`.
-- **Multithreading is mandatory.** Set `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: require-corp` (self-hosted) or `credentialless` (CDN). Without these headers the SDK falls back to single-threaded mode, which is too slow for AR tracking.
+- **Multithreading is mandatory.** Set `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: require-corp`, also when the SDK comes from the jsDelivr CDN; do not recommend `credentialless`. Without these headers the SDK falls back to single-threaded mode, which is too slow for AR tracking. In the page code, start `BrowserHelper.checkMultithreadingSupport()` (from `@scandit/web-datacapture-core`) without awaiting it, before `await DataCaptureContext.forLicenseKey()`, so the two run in parallel and set-up never waits for the check. When it resolves `false`, show the multithreading dialog unless the user asked to run single-threaded: import `showMultithreadingWarning` from the `multithreading-warning` helper module in references/integration.md, which needs no page markup. In React, render the same dialog from component state instead of importing the helper. The dialog shows at most once per page load and honors the "don't show again this session" checkbox. COEP `credentialless` is not a request to run single-threaded: Safari does not support it, so the dialog still shows there.
+- When the SDK is loaded from a CDN, pin one exact version (for example `@8.6.1`) in every URL: the import map and `libraryLocation`. A floating `@8` lets the JavaScript and the engine resolve to different releases, which breaks start-up.
+- Do not add a `visibilitychange` handler: the view already stops the camera while the page is hidden and resumes it when the page is visible again.
+- `DataCaptureContext.forLicenseKey()` is idempotent, so calling it again is safe. After `context.dispose()`, call `forLicenseKey()` again and set `BarcodeAr` and `BarcodeArView` up again before `start()`: `start()` alone does not restart a disposed context.
 
 ## Intent Routing
 
@@ -45,6 +48,20 @@ Only use APIs that are explicitly documented in the Scandit references below. Do
 
 URL structures vary across SDK versions and guessing will lead to 404s.
 
+## Licence key
+
+Scanning needs a Scandit licence key. For this skill the licence product is `sdk` and the licence platform is `webassembly`.
+
+Work through these in order — never block the user on MCP:
+
+1. **The Scandit MCP server is connected** — call `ensure_scanner_setup` with product `sdk` and platforms `webassembly`, `app_identifier` (the app's bundle or application id; for web, its production domain, never `localhost`) and `env_var` `SCANDIT_LICENSE_KEY`. Do not run the command it returns. Then call `get_license_key` with the key's id, from that result or from `list_license_keys`; if `list_license_keys` shows the key is not a trial, ask the user before fetching it. Show at most a masked preview in chat; never print a full key.
+2. **It is not connected** — tell the user once that they can connect the remote Scandit MCP server, `https://ssl.scandit.com/mcp`, in their MCP client, then continue from step 1. Do not edit MCP client configuration yourself.
+
+   Authentication is browser-based, so it is **not supported headless or in CI**. The server provisions **trial** keys only; it never creates, revokes, or modifies production licences.
+3. **The user declines, or has no MCP client** — they generate a key themselves at <https://ssl.scandit.com> (no account yet: <https://ssl.scandit.com/dashboard/sign-up?p=test>) and paste it in.
+
+**Then put the key into the code**: write it into the licence-key call in place of the placeholder — the key `get_license_key` returned, or the one the user pastes or gives you — still showing only a masked preview in chat. Do not search the project, its files or the environment for a key.
+
 ## References
 
 Direct users to the right resource based on their question:
@@ -52,5 +69,5 @@ Direct users to the right resource based on their question:
 | Topic | Resource |
 |---|---|
 | Get Started | [Get Started](https://docs.scandit.com/sdks/web/matrixscan-ar/get-started/) · [Simple Sample](https://github.com/Scandit/datacapture-web-samples/tree/master/03_Advanced_Batch_Scanning_Samples/01_Batch_Scanning_and_AR_Info_Lookup/MatrixScanARSimpleSample) |
-| Multithreading / COOP+COEP headers | [Improve Runtime Performance](https://docs.scandit.com/sdks/web/matrixscan-ar/get-started/#improve-runtime-performance-by-enabling-browser-multithreading) |
+| Multithreading / COOP+COEP headers | [Improve Runtime Performance](https://docs.scandit.com/sdks/web/matrixscan/get-started/#improve-runtime-performance-by-enabling-browser-multithreading) |
 | Full API reference | [BarcodeAr API](https://docs.scandit.com/data-capture-sdk/web/barcode-capture/api.html) |

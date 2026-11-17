@@ -1,12 +1,27 @@
 > AI agents: this is one page from PostHog's docs. Full index of Markdown docs for LLMs: https://posthog.com/llms.txt
 
-# React Router V7 framework mode (Remix V3) - Docs
+# React Router V7 framework mode (Remix V3)
 
-Copy page
+Canonical URL: https://posthog.com/docs/libraries/react-router/react-router-v7-framework-mode
 
-# React Router V7 framework mode (Remix V3) - Docs
+> **Cloud region:** This page uses US Cloud hosts. For an EU Cloud project, use `https://eu.i.posthog.com` instead of `https://us.i.posthog.com` (ingestion host), and use `https://eu.posthog.com` instead of `https://us.posthog.com` or `https://app.posthog.com` (app host for links).
 
-This guide walks you through setting up PostHog for React Router V7 in framework mode. If you're using React Router in another mode, find the guide for that mode in the [React Router page](/docs/libraries/react-router.md). If you're using React with another framework, go to the [React integration guide](/docs/libraries/react.md).
+## On this page
+
+- [Install client-side SDKs](#install-client-side-sdks)
+- [Add your environment variables](#add-your-environment-variables)
+- [Add the PostHogProvider to your app](#add-the-posthogprovider-to-your-app)
+- [Verify client-side events are captured](#verify-client-side-events-are-captured)
+- [Access PostHog methods](#access-posthog-methods)
+- [Identify your user](#identify-your-user)
+- [Create an error boundary](#create-an-error-boundary)
+- [Tracking element visibility](#tracking-element-visibility)
+- [Install server-side SDKs](#install-server-side-sdks)
+- [Create a server-side middleware](#create-a-server-side-middleware)
+- [Verify server-side events are captured](#verify-server-side-events-are-captured)
+- [Next steps](#next-steps)
+
+This guide walks you through setting up PostHog for React Router V7 in framework mode. If you're using React Router in another mode, find the guide for that mode in the [React Router page](https://posthog.com/docs/libraries/react-router.md). If you're using React with another framework, go to the [React integration guide](https://posthog.com/docs/libraries/react.md).
 
 1.  1
 
@@ -16,35 +31,31 @@ This guide walks you through setting up PostHog for React Router V7 in framework
 
     First, you'll need to install [`posthog-js`](https://github.com/posthog/posthog-js) and `@posthog/react` using your package manager. These packages allow you to capture **client-side** events.
 
-    PostHog AI
-
     ### npm
 
     ```bash
-    npm install --save posthog-js @posthog/react
+    npm install --save posthog-js@1 @posthog/react@1
     ```
 
     ### Yarn
 
     ```bash
-    yarn add posthog-js @posthog/react
+    yarn add posthog-js@1 @posthog/react@1
     ```
 
     ### pnpm
 
     ```bash
-    pnpm add posthog-js @posthog/react
+    pnpm add posthog-js@1 @posthog/react@1
     ```
 
     ### Bun
 
     ```bash
-    bun add posthog-js @posthog/react
+    bun add posthog-js@1 @posthog/react@1
     ```
 
     > **If your site sets a Content-Security-Policy**, it needs to allow PostHog. This applies to the snippet and to package installs alike: the SDK lazy-loads extra bundles (session replay, surveys) from PostHog's CDN, and sends events to the ingestion host. PostHog serves from subdomains of `posthog.com` that change over time, so allow the wildcard:
-    >
-    > PostHog AI
     >
     > ```
     > script-src 'self' https://*.posthog.com;
@@ -52,16 +63,15 @@ This guide walks you through setting up PostHog for React Router V7 in framework
     > worker-src 'self' blob: data:;
     > ```
     >
-    > `script-src` covers the snippet and the lazy-loaded bundles, `connect-src` covers event ingestion and feature flags, and `worker-src` covers session replay. The [toolbar needs a few more](/docs/advanced/content-security-policy.md), or use a [reverse proxy](/docs/advanced/proxy.md) so everything is first-party. Failing to do so causes silent failures where `capture` and `identify` calls never send, so the integration looks complete while zero events arrive. Remember `connect-src` falls back to `default-src`, so `default-src 'self'` blocks event delivery even when the script itself is bundled.
+    > `script-src` covers the snippet and the lazy-loaded bundles, `connect-src` covers event ingestion and feature flags, and `worker-src` covers session replay. The [toolbar needs a few more](https://posthog.com/docs/advanced/content-security-policy.md), or use a [reverse proxy](https://posthog.com/docs/advanced/proxy.md) so everything is first-party. Failing to do so causes silent failures where `capture` and `identify` calls never send, so the integration looks complete while zero events arrive. Remember `connect-src` falls back to `default-src`, so `default-src 'self'` blocks event delivery even when the script itself is bundled.
 
     In framework mode, you'll also need to set `posthog-js` and `@posthog/react` as external packages in your `vite.config.ts` file to avoid SSR errors.
 
     vite.config.ts
 
-    PostHog AI
-
     ```typescript
     // ... imports
+    
     export default defineConfig({
       plugins: [tailwindcss(), reactRouter(), tsconfigPaths()],
       ssr: {
@@ -80,8 +90,6 @@ This guide walks you through setting up PostHog for React Router V7 in framework
 
     .env.local
 
-    PostHog AI
-
     ```shell
     VITE_POSTHOG_PROJECT_TOKEN=<ph_project_token>
     VITE_POSTHOG_HOST=https://us.i.posthog.com
@@ -97,19 +105,20 @@ This guide walks you through setting up PostHog for React Router V7 in framework
 
     app/entry.client.tsx
 
-    PostHog AI
-
     ```jsx
     import { startTransition, StrictMode } from "react";
     import { hydrateRoot } from "react-dom/client";
     import { HydratedRouter } from "react-router/dom";
+    
     import posthog from 'posthog-js';
     import { PostHogProvider } from '@posthog/react'
+    
     posthog.init(import.meta.env.VITE_POSTHOG_PROJECT_TOKEN, {
       api_host: import.meta.env.VITE_POSTHOG_HOST,
-      defaults: '2026-05-30',
+      defaults: '2026-08-30',
       tracing_headers: [ window.location.hostname, 'localhost' ],
     });
+    
     startTransition(() => {
       hydrateRoot(
         document,
@@ -125,19 +134,16 @@ This guide walks you through setting up PostHog for React Router V7 in framework
 
     To help PostHog track your user sessions across the client and server, you'll need to add the `tracing_headers: ['your-backend-hostname1.com', 'your-backend-hostname2.com', ...]` option to your PostHog initialization. This adds the `X-POSTHOG-DISTINCT-ID` and `X-POSTHOG-SESSION-ID` headers to requests sent to the configured hostnames, which we'll later use on the server-side.
 
-    TypeError: Cannot read properties of undefined
+    **TypeError: Cannot read properties of undefined**
 
     If you see the error `TypeError: Cannot read properties of undefined (reading '...')` this is likely because you tried to call a posthog function when posthog was not initialized (such as during the initial render). On purpose, we still render the children even if PostHog is not initialized so that your app still loads even if PostHog can't load.
 
     To fix this error, add a check that posthog has been initialized such as:
 
-    React
-
-    PostHog AI
-
     ```jsx
     useEffect(() => {
       posthog?.capture('test') // using optional chaining (recommended)
+    
       if (posthog) {
         posthog.capture('test') // using an if statement
       }
@@ -152,16 +158,13 @@ This guide walks you through setting up PostHog for React Router V7 in framework
 
     *Confirm that you can capture client-side events and see them in your PostHog project*
 
-    At this point, you should be able to capture client-side events and see them in your PostHog project. This includes basic events like page views and button clicks that are [autocaptured](/docs/product-analytics/autocapture.md).
+    At this point, you should be able to capture client-side events and see them in your PostHog project. This includes basic events like page views and button clicks that are [autocaptured](https://posthog.com/docs/product-analytics/autocapture.md).
 
     You can also try to capture a custom event to verify it's working. You can access PostHog in any component using the `usePostHog` hook.
 
-    TSX
-
-    PostHog AI
-
     ```jsx
     import { usePostHog } from '@posthog/react'
+    
     function App() {
       const posthog = usePostHog()
       return <button onClick={() => posthog?.capture('button_clicked')}>Click me</button>
@@ -178,19 +181,16 @@ This guide walks you through setting up PostHog for React Router V7 in framework
 
     On the client-side, you can access the PostHog client using the `usePostHog` hook. This hook returns the initialized PostHog client, which you can use to call PostHog methods. For example:
 
-    TSX
-
-    PostHog AI
-
     ```jsx
     import { usePostHog } from '@posthog/react'
+    
     function App() {
       const posthog = usePostHog()
       return <button onClick={() => posthog?.capture('button_clicked')}>Click me</button>
     }
     ```
 
-    For a complete list of available methods, see the [posthog-js documentation](/docs/libraries/js.md).
+    For a complete list of available methods, see the [posthog-js documentation](https://posthog.com/docs/libraries/js.md).
 
 6.  5
 
@@ -202,17 +202,15 @@ This guide walks you through setting up PostHog for React Router V7 in framework
 
     Generally, you identify users when they log in or when they input some identifiable information (e.g. email, name, etc.). You can identify users by calling the `identify` method on the PostHog client:
 
-    TSX
-
-    PostHog AI
-
     ```jsx
     export default function Login() {
       const { user, login } = useAuth();
       const posthog = usePostHog();
+    
       const handleLogin = async (e: React.FormEvent) => {
         // existing code to handle login...
         const user = await login({ email, password });
+    
         posthog?.identify(user.email,
           {
             email: user.email,
@@ -221,6 +219,7 @@ This guide walks you through setting up PostHog for React Router V7 in framework
         );
         posthog?.capture('user_logged_in');
       };
+    
       return (
         <div>
           {/* ... existing code ... */}
@@ -242,13 +241,13 @@ This guide walks you through setting up PostHog for React Router V7 in framework
 
     app/root.tsx
 
-    PostHog AI
-
     ```jsx
     import { usePostHog } from '@posthog/react'
+    
     export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
       const posthog = usePostHog();
       posthog?.captureException(error);
+    
       // other error handling code...
       return (
         <div>
@@ -273,12 +272,9 @@ This guide walks you through setting up PostHog for React Router V7 in framework
 
     **Basic usage:**
 
-    React
-
-    PostHog AI
-
     ```jsx
     import { PostHogCaptureOnViewed } from '@posthog/react'
+    
     function App() {
         return (
             <PostHogCaptureOnViewed name="hero-banner">
@@ -291,10 +287,6 @@ This guide walks you through setting up PostHog for React Router V7 in framework
     **With custom properties:**
 
     You can include additional properties with the event to provide more context:
-
-    React
-
-    PostHog AI
 
     ```jsx
     <PostHogCaptureOnViewed
@@ -313,10 +305,6 @@ This guide walks you through setting up PostHog for React Router V7 in framework
 
     Use `trackAllChildren` to track each child element separately. This is useful for galleries or lists where you want to know which specific items were viewed:
 
-    React
-
-    PostHog AI
-
     ```jsx
     <PostHogCaptureOnViewed
         name="product-gallery"
@@ -334,10 +322,6 @@ This guide walks you through setting up PostHog for React Router V7 in framework
     **Custom intersection observer options:**
 
     You can customize when elements are considered "viewed" by passing options to the `IntersectionObserver`:
-
-    React
-
-    PostHog AI
 
     ```jsx
     <PostHogCaptureOnViewed
@@ -359,32 +343,30 @@ This guide walks you through setting up PostHog for React Router V7 in framework
 
     Recommended
 
-    Install the [PostHog Node SDK](/docs/libraries/node.md) using your package manager. This is the SDK you'll use to capture server-side events.
-
-    PostHog AI
+    Install the [PostHog Node SDK](https://posthog.com/docs/libraries/node.md) using your package manager. This is the SDK you'll use to capture server-side events.
 
     ### npm
 
     ```bash
-    npm install posthog-node --save
+    npm install posthog-node@5 --save
     ```
 
     ### Yarn
 
     ```bash
-    yarn add posthog-node
+    yarn add posthog-node@5
     ```
 
     ### pnpm
 
     ```bash
-    pnpm add posthog-node
+    pnpm add posthog-node@5
     ```
 
     ### Bun
 
     ```bash
-    bun add posthog-node
+    bun add posthog-node@5
     ```
 
 10.  9
@@ -393,54 +375,109 @@ This guide walks you through setting up PostHog for React Router V7 in framework
 
      Recommended
 
-     Next, create a server-side middleware to help you capture server-side events. This middleware helps you achieve the following:
+     Use one PostHog client for a long-running Node server. Create it in a server-only module and import it from your middleware and tracing setup.
 
-     -   Initialize a PostHog client
-     -   Fetch the session and distinct ID from the `X-POSTHOG-SESSION-ID` and `X-POSTHOG-DISTINCT-ID` headers and pass them to your request as a [context](/docs/libraries/node.md#contexts). This automatically identifies the user and session for you in all subsequent event captures.
-     -   Calls `shutdown()` on the PostHog client to ensure all events are sent before the request is completed.
-
-     app/lib/posthog-middleware.ts
-
-     PostHog AI
+     app/lib/posthog.server.ts
 
      ```typescript
-     import { PostHog } from "posthog-node";
-     import type { RouterContextProvider } from "react-router";
-     import type { Route } from "../+types/root";
-     export interface PostHogContext extends RouterContextProvider {
-       posthog?: PostHog;
-     }
-     export const posthogMiddleware: Route.MiddlewareFunction = async ({ request, context }, next) => {
-       const posthog = new PostHog(process.env.VITE_POSTHOG_PROJECT_TOKEN!, {
-         host: process.env.VITE_POSTHOG_HOST!,
-         flushAt: 1,
-         flushInterval: 0,
-       });
-       const sessionId = request.headers.get('X-POSTHOG-SESSION-ID');
-       const distinctId = request.headers.get('X-POSTHOG-DISTINCT-ID');
-       (context as PostHogContext).posthog = posthog;
-       const response = await posthog.withContext(
-         { sessionId: sessionId ?? undefined, distinctId: distinctId ?? undefined },
-         next
-       );
-       await posthog.shutdown().catch(() => {});
-       return response;
+     import { PostHog } from 'posthog-node';
+     
+     export const posthog = new PostHog(process.env.VITE_POSTHOG_PROJECT_TOKEN!, {
+       host: process.env.VITE_POSTHOG_HOST!,
+     });
+     ```
+
+     In React Router 7, enable server middleware in `react-router.config.ts`:
+
+     react-router.config.ts
+
+     ```typescript
+     export default {
+       future: { v8_middleware: true },
      };
      ```
 
-     Then, you'll need to register the middleware in your app in the `app/root.tsx` file by exporting it in the `Route.MiddlewareFunction[]` array.
+     React Router 8 enables server middleware by default. Add the following middleware. It reads PostHog tracing headers and keeps each request context separate. Missing or blank headers add no ID. Header IDs are analytics context and must not authorize access.
+
+     app/lib/posthog-middleware.server.ts
+
+     ```typescript
+     import { createContext, type MiddlewareFunction } from 'react-router';
+     import { posthog } from './posthog.server';
+     
+     type RequestIds = { distinctId?: string; sessionId?: string };
+     
+     export const posthogClientContext = createContext<typeof posthog>();
+     export const posthogErrorContext = createContext<RequestIds | undefined>(undefined);
+     
+     function tracingId(value: string | null): string | undefined {
+       return value?.replace(/[\x00-\x1F\x7F-\x9F]/g, '').trim().slice(0, 1000) || undefined;
+     }
+     
+     export const posthogMiddleware: MiddlewareFunction<Response> = async ({ request, context }, next) => {
+       const existing = posthog.getContext();
+       const data: RequestIds = {
+         distinctId: existing?.distinctId ?? tracingId(request.headers.get('x-posthog-distinct-id')),
+         sessionId: existing?.sessionId ?? tracingId(request.headers.get('x-posthog-session-id')),
+       };
+       context.set(posthogClientContext, posthog);
+       context.set(posthogErrorContext, data);
+     
+       return posthog.withContext(data, () => next(), { fresh: true });
+     };
+     ```
+
+     Register the middleware in `app/root.tsx`. Put an authentication middleware before it if you use `posthog.withContext` to establish a verified application identity. Existing application IDs take priority over header IDs.
 
      app/root.tsx
 
-     PostHog AI
-
      ```jsx
-     import { posthogMiddleware } from './lib/posthog-middleware';
+     import { posthogMiddleware } from './lib/posthog-middleware.server';
+     
      export const middleware: Route.MiddlewareFunction[] = [
        posthogMiddleware,
        // other middlewares...
      ];
      ```
+
+     Work that the request starts keeps its IDs after `next()` settles. Pass explicit context to separate jobs that need their own IDs. Flush queued events before your platform can stop server work. Call `posthog.shutdown()` once when the server stops.
+
+     To capture server errors, add the capture call to your existing `handleError` export in `app/entry.server.tsx`. The saved IDs remain available when a middleware error reaches this hook outside the scope. Errors before this middleware runs have no saved request identity.
+
+     app/entry.server.tsx
+
+     ```typescript
+     import type { HandleErrorFunction } from 'react-router';
+     import { posthog } from './lib/posthog.server';
+     import { posthogErrorContext } from './lib/posthog-middleware.server';
+     
+     export const handleError: HandleErrorFunction = (error, { context }) => {
+       const saved = context.get(posthogErrorContext);
+       posthog.captureException(error, saved?.distinctId,
+         saved?.sessionId ? { $session_id: saved.sessionId } : undefined);
+     };
+     ```
+
+     ### Optional server span context
+
+     Use the optional `posthog-node/otel` entrypoint when your Node SDK includes it. Add `new PostHogContextSpanProcessor(posthog)` to the processors in your existing OpenTelemetry setup. Import the processor from `posthog-node/otel` and reuse the client from `posthog.server.ts`. Keep your provider, exporters, and sampler.
+
+     Import the helper in `posthog-middleware.server.ts`:
+
+     ```typescript
+     import { enrichCurrentSpan } from 'posthog-node/otel';
+     ```
+
+     Inside the `withContext` callback, call it immediately before `next()`:
+
+     ```typescript
+     enrichCurrentSpan(posthog);
+           return await next();
+     ```
+
+     The helper fills missing `posthogDistinctId` and `sessionId` attributes on the active span and its nearest recording server ancestor whose parent chain the processor observed. Explicit span attributes stay unchanged. The processor adds the request IDs to new child spans. If a sampler drops an intermediate span, the earlier server span stays unchanged because its parent chain cannot be verified.
+
+     React Router provides [server instrumentation hooks](https://reactrouter.com/how-to/instrumentation) for application-owned tracing. Their stable export, `instrumentations`, is available from 7.15.0. This setup does not create request spans. Configure those hooks or your existing server tracing to start a span before the middleware runs. This recipe was tested with React Router 7.15.0 and 8.4.0 on Node.
 
 11.  ## Verify server-side events are captured
 
@@ -454,16 +491,17 @@ This guide walks you through setting up PostHog for React Router V7 in framework
 
      app/routes/api.checkout.ts
 
-     PostHog AI
-
      ```jsx
-     import type { PostHogContext } from "../lib/posthog-middleware";
+     import { posthogClientContext } from "../lib/posthog-middleware.server";
+     
      export async function action({ request, context }: Route.ActionArgs) {
        const body = await request.json();
        // ... existing code ...
+     
        // Access the PostHog client from the context and capture an event
-       const posthog = (context as PostHogContext).posthog;
+       const posthog = context.get(posthogClientContext);
        posthog?.capture({ event: 'checkout_completed' });
+     
        return Response.json({
          success: true,
          // ... existing code ...
@@ -481,17 +519,9 @@ This guide walks you through setting up PostHog for React Router V7 in framework
 
      To get the most out of PostHog, you should familiarize yourself with the following:
 
-     -   [PostHog Web SDK docs](/docs/libraries/js.md): Learn more about the PostHog Web SDK and how to use it on the client-side.
-     -   [PostHog Node SDK docs](/docs/libraries/node.md): Learn more about the PostHog Node SDK and how to use it on the server-side.
-     -   [Identify users](/docs/product-analytics/identify.md): Learn more about how to identify users in your app.
-     -   [Group analytics](/docs/product-analytics/group-analytics.md): Learn more about how to use group analytics in your app.
-     -   [PostHog AI](/docs/posthog-ai.md): After capturing events, use PostHog AI to help you understand your data and build insights.
-     -   [Feature flags and experiments](/docs/libraries/react.md#feature-flags): Feature flag and experiment setup is the same as React. You can find more details in the React integration guide.
-
-### Still have questions?
-
-Ask PostHog AI
-
-### Was this page useful?
-
-HelpfulCould be better
+     -   [PostHog Web SDK docs](https://posthog.com/docs/libraries/js.md): Learn more about the PostHog Web SDK and how to use it on the client-side.
+     -   [PostHog Node SDK docs](https://posthog.com/docs/libraries/node.md): Learn more about the PostHog Node SDK and how to use it on the server-side.
+     -   [Identify users](https://posthog.com/docs/product-analytics/identify.md): Learn more about how to identify users in your app.
+     -   [Group analytics](https://posthog.com/docs/product-analytics/group-analytics.md): Learn more about how to use group analytics in your app.
+     -   [PostHog AI](https://posthog.com/docs/posthog-ai.md): After capturing events, use PostHog AI to help you understand your data and build insights.
+     -   [Feature flags and experiments](https://posthog.com/docs/libraries/react.md#feature-flags): Feature flag and experiment setup is the same as React. You can find more details in the React integration guide.

@@ -1,10 +1,29 @@
 > AI agents: this is one page from PostHog's docs. Full index of Markdown docs for LLMs: https://posthog.com/llms.txt
 
-# Angular Error Tracking installation - Docs
+# Angular Error Tracking installation
 
-Copy page
+Canonical URL: https://posthog.com/docs/error-tracking/installation/angular
 
-# Angular Error Tracking installation - Docs
+> **Cloud region:** This page uses US Cloud hosts. For an EU Cloud project, use `https://eu.posthog.com` instead of `https://us.posthog.com` or `https://app.posthog.com` (app host for links).
+
+## On this page
+
+- [Install with the wizard](#install-with-the-wizard)
+- [Install the package](#install-the-package)
+- [Initialize PostHog](#initialize-posthog)
+- [Send events](#send-events)
+- [Setting up exception autocapture](#setting-up-exception-autocapture)
+- [Manually capture exceptions](#manually-capture-exceptions)
+- [Verify error tracking](#verify-error-tracking)
+- [Upload source maps](#upload-source-maps)
+
+## Install with the wizard
+
+Run this command in your project directory to add PostHog to your Angular project. The wizard detects your framework, installs the SDK, and sets up your first events.
+
+`npx @posthog/wizard`
+
+Or set it up manually by following the rest of this guide.
 
 1.  1
 
@@ -14,30 +33,28 @@ Copy page
 
     Install the PostHog JavaScript library using your package manager:
 
-    PostHog AI
-
     ### npm
 
     ```bash
-    npm install posthog-js
+    npm install posthog-js@1
     ```
 
     ### yarn
 
     ```bash
-    yarn add posthog-js
+    yarn add posthog-js@1
     ```
 
     ### pnpm
 
     ```bash
-    pnpm add posthog-js
+    pnpm add posthog-js@1
     ```
 
     ### bun
 
     ```bash
-    bun add posthog-js
+    bun add posthog-js@1
     ```
 
 2.  2
@@ -55,8 +72,6 @@ Copy page
     Create a service by running `ng g service services/posthog`. The service should look like this:
 
     src/main.ts
-
-    PostHog AI
 
     ```typescript
     // src/app/services/posthog.service.ts
@@ -77,7 +92,7 @@ Copy page
         this.ngZone.runOutsideAngular(() => {
           posthog.init(environment.posthogKey, {
             api_host: environment.posthogHost,
-            defaults: '2026-05-30',
+            defaults: '2026-08-30',
           });
         });
       }
@@ -87,8 +102,6 @@ Copy page
     The service is initialized [outside of the Angular zone](https://angular.dev/api/core/NgZone#runOutsideAngular) to reduce change detection cycles. This is important to avoid performance issues with session recording. Then, inject the service in your app's root component `app.component.ts`. This will make sure PostHog is initialized before any other component is rendered.
 
     src/app/app.component.ts
-
-    PostHog AI
 
     ```typescript
     // src/app/app.component.ts
@@ -114,8 +127,6 @@ Copy page
 
     src/main.ts
 
-    PostHog AI
-
     ```typescript
     // src/main.ts
     import { bootstrapApplication } from '@angular/platform-browser';
@@ -125,7 +136,7 @@ Copy page
     import posthog from 'posthog-js'
     posthog.init(environment.posthogKey, {
       api_host: environment.posthogHost,
-      defaults: '2026-05-30'
+      defaults: '2026-08-30'
     })
     bootstrapApplication(AppComponent, appConfig)
       .catch((err) => console.error(err));
@@ -140,8 +151,6 @@ Copy page
     If you'd like, you can also manually capture custom events:
 
     JavaScript
-
-    PostHog AI
 
     ```javascript
     posthog.capture('my_custom_event', { property: 'value' })
@@ -159,12 +168,11 @@ Copy page
 
     src/app/posthog-error-handler.ts
 
-    PostHog AI
-
     ```typescript
     import { ErrorHandler, Injectable, Provider } from '@angular/core';
     import { HttpErrorResponse } from '@angular/common/http';
     import posthog from 'posthog-js';
+    
     @Injectable({ providedIn: 'root' })
     class PostHogErrorHandler implements ErrorHandler {
       public constructor() {}
@@ -183,11 +191,13 @@ Copy page
         return null;
       }
     }
+    
     function tryToUnwrapZonejsError(error: unknown): unknown | Error {
       return error && (error as { ngOriginalError: Error }).ngOriginalError
         ? (error as { ngOriginalError: Error }).ngOriginalError
         : error;
     }
+    
     function extractHttpModuleError(error: HttpErrorResponse): string | Error {
       if (isErrorOrErrorLikeObject(error.error)) {
         return error.error;
@@ -204,6 +214,7 @@ Copy page
       }
       return error.message;
     }
+    
     function isErrorOrErrorLikeObject(value: unknown): value is Error {
       if (value instanceof Error) {
         return true;
@@ -213,6 +224,7 @@ Copy page
       }
       return 'name' in value && 'message' in value && 'stack' in value;
     }
+    
     declare const Zone: any;
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     const isNgZoneEnabled = typeof Zone !== 'undefined' && Zone.root?.run;
@@ -220,6 +232,7 @@ Copy page
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       return isNgZoneEnabled ? Zone.root.run(callback) : callback();
     }
+    
     export function providePostHogErrorHandler(): Provider {
       return {
         provide: ErrorHandler,
@@ -232,12 +245,11 @@ Copy page
 
     src/app/app.config.ts
 
-    PostHog AI
-
     ```typescript
     // src/app/app.config.ts
     import { ApplicationConfig, provideZoneChangeDetection } from '@angular/core';
     import { provideRouter } from '@angular/router';
+    
     import { routes } from './app.routes';
     import { providePostHogErrorHandler } from './posthog-error-handler';
     export const appConfig: ApplicationConfig = {
@@ -258,8 +270,6 @@ Copy page
 
     TypeScript
 
-    PostHog AI
-
     ```typescript
     posthog.captureException(e, additionalProperties)
     ```
@@ -272,7 +282,7 @@ Copy page
 
     Before proceeding, let's make sure exception events are being captured and sent to PostHog. You should see events appear in the activity feed.
 
-    ![Activity feed with events](https://res.cloudinary.com/dmukukwp6/image/upload/SCR_20250729_ouxl_f788dd8cd2.png)![Activity feed with events](https://res.cloudinary.com/dmukukwp6/image/upload/SCR_20250729_owae_7c3490822c.png)
+    ![Activity feed with events](https://res.cloudinary.com/dmukukwp6/image/upload/SCR_20250729_ouxl_f788dd8cd2.png)
 
     [Check for exceptions in PostHog](https://app.posthog.com/activity/explore)
 
@@ -286,12 +296,4 @@ Copy page
 
     Let's continue to the next section.
 
-    [Upload source maps](/docs/error-tracking/upload-source-maps/angular.md)
-
-### Still have questions?
-
-Ask PostHog AI
-
-### Was this page useful?
-
-HelpfulCould be better
+    [Upload source maps](https://posthog.com/docs/error-tracking/upload-source-maps/angular.md)

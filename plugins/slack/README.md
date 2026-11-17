@@ -2,20 +2,53 @@
 
 A [Claude Code][claude-code], [Cursor][cursor], and [Codex][codex-cli] plugin that brings Slack into your AI tools with a [Slack MCP Server][slack-mcp-docs] and set of Slack skills for both users and developers.
 
-[![CI Build](https://github.com/slackapi/slack-skills-plugin/actions/workflows/ci-build.yml/badge.svg)](https://github.com/slackapi/slack-skills-plugin/actions/workflows/ci-build.yml)
+[![CI Build](https://github.com/slackapi/slack-skills-plugin/actions/workflows/ci-build.yml/badge.svg)](https://github.com/slackapi/slack-skills-plugin/actions/workflows/ci-build.yml?query=branch%3Amain)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 ## Installation
 
 ### Claude Code
 
-The plugin is published on the [official Claude marketplace](https://claude.com/plugins/slack). Install it from inside Claude Code:
+The plugin is published on [Slack's Claude marketplace](https://github.com/slackapi/slack-skills-plugin). Install it from inside Claude Code:
+
+```text
+/plugin marketplace add slackapi/slack-skills-plugin
+/plugin install slack@slack
+```
+
+The Slack MCP server is configured automatically. You'll be prompted to authenticate to your Slack workspace via OAuth on first use.
+
+Then turn on auto-update:
+
+1. Run `/plugin`.
+2. Open **Marketplaces**.
+3. Select `slack`.
+4. Select **Enable auto-update**.
+
+Without auto-update, update an existing install to the latest version with:
+
+```sh
+claude plugin marketplace update slack
+claude plugin update slack@slack
+```
+
+The plugin is also published on the [official Claude marketplace](https://claude.com/plugins/slack), but its updates are experiencing large delays. We recommend the marketplace above until this is resolved:
 
 ```text
 /plugin install slack@claude-plugins-official
 ```
 
-The Slack MCP server is configured automatically. You'll be prompted to authenticate to your Slack workspace via OAuth on first use.
+You can install the plugin from either marketplace, but don't install it from both.
+
+#### Switching from the official Claude marketplace
+
+If you installed the plugin from the official Claude marketplace, uninstall it first, so that only one copy is enabled:
+
+```sh
+claude plugin uninstall slack@claude-plugins-official
+```
+
+Then follow the [install steps](#claude-code) above. Run `claude plugin list` to confirm that `slack@slack` is the only Slack plugin listed.
 
 ### Cursor
 
@@ -36,6 +69,13 @@ codex plugin marketplace add slackapi/slack-skills-plugin
 codex plugin add slack@slack
 ```
 
+To update an existing install, refresh the marketplace and add the plugin again:
+
+```sh
+codex plugin marketplace upgrade slack
+codex plugin add slack@slack
+```
+
 Start a new Codex session to pick up the plugin, then invoke a skill by name with a `$` mention, for example `$block-kit`.
 
 Codex support currently ships the skills only; the MCP server is not yet wired into the Codex surface.
@@ -53,7 +93,7 @@ npx skills add slackapi/slack-skills-plugin -y -a gemini-cli
 npx skills add slackapi/slack-skills-plugin -y -a opencode
 ```
 
-Other popular agents include `crush`, `devin`, `hermes-agent`, `openclaw`, and `pi`. See [supported agents][npx-skills] for the full list of agents and their identifiers. Add `-g` to install for your user instead of the current project.
+Other popular agents include `crush`, `devin`, `hermes-agent`, `openclaw`, and `pi`. See [supported agents][npx-skills] for the full list of agents and their identifiers. Add `-g` to install for your user instead of the current project. Run the same command again to update the skills to the latest version.
 
 The `-y` flag installs every skill without prompting. Drop it to choose skills from a list, or pass `-s <skill>` to name the ones you want.
 
@@ -66,20 +106,25 @@ This path carries the skills only: no commands, and no MCP server.
 The plugin connects your AI tool to Slack's hosted [MCP server][slack-mcp-docs]:
 
 - **Search** - find messages, files, users, and channels (public and private)
-- **Messaging** - send and schedule messages, read channels, follow threads, add reactions
+- **Messaging** - send, draft, and schedule messages, create channels and DMs, read channels, follow threads, add and read reactions
 - **Canvas** - create, read, and update canvas documents
+- **Files** - upload files and images and share them in a channel or thread
+- **Lists** - create, read, and update lists and their records
 - **Users** - read profiles and list channel members
 
 ### Skills
 
-Six skills load on demand to handle messaging tasks and developer workflows:
+Nine skills load on demand to handle messaging tasks and developer workflows:
 
-- [`slack:slack-messaging`](skills/slack-messaging/SKILL.md) - composing well-formatted, effective Slack messages
-- [`slack:slack-search`](skills/slack-search/SKILL.md) - finding messages, files, channels, and people
-- [`slack:slack-api`](skills/slack-api/SKILL.md) - discovering and calling Slack Web API methods
-- [`slack:slack-cli`](skills/slack-cli/SKILL.md) - using the [Slack CLI][slack-cli] to create, run, and manage apps
-- [`slack:create-slack-app`](skills/create-slack-app/SKILL.md) - building a Slack app or agent with the CLI and [Bolt][bolt]
-- [`slack:block-kit`](skills/block-kit/SKILL.md) - building and validating [Block Kit][block-kit] layouts
+- [`slack-messaging`](skills/slack-messaging/SKILL.md) - composing well-formatted, effective Slack messages
+- [`slack-search`](skills/slack-search/SKILL.md) - finding messages, files, channels, and people
+- [`slack-api`](skills/slack-api/SKILL.md) - discovering and calling Slack Web API methods
+- [`slack-docs`](skills/slack-docs/SKILL.md) - finding and reading the right Slack developer docs page
+- [`slack-cli`](skills/slack-cli/SKILL.md) - using the [Slack CLI][slack-cli] to create, run, and manage apps
+- [`create-slack-app`](skills/create-slack-app/SKILL.md) - building a Slack app or agent with the CLI and [Bolt][bolt]
+- [`test-slack-app`](skills/test-slack-app/SKILL.md) - running an app somewhere safe and confirming it works in Slack
+- [`deploy-slack-app`](skills/deploy-slack-app/SKILL.md) - deploying a Socket Mode app to Railway or Heroku as a separate, always-on Slack app
+- [`block-kit`](skills/block-kit/SKILL.md) - building and validating [Block Kit][block-kit] layouts
 
 ### Commands
 

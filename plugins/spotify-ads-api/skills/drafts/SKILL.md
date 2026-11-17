@@ -29,6 +29,18 @@ api() { "$PLUGIN_ROOT/scripts/api-request.sh" drafts "$@"; }
 
 Before the first Ads API v3 call, read and follow `$PLUGIN_ROOT/skills/api-reference/references/live-openapi.md`.
 
+Before sending any output to a human user, read and follow `$PLUGIN_ROOT/skills/api-reference/references/language-standards.md`.
+
+Also read `$PLUGIN_ROOT/skills/api-reference/references/api-behaviors.md` for API behaviour the spec does not express (draft VALIDATE/PUBLISH and `draft_hierarchy_version`, estimates, Reserved pricing).
+
+Critical rules:
+
+- Send only fields the live spec defines for the operation; include every field it marks required, including ones whose description says "required" (e.g. `targets.placements`).
+- Set `placements` when creating an ad set and on every audience estimate, using only values the ad product catalog allows for that product's ad sets (and any narrower limit the objective's spec description states). On ad set updates, keep a valid `placements` in the merged result.
+- Never resend a request body that was rejected with a 4xx unchanged; fix it from the error first.
+- Before VALIDATE/PUBLISH, refetch `draft_hierarchy_version` from the draft campaign.
+- Choose new or edited ad set `start_time` values well clear of the ad product catalog's minimum lead time, and recheck staged start times against the current UTC time immediately before each VALIDATE and PUBLISH.
+
 To retrieve settings values (TOKEN, AD_ACCOUNT_ID, AUTO_EXECUTE, BASE_URL, SDK_HEADER, SKILL_HEADER, PLUGIN_VERSION) for use outside API calls, run `api --env`. The output is eval-safe, so `eval $(api --env)` assigns them all.
 
 ## Operations
@@ -71,6 +83,8 @@ api POST "ad_accounts/{ad_account_id}/ads/$AD_ID/drafts"
 
 Use only the endpoint matching the selected entity type. Do not send a request body.
 
+A campaign can hold only a limited number of ad set drafts, and the limit isn't a fixed public value. If creating an ad set draft returns 400 saying the campaign has reached the maximum number of ad set drafts, stop and report the error message. Skip the PATCH and anything else that depends on the draft. List the campaign's drafts with `api GET "ad_accounts/{ad_account_id}/drafts/ad_sets?campaign_ids=$CAMPAIGN_ID&limit=50"` and offer to publish or delete stale ones (draft DELETE is safe to retry). Act only on the user's choice. Bulk draft-create requests fail as a whole when existing plus requested drafts would exceed the limit, so split them or clean up first. Never retry it unchanged.
+
 #### Step 4: Patch the draft
 
 Build a minimal patch containing only requested changes and send it to the corresponding draft endpoint:
@@ -110,6 +124,10 @@ Read and follow
 catalog once for this draft-build workflow, resolve the planned campaign product, and
 use the applicable rules while constructing the draft plan. Do not display a per-field
 checklist.
+
+For reserved `CONTENT` or `FPMNG` buys, follow `skills/api-reference/references/api-behaviors.md` (Reserved Pricing and Forecasting) before presenting the plan or creating draft ad sets. Fetch the fixed rate for the planned product, dates, format, and targeting, then use its `cost_micro` as the draft ad set `bid_micro_amount`. Show the fixed rate separately from any audience estimate.
+
+Before creating draft ad sets, run the audience estimate from `build-campaign` Step 2.5 for each ad set. The `AUTOBID` omission of `bid_micro_amount` applies only to ad set payloads, not to the estimate request.
 
 #### Step 2: Confirm the Parsed Plan
 
@@ -169,6 +187,20 @@ Extract the draft campaign `id` from the response. The response includes an init
 
 **4b. Create Draft Ad Sets** (using `campaign_id` = draft campaign ID from 4a):
 
+Set a concrete `delivery_goal` compatible with the parent campaign's `delivery_goal_group`:
+
+| `delivery_goal_group` | Supported `delivery_goal` values |
+|---|---|
+| `AWARENESS` | `IMPRESSIONS`, `REACH`, `VIDEO_VIEWS` |
+| `WEBSITE_TRAFFIC` | `CLICKS`, `PAGE_VIEWS`, `VIDEO_VIEWS` |
+| `APP_PROMOTION` | `APP_INSTALLS` |
+| `ENGAGEMENT_ON_SPOTIFY` | `CLICKS`, `STREAMS`, `VIDEO_VIEWS` |
+| `LEAD_GEN` | `LEADS`, `CLICKS` |
+
+Choose the value that matches the user's requested outcome and the live ad product catalog. Never set `delivery_goal` to `UNSET` or omit it when the parent campaign has a non-`UNSET` `delivery_goal_group`.
+
+The live ad product catalog's `start_time` constraint text (in its constraint and required-field lists) states the minimum lead time. Apply it when choosing start times. When the user gives no exact start time, propose one well clear of that minimum, such as the start of the hour after next, so it stays valid through staging and confirmation. If the user wants an exact time close to the minimum, warn that it can expire before validation.
+
 ```bash
 api POST "ad_accounts/{ad_account_id}/drafts/ad_sets" \
   '{
@@ -181,7 +213,8 @@ api POST "ad_accounts/{ad_account_id}/drafts/ad_sets" \
     "category": "ADV_X_Y",
     "targets": { ... },
     "bid_strategy": "MAX_BID",
-    "bid_micro_amount": ...
+    "bid_micro_amount": ...,
+    "delivery_goal": "..."
   }'
 ```
 
@@ -227,11 +260,11 @@ api POST "ad_accounts/{ad_account_id}/drafts/campaigns/$DRAFT_CAMPAIGN_ID" \
 
 The `draft_hierarchy_version` must match the current value from the draft campaign response.
 
-**If validation succeeds** (HTTP 200 with `validation_errors: null`):
+**If validation succeeds** (HTTP 200, `validation_errors` is null):
 - Display a success summary with the full draft hierarchy
 - Ask the user: **Publish now** or **Keep as draft for later**
 
-**If validation returns errors** (HTTP 400 with `validation_errors` array):
+**If validation returns errors** (HTTP 400 with a `validation_errors` array):
 - Display each error with its entity type, entity ID, and message:
   ```
   Validation Errors:
@@ -240,6 +273,8 @@ The `draft_hierarchy_version` must match the current value from the draft campai
   ```
 - Suggest fixes for each error
 - Ask the user if they want to fix the issues (for example, `edit ad-set <draft_ad_set_id>` or `edit ad <draft_ad_id>`) or delete the draft
+
+**If the request fails another way** (no `validation_errors` in the body): handle it like any other error; never retry automatically.
 
 #### Step 6: Summary
 
@@ -342,6 +377,8 @@ api PATCH "ad_accounts/{ad_account_id}/drafts/ad_sets/$DRAFT_AD_SET_ID" \
 
 Updatable ad set fields: `name`, `start_time`, `end_time`, `budget`, `bid_micro_amount`, `bid_strategy`, `targets`, `pacing`, `asset_format`, `category`, `frequency_caps`, `cost_model`, `delivery_goal`, `promotion`, `video_delivery_formats`, `status`.
 
+Draft ad sets and ads have no `delivery` field and their statuses have no `PAUSED`, so pausing an ad set or ad is a live PATCH of `{"delivery":"OFF"}`, not a draft edit; only draft campaigns take `status: PAUSED`. Draft updates are PATCH, never PUT.
+
 **Update draft ad:**
 ```bash
 api PATCH "ad_accounts/{ad_account_id}/drafts/ads/$DRAFT_AD_ID" \
@@ -363,6 +400,8 @@ api POST "ad_accounts/{ad_account_id}/drafts/campaigns/$DRAFT_CAMPAIGN_ID" \
   '{"action":"VALIDATE","draft_hierarchy_version":<version>}'
 ```
 
+Before validating, list the hierarchy's draft ad sets (`drafts/ad_sets?campaign_ids=$DRAFT_CAMPAIGN_ID`) and check every `start_time` against the current UTC time and the catalog's minimum lead time. If one falls short, don't validate. Propose a later time, or ask whether the exact time matters, and patch only after the user agrees. If a 400's `error_codes` include `INVALID.AD_SET.START_TIME_TOO_CLOSE`, follow its message, and never re-validate unchanged.
+
 First, fetch the draft campaign to get the current `draft_hierarchy_version`:
 
 ```bash
@@ -371,13 +410,17 @@ api GET "ad_accounts/{ad_account_id}/drafts/campaigns/$DRAFT_CAMPAIGN_ID"
 
 **Handling the response:**
 
-- **HTTP 200** — validation passed. The response is a `PublishCampaignResult` with `validation_errors: null` and optionally `campaign` data.
-- **HTTP 400** — validation failed. The response contains a `validation_errors` array of `HierarchyValidationError` objects.
+- **HTTP 200** — validation passed. The response is a `PublishCampaignResult` with `validation_errors: null`.
+- **HTTP 400 with `validation_errors`** — validation failed. The response is a `PublishCampaignResult` whose `validation_errors` array lists `HierarchyValidationError` objects.
+- **Any other error** — handle it like any other error; never retry automatically.
+
+On a 400, check for `validation_errors` first.
 
 Each `HierarchyValidationError` has:
 - `validation_entity_type`: `CAMPAIGN`, `AD_SET`, or `AD`
 - `validation_entity_id`: UUID of the failing entity
 - `message`: human-readable error description
+- `error_codes`: error codes for the failure
 
 **If no validation errors (HTTP 200):**
 ```
@@ -387,7 +430,7 @@ Each `HierarchyValidationError` has:
   Publish now? /spotify-ads-api:drafts publish <draft_campaign_id>
 ```
 
-**If validation errors exist (HTTP 400):**
+**If validation errors exist (HTTP 400 with `validation_errors`):**
 ```
 ✗ Draft campaign "My Campaign" has validation errors:
 
@@ -413,6 +456,8 @@ api GET "ad_accounts/{ad_account_id}/drafts/campaigns/$DRAFT_CAMPAIGN_ID"
 ```
 
 #### Step 2: Run validation first
+
+Run the start-time recheck from `validate` first. Validation can pass and the user can then take a while to confirm, so repeat the check right before the PUBLISH request.
 
 ```bash
 api POST "ad_accounts/{ad_account_id}/drafts/campaigns/$DRAFT_CAMPAIGN_ID" \
@@ -448,7 +493,9 @@ api POST "ad_accounts/{ad_account_id}/drafts/campaigns/$DRAFT_CAMPAIGN_ID" \
   '{"action":"PUBLISH","draft_hierarchy_version":<version>}'
 ```
 
-Display the published campaign details from the response. Published entities retain the same IDs they had as drafts.
+On HTTP 200, display the published campaign details from the response. Published entities retain the same IDs they had as drafts.
+
+A 400 with `validation_errors` means publish failed and nothing went live: show the errors, fix them with PATCH, and re-validate. Otherwise handle it like any other error; never retry automatically.
 
 ---
 

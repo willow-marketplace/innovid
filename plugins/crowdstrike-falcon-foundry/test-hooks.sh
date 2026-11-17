@@ -19,6 +19,9 @@ HOOK="./hooks/foundry-skill-router.sh"
 BRIDGE="./hooks/superpowers-foundry-bridge.sh"
 GUARD="./hooks/foundry-cli-guard.sh"
 MARKER="/tmp/.foundry-skill-router-active"
+TEST_TMP_DIR=$(mktemp -d)
+TEST_SPEC_PREFIX="$TEST_TMP_DIR/test-spec"
+trap 'rm -rf "$TEST_TMP_DIR"' EXIT
 
 GREEN='\033[0;32m'
 RED='\033[0;31m'
@@ -29,7 +32,7 @@ RESET='\033[0m'
 
 cleanup() {
   rm -f "$MARKER"
-  rm -f /tmp/test-spec-*.yaml /tmp/test-spec-*.json
+  rm -f "${TEST_SPEC_PREFIX}"-*.yaml "${TEST_SPEC_PREFIX}"-*.json
   unset FOUNDRY_SKIP_NAME_CONFIRM 2>/dev/null || true
 }
 
@@ -70,6 +73,18 @@ assert_empty() {
     FAIL=$((FAIL + 1))
     printf "${RED}  FAIL${RESET} %s\n" "$name"
     printf "       expected empty output, got: %.200s\n" "$output"
+  fi
+}
+
+assert_equal() {
+  local actual="$1" expected="$2" name="$3"
+  TOTAL=$((TOTAL + 1))
+  if [ "$actual" = "$expected" ]; then
+    PASS=$((PASS + 1))
+    printf "${GREEN}  PASS${RESET} %s\n" "$name"
+  else
+    FAIL=$((FAIL + 1))
+    printf "${RED}  FAIL${RESET} %s (expected %s, got %s)\n" "$name" "$expected" "$actual"
   fi
 }
 
@@ -121,7 +136,7 @@ run_hook() {
 }
 
 # Run the spec-adaptation hook for a given spec file path.
-# Usage: OUTPUT=$(run_spec_hook "/tmp/test-spec-3-1.yaml")
+# Usage: OUTPUT=$(run_spec_hook "${TEST_SPEC_PREFIX}-3-1.yaml")
 run_spec_hook() {
   local spec_path="$1"
   local json
@@ -145,6 +160,12 @@ MATCH_PROMPTS=(
   "CREATE A FOUNDRY APP"
   "add a foundry workflow and ui page"
   "debug the foundry function error"
+  "Can you make me a Foundry app that integrates with ServiceNow?"
+  "I need a Foundry app with a Python function"
+  "connect the OpenRouter API to a Foundry app"
+  "Can you set up a Foundry app with a data store for investigation notes?"
+  "audit my foundry app for anti-patterns"
+  "review this Falcon Foundry app before I deploy it"
 )
 
 MATCH_NAMES=(
@@ -158,6 +179,12 @@ MATCH_NAMES=(
   "1.8  uppercase input"
   "1.9  multiple nouns"
   "1.10 debug verb"
+  "1.11 make verb (make me a foundry app)"
+  "1.12 need verb (I need a foundry app)"
+  "1.13 verb five words from noun (connect ... foundry app)"
+  "1.14 two-word verb (set up a foundry app)"
+  "1.17 audit verb (audit my foundry app)"
+  "1.18 review verb (review this falcon foundry app)"
 )
 
 for i in "${!MATCH_PROMPTS[@]}"; do
@@ -169,6 +196,35 @@ for i in "${!MATCH_PROMPTS[@]}"; do
   assert_contains "$OUTPUT" "FOUNDRY PLUGIN DETECTED" "${MATCH_NAMES[$i]}: injects context"
   assert_marker_exists "${MATCH_NAMES[$i]}: creates marker"
 done
+
+# Codex sends the same event fields plus turn_id and permission_mode. The hook
+# output should route by skill name without telling Codex to use Claude's Skill tool.
+cleanup
+JSON=$(jq -n '{
+  hook_event_name: "UserPromptSubmit",
+  session_id: "codex-session",
+  turn_id: "codex-turn",
+  permission_mode: "default",
+  prompt: "I need a Falcon Foundry app"
+}')
+OUTPUT=$(PLUGIN_ROOT="$(pwd)" CLAUDE_PLUGIN_ROOT="$(pwd)" run_hook "$HOOK" "$JSON")
+assert_contains "$OUTPUT" "load and follow the crowdstrike-falcon-foundry:development-workflow skill" "1.14 Codex event → assistant-neutral skill routing"
+assert_not_contains "$OUTPUT" "Skill tool" "1.14 Codex event → no Claude-only Skill tool wording"
+rm -f "$MARKER-codex-session"
+
+# Cursor names the prompt hook beforeSubmitPrompt, sends conversation_id, and
+# only injects top-level additional_context.
+cleanup
+JSON=$(jq -n '{
+  hook_event_name: "beforeSubmitPrompt",
+  conversation_id: "cursor-conv",
+  prompt: "I need a Falcon Foundry app"
+}')
+OUTPUT=$(CURSOR_PLUGIN_ROOT="$(pwd)" run_hook "$HOOK" "$JSON")
+assert_contains "$OUTPUT" "\"additional_context\"" "1.15 Cursor event → additional_context"
+assert_not_contains "$OUTPUT" "hookSpecificOutput" "1.15 Cursor event → no Claude hookSpecificOutput"
+assert_contains "$OUTPUT" "load and follow the crowdstrike-falcon-foundry:development-workflow skill" "1.15 Cursor event → skill routing"
+rm -f "$MARKER-cursor-conv"
 
 # ---------- Section 2: UserPromptSubmit — Should NOT Match ----------
 
@@ -182,6 +238,9 @@ NO_MATCH_PROMPTS=(
   "the building has a foundry"
   "I'm running the tests"
   "foundry is interesting"
+  "fix the orchestrator so it stops loading the skill for every falcon foundry mention"
+  "the orchestrator we build in step 3 hands off to the foundry app later"
+  "I want the router to stay quiet when a prompt only mentions falcon foundry"
 )
 
 NO_MATCH_NAMES=(
@@ -192,6 +251,9 @@ NO_MATCH_NAMES=(
   "2.5  'building' as noun, not verb"
   "2.6  no foundry noun"
   "2.7  no action verb (is interesting)"
+  "2.8  verb far from noun (fix ... falcon foundry)"
+  "2.9  verb far from noun (build ... foundry app)"
+  "2.10 intent verb far from noun (want ... falcon foundry)"
 )
 
 for i in "${!NO_MATCH_PROMPTS[@]}"; do
@@ -210,7 +272,7 @@ printf "\n${BOLD}Section 3: PreToolUse — OpenAPI Spec Auto-Adaptation${RESET}\
 
 # 3.1 — default without enum → auto-fixed by adapt script
 cleanup
-cat > /tmp/test-spec-3-1.yaml <<'EOF'
+cat > "${TEST_SPEC_PREFIX}-3-1.yaml" <<'EOF'
 openapi: "3.0.0"
 info:
   title: Test
@@ -223,13 +285,13 @@ servers:
         description: "API domain"
 paths: {}
 EOF
-OUTPUT=$(run_spec_hook "/tmp/test-spec-3-1.yaml")
+OUTPUT=$(run_spec_hook "${TEST_SPEC_PREFIX}-3-1.yaml")
 assert_contains "$OUTPUT" "automatically fixed" "3.1  default without enum → auto-fixed"
 assert_contains "$OUTPUT" "Removed default" "3.1  reports default removal"
 
 # 3.2 — default WITH enum → ALLOW (no changes needed)
 cleanup
-cat > /tmp/test-spec-3-2.yaml <<'EOF'
+cat > "${TEST_SPEC_PREFIX}-3-2.yaml" <<'EOF'
 openapi: "3.0.0"
 info:
   title: Test
@@ -245,12 +307,12 @@ servers:
         description: "API domain"
 paths: {}
 EOF
-OUTPUT=$(run_spec_hook "/tmp/test-spec-3-2.yaml")
+OUTPUT=$(run_spec_hook "${TEST_SPEC_PREFIX}-3-2.yaml")
 assert_empty "$OUTPUT" "3.2  default WITH enum → ALLOW (no changes)"
 
 # 3.3 — description only (no default) → ALLOW
 cleanup
-cat > /tmp/test-spec-3-3.yaml <<'EOF'
+cat > "${TEST_SPEC_PREFIX}-3-3.yaml" <<'EOF'
 openapi: "3.0.0"
 info:
   title: Test
@@ -262,12 +324,12 @@ servers:
         description: "API domain"
 paths: {}
 EOF
-OUTPUT=$(run_spec_hook "/tmp/test-spec-3-3.yaml")
+OUTPUT=$(run_spec_hook "${TEST_SPEC_PREFIX}-3-3.yaml")
 assert_empty "$OUTPUT" "3.3  description only (no default) → ALLOW"
 
 # 3.4 — https:// with variables → auto-fixed by adapt script
 cleanup
-cat > /tmp/test-spec-3-4.yaml <<'EOF'
+cat > "${TEST_SPEC_PREFIX}-3-4.yaml" <<'EOF'
 openapi: "3.0.0"
 info:
   title: Test
@@ -279,13 +341,13 @@ servers:
         description: "API domain"
 paths: {}
 EOF
-OUTPUT=$(run_spec_hook "/tmp/test-spec-3-4.yaml")
+OUTPUT=$(run_spec_hook "${TEST_SPEC_PREFIX}-3-4.yaml")
 assert_contains "$OUTPUT" "automatically fixed" "3.4  https:// with variables → auto-fixed"
 assert_contains "$OUTPUT" "Stripped protocol" "3.4  reports protocol stripping"
 
 # 3.5 — no protocol with variables → ALLOW
 cleanup
-cat > /tmp/test-spec-3-5.yaml <<'EOF'
+cat > "${TEST_SPEC_PREFIX}-3-5.yaml" <<'EOF'
 openapi: "3.0.0"
 info:
   title: Test
@@ -297,12 +359,12 @@ servers:
         description: "API domain"
 paths: {}
 EOF
-OUTPUT=$(run_spec_hook "/tmp/test-spec-3-5.yaml")
+OUTPUT=$(run_spec_hook "${TEST_SPEC_PREFIX}-3-5.yaml")
 assert_empty "$OUTPUT" "3.5  no protocol with variables → ALLOW"
 
 # 3.6 — enum in parameter schema but NOT in servers → auto-fixed (default removed)
 cleanup
-cat > /tmp/test-spec-3-6.yaml <<'EOF'
+cat > "${TEST_SPEC_PREFIX}-3-6.yaml" <<'EOF'
 openapi: "3.0.0"
 info:
   title: Test
@@ -325,7 +387,7 @@ paths:
               - active
               - inactive
 EOF
-OUTPUT=$(run_spec_hook "/tmp/test-spec-3-6.yaml")
+OUTPUT=$(run_spec_hook "${TEST_SPEC_PREFIX}-3-6.yaml")
 assert_contains "$OUTPUT" "automatically fixed" "3.6  enum in params but not servers → auto-fixed"
 
 # 3.7 — non-existent spec file → ALLOW (passthrough)
@@ -333,9 +395,90 @@ cleanup
 OUTPUT=$(run_spec_hook "/tmp/nonexistent-spec.yaml")
 assert_empty "$OUTPUT" "3.7  non-existent spec file → ALLOW (passthrough)"
 
+# 3.7a — a quoted path with spaces must still be checked for Swagger 2.0
+cleanup
+cat > "${TEST_SPEC_PREFIX}-3-7 spaced.yaml" <<'EOF'
+swagger: "2.0"
+info:
+  title: Test
+  version: "1.0"
+paths: {}
+EOF
+JSON=$(jq -n --arg cmd "foundry api-integrations create --name X --spec \"${TEST_SPEC_PREFIX}-3-7 spaced.yaml\" --no-prompt" \
+  '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: $cmd}}')
+OUTPUT=$(run_hook "$HOOK" "$JSON")
+assert_json_field "$OUTPUT" '.hookSpecificOutput.permissionDecision' "deny" "3.7a quoted spec path with spaces → BLOCK Swagger 2.0"
+
+# 3.7b — the CLI also accepts --spec=path
+JSON=$(jq -n --arg cmd "foundry api-integrations create --name X --spec=${TEST_SPEC_PREFIX}-3-7\\ spaced.yaml --no-prompt" \
+  '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: $cmd}}')
+OUTPUT=$(run_hook "$HOOK" "$JSON")
+assert_json_field "$OUTPUT" '.hookSpecificOutput.permissionDecision' "deny" "3.7b equals-form spec path with escaped space → BLOCK Swagger 2.0"
+
+# 3.7c — single-quoted paths also preserve spaces
+JSON=$(jq -n --arg cmd "foundry api-integrations create --name X --spec '${TEST_SPEC_PREFIX}-3-7 spaced.yaml' --no-prompt" \
+  '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: $cmd}}')
+OUTPUT=$(run_hook "$HOOK" "$JSON")
+assert_json_field "$OUTPUT" '.hookSpecificOutput.permissionDecision' "deny" "3.7c single-quoted spec path → BLOCK Swagger 2.0"
+
+# 3.7d — quoted OpenAPI 3.0 paths also reach the adapter
+cat > "${TEST_SPEC_PREFIX}-3-7d.yaml" <<'EOF'
+openapi: "3.0.0"
+info:
+  title: Test
+  version: "1.0"
+servers:
+  - url: "{domain}"
+    variables:
+      domain:
+        default: "example.com"
+paths: {}
+EOF
+JSON=$(jq -n --arg cmd "foundry api-integrations create --name X --spec \"${TEST_SPEC_PREFIX}-3-7d.yaml\" --no-prompt" \
+  '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: $cmd}}')
+OUTPUT=$(run_hook "$HOOK" "$JSON")
+assert_contains "$OUTPUT" "automatically fixed" "3.7d quoted OpenAPI 3.0 path → auto-adapted"
+assert_not_contains "$(cat "${TEST_SPEC_PREFIX}-3-7d.yaml")" "default: example.com" "3.7d quoted spec was actually modified"
+
+# A quoted example is not an invocation; the hook must not rewrite its spec.
+cat > "${TEST_SPEC_PREFIX}-3-7e.json" <<'EOF'
+{"openapi":"3.0.0","info":{"title":"Test","version":"1"},"servers":[{"url":"https://{host}","variables":{"host":{"default":"example.com"}}}],"paths":{}}
+EOF
+BEFORE=$(cat "${TEST_SPEC_PREFIX}-3-7e.json")
+JSON=$(jq -n --arg cmd "git commit -m 'Document foundry api-integrations create --spec ${TEST_SPEC_PREFIX}-3-7e.json'" \
+  '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: $cmd}}')
+OUTPUT=$(run_hook "$HOOK" "$JSON")
+assert_empty "$OUTPUT" "3.7e quoted Foundry example in a commit → no adaptation"
+assert_equal "$(cat "${TEST_SPEC_PREFIX}-3-7e.json")" "$BEFORE" "3.7e quoted example leaves the spec unchanged"
+
+# Even with a real invocation later, an earlier quoted spec must not be selected.
+JSON=$(jq -n --arg cmd "git commit -m 'Document foundry api-integrations create --spec ${TEST_SPEC_PREFIX}-3-7e.json'; foundry api-integrations create --name X --spec \"${TEST_SPEC_PREFIX}-3-7 spaced.yaml\" --no-prompt" \
+  '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: $cmd}}')
+OUTPUT=$(run_hook "$HOOK" "$JSON")
+assert_json_field "$OUTPUT" '.hookSpecificOutput.permissionDecision' "deny" "3.7f real command uses its own spec"
+assert_equal "$(cat "${TEST_SPEC_PREFIX}-3-7e.json")" "$BEFORE" "3.7f earlier quoted spec stays unchanged"
+
+JSON=$(jq -n --arg cmd "foundry api-integrations create \\
+  --name X \\
+  --spec \"${TEST_SPEC_PREFIX}-3-7 spaced.yaml\" --no-prompt" \
+  '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: $cmd}}')
+OUTPUT=$(run_hook "$HOOK" "$JSON")
+assert_json_field "$OUTPUT" '.hookSpecificOutput.permissionDecision' "deny" "3.7g multiline create still checks the spec"
+
+# A multi-line heredoc (a typical commit message) is not an invocation either.
+JSON=$(jq -n --arg cmd "git commit -F - <<'EOF'
+Add an API integration
+
+foundry api-integrations create --spec ${TEST_SPEC_PREFIX}-3-7e.json
+EOF" \
+  '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: $cmd}}')
+OUTPUT=$(run_hook "$HOOK" "$JSON")
+assert_empty "$OUTPUT" "3.7h multi-line heredoc example → no adaptation"
+assert_equal "$(cat "${TEST_SPEC_PREFIX}-3-7e.json")" "$BEFORE" "3.7h heredoc example leaves the spec unchanged"
+
 # 3.8 — flat expose_to_workflow with variables → BLOCK via fallback (adapt doesn't fix x-cs-operation-config)
 cleanup
-cat > /tmp/test-spec-3-8.yaml <<'EOF'
+cat > "${TEST_SPEC_PREFIX}-3-8.yaml" <<'EOF'
 openapi: "3.0.0"
 info:
   title: Test
@@ -355,12 +498,12 @@ paths:
         '200':
           description: OK
 EOF
-OUTPUT=$(run_spec_hook "/tmp/test-spec-3-8.yaml")
-assert_json_field "$OUTPUT" '.hookSpecificOutput.decision' "block" "3.8  flat expose_to_workflow with vars → BLOCK (fallback)"
+OUTPUT=$(run_spec_hook "${TEST_SPEC_PREFIX}-3-8.yaml")
+assert_json_field "$OUTPUT" '.hookSpecificOutput.permissionDecision' "deny" "3.8  flat expose_to_workflow with vars → BLOCK (fallback)"
 
 # 3.8b — flat expose_to_workflow WITHOUT variables (static URL) → BLOCK via fallback
 cleanup
-cat > /tmp/test-spec-3-8b.json <<'EOF'
+cat > "${TEST_SPEC_PREFIX}-3-8b.json" <<'EOF'
 {
   "openapi": "3.0.0",
   "info": {"title": "Test", "version": "1.0"},
@@ -378,13 +521,13 @@ cat > /tmp/test-spec-3-8b.json <<'EOF'
   }
 }
 EOF
-OUTPUT=$(run_spec_hook "/tmp/test-spec-3-8b.json")
-assert_json_field "$OUTPUT" '.hookSpecificOutput.decision' "block" "3.8b flat expose_to_workflow (static URL) → BLOCK (fallback)"
+OUTPUT=$(run_spec_hook "${TEST_SPEC_PREFIX}-3-8b.json")
+assert_json_field "$OUTPUT" '.hookSpecificOutput.permissionDecision' "deny" "3.8b flat expose_to_workflow (static URL) → BLOCK (fallback)"
 assert_contains "$OUTPUT" "Must be nested under a" "3.8b error message explains fix"
 
 # 3.9 — nested workflow: key → ALLOW
 cleanup
-cat > /tmp/test-spec-3-9.yaml <<'EOF'
+cat > "${TEST_SPEC_PREFIX}-3-9.yaml" <<'EOF'
 openapi: "3.0.0"
 info:
   title: Test
@@ -408,12 +551,12 @@ paths:
         '200':
           description: OK
 EOF
-OUTPUT=$(run_spec_hook "/tmp/test-spec-3-9.yaml")
+OUTPUT=$(run_spec_hook "${TEST_SPEC_PREFIX}-3-9.yaml")
 assert_empty "$OUTPUT" "3.9  nested workflow: key → ALLOW"
 
 # 3.10 — no expose_to_workflow at all → ALLOW
 cleanup
-cat > /tmp/test-spec-3-10.yaml <<'EOF'
+cat > "${TEST_SPEC_PREFIX}-3-10.yaml" <<'EOF'
 openapi: "3.0.0"
 info:
   title: Test
@@ -431,12 +574,12 @@ paths:
         '200':
           description: OK
 EOF
-OUTPUT=$(run_spec_hook "/tmp/test-spec-3-10.yaml")
+OUTPUT=$(run_spec_hook "${TEST_SPEC_PREFIX}-3-10.yaml")
 assert_empty "$OUTPUT" "3.10 no expose_to_workflow → ALLOW"
 
 # 3.10b — adapter dependency failure → BLOCK with install instructions
 cleanup
-cat > /tmp/test-spec-3-10b.json <<'EOF'
+cat > "${TEST_SPEC_PREFIX}-3-10b.json" <<'EOF'
 {"openapi":"3.0.0","info":{"title":"Test","version":"1.0"},"paths":{}}
 EOF
 mkdir -p /tmp/foundry-test-fake-bin
@@ -446,14 +589,54 @@ echo "ModuleNotFoundError: No module named 'yaml'" >&2
 exit 1
 EOF
 chmod +x /tmp/foundry-test-fake-bin/python3
-OUTPUT=$(PATH="/tmp/foundry-test-fake-bin:$PATH" run_spec_hook "/tmp/test-spec-3-10b.json")
+OUTPUT=$(PATH="/tmp/foundry-test-fake-bin:$PATH" run_spec_hook "${TEST_SPEC_PREFIX}-3-10b.json")
 rm -rf /tmp/foundry-test-fake-bin
-assert_json_field "$OUTPUT" '.hookSpecificOutput.decision' "block" "3.10b adapter dependency failure → BLOCK"
+assert_json_field "$OUTPUT" '.hookSpecificOutput.permissionDecision' "deny" "3.10b adapter dependency failure → BLOCK"
 assert_contains "$OUTPUT" "python3 -m pip install -r" "3.10b dependency failure includes install command"
+
+# 3.10c — Swagger 2.0 JSON → BLOCK and point at the adapter, original spec untouched
+cleanup
+cat > "${TEST_SPEC_PREFIX}-3-10c.json" <<'EOF'
+{"swagger": "2.0", "info": {"title": "Test", "version": "1.0"}, "paths": {}}
+EOF
+OUTPUT=$(run_spec_hook "${TEST_SPEC_PREFIX}-3-10c.json")
+assert_json_field "$OUTPUT" '.hookSpecificOutput.permissionDecision' "deny" "3.10c Swagger 2.0 JSON → BLOCK"
+
+# The version field is not necessarily in the first 500 bytes or at the start.
+JSON=$(jq -n '{info: {title: "Test", description: ("x" * 600)}, swagger: "2.0", paths: {}}')
+printf '%s\n' "$JSON" > "${TEST_SPEC_PREFIX}-3-10c-late.json"
+OUTPUT=$(run_spec_hook "${TEST_SPEC_PREFIX}-3-10c-late.json")
+assert_json_field "$OUTPUT" '.hookSpecificOutput.permissionDecision' "deny" "3.10c Swagger 2.0 after long info → BLOCK"
+assert_contains "$OUTPUT" ".openapi3 file" "3.10c Swagger block names the converted file to import"
+assert_empty "$(ls "${TEST_SPEC_PREFIX}"-3-10c.openapi3.* 2>/dev/null)" "3.10c hook does not run the conversion itself"
+
+# 3.10d — Swagger 2.0 YAML → BLOCK
+cleanup
+cat > "${TEST_SPEC_PREFIX}-3-10d.yaml" <<'EOF'
+
+swagger: "2.0"
+info:
+  title: Test
+  version: "1.0"
+paths: {}
+EOF
+OUTPUT=$(run_spec_hook "${TEST_SPEC_PREFIX}-3-10d.yaml")
+assert_json_field "$OUTPUT" '.hookSpecificOutput.permissionDecision' "deny" "3.10d Swagger 2.0 YAML → BLOCK"
+
+# 3.10e — operation overrides a path-level param → auto-fixed by moving it down
+cleanup
+cat > "${TEST_SPEC_PREFIX}-3-10e.json" <<'EOF'
+{"openapi": "3.0.0", "info": {"title": "Test", "version": "1.0"}, "paths": {"/users": {
+  "parameters": [{"name": "limit", "in": "query", "schema": {"type": "integer", "default": 10}}],
+  "get": {"operationId": "listUsers", "parameters": [{"name": "limit", "in": "query", "schema": {"type": "integer", "default": 100}}],
+          "responses": {"200": {"description": "OK"}}}}}}
+EOF
+OUTPUT=$(run_spec_hook "${TEST_SPEC_PREFIX}-3-10e.json")
+assert_contains "$OUTPUT" "Moved path param 'limit'" "3.10e param override → auto-fixed advisory"
 
 # 3.11 — JSON spec: default without enum → auto-fixed
 cleanup
-cat > /tmp/test-spec-3-11.json <<'EOF'
+cat > "${TEST_SPEC_PREFIX}-3-11.json" <<'EOF'
 {
   "openapi": "3.0.0",
   "info": {"title": "Test", "version": "1.0"},
@@ -461,12 +644,12 @@ cat > /tmp/test-spec-3-11.json <<'EOF'
   "paths": {}
 }
 EOF
-OUTPUT=$(run_spec_hook "/tmp/test-spec-3-11.json")
+OUTPUT=$(run_spec_hook "${TEST_SPEC_PREFIX}-3-11.json")
 assert_contains "$OUTPUT" "automatically fixed" "3.11 JSON: default without enum → auto-fixed"
 
 # 3.12 — JSON spec: https:// with variables → auto-fixed
 cleanup
-cat > /tmp/test-spec-3-12.json <<'EOF'
+cat > "${TEST_SPEC_PREFIX}-3-12.json" <<'EOF'
 {
   "openapi": "3.0.0",
   "info": {"title": "Test", "version": "1.0"},
@@ -474,12 +657,12 @@ cat > /tmp/test-spec-3-12.json <<'EOF'
   "paths": {}
 }
 EOF
-OUTPUT=$(run_spec_hook "/tmp/test-spec-3-12.json")
+OUTPUT=$(run_spec_hook "${TEST_SPEC_PREFIX}-3-12.json")
 assert_contains "$OUTPUT" "automatically fixed" "3.12 JSON: https:// with variables → auto-fixed"
 
 # 3.13 — JSON spec: flat expose_to_workflow (static URL) → BLOCK via fallback
 cleanup
-cat > /tmp/test-spec-3-13.json <<'EOF'
+cat > "${TEST_SPEC_PREFIX}-3-13.json" <<'EOF'
 {
   "openapi": "3.0.0",
   "info": {"title": "Test", "version": "1.0"},
@@ -497,12 +680,12 @@ cat > /tmp/test-spec-3-13.json <<'EOF'
   }
 }
 EOF
-OUTPUT=$(run_spec_hook "/tmp/test-spec-3-13.json")
-assert_json_field "$OUTPUT" '.hookSpecificOutput.decision' "block" "3.13 JSON: flat expose_to_workflow (static URL) → BLOCK"
+OUTPUT=$(run_spec_hook "${TEST_SPEC_PREFIX}-3-13.json")
+assert_json_field "$OUTPUT" '.hookSpecificOutput.permissionDecision' "deny" "3.13 JSON: flat expose_to_workflow (static URL) → BLOCK"
 
 # 3.14 — JSON spec: nested workflow key (static URL) → ALLOW
 cleanup
-cat > /tmp/test-spec-3-14.json <<'EOF'
+cat > "${TEST_SPEC_PREFIX}-3-14.json" <<'EOF'
 {
   "openapi": "3.0.0",
   "info": {"title": "Test", "version": "1.0"},
@@ -525,12 +708,12 @@ cat > /tmp/test-spec-3-14.json <<'EOF'
   }
 }
 EOF
-OUTPUT=$(run_spec_hook "/tmp/test-spec-3-14.json")
+OUTPUT=$(run_spec_hook "${TEST_SPEC_PREFIX}-3-14.json")
 assert_empty "$OUTPUT" "3.14 JSON: nested workflow key (static URL) → ALLOW"
 
 # 3.15 — oauth2 authorizationCode flow → auto-fixed
 cleanup
-cat > /tmp/test-spec-3-15.json <<'EOF'
+cat > "${TEST_SPEC_PREFIX}-3-15.json" <<'EOF'
 {
   "openapi": "3.0.0",
   "info": {"title": "Test", "version": "1.0"},
@@ -553,13 +736,13 @@ cat > /tmp/test-spec-3-15.json <<'EOF'
   "paths": {}
 }
 EOF
-OUTPUT=$(run_spec_hook "/tmp/test-spec-3-15.json")
+OUTPUT=$(run_spec_hook "${TEST_SPEC_PREFIX}-3-15.json")
 assert_contains "$OUTPUT" "automatically fixed" "3.15 oauth2 authorizationCode → auto-fixed"
 assert_contains "$OUTPUT" "Removed" "3.15 reports oauth2 removal"
 
 # 3.16 — apiKey in Authorization header with SSWS description → bearerFormat added
 cleanup
-cat > /tmp/test-spec-3-16.json <<'EOF'
+cat > "${TEST_SPEC_PREFIX}-3-16.json" <<'EOF'
 {
   "openapi": "3.0.0",
   "info": {"title": "Test", "version": "1.0"},
@@ -578,13 +761,13 @@ cat > /tmp/test-spec-3-16.json <<'EOF'
   "paths": {}
 }
 EOF
-OUTPUT=$(run_spec_hook "/tmp/test-spec-3-16.json")
+OUTPUT=$(run_spec_hook "${TEST_SPEC_PREFIX}-3-16.json")
 assert_contains "$OUTPUT" "automatically fixed" "3.16 apiKey with SSWS description → bearerFormat added"
 assert_contains "$OUTPUT" "Added bearerFormat" "3.16 reports bearerFormat inference"
 
 # 3.17 — Okta-style combined issues (apiKey + oauth2 authCode + https + default) → all auto-fixed
 cleanup
-cat > /tmp/test-spec-3-17.yaml <<'EOF'
+cat > "${TEST_SPEC_PREFIX}-3-17.yaml" <<'EOF'
 openapi: "3.0.0"
 info:
   title: Okta Management API
@@ -621,7 +804,7 @@ paths:
         '200':
           description: OK
 EOF
-OUTPUT=$(run_spec_hook "/tmp/test-spec-3-17.yaml")
+OUTPUT=$(run_spec_hook "${TEST_SPEC_PREFIX}-3-17.yaml")
 assert_contains "$OUTPUT" "automatically fixed" "3.17 Okta-style combined issues → auto-fixed"
 assert_contains "$OUTPUT" "Stripped protocol" "3.17 reports protocol stripping"
 assert_contains "$OUTPUT" "Removed default" "3.17 reports default removal"
@@ -629,7 +812,7 @@ assert_contains "$OUTPUT" "Added bearerFormat" "3.17 reports bearerFormat infere
 
 # 3.18 — Clean spec (no issues) → ALLOW
 cleanup
-cat > /tmp/test-spec-3-18.json <<'EOF'
+cat > "${TEST_SPEC_PREFIX}-3-18.json" <<'EOF'
 {
   "openapi": "3.0.0",
   "info": {"title": "Test", "version": "1.0"},
@@ -653,12 +836,12 @@ cat > /tmp/test-spec-3-18.json <<'EOF'
   }
 }
 EOF
-OUTPUT=$(run_spec_hook "/tmp/test-spec-3-18.json")
+OUTPUT=$(run_spec_hook "${TEST_SPEC_PREFIX}-3-18.json")
 assert_empty "$OUTPUT" "3.18 Clean spec (no issues) → ALLOW"
 
 # 3.19 — Duplicate parameters (path-level + operation-level) → auto-fixed
 cleanup
-cat > /tmp/test-spec-3-19.yaml <<'EOF'
+cat > "${TEST_SPEC_PREFIX}-3-19.yaml" <<'EOF'
 openapi: "3.0.0"
 info:
   title: Test
@@ -689,13 +872,13 @@ paths:
         '200':
           description: OK
 EOF
-OUTPUT=$(run_spec_hook "/tmp/test-spec-3-19.yaml")
+OUTPUT=$(run_spec_hook "${TEST_SPEC_PREFIX}-3-19.yaml")
 assert_contains "$OUTPUT" "automatically fixed" "3.19 duplicate params (path + op level) → auto-fixed"
 assert_contains "$OUTPUT" "Removed duplicate param" "3.19 reports param dedup"
 
 # 3.20 — Duplicate $ref parameters (same ref at both levels) → auto-fixed
 cleanup
-cat > /tmp/test-spec-3-20.yaml <<'EOF'
+cat > "${TEST_SPEC_PREFIX}-3-20.yaml" <<'EOF'
 openapi: "3.0.0"
 info:
   title: Test
@@ -722,7 +905,7 @@ paths:
         '200':
           description: OK
 EOF
-OUTPUT=$(run_spec_hook "/tmp/test-spec-3-20.yaml")
+OUTPUT=$(run_spec_hook "${TEST_SPEC_PREFIX}-3-20.yaml")
 assert_contains "$OUTPUT" "automatically fixed" "3.20 duplicate \$ref params → auto-fixed"
 assert_contains "$OUTPUT" "Removed duplicate param" "3.20 reports \$ref dedup"
 
@@ -875,6 +1058,45 @@ JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {co
 OUTPUT=$(run_hook "$HOOK" "$JSON")
 assert_empty "$OUTPUT" "4.4  No marker, Bash → no output"
 
+# 4.5 — Reminder fires once per detected prompt, not on every tool call
+cleanup
+echo "$$" > "$MARKER"
+JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "ls"}}')
+run_hook "$HOOK" "$JSON" >/dev/null
+OUTPUT=$(run_hook "$HOOK" "$JSON")
+assert_empty "$OUTPUT" "4.5  Second tool call → no repeated reminder"
+
+# 4.6 — A new prompt that doesn't match clears a leftover marker
+cleanup
+echo "$$" > "$MARKER"
+JSON=$(jq -n '{hook_event_name: "UserPromptSubmit", prompt: "what time is it"}')
+run_hook "$HOOK" "$JSON" >/dev/null
+assert_marker_not_exists "4.6  Non-matching prompt → leftover marker cleared"
+
+# 4.7 — Another session's marker doesn't leak into this one
+cleanup
+rm -f "$MARKER-other-session" "$MARKER-this-session"
+echo "$$" > "$MARKER-other-session"
+JSON=$(jq -n '{hook_event_name: "PreToolUse", session_id: "this-session", tool_name: "Bash", tool_input: {command: "ls"}}')
+OUTPUT=$(run_hook "$HOOK" "$JSON")
+assert_empty "$OUTPUT" "4.7  Marker from another session → no reminder"
+assert_contains "$([ -f "$MARKER-other-session" ] && echo present)" "present" "4.7  Other session's marker left alone"
+rm -f "$MARKER-other-session"
+
+# 4.8 — Same-session round trip: the prompt writes the scoped marker and the
+# next tool call in that session reads it
+cleanup
+rm -f "$MARKER-rt-session"
+JSON=$(jq -n '{hook_event_name: "UserPromptSubmit", session_id: "rt-session", prompt: "Create a Foundry app with a UI extension that lists detections"}')
+CLAUDE_PLUGIN_ROOT="$(pwd)" run_hook "$HOOK" "$JSON" >/dev/null
+assert_contains "$([ -f "$MARKER-rt-session" ] && echo present)" "present" "4.8  Prompt with session_id → scoped marker written"
+assert_marker_not_exists "4.8  Prompt with session_id → unscoped marker not written"
+JSON=$(jq -n '{hook_event_name: "PreToolUse", session_id: "rt-session", tool_name: "Bash", tool_input: {command: "ls"}}')
+OUTPUT=$(run_hook "$HOOK" "$JSON")
+assert_contains "$OUTPUT" "Foundry plugin reminder" "4.8  Same session's tool call → reminder"
+assert_contains "$([ -f "$MARKER-rt-session" ] || echo gone)" "gone" "4.8  Reminder consumes the scoped marker"
+rm -f "$MARKER-rt-session"
+
 # ---------- Section 5: Superpowers Bridge ----------
 
 printf "\n${BOLD}Section 5: Superpowers Bridge${RESET}\n\n"
@@ -883,13 +1105,14 @@ printf "\n${BOLD}Section 5: Superpowers Bridge${RESET}\n\n"
 cleanup
 JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Skill", tool_input: {skill: "superpowers:brainstorming"}}')
 OUTPUT=$(run_hook "$BRIDGE" "$JSON")
-assert_contains "$OUTPUT" "STOP. Do NOT proceed" "5.1  superpowers:brainstorming → redirect"
+assert_contains "$OUTPUT" "stop brainstorming and invoke crowdstrike-falcon-foundry:development-workflow" "5.1  superpowers:brainstorming → redirect"
 
 # 5.2 — brainstorming (short form) → redirect
 cleanup
 JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Skill", tool_input: {skill: "brainstorming"}}')
 OUTPUT=$(run_hook "$BRIDGE" "$JSON")
-assert_contains "$OUTPUT" "STOP. Do NOT proceed" "5.2  brainstorming (short form) → redirect"
+assert_contains "$OUTPUT" "stop brainstorming and invoke crowdstrike-falcon-foundry:development-workflow" "5.2  brainstorming (short form) → redirect"
+assert_contains "$OUTPUT" "For any other task, continue with brainstorming" "5.2  brainstorming redirect is scoped to Foundry work"
 
 # 5.3 — superpowers:writing-plans → advisory
 cleanup
@@ -976,6 +1199,18 @@ OUTPUT=$(run_hook "$GUARD" "$JSON")
 assert_contains "$OUTPUT" "Manual creation" "6.6  mkdir api-integrations → advisory"
 assert_not_contains "$OUTPUT" "deny" "6.6  no deny (advisory only)"
 
+# 6.6a — mkdir of an unrelated dir chained to a command that mentions api-integrations → no output
+cleanup
+JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "mkdir -p /tmp/okta-spec && python3 skills/api-integrations/scripts/adapt_spec_for_foundry.py /tmp/okta-spec/Okta.yaml"}}')
+OUTPUT=$(run_hook "$GUARD" "$JSON")
+assert_empty "$OUTPUT" "6.6a mkdir /tmp dir && script under api-integrations/ → pass"
+
+# 6.6b — chained mkdir that does create app structure → advisory
+cleanup
+JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "cd my-app && mkdir -p workflows"}}')
+OUTPUT=$(run_hook "$GUARD" "$JSON")
+assert_contains "$OUTPUT" "Manual creation" "6.6b cd && mkdir workflows → advisory"
+
 # 6.7 — touch manifest.yml → advisory
 cleanup
 JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "touch manifest.yml"}}')
@@ -1055,6 +1290,19 @@ JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {co
 OUTPUT=$(FOUNDRY_SKIP_NAME_CONFIRM=1 run_hook "$GUARD" "$JSON")
 assert_contains "$OUTPUT" "Invalid socket ID" "6.18a invalid socket ID → advisory"
 
+JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry ui extensions create --name my-ext --from-template React --sockets=hosts.host.panel --no-prompt"}}')
+SOCKET_STATUS=0
+printf '%s\n' "$JSON" | FOUNDRY_SKIP_NAME_CONFIRM=1 "$GUARD" >/dev/null || SOCKET_STATUS=$?
+assert_equal "$SOCKET_STATUS" "0" "6.18a equals-form socket flag → hook exits successfully"
+
+JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry ui extensions create --name my-ext --from-template React --sockets=activity.hosts.details --no-prompt"}}')
+OUTPUT=$(FOUNDRY_SKIP_NAME_CONFIRM=1 run_hook "$GUARD" "$JSON")
+assert_contains "$OUTPUT" "Invalid socket ID" "6.18a invalid equals-form socket → advisory"
+
+JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry ui extensions create --name my-ext --from-template React --sockets hosts.host.panel,xdr.cases.panel --no-prompt"}}')
+OUTPUT=$(FOUNDRY_SKIP_NAME_CONFIRM=1 run_hook "$GUARD" "$JSON")
+assert_empty "$OUTPUT" "6.18a comma-separated valid sockets → pass"
+
 # 6.18b — foundry ui extensions create with hosts.host.panel → pass
 cleanup
 JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry ui extensions create --name my-ext --from-template React --sockets \"hosts.host.panel\" --no-prompt"}}')
@@ -1066,6 +1314,42 @@ cleanup
 JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry ui extensions create --name my-ext --from-template React --sockets \"xdr.cases.panel\" --no-prompt"}}')
 OUTPUT=$(FOUNDRY_SKIP_NAME_CONFIRM=1 run_hook "$GUARD" "$JSON")
 assert_empty "$OUTPUT" "6.18c valid socket xdr.cases.panel → pass"
+
+# 6.18d — foundry ui extensions create with xdr.cases.details (CLI 2.1.2+) → pass
+cleanup
+JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry ui extensions create --name my-ext --from-template React --sockets \"xdr.cases.details\" --no-prompt"}}')
+OUTPUT=$(FOUNDRY_SKIP_NAME_CONFIRM=1 run_hook "$GUARD" "$JSON")
+assert_empty "$OUTPUT" "6.18d valid socket xdr.cases.details → pass"
+
+# 6.18e — --help on a create command needs neither --no-prompt nor --sockets → pass
+cleanup
+JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry ui extensions create --help"}}')
+OUTPUT=$(run_hook "$GUARD" "$JSON")
+assert_empty "$OUTPUT" "6.18e ui extensions create --help → pass"
+
+# 6.18f — -h on agents create → pass
+cleanup
+JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry agents create -h | grep schema"}}')
+OUTPUT=$(run_hook "$GUARD" "$JSON")
+assert_empty "$OUTPUT" "6.18f agents create -h → pass"
+
+# 6.18g — a help call chained with a real command still checks the real one
+cleanup
+JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry apps validate --help && foundry apps validate"}}')
+OUTPUT=$(run_hook "$GUARD" "$JSON")
+assert_contains "$OUTPUT" "missing --no-prompt" "6.18g help chained with apps validate → advisory"
+
+# 6.18h — foundry apps logs (CLI 2.1.2+) without --no-prompt → advisory
+cleanup
+JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry apps logs --level error --since 168h"}}')
+OUTPUT=$(run_hook "$GUARD" "$JSON")
+assert_contains "$OUTPUT" "missing --no-prompt" "6.18h apps logs without --no-prompt → advisory"
+
+# 6.18i — foundry apps logs with --no-prompt → pass
+cleanup
+JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry apps logs --deployment-id abc123 --no-prompt"}}')
+OUTPUT=$(run_hook "$GUARD" "$JSON")
+assert_empty "$OUTPUT" "6.18i apps logs with --no-prompt → pass"
 
 # 6.19 — foundry apps validate without --no-prompt → advisory
 cleanup
@@ -1140,6 +1424,84 @@ cleanup
 JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry functions create --name myfunc --language python --no-prompt"}}')
 OUTPUT=$(FOUNDRY_SKIP_NAME_CONFIRM=1 run_hook "$GUARD" "$JSON")
 assert_empty "$OUTPUT" "6.30 functions create with --no-prompt → pass (regression)"
+
+# 6.30b — one command's --no-prompt must not satisfy another in the same chain
+cleanup
+JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry apps validate --no-prompt && foundry functions create --name Demo --language python"}}')
+OUTPUT=$(FOUNDRY_SKIP_NAME_CONFIRM=1 run_hook "$GUARD" "$JSON")
+assert_contains "$OUTPUT" "missing --no-prompt" "6.30b chained create without --no-prompt → advisory"
+
+# 6.30c — every chained command has --no-prompt → pass
+cleanup
+JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry apps validate --no-prompt && foundry functions create --name Demo --language python --no-prompt"}}')
+OUTPUT=$(FOUNDRY_SKIP_NAME_CONFIRM=1 run_hook "$GUARD" "$JSON")
+assert_empty "$OUTPUT" "6.30c chained commands all with --no-prompt → pass"
+
+# 6.30d — deploy flags are checked per deploy, not across the chain
+cleanup
+JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry apps deploy --change-type Patch --change-log \"a\" --no-prompt; foundry apps deploy --no-prompt"}}')
+OUTPUT=$(run_hook "$GUARD" "$JSON")
+assert_contains "$OUTPUT" "missing --change-type" "6.30d second deploy without flags → advisory"
+
+# 6.30e — a chained ui extensions create without --sockets → advisory
+cleanup
+JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry ui extensions create --name a --from-template React --sockets hosts.host.panel --no-prompt && foundry ui extensions create --name b --from-template React --no-prompt"}}')
+OUTPUT=$(FOUNDRY_SKIP_NAME_CONFIRM=1 run_hook "$GUARD" "$JSON")
+assert_contains "$OUTPUT" "missing --sockets" "6.30e chained extension create without --sockets → advisory"
+
+# 6.31-6.35 — Foundry CLI text that isn't a Foundry command → no advisory
+GUARD_NON_CLI_NAMES=(
+  "6.31 git commit -m mentioning foundry apps create → pass"
+  "6.32 git commit heredoc mentioning foundry functions exec → pass"
+  "6.33 grep for a quoted foundry command → pass"
+  "6.34 echo of foundry text, then a real foundry login → pass"
+)
+GUARD_NON_CLI_CMDS=(
+  'git commit -m "Fix orchestrator so foundry apps create runs first"'
+  "$(printf 'git commit -m "$(cat <<'"'"'EOF'"'"'\nRun foundry functions exec after deploy\nEOF\n)"')"
+  "grep -rn 'foundry apps create' skills/"
+  'echo "foundry apps create --name x"; foundry login'
+)
+for i in "${!GUARD_NON_CLI_CMDS[@]}"; do
+  cleanup
+  JSON=$(jq -n --arg c "${GUARD_NON_CLI_CMDS[$i]}" '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: $c}}')
+  OUTPUT=$(run_hook "$GUARD" "$JSON")
+  assert_empty "$OUTPUT" "${GUARD_NON_CLI_NAMES[$i]}"
+done
+
+# 6.35 — A real foundry command after cd, with env vars, still gets checked
+cleanup
+JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "cd my-app && FOO=1 foundry apps validate"}}')
+OUTPUT=$(run_hook "$GUARD" "$JSON")
+assert_contains "$OUTPUT" "missing --no-prompt" "6.35 cd && env foundry apps validate → advisory"
+
+# 6.38 — A quoted --no-prompt in another command does not satisfy a real foundry command
+cleanup
+JSON=$(jq -n --arg c 'git commit -m "add --no-prompt to the docs" && foundry apps validate' '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: $c}}')
+OUTPUT=$(run_hook "$GUARD" "$JSON")
+assert_contains "$OUTPUT" "missing --no-prompt" "6.38 quoted --no-prompt elsewhere → advisory"
+
+# 6.39 — Name confirmation reads --name from the foundry command, not a commit message
+cleanup
+JSON=$(jq -n --arg c 'git commit -m "use --name decoy" && foundry apps create --name real --no-prompt' '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: $c}}')
+OUTPUT=$(run_hook "$GUARD" "$JSON")
+assert_contains "$OUTPUT" "named \\\"real\\\"" "6.39 name confirmation uses the foundry --name"
+assert_not_contains "$OUTPUT" "decoy" "6.39 name confirmation ignores the commit message"
+
+# 6.36 — Legacy backtick command substitution is split without making the hook
+# script itself syntactically invalid.
+cleanup
+JSON=$(jq -n --arg c 'echo `foundry apps validate`' '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: $c}}')
+OUTPUT=$(run_hook "$GUARD" "$JSON")
+assert_contains "$OUTPUT" "missing --no-prompt" "6.36 backtick command substitution → advisory"
+
+# 6.37 — Cursor's shell tool is Shell, and its advisories use additional_context.
+cleanup
+JSON=$(jq -n '{hook_event_name: "preToolUse", tool_name: "Shell", tool_input: {command: "foundry apps validate"}}')
+OUTPUT=$(CURSOR_PLUGIN_ROOT="$(pwd)" run_hook "$GUARD" "$JSON")
+assert_contains "$OUTPUT" "missing --no-prompt" "6.37 Cursor Shell tool → advisory"
+assert_contains "$OUTPUT" "\"additional_context\"" "6.37 Cursor Shell tool → additional_context"
+assert_not_contains "$OUTPUT" "hookSpecificOutput" "6.37 Cursor Shell tool → no Claude hookSpecificOutput"
 
 # =============================================
 # Section 7: Skill Description Validation
@@ -1325,6 +1687,45 @@ JSON=$(jq -n --arg cmd "foundry apps create --name='' --no-prompt" \
 OUTPUT=$(run_hook "$GUARD" "$JSON")
 assert_empty "$OUTPUT" "8.18 --name='' (empty) → no confirmation"
 
+# 8.x — agents create: schema files must be named input_schema.json / output_schema.json
+cleanup
+JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry agents create --name \"Schema Agent\" --output-format json_with_schema --output-schema /tmp/verdict.json --no-prompt"}}')
+OUTPUT=$(run_hook "$GUARD" "$JSON")
+assert_contains "$OUTPUT" "only reads agents/<path>/output_schema.json" "8.s1 agents create with verdict.json → schema filename advisory"
+assert_contains "$OUTPUT" "Confirm the resource name" "8.s1 schema advisory keeps the name confirmation"
+assert_contains "$(echo "$OUTPUT" | jq -r .hookSpecificOutput.hookEventName 2>/dev/null || true)" "PreToolUse" "8.s1 output is a single valid JSON object"
+
+cleanup
+JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry agents create --name \"Tool Agent\" --input-format json --input-schema=https://example.com/schemas/request.json --expose-agent-as-tool --no-prompt"}}')
+OUTPUT=$(run_hook "$GUARD" "$JSON")
+assert_contains "$OUTPUT" "input-schema points at request.json" "8.s2 URL input schema with another name → advisory"
+
+cleanup
+JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry agents create --name \"Good Agent\" --input-format json --input-schema ./schemas/input_schema.json --output-format json_with_schema --output-schema \"./schemas/output_schema.json\" --no-prompt"}}')
+OUTPUT=$(run_hook "$GUARD" "$JSON")
+assert_not_contains "$OUTPUT" "deploy backend only reads" "8.s3 correctly named schema files → no schema advisory"
+
+cleanup
+JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry agents create --name \"Dash Agent\" --input-format json --input-schema --no-prompt"}}')
+OUTPUT=$(run_hook "$GUARD" "$JSON")
+assert_contains "$OUTPUT" "Confirm the resource name" "8.s4 --input-schema with no value → hook still runs to the name confirmation"
+assert_not_contains "$OUTPUT" "deploy backend only reads" "8.s4 flag-shaped value → no schema advisory"
+
+cleanup
+JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry functions create --name fn --input-schema request_schema.json --no-prompt && foundry agents create --name \"Chain Agent\" --no-prompt"}}')
+OUTPUT=$(run_hook "$GUARD" "$JSON")
+assert_not_contains "$OUTPUT" "deploy backend only reads" "8.s5 function schema in a chained command → no agent schema advisory"
+
+cleanup
+JSON=$(jq -n --arg cmd "foundry agents create --name \"Inline Agent\" --output-format json_with_schema --output-schema '{\"type\": \"object\"}' --no-prompt" '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: $cmd}}')
+OUTPUT=$(run_hook "$GUARD" "$JSON")
+assert_contains "$OUTPUT" "output-schema points at an inline schema" "8.s6 inline JSON schema → says inline, not a filename"
+
+cleanup
+JSON=$(jq -n '{hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: {command: "foundry agents create --name \"Url Agent\" --output-schema https://example.com/output_schema.json?raw=1 --no-prompt"}}')
+OUTPUT=$(run_hook "$GUARD" "$JSON")
+assert_not_contains "$OUTPUT" "deploy backend only reads" "8.s7 correctly named URL with a query string → no schema advisory"
+
 # =============================================
 # Section 9: SessionStart Hook — foundry-session-start.sh
 # =============================================
@@ -1392,7 +1793,7 @@ OUTPUT=$(PATH="$FAKE_BIN:$PATH" bash "$ENV_HOOK" 2>&1)
 assert_contains "$OUTPUT" "Windows" "9.5  warning includes Windows download instructions"
 rm -rf "$FAKE_BIN"
 
-# 9.6 — Warning instructs Claude to prompt user
+# 9.6 — Warning instructs the assistant to prompt user
 cleanup
 FAKE_BIN=$(mktemp -d)
 cat > "$FAKE_BIN/foundry" << 'FEOF'
@@ -1401,7 +1802,7 @@ echo "foundry 1.5.0 (git: abc123) build_date: 2025-06-01T00:00:00Z"
 FEOF
 chmod +x "$FAKE_BIN/foundry"
 OUTPUT=$(PATH="$FAKE_BIN:$PATH" bash "$ENV_HOOK" 2>&1)
-assert_contains "$OUTPUT" "AskUserQuestion" "9.6  warning instructs Claude to prompt user"
+assert_contains "$OUTPUT" "Ask the user whether to upgrade now" "9.6  warning instructs the assistant to prompt user"
 rm -rf "$FAKE_BIN"
 
 # 9.7 — No error when Foundry CLI is not installed
@@ -1472,11 +1873,15 @@ rm -rf "$FAKE_BIN" "$ENV_TMP"
 
 printf "\n${BOLD}10. Fusion redirect wiring${RESET}\n"
 
+cleanup
 OUTPUT=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"Create a Falcon Fusion workflow — no Foundry app, no UI, no functions. When a critical detection fires, contain the host and post to Slack. Use actions that already exist in my CID."}' | CLAUDE_PLUGIN_ROOT="$(pwd)" "$HOOK" 2>&1)
 assert_contains "$OUTPUT" "STANDALONE FUSION WORKFLOW DETECTED" "10.1  standalone fusion prompt → redirect advisory"
 assert_contains "$OUTPUT" "crowdstrike-falcon-fusion" "10.2  advisory names the plugin"
 assert_contains "$OUTPUT" "Naming the plugin is required output" "10.3  advisory makes naming mandatory"
 assert_not_contains "$OUTPUT" "IMMEDIATELY invoke" "10.4  does not also steer into app scaffolding"
+# The redirect must not leave a marker behind, or the first tool call would get
+# a Foundry reminder that contradicts it.
+assert_marker_not_exists "10.4  redirect → no marker for a later Foundry reminder"
 
 # A genuine app request must NOT be redirected — guards against over-reach.
 OUTPUT=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"Create a Foundry app with a UI extension and a workflow that shows detections."}' | CLAUDE_PLUGIN_ROOT="$(pwd)" "$HOOK" 2>&1)
@@ -1495,6 +1900,61 @@ assert_contains "$OUTPUT" "STANDALONE FUSION" "10.7  negated capabilities still 
 OUTPUT=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"Create a foundry workflow — no app, no UI, no functions. Contain the host on critical detection using existing actions."}' | CLAUDE_PLUGIN_ROOT="$(pwd)" "$HOOK" 2>&1)
 assert_contains "$OUTPUT" "crowdstrike-falcon-fusion" "10.9  advisory names the plugin either way"
 assert_contains "$OUTPUT" "Do NOT scaffold a Foundry app" "10.10 advisory forbids scaffolding either way"
+
+# Codex stores enabled marketplace plugins in config.toml rather than Claude
+# Code's installed_plugins.json. Do not tell a Codex user to install the sibling
+# when it is already enabled.
+CODEX_HOME=$(mktemp -d)
+mkdir -p "$CODEX_HOME/.codex"
+cat > "$CODEX_HOME/.codex/config.toml" <<'EOF'
+[plugins."crowdstrike-falcon-fusion@openai-api-curated"]
+enabled = true
+EOF
+OUTPUT=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"Create a foundry workflow — no app, no UI, no functions. Contain the host on critical detection using existing actions."}' |
+  HOME="$CODEX_HOME" PLUGIN_ROOT="$(pwd)" CLAUDE_PLUGIN_ROOT="$(pwd)" "$HOOK" 2>&1)
+assert_contains "$OUTPUT" "already installed" "10.11 Codex config → sibling recognized as installed"
+rm -rf "$CODEX_HOME"
+
+# turn_id marks a Codex turn. Claude's registry on the same machine must not
+# count when Codex has the sibling disabled.
+BOTH_HOME=$(mktemp -d)
+mkdir -p "$BOTH_HOME/.claude/plugins" "$BOTH_HOME/.codex"
+cat > "$BOTH_HOME/.claude/plugins/installed_plugins.json" <<'EOF'
+{"plugins":{"crowdstrike-falcon-fusion@claude-plugins-official":[{"scope":"user"}]}}
+EOF
+cat > "$BOTH_HOME/.codex/config.toml" <<'EOF'
+[plugins."crowdstrike-falcon-fusion@openai-api-curated"]
+enabled = false
+EOF
+OUTPUT=$(echo '{"hook_event_name":"UserPromptSubmit","turn_id":"codex-turn","prompt":"Create a foundry workflow — no app, no UI, no functions. Contain the host on critical detection using existing actions."}' |
+  HOME="$BOTH_HOME" "$HOOK" 2>&1)
+assert_not_contains "$OUTPUT" "already installed" "10.13 Codex disabled sibling ignores Claude registry"
+assert_contains "$OUTPUT" "/plugins in Codex" "10.13 Codex disabled sibling names the Codex install"
+rm -rf "$BOTH_HOME"
+
+# A nested table under a disabled plugin is not the plugin's own enabled flag.
+NESTED_HOME=$(mktemp -d)
+mkdir -p "$NESTED_HOME/.codex"
+cat > "$NESTED_HOME/.codex/config.toml" <<'EOF'
+[plugins."crowdstrike-falcon-fusion@openai-api-curated"]
+enabled = false
+
+[plugins."crowdstrike-falcon-fusion@openai-api-curated".mcp_servers.example]
+enabled = true
+EOF
+OUTPUT=$(echo '{"hook_event_name":"UserPromptSubmit","turn_id":"codex-turn","prompt":"Create a foundry workflow — no app, no UI, no functions. Contain the host on critical detection using existing actions."}' |
+  HOME="$NESTED_HOME" "$HOOK" 2>&1)
+assert_not_contains "$OUTPUT" "already installed" "10.14 Codex nested enabled table → not installed"
+rm -rf "$NESTED_HOME"
+
+# Cursor marketplace installs live in the plugin cache, not Claude's registry
+# or Codex's config.toml.
+CURSOR_HOME=$(mktemp -d)
+mkdir -p "$CURSOR_HOME/.cursor/plugins/cache/cursor-public/crowdstrike-falcon-fusion"
+OUTPUT=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"Create a foundry workflow — no app, no UI, no functions. Contain the host on critical detection using existing actions."}' |
+  HOME="$CURSOR_HOME" PLUGIN_ROOT="$(pwd)" CLAUDE_PLUGIN_ROOT="$(pwd)" "$HOOK" 2>&1)
+assert_contains "$OUTPUT" "already installed" "10.12 Cursor plugin cache → sibling recognized as installed"
+rm -rf "$CURSOR_HOME"
 
 # A bare Fusion request (no Foundry noun) is not this router's business — the
 # crowdstrike-falcon-fusion plugin's own router matches "build a Fusion workflow"

@@ -24,7 +24,7 @@ Based on "$ARGUMENTS", determine the action:
 | Argument | Action | Destructive? |
 |----------|--------|-------------|
 | `list` / `ls` / _(none)_ | List env var names per environment | No |
-| `pull` | Download env vars to local `.env.local` | No (overwrites local file) |
+| `pull` | Download env vars to local `.env.local` | No (merges into local file; pulled values replace matching keys) |
 | `add <NAME>` | Add a new env var | Yes (if production) |
 | `rm <NAME>` / `remove <NAME>` | Remove an env var | **Yes** |
 | `diff` | Compare local vs Vercel key names | No |
@@ -32,7 +32,7 @@ Based on "$ARGUMENTS", determine the action:
 For any operation that mutates **production** environment variables (`add` or `rm` targeting production):
 
 > ⚠️ **Production environment mutation requested.**
-> This will change environment variables on your live production deployment.
+> This will change the environment variables that new production deployments use. The live production deployment keeps its current values until you redeploy with `/deploy prod`.
 > **Ask the user for explicit confirmation before proceeding.** Do not mutate production env vars without a clear "yes."
 
 ## Commands
@@ -85,30 +85,41 @@ After pulling, remind the user:
 3. Run the add command:
 
 <!-- Sourced from env-vars skill: vercel env CLI > Add Environment Variables -->
+Every variable has a type:
+
+| Type | After saving | Use for |
+|------|--------------|---------|
+| **Secret** | Hidden in the dashboard and `vercel env ls`; can be replaced, never read back. Production and Preview Secrets are not returned by `vercel env pull`. | Passwords, API keys, tokens, database URLs |
+| **Config** | Readable by members with access | Non-sensitive values you need to read later |
+
+Deployments receive both types at build time and runtime. Secret and Config replaced the Sensitive toggle; existing Sensitive variables are Secrets.
+
 ```bash
-# Interactive — prompts for value and environments
+# Interactive — prompts for value, environments, and type
 vercel env add MY_SECRET
 
 # Non-interactive: read the value from a file so it never lands in shell
-# history or process arguments (echo "value" | ... does both)
+# history or process arguments (echo "value" | ... and --value do both)
 vercel env add MY_SECRET production < ./secret.txt
 
 # Add to production and preview in one command
-vercel env add MY_SECRET production preview < ./secret.txt
+vercel env add MY_SECRET production,preview < ./secret.txt
 
-# Development must be a separate command: combining it with production or
-# preview returns an error because development cannot be sensitive
+# Set the type explicitly
+vercel env add MY_SECRET production --type secret < ./secret.txt
+vercel env add SITE_REGION production --type config < ./region.txt
+
+# Add development in its own command; development-only adds default to Config
 vercel env add MY_SECRET development < ./dev-secret.txt
-
-# Production and preview default to sensitive (value hidden after creation).
-# Opt out only for non-secret values that must stay readable in the dashboard:
-echo "public-value" | vercel env add NEXT_PUBLIC_FLAG production --no-sensitive
 
 # Update an existing value
 vercel env update MY_SECRET production < ./secret.txt
 ```
 
-Team policy can enforce sensitive values; when it does, `--no-sensitive` is ignored for production and preview and `vercel env add` rejects development targets.
+- **Defaults**: a non-interactive add to production, preview, or a custom environment is stored as Secret.
+- **Public prefixes are always Config**: variables such as `NEXT_PUBLIC_*` or `VITE_*` are exposed to browsers, so the CLI refuses `--type secret` for them. Keep a private value under a name without the prefix.
+- **Flags**: `--type config|secret` needs Vercel CLI 59.6 or later. Older CLIs use `--visibility`, now a deprecated alias of `--type`. `--sensitive` (Secret) and `--no-sensitive` (Config) still work in every version.
+- **Team policy**: **Separate Production Secret Values** requires a Production Secret to differ from the Preview, Development, and custom environment values of the same key. Under it, create separate Production and non-Production values instead of adding one value to all targets. It replaces the deprecated **Enforce Sensitive Environment Variables** policy.
 
 The CLI will prompt for the value interactively — **do not pass the value as a CLI argument or echo it**.
 
@@ -174,7 +185,7 @@ If all keys match, report: "Local and Vercel environment keys are in sync."
 
 | Use Case | Where to Set |
 |----------|-------------|
-| Secrets (API keys, tokens) | Vercel Dashboard (`https://vercel.com/{team}/{project}/settings/environment-variables`) or `vercel env add` |
+| Secrets (API keys, tokens) | Vercel Dashboard (`https://vercel.com/{team}/{project}/settings/environment-variables`) or `vercel env add`, as type Secret |
 | Public config (site URL, feature flags) | `.env` or `.env.[environment]` files |
 | Local-only overrides | `.env.local` |
 | CI/CD secrets | Vercel Dashboard (`https://vercel.com/{team}/{project}/settings/environment-variables`) with environment scoping |
@@ -183,7 +194,7 @@ If all keys match, report: "Local and Vercel environment keys are in sync."
 
 Variables set in the Vercel Dashboard at `https://vercel.com/{team}/{project}/settings/environment-variables` can be scoped to:
 
-- **Production** — only `vercel.app` production deployments
+- **Production** — production domain deployments
 - **Preview** — branch/PR deployments
 - **Development** — `vercel dev` and `vercel env pull`
 
@@ -201,9 +212,9 @@ vercel env add DATABASE_URL preview --git-branch=staging < ./staging-database-ur
 ## Common Gotchas
 
 <!-- Sourced from env-vars skill: Gotchas -->
-### `vercel env pull` Overwrites Custom Variables
+### `vercel env pull` Merges Into an Existing File
 
-`vercel env pull .env.local` **replaces the entire file** — any manually added variables (custom secrets, local overrides, debug flags) are lost. Always back up or re-add custom vars after pulling:
+`vercel env pull .env.local` merges into an existing file. Variables defined only locally are kept (logged as `Kept <KEYS>`; Vercel CLI 56+). Keys that also exist on Vercel take the pulled value, so a local override of one is replaced. Current CLIs also keep a real local value for a Secret they cannot read, and always refresh `VERCEL_OIDC_TOKEN`. Older CLIs replace the entire file, so back up custom vars first:
 
 ```bash
 # Save custom vars before pulling
@@ -213,6 +224,10 @@ cat .env.custom.bak >> .env.local  # Re-append custom vars
 ```
 
 Or maintain custom vars in a separate `.env.development.local` file (loaded after `.env.local` by Next.js).
+
+### Pulled Files Omit Production and Preview Secrets
+
+`vercel env pull --environment=production` (or `preview`) does not write Secret values, so a pulled file cannot reproduce production credentials. Keep separate Development values for local work instead of trying to copy production Secrets onto a machine.
 
 ### Scripts Don't Auto-Load `.env.local`
 
@@ -270,6 +285,6 @@ Based on the action performed:
 
 - **After list** → "Run `/env pull` to sync to local, or `/env diff` to compare local vs Vercel."
 - **After pull** → "Restart your dev server to pick up the new variables. Run `/env diff` to verify sync."
-- **After add** → "Run `/deploy` to make the new variable available in your next deployment. For production, the variable is available immediately on the next request."
-- **After remove** → "The variable is removed. If your app depends on it, update your code or add a replacement. Consider redeploying with `/deploy`."
+- **After add** → "Redeploy with `/deploy` (or `/deploy prod` for production) to make the new variable available. Existing deployments keep their previous environment variable values. If you added it to Development, run `/env pull` and restart your dev server to use it locally."
+- **After remove** → "The variable is removed from future deployments. If your app depends on it, update your code or add a replacement, then redeploy with `/deploy` (or `/deploy prod` for production) for the removal to take effect. Existing deployments keep their previous environment variable values. If you removed it from Development, also delete it from `.env.local`: `vercel env pull` (Vercel CLI 56+) keeps keys that exist only in the local file."
 - **After diff** → "Add missing variables with `/env add <NAME>`, or pull from Vercel with `/env pull` to sync."

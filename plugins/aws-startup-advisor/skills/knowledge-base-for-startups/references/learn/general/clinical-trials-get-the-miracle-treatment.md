@@ -75,4 +75,4 @@ What else does the future have in store for Miracle? Kim is looking forward to s
 
 ---
 
-_Category: Featured Startups_
+> _Category: Featured Startups_

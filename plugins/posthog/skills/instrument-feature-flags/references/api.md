@@ -1,10 +1,18 @@
 > AI agents: this is one page from PostHog's docs. Full index of Markdown docs for LLMs: https://posthog.com/llms.txt
 
-# API Feature Flags installation - Docs
+# API Feature Flags installation
 
-Copy page
+Canonical URL: https://posthog.com/docs/feature-flags/installation/api
 
-# API Feature Flags installation - Docs
+> **Cloud region:** This page uses US Cloud hosts. For an EU Cloud project, use `https://eu.i.posthog.com` instead of `https://us.i.posthog.com` (ingestion host).
+
+## On this page
+
+- [Evaluate the feature flag value using flags](#evaluate-the-feature-flag-value-using-flags)
+- [Include feature flag information when capturing events](#include-feature-flag-information-when-capturing-events)
+- [Send a $feature_flag_called event](#send-a-feature_flag_called-event)
+- [Running experiments](#running-experiments)
+- [Next steps](#next-steps)
 
 1.  1
 
@@ -13,8 +21,6 @@ Copy page
     Required
 
     `flags` is the endpoint used to determine if a given flag is enabled for a certain user or not.
-
-    PostHog AI
 
     ### Basic request (flags only)
 
@@ -33,6 +39,7 @@ Copy page
     ```python
     import requests
     import json
+    
     url = "https://us.i.posthog.com/flags?v=2"
     headers = {
         "Content-Type": "application/json"
@@ -80,8 +87,6 @@ Copy page
 
     **Note:** This step is only required for events captured using our server-side SDKs or API.
 
-    PostHog AI
-
     ### Terminal
 
     ```bash
@@ -100,6 +105,7 @@ Copy page
     ```python
     import requests
     import json
+    
     url = "https://us.i.posthog.com/i/v0/e/"
     headers = {
         "Content-Type": "application/json"
@@ -129,8 +135,6 @@ Copy page
     1.  `$feature_flag_response`: This is the name of the variant the user has been assigned to e.g., "control" or "test"
     2.  `$feature_flag`: This is the key of the feature flag in your experiment.
 
-    PostHog AI
-
     ### Terminal
 
     ```bash
@@ -150,6 +154,7 @@ Copy page
     ```python
     import requests
     import json
+    
     url = "https://us.i.posthog.com/i/v0/e/"
     headers = {
         "Content-Type": "application/json"
@@ -185,16 +190,8 @@ Copy page
 
     | Resource | Description |
     | --- | --- |
-    | [Creating a feature flag](/docs/feature-flags/creating-feature-flags.md) | How to create a feature flag in PostHog |
-    | [Adding feature flag code](/docs/feature-flags/adding-feature-flag-code.md) | How to check flags in your code for all platforms |
-    | [Framework-specific guides](/docs/feature-flags/tutorials.md#framework-guides) | Setup guides for React Native, Next.js, Flutter, and other frameworks |
-    | [How to do a phased rollout](/tutorials/phased-rollout.md) | Gradually roll out features to minimize risk |
-    | [More tutorials](/docs/feature-flags/tutorials.md) | Other real-world examples and use cases |
-
-### Still have questions?
-
-Ask PostHog AI
-
-### Was this page useful?
-
-HelpfulCould be better
+    | [Creating a feature flag](https://posthog.com/docs/feature-flags/creating-feature-flags.md) | How to create a feature flag in PostHog |
+    | [Adding feature flag code](https://posthog.com/docs/feature-flags/adding-feature-flag-code.md) | How to check flags in your code for all platforms |
+    | [Framework-specific guides](https://posthog.com/docs/feature-flags/tutorials.md#framework-guides) | Setup guides for React Native, Next.js, Flutter, and other frameworks |
+    | [How to do a phased rollout](https://posthog.com/tutorials/phased-rollout.md) | Gradually roll out features to minimize risk |
+    | [More tutorials](https://posthog.com/docs/feature-flags/tutorials.md) | Other real-world examples and use cases |

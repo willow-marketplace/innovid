@@ -10,30 +10,25 @@ Enable MCP in your Pigment workspace: **Settings > Integrations > MCP**. See the
 
 ## Installation
 
+### Claude
+
+1. In Claude, on the web or in the desktop app, go to **Customize > Plugins**
+2. Search for **Pigment** and install the plugin
+3. Connect to your Pigment workspace (see [Configuration](#configuration))
+
+The plugin works in chat, Cowork and Claude Code. A plugin you install in Claude is also added to Claude Code the next time you start a session.
+
 ### Cursor
 
 1. Go to [Cursor plugins](https://cursor.com/dashboard/plugins)
 2. Import `https://github.com/gopigment/ai-plugins` as a marketplace
 3. Add Pigment plugin to Cursor from the plugins page, or open Cursor and run `/add-plugin pigment` in a new chat
 
-### Claude Code
-
-#### Desktop App
-
-1. Go to **Customize**, select **Add plugin**, then **Add marketplace** and paste `https://github.com/gopigment/ai-plugins`
-2. Install Pigment plugin
-
-#### Terminal CLI
-
-```
-/plugin marketplace add gopigment/ai-plugins
-
-/plugin install pigment@pigment
-```
-
 ### Configuration
 
-After installing, set your MCP server URL. The easiest way is to paste your MCP URL into the agent chat and ask it to update the configuration. You can also edit the `.mcp.json` file directly.
+**Claude (chat, Cowork and Claude Code):** the Skills load automatically. Your Pigment MCP URL is specific to your workspace, so the plugin doesn't set it. To connect to Pigment, add your MCP URL as a custom connector in Claude under **Settings > Connectors**. Connectors you add there are also available in Claude Code when you sign in with your Claude account.
+
+**Cursor:** after installing, open **Plugins → Configure** in the Cursor dashboard and set **Pigment MCP ID** to the last part of your MCP URL. Requires Cursor 3.19 or later.
 
 Your MCP URL can be found in your Pigment workspace under **Settings > Integrations > MCP**. See the [Pigment documentation](https://kb.pigment.com/docs/mcp-server-1) for detailed instructions.
 
@@ -43,9 +38,149 @@ Your MCP URL can be found in your Pigment workspace under **Settings > Integrati
 
 The plugin connects your AI assistant to the Pigment MCP server, which has two modes.
 
-**Default** — read-only tools for data analysis. Only metrics where [AI data access](https://kb.pigment.com/docs/pigment-ai#ai-data-access) is enabled are accessible.
+#### Default mode
 
-**Advanced** — write tools for modeling Pigment applications (dimensions, metrics, formulas, calendars, boards, views, and more). Each user can enable it in **Settings > Advanced Features > Advanced MCP Tools**.
+Public mode provides read-only tools for exploring and analyzing your Applications. For instance, public tools let you:
+
+- Find Applications, Blocks, and Boards
+- Understand Metric structure and dependencies
+- Retrieve Metric and List data
+
+To make a Block's data accessible, you need to enable [AI data access](https://kb.pigment.com/docs/pigment-ai#ai-data-access) on it.
+
+<!-- mcp-tools:default:start -->
+<details>
+<summary>Available tools (17)</summary>
+
+- fetch_list_data
+- fetch_metric_data
+- get_applications
+- get_data_dependency_tree
+- get_list_dependencies
+- get_metric_context
+- get_metric_dependencies
+- get_organization_info
+- get_table_dependencies
+- get_view_dependencies
+- get_views
+- search_boards
+- search_folders
+- search_metrics_and_lists
+- search_tables
+- search_views
+- semantic_search
+
+</details>
+<!-- mcp-tools:default:end -->
+
+#### Advanced mode
+
+Advanced mode provides read and write tools for modeling and editing your Applications. For instance, advanced tools let you:
+
+- Create Applications
+- Build and edit Blocks (Dimensions, Metrics and Tables)
+- Write formulas
+- Design Views and Boards
+- Input data
+- Audit performance
+
+<!-- mcp-tools:advanced:start -->
+<details>
+<summary>Available tools (88)</summary>
+
+- add_list_items
+- batch_share_blocks
+- bulk_update_lists
+- bulk_update_metrics
+- calendar_add_time_dimension
+- calendar_create
+- calendar_expand
+- calendar_get
+- calendar_remove_time_dimension
+- clear_board_permission_metrics
+- clear_widget_preview
+- copy_formula_as_user_inputs
+- create_application
+- create_board
+- create_cycle
+- create_folder
+- create_frame
+- create_list
+- create_list_property
+- create_metric
+- create_metric_copy_config
+- create_sublist
+- create_table
+- create_view
+- delete_application
+- delete_block
+- delete_cycle
+- delete_list_items
+- delete_list_property
+- delete_sandbox
+- delete_views
+- duplicate_application
+- duplicate_block
+- edit_list_item_history_properties
+- enable_application_library
+- get_all_view_templates
+- get_audit_trail
+- get_available_pivots
+- get_block_sharing_plan_for_batch_share
+- get_blocks_performance
+- get_board
+- get_list_items
+- get_metric_to_metric_copy_configs
+- get_top_blocks_by_performance
+- list_application_libraries
+- list_cycles
+- list_data_flows
+- list_issues
+- list_scenarios
+- move_blocks
+- performance_changes_statistics
+- performance_profile_change
+- performance_profile_change_scope_details
+- performance_slowest_changes
+- reorder_list_items
+- run_data_flow
+- save_draft_views
+- search
+- search_frames
+- set_board_permission_metrics
+- set_metric_input
+- set_widget_preview
+- update_application
+- update_board
+- update_board_inherit_application_permissions
+- update_board_page_configurations
+- update_board_widgets
+- update_cycle
+- update_folder_name
+- update_frame
+- update_frame_body
+- update_list_property
+- update_list_property_input_data
+- update_list_view_pivots
+- update_table
+- update_view
+- update_view_aggregations
+- update_view_calculated_items
+- update_view_chart_config
+- update_view_filters
+- update_view_formatting
+- update_view_grid_layout
+- update_view_kpi_config
+- update_view_pivots
+- update_view_show_value_as
+- update_view_sorts
+- update_view_values
+- validate_formula
+
+</details>
+<!-- mcp-tools:advanced:end -->
+
+Each user can enable advanced mode for their account in **Settings > Advanced features > Enable advanced tools on MCP server**. Advanced mode is off by default.
 
 Users connect with their own credentials via OAuth, so their Pigment access rights and permissions apply by design — they can't access or do more than what they can already do in Pigment.
 
@@ -64,7 +199,7 @@ Skills come in four kinds: **foundational** (read first), **planning** (decide w
 | Skill | Description |
 |-------|-------------|
 | **Understanding Pigment Modeling** | Foundational mental model — in-memory engine, blocks, dimensionality, sparsity |
-| **Analyzing Pigment Data** | Query formulation, data discovery, analysis patterns, result interpretation |
+| **Analyzing Views** | On-board and headless filter planning from view pivots and page selectors |
 | **Gathering Architecture Requirements** | Structured discovery before building anything |
 | **Architecting Multi-Application Solutions** | Splitting work across applications, Hub-and-spoke designs |
 | **Building a Full Application** | End-to-end build of a new application |
@@ -78,6 +213,7 @@ Skills come in four kinds: **foundational** (read first), **planning** (decide w
 | **Using Mapped Dimensions** | Dynamic and time-dependent hierarchies, card metrics |
 | **Setting Up Calendar** | Calendar type, fiscal year, time dimensions |
 | **Building Versions & Planning Cycles** | Versions, planning cycles, actuals vs forecast |
+| **Forecasting in Pigment** | Growth-rate hypotheses and statistical forecasting functions |
 | **Securing with Access Rights** | Access rights design, AR metrics, apply rules, debugging visibility |
 | **Sharing Data Between Applications** | Libraries and cross-application block sharing |
 | **Copying Metric Data** | Metric-to-metric copy configurations |
@@ -85,8 +221,10 @@ Skills come in four kinds: **foundational** (read first), **planning** (decide w
 | **Writing Pigment Formulas** | Pigment's proprietary formula language — quoting, references, syntax |
 | **Using Formula Functions** | Built-in function signatures and examples |
 | **Using Formula Modifiers** | Dimension mapping when source and target differ |
+| **Iterating with Previous & Cycles** | PREVIOUS, PREVIOUSOF, and iterative calculation cycles |
 | **Writing Performant Formulas** | Pre-delivery checklist, sparsity rules, anti-patterns |
 | **Diagnosing Performance Issues** | Profiling slow calculations and timeouts |
+| **Profiling Model Performance** | Performance Insights tools — change profiles, bottlenecks, before/after timings |
 | **Designing Boards & Views** | Board sections, widgets, layout, pivots, filters, sorting, aggregators |
 | **Aggregating View Data** | Totals, subtotals and roll-up behaviour in Views |
 | **Formatting & Highlighting** | Decimals, currency, percent, K/M scaling, text and boolean display |

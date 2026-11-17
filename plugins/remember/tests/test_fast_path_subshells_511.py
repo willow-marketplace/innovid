@@ -20,6 +20,7 @@ import subprocess
 from pathlib import Path
 
 from ._bash_runner import resolve_bash
+from ._compiled_hooks import skip_if_compiled, skip_if_dropped
 
 BASH = resolve_bash()
 import pytest
@@ -75,6 +76,7 @@ CASES = [
 @_needs_bash
 @pytest.mark.parametrize("raw, expected", CASES)
 def test_stdin_cwd_into_agrees_with_stdin_cwd(raw, expected):
+    skip_if_dropped(HOOK, "_stdin_cwd")
     text = HOOK.read_text(encoding="utf-8")
     old_fn = _extract_function(text, "_stdin_cwd")
     new_fn = _extract_function(text, "_stdin_cwd_into")
@@ -102,10 +104,13 @@ def test_stdin_cwd_into_agrees_with_stdin_cwd(raw, expected):
     # confirm this mechanism directly; test_env_cache_key_windows_normalize_504.py
     # in this same commit hits an adjacent but distinct Windows subprocess
     # hazard (bash resolving to the WSL launcher stub) at the same review pass.
+    # The script goes in on stdin for the same reason: Git for Windows'
+    # bash.exe collapses the extractors' `\\` sequences (#829) in a `-c`
+    # argument, observed on Windows 11 / Git Bash 5.2.
     env = dict(os.environ)
     env["STDIN_CWD_TEST_RAW"] = raw
     result = subprocess.run(
-        [BASH, "-c", script], env=env, capture_output=True, text=True, timeout=10, check=False,
+        [BASH], input=script, env=env, capture_output=True, text=True, timeout=10, check=False,
     )
     assert result.returncode == 0, result.stderr
     lines = result.stdout.splitlines()
@@ -166,7 +171,18 @@ def test_remember_date_into_matches_remember_date_with_tz():
     result = subprocess.run([BASH, "-c", script], capture_output=True, text=True, timeout=10, check=False)
     assert result.returncode == 0, result.stderr
     lines = {l.split("=", 1)[0]: l.split("=", 1)[1] for l in result.stdout.splitlines()}
-    assert lines["OLD"] == lines["NEW"], lines
+    # Same minute-boundary race as the builtin-path sibling above (#794): the
+    # two reads happen back to back, but a crossing between them is the one
+    # legitimate way OLD and NEW can differ without a bug. Retry once rather
+    # than asserting `... or True`, which would never fail in the first
+    # place: re-running immediately makes a boundary-crossing false pass
+    # implausible, since both calls happen back to back and a real bug would
+    # reproduce on the second run too.
+    if lines["OLD"] != lines["NEW"]:
+        result2 = subprocess.run([BASH, "-c", script], capture_output=True, text=True, timeout=10, check=False)
+        assert result2.returncode == 0, result2.stderr
+        lines2 = {l.split("=", 1)[0]: l.split("=", 1)[1] for l in result2.stdout.splitlines()}
+        assert lines2["OLD"] == lines2["NEW"], (lines, lines2)
 
 
 # ── The two subshells #511 removes must actually be gone from the source ───
@@ -192,6 +208,9 @@ def test_stdin_cwd_is_no_longer_captured_through_a_subshell():
 
 
 def test_remember_date_is_no_longer_captured_through_a_subshell_on_the_fast_path():
+    # The hook's OWN code: a compiled hook also carries its libraries', and
+    # log.sh legitimately captures `$(_remember_date ...)` off this path.
+    skip_if_compiled(HOOK)
     text = HOOK.read_text(encoding="utf-8")
     assert text.count("_remember_date_into _REMEMBER_NOW") == 2, (
         "expected both stamp branches (with and without CTX_PCT) to use the "

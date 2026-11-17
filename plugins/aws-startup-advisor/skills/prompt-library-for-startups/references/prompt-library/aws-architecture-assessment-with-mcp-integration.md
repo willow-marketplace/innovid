@@ -12,9 +12,9 @@ Systematic roadmap for scaling infrastructure as you grow. Get phased architectu
 
 ## Scaling from 10K to 10M Users - AWS Architecture Assessment
 
-Prerequisite: This prompt requires the AWS Knowledge MCP server. If it isn't already installed and available to you, see the setup instructions at <https://github.com/awslabs/mcp/tree/main/src/aws-knowledge-mcp-server> and configure it before re-running this prompt.
+Prerequisite: This prompt uses the unified AWS MCP Server (`aws-mcp`), which ships with this plugin and is already configured once the plugin is installed — there is nothing extra to set up. It provides every tool this prompt calls: `aws___search_documentation` and `aws___read_documentation` for AWS documentation, `aws___recommend` for related pages, `aws___list_regions` and `aws___get_regional_availability` for regional checks, and `aws___call_aws` for read-only queries against your own account when you need live configuration data.
 
-You are a cloud infrastructure architect with access to AWS Knowledge MCP Server tools. Use these tools to provide data-driven, documentation-backed recommendations for scaling architecture.
+You are a cloud infrastructure architect with access to the unified AWS MCP Server tools. Use these tools to provide data-driven, documentation-backed recommendations for scaling architecture.
 
 ## Current State
 
@@ -46,7 +46,7 @@ Calculate the financial and operational impact of successful scaling at each pha
 1. **Performance-Driven Conversion Improvement**
    - Formula: `(Target Latency Improvement %) × (Industry Conversion Lift Factor) × (Current Revenue)`
    - Example: Reducing P95 latency from 1000ms → 100ms (90% improvement) typically increases conversion rates by 15-25% for e-commerce, 10-15% for SaaS
-   - Use `aws_search_documentation("CloudFront performance optimization case studies")` to find industry benchmarks
+   - Use `aws___search_documentation("CloudFront performance optimization case studies")` to find industry benchmarks
 
 2. **Uptime Revenue Protection**
    - Formula: `(Target Uptime % - Current Uptime %) × (Revenue per Hour) × (8760 hours/year)`
@@ -71,11 +71,11 @@ Calculate the financial and operational impact of successful scaling at each pha
 
 ---
 
-## Analysis Framework (Using AWS Knowledge MCP Tools)
+## Analysis Framework (Using AWS MCP Server Tools)
 
 ### 1. Architecture Documentation Review
 
-**Tool: `aws_search_documentation`**
+**Tool: `aws___search_documentation`**
 
 Search for relevant AWS architecture patterns and best practices:
 
@@ -83,7 +83,7 @@ Search for relevant AWS architecture patterns and best practices:
 - Query: "multi-region [APPLICATION_TYPE] architecture patterns"
 - Query: "[SPECIFIC_SERVICE] performance optimization at scale"
 
-**Tool: `aws_read_documentation`**
+**Tool: `aws___read_documentation`**
 
 - Read detailed documentation for services you're currently using
 - Focus on scaling limits, best practices, and optimization guides
@@ -95,11 +95,11 @@ Search for relevant AWS architecture patterns and best practices:
 
 ### 2. Regional Availability Assessment
 
-**Tool: `aws_list_regions`**
+**Tool: `aws___list_regions`**
 
 List all available AWS regions to plan multi-region strategy.
 
-**Tool: `aws_get_regional_availability`**
+**Tool: `aws___get_regional_availability`**
 
 Check service availability in target regions:
 
@@ -265,7 +265,7 @@ Match your scaling roadmap to your funding stage and business priorities:
 
 **Actions:**
 
-1. Use `aws_search_documentation` to find quick wins for current bottlenecks
+1. Use `aws___search_documentation` to find quick wins for current bottlenecks
 2. Implement caching layers (search for "ElastiCache quick start")
 3. Set up basic auto-scaling (read "Auto Scaling target tracking documentation")
 4. Establish monitoring baseline (search for "CloudWatch dashboards best practices")
@@ -283,17 +283,17 @@ Match your scaling roadmap to your funding stage and business priorities:
 Before proceeding to Phase 2, verify:
 
 - [ ] **Performance Baseline Established**
-  - MCP Query: `aws_search_documentation("CloudWatch custom metrics best practices")`
+  - MCP Query: `aws___search_documentation("CloudWatch custom metrics best practices")`
   - Validation: P50/P95/P99 latency tracked for all critical endpoints
   - Threshold: P95 latency <500ms achieved consistently for 2 weeks
 
 - [ ] **Auto-Scaling Tested**
-  - MCP Query: `aws_read_documentation(url="<Auto Scaling target tracking guide>")`
+  - MCP Query: `aws___read_documentation(url="<Auto Scaling target tracking guide>")`
   - Validation: Load test demonstrates 3x traffic spike handled without manual intervention
   - Threshold: CPU utilization stays <70% during peak load
 
 - [ ] **Cost Baseline Documented**
-  - MCP Query: `aws_search_documentation("AWS Cost Explorer API")`
+  - MCP Query: `aws___search_documentation("AWS Cost Explorer API")`
   - Validation: Cost per user calculated and tracked in dashboard
   - Threshold: Cost per user <$0.50 at current scale
 
@@ -310,9 +310,9 @@ Before proceeding to Phase 2, verify:
 
 **MCP Tool Usage:**
 
-- `aws_search_documentation`: "RDS read replica lag monitoring"
-- `aws_read_documentation`: Read Aurora Serverless v2 scaling documentation
-- `aws_get_regional_availability`: Verify services in secondary AZ
+- `aws___search_documentation`: "RDS read replica lag monitoring"
+- `aws___read_documentation`: Read Aurora Serverless v2 scaling documentation
+- `aws___get_regional_availability`: Verify services in secondary AZ
 
 **Success Metrics:** P95 latency <300ms, 99.95% uptime, 20% cost reduction per user
 
@@ -321,17 +321,17 @@ Before proceeding to Phase 2, verify:
 Before proceeding to Phase 3, verify:
 
 - [ ] **Database Scaling Validated**
-  - MCP Query: `aws_search_documentation("RDS read replica monitoring")`
+  - MCP Query: `aws___search_documentation("RDS read replica monitoring")`
   - Validation: Read replicas handle 80%+ of read traffic, replication lag <1 second
   - Threshold: Database CPU <70%, connection pool utilization <80%
 
 - [ ] **Multi-AZ Failover Tested**
-  - MCP Query: `aws_search_documentation("RDS Multi-AZ failover testing")`
+  - MCP Query: `aws___search_documentation("RDS Multi-AZ failover testing")`
   - Validation: Simulated AZ failure, application recovered within RTO
   - Threshold: Failover completed <5 minutes, zero data loss
 
 - [ ] **Cost Optimization Implemented**
-  - MCP Query: `aws_search_documentation("Reserved Instances vs Savings Plans")`
+  - MCP Query: `aws___search_documentation("Reserved Instances vs Savings Plans")`
   - Validation: 30%+ of predictable workload on RIs/Savings Plans
   - Threshold: Cost per user reduced by 20% from Phase 1
 
@@ -341,8 +341,8 @@ Before proceeding to Phase 3, verify:
 
 **Actions:**
 
-1. Use `aws_list_regions` to identify optimal secondary regions
-2. Use `aws_get_regional_availability` to verify all services in target regions
+1. Use `aws___list_regions` to identify optimal secondary regions
+2. Use `aws___get_regional_availability` to verify all services in target regions
 3. Search for "multi-region active-active architecture patterns"
 4. Read documentation on Route 53 geolocation routing
 5. Implement cross-region replication for databases and storage
@@ -361,12 +361,12 @@ Before proceeding to Phase 3, verify:
 Before proceeding to Phase 4, verify:
 
 - [ ] **Multi-Region Deployment Validated**
-  - MCP Query: `aws_get_regional_availability(region="<secondary>", resource_type="api", filters=["<critical_services>"])`
+  - MCP Query: `aws___get_regional_availability(region="<secondary>", resource_type="api", filters=["<critical_services>"])`
   - Validation: All critical services available in secondary region, cross-region replication working
   - Threshold: Regional failover tested, RTO <15 minutes achieved
 
 - [ ] **Global Performance Verified**
-  - MCP Query: `aws_search_documentation("CloudFront real user monitoring")`
+  - MCP Query: `aws___search_documentation("CloudFront real user monitoring")`
   - Validation: P95 latency <200ms from all target geographies
   - Threshold: CDN cache hit rate >85%, origin load reduced by 70%
 
@@ -411,27 +411,27 @@ For each phase, provide:
 
 **When to use each tool:**
 
-- **`aws_search_documentation`**: When you need to find relevant guides, best practices, or troubleshooting information
+- **`aws___search_documentation`**: When you need to find relevant guides, best practices, or troubleshooting information
   - Use broad searches first, then narrow down
   - Search for specific error messages or performance issues
   - Find architecture patterns and reference architectures
 
-- **`aws_read_documentation`**: When you have a specific documentation URL and need detailed information
+- **`aws___read_documentation`**: When you have a specific documentation URL and need detailed information
   - Read implementation guides step-by-step
   - Review API references for specific services
   - Study configuration examples and code samples
 
-- **`aws_list_regions`**: When planning geographic distribution
+- **`aws___list_regions`**: When planning geographic distribution
   - Identify all available regions
   - Plan multi-region strategy
   - Understand regional naming conventions
 
-- **`aws_get_regional_availability`**: When validating architecture decisions
+- **`aws___get_regional_availability`**: When validating architecture decisions
   - Check if services are available in target regions
   - Verify API operations are supported
   - Validate CloudFormation resource availability for IaC
 
-- **`aws_recommend`**: When exploring related documentation
+- **`aws___recommend`**: When exploring related documentation
   - Find related content after reading a page
   - Discover new features and updates
   - Explore alternative approaches
@@ -479,19 +479,19 @@ Leverage AWS Startup Programs to accelerate your scaling journey:
 
 **Scenario:** You need to scale your RDS PostgreSQL database
 
-1. **Search:** `aws_search_documentation("RDS PostgreSQL read replica multi-region")`
+1. **Search:** `aws___search_documentation("RDS PostgreSQL read replica multi-region")`
    - Get list of relevant documentation pages
 
-2. **Read:** `aws_read_documentation(url="<top_result_url>")`
+2. **Read:** `aws___read_documentation(url="<top_result_url>")`
    - Read detailed implementation guide
 
-3. **Check Availability:** `aws_get_regional_availability(region="eu-west-1", resource_type="api", filters=["RDS+CreateDBInstanceReadReplica"])`
+3. **Check Availability:** `aws___get_regional_availability(region="eu-west-1", resource_type="api", filters=["RDS+CreateDBInstanceReadReplica"])`
    - Verify the API is available in your target region
 
-4. **Explore Related:** `aws_recommend(url="<documentation_url>")`
+4. **Explore Related:** `aws___recommend(url="<documentation_url>")`
    - Find related topics like Aurora migration, performance optimization
 
-5. **Validate Alternative Regions:** `aws_get_regional_availability(region="eu-central-1", resource_type="api", filters=["RDS"])`
+5. **Validate Alternative Regions:** `aws___get_regional_availability(region="eu-central-1", resource_type="api", filters=["RDS"])`
    - Check if alternative regions support your requirements
 
 ---
@@ -535,7 +535,7 @@ Use MCP tools to search for "AWS disaster recovery strategies" and "production i
 
 ## How to use?
 
-**Step 1: Prepare Your Context**
+### Step 1: Prepare Your Context
 
 Gather the following information:
 
@@ -558,13 +558,13 @@ Business Context:
 - Geographic distribution
 - Industry vertical
 
-**Step 2: Configure the Prompt**
+### Step 2: Configure the Prompt
 
 - Copy the complete prompt composition
 - Replace all bracketed placeholders [LIKE_THIS] with your specific information
 - Ensure all sections are filled in
 
-**Step 3: Execute the Prompt**
+### Step 3: Execute the Prompt
 
 - Submit the configured prompt to your AI assistant with MCP support
 - The assistant will systematically use MCP tools to search documentation, validate regional availability, and provide recommendations

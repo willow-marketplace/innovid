@@ -34,6 +34,18 @@ api() { "$PLUGIN_ROOT/scripts/api-request.sh" build-campaign "$@"; }
 
 Before the first Ads API v3 call, read and follow `$PLUGIN_ROOT/skills/api-reference/references/live-openapi.md`.
 
+Before sending any output to a human user, read and follow `$PLUGIN_ROOT/skills/api-reference/references/language-standards.md`.
+
+Also read `$PLUGIN_ROOT/skills/api-reference/references/api-behaviors.md` for API behaviour the spec does not express (Reserved pricing, estimates, geo lookup, draft VALIDATE/PUBLISH).
+
+Critical rules:
+
+- Send only fields the live spec defines for the operation; include every field it marks required, including ones whose description says "required" (e.g. `targets.placements`).
+- Set `placements` when creating an ad set and on every audience estimate, using only values the ad product catalog allows for that product's ad sets (and any narrower limit the objective's spec description states). On ad set updates, keep a valid `placements` in the merged result.
+- Never resend a request body that was rejected with a 4xx unchanged; fix it from the error first.
+- Before VALIDATE/PUBLISH, refetch `draft_hierarchy_version` from the draft campaign.
+- Choose new or edited ad set `start_time` values well clear of the ad product catalog's minimum lead time, and recheck staged start times against the current UTC time immediately before each VALIDATE and PUBLISH.
+
 To retrieve settings values (TOKEN, AD_ACCOUNT_ID, AUTO_EXECUTE, BASE_URL, SDK_HEADER, SKILL_HEADER, PLUGIN_VERSION) for use outside API calls, run `api --env`. The output is eval-safe, so `eval $(api --env)` assigns them all.
 
 ## Step 1: Parse the Campaign Description
@@ -56,14 +68,14 @@ Valid objectives: `REACH`, `CLICKS`, `VIDEO_VIEWS`, `CONVERSIONS`, `LEAD_GEN`, `
 | Field | Required | Default | Notes |
 |-------|----------|---------|-------|
 | name | yes | — | 2-200 chars |
-| start_time | yes | — | ISO 8601 UTC |
+| start_time | yes | — | ISO 8601 UTC, well clear of the catalog's minimum lead time |
 | end_time | required if LIFETIME | — | ISO 8601 UTC |
 | budget.micro_amount | yes | — | Amount (in ad account's billing currency) x 1,000,000 |
 | budget.type | yes | DAILY | `DAILY` or `LIFETIME` |
 | asset_format | yes | AUDIO | `AUDIO`, `VIDEO`, `IMAGE`, or `CATALOG` |
 | category | yes | — | Valid `ADV_X_Y` code (fetch from `GET /ad_categories` if needed) |
 | bid_strategy | yes | MAX_BID | Plain string: `MAX_BID`, `COST_PER_RESULT`, `AUTOBID`, or `UNSET` |
-| bid_micro_amount | yes with MAX_BID/COST_PER_RESULT | 15000000 | Bid cap in micro-units. Not required with AUTOBID. |
+| bid_micro_amount | yes with MAX_BID/COST_PER_RESULT | 15000000 | Bid cap in micro-units. Omitted with AUTOBID; this applies only to ad set payloads, not audience estimates. |
 | pacing | no | PACING_EVEN | `PACING_EVEN` or `PACING_ASAP` |
 | delivery | no | ON | `ON` or `OFF` |
 | targets.age_ranges | yes | [{"min":18,"max":54}] | Array of `{min, max}` objects |
@@ -79,7 +91,9 @@ Valid objectives: `REACH`, `CLICKS`, `VIDEO_VIEWS`, `CONVERSIONS`, `LEAD_GEN`, `
 - Only use `ANDROID`, `DESKTOP`, and `IOS` in `targets.platforms`; never use `WEB`, `MOBILE`, or `CONNECTED_DEVICE`.
 - Use `min >= 18` for age ranges unless the user explicitly confirms a market/category that allows minors.
 - When geo refinements are present (`city_ids`, `postal_code_ids`, `region_ids`), include `country_code` in the same `geo_targets` object.
-- If `bid_strategy=UNSET`, omit `bid_micro_amount` unless the API response or user-provided source explicitly requires it.
+- For auction buys with `bid_strategy=UNSET`, omit `bid_micro_amount` unless the current API contract or user-provided source requires it. For Reserved buys, follow the live product rules and use the fixed rate returned by `reserved_prices` as `bid_micro_amount`.
+
+For Reserved buys, follow `skills/api-reference/references/api-behaviors.md` (Reserved Pricing and Forecasting) before confirming the plan or creating ad sets. Fetch the rate for each distinct product, date, format, and targeting; use its `cost_micro` as the ad set and audience estimate `bid_micro_amount`. Resolve campaign, ad set, and forecast fields from the current OpenAPI contract and live ad product catalog rather than using auction defaults. Show the fixed rate separately from any forecast CPM or bid suggestion.
 
 ### Ad-level fields (one or more per ad set)
 
@@ -121,7 +135,7 @@ You can fetch valid categories from `GET /ad_categories` to present options.
 
 ## Step 2.5: Validate Audience Size
 
-After the user confirms the plan but before executing API calls, run an audience estimate for each ad set's targeting:
+After the user confirms the plan but before creating any entities, run an audience estimate for each ad set's targeting. For Reserved buys, use the fixed rate fetched while planning, then add `ad_product`, `end_date`, and the returned `cost_micro` as `bid_micro_amount` to the estimate request; use the returned currency and resolve other fields from the live contract and catalog. The generic example below is for auction buys.
 
 ```bash
 api POST "estimates/audience" \
@@ -136,6 +150,8 @@ api POST "estimates/audience" \
     "targets": { <same targets object as the ad set> }
   }'
 ```
+
+**Estimate payload checks** (most estimate 400s come from these): send the request body as one JSON object containing every field the live spec marks required for `POST /estimates/audience`; set `budget.currency` to the ad account's billing currency (never omit it); always include `bid_micro_amount`, even when `bid_strategy` is `AUTOBID` (the AUTOBID no-bid exception applies only to ad set payloads); always send `targets.placements` with at least one placement the ad product catalog allows for the chosen ad product; and omit `targets.platforms` when the catalog does not allow platform targeting for that product.
 
 **Important:** This endpoint is NOT scoped under `/ad_accounts/{id}/` — it's at the top level: `POST /estimates/audience`. Use the base URL directly followed by `/estimates/audience`.
 
@@ -159,8 +175,10 @@ Convert any CPM micro-amounts to the ad account's billing currency for display.
 - Switching from VIDEO to AUDIO format (lower thresholds)
 - Expanding geo targeting
 
+If the API returned "Min audience threshold was not met", follow rule 9 under Critical Schema Notes: do not resend the same request, do not widen the targeting on your own, and only offer to adjust targeting (then re-estimate) or cancel. "Proceed anyway" is only for an estimate that came back valid but low.
+
 Use AskUserQuestion to ask whether to:
-1. Proceed anyway with current targeting
+1. Proceed anyway with current targeting (only when the estimate came back valid but low)
 2. Adjust targeting (then re-estimate)
 3. Cancel this ad set
 
@@ -288,4 +306,4 @@ These are non-obvious API requirements that MUST be followed:
 6. **`companion_asset_id`** is required when creating ads for AUDIO ad sets
 7. **`call_to_action`** uses field name `key` (not `type`) and `clickthrough_url` (not `url`)
 8. Budget amounts must be in **micro-units** (multiply amount by 1,000,000)
-9. **Min audience thresholds** apply — VIDEO format may require broader targeting than AUDIO. If you get a "Min audience threshold was not met" error, suggest expanding the age range or switching format.
+9. **Min audience thresholds** apply — VIDEO format may require broader targeting than AUDIO. "Min audience threshold was not met" is a 400 caused by targeting that is too narrow, not by a malformed payload. Do not resend the same request, and do not change the targeting on your own. Tell the user the audience is too small, suggest ways to widen it (for example a broader age range, more locations, or a different format), show `bid_suggestion` if the response includes one, then estimate again with the targeting the user chooses.

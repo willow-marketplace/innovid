@@ -34,7 +34,7 @@ New-Item -ItemType Directory -Force -Path $OUTPUT_DIR | Out-Null
 set -a; . "$HOME/.42crunch/conf/env"; set +a
 <binary> audit run \
   --enrich=false \
-  --output "$OUTPUT_DIR/report.json" \
+  --output "${OUTPUT_DIR:-/tmp/42c-audit}/report.json" \
   --output-format json \
   --report-sqg \
   [--tag <category>:<tagname>] \   # include only when a tag is assigned
@@ -49,9 +49,13 @@ set -a; . "$HOME/.42crunch/conf/env"; set +a
   --enrich=false \
   --freemium-host stateless.42crunch.com:443 \
   --token "$TRIAL_TOKEN" \
-  --output "$OUTPUT_DIR/report.json" \
+  --output "${OUTPUT_DIR:-/tmp/42c-audit}/report.json" \
   --output-format json \
   <path-to-oas-file>
+# Token mode: 42c-ast also writes sqg.json, evaluated against the default SQG
+# policy only (tag-based SQGs managed on the platform do not apply). This
+# workflow uses the session target score instead, so remove it. Windows: Remove-Item "$OUTPUT_DIR\sqg.json" -ErrorAction SilentlyContinue
+rm -f "${OUTPUT_DIR:-/tmp/42c-audit}/sqg.json"
 ```
 
 ### Output files (written to the same directory as `--output`)
@@ -60,7 +64,7 @@ set -a; . "$HOME/.42crunch/conf/env"; set +a
 |---------------|----------------------------------------------------------------------------------------------------|
 | `report.json` | Audit results                                                                                      |
 | `todo.json`   | Same as report.json but with `index[]` for OAS path resolution — **prefer this file**              |
-| `sqg.json`    | SQG result — written in platform mode whenever `--report-sqg` is passed (with or without `--tag`). Not written in token mode. |
+| `sqg.json`    | SQG result — written in platform mode whenever `--report-sqg` is passed (with or without `--tag`). In token mode 42c-ast evaluates only the default SQG policy (no tag-based SQGs); the Token-mode command deletes it because this workflow uses the session target score instead. |
 
 ### Check the run result before proceeding
 
@@ -144,10 +148,13 @@ Extract only the needed fields — do not read the raw file into context.
 **macOS / Linux (Python)**
 
 ```bash
-python3 << 'EOF'
+OUTPUT_DIR="${OUTPUT_DIR:-/tmp/42c-audit}" python3 << 'EOF'
 import json, os, sys
 
-with open("$OUTPUT_DIR/todo.json") as f:
+# The quoted heredoc stops the shell from expanding variables inside the
+# script, so the output directory is passed in through the environment.
+out = os.environ["OUTPUT_DIR"]
+with open(os.path.join(out, "todo.json")) as f:
     d = json.load(f)
 
 state = d["openapiState"]
@@ -190,9 +197,9 @@ if issues:
     for issue_id, section, crit, desc, shown, total, truncated in issues:
         print(f"  {issue_id},{section},{crit},{desc},{shown},{total},{truncated}")
 
-# sqg.json (platform mode only — file is absent in token mode)
-if os.path.exists("$OUTPUT_DIR/sqg.json"):
-    with open("$OUTPUT_DIR/sqg.json") as f:
+# sqg.json (platform mode only — the Token-mode command deletes its default-policy sqg.json)
+if os.path.exists(os.path.join(out, "sqg.json")):
+    with open(os.path.join(out, "sqg.json")) as f:
         sqg = json.load(f)
     print(f"sqg_acceptance: {sqg['acceptance']}")
     print(f"sqg_name: {sqg['sqgsDetail'][0]['name']}")
@@ -205,6 +212,7 @@ EOF
 **Windows (PowerShell)**
 
 ```powershell
+if (-not $OUTPUT_DIR) { $OUTPUT_DIR = "$env:TEMP\42c-audit" }
 $d = Get-Content "$OUTPUT_DIR\todo.json" | ConvertFrom-Json
 $state = $d.openapiState
 
@@ -253,7 +261,7 @@ if ($issues.Count -gt 0) {
     }
 }
 
-# sqg.json (platform mode only — file is absent in token mode)
+# sqg.json (platform mode only — the Token-mode command deletes its default-policy sqg.json)
 if (Test-Path "$OUTPUT_DIR\sqg.json") {
     $sqg = Get-Content "$OUTPUT_DIR\sqg.json" | ConvertFrom-Json
     Write-Host "sqg_acceptance: $($sqg.acceptance)"

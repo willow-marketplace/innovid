@@ -11,21 +11,22 @@ import sys
 from pathlib import Path
 from typing import Literal
 
-from pydantic import ValidationError
-
 from artifacts import (
-    one_line,
-    resolve_project_file,
-    resolve_swarm_dir,
-    resolve_under_root,
     load_json,
     load_native_config,
     load_spec,
+    one_line,
     read_generated_code,
+    resolve_project_file,
+    resolve_spec_path,
+    resolve_swarm_dir,
+    resolve_under_root,
     save_native_config,
     write_criteria,
     write_json,
 )
+from prompt_inputs import attack_input, behavior_input, persistence_input
+from pydantic import ValidationError
 from swarm_contracts import (
     ConvergenceConfig,
     EvaluationConfig,
@@ -38,7 +39,6 @@ from swarm_contracts import (
     SimulationConfig,
     confirm_scenario,
 )
-from prompt_inputs import attack_input, behavior_input, persistence_input
 
 Role = Literal["attack", "behavior", "persistence"]
 ROLES: tuple[Role, ...] = ("attack", "behavior", "persistence")
@@ -66,7 +66,7 @@ def prepare(
     work_dir: Path,
 ) -> dict[Role, Path]:
     """Write minimal input packages for the three scenario generators."""
-    resolved_spec = spec_path.resolve()
+    resolved_spec = resolve_spec_path(spec_path).resolve()
     project_root = resolved_spec.parent
     resolved_work_dir = resolve_under_root(project_root, work_dir, "work directory")
     resolved_context = (
@@ -104,7 +104,7 @@ def configure(
     execution_mode: Literal["simulated", "selective_e2e"] = "simulated",
 ) -> Path:
     """Persist the public native configuration collected by the harness."""
-    project_root = spec_path.resolve().parent
+    project_root = resolve_spec_path(spec_path).resolve().parent
     resolved_output = resolve_under_root(project_root, output_path, "simulation config")
     context_path = (
         str(
@@ -135,6 +135,7 @@ def prepare_from_config(
     work_dir: Path,
 ) -> dict[Role, Path]:
     """Load native configuration and prepare the three generator packages."""
+    spec_path = resolve_spec_path(spec_path)
     project_root = spec_path.resolve().parent
     resolved_config = resolve_project_file(
         project_root, config_path, "simulation config"

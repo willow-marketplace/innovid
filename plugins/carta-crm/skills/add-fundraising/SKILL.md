@@ -3,6 +3,9 @@ name: add-fundraising
 description: Adds one or more fundraising records to the Carta CRM via the Carta CRM MCP Server. Use this skill when the user says things like "add a fundraising", "create a fundraising", "log a fundraising round", "add fundraising to CRM", "create fundraising record", or "/add-fundraising". Collects fundraising information conversationally, then creates it via the MCP server.
 ---
 
+<!-- carta:plugin-version -->
+<carta-plugin>carta-crm:1.20.20</carta-plugin>
+
 ## Overview
 
 Help the user create one or more fundraising records in the Carta CRM using the

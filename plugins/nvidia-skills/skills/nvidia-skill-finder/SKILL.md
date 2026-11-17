@@ -1,6 +1,6 @@
 ---
 name: nvidia-skill-finder
-description: Use for NVIDIA-related requests where an NVIDIA skill might help, even if the user did not ask for a skill. Trigger on NVIDIA products, hardware, software, SDKs, GPUs, Jetson/JetPack/L4T/BSP/SDK Manager/driver/flashing/setup, CUDA, NIM, NeMo, Omniverse/OpenUSD/SimReady, RAPIDS/cuDF, cuPyNumeric, cuOpt, Dynamo, Holoscan, TensorRT, DeepStream, VSS, TAO, NGC/NVCF. Do not use for generic non-NVIDIA route, optimize, deploy, AI, video, data, or infrastructure tasks.
+description: Use for NVIDIA-related requests where an NVIDIA skill might help, even if the user did not ask for a skill. Trigger on NVIDIA products, hardware, software, SDKs, GPUs, Jetson/JetPack/L4T/BSP/SDK Manager/driver/flashing/setup, CUDA, NIM, NeMo, Omniverse/OpenUSD/SimReady, Isaac, RAPIDS/cuDF, cuPyNumeric, cuOpt, Dynamo, Holoscan, TensorRT, DeepStream, VSS, TAO, NGC/NVCF. Do not use for generic non-NVIDIA route, optimize, deploy, AI, video, data, or infrastructure tasks.
 ---
 
 # NVIDIA Skill Finder
@@ -35,7 +35,7 @@ Continue with this skill only when the request is plausibly related to an NVIDIA
 Strong signals:
 
 - The user mentions NVIDIA, CUDA, GPU acceleration, NIM, NeMo, Omniverse, OpenUSD,
-  SimReady, cuOpt, RAPIDS/cuDF, cuPyNumeric, Dynamo, Holoscan, TensorRT, VSS,
+  SimReady, Isaac, cuOpt, RAPIDS/cuDF, cuPyNumeric, Dynamo, Holoscan, TensorRT, VSS,
   DeepStream, Jetson, JetPack, L4T, BSP, SDK Manager, TAO, NGC, NVCF, or another
   NVIDIA product.
 - The task maps strongly to an NVIDIA catalog lane such as Agentic AI, Physical
@@ -107,7 +107,13 @@ Catalog check means one of:
 npx skills add nvidia/skills --list
 ```
 
-Use the fallback catalog sources only if the CLI is unavailable, blocked, or fails:
+- If running in Hermes Agent, do not run `npx`. Follow
+  [references/hermes-catalog.md](references/hermes-catalog.md) instead.
+- Otherwise do not run `hermes` commands. The binary may exist on the machine
+  even when you are a different agent, and installing through it writes to
+  Hermes's skills directory, where you cannot load the result.
+
+Use the fallback catalog sources only if the lookup above is unavailable, blocked, or fails:
 - https://github.com/NVIDIA/skills/tree/main/skills
 - https://build.nvidia.com/skills
 - https://raw.githubusercontent.com/NVIDIA/skills/main/skills.sh.json
@@ -143,6 +149,11 @@ If the agent target is unknown, omit `--agent` and let the CLI prompt:
 npx skills add nvidia/skills --skill <skill-name> --global --yes
 ```
 
+- If running in Hermes Agent, install with `hermes skills install` instead so
+  the skill is security scanned and lands in the active profile. Casing and
+  identifier rules are in
+  [references/hermes-catalog.md](references/hermes-catalog.md).
+
 After install, tell the user to restart or reload the agent if their client
 does not pick up newly installed skills immediately.
 
@@ -157,8 +168,8 @@ does not pick up newly installed skills immediately.
 
 Do not fabricate catalog entries or guess at skill names. If catalog lookup
 fails, say the catalog could not be checked and do not name a concrete slug or
-emit an `npx skills add ... --skill <name>` install command. Offer to share the
-catalog URL, retry lookup, or continue with general help.
+emit an install command for it, in either form. Offer to share the catalog URL,
+retry lookup, or continue with general help.
 
 ## When No Skills are Found
 

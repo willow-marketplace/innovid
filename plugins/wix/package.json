@@ -1,6 +1,6 @@
 {
   "name": "@wix/agent-skills",
-  "version": "1.19.1",
+  "version": "1.41.5",
   "description": "Wix Skills for AI coding agents — versioned npm distribution of the wix/skills content.",
   "license": "MIT",
   "repository": {
@@ -12,10 +12,17 @@
     "url": "https://github.com/wix/skills/issues"
   },
   "scripts": {
-    "version": "node .github/scripts/sync-plugin-versions.mjs && git add .claude-plugin/plugin.json .codex-plugin/plugin.json .cursor-plugin/plugin.json plugin.json gemini-extension.json"
+    "version": "node .github/scripts/sync-plugin-versions.mjs && git add .claude-plugin/plugin.json .codex-plugin/plugin.json .cursor-plugin/plugin.json plugin.json gemini-extension.json antigravity/wix/plugin.json skills/wix-headless-kit/install/pins.json"
   },
   "files": [
-    "skills/**",
+    "skills/wix-app/**",
+    "skills/wix-design-system/**",
+    "skills/wix-docs/**",
+    "skills/wix-headless-kit/**",
+    "skills/wix-headless-templates/**",
+    "skills/wix-manage/**",
+    "skills/wix-readme/**",
+    "skills/wix-studio-two/**",
     "README.md",
     "LICENSE"
   ],

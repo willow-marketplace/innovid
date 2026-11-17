@@ -19,8 +19,8 @@ This skill is scoped to the **MatrixScan Pick picking workflow on KMP**: `DataCa
 
 Based on the user's request, load the appropriate reference file before responding:
 
-- **Setting up or adjusting the MatrixScan Pick picking flow** (e.g. "add MatrixScan Pick to my KMP app", "set up the product list", "show/hide the finish button", "mute the beep", "track what's been picked", "use the Compose BarcodePickView") → read `references/integration.md` and follow the instructions there. If the project already has MatrixScan Pick wired up, do not re-create the context, mode, view, or lifecycle — locate the existing ones (grep for `BarcodePickView`, then `BarcodePick.forContext`) and change only what the user asked for. Determine whether the project uses the base `com.kmp.datacapture.barcode.pick.BarcodePickView` (host builds and drives the platform view itself, e.g. `AndroidView`/`UIViewRepresentable`) or the `com.kmp.datacapture.barcode.compose` `BarcodePickView` composable, and follow the matching pattern.
-- **Customizing the highlights drawn over barcodes** (e.g. "change the highlight color per state", "use a rectangle instead of a dot", "show an icon / status badge on picked items", "draw a custom view over each barcode", "style the to-pick vs picked highlight") → read `references/highlights.md`. This assumes the basic integration is already in place; it covers the five highlight styles and the per-state brush / icon / status-icon / custom-view APIs.
+- **Setting up or adjusting the MatrixScan Pick picking flow** (e.g. "add MatrixScan Pick to my KMP app", "set up the product list", "show/hide the finish button", "mute the beep", "track what's been picked", "use the Compose BarcodePickView") → read [`references/integration.md`](references/integration.md) and follow the instructions there. If the project already has MatrixScan Pick wired up, do not re-create the context, mode, view, or lifecycle — locate the existing ones (grep for `BarcodePickView`, then `BarcodePick.forContext`) and change only what the user asked for. Determine whether the project uses the base `com.kmp.datacapture.barcode.pick.BarcodePickView` (host builds and drives the platform view itself, e.g. `AndroidView`/`UIViewRepresentable`) or the `com.kmp.datacapture.barcode.compose` `BarcodePickView` composable, and follow the matching pattern.
+- **Customizing the highlights drawn over barcodes** (e.g. "change the highlight color per state", "use a rectangle instead of a dot", "show an icon / status badge on picked items", "draw a custom view over each barcode", "style the to-pick vs picked highlight") → read [`references/highlights.md`](references/highlights.md). This assumes the basic integration is already in place; it covers the five highlight styles and the per-state brush / icon / status-icon / custom-view APIs.
 
 ## API Usage Policy
 
@@ -32,6 +32,20 @@ Only use APIs that are explicitly documented in the Scandit references below. Do
 
 URL structures can vary and guessing will lead to 404s.
 
+## Licence key
+
+Scanning needs a Scandit licence key. For this skill the licence product is `native` and the licence platforms are `ios` and `android`.
+
+Work through these in order — never block the user on MCP:
+
+1. **The Scandit MCP server is connected** — call `ensure_scanner_setup` with product `native` and platforms `ios` and `android`, `app_identifier` (the app's bundle or application id; for web, its production domain, never `localhost`) and `env_var` `SCANDIT_LICENSE_KEY`. Do not run the command it returns. Then call `get_license_key` with the key's id, from that result or from `list_license_keys`; if `list_license_keys` shows the key is not a trial, ask the user before fetching it. Show at most a masked preview in chat; never print a full key.
+2. **It is not connected** — tell the user once that they can connect the remote Scandit MCP server, `https://ssl.scandit.com/mcp`, in their MCP client, then continue from step 1. Do not edit MCP client configuration yourself.
+
+   Authentication is browser-based, so it is **not supported headless or in CI**. The server provisions **trial** keys only; it never creates, revokes, or modifies production licences.
+3. **The user declines, or has no MCP client** — they generate a key themselves at <https://ssl.scandit.com> (no account yet: <https://ssl.scandit.com/dashboard/sign-up?p=test>) and paste it in.
+
+**Then put the key into the code**: write it into the licence-key call in place of the placeholder — the key `get_license_key` returned, or the one the user pastes or gives you — still showing only a masked preview in chat. Do not search the project, its files or the environment for a key.
+
 ## References
 
 Use this table to pick the right page to fetch for a given question, and include the link in your answer so the user can explore further.
@@ -39,5 +53,5 @@ Use this table to pick the right page to fetch for a given question, and include
 | Topic | Resource |
 |---|---|
 | KMP integration (commonMain + Android/iOS hosts) | [Intro](https://docs.scandit.com/sdks/kmp/matrixscan-pick/intro/) · [Get Started](https://docs.scandit.com/sdks/kmp/matrixscan-pick/get-started/) |
-| Advanced (highlight styles, async providers) | [Advanced Configurations](https://docs.scandit.com/sdks/kmp/matrixscan-pick/advanced/) · `references/highlights.md` |
+| Advanced (highlight styles, async providers) | [Advanced Configurations](https://docs.scandit.com/sdks/kmp/matrixscan-pick/advanced/) · [`references/highlights.md`](references/highlights.md) |
 | Core concepts (context, camera, views) | [Core Concepts](https://docs.scandit.com/sdks/kmp/core-concepts/) |

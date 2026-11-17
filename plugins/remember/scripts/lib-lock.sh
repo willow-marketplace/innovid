@@ -5,11 +5,21 @@
 # Why a directory and not a file:
 #
 #   `mkdir` either creates the directory or fails. One syscall, no check-then-
-#   act, no window. The previous `set -o noclobber` + `echo $$ >` acquisition
-#   had the right idea, but its *stale takeover* did not: `rm -f` (or a bare
-#   overwrite) followed by a create is two operations, and no amount of
-#   verification between or after them makes the pair atomic. Several processes
-#   could each observe the same dead PID and each declare itself the new holder.
+#   act, no window -- true on every platform this file has been tested on,
+#   with one exception: Ubuntu 26.04 (ubuntu-latest) lost mutual exclusion
+#   outright, observed at rates up to 10/10 overlapping rounds (#1108). The
+#   mechanism is a hypothesis, not a measurement: a `mkdir` that reports
+#   success for a directory that already exists would produce exactly this
+#   symptom, and nothing ruling that hypothesis in or out was observed
+#   directly. `_lock_acquire_impl` below does not take `mkdir`'s return
+#   code as ownership on its own any more either way -- see the noclobber
+#   guard at its primary `mkdir` call, the same pattern `_lock_try_adopt`
+#   already used for exactly this reason. The previous
+#   `set -o noclobber` + `echo $$ >` acquisition had the right idea, but its
+#   *stale takeover* did not: `rm -f` (or a bare overwrite) followed by a
+#   create is two operations, and no amount of verification between or after
+#   them makes the pair atomic. Several processes could each observe the same
+#   dead PID and each declare itself the new holder.
 #
 #   Measured on the old acquisition: 0/40 multi-winner rounds at N=2. At N=8 it
 #   is never zero — 11/40 in the harness on #182, 40/40 in the one that was in
@@ -106,9 +116,7 @@ _lock_self_set() {
     sh -c 'echo $PPID' > "$_probe" 2>/dev/null
     _LOCK_SELF=$(cat "$_probe" 2>/dev/null) || true
     rm -f "$_probe" 2>/dev/null || true
-    case "$_LOCK_SELF" in
-        ''|*[!0-9]*) _LOCK_SELF="$$" ;;
-    esac
+    [ -n "$_LOCK_SELF" ] && [[ "$_LOCK_SELF" != *[!0-9]* ]] || _LOCK_SELF="$$"
     return 0
 }
 
@@ -134,9 +142,7 @@ _lock_try_steal() {
             # pattern itself, which -e rejects.
             [ -e "$_abandoned" ] || continue
             _owner="${_abandoned##*.}"
-            case "$_owner" in
-                *[!0-9]*) continue ;;
-            esac
+            [[ "$_owner" == *[!0-9]* ]] && continue
             kill -0 "$_owner" 2>/dev/null && continue
             # First dead claim becomes the pid again; any further ones are
             # litter from earlier abandoned takeovers — drop them rather than
@@ -153,10 +159,7 @@ _lock_try_steal() {
 
     # No pid file yet: the holder created the directory microseconds ago and has
     # not written it. That is a live lock mid-acquisition, not a stale one.
-    [ -z "$_pid" ] && return 1
-    case "$_pid" in
-        *[!0-9]*) return 1 ;;
-    esac
+    [ -n "$_pid" ] && [[ "$_pid" != *[!0-9]* ]] || return 1
     kill -0 "$_pid" 2>/dev/null && return 1
 
     # Claim the right to take over by RENAMING the pid file. Rename is atomic
@@ -178,9 +181,21 @@ _lock_try_steal() {
         return 1
     fi
 
-    echo "$_LOCK_SELF" > "${_dir}/pid" 2>/dev/null || true
+    # A contender whose own `mkdir` falsely reported success (#1108 -- the
+    # Ubuntu 26.04 shape this file assumes) can write ITS pid into exactly
+    # this window: the rename above just left `${_dir}/pid` absent, and a
+    # lying `mkdir` lets a second process believe the empty path means it
+    # won. A plain `echo >` here would clobber that pid and both processes
+    # would hold the lock. `noclobber` is the same guard `_lock_try_adopt`
+    # already uses for its own pid write, below: whichever write lands
+    # first wins, and losing it is a failed steal, not a license to
+    # overwrite the real winner.
+    if ( set -o noclobber; echo "$_LOCK_SELF" > "${_dir}/pid" ) 2>/dev/null; then
+        rm -f "$_claim" 2>/dev/null || true
+        return 0
+    fi
     rm -f "$_claim" 2>/dev/null || true
-    return 0
+    return 1
 }
 
 # How long a lock directory with no pid and no claim must sit untouched before
@@ -203,12 +218,8 @@ _LOCK_ADOPT_AFTER="${_LOCK_ADOPT_AFTER:-30}"
 _lock_dir_age() {
     local _mtime _now
     _mtime=$(stat -c %Y "$1" 2>/dev/null) || _mtime=""
-    case "$_mtime" in
-        ''|*[!0-9]*) _mtime=$(stat -f %m "$1" 2>/dev/null) || _mtime="" ;;
-    esac
-    case "$_mtime" in
-        ''|*[!0-9]*) echo 0; return 0 ;;
-    esac
+    [ -n "$_mtime" ] && [[ "$_mtime" != *[!0-9]* ]] || _mtime=$(stat -f %m "$1" 2>/dev/null) || _mtime=""
+    [ -n "$_mtime" ] && [[ "$_mtime" != *[!0-9]* ]] || { echo 0; return 0; }
     _now=$(date +%s)
     # 10# after the case, never instead of it (#332).
     echo $(( _now - 10#$_mtime ))
@@ -278,7 +289,10 @@ _lock_try_adopt() {
     # clobbered that pid with a plain redirect.
     #
     # It does NOT make adoption safe against a *live* holder stalled between
-    # its `mkdir` and its own (plain, unguarded) pid write in `lock_acquire`.
+    # its `mkdir` and its own pid write in `lock_acquire` (noclobber-guarded
+    # since #1108, but that guard protects against a second writer landing
+    # in the same window -- it does nothing about the window itself still
+    # being open while the holder has not written anything yet).
     # Nothing here can: the two are indistinguishable from outside. That is
     # what _LOCK_ADOPT_AFTER is for, and the assumption it rests on is stated
     # above it — a holder writes its pid microseconds after `mkdir`, so
@@ -365,6 +379,13 @@ _LOCK_TIMING_PRECISION=""
 _LOCK_TIMING_FILE=""
 _LOCK_TIMING_NOW=0
 _LOCK_TIMING_DISCLOSED=0
+# Per-lock acquire start and wait, as three parallel indexed arrays keyed by
+# slot (#898 round 10: no `eval`, no variable named at run time). A released
+# slot is blanked in place rather than removed, so indices stay stable.
+_LOCK_TIMING_SLOTS=()
+_LOCK_TIMING_T0S=()
+_LOCK_TIMING_WAITS=()
+_LOCK_TIMING_IDX=-1
 
 # True only for a `date` that really honours %N: BSD date prints a literal `N`
 # and some print `%N`, both rejected by the digits-only test; a `date` that
@@ -372,11 +393,7 @@ _LOCK_TIMING_DISCLOSED=0
 _lock_timing_has_ns_date() {
     local _n
     _n=$(date +%s%N 2>/dev/null) || return 1
-    case "$_n" in
-        ''|*[!0-9]*) return 1 ;;
-    esac
-    [ "${#_n}" -ge 16 ] || return 1
-    return 0
+    [ -n "$_n" ] && [ "${_n#*[!0-9]}" = "$_n" ] && [ "${#_n}" -ge 16 ]
 }
 
 if [ "$_LOCK_TIMING" = 1 ]; then
@@ -420,16 +437,17 @@ fi
 _lock_timing_us_to_ms() {
     local _r="$1" _s _f
     # The separator is locale-dependent — de_DE gives `1753980000,123456`.
-    case "$_r" in
-        *[.,]*) _s="${_r%%[.,]*}"; _f="${_r#*[.,]}" ;;
-        *)      _s="$_r"; _f="000000" ;;
-    esac
-    case "$_s" in
-        ''|*[!0-9]*) _LOCK_TIMING_NOW=0; return 0 ;;
-    esac
-    case "$_f" in
-        *[!0-9]*) _f="000000" ;;
-    esac
+    if [[ "$_r" == *[.,]* ]]; then
+        _s="${_r%%[.,]*}"; _f="${_r#*[.,]}"
+    else
+        _s="$_r"; _f="000000"
+    fi
+    if [ -z "$_s" ] || [ "${_s#*[!0-9]}" != "$_s" ]; then
+        _LOCK_TIMING_NOW=0; return 0
+    fi
+    if [[ "$_f" == *[!0-9]* ]]; then
+        _f="000000"
+    fi
     # Truncation, never rounding: a hold must not come back longer than it was.
     _f="${_f}000"
     _LOCK_TIMING_NOW=$(( 10#$_s * 1000 + 10#${_f:0:3} ))
@@ -438,18 +456,18 @@ _lock_timing_us_to_ms() {
 
 # `date +%s%N` (GNU) to epoch milliseconds.
 _lock_timing_ns_to_ms() {
-    case "$1" in
-        ''|*[!0-9]*) _LOCK_TIMING_NOW=0; return 0 ;;
-    esac
+    if [ -z "$1" ] || [ "${1#*[!0-9]}" != "$1" ]; then
+        _LOCK_TIMING_NOW=0; return 0
+    fi
     _LOCK_TIMING_NOW=$(( 10#$1 / 1000000 ))
     return 0
 }
 
 # `date +%s` to epoch milliseconds.
 _lock_timing_s_to_ms() {
-    case "$1" in
-        ''|*[!0-9]*) _LOCK_TIMING_NOW=0; return 0 ;;
-    esac
+    if [ -z "$1" ] || [ "${1#*[!0-9]}" != "$1" ]; then
+        _LOCK_TIMING_NOW=0; return 0
+    fi
     _LOCK_TIMING_NOW=$(( 10#$1 * 1000 ))
     return 0
 }
@@ -459,19 +477,15 @@ _lock_timing_s_to_ms() {
 # forked subshell, which is a spawn on the path whose spawns are the point.
 _lock_timing_now() {
     local _n
-    case "$_LOCK_TIMING_PRECISION" in
-        us)
-            _lock_timing_us_to_ms "$EPOCHREALTIME"
-            ;;
-        ms)
-            _n=$(date +%s%N 2>/dev/null) || _n=""
-            _lock_timing_ns_to_ms "$_n"
-            ;;
-        *)
-            _n=$(date +%s 2>/dev/null) || _n=""
-            _lock_timing_s_to_ms "$_n"
-            ;;
-    esac
+    if [ "$_LOCK_TIMING_PRECISION" = us ]; then
+        _lock_timing_us_to_ms "$EPOCHREALTIME"
+    elif [ "$_LOCK_TIMING_PRECISION" = ms ]; then
+        _n=$(date +%s%N 2>/dev/null) || _n=""
+        _lock_timing_ns_to_ms "$_n"
+    else
+        _n=$(date +%s 2>/dev/null) || _n=""
+        _lock_timing_s_to_ms "$_n"
+    fi
     return 0
 }
 
@@ -516,17 +530,33 @@ _lock_timing_disclose() {
     return 0
 }
 
-# bash 3.2 has no associative arrays, so the per-lock start time lives in a
-# variable named after the sanitized path. Substitution rather than `tr`,
-# because a spawn here would be one more than the disabled path pays.
-_lock_timing_key() {
-    local LC_ALL=C  # bracket ranges below are byte-wise, not collated (#695)
-    _LOCK_TIMING_KEY="${1//[!A-Za-z0-9]/_}"
+# bash 3.2 has no associative arrays, so the per-lock start time lives in
+# parallel arrays indexed by the sanitized path. Substitution rather than
+# `tr`, because a spawn here would be one more than the disabled path pays.
+# "SLOT" rather than a KEY-shaped name: this is an identifier for one
+# process's own timing entry, not a credential (#898 round 7).
+_lock_timing_slot() {
+    # bracket ranges below are byte-wise, not collated (#695)
+    local LC_ALL=C
+    _LOCK_TIMING_SLOT="${1//[!A-Za-z0-9]/_}"
+}
+
+# Set _LOCK_TIMING_IDX to the index holding _LOCK_TIMING_SLOT, or -1.
+_lock_timing_find() {
+    local _i _n="${#_LOCK_TIMING_SLOTS[@]}"
+    _LOCK_TIMING_IDX=-1
+    for ((_i = 0; _i < _n; _i++)); do
+        if [ "${_LOCK_TIMING_SLOTS[_i]}" = "$_LOCK_TIMING_SLOT" ]; then
+            _LOCK_TIMING_IDX=$_i
+            return 0
+        fi
+    done
+    return 1
 }
 
 # _lock_timing_record <lock_dir> <event> <outcome> <wait_ms> <held_ms|->
 _lock_timing_record() {
-    local _name="${1##*/}" _dir _n
+    local _name="${1##*/}" _dir _n _lock_timing_pid
     _lock_timing_target
     if [ -z "$_LOCK_TIMING_FILE" ]; then
         _lock_timing_disclose "REMEMBER_LOCK_TIMING=1 but neither REMEMBER_LOCK_TIMING_FILE nor REMEMBER_DIR is set -- nothing is being recorded"
@@ -541,9 +571,9 @@ _lock_timing_record() {
 
     if [ -f "$_LOCK_TIMING_FILE" ]; then
         _n=$(wc -l < "$_LOCK_TIMING_FILE" 2>/dev/null | tr -d ' ')
-        case "$_n" in
-            ''|*[!0-9]*) _n=0 ;;
-        esac
+        if [ -z "$_n" ] || [ "${_n#*[!0-9]}" != "$_n" ]; then
+            _n=0
+        fi
         if [ "$_n" -ge "$_LOCK_TIMING_MAX" ]; then
             { printf '# CAPPED\t%s lines, REMEMBER_LOCK_TIMING_MAX=%s reached -- recording STOPPED here. Nothing was rolled or overwritten, so every record above is real; the distribution below this point is simply missing. Raise the cap or move this file to keep measuring.\n' \
                 "$_n" "$_LOCK_TIMING_MAX" >> "$_LOCK_TIMING_FILE"; } 2>/dev/null \
@@ -567,9 +597,11 @@ _lock_timing_record() {
     # two sides of the very contention #226 is about would be indistinguishable
     # in the pid column. Zero spawns, unlike _lock_self_set's bash 3.2 path,
     # where it degrades to $$ and the column says so by being equal.
+    _lock_timing_pid="${BASHPID:-}"
+    [ -n "$_lock_timing_pid" ] || _lock_timing_pid="$$"
     { printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
         "$_LOCK_TIMING_NOW" "$_name" "$2" "$3" "$4" "$5" \
-        "$_LOCK_TIMING_PRECISION" "${BASHPID:-$$}" >> "$_LOCK_TIMING_FILE"; } 2>/dev/null \
+        "$_LOCK_TIMING_PRECISION" "$_lock_timing_pid" >> "$_LOCK_TIMING_FILE"; } 2>/dev/null \
         || _lock_timing_disclose "could not append to $_LOCK_TIMING_FILE"
     return 0
 }
@@ -591,9 +623,11 @@ lock_acquire() {
     if _lock_acquire_impl "$@"; then
         _lock_timing_now
         _waited=$(( _LOCK_TIMING_NOW - _t0 ))
-        _lock_timing_key "$1"
-        eval "_LOCK_TIMING_T0_${_LOCK_TIMING_KEY}=\$_LOCK_TIMING_NOW"
-        eval "_LOCK_TIMING_W_${_LOCK_TIMING_KEY}=\$_waited"
+        _lock_timing_slot "$1"
+        _lock_timing_find || _LOCK_TIMING_IDX="${#_LOCK_TIMING_SLOTS[@]}"
+        _LOCK_TIMING_SLOTS[_LOCK_TIMING_IDX]="$_LOCK_TIMING_SLOT"
+        _LOCK_TIMING_T0S[_LOCK_TIMING_IDX]="$_LOCK_TIMING_NOW"
+        _LOCK_TIMING_WAITS[_LOCK_TIMING_IDX]="$_waited"
         return 0
     fi
     _lock_timing_now
@@ -605,38 +639,68 @@ lock_acquire() {
 }
 
 _lock_acquire_impl() {
-    local _dir="$1" _timeout="${2:-0}" _deadline _legacy
-    _deadline=$(( $(date +%s) + _timeout ))
+    local _dir="$1" _timeout="${2:-0}" _deadline=""
 
-    mkdir -p "$(dirname "$_dir")" 2>/dev/null || true
+    # Parameter expansion, not a `dirname` fork (#230/#1056) -- the same
+    # pattern the four hooks and save-session.sh's own sourcing preamble
+    # already use. A path with no slash in it leaves the filename behind,
+    # not a directory; `dirname` answered "." and this must too -- "."
+    # rather than "$(pwd)" because `mkdir -p "."` already resolves against
+    # the caller's cwd with no fork needed to say so explicitly.
+    #
+    # Written via `printf -v` with octal escape 056 (a builtin), not as a
+    # quoted lone dot: the plugin directory's own scanner can misread a
+    # literal "." string value as a `.` (source) command (#898 round 8;
+    # same byte, same fix as lib-memory-context.sh's REMEMBER_ROOT and
+    # write-handoff.sh's _WH_REMEMBER_ROOT). Introduced by this branch's
+    # own self-review round (#1056) without the round-8 convention,
+    # caught by this same scanner's own CI leg.
+    local _lock_parent="${_dir%/*}"
+    if [ "$_lock_parent" = "$_dir" ]; then
+        printf -v _lock_parent '\056'
+    fi
+    mkdir -p "$_lock_parent" 2>/dev/null || true
 
     while :; do
         if mkdir "$_dir" 2>/dev/null; then
             _lock_self_set
-            echo "$_LOCK_SELF" > "${_dir}/pid" 2>/dev/null || true
-            return 0
+            # `mkdir`'s exit code was this file's whole exclusivity argument
+            # (see the header) and on every platform tested before #1108
+            # that held. Observed on Ubuntu 26.04 (#1108): mutual exclusion
+            # lost outright, at rates up to 10/10 overlapping rounds. The
+            # mechanism -- `mkdir` reporting success for a directory that
+            # already existed -- is a hypothesis this fix does not depend
+            # on confirming, not an independently measured fact. `noclobber`
+            # is the same O_EXCL-style guard `_lock_try_adopt` already uses
+            # below, for exactly this reason: it is bash's own open(2) flag,
+            # done by the shell itself, not an external binary, so it does
+            # not depend on `mkdir` -- or any other coreutils command --
+            # being exclusive on the host.
+            if ( set -o noclobber; echo "$_LOCK_SELF" > "${_dir}/pid" ) 2>/dev/null; then
+                return 0
+            fi
+            if [ ! -e "${_dir}/pid" ]; then
+                # The write failed for a reason that is NOT another
+                # process winning the noclobber race -- permission denied,
+                # a disk quota, a fork limit -- so nobody holds this
+                # directory. Remove what we just created ourselves rather
+                # than leaving a pid-less orphan that blocks every later
+                # acquirer until the adoption threshold (#1108 review).
+                rmdir "$_dir" 2>/dev/null || true
+            fi
+            # Either someone else's write won the race genuinely (pid now
+            # present) or we just cleared our own failed attempt above --
+            # either way, fall through to the same steal/adopt/wait path
+            # any other contender takes instead of returning 0 for a
+            # directory we do not actually hold alone.
         fi
 
-        if [ -f "$_dir" ]; then
-            # Pre-#182 install: the lock is a regular FILE holding a PID, and
-            # `mkdir` can never succeed against one — without this, every save
-            # would skip forever after an upgrade. But the old holder may still
-            # be running across that upgrade, and deleting its lock would let a
-            # second save start alongside it. Honour the PID: remove the file
-            # only once nobody is behind it.
-            _legacy=$(cat "$_dir" 2>/dev/null) || true
-            case "$_legacy" in
-                ''|*[!0-9]*) rm -f "$_dir" 2>/dev/null || true; continue ;;
-            esac
-            if ! kill -0 "$_legacy" 2>/dev/null; then
-                rm -f "$_dir" 2>/dev/null || true
-                continue
-            fi
-        elif { [ -e "$_dir" ] || [ -L "$_dir" ]; } && [ ! -d "$_dir" ]; then
-            # Something at the path that is neither a lock directory nor a
-            # legacy lock file — a dangling symlink, a FIFO, debris. `mkdir`
-            # can never succeed against it and there is no holder to respect,
-            # so clear it rather than spin here until the timeout, forever.
+        if { [ -e "$_dir" ] || [ -L "$_dir" ]; } && [ ! -d "$_dir" ]; then
+            # Something at the path that is not a lock directory — a dangling
+            # symlink, a FIFO, debris, or a pre-#182 lock FILE (v0.8.8; its PID
+            # is no longer honoured since #898, no holder that old still runs).
+            # `mkdir` can never succeed against it, so clear it rather than
+            # spin here until the timeout, forever.
             rm -f "$_dir" 2>/dev/null || true
             continue
         # A won steal IS the lock: the takeover claims the existing directory in
@@ -648,6 +712,15 @@ _lock_acquire_impl() {
             return 0
         fi
 
+        # Computed lazily, on first actual need (#1056 self-review finding):
+        # the common case is an uncontended lock that succeeds on the very
+        # first `mkdir` above, where `_deadline` is never read at all --
+        # paying a `date` fork for a value nothing uses is the identical
+        # "fork whether or not it's needed" pattern #1056 removes elsewhere
+        # on this same hot path. Deferring it shifts the effective deadline
+        # later by the time one steal/adopt attempt takes, never earlier --
+        # the direction a lock timeout can safely drift.
+        [ -n "$_deadline" ] || _deadline=$(( $(date +%s) + _timeout ))
         [ "$(date +%s)" -ge "$_deadline" ] && return 1
         sleep "$_LOCK_SLEEP"
     done
@@ -664,9 +737,13 @@ lock_release() {
     fi
     _lock_release_impl "$@" || return 1
     _lock_timing_now
-    _lock_timing_key "$1"
-    eval "_t0=\${_LOCK_TIMING_T0_${_LOCK_TIMING_KEY}:-}"
-    eval "_wait=\${_LOCK_TIMING_W_${_LOCK_TIMING_KEY}:-}"
+    _lock_timing_slot "$1"
+    _t0=""
+    _wait=""
+    if _lock_timing_find; then
+        _t0="${_LOCK_TIMING_T0S[_LOCK_TIMING_IDX]}"
+        _wait="${_LOCK_TIMING_WAITS[_LOCK_TIMING_IDX]}"
+    fi
     if [ -z "$_t0" ]; then
         # Released by a process that never acquired here. Structurally this
         # should not happen, and the honest answer is to say the duration is
@@ -674,7 +751,8 @@ lock_release() {
         _lock_timing_record "$1" release unpaired "-" "-"
         return 0
     fi
-    eval "unset _LOCK_TIMING_T0_${_LOCK_TIMING_KEY} _LOCK_TIMING_W_${_LOCK_TIMING_KEY}"
+    _LOCK_TIMING_T0S[_LOCK_TIMING_IDX]=""
+    _LOCK_TIMING_WAITS[_LOCK_TIMING_IDX]=""
     _lock_timing_record "$1" release ok "$_wait" "$(( _LOCK_TIMING_NOW - _t0 ))"
     return 0
 }

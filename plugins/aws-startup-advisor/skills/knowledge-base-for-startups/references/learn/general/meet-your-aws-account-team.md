@@ -95,6 +95,6 @@ Building on AWS means you can collaborate with people on various dedicated teams
 
 ---
 
-_Author: Justin Plock_
+> _Author: Justin Plock_
 
 Justin is a Principal Solutions Architect at AWS, focused on fintech startups. He regularly meets with fintech founders to help ensure their business is secure and compliant with industry regulations. Prior to AWS, he was a Director of Cloud Enablement at a Fortune 200 insurance carrier and a Director of Engineering at a cybersecurity firm. He is passionate about helping startups develop securely and efficiently on AWS. He lives in Connecticut with his wife and two daughters.

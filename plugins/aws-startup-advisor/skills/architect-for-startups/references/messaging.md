@@ -38,7 +38,7 @@
 
 ## Decision Shortcuts
 
-**"Should I use messaging here?"**
+### "Should I use messaging here?"
 
 - Request-response with <1s latency requirement → No, call directly
 - Fire-and-forget, no response needed → Yes, SQS
@@ -46,7 +46,7 @@
 - Smoothing traffic spikes → Yes, SQS in front of worker
 - "Because microservices should be decoupled" → No, that's cargo culting
 
-**"SQS Standard or FIFO?"**
+### "SQS Standard or FIFO?"
 
 - Can you make your consumer idempotent? → Standard (higher throughput, lower cost)
 - Is ordering a regulatory requirement? → FIFO

@@ -1,11 +1,11 @@
 # PayPal AI Toolkit
 
-A plugin that integrates PayPal's APIs and MCP server into your AI coding workflow. Get AI-assisted help with PayPal payments, subscriptions, invoices, disputes, and more — in Claude Code, OpenAI Codex, and other compatible agents.
+A plugin that integrates PayPal's APIs and MCP server into your AI coding workflow. Get AI-assisted help with PayPal payments, subscriptions, invoices, disputes, and more — in Claude Code, OpenAI Codex, Cursor, IBM Bob, and other compatible agents.
 
 ## Features
 
 - **Best practices Skill** — auto-injects PayPal API knowledge when you're working on payment integrations
-- **Commands** — quick reference commands for common developer tasks (Claude Code)
+- **Commands** — quick reference commands for common developer tasks (Claude Code and Cursor)
 - **Hooks** — automatically checks PayPal best practices before writing integration code
 - **MCP Server integration** — connects your agent to PayPal's sandbox MCP servers for direct API operations via natural language
 
@@ -17,7 +17,7 @@ A plugin that integrates PayPal's APIs and MCP server into your AI coding workfl
 
 - A PayPal Developer account at https://developer.paypal.com
 - A PayPal sandbox access token
-- Claude Code (`claude --version`) and/or OpenAI Codex (`codex --version`)
+- Claude Code (`claude --version`), OpenAI Codex (`codex --version`), Cursor, and/or IBM Bob
 
 ### Claude Code
 
@@ -63,6 +63,48 @@ codex plugin add paypal@paypal-ai-toolkit
 
 Restart Codex after installing so skills and the sandbox MCP server load.
 
+### Cursor
+
+Add this repository as a marketplace, then install the plugin:
+
+```bash
+cursor-agent plugin marketplace add https://github.com/paypal/AI-Toolkit
+```
+
+Then open **Customize** (or type `/plugin`) and install `paypal` at user or project scope.
+
+Once the plugin is listed on the Cursor marketplace, you can also install it from chat with `/add-plugin paypal`.
+
+#### Local / development install
+
+Load the checkout directly (no marketplace or admin setting required):
+
+```bash
+git clone https://github.com/paypal/AI-Toolkit.git
+cursor-agent --plugin-dir /path/to/AI-Toolkit
+```
+
+You can also copy the repo into Cursor's local plugin folder. This requires **Allow Local Plugin Imports** (Dashboard → Settings → Security & Identity → Marketplace and Plugins), which is off by default on some teams. Symlinks that point outside this folder are skipped:
+
+```bash
+git clone https://github.com/paypal/AI-Toolkit.git ~/.cursor/plugins/local/paypal
+```
+
+`cursor-agent plugin marketplace add` only accepts a git URL (for example `https://github.com/paypal/AI-Toolkit`), not a local path.
+
+Restart Cursor or run **Developer: Reload Window**, then confirm skills, commands, and `paypal-sandbox` in **Customize**.
+
+### IBM Bob
+
+Clone the repository and open it in IBM Bob (Bob IDE or Bob Shell):
+
+```bash
+git clone https://github.com/paypal/AI-Toolkit.git
+cd AI-Toolkit
+```
+
+IBM Bob automatically discovers and loads skills from `.bob/skills/` and the sandbox MCP server from `.bob/mcp.json`. The Bob config connects to `https://mcp.sandbox.paypal.com/mcp` over Streamable HTTP and contains no credentials. When Bob first connects, it prompts you to authenticate in your browser (see [MCP OAuth authentication](https://bob.ibm.com/docs/ide/configuration/mcp/mcp-oauth)). Check the connection status under **Settings → MCP**. IBM Bob users can skip the sandbox access token section below.
+
 ### Configure your sandbox access token
 
 1. Generate a sandbox access token:
@@ -93,17 +135,19 @@ Restart Codex after installing so skills and the sandbox MCP server load.
    PAYPAL_SANDBOX_ACCESS_TOKEN = "A21AA…"
    ```
 
+   **Cursor** — after installing the plugin, open **Customize → Plugins → PayPal → Configure** and paste the token. Cursor stores it and substitutes `${PAYPAL_SANDBOX_ACCESS_TOKEN}` in `.mcp.json`. A GUI-launched Cursor does not inherit `export` from `~/.zshrc`.
+
 3. **Fully quit and reopen** the agent (close the app — not just `/clear`).
 
-4. In Claude Code, run `/paypal:setup` to verify. In Codex, ask the agent to list PayPal MCP tools or create a sandbox invoice.
+4. In Claude Code, run `/paypal:setup` to verify. In Codex, Cursor, or IBM Bob, ask the agent to list PayPal MCP tools or create a sandbox invoice.
 
-> **Use the agent config file, not `~/.zshrc`.** GUI launches don't source `~/.zshrc`, and a line-wrapped `export` embeds a newline in the token that breaks the HTTP header.
+> **Use the agent config or Cursor plugin Configure panel, not `~/.zshrc`.** GUI launches don't source `~/.zshrc`, and a line-wrapped `export` embeds a newline in the token that breaks the HTTP header.
 
 Tokens expire in up to 8 hours depending on scope — check the `expires_in` field in the response. Run `/paypal:setup refresh` when you hit a 401.
 
 ## Commands
 
-Slash commands are available in Claude Code. Codex uses the same skills and MCP server through natural language.
+Slash commands are available in Claude Code and Cursor. Codex uses the same skills and MCP server through natural language.
 
 | Command                         | Description                                       |
 | ------------------------------- | ------------------------------------------------- |
@@ -138,7 +182,7 @@ The plugin connects to PayPal's sandbox MCP server, which exposes tools for:
 
 ### Transport and environments
 
-The server uses **SSE** at the `/sse` path. `paypal-sandbox` activates once you set `PAYPAL_SANDBOX_ACCESS_TOKEN` in `~/.claude/settings.json` (Claude Code) or `~/.codex/config.toml` (Codex).
+The server uses **SSE** at the `/sse` path. `paypal-sandbox` activates once you set `PAYPAL_SANDBOX_ACCESS_TOKEN` in `~/.claude/settings.json` (Claude Code), `~/.codex/config.toml` (Codex), or **Customize → Plugins → PayPal → Configure** (Cursor). IBM Bob uses Streamable HTTP at `/mcp` with OAuth instead.
 
 ## Skills
 
@@ -164,11 +208,17 @@ AI-Toolkit/
 ├── .agents/
 │   └── plugins/
 │       └── marketplace.json     # Codex marketplace catalog
+├── .bob/
+│   ├── mcp.json                 # IBM Bob MCP server config
+│   └── skills/                  # Symlinks to skills/ for IBM Bob
 ├── .claude-plugin/
 │   ├── marketplace.json     # Claude Code marketplace registry
 │   └── plugin.json          # Claude Code plugin manifest
 ├── .codex-plugin/
 │   └── plugin.json          # Codex plugin manifest
+├── .cursor-plugin/
+│   ├── marketplace.json     # Cursor marketplace catalog
+│   └── plugin.json          # Cursor plugin manifest
 ├── .mcp.json                # PayPal sandbox MCP server (SSE)
 ├── skills/
 │   ├── paypal-best-practices/
@@ -203,6 +253,7 @@ feat: allow provided config object to extend other configs
 
 - [PayPal Developer Docs](https://developer.paypal.com/docs/)
 - [PayPal REST API Reference](https://developer.paypal.com/api/rest/)
-- [PayPal MCP Server](https://docs.paypal.ai/developer/tools/ai/mcp-quickstart)
+- [PayPal MCP Server](https://developer.paypal.com/ai-tools/mcp-server.md)
 - [PayPal Agent Toolkit](https://github.com/paypal/agent-toolkit)
 - [PayPal Developer Dashboard](https://developer.paypal.com/dashboard)
+- [PayPal Developer Discord](http://developer.paypal.com/discord)

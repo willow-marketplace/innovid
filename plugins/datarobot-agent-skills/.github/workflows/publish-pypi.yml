@@ -1,0 +1,76 @@
+# Copyright (c) 2026 DataRobot, Inc. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
+name: Publish to PyPI
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Git ref to build from (default: the current branch)."
+        required: false
+
+jobs:
+  # The package is versioned independently of the plugin, so most releases carry
+  # a version that is already on PyPI. Checking first, outside the protected
+  # environment, means only a new version asks a reviewer to approve the upload.
+  check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      publish: ${{ steps.version.outputs.publish }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.inputs.ref || github.ref }}
+          persist-credentials: false
+
+      - id: version
+        run: |
+          VERSION=$(sed -nE 's/^__version__ = "(.*)"/\1/p' packages/datarobot-skills-utils/src/datarobot_skills_utils/__init__.py)
+          if [ -z "$VERSION" ]; then
+            echo "Could not read __version__ from the package." >&2
+            exit 1
+          fi
+          if curl -sfo /dev/null "https://pypi.org/pypi/datarobot-skills-utils/${VERSION}/json"; then
+            echo "datarobot-skills-utils ${VERSION} is already on PyPI; nothing to publish."
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "datarobot-skills-utils ${VERSION} is not on PyPI yet; publishing."
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  publish:
+    needs: check
+    if: needs.check.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.inputs.ref || github.ref }}
+          persist-credentials: false
+
+      # No cache in a publish job: a poisoned cache could reach the uploaded artifacts.
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          enable-cache: false
+
+      - name: Build
+        run: |
+          uv build packages/datarobot-skills-utils --out-dir dist
+          ls dist
+
+      # Kept as a safety net: if the check above misjudges, an existing version
+      # is skipped instead of failing the upload.
+      - name: Publish
+        uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.2 (release/v1)
+        with:
+          packages-dir: dist
+          skip-existing: true

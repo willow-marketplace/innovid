@@ -3,6 +3,18 @@
 All notable changes to the ActiveCampaign plugin are documented here.
 This project follows [Semantic Versioning](https://semver.org/).
 
+## [0.3.2] — Cursor support and campaign creation
+
+### Added
+- **Cursor support.** The plugin now installs as a full plugin in Cursor, with the ActiveCampaign skills and the MCP connection included. Sign in with your ActiveCampaign login on first use; no account URL to look up.
+- **ActiveCampaign icon** so marketplace listings show the official ActiveCampaign mark.
+
+### Fixed
+- **Cursor now connects to ActiveCampaign on install.** Previously Cursor loaded the skills but not the MCP connection, so nothing worked until a server URL was added by hand. Installing now prompts you to sign in to ActiveCampaign and the connection is live after that.
+
+### Changed
+- **Campaign creation.** Your agent can now draft a new email campaign from a prompt, using your brand kit and images, rewrite the copy or tone of an existing campaign, copy a past campaign as a new draft, and change the subject line, preheader, or sender. Drafts land in your ActiveCampaign account for review. Sending and scheduling still happen in ActiveCampaign.
+
 ## [0.3.1] — claude.ai loader compatibility
 
 ### Fixed

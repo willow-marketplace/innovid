@@ -1,21 +1,18 @@
 #!/usr/bin/env node
 
 /**
- * @license Copyright (c) 2026, CKSource Holding sp. z o.o. All rights reserved.
+ * @license Copyright (c) 2026-2026, CKSource Holding sp. z o.o. All rights reserved.
  * For licensing, see LICENSE.md.
  */
 
 import { parseArgs } from 'node:util';
 import { Listr } from 'listr2';
-import upath from 'upath';
 import * as releaseTools from '@ckeditor/ckeditor5-dev-release-tools';
+import { RELEASE_BRANCH, ROOT_DIRECTORY } from '../constants.js';
 import { quote } from './utils/assert.js';
 import { verifyDiscoveryArtifacts } from './utils/discoveryartifacts.js';
 import { getGithubToken } from './utils/githubtoken.js';
 import { uploadDiscoveryArtifacts } from './utils/upload.js';
-
-const ROOT_DIRECTORY = upath.join( import.meta.dirname, '..', '..' );
-const RELEASE_BRANCH = 'master';
 
 const { values: options } = parseArgs( {
 	options: {

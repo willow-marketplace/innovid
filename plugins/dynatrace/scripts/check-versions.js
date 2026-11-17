@@ -15,7 +15,7 @@ const expectedHeader = `dynatrace-for-ai/${version}`;
 
 const serverJson = read("server.json");
 const serverJsonXHttpSource = serverJson.remotes?.[0]?.headers?.find(
-  (h) => h.name === "X-Http-Source"
+  (h) => h.name === "Dt-External-Source"
 )?.value;
 
 const checks = [
@@ -25,13 +25,23 @@ const checks = [
     expected: version,
   },
   {
+    file: ".antigravity-plugin/plugin.json",
+    actual: read(".antigravity-plugin/plugin.json").version,
+    expected: version,
+  },
+  {
+    file: "mcp_config.json",
+    actual: read("mcp_config.json").mcpServers?.dynatrace?.headers?.["Dt-External-Source"],
+    expected: expectedHeader,
+  },
+  {
     file: "mcp.json",
-    actual: read("mcp.json").mcpServers?.dynatrace?.headers?.["X-Http-Source"],
+    actual: read("mcp.json").mcpServers?.dynatrace?.headers?.["Dt-External-Source"],
     expected: expectedHeader,
   },
   {
     file: ".mcp.json",
-    actual: read(".mcp.json").mcpServers?.dynatrace?.headers?.["X-Http-Source"],
+    actual: read(".mcp.json").mcpServers?.dynatrace?.headers?.["Dt-External-Source"],
     expected: expectedHeader,
   },
   {
@@ -40,7 +50,7 @@ const checks = [
     expected: version,
   },
   {
-    file: "server.json (X-Http-Source)",
+    file: "server.json (Dt-External-Source)",
     actual: serverJsonXHttpSource,
     expected: expectedHeader,
   },

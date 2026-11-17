@@ -1,10 +1,10 @@
 ---
 name: carta-hmrc-limits
-description: Report a UK company's HMRC EMI/CSOP limit usage. Use when asked how much EMI allowance is left, whether the company is near the £6m EMI limit, who is close to or over their £250k individual limit, CSOP headroom, or whether a planned grant fits.
+description: Check how much of a UK company's EMI and CSOP allowance is left. Reports HMRC EMI/CSOP limit usage. Use when asked how much EMI allowance is left, whether the company is near the £6m EMI limit, who is close to or over their £250k individual limit, CSOP headroom, or whether a planned grant fits.
 ---
 
 <!-- carta:plugin-version -->
-<carta-plugin>carta-cap-table:6.85.6</carta-plugin>
+<carta-plugin>carta-cap-table:6.114.20</carta-plugin>
 
 <!-- Part of the official Carta AI Agent Plugin -->
 
@@ -27,21 +27,21 @@ UK companies only. A company without UK share schemes has nothing to report here
 
 ## Prerequisites
 
-You need the `corporation_id`. Get it from `list_accounts` if you do not have it.
+Do not call `list_accounts` or ask which company before the first read: Carta finds the company. Reuse the company already resolved in this conversation unless this prompt names or numbers another. Else send the numeric id the user gave, else the company name as the user said it, else no `corporation_id` (Carta uses the user's only company). On an error, and for later calls, follow `${CLAUDE_PLUGIN_ROOT}/references/find-the-company.md` (the plugin's own `references/`, not this skill's; read it by that path, do not search for it). This domain returns no `meta`: send the same value on later calls.
 
 ## Data Retrieval
 
 Company-level allowance:
 
 ```
-call_tool({"name": "uk_compliance__get__hmrc_limits",
+read_tool({"name": "uk_compliance__get__hmrc_limits",
            "arguments": {"corporation_id": corporation_id}})
 ```
 
 Per-holder breakdown:
 
 ```
-call_tool({"name": "uk_compliance__list__hmrc_stakeholder_limits",
+read_tool({"name": "uk_compliance__list__hmrc_stakeholder_limits",
            "arguments": {"corporation_id": corporation_id}})
 ```
 
@@ -104,13 +104,13 @@ actionable group.
 Round to whole pounds. These are statutory thresholds, so do not present a figure as more
 precise than the source.
 
-## If the call fails
+## Error Handling
 
-- **403** — the company does not have the HMRC limits feature enabled, or this user lacks
-  the company tax data permission. Both are expected for non-UK companies and for users
-  without tax access. Say which company was refused and suggest they check with an
-  administrator; do not retry.
-- **400 on `status`** — an invalid status value. The four valid ones are listed above.
+| Situation | What to do |
+|---|---|
+| 403, `role_required` or access denied | The company does not have the HMRC limits feature, or the user lacks the company tax data permission. Both are expected for non-UK companies. Say which company was refused and suggest they check with an administrator. Do not retry. |
+| 400 on `status` | The status value is not valid. Use one of the four values above. |
+| Company error | Follow *Company errors* in `${CLAUDE_PLUGIN_ROOT}/references/find-the-company.md`. |
 
 ## Related Skills
 

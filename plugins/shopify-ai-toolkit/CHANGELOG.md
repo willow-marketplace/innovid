@@ -1,5 +1,74 @@
 # shopify-plugin
 
+## 2.3.0
+
+### Minor Changes
+
+- 6e5d215: Add Shopify Flow workflow discovery, configuration, and management through the Admin API, with workflow examples and a bundled unstable schema for validation.
+
+## 2.2.0
+
+### Minor Changes
+
+- 16149ff: Support modern declaration assets and keep App Home version guidance synchronized with the API catalog.
+
+### Patch Changes
+
+- 71fac49: The OpenAI plugin now packages merchant-facing metadata, square branding icons, an exact Shopify MCP configuration, and content-free UCP telemetry.
+- 36dc5af: Support the same local authoring search route in source-built Dev MCP and private eval Skills.
+
+## 2.1.2
+
+### Patch Changes
+
+- f577dba: Remove the Discounts Allocator Function API, which shopify.dev no longer publishes.
+- d1c44bb: Only attach skill telemetry to reads under the running Shopify plugin or standalone skill installation, preventing lookalike repository paths from uploading a stashed prompt.
+- e6b8a0e: Route app security reviews and vulnerability audits to `use-shopify-cli` so agents run `shopify app security`.
+
+## 2.1.1
+
+### Patch Changes
+
+- bd20150: The Cursor plugin's description, which Grok Bot's unified plugin also shows, now describes building and managing a Shopify store.
+
+## 2.1.0
+
+### Minor Changes
+
+- 18198dc: The Cursor plugin, which Grok Bot also installs from the Cursor Marketplace, now connects to Shopify's remote MCP at `setup.shopify.com/mcp`.
+
+### Patch Changes
+
+- 78f4157: ClawHub publishing now waits up to 30 minutes for an npm release to propagate and retries the tarball download, instead of failing the release.
+
+## 2.0.1
+
+### Patch Changes
+
+- Regenerated agent skills from @shopify/shopify-dev-tools 1.17.1.
+
+## 2.0.0
+
+### Major Changes
+
+- d7a3e1e: Publish every Shopify topic as a single `shopify` skill: one routing table picks the surface, `references/<topic>.md` carries that topic's contract and guide, and `search_docs.mjs`/`validate.mjs` take the topic as `--api`. UCP ships separately as `ucp`.
+
+  **Breaking.** The 22 per-topic skills (`shopify-admin`, `shopify-liquid`, …) no longer exist. Replace a skill name with `shopify` and name the topic instead: a saved prompt or agent that loaded `shopify-admin` should load `shopify`; an allowlist entry or `shopify-*` glob needs `shopify`; `skills/shopify-admin/scripts/validate.mjs --code …` becomes `skills/shopify/scripts/validate.mjs --api admin --code …`; and an install that targeted `skills/shopify-liquid/` targets `skills/shopify/`. `ucp` is unchanged.
+
+### Minor Changes
+
+- bcb174e: The Hydrogen, CLI and developer-onboarding guides now name Shopify topics the way the tooling does, instead of an argument syntax and an API id that do not exist.
+- 510b795: The GraphQL, component and Liquid-codeblock validators are one `validate` tool selected by `api`. Tool descriptions and skill references no longer restate content the same turn already carries.
+- ee3b2a3: Telemetry keeps reporting the skill name each topic published under, so topic-level usage survives the collapse to one skill with no change for existing consumers.
+- 77fe9cf: The shopify skill's routing table now carries each topic's search filter and validate flags behind one shared five-step procedure, and reference files carry only their topic's instructions.
+- 019ec3f: The `shopify` router no longer lists every topic's `--version` values or the Function API matrix — the tools already name the valid values when you pass a wrong one, and `validate.mjs` now rejects a missing or unknown `--target` with that surface's real targets.
+
+### Patch Changes
+
+- 932376a: `npx skills update` (skills CLI 1.5.24+) now replaces each retired per-topic skill (`shopify-admin`, `shopify-liquid`, …) with a notice telling the user to remove it and add `shopify`; new `npx skills add` installs and plugins never see these notices.
+- 0c16df2: Help merchants customize their new store with direct theme edits, Horizon palette guidance, and automatic preview refresh and visual review when browser tools are available.
+- 7e5805f: Guide agents to use Shopify CLI JSON output and jq filters while avoiding redundant help and schema lookups.
+
 ## 1.8.4
 
 ### Patch Changes

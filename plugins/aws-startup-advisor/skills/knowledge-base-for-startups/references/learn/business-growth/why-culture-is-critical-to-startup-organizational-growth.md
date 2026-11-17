@@ -37,7 +37,7 @@ Check out the rest of the research and insights in the report, "[How startups cr
 
 ## About the Author
 
-**Hannah Wall**
+### Hannah Wall
 
 Hannah Wall is the Head of Startups Content Marketing. She has 15+ years of experience leading top-performing, large-scale campaigns that drive customer engagement. As a customer-obsessed marketer and behavioral scientist, she's dedicated to strategic, supportive, and effective communication that creates meaningful dialogue between companies and their customers, and driven to create simple user experiences that drive revenue and reduce customer contacts.
 

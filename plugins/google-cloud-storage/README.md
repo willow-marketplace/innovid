@@ -18,7 +18,7 @@ and infrastructure code generation.
 > [!IMPORTANT]
 > **We Want Your Feedback!** Please share your thoughts with us by
 > opening an issue on
-> [GitHub](https://github.com/gemini-cli-extensions/google-cloud-storage/issues).
+> [GitHub](https://github.com/GoogleCloudPlatform/google-cloud-storage-plugin/issues).
 > Your input is invaluable and helps us improve the project for everyone.
 
 ## Contents
@@ -40,7 +40,7 @@ and infrastructure code generation.
 ### Installing in Antigravity CLI
 
 ```bash
-agy plugin install https://github.com/gemini-cli-extensions/google-cloud-storage
+agy plugin install https://github.com/GoogleCloudPlatform/google-cloud-storage-plugin
 ```
 
 ### Installing in Claude Code
@@ -57,14 +57,32 @@ claude plugin install google-cloud-storage@claude-plugins-official
 Add this repository as a marketplace, then install from it:
 
 ```bash
-codex plugin marketplace add gemini-cli-extensions/google-cloud-storage
+codex plugin marketplace add GoogleCloudPlatform/google-cloud-storage-plugin
 codex plugin add google-cloud-storage@google-cloud-storage
 ```
 
 ### Installing in Gemini CLI
 
 ```bash
-gemini extensions install https://github.com/gemini-cli-extensions/google-cloud-storage
+gemini extensions install https://github.com/GoogleCloudPlatform/google-cloud-storage-plugin
+```
+
+### Installing Skills Only (Skills CLI)
+
+To install the skills without the bundled
+[Cloud Storage MCP server](#cloud-storage-mcp-server) or plugin configuration
+(prefer a native plugin installation above for the full package), use the
+[Skills CLI](https://github.com/vercel-labs/skills):
+
+```bash
+npx skills add GoogleCloudPlatform/google-cloud-storage-plugin
+```
+
+From the `npx` prompt, select the skills to install, or pass `--skill` to
+install a single skill directly:
+
+```bash
+npx skills add GoogleCloudPlatform/google-cloud-storage-plugin --skill google-cloud-storage-basics
 ```
 
 ## Available Skills
@@ -100,6 +118,11 @@ gemini extensions install https://github.com/gemini-cli-extensions/google-cloud-
     combine into a critical exposure — with actionable, verified remediation.
     Needs [additional setup](#additional-setup-gcs-security-assessment) for a
     complete assessment.
+-   [**Google Cloud Storage OKF**](./skills/google-cloud-storage-okf/) —
+    Token-efficient search, semantic navigation, and progressive disclosure of
+    unstructured or semi-structured objects (PDFs, logs, JSON/CSV dumps, media,
+    large documents) in GCS using the Open Knowledge Format (OKF) and Model
+    Context Protocol (MCP).
 
 ## Cloud Storage MCP Server
 
@@ -166,6 +189,24 @@ supports Model Armor screening and IAM deny policies, see the
 If your agent reports `spawn npx ENOENT`, Node.js is not installed or `npx` is
 not on your `PATH`.
 
+### Cloud Storage OKF MCP Server
+
+Installing the plugin also registers a second local server,
+`google-cloud-storage-okf`, which serves the `peek`, `list_regions`, `expand`,
+and `write_okf` tools used by the
+[Google Cloud Storage OKF skill](./skills/google-cloud-storage-okf/). It is a
+Python script bundled with the skill and launched through
+[`uv`](https://docs.astral.sh/uv/), which installs its dependencies (`mcp`,
+`google-cloud-storage`) into an isolated environment on first start, so there is
+nothing to `pip install`, but `uv` must be installed.
+
+It uses the same Application Default Credentials and `CLOUD_STORAGE_PROJECT`
+setting as the Toolbox server, and needs `storage.objects.get` to read objects
+and `storage.objects.update` to write OKF indices.
+
+If your agent reports `spawn uv ENOENT`, `uv` is not installed or not on your
+`PATH`.
+
 ## Prerequisites
 
 Ensure you have the following:
@@ -180,6 +221,9 @@ Ensure you have the following:
     or Gemini CLI.
 *   **[Node.js](https://nodejs.org/)**: the
     [Cloud Storage MCP server](#cloud-storage-mcp-server) runs via `npx`.
+*   **[uv](https://docs.astral.sh/uv/getting-started/installation/)**: the
+    [Cloud Storage OKF MCP server](#cloud-storage-okf-mcp-server) runs via `uv
+    run`.
 
 ## Authentication
 
@@ -260,6 +304,17 @@ language, right from your coding agent:
     tune it"
 *   **Cost diagnosis:** "My GCS bill spiked after we moved to gcsfuse. Figure
     out which mount options are causing the excess operations"
+
+### Search and navigate large objects with Open Knowledge Format (OKF)
+
+*   **Token-efficient search:** "Find the root cause of the outage in the 500MB
+    server log gs://my-bucket/logs/incident-2026-08.log without downloading the
+    entire file"
+*   **Semantic document navigation:** "Navigate the regulatory filing
+    gs://reports-bucket/annual-filing-2025.pdf using OKF to extract Section 4.2"
+*   **Generate OKF Table of Contents:** "Generate an OKF Table of Contents index
+    with semantic regions and write it to the GCS object context for
+    gs://archive-bucket/quarterly-dump.json"
 
 ### Move, replicate, and migrate data at scale
 
@@ -373,13 +428,13 @@ on how to mitigate prompt injection attacks with Google Cloud MCP.
 
 If you need help or encounter issues with this plugin, search for existing
 issues or open a new one in the
-[GitHub Issue Tracker](https://github.com/gemini-cli-extensions/google-cloud-storage/issues).
+[GitHub Issue Tracker](https://github.com/GoogleCloudPlatform/google-cloud-storage-plugin/issues).
 
 ## Contributing
 
 We welcome contributions to improve this plugin. You can help by:
 
-*   [Reporting bugs or inaccuracies](https://github.com/gemini-cli-extensions/google-cloud-storage/issues)
+*   [Reporting bugs or inaccuracies](https://github.com/GoogleCloudPlatform/google-cloud-storage-plugin/issues)
     in the skill files.
 *   Suggesting new skills to add to this plugin by filing a feature request.
 

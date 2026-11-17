@@ -1,14 +1,14 @@
 {
   "name": "dominodatalab",
-  "version": "1.0.0",
-  "description": "Full Domino Data Lab platform support — workspaces, jobs, model deployment, experiment tracking, GenAI tracing, Spark/Ray/Dask, and app deployment for data science teams",
-  "updatedAt": "2026-09-19T00:42:54.343Z",
+  "version": "2026.603.11",
+  "description": "Domino Data Lab skills for Workspaces, Jobs, Compute Environments, Datasets, Projects, Apps, model endpoints and monitoring, MLflow experiment tracking, GenAI tracing, Flows, Spark/Ray/Dask clusters, governance, and the Domino APIs and SDKs",
+  "updatedAt": "2026-11-17T00:01:39.900Z",
   "author": {
     "url": "https://www.domino.ai",
     "name": "Domino Data Lab"
   },
-  "homepage": "https://github.com/dominodatalab/domino-claude-plugin",
-  "repository": "https://github.com/dominodatalab/domino-claude-plugin",
+  "homepage": "https://github.com/dominodatalab/domino-ai-plugin",
+  "repository": "https://github.com/dominodatalab/domino-ai-plugin",
   "keywords": [
     "domino",
     "mlops",
@@ -24,23 +24,26 @@
   "skills": "./skills/",
   "commands": "./commands/",
   "agents": [
-    "./agents/domino-debug.md",
-    "./agents/domino-deploy.md",
-    "./agents/domino-setup.md"
+    "./agents/_domino-debug.md",
+    "./agents/_domino-deploy.md",
+    "./agents/_domino-setup.md"
   ],
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cat \"${CLAUDE_PLUGIN_ROOT}/rules/domino.md\""
+          }
+        ]
+      }
+    ]
+  },
   "mcpServers": {
-    "domino_server": {
-      "env": {
-        "DOMINO_HOST": "${DOMINO_HOST}",
-        "DOMINO_API_KEY": "${DOMINO_API_KEY}"
-      },
-      "args": [
-        "--directory",
-        "$/mnt/code/.claude/mcp-servers/domino_mcp_server",
-        "run",
-        "domino_mcp_server.py"
-      ],
-      "command": "uv"
+    "domino_docs": {
+      "url": "https://docs.domino.ai/mcp",
+      "type": "http"
     }
   }
 }

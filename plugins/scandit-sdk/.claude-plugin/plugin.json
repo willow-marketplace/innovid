@@ -1,8 +1,8 @@
 {
   "name": "scandit-sdk",
-  "version": "1.0.0",
+  "version": "1.1.7",
   "description": "AI agent skills for integrating the Scandit Data Capture SDK — product selection, documentation, and implementation guides for barcode scanning, ID capture, and smart label capture.",
-  "updatedAt": "2026-09-19T00:42:54.387Z",
+  "updatedAt": "2026-11-17T00:02:14.945Z",
   "author": {
     "url": "https://www.scandit.com/",
     "name": "Scandit"
@@ -36,8 +36,17 @@
     "maui",
     "xamarin",
     "sdk",
-    "smart-data-capture"
+    "smart-data-capture",
+    "linux",
+    "c-api",
+    "python"
   ],
   "displayName": "Scandit SDK",
-  "skills": "./skills/"
+  "skills": "./skills/",
+  "mcpServers": {
+    "scandit": {
+      "url": "https://ssl.scandit.com/mcp",
+      "type": "http"
+    }
+  }
 }

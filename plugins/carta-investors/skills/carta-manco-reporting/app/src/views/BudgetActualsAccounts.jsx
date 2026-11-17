@@ -2,7 +2,7 @@ import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { sans, FAINT, MICRO, FS, LINE } from "../ui/theme.js";
 import { fmtCurrencyWhole } from "../charts/chartTheme.js";
 import { varianceColor, fmtVarianceWhole } from "../ui/variance.js";
-import { glNameMap, glTooltip, subCodeMap } from "../ui/glNames.js";
+import { childDisplayLabel, glNameMap, glTooltip, subCodeMap } from "../ui/glNames.js";
 import HoverTip from "../ui/HoverTip.jsx";
 import { CollapseCaret } from "../ui/components.jsx";
 import {
@@ -11,22 +11,16 @@ import {
 import { LEDGER_LABEL, LEDGER_NUM, LEDGER_ROW, LEDGER_TOTAL, LEDGER_SECTION } from "../ui/ledger.js";
 import BudgetSourceLine from "./BudgetSourceLine.jsx";
 import BudgetPeriodControls from "./BudgetPeriodControls.jsx";
-import { noValueLabel } from "../ui/dimension.js";
-import { rowBreakouts, defaultBreakout, breakoutByColumns, worthBreakingOut, opensAnything } from "./accountBreakout.js";
+import { NEST_STEP } from "../ui/nesting.js";
+import { rowBreakouts, defaultBreakout, breakoutByColumns, worthBreakingOut, opensAnything, childKey, childScope } from "./accountBreakout.js";
+import { accountSections, actualByGlByMonth, accountLabel, ACCOUNT_LABEL_MIN_WIDTH } from "./accountSections.js";
 import {
-  DEFAULT_FILTERS, cellFor, detectPreset, monthsInRange, normalizeRange,
-  periodColumns, rangeOfPeriod, rangePresets, subColumns, sumCells, trueAsOfMonth, ytdColumn,
+  cellFor, monthsInRange, normalizeRange,
+  periodColumns, rangeOfPeriod, subColumns, sumCells, trueAsOfMonth, ytdColumn,
 } from "./budgetPeriods.js";
-import {
-  canPersist, localStore, prefsKeyFor, readPrefs, restoreBreakoutKey,
-  restoreFilters, restoreRange, toPrefs, writePrefs,
-} from "./budgetPrefs.js";
+import { prefsKeyFor } from "./budgetPrefs.js";
+import useAccountToolbar from "./useAccountToolbar.js";
 import { trackClick } from "../analytics.js";
-
-// Narrower than the other two budget tables' shared LABEL_MIN_WIDTH (320):
-// GL account names here run short ("Audit fees", "Management fee income"),
-// so the full-width column was mostly blank space.
-export const ACCOUNT_LABEL_MIN_WIDTH = 220;
 
 // The three sub-columns every budget table in this app shows. No source
 // marks: both columns are Carta's, unlike the workbook views.
@@ -50,18 +44,6 @@ export function hasMonthlyDetail(budget) {
   });
 }
 
-/** Actuals per GL account per month, as a Map<gl, number[12]>. */
-export function actualByGlByMonth(entries) {
-  const out = new Map();
-  for (const e of entries || []) {
-    const gl = e.acct_type;
-    if (gl == null || typeof e.mo !== "number") continue;
-    if (e.mo < 1 || e.mo > 12) continue;
-    if (!out.has(gl)) out.set(gl, new Array(12).fill(0));
-    out.get(gl)[e.mo - 1] += e.amount || 0;
-  }
-  return out;
-}
 
 /** The calendar year the budget covers. */
 export function budgetYear(budget, asOf) {
@@ -79,10 +61,10 @@ export function pickBreakout(breakouts, accountsData, budget, key) {
 
 // Budget vs Actuals for a Carta-sourced budget. Carta's budget has no
 // department dimension, so the account is the only axis available.
-export default function BudgetActualsAccounts({ budget, entries, drilldown, accountsData, asOf }) {
+export default function BudgetActualsAccounts({ budget, entries, drilldown, accountsData, asOf, periodYear }) {
   const period = budget?.period;
   const monthly = hasMonthlyDetail(budget);
-  const year = budgetYear(budget, asOf);
+  const year = periodYear;
   // Never past the true as-of date, whatever the budget itself claims to cover.
   const statedLastMonth = Math.min(12, Math.max(1, period?.last_month ?? 12));
   const asOfMonth = Math.min(statedLastMonth, trueAsOfMonth(asOf));
@@ -93,37 +75,15 @@ export default function BudgetActualsAccounts({ budget, entries, drilldown, acco
   const breakouts = useMemo(() => rowBreakouts(accountsData, budget),
                             [accountsData, budget]);
 
-  const store = useMemo(() => localStore(), []);
-  const key = prefsKeyFor(accountsData, budget);
-  const presets = useMemo(() => rangePresets(year, asOfMonth), [year, asOfMonth]);
-
-  const [filters, setFilters] = useState(DEFAULT_FILTERS);
-  const [range, setRange] = useState(() => rangeOfPeriod(period));
-  const [breakoutKey, setBreakoutKey] = useState(null);
+  const defaultRange = useMemo(() => rangeOfPeriod(period), [period]);
+  const { filters, setFilters, range, setRange, breakoutKey, setBreakoutKey, restored } =
+    useAccountToolbar({
+      prefsKey: prefsKeyFor(accountsData, budget?.id),
+      year, asOfMonth, defaultRange, breakouts, sharedView: budget?.view,
+    });
   const breakout = useMemo(
     () => pickBreakout(breakouts, accountsData, budget, breakoutKey),
     [breakoutKey, breakouts, accountsData, budget]);
-
-  // Restored on the render the ManCo's own data arrives, not at mount: the
-  // view renders before it, when there is no reader to have a preference.
-  const restoredFor = useRef(null);
-  const [restored, setRestored] = useState(false);
-  useEffect(() => {
-    if (!key || restoredFor.current === key) return;
-    restoredFor.current = key;
-    const saved = readPrefs(store, key);
-    if (saved) {
-      setFilters(restoreFilters(saved));
-      setRange(restoreRange(saved, presets, rangeOfPeriod(period)));
-      setBreakoutKey(restoreBreakoutKey(saved, breakouts));
-    }
-    setRestored(true);
-  }, [store, key, presets, period, breakouts]);
-
-  useEffect(() => {
-    if (!canPersist(key, restoredFor.current)) return;
-    writePrefs(store, key, toPrefs(filters, range, detectPreset(range, presets), breakoutKey));
-  }, [store, key, filters, range, presets, breakoutKey]);
 
   // The window every figure outside the period columns is measured over.
   // Without monthly detail there is only one window the budget can state.
@@ -164,21 +124,13 @@ export default function BudgetActualsAccounts({ budget, entries, drilldown, acco
     for (const [gl, actual] of actualByGl) {
       if (named.has(gl) || !actual) continue;
       rows.push({
-        label: nameByGl.get(gl) || `GL ${gl}`,
+        label: accountLabel(gl, nameByGl),
         account_type: gl, gl_codes: [gl],
         budget_ytd: 0, budgeted: 0, actual, variance: actual, unbudgeted: true,
       });
     }
-    const income = rows.filter(r => String(r.account_type ?? "")[0] === "4");
-    const expense = rows.filter(r => String(r.account_type ?? "")[0] !== "4");
-    // GL code ascending, the order an income statement is read in. The
-    // variance ranking lives in the insights strip below the table.
-    const byCode = (a, b) =>
-      (a.account_type ?? 0) - (b.account_type ?? 0) || a.label.localeCompare(b.label);
-    return [
-      { title: "Income", polarity: "income", rows: income.sort(byCode) },
-      { title: "Operating Expenses", polarity: "expense", rows: expense.sort(byCode) },
-    ].filter(s => s.rows.length);
+    // The variance ranking lives in the insights strip below the table.
+    return accountSections(rows);
   }, [budget, actualByGl, nameByGl, windowMonths, monthly]);
 
   // Rows budgeted to zero are skipped: every $1 of unbudgeted spend would
@@ -293,7 +245,8 @@ export default function BudgetActualsAccounts({ budget, entries, drilldown, acco
             <SectionRows
               key={section.title} section={section} drilldown={drilldown} names={nameByGl}
               subCodes={subCodes} columns={columns} subCols={subCols} cellOf={cellOf}
-              breakout={breakout} entries={entries}
+              breakout={breakout} entries={entries} windowMonths={windowMonths}
+              periodYear={year}
             />
           ))}
         </tbody>
@@ -316,16 +269,8 @@ function windowBudget(row, months, monthly) {
 }
 
 function SectionRows({ section, drilldown, names, subCodes, columns, subCols, cellOf,
-                      breakout, entries }) {
-  const [open, setOpen] = useState(() => new Set());
-  const toggle = (key) => {
-    trackClick("MancoReporting.BudgetVsActuals.AccountsExpandRow");
-    setOpen(prev => {
-      const next = new Set(prev);
-      next.has(key) ? next.delete(key) : next.add(key);
-      return next;
-    });
-  };
+                      breakout, entries, windowMonths, periodYear }) {
+  const [open, toggle] = useOpenRows("MancoReporting.BudgetVsActuals.AccountsExpandRow");
   const spanCols = 1 + columns.length * subCols.length;
   return (
     <>
@@ -338,15 +283,18 @@ function SectionRows({ section, drilldown, names, subCodes, columns, subCols, ce
 
       {section.rows.map(r => {
         // Takes the column that was clicked, so the entry list covers the
-        // months that cell covers. The label cell passes none and opens the
-        // row's whole window, as it always did.
+        // months that cell covers. The label cell opens the row's whole
+        // window — the months `r.actual` is summed over, so the list adds up
+        // to the Total the drawer prints.
         const onClick = drilldown
           ? (col) => drilldown.openAccount(r.label, {
+              from: "budget-vs-actuals",
+              periodYear,
               budget: col ? cellOf(r, col).budget : r.budgeted,
               actual: col ? cellOf(r, col).actual : r.actual,
               polarity: section.polarity,
               unmapped: false,
-              months: col?.months || null,
+              months: col?.months || windowMonths,
               periodLabel: col && !col.exact ? col.label : null,
             })
           : undefined;
@@ -405,9 +353,10 @@ function SectionRows({ section, drilldown, names, subCodes, columns, subCols, ce
           </tr>
           {isOpen && children.map(c => (
             <ChildRow
-              key={`${key}-${c.label}`} child={c} parent={r} columns={columns}
+              key={`${key}-${childKey(c)}`} child={c} parent={r} columns={columns}
               subCols={subCols} breakout={breakout} polarity={section.polarity}
-              drilldown={drilldown}
+              drilldown={drilldown} from="budget-vs-actuals" periodYear={periodYear}
+              label={{ cols: columns.filter((c) => !c.ytd), months: windowMonths }}
             />
           ))}
           </Fragment>
@@ -426,7 +375,22 @@ function SectionRows({ section, drilldown, names, subCodes, columns, subCols, ce
   );
 }
 
-function Chevron({ open, label, by, onClick }) {
+/** Which of a table's rows are opened into their breakout, and the toggle
+ *  a caret calls. `event` is the click id the toggle records. */
+export function useOpenRows(event) {
+  const [open, setOpen] = useState(() => new Set());
+  const toggle = (key) => {
+    trackClick(event);
+    setOpen(prev => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+  };
+  return [open, toggle];
+}
+
+export function Chevron({ open, label, by, onClick }) {
   return (
     <button
       type="button" data-export-exclude onClick={onClick} aria-expanded={open}
@@ -440,53 +404,63 @@ function Chevron({ open, label, by, onClick }) {
 
 // Budget and Var stay blank: repeating the parent's figures would read as
 // each child having been budgeted that amount. See breakoutByColumns.
-export function ChildRow({ child, parent, columns, subCols, breakout, polarity, drilldown }) {
+// Without `subCols` it draws one actual figure per column, for a table that
+// has no budget at all (MonthlyActualsView). `from` names the page, for the
+// drawer's open event.
+export function ChildRow({ child, parent, columns, subCols, breakout, polarity, drilldown, from,
+                           label, periodYear }) {
   // The value this row IS, as a filter rather than a note. It used to ride
   // along as `breakout`, which nothing downstream read — so every child of
   // an account opened the same panel, totalling the whole account rather
   // than the row that was clicked.
-  const scope = { ...breakout, value: child.unlabelled ? null : child.label };
+  const scope = childScope(child, breakout);
+  // `label` is `{ cols, months }`: the columns the label cell's figure sums
+  // and the months its drill lists. The page decides it, so a child's label
+  // drill covers the same months as its parent row's on that page.
   const onClick = drilldown
     ? (col) => drilldown.openAccount(parent.label, {
+        from,
+        periodYear,
         // No budget, not a zero one. The workbook budgets the account, not
         // the vendors inside it, and a zero here printed a variance equal to
         // the whole figure — the same invented comparison the outline's
         // breakout rows already refuse.
         budget: null,
-        actual: col ? (child.cells.get(col.key) ?? 0) : totalOf(child),
+        actual: (col ? [col] : label.cols)
+          .reduce((s, c) => s + (child.cells.get(c.key) ?? 0), 0),
         polarity, unmapped: false,
         childScope: scope,
-        months: col?.months || null,
+        months: col?.months || label.months,
         periodLabel: col && !col.exact ? col.label : null,
       })
     : undefined;
   const num = { ...S.tdNum, ...S.trLine, ...S.childNum, ...(onClick ? S.clickable : null) };
+  // A month this value never touched is an em dash, the same as on the row
+  // above — $0 reads as a month that was measured.
+  const figure = (col) => (!col.future && child.cells.has(col.key)
+    ? fmtCurrencyWhole(child.cells.get(col.key)) : "—");
   return (
     <tr>
-      <td style={{ ...S.tdLabel, ...S.trLine, ...S.childLabel, ...(onClick ? S.clickable : null) }}
+      <td style={{ ...S.tdLabel, ...S.trLine, ...S.childLabel,
+                   ...(child.nested ? S.childNested : null), ...(onClick ? S.clickable : null) }}
           onClick={onClick ? () => onClick(null) : undefined}>
         <span style={{ ...S.labelText, ...(child.unlabelled ? S.childMuted : null) }}>
-          {child.unlabelled ? noValueLabel(breakout) : child.label}
+          {childDisplayLabel(child, breakout)}
         </span>
       </td>
-      {columns.map(col => subCols.map((sc, i) => (
+      {subCols ? columns.map(col => subCols.map((sc, i) => (
         <td key={`${col.key}-${sc.type}`}
             style={i === 0 ? { ...num, borderLeft: `1px solid ${LINE}` } : num}
             onClick={sc.type === "actual" && onClick ? () => onClick(col) : undefined}>
-          {/* A month this value never touched is an em dash, the same as on
-              the row above — $0 reads as a month that was measured. */}
-          {sc.type === "actual" && !col.future && child.cells.has(col.key)
-            ? fmtCurrencyWhole(child.cells.get(col.key)) : "—"}
+          {sc.type === "actual" ? figure(col) : "—"}
         </td>
-      )))}
+      ))) : columns.map(col => (
+        <td key={col.key} style={num} onClick={onClick ? () => onClick(col) : undefined}>
+          {figure(col)}
+        </td>
+      ))}
     </tr>
   );
-}
-
-function totalOf(child) {
-  let sum = 0;
-  for (const v of child.cells.values()) sum += v;
-  return sum;
 }
 
 // An empty period is an em dash, not three zeros: a quarterly-billed account
@@ -552,6 +526,7 @@ export const S = {
   // Indent carries the hierarchy; the sticky label column has no room for
   // a second device, and a bolder parent would fight the section header.
   childLabel: { paddingLeft: 48 },
+  childNested: { paddingLeft: 48 + NEST_STEP },
   childNum: { color: FAINT },
   childMuted: { fontStyle: "italic", color: MICRO },
 };

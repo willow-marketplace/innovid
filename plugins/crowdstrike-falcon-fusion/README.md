@@ -2,7 +2,7 @@
 
 # Falcon Fusion Skills
 
-[![Version](https://img.shields.io/badge/version-1.2.0-blue)](https://github.com/CrowdStrike/fusion-skills/releases/tag/v1.2.0)
+[![Version](https://img.shields.io/badge/version-1.4.0-blue)](https://github.com/CrowdStrike/fusion-skills/releases/tag/v1.4.0)
 [![CI](https://github.com/CrowdStrike/fusion-skills/actions/workflows/main.yml/badge.svg)](https://github.com/CrowdStrike/fusion-skills/actions/workflows/main.yml)
 
 AI coding assistant skills for building [CrowdStrike Falcon Fusion](https://www.crowdstrike.com/en-us/platform/next-gen-siem/falcon-fusion/) workflows. Go from a natural language prompt to a working Fusion workflow — discover real action IDs from the live API, author the YAML, validate it against the platform schema, import it to a CID, and trigger and monitor its execution.
@@ -15,6 +15,7 @@ AI coding assistant skills for building [CrowdStrike Falcon Fusion](https://www.
 
 - **CrowdStrike Account** with the **Workflow** API scope (plus **NGSIEM Lookup Files** for the lookup-files skill)
 - **AI Coding Assistant**: Claude Code, Codex, Copilot CLI, Cursor, Antigravity CLI, or any tool that can read local reference documentation
+- **[jq](https://jqlang.org/)** for the skill-routing hooks (without it, the hooks stay silent)
 
 ### Install
 
@@ -62,6 +63,8 @@ done
 
 ### Credentials
 
+These skills authenticate with a Falcon API client. In the console, go to **Support and resources** > **Client Management** > **Create API client**, grant the **Workflow** scope (read and write), and, for the `lookup-files` skill, also **NGSIEM Lookup Files** (read and write). Copy the client ID and secret shown once on creation, then configure them below.
+
 Configure credentials once. Run the interactive setup skill — it writes a profile to `~/.cache/crowdstrike-falcon-fusion/credentials.toml`:
 
 ```
@@ -73,11 +76,11 @@ For CI or a one-off override, set environment variables instead:
 ```bash
 export FALCON_CLIENT_ID=your_client_id_here
 export FALCON_CLIENT_SECRET=your_client_secret_here
-# export FALCON_BASE_URL=https://api.crowdstrike.com  # US-1 (default)
-# US-2: https://api.us-2.crowdstrike.com · US-3: https://api.us-3.crowdstrike.com · EU-1: https://api.eu-1.crowdstrike.com · US-GOV-1: https://api.laggar.gcw.crowdstrike.com
+# Optional on US-1, US-2, and EU-1 (FalconPy discovers the region). Set it for any other cloud, such as US-3 or GovCloud:
+# export FALCON_BASE_URL=https://api.us-3.crowdstrike.com  # US-GOV-1: https://api.laggar.gcw.crowdstrike.com
 ```
 
-Credentials come from environment variables (checked first) or the TOML profile, and are never hardcoded. Verify your setup:
+Credentials come from environment variables (checked first) or the TOML profile, and are never hardcoded. Either source can hold a 1Password secret reference (`op://<vault>/<item>/<field>`) instead of the client ID or secret, which `auth.py` reads with the 1Password CLI so the secret stays off disk. On a network that re-signs TLS traffic, set a profile's `ca_bundle` to your organization's CA bundle. See the [setup skill](skills/setup/SKILL.md) for both. Verify your setup:
 
 ```bash
 python common/scripts/auth.py
@@ -99,15 +102,17 @@ Describe what you want in plain language. You don't need to name a skill. The or
 
 ### How skill routing works
 
-The skills include hooks that ensure the right skills get used:
+Repository-backed installs in Claude Code, Codex, Copilot CLI, and Cursor include hooks that ensure the right skills get used. Codex requires reviewing and trusting bundled hooks through `/hooks` before they run. Cursor loads them from `.cursor-plugin/plugin.json`:
 
 1. **`UserPromptSubmit` hook** — Matches Fusion phrases ("fusion workflow", "build a playbook", "deploy to CID") or an action verb paired with a Fusion noun ("automate crowdstrike actions"). When matched, it injects a non-blocking advisory steering toward the `workflows` orchestrator skill.
 
-2. **`PreToolUse` hook** — While Fusion intent is active, injects a non-blocking reminder to use the Fusion workflows skill until the Skill tool is invoked. All tools remain available; nothing is blocked.
+2. **`PreToolUse` hook** — While Fusion intent is active, injects a non-blocking reminder to use the Fusion workflows skill. All tools remain available; nothing is blocked.
 
 3. **`PreToolUse` hook (cross-plugin bridge)** — Advisory only. If a request needs a Foundry app (UI, functions, collections, `manifest.yml`), it suggests the sibling [`crowdstrike-falcon-foundry`](https://github.com/CrowdStrike/foundry-skills) plugin. It never blocks a skill.
 
 The `workflows` orchestrator is the entry point: you say what you want, and it routes to `authoring` (discover actions, write and validate YAML), `deployment` (import and release to a CID), and `execution` (trigger and monitor). Hooks observe prompts and tool I/O to keyword-match Fusion actions; no data leaves the session.
+
+Local Codex installs made with skill symlinks, and other assistants that do not load bundled hooks, route from the skill descriptions instead.
 
 ## Skills
 
@@ -173,15 +178,15 @@ A workflow goes from idea to running in five steps. The orchestrator coordinates
 4. **Deploy** — check for duplicates, then import and release to your CID:
    ```bash
    python skills/deployment/scripts/query_workflows.py --search "My Workflow"
-   python skills/deployment/scripts/import_workflows.py --file my-workflow.yml
+   python skills/deployment/scripts/import_workflows.py my-workflow.yml
    python skills/deployment/scripts/release_workflow.py --id <definition_id>
    # Remove a test/duplicate workflow when you're done with it:
    python skills/deployment/scripts/delete_workflow.py --id <definition_id>
    ```
 5. **Execute** — trigger and monitor:
    ```bash
-   python skills/execution/scripts/trigger_workflow.py --name "My Workflow" --payload '{"device_id":"..."}'
-   python skills/execution/scripts/monitor_execution.py --id <execution_id>
+   python skills/execution/scripts/trigger_workflow.py --id <definition_id> --params '{"device_id":"..."}'
+   python skills/execution/scripts/monitor_execution.py --execution-id <execution_id>
    ```
 
 ### Use Cases
@@ -226,14 +231,17 @@ python common/scripts/auth.py          # Verify credentials resolve and a token 
 /crowdstrike-falcon-fusion:setup        # Re-run interactive credential setup (Claude Code)
 ```
 
-Confirm `FALCON_CLIENT_ID` and `FALCON_CLIENT_SECRET` are set in your environment or TOML profile, and that `FALCON_BASE_URL` points at the correct cloud (US-1 is the default; set it for US-2, US-3, EU-1, or US-GOV).
+Confirm `FALCON_CLIENT_ID` and `FALCON_CLIENT_SECRET` are set in your environment or TOML profile, and, on any cloud other than US-1, US-2, and EU-1 (such as US-3 or GovCloud), that `FALCON_BASE_URL` (or the profile's `base_url`) points at your cloud. FalconPy discovers those three on its own.
+
+If the credentials are right but the self-test still reports "could not obtain token", a TLS-inspecting proxy may be re-signing traffic. Set `ca_bundle` in the profile to your organization's CA bundle (PEM). The self-test's `CA bundle` line shows which one is in use. If the plugin's Python setup fails because public PyPI is blocked, set `PIP_INDEX_URL` (or `UV_DEFAULT_INDEX`) to your package mirror and run `scripts/setup-python-venv.sh` again.
 
 ### Stale action cache
 
 Action discovery caches results locally. If a newly shipped action type (e.g., a new native action) doesn't appear, refresh the cache:
 
 ```bash
-python skills/authoring/scripts/action_search.py --search "contain" --clear-cache
+python skills/authoring/scripts/action_search.py --clear-cache
+python skills/authoring/scripts/action_search.py --search "contain"
 ```
 
 ### Workflow won't execute
@@ -278,6 +286,7 @@ Run these after any hook, skill, or script change. They're fast and need no cred
 ./test-skill.sh --runs 1                  # Quick single run
 ./test-skill.sh --runs 5                  # Default: 5 runs
 ./test-skill.sh --skip-deploy             # Author + validate only (no live API)
+./test-skill.sh --release-check           # Also release each deployed workflow
 ./test-skill.sh --plugin-dir /path        # Use a different plugin directory
 ```
 
@@ -302,7 +311,7 @@ Two-phase verification that workflow YAML files actually work. Phase 1 (script-b
 ./test-assistants.sh --judge          # confirm the last --e2e run against the tenant
 ```
 
-Gives each installed assistant (Claude Code, Codex, Copilot CLI, Cursor, Antigravity CLI) the canonical prompt and reads back a fixed plain-text report — which skills loaded, which scripts ran, and any blocker — so a clean timeout is never mistaken for a pass. Before testing it isolates skill sources so results are unambiguous: it disables installed Fusion plugins where it can and moves every `~/.agents/skills/` symlink aside (restoring them on exit, including on Ctrl-C, via `scripts/skill-isolation.sh`). `--e2e` requires a real workflow definition id, and `--judge` confirms that id against the tenant with `query_workflows.py --list` and reads the authored YAML for each pipeline stage — it never trusts the transcript.
+Gives each installed assistant (Claude Code, Codex, Copilot CLI, Cursor, Antigravity CLI) the canonical prompt and reads back a fixed plain-text report — which skills loaded, which scripts ran, and any blocker — so a clean timeout is never mistaken for a pass. Before testing it isolates skill sources so results are unambiguous: it disables installed Fusion plugins where it can, moves Codex's plugin cache and Cursor's installed Fusion and Foundry plugins aside, moves every `~/.agents/skills/` symlink aside, and for Antigravity, which only loads its own plugin directory, parks the installed Fusion plugin and symlinks the working tree in its place. Everything is restored on exit, including on Ctrl-C, via `scripts/skill-isolation.sh`, `scripts/agy-plugin-swap.sh`, and `scripts/cursor-plugin-stash.sh`, and Antigravity is skipped rather than tested against the installed copy if the swap can't be made. `--e2e` requires a real workflow definition id, and `--judge` confirms that id against the tenant with `query_workflows.py --list` and reads the authored YAML for each pipeline stage — it never trusts the transcript.
 
 ### A/B test (baseline vs local branch)
 
@@ -311,14 +320,17 @@ Gives each installed assistant (Claude Code, Codex, Copilot CLI, Cursor, Antigra
 ./run-ab-test.sh 3            # 3 runs per phase
 ./run-ab-test.sh --ref v1.0.0 # compare local branch against a specific tag
 ./run-ab-test.sh --skip-deploy  # author + validate only (no live API)
+./run-ab-test.sh --release-check  # also release each deployed workflow
 ```
 
 Compares baseline ref skills (RED) against local branch skills (GREEN), with smart baseline caching. Use `tail-test.sh` in another terminal to watch the active run's tool calls in real time.
 
+DEPLOYED in the scorecard means the workflow imported, which doesn't prove it will release. Add `--release-check` when a change could affect whether workflows release, such as edits to triggers, templates, or `validate.py`. It releases each run's workflow and adds a Released row to the comparison. Released workflows are live until the cleanup deletes them a few seconds later, so an NG-SIEM workflow could fire on a real detection in that window. That's why the flag is opt-in.
+
 **Tip:** Wrap long-running tests with `caffeinate -i` to prevent macOS from sleeping mid-run:
 
 ```bash
-caffeinate -i ./run-ab-test.sh --fresh 5
+caffeinate -i ./run-ab-test.sh --fresh --release-check 5
 ```
 
 ## Contributing
@@ -357,13 +369,15 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the full guidelines.
 ./release.sh
 ```
 
-This walks you through a semantic version bump (major/minor/patch), updates the version across the plugin manifests (`.claude-plugin/plugin.json`, `marketplace.json`, the root `plugin.json`, and `.codex-plugin/plugin.json`), the README badge, and the CHANGELOG, then creates a release branch and PR. After the PR is approved and merged, create a draft GitHub release to tag main:
+This walks you through a semantic version bump (major/minor/patch), updates the version across the plugin manifests (`.claude-plugin/plugin.json`, `marketplace.json`, the root `plugin.json`, `.codex-plugin/plugin.json`, and `.cursor-plugin/plugin.json`), the README badge, and the CHANGELOG, then creates a release branch and PR. After the PR is approved and merged, create a draft GitHub release to tag main:
 
 ```bash
 gh release create v<version> --target main --title "v<version>" --generate-notes --draft
 ```
 
 Review and edit the notes at [github.com/CrowdStrike/fusion-skills/releases](https://github.com/CrowdStrike/fusion-skills/releases), then click **Publish** when ready.
+
+After publishing the release, update the marketplaces that pin a snapshot. Build and upload the OpenAI skills-only bundle with `./release.sh --bundle v<version>`, email the Cursor marketplace team to re-index the listing, and open a PR to [github/awesome-copilot](https://github.com/github/awesome-copilot) that bumps the `version`, `ref`, and `sha` of the `crowdstrike-falcon-fusion` entry. `release.sh` prints the exact steps when it finishes.
 
 ## Cross-Plugin: Foundry Apps
 

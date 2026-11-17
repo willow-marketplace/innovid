@@ -1,10 +1,6 @@
 {
   "mcpServers": {
     "dataproc": {
-      "env": {
-        "DATAPROC_REGION": "${user_config.dataproc_region}",
-        "DATAPROC_PROJECT": "${user_config.dataproc_project}"
-      },
       "args": [
         "-y",
         "@toolbox-sdk/server@1.9.0",
@@ -12,6 +8,7 @@
         "dataproc",
         "--stdio"
       ],
+      "type": "stdio",
       "command": "npx"
     }
   }

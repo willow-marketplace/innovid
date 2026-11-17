@@ -15,6 +15,8 @@ The shell regression suites run offline with no credentials, no network, and no 
 bash tests/test-check-token.sh    # hooks/check-token.sh
 bash tests/test-api-request.sh    # scripts/api-request.sh --env
 bash tests/test-openapi-fetch.sh  # scripts/fetch-openapi-schema.sh
+bash tests/test-openapi-tool.sh   # openapi_tool.py, openapi-op.sh, api-request.sh pre-send validation
+bash tests/test-audience-estimates.sh   # estimate examples keep bid_micro_amount, incl. AUTOBID
 bash tests/test-marketplace-metadata.sh
 ```
 
@@ -24,7 +26,7 @@ Run the relevant suites after changing scripts or marketplace metadata. They exi
 
 1. A Spotify Developer app with Ads API access
 2. A Spotify Ads business and ad account suitable for testing
-3. Python 3.8+ for the automated OAuth flow, or use the manual flow
+3. Python 3.8+ or `uv` for the secure OAuth and direct-token configuration helpers
 4. Codex, Claude Code, or Antigravity with this source checkout installed
 5. Test creative files and a synthetic customer-list CSV when exercising uploads
 
@@ -48,7 +50,7 @@ Run scenarios 22-32 to exercise campaign strategy, monitoring, export, bulk oper
 
 Run scenarios 33-34 to verify that implicit tracking edits use drafts and that an explicitly requested direct write handles permission denial without overstating the credentials' restrictions. Scenario 33 requires existing published ads with tracking entries; Scenario 34 may use a mocked 403 response.
 
-Run scenario 35 to verify ad product catalog validation behavior across creates, updates, and draft workflows.
+Run scenario 35 to verify ad product catalog validation behavior across creates, updates, and draft workflows. Run scenarios 36-42 to verify deterministic create-request idempotency keys and exclusions. Run scenario 43 with a synthetic multi-tab plan to verify source normalization, provenance, review gating, accepted incompleteness, and draft-only execution.
 
 ## Validation checklist
 
@@ -78,4 +80,17 @@ Record fixture IDs outside this repository. Useful fixtures include:
 - a Pixel/CAPI/dataset topology with known diagnostics for read-only measurement tests
 - a non-owner account member whose access can be inspected; only mutate membership in a dedicated test business
 
-Token-refresh testing requires a valid refresh token and macOS Keychain entry. Set `token_expires_at` to a past timestamp, but never add `client_secret` to a settings file.
+Token-refresh testing requires `auth_flow: "authorization_code_pkce"`, a valid refresh token, and the team-owned client ID. Set `token_expires_at` to a past timestamp. No application secret or platform credential store is involved.
+
+Initial OAuth authorization must leave token values out of captured helper
+stdout and atomically replace the active settings file with mode 0600. Codex
+hook tests must also assert the manifest uses `${PLUGIN_ROOT}` without a cwd
+fallback.
+
+Run the automated OAuth regressions with:
+
+```bash
+python3 tests/test-oauth-pkce.py
+bash tests/test-check-token.sh
+bash tests/test-pkce-runtime-guard.sh
+```

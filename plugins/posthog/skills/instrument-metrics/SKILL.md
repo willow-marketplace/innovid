@@ -40,11 +40,14 @@ STEP 5: Keep cardinality low.
 
 STEP 6: Set up environment variables. (Skip if the PostHog SDK is already configured — `posthog.metrics` reuses the SDK's existing project token.)
   - Check if the project already has PostHog environment variables configured (e.g. in `.env`, `.env.local`, or framework-specific env files). If valid values already exist, skip this step.
-  - If the PostHog project token is missing, use the PostHog MCP server's `projects-get` tool to retrieve the project's `api_token`. If multiple projects are returned, ask the user which project to use. If the MCP server is not connected or not authenticated, ask the user for their PostHog project token instead.
-  - For the PostHog host URL: check the `projects-get` MCP response for a `region` field — `US` maps to `https://us.i.posthog.com`, `EU` maps to `https://eu.i.posthog.com`. If the region is not available from the MCP response or from existing project configuration, ask the user: "Are you on PostHog US Cloud or EU Cloud?" Do not assume US Cloud.
-  - For the OTLP metrics endpoint, use `https://us.i.posthog.com/i/v1/metrics` (US) or `https://eu.i.posthog.com/i/v1/metrics` (EU), matching the region determined above, with the project token as an `Authorization: Bearer` header.
+  - If the PostHog project token is missing, use the project token that the tool or CLI which started this setup already gave you (for example in its output or instructions).
+  - If it gave you none, use the PostHog MCP server's `projects-get` tool to retrieve the project's `api_token`. If multiple projects are returned, ask the user which project to use. If the MCP server is not connected or not authenticated, ask the user for their PostHog project token instead.
+  - For the PostHog host URL: use the host that the tool or CLI which started this setup already gave you. If it gave you none, check the `projects-get` MCP response for a `region` field — `US` maps to `https://us.i.posthog.com`, `EU` maps to `https://eu.i.posthog.com`. If you still have no host from the calling tool, the MCP response, or existing project configuration, ask the user: "Are you on PostHog US Cloud or EU Cloud?" Do not assume US Cloud.
+  - For the OTLP metrics endpoint, use the same host as above with the path `/i/v1/metrics`: `https://us.i.posthog.com/i/v1/metrics` (US) or `https://eu.i.posthog.com/i/v1/metrics` (EU), with the project token as an `Authorization: Bearer` header.
   - Write these values to the appropriate env file using the framework's naming convention.
   - Reference these environment variables in code instead of hardcoding them.
+  - List the key names in `.env.example`, or the env template the project already uses, with placeholder values, so the next developer knows what to set. Create `.env.example` if the project has none. Never put real values in it.
+  - Read the keys as optional: a missing key must never break the build or boot. Follow the missing-configuration rule in `references/COMMANDMENTS.md`.
 
 STEP 7: Verify metrics arrive.
   - For short-lived processes (scripts, cron jobs, serverless), flush before exit (`posthog.metrics.flush()`, or the OTel provider's `forceFlush()`/`shutdown()`).
@@ -52,14 +55,14 @@ STEP 7: Verify metrics arrive.
 
 ## Reference files
 
-- `references/javascript.md` - JavaScript (web) metrics installation - docs
-- `references/nodejs.md` - Node.js metrics installation - docs
-- `references/python.md` - Python metrics installation - docs
-- `references/kubernetes.md` - Kubernetes metrics installation - docs
-- `references/other.md` - Other languages metrics installation - docs
-- `references/start-here.md` - Getting started with metrics - docs
-- `references/basics.md` - Why you need metrics - docs
-- `references/architecture.md` - How metrics works - docs
+- `references/javascript.md` - JavaScript (web) metrics installation
+- `references/nodejs.md` - Node.js metrics installation
+- `references/python.md` - Python metrics installation
+- `references/kubernetes.md` - Kubernetes metrics installation
+- `references/other.md` - Other languages metrics installation
+- `references/start-here.md` - Getting started with metrics
+- `references/basics.md` - Why you need metrics
+- `references/architecture.md` - How metrics works
 - `references/COMMANDMENTS.md` - Framework-specific rules the integration must follow
 
 Each platform reference contains specific SDK setup, OTLP configuration, and integration patterns. Find the one matching the user's stack.

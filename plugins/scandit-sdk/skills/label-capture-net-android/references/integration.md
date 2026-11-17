@@ -64,9 +64,7 @@ Label Capture has been available on `dotnet.android` since **8.1**, so any curre
   ```
 
   If the project already has an `Application` subclass, add the three `Initialize()` calls to its existing `OnCreate()` rather than creating a second one (Android refuses to load two `[Application]`-decorated classes).
-- A valid Scandit license key:
-  - Sign in at <https://ssl.scandit.com> to generate one.
-  - No account yet? Sign up at <https://ssl.scandit.com/dashboard/sign-up?p=test>.
+- A valid Scandit license key — see **Licence key** in this skill's `SKILL.md`.
 - `AndroidManifest.xml` setup — two concerns:
   1. **Camera entry** (top-level, sibling to `<application>`):
      ```xml
@@ -549,6 +547,64 @@ LabelCaptureSettings settings =
 
 > `AdaptiveRecognitionMode.Off` (the default) keeps everything on-device. Cloud fallback only takes effect when the label is scanned through `LabelCaptureValidationFlowOverlay` — it is **not** available with the basic or advanced overlay.
 
+## Step 12 — Receipt Scanning (Beta, optional)
+
+> **Beta.** Receipt Scanning requires the Adaptive Recognition Engine (beta) and must be enabled on your subscription — contact `support@scandit.com`.
+
+Receipt Scanning extracts structured data from a whole receipt **in the cloud** (store info, payment totals, individual line items) and uses a **different integration pattern** from standard label capture. It is a separate path from Step 11: Step 11's cloud fallback runs inside the Validation Flow, while receipts run through their own overlay.
+
+- A `LabelCaptureAdaptiveRecognitionOverlay` **instead of** Step 5's `LabelCaptureBasicOverlay` (do not add both), created with `LabelCaptureAdaptiveRecognitionOverlay.Create(labelCapture, dataCaptureView)`, which adds it to the view.
+- A `LabelCapture` built from the **receipt** label settings in the docs (below), not the custom barcode + expiry definition from Steps 2–3.
+- An `ILabelCaptureAdaptiveRecognitionListener` set as the overlay's `Listener`. Its `OnRecognized` callback delivers an `AdaptiveRecognitionResult`; for receipts it is a `ReceiptScanningResult` — store name/address/city, transaction date/time, pre-tax total, tax, total, loyalty number, and `LineItems` of `ReceiptScanningLineItem` (each with `Name`, `UnitPrice`, `Discount`, `Quantity`, `TotalPrice`). `OnFailure` fires on a connection error.
+
+In the activity, keep the overlay in a field (like `this.overlay` in Step 5) so it, and the listener it holds, outlive `OnCreate`:
+
+```csharp
+using Scandit.DataCapture.Label.Data;
+using Scandit.DataCapture.Label.UI.Overlay.AdaptiveRecognition;
+
+// Field: private LabelCaptureAdaptiveRecognitionOverlay receiptOverlay;
+// In OnCreate, in place of Step 5's basic overlay:
+this.receiptOverlay = LabelCaptureAdaptiveRecognitionOverlay.Create(this.labelCapture, this.dataCaptureView);
+this.receiptOverlay.Listener = new ReceiptListener(
+    receipt => this.RunOnUiThread(() => { /* show receipt.StoreName, receipt.PaymentTotal, ... */ }));
+```
+
+In Step 7's `OnDestroy`, dispose `this.receiptOverlay` instead of `this.overlay` (which this path never sets).
+
+The listener is its own class, like the other listeners in this guide (it can derive from `Java.Lang.Object` as theirs do; the interface does not require it). Treat `OnRecognized` like `OnSessionUpdated` (Key rule 9): do not assume the UI thread, which is why the activity passes in a callback that marshals with `RunOnUiThread`.
+
+```csharp
+using System;
+
+public class ReceiptListener : ILabelCaptureAdaptiveRecognitionListener
+{
+    private readonly Action<ReceiptScanningResult> onReceipt;
+
+    public ReceiptListener(Action<ReceiptScanningResult> onReceipt) => this.onReceipt = onReceipt;
+
+    public void OnRecognized(AdaptiveRecognitionResult result)
+    {
+        if (result is not ReceiptScanningResult receipt) return;
+
+        string? storeName = receipt.StoreName;
+        var total = receipt.PaymentTotal;
+        foreach (ReceiptScanningLineItem item in receipt.LineItems)
+        {
+            // item.Name, item.Quantity, item.UnitPrice, item.Discount, item.TotalPrice
+        }
+        this.onReceipt(receipt);
+    }
+
+    public void OnFailure()
+    {
+        // Network error, or the Adaptive Recognition Engine is not reachable.
+    }
+}
+```
+
+Because this is a beta, cloud-only flow, **fetch the [Advanced Configurations](https://docs.scandit.com/sdks/net/android/label-capture/advanced/) page before implementing it** for the label settings a receipt needs and the overlay's UI options (`LabelCaptureAdaptiveRecognitionSettings`).
+
 ## Setup checklist
 
 After writing the integration code, show this checklist:
@@ -560,7 +616,7 @@ After writing the integration code, show this checklist:
 5. Create `MainApplication.cs` with `ScanditCaptureCore.Initialize()`, `ScanditBarcodeCapture.Initialize()`, **and `ScanditLabelCapture.Initialize()`** (SDK 8.0+).
 6. Ensure the activity uses a `Theme.AppCompat` descendant (manifest `<application android:theme=...>` or the `[Activity]` `Theme=` attribute).
 7. Provide a layout with a container (e.g. a `FrameLayout`) for the `DataCaptureView`, or host it full-screen in a `FrameLayout` created in code.
-8. Replace `-- ENTER YOUR SCANDIT LICENSE KEY HERE --` with your key from <https://ssl.scandit.com>.
+8. Replace `-- ENTER YOUR SCANDIT LICENSE KEY HERE --` with your key (see **Licence key** in `SKILL.md`).
 
 ## Complete minimal example
 

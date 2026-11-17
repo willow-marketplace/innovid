@@ -9,8 +9,9 @@
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-plugin-5A67D8)](https://github.com/Digital-Process-Tools/claude-marketplace)
 [![Codex](https://img.shields.io/badge/Codex-plugin-000000)](.agents/plugins/marketplace.json)
 [![Antigravity](https://img.shields.io/badge/Antigravity-plugin-4285F4)](docs/install-antigravity.md)
-[![Version](https://img.shields.io/badge/version-0.33.0-orange)](.claude-plugin/plugin.json)
+[![Version](https://img.shields.io/badge/version-0.45.1-orange)](.claude-plugin/plugin.json)
 [![Stars](https://img.shields.io/github/stars/Digital-Process-Tools/claude-remember?style=social)](https://github.com/Digital-Process-Tools/claude-remember/stargazers)
+[![clones](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/Digital-Process-Tools/claude-remember/badges/clones.json)](https://github.com/Digital-Process-Tools/claude-remember/pulse)
 
 Your coding agent starts every session blank. It doesn't know what you worked on yesterday, what conventions your team follows, or what mistakes it already made. You re-explain everything, every time.
 
@@ -69,7 +70,7 @@ Once in a while, `SessionStart` names whichever of `claude-supertool` / `claude-
 /plugin install remember@dpt-plugins
 ```
 
-Restart Claude Code afterwards; hooks are read at session start ([#200](https://github.com/Digital-Process-Tools/claude-remember/issues/200)). Updating, the official Anthropic marketplace and its lag, manual install, checking your version: [docs/install-claude-code.md](docs/install-claude-code.md).
+Restart Claude Code afterwards; hooks are read at session start ([#200](https://github.com/Digital-Process-Tools/claude-remember/issues/200)). Updating, the official Anthropic marketplace and its lag, manual install, checking your version, and how to switch here from the official marketplace: [docs/install-claude-code.md](docs/install-claude-code.md).
 
 **Codex**
 
@@ -157,7 +158,34 @@ Per-session handoff files, the session index, and the temp files `tmp/` holds: [
 
 This plugin runs with your full shell privileges, like any other hook your coding agent runs. The **default install** stores memory locally under `<project>/.remember/` (or `~/.remember/<slug>/` in external mode) and does not push anything anywhere — no new attack surface beyond your coding agent itself.
 
-The optional **git backup** feature does push memory to a remote you configure. If you enable it, read [`docs/git-backup-security.md`](docs/git-backup-security.md) for the full threat model — short version: treat `~/.remember/` with the same care you give `~/.ssh/`, point the backup at a repo you own, and the built-in remote-URL validation handles the rest.
+**Git backup** commits (and, if there is a remote, pushes) your memory whenever the external store's parent directory is itself a git repository with an upstream — there is no separate enable flag; that condition alone is the trigger. Read [`docs/git-backup-security.md`](docs/git-backup-security.md) for the full threat model — short version: treat `~/.remember/` with the same care you give `~/.ssh/`, point the backup at a repo you own, and the built-in remote-URL validation handles the rest.
+
+### What this plugin runs, sends and stores
+
+**Summarization** shells out to a CLI you already have installed and authenticated — never a bundled binary, never a third-party service beyond the one that CLI already talks to:
+
+- `REMEMBER_SUMMARIZER` selects the provider: `claude` (the nested `claude -p`), `codex` (the nested `codex exec`), or `auto` (the default — reads the transcript the host actually wrote to pick one). `REMEMBER_SUMMARIZER_FALLBACK=claude` (opt-in, unset by default) retries a failed `codex` call via `claude -p` instead of raising, and logs every time it fires.
+- `claude -p` runs with no tools (`--tools ""`), no MCP servers (`--mcp-config '{}' --strict-mcp-config`), no hooks (`--setting-sources ''`), and an isolated temp working directory — not the shared tempdir other concurrent saves use. Verified against claude-code 2.1.219.
+- `codex exec` runs with `--sandbox read-only` (denies writes and network to the process Codex itself spawns — not a guarantee against a command the model asks Codex to run inside that sandbox), `--ignore-user-config` (skips the operator's own Codex hooks), and `-c shell_environment_policy.inherit=none` (a command Codex spawns internally gets no environment at all, not even `PATH`). Verified against codex-cli 0.150.1 / 0.153.2.
+- Either route sends only the extracted, filtered session transcript (the prompt built for that save) to that CLI's own configured provider — never to any other service.
+
+**Credentials.** The summarizer runs a nested `claude -p` that inherits your environment, including your Claude Code login -- exactly like any process a hook starts; the nested `codex exec` gets only an allow-list of your variables that names no credential. remember itself reads no credential: nothing is typed in, nothing is read out of your OS credential storage, and the plugin does not ask for your login anywhere.
+
+- Most hosts simply hand that login to every tool and hook they spawn, this one included, and that is the whole story: nothing else to configure, nothing else this plugin does.
+- Before the nested call starts, only the parent session's own variables are removed, so it does not pass as that session ([#95](https://github.com/Digital-Process-Tools/claude-remember/issues/95)): the names are listed in [`docs/configuration.md`](docs/configuration.md#the-summarizers-environment). Your login is never on that list.
+- Some hosts do not hand hooks that login (an older desktop build, a hosted Agent SDK). When that happens the nested call simply runs unauthenticated: this plugin has no recovery path of its own, by design (#860, round 3) — reading any credential from your machine is exactly the condition a directory security scan holds on, independent of consent or provenance. Log in again with your coding agent's own CLI and the next save picks it up.
+  - Two older ways of configuring a recovery token for this plugin — an environment variable, and a `haiku.oauth_token` key in `config.json`, both this plugin's own earlier and now fully removed attempts at the same feature — are no longer read at all, on any host, for anything, and a still-configured value is not detected or logged anywhere any more (#898, round 6): there is nothing left to migrate it to, and leaving it in place is harmless.
+- Some Agent SDK hosts fire `SessionStart` with `source=resume` on every resumed turn, not once per session (#1060). Each start's deferred bookkeeping (recovery, capture-gap detection) is keyed by a stale-safe per-session marker under `REMEMBER_DIR/tmp/deferred-<session id>.pid`, so a second start for the same still-running session is skipped rather than stacked; a dead marker (a crashed or already-finished run) is treated as stale and replaced. A different session id is never affected by another session's marker.
+- If you also happen to have an unrelated Anthropic API key set in your environment for something else, the nested call inherits it exactly like every other variable, and it can out-rank your login there ([#703](https://github.com/Digital-Process-Tools/claude-remember/issues/703)). To keep a variable like that away from the summarizer, unset it in the environment you start Claude Code from. (The `haiku.drop_env` list that used to do this inside the plugin was removed in [#898](https://github.com/Digital-Process-Tools/claude-remember/issues/898): applying names chosen at run time meant walking your whole environment.)
+- The `codex` summarizer is the other way round: the nested `codex exec` gets **only** an allow-list of your variables ([#724](https://github.com/Digital-Process-Tools/claude-remember/issues/724)), because a command the model runs inside Codex's sandbox could read anything else. The list carries what the Codex CLI needs to run (`PATH`, `HOME`, `CODEX_HOME`, locale, temp and Windows process variables), **no credential** and **no proxy or CA-bundle variable** ([#898](https://github.com/Digital-Process-Tools/claude-remember/issues/898)): if you reach the network only through a proxy, set `REMEMBER_SUMMARIZER=claude`, whose nested call inherits your whole environment. Codex's own login in `CODEX_HOME` (what `codex login` writes) is unaffected; a Codex login held only in an environment variable is not passed through, so run `codex login` instead -- see [`docs/configuration.md`](docs/configuration.md#the-codex-summarizers-allow-list-724). Both lists are written in the plugin's code, not read from config: changing either needs a plugin release, and no config file -- yours or a cloned repository's -- can change them.
+
+**`git fetch`** (opt-in, `git_restore.enabled` in `config.json`, default `false`) runs a background fetch against the memory store's own git remote before a session starts, so this session can compare local memory against what a backup pushed from elsewhere. It only fast-forwards local refs — it never merges, rebases, or pushes.
+
+**Files written outside the project**, beyond the `REMEMBER_DIR` memory store documented above:
+
+- `~/.remember/tmp/promo-notice` — a marker recording when the plugin-promo line (above) was last shown and which one, so it appears at most once per `cooldowns.promo_seconds` (default 7 days) across all your projects.
+- `~/.remember/run/summarizers/` (override: `REMEMBER_RUNTIME_DIR`) — small per-process records used only to cap how many concurrent summarizer calls can run; holds no transcript content.
+- `$TMPDIR/remember-*` — most of these are temp files for a single `save-session.sh` run: the extracted transcript, the built summarization prompt (so some of these do hold session text), the summarizer's stderr, and compression intermediates. Written 0600 via `mktemp`, and removed by an `EXIT` trap when that save finishes. Only a save killed outright (e.g. `SIGKILL`) can leave them behind in `$TMPDIR`. Three files under the same prefix are not scoped to one save and persist by design, written by every hook invocation: `remember-env-<key>` (the project dir, plugin root and HOME), `remember-config-cache-v2-<key>` (a flattened read of `config.json`, excluding `.haiku.*`; named `-v2-` since [#864](https://github.com/Digital-Process-Tools/claude-remember/issues/864) changed the on-disk format -- an install upgrading from an older build may still have one leftover file at the pre-`-v2-` name, which the next write of this cache now best-effort removes) and `remember-detect-tools-cache` (which CLIs were found on PATH). None of the three ever holds `haiku.oauth_token` or another secret value.
 
 [![The Interview](https://max.dp.tools/art/og/og-the-interview-video.jpg)](https://max.dp.tools/art/2026/03/the-interview-claude-remember.mp4)
 
@@ -193,6 +221,7 @@ Everything that used to sit on this page and did not need to be read before inst
 - [Data files](docs/data-files.md)
 - [Git worktrees](docs/git-worktrees.md)
 - [How this repo is maintained](docs/maintainer.md)
+- [Releasing, and the `release` branch the Anthropic directory reads](docs/releasing.md)
 - [Configuration](docs/configuration.md)
 - [External storage mode](docs/external-storage-mode.md)
 - [Git backup security](docs/git-backup-security.md)
@@ -214,9 +243,9 @@ Memory is keyed to the repository's main checkout, not the worktree, so every wo
 ```
 pipeline/           Python core — extraction, prompts, parsing, types
   extract.py        Session JSONL → filtered exchanges
-  haiku.py          Claude CLI wrapper + response parsing
+  summarizer.py     Claude/Codex CLI wrapper + response parsing
   prompts.py        Template loading and substitution
-  consolidate.py    Multi-day compression via Haiku
+  consolidate.py    Multi-day compression via the configured summarizer
   log.py            Structured logging
   shell.py          Shell integration — prints eval-able variables
   types.py          Dataclasses for all pipeline data

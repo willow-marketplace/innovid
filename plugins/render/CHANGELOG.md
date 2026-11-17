@@ -5,6 +5,37 @@ All notable changes to the Render plugin are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.1] - 2026-10-27
+
+### Changed
+
+- The `render.yaml` hook no longer runs the Render CLI. It asks Claude to run `render blueprints validate`, so validation goes through your normal command approval instead of using your Render login automatically.
+- Replaced the plugin icon with a plain SVG and pointed CLI install hints at the Render docs instead of a `curl | sh` command.
+
+### Added
+
+- `privacyPolicyUrl` in `plugin.json`.
+
+### Removed
+
+- `scripts/validate-render-yaml.sh`. Run `render blueprints validate` directly.
+
+## [0.4.0] - 2026-10-27
+
+### Added
+
+- Bundled the `render-sandboxes` skill and six reference files from `render-oss/skills`, covering SDK and CLI usage, creation options, environment and access, snapshots, and troubleshooting. The plugin now includes 22 skills.
+
+## [0.3.0] - 2026-10-08
+
+### Changed
+
+- Synced all 21 bundled skills from `render-oss/skills` release `skills-v1.0.0`: shared, single-sourced reference content across skills, doc retrieval that does not require `curl`, and the Render Workflows skill updated for SDK 1.x.
+
+### Removed
+
+- Reference files replaced by shared references: `render-deploy/references/blueprint-spec.md`, `render-disks/references/sizing-and-snapshots.md`, `render-networking/references/troubleshooting.md`, `render-scaling/references/instance-types.md`, and `render-web-services/references/deploy-lifecycle.md`.
+
 ## [0.2.1] - 2026-08-03
 
 ### Changed
@@ -27,6 +58,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `deploy-to-render` and `check-render-status` slash commands.
 - `render.yaml` validation hook.
 
+[0.4.1]: https://github.com/render-oss/render-plugin-claude-code/releases/tag/v0.4.1
+[0.4.0]: https://github.com/render-oss/render-plugin-claude-code/releases/tag/v0.4.0
+[0.3.0]: https://github.com/render-oss/render-plugin-claude-code/releases/tag/v0.3.0
 [0.2.1]: https://github.com/render-oss/render-plugin-claude-code/releases/tag/v0.2.1
 [0.2.0]: https://github.com/render-oss/render-plugin-claude-code/releases/tag/v0.2.0
 [0.1.0]: https://github.com/render-oss/render-plugin-claude-code/releases/tag/v0.1.0

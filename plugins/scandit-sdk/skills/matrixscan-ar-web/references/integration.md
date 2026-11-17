@@ -4,7 +4,7 @@ MatrixScan AR (API name: `BarcodeAr*`) is a multi-barcode AR mode that tracks al
 
 > **Language note**: Examples below use TypeScript (v8 API). For plain JavaScript projects, remove the type annotations and keep the same imports and structure.
 
-> **Multithreading note**: BarcodeAr requires browser multithreading. Before writing any code, confirm that the server sends the correct cross-origin isolation headers — see the [COOP/COEP section](#cross-origin-isolation-coop--coep) below.
+> **Multithreading note**: BarcodeAr requires browser multithreading. Before writing any code, confirm that the server sends the correct cross-origin isolation headers, and start `BrowserHelper.checkMultithreadingSupport()` in parallel with `DataCaptureContext.forLicenseKey()` — see [Loading the SDK from a CDN](#loading-the-sdk-from-a-cdn).
 
 ## Starting from zero? Use the pre-built sample
 
@@ -14,7 +14,7 @@ If the user has no existing app yet, always offer the official sample as the fas
 
 Tell the user to clone the repo and open the sample folder. Once they have it open, help them:
 
-1. Replace `-- ENTER YOUR SCANDIT LICENSE KEY HERE --` with their key from <https://ssl.scandit.com>
+1. Replace `-- ENTER YOUR SCANDIT LICENSE KEY HERE --` with your key (see **Licence key** in `SKILL.md`).
 2. Adjust the enabled symbologies to match their use case
 3. Run `npm install` and start the app
 
@@ -27,29 +27,186 @@ Only proceed to the manual integration steps below if the user already has an ex
 - Scandit Data Capture SDK for web via npm, pnpm, or yarn:
   - `@scandit/web-datacapture-core`: <https://www.npmjs.com/package/@scandit/web-datacapture-core>
   - `@scandit/web-datacapture-barcode`: <https://www.npmjs.com/package/@scandit/web-datacapture-barcode>
-- A valid Scandit license key — sign in at <https://ssl.scandit.com> (no account? sign up at <https://ssl.scandit.com/dashboard/sign-up?p=test>)
+- A valid Scandit license key — see **Licence key** in this skill's `SKILL.md`.
 - Cross-origin isolation headers configured on the server (required — see below)
 
 ### Cross-origin isolation (COOP / COEP)
 
 **BarcodeAr requires browser multithreading via `SharedArrayBuffer`.** Without these headers the SDK degrades to single-threaded mode, which is too slow for AR tracking.
 
-Always set:
-```
-Cross-Origin-Opener-Policy: same-origin
-```
-
-For `Cross-Origin-Embedder-Policy`, the value depends on how you host the SDK:
-
-| Hosting | COEP value |
-|---------|-----------|
-| Self-hosted SDK files | `require-corp` |
-| CDN (`cdn.jsdelivr.net`) | `credentialless` (Chrome/Edge 96+) |
+The headers, the multithreading check and the dialog shown when the check fails are in [Loading the SDK from a CDN](#loading-the-sdk-from-a-cdn); the same two headers apply whether the SDK files come from jsDelivr or are self-hosted. The check also returns `false` on devices with fewer than 2 CPU cores or without nested workers, so an error message should not always blame the headers.
 
 > **Heads up:** COEP blocks cross-origin resources (images, fonts, iframes, third-party scripts) that do not include `Cross-Origin-Resource-Policy` or `Access-Control-Allow-Origin`. Audit your page's cross-origin dependencies before enabling COEP in production.
 
 For the complete Vite setup — COOP/COEP middleware, `library/engine` self-hosting with `vite-plugin-static-copy`, and license key injection — use the official sample `vite.config.ts` as the source of truth:
 <https://github.com/Scandit/datacapture-web-samples/blob/master/03_Advanced_Batch_Scanning_Samples/01_Batch_Scanning_and_AR_Info_Lookup/MatrixScanARSimpleSample/vite.config.ts>
+
+### Loading the SDK from a CDN
+
+For a plain-HTML page without a bundler, set the SDK up as follows. The headers and the multithreading check also apply to a bundled app.
+
+<!-- BEGIN GENERATED web-cdn packages=core,barcode engine=barcode -->
+**CDN caveat.** A public CDN ties the page's start-up to that CDN's availability and speed, so for production [the docs](https://docs.scandit.com/sdks/web/add-sdk/#install-via-cdn) recommend self-hosting the SDK files or a paid enterprise CDN.
+
+**Import map.** Load the SDK as ES modules through an import map, as in the docs' [complete CDN example](https://docs.scandit.com/sdks/web/add-sdk/#complete-cdn-example). Pin one exact version in every URL: a floating `@8` is resolved separately for each file, so after a new 8.x release the JavaScript and the engine can come from different releases, which breaks start-up. The `es-module-shims` script adds import-map support to browsers that lack it.
+
+```html
+<script type="importmap">
+  {
+    "imports": {
+      "@scandit/web-datacapture-core": "https://cdn.jsdelivr.net/npm/@scandit/web-datacapture-core@8.6.1/build/js/index.js",
+      "@scandit/web-datacapture-core/": "https://cdn.jsdelivr.net/npm/@scandit/web-datacapture-core@8.6.1/",
+      "@scandit/web-datacapture-barcode": "https://cdn.jsdelivr.net/npm/@scandit/web-datacapture-barcode@8.6.1/build/js/index.js",
+      "@scandit/web-datacapture-barcode/": "https://cdn.jsdelivr.net/npm/@scandit/web-datacapture-barcode@8.6.1/"
+    }
+  }
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/es-module-shims@2.6.2/dist/es-module-shims.js"></script>
+```
+
+Use the same version in `libraryLocation`: `https://cdn.jsdelivr.net/npm/@scandit/web-datacapture-barcode@8.6.1/sdc-lib/`.
+
+**Cross-origin isolation headers.** Serve the page with both headers, whether the SDK files come from jsDelivr or are self-hosted:
+
+```
+Cross-Origin-Opener-Policy: same-origin
+Cross-Origin-Embedder-Policy: require-corp
+```
+
+Do not recommend `credentialless` for `Cross-Origin-Embedder-Policy` in the SDK set-up: Safari does not support it, so the page would not be cross-origin isolated there.
+
+jsDelivr serves the SDK files and `es-module-shims` with `Cross-Origin-Resource-Policy: cross-origin` and `Access-Control-Allow-Origin: *`, which `require-corp` accepts.
+
+**Serving the page.** From the folder that holds `index.html`, run [`serve`](https://www.npmjs.com/package/serve) with `npx serve@14.2.6` or `pnpm dlx serve@14.2.6`, and put the headers in a `serve.json` next to `index.html`:
+
+```json
+{
+  "headers": [
+    {
+      "source": "**",
+      "headers": [
+        { "key": "Cross-Origin-Opener-Policy", "value": "same-origin" },
+        { "key": "Cross-Origin-Embedder-Policy", "value": "require-corp" }
+      ]
+    }
+  ]
+}
+```
+
+`serve` matches `source` against the path of the file it serves: `index.html` served at `/` gets the headers, a directory listing does not.
+
+Any other server must send the same two headers. Plain `python3 -m http.server` does not send them, so it is not enough on its own; this small Python server does (save it as `server.py` next to `index.html`, run `python3 server.py`, and open `http://localhost:8000`):
+
+```python
+from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+
+class CrossOriginIsolatedHandler(SimpleHTTPRequestHandler):
+    def end_headers(self):
+        self.send_header("Cross-Origin-Opener-Policy", "same-origin")
+        self.send_header("Cross-Origin-Embedder-Policy", "require-corp")
+        super().end_headers()
+
+ThreadingHTTPServer(("127.0.0.1", 8000), CrossOriginIsolatedHandler).serve_forever()
+```
+
+**Multithreading check.** Start `BrowserHelper.checkMultithreadingSupport()` without awaiting it, then await `DataCaptureContext.forLicenseKey()`: the two run in parallel, so set-up never waits for the check. The check needs no engine and no context. It resolves `false` when the page is not cross-origin isolated (the COOP/COEP headers are missing) or the device has fewer than 2 CPU cores or no nested workers. Scanning then still works, single-threaded and slower, and the SDK logs its own console warning, so do not add another: tell the person scanning with the dialog below instead.
+
+**Dialog helper.** Save this module as `multithreading-warning.js` next to `index.html` and import it as `"./multithreading-warning.js"`, or as `multithreading-warning.ts` in a bundled app and import it as `"./multithreading-warning"`: it has no type annotations, so it is valid as either. `index.html` needs no markup for it: the helper adds the dialog to the page itself, unless the page already has a `<dialog id="multithreading-warning">`. The dialog shows at most once per page load (a module-level flag, so a scanner restart does not reopen it), and not again during the browser session once it was closed with the checkbox ticked. Every `sessionStorage` access sits in a `try`/`catch`: storage can be blocked, and that only means the dialog may show again on the next page load.
+
+```typescript
+const multithreadingWarningDismissedKey = "scandit-multithreading-warning-dismissed";
+let multithreadingWarningShown = false;
+
+export function isMultithreadingWarningDismissed() {
+  try {
+    return sessionStorage.getItem(multithreadingWarningDismissedKey) === "true";
+  } catch {
+    return false;
+  }
+}
+
+export function rememberMultithreadingWarningDismissed() {
+  try {
+    sessionStorage.setItem(multithreadingWarningDismissedKey, "true");
+  } catch {}
+}
+
+function multithreadingWarningDialog() {
+  const existing = document.querySelector("dialog#multithreading-warning");
+  if (existing instanceof HTMLDialogElement) {
+    return existing;
+  }
+  const dialog = document.createElement("dialog");
+  dialog.id = "multithreading-warning";
+  dialog.innerHTML = `
+        <form method="dialog">
+          <h2>Scanning may be slower</h2>
+          <p>This browser or device can't use all of its processing power for scanning. You can keep scanning, but scanning may take longer.</p>
+          <p><a href="https://docs.scandit.com/sdks/web/matrixscan/get-started/#improve-runtime-performance-by-enabling-browser-multithreading" target="_blank" rel="noopener">Learn more</a></p>
+          <label><input type="checkbox" /> Don't show this again during this session</label>
+          <button autofocus>OK</button>
+        </form>`;
+  document.body.append(dialog);
+  return dialog;
+}
+
+export function showMultithreadingWarning() {
+  if (multithreadingWarningShown || isMultithreadingWarningDismissed()) {
+    return;
+  }
+  const dialog = multithreadingWarningDialog();
+  multithreadingWarningShown = true;
+  dialog.addEventListener(
+    "close",
+    () => {
+      const dontShowAgain = dialog.querySelector('input[type="checkbox"]');
+      if (dontShowAgain instanceof HTMLInputElement && dontShowAgain.checked) {
+        rememberMultithreadingWarningDismissed();
+      }
+    },
+    { once: true }
+  );
+  dialog.showModal();
+}
+```
+
+**Starting the check.** Import the helper and start the check before `forLicenseKey()`. The dialog opens as soon as the check resolves `false`, while the engine keeps loading. This snippet has no type annotations either, so it runs as is in a `<script type="module">`:
+
+```typescript
+import { BrowserHelper, DataCaptureContext } from "@scandit/web-datacapture-core";
+import { barcodeCaptureLoader } from "@scandit/web-datacapture-barcode";
+import { showMultithreadingWarning } from "./multithreading-warning.js";
+
+BrowserHelper.checkMultithreadingSupport()
+  .then((supported) => {
+    if (!supported) {
+      showMultithreadingWarning();
+    }
+  })
+  .catch(console.error);
+
+await DataCaptureContext.forLicenseKey("-- ENTER YOUR SCANDIT LICENSE KEY HERE --", {
+  libraryLocation: "https://cdn.jsdelivr.net/npm/@scandit/web-datacapture-barcode@8.6.1/sdc-lib/",
+  moduleLoaders: [barcodeCaptureLoader()],
+});
+```
+
+If the user explicitly asks to run single-threaded, leave the check and the dialog out.
+
+**UMD build, last resort.** Use the classic-script bundles only when the target browsers support neither ES modules nor the [`es-module-shims`](https://github.com/guybedford/es-module-shims) polyfill: they cannot be tree-shaken, so the page downloads more code and starts slower. Load them in this order, since each bundle reads the globals of the ones before it:
+
+```html
+<script src="https://cdn.jsdelivr.net/npm/@scandit/web-datacapture-core@8.6.1/build/js/umd/index.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@scandit/web-datacapture-barcode@8.6.1/build/js/umd/index.js"></script>
+```
+
+- `@scandit/web-datacapture-core/build/js/umd/index.js` exposes exactly one global, `SDCCore`.
+- `@scandit/web-datacapture-barcode/build/js/umd/index.js` exposes exactly one global, `SDCBarcode`.
+
+The Scandit web UMD globals are `SDCCore`, `SDCBarcode`, `SDCLabel`, `SDCId`, `SDCParser`; no others exist. `SDCParser` is only for an app that parses data with `@scandit/web-datacapture-parser`: load that bundle after the core bundle.
+
+A classic `<script>` has no top-level `await`: take the exports off these globals (`const { DataCaptureContext } = SDCCore;`) and wrap the set-up in an async function.
+<!-- END GENERATED web-cdn -->
 
 ## Integration flow
 
@@ -61,16 +218,28 @@ After providing the code, show this setup checklist:
 
 **Setup checklist:**
 1. Install packages: `npm install @scandit/web-datacapture-core @scandit/web-datacapture-barcode`
-2. Set cross-origin headers (`COOP: same-origin` + `COEP: require-corp` or `credentialless`) on the server
-3. Configure `libraryLocation` to point to the SDK engine files (self-hosted) or set to the CDN path `https://cdn.jsdelivr.net/npm/@scandit/web-datacapture-barcode@8/sdc-lib/`
-4. Replace `'-- ENTER YOUR SCANDIT LICENSE KEY HERE --'` with your key from <https://ssl.scandit.com>
+2. Set cross-origin headers (`COOP: same-origin` + `COEP: require-corp`) on the server, also when the SDK comes from the CDN, and start `BrowserHelper.checkMultithreadingSupport()` in parallel with `DataCaptureContext.forLicenseKey()`
+3. Configure `libraryLocation` to point to the SDK engine files (self-hosted) or set to the CDN path pinned to the exact version you import, for example `https://cdn.jsdelivr.net/npm/@scandit/web-datacapture-barcode@8.6.1/sdc-lib/`
+4. Replace `'-- ENTER YOUR SCANDIT LICENSE KEY HERE --'` with your key (see **Licence key** in `SKILL.md`).
 5. Add a container element to your HTML (e.g. `<div id="barcode-ar-view" style="position:fixed;inset:0">`) with defined dimensions
+6. Add the `multithreading-warning` helper module from [Loading the SDK from a CDN](#loading-the-sdk-from-a-cdn) (`multithreading-warning.js` on a plain-HTML page, `multithreading-warning.ts` in a bundled app) and import `showMultithreadingWarning` from it. The helper adds the dialog to the page itself, so the page needs no markup for it.
 
 ## Step 1 — Initialize DataCaptureContext
 
+Start the multithreading check, then initialize the context; the two run in parallel. Import `showMultithreadingWarning` from the `multithreading-warning` helper module in [Loading the SDK from a CDN](#loading-the-sdk-from-a-cdn), which adds the dialog to the page itself, so the page needs no markup for it. Leave the check out when the user asked to run single-threaded:
+
 ```typescript
-import { DataCaptureContext } from "@scandit/web-datacapture-core";
+import { BrowserHelper, DataCaptureContext } from "@scandit/web-datacapture-core";
 import { barcodeCaptureLoader } from "@scandit/web-datacapture-barcode";
+import { showMultithreadingWarning } from "./multithreading-warning";
+
+BrowserHelper.checkMultithreadingSupport()
+  .then((supported) => {
+    if (!supported) {
+      showMultithreadingWarning();
+    }
+  })
+  .catch(console.error);
 
 await DataCaptureContext.forLicenseKey(
   "-- ENTER YOUR SCANDIT LICENSE KEY HERE --",
@@ -668,7 +837,7 @@ await barcodeArView.start();
 
 ## Step 8 — Lifecycle and Cleanup
 
-### Freeze / resume (e.g. navigating away and back)
+### Freeze / resume (e.g. a dialog over the scanner)
 
 ```typescript
 // Freeze — pauses scanning, keeps camera warm for faster resume
@@ -686,6 +855,10 @@ barcodeArView.remove();         // removes the element from the DOM
 await context.dispose();        // releases all SDK resources
 ```
 
+`dispose()` releases the context. To come back afterwards, call `DataCaptureContext.forLicenseKey()` again and set `BarcodeAr` and `BarcodeArView` up again before `barcodeArView.start()`; `start()` alone does not restart a disposed context. To leave and come back without setting everything up again, keep the context and use `stop()` / `start()` instead: `pause()` keeps the camera open in standby, so it suits only a short freeze.
+
+Do not add a `visibilitychange` handler for tab switching: the view already stops the camera while the page is hidden and resumes it when the page is visible again.
+
 ## Complete Example
 
 ```typescript
@@ -701,9 +874,18 @@ import {
   barcodeCaptureLoader,
   Symbology,
 } from "@scandit/web-datacapture-barcode";
-import { DataCaptureContext } from "@scandit/web-datacapture-core";
+import { BrowserHelper, DataCaptureContext } from "@scandit/web-datacapture-core";
+import { showMultithreadingWarning } from "./multithreading-warning";
 
 async function run(): Promise<void> {
+  BrowserHelper.checkMultithreadingSupport()
+    .then((supported) => {
+      if (!supported) {
+        showMultithreadingWarning();
+      }
+    })
+    .catch(console.error);
+
   // Step 1: Initialize context — forLicenseKey() sets DataCaptureContext.sharedInstance
   await DataCaptureContext.forLicenseKey(
     "-- ENTER YOUR SCANDIT LICENSE KEY HERE --",
@@ -762,6 +944,8 @@ async function run(): Promise<void> {
 run();
 ```
 
+Import `showMultithreadingWarning` from the `multithreading-warning` helper module in [Loading the SDK from a CDN](#loading-the-sdk-from-a-cdn); the page needs no markup for the dialog.
+
 ## Key Rules
 
 1. **`BarcodeAr.forContext()` and `BarcodeArView.create()` are both async** — always `await` them.
@@ -769,9 +953,10 @@ run();
 3. **`start()` is required** — the view does not start automatically.
 4. **BarcodeArView manages camera** — do NOT set up `Camera`, `setFrameSource`, or `switchToDesiredState` manually.
 5. **No `DataCaptureView`** — `BarcodeArView.create()` replaces it entirely.
-6. **Cleanup order**: `stop()` → `remove()` → `context.dispose()`.
-7. **COOP/COEP headers are mandatory** — without them the SDK runs single-threaded and AR tracking is too slow.
-8. **`barcodeCaptureLoader()`** is the module loader for all barcode modes including BarcodeAr.
+6. **Cleanup order**: `stop()` → `remove()` → `context.dispose()`. After `dispose()`, call `forLicenseKey()` again and recreate `BarcodeAr` and `BarcodeArView` before `start()`.
+7. **COOP/COEP headers are mandatory** — `COEP: require-corp`, also from the CDN. Without them the SDK runs single-threaded and AR tracking is too slow. Start `BrowserHelper.checkMultithreadingSupport()` in parallel with `forLicenseKey()` and show the multithreading dialog when it resolves `false`, unless the user asked to run single-threaded.
+8. **Pin the CDN version** — use one exact version in every CDN URL (import map and `libraryLocation`), never a floating `@8`.
+9. **`barcodeCaptureLoader()`** is the module loader for all barcode modes including BarcodeAr.
 
 ## Common Pitfalls
 

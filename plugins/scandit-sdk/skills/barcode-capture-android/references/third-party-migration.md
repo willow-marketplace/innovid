@@ -1,5 +1,11 @@
 # Third-Party Barcode Scanner → BarcodeCapture Migration
 
+## Migration principles
+
+- **Authority.** When this guide and the API reference disagree, trust the API reference — and a runtime check in the user's project — over this guide. Say which source you followed and why in the summary.
+- **Behaviour changes.** Never present a visual or behaviour change (new default, different overlay look, changed feedback, changed scan timing) as a 1:1 rename. List each one in the summary as a judgment call the user must confirm.
+- **Compatibility layer.** When the scanning code sits behind a shared scanner library or wrapper that other code calls, keep that library's public API frozen (same types, method names, callbacks) and replace only the third-party scanner calls underneath with Scandit ones.
+
 ## Before Anything Else
 
 Read the existing code. Do not ask the user to describe what their scanner does. Identify:
@@ -26,21 +32,26 @@ Follow `references/integration.md`. When configuring `BarcodeCaptureSettings`, m
 
 ### Symbology mapping
 
-| ZXing / ML Kit name | Scandit `Symbology.*` |
-|---|---|
-| `QR_CODE` / `FORMAT_QR_CODE` | `Symbology.QR` |
-| `EAN_13` / `FORMAT_EAN_13` | `Symbology.EAN13_UPCA` |
-| `EAN_8` / `FORMAT_EAN_8` | `Symbology.EAN8` |
-| `UPC_A` / `FORMAT_UPC_A` | `Symbology.EAN13_UPCA` (UPC-A is a subset of EAN-13/UPC-A) |
-| `UPC_E` / `FORMAT_UPC_E` | `Symbology.UPCE` |
-| `CODE_39` / `FORMAT_CODE_39` | `Symbology.CODE39` |
-| `CODE_93` / `FORMAT_CODE_93` | `Symbology.CODE93` |
-| `CODE_128` / `FORMAT_CODE_128` | `Symbology.CODE128` |
-| `ITF` / `FORMAT_ITF` | `Symbology.INTERLEAVED_TWO_OF_FIVE` |
-| `CODABAR` / `FORMAT_CODABAR` | `Symbology.CODABAR` |
-| `DATA_MATRIX` / `FORMAT_DATA_MATRIX` | `Symbology.DATA_MATRIX` |
-| `AZTEC` / `FORMAT_AZTEC` | `Symbology.AZTEC` |
-| `PDF_417` / `FORMAT_PDF417` | `Symbology.PDF417` |
+<!-- BEGIN GENERATED symbology-table sources=zxing,mlkit style=kotlin -->
+| ZXing `BarcodeFormat` | ML Kit `Barcode.FORMAT_*` | Scandit `Symbology` |
+|---|---|---|
+| `QR_CODE` | `FORMAT_QR_CODE` | `Symbology.QR` |
+| `EAN_13` | `FORMAT_EAN_13` | `Symbology.EAN13_UPCA` |
+| `EAN_8` | `FORMAT_EAN_8` | `Symbology.EAN8` |
+| `UPC_A` | `FORMAT_UPC_A` | `Symbology.EAN13_UPCA` (UPC-A is read by the EAN-13/UPC-A symbology) |
+| `UPC_E` | `FORMAT_UPC_E` | `Symbology.UPCE` |
+| `CODE_39` | `FORMAT_CODE_39` | `Symbology.CODE39` |
+| `CODE_93` | `FORMAT_CODE_93` | `Symbology.CODE93` |
+| `CODE_128` | `FORMAT_CODE_128` | `Symbology.CODE128` |
+| `ITF` | `FORMAT_ITF` | `Symbology.INTERLEAVED_TWO_OF_FIVE` (no ITF-14 symbology; ITF-14 is a 14-digit Interleaved 2 of 5) |
+| `CODABAR` | `FORMAT_CODABAR` | `Symbology.CODABAR` |
+| `DATA_MATRIX` | `FORMAT_DATA_MATRIX` | `Symbology.DATA_MATRIX` |
+| `AZTEC` | `FORMAT_AZTEC` | `Symbology.AZTEC` |
+| `PDF_417` | `FORMAT_PDF417` | `Symbology.PDF417` |
+| — | `FORMAT_ALL_FORMATS` | No equivalent. Enable what the app really consumes; if nothing narrows it, the recommended default set below. Never enable everything. |
+
+**Recommended default set** when the source scanned every format and nothing in the app narrows it: `Symbology.QR`, `Symbology.EAN13_UPCA`, `Symbology.EAN8`, `Symbology.UPCE`, `Symbology.CODE39`, `Symbology.CODE93`, `Symbology.CODE128`, `Symbology.INTERLEAVED_TWO_OF_FIVE`, `Symbology.CODABAR`, `Symbology.DATA_MATRIX`, `Symbology.AZTEC`, `Symbology.PDF417`.
+<!-- END GENERATED symbology-table -->
 
 If you encounter a symbology not in this table, check the [BarcodeCapture API reference](https://docs.scandit.com/data-capture-sdk/android/barcode-capture/api.html) for the correct `Symbology` enum value before writing the code.
 

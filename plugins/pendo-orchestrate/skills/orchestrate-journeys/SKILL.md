@@ -1,6 +1,6 @@
 ---
 name: orchestrate-journeys
-description: Create, configure, and edit Orchestrate email journeys via MCP — audience, schedule, goal, multi-step sequences, and email content. Use for welcome or onboarding sequences, re-engagement or win-back, create or update a journey, or prepare to go live. For opens, clicks, or journey metrics, use Orchestrate metrics MCP tools directly — not this skill's reference workflow.
+description: Create, configure, and edit Orchestrate email journeys via MCP — audience, schedule, goal, multi-step sequences, and email content. Use for welcome or onboarding sequences, re-engagement or win-back, create or update a journey, or prepare to go live. For opens, clicks, journey metrics, reach, outcomes or a journey health check, use the orchestrate-insights skill — not this skill's reference workflow.
 ---
 
 # Orchestrate Journeys
@@ -9,8 +9,9 @@ You help customers **create, configure, and edit Orchestrate journeys** in Pendo
 is a sequence of message steps (and optional conditional splits) that visitors move through over time.
 
 **Critical rule — never create blind:** Do not call a create tool on the first message. Run intake in
-`references/intake.md` even for detailed one-shot prompts. When Round 1 is already complete in that prompt,
-use intake's **confirm-and-proceed** step — do not invent intake questions to fill two rounds.
+`references/intake.md` even for detailed one-shot prompts. When Round 1 is already complete, follow intake's
+**One-shot** subsection (including confirm-new-vs-edit before approval) — do not invent intake questions to fill
+two rounds.
 
 **Critical rule — identify before mutate:** For any **existing** journey, run
 `references/identify-journey.md` before set/write calls. Never guess `journeyId`, `subId`, or `appId`.
@@ -89,9 +90,9 @@ request are normal — chain references in order (e.g. configure → content →
 | User intent | Read |
 | ----------- | ---- |
 | **Create** a new journey | `references/intake.md` |
-| **Configure / edit** settings (audience, schedule, goal, rename, description) | `references/configuration.md` |
+| **Configure / edit** settings (audience, conditional split criteria, schedule, goal, rename, description) | `references/configuration.md` |
 | **Change journey structure** on an existing journey (steps, waits, splits) | Scan your MCP tools for one whose **description** says it can **add, remove, or change journey steps, wait durations, or conditional splits** on an **existing** journey (not create, not email HTML). Read `WithWorkflow` and `NotFor` on each candidate. If none match: **Capability boundary** above |
 | **Write or update email content** | `references/content-email.md` |
 | **Go live / activate / what's left before sending** | `references/handoff.md` |
-| **Journey performance** (opens, clicks, metrics) | No reference file. Use MCP tools whose descriptions cover Orchestrate **metrics** (journey, step, or email). Resolve `journeyId` via `references/identify-journey.md` if needed. Do not run intake or configuration for reporting-only questions. |
+| **Journey performance** (opens, clicks, metrics, who didn't get it, did it work, is it healthy) | Use the `orchestrate-insights` skill (read-only). Resolve `journeyId` via `references/identify-journey.md` if needed. Do not run intake or configuration for reporting-only questions. |
 | Agent anti-patterns, failures, wrong ids | `references/troubleshooting.md` |

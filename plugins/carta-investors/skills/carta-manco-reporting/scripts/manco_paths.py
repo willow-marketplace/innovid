@@ -16,11 +16,26 @@ Subcommands:
                               (the skill launches a localhost server + browser,
                               which only works in a local Claude Code session —
                               not Cowork or a Claude Code cloud session)
+  hosted-url (--dashboard-dir <dir> | --firm-name <name> [--firm-uuid <uuid>])
+                            → a bare link to the firm itself, no report or tab — the hosted
+                              app's own firm chooser/landing page for it, which lists all of
+                              the firm's reports. With --dashboard-dir, firm_name and
+                              firm_uuid are read straight from <dir>'s own snapshot.json and
+                              accounts.json — the firm name and uuid Step 4's build recorded
+                              for this dashboard (its own --firm-name/--firm-uuid args), never
+                              the cache-dir slug, which names a directory, not a firm.
+                              --firm-name/--firm-uuid instead take values resolved some other
+                              way (e.g. a Carta MCP list_contexts call before any local build
+                              exists) — exactly one of --dashboard-dir or --firm-name is
+                              required, and --firm-name must not be empty or all-whitespace
+                              (errors out rather than building a link to an "unknown" firm).
+                              firm_name is slugged the way the hosted Worker does
+                              (hosted_firm_slug, NOT this module's own slugify)
 
 snapshot_age_days is the age of the last datadir rebuild (Step 4), which runs
 on every invocation. raw_age_days is the age of the last actual DWH fetch
-(Step 3), from the raw_dir/.fetched-at marker — the freshness signal that
-actually gates whether Step 3 should re-run.
+(Step 3), from the raw_dir/.fetched-at marker. Neither gates Step 3: it runs
+on every invocation, scoped to the files needs_fetch names.
 
 Cache root: $XDG_CACHE_HOME/manco-reporting/ (defaults to ~/.cache/manco-reporting/).
 Deliberately outside the plugin's own dir so multiple engineers on the same
@@ -42,6 +57,7 @@ import pathlib
 import re
 import time
 import unicodedata
+import urllib.parse
 
 
 def reporting_window(today=None):
@@ -62,6 +78,14 @@ def budget_file(year, month):
     return "budget-{}-{:02d}.json".format(year, month)
 
 
+def default_budget_id(path):
+    """A parsed budget file's id when the file records none: "budget-base-case-2026.json"
+    is "base-case-2026", and "budget.json", the first workbook budget, is "primary".
+    Mapping answers are keyed by this id, so the build and the report store share it."""
+    stem = pathlib.Path(path).stem
+    return stem.replace("budget-", "", 1) if stem.startswith("budget-") else "primary"
+
+
 def slugify(name):
     if not name:
         return ""
@@ -73,6 +97,52 @@ def slugify(name):
         h = hashlib.sha1(name.strip().casefold().encode("utf-8")).hexdigest()[:12]
         slug = f"firm-{h}"
     return slug
+
+
+# The hosted app's one production host — server/worker.js's CANONICAL_HOST, and the
+# address DEPLOY.md gives operators. No environment variants exist for this app (unlike
+# Carta's own multi-environment system), so this is the only value hosted_url ever builds
+# against.
+HOSTED_APP_URL = "https://manco-reporting.carta.cloud"
+
+
+def hosted_firm_slug(name):
+    """server/worker.js's slugify(), ported exactly — the slug the hosted app's own
+    `/api/firms` and its deep-link routing (authorizedFirm) key a firm on.
+
+    Deliberately NOT this module's own slugify() above: that one NFKD-folds accents to
+    ASCII and hashes a non-Latin name into a stable `firm-<sha1>`, for a local cache
+    directory that only this machine ever reads. The hosted Worker does neither — it only
+    lowercases and collapses everything but `[a-z0-9]` to a hyphen, falling back to
+    "unknown" on an empty result — so "Société Générale Capital" slugs to
+    "societe-generale-capital" here but "soci-t-g-n-rale-capital" there. A hosted link
+    built with the wrong one names a firm the Worker's own list doesn't contain, and
+    `authorizedFirm` 403s with "No access to firm" for an operator who very much does."""
+    return re.sub(r"[^a-z0-9]+", "-", (name or "").lower()).strip("-") or "unknown"
+
+
+def hosted_url(firm_name, firm_uuid):
+    """The hosted app's bare link to one firm — the `/firm/<slug>` shape
+    app/src/shell/route.js's parseRoute() reads client-side, with `firm_name` slugged the
+    way the hosted Worker itself does (hosted_firm_slug, above) — never this module's own
+    cache-dir slugify(), which can produce a different slug for the same name. Never a link
+    to a specific report: the firm's own landing page already lists all of its reports, and
+    a report deep link can go stale (the report can move, be renamed, or stop existing)
+    while the firm link never does.
+
+    Carries `firm` (the slug) as a query string alongside the path, plus `firmUuid` when
+    `firm_uuid` is given, so the hosted app can confirm the firm by uuid rather than by slug
+    alone — two firms can collide on `hosted_firm_slug` (it drops accents and most
+    punctuation) and the uuid is unambiguous. Mirrors app/src/state/firmParam.js's own
+    `firmHref`/`withFirmParam`: `firmUuid` is omitted, never sent empty, when there is none
+    — a dashboard predating the field, or one `read_firm_identity` found no accounts.json
+    for."""
+    slug = hosted_firm_slug(firm_name)
+    path = "{}/firm/{}".format(HOSTED_APP_URL, urllib.parse.quote(slug, safe=""))
+    params = {"firm": slug}
+    if firm_uuid:
+        params["firmUuid"] = firm_uuid
+    return "{}?{}".format(path, urllib.parse.urlencode(params))
 
 
 def cache_root():
@@ -88,6 +158,138 @@ def raw_dir_for(firm_slug, manco_slug):
     return dashboard_dir_for(firm_slug, manco_slug) / "raw"
 
 
+def user_id_file(dashboard_dir):
+    return pathlib.Path(dashboard_dir) / ".user-id"
+
+
+def read_user_id(dashboard_dir):
+    """The operator's own Carta user id, written by the skill's own flow
+    (the plugin-level ${CLAUDE_PLUGIN_ROOT}/references/launch-user-id.md,
+    shared with carta-fund-modeling and carta-portfolio-analytics-app) after
+    `get_current_user` resolves it. None when it hasn't been written yet, or
+    holds anything but a positive integer — every caller treats that the same
+    as "not yet known", never an error."""
+    try:
+        user_id = int(user_id_file(dashboard_dir).read_text().strip())
+    except (OSError, ValueError):
+        return None
+    return user_id if user_id > 0 else None
+
+
+def write_user_id(dashboard_dir, raw):
+    """Record the operator's own Carta user id. No id means no MCP, not a new
+    person — so keep whatever was recorded last rather than clearing it."""
+    try:
+        user_id = int(str(raw).strip())
+    except (TypeError, ValueError):
+        return
+    if user_id <= 0:
+        return
+    try:
+        user_id_file(dashboard_dir).write_text(str(user_id))
+    except OSError:
+        pass
+
+
+def share_mcp_server_file(dashboard_dir):
+    return pathlib.Path(dashboard_dir) / ".share-mcp-server"
+
+
+def read_share_mcp_server(dashboard_dir):
+    """The connector name serve.py was pinned to (its `--share-mcp-server` flag,
+    or the MANCO_SHARE_MCP_SERVER env var it falls back to), or None for "use
+    this environment's default connectors". own_sync.py's detached sweep reads
+    this the same way, so a pinned test connector covers a build's own-sync
+    pushes too — not just the shares serve.py itself makes — and `forget`'s
+    later delete goes through the same connector a push used."""
+    try:
+        value = share_mcp_server_file(dashboard_dir).read_text().strip()
+    except OSError:
+        return None
+    return value or None
+
+
+def write_share_mcp_server(dashboard_dir, value):
+    """Record (or clear) the pinned connector. Unlike write_user_id, an absent
+    value here is meaningful — "no pin, use the default" — so it's written
+    through rather than ignored."""
+    f = share_mcp_server_file(dashboard_dir)
+    try:
+        if value:
+            f.write_text(str(value))
+        else:
+            f.unlink(missing_ok=True)
+    except OSError:
+        pass
+
+
+def own_sync_lock_file(dashboard_dir):
+    """Cross-process lock serializing own_sync.py's sweeps on one dashboard
+    (see own_sync.py's module docstring and main())."""
+    return pathlib.Path(dashboard_dir) / ".own-sync.lock"
+
+
+def own_sync_log_file(dashboard_dir):
+    """Where build_manco_datadir.py's _spawn_sync_sweep redirects a detached
+    sweep's stderr, so a report that fails to push leaves a record."""
+    return pathlib.Path(dashboard_dir) / "own_sync.log"
+
+
+def own_sync_plan_dir(dashboard_dir):
+    """Where own_sync.py --plan writes the pushes a Claude session makes through its own
+    Carta connector, one pair per report (own_sync_plan_files)."""
+    return pathlib.Path(dashboard_dir) / ".own-sync-plan"
+
+
+def own_sync_plan_files(dashboard_dir, report_id):
+    """(plan file, arguments file) for one report's planned push: what --record stamps
+    once Carta answers, and the call's exact `arguments`."""
+    plan_dir = own_sync_plan_dir(dashboard_dir)
+    return plan_dir / ("%s.plan.json" % report_id), plan_dir / ("%s.arguments.json" % report_id)
+
+
+def own_sync_status_file(dashboard_dir):
+    return pathlib.Path(dashboard_dir) / "own_sync_status.json"
+
+
+def write_own_sync_status(dashboard_dir, blocked_by, due=None):
+    """Write own_sync_status.json, diagnostic only (own_sync.py's --plan never reads it):
+    `blocked_by` (one of own_sync's BLOCKED_* reasons, or None) and, when given, `due`, the
+    report ids it applies to. own_sync._record_blocked holds the rule for what is written
+    when."""
+    status = {"blocked_by": blocked_by}
+    if due is not None:
+        status["due"] = list(due)
+    try:
+        own_sync_status_file(dashboard_dir).write_text(json.dumps(status))
+    except OSError:
+        pass
+
+
+def read_own_sync_status(dashboard_dir):
+    """{"blocked_by": <reason or None>[, "due": [report ids]]}, or None before any was
+    recorded. No `due` means the reason applies to every report."""
+    try:
+        status = json.loads(own_sync_status_file(dashboard_dir).read_text())
+    except (OSError, ValueError):
+        return None
+    return status if isinstance(status, dict) else None
+
+
+def read_carta_environment(dashboard_dir):
+    """This firm's cached snapshot.cartaEnvironment ("production" or
+    "nonprod"), served to the tracker and deciding which Carta connectors
+    report sharing (and own-sync) may use. Defaults to "production" on any
+    read/parse failure or a pre-upgrade cache built before this field
+    existed — an unclassified build is far more likely real production
+    usage than a staff test session."""
+    try:
+        data = json.loads((pathlib.Path(dashboard_dir) / "snapshot.json").read_text())
+        return data.get("cartaEnvironment") or "production"
+    except (OSError, ValueError):
+        return "production"
+
+
 def snapshot_age_days(dashboard_dir):
     p = dashboard_dir / "snapshot.json"
     if not p.exists():
@@ -96,11 +298,11 @@ def snapshot_age_days(dashboard_dir):
 
 
 def raw_age_days(raw_dir):
-    """Age of the last actual DWH fetch, in days — NOT snapshot.json's age.
-    Step 4 rewrites snapshot.json on every invocation, including warm-cache
-    ones that skip Step 3, so snapshot_age_days is always ~0 and can never
-    gate a refetch. raw_dir/.fetched-at is written once, at the end of Step
-    3's actual fetch, and is the only reliable freshness signal."""
+    """Age of the last completed DWH fetch, in days — NOT snapshot.json's age,
+    which Step 4 rewrites on every invocation. raw_dir/.fetched-at is written
+    at the end of a Step 3 fetch that ran, so it is not rewritten when Step 3
+    falls back to the cached actuals. Step 0.2 reads it to tell a warm hit
+    from a soft one; it does not decide whether Step 3 runs."""
     p = raw_dir / ".fetched-at"
     if not p.exists():
         return None
@@ -117,7 +319,11 @@ def raw_as_of(raw_dir):
 
 
 _JE_FILES = ["je-expense-page1.txt", "je-income.txt", "fund-fees.txt",
-             "cash-balance.json"]
+             "manco-fee-income.txt", "cash-balance.json"]
+
+# The actuals are stale the moment they are written, so every invocation
+# re-pulls them and the dashboard's "Data as of" is always the day it opened.
+_ACTUALS_MAX_AGE = 0.0
 
 
 def _budget_max_age(month, max_mo):
@@ -129,12 +335,12 @@ def _budget_max_age(month, max_mo):
 def max_age_days(window=None):
     """How long each of Step 3's files stays usable, in days.
 
-    These follow from what the data is: journal entries move daily, a
-    reporting currency is set at onboarding, a budget month settles once it
-    closes. `refresh` overrides all of it.
+    These follow from what the data is: the actuals (journal entries, fee
+    income, cash balance) are re-pulled on every invocation, a reporting
+    currency is set at onboarding, a budget month settles once it closes.
     """
     w = window or reporting_window()
-    ages = {name: 1.0 for name in _JE_FILES}
+    ages = {name: _ACTUALS_MAX_AGE for name in _JE_FILES}
     for month in range(1, 13):
         ages[budget_file(w["year"], month)] = _budget_max_age(month, w["max_mo"])
     ages["manco-currency.txt"] = 3650.0
@@ -174,7 +380,7 @@ def raw_inventory(raw_dir, window=None):
         if f.name in out:
             continue
         age = round((now - f.stat().st_mtime) / 86400.0, 1)
-        out[f.name] = {"age_days": age, "stale": age >= 1.0}
+        out[f.name] = {"age_days": age, "stale": age >= _ACTUALS_MAX_AGE}
     return out
 
 
@@ -208,6 +414,32 @@ def cmd_resolve(args):
     }, indent=2))
 
 
+def _read_json(path):
+    """`path` parsed as JSON, or `{}` when it's missing or not valid JSON — the one place
+    every reader of snapshot.json/accounts.json goes through, so a dashboard dir from an
+    interrupted build or an older version of this script degrades the same way everywhere
+    instead of each caller re-deciding what counts as "absent"."""
+    try:
+        return json.loads(pathlib.Path(path).read_text())
+    except Exception:
+        return {}
+
+
+def read_firm_identity(dashboard_dir):
+    """The firm name and uuid Step 4's build recorded for this dashboard — its own
+    `--firm-name`/`--firm-uuid` args, written to snapshot.json's `firmName` and
+    accounts.json's `firm_uuid` — never this module's own cache-dir slug, which names a
+    directory, not a firm. Used by hosted_url's CLI to get this dashboard's own firm
+    identity.
+
+    Returns (firm_name, firm_uuid), either `None` when its file is missing, unparsable, or
+    predates the field."""
+    dashboard_dir = pathlib.Path(dashboard_dir)
+    snap = _read_json(dashboard_dir / "snapshot.json")
+    accts = _read_json(dashboard_dir / "accounts.json")
+    return snap.get("firmName"), accts.get("firm_uuid")
+
+
 def cmd_list(_args):
     root = cache_root()
     if not root.exists():
@@ -220,29 +452,16 @@ def cmd_list(_args):
         for manco_dir in sorted(firm_dir.iterdir()):
             if not manco_dir.is_dir():
                 continue
-            snap = manco_dir / "snapshot.json"
-            firm_name = manco_name = None
-            if snap.exists():
-                try:
-                    d = json.loads(snap.read_text())
-                    firm_name  = d.get("firmName")
-                    manco_name = d.get("entityLabel")
-                except Exception:
-                    pass
-            accts = manco_dir / "accounts.json"
-            firm_uuid = firm_carta_id = manco_uuid = manco_carta_id = manco_entity_id = None
-            carta_environment = None
-            if accts.exists():
-                try:
-                    d = json.loads(accts.read_text())
-                    firm_uuid          = d.get("firm_uuid")
-                    firm_carta_id      = d.get("firm_carta_id")
-                    manco_uuid         = d.get("manco_uuid")
-                    manco_carta_id     = d.get("manco_carta_id")
-                    manco_entity_id    = d.get("manco_entity_id")
-                    carta_environment  = d.get("carta_environment")
-                except Exception:
-                    pass
+            snap = _read_json(manco_dir / "snapshot.json")
+            accts = _read_json(manco_dir / "accounts.json")
+            firm_name          = snap.get("firmName")
+            manco_name         = snap.get("entityLabel")
+            firm_uuid          = accts.get("firm_uuid")
+            firm_carta_id      = accts.get("firm_carta_id")
+            manco_uuid         = accts.get("manco_uuid")
+            manco_carta_id     = accts.get("manco_carta_id")
+            manco_entity_id    = accts.get("manco_entity_id")
+            carta_environment  = accts.get("carta_environment")
             items.append({
                 "firm_slug":         firm_dir.name,
                 "manco_slug":        manco_dir.name,
@@ -346,6 +565,19 @@ def cmd_detect_surface(_args):
     print(json.dumps({"surface": surface, "signals": signals}, indent=2))
 
 
+def cmd_hosted_url(args):
+    if args.dashboard_dir:
+        firm_name, firm_uuid = read_firm_identity(args.dashboard_dir)
+        if not firm_name:
+            raise SystemExit("hosted-url: %s has no firm name on record yet (no snapshot.json, "
+                              "or a build that predates it) — nothing to build a link against" % args.dashboard_dir)
+    else:
+        firm_name, firm_uuid = args.firm_name, args.firm_uuid
+        if not (firm_name or "").strip():
+            raise SystemExit("hosted-url: --firm-name is empty — nothing to build a link against")
+    print(json.dumps({"url": hosted_url(firm_name, firm_uuid)}))
+
+
 def main():
     p = argparse.ArgumentParser()
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -362,6 +594,18 @@ def main():
     f.set_defaults(fn=cmd_find_by_id)
 
     sub.add_parser("detect-surface", help="classify local vs sandboxed runtime surface").set_defaults(fn=cmd_detect_surface)
+
+    u = sub.add_parser("hosted-url", help="build the hosted app's bare link to a firm")
+    g = u.add_mutually_exclusive_group(required=True)
+    g.add_argument("--dashboard-dir",
+                    help="firm_name and firm_uuid are read from here (snapshot.json, accounts.json) "
+                         "— the values Step 4's build recorded for this dashboard")
+    g.add_argument("--firm-name",
+                    help="firm_name resolved some other way (e.g. a Carta MCP call before any local "
+                         "build exists), for a firm-only link with no dashboard dir to read from yet "
+                         "— must not be empty or all-whitespace")
+    u.add_argument("--firm-uuid", help="only with --firm-name; ignored with --dashboard-dir")
+    u.set_defaults(fn=cmd_hosted_url)
 
     args = p.parse_args()
     args.fn(args)

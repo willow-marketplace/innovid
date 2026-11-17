@@ -255,6 +255,6 @@ Let's launch, build, and succeed together! You can find [learning content](https
 
 ## Author
 
-**Kait Healy**
+### Kait Healy
 
 Kait is a Solutions Architect at AWS, where she works with ML startups in the UK. Within AWS, she is also an AI/ML specialist. Kait is passionate about learning about responsible AI, and how AI can best benefit humanity.

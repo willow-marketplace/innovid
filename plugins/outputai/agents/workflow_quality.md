@@ -44,13 +44,13 @@ import { z } from 'zod';
 import { z } from '@outputai/core';
 ```
 
-**CRITICAL**: Always use `@outputai/credentials` for secrets, NEVER `process.env`:
+**CRITICAL**: Always use `@outputai/core/credentials` for secrets, NEVER `process.env`:
 ```typescript
 // Wrong
 const apiKey = process.env.SERVICE_API_KEY;
 
 // Correct
-import { credentials } from '@outputai/credentials';
+import { credentials } from '@outputai/core/credentials';
 const apiKey = credentials.require( 'service.api_key' );
 ```
 
@@ -112,9 +112,9 @@ fn: async input => {
 
 ### HTTP Client Usage
 
-Never use axios directly. Use `@outputai/http`:
+Never use axios directly. Use `@outputai/core/http`:
 ```typescript
-import { createKyClient } from '@outputai/http';
+import { createKyClient } from '@outputai/core/http';
 
 const client = createKyClient( {
   prefix: 'https://api.example.com',
@@ -131,9 +131,9 @@ const result = await client.post( 'endpoint', { json: payload } ).json();
 
 ### LLM Integration
 
-Never call LLM APIs directly. Use `@outputai/llm`:
+Never call LLM APIs directly. Use `@outputai/core/llm`:
 ```typescript
-import { generateText, aiSdk } from '@outputai/llm';
+import { generateText, aiSdk } from '@outputai/core/llm';
 
 // Text generation
 const { result: text } = await generateText( {
@@ -245,7 +245,7 @@ Don't wrap step calls in try-catch. Let failures propagate for proper retry hand
 Always define inputSchema and outputSchema for type safety and validation.
 
 ### 6. Credentials Usage
-Never use `process.env` for secrets. Use `credentials.require()` from `@outputai/credentials` for mandatory secrets and `credentials.get()` with a default for optional values. See `output-dev-credentials` skill for setup and migration guidance.
+Never use `process.env` for secrets. Use `credentials.require()` from `@outputai/core/credentials` for mandatory secrets and `credentials.get()` with a default for optional values. See `output-dev-credentials` skill for setup and migration guidance.
 
 ### 7. Inline LLM Schemas
 Define schemas for `aiSdk.Output.object()` in `types.ts` and import them. Never define schemas inline in step functions -- this causes duplication and drift.
@@ -285,7 +285,7 @@ When reviewing evaluator implementations:
 **Agent**: Check that you're importing `z` from `@outputai/core`, not `zod`. Different `z` instances create incompatible schemas.
 
 **User**: "How do I make an HTTP request in my workflow?"
-**Agent**: Create a step that uses `@outputai/http`. Never make HTTP calls directly in the workflow function.
+**Agent**: Create a step that uses `@outputai/core/http`. Never make HTTP calls directly in the workflow function.
 
 ---
 *This agent specializes in Output SDK implementation best practices and code quality.*

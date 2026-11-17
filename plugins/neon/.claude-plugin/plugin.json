@@ -1,8 +1,8 @@
 {
   "name": "neon",
-  "version": "2.0.1",
-  "description": "Manage your Neon backend with the Neon agent skills and the Neon MCP Server: Lakebase Postgres, branching, Object Storage, Functions, and the AI Gateway",
-  "updatedAt": "2026-09-19T00:42:54.281Z",
+  "version": "3.0.8",
+  "description": "Manage your Neon backend with the Neon agent skills and the Neon MCP Server: Lakebase Postgres, Managed Better Auth, Realtime, Object Storage, Functions, the Data API, and AI Gateway",
+  "updatedAt": "2026-11-17T00:01:55.890Z",
   "author": {
     "url": "https://neon.com",
     "name": "Neon"
@@ -17,5 +17,11 @@
     "database",
     "mcp"
   ],
-  "skills": "./skills/"
+  "skills": "./skills/",
+  "mcpServers": {
+    "neon": {
+      "url": "https://mcp.neon.tech/mcp",
+      "type": "http"
+    }
+  }
 }

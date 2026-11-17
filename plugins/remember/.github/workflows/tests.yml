@@ -27,11 +27,39 @@ concurrency:
 jobs:
   pytest:
     runs-on: ${{ matrix.os }}
+    # #1002 round 2: a real wscript.exe call on windows-latest can hang this
+    # whole job indefinitely (a blocking UI prompt on a headless runner,
+    # never resolving on its own) rather than failing the one test that
+    # triggered it -- a bounded job timeout turns that into a fast, loud
+    # failure instead of a silent multi-hour hold.
+    # #1115: 30 minutes was NOT well above every leg's own runtime -- the
+    # macOS 3.12 leg needs roughly 28 minutes on its own and timed out
+    # twice on main (run 42282642194, jobs 128115350145 and 128128937578),
+    # while the other three macOS legs passed with only ~3 minutes of
+    # headroom left under the old 25-minute step cap. 45 minutes keeps a
+    # real ~5-minute gap over the step-level cap below (now 40 minutes)
+    # for checkout/setup/upload overhead, without being so large that a
+    # genuine hang goes undetected for most of an hour.
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
         python-version: ["3.9", "3.10", "3.11", "3.12"]
+        # #1107: ubuntu-latest moved to Ubuntu 26.04, which has no prebuilt
+        # Python 3.9 x64 build for actions/setup-python -- observed failing
+        # at the "Set up Python 3.9" step with "The version '3.9' with
+        # architecture 'x64' was not found for Ubuntu 26.04." (PR #1105 job
+        # 127504329601, PR #1106 job 127520449349). Route that one cell onto
+        # ubuntu-24.04, which still ships it, rather than dropping 3.9 from
+        # the matrix: exclude the broken cross-product cell, then include
+        # its replacement explicitly.
+        exclude:
+          - os: ubuntu-latest
+            python-version: "3.9"
+        include:
+          - os: ubuntu-24.04
+            python-version: "3.9"
     steps:
       - uses: actions/checkout@v7
       - name: Fetch origin/main
@@ -50,7 +78,11 @@ jobs:
       - name: Install test deps
         run: |
           python -m pip install --upgrade pip
-          pip install pytest pytest-cov
+          # pyyaml: tests/test_clones_badge_workflow.py (#828) parses
+          # .github/workflows/clones-badge.yml with yaml.safe_load to check
+          # its shape (SHA-pinned actions, permissions, triggers) rather than
+          # regex-matching a hand-rolled YAML subset.
+          pip install pytest pytest-cov pyyaml
       - name: Install Windows tzdata
         if: runner.os == 'Windows'
         run: pip install tzdata
@@ -76,4 +108,134 @@ jobs:
           Add-MpPreference -ExclusionPath "${{ github.workspace }}"
           Add-MpPreference -ExclusionPath "$env:RUNNER_TEMP"
       - name: Run tests
-        run: pytest
+        # #1014 round 2: this PR's own CI already hit a Windows leg that
+        # ran past this timeout and still ended `cancelled` with no log at
+        # all (job 114418645594) -- the step-level kill is not trusted to
+        # fire on its own on every OS. pyproject.toml's faulthandler_timeout
+        # dumps the stuck test's traceback well inside this bound, and the
+        # step's own timeout-minutes is what actually ends the step and
+        # keeps the log (proven on Linux: run 38122057767, job
+        # 114445674357 -- the faulthandler traceback IS in the kept log,
+        # followed by the step-timeout error). `tee` is belt-and-braces on
+        # top of that: whatever reached the log file before the step ends
+        # is uploaded as an artifact below under `if: always()`, rather
+        # than depending only on the step's own captured output surviving.
+        # #1115: 25 minutes left the macOS 3.12 leg no room at all -- it
+        # needs roughly 28 minutes on its own and hit this exact limit
+        # twice on main (run 42282642194, jobs 128115350145 and
+        # 128128937578), while the other three macOS legs passed with
+        # only ~3 minutes of headroom to spare. 40 minutes gives 3.12 real
+        # margin. This cap applies to every OS in the matrix, not just
+        # macOS 3.12 -- GitHub Actions has no per-matrix-cell override for
+        # timeout-minutes -- so a genuine Windows wscript.exe hang (#1014
+        # round 2) now takes up to 15 minutes longer to trip than before.
+        # Accepted: the other legs finish in ~22 minutes, nowhere near
+        # either the old or the new bound, so this only trades "a hang is
+        # caught fast" for "a hang is still caught, just not as fast" --
+        # it does not go undetected.
+        timeout-minutes: 40
+        shell: bash
+        run: |
+          set -o pipefail
+          pytest 2>&1 | tee pytest-output.log
+      - name: Upload pytest output log
+        # `if: always()` so a failed or timed-out step still uploads
+        # whatever reached the file -- the one case this cannot cover is
+        # a job-level `cancelled` (#1014's original failure mode, observed
+        # on Windows: job 114418645594), where GitHub Actions stops
+        # running steps entirely rather than executing the ones still
+        # pending. That path is not proven fixed here -- see the issue
+        # filed for the unproven Windows cancellation case.
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-output-${{ matrix.os }}-${{ matrix.python-version }}
+          path: pytest-output.log
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: List surviving wscript/bash/conhost/powershell processes (Windows)
+        if: always() && runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Get-CimInstance Win32_Process |
+            Where-Object { $_.Name -in @('wscript.exe', 'bash.exe', 'conhost.exe', 'powershell.exe') } |
+            Select-Object ProcessId, ParentProcessId, Name, CommandLine |
+            Format-List
+
+  # #900: each hooks.json-registered hook script is inlined and
+  # comment-stripped for the release tree (compile_hooks.py) so the
+  # Anthropic plugin directory's release-preview validator -- which never
+  # follows a `source`/`.` statement into a second file -- stops holding
+  # these four scripts as COMMAND_SCRIPT_NOT_FOLLOWED. The compiled form
+  # must behave exactly like the sourced one, so this job compiles the four
+  # hooks in place on a fresh checkout and runs the WHOLE suite against
+  # that compiled tree, on every OS the plain `pytest` job above already
+  # covers -- a hook test file's own content decides what it actually
+  # exercises; running everything is what proves nothing *else* broke.
+  hook-tests-compiled:
+    name: hook tests (compiled) / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    # #1002 round 2: same reasoning as the plain pytest job's own
+    # timeout-minutes above -- this job runs the identical real-wscript
+    # tests against the compiled hooks, so it is exposed to the same
+    # hang risk. #1115: moved in lockstep with the plain pytest job's own
+    # value for the same reason -- same suite, same macOS 3.12 wall-clock
+    # time.
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v7
+      - name: Fetch origin/main
+        # Same reasoning as the plain pytest job above (#442): a
+        # pull_request checkout has no local origin/main ref, and a test
+        # that compares against it would otherwise skip itself unnoticed.
+        run: git fetch --no-tags --depth=1 origin main:refs/remotes/origin/main
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install test deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pytest-cov pyyaml
+      - name: Install Windows tzdata
+        if: runner.os == 'Windows'
+        run: pip install tzdata
+      - name: Compile the four hooks.json-registered hooks in place (#900)
+        # `python`, not `python3`: every other python3 invocation anywhere
+        # in this repo's CI runs on ubuntu-latest only (release-branch.yml,
+        # oss-changelog.yml); this is the first python call on a Windows
+        # runner in this workflow, and actions/setup-python does not
+        # reliably provide a `python3` shim on Windows the way it does on
+        # Linux/macOS. `python` matches the convention the pip-install step
+        # above already uses on this same matrix.
+        run: python .github/scripts/compile_hooks.py --repo . --apply
+      - name: Run the full suite against the compiled hooks
+        # Same #1014-round-2 reasoning as the plain pytest job's own "Run
+        # tests" step above. #1115: moved in lockstep with that step's own
+        # value for the same reason -- same suite, same macOS 3.12
+        # wall-clock time.
+        timeout-minutes: 40
+        shell: bash
+        run: |
+          set -o pipefail
+          pytest 2>&1 | tee pytest-output.log
+      - name: Upload pytest output log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-output-hooks-${{ matrix.os }}
+          path: pytest-output.log
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: List surviving wscript/bash/conhost/powershell processes (Windows)
+        if: always() && runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Get-CimInstance Win32_Process |
+            Where-Object { $_.Name -in @('wscript.exe', 'bash.exe', 'conhost.exe', 'powershell.exe') } |
+            Select-Object ProcessId, ParentProcessId, Name, CommandLine |
+            Format-List

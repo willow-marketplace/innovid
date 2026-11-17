@@ -11,8 +11,8 @@ Keep these three concepts separate — they are managed by different tools and c
 
 | Concept | Controls | Managed by |
 | --- | --- | --- |
-| **Permissions** | Feature access — which *actions* a user can perform (create metrics, edit boards, import data, …) | `tool:list_permissions` (read-only) |
-| **Roles** | A named bundle of granted permissions (+ default read/write access) assigned to users | `tool:list_roles`, `tool:create_role`, `tool:update_role`, `tool:delete_role`, `tool:assign_role_to_user` |
+| **Permissions** | Feature access — which *actions* a user can perform (create metrics, edit boards, import data, …) | Pigment UI (Roles, permissions & access) |
+| **Roles** | A named bundle of granted permissions (+ default read/write access) assigned to users | Pigment UI (Roles, permissions & access) |
 | **Access Rights (AR)** | Cell-level *data* read/write (e.g. user can write US data, read FR data) | AR metrics and rules — this skill |
 
 **Golden rule:** Roles and Permissions protect *actions*; Access Rights protect *data*. Fine-grained data security is enforced by AR rules, **not** by roles alone. Managing Roles or Permissions themselves is out of scope for this skill.
@@ -54,7 +54,7 @@ Use `tool:create_metric` with data type **Access Rights**, dimensioned by Role x
 
 ### Step 3 -- Populate allowed combinations
 
-Use `tool:update_metric`. Set **TRUE** (via ACCESSRIGHTS) only for allowed pairs; leave all others **BLANK** (never FALSE).
+Use `tool:bulk_update_metrics`. Set **TRUE** (via ACCESSRIGHTS) only for allowed pairs; leave all others **BLANK** (never FALSE).
 
 ```pigment
 ACCESSRIGHTS(

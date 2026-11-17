@@ -1,8 +1,8 @@
 {
   "name": "altimate-code",
-  "version": "1.0.0",
-  "description": "Delegates dbt and warehouse work to altimate-code, a specialized CLI agent with 100+ purpose-built data tools (SQL analysis, column-level lineage, dbt build/test/run, warehouse profiling, FinOps, connectivity to Snowflake, BigQuery, Redshift, Databricks, Postgres, MySQL, DuckDB).",
-  "updatedAt": "2026-09-19T00:42:54.373Z",
+  "version": "1.6.0",
+  "description": "Gives Claude Code altimate-code's model-free data tools (column-level lineage, impact analysis, PII detection, data-diff, FinOps, query equivalence, dialect translation, warehouse queries) through its MCP server, or through `altimate tool run` when MCP servers are not allowed, with delegation to the altimate-code agent for long dbt jobs, access to a linked Altimate workspace's knowledge, and the workspace's team rules in each session.",
+  "updatedAt": "2026-11-17T00:01:07.459Z",
   "author": {
     "url": "https://altimate.ai",
     "name": "AltimateAI"
@@ -22,16 +22,68 @@
   "displayName": "Altimate Code",
   "skills": "./skills/",
   "commands": "./commands/",
+  "agents": [
+    "./agents/analyst.md"
+  ],
   "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks-handlers/warehouse-guard.sh\""
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks-handlers/refresh-skills.sh\" --if-stale"
+          },
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks-handlers/workspace-rules.sh\" stop"
+          }
+        ]
+      }
+    ],
     "SessionStart": [
       {
         "hooks": [
           {
             "type": "command",
             "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks-handlers/session-start.sh\""
+          },
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks-handlers/workspace-rules.sh\" session-start"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks-handlers/workspace-rules.sh\" user-prompt-submit"
           }
         ]
       }
     ]
+  },
+  "mcpServers": {
+    "altimate-code": {
+      "args": [
+        "mcp",
+        "serve",
+        "--workspace-tools"
+      ],
+      "command": "altimate-code"
+    }
   }
 }

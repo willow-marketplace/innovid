@@ -47,8 +47,11 @@ jobs:
           ./test-scorecard-parser.sh
           ./test-skill-scorecard.sh
           ./test-skill-isolation.sh
+          ./test-agy-plugin-swap.sh
+          ./test-cursor-plugin-stash.sh
           ./test-verdict-parser.sh
           ./test-bootstrap-symlink.sh
+          ./test-python-wrapper.sh
 
   pytest:
     runs-on: ubuntu-latest
@@ -108,8 +111,10 @@ jobs:
         run: |
           for f in \
             hooks/hooks.json \
+            hooks/hooks-cursor.json \
             plugin.json \
             .claude-plugin/plugin.json \
+            .cursor-plugin/plugin.json \
             .claude-plugin/marketplace.json \
             .codex-plugin/plugin.json \
             test-result-schema.json \
@@ -148,7 +153,9 @@ jobs:
               echo "WARN: $name ~${approx_tokens} tokens (${pct}% of ${max_tokens} limit)"
             fi
 
-            desc=$(sed -n 's/^description: *//p' "$skill")
+            # Folded (>) descriptions span several lines: collect from 'description:'
+            # up to the next top-level frontmatter key.
+            desc=$(awk '/^description:/{f=1; sub(/^description: *>? */,""); print; next} f && /^[a-z_-]+:/{exit} f{print}' "$skill" | tr -s ' \n' ' ')
             desc_len=${#desc}
             total_desc_chars=$((total_desc_chars + desc_len))
 
@@ -220,6 +227,13 @@ jobs:
             fail=1
           fi
 
+          # Cursor manifest must match .claude-plugin/plugin.json
+          cursor_plugin_version=$(jq -r '.version' .cursor-plugin/plugin.json)
+          if [ "$cursor_plugin_version" != "$plugin_version" ]; then
+            echo "FAIL: .cursor-plugin/plugin.json version '$cursor_plugin_version' != .claude-plugin/plugin.json '$plugin_version'"
+            fail=1
+          fi
+
           # Agent Plugins marketplace catalog pins the plugin to the release tag;
           # its source.ref must match v<version> so it can't drift on a manual edit
           if [ -f .agents/plugins/marketplace.json ]; then
@@ -281,7 +295,7 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
       - uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238  # v6.2.0
         with:
-          node-version: 22
+          node-version: 26.13.0
       - name: Run markdownlint
         run: npx markdownlint-cli2 "**/*.md"
       - name: Check relative markdown links resolve

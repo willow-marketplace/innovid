@@ -1,16 +1,26 @@
 {
   "name": "google-cloud-storage",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Official Google Cloud Storage (GCS) plugin. Storage tools plus vetted skills to manage buckets and objects, transfer data, and configure MCP, FUSE, IAM, security, lifecycle rules, signed URLs, Terraform, and the CLI.",
   "mcpServers": {
     "cloud-storage": {
       "command": "npx",
       "args": [
         "-y",
-        "@toolbox-sdk/server@1.9.0",
+        "@toolbox-sdk/server@1.13.1",
         "--prebuilt",
         "cloud-storage",
-        "--stdio"
+        "--stdio",
+        "--user-agent-metadata",
+        "gcs-skills/1.0 (skill:gcs-skills-mcp-traffic)"
+      ]
+    },
+    "google-cloud-storage-okf": {
+      "command": "uv",
+      "args": [
+        "run",
+        "--script",
+        "${extensionPath}/skills/google-cloud-storage-okf/scripts/mcp_server.py"
       ]
     }
   },

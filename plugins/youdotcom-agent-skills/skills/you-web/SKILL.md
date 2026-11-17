@@ -1,6 +1,6 @@
 ---
 name: you-web
-description: Use You.com search and contents tools when a task needs external facts, current information, source reading, factual verification, or cited synthesis.
+description: "Search the live web and read full pages with You.com. Use whenever a task needs information newer than training data or from outside the codebase: current library docs and API references, changelogs and release notes, breaking changes, error messages, package versions, pricing, news, or any claim to verify with cited sources. Works keyless through the free MCP profile when no You.com credentials are configured."
 ---
 
 # Search Skill
@@ -38,6 +38,10 @@ Build answers from read evidence, not snippets alone. Answer with citations from
 1. Put the answer first. If the answer has multiple items (a list or set), put each item on its own line.
 2. Include inline citations with real URLs.
 3. List your sources.
+
+## Free profile (no auth)
+
+If the environment has no `YDC_API_KEY` and no OAuth sign-in, or the connected You.com MCP server exposes `you-search` but not `you-contents`, load the [free profile reference](references/free-profile.md) before searching. It covers switching the `you-web` MCP entry to the keyless free profile (`profile=free`) and how this pipeline changes when only `you-search` is available.
 
 ## Evidence Rules
 

@@ -1,14 +1,23 @@
 ---
 name: credits-quotas-plans
-description: Use when the user asks about credits, quotas, or plan limits, or verified usage requires a significant-spend warning or reveals a limit. Covers data-credit balance, action-execution balance, search result caps, period quotas, and upgrade paths before starting work that would only partially complete.
+description: Use when the user asks how to upgrade or change their Clay plan, where to manage billing, or about credits, quotas, or plan limits — including upgrade requests when credits remain. Provides the workspace’s direct plan-selector link and handles data-credit balances, action-execution balances, search caps, period quotas, and verified spending limits before paid work.
 ---
 
 # Credits, quotas, and plans
+
+Before using this skill, read the `clay` entry skill if you haven’t already this session, and follow its access guidance.
 
 Follow the shared cost policy in `workflows-discover-actions/cost-and-budget.md`. Check headroom internally before paid work;
 do not announce balances or suggest purchases just because a tool returned billing data.
 Stop and explain a verified shortfall rather than knowingly starting a partial run.
 An unknown cost does not establish a shortfall or require a cost-only approval.
+
+## Upgrade or change plan
+
+When the user asks how to upgrade, give their workspace’s plan-selector link below,
+even when credits remain. Do not require a shortfall or recommend waiting because of
+the remaining balance. Product documentation can supplement the answer, but must not
+replace the direct upgrade link with a docs link or general settings directions.
 
 ## Triage
 
@@ -18,6 +27,10 @@ After checking what remains (below), route by what is short:
 - **`actionExecutionBalance` short** (when the field is present) — plan selector only.
   There is no top-up for action executions. Do not offer `once`, `auto`, or
   `addCredits`.
+- **`user.balance` short** (when `user.limit` is not null) — the
+  user's personal monthly credit limit. A top-up does not raise it; a workspace admin
+  does, from the MCP page in Clay. It applies only to runs billed to the user, so
+  mention it as a possible blocker rather than refusing the run on it alone.
 - **Search `quota_exceeded` or period cap exhausted** — plan selector and/or wait for
   the named reset in the error message. Defer shrink/retry rules to the `search`
   skill; do not invent a top-up path for result caps.
@@ -33,7 +46,7 @@ clay whoami | jq -r '.workspace.id'
 ## Check what remains
 
 ```bash
-clay credits balance | jq '{ balance, actionExecutionBalance }'
+clay credits balance | jq '{ balance, actionExecutionBalance, user }'
 ```
 
 `balance` is the data-credit pool. `actionExecutionBalance` is optional — present
@@ -44,6 +57,11 @@ For routine runs, `clay routines get <id>` includes per-item cost estimates.
 When the estimate applies to the configured execution and its counts are known, multiply
 each cost by the number of items and compare against the matching balance. See the
 `routines` skill for estimate limitations and the stop-before-partial-run rule.
+
+`user` identifies the user (`id`, `name`, `email`) and carries their personal monthly
+credit `limit` and remaining `balance`, both null when they have no personal limit. That limit can also stop a run billed to the user while
+workspace credits remain. These fields are not a complete capacity check: a credit budget
+assigned to the user can also stop a run, and this command does not report it.
 
 Read `clay credits balance --help` for field semantics.
 
@@ -98,7 +116,7 @@ for the user before `auto enable`, `once`, or checkout `--open`.
 
 ## Billing UI
 
-Prefer CLI auto first. Use the billing UI when the user wants the browser, or as
+Prefer automatic top-up first. Use the billing UI when the user wants the browser, or as
 the one-time fallback after they decline auto / auto is unavailable:
 
 ```bash
@@ -111,7 +129,7 @@ The `addCredits=true` query opens the buy-credits modal directly.
 
 ## Search and result-cap quotas
 
-There is no CLI to top up search result caps or period quotas. Auto top-up only
+These operations do not top up search result caps or period quotas. Auto top-up only
 replenishes **credit** shortfalls — it does not raise per-search or per-period
 result limits.
 

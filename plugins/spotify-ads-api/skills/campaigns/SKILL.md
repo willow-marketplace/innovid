@@ -18,6 +18,10 @@ api() { "$PLUGIN_ROOT/scripts/api-request.sh" campaigns "$@"; }
 
 Before the first Ads API v3 call, read and follow `$PLUGIN_ROOT/skills/api-reference/references/live-openapi.md`.
 
+Before sending any output to a human user, read and follow `$PLUGIN_ROOT/skills/api-reference/references/language-standards.md`.
+
+Also read `$PLUGIN_ROOT/skills/api-reference/references/api-behaviors.md` for API behaviour the spec does not express (micro-amounts, no DELETE on live entities, retry safety).
+
 To retrieve settings values (TOKEN, AD_ACCOUNT_ID, AUTO_EXECUTE, BASE_URL, SDK_HEADER, SKILL_HEADER, PLUGIN_VERSION) for use outside API calls, run `api --env`. The output is eval-safe, so `eval $(api --env)` assigns them all.
 
 ## Operations
@@ -64,6 +68,8 @@ Display all campaign fields in a readable format.
 Prompt the user for fields to update (at least 1 required):
 - **name** (string, optional)
 - **status** (ACTIVE, PAUSED, ARCHIVED, optional)
+
+**Paused is not an ad set or ad status**: only campaigns use `statuses=PAUSED`. For paused ad sets, list `api GET "ad_accounts/{ad_account_id}/ad_sets?delivery=OFF"` and report `is_paused`/`pause_reason`; never send `statuses=PAUSED` to ad sets or ads. **Updates are PATCH, never PUT**: the spec defines no PUT on Ads API v3 endpoints. **Ad sets for a campaign**: `api GET "ad_accounts/{ad_account_id}/ad_sets?campaign_ids=$CAMPAIGN_ID"`. There is no nested `/campaigns/{id}/ad_sets` route.
 
 Before the PATCH, read and follow
 `$PLUGIN_ROOT/skills/api-reference/references/ad-product-validation.md`. Fetch the live

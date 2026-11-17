@@ -123,6 +123,13 @@ UpdateVariable:
 indicator into an enrichment call, reference the producing action's output directly
 (`${data['HydrateDetection.results'][0].URL}`) rather than inventing a custom variable you never create.
 
+**Don't seed a variable with a placeholder value you can't source.** When a variable holds something
+the user must supply — a recipient email, an approver — do NOT default it to a fabricated
+`approver@example.com`. That address dead-ends at runtime (no CID delivers to `example.com`-style
+domains), and routing it through a variable hides it from the Send email recipient check. Declare the
+variable with no `default:` (configured in the console) or bind it from a trigger parameter —
+`validate.py` flags a fake-domain email assigned to a `CreateVariable` default or `UpdateVariable` setter.
+
 **Well-known fixed IDs**:
 - CreateVariable: `702d15788dbbffdf0b68d8e2f3599aa4`
 - UpdateVariable: `6c6eab39063fa3b72d98c82af60deb8a`
@@ -146,6 +153,32 @@ OktaRevokeSessions:
 ```
 
 **Warning**: `config_id` values are CID-specific. Workflows using them cannot be imported into a different CID without updating these IDs.
+
+**An API error fails a plugin action, unlike an HTTP Action.** When the vendor
+API returns an error, such as a 404 from Okta Get User for an unknown login, the
+plugin action is marked Failed and the nodes after it are skipped. In a loop,
+that iteration ends as failed and never reaches a "not found" branch
+(`continue_on_partial_execution` only keeps the other iterations going). To
+handle the error, set `continue_on_error: true` on the action: the next node then
+runs, and the vendor's error body is in `<ActionLabel>.body` (for Okta,
+`body.errorCode` is `E0000007`). There's no status-code output, so branch on
+whether a success field is present, e.g. `data[?'OktaGetUser.body.id'].orValue('') != ''`.
+Verified live with Okta Get User with login, with and without `continue_on_error`.
+
+```yaml
+OktaGetUser:
+    id: 1bafcb79d5dd4c65b652d03cd3fa7b89
+    name: Okta - Get User with login
+    continue_on_error: true        # a 404 would otherwise fail the iteration
+    next:
+        - UserFound                # condition on body.id, else -> record skipped
+    properties:
+        config_id: bb72f1a93d89473b8c0bd1a3317fb1a9  # per-CID; ask the user
+        params:
+            path:
+                Okta login: ${data['user_emails.#']}
+    version_constraint: ~0
+```
 
 ---
 
@@ -273,7 +306,7 @@ actions:
     EnrichHash:   { id: ..., next: [SummarizeEnrichment], properties: {...} }
 ```
 
-Do **not** invent pass-throughcondition nodes (`default_parallel_*` with
+Do **not** invent pass-through condition nodes (`default_parallel_*` with
 `default: true`) to model the fan-out. Release rejects those synthetic nodes
 (`exclusive gateway ... has no condition set and is not marked as default`,
 confirmed live — the release API does not honor a node-level `default: true`),
@@ -313,7 +346,11 @@ actions:
 
 Both the enrichment action (`next`) and the skip path (`else`) land on
 `SummarizeEnrichment` directly. No join node — the convergence is expressed by
-many edges pointing at one target, which is what released cleanly.
+many edges pointing at one target, which is what released cleanly. (Note: if the
+Event Query returns no rows, every gate's `else` fires and all branches skip —
+the workflow still terminates on the convergence target but produces empty
+enrichment. Expect this when testing with mock data that doesn't populate the
+query's repo.)
 
 ### Gate an enrichment on the indicator being present
 

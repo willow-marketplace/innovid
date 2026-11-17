@@ -109,10 +109,10 @@ Call `search_contacts` filtered by the company ID. Use the response to produce a
 For a **COVERED** company (visited in the last 12 months) this is free — always run it; do not gate or skip it on cost grounds. For an **UNCOVERED** company it charges 1 credit (if the company has signals), so only run it under the consent obtained in Step 2.5. Call `search_companies_signals` for the single `company_id`. Apply the same default filters as the Daily Visitor Brief:
 
 - **Recency window:** `event_date.from` = today minus 90 days (or override the user's engagement window if longer).
-- **Exclude regulatory noise:** Pass an explicit `categories` array containing every category EXCEPT `regulatory_compliance_updates`. Full default categories:
+- **Exclude regulatory noise:** Pass an explicit `categories` array containing every category EXCEPT `regulatory_and_compliance_updates`. Full default categories:
 
 ```
-["business_expansion", "competitive_landscape", "event_participation", "industry_recognition", "leadership_changes", "corporate_challenges", "mergers_and_acquisitions", "customer_acquisition", "investment_activity", "product_and_service_development", "partnerships_and_collaborations", "financial_struggles", "job_ads", "register_updates"]
+["business_expansion", "competitive_landscape", "event_participation", "industry_recognition", "leadership_changes", "mergers_and_acquisitions", "customer_acquisition", "investment_activity", "product_and_service_development", "partnerships_collaborations", "job_ads", "employee_count_changes", "revenue_changes"]
 ```
 
 Group the returned signals by category. Highlight the ones that move the recommended action (hiring spikes, funding events, leadership changes, M&A activity, financial stress).

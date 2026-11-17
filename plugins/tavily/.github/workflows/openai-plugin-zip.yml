@@ -1,0 +1,65 @@
+name: OpenAI plugin ZIP
+
+# Builds the ZIP that is uploaded to the OpenAI plugin directory
+# (platform.openai.com/plugins). The upload itself is manual.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  # The plugin's ID in the OpenAI dashboard. Uploads must use it as the
+  # manifest name. The repo manifest keeps "tavily" for Codex marketplace installs.
+  OPENAI_PLUGIN_NAME: app-69f271663a288191ac98f46bed7cb032
+  # The MCP URL the existing app was submitted with. Updates must keep it.
+  OPENAI_MCP_URL: https://mcp.tavily.com/mcp/
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check version
+        id: version
+        run: |
+          version=$(jq -r .version .codex-plugin/plugin.json)
+          if [ "${{ github.event_name }}" = "release" ] && [ "${GITHUB_REF_NAME#v}" != "$version" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match .codex-plugin/plugin.json version $version"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      # The directory rejects packages with lifecycle hooks or app references,
+      # so the ZIP holds only the Codex manifest, MCP config, skills and assets.
+      - name: Build ZIP
+        run: |
+          zip_name="tavily-openai-plugin-${{ steps.version.outputs.version }}.zip"
+          if jq -e '.hooks or .apps' .codex-plugin/plugin.json > /dev/null; then
+            echo ".codex-plugin/plugin.json declares hooks or apps"
+            exit 1
+          fi
+          mkdir dist package
+          cp -R .codex-plugin .mcp.json skills assets LICENSE README.md package/
+          jq --arg name "$OPENAI_PLUGIN_NAME" '.name = $name' .codex-plugin/plugin.json > package/.codex-plugin/plugin.json
+          jq --arg url "$OPENAI_MCP_URL" '.mcpServers.tavily.url = $url' .mcp.json > package/.mcp.json
+          (cd package && zip -r "../dist/$zip_name" . -x '*.DS_Store')
+          unzip -p "dist/$zip_name" .codex-plugin/plugin.json | jq -e --arg name "$OPENAI_PLUGIN_NAME" '.name == $name' > /dev/null
+          unzip -p "dist/$zip_name" .mcp.json | jq -e --arg url "$OPENAI_MCP_URL" '.mcpServers.tavily.url == $url' > /dev/null
+          unzip -l "dist/$zip_name"
+          echo "ZIP_NAME=$zip_name" >> "$GITHUB_ENV"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: openai-plugin-zip
+          path: dist/${{ env.ZIP_NAME }}
+
+      - name: Attach to release
+        if: github.event_name == 'release'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$GITHUB_REF_NAME" "dist/$ZIP_NAME" --clobber

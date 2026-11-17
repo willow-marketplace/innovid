@@ -5,7 +5,7 @@ title: "Discover four Pakistani startups at the forefront of AI/ML"
 
 ## Discover four Pakistani startups at the forefront of AI/ML
 
-_By Eunice Cheng_
+> _By Eunice Cheng_
 
 [Amazon Web Services (AWS)](https://aws.amazon.com/) and [Epiphany](https://epiphanyofficial.co/) joined forces in 2021 to co-curate an artificial intelligence (AI)/machine learning (ML) bootcamp called [AI/ML Reactor](https://epiphanyofficial.co/ai-ml-reactor/). AI/ML Reactor is a rigorous 5-week virtual program aimed at driving AI/ML awareness and empowering startups in Pakistan.
 
@@ -73,6 +73,6 @@ The team was able to make an impact on improving the onboarding funnel, increasi
 
 ## About the Author
 
-**Eunice Cheng**
+### Eunice Cheng
 
 Eunice Cheng currently leads Startup Marketing at Amazon Web Services in Southeast Asia. Leveraging her experience as a former startup operator and growth marketing consultant, she is dedicated to helping entrepreneurs grow and scale with AWS.

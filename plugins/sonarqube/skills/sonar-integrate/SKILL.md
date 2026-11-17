@@ -13,14 +13,14 @@ Interaction rule: for every finite decision, always present predefined selector 
 
 ### Step 1 — Check for sonarqube-cli and update it
 
-Check if `sonar` is available on the PATH by running `which sonar` (macOS/Linux) or `Get-Command sonar` (Windows) yourself.
+Check if the CLI is available by running `sonar --version` (macOS/Linux) or `sonar.exe --version` (Windows) yourself; a zero exit code (version printed) means found. If found, also run `which sonar` (macOS/Linux) or `(Get-Command sonar.exe).Source` (Windows) to find the installation location.
 
 **If found:** first determine how it was installed, because the upgrade path differs:
 
-- **Managed by a package or version manager** (e.g. installed via Homebrew or mise — the binary lives under the manager's prefix rather than `~/.local/share/sonarqube-cli/bin`): do **not** run `sonar self-update`, as it conflicts with the manager. Run the manager's upgrade command yourself instead (Homebrew: `brew upgrade --cask sonarqube-cli`; mise: `mise upgrade aqua:SonarSource/sonarqube-cli`), then go to Step 2. If the upgrade fails, show the output but **still continue** to Step 2 as long as `sonar` remains usable.
-- **Installed via the shell/PowerShell script, or unsure:** run **`sonar self-update`** yourself and wait for it to finish.
+- **Managed by a package or version manager** (e.g. installed via Homebrew or mise — the binary lives under the manager's prefix rather than `~/.local/share/sonarqube-cli/bin`): do **not** run `sonar update`, as it conflicts with the manager. Run the manager's upgrade command yourself instead (Homebrew: `brew upgrade --cask sonarqube-cli`; mise: `mise upgrade aqua:SonarSource/sonarqube-cli`), then go to Step 2. If the upgrade fails, show the output but **still continue** to Step 2 as long as `sonar` remains usable.
+- **Installed via the shell/PowerShell script, or unsure:** run **`sonar update`** yourself and wait for it to finish.
   - **If it succeeds:** briefly tell the user the CLI is up to date (or was upgraded), then go to Step 2.
-  - **If it fails:** show the relevant output, suggest they run `sonar self-update` manually (e.g. offline or network issues), then **still continue** to Step 2 if `sonar` remains usable — do not block the rest of the flow unless the binary is missing or broken.
+  - **If it fails:** show the relevant output, suggest they run `sonar update` manually (e.g. offline or network issues), then **still continue** to Step 2 if `sonar` remains usable — do not block the rest of the flow unless the binary is missing or broken.
 
 **If not found:** pick an install command from the table below, show it to the user, and ask for explicit confirmation **before running it**. Do **not** execute the command until the user confirms.
 
@@ -33,7 +33,7 @@ The shell/PowerShell script is the default and works everywhere. If the user alr
 | Any OS (mise)            | `mise use -g aqua:SonarSource/sonarqube-cli`                                                                             |
 | Windows (PowerShell)     | `irm https://raw.githubusercontent.com/SonarSource/sonarqube-cli/refs/heads/master/user-scripts/install.ps1 \| iex`      |
 
-**If the user confirms:** run the command yourself using a shell command. After it finishes, re-run the PATH check (`which sonar` or `Get-Command sonar`) yourself to verify before continuing.
+**If the user confirms:** run the command yourself using a shell command. After it finishes, re-run the version check (`sonar --version` or `sonar.exe --version`) yourself to verify before continuing.
 
 **If the user declines:** stop the skill and ask the user to install `sonarqube-cli` manually and then re-invoke the sonar-integrate skill.
 
@@ -92,126 +92,20 @@ verify before continuing.
 
 > **Container runtime requirement:** The SonarQube MCP Server runs inside a container, started via `sonar run mcp` (which detects Docker, Podman, or Nerdctl). A container runtime must be **installed and running** for the MCP tools to load — otherwise integration can complete successfully yet no `mcp__sonarqube__*` tools appear in the session. **Verify this yourself:** run `docker ps` (falling back to `podman ps` / `nerdctl ps`). If one succeeds, the runtime is up — proceed. If none do, tell the user their container runtime is not running and ask them to start it, then note they must restart the agent session afterward for the tools to load (starting the daemon and restarting the session are the only parts you cannot do for them).
 
-Pick exactly one branch below based on which agent you are. Do not run the other branches.
+For the current agent, run this command yourself using a shell command:
 
-- Claude Code -> **4.a**
-- Copilot CLI -> **4.b**
-- Codex -> **4.c**
-- Cursor -> **4.d**
-- Antigravity -> **4.e**
-- Gemini CLI -> **4.f**
+```bash
+sonar integrate <agent> --non-interactive
+```
 
-#### 4.a — Claude Code (`sonar integrate claude`)
+Use the current agent's name: `claude`, `copilot`, `codex`, `cursor`, `antigravity`, `devin`, `pi`, or `opencode`.
 
-Run **`sonar integrate claude`**, which configures the **SonarQube MCP Server**, **secrets-scanning hooks**, and any other supported integration the CLI applies.
+Exceptions:
 
-It wires **MCP** (for skills like sonar-quality-gate, sonar-analyze, sonar-coverage, sonar-duplication, sonar-dependency-risks) and **secrets-scanning hooks** into the user’s Claude Code config. When available, SonarQube Vortex analysis hooks are also installed.
+- **Cursor:** After the command completes, tell the user to open **Settings → MCP** and enable the `sonarqube` entry.
+- **Factory Droid:** Skip the command; the plugin's `mcp.json` already configures the SonarQube MCP Server via `sonar run mcp`.
 
-Ask the user using a single-choice selector with these options:
-
-1. Current project only (default)
-2. Global (all projects)
-
-Do not ask an open-ended text question for this decision.
-
-Then run the appropriate command yourself using a shell command, and adding `--non-interactive`:
-
-| Scenario     | Command                                             |
-| ------------ | --------------------------------------------------- |
-| Project-only | `sonar integrate claude --non-interactive`          |
-| Global       | `sonar integrate claude --global --non-interactive` |
-
-#### 4.b — Copilot CLI (`sonar integrate copilot`)
-
-Run **`sonar integrate copilot`**, which configures the **SonarQube MCP Server**, **secrets-scanning hooks**, and any other supported integration the CLI applies.
-
-It wires **MCP** (for skills like sonar-quality-gate, sonar-analyze, sonar-coverage, sonar-duplication, sonar-dependency-risks) and **secrets-scanning hooks** into the user’s Copilot CLI config.
-
-Ask the user using a single-choice selector with these options:
-
-1. Current project only (default)
-2. Global (all projects)
-
-Do not ask an open-ended text question for this decision.
-
-Then run the appropriate command yourself using a shell command, and adding `--non-interactive`:
-
-| Scenario     | Command                                             |
-| ------------ | --------------------------------------------------- |
-| Project-only | `sonar integrate copilot --non-interactive`          |
-| Global       | `sonar integrate copilot --global --non-interactive` |
-
-#### 4.c — Codex (`sonar integrate codex`)
-
-Run **`sonar integrate codex`**, which configures the **SonarQube MCP Server**, **secrets-scanning hooks**, and—when your SonarQube Cloud org has Vortex analysis—a **PostToolUse** hook on **`apply_patch`** that surfaces findings inline after edits.
-
-Ask the user using a single-choice selector with these options:
-
-1. Current project only (default)
-2. Global (all projects)
-
-Do not ask an open-ended text question for this decision.
-
-Then run the appropriate command yourself using a shell command, and adding `--non-interactive`:
-
-| Scenario     | Command                                            |
-| ------------ | -------------------------------------------------- |
-| Project-only | `sonar integrate codex --non-interactive`          |
-| Global       | `sonar integrate codex --global --non-interactive` |
-
-If the project key is not already known from `sonar-project.properties` or prior context, add **`--project <key>`** to the project-only command.
-
-#### 4.d — Cursor (`sonar integrate cursor`)
-
-Run **`sonar integrate cursor`**, which configures **secrets-scanning hooks** (`beforeSubmitPrompt`, `beforeReadFile`, and `preToolUse`), **MCP**, **Context Augmentation** (when entitled), and **Vortex analysis instructions** (when entitled, project scope only).
-
-Ask the user using a single-choice selector with these options:
-
-1. Current project only (default)
-2. Global (all projects)
-
-Do not ask an open-ended text question for this decision.
-
-Then run the appropriate command yourself using a shell command, adding **`--non-interactive`**:
-
-| Scenario     | Command                                                |
-| ------------ | ------------------------------------------------------ |
-| Project-only | `sonar integrate cursor --non-interactive`             |
-| Global       | `sonar integrate cursor --global --non-interactive`    |
-
-If the project key is not already known from `sonar-project.properties` or prior context, add **`--project <key>`** to the project-only command.
-
-After integrate completes, tell the user to enable the MCP server manually in Cursor: open **Settings → MCP**, find the `sonarqube` entry, and toggle it on. Also tell the user to ensure a container runtime (Docker, Podman, or Nerdctl) is running. A Cursor session restart may be needed for the tools to appear.
-
-#### 4.e — Antigravity (`sonar integrate antigravity`)
-
-Run **`sonar integrate antigravity`**, which configures **secrets-scanning hooks**, **prompt-secrets and Vortex analysis instructions**, **Context Augmentation** (when entitled), and **MCP** in the Antigravity harness.
-
-Ask the user using a single-choice selector with these options:
-
-1. Current project only (default)
-2. Global (all projects)
-
-Do not ask an open-ended text question for this decision.
-
-Then run the appropriate command yourself using a shell command, adding **`--non-interactive`**:
-
-| Scenario     | Command                                                |
-| ------------ | ------------------------------------------------------ |
-| Project-only | `sonar integrate antigravity --non-interactive`        |
-| Global       | `sonar integrate antigravity --global --non-interactive` |
-
-If the project key is not already known from `sonar-project.properties` or prior context, add **`--project <key>`** to the project-only command.
-
-Tell the user to ensure a container runtime (Docker, Podman, or Nerdctl) is running, and to restart the Antigravity session if MCP tools do not appear after integrate completes.
-
-#### 4.f — Gemini CLI *(legacy)*
-
-Gemini CLI starts the SonarQube MCP Server via `sonar run mcp`, which handles container runtime detection (Docker, Podman, Nerdctl) and authentication automatically. Authentication was handled in Steps 2–3.
-
-Confirm that integration is ready — the MCP server will start automatically when Gemini CLI reads **`gemini-extension.json`**.
-
-Recommend migrating to **Antigravity** (**4.e**): run **`agy plugin import gemini`**, then **`sonar integrate antigravity`**. Gemini CLI did not support SonarQube hooks or Vortex analysis wiring.
+After integration completes, tell the user to ensure Docker, Podman, or Nerdctl is running, then restart the current agent session to load the configuration.
 
 ---
 
@@ -224,49 +118,22 @@ After all steps complete, print a summary:
 
   sonarqube-cli:     up to date
   Authentication:    token stored in system keychain
-  MCP Server:        configured (ensure a container runtime (Docker, Podman, or Nerdctl) is running, then restart the agent session if tools do not appear)
+  Integration:       configured
+
+Ensure Docker, Podman, or Nerdctl is running, then restart the current agent session to load the configuration.
 
 You can verify at any time with:  sonar auth status
 To refresh CLI + wiring later:    invoke the sonar-integrate skill again
 ```
 
-If path **4.a** (Claude Code) was taken, add this line to the summary:
+For **Cursor**, insert this message before the container runtime and restart instruction:
 
 ```
-  Secrets scanning:  hooks registered via sonar integrate claude
+Enable the sonarqube entry in Cursor Settings → MCP before restarting.
 ```
-
-If path **4.b** (Copilot CLI) was taken, add this line to the summary:
-
-```
-  Secrets scanning:  hooks registered via sonar integrate copilot
-```
-
-If path **4.c** (Codex) was taken, add this line to the summary:
-
-```
-  Hooks & MCP:       wired via sonar integrate codex
-```
-
-If path **4.d** (Cursor) was taken, add these lines to the summary:
-
-```
-  CLI integrate:     wired via sonar integrate cursor
-  MCP Server:        enable manually in Cursor Settings → MCP (ensure a container runtime (Docker, Podman, or Nerdctl) is running; restart may be needed)
-```
-
-And **omit** the default `MCP Server` line (it is replaced by the Cursor-specific one above).
-
-If path **4.e** (Antigravity) was taken, add these lines to the summary:
-
-```
-  CLI integrate:     wired via sonar integrate antigravity
-```
-
-If path **4.f** (Gemini CLI) was taken, no extra line is required beyond the default MCP summary.
 
 If **sonarqube-cli was freshly installed** in Step 1, replace the `sonarqube-cli` summary line with `sonarqube-cli: installed`.
 
-If **`sonar self-update`** failed in Step 1, adjust the summary: omit the `sonarqube-cli` line or state that the CLI was not updated and suggest `sonar self-update` in a terminal.
+If **`sonar update`** failed in Step 1, adjust the summary: omit the `sonarqube-cli` line or state that the CLI was not updated and suggest `sonar update` in a terminal.
 
 If any other step failed, note it clearly and suggest the corrective action.

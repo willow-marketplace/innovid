@@ -5,7 +5,7 @@ title: "Selecting the right foundation model for your startup"
 
 ## Selecting the right foundation model for your startup
 
-_Learn how to build a generative AI application — get products to market as quickly as possible, while maintaining cost efficiency and high performance_
+> _Learn how to build a generative AI application — get products to market as quickly as possible, while maintaining cost efficiency and high performance_
 
 ---
 

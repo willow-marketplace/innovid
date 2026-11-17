@@ -6,8 +6,10 @@ import { initializeMcpServer, type McpConfig } from "./mcp-handler.js";
 import { expandToolSelection } from "./toolRegistry.js";
 import { log } from "./utils/logger.js";
 import { parsePositiveInteger } from "./tools/agentRun.js";
+import { parseSearchType } from "./tools/searchType.js";
+import { parseDynamicHighlights } from "./tools/highlights.js";
 
-// Reads EXA_API_KEY, ENABLED_TOOLS / TOOLS, DEBUG, DEFAULT_SEARCH_TYPE from env.
+// Reads EXA_API_KEY, ENABLED_TOOLS / TOOLS, DEBUG, DEFAULT_SEARCH_TYPE, DYNAMIC_HIGHLIGHTS from env.
 // HTTP/Vercel entry point lives in api/mcp.ts; CLI bootstrap lives in src/stdio-cli.ts.
 
 function parseTools(value: string | undefined): string[] | undefined {
@@ -21,11 +23,6 @@ function parseTools(value: string | undefined): string[] | undefined {
   return tools.length > 0 ? tools : undefined;
 }
 
-function parseSearchType(value: string | undefined): "auto" | "fast" | "instant" | undefined {
-  if (value === "auto" || value === "fast" || value === "instant") return value;
-  return undefined;
-}
-
 export function buildConfigFromEnv(env: NodeJS.ProcessEnv = process.env): McpConfig {
   const exaApiKey = env.EXA_API_KEY;
   return {
@@ -35,6 +32,7 @@ export function buildConfigFromEnv(env: NodeJS.ProcessEnv = process.env): McpCon
     exaSource: env.EXA_SOURCE,
     mcpSessionId: env.MCP_SESSION_ID,
     defaultSearchType: parseSearchType(env.DEFAULT_SEARCH_TYPE),
+    dynamicHighlights: parseDynamicHighlights(env.DYNAMIC_HIGHLIGHTS),
     userProvidedApiKey: Boolean(exaApiKey),
     mcpMaxDurationSeconds: parsePositiveInteger(env.MCP_MAX_DURATION_SECONDS),
     agentCallWindowMs: parsePositiveInteger(env.AGENT_CALL_WINDOW_MS),
@@ -47,7 +45,7 @@ export async function main(env: NodeJS.ProcessEnv = process.env): Promise<void> 
   const server = new McpServer({
     name: "exa-search-server",
     title: "Exa",
-    version: "3.4.1",
+    version: "3.4.3",
     websiteUrl: "https://exa.ai",
     icons: [
       { src: "https://exa.ai/images/favicon-32x32.png", mimeType: "image/png", sizes: ["32x32"] },

@@ -1,10 +1,10 @@
 # Running your app on the remote sim — tested sequences
 
-The remote sim boots blank. You install a **simulator-targeted** build onto the session, then open it. Pick a mode from `SKILL.md`. (Sequences validated against eas-cli 20.3.x + agent-device 0.17.x in mid-2026. These commands are experimental — check the relevant subcommand's `--help` before using non-default flags.)
+The remote sim boots blank. You install a **simulator-targeted** build onto the session, then open it. Pick a mode from `SKILL.md`. (Sequences validated against eas-cli 20.3.x + agent-device 0.17.x in mid-2026. Check the relevant subcommand's `--help` before using non-default flags.)
 
 In all modes, the session is started the same way and driven through `npx --yes eas-cli@latest simulator:exec`. Replace `dev.example.app` with the app's iOS `bundleIdentifier` (from `app.json` → `ios.bundleIdentifier`), and run from the project directory.
 
-> These sequences are **iOS**. For **Android**: build via `npx --yes eas-cli@latest build --platform android` (or local Gradle), `install` the `.apk` instead of an `.app`, and skip `pod install`. Current simulator session types include a web preview, though Android support is still in development and may lack iOS parity.
+> These sequences are **iOS**. For **Android**: build via `npx --yes eas-cli@latest build --platform android` (or local Gradle), `install` the `.apk` instead of an `.app` (`.aab` fails), and skip `pod install`. Android sessions include a browser preview (`webPreviewUrl`), which the expo.dev session page opens in a new tab with **Open preview**. Some features are iOS-only, such as crash reports and the device log API; check `--help` for platform notes.
 
 ## Starting a session (shared by all modes)
 
@@ -35,34 +35,40 @@ for i in $(seq 1 64); do
 done
 ```
 
-If you need the id explicitly, it's `EAS_SIMULATOR_SESSION_ID` in `.env.eas-simulator`. `start` also prints a `webPreviewUrl` (iOS-only browser preview — surface it per the SKILL.md "watch it live" rules) and a job-run URL. Once live, the session env is in `.env.eas-simulator`, so `simulator:exec` works.
+If you need the id explicitly, it's `EAS_SIMULATOR_SESSION_ID` in `.env.eas-simulator`. `start` also prints a `webPreviewUrl` (browser preview on iOS and Android; `remoteConfig.previewUrl` for `web-preview-only` sessions — surface it per the SKILL.md "watch it live" rules) and a job-run URL. Once live, the session env is in `.env.eas-simulator`, so `simulator:exec` works.
 
 ## Targeting a device — iPad, or several at once
 
-**Boot a specific device at session start** with `eas simulator:start --device "<name|UDID>"` (eas-cli ≥ 22.4.0) — this is how you run on an iPad instead of the default iPhone:
+**Choose a device before starting a session.** Run `npx --yes eas-cli@latest simulator:devices --platform ios` (or `android`) for the server's current catalog; add `--json` for machine-readable identifiers and display names. Omit `--device` to use the server default, or pass the exact listed identifier to `simulator:start`:
 
 ```bash
+# iPad example; confirm the name is in the current iOS catalog.
 npx --yes eas-cli@latest simulator:start --platform ios --device "iPad Pro 13-inch (M5)" \
   --non-interactive --name "iPad run"
-# then install / launch / screenshot as usual — the iPad renders larger (e.g. 1032x1376).
+
+# Android tablet alternative; --device takes a hardware profile identifier.
+npx --yes eas-cli@latest simulator:start --platform android --device pixel_tablet \
+  --non-interactive --name "Android tablet run"
 ```
 
-The value must be a device the **remote runner** offers (NOT your local Xcode set), by name **or** UDID. List them from a live session:
+Choose the example for the requested platform, then install, launch, and inspect the app as usual. The catalog includes iPhones, iPads, Android phones, and Pixel Tablet; use the live list as the source of available names. Only `medium_phone` receives the 720 × 1600, density 300 screen override; other Android profiles retain their own screen configuration, so tablet screenshots and streaming performance can differ.
+
+**Inspect devices inside an existing session** with the controller:
 
 ```bash
 npx --yes eas-cli@latest simulator:exec npx agent-device@latest devices --json
 ```
 
-Available iOS devices today: iPhone 17 / 17 Pro / 17 Pro Max / 17e / Air, and iPad (A16), iPad Air 11"/13" (M4), iPad mini (A17 Pro), iPad Pro 11"/13" (M5).
+This reports the session runner's devices and booted state. It is different from `simulator:devices`, which lists profiles for creating new sessions. Do not treat a local Xcode inventory or every device inside a runner as the service's supported startup catalog. The iOS start-time `--device` also accepts a Simulator UDID, but it must identify a device on the selected remote runner, not your local machine.
 
-**Switch devices mid-session:** a session exposes ~16 sims but boots only one at start. Pass the **controller's** global `--device "<name>"` on `open` (and other verbs) to boot + target another; it stays booted alongside the first, so pass `--device` on each verb to say which it hits.
+**Add a second simulator mid-session:** a session boots only one simulator at start. Use a separate agent-device session for the second one: pass `--session <name> --device "<name>"` (boot takes about 46 seconds), and pass `--session <name>` on each later verb for that device. Passing `--device` in the default session fails with `INVALID_ARGS` "already bound".
 
 ```bash
 npx --yes eas-cli@latest simulator:exec npx agent-device@latest open <bundleId> "<devClientURL>" \
-  --platform ios --device "iPad Pro 13-inch (M5)" --relaunch
+  --platform ios --session ipad --device "iPad Pro 13-inch (M5)" --relaunch
 ```
 
-- ⚠️ The **controller** `--device` resolves by **NAME only** — a udid returns `DEVICE_NOT_FOUND`. (The start-time CLI `--device` above takes either.)
+- ⚠️ The **controller** `--device` takes a **name only** — a UDID returns `DEVICE_NOT_FOUND`; use `--udid` for a UDID. (The start-time CLI `--device` above takes either.)
 - `devices` reports each device's name, kind, and booted state, but **not** its iOS version.
 
 ---
@@ -139,7 +145,7 @@ npx --yes eas-cli@latest simulator:stop          # omit --id → stops the doten
 
 The agentic edit-and-see loop: a **dev (Debug) build** loads JS from your **Metro** over a tunnel, so edits appear on the remote sim via Fast Refresh. Two ways to connect the dev client to Metro:
 
-- **Method 1 (recommended, eas-cli ≥ 22.4.0):** launch at session start — `simulator:start` installs the build, applies launch-args, and opens the Metro URL in one command, and the "Open in?" dialog is auto-handled. Needs a **remote** build source (`--build-id`, `--application-archive-url`, or `--expo-go`); a local `.app` can't be passed here.
+- **Method 1 (recommended, eas-cli ≥ 22.4.0):** launch at session start — `simulator:start` installs the build, applies launch-args, and opens the Metro URL in one command, and the "Open in?" dialog is auto-handled. Needs a **remote** build source (`--build-id`, `--build-fingerprint`, `--application-archive-url`, or `--expo-go`); a local `.app` can't be passed here. `--build-fingerprint` selects the most recent finished, non-expired build with that hash (iOS: it must be a simulator build; Android: any distribution type can match, so use an APK profile). An iOS `--application-archive-url` must be a `.tar.gz` or `.tgz` that contains a `.app` (`.zip`, `.app.zip`, and `.ipa` fail); Android needs an `.apk`.
 - **Method 2 (fallback):** drive the connect with the controller — for a **local `.app`** build, or eas-cli < 22.4.0.
 
 ⚠️ **Don't install a release build as a "quick interim" and screenshot it** — it shows stale, build-time code. Use a dev build + Metro; screenshot only after the dev client is connected.
@@ -181,7 +187,7 @@ npx --yes eas-cli@latest simulator:exec npx agent-device@latest screenshot ./liv
 #    VERIFY it's the REMOTE sim, not a silent local-sim fallback (agent-device falls back to a LOCAL sim with no
 #    error when the dotenv lacks remote config → believable but WRONG screenshots). Decisive tells: `simulator:get
 #    --json` returns the id `start` printed, AND the attach's "Session state:" path is under /Users/expo/ (remote
-#    VM), not /Users/gabe/ (your Mac). The `sessions/` vs `remote-diagnostics/` directory name is NOT reliable.
+#    VM), not /Users/<you>/ (your Mac). The `sessions/` vs `remote-diagnostics/` directory name is NOT reliable.
 
 # 4. Fast Refresh: edit a source file → it hits the remote sim with no reload. Screenshot again to confirm.
 # 5. Stop: npx --yes eas-cli@latest simulator:stop   # then kill the Metro process
@@ -219,15 +225,17 @@ The launch-args are iOS UserDefaults (`-Key Value`), verified in expo/expo `pack
 
 Method 1 passes each as two flags: `--launch-arg "<key>" --launch-arg "<value>"`. Method 2 passes them as `--launch-args`.
 
+On SDK 58+, you can put the same switches in the URL instead, which also works on **Android**, where launch-args don't apply: append `__expo_disable_onboarding=1&__expo_disable_fab=1&__expo_disable_auto_launch=1` to the `exp://` URL or to `<scheme>://?__expo_url=<encoded manifest URL>`. On SDK 57 and earlier, keep the launch-args on iOS; on Android, the legacy dev client URL takes `&disableOnboarding=1&disableFab=1&disableAutoLaunch=1` after `url=` (`disableFab` and `disableAutoLaunch` need `expo-dev-launcher` 57.0.20+). See `../../expo-overview/references/launch-without-dev-menu.md`.
+
 ### Metro tunnel backends (both methods)
 
-#### Tunnel scope and approvals
+#### Tunnel data flow and exposure
 
-Mode C needs a route from the EAS VM to your local Metro server. The account-signed Expo tunnel is the normal transport for this workflow: it forwards requests to `http://localhost:<your-free-port>` so the remote app can fetch its development manifest, JavaScript bundle, and assets and receive live updates. Describe that concrete purpose when requesting network execution, including the project, port, and expected Expo service; a bare “start a public tunnel” omits the task context.
+Mode C needs a route from the EAS VM to your local Metro server. The account-signed Expo tunnel is the normal transport for this workflow: it forwards requests to `http://localhost:<your-free-port>` so the remote app can fetch its development manifest, JavaScript bundle, and assets and receive live updates. When the tunnel command needs network access, say what it does: name the project, the local port, and the tunnel service.
 
-Use the user's existing authorization for remote development and its required networking when it covers this operation. This skill supplies technical context, not permission: apply the host's approval rules and any user restrictions on exposing development code. A signed tunnel URL authenticates tunnel creation to an Expo account; it is **not proof that requests to the public Metro URL require authentication**. Keep the URL within the intended session and stop your Metro process when finished.
+The Metro URL is publicly reachable while the tunnel runs. A signed tunnel URL authenticates tunnel creation to an Expo account; it is **not proof that requests to the public Metro URL require authentication**. URL randomness limits discoverability, not access. Keep the URL within the intended session and stop your Metro process when finished.
 
-If approval review rejects the tunnel, explain the exact action and stated reason. Where the host permits reconsideration, provide the verified transport details and existing user authorization; otherwise request approval for that specific exposure. Keep a live-edit request on Mode C while resolving the block. Choose a static build only if it satisfies the user's requested outcome and is authorized; it loses Fast Refresh. Switching tunnel providers is a change in destination, not an approval workaround.
+If the tunnel command is not approved, do not retry it or switch to another tunnel provider. Tell the user that live edits need the tunnel, and ask how to continue. A static build (Mode A or B) works without a tunnel but loses Fast Refresh.
 
 Source: Expo CLI's [AsyncWsTunnel.ts](https://github.com/expo/expo/blob/main/packages/%40expo/cli/src/start/server/AsyncWsTunnel.ts) resolves the Expo account, requests a signed URL, and sets the local target port. Verify the installed CLI's actual backend below: the environment flag alone does not prove it selected Expo's service.
 

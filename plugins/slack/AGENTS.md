@@ -12,7 +12,7 @@ This plugin integrates Slack with Ai tools, providing tools to search, read, and
 
 ## Development Commands
 
-Requires Python 3.14+. Run `make install` before first use to set up the virtual environment and test dependencies.
+Requires Python 3.15+. Run `make install` before first use to set up the virtual environment and test dependencies.
 
 **Always use the make targets rather than invoking python, pytest, ruff, or other tools directly.** The targets manage the virtualenv for you; running the underlying tools by hand skips that setup and will behave differently. If a `make` command is broken or missing something you need, fix the `Makefile` rather than working around it with the raw command.
 
@@ -40,7 +40,7 @@ Eval tests (`make test-eval`) need a Gemini API key and, for the MCP tool-select
 
 When one `SKILL.md` references another skill (e.g., to delegate a step instead of duplicating content), follow these rules:
 
-- Use the backticked `plugin:skill` form, e.g. `` `slack:slack-cli` ``.
+- Use the backticked skill name followed by "skill", e.g. "the `slack-cli` skill". Don't add the `slack:` plugin prefix: only Claude Code registers it, and agents that install with `npx skills` see the bare name.
 - When pointing at a specific step, include the step's heading text, not just the number, so references survive future reordering.
 - Add a sentence of prose explaining what the referenced section does and why you're delegating to it.
 - Don't use markdown anchor links (`[text](#step-1)`), `@`-include syntax (`@path/to/SKILL.md`), or bare file paths: none are idiomatic in installed skills, and `@`-includes force-load context.
@@ -74,6 +74,10 @@ The eval job reads the `GEMINI_API_KEY_*` (e.g. `GEMINI_API_KEY_BOB`, `GEMINI_AP
 ## Public documentation
 
 `docs/` is published to [docs.slack.dev](https://docs.slack.dev/ai/slack-skills-plugin). The `slackapi/docs` repo syncs this directory from `main` (see its `sources.json`), so editing `docs/slack-skills-plugin.md` here is the whole job: there is no second PR to open, and the change goes live when it merges.
+
+`public/` is published to docs.slack.dev as-is, not rendered into a page. A file's path under `public/` is its URL, so `public/agent-setup/prompt.md` is served at <https://docs.slack.dev/agent-setup/prompt.md>. Every file in a mapped folder is published, so keep notes about these files here rather than in a README beside them. Each folder under `public/` needs its own entry in the docs repo's `sources.json` (for example `public/agent-setup` to `static/agent-setup`), so adding a folder means a docs PR as well.
+
+`public/agent-setup/prompt.md` is the setup prompt developers paste into a coding agent: it installs this plugin, then runs `create-slack-app`. Its install commands must match the Installation section of `README.md`, which `tests/unit/test_agent_setup_prompt.py` checks. Change both together. The docs site compiles it as MDX, so write links as `[text](url)`, not `<url>`.
 
 **Any change to what a public developer can see or do must update `docs/` in the same PR.** Treat it like the changeset, not a follow-up. That includes:
 

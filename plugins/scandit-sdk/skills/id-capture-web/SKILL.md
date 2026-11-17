@@ -47,6 +47,7 @@ Based on the user's request, pick the right path before responding:
 - **Hosted, drop-in ID scanning with no custom camera UI** (e.g. "add ID/passport scanning to my website with as little code as possible", "use the hosted / pop-up ID scanner", "scan an ID without building the camera UI", or the project uses `@scandit/web-id-bolt`) → that is **ID Bolt**, a hosted wrapper around ID Capture, not the in-page ID Capture SDK. Hand off to the `id-bolt` skill.
 - **Questions about other Scandit products or scanning modes** (e.g. Barcode Capture, SparkScan, MatrixScan, Label Capture, or product selection) → hand off to the `data-capture-sdk` skill. Do not attempt to answer questions about other capture modes from memory.
 - **Integrating ID Capture from scratch, configuring documents/scanner/rejection rules, reading results, customizing the overlay, or verification** (e.g. "scan a passport in the browser", "reject expired IDs", "show the face image") → use the Product Guidance and Minimal integration shape below, verifying every API against the References.
+- **A plain HTML page, no bundler, or loading the SDK from a CDN** (e.g. "scan IDs on a static page", "use an import map") → read [references/cdn.md](references/cdn.md) for the import map, `libraryLocation` and the headers, then use the Minimal integration shape.
 - **Migrating or upgrading an existing ID Capture integration** (e.g. "upgrade from v6 to v7", "migrate my ID Capture to v8", "bump the Scandit Web SDK", "what changed between SDK versions") → read [references/migration.md](references/migration.md) and follow the instructions there.
 
 ## Product Guidance
@@ -62,7 +63,11 @@ Based on the user's request, pick the right path before responding:
 
 ## Minimal integration shape
 
-Prerequisites: install `@scandit/web-datacapture-core` and `@scandit/web-datacapture-id` (same version) with the project's package manager, and serve the SDK engine files so `libraryLocation` resolves them (the samples copy them to `library/engine/`; self-hosted projects typically use `sdc-lib`). License keys come from <https://ssl.scandit.com> (sign up at <https://ssl.scandit.com/dashboard/sign-up?p=test>).
+Prerequisites: install `@scandit/web-datacapture-core` and `@scandit/web-datacapture-id` (same version) with the project's package manager, and serve the SDK engine files so `libraryLocation` resolves them (the samples copy them to `library/engine/`; self-hosted projects typically use `sdc-lib`). License keys — see **Licence key** below.
+
+A page without a bundler follows [references/cdn.md](references/cdn.md) for loading the SDK.
+
+When the SDK is loaded from a CDN, pin one exact version (for example `@8.6.1`) in every URL: the import map and `libraryLocation`. A floating `@8` lets the JavaScript and the engine resolve to different releases, which breaks start-up.
 
 This is the canonical structure shared by every sample under `web/samples/02_ID_Scanning_Samples/`. Use it as the skeleton; adjust documents/scanner/listeners to the task.
 
@@ -132,6 +137,20 @@ await idCapture.setEnabled(true);
 ## API Usage Policy
 
 Only use APIs that exist in this package (`@scandit/web-datacapture-id`) and the referenced documentation. Do not invent or guess method signatures, parameters, or property names. When unsure whether an API exists or how to call it, fetch the documentation before responding. Do not tell the user to check the docs themselves. After answering, include the relevant link so they can explore further. **Never construct or guess documentation URLs** — fetch the index page and follow links from there.
+
+## Licence key
+
+Scanning needs a Scandit licence key. For this skill the licence product is `sdk` and the licence platform is `webassembly`.
+
+Work through these in order — never block the user on MCP:
+
+1. **The Scandit MCP server is connected** — call `ensure_scanner_setup` with product `sdk` and platforms `webassembly`, `app_identifier` (the app's bundle or application id; for web, its production domain, never `localhost`) and `env_var` `SCANDIT_LICENSE_KEY`. Do not run the command it returns. Then call `get_license_key` with the key's id, from that result or from `list_license_keys`; if `list_license_keys` shows the key is not a trial, ask the user before fetching it. Show at most a masked preview in chat; never print a full key.
+2. **It is not connected** — tell the user once that they can connect the remote Scandit MCP server, `https://ssl.scandit.com/mcp`, in their MCP client, then continue from step 1. Do not edit MCP client configuration yourself.
+
+   Authentication is browser-based, so it is **not supported headless or in CI**. The server provisions **trial** keys only; it never creates, revokes, or modifies production licences.
+3. **The user declines, or has no MCP client** — they generate a key themselves at <https://ssl.scandit.com> (no account yet: <https://ssl.scandit.com/dashboard/sign-up?p=test>) and paste it in.
+
+**Then put the key into the code**: write it into the licence-key call in place of the placeholder — the key `get_license_key` returned, or the one the user pastes or gives you — still showing only a masked preview in chat. Do not search the project, its files or the environment for a key.
 
 ## References
 

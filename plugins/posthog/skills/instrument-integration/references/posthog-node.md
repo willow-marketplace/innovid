@@ -10,8 +10,10 @@ PostHog Node.js SDK allows you to capture events and send them to PostHog from y
 - Identification
 - Capture
 - Error tracking
+- Logs
 - Privacy
 - Feature flags
+- Traces
 - Context
 
 ## PostHog
@@ -961,6 +963,30 @@ try {
 
 ---
 
+### Logs methods
+
+#### captureLog()
+
+**Release Tag:** public
+
+Captures one structured log record to PostHog Logs. Attaches the active span's ids and the `withContext` person and session unless the options set their own.
+
+### Parameters
+
+- **`options`** (`CaptureLogOptions`)
+
+### Returns
+
+- `void`
+
+### Examples
+
+```node
+client.captureLog({ body: 'payment failed', level: 'error', attributes: { code: 'E001' } })
+```
+
+---
+
 ### Privacy methods
 
 #### disable()
@@ -1012,12 +1038,13 @@ await client.enable()
 Evaluate all feature flags for a user in a single call and return a  snapshot. Branch on `.isEnabled()` / `.getFlag()`, then pass the same snapshot to `capture()` via the `flags` option so the captured event carries the exact flag values the code branched on.
 Prefer this over repeated `isFeatureEnabled()` / `getFeatureFlag()` calls and over `capture({ sendFeatureFlags: true })` — it consolidates flag evaluation into a single `/flags` request per incoming request.
 **Local evaluation is transparent.** When the poller can resolve a flag from cached definitions, no network call is made and the snapshot's `$feature_flag_called` events are tagged `locally_evaluated: true`. A requested key missing from local definitions is included in a `/flags` fallback unless `onlyEvaluateLocally` is true. Locally resolved values remain authoritative when remote results are merged. In particular, a cached inactive definition is a conclusive `false` result locally, while remote evaluation omits globally inactive flags and therefore leaves those keys absent.
+**Exposure events.** `isEnabled()` and `getFlag()` send a `$feature_flag_called` event the first time each flag value is read for a user. Experiments use these events as exposures. When a remotely evaluated config version 2 flag assigns an experiment variant, the read also sends `$experiment_exposure`, once per user, groups, flag, rule and variant. The client's `sendFeatureFlagEvent` option sets the default for these reads. Pass `{ sendFeatureFlagEvents: true }` or `{ sendFeatureFlagEvents: false }` to a read to override it, so one snapshot can serve both experiment flags and flags that should send no events. The option governs both events. `getFlagPayload()` never sends events.
 **Trim the request.** Pass `flagKeys` to scope local evaluation, the underlying `/flags` request, and the returned snapshot to a subset of flags. Remote evaluation responses are not cached, so a key missing both locally and remotely costs one `/flags` request per `evaluateFlags()` call.
 **Trim the event payload.** Use `flags.only([...])` or `flags.onlyAccessed()` to filter which flags get attached to a captured event without re-fetching.
 
 ### Parameters
 
-- **`options?`** (`AllFlagsOptions`) - Optional configuration for flag evaluation. Supports the same fields as `getAllFlags()`. `flagKeys` scopes local evaluation, the `/flags` request, and the returned snapshot. `onlyEvaluateLocally` prevents fallback and leaves unresolved keys absent.
+- **`options?`** (`AllFlagsOptions`) - Optional configuration for flag evaluation. Supports the same fields as `getAllFlags()`. `flagKeys` scopes local evaluation, the `/flags` request, and the returned snapshot. `onlyEvaluateLocally` prevents fallback and leaves unresolved keys absent; the snapshot's `unresolvedFlags` lists them with a reason.
 
 ### Returns
 
@@ -1225,6 +1252,62 @@ const flagValue = await client.getFeatureFlag('org-feature', 'user_123', {
 const flagValue = await client.getFeatureFlag('local-flag', 'user_123', {
   onlyEvaluateLocally: true
 })
+```
+
+---
+
+#### getFeatureFlagEvaluationRuntime()
+
+**Release Tag:** public
+
+Get where a locally loaded feature flag is meant to be evaluated.
+
+**Notes:**
+
+Read from the definitions local evaluation already holds, so no request is made. A definition that carries no runtime reports `all`, the default PostHog applies.
+
+### Parameters
+
+- **`key`** (`string`) - The feature flag key
+
+### Returns
+
+**Union of:**
+- `FeatureFlagEvaluationRuntime`
+- `undefined`
+
+### Examples
+
+```node
+const runtime = client.getFeatureFlagEvaluationRuntime('my-flag')
+// Returns: 'client'
+```
+
+---
+
+#### getFeatureFlagKeysByEvaluationRuntime()
+
+**Release Tag:** public
+
+Get the keys of locally loaded flags that a runtime can evaluate.
+
+**Notes:**
+
+A flag set to `all` suits either runtime, so it is returned for `client` and for `server`, and asking for `all` returns every loaded flag. Use this to decide which flags to hand to a browser when a backend serves flags to its own frontend.
+
+### Parameters
+
+- **`evaluationRuntime`** (`FeatureFlagEvaluationRuntime`) - The runtime to match
+
+### Returns
+
+- `string[]`
+
+### Examples
+
+```node
+const clientKeys = client.getFeatureFlagKeysByEvaluationRuntime('client')
+// Returns: ['web-banner', 'shared-copy']
 ```
 
 ---
@@ -1474,7 +1557,7 @@ client.overrideFeatureFlags({
 
 **Release Tag:** public
 
-Reload feature flag definitions from the server for local evaluation.
+Reload feature flag definitions from the configured cache provider or PostHog for local evaluation.
 
 ### Returns
 
@@ -1533,6 +1616,91 @@ if (isReady) {
 ```node
 // Wait with custom timeout
 const isReady = await client.waitForLocalEvaluationReady(10000) // 10 seconds
+```
+
+---
+
+### Traces methods
+
+#### getActiveSpan()
+
+**Release Tag:** public
+
+The span currently active on this async execution path, or `null` outside any `withSpan` callback.
+On the edge build this returns `null` after an `await`, because the active span is tracked synchronously there.
+
+Subject to change in a minor release.
+
+### Returns
+
+**Union of:**
+- `Span`
+- `null`
+
+### Examples
+
+```node
+// Propagate the trace to another service
+const traceparent = posthog.getActiveSpan()?.traceparent()
+await fetch(url, { headers: traceparent ? { traceparent } : {} })
+```
+
+---
+
+#### startSpan()
+
+**Release Tag:** public
+
+Starts a span without making it active — for work that can't wrap a callback. Prefer `withSpan`, which ends the span for you.
+Always returns a handle, so calling code never has to branch: when the `traces` option is absent, the SDK is disabled, or the user has opted out, the handle is inert and nothing is exported. An inert handle given a `parent` header still returns it from `traceparent()`, so a service with tracing off passes a distributed trace through instead of severing it.
+
+Subject to change in a minor release.
+
+### Parameters
+
+- **`name`** (`string`)
+- **`options?`** (`StartSpanOptions`)
+
+### Returns
+
+- `Span`
+
+### Examples
+
+```node
+const span = posthog.startSpan('checkout', { attributes: { plan: 'pro' } })
+span.setAttribute('cart.items', 3)
+span.end()
+```
+
+---
+
+#### withSpan()
+
+**Release Tag:** public
+
+Runs a callback with a span active for its duration and ends the span for you — at return for a sync callback, at settle for an async one. Takes an optional `StartSpanOptions` between the name and the callback: `withSpan(name, fn)` or `withSpan(name, options, fn)`.
+Spans started inside the callback nest under it automatically. If the callback throws or rejects, the span records the exception and the original error is rethrown unchanged. A callback that ends the span itself gets the rethrow but not the recording, since the span is already exported by then.
+Spans nest across `await` only on the Node runtime, which tracks the active span with `AsyncLocalStorage`. The edge build restores the active span when the callback returns its promise, so spans started after an `await` there begin a new trace.
+
+Subject to change in a minor release.
+
+### Parameters
+
+- **`name`** (`string`)
+- **`fn`** (`(span: Span) => T`)
+
+### Returns
+
+- `T`
+
+### Examples
+
+```node
+await posthog.withSpan('POST /checkout', { parent: req.get('traceparent') }, async (span) => {
+  span.setAttribute('plan', user.plan)
+  return processOrder()
+})
 ```
 
 ---

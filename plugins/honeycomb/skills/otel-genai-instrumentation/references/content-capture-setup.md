@@ -34,11 +34,11 @@ with tracer.start_as_current_span("chat gpt-4", kind=SpanKind.CLIENT) as span:
     span.set_attribute("gen_ai.input.messages", json.dumps([
         {
             "role": "system",
-            "parts": [{"type": "text", "text": "You are a helpful assistant."}]
+            "parts": [{"type": "text", "content": "You are a helpful assistant."}]
         },
         {
             "role": "user",
-            "parts": [{"type": "text", "text": "What's the weather in NYC?"}]
+            "parts": [{"type": "text", "content": "What's the weather in NYC?"}]
         }
     ]))
 
@@ -66,7 +66,7 @@ with tracer.start_as_current_span("chat gpt-4", kind=SpanKind.CLIENT) as span:
 span.setAttribute("gen_ai.input.messages", JSON.stringify([
   {
     role: "user",
-    parts: [{ type: "text", text: "What's the weather in NYC?" }],
+    parts: [{ type: "text", content: "What's the weather in NYC?" }],
   },
 ]));
 
@@ -74,7 +74,7 @@ span.setAttribute("gen_ai.input.messages", JSON.stringify([
 span.setAttribute("gen_ai.output.messages", JSON.stringify([
   {
     role: "assistant",
-    parts: [{ type: "text", text: "It's 72°F in NYC." }],
+    parts: [{ type: "text", content: "It's 72°F in NYC." }],
   },
 ]));
 ```
@@ -83,13 +83,13 @@ span.setAttribute("gen_ai.output.messages", JSON.stringify([
 
 ```go
 inputJSON, _ := json.Marshal([]Message{
-    {Role: "user", Parts: []Part{{Type: "text", Text: "What's the weather?"}}},
+    {Role: "user", Parts: []Part{{Type: "text", Content: "What's the weather?"}}},
 })
 span.SetAttributes(attribute.String("gen_ai.input.messages", string(inputJSON)))
 
 // After response
 outputJSON, _ := json.Marshal([]Message{
-    {Role: "assistant", Parts: []Part{{Type: "text", Text: "It's 72°F."}}},
+    {Role: "assistant", Parts: []Part{{Type: "text", Content: "It's 72°F."}}},
 })
 span.SetAttributes(attribute.String("gen_ai.output.messages", string(outputJSON)))
 ```
@@ -116,10 +116,10 @@ All content attributes use a JSON array of message objects:
   {
     "role": "system" | "user" | "assistant" | "tool",
     "parts": [
-      {"type": "text", "text": "..."},
+      {"type": "text", "content": "..."},
       {"type": "tool_call", "id": "call_123", "name": "fn_name", "arguments": "{}"},
       {"type": "tool_call_response", "id": "call_123", "response": "{}"},
-      {"type": "reasoning", "text": "..."}
+      {"type": "reasoning", "content": "..."}
     ]
   }
 ]
@@ -170,7 +170,7 @@ def filter_messages(messages):
         if msg["role"] == "user":
             filtered.append({
                 "role": "user",
-                "parts": [{"type": "text", "text": "[REDACTED]"}]
+                "parts": [{"type": "text", "content": "[REDACTED]"}]
             })
         else:
             filtered.append(msg)

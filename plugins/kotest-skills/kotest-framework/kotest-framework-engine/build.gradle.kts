@@ -34,14 +34,11 @@ kotlin {
 
             api(libs.kotlinx.coroutines.core)
 
-            // used for the test scheduler
-            implementation(libs.kotlinx.coroutines.test)
+            // api because TestScope.testCoroutineScheduler exposes TestCoroutineScheduler to users
+            api(libs.kotlinx.coroutines.test)
 
             // used to generate the junit-format XML reports
             implementation(libs.xmlutil)
-
-            // used to write the XML reports to the file system
-            implementation(libs.kotlinx.io.core)
          }
       }
 

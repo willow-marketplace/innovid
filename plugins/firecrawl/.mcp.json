@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "firecrawl": {
+      "url": "https://mcp.firecrawl.dev/v2/mcp-search",
+      "type": "http",
+      "headers": {
+        "X-Firecrawl-Origin": "firecrawl-claude-plugin"
+      }
+    }
+  }
+}

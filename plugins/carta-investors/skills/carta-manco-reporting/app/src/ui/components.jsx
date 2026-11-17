@@ -1,6 +1,38 @@
 import { useEffect, useRef, useState } from "react";
 import { sans, serif, INK, FAINT, LINE, PAPER, GRAD_DARK, CARD, FS, EYEBROW_TRACKING, SHADOW_HOVER, BLUE } from "./theme.js";
 
+// Same mark, same path data, as carta-fund-modeling's CartaLogo and
+// carta-portfolio-analytics-app's Mark (plugins are deployed standalone, so each carries
+// its own copy) — flat color so it reads near-black in light and inverts cleanly in dark.
+// The viewBox is cropped to the artwork's own bounds (the source SVG pads it inside a
+// larger canvas), so the drawn box's edges sit flush with the element. `size` is the
+// height; width follows the cropped artwork's 301.09×131.28 aspect ratio.
+const CARTA_LOGO_VB = "44.32 46.99 301.09 131.28";
+const CARTA_LOGO_AR = 301.09 / 131.28;
+const CARTA_LOGO_PATH = "M44.32,46.99v131.28h301.09V46.99H44.32z M337.41,170.27H52.32V54.99h285.09V170.27z M87.87,115.91c0-14.85,12.47-23.57,23.66-23.57c8.01,0,15.48,3.02,19.48,9.98l-7.48,4.36c-1.29-1.96-3.05-3.56-5.12-4.66c-2.07-1.1-4.38-1.67-6.73-1.65c-6.58,0-14.41,5.16-14.41,15.39c0,9.98,7.48,15.48,15.03,15.48c5.25,0,9.61-2.94,12.19-7.48l7.65,3.55c-4.33,7.83-12.07,12-21.05,12C99.79,139.3,87.87,130.57,87.87,115.91z M158.86,139.3c6.22,0,12.09-2.76,15.12-6.76v5.51h9.24V93.49h-9.24v5.52c-2.88-4.04-8.89-6.67-15.12-6.67c-13.61,0-23.13,9.96-23.13,23.48C135.73,129.07,145.34,139.3,158.86,139.3z M159.75,100.79c8.54,0,14.4,6.4,14.4,15.03c0,8.63-5.87,15.03-14.4,15.03c-8.72,0-14.59-6.49-14.59-15.21C145.16,107.11,151.21,100.79,159.75,100.79z M229.91,102.1h-7.11v-8.9h7.2V80.04h9.52v13.16h9.87v8.9h-9.87v35.93h-9.61V102.1z M275.73,139.3c6.23,0,12.1-2.76,15.13-6.76v5.51h9.25V93.49h-9.25v5.52c-2.88-4.04-8.89-6.67-15.13-6.67c-13.6,0-23.12,9.96-23.12,23.48C252.61,129.07,262.21,139.3,275.73,139.3z M276.63,100.79c8.53,0,14.41,6.4,14.41,15.03c0,8.63-5.88,15.03-14.41,15.03c-8.72,0-14.59-6.49-14.59-15.21C262.04,107.11,268.09,100.79,276.63,100.79z M202.36,137.99h-9.61V93.43h8.8v7.74c1.82-5.03,5.67-8.45,10.77-8.45c1.1-0.02,2.21,0.1,3.29,0.35v8.62c-7.18-0.84-13.25,4.18-13.25,15.66V137.99z";
+export function CartaLogo({ size = 30, style }) {
+  return (
+    <svg height={size} width={size * CARTA_LOGO_AR} viewBox={CARTA_LOGO_VB}
+      role="img" aria-label="Carta" style={{ display: "block", ...style }}>
+      <path d={CARTA_LOGO_PATH} style={{ fill: "var(--ink-color-global-text-default)" }} />
+    </svg>
+  );
+}
+
+// Monochrome initial tile for a firm card (FirmChooser) — same shape as
+// carta-fund-modeling's own `Mark`, but keyed off the firm's name alone: ManCo's
+// /api/firms has no branding pipeline (no logo, no mark text) to draw a real logo from.
+export function FirmMark({ name, size = 42, style }) {
+  const initial = (name || "").trim().charAt(0).toUpperCase() || "·";
+  return (
+    <svg width={size} height={size} viewBox="0 0 64 64" style={{ display: "block", ...style }} aria-hidden>
+      <rect width="64" height="64" rx="3" style={{ fill: INK }} />
+      <text x="32" y="43" textAnchor="middle" fontFamily={sans.fontFamily}
+        fontSize={32} fontWeight="700" letterSpacing="-1" style={{ fill: PAPER }}>{initial}</text>
+    </svg>
+  );
+}
+
 /** Ink's real dark tooltip chip, matching `carta-fund-modeling`'s own
  *  `InfoTip`. Uses flat `brand-black`/`brand-white`, not
  *  `surface-darkgray-default` — that token is wrapped in
@@ -48,6 +80,8 @@ const TAG_TONES = {
   positive: { bg: "#EBF7F6", fg: "#2D9E90", border: "#2D9E90" },
   negative: { bg: "#FFEEEF", fg: "#E52431", border: "#E52431" },
   warning: { bg: "#FFFCED", fg: "#B58A00", border: "#B58A00" }, // Ink brand-yellow-80 (feedback-notice text/border); bg is brand-yellow-20
+  // Ink's category tag (.ink-tag--flex-default): no border, so it reads as a name, not a status.
+  flex: { bg: "#F1F1F1", fg: "#1A1A1A", border: "transparent" },
 };
 
 /** Status/category pill — the exact recipe from Ink's components.md
@@ -55,7 +89,7 @@ const TAG_TONES = {
  *  bold), radius-subtle (4px), border color MATCHES the semantic tone (not a
  *  neutral gray line), background is that tone's subtle tint, height fixed at
  *  28px per the real Ink spec. `tone` is one of neutral/info/positive/negative/
- *  warning (see TAG_TONES above); omit for the plain neutral default. Any call
+ *  warning, or flex for a borderless category tag (see TAG_TONES above); omit for the plain neutral default. Any call
  *  site that needs a more compact inline tag (e.g. a dense table cell) opts in
  *  via `style` — every current caller already does this, so the shared default
  *  stays at the real Ink size rather than assuming compactness for everyone. */
@@ -78,6 +112,26 @@ export const HelpCircleIcon = ({ size = 14, strokeWidth = 1.8, style }) => (
     <circle cx="12" cy="12" r="9" />
     <path d="M9.5 9a2.5 2.5 0 0 1 4.9.8c0 1.7-2.4 2.2-2.4 3.7" />
     <path d="M12 17.5h.01" />
+  </svg>
+);
+
+/** Chat panel's close button, ported verbatim from carta-fund-modeling's own
+ *  CloseIcon. */
+export const CloseIcon = ({ size = 14, strokeWidth = 1.8, style }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" style={{ flex: "none", display: "block", ...style }}>
+    <path d="M18 6L6 18" />
+    <path d="M6 6l12 12" />
+  </svg>
+);
+
+/** Stop affordance in the chat composer, ported verbatim from
+ *  carta-fund-modeling's own StopIcon. Filled rather than stroked like the
+ *  icon above — at 11px an outlined square reads as an empty checkbox. */
+export const StopIcon = ({ size = 11, style }) => (
+  <svg width={size} height={size} viewBox="0 0 12 12" aria-hidden
+    style={{ flex: "none", display: "block", ...style }}>
+    <rect x="1.5" y="1.5" width="9" height="9" rx="1.5" fill="currentColor" />
   </svg>
 );
 
@@ -148,17 +202,19 @@ export const H2 = ({ children, right, actions, id }) => (
  *  Opens on focus as well as hover so the detail is reachable from the
  *  keyboard, which a `title` attribute is not.
  */
-export const HoverCard = ({ children, card, align = "left", label }) => {
+export const HoverCard = ({ children, card, align = "left", label, onOpen }) => {
   const [open, setOpen] = useState(false);
   if (!card) return children;
+  // Hover and focus both open it; `onOpen` hears the opening, not each of them.
+  const show = () => { if (!open) onOpen?.(); setOpen(true); };
   return (
     <span
       style={HOVER.anchor}
       tabIndex={0}
       aria-label={label}
-      onMouseEnter={() => setOpen(true)}
+      onMouseEnter={show}
       onMouseLeave={() => setOpen(false)}
-      onFocus={() => setOpen(true)}
+      onFocus={show}
       onBlur={() => setOpen(false)}
     >
       {children}
@@ -216,6 +272,13 @@ export function MenuItem({ children, onClick, selected, small, style }) {
  *  generic shadow. */
 export const POPOVER_SHADOW = "0 8px 24px rgba(20,24,24,.12), 0 2px 6px rgba(20,24,24,.08)";
 
+/** The surface of a popover menu: paper, subtle border, the shadow above. Position and
+ *  padding stay with the caller. */
+export const POPOVER_SURFACE = {
+  background: PAPER, border: "1px solid var(--ink-color-global-border-subtle)", borderRadius: 6,
+  boxShadow: POPOVER_SHADOW, zIndex: 50,
+};
+
 /** Every control in a filter toolbar shares this chrome, so a Dropdown, a
  *  Btn and a date trigger sitting in one row can't drift apart. Ink's own
  *  small button (32px, 0 7px, 12px) reads too cramped for a toolbar and is
@@ -260,9 +323,8 @@ export function Dropdown({ options, value, onChange, triggerLabel, minWidth, sty
       {open && (
         <div className="popin" role="listbox" aria-label={triggerLabel}
           style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, minWidth: "100%",
-            maxHeight: 340, overflowY: "auto", background: PAPER,
-            border: "1px solid var(--ink-color-global-border-subtle)", borderRadius: 6,
-            boxShadow: POPOVER_SHADOW, zIndex: 50, padding: "4px 0", transformOrigin: "top left" }}>
+            maxHeight: 340, overflowY: "auto", ...POPOVER_SURFACE,
+            padding: "4px 0", transformOrigin: "top left" }}>
           {options.map((o) => (
             <MenuItem key={o.id} selected={o.id === value}
                       onClick={() => { onChange(o.id); setOpen(false); }}>
@@ -560,7 +622,9 @@ const tipRow = (color, name, value) =>
 
 function legendHtml(series, extras = []) {
   return [
-    ...series.map((s) =>
+    // A fund's estimated half shares its booked half's colour and key.
+    // Listing it again would read as a second fund.
+    ...series.filter((s) => !s.legendHidden).map((s) =>
       `<li><span class="ink-chart__legend-sw" style="background:${s.color}"></span>${escapeHtml(s.name)}</li>`),
     // A reference is a line, not an area, so its key is a dashed rule —
     // naming it here is what lets it drop its own in-plot label.
@@ -804,7 +868,7 @@ export function InkBarChart({
   id, height = 240, orientation = "vertical", layout = "single", domain = "zero",
   series, labels, xTick, reference, headline, title, sub, headerControl,
   legend = false, legendExtras = [], formatValue = String, ariaLabel = "",
-  provisionalFrom, projectedFrom, valueTicks = 4, padding, onSelect, colorFor,
+  provisionalFrom, provisionalPaint = true, projectedFrom, valueTicks = 4, padding, onSelect, colorFor,
   renderTooltip, stackedTooltip = "breakdown", lineOverlay,
 }) {
   const rootRef = useRef(null);
@@ -936,7 +1000,8 @@ export function InkBarChart({
         labels.forEach((_, i) => {
           const g = svgEl("g", { class: "ink-chart__col" });
           const projected  = projectedFrom != null && i >= projectedFrom;
-          const provisional = !projected && provisionalFrom != null && i >= provisionalFrom;
+          const provisional = provisionalPaint && !projected
+                              && provisionalFrom != null && i >= provisionalFrom;
           const topIdx = series.reduce((last, s, si) => ((s.values[i] || 0) > 0 ? si : last), -1);
           let acc = 0;
           series.forEach((s, si) => {
@@ -948,7 +1013,10 @@ export function InkBarChart({
             const rect = vertical
               ? { x: catStart(i), y: top, w: subW, h: len }
               : { x: top, y: catStart(i), w: len, h: subW };
-            const paint = projected    ? hatchPaint(svg, `${id}-p${si}`, s.color)
+            // A series can carry the projected hatch on its own, so a column
+            // can hold booked figures solid beside an estimate that is not.
+            const paint = projected || s.estimated
+                            ? hatchPaint(svg, `${id}-p${si}`, s.color)
                        : provisional ? hatchPaint(svg, `${id}-h${si}`, s.color)
                        : s.color;
             const style = `fill:${paint}`;

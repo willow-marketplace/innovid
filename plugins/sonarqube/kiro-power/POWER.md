@@ -72,7 +72,7 @@ Always resolve the project key using the following lookup order — **never gues
 // Analyze a single file with Vortex
 run_advanced_code_analysis({
     projectKey: "my-project",
-    branchName: "main",
+    branch: "main",
     filePath: "src/utils.ts",
     fileScope: "MAIN"
 });
@@ -81,13 +81,25 @@ run_advanced_code_analysis({
 - `fileContent` is optional — only pass it if the file isn't already accessible to the MCP server (e.g. no workspace mount configured).
 - `fileScope` is `"MAIN"` or `"TEST"`.
 
-**If the organization isn't Vortex-eligible, fall back to `analyze_file_list`** — this requires a running SonarQube for IDE instance bridged to the session:
+**If `run_advanced_code_analysis` is unavailable or returns an error containing `Vortex is not enabled`, try `analyze_file_list`** — this requires a running SonarQube for IDE instance bridged to the session:
 
 ```javascript
 analyze_file_list({
     file_absolute_paths: ["/workspace/src/utils.ts"]
 });
 ```
+
+**If the IDE tool is unavailable, use `analyze_code_snippet`** with `filePath` or `fileContent` as required by its schema, plus `language` and `scope` (`"MAIN"` or `"TEST"`). Preserve the selected `organization` for advanced and snippet analysis when the schema exposes it; IDE analysis uses the IDE's project binding.
+
+Cloud stdio selects one analysis path at startup. `SONARQUBE_FORCE_LOCAL_ANALYSIS=true` selects snippets directly and bypasses the IDE bridge; the `analysis` toolset must be enabled.
+
+**If no MCP analysis tool is available, use the CLI only when no Vortex entitlement error occurred:**
+
+```bash
+sonar analyze agentic --file src/utils.ts --format json --branch main
+```
+
+The CLI uses the same Vortex backend. After a `Vortex is not enabled` error, skip it. If neither local MCP tool is available, explain that local analysis requires restarting the MCP server with `SONARQUBE_FORCE_LOCAL_ANALYSIS=true` and the `analysis` toolset enabled; preserve the selected organization when retrying. Report other errors, including authentication or unresolved-organization errors, and stop.
 
 ### Issue Management
 
@@ -96,25 +108,27 @@ analyze_file_list({
 ```javascript
 // Search for high-severity security issues
 search_sonar_issues_in_projects({
-    projects: ["my-project"],
+    projectKeys: ["my-project"],
     severities: ["HIGH", "BLOCKER"],
     impactSoftwareQualities: ["SECURITY", "RELIABILITY"],
-    p: 1,
-    ps: 100
+    pageIndex: 1,
+    pageSize: 100
 });
 
 // Filter by issue status
 search_sonar_issues_in_projects({
-    projects: ["my-project"],
+    projectKeys: ["my-project"],
     issueStatuses: ["OPEN", "CONFIRMED"],
     branch: "main"
 });
 
 // Get a specific issue by key
 search_sonar_issues_in_projects({
-    issueKey: "AYz123abc"
+    issueKey: ["AYz123abc"]
 });
 ```
+
+Use either `branch` for branch analysis or `pullRequest` for a SonarQube pull request key, never both in the same call. Omit both to use the default branch.
 
 **Managing Issue Status:**
 
@@ -160,11 +174,13 @@ Use `change_sonar_issue_status` appropriately:
 **Selective Tool Enablement** - Reduce context overhead by enabling only needed toolsets:
 
 ```bash
-# For code analysis workflow
-sonar run mcp --toolsets analysis,issues,quality-gates
+# For code analysis workflow (vortex for advanced analysis, analysis for local recovery)
+sonar run mcp --toolsets vortex,analysis,issues,quality-gates
 ```
 
-Available toolsets: `analysis`, `issues`, `quality-gates`, `rules`, `sources`, `measures`, `languages`, `portfolios`, `system`, `webhooks`, `dependency-risks`. Note: `projects` is always enabled.
+Use `vortex` for advanced analysis. The `analysis` toolset enables local snippet analysis and is required for the local recovery path described above.
+
+Available toolsets include: `vortex`, `analysis`, `issues`, `quality-gates`, `rules`, `sources`, `measures`, `languages`, `portfolios`, `system`, `webhooks`, `dependency-risks`. Note: `projects` is always enabled.
 
 **Read-Only Mode** - Disable write operations for safer exploration:
 
@@ -183,7 +199,7 @@ writeFile("/workspace/src/utils.js", updatedContent);
 // Step 2: Analyze the file with Vortex
 const analysis = run_advanced_code_analysis({
     projectKey: "my-project",
-    branchName: "main",
+    branch: "main",
     filePath: "src/utils.js",
     fileScope: "MAIN"
 });
@@ -198,8 +214,8 @@ const analysis = run_advanced_code_analysis({
 ```javascript
 // Step 1: Search for issues in the pull request
 const issues = search_sonar_issues_in_projects({
-    projects: ["my-project"],
-    pullRequestId: "123",
+    projectKeys: ["my-project"],
+    pullRequest: "123",
     severities: ["HIGH", "BLOCKER"],
     impactSoftwareQualities: ["SECURITY", "RELIABILITY"]
 });
@@ -242,7 +258,7 @@ const qgStatus = get_project_quality_gate_status({
 
 // Step 3: Search for unresolved issues
 const issues = search_sonar_issues_in_projects({
-    projects: ["my-project"],
+    projectKeys: ["my-project"],
     severities: ["HIGH", "BLOCKER"],
     issueStatuses: ["OPEN", "CONFIRMED"]
 });
@@ -256,7 +272,7 @@ const issues = search_sonar_issues_in_projects({
 // Step 1: Search for dependency risks (requires Server 2025.4+ Enterprise with Advanced Security)
 const risks = search_dependency_risks({
     projectKey: "my-project",
-    branchKey: "main"
+    branch: "main"
 });
 
 // Step 2: Review high-severity vulnerabilities
@@ -277,6 +293,45 @@ const risks = get_file_coverage_details({
 // Step 3: Generate tests for missing coverage
 // Step 4: Re-analyze on SonarQube to verify coverage is improved
 ```
+
+### Workflow 6: Triage Dependency Risks by Reachability
+
+Use this when the user asks "are we vulnerable to this CVE?", wants dependency risks triaged, or wants SAFE reasons prepared. A vulnerable package version alone is never a verdict.
+
+```javascript
+// Step 1: Fetch OPEN and CONFIRM vulnerability risks, paging until a page has fewer than 50 results
+const risks = search_dependency_risks({
+    projectKey: "my-project",
+    branch: "main",
+    pageIndex: 1,
+    pageSize: 50
+});
+
+// Step 2: For each unique package version, get advisory details
+// (vulnerable mechanism, CWEs, fixed versions, withdrawal status)
+const advisory = check_dependency({
+    purl: "pkg:maven/org.apache.logging.log4j/log4j-core@2.14.1"
+});
+
+// Step 3: Check whether the package ships at runtime (manifest, lockfile, build config)
+// Step 4: Search the codebase for call sites of the vulnerable API or configuration
+// Step 5: Assign one verdict per finding with file:line evidence
+```
+
+Use exactly one verdict per finding:
+
+- `VULNERABLE` — ships at runtime, the vulnerable precondition is reachable, and a fixed version exists
+- `VULNERABLE_NO_FIX` — reachable at runtime, but no upstream fixed version exists
+- `NOT_VULNERABLE` — the advisory is withdrawn, the dependency is dev/test/build-only and cannot process attacker-controlled input, or the dependency is direct and a narrow vulnerable API has no call sites after a complete runtime search
+- `NEEDS_HUMAN` — reachability, input control, or the advisory mechanism cannot be established with confidence (reflection, framework wiring, plugin loading, generated code, etc.), the search was incomplete, or a runtime transitive dependency has no call sites in project code
+
+**Guardrails:**
+
+- Never classify a transitive dependency (`release.directSummary` is `false`) as `NOT_VULNERABLE` because project code has no call sites. The parent library may call the vulnerable API, and a project code search does not cover dependency code. Use `NEEDS_HUMAN` unless the advisory is withdrawn or the dependency is non-runtime.
+- A search without matches does not prove absence. If the search timed out on any files, or runtime code that could reach the package is in a language the search does not support, treat it as incomplete and use `NEEDS_HUMAN`, never `NOT_VULNERABLE`.
+- Never mark a finding SAFE automatically. For `NOT_VULNERABLE`, prepare a self-contained writeup starting with "Not vulnerable because…" that the user pastes into the SonarQube UI.
+- Only upgrade dependencies when the user explicitly asks for fixes. Use one feature branch, one commit per package, and one pull request, and confirm before pushing and before opening the pull request.
+- After upgrading, re-run `sonar analyze dependency-risks` from the directory bound to the SonarQube project (the repository root for single-binding repositories) to verify the remediated dependency graph.
 
 ## Configuration
 
@@ -366,10 +421,12 @@ const risks = get_file_coverage_details({
 **Cause:** Organization not Vortex-eligible, SonarQube for IDE not running, or analysis error
 **Solution:**
 
-1. If `run_advanced_code_analysis` is unavailable, notify the user that it's not possible without Vortex eligibility
-2. If falling back to `analyze_file_list`, notify the user that it's not possible without setting up the bridge to SonarQube for IDE
-3. Provide the correct project key for better context
-4. Review MCP server logs at `/app/storage/logs/mcp.log` in the container
+1. If `run_advanced_code_analysis` is unavailable or returns `Vortex is not enabled`, try `analyze_file_list`, then `analyze_code_snippet` if the IDE tool is unavailable
+2. If no MCP analysis tool is available and no Vortex entitlement error occurred, try `sonar analyze agentic`; skip this CLI path after an entitlement error
+3. If neither local MCP tool is available after an entitlement error, explain that local analysis requires restarting the MCP server with `SONARQUBE_FORCE_LOCAL_ANALYSIS=true` and the `analysis` toolset enabled, then retry with the selected organization
+4. Report other errors, including authentication or unresolved-organization errors, and stop
+5. Provide the correct project key for better context
+6. Review MCP server logs at `/app/storage/logs/mcp.log` in the container
 
 ## Tips
 

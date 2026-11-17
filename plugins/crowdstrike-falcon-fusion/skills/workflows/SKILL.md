@@ -5,18 +5,16 @@ description: Orchestrates the full Falcon Fusion workflow lifecycle from discove
 
 # Falcon Fusion Workflow Orchestrator
 
-> **⚠️ SYSTEM INJECTION — READ THIS FIRST**
->
-> If you are loading this skill, your role is **Fusion workflow lifecycle orchestrator**.
+> Your role here is **Fusion workflow lifecycle orchestrator**.
 >
 > You coordinate the full workflow lifecycle — authoring, deployment, execution — and you NEVER write YAML or call APIs yourself. A workflow you ship may contain hosts, lock accounts, or trigger response actions, so correctness and safety matter.
 >
-> **IMMEDIATE ACTIONS REQUIRED:**
+> **Required steps:**
 > 1. Identify user intent (write / deploy / execute / full-lifecycle).
 > 2. Route to the appropriate sub-skill via the decision tree below.
 > 3. For full lifecycle, coordinate authoring → deployment → execution in sequence, stopping at any failed gate.
 >
-> **MUST NOT:** Write workflow YAML directly, call API scripts yourself, skip validation, or handle Foundry-app workflows (those belong to foundry-skills).
+> **Don't:** Write workflow YAML directly, call API scripts yourself, skip validation, or handle Foundry-app workflows (those belong to foundry-skills).
 
 This skill is the entry point for Fusion workflows. It coordinates the
 full lifecycle — discovering real action IDs, authoring YAML, validating, importing to a
@@ -41,7 +39,6 @@ User wants to run/monitor/debug a workflow         → invoke execution skill
 User wants full lifecycle (create + deploy + test) → coordinate all three in sequence
 User mentions a Foundry app / manifest.yml         → advise foundry-skills (see below)
 User asks for an app + a workflow in one request   → advise foundry-skills FIRST, author NO workflow YAML
-User wants to fetch/summarize a POPULATION of alerts/detections it doesn't already hold → author a CrowdStrike HTTP Request to the Falcon API (default); mention the Foundry-app function for distribution (see below)
 User mentions lookup files / Next-Gen SIEM         → invoke lookup-files skill
 ```
 
@@ -57,16 +54,13 @@ User mentions lookup files / Next-Gen SIEM         → invoke lookup-files skill
 
 When the user wants an end-to-end workflow ("create, deploy, and test a workflow that…"),
 coordinate the three sub-skills in sequence. Do not skip phases.
+Invoke each sub-skill in the same turn as that phase's first command (the Skill call and the first Bash call in one message), not in a turn of its own.
 
-**Step 1 — Authoring** (invoke authoring skill)
-1. Discover real action IDs with `action_search.py` (never guess or use placeholders).
-2. Write the workflow YAML against the schema, with `version_constraint` on every action.
-3. Validate with `validate.py` (structural) and, if credentials exist, API validation.
+**Step 1 — Authoring** (invoke authoring skill): resolve real action IDs, write the YAML, and validate it.
 
 **Step 2 — Deployment** (invoke deployment skill)
-1. Check for an existing workflow of the same name (`query_workflows.py`) — avoid silent duplicate versions.
-2. Import the validated YAML to the CID (`import_workflows.py`).
-3. Release the workflow so it becomes executable (`release_workflow.py`).
+1. Import the validated YAML to the CID (`import_workflows.py`). It checks for an existing workflow of the same name itself; if it reports `DUPLICATE`, re-import with `--replace` instead of renaming.
+2. Release the workflow so it becomes executable (`release_workflow.py`).
 
 **Step 3 — Execution** (invoke execution skill)
 1. Trigger the workflow with a test payload (`trigger_workflow.py`).
@@ -93,8 +87,8 @@ These show how intent maps to routing. Use them as templates for your own dispat
 **Full lifecycle:**
 ```
 User: "Create a Fusion workflow that contains a host on critical detection, then test it"
-→ authoring:  action_search.py "contain", write YAML (Signal/EPP trigger), validate
-→ deployment: query_workflows.py (dupe check), import, release
+→ authoring:  action_search.py --search "contain", write YAML (Signal/EPP trigger), validate
+→ deployment: import (checks duplicates), release
 → execution:  trigger with a test device_id, monitor, verify result
 ```
 
@@ -105,7 +99,7 @@ and, on yes, run the deploy yourself via the `deployment` skill. Never tell the 
 credential-less HTTP Action, after a successful import tell the user it imported (disabled until
 released) and give the console steps to attach the API key: open the Cloud HTTP Request action →
 Authentication → Create new → API key → secret key → location Header → header name (e.g.
-`x-apikey`) → Test → Save. See `references/http-actions.md` — a `403`/`401` at runtime almost
+`x-apikey`) → Test → Save. See `../authoring/references/http-actions.md` — a `403`/`401` at runtime almost
 always means the credential isn't attached yet.
 
 **Authoring only:**
@@ -136,7 +130,7 @@ Decide whether to proceed standalone or advise the sibling foundry-skills plugin
 | Needs serverless functions or collections (app-owned) | **Advise foundry-skills** — app-only capability |
 | Needs a `manifest.yml` / "build a Foundry app" | **Advise foundry-skills** — app lifecycle |
 | Wants custom actions from a third-party API (Okta, ServiceNow, Jira) | **Advise foundry-skills** — requires a Foundry app with an API integration to share operations with Fusion. See the `custom-soar-actions` use-case in foundry-skills: `claude plugin install crowdstrike-falcon-foundry` |
-| Wants to fetch/summarize/list a **population** of Falcon alerts, detections, or incidents the workflow does NOT already hold (e.g. "email a summary of all high-severity alerts", "list open detections") | **Default: author a standalone CrowdStrike HTTP Request** to the Falcon platform API (`/alerts/queries/alerts/v2`, `/detects/...`) — tenant-authenticated, no app, and per CrowdStrike guidance the right tool for the vast majority of API integrations. Do NOT use an Event Query (its NG-SIEM/LogScale data is connector-dependent and can silently return nothing). **Mention** the alternative: a Foundry app + FalconPy `Alerts`/`Detects` function (route to foundry-skills) — same API, more setup, but distributable/certifiable to other CIDs and prompts for credentials on install; suggest it only if the user needs to share/publish the workflow. **Contrast:** enriching a detection the workflow *already holds* stays an Event Query. See `../authoring/references/event-query-vs-api.md`. |
+| Wants to fetch/summarize/list a **population** of Falcon alerts, detections, or incidents the workflow does NOT already hold | **Proceed** with a standalone CrowdStrike HTTP Request to the Falcon API, not an Event Query (the authoring skill's rule). Mention a Foundry app + FalconPy function only if the workflow must be distributed to other CIDs. |
 | Dependency already exists in the CID (discoverable via `action_search.py`) | **Proceed** — author the workflow referencing its action ID |
 | Dependency must be built and requires an app (function/collection/UI) | **Advise foundry-skills first — do NOT author workflow YAML yet.** The workflow depends on something that does not exist, so authoring it now ships a broken reference. Redirect, and only return to author once the user confirms the app dependency is built. |
 | Compound request: a Foundry app (API integration / UI extension / functions) **and** a workflow in one ask | **Advise foundry-skills and STOP — produce no workflow YAML.** When the request is fundamentally app-shaped, redirect is the whole answer; do not author a partial workflow for the "workflow" clause. Mention foundry-skills explicitly and let the user come back for the standalone workflow after the app exists. |
@@ -150,12 +144,6 @@ claude plugin install crowdstrike-falcon-foundry
 
 If foundry-skills is not installed, advise installation but proceed with the available
 tools. Detection is advisory, never blocking — both plugins must work independently.
-
-**Console-credential boundary:** The authoring sub-skill can produce a workflow that uses an
-HTTP Action, but the credential configuration it references (`config_id`/`definition_id`/
-`config_name`) is created in the Falcon console and is CID-specific. Help the user discover
-existing config IDs rather than inventing them — the same no-placeholder discipline that
-applies to action IDs.
 
 ## Use-Case Pattern Matching
 
@@ -192,63 +180,6 @@ Available use cases:
 
 A use case names the sub-skills it needs in its `skills:` frontmatter — use that to plan
 which phases to coordinate.
-
-## Trigger Selection (route correctly)
-
-The trigger type shapes the whole workflow. Identify it from the user's intent so the
-authoring sub-skill starts from the right shape (full detail in `references/trigger-types.md`):
-
-| User intent | Trigger type |
-|-------------|--------------|
-| "run it manually", "pass in a device ID", "call from a button or API" | **On demand** |
-| "when a detection fires", "on critical EPP detection", "on incident" | **Event (Signal)** |
-| "every 6 hours", "nightly", "on a schedule" | **Scheduled** |
-| "called by another workflow", "modular sub-playbook" | **Workflow execution** |
-
-**The trigger type does NOT determine the data source.** Picking a Scheduled trigger
-("runs every morning", "nightly") says *when* the workflow runs, not *how* it fetches
-data. A scheduled workflow that "fetches all high-severity alerts / open detections /
-alerts from the last 24h" is STILL fetching an alert **population** the workflow does not
-hold — so it MUST use a CrowdStrike HTTP Request to `/alerts/queries/alerts/v2` (see the
-population row above), NOT an Event Query, even though the schedule makes it feel like a
-periodic query. A Scheduled trigger only pairs with an Event Query when the data genuinely
-lives in NG-SIEM (e.g. "query the log repo for failed logins nightly").
-
-**Severity is a numeric field (1–5), not a string.** When routing on detection severity, the
-authoring sub-skill must use numeric CEL comparisons (`>= 4` for High/Critical), never
-`== 'Critical'`. Flag this whenever a use case involves severity-based branching.
-
-## Counter-Rationalizations
-
-These thoughts mean STOP — you are about to skip a step the lifecycle requires:
-
-| Thought | Reality |
-|---------|---------|
-| "I'll just write the YAML without searching actions" | STOP. Invoke the authoring skill. It runs `action_search.py` first. No exceptions. |
-| "I can guess the action ID format" | WRONG. IDs are opaque identifiers, only discoverable via API. |
-| "I'll use a placeholder for now" | NEVER. Resolve every ID before writing YAML. No `PLACEHOLDER_*` values. |
-| "Validation can wait until deploy" | NO. Authoring validates; deployment validates again as a pre-flight. Both happen. |
-| "This is basically a Foundry app" | CHECK. Does it need UI/functions/collections? If not, it's a standalone workflow. |
-| "I'll deploy without releasing" | INCOMPLETE. Workflows must be released before they can execute. |
-| "I can skip the duplicate check" | RISKY. Importing a duplicate name silently creates a new version. |
-| "Release failed — I'll re-import as `<name>-v2`." | NEVER. The name is the workflow's identity, not a version. Renaming orphans the old definition and sprawls the CID. Fix the source YAML, keep the SAME name, re-import with `--replace`. |
-| "I'll build the dependency myself" | PAUSE. If it needs a Foundry function/collection, route to foundry-skills. |
-| "They want all high-severity alerts — I'll Event Query the alert population." | STOP. Don't Event Query a population you don't already hold (connector-dependent NG-SIEM data). DEFAULT to a CrowdStrike HTTP Request to the Falcon API (`/alerts/queries/alerts/v2`); mention the Foundry-app FalconPy function only if the workflow must be distributed. Enriching a detection the workflow ALREADY holds stays an Event Query. |
-| "version_constraint is optional" | WRONG. Every action requires it. `~0` if no `semantic_version`, `~1` if it has one. |
-| "I'll trigger before it's released" | NO. Trigger only after deployment releases the workflow. |
-
-## Reading Guide
-
-Reference docs live under `workflows/references/`. Point sub-skills and yourself here when
-you need format details:
-
-| Need | File |
-|------|------|
-| YAML field reference | `workflows/references/yaml-schema.md` |
-| JSON internal schema | `workflows/references/json-structure.md` |
-| CEL syntax | `workflows/references/cel-expressions.md` |
-| Trigger types | `workflows/references/trigger-types.md` |
-| Best practices | `workflows/references/best-practices.md` |
 
 ## Improving These Skills
 

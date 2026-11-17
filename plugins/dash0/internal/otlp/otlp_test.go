@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -17,6 +18,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/dash0hq/dash0-agent-plugin/internal/identity"
+	"github.com/dash0hq/dash0-agent-plugin/internal/vcs"
 )
 
 func TestSendLog(t *testing.T) {
@@ -664,6 +668,45 @@ func TestSendLogMapsUserEmailAttribute(t *testing.T) {
 	}
 }
 
+func TestSendLogOmitUserInfoDropsUserEmail(t *testing.T) {
+	var received ExportLogsRequest
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		json.Unmarshal(body, &received)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+
+	event := map[string]any{
+		"hook_event_name": "SessionStart",
+		"session_id":      "sess-456",
+		"user_email":      "alice@example.com",
+	}
+	cfg := Config{OTLPUrl: srv.URL, OmitUserInfo: true}
+
+	require.NoError(t, SendLog(event, cfg))
+
+	lr := received.ResourceLogs[0].ScopeLogs[0].LogRecords[0]
+	for _, a := range lr.Attributes {
+		assert.NotEqual(t, "user.email", a.Key)
+		assert.NotEqual(t, "user_email", a.Key)
+	}
+}
+
+func TestSessionSpanOmitUserInfoDropsCursorUserEmail(t *testing.T) {
+	pinIdentity(t, identity.Info{})
+	event := map[string]any{
+		"hook_event_name": "SessionStart",
+		"session_id":      "sess-456",
+		"user_email":      "alice@example.com",
+	}
+
+	span := NewSessionSpan("trace", "span", time.Now(), event, Config{OmitUserInfo: true})
+
+	assert.NotContains(t, attrMap(span.Attributes), "user.email")
+}
+
 // redactHomeDir runs filepath.Clean, so its output uses the platform separator.
 // These cases build both input and expectation from filepath so they hold on
 // Windows, where a hardcoded "/" would not survive the Clean.
@@ -692,6 +735,23 @@ func TestRedactHomeDir(t *testing.T) {
 		result := redactHomeDir(sibling)
 		assert.Equal(t, sibling, result)
 	})
+}
+
+func TestRedactHomeDirUsesPlatformCaseRules(t *testing.T) {
+	home := filepath.Join(t.TempDir(), "Alice")
+	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
+	differentCase := strings.ToUpper(home)
+	for _, suffix := range []string{"", "workspace"} {
+		path := filepath.Join(differentCase, suffix)
+		want := path
+		if runtime.GOOS == "windows" {
+			want = filepath.Join("~", suffix)
+		}
+		require.Equal(t, want, redactHomeDir(path))
+	}
+	sibling := filepath.Join(differentCase+"-other", "workspace")
+	require.Equal(t, sibling, redactHomeDir(sibling))
 }
 
 func TestHashIdentity(t *testing.T) {
@@ -754,4 +814,64 @@ func TestConfigValidateURLClearingStopsExport(t *testing.T) {
 	require.False(t, bad.ValidateURL())
 	require.NoError(t, SendLog(map[string]any{"hook_event_name": "SessionStart"}, bad))
 	assert.Equal(t, 1, got, "a cleared URL must send nothing")
+}
+
+func TestOTLPDebugReportsHTTPOutcomeWithoutCredentials(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusUnauthorized)
+		_, _ = w.Write([]byte("PRIVATE response"))
+	}))
+	defer srv.Close()
+	file := filepath.Join(t.TempDir(), "debug.log")
+	cfg := Config{OTLPUrl: srv.URL, AuthToken: "PRIVATE token", Debug: true, DebugFile: file}
+	require.Error(t, sendOTLP(cfg, "/v1/traces", []byte("PRIVATE payload")))
+	data, err := os.ReadFile(file)
+	require.NoError(t, err)
+	require.Contains(t, string(data), `"phase":"start"`)
+	require.Contains(t, string(data), `"phase":"finish","status":401`)
+	require.Contains(t, string(data), `"elapsed_ms":`)
+	require.NotContains(t, string(data), "PRIVATE")
+}
+
+// WithVCSDir reads a memoized slice, so appending identity onto it directly
+// would write into that slice's spare capacity and hand every later span
+// resolving the same directory the same slots to overwrite. Harmless only for
+// as long as identity is identical on every span, which is not a property
+// anything here guarantees.
+func TestWithVCSDirDoesNotShareTheMemoizedSlice(t *testing.T) {
+	ResetVCSDirCache()
+	// Six attributes, which is what a repository on a host parseProvider does
+	// not classify produces, so the memoized slice lands at len 6 of cap 8.
+	// With OmitUserInfo the two identity attributes then fit exactly in that
+	// spare capacity, which is the case where appending onto the cached slice
+	// writes into memory a later span is also handed. Seven attributes leave
+	// one spare slot, too few to fit, and the bug hides behind a reallocation.
+	detectVCSAt = func(string) *vcs.Info {
+		return &vcs.Info{
+			RepositoryURLFull: "https://custom-git.example.com/team/x",
+			RepositoryName:    "x",
+			OwnerName:         "team",
+			RefHeadName:       "main",
+			RefHeadRevision:   "abc123",
+			RefHeadType:       "branch",
+		}
+	}
+	t.Cleanup(func() { detectVCSAt = vcs.DetectAt })
+	// Pinned, not read from the host: a CI runner has no git identity and no
+	// resolvable account, so the real resolver returns nothing there and the
+	// spare-capacity arrangement this test depends on never arises.
+	pinIdentity(t, identity.Info{Name: "Guy Moses", Source: identity.SourceGit})
+	cfg := Config{OmitUserInfo: true}
+	require.Len(t, vcsSpanAttributesAt("/repo"), 6, "precondition: the memoized slice has spare capacity")
+	require.Len(t, identitySpanAttributes(cfg), 2, "precondition: identity fits in it")
+
+	first := cfg.WithVCSDir("/repo")
+	second := cfg.WithVCSDir("/repo")
+	require.Equal(t, *first.spanContext, *second.spanContext)
+
+	// Same contents, and they must not be the same memory: one span's
+	// attributes are not another's to overwrite.
+	before := append([]Attribute(nil), *second.spanContext...)
+	(*first.spanContext)[len(*first.spanContext)-1] = strAttr("clobbered", "yes")
+	require.Equal(t, before, *second.spanContext, "writing one span's attributes changed another's")
 }

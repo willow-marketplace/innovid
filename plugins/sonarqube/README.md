@@ -8,7 +8,7 @@ SonarQube combines deterministic checks with AI-assisted workflows so quality ru
 
 ## What do the plugins include
 
-The Plugin helps agents connect to [SonarQube CLI](https://cli.sonarqube.com/) and [SonarQube MCP Server](https://docs.sonarsource.com/sonarqube-mcp-server) for issue detection, checking project metrics such as test coverage and duplications, fetch dependency risks, etc. Claude Code, Copilot CLI, Codex, and Antigravity (through SonarQube CLI) install agent hooks for secrets scanning and, when entitled, Vortex analysis.
+The Plugin helps agents connect to [SonarQube CLI](https://cli.sonarqube.com/) and [SonarQube MCP Server](https://docs.sonarsource.com/sonarqube-mcp-server) for issue detection, checking project metrics such as test coverage and duplications, fetch dependency risks, etc. Claude Code, Copilot CLI, Codex, Antigravity, Devin, Pi, and OpenCode (through SonarQube CLI) install agent hooks for secrets scanning and, when entitled, Vortex analysis.
 
 How to use: Run `/sonarqube:sonar-integrate` after installation to walk through setup — CLI installation, authentication, and wiring up the MCP Server and hooks. From there, use slash commands like `/sonarqube:sonar-quality-gate` to check quality gates or interact naturally with prompts like "analyze my code for issues," "show open SonarQube findings," or "check my coverage." With Vortex analysis enabled, verification happens automatically after each edit with no manual invocation required.
 
@@ -38,6 +38,9 @@ sonar integrate copilot       # GitHub Copilot CLI: MCP, hooks, secrets scanning
 sonar integrate codex         # Codex: MCP, hooks, secrets scanning, Vortex analysis hook
 sonar integrate antigravity   # Antigravity: hooks, instructions, CAG, MCP patch (after plugin install)
 sonar integrate cursor        # Cursor: MCP, secret-scanning hooks, Vortex analysis instructions
+sonar integrate devin         # Devin: MCP, hooks, secrets scanning, Vortex analysis
+sonar integrate pi            # Pi: MCP, hooks, secrets scanning, Vortex analysis
+sonar integrate opencode      # OpenCode: MCP, hooks, secrets scanning, Vortex analysis
 ```
 
 Run these **after** `sonar auth login`. Use the **`/sonarqube:sonar-integrate`** skill if you prefer a guided flow (install/update CLI, login, then integrate).
@@ -113,8 +116,7 @@ agy plugin install https://github.com/SonarSource/sonarqube-agent-plugins
 
 # 2. Auth + hooks / instructions / CAG / MCP patch
 sonar auth login
-sonar integrate antigravity              # project-scoped (default)
-# sonar integrate antigravity -g         # global (all projects; Vortex analysis skipped)
+sonar integrate antigravity
 ```
 
 Or use **`/sonarqube:sonar-integrate`** inside Antigravity for a guided flow. Restart the agent session if MCP tools do not appear.
@@ -129,26 +131,40 @@ Or use **`/sonarqube:sonar-integrate`** inside Antigravity for a guided flow. Re
 
 Installing the **whole repo** is acceptable — other agents' dot-folders are inert in Antigravity.
 
-### Migrating from Gemini CLI
+Same workflows as **[Usage](#usage)** once MCP is connected.
 
-Gemini CLI is being replaced by Antigravity. Migrate platform config first (layout, skills paths, and cleanup), then update SonarQube as below.
+---
 
-If you already had the **SonarQube Gemini extension** installed:
+## Factory Droid
 
-```bash
-agy plugin import gemini          # converts legacy extensions → native plugins
-sonar integrate antigravity       # add hooks, instructions, CAG (new vs Gemini)
+**`.factory-plugin/`** with MCP via **`mcp.json`** and the reviewer in **`droids/`**. No hooks: secrets scanning and Vortex analysis hooks are not available in Droid.
+
+1. Install the plugin from the SonarSource marketplace:
+
+```shell
+droid plugin marketplace add SonarSource/sonarqube-agent-plugins
+droid plugin install sonarqube@sonarqube-agent-plugins
 ```
 
-`agy plugin import gemini` scans legacy Gemini directories and migrates inline `mcpServers` into `mcp_config.json`. Expect output like `✔ mcpServers : 1 server definition migrated to mcp_config.json` for SonarQube.
+   Droid names the marketplace after the repository, not after the `name` in `marketplace.json`, so the plugin is `sonarqube@sonarqube-agent-plugins`.
 
-If you had custom skills under `.gemini/skills/`, move them to `.agents/skills/`.
+2. Run **`sonar auth login`**, or invoke the `/sonarqube:sonar-integrate` skill.
 
-After verifying Antigravity works, remove any duplicate legacy Gemini extension install if import created a copy.
+<!-- Maintainers: droids/sonarqube-reviewer.md is the Droid version of agents/sonarqube-reviewer.agent.md. With its own manifest, Droid no longer imports agents/, so the droid keeps Factory frontmatter (Factory tool IDs, mcpServers) and the same body. Its Execute is unrestricted because Factory cannot scope commands per droid; without it the reviewer could not run git diff or sonar. It has no edit tools. Keep the bodies identical, and bump .factory-plugin/ with the other manifests at each release. -->
 
-For a fresh install, use the [recommended flow](#recommended-flow-full-integration) above.
+---
 
-Same workflows as **[Usage](#usage)** once MCP is connected.
+## Devin
+
+**`.devin-plugin/`** with MCP via **`mcp.json`**.
+
+1. Install the plugin from GitHub:
+
+```shell
+devin plugins install SonarSource/sonarqube-agent-plugins
+```
+
+2. Run **`sonar auth login`**, then **`sonar integrate devin`**, or invoke the `/sonarqube:sonar-integrate` skill. Restart the Devin session afterwards so the hooks and MCP configuration are loaded.
 
 ---
 
@@ -169,7 +185,7 @@ Plugin bundle: **`.codex-plugin/`** — catalog **`sonar`**, plugin **`sonarqube
 
 3. Run **`sonar auth login`**.
 
-4. From your project directory, run **`sonar integrate codex`** (add **`--project <key>`** if needed). This wires MCP in **`.codex/config.toml`**, secrets hooks, and—when your SonarQube Cloud org has Vortex analysis—a **PostToolUse** hook on **`apply_patch`** that runs analysis on the git change set after each edit.
+4. Run **`sonar integrate codex`**. This wires MCP in **`~/.codex/config.toml`**, secrets hooks, and—when your SonarQube Cloud org has Vortex analysis—a **PostToolUse** hook on **`apply_patch`** that runs analysis on the git change set after each edit, applying to all Codex sessions on this machine.
 
 Same workflows as **[Usage](#usage)** once MCP is connected.
 
@@ -183,13 +199,30 @@ Plugin includes **MCP configuration** (**`kiro-power/mcp.json`**) that runs the 
 
 ---
 
-## Gemini CLI *(legacy)*
+## OpenCode
 
-**`gemini-extension.json`** and **`GEMINI.md`**. **`sonar auth login`** and **[Usage](#usage)**.
+1. Install the SonarQube plugin in OpenCode V2:
 
-Migrate to **[Antigravity](#antigravity)** with **`agy plugin import gemini`** and **`sonar integrate antigravity`** as described above.
+   ```bash
+   opencode plugin add 'github:SonarSource/sonarqube-agent-plugins#master'
+   ```
+
+2. Run **`sonar integrate opencode`**, or invoke the **`/sonar-integrate`** skill.
 
 ---
+
+## Pi
+
+1. Install the SonarQube plugin:
+
+   ```bash
+   pi install git:github.com/SonarSource/sonarqube-agent-plugins
+   ```
+
+2. Run **`sonar integrate pi`**, or invoke the **`/skill:sonar-integrate`** skill.
+
+---
+
 ## Usage
 
 Skills are the same across agents. Ask in natural language, invoke skills explicitly, or use the **SonarQube MCP** tools your client shows after MCP starts.
@@ -245,6 +278,9 @@ MCP reference: [SonarQube MCP Server docs](https://docs.sonarsource.com/sonarqub
 
 /sonarqube:sonar-dependency-risks
 /sonarqube:sonar-dependency-risks my-project --pr 42
+
+/sonarqube:sonar-triage-dependency-risks
+/sonarqube:sonar-triage-dependency-risks my-project --branch main --fix
 ```
 
 ---

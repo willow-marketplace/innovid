@@ -168,3 +168,4 @@ When loaded through the AWS MCP server's retrieve_skill tool: the skill is not i
 | Ingesting data into a data lake | [`ingesting-into-data-lake`](https://github.com/aws/agent-toolkit-for-aws/tree/main/skills/specialized-skills/analytics-skills/ingesting-into-data-lake) |
 | Finding data lake assets | [`finding-data-lake-assets`](https://github.com/aws/agent-toolkit-for-aws/tree/main/skills/specialized-skills/analytics-skills/finding-data-lake-assets) |
 | Querying data lakes | [`querying-data-lake`](https://github.com/aws/agent-toolkit-for-aws/tree/main/skills/specialized-skills/analytics-skills/querying-data-lake) |
+| Migrating a Glue Hive (Parquet) table into S3 Tables via the native migration API | [`migrating-hive-tables-to-s3-tables`](https://github.com/aws/agent-toolkit-for-aws/tree/main/skills/specialized-skills/analytics-skills/migrating-hive-tables-to-s3-tables) |

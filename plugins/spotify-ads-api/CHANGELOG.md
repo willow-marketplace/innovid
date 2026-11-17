@@ -3,21 +3,86 @@
 ## [Unreleased]
 
 ### Added
+- Spotify Ads language standards in `skills/api-reference/references/language-standards.md`: hard limits, how to word a confirmation, when to act or ask a clarifying question, scope and voice, terms, enum display names, money, number, and date formats by locale, benchmarks, output patterns for success, errors, rejections, and empty states, banned words and punctuation, length limits, and non-English output. Every skill and the request-builder agent now read it before sending any output to a user.
+- A Confirmation section in `skills/api-reference/references/api-behaviors.md`, the single source for which actions need a confirmation, keyed to `auto_execute`. Pausing and resuming delivery both need one.
+- `scripts/api-request.sh` now checks every request against the workflow's OpenAPI document before sending it. The check covers query parameters and the JSON body at every depth. Missing or null required fields, missing required query parameters, bodies, and `oneOf` discriminators, wrong types, length, range, and item-count bounds, read-only fields, and invalid JSON block the request. It exits with status 3, prints `ERROR: Request not sent.` with one line per problem, and never reaches the API. Fields, query parameters, and enum or discriminator values the spec does not define only warn. The request is sent and `WARNING: Sent anyway` lists each one, with a "did you mean" suggestion where one fits. A local block could reject a request the user explicitly asked for, so these are reported rather than blocked. The check fails open, sending as before, when no document has been fetched, Python is missing, or the operation is not in the public spec, which prints a warning.
+- `scripts/openapi-op.sh describe <METHOD> <path>` prints a compact view of one operation, with `$ref`s resolved, `allOf` merged, `oneOf` branches labelled, required fields marked, read-only fields hidden, and the spec's common-mistake hints shown inline. `openapi-op.sh search <words>` ranks operations by relevance. `live-openapi.md` now tells agents to use it instead of reading the 400 KB YAML
+- `scripts/openapi_tool.py`, a standard-library-only OpenAPI loader, describer, searcher, and validator. It needs no new dependencies
+- `tests/test-openapi-tool.sh` with 84 offline assertions. Setting `OPENAPI_TOOL_LIVE_SPEC` also checks that the published spec parses the same as with Ruby's YAML
+
+### Changed
+- `scripts/fetch-openapi-schema.sh` records where it saved the document, so later shells, which do not inherit `OPENAPI_FILE`, can find it for validation and `openapi-op.sh`. A recorded document is used for up to 6 hours
+
+### Removed
+- Static API reference files `skills/api-reference/references/endpoints.md`, `schemas.md`, and `enums.md`. They duplicated the live OpenAPI document and drifted from it. Field lists, types, required flags, and enum values now come only from the live spec via `live-openapi.md`
+
+### Changed
+- Runtime behavior the spec cannot express now lives in `skills/api-reference/references/api-behaviors.md`. It covers micro-amounts, the Reserved Pricing and Forecasting flow, estimates, geo lookup, reporting quirks, draft VALIDATE/PUBLISH semantics, live entity lifecycle, and error handling and retry safety. `build-campaign`, `ads`, `drafts`, `campaign-strategy`, its planning framework, the request-builder agent, `api-reference`, and `AGENTS.md` now point to it
+- Audience estimates no longer rely on a static note saying `bid_micro_amount` is required. The general rule applies instead: include every field the live spec marks as required, and the AUTOBID no-bid exception applies only to ad set payloads
+- `media-plan-to-draft` now reads and follows `live-openapi.md` before its first Ads API v3 call, matching the other skills
+- `api-reference`, `build-campaign`, `ads`, `drafts`, and the request-builder agent now list a few critical rules inline, so agents see them without opening `api-behaviors.md`: send only spec-defined fields and every required one, including fields whose description says required; set `placements` when creating an ad set and on every estimate from catalog-allowed values, and keep it valid on ad set updates; never resend a 4xx-rejected body unchanged; and refetch `draft_hierarchy_version` before VALIDATE/PUBLISH
+
+### Fixed
+- `scripts/api-request.sh` and `hooks/check-token.sh` now detect Claude Code from `CLAUDECODE=1`. Claude Code sets `CLAUDE_PROJECT_DIR` only for hooks, not in the Bash tool shell where skills run `api()`, so Claude Code requests were detected as Antigravity: they sent `X-Spotify-Ads-Sdk: antigravity-cli-plugin/<version>` and looked for settings in `.agents` first. Codex is now detected from `CODEX_THREAD_ID` or `CODEX_SESSION_ID`, which Codex exports to its shell; it never exports `CODEX_PROJECT_DIR`, so Codex requests were also reported as Antigravity. An explicit `CLAUDE_PROJECT_DIR` or `CODEX_PROJECT_DIR` still wins over these markers, which a nested agent can inherit. SDK usage recorded as `antigravity-cli-plugin` before this fix includes Claude Code and Codex traffic
+- The Codex PreToolUse hook now runs as Codex. Codex passes no `CODEX_*` variable to hook processes, so the hook was detected as Antigravity: it skipped token and attribution header rewrites for hand-written `curl` and replied in Antigravity's format. It now recognizes Codex by the `turn_id` in the hook payload. The hook command is unchanged, so existing Codex installs keep their approved hook
+- `bulk` and `drafts` no longer keep going after a draft create fails. They skip every step that depends on the failed draft (patches, draft ads, reads, and VALIDATE) instead of sending requests that can only fail. On the API's "maximum number of ad set drafts" 400, they stop work for that campaign without retrying, report which targets were staged and skipped, list the campaign's drafts, and offer to publish or delete stale ones. Bulk draft creates are split or preceded by cleanup when they would exceed the limit
+- `bulk` and `drafts` now choose start times well clear of the minimum lead time stated in the live ad product catalog's `start_time` constraint text, and recheck staged ad set start times against it right before VALIDATE and PUBLISH. If one falls short, they propose a later time or ask whether the exact time matters, rather than failing validation with `INVALID.AD_SET.START_TIME_TOO_CLOSE`. The rule is recorded in `api-behaviors.md`
+- `api-reference`, `campaigns`, `ads`, `drafts`, `bulk`, `monitor`, `dashboard`, `export`, `clone`, and the request-builder agent now state three easy-to-miss rules: only campaigns have a `PAUSED` status (ad sets and ads pause through `delivery: OFF`, and paused ad sets are found via the read-only `is_paused` field); a campaign's ad sets are listed with `ad_sets?campaign_ids=`, not a nested `/campaigns/{id}/ad_sets` route; and updates use PATCH, never PUT
+- `bulk` pause, resume, and delivery for ad sets and ads no longer stage `status: PAUSED` or `delivery` on drafts, which the draft schemas do not accept. They now send a confirmed live `delivery` PATCH, resume now lists ad sets with `delivery=OFF` and reports account-level pauses separately instead of trying to resume them, and resume and archive no longer filter ad sets with `statuses=PAUSED`
+- `monitor`, `clone`, `bulk`, and `api-reference` no longer list ads with `campaign_ids`, which the ad list endpoint does not accept. They list a campaign's ad sets first and pass repeated `ad_set_ids`
+- "Min audience threshold was not met" guidance in `AGENTS.md`, `build-campaign`, `ads`, `clone`, the request-builder agent, and the full campaign flow example no longer suggests retrying or silently widening targeting. Agents now report the narrow audience, suggest broader options along with any `bid_suggestion`, and re-estimate with the targeting the user chooses. "Proceed anyway" is offered only when the estimate came back valid but low, never after a threshold 400
+- The draft VALIDATE/PUBLISH response shape in `AGENTS.md`, `drafts`, the static API references (since removed), the full campaign flow example, and `tests/test-scenarios.md` now matches the API: 200 means success, hierarchy validation errors return 400 with a `PublishCampaignResult` carrying `validation_errors`. On a 400, agents check for `validation_errors` first and never retry automatically
+- Audience estimate guidance in `AGENTS.md`, the static API references (since removed), `ads`, `build-campaign`, `drafts`, and the request-builder agent no longer claims `AUTOBID` estimates can omit `bid_micro_amount` (the server returns 400 `bidMicroAmount must not be null`). The AUTOBID no-bid exception now applies only to ad set payloads. `campaign-strategy` no longer hard-codes the estimate required-field lists and relies on the live spec instead
+- `scripts/api-request.sh` now replaces `{ad_account_id}` in the request body as well as the path. Agents that wrote the placeholder into an estimate body sent it literally and got a 400
+- `drafts` now runs an audience estimate for each draft ad set before creating it, using the same rules as `build-campaign`
+- `live-openapi.md` and `AGENTS.md` now state general rules: every request payload must include every field the live spec marks as required, including nested and array-item fields, for every endpoint; only fields the spec defines may be sent; and docs must not name fields the public spec does not define
+
+## [1.9.0] - 2026-10-01
+
+### Added
+- Authorization Code with PKCE (`S256`) using team-owned client IDs, cryptographic verifier and state generation, exact loopback callback validation, and a printed-URL browser fallback
+- Media-plan-to-draft orchestration for spreadsheet, document, presentation, PDF, and text plans, with source provenance, reconciliation, live Ads API enrichment and forecasts, explicit completeness states, a strict review gate, and handoff to the existing draft workflow without publishing
+- Windows and Linux support: Python is detected as `python3`, `python`, or `py`, and asset uploads use portable `stat` and temporary-directory handling
+- Live public OpenAPI contract checks via `scripts/fetch-openapi-schema.sh`. Each workflow fetches the current Ads API v3 document once, inspects every planned operation's parameters and request body, and stops before any API call if the document cannot be retrieved or recognised
+- Deterministic `Idempotency-Key` on supported create requests in `scripts/api-request.sh`, derived from a SHA-256 hash of the canonical request (`scripts/canonical-hash.py`), so a retried create is recognised by the server instead of duplicated. `--no-dedup-key` opts out
+- Reserved buying guidance that fetches the fixed Reserved rate before an audience forecast, uses it as `bid_micro_amount`, and reports it separately from forecast CPM and bid suggestions
+- Create retry-safety reference in `skills/api-reference/references/create-retry-safety.md`
 - Skill and SDK attribution enforcement in the `PreToolUse` hook, as `hooks/lib/attribution.sh` sourced by `hooks/check-token.sh`. Raw curl calls that skip the request wrapper are rewritten to carry `X-Spotify-Ads-Skill` and `X-Spotify-Ads-Sdk`, so per-skill usage and error-rate reporting is no longer blind to ad-hoc traffic. Attribution is a sourced library rather than a second hook on purpose: matching `PreToolUse` hooks run in parallel against the original input and the last rewrite wins, so a separate hook would race the token refresh and drop one of the two edits
 - Best-effort skill inference from the session transcript, scanning the most recent lines newest-first and accepting only names matching a real skill in this plugin. Inferred values carry an `-inferred` suffix so reporting can separate them from the wrapper's deterministic value
 - `SPOTIFY_ADS_SKILL_LOOKBACK_LINES` to tune how far back skill inference looks, defaulting to 300 transcript lines
 - `SPOTIFY_ADS_ATTRIBUTION_LIB` to point the hook and its tests at an alternative attribution library, so a deliberately broken copy can be tested without editing the installed one
 - `SKILL_HEADER` to the output of `api-request.sh --env`, so raw-curl call sites no longer construct the skill attribution header by hand
+- Unit and shell regressions for PKCE construction, callback validation, token refresh rotation, legacy migration, direct-token behavior, and forbidden secret-based runtime paths
 - `tests/test-api-request.sh`, covering `--env` output quoting, `SKILL_HEADER` scoping, and values containing shell metacharacters
+- `tests/test-openapi-fetch.sh` and `tests/test-marketplace-metadata.sh`, covering OpenAPI document retrieval and marketplace names, sources, policies, and manifest version alignment
 - 52 attribution assertions in `tests/test-check-token.sh`, covering detection, curl-injection edge cases, inference ordering, and per-platform behaviour
 
 ### Changed
+- Replaced application-secret and HTTP Basic token exchanges with public-client authorization and refresh requests containing `client_id`
+- Added the explicit `auth_flow` settings marker and cross-platform automatic PKCE refresh without a platform credential store
+- Kept legacy access tokens usable until expiry while requiring one-time PKCE reauthorization for future refreshes
+- Updated setup documentation to separate team application registration from individual authorization and explain client-level attribution and rate-limit isolation
+- Refined ad product catalog validation to check final creates and deep-merged effective updates, including the parent and runtime context they depend on
+- Renamed the API reference skill to `spotify-ads-api-reference` to meet Agent Skills naming rules
 - The hook now recognises Spotify Ads API calls written as `$BASE_URL/...`, not just those naming `api-partner.spotify.com` literally. The assets and audiences upload flows use the variable form and previously bypassed the hook entirely, missing both token refresh and attribution
 - Antigravity gets a warning rather than a rewrite when attribution is missing, because its `PreToolUse` contract supports allow and deny decisions only and cannot modify a tool call on any of its hook events
+- Documented marketplace installation through the Claude and Codex apps
+- `AGENTS.md` is now the only project instruction file; the `CLAUDE.md` shim was removed because Claude Code 2.1.277 and later read `AGENTS.md` directly
+- Synced version `1.9.0` across the Claude Code, Codex, and Antigravity manifests
 
 ### Fixed
+- Resolved the Codex `PreToolUse` hook from the installed `${PLUGIN_ROOT}` instead of falling back to the workspace directory when `CODEX_PLUGIN_ROOT` is unset
+- Prevented initial OAuth tokens from entering captured helper stdout by writing settings directly through an atomic mode-0600 file replacement
+- Replaced post-write permission changes with secure-at-creation settings files and a private pending-token handoff for managed workspaces that require separate settings-write approval
+- Replaced the undefined direct-token environment-variable handoff with a non-echoing terminal prompt, keeping bearer tokens out of chat and generated command arguments
+- Kept refresh tokens out of process arguments by passing them to the automatic refresh helper through stdin
+- Pixel discovery failed for every request because `GET /businesses/{id}/pixels` returns 403; it now lists `GET /businesses/{id}/datasets` and inspects each dataset's `pixel` field
 - `eval $(api --env)` silently set nothing. The printed values were unquoted, so the space inside `SDK_HEADER` split the assignment and every line became a prefix assignment to a nonexistent command. Raw-curl paths that follow the documented flow, including asset and audience uploads, were therefore sending an empty `Authorization` header along with empty tracking headers. All values are now single-quoted, with embedded single quotes escaped
 - Removed the obsolete root `settings.json`, whose object-valued `agent` field caused Claude's UI marketplace sync to reject the plugin with `plugin_upload_settings_invalid`; tool permissions remain defined in the skill and agent frontmatter
+
+### Removed
+- Application-secret collection, macOS Keychain access, secret-dependent refresh, and the shell-based manual OAuth flow
+- The bundled OpenAPI specification, superseded by the live public document
 
 ## [1.8.0] - 2026-08-13
 

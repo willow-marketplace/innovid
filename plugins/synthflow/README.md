@@ -12,7 +12,7 @@ There are two ways to get the Synthflow tools, and you want **one** of them:
 |------------|-----|
 | claude.ai, Claude Desktop, Claude Cowork | The official **Synthflow connector** — it handles region selection during sign-in |
 | Claude Code, interactive | Either. The connector if you already have it; otherwise this plugin's bundled server |
-| Claude Code headless, CI, cron | This plugin's bundled server with an API key (see [Alternative: API key](#alternative-api-key-headless--ci)) |
+| Claude Code headless, CI, cron | An API-key connection set up outside the plugin (see [Headless / CI](#headless--ci)) |
 
 If you use the connector, keep this plugin installed anyway — the skills below work against either connection.
 
@@ -22,6 +22,11 @@ If you use the connector, keep this plugin installed anyway — the skills below
 |-------|--------------|
 | `call-review` | Audits the last 100 calls for an agent against a problem checklist (unresolved outcomes, repetition, dropout, compliance risks) and reports flagged calls with evidence. |
 | `prompt-review` | Reviews a voice-agent prompt before deployment: contradictions, missing context, tool/action alignment, escalation gaps, compliance risk, and regression risk. |
+| `safe-agent-change` | Changes a live agent through baseline → draft → diff → approval → publish → verify, preserving attached actions, with a guided rollback. |
+| `regression-test` | Builds and runs simulated-caller test suites against an agent and reports pass/fail per case with transcript evidence, separating agent failures from bad test cases. |
+| `call-report` | Builds call-volume and outcome reports for an agent, workspace, or agency: statuses, durations, call reasons from extractors, transfer and booking results, and trends, with every percentage shown against its count. |
+| `build-action` | Creates, tests, and attaches actions (custom HTTP, extractors, transfers, SMS, booking, email) using the exact MCP field shapes, with secrets kept out of chat. |
+| `diagnose-call` | Investigates why a specific call went wrong (transfer, cut-off, silence, failed action or webhook) and labels each cause as confirmed, likely, or not determinable from the available data. |
 
 Claude invokes these automatically when the task fits; you can also run them explicitly, e.g. `/synthflow:call-review`.
 
@@ -57,20 +62,18 @@ Enable the Synthflow connector from Claude's connector directory and sign in, pi
 
 ### Plugin's bundled server
 
-1. Install and enable the plugin (Global-region workspaces work out of the box; US/EU, see [Regions](#regions)).
+1. Install the plugin (Global-region workspaces work out of the box; US/EU, see [Regions](#regions)):
+
+   ```
+   /plugin install synthflow --marketplace SynthFlowAI/AnthropicPlugin
+   ```
+
 2. Run `/mcp`, select the `synthflow` server, and choose **Authenticate**. A browser window opens to Synthflow's sign-in, where you pick the workspace and click **Allow access**.
 3. `/mcp` should now show the server as connected, with its tools listed.
 
-### Alternative: API key (headless / CI)
+### Headless / CI
 
-Environments without a browser can connect with a Synthflow API key instead (generate one in **Admin → Workspace Settings → API Keys**):
-
-```bash
-claude mcp add --transport http synthflow https://mcp.synthflow.ai/mcp \
-  --header "Authorization: Bearer $SYNTHFLOW_API_KEY"
-```
-
-Substitute your region's URL from the table above. Claude Code deduplicates locally configured servers by URL, so this and the plugin's bundled server won't produce duplicate tools.
+Both paths above sign in through a browser. For headless, CI, or scheduled runs, connect to the Synthflow MCP server with an API key as described in [Synthflow's MCP server docs](https://docs.synthflow.ai/mcp-server). The plugin doesn't collect or read API keys; its skills work with whichever connection is set up.
 
 ## How it works
 
@@ -99,7 +102,6 @@ The plugin ships two remote MCP server definitions (`.mcp.json`):
 - **Server not listed in `/mcp`** — make sure the plugin is enabled (`/plugin`), then run `/reload-plugins`.
 - **Connection or sign-in fails outright** — check for a region mismatch: the configured MCP URL must match your workspace's Customer Region (see [Regions](#regions)).
 - **`401 Unauthorized` after previously working** — the OAuth token expired and refresh failed. Open `/mcp`, select the server, and choose **Re-authenticate**.
-- **API-key connection returns `Unauthorized`** — the key is unset, wrong, or expired in the shell that launched Claude Code. Confirm with `echo $SYNTHFLOW_API_KEY`, then regenerate it in Workspace Settings if needed.
 - **Wrong workspace data** — you selected a different workspace during sign-in, or you're on a subaccount. Re-authenticate and pick the right workspace.
 
 ## Reference

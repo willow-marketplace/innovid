@@ -20,6 +20,7 @@ runs concurrently with any live `save-session.sh` by design — and NDC appends 
 
 from __future__ import annotations
 
+import json
 import os
 import subprocess
 import sys
@@ -77,8 +78,13 @@ if cmd == "consolidate":
 '''
 
 
-def _make_env(tmp_path: Path):
-    """A project whose store holds one past-day staging file."""
+def _make_env(tmp_path: Path, thresholds: dict | None = None):
+    """A project whose store holds one past-day staging file.
+
+    `thresholds`, when given, is merged into config.json's `"thresholds"`
+    key rather than overwriting the fixture's config wholesale -- the
+    sibling `"cooldowns": {}` key is always carried forward (#833).
+    """
     project = tmp_path / "project"
     remember = project / ".remember"
     (remember / "tmp").mkdir(parents=True)
@@ -88,14 +94,16 @@ def _make_env(tmp_path: Path):
     (plugin / "scripts").mkdir(parents=True)
     (plugin / "pipeline").mkdir(parents=True)
     (plugin / "pipeline" / "__init__.py").write_text("")
-    (plugin / "pipeline" / "haiku.py").write_text("# marker\n")
+    (plugin / ".claude-plugin").mkdir(parents=True, exist_ok=True)
+    (plugin / ".claude-plugin" / "plugin.json").write_text("{}", encoding="utf-8")
     (plugin / "pipeline" / "shell.py").write_text(STUB_SHELL)
     for script in ("run-consolidation.sh", "resolve-paths.sh", "detect-tools.sh",
                    "bootstrap-dirs.sh", "log.sh", "lib-memory-dir.sh",
                    "lib-lock.sh", "lib-staging-lock.sh", "lib-slug.sh",
                    "lib-clock.sh"):
         (plugin / "scripts" / script).write_text((REPO_ROOT / "scripts" / script).read_text())
-    (plugin / "config.json").write_text('{"cooldowns": {}, "thresholds": {}}')
+    config = {"cooldowns": {}, "thresholds": dict(thresholds or {})}
+    (plugin / "config.json").write_text(json.dumps(config))
 
     env = {
         **os.environ,
@@ -167,6 +175,22 @@ def test_a_quiet_consolidation_still_retires_the_whole_file(tmp_path):
     assert not staging.exists(), "the file should have been renamed away entirely"
     done = remember / "today-2026-07-24.done.md"
     assert done.is_file() and "earlier work" in done.read_text(encoding="utf-8")
+
+
+def test_make_env_merges_thresholds_without_dropping_cooldowns(tmp_path):
+    """A caller-seeded threshold must merge into config.json, not replace it.
+
+    Before #833, `_make_env` had no way to seed a threshold value at all --
+    the only route was overwriting config.json after the fact, which risked
+    silently dropping the sibling "cooldowns" key relied on elsewhere.
+    """
+    _, _, plugin, _ = _make_env(
+        tmp_path, thresholds={"consolidate_timeout_seconds": 5}
+    )
+
+    config = json.loads((plugin / "config.json").read_text(encoding="utf-8"))
+    assert config["thresholds"]["consolidate_timeout_seconds"] == 5
+    assert config["cooldowns"] == {}, "the sibling key must survive the merge"
 
 
 # ── End-to-end through the REAL pipeline.shell (no STUB_SHELL) ─────────────

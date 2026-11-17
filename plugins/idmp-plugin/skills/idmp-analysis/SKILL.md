@@ -42,6 +42,7 @@ description: IDMP analysis skill for listing, searching, reading, resuming, and 
 - Shared environments can force analysis creation onto a data-bearing leaf when `trigger-types list` is empty on the current owner.
 - Child scope does not inherit self-scope triggers. When `applyOnSelf=false`, the backend can legitimately expose only `Session` and `Interval`, so do not assume `DataInput` or `Event` will stay available.
 - Minimal create payloads need `rootElementId`, `startAfterCreated`, a valid `trigger`, and real `output.attributes[].attrId` values. For current live `ELE_SUBET` flows, child-scope analyses can use owner-element output attributes while `output.elementTemplate.id` continues to point at the child template.
+- AI analysis drafts can create output attributes even with `record:false`; inspect existing attributes before retrying after a timeout.
 - Analysis create is not complete until `get`, `list`, and, when needed, `resume` prove the backend kept the object in the expected runtime state.
 - Current live backends can return success for analysis delete while the generated output attributes remain referenced. Once create, reread, and `resume` prove the analysis itself worked, classify leaked output-attribute cleanup as a backend boundary instead of a wrong create payload.
 - If the workflow must emit events or notifications, switch to [`../idmp-workflow-alert-create/SKILL.md`](../idmp-workflow-alert-create/SKILL.md) instead of treating it as a generic read or create flow.

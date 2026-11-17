@@ -11,6 +11,7 @@ Usage:
     python validate.py *.yaml                           # Validate multiple files
     python validate.py --preflight-only workflow.yaml   # Skip API call (runs pre-flight + structural)
 """
+# pylint: disable=too-many-lines
 
 import argparse
 import re
@@ -47,7 +48,7 @@ ACTION_ID_PATTERN = re.compile(r"^[0-9a-z]+([_~][0-9a-z]+)*$")
 # as a broken reference.
 CREDENTIAL_ID_PATTERN = re.compile(r"^[0-9a-f]{32}$")
 DATA_REF_PATTERN = re.compile(r"\$\{data\[")
-VALID_TRIGGER_TYPES = {"On demand", "Signal", "Scheduled", "SubModel"}
+VALID_TRIGGER_TYPES = {"On demand", "Signal", "Scheduled", "SubModel", "Inbound webhook"}
 
 # Wrong ways to reference runtime data that a weaker model reaches for. The
 # correct forms are ${data['<node>.<field>']} and the null-safe
@@ -104,6 +105,16 @@ PINNED_COLLAPSE_NAMESPACES = {
     "logscale.query_event": "results",
 }
 
+# Outputs every Inline.HTTPRequest exposes without a _cs_inline_output_schema
+# (shown in the console's Workflow data panel and returned in execution results).
+HTTP_BUILTIN_OUTPUTS = frozenset({
+    "response_status_code",
+    "raw_response_body",
+    "response_headers",
+    "request_method",
+    "request_url",
+})
+
 # Trigger fields that resolve on the base `event: Investigatable` (multi-product
 # Detection) trigger but are REJECTED at release on the dedicated
 # `event: Investigatable/NGSIEM` trigger with `unknown variable "..."` (confirmed
@@ -122,6 +133,17 @@ NGSIEM_REJECTED_TRIGGER_FIELDS = (
 NGSIEM_REJECTED_MITRE_FIELDS = (
     "Trigger.Detection.MitreAttack.Tactic",
     "Trigger.Detection.MitreAttack.Technique",
+)
+
+# Exposed data record fields that trigger discovery advertises on the Recon
+# notification trigger, yet release rejects as `unknown variable "..."`
+# (confirmed live). EDRs is a list of records, and it is partial or missing on
+# many notifications anyway; read records with the Get exposed data records
+# action instead.
+RECON_EVENT = "ReconNotification"
+RECON_REJECTED_EDR_FIELDS = (
+    "Trigger.ReconNotification.EDRs.Email",
+    "Trigger.ReconNotification.EDRs.HostName",
 )
 
 # The EPP-detection payload namespace. NG-SIEM detections (event:
@@ -186,15 +208,16 @@ FAKE_EMAIL_DOMAIN_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
-# The only keys a Fusion workflow may have at the top level. `disconnected_nodes`
-# and `output_fields` appear in real console exports; the rest are the documented
-# schema. Any other top-level key means the model invented an off-schema shape
-# (e.g. `nodes`/`edges`/`steps`, or bare action labels dumped at the root instead
-# of nested under `actions:`). Such files import as an empty workflow and then
-# fail release, yet slip past every check keyed on `data.get("actions")`.
+# The only keys a Fusion workflow may have at the top level. `disconnected_nodes`,
+# `output_fields`, and `summary` appear in real console exports; the rest are the
+# documented schema. Any other top-level key means the model invented an
+# off-schema shape (e.g. `nodes`/`edges`/`steps`, or bare action labels dumped at
+# the root instead of nested under `actions:`). Such files import as an empty
+# workflow and then fail release, yet slip past every check keyed on
+# `data.get("actions")`.
 ALLOWED_TOP_LEVEL_KEYS = {
     "name", "description", "trigger", "actions",
-    "conditions", "loops", "output_fields", "disconnected_nodes",
+    "conditions", "loops", "output_fields", "disconnected_nodes", "summary",
 }
 
 
@@ -206,7 +229,7 @@ def preflight_check(file_path):
     issues = []
 
     if not os.path.isfile(file_path):
-        return [f"File not found: {file_path}"]
+        return [f"ERROR: File not found: {file_path}"]
 
     with open(file_path, encoding="utf-8") as f:
         content = f.read()
@@ -296,7 +319,8 @@ def _validate_action(label, action, issues):
     if "class" in action and "version_constraint" not in action:
         issues.append(
             f"ERROR: Action '{label}' has 'class' but missing "
-            f"'version_constraint' (add: version_constraint: ~1)"
+            f"'version_constraint' (add ~<major> of the action's semantic_version, "
+            f"~0 if it has none; see action_search.py --details <id>)"
         )
     _validate_action_properties(label, action, issues)
 
@@ -922,6 +946,104 @@ def _validate_ngsiem_trigger_fields(trigger, file_path, issues):
         )
 
 
+def _validate_ondemand_param_refs(trigger, file_path, issues):
+    """Flag On demand trigger parameters read with a Trigger. prefix.
+
+    An On demand trigger's parameters are top-level data: ``data['ip']``, not
+    ``data['Trigger.ip']``. Confirmed live: the prefixed form imports and passes
+    the API dry run, but release fails with only "Workflow has validation errors
+    and cannot be enabled".
+    """
+    if not isinstance(trigger, dict) or trigger.get("type") != "On demand":
+        return
+    params = trigger.get("parameters")
+    props = params.get("properties") if isinstance(params, dict) else None
+    if not isinstance(props, dict) or not props:
+        return
+    with open(file_path, encoding="utf-8") as f:
+        content = f.read()
+    for name in props:
+        if re.search(r"\bTrigger\." + re.escape(str(name)) + r"\b", content):
+            issues.append(
+                f"ERROR: On demand parameter '{name}' is read as 'Trigger.{name}'. "
+                f"On demand parameters have no prefix: use ${{data['{name}']}}. "
+                "The prefixed form imports but release fails with \"Workflow has "
+                "validation errors and cannot be enabled\"."
+            )
+
+
+def _validate_signal_trigger_pin(trigger, file_path, issues):
+    """Flag a Signal trigger with no version_constraint that reads trigger fields.
+
+    Confirmed live on the NG-SIEM trigger: a workflow whose trigger has no
+    ``version_constraint`` imports and passes the API dry run, but release fails
+    with only "Workflow has validation errors and cannot be enabled" as soon as
+    any node reads a ``Trigger.*`` field. The same workflow releases once the
+    trigger has ``version_constraint: ~1``. A Signal trigger that reads no
+    trigger fields releases either way. Other Signal events are warned rather
+    than failed, since the failure has only been confirmed on NG-SIEM.
+    """
+    if not isinstance(trigger, dict) or trigger.get("type") != "Signal":
+        return
+    if trigger.get("version_constraint"):
+        return
+    with open(file_path, encoding="utf-8") as f:
+        content = f.read()
+    if "Trigger." not in content:
+        return
+    event = trigger.get("event", "")
+    confirmed = event == NGSIEM_EVENT
+    outcome = "fails" if confirmed else "may fail"
+    issues.append(
+        f"{'ERROR' if confirmed else 'WARNING'}: Signal trigger '{event}' has no "
+        "version_constraint but the workflow reads Trigger.* fields. Release "
+        f"{outcome} with \"Workflow has validation errors and cannot be "
+        "enabled\" even though import succeeds. Add the event's "
+        "version_constraint to the trigger (~1 for NG-SIEM; see the table in "
+        "references/trigger-types.md)."
+    )
+
+
+def _validate_recon_trigger_fields(trigger, file_path, issues):
+    """Flag exposed data record fields that release rejects on the Recon trigger.
+
+    ``trigger_search.py --fields ReconNotification`` lists ``EDRs.Email`` and
+    ``EDRs.HostName``, but release rejects both as "unknown variable" (confirmed
+    live). Only check when the workflow uses the Recon notification trigger.
+    """
+    if not isinstance(trigger, dict) or trigger.get("event") != RECON_EVENT:
+        return
+    with open(file_path, encoding="utf-8") as f:
+        content = f.read()
+    for field in RECON_REJECTED_EDR_FIELDS:
+        if field in content:
+            issues.append(
+                f"ERROR: '{field}' is advertised by trigger discovery but "
+                f"release rejects it as an unknown variable on the "
+                f"'{RECON_EVENT}' trigger. The trigger's exposed data records "
+                f"are also partial or missing on many notifications. Read them "
+                f"with the Get exposed data records from a Recon notification "
+                f"action instead. See references/trigger-types.md."
+            )
+
+
+def _collect_http_actions(data):
+    """Map label -> action for every Inline.HTTPRequest, including loop bodies."""
+    found = {}
+    actions = data.get("actions", {})
+    if isinstance(actions, dict):
+        found.update({
+            label: action for label, action in actions.items()
+            if isinstance(action, dict) and action.get("class") == "Inline.HTTPRequest"
+        })
+    loops = data.get("loops", {})
+    if isinstance(loops, dict):
+        for loop_def in loops.values():
+            if isinstance(loop_def, dict):
+                found.update(_collect_http_actions(loop_def))
+    return found
+
+
 def _validate_http_output_schema(data, file_path, issues):
     """Release requires _cs_inline_output_schema to reference HTTP response fields.
 
@@ -932,23 +1054,15 @@ def _validate_http_output_schema(data, file_path, issues):
     contains unknown variable". Confirmed live; the shipped VirusTotal example
     carries the schema.
     """
-    actions = data.get("actions", {})
-    if not isinstance(actions, dict):
-        return
-    http_labels = {
-        label
-        for label, action in actions.items()
-        if isinstance(action, dict) and action.get("class") == "Inline.HTTPRequest"
-    }
-    if not http_labels:
+    actions = _collect_http_actions(data)
+    if not actions:
         return
     try:
         with open(file_path, encoding="utf-8") as handle:
             content = handle.read()
     except OSError:
         return
-    for label in http_labels:
-        action = actions[label]
+    for label, action in actions.items():
         transaction = action.get("properties", {}).get("http_transaction")
         has_schema = (
             isinstance(transaction, dict)
@@ -957,9 +1071,14 @@ def _validate_http_output_schema(data, file_path, issues):
         if has_schema:
             continue
         # Referenced with a sub-path? (a bare ${data['<label>']} with no field
-        # doesn't need a response schema — only field access does.)
-        referenced = re.search(
-            r"data\['" + re.escape(label) + r"\.[^']+'\]", content
+        # doesn't need a response schema — only field access does, and the
+        # built-in outputs every HTTP action has don't either.) Matches the
+        # null-safe data[?'...'] form too.
+        referenced = any(
+            m.group(1) not in HTTP_BUILTIN_OUTPUTS
+            for m in re.finditer(
+                r"data\[\??'" + re.escape(label) + r"\.([^'.\[]+)[^']*'\]", content
+            )
         )
         if referenced:
             issues.append(
@@ -1087,13 +1206,26 @@ def _validate_custom_variable_refs(data, file_path, issues):
     (the name is the first segment). The pattern only matches dotted references, so
     a ``WorkflowCustomVariable:`` setter block or a ``variable_schema`` declaration
     is never mistaken for a reference.
+
+    A name segment may itself contain a hyphen (e.g. ``resolved-user-id``) — but
+    a hyphen only extends the match when
+    the character right after it is a letter or underscore, not a digit. This
+    keeps a declared name like ``retries`` from swallowing an adjacent, unspaced
+    CEL subtraction (a bare ``WorkflowCustomVariable.retries-1``, i.e. "retries
+    minus 1") into one bogus token ``retries-1``. The one accepted trade-off: a
+    declared name whose segment starts with a digit right after a hyphen (e.g.
+    ``retry-1-status``) still truncates at the hyphen — narrower than fully
+    permissive, but far rarer than the arithmetic case it guards against.
     """
     try:
         with open(file_path, encoding="utf-8") as handle:
             content = handle.read()
     except OSError:
         return
-    referenced = {m.group(1) for m in re.finditer(r"WorkflowCustomVariable\.(\w+)", content)}
+    referenced = {
+        m.group(1)
+        for m in re.finditer(r"WorkflowCustomVariable\.(\w+(?:-[A-Za-z_]\w*)*)", content)
+    }
     if not referenced:
         return
     declared = _collect_declared_variables(data)
@@ -1143,6 +1275,47 @@ def _validate_top_level_shape(data, issues):
             "defines no 'actions:' (or 'conditions:'/'loops:') section. Nest "
             "every action node under a top-level 'actions:' mapping."
         )
+
+
+def _validate_fake_variable_emails(data, issues):
+    """Flag a fabricated ``@example.com``-style email seeded into a WorkflowCustomVariable
+    (a ``CreateVariable`` schema ``default`` or an ``UpdateVariable`` setter value).
+    Routed through a variable it dead-ends at runtime like a hardcoded recipient, but
+    referencing it in a Send email ``to:`` hides it from the recipient check. Recurses
+    into loops."""
+
+    def _check(name, value):
+        if isinstance(value, str) and FAKE_EMAIL_DOMAIN_PATTERN.search(value):
+            issues.append(
+                f"ERROR: WorkflowCustomVariable '{name}' is seeded with a placeholder "
+                f"email '{value}'. It dead-ends at runtime (no CID delivers to "
+                f"example.com/yourcompany.com-style domains) and, referenced in a Send "
+                f"email 'to:', slips past the recipient check. Leave it without a "
+                f"hardcoded default (set it in the console or from a trigger parameter), "
+                f"or use a real CID-approved address."
+            )
+
+    actions = data.get("actions")
+    if isinstance(actions, dict):
+        for action in actions.values():
+            props = action.get("properties", {}) if isinstance(action, dict) else {}
+            if not isinstance(props, dict):
+                continue
+            schema = props.get("variable_schema")
+            schema_props = schema.get("properties", {}) if isinstance(schema, dict) else {}
+            if isinstance(schema_props, dict):
+                for name, spec in schema_props.items():
+                    if isinstance(spec, dict):
+                        _check(name, spec.get("default"))
+            setter = props.get("WorkflowCustomVariable")
+            if isinstance(setter, dict):
+                for name, value in setter.items():
+                    _check(name, value)
+    loops = data.get("loops")
+    if isinstance(loops, dict):
+        for loop_def in loops.values():
+            if isinstance(loop_def, dict):
+                _validate_fake_variable_emails(loop_def, issues)
 
 
 def structural_check(file_path):
@@ -1269,8 +1442,12 @@ def structural_check(file_path):
     _validate_data_refs(file_path, issues)
     _validate_http_output_schema(data, file_path, issues)
     _validate_ngsiem_trigger_fields(trigger, file_path, issues)
+    _validate_recon_trigger_fields(trigger, file_path, issues)
+    _validate_signal_trigger_pin(trigger, file_path, issues)
+    _validate_ondemand_param_refs(trigger, file_path, issues)
     _validate_pinned_data_paths(data, file_path, issues)
     _validate_custom_variable_refs(data, file_path, issues)
+    _validate_fake_variable_emails(data, issues)
 
     return issues
 

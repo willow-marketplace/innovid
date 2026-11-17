@@ -74,7 +74,7 @@ To start interacting with your database, install the extension for your preferre
 
 For the latest version, check the [releases page][releases].
 
-[releases]: https://github.com/gemini-cli-extensions/spanner/releases
+[releases]: https://github.com/GoogleCloudPlatform/spanner-plugin/releases
 
 <!-- {x-release-please-start-version} -->
 
@@ -82,8 +82,8 @@ For the latest version, check the [releases page][releases].
 <summary id="antigravity">Antigravity</summary>
 
 You can use either of these two agents for Antigravity:
-- [Antigravity CLI](https://github.com/google-gemini/gemini-cli) version **v1.6.0** or higher
-- [Antigravity 2.0](https://antigravity.google/product/antigravity-2) version **v2.0.0** or higher.
+- [Antigravity CLI](https://github.com/google-gemini/gemini-cli) version **v0.3.6** or higher
+- [Antigravity 2.0](https://antigravity.google/product/antigravity-2) version **v0.3.6** or higher.
 
 <blockquote>
 💡 <strong>Tip — Migrating from Gemini CLI?</strong><br>
@@ -104,7 +104,7 @@ See <a href="https://antigravity.google/docs/gcli-migration">Migrating from Gemi
 Install the plugin directly from the remote GitHub repository:
 
 ```bash
-agy plugin install https://github.com/gemini-cli-extensions/spanner
+agy plugin install https://github.com/GoogleCloudPlatform/spanner-plugin
 ```
 
 **2. Set env vars:**
@@ -119,7 +119,7 @@ You can install plugins directly from a remote GitHub repository.
 **1. Install the plugin:**
 
 ```bash
-agy plugin install https://github.com/gemini-cli-extensions/spanner
+agy plugin install https://github.com/GoogleCloudPlatform/spanner-plugin
 ```
 
 **2. Set env vars:**
@@ -154,13 +154,13 @@ _(Tip: Run `/plugin list` inside Claude Code to verify the plugin is active, or 
 **1. Install marketplace:**
 
 ```bash
-codex plugin marketplace add GoogleCloudPlatform/data-agent-kit
+codex plugin marketplace add GoogleCloudPlatform/data-cloud-plugins
 ```
 
 **2. Install the plugin:**
 
 ```bash
-codex plugin add spanner@data-agent-kit
+codex plugin add spanner@data-cloud-plugins
 ```
 
 **3. Set env vars:**
@@ -168,7 +168,7 @@ Enter your environment vars as described in the [configuration section](#configu
 
 **4. (Optional) Update the marketplace:**
 ```sh
-codex plugin marketplace upgrade data-agent-kit
+codex plugin marketplace upgrade data-cloud-plugins
 ```
 
 </details>
@@ -179,7 +179,7 @@ codex plugin marketplace upgrade data-agent-kit
 This repository is a valid [Agent Plugins](https://github.com/agentplugins/agent-plugins-spec) (v1) plugin. Any [Agent Plugins–compatible client](https://agent-plugins.org/compatible-clients) can install it directly using its own built-in plugin command — no extra tooling required — by pointing at this repository:
 
 ```
-https://github.com/gemini-cli-extensions/spanner
+https://github.com/GoogleCloudPlatform/spanner-plugin
 ```
 
 Beyond harnesses covered by the native install above, compatible clients include VS Code, Cursor, GitHub Copilot, and Kiro. See your agent's documentation for its exact install command.

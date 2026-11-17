@@ -1,11 +1,11 @@
 {
   "mcpServers": {
     "lusha": {
-      "url": "https://mcp.lusha.com/mcp/claude",
+      "url": "https://mcp.lusha.com/mcp/codex",
       "type": "http",
       "headers": {
-        "X-Lusha-Plugin": "claude",
-        "X-Lusha-Plugin-Version": "0.1.2"
+        "X-Lusha-Plugin": "codex",
+        "X-Lusha-Plugin-Version": "0.2.0"
       }
     }
   }

@@ -7,7 +7,7 @@ title: "CRED achieves a high level of network inspection with VPC traffic mirror
 
 **September 8, 2021**: Amazon Elasticsearch Service has been renamed to Amazon OpenSearch Service. [See details](https://aws.amazon.com/opensearch-service/).
 
-_Guest post by Himanshu Das, Security Lead, CRED_
+> _Guest post by Himanshu Das, Security Lead, CRED_
 
 _CRED seeks to empower people to upgrade their lives through its members only credit card benefits, exclusive rewards, and experiences from premier brands. CRED, a high-trust community of creditworthy individuals, merchants, and institutions, has reimagined the credit card experience for people serving around millions of credit card payers._
 
@@ -69,7 +69,7 @@ Suricata is a great open source option for monitoring networks for malicious act
 
 ---
 
-_Author: AWS Editorial Team_
+> _Author: AWS Editorial Team_
 
 _The AWS Startups Content Marketing Team collaborates with startups of all sizes and across all sectors to deliver exceptional content that educates, entertains, and inspires._
 

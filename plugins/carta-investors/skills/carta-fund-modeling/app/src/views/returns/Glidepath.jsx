@@ -1,5 +1,5 @@
-// LP Glidepath — one fund's DPI / RVPI / TVPI traced over its life, rendered as a
-// section inside the LP Returns tab. Historical years (from the fund's cashflows +
+// LP Glidepath — one fund's DPI / RVPI / TVPI traced over its life, rendered as the
+// LP glidepath report on the Reports tab. Historical years (from the fund's cashflows +
 // NAV marks) sit left of the "today" line; projected years roll forward under the
 // scenario's pacing knobs. RVPI (the unrealized band) runs off into DPI (the
 // realized band) as capital comes back; the two stack to TVPI. It is TIED TO THE
@@ -9,7 +9,7 @@
 import { useMemo, useState } from "react";
 import { FS, sans, inkNum, MICRO } from "../../ui/theme.js";
 import { fmtM, fmtX, fmtPct } from "../../ui/format.js";
-import { H2, H3, Eyebrow, MethodNote, SourceNote, Segmented, Slider, StatBar, Badge, fundLabel } from "../../ui/components.jsx";
+import { H3, Eyebrow, MethodNote, SourceNote, Segmented, Slider, StatBar, Badge, EmptyState, fundLabel } from "../../ui/components.jsx";
 import { fundGlidepath } from "../../model/glidepath.js";
 
 // realized (DPI) vs unrealized (RVPI) band colors; TVPI is the ink line on top.
@@ -71,21 +71,10 @@ function GlidepathChart({ g }) {
   const hc = hoverI != null ? rows[hoverI] : null;
   const tipLeft = hc ? Math.max(8, Math.min(92, (x(hoverI) / W) * 100)) : 0;
   const lab = { ...sans, fontSize: FS.micro, fill: MICRO };
+  const legendText = { ...sans, fontSize: FS.body, color: "var(--ink-color-global-text-subtle)", display: "inline-flex", alignItems: "center", gap: 8 };
 
   return (
-    <div className="card" style={{ padding: "16px 20px 12px" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap", marginBottom: 6 }}>
-        <H3>DPI · RVPI · TVPI over the fund's life</H3>
-        <span style={{ flex: 1 }} />
-        {[["Realized (DPI)", C_DPI], ["Unrealized (RVPI)", C_RVPI]].map(([t, c]) => (
-          <span key={t} style={{ ...sans, fontSize: FS.micro, color: "var(--ink-color-global-text-subtle)", display: "inline-flex", alignItems: "center", gap: 5 }}>
-            <span style={{ width: 10, height: 10, borderRadius: 2, background: c }} />{t}
-          </span>
-        ))}
-        <span style={{ ...sans, fontSize: FS.micro, color: "var(--ink-color-global-text-subtle)", display: "inline-flex", alignItems: "center", gap: 5 }}>
-          <span style={{ width: 14, height: 0, borderTop: `2px dashed ${C_TVPI}` }} />TVPI
-        </span>
-      </div>
+    <div>
       <div style={{ position: "relative" }}>
         <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", display: "block" }} role="img" aria-label="DPI, RVPI and TVPI over the fund's life">
           {/* y gridlines */}
@@ -138,12 +127,44 @@ function GlidepathChart({ g }) {
           </div>
         )}
       </div>
+      {/* Under the plot, no rule; indented to the plot's left gutter (PL, as a share of the viewBox width). */}
+      <div data-testid="glidepath-legend" style={{ display: "flex", flexWrap: "wrap", gap: "8px 16px", marginTop: 12, paddingLeft: `${(PL / W) * 100}%` }}>
+        {[["Realized (DPI)", C_DPI], ["Unrealized (RVPI)", C_RVPI]].map(([t, c]) => (
+          <span key={t} style={legendText}>
+            <span style={{ width: 10, height: 10, background: c, display: "inline-block" }} />{t}
+          </span>
+        ))}
+        <span style={legendText}>
+          <span style={{ width: 14, height: 0, borderTop: `2px dashed ${C_TVPI}`, display: "inline-block" }} />TVPI
+        </span>
+      </div>
     </div>
   );
 }
 
-/** Rendered as a section inside LP Returns. `fundState` is the live (repriced)
- *  per-fund state; the parent owns fund selection. */
+/** The LP glidepath report: chart, projection knobs and per-year table. `fundState`
+ *  is the live (repriced) per-fund state; the parent owns fund selection. */
+const GlidepathHeading = ({ children }) => (
+  <>
+    <H3 as="div" style={{ marginBottom: 4 }}>LP glidepath</H3>
+    <MethodNote>{children}</MethodNote>
+  </>
+);
+
+/** The glidepath under All funds: a fund's path from calls to wind-down has no firm-wide
+ *  form (funds of different vintages blur the arc, and each projects on its own
+ *  settings), so its heading stays over a boxed prompt to pick a fund. */
+export function GlidepathAllFunds() {
+  return (
+    <div>
+      <GlidepathHeading>Actuals to Today, then a projection.</GlidepathHeading>
+      <div className="card empty-card">
+        <EmptyState icon="pending" text="Select a fund to see how its LP returns develop over the fund's life." />
+      </div>
+    </div>
+  );
+}
+
 export default function Glidepath({ snapshot, fundState, portfolio, setAssumption, readOnly }) {
   const fundId = fundState?.id;
   const asOfYear = +String(snapshot.source?.navAsOf).slice(0, 4);
@@ -169,10 +190,7 @@ export default function Glidepath({ snapshot, fundState, portfolio, setAssumptio
 
   return (
     <div>
-      <H2 id="lp-glidepath">LP glidepath</H2>
-      <MethodNote>
-        {fundState ? fundLabel(fundState.name) : "The fund"}'s LP multiples over its life, at this scenario's marks. Left of “Today” is actual (from Carta cashflows + NAV marks); right is a projection: remaining uncalled commitment is called over the investment period and deployed at the fund's current multiple, and the resulting value is realized over the horizon. At 0% NAV growth today's TVPI is held flat — RVPI simply converts into DPI over time; raise NAV growth to model further appreciation. Repricing companies or toggling exits moves the Today anchor and the whole path.
-      </MethodNote>
+      <GlidepathHeading>Actuals to Today, then a projection at {knobs.navGrowthPct}% NAV growth.</GlidepathHeading>
 
       {!g ? (
         <div className="card" style={{ padding: "22px 24px", ...sans, fontSize: FS.body, color: "var(--ink-color-global-text-subtle)" }}>
@@ -231,8 +249,8 @@ export default function Glidepath({ snapshot, fundState, portfolio, setAssumptio
                     <td style={cell}>{fmtM(r.paidIn)}</td>
                     <td style={cell}>{fmtM(r.cumDist)}</td>
                     <td style={{ ...cell, color: "var(--ink-color-global-text-subtle)" }}>{fmtM(r.nav)}</td>
-                    <td style={{ ...cell, color: C_DPI, fontWeight: 700 }}>{fmtX(r.dpi)}</td>
-                    <td style={{ ...cell, color: C_RVPI }}>{fmtX(r.rvpi)}</td>
+                    <td style={{ ...cell, color: C_DPI, fontWeight: 400 }}>{fmtX(r.dpi)}</td>
+                    <td style={{ ...cell, color: C_RVPI, fontWeight: 400 }}>{fmtX(r.rvpi)}</td>
                     <td style={{ ...cell, fontWeight: 700 }}>{fmtX(r.tvpi)}</td>
                   </tr>
                 );

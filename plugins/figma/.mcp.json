@@ -8,9 +8,11 @@
           "whoami": "Who Am I",
           "use_figma": "Use Figma",
           "get_figjam": "Get FigJam Content",
+          "get_comments": "Get Comments",
           "get_metadata": "Get Metadata",
           "get_libraries": "Get Libraries",
           "upload_assets": "Upload Assets",
+          "generate_image": "Generate Image",
           "get_screenshot": "Get Screenshot",
           "create_new_file": "Create New File",
           "generate_diagram": "Generate Diagram",
@@ -28,7 +30,7 @@
         "ideToolIconRendersAsTemplate": true
       },
       "headers": {
-        "X-Figma-Plugin-Bundle": "figma_prod@2_2_108"
+        "X-Figma-Plugin-Bundle": "figma_prod@2_2_211"
       }
     }
   }

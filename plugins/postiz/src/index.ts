@@ -3,7 +3,8 @@ import { hideBin } from 'yargs/helpers';
 import { createPost, listPosts, deletePost, getMissingContent, connectPost, changePostStatus, updatePostSettings } from './commands/posts';
 import { listIntegrations, listGroups, getIntegrationSettings, triggerIntegrationTool } from './commands/integrations';
 import { getAnalytics, getPostAnalytics } from './commands/analytics';
-import { uploadFile } from './commands/upload';
+import { uploadFile, listMedia, getMediaStatus } from './commands/upload';
+import { createClipping, listClippings, getClipping } from './commands/clipping';
 import { authLogin, authLogout, authStatus } from './commands/auth';
 import type { Argv } from 'yargs';
 
@@ -23,6 +24,10 @@ yargs(hideBin(process.argv))
         .option('media', {
           alias: 'm',
           describe: 'Comma-separated media URLs for the corresponding -c (can be used multiple times)',
+          type: 'string',
+        })
+        .option('alt', {
+          describe: 'Comma-separated alt texts for the media of the corresponding -m, same order (can be used multiple times, use --json for alt texts containing commas)',
           type: 'string',
         })
         .option('integrations', {
@@ -85,6 +90,10 @@ yargs(hideBin(process.argv))
         .example(
           '$0 posts:create -c "Main post" -m "img1.jpg,img2.jpg" -s "2024-12-31T12:00:00Z" -i "twitter-123"',
           'Post with multiple images'
+        )
+        .example(
+          '$0 posts:create -c "Main post" -m "img1.jpg,img2.jpg" --alt "first alt,second alt" -s "2024-12-31T12:00:00Z" -i "instagram-123"',
+          'Post with alt text per image (same order as -m)'
         )
         .example(
           '$0 posts:create -c "Main post" -m "img1.jpg" -c "First comment" -m "img2.jpg" -c "Second comment" -m "img3.jpg,img4.jpg" -s "2024-12-31T12:00:00Z" -i "twitter-123"',
@@ -385,9 +394,117 @@ yargs(hideBin(process.argv))
           describe: 'File path to upload',
           type: 'string',
         })
-        .example('$0 upload ./image.png', 'Upload an image');
+        .option('adjust', {
+          type: 'boolean',
+          default: false,
+          describe:
+            "Adjust the file to the platforms' limits after the upload: videos are scaled to 1080p and re-encoded to MP4, oversized images are scaled down. Wait until media:status returns ready before publishing a post with the returned path, or the post uses the original file",
+        })
+        .example('$0 upload ./image.png', 'Upload an image')
+        .example('$0 upload ./video.mp4 --adjust', 'Upload a video and adjust it to the platforms\' limits');
     },
     uploadFile as any
+  )
+  .command(
+    'media:status <id>',
+    'Check whether a file uploaded with --adjust finished adjusting',
+    (yargs: Argv) => {
+      return yargs
+        .positional('id', {
+          describe: 'Media ID returned by upload',
+          type: 'string',
+        })
+        .example('$0 media:status media-123', 'Poll while the status is "processing"');
+    },
+    getMediaStatus as any
+  )
+  .command(
+    'media:list',
+    'List media already uploaded to the media library (newest first, 18 per page)',
+    (yargs: Argv) => {
+      return yargs
+        .option('search', {
+          alias: 's',
+          type: 'string',
+          describe: 'Filter by original file name (case-insensitive)',
+        })
+        .option('page', {
+          alias: 'p',
+          type: 'number',
+          describe: 'Page number, starting at 1',
+          default: 1,
+        })
+        .example('$0 media:list', 'List the most recent uploads')
+        .example('$0 media:list -s banner', 'Find uploads whose name contains "banner"');
+    },
+    listMedia as any
+  )
+  .command(
+    'clipping:create <url>',
+    'Turn a long YouTube video into short vertical clips with captions',
+    (yargs: Argv) => {
+      return yargs
+        .positional('url', {
+          describe: 'URL of the YouTube video',
+          type: 'string',
+        })
+        .option('integrations', {
+          alias: 'i',
+          describe: 'Comma-separated list of integration IDs to create a draft post for every clip (without it the clips only land in the media library)',
+          type: 'string',
+        })
+        .option('clips', {
+          alias: 'n',
+          describe: 'Maximum number of clips, 1-10 (default: 5)',
+          type: 'number',
+        })
+        .option('fit', {
+          alias: 'f',
+          describe: 'How the horizontal video fills the vertical clip: "blur" keeps the whole picture over a blurred copy of itself, "crop" fills the clip and cuts the sides (default: blur)',
+          type: 'string',
+          choices: ['blur', 'crop'],
+        })
+        .example(
+          '$0 clipping:create "https://www.youtube.com/watch?v=VIDEO_ID"',
+          'Clip a video into the media library'
+        )
+        .example(
+          '$0 clipping:create "https://www.youtube.com/watch?v=VIDEO_ID" -n 3 -f crop -i "tiktok-123,instagram-456"',
+          'Make up to 3 cropped clips and draft them on two channels'
+        );
+    },
+    createClipping as any
+  )
+  .command(
+    'clipping:list',
+    'List all clippings',
+    (yargs: Argv) => {
+      return yargs
+        .option('page', {
+          alias: 'p',
+          describe: 'Page number, 20 clippings per page (default: 1)',
+          type: 'number',
+        })
+        .example('$0 clipping:list', 'List the latest clippings')
+        .example('$0 clipping:list --page 2', 'List the second page');
+    },
+    listClippings as any
+  )
+  .command(
+    'clipping:status <id>',
+    'Get the status of a clipping and its clips',
+    (yargs: Argv) => {
+      return yargs
+        .positional('id', {
+          describe: 'Clipping ID returned by clipping:create',
+          type: 'string',
+        })
+        .example(
+          '$0 clipping:status clipping-123',
+          'Check the progress and get the clip URLs'
+        );
+    },
+    getClipping as any
   )
   .command(
     'auth:login',

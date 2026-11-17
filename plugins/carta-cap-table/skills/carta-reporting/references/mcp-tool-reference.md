@@ -1,10 +1,27 @@
 # MCP Tool Reference
 
-Lazy-loaded reference for `carta-reporting`. `cat` this file on demand when resolving
+Lazy-loaded reference for `carta-reporting`. `Read` this file on demand when resolving
 required params (Step 3) or filter IDs — it is not part of the always-loaded SKILL.md.
 
 ```
-# All commands invoked via call_tool
+# Reads go through read_tool; reporting__create__report changes data, so it goes through call_tool
+
+# PARAM CONTRACT — send exactly the argument names below and nothing else; unknown keys are rejected.
+#   This contract alone decides what may be sent. A report type's params_schema (from
+#   reporting__search__report_types) decides only what to ask the user for: its `required` list.
+#   An optional param that params_schema lists but this contract does not (include_drafts,
+#   with_formula_enabled) is never sent.
+#   reporting__create__report       call_tool   corporation_id, report_type, as_of_date, report_name,
+#                                               export_format, preview, the filter keys and per-type params below
+#                                               (no formula flag: live Excel totals come from report_processor aggregations)
+#   reporting__get__report_status   read_tool   user_report_pk
+#   reporting__get__download_url    read_tool   user_report_pk, corporation_id — only once status is "complete"
+#   reporting__search__report_types read_tool   corporation_id, query, json_export_supported (optional)
+#   reporting__create__report_template call_tool corporation_id, name, definition, visibility (optional)
+#   reporting__list__report_templates read_tool  corporation_id
+#   reporting__get__report_template read_tool    corporation_id, template_id
+#   reporting__create__report_template_run call_tool corporation_id, template_id, as_of_date (optional)
+#   reporting__get__report_template_run read_tool    corporation_id, template_id, run_id
 
 call_tool({"name": "reporting__create__report", "arguments": { corporation_id, report_type, as_of_date, report_name, export_format: "json" }})
   → { user_report_pk }
@@ -18,7 +35,7 @@ call_tool({"name": "reporting__create__report", "arguments": { corporation_id, r
   #     exercised_and_settled_report, equity_plan_report, vesting_details_report,
   #     historical_terminations_report, common_securities_report, equity_awards_outstanding,
   #     equity_plan_granted_report, options_outstanding_report, securities_ledger_report,
-  #     share_registry_report, rule_701_report, canceled_and_returned_report, eightythreeb_elections_report
+  #     share_registry_report, rule_701_compliance_report, canceled_and_returned_report, eightythreeb_elections_report
   #   termination_modeling_report: equity_plan_ids, security_ids, share_class_ids, issued_from, issued_to (stakeholder_ids not supported)
   #   stakeholder_ledger_report, stakeholder_details_report: stakeholder_ids only
   #   Passing unsupported filters for a report type has no effect.
@@ -33,9 +50,9 @@ call_tool({"name": "reporting__create__report", "arguments": { corporation_id, r
   # REQUIRED params by report_type — the API fails silently or errors if these are omitted.
   # Collect any that the user has not already provided via AskUserQuestion BEFORE calling this command.
   #
-  # Each entry in the reporting:search:report_types response carries a params_schema for its own
-  # report type, generated from the same source as this table. Prefer it when present; this table
-  # is the fallback for when search was not called.
+  # Each entry in the reporting__search__report_types response carries a params_schema for its own
+  # report type. Use its `required` list when present; this table is the fallback for when search
+  # was not called. Never send an optional param from params_schema that the PARAM CONTRACT omits.
   #
   #   stakeholder_ownership_details_report
   #     stakeholder_pk       — the stakeholder to report on (REQUIRED)
@@ -74,24 +91,24 @@ call_tool({"name": "reporting__create__report", "arguments": { corporation_id, r
   #     show_events_ledger_sheet     — true | false (REQUIRED)
 
 # Filter ID lookup commands:
-call_tool({"name": "cap_table__get__stakeholders", "arguments": { corporation_id }})
+read_tool({"name": "cap_table__get__stakeholders", "arguments": { corporation_id }})
   → { count: N, by_type: { employee: N, investor: N, ... } }
   # Summary mode (no search param) — returns total stakeholder count and breakdown by type.
   # Use count to infer company size for status message branching (Step 4).
 
-call_tool({"name": "cap_table__get__stakeholders", "arguments": { corporation_id, search: "<name>" }})
+read_tool({"name": "cap_table__get__stakeholders", "arguments": { corporation_id, search: "<name>" }})
   → { results: [{ id, full_name, email, event_relationship }] }
   # Search mode — resolves a stakeholder name to its numeric id for use in stakeholder_ids.
   # search matches full_name and email. Available to all users.
 
-call_tool({"name": "cap_table__get__certificate_share_classes", "arguments": { corporation_id }})
+read_tool({"name": "cap_table__get__certificate_share_classes", "arguments": { corporation_id }})
   → { results: [{ id, name, prefix }] }
   # Returns available share classes (Common, Series A, etc.) with their numeric id.
   # Not staff-only: admits staff, company editors, HR admins, and in-scope share-class-scoped
   # admins. A read-only company viewer IS rejected (403) — fall back to AskUserQuestion.
   # For a scoped admin the result is already narrowed to their share classes.
 
-call_tool({"name": "cap_table__get__option_plans", "arguments": { corporation_id }})
+read_tool({"name": "cap_table__get__option_plans", "arguments": { corporation_id }})
   → { results: [{ id, name, common_share_class_id, size, available_quantity, is_expired }] }
   # Returns equity plans with their numeric id and linked share class id.
   # Not staff-only: same admission as certificate_share_classes above, and likewise pre-narrowed
@@ -105,31 +122,31 @@ call_tool({"name": "cap_table__get__option_plans", "arguments": { corporation_id
 # share-class-scoped admin a security outside the scope is simply absent, so the lookup reports the
 # label as not found — identical to a typo. Do not retry it, do not widen the search, and do not
 # call it an error: say the security is not in the part of the cap table this account can see.
-call_tool({"name": "cap_table__get__certificate", "arguments": { corporation_id, label: "<label>" }})
+read_tool({"name": "cap_table__get__certificate", "arguments": { corporation_id, label: "<label>" }})
   → { id, label, ... }   # CERTIFICATE:<id>
 
-call_tool({"name": "cap_table__get__option_grant", "arguments": { corporation_id, label: "<label>" }})
+read_tool({"name": "cap_table__get__option_grant", "arguments": { corporation_id, label: "<label>" }})
   → { id, label, ... }   # OPTION:<id>
 
-call_tool({"name": "cap_table__get__rsu", "arguments": { corporation_id, label: "<label>" }})
+read_tool({"name": "cap_table__get__rsu", "arguments": { corporation_id, label: "<label>" }})
   → { id, label, ... }   # RSU:<id>
 
-call_tool({"name": "cap_table__get__rsa", "arguments": { corporation_id, label: "<label>" }})
+read_tool({"name": "cap_table__get__rsa", "arguments": { corporation_id, label: "<label>" }})
   → { id, label, ... }   # RSA:<id>
 
-call_tool({"name": "cap_table__get__piu", "arguments": { corporation_id, label: "<label>" }})
+read_tool({"name": "cap_table__get__piu", "arguments": { corporation_id, label: "<label>" }})
   → { id, label, ... }   # PIU:<id>
 
-call_tool({"name": "cap_table__get__warrant", "arguments": { corporation_id, label: "<label>" }})
+read_tool({"name": "cap_table__get__warrant", "arguments": { corporation_id, label: "<label>" }})
   → { id, label, ... }   # WARRANT:<id>
 
-call_tool({"name": "cap_table__list__sars", "arguments": { corporation_id, search: "<label>", detail: "minimal" }})
+read_tool({"name": "cap_table__list__sars", "arguments": { corporation_id, search: "<label>", detail: "minimal" }})
   → { results: [{ id, label, ... }] }   # SAR:<id>
 
-call_tool({"name": "cap_table__list__cbus", "arguments": { corporation_id, search: "<label>", detail: "minimal" }})
-  → { results: [{ id, label, ... }] }   # CBU:<id>
+read_tool({"name": "cap_table__list__cbus", "arguments": { corporation_id, search: "<label>", detail: "minimal" }})
+  → { data: { count, results: [{ id, label, ... }], ... }, meta }   # CBU:<id>
 
-call_tool({"name": "cap_table__get__limited_admin_scope", "arguments": { corporation_id }})
+read_tool({"name": "cap_table__get__limited_admin_scope", "arguments": { corporation_id }})
   → { corporation_id, is_limited_admin,
       share_classes: [{ id, name, prefix }] | null, option_plan_ids: [...] | null }
   # Whether this caller's cap-table access is narrowed to specific share classes.
@@ -137,19 +154,88 @@ call_tool({"name": "cap_table__get__limited_admin_scope", "arguments": { corpora
   # other. A 403/404 or a missing command means "treat as unrestricted": every other cap_table
   # command already scopes itself server-side, so this only affects how the result is described.
 
-call_tool({"name": "reporting__search__report_types", "arguments": { corporation_id, query, json_export_supported: true }})
+read_tool({"name": "reporting__search__report_types", "arguments": { corporation_id, query, json_export_supported: true }})
   → {
-      reports: [{report_type, name, similarity, answers_question, params_schema}],
+      count: N,
+      results: [{report_type, name, similarity, answers_question, params_schema, runs_through_api_report}],
       questions: [{question, similarity, answers, hide_from_ui}]
     }
-  # `reports` is already filtered to what this account may run — a share-class-scoped admin sees a
+  # `results` is already filtered to what this account may run — a share-class-scoped admin sees a
   # shorter list. A report type absent from it is unavailable, not mis-ranked: never fall back to a
   # hardcoded list and never retry it.
+  # runs_through_api_report — true when reporting__create__report can run the type. Send it only
+  # types with true (or, when the field is absent, types from `results`); any other type fails, and
+  # the user runs it from the Reports page in Carta instead.
 
-call_tool({"name": "reporting__get__report_status", "arguments": { user_report_pk }})
-  → { status }   # status: "pending" | "complete" | "error" | "not_found"
-                 # corporation_id not required — endpoint is user-scoped
+read_tool({"name": "reporting__get__report_status", "arguments": { user_report_pk }})
+  → { status, url }   # status: "pending" | "complete" | "error" | "not_found"
+                 # url (complete only) is a Carta web page that needs a Carta sign-in: never give it
+                 # to the user; get the file through download_url.
+                 # never pass corporation_id — endpoint is user-scoped and rejects it
 
-call_tool({"name": "reporting__get__download_url", "arguments": { user_report_pk, corporation_id }})
-  → { download_url }   # S3 presigned URL — pass to report_processor.py, not WebFetch
+read_tool({"name": "reporting__get__download_url", "arguments": { user_report_pk, corporation_id }})
+  → { download_url }   # S3 presigned URL — pass to report_files.py download, not WebFetch.
+                       # not_found: re-check report_status once; if "complete", call this once more;
+                       # if "pending", resume polling within the attempts left; never call this more
+                       # than twice.
+
+# Custom reports (the tools say "report template") — keep a report in Carta to run again at a new as-of date.
+# Offered only when reporting__list__report_templates succeeds for the company ("Save as a custom report" and step 2b in SKILL.md).
+# Every one of the five answers "Custom reports aren't enabled for this company." when they are off: do not retry.
+
+call_tool({"name": "reporting__create__report_template", "arguments": { corporation_id, name, definition, visibility }})
+  → { id, display_name, report_type, visibility, version, message }
+  # name — 1-255 characters, unique among the company's custom reports (case-insensitive).
+  # visibility — optional: "creator" (only the person saving; the default) or "company_admins".
+  # definition — the object build_template_definition.py writes to its --out file; pass it as the file holds it.
+  #   A custom report holds ONE report type: `source` is a single object, and Carta refuses `sources`, `join`
+  #   (unsupported_block), `dates`, formulas and aggregations (not_supported). A date filter keeps its exact date.
+  #   Totals go in a sheet's `summary`, never `aggregations`.
+  #   { schema_version: 1, default_name, source: { report_type, params: {} },
+  #     sheets: [{ name, from: { match: "exact" | "prefix" | "suffix", value, merge? },
+  #                columns: [{ key } | { dynamic, field?, source }], filters: [{ key, op, value }], sort: [{ key, direction }] }] }
+  #   A sheet with totals has `summary` in place of `columns` and `sort` (its filters run first), written from a
+  #   report_processor `summary_table`:
+  #     summary: { rows: [1 or 2 keys], pivot?: key, values: [{ key, fn: "sum" | "count",
+  #                percent_of?: "total" | "group", id?, header? }], totals?: { rows?, columns? },
+  #                subtotals?, order?: "key_asc" | "value_desc" }
+  #   `id` is needed when a key repeats (a sum and its share); `header` is 1-60 characters. A pivot takes one value
+  #   with no percent_of, id or header. Carta sums a money column whatever its currency, so totals of amounts in
+  #   more than one currency are never saved, and it labels a money group in dollars, so a summary grouped by
+  #   money in another currency is never saved either.
+  #   Columns, filters and sort are named by `key`, never by header. A per-item column (one per share
+  #   class, plan, currency…) is named by `dynamic`, `field` and `source`; filters and sort take keys only.
+  #   Merged sheets are saved as one sheet whose `from` matches every merged sheet by a common start or
+  #   end of name, with `merge: true`; a prefix or suffix value is 1-31 characters. Carta refuses a report
+  #   type it does not take yet (unsupported_report_type, its reason names the types it takes). No as-of
+  #   date or formulas.
+  #   At most 10 sheets with distinct tab names and at most 200 columns per sheet; op is one of
+  #   > < >= <= = != contains in; `in` takes a list of 1 to 100 values and every other op one value;
+  #   direction is asc or desc.
+  # Failures are tool errors, never an empty result:
+  #   "Carta did not save this custom report" — not available for this user or company; nothing was saved.
+  #   "…the user can't run this report here" — their access does not cover this report type; nothing was saved.
+  #   a list of "path: reason (code)" lines — the definition was refused; nothing was saved.
+  #   "A custom report with that name already exists" — ask for another name. A retried save answers the same,
+  #     so after any save that may have gone through, list the custom reports before saving again.
+  # Needs the write permission: scope_required is handled as for reporting__create__report.
+
+read_tool({"name": "reporting__list__report_templates", "arguments": { corporation_id }})
+  → { templates: [{ id, display_name, report_type, origin, visibility, created_by, current_version,
+                    created, last_modified, last_run }] }   # newest change first; only what the user may see
+
+read_tool({"name": "reporting__get__report_template", "arguments": { corporation_id, template_id }})
+  → { id, display_name, report_type, visibility, origin, current_version: { version, schema_version, created, definition } }
+
+call_tool({"name": "reporting__create__report_template_run", "arguments": { corporation_id, template_id, as_of_date }})
+  → { id, template_id, version, as_of_date, status: "queued", ... }
+  # Runs the custom report's current version at as_of_date (YYYY-MM-DD; never after today). Offered by step 2b.
+  # Needs the write permission: scope_required is handled as for reporting__create__report.
+
+read_tool({"name": "reporting__get__report_template_run", "arguments": { corporation_id, template_id, run_id }})
+  → { id, status, outcome, error, as_of_date, download_url, absent_columns, notice }
+  # status: queued | running | succeeded | failed. Poll every 3 s while queued or running; stop after 10 minutes.
+  # outcome: ok | withheld (succeeded) or unknown_column | unmatched_sheet | port_error (failed).
+  # download_url is set only when succeeded: a short-lived signed link; report_files.py downloads it.
+  # notice is present only when outcome is withheld: show it to the user as written.
 ```

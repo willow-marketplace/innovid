@@ -1,6 +1,6 @@
 # Bundle Lifecycle
 
-This document explains how governance bundles progress through policy stages in Domino.
+Base URL, auth and the `TOKEN` conditional in the curl examples: [SKILL.md Configuration](./SKILL.md#configuration).
 
 ## How Policies Define Stage Sequences
 
@@ -15,7 +15,7 @@ Each stage has:
 - **Name**: Human-readable label
 - **Approvals**: Organizations that must sign off before the stage can advance
 - **EvidenceSet**: Form-based questions to be answered (discovered via `GET /policies/{policyId}`)
-- **Attachments**: Files, model versions, and reports linked to the bundle
+- **Attachments**: Model versions, project files (reports), dataset snapshot files, endpoints, NetApp Volume snapshot files and Flow artifacts linked to the bundle (see [EVIDENCE-WORKFLOW.md](./EVIDENCE-WORKFLOW.md#attachment-types))
 
 ### Stage Gating
 
@@ -32,12 +32,11 @@ Policies with `enforceSequentialOrder: true` require stages to be completed in o
 ### Create the Bundle
 ```bash
 curl -X POST "$BASE/bundles" \
-  -H "Authorization: Bearer $TOKEN" \
+  ${TOKEN:+-H "Authorization: Bearer $TOKEN"} \
   -H "Content-Type: application/json" \
   -d '{
     "projectId": "your-project-id",
     "name": "My Model v1.0",
-    "description": "Description of the model being governed",
     "policyId": "policy-uuid"
   }'
 ```
@@ -63,7 +62,7 @@ After creating a bundle, inspect it to find the stage IDs:
 
 ```bash
 curl -s "$BASE/bundles/$BUNDLE_ID" \
-  -H "Authorization: Bearer $TOKEN"
+  ${TOKEN:+-H "Authorization: Bearer $TOKEN"}
 ```
 
 The response includes a `stages` array:
@@ -79,70 +78,55 @@ The response includes a `stages` array:
 }
 ```
 
-**Important**: The bundle response does NOT include evidenceSet IDs. To get those, fetch the policy directly:
-```bash
-curl -s "$BASE/policies/$POLICY_ID" -H "Authorization: Bearer $TOKEN"
-```
+EvidenceSet IDs come from `GET /policies/{policyId}`, not from the bundle ([EVIDENCE-WORKFLOW.md](./EVIDENCE-WORKFLOW.md#discovering-evidenceset-ids)).
 
 ## Progressing Through Stages
 
-### Starting a Stage
-When you begin work on a stage:
+Stage **status** on the bundle (`currentStageInfo.status`) is `NotStarted`, `InProgress`, or `Done`, derived from results and approvals.
+
+### Assign a stage owner
+`PATCH /bundles/{bundleId}/stages/{stageId}` accepts **assignee** only:
 ```bash
 curl -X PATCH "$BASE/bundles/$BUNDLE_ID/stages/$STAGE_ID" \
-  -H "Authorization: Bearer $TOKEN" \
+  ${TOKEN:+-H "Authorization: Bearer $TOKEN"} \
   -H "Content-Type: application/json" \
-  -d '{"status": "In Progress"}'
+  -d '{"assignee": {"id": "user-uuid", "name": "username"}}'
 ```
 
-### Completing a Stage
-After all evidence is attached and questions answered:
+### Complete a stage and move on
+After evidence is submitted and approvals are recorded:
+
+1. `POST /rpc/publish-approval-event` with the appropriate `eventType` (for example `RequestApproved`). See [APPROVAL-GATE.md](./APPROVAL-GATE.md).
+2. When needed, set the primary stage name on the bundle:
 ```bash
-curl -X PATCH "$BASE/bundles/$BUNDLE_ID/stages/$STAGE_ID" \
-  -H "Authorization: Bearer $TOKEN" \
+curl -X PATCH "$BASE/bundles/$BUNDLE_ID" \
+  ${TOKEN:+-H "Authorization: Bearer $TOKEN"} \
   -H "Content-Type: application/json" \
-  -d '{"status": "Complete"}'
+  -d '{"stage": "Validation & Testing"}'
 ```
 
-If the policy enforces gating and required questions are unanswered, this may fail.
+Re-fetch the bundle and confirm `stage` (name string) or `currentStageInfo.status` changed.
 
-### Typical Stage Progression
-
-1. **Model Initiation** — Business case, risk tier, scope, data compliance, registration
-2. **Development** — MLflow logging, data docs, methodology, code reproducibility, limitations
-3. **Validation & Testing** — Out-of-sample metrics, fairness, SHAP, findings, stress tests
-4. **Deployment Approval** — Findings resolved, committee approval, deployment plan, access controls
-5. **Ongoing Monitoring** — Performance review, drift checks, alerts, re-validation
-6. **Decommission** — Replacement plan, archive, endpoint removal, stakeholder notification
+If the policy enforces gating and required questions are unanswered, advance steps may fail or leave the bundle non-compliant.
 
 ## Approval Gating
 
-Each stage has designated approver organizations. Approval typically requires a member of the organization to sign off in the Domino UI. The `stageApprovals` section of the bundle response shows:
-- Which organizations need to approve each stage
-- Current approval status
-- Approver IDs (useful for creating findings)
+Each stage has designated approvers (organizations, or users when the policy allows); one of them signs off in the UI or through `GET /bundles/{bundleId}/approvals`, `POST /rpc/publish-approval-event` and `POST /rpc/update-approval`, then the bundle is re-fetched to confirm the stage moved: [APPROVAL-GATE.md](./APPROVAL-GATE.md). The bundle's `stageApprovals` lists the approving organizations, the current approval status and approver IDs (used when creating findings).
 
 ## Checking Bundle Status
 
-At any point, inspect the current state:
+At any point, inspect the current state (fields: [Create the Bundle](#create-the-bundle)):
 ```bash
 curl -s "$BASE/bundles/$BUNDLE_ID" \
-  -H "Authorization: Bearer $TOKEN"
+  ${TOKEN:+-H "Authorization: Bearer $TOKEN"}
 ```
-
-Look at:
-- `stage` — Current stage name
-- `state` — Bundle state (e.g., "Active")
-- `classificationValue` — Auto-detected risk tier
-- `attachments` — What evidence has been attached (count and details)
-- `stageApprovals` — Approval status per stage
 
 ## Listing All Bundles in a Project
 
 To see all bundles:
 ```bash
 curl -s "$BASE/bundles?projectId=$PROJECT_ID" \
-  -H "Authorization: Bearer $TOKEN"
+  ${TOKEN:+-H "Authorization: Bearer $TOKEN"}
 ```
 
 This returns summaries of all bundles, useful for checking if a bundle already exists before creating a duplicate.

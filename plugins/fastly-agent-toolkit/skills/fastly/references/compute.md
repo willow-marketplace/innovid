@@ -4,15 +4,30 @@ Base: `https://api.fastly.com` | Auth: `Fastly-Key: $FASTLY_API_TOKEN` | Docs: h
 
 ## Key Concepts
 
-**Compute languages.** Fastly Compute supports Rust, JavaScript/TypeScript, and Go. Any language that compiles to WebAssembly (WASM) can also be used.
+Compute languages. Fastly Compute supports Rust, JavaScript/TypeScript, and Go. Any language that compiles to WebAssembly (WASM) can also be used.
 
-**Package upload workflow.** Build your application locally (e.g., `fastly compute build`), which produces a `.tar.gz` package. Upload it via `PUT /service/{service_id}/version/{version_id}/package`, then activate the service version.
+Package upload workflow. Build your application locally (e.g., `fastly compute build`), which produces a `.tar.gz` package. Upload it via `PUT /service/{service_id}/version/{version_id}/package`, then activate the service version.
 
-**Cache APIs.** Compute services access Fastly's cache through three APIs with increasing control: Simple Cache (basic get/set), HTTP Cache (HTTP-semantics-aware caching), and Core Cache (full low-level control over cache transactions).
+Cache APIs. Compute services access Fastly's cache through three APIs with increasing control: Simple Cache (basic get/set), HTTP Cache (HTTP-semantics-aware caching), and Core Cache (full low-level control over cache transactions).
 
-**Resource linking.** Stores (Config, KV, Secret) must be linked to a service before the Compute code can access them. Link via `fastly service resource-link create` CLI command or the resource linking API.
+Resource linking. Stores (Config, KV, Secret) must be linked to a service before the Compute code can access them. Link via `fastly service resource-link create` CLI command or the resource linking API.
 
-**Client-side encryption for secrets.** For additional security, secrets can be encrypted locally before upload using a client key (X25519 public key from the API) and libsodium sealed boxes.
+Client-side encryption for secrets. For additional security, secrets can be encrypted locally before upload using a client key (X25519 public key from the API) and libsodium sealed boxes.
+
+## Porting JavaScript Servers
+
+- Node.js is build tooling, not the edge runtime; replace dependencies on `node:http`, `node:vm`, child processes, and filesystem access.
+  Check the [JavaScript guide](https://www.fastly.com/documentation/guides/compute/developer-guides/javascript/) and pin the SDK
+- The JavaScript SDK does not ship Node or V8 to the edge: it compiles the application together with [StarlingMonkey](https://github.com/bytecodealliance/StarlingMonkey) into a Wasm module.
+  The available subset of Web APIs come from StarlingMonkey, and Fastly adds its own `fastly:*` modules on top, so check both before assuming a Web or Node API exists or that CPU-heavy code will be fast.
+- Check [production limits](https://docs.fastly.com/products/compute-resource-limits) and account overrides before choosing an architecture.
+  Currently: 50 ms CPU, 2 minutes wall time, 128 MB heap, 32 backend requests, and 100 MB package size; trials allow 60 seconds and 10 backend requests.
+  Measure deployed CPU with `vCpuTime()` from `fastly:compute`.
+- The default [sandbox lifecycle](https://www.fastly.com/documentation/guides/compute/developer-guides/sandbox-lifecycle/) creates a fresh instance per request.
+  Globals are not service-wide caches or limiters; reused sandboxes must clear caller credentials and request state.
+- Fastly has very limited support for built-in WebCrypto/SubtleCrypto.
+- For services with a fixed origin set, use named backends and [`enforceExplicitBackends()` from `fastly:backend`](https://github.com/fastly/js-compute-runtime/blob/v4.0.0/types/backend.d.ts).
+  Dynamic backend availability depends on service configuration.
 
 ## Package Management
 
@@ -110,39 +125,20 @@ Entries use CIDR prefixes with `ALLOW` or `BLOCK` actions. Batch update supports
 ## Examples
 
 ```bash
-# Upload a Compute package
-curl -X PUT -H "Fastly-Key: $FASTLY_API_TOKEN" \
-  -H "Expect: 100-continue" \
-  -F "package=@./pkg/my-app.tar.gz" \
-  "https://api.fastly.com/service/$SERVICE_ID/version/$VERSION/package"
+# Upload a package to an editable version without activating it
+fastly compute update --service-id $SERVICE_ID --version $VERSION --package ./pkg/my-app.tar.gz
 
-# Create a KV store
-curl -X POST -H "Fastly-Key: $FASTLY_API_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"name":"my-kv-store"}' \
-  "https://api.fastly.com/resources/stores/kv"
+fastly kv-store create --name my-kv-store
 
-# Put an item in a KV store
-curl -X PUT -H "Fastly-Key: $FASTLY_API_TOKEN" \
-  -H "Content-Type: application/octet-stream" \
-  -d 'my-value' \
-  "https://api.fastly.com/resources/stores/kv/$STORE_ID/keys/my-key"
+# Overwrites an existing key unless --add is set
+fastly kv-store-entry create --store-id $STORE_ID --key my-key --value my-value
 
-# Create a secret store and add a secret
-curl -X POST -H "Fastly-Key: $FASTLY_API_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"name":"my-secret-store"}' \
-  "https://api.fastly.com/resources/stores/secret"
+fastly secret-store create --name my-secret-store
 
-curl -X POST -H "Fastly-Key: $FASTLY_API_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"name":"api-key","secret":"bXktc2VjcmV0LXZhbHVl"}' \
-  "https://api.fastly.com/resources/stores/secret/$STORE_ID/secrets"
+# Takes the raw value, not Base64; the CLI encrypts it with a client key before upload
+printf '%s' "$API_KEY" | fastly secret-store-entry create --store-id $STORE_ID --name api-key --stdin
 
-# Create a config store item
-curl -X POST -H "Fastly-Key: $FASTLY_API_TOKEN" \
-  -d "item_key=feature-flag&item_value=enabled" \
-  "https://api.fastly.com/resources/stores/config/$CONFIG_STORE_ID/item"
+fastly config-store-entry create --store-id $CONFIG_STORE_ID --key feature-flag --value enabled
 ```
 
 ## Edge Data Store Decision Framework
@@ -157,7 +153,7 @@ curl -X POST -H "Fastly-Key: $FASTLY_API_TOKEN" \
 | Consistency      | Eventually consistent                       | Eventually consistent (strong option for key listing) | Eventually consistent                                 |
 | Use case         | Feature flags, routing rules, small configs | Personalization, security, list management            | API keys, tokens, certificates                        |
 
-**All edge data stores are Compute-only.** VCL services use Edge Dictionaries for key-value storage (see `vcl-services.md`).
+All edge data stores are Compute-only. VCL services use Edge Dictionaries for key-value storage (see `vcl-services.md`).
 
 ## Documentation
 

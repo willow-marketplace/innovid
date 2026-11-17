@@ -23,15 +23,15 @@ However, budget constraints, security risks, and legacy system complexities ofte
 
 Cloud application modernization offers many benefits for startups looking to scale their operations and stay competitive.
 
-**Improved performance**
+#### Improved performance
 
 By breaking down monolithic applications startups can ensure that their applications run more efficiently, even under increased demand.
 
-**Increased accessibility**
+#### Increased accessibility
 
 Cloud-based applications enable startups to deliver services and solutions more efficiently to a global audience. With improved accessibility, startups can expand their market reach, deliver enhanced customer experiences, and provide consistent access to applications or services.
 
-**Gain competitive edge**
+#### Gain competitive edge
 
 Modernizing your cloud applications allows startups to innovate faster and react quickly to market changes.
 
@@ -41,19 +41,19 @@ Modernizing your cloud applications allows startups to innovate faster and react
 
 Understanding the foundational components that enable efficiency is essential for building a successful cloud application modernization strategy.
 
-**Microservices architecture**
+### Microservices architecture
 
 [Microservices architecture](https://aws.amazon.com/blogs/apn/application-modernization-using-microservices-architecture-with-vmware-cloud-on-aws/) breaks down applications into smaller, independent services that can be developed, deployed, and scaled individually.
 
 This decentralized approach allows startups to innovate faster, as development teams can work on different services without disrupting the entire system. Microservices also support greater resilience, as issues in one service are less likely to impact the whole application.
 
-**Container orchestrator**
+### Container orchestrator
 
 Implementing microservices often means managing numerous containers, each running a specific service or component. [Containers](https://aws.amazon.com/containers/) allow you to bundle code and dependencies into a self-contained package, making it easier to deploy across various environments. However, manually managing many containers—from placement to scaling—can become overwhelming, especially as your startup grows.
 
 That's where [container orchestration](https://aws.amazon.com/what-is/container-orchestration/) tools come in. [Amazon Elastic Container Service (ECS)](https://aws.amazon.com/ecs/) offers a simplified, AWS-native way to deploy and scale containers. At the same time, [Amazon Elastic Kubernetes Service (EKS)](https://aws.amazon.com/kubernetes/) provides a managed Kubernetes solution for teams with Kubernetes expertise. These orchestrators automate tasks like distributing containers, monitoring their health, and dynamically scaling them based on traffic or resource usage. For startups and scaleups, automating container operations reduces overhead, so you can focus on building features rather than maintaining infrastructure.
 
-**Serverless computing**
+### Serverless computing
 
 [Serverless computing](https://aws.amazon.com/serverless/) enables startups to focus on writing code without worrying about managing infrastructure. [AWS Lambda](https://aws.amazon.com/pm/lambda/), for example, automatically executes code in response to triggers or events (like HTTP requests, database changes, or file uploads) and scales the necessary computing resources on-demand.
 
@@ -61,7 +61,7 @@ With serverless computing, startups only pay for what they use. For example, ima
 
 Rather than pre-provision servers and risk over- or under-allocating resources, the startup can use this tool. Hence, the application automatically scales during peak loads and then scales out when traffic returns to normal. Since you only pay for what you use, this model cuts operational overhead and lets the team spend more time optimizing customer experiences.
 
-**Scalable data stores**
+### Scalable data stores
 
 A modern cloud infrastructure must support scalable data stores that can grow with your business. In AWS, you can pick from numerous managed database options, like [Amazon DynamoDB](https://aws.amazon.com/dynamodb/) for key-value and document workloads or [Amazon Relational Database Service (RDS)](https://aws.amazon.com/rds/) for traditional relational use cases.
 
@@ -69,7 +69,7 @@ This "right tool for the right job" approach ensures you select the best databas
 
 By relying on managed services like [Amazon DynamoDB](https://aws.amazon.com/dynamodb/) or [Amazon RDS](https://aws.amazon.com/rds/), the operational complexity of database scaling is eliminated and you can quickly scale to accommodate these fluctuations, maintaining low latency and minimal downtime.
 
-**Event-driven architecture**
+### Event-driven architecture
 
 A modern cloud infrastructure must support scalable data stores that can grow with your business. In AWS, you can pick from numerous managed database options, like [Amazon DynamoDB](https://aws.amazon.com/dynamodb/) for key-value and document workloads or [Amazon Relational Database Service (RDS)](https://aws.amazon.com/rds/) for traditional relational use cases.
 
@@ -83,7 +83,7 @@ By relying on managed services like [Amazon DynamoDB](https://aws.amazon.com/dyn
 
 Startups need to carefully assess various factors when modernizing applications for the cloud to ensure a smooth transition and long-term success. A successful [application modernization strategy](https://docs.aws.amazon.com/prescriptive-guidance/latest/strategy-modernizing-applications/welcome.html) begins with the business needs in mind, followed by a focus on the appropriate technologies. Let's explore these considerations.
 
-**Technical requirements**
+### Technical requirements
 
 Assessing your applications' technical requirements is crucial before embarking on cloud modernization. This involves:
 
@@ -105,11 +105,11 @@ Assessing your applications' technical requirements is crucial before embarking 
 
 Starting with this checklist can help startup CTOs quickly identify gaps, align modernization goals with team capabilities, and minimize unexpected hurdles during implementation.
 
-**Cloud infrastructure**
+### Cloud infrastructure
 
 Choosing the right [cloud infrastructure](https://aws.amazon.com/what-is/cloud-infrastructure/) is essential when building out a microservices-based or cloud-native application. Early-stage startups need security and flexible pricing that aligns with their growth trajectory.
 
-**Integration and interoperability**
+### Integration and interoperability
 
 Modern cloud applications often interact with third-party services, APIs, and other cloud environments. [Integration](https://aws.amazon.com/products/application-integration/) and [interoperability](https://aws.amazon.com/what-is/interoperability/) between these services are critical for seamless operations.
 
@@ -125,7 +125,7 @@ Common integration scenarios for startups can include:
 
 By considering these integration scenarios and selecting cloud services that support easy, flexible connectivity, your startup can focus on innovating rather than navigating complex, siloed systems.
 
-**Scalability and performance**
+### Scalability and performance
 
 Achieving true cloud scalability requires more than just expanding data capacity. Organizations must align their application infrastructure, networking, and storage solutions to effectively handle growing workloads while maintaining performance. [To drive innovation with AI and analytics](https://aws.amazon.com/data/), teams should implement a comprehensive data strategy that enables seamless scaling across all components while integrating smoothly with modern application architectures. This holistic approach ensures systems can grow efficiently while supporting advanced capabilities in AI and data analytics.
 
@@ -138,13 +138,13 @@ For instance, an early-stage e-commerce startup could:
 
 Startups can achieve scalable growth by integrating flexible computing services (like containers or serverless), optimized data pipelines, and advanced AI technologies. This combination allows applications, analytics, and AI features to scale simultaneously.
 
-**Adoption of GitOps and DevOps practices**
+### Adoption of GitOps and DevOps practices
 
 Modern operational practices like DevOps and GitOps can significantly streamline cloud application modernization. [DevOps](https://aws.amazon.com/devops/) fosters collaboration between development and operations teams, ensuring faster, more reliable software delivery.
 
 [GitOps](https://aws.amazon.com/blogs/opensource/how-to-apply-gitops-to-everything-using-amazon-elastic-kubernetes-service-amazon-eks-crossplane-and-flux/) takes this further by using Git repositories as the single source of truth for application configurations, infrastructure, and deployments. This allows startups to automate and manage infrastructure changes like they manage application code.
 
-**Team skills**
+### Team skills
 
 Cloud application modernization requires your development team to be proficient in [cloud-native technologies](https://aws.amazon.com/what-is/cloud-native/). This includes skills in containerization, microservices, serverless computing, and modern DevOps practices. Startups should invest in upskilling their teams or hiring new talent with the right expertise to ensure a smooth transition.
 
@@ -158,23 +158,23 @@ Modernization of cloud applications isn't always about fully refactoring or rebu
 
 **Re-factoring example:** Suppose you decide to go a step further and rewrite portions of your application. In that case, you might adopt serverless computing or container orchestration for microservices that weren't previously containerized. By refactoring code and adjusting workflows to leverage these cloud-native features, you can optimize performance while reducing the operational overhead of managing infrastructure directly.
 
-**Building a cloud application modernization strategy**
+#### Building a cloud application modernization strategy
 
 To develop an effective modernization strategy, follow these key steps:
 
-**1. Assess existing applications**
+##### 1. Assess existing applications
 
 Start by evaluating your current application portfolio to identify which systems suit modernization. This assessment helps understand application dependencies, architecture, and business impact, forming a solid foundation for planning the transition.
 
 **Architecture review:** Employ the [AWS Well-Architected Tool](https://aws.amazon.com/well-architected-tool/) to evaluate current applications against best practices and identify potential issues.
 
-**2. Prioritize applications and workloads**
+##### 2. Prioritize applications and workloads
 
 Not all applications require the same urgency for modernization. Prioritize those that offer the most strategic value, such as core customer-facing applications or those with high performance and scaling needs.
 
 **Impact assessment:** Consider metrics such as usage frequency, growth potential, and operational costs when deciding where to invest modernization effort.
 
-**3. Choose the right platform**
+##### 3. Choose the right platform
 
 Selecting the right platform is a critical decision. Your chosen platform should support your startup's current needs and have the flexibility to scale as your business grows. Evaluate which platform best supports your technical requirements, security needs, and budget.
 
@@ -184,7 +184,7 @@ Selecting the right platform is a critical decision. Your chosen platform should
 
 **Budget and security:** Evaluate the total cost of ownership, compliance requirements, and potential benefits of AWS-native security services, such as [Amazon Cognito](https://aws.amazon.com/it/cognito/) (for user identity management), [AWS Security Hub](https://aws.amazon.com/security-hub/) (for centralized security insights), or [AWS WAF](https://aws.amazon.com/waf/) (for web application protection).
 
-**4. Testing and Validation**
+##### 4. Testing and Validation
 
 Extensive testing is necessary to ensure everything functions as expected. This includes performance testing, security testing, and validating the integrations with other systems or services. Regular validation ensures that modernized applications meet your startup's needs and perform optimally in a cloud environment.
 
@@ -194,7 +194,7 @@ Extensive testing is necessary to ensure everything functions as expected. This 
 
 **Integration checks:** Confirm data flow and API connectivity using [Amazon API Gateway](https://aws.amazon.com/api-gateway/) or other relevant services to ensure interoperability.
 
-**5. Perform regular security assessments**
+##### 5. Perform regular security assessments
 
 [Cloud security](https://aws.amazon.com/security/) is a top priority during and after the modernization of the application. As startups scale their cloud environments, conducting regular security assessments to identify vulnerabilities and mitigate risks is essential.
 
@@ -228,4 +228,4 @@ By working with [AWS's dedicated network of startup partners](https://aws.amazon
 
 **Author:** Majid Shokrolahi
 
-_Majid is a Senior Solutions Architect at AWS, helping Startups to innovate and build their solutions on the AWS platform. He is passionate about Containers, Gen AI, Analytics and the Startup ecosystem._
+_Majid is a Senior Solutions Architect at AWS, helping Startups to innovate and build their solutions on AWS. He is passionate about Containers, Gen AI, Analytics and the Startup ecosystem._

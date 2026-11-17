@@ -1,5 +1,11 @@
 # Migrating from a Third-Party Barcode Scanner to SparkScan on .NET MAUI
 
+## Migration principles
+
+- **Authority.** When this guide and the API reference disagree, trust the API reference — and a runtime check in the user's project — over this guide. Say which source you followed and why in the summary.
+- **Behaviour changes.** Never present a visual or behaviour change (new default, different overlay look, changed feedback, changed scan timing) as a 1:1 rename. List each one in the summary as a judgment call the user must confirm.
+- **Compatibility layer.** When the scanning code sits behind a shared scanner library or wrapper that other code calls, keep that library's public API frozen (same types, method names, callbacks) and replace only the third-party scanner calls underneath with Scandit ones.
+
 This guide describes how to replace common third-party barcode-scanning libraries in a **.NET MAUI** app with Scandit SparkScan. Once the swap is complete, follow [references/integration.md](./integration.md) for the full SparkScan setup. This document only describes what to remove and how to map your existing logic onto SparkScan.
 
 ## Why SparkScan (vs. BarcodeCapture)
@@ -30,23 +36,34 @@ SparkScan is the pre-built single-scanning UI: a draggable trigger button + mini
    ```
 4. **Delete code-behind**: `OnBarcodesDetected`, `BarcodeReaderOptions`, `CameraLocation` setters, and any `IsTorchOn` toggling.
 5. **Map options to SparkScan**:
-   - `BarcodeReaderOptions.Formats` → `SparkScanSettings.EnableSymbology(...)`. Mapping:
-     - `BarcodeFormat.Ean13` → `Symbology.Ean13Upca`
-     - `BarcodeFormat.Ean8` → `Symbology.Ean8`
-     - `BarcodeFormat.UpcA` → `Symbology.Ean13Upca`
-     - `BarcodeFormat.UpcE` → `Symbology.Upce`
-     - `BarcodeFormat.Code128` → `Symbology.Code128`
-     - `BarcodeFormat.Code39` → `Symbology.Code39`
-     - `BarcodeFormat.ITF` → `Symbology.InterleavedTwoOfFive`
-     - `BarcodeFormat.QrCode` → `Symbology.Qr`
-     - `BarcodeFormat.DataMatrix` → `Symbology.DataMatrix`
-     - `BarcodeFormat.Pdf417` → `Symbology.Pdf417`
-     - `BarcodeFormat.Aztec` → `Symbology.Aztec`
+   - `BarcodeReaderOptions.Formats` → `SparkScanSettings.EnableSymbology(...)`, mapped with the format table below.
    - `AutoRotate = true` → no equivalent needed; SparkScan handles rotation automatically.
    - `Multiple = true` → not a concept in SparkScan single-scan. If you need multi-scan UX, use `barcode-capture-net-maui`.
    - `TryHarder = true` → not needed; SparkScan's engine tunes itself.
    - `IsTorchOn` → `SparkScanViewSettings.DefaultTorchState = TorchState.On` (or expose the torch via `SparkScanView.TorchControlVisible = true` and let the user toggle).
    - `CameraLocation` → `SparkScanViewSettings.DefaultCameraPosition = CameraPosition.UserFacing` / `WorldFacing`.
+
+Format mapping for ZXing.Net.Maui and BarcodeScanning.Native.Maui. Map only the formats the app scanned:
+
+<!-- BEGIN GENERATED symbology-table sources=zxing-net-maui,barcodescanning-native-maui style=csharp -->
+| ZXing.Net.Maui `BarcodeFormat` | BarcodeScanning.Native.Maui `BarcodeFormats` | Scandit `Symbology` |
+|---|---|---|
+| `QrCode` | `QRCode` | `Symbology.Qr` |
+| `Ean13` | `Ean13` | `Symbology.Ean13Upca` |
+| `Ean8` | `Ean8` | `Symbology.Ean8` |
+| `UpcA` | `Upca` | `Symbology.Ean13Upca` (UPC-A is read by the EAN-13/UPC-A symbology) |
+| `UpcE` | `Upce` | `Symbology.Upce` |
+| `Code39` | `Code39` | `Symbology.Code39` |
+| `Code93` | `Code93` | `Symbology.Code93` |
+| `Code128` | `Code128` | `Symbology.Code128` |
+| `Itf` | `Itf` / `I2OF5` | `Symbology.InterleavedTwoOfFive` (no ITF-14 symbology; ITF-14 is a 14-digit Interleaved 2 of 5) |
+| `Codabar` | `CodaBar` | `Symbology.Codabar` |
+| `DataMatrix` | `DataMatrix` | `Symbology.DataMatrix` |
+| `Aztec` | `Aztec` | `Symbology.Aztec` |
+| `Pdf417` | `Pdf417` | `Symbology.Pdf417` |
+
+**Recommended default set** when the source scanned every format and nothing in the app narrows it: `Symbology.Qr`, `Symbology.Ean13Upca`, `Symbology.Ean8`, `Symbology.Upce`, `Symbology.Code39`, `Symbology.Code93`, `Symbology.Code128`, `Symbology.InterleavedTwoOfFive`, `Symbology.Codabar`, `Symbology.DataMatrix`, `Symbology.Aztec`, `Symbology.Pdf417`.
+<!-- END GENERATED symbology-table -->
 
 ### `BarcodeScanning.Native.Maui` (Google ML Kit / Apple Vision wrapper)
 
@@ -67,7 +84,7 @@ SparkScan is the pre-built single-scanning UI: a draggable trigger button + mini
 5. **Map detection callback to SparkScan**:
    - `OnDetectionFinishedEventArg.BarcodeResults[0].DisplayValue` → `args.Session.NewlyRecognizedBarcode.Data` (inside `BarcodeScanned`).
    - `OnDetectionFinishedEventArg.BarcodeResults[0].RawValue` → `barcode.RawData` (returns the raw bytes when available).
-   - `BarcodeFormat` flag bitmask → `SparkScanSettings.EnableSymbologies(...)` with the matching `Symbology` set.
+   - `BarcodeFormat` flag bitmask → `SparkScanSettings.EnableSymbologies(...)` with the matching `Symbology` set (format table in the ZXing.Net.Maui section).
 
 ### Native AVFoundation / Camera2 launched via a `DependencyService`
 
@@ -80,6 +97,10 @@ If the previous implementation reached into `Platforms/iOS/AvCameraScanner.cs` a
 ### `Plugin.Maui.Barcode` / `Camera.MAUI.ZXing`
 
 Same approach: remove the `<PackageReference>`, drop the builder extension call (`.UseCamera()` / `.UseBarcodeReader()` / etc.), remove the XAML control, and re-implement the scan handler against `SparkScan.BarcodeScanned`.
+
+### Still-image decode (`BarcodeReader.DecodeAsync`, `Methods.ScanFromImageAsync`)
+
+SparkScan has no image path: it only scans from its own camera. Decode gallery or file images with BarcodeCapture and an `ImageFrameSource` (`CreateImageFrameSourceAsync` on a MAUI `ImageSource`); follow the "Still-image decode" section of the `barcode-capture-net-maui` third-party migration guide. Never drop the image path or replace it with an error message.
 
 ## Preserve in place
 

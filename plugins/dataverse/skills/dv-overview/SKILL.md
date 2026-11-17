@@ -5,7 +5,7 @@ description: Foundational cross-cutting context for Dataverse / Power Platform w
 
 # Skill: Overview — What to Use and When
 
-Load this skill first for any Dataverse work — it holds the cross-cutting context every task needs: scope, the tool-capability reference, the hard rules, and the change lifecycle. It does **not** route; the agent auto-selects specialist skills via their own WHEN/DO NOT USE WHEN frontmatter triggers. Users describe what they want in plain English; the agent chains skills automatically and never asks the user to name a skill or command.
+Load this skill first for Dataverse work: scope, tool capabilities, hard rules, and the change lifecycle. It does **not** route; the agent auto-selects and chains specialist skills using their WHEN/DO NOT USE WHEN frontmatter triggers. Users describe tasks in plain English; never ask them to name a skill or command.
 
 ---
 
@@ -21,6 +21,7 @@ Dataverse / Power Platform work for **every persona** — builders and agent dev
 | Data reads & analytics — OData queries, QueryBuilder, FetchXML (aggregation + N:N joins), DataFrames | `dv-query` |
 | Solution ALM — create, export, import, pack/unpack, post-import validation | `dv-solution` |
 | Finance and Operations X++ — author, build, deploy, DB sync, verify | `erp-xpp` |
+| Finance and Operations UDE developer-database access (JIT SQL) | `erp-sql` |
 | Environment administration — bulk delete, retention/archival, org & OrgDB settings, recycle bin | `dv-admin` |
 | Security & access — roles, users, application users, business units, self-elevation (PAC CLI) | `dv-security` |
 
@@ -90,7 +91,7 @@ No mandated tool order. Each surface has a capability profile; pick what fits th
 
 Three entry points, one shared sign-in:
 - **`dataverse auth create`** (Dataverse CLI) writes a shared MSAL token cache. That sign-in serves CLI, MCP proxy, **and** `scripts/auth.py` via `msal-extensions`.
-- **`scripts/auth.py`** is the Python/SDK auth entry point. Order: service principal → shared CLI cache → device-code. Use `get_client(skill)` (SDK) or `get_plugin_headers(skill, get_token())` (raw Web API) — both stamp attribution.
+- **`scripts/auth.py`** — Python/SDK auth (service principal → shared CLI cache → device-code). Prefer **`get_client(skill)`** (SDK); `get_plugin_headers(skill, get_token())` is the **fallback for SDK gaps** — both stamp attribution.
 - **`pac auth create`** (PAC CLI) authenticates `pac` for `dv-solution`, `dv-admin`, and `erp-xpp`.
 
 **Telemetry attribution (keep it deterministic):** every request carries a closed-schema `app=dataverse-skills/<ver>;skill=<skill>;agent=<agent>` context so the server sees which skill routed each OData call. It is baked in — `get_client(skill)` and `get_plugin_headers(skill, ...)` stamp it on the SDK and raw-HTTP paths; the Dataverse CLI auto-stamps `DataverseCli/<ver>` + the command, and you add the skill with `--context "app=dataverse-skills/<ver>;skill=<skill>;agent=<agent>"` (the CLI wraps it in parentheses itself — do not pre-wrap). Never modify, omit, or free-form this context — it is a closed schema (allowlisted skill/agent, no PII).
@@ -130,7 +131,7 @@ Understanding the real limits of each tool prevents hallucinated paths. This is 
 
 **Routing:** the table shows what each surface does; the *how to choose* principle (soft defaults, not a fixed order) is Hard Rule 2. MCP tools not in your list? Load `dv-connect`.
 
-**Volume guidance:** CLI `dataverse data create/query/count` for one-off commands; MCP for up to ~25 records per call or simple filters; the SDK's `CreateMultiple` for larger bulk writes (chunk large sets starting ~1,000 — see `dv-data`) and `dv-query` for bulk reads; Web API for `$apply` aggregation.
+**Volume guidance:** CLI `dataverse data create/query/count` for one-off commands; MCP for up to ~25 records per call or simple filters; the SDK's `CreateMultiple` for larger bulk writes (chunk large sets starting ~1,000 — see `dv-data`) and `dv-query` for bulk reads; SDK `fetchxml()` for aggregation.
 
 **SDK method cheat-sheet** (anti-hallucination, *not* a preference signal): SDK method names are the least discoverable surface, so agents invent them. This maps common ops to the exact call. Each op is equally reachable via MCP/CLI per Hard Rule 2; see the noted skill for the full pattern.
 

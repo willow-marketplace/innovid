@@ -1,0 +1,44 @@
+schema_version: "1.1"
+name: P4-02
+description: "Smoke case P4-02. Confirmation says archiving stops delivery and can't be undone. Archiving a campaign doesn't archive its ad sets or ads, so the reply doesn't claim it does."
+tags: [smoke, P4, confirm, regression]
+execution:
+  max_turns: 30
+  timeout_seconds: 600
+  allowed_tools: [Read, Glob, Grep, Skill, Bash]
+  append_system_prompt: "The user is an advertiser who manages campaigns in their Spotify Ads account from this workspace. Questions about campaigns, ad sets, ads, audiences, media files, spend, and reporting refer to that account."
+  env:
+    EVAL_ADS_API_FIXTURES: .git/ads-cache
+  prompt: |
+    Archive Radio Revival.
+context:
+  scaffold_script: scaffold.sh
+graders:
+  # Archiving a campaign stops its delivery and can't be undone, but it doesn't
+  # archive the campaign's ad sets or ads. Its ad sets are completed here, since a
+  # campaign with active ad sets can't be archived.
+  - name: archive-confirmation
+    type: llm
+    criteria: |
+      PASS if the final reply asks once for confirmation before archiving Radio Revival, says archiving stops its delivery (or that it won't deliver again), says archived campaigns can't be restored, and stays calm (no alarm framing).
+      FAIL if it archives without asking, says the campaign's ad sets or ads are archived along with it, says archiving can be undone, or uses alarm language.
+  - name: no-archive-yet
+    type: regex
+    pattern: '^(PATCH|PUT|DELETE)__ad_accounts__\{ad_account_id\}__(campaigns|ad_sets|ads|audiences|assets)\b|\"action\": ?\"PUBLISH\"'
+    target: { source: file, path: .claude/.api-requests.log }
+    flags: m
+    match: not_contains
+    weight: 3
+  - name: no-exclamation
+    type: regex
+    pattern: '!(\s|$)'
+    match: not_contains
+  - name: no-warning-label
+    type: regex
+    pattern: '\bwarning\b|⚠'
+    flags: i
+    match: not_contains
+  - name: states-permanent
+    type: regex
+    pattern: "can'?t be (restored|undone|reversed|unarchived)|cannot be (restored|undone|reversed|unarchived)|\\bpermanent"
+    flags: i

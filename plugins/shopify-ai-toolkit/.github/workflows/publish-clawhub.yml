@@ -22,12 +22,24 @@ env:
   PACKAGE_NAME: "@shopify/ai-toolkit"
   NPM_REGISTRY: "https://registry.npmjs.org"
   CLAWHUB_REGISTRY: "https://clawhub.ai"
+  # How long to wait for an npm publish to become resolvable. `npm publish`
+  # returning success does not mean the version can be fetched, and the gap
+  # is wildly variable: ~3 minutes for 2.0.0 (publish job ended 19:55:58,
+  # registry timestamp 19:58:57) against ~27 for 2.0.1 on 2026-09-30
+  # (13:34:27 -> 14:01:21). The old 10-minute ceiling covered the first and
+  # not the second. A slow registry is not a broken release, so wait it out.
+  NPM_WAIT_MINUTES: "30"
+  NPM_POLL_SECONDS: "20"
 
 jobs:
   prepare:
     name: Fetch npm release
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    # Bounds the job now that it can legitimately sit waiting for half an
+    # hour: 30 minutes of metadata polling, plus tarball retries and the
+    # ClawHub state check, against GitHub's 6-hour default.
+    timeout-minutes: 50
     outputs:
       should_publish: ${{ steps.clawhub_state.outputs.should_publish }}
       version: ${{ steps.package.outputs.version }}
@@ -59,25 +71,48 @@ jobs:
         run: |
           set -euo pipefail
 
-          # npm and the mirror are released by separate jobs. The mirror is
-          # normally merged after npm is live, but retry briefly so a fast
-          # mirror merge cannot race registry propagation.
-          for attempt in $(seq 1 30); do
+          # Waiting here is not about merge ordering. On 2026-09-30 the
+          # mirror merged 11 minutes *after* the npm publish job reported
+          # success and this still failed, because the version was not
+          # resolvable for another 16. Publish success and availability are
+          # separate events; only the second one matters to us. Attempt
+          # count is derived so the wait and the error message cannot drift.
+          metadata_attempts=$(( NPM_WAIT_MINUTES * 60 / NPM_POLL_SECONDS ))
+          for attempt in $(seq 1 "$metadata_attempts"); do
             published_version=$(npm view "$PACKAGE_NAME@$VERSION" version --registry "$NPM_REGISTRY" 2>/dev/null || true)
             if [ "$published_version" = "$VERSION" ]; then
               break
             fi
 
-            if [ "$attempt" -eq 30 ]; then
-              echo "::error::$PACKAGE_NAME@$VERSION did not become available on npm within 10 minutes."
+            if [ "$attempt" -eq "$metadata_attempts" ]; then
+              echo "::error::$PACKAGE_NAME@$VERSION did not become available on npm within $NPM_WAIT_MINUTES minutes."
               exit 1
             fi
 
-            echo "Waiting for $PACKAGE_NAME@$VERSION on npm (attempt $attempt/30)..."
-            sleep 20
+            echo "Waiting for $PACKAGE_NAME@$VERSION on npm (attempt $attempt/$metadata_attempts)..."
+            sleep "$NPM_POLL_SECONDS"
           done
 
-          packed_file=$(npm pack "$PACKAGE_NAME@$VERSION" --registry "$NPM_REGISTRY" --silent)
+          # Metadata and tarballs propagate separately, so a version `npm view`
+          # can already see is not necessarily one `npm pack` can fetch. Retry
+          # that too, and let npm say why it failed: this ran under `--silent`
+          # on 2026-09-18, which suppressed the error and left `set -e` to end
+          # the job with an empty log and nothing to diagnose.
+          pack_attempts=10
+          for attempt in $(seq 1 "$pack_attempts"); do
+            if packed_file=$(npm pack "$PACKAGE_NAME@$VERSION" --registry "$NPM_REGISTRY" | tail -n 1); then
+              break
+            fi
+
+            if [ "$attempt" -eq "$pack_attempts" ]; then
+              echo "::error::Could not download $PACKAGE_NAME@$VERSION from npm after $pack_attempts attempts."
+              exit 1
+            fi
+
+            echo "npm pack failed for $PACKAGE_NAME@$VERSION (attempt $attempt/$pack_attempts); retrying..."
+            sleep "$NPM_POLL_SECONDS"
+          done
+
           if [ "$packed_file" != "$ARTIFACT_PATH" ]; then
             mv "$packed_file" "$ARTIFACT_PATH"
           fi

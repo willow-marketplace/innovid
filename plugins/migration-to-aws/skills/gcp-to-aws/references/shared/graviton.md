@@ -45,7 +45,7 @@ RDS (MySQL/PostgreSQL/MariaDB), Aurora, ElastiCache, OpenSearch, and MSK all sup
 | e2-micro / e2-small           | t3.micro / t3.small      | t4g.micro / t4g.small   |
 | e2-medium                     | t3.medium                | t4g.medium              |
 
-Verify exact pricing per target via `pricing-cache.md` (dev-tier rows) or the `awspricing` MCP for any family/size not cached.
+Verify exact pricing per target via `pricing-cache.md` (dev-tier rows); set `pricing_source: "unavailable"` for any family/size not cached.
 
 ---
 
@@ -71,7 +71,7 @@ Branch on `preferences.design_constraints.cpu_architecture`:
 
 ### Estimate (`estimate-infra.md`)
 
-Model **only** the hourly price discount. Use `pricing-cache.md` Graviton rows when present; otherwise query the `awspricing` MCP for both the Graviton SKU and its x86 equivalent. Emit an `architecture_comparison` block (schema in `schema-graviton.md`). Do **not** add Graviton as a fourth pricing tier — it is the architecture within Balanced/Premium/Optimized. Balanced tier uses Graviton pricing when selected.
+Model **only** the hourly price discount. Use `pricing-cache.md` Graviton rows when present; otherwise set `pricing_source: "unavailable"` for the affected rows. Emit an `architecture_comparison` block (schema in `schema-graviton.md`). Do **not** add Graviton as a fourth pricing tier — it is the architecture within Balanced/Premium/Optimized. Balanced tier uses Graviton pricing when selected.
 
 ### Known limitations (v1 — tracked follow-ups)
 
@@ -94,7 +94,8 @@ Emit ARM64 in Terraform:
 - EC2: `instance_type = "m7g.xlarge"` (etc.)
 - ECS Fargate: `runtime_platform { cpu_architecture = "ARM64", operating_system_family = "LINUX" }`
 - Lambda: `architectures = ["arm64"]`
-- EKS: arm64 AMI node group (single-arch on dev; note optional mixed-cluster module for prod)
+- Standard EKS Cluster with node groups (`kubernetes: eks-standard`): arm64 AMI node group (single-arch on dev; note optional mixed-cluster module for prod)
+- EKS Auto Mode (`kubernetes: eks-auto`, the GKE default): **Graviton is not a flag on the cluster.** Auto Mode's built-in `general-purpose` NodePool (the one that schedules app workloads) is **amd64-only and immutable** — only the tainted `system` NodePool (cluster add-ons) is multi-arch — so arm64 **cannot** be selected on `aws_eks_cluster` or the built-in pools. To actually run arm64 workloads you must apply an **Auto Mode NodePool** (`karpenter.sh/v1`, `nodeClassRef` → the built-in `default` NodeClass in `group: eks.amazonaws.com`, `requirements: kubernetes.io/arch In ["arm64"]`) as a **Kubernetes manifest** via `kubectl`/Helm after the cluster is up (see `generate-artifacts-infra.md` for the emitted manifest + apply step). If the run does not emit and apply that manifest, Auto Mode nodes run **amd64** — set `target_architecture: x86_64`, drop the arm64 build, and **flag Graviton as not applied**; never report arm64 for an Auto Mode cluster that only has the built-in `general-purpose` pool.
 - Docker build step in the runbook: `docker build --platform linux/arm64` (not multi-arch by default)
   Include a "Graviton Migration Notes" section in the output docs: services moved to arm64, any `conditional` caveats, and the recommendation to validate with a load test post-migration.
 

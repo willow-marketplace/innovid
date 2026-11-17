@@ -3,111 +3,83 @@
 // store with a short debounce. All edits land in the ACTIVE slice; baseline is locked.
 import { useState, useEffect, useRef, useCallback } from "react";
 import { activeSlice, getSlice, makeSlice, sliceId, BASELINE_ID, hydrateDoc, dehydrateDoc } from "../model/slices.js";
+import { companyIsWaterfall } from "../model/reprice.js";
 import { setTrackingFirm } from "../analytics.js";
+import useEtagAutosave from "./useEtagAutosave.js";
+import { runFirmLoad } from "./firmLoad.js";
+import { firmQuery } from "../route.js";
 
 export default function usePortfolio(firm, { onLockedEdit } = {}) {
-  const q = firm ? `?firm=${encodeURIComponent(firm)}` : "";
+  const q = firmQuery(firm);
   const [snapshot, setSnapshot] = useState(null);
   const [doc, setDoc] = useState(null);
-  const timer = useRef(null);
-  const pending = useRef(null); // latest unsaved doc awaiting the debounced PUT
-  const inflight = useRef(null); // the PUT currently on the wire, if any
-  const etag = useRef(null); // optimistic-concurrency token from the last GET/PUT
-  const paused = useRef(false); // chat-turn soft lock: suppresses autosave PUTs
+  const paused = useRef(false); // chat-turn soft lock: holds every autosave PUT
+  const rerunning = useRef(false); // a firm load is rerunning inside load()
   // Latest doc + locked-edit callback, held in refs so `update` can read them
   // without landing in its useCallback deps (and so the callback fires OUTSIDE
   // the setDoc updater — updaters must stay pure; StrictMode double-invokes them).
   const docRef = useRef(null);
   const onLockedEditRef = useRef(onLockedEdit);
   useEffect(() => { onLockedEditRef.current = onLockedEdit; }, [onLockedEdit]);
+  // A 409 means another tab or a refresh script rewrote the file: drop the stale edit and reload.
+  const { schedule: persist, flush, reset, resume } = useEtagAutosave(`/api/portfolio${q}`, { encode: dehydrateDoc, onConflict: () => load({ keepSelection: true }), paused });
 
   /** Re-fetch from disk as the new truth, DROPPING any pending stale PUT —
-   *  callers that care about unsaved edits flush() first. */
-  const load = useCallback(async () => {
-    clearTimeout(timer.current);
-    pending.current = null;
-    const [s, pr] = await Promise.all([
+   *  callers that care about unsaved edits flush() first. `keepSelection` leaves the scenario on
+   *  screen selected when the stored copy still has it, whatever the stored copy says is selected,
+   *  and saves that selection so the stored copy (which Claude's edits read) agrees with the screen. */
+  const load = useCallback(async ({ keepSelection } = {}) => {
+    const read = () => Promise.all([
       fetch(`/api/snapshot${q}`).then((r) => r.json()),
-      fetch(`/api/portfolio${q}`).then(async (r) => { etag.current = r.headers.get("etag"); return r.json(); }),
+      // A not_ready answer carries no ETag; keep the one held, which still matches the stored document.
+      fetch(`/api/portfolio${q}`).then(async (r) => { reset(r.headers.get("etag") ?? undefined); return r.json(); }),
     ]);
+    const notReady = (s, pr) => s?.error === "not_ready" || pr?.error === "not_ready";
+    // A 409 while the firm load reruns calls load() again; the rerun's own read already reloads.
+    if (rerunning.current) return;
+    let [s, pr] = await read();
+    // The session's Carta data expires; the portfolio's baseline is built from it, so load it again.
+    if (notReady(s, pr)) {
+      rerunning.current = true;
+      try {
+        await runFirmLoad(firm);
+        await flush(); // an edit made during the rerun, before the read that replaces the doc
+        [s, pr] = await read();
+      } catch {
+        return;
+      } finally {
+        rerunning.current = false;
+      }
+    }
+    if (notReady(s, pr) || !s?.funds || !Array.isArray(pr?.slices)) return;
     setSnapshot(s);
-    // Runs on post-refresh reloads too, so a late-resolved id lands without a relaunch.
-    setTrackingFirm(s?.source?.firmId);
-    setDoc(hydrateDoc(pr)); // resolve on-disk edits deltas to full slices for the in-memory model
-  }, [q]);
+    setTrackingFirm(s?.source?.firmId, firm);
+    const fresh = hydrateDoc(pr);
+    const shown = docRef.current?.activeSliceId;
+    if (keepSelection && shown && shown !== fresh.activeSliceId && fresh.slices.some((x) => x.id === shown)) {
+      fresh.activeSliceId = shown;
+      persist(fresh); // after reset(): saves against the ETag just read; held while paused, like any edit
+    }
+    setDoc(fresh);
+  }, [firm, q, reset, flush, persist]);
   useEffect(() => { load(); }, [load]);
   useEffect(() => { docRef.current = doc; }, [doc]);
 
-  const doSave = useCallback(async () => {
-    // Suppresses ALL saves while a chat turn holds the soft lock — including
-    // flush()-initiated ones — so a mid-turn caller can't PUT and clobber
-    // Claude's concurrent portfolio.json write. Do NOT special-case flush()
-    // here: the pre-turn edit was already flushed by pauseAutosave() before
-    // paused was set, and any during-turn edit is reconciled by the
-    // turn-end reload (see resumeAutosave below).
-    if (paused.current) return;
-    const body = pending.current;
-    if (body == null) return;
-    pending.current = null;
-    const run = (async () => {
-      try {
-        const r = await fetch(`/api/portfolio${q}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json", ...(etag.current ? { "If-Match": etag.current } : {}) },
-          body: JSON.stringify(dehydrateDoc(body)), // persist non-baseline slices as edits deltas
-        });
-        if (r.status === 409) {
-          // the file changed underneath this tab (another tab saved, or a
-          // refresh script rewrote it) — drop the stale edit and reload truth
-          await load();
-          return;
-        }
-        if (r.ok) etag.current = r.headers.get("etag") ?? etag.current;
-      } catch {
-        /* network error — the edit stays in doc state and the next edit retries */
-      }
-    })();
-    inflight.current = run;
-    await run;
-    inflight.current = null;
-  }, [load, q]);
+  // Call flush() before set-basis/refresh rewrite portfolio.json, so no stale PUT lands after them.
+  // While paused it sends nothing: the turn-end reload reconciles any during-turn edit.
 
-  /** Land ALL edits NOW — the debounced one and any PUT already on the wire.
-   *  Call before server-side scripts rewrite portfolio.json (set-basis,
-   *  refresh) so a stale PUT can never land after them.
-   *  NOTE: while a chat turn holds the soft lock (paused), doSave's guard
-   *  suppresses saves outright — flush() included — so calling flush()
-   *  mid-turn is a no-op, not a bypass. The pre-turn edit was already
-   *  flushed by pauseAutosave() before the lock engaged, and any
-   *  during-turn edit is reconciled by the turn-end reload. */
-  const flush = useCallback(async () => {
-    clearTimeout(timer.current);
-    await doSave();
-    if (inflight.current) await inflight.current;
-  }, [doSave]);
-
-  /** Chat-turn soft lock: land any pre-turn edit, then suppress autosave so
-   *  the debounced PUT can't clobber Claude's concurrent portfolio.json write.
-   *  flush() runs BEFORE paused is set, so its own doSave isn't blocked. */
+  /** Chat-turn soft lock: land any pre-turn edit, then hold autosave so a debounced PUT
+   *  can't clobber Claude's concurrent portfolio.json write. */
   const pauseAutosave = useCallback(async () => {
     await flush();
     paused.current = true;
   }, [flush]);
-  /** Re-enable autosave. If a during-turn edit is still held (pending, never
-   *  scheduled while paused), reschedule its debounced PUT now — otherwise it
-   *  would strand until the next edit/flush. Safe: resume fires on turn-end,
-   *  after Claude's write, so a PUT here can't race the concurrent disk write. */
+  /** Re-enable autosave, re-arming any edit held during the turn. Resume fires on turn-end,
+   *  after Claude's write, so a PUT here can't race it. */
   const resumeAutosave = useCallback(() => {
     paused.current = false;
-    if (pending.current != null) { clearTimeout(timer.current); timer.current = setTimeout(doSave, 400); }
-  }, [doSave]);
-
-  const persist = useCallback((next) => {
-    clearTimeout(timer.current);
-    pending.current = next;
-    if (paused.current) return; // chat turn active: hold, don't autosave
-    timer.current = setTimeout(doSave, 400);
-  }, [doSave]);
+    resume();
+  }, [resume]);
 
   const mutateDoc = useCallback(
     (fn) => {
@@ -147,7 +119,17 @@ export default function usePortfolio(firm, { onLockedEdit } = {}) {
     (id, patch) =>
       update((s) => {
         const c = s.companies.find((x) => x.id === id);
-        if (c) Object.assign(c, typeof patch === "function" ? patch(c) : patch);
+        if (!c) return;
+        const next = { ...(typeof patch === "function" ? patch(c) : patch) };
+        // Dragging the valuation of a company that opens in Company valuation (mode unset) takes it
+        // off the Carta mark, which ends that default. Choose the mode it showed, so it prices as
+        // shown. Any other first edit (dilution, reserve, Realize, a sale) leaves the mode unset and
+        // prices as MOIC at the Carta FV, as the fund-wide reserve path does.
+        if ("valuationB" in next && next.includeInNav && c.waterfallMode == null
+            && next.waterfallMode === undefined && companyIsWaterfall(c)) {
+          next.waterfallMode = true;
+        }
+        Object.assign(c, next);
       }),
     [update]
   );
@@ -159,6 +141,7 @@ export default function usePortfolio(firm, { onLockedEdit } = {}) {
 
   // ---- slice operations ----
   const selectSlice = useCallback((id) => mutateDoc((d) => ({ ...d, activeSliceId: id })), [mutateDoc]);
+  const sliceIds = useCallback(() => (docRef.current?.slices || []).map((s) => s.id), []);
 
   const createSlice = useCallback(
     (name, { fromId, color } = {}) =>
@@ -251,13 +234,14 @@ export default function usePortfolio(firm, { onLockedEdit } = {}) {
     [mutateDoc]
   );
 
-  const slice = doc ? activeSlice(doc) : null;
+  const slice = doc?.slices ? activeSlice(doc) : null;
 
   return {
     snapshot,
     doc,
     slice, // {id, name, locked, assumptions, companies}
     selectSlice,
+    sliceIds,
     createSlice,
     renameSlice,
     forkSlice,

@@ -16,6 +16,8 @@ import io.kotest.matchers.types.instanceOf
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.kotest.matchers.types.shouldBeSameInstanceAs
 import io.kotest.matchers.types.shouldBeTypeOf
+import io.kotest.matchers.types.shouldHaveConcreteType
+import io.kotest.matchers.types.shouldNotHaveConcreteType
 import io.kotest.matchers.types.shouldHaveAnnotation
 import io.kotest.matchers.types.shouldNotBeInstanceOf
 import io.kotest.matchers.types.shouldNotBeTypeOf
@@ -38,6 +40,56 @@ class TypeMatchersTest : WordSpec() {
            val arrayList: List<Int> = arrayListOf(1, 2, 3)
            arrayList.shouldBeTypeOf<ArrayList<*>>()
            arrayList.shouldNotBeTypeOf<List<*>>()
+
+           arrayList.shouldBeTypeOf(ArrayList::class)
+           arrayList shouldBeTypeOf ArrayList::class
+           arrayList.shouldNotBeTypeOf(List::class)
+           arrayList shouldNotBeTypeOf List::class
+
+           arrayList.shouldBeTypeOf(ArrayList::class).size shouldBe 3
+           arrayList.shouldBeTypeOf(ArrayList::class) { it.size shouldBe 3 }
+           shouldThrow<AssertionError> { arrayList.shouldBeTypeOf(List::class) }
+           shouldThrow<AssertionError> { arrayList.shouldNotBeTypeOf(ArrayList::class) }
+        }
+     }
+
+     "shouldHaveConcreteType" should {
+        "test for exact type" {
+           val arrayList: List<Int> = arrayListOf(1, 2, 3)
+           arrayList.shouldHaveConcreteType<ArrayList<*>>()
+           arrayList.shouldNotHaveConcreteType<List<*>>()
+
+           arrayList.shouldHaveConcreteType(ArrayList::class)
+           arrayList shouldHaveConcreteType ArrayList::class
+           arrayList.shouldNotHaveConcreteType(List::class)
+           arrayList shouldNotHaveConcreteType List::class
+
+           shouldThrow<AssertionError> { arrayList.shouldHaveConcreteType<List<*>>() }
+           shouldThrow<AssertionError> { arrayList.shouldHaveConcreteType(List::class) }
+           shouldThrow<AssertionError> { arrayList.shouldNotHaveConcreteType<ArrayList<*>>() }
+           shouldThrow<AssertionError> { arrayList.shouldNotHaveConcreteType(ArrayList::class) }
+        }
+
+        "return the typecasted value and accept a block" {
+           val list: Any = arrayListOf(1, 2, 3)
+
+           list.shouldHaveConcreteType<ArrayList<Int>> { it[0] shouldBe 1 }
+           list.shouldHaveConcreteType(ArrayList::class) { it.size shouldBe 3 }
+
+           list.shouldHaveConcreteType<ArrayList<Int>>().shouldHaveSize(3)
+           list.shouldHaveConcreteType(ArrayList::class).shouldHaveSize(3)
+
+           // smart cast via contract
+           list.shouldHaveConcreteType<ArrayList<Int>>()
+           list[0] shouldBe 1
+        }
+
+        "accept null values" {
+           val arrayList: List<Int>? = null
+           shouldThrow<AssertionError> { arrayList.shouldHaveConcreteType<List<*>>() }
+           shouldThrow<AssertionError> { arrayList.shouldHaveConcreteType(List::class) }
+           shouldThrow<AssertionError> { arrayList.shouldNotHaveConcreteType<List<*>>() }
+           shouldThrow<AssertionError> { arrayList.shouldNotHaveConcreteType(List::class) }
         }
      }
 
@@ -74,6 +126,18 @@ class TypeMatchersTest : WordSpec() {
           arrayList.shouldNotBeInstanceOf<LinkedList<*>>()
 
           shouldThrow<AssertionError> { arrayList.shouldNotBeInstanceOf<ArrayList<*>>() }
+
+          arrayList.shouldBeInstanceOf(ArrayList::class)
+          arrayList shouldBeInstanceOf ArrayList::class
+          arrayList.shouldBeInstanceOf(List::class)
+          arrayList shouldBeInstanceOf List::class
+
+          arrayList.shouldNotBeInstanceOf(LinkedList::class)
+          arrayList shouldNotBeInstanceOf LinkedList::class
+
+          shouldThrow<AssertionError> { arrayList.shouldBeInstanceOf(LinkedList::class) }
+          shouldThrow<AssertionError> { arrayList.shouldNotBeInstanceOf(ArrayList::class) }
+          shouldThrow<AssertionError> { arrayList.shouldNotBeInstanceOf(List::class) }
        }
 
        "use smart contracts to cast" {
@@ -86,12 +150,17 @@ class TypeMatchersTest : WordSpec() {
           val list: Collection<Int> = arrayListOf(1, 2, 3)
           list.shouldBeInstanceOf<ArrayList<Int>>()
              .shouldHaveSize(3)
+          list.shouldBeInstanceOf(ArrayList::class)
+             .shouldHaveSize(3)
        }
 
        "Allow execution with a lambda" {
           val list = arrayListOf(1, 2, 3)
 
           list.shouldBeInstanceOf<ArrayList<Int>> {
+             it shouldBeSameInstanceAs list
+          }
+          list.shouldBeInstanceOf(ArrayList::class) {
              it shouldBeSameInstanceAs list
           }
        }
@@ -101,14 +170,19 @@ class TypeMatchersTest : WordSpec() {
 
         val typecastedList = list.shouldBeInstanceOf<ArrayList<Int>> {}
         typecastedList shouldBeSameInstanceAs list
+
+        val typecastedClassList = list.shouldBeInstanceOf(ArrayList::class) {}
+        typecastedClassList shouldBeSameInstanceAs list
       }
 
       "accepts null values" {
         val arrayList: List<Int>? = null
         shouldThrow<AssertionError> { arrayList should beInstanceOf(ArrayList::class) }
         shouldThrow<AssertionError> { arrayList.shouldBeInstanceOf<ArrayList<*>>() }
+        shouldThrow<AssertionError> { arrayList.shouldBeInstanceOf(ArrayList::class) }
         shouldThrow<AssertionError> { arrayList shouldNot beInstanceOf(List::class) }
         shouldThrow<AssertionError> { arrayList.shouldNotBeInstanceOf<LinkedList<*>>() }
+        shouldThrow<AssertionError> { arrayList.shouldNotBeInstanceOf(LinkedList::class) }
       }
     }
 
@@ -154,14 +228,19 @@ class TypeMatchersTest : WordSpec() {
           arrayListOf(1, 2, 3)
              .shouldBeTypeOf<ArrayList<Int>>()
              .shouldHaveSize(3)
+          arrayListOf(1, 2, 3)
+             .shouldBeTypeOf(ArrayList::class)
+             .shouldHaveSize(3)
        }
 
       "accepts null values" {
         val arrayList: List<Int>? = null
         shouldThrow<AssertionError> { arrayList should beOfType<List<Int>>() }
         shouldThrow<AssertionError> { arrayList.shouldBeTypeOf<List<*>>() }
+        shouldThrow<AssertionError> { arrayList.shouldBeTypeOf(List::class) }
         shouldThrow<AssertionError> { arrayList shouldNot beOfType<List<Int>>() }
         shouldThrow<AssertionError> { arrayList.shouldNotBeTypeOf<List<*>>() }
+        shouldThrow<AssertionError> { arrayList.shouldNotBeTypeOf(List::class) }
       }
     }
 

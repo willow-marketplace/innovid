@@ -1,10 +1,31 @@
 > AI agents: this is one page from PostHog's docs. Full index of Markdown docs for LLMs: https://posthog.com/llms.txt
 
-# Node.js Feature Flags installation - Docs
+# Node.js Feature Flags installation
 
-Copy page
+Canonical URL: https://posthog.com/docs/feature-flags/installation/nodejs
 
-# Node.js Feature Flags installation - Docs
+> **Cloud region:** This page uses US Cloud hosts. For an EU Cloud project, use `https://eu.i.posthog.com` instead of `https://us.i.posthog.com` (ingestion host).
+
+## On this page
+
+- [Install with the wizard](#install-with-the-wizard)
+- [Install the package](#install-the-package)
+- [Initialize PostHog](#initialize-posthog)
+- [Send an event](#send-an-event)
+- [Evaluate boolean feature flags](#evaluate-boolean-feature-flags)
+- [Evaluate multivariate feature flags](#evaluate-multivariate-feature-flags)
+- [Include feature flag information in events](#include-feature-flag-information-in-events)
+- [Override server properties](#override-server-properties)
+- [Running experiments](#running-experiments)
+- [Next steps](#next-steps)
+
+## Install with the wizard
+
+Run this command in your project directory to add PostHog to your Node.js project. The wizard detects your framework, installs the SDK, and sets up your first events.
+
+`npx @posthog/wizard`
+
+Or set it up manually by following the rest of this guide.
 
 1.  1
 
@@ -14,30 +35,28 @@ Copy page
 
     Install the PostHog Node.js library using your package manager:
 
-    PostHog AI
-
     ### npm
 
     ```bash
-    npm install posthog-node
+    npm install posthog-node@5
     ```
 
     ### yarn
 
     ```bash
-    yarn add posthog-node
+    yarn add posthog-node@5
     ```
 
     ### pnpm
 
     ```bash
-    pnpm add posthog-node
+    pnpm add posthog-node@5
     ```
 
     ### bun
 
     ```bash
-    bun add posthog-node
+    bun add posthog-node@5
     ```
 
 2.  2
@@ -50,10 +69,9 @@ Copy page
 
     Node.js
 
-    PostHog AI
-
     ```javascript
     import { PostHog } from 'posthog-node'
+    
     const client = new PostHog(
         '<ph_project_token>',
         {
@@ -72,8 +90,6 @@ Copy page
 
     Node.js
 
-    PostHog AI
-
     ```javascript
     client.capture({
         distinctId: 'distinct_id_of_the_user',
@@ -83,6 +99,11 @@ Copy page
             property2: 'value',
         },
     })
+    
+    // The client sends events in batches. Call shutdown() before the process
+    // exits so that queued events are sent. In a long-running server, call it
+    // once when the server stops.
+    await client.shutdown()
     ```
 
 4.  4
@@ -135,8 +156,6 @@ Copy page
 
     Node.js
 
-    PostHog AI
-
     ```javascript
     client.capture({
         distinctId: 'distinct_id_of_your_user',
@@ -150,8 +169,6 @@ Copy page
     Include the `$feature/feature_flag_name` property in your event properties:
 
     Node.js
-
-    PostHog AI
 
     ```javascript
     client.capture({
@@ -213,16 +230,8 @@ Copy page
 
     | Resource | Description |
     | --- | --- |
-    | [Creating a feature flag](/docs/feature-flags/creating-feature-flags.md) | How to create a feature flag in PostHog |
-    | [Adding feature flag code](/docs/feature-flags/adding-feature-flag-code.md) | How to check flags in your code for all platforms |
-    | [Framework-specific guides](/docs/feature-flags/tutorials.md#framework-guides) | Setup guides for React Native, Next.js, Flutter, and other frameworks |
-    | [How to do a phased rollout](/tutorials/phased-rollout.md) | Gradually roll out features to minimize risk |
-    | [More tutorials](/docs/feature-flags/tutorials.md) | Other real-world examples and use cases |
-
-### Still have questions?
-
-Ask PostHog AI
-
-### Was this page useful?
-
-HelpfulCould be better
+    | [Creating a feature flag](https://posthog.com/docs/feature-flags/creating-feature-flags.md) | How to create a feature flag in PostHog |
+    | [Adding feature flag code](https://posthog.com/docs/feature-flags/adding-feature-flag-code.md) | How to check flags in your code for all platforms |
+    | [Framework-specific guides](https://posthog.com/docs/feature-flags/tutorials.md#framework-guides) | Setup guides for React Native, Next.js, Flutter, and other frameworks |
+    | [How to do a phased rollout](https://posthog.com/tutorials/phased-rollout.md) | Gradually roll out features to minimize risk |
+    | [More tutorials](https://posthog.com/docs/feature-flags/tutorials.md) | Other real-world examples and use cases |

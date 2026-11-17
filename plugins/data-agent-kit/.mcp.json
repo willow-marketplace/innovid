@@ -1,0 +1,162 @@
+{
+  "mcpServers": {
+    "dak-kc": {
+      "env": {
+        "X_GOOG_PROXY_HEADERS": "{\"User-Agent\":\"datacloud.other\"}"
+      },
+      "args": [
+        "${PLUGIN_ROOT}/mcp/bin/mcp_proxy_bundle.cjs",
+        "https://dataplex.googleapis.com/mcp"
+      ],
+      "type": "stdio",
+      "command": "node"
+    },
+    "dak-gcs": {
+      "env": {
+        "X_GOOG_PROXY_HEADERS": "{\"User-Agent\":\"datacloud.other\"}"
+      },
+      "args": [
+        "${PLUGIN_ROOT}/mcp/bin/mcp_proxy_bundle.cjs",
+        "https://storage.googleapis.com/storage/mcp"
+      ],
+      "type": "stdio",
+      "command": "node"
+    },
+    "dak-spark": {
+      "env": {
+        "X_GOOG_PROXY_HEADERS": "{\"User-Agent\":\"datacloud.other\"}"
+      },
+      "args": [
+        "${PLUGIN_ROOT}/mcp/bin/mcp_proxy_bundle.cjs",
+        "https://dataproc.googleapis.com/mcp"
+      ],
+      "type": "stdio",
+      "command": "node"
+    },
+    "dak-alloydb": {
+      "env": {
+        "X_GOOG_PROXY_HEADERS": "{\"User-Agent\":\"datacloud.other\"}"
+      },
+      "args": [
+        "${PLUGIN_ROOT}/mcp/bin/mcp_proxy_bundle.cjs",
+        "https://alloydb.googleapis.com/mcp"
+      ],
+      "type": "stdio",
+      "command": "node"
+    },
+    "dak-spanner": {
+      "env": {
+        "X_GOOG_PROXY_HEADERS": "{\"User-Agent\":\"datacloud.other\"}"
+      },
+      "args": [
+        "${PLUGIN_ROOT}/mcp/bin/mcp_proxy_bundle.cjs",
+        "https://spanner.googleapis.com/mcp"
+      ],
+      "type": "stdio",
+      "command": "node"
+    },
+    "dak-bigquery": {
+      "env": {
+        "X_GOOG_PROXY_HEADERS": "{\"User-Agent\":\"datacloud.other\"}"
+      },
+      "args": [
+        "${PLUGIN_ROOT}/mcp/bin/mcp_proxy_bundle.cjs",
+        "https://bigquery.googleapis.com/mcp"
+      ],
+      "type": "stdio",
+      "command": "node"
+    },
+    "dak-bigtable": {
+      "env": {
+        "X_GOOG_PROXY_HEADERS": "{\"User-Agent\":\"datacloud.other\"}"
+      },
+      "args": [
+        "${PLUGIN_ROOT}/mcp/bin/mcp_proxy_bundle.cjs",
+        "https://bigtableadmin.googleapis.com/mcp"
+      ],
+      "type": "stdio",
+      "command": "node"
+    },
+    "dak-cloudsql": {
+      "env": {
+        "X_GOOG_PROXY_HEADERS": "{\"User-Agent\":\"datacloud.other\"}"
+      },
+      "args": [
+        "${PLUGIN_ROOT}/mcp/bin/mcp_proxy_bundle.cjs",
+        "https://sqladmin.googleapis.com/mcp"
+      ],
+      "type": "stdio",
+      "command": "node"
+    },
+    "dak-composer": {
+      "env": {
+        "X_GOOG_PROXY_HEADERS": "{\"User-Agent\":\"datacloud.other\"}"
+      },
+      "args": [
+        "${PLUGIN_ROOT}/mcp/bin/mcp_proxy_bundle.cjs",
+        "https://composer.$GCP_REGION.rep.googleapis.com/mcp"
+      ],
+      "type": "stdio",
+      "command": "node"
+    },
+    "dak-dataflow": {
+      "env": {
+        "X_GOOG_PROXY_HEADERS": "{\"User-Agent\":\"datacloud.other\"}"
+      },
+      "args": [
+        "${PLUGIN_ROOT}/mcp/bin/mcp_proxy_bundle.cjs",
+        "https://dataflow.$GCP_REGION.rep.googleapis.com/mcp"
+      ],
+      "type": "stdio",
+      "command": "node"
+    },
+    "dak-dataform": {
+      "env": {
+        "X_GOOG_PROXY_HEADERS": "{\"User-Agent\":\"datacloud.other\"}"
+      },
+      "args": [
+        "${PLUGIN_ROOT}/mcp/bin/mcp_proxy_bundle.cjs",
+        "https://dataform.$GCP_REGION.rep.googleapis.com/mcp"
+      ],
+      "type": "stdio",
+      "command": "node"
+    },
+    "dak-notebook": {
+      "args": [
+        "${PLUGIN_ROOT}/mcp/dist/notebook-mcp.js"
+      ],
+      "type": "stdio",
+      "command": "node"
+    },
+    "dak-firestore": {
+      "env": {
+        "X_GOOG_PROXY_HEADERS": "{\"User-Agent\":\"datacloud.other\"}"
+      },
+      "args": [
+        "${PLUGIN_ROOT}/mcp/bin/mcp_proxy_bundle.cjs",
+        "https://firestore.googleapis.com/mcp"
+      ],
+      "type": "stdio",
+      "command": "node"
+    },
+    "dak-bigtable-data": {
+      "env": {
+        "X_GOOG_PROXY_HEADERS": "{\"User-Agent\":\"datacloud.other\"}"
+      },
+      "args": [
+        "${PLUGIN_ROOT}/mcp/bin/mcp_proxy_bundle.cjs",
+        "https://bigtable.googleapis.com/mcp"
+      ],
+      "type": "stdio",
+      "command": "node"
+    },
+    "dak-data-agent-kit": {
+      "args": [
+        "${PLUGIN_ROOT}/mcp/dist/index.js",
+        "--mode=data-agent-kit"
+      ],
+      "type": "stdio",
+      "command": "node"
+    }
+  }
+}

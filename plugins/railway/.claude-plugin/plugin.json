@@ -1,14 +1,26 @@
 {
   "name": "railway",
-  "version": "1.4.0",
-  "description": "Railway agent skills and hosted MCP server for deploying, configuring, monitoring, and troubleshooting apps and infrastructure on Railway from Claude Code. Manage services, environments, deployments, databases, object storage, networking, and observability.",
-  "updatedAt": "2026-09-19T00:42:54.328Z",
+  "version": "1.7.0",
+  "description": "Deploy, configure, monitor, and troubleshoot apps, databases, and infrastructure on Railway from Antigravity with Railway's agent skill and hosted MCP server.",
+  "updatedAt": "2026-11-17T00:02:07.429Z",
   "author": {
+    "url": "https://railway.com",
     "name": "Railway",
     "email": "contact@railway.com"
   },
   "homepage": "https://docs.railway.com/agents",
   "repository": "https://github.com/railwayapp/railway-skills",
+  "keywords": [
+    "railway",
+    "deployment",
+    "hosting",
+    "infrastructure",
+    "databases",
+    "mcp",
+    "agent-skills"
+  ],
+  "displayName": "Railway",
+  "logo": "assets/logo.svg",
   "skills": "./skills/",
   "hooks": {
     "PreToolUse": [

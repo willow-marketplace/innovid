@@ -273,7 +273,7 @@ export function getAgentsConfigSection(name) {
   return section && typeof section === "object" ? section : null;
 }
 
-/** @returns {{ logLevel: string, packageResolution: object }} merged with documented defaults */
+/** @returns {{ logLevel: string, packageResolution: object, telemetry: { enabled: boolean } }} merged with documented defaults */
 export function loadAgentsConfig() {
   const file = readAgentsConfigRaw() ?? {};
   const pr =
@@ -284,6 +284,8 @@ export function loadAgentsConfig() {
     pr.defaultGlobalRepos && typeof pr.defaultGlobalRepos === "object"
       ? normalizeRepoMap(pr.defaultGlobalRepos)
       : {};
+  const telemetry =
+    file.telemetry && typeof file.telemetry === "object" ? file.telemetry : {};
 
   return {
     logLevel: normalizeLogLevel(file.logLevel),
@@ -295,6 +297,7 @@ export function loadAgentsConfig() {
       defaultGlobalRepos,
       autoSetup: normalizeAutoSetup(pr.autoSetup),
     },
+    telemetry: { enabled: normalizeTelemetryEnabled(telemetry.enabled) },
   };
 }
 
@@ -320,8 +323,11 @@ function normalizeOnboardingPrompt(raw) {
  * `packageResolution.defaultGlobalRepos` and `autoSetup` are replaced when
  * present in the patch (Consent Enable replaces the map with verified keys only).
  * @param {object} patch
+ * @param {{ onlyIf?: (current: object) => boolean }} [opts] `onlyIf` sees the
+ *   on-disk config under the lock; returning false skips the patch
+ * @returns {object | null} the written config, or null when `onlyIf` declined
  */
-export function mergeAgentsConfigPatch(patch) {
+export function mergeAgentsConfigPatch(patch, { onlyIf } = {}) {
   return withAgentsConfigLock(() => {
     ensureAgentsConfigScaffoldUnlocked();
     const configPath = agentsConfigPath();
@@ -351,6 +357,7 @@ export function mergeAgentsConfigPatch(patch) {
       }
       current = {};
     }
+    if (onlyIf && !onlyIf(current)) return null;
     const next = deepMerge(current, patch);
     if (
       patch?.packageResolution &&
@@ -369,6 +376,17 @@ export function mergeAgentsConfigPatch(patch) {
     ) {
       next.packageResolution = next.packageResolution ?? {};
       next.packageResolution.autoSetup = patch.packageResolution.autoSetup;
+    }
+    // null clears the prune marker. A string value is kept by deepMerge.
+    if (
+      patch?.packageResolution &&
+      Object.prototype.hasOwnProperty.call(
+        patch.packageResolution,
+        "scaffoldLineage",
+      ) &&
+      patch.packageResolution.scaffoldLineage == null
+    ) {
+      delete next.packageResolution?.scaffoldLineage;
     }
     mkdirSync(path.dirname(configPath), { recursive: true });
     const tmp = `${configPath}.${process.pid}.${Date.now()}.tmp`;
@@ -422,6 +440,14 @@ export function isAutoSetup(type) {
   return Array.isArray(e) && e.includes(type);
 }
 
+/** Off only for `false` or a string that lowercases to "false"; anything else is on. */
+function normalizeTelemetryEnabled(raw) {
+  return !(
+    raw === false ||
+    (typeof raw === "string" && raw.toLowerCase() === "false")
+  );
+}
+
 function normalizeLogLevel(level) {
   const s = typeof level === "string" ? level.toLowerCase() : "";
   const allowed = new Set(["silent", "debug", "info", "warn", "error"]);
@@ -453,12 +479,14 @@ export function normalizeAutoSetup(raw) {
   return out;
 }
 
-/** Trim string repo keys; drop empty values. */
+/** Trim string repo keys; drop empty, unsafe, and non-string values. */
 export function normalizeRepoMap(raw) {
   if (!raw || typeof raw !== "object") return {};
   const out = {};
   for (const [type, key] of Object.entries(raw)) {
-    if (isSafeRepoKey(key?.trim())) out[type] = key.trim();
+    if (typeof key === "string" && isSafeRepoKey(key.trim())) {
+      out[type] = key.trim();
+    }
   }
   return out;
 }

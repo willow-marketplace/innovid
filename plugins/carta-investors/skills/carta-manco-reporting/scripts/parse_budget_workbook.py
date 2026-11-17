@@ -78,6 +78,18 @@ import re
 import sys
 from pathlib import Path
 
+# Adapters live under scripts/shapes/, a sibling package of this file.
+# Adjust sys.path so `import shapes.foo` works whether the user runs
+# `uv run scripts/parse_budget_workbook.py` from any cwd — the one place
+# this happens; `main()`'s late adapter import relies on it too.
+sys.path.insert(0, str(Path(__file__).parent))
+# `totals_tree` and `vocab` are both stdlib-only (unlike the adapter
+# modules themselves, which need openpyxl), so importing them here costs
+# nothing even for a pure-dict caller — see `_totals_readout` and
+# `_plausibility_check`.
+from shapes import totals_tree  # noqa: E402
+from shapes.vocab import SECTION_INCOME, SECTION_OPEX  # noqa: E402
+
 # Adapter registry. Keys are the values passed via --shape.
 SHAPES = {
     # Columns are one reporting-tag's values. Named for the layout, not for
@@ -141,6 +153,22 @@ def _require_period_start(budget, sheet, label):
 # total isn't judged by ratio alone.
 _TIE_OUT_REL_TOL = 0.05
 _TIE_OUT_ABS_TOL = 50.0
+
+
+def _tie_tolerance(stated: float, computed: float) -> float:
+    """How far `computed` may drift from `stated` and still count as a tie."""
+    return max(_TIE_OUT_ABS_TOL, _TIE_OUT_REL_TOL * max(abs(stated), abs(computed)))
+
+
+def _signed_child(sign, label, value: float) -> str:
+    """One child's line in a totals breakdown: a leading `-` when its
+    parent's formula subtracts it, then its label and value. Shared by
+    the tie-out mismatch message (`_tie_out_check`) and the totals
+    readout's leaf lines (`_totals_readout`), so the two descriptions of
+    what a total's children are always render alike.
+    """
+    return f"{'-' if sign < 0 else ''}{label}: {value:,.2f}"
+
 
 # Off by a multiple, or against a sum of the opposite sign: the
 # constituents are the wrong rows, not the client's arithmetic.
@@ -207,6 +235,49 @@ def _is_additive(row: dict) -> bool:
     return calc.get("kind") != "expression"
 
 
+def _is_header_kind(kind) -> bool:
+    return str(kind or "").endswith("header")
+
+
+def _is_total_kind(kind) -> bool:
+    return kind in ("total", "subtotal", "summary")
+
+
+def _lines_covered_by(rows: list, i: int) -> list:
+    """The line rows a section's LAST total visibly sits over.
+
+    A grand total is often derived by a formula that names only its final
+    sub-block — a mgmt-fee grand total whose cell reads `=<last fund> +
+    <creator>` while it plainly covers every fund line above it. Its
+    recorded `constituents` then hold that short list, so a naive tie-out
+    compares the whole-section figure against one line and refuses a parse
+    that is actually correct.
+
+    This is the exact widening the outline view already applies
+    (`linesCoveredBy` in BudgetActualsOutline.jsx): only the LAST total
+    before the next header gets it — an earlier total covers just its own
+    run and is checked against its own constituents — and it gathers every
+    `line` row back to the section header. Keeping the two in lockstep is
+    the point: the credibility gate and the rendered total must agree on
+    which lines a grand total sums.
+    """
+    if not _is_total_kind(rows[i].get("row_kind")):
+        return []
+    # Not the section's last total — leave it to its own constituents.
+    for j in range(i + 1, len(rows)):
+        if _is_header_kind(rows[j].get("row_kind")):
+            break
+        if _is_total_kind(rows[j].get("row_kind")):
+            return []
+    keys = []
+    for j in range(i - 1, -1, -1):
+        if _is_header_kind(rows[j].get("row_kind")):
+            break
+        if rows[j].get("row_kind") == "line" and rows[j].get("key"):
+            keys.append(rows[j]["key"])
+    return keys
+
+
 def _all_zero_check(rows: list) -> dict:
     """Refuse a budget whose line rows are uniformly zero or blank.
 
@@ -242,47 +313,235 @@ def _all_zero_check(rows: list) -> dict:
     }
 
 
-def _tie_out_check(rows: list) -> dict:
-    """Compare each row the workbook states as a total against the sum of
-    the line rows it names as constituents.
+# A single line this large reads as a units or formula error — a
+# pay-period count multiplied into a figure, say — rather than a real
+# expense. A client's own Audit tab once called out pay-period cells of
+# 312,886 that drove one payroll line into the trillions this way. The
+# figure is in the workbook's own currency, whatever that is — the parser
+# never reads a currency code, so this can't be stated as a dollar cap,
+# and a low-unit-value currency (JPY, KRW) can legitimately carry larger
+# raw numbers for the same real spend.
+#
+# The CLI help text below reads this value directly; everywhere else
+# that states it as prose and can't import it — references/budget-workbook.md's
+# `2.75b-iii` intro and its `plausibility` bullet, references/errors.md,
+# tests/carta-investors/test_budget_validation.py's own docstring, and
+# the changeset that introduced this check — has to be updated by hand
+# if this changes.
+_PLAUSIBILITY_LINE_CAP = 1_000_000_000.0
 
-    Only rows the adapter itself pointed at other rows for are checked —
-    a `total`/`summary` row_kind, or a label reading like one, that also
+# Opex this many times income catches opex inflated on its own — the
+# pay-period case above, where income was read correctly and only opex
+# blew up. It does NOT catch a sheet uniformly inflated by one multiple
+# throughout (that leaves the ratio unchanged, so tie-out and coverage
+# are still the only things that could catch that case, and neither can
+# tell a scaled-up sheet from a correct one). It also fires on an
+# ordinary pre- or first-close ManCo plan whose fee income hasn't started
+# yet — a real budget, not a units error — so a refusal here is a
+# question to ask the operator, not an assumed defect.
+#
+# Same restated-by-hand caveat as `_PLAUSIBILITY_LINE_CAP` above.
+_PLAUSIBILITY_OPEX_INCOME_RATIO = 20.0
+
+
+def _plausibility_check(rows: list) -> dict:
+    """Refuse a budget whose own magnitudes read as a parse or units
+    error rather than a real operating plan.
+
+    Two independent triggers, either of which refuses:
+      - a line's own annual figure exceeds `_PLAUSIBILITY_LINE_CAP`
+      - opex exceeds income by more than `_PLAUSIBILITY_OPEX_INCOME_RATIO`
+
+    Reads `section` (`SECTION_INCOME` / `SECTION_OPEX`) when a row
+    carries one — only the pnl-outline adapter sets it — so the
+    opex/income ratio is silently skipped for a shape with no P&L section
+    of its own (a dept crosstab, a whole-ManCo monthly sheet); the
+    line-cap trigger applies regardless of shape.
+    """
+    lines = [r for r in rows if r.get("row_kind") == "line"]
+
+    huge = []
+    for r in lines:
+        for val in _row_values(r).values():
+            if abs(val) > _PLAUSIBILITY_LINE_CAP:
+                huge.append((r.get("label"), val))
+                break
+
+    income = sum(abs(v) for r in lines if r.get("section") == SECTION_INCOME
+                 for v in _row_values(r).values())
+    opex = sum(abs(v) for r in lines if r.get("section") == SECTION_OPEX
+               for v in _row_values(r).values())
+
+    reasons = []
+    if huge:
+        shown = "; ".join(f"{label!r}: {val:,.2f}" for label, val in huge[:5])
+        more = f" (+{len(huge) - 5} more)" if len(huge) > 5 else ""
+        reasons.append(
+            f"{len(huge)} line row(s) exceed {_PLAUSIBILITY_LINE_CAP:,.0f} "
+            f"(workbook units): {shown}{more}"
+        )
+    if income > 0 and opex > _PLAUSIBILITY_OPEX_INCOME_RATIO * income:
+        reasons.append(
+            f"opex ({opex:,.2f}) is {opex / income:,.1f}x income ({income:,.2f})"
+        )
+
+    message = None
+    if reasons:
+        message = (
+            "implausible magnitude — " + "; ".join(reasons) + ". Pass "
+            "--skip-validation if this workbook's own figures are "
+            "genuinely this large."
+        )
+    return {
+        "name": "plausibility",
+        "severity": "error",
+        "passed": message is None,
+        "message": message,
+    }
+
+
+def _rows_by_tree_id(rows: list) -> dict:
+    """Every row, indexed by whichever tree id addresses it: a line's `key`
+    or an aggregate's `total_key`. The one index every reader of a totals
+    tree resolves `children` through, so the gate (`_tie_out_check`) and
+    the readout (`_totals_readout`) always agree on what a child id is.
+    """
+    by_id = {}
+    for r in rows:
+        if r.get("key"):
+            by_id[r["key"]] = r
+        if r.get("total_key"):
+            by_id[r["total_key"]] = r
+    return by_id
+
+
+def _tree_children_map(by_id: dict, row: dict):
+    """Resolve a total's formula-derived `children` (each a line `key` or
+    another total's `total_key`) to their rows, signed by `child_signs`.
+
+    Returns `None` when the row carries no `children`, or when a child id
+    doesn't resolve to an emitted row — never a partial list.
+
+    Callers check `children_complete` themselves before calling this: a
+    row whose formula adds more than its `children` (a constant or a
+    cross-sheet value) can't be explained by children alone, tree or not.
+    """
+    children_ids = row.get("children")
+    if not children_ids:
+        return None
+    signs = row.get("child_signs") or [1] * len(children_ids)
+    resolved = [(sign, by_id.get(cid)) for sign, cid in zip(signs, children_ids)]
+    if any(cr is None for _, cr in resolved):
+        return None
+    return resolved
+
+
+def _tie_out_check(rows: list) -> dict:
+    """Compare each row the workbook states as a total against the rows it
+    names as constituents.
+
+    A row carrying a formula-derived totals tree (`children`/`child_signs`
+    from the pnl-outline adapter) ties out against its direct children —
+    a line's `key` or another total's `total_key` — signed by
+    `child_signs`, so a total of subtotals (`=N46+N50+…`) ties correctly
+    and a subtraction row (Net Income = Income − Expenses) is checked with
+    each child's sign.
+
+    A row whose `children_complete` is false adds more than its `children`
+    name (a constant or a cross-sheet value) and is left unchecked here —
+    the same as `_totals_readout` leaves it unmarked. It never falls back
+    to leaf `constituents`: the pnl-outline adapter fills `constituents`
+    with the unsigned leaf keys beneath those children, flattened through
+    each child total's own `constituents`, so summing it would drop both
+    the sign and the term the tree is missing.
+
+    Only a row with no `children` at all, or with a `children` id that
+    doesn't resolve to an emitted row (e.g. a cross-sheet pull the adapter
+    couldn't follow), takes the leaf-constituents path: a `total`/
+    `subtotal`/`summary` row_kind, or a label reading like one, that
     carries `constituents` (top-level, or nested under `calculated` for a
     dept crosstab's formula-derived rows). A total whose constituents
     don't fully resolve to emitted rows is skipped rather than compared
     against a partial sum, which would be more misleading than no check
-    at all.
+    at all. When the recorded constituents don't tie, a section's last
+    total is re-summed against the line rows it actually covers
+    (`_lines_covered_by`) before it's called a mismatch — the same
+    widening the outline view renders, so a grand total whose formula
+    named only its final sub-block (e.g. a mgmt-fee total reading
+    `<funds subtotal> + <creator>`) is not refused when the lines beneath
+    it do add up.
+
+    A mismatch's `message` names what the gate actually compared the
+    total against. For a row tied out via its tree, that's each signed
+    child by label and value — the question is about those specific rows,
+    not a verdict on the parse. A row tied out via leaf `constituents`
+    uses the "line rows sum to" wording, since there's no single child to
+    point at.
     """
+    by_id = _rows_by_tree_id(rows)
     key_to_row = {r["key"]: r for r in rows if r.get("key")}
     comparisons = []
-    for row in rows:
-        is_total_like = row.get("row_kind") in ("total", "summary") or bool(
+    for i, row in enumerate(rows):
+        is_total_like = _is_total_kind(row.get("row_kind")) or bool(
             _TOTAL_LABEL_RX.search(row.get("label") or "")
         )
-        if not is_total_like or not _is_additive(row):
+        if not is_total_like:
             continue
         stated_map = _row_values(row)
         if not stated_map:
             continue
-        keys = _constituent_keys(row)
-        if not keys:
-            continue
-        constituent_rows = [key_to_row[k] for k in keys if k in key_to_row]
-        if len(constituent_rows) != len(keys):
+
+        if row.get("children") and not row.get("children_complete", True):
             continue
 
-        computed_map: dict = {}
-        for cr in constituent_rows:
-            for dim, val in _row_values(cr).items():
-                computed_map[dim] = computed_map.get(dim, 0.0) + val
+        tree_children = _tree_children_map(by_id, row)
+        covered_map: dict = {}
+        children_by_dim: dict = {}
+        if tree_children is not None:
+            for sign, cr in tree_children:
+                for dim, val in _row_values(cr).items():
+                    children_by_dim.setdefault(dim, []).append(
+                        {"label": cr.get("label"), "sign": sign, "value": val})
+            # Derived from `children_by_dim`, not summed separately, so a
+            # mismatch's listed children always add up to the figure the
+            # message reports they sum to.
+            computed_map = {
+                dim: sum(c["sign"] * c["value"] for c in children)
+                for dim, children in children_by_dim.items()
+            }
+        else:
+            if not _is_additive(row):
+                continue
+            keys = _constituent_keys(row)
+            if not keys:
+                continue
+            constituent_rows = [key_to_row[k] for k in keys if k in key_to_row]
+            if len(constituent_rows) != len(keys):
+                continue
+
+            computed_map = {}
+            for cr in constituent_rows:
+                for dim, val in _row_values(cr).items():
+                    computed_map[dim] = computed_map.get(dim, 0.0) + val
+
+            # Fallback sum over the line rows this total visibly sits over —
+            # consulted only when the recorded constituents don't tie, so it
+            # can rescue a correct-but-under-recorded total without ever
+            # turning a genuine mismatch into a pass.
+            for cr in (key_to_row[k] for k in _lines_covered_by(rows, i)
+                       if k in key_to_row):
+                for dim, val in _row_values(cr).items():
+                    covered_map[dim] = covered_map.get(dim, 0.0) + val
 
         for dim, stated in stated_map.items():
             computed = computed_map.get(dim, 0.0)
-            tolerance = max(
-                _TIE_OUT_ABS_TOL,
-                _TIE_OUT_REL_TOL * max(abs(stated), abs(computed)),
-            )
+            tolerance = _tie_tolerance(stated, computed)
+            if abs(stated - computed) > tolerance and dim in covered_map:
+                covered = covered_map[dim]
+                cov_tol = _tie_tolerance(stated, covered)
+                if abs(stated - covered) <= cov_tol:
+                    computed, tolerance = covered, cov_tol
+            children_detail = children_by_dim.get(dim) if tree_children is not None else None
             comparisons.append({
                 "label": row.get("label"),
                 "row_kind": row.get("row_kind"),
@@ -292,19 +551,39 @@ def _tie_out_check(rows: list) -> dict:
                 "tolerance": round(tolerance, 2),
                 "within_tolerance": abs(stated - computed) <= tolerance,
                 "gross": _is_gross_mismatch(stated, computed, tolerance),
+                "children": children_detail,
             })
 
     mismatches = [c for c in comparisons if not c["within_tolerance"]]
     gross = [c for c in mismatches if c["gross"]]
     message = None
     if mismatches:
-        parts = [
-            f"{m['label']!r}"
-            + (f" [{m['dimension']}]" if m["dimension"] else "")
-            + f": workbook states {m['stated']:,.2f}, line rows sum to "
-              f"{m['computed']:,.2f} (tolerance {m['tolerance']:,.2f})"
-            for m in (gross or mismatches)
-        ]
+        def _describe(m):
+            head = (
+                f"{m['label']!r}"
+                + (f" [{m['dimension']}]" if m["dimension"] else "")
+                + f": workbook states {m['stated']:,.2f}, "
+            )
+            if m["children"]:
+                # Names exactly what the total's own formula sums, so the
+                # operator can see which child is missing, zero, or on the
+                # wrong side without opening the workbook — the refusal is
+                # a question about those rows, not a verdict on the parse.
+                breakdown = "; ".join(
+                    _signed_child(c["sign"], repr(c["label"]), c["value"])
+                    for c in m["children"]
+                )
+                return (
+                    head + "its own formula's children sum to "
+                    f"{m['computed']:,.2f} (tolerance {m['tolerance']:,.2f}) — "
+                    f"{breakdown}"
+                )
+            return (
+                head + f"line rows sum to {m['computed']:,.2f} "
+                f"(tolerance {m['tolerance']:,.2f})"
+            )
+
+        parts = [_describe(m) for m in (gross or mismatches)]
         lead = (
             "tie-out mismatch against the workbook's own stated total — "
             if gross else
@@ -400,6 +679,62 @@ def _coverage_check(rows: list, workbook_path, sheet_name: str) -> dict:
     }
 
 
+def _totals_readout(rows: list) -> str:
+    """An indented summary of every root total down through its own
+    `children` — what it sums, the amount, and a ✓/✗ against the signed
+    sum of its direct children (`child_signs`) — built from the
+    `children`/`child_signs`/`children_complete` fields the pnl-outline
+    adapter's formula tree produces. Every child line, leaf or another
+    total, carries the `-` its parent's formula gives it when subtracted.
+    No mark at all on a total whose own `annual` isn't a number, or whose
+    `children_complete` is false — its formula also adds a constant or a
+    cross-sheet value alongside `children` — since neither can be checked
+    against the signed sum of `children`. Empty when no row carries
+    `children`: a sheet with no live formulas, or a non-outline shape.
+    """
+    by_id = _rows_by_tree_id(rows)
+    rows_with_children = [r for r in rows if r.get("children")]
+    if not rows_with_children:
+        return ""
+    roots = totals_tree.tree_roots(rows_with_children)
+
+    lines = []
+
+    def tie_mark(stated, computed):
+        if not isinstance(stated, (int, float)):
+            return ""
+        if abs(stated - computed) <= _tie_tolerance(stated, computed):
+            return " ✓"
+        return f" ✗ (children sum to {computed:,.2f})"
+
+    def render(row, depth, prefix=""):
+        children = [by_id[c] for c in row.get("children", []) if c in by_id]
+        signs = row.get("child_signs") or [1] * len(children)
+        stated = row.get("annual")
+        computed = sum(
+            sign * float(c.get("annual") or 0.0) for sign, c in zip(signs, children)
+        )
+        amount = f"{stated:,.2f}" if isinstance(stated, (int, float)) else "—"
+        # A formula with a constant or a cross-sheet term alongside its
+        # row references (`children_complete` false) can never tie against
+        # `children` alone, so no mark beats a false ✗ — same reasoning as
+        # a non-numeric `stated` (no cached value to compare against).
+        mark = tie_mark(stated, computed) if row.get("children_complete", True) else ""
+        lines.append(f"{'  ' * depth}{prefix}{row.get('label')}: {amount}{mark}")
+        for sign, c in zip(signs, children):
+            if c.get("children"):
+                render(c, depth + 1, "" if sign > 0 else "-")
+            else:
+                lines.append(
+                    f"{'  ' * (depth + 1)}"
+                    f"{_signed_child(sign, c.get('label'), float(c.get('annual') or 0.0))}"
+                )
+
+    for r in roots:
+        render(r, 0)
+    return "\n".join(lines)
+
+
 def _validate_budget(budget: dict, workbook_path, sheet_name: str) -> dict:
     """Run the parse-credibility gate and return its machine-readable
     `validation` block: which checks ran, whether each passed, and the
@@ -409,13 +744,17 @@ def _validate_budget(budget: dict, workbook_path, sheet_name: str) -> dict:
     Shape-agnostic by construction: every helper above reads only
     `row_kind`, `annual`, `monthly`, `by_column`, `constituents` and
     `calculated` — the vocabulary every adapter emits — never a layout
-    detail specific to one of them.
+    detail specific to one of them. `_plausibility_check`'s opex/income
+    trigger is the one exception: it also reads `section`, which only the
+    pnl-outline adapter sets, and simply has nothing to compare for a
+    shape that doesn't.
     """
     rows = budget.get("rows", [])
     checks = [
         _all_zero_check(rows),
         _tie_out_check(rows),
         _coverage_check(rows, workbook_path, sheet_name),
+        _plausibility_check(rows),
     ]
     passed = not any(c["severity"] == "error" and not c["passed"] for c in checks)
     return {"checks": checks, "passed": passed}
@@ -508,7 +847,10 @@ def main() -> int:
         help=(
             "Write budget.json even when the parse-credibility gate refuses "
             "it — an all-zero parse, a tie-out mismatch against the "
-            "workbook's own stated total, or implausibly low row coverage. "
+            "workbook's own stated total, implausibly low row coverage, or "
+            "an implausible magnitude (a line over "
+            f"{_PLAUSIBILITY_LINE_CAP:,.0f} in the workbook's own currency, "
+            f"or opex more than {_PLAUSIBILITY_OPEX_INCOME_RATIO:g}x income). "
             "The validation block is still attached and still reports what "
             "failed. Use this only once you've manually confirmed the "
             "workbook is legitimately shaped that way, e.g. a genuine "
@@ -523,11 +865,9 @@ def main() -> int:
         return 2
 
     # Late import so a bad --shape argparse-fails before we touch openpyxl.
+    # scripts/shapes/ is already on sys.path (see the module-level insert
+    # near the top of this file).
     module_path = SHAPES[args.shape]
-    # Adapters live under scripts/shapes/, which is a sibling package of
-    # this file. Adjust sys.path so `import shapes.foo` works whether the
-    # user runs `uv run scripts/parse_budget_workbook.py` from any cwd.
-    sys.path.insert(0, str(Path(__file__).parent))
     module = __import__(module_path, fromlist=["parse"])
     if not hasattr(module, "parse"):
         print(
@@ -582,6 +922,15 @@ def main() -> int:
 
     validation = _validate_budget(budget, workbook, args.sheet)
     budget["validation"] = validation
+
+    # Printed ahead of the refusal check: a refused parse exits there, and
+    # its reader needs the readout to see what each mismatched total was
+    # compared against, same as a successful parse does.
+    if args.shape == "pnl-outline":
+        readout = _totals_readout(budget.get("rows", []))
+        if readout:
+            print(f"totals readout:\n{readout}", file=sys.stderr)
+
     failed = [c for c in validation["checks"] if c["severity"] == "error" and not c["passed"]]
     if failed:
         detail = "\n".join(f"  - {c['name']}: {c['message']}" for c in failed)

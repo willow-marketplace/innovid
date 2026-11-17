@@ -2,7 +2,7 @@
   "name": "ai-plugins",
   "version": "1.0.0",
   "description": "Endor Labs workflow agents and setup for Claude Code.",
-  "updatedAt": "2026-09-19T00:42:54.366Z",
+  "updatedAt": "2026-11-17T00:01:08.065Z",
   "author": {
     "url": "https://www.endorlabs.com/",
     "name": "Endor Labs"
@@ -26,33 +26,33 @@
   "agents": [
     "./agents/sca-remediation.md",
     "./agents/ai-sast-remediation.md",
-    "./agents/cicd-posture.md",
     "./agents/configuration-automation.md",
     "./agents/dependency-reviewer.md",
     "./agents/findings-browser.md",
-    "./agents/malware-responder.md",
     "./agents/oss-upgrade-investigator.md",
     "./agents/remediation-planning.md",
     "./agents/troubleshooting.md",
-    "./agents/vulnerability-explainer.md"
+    "./agents/vulnerability-explainer.md",
+    "./agents/cicd-posture.md",
+    "./agents/malware-responder.md"
   ],
   "hooks": {
     "PostToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/check-dep-install.sh\""
-          }
-        ]
-      },
       {
         "matcher": "Edit|MultiEdit|Write",
         "hooks": [
           {
             "type": "command",
             "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/check-manifest-edit.sh\""
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/check-dep-install.sh\""
           }
         ]
       }

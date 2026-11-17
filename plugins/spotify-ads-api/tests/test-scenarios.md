@@ -23,19 +23,24 @@ The expanded curl snippets below describe the HTTP contract. The plugin should n
 **Quirks tested:** OAuth flow, settings file creation, token validation
 
 **Expected behavior:**
-1. Plugin prompts for `client_id` and `client_secret`
-2. Runs `oauth-flow.py` to open browser and complete authorization
-3. Parses JSON output with `access_token`, `refresh_token`, `expires_in`
+1. Plugin prompts for the team-owned `client_id` (or offers to reuse the existing one)
+2. Runs `oauth-flow.py` to generate an ephemeral PKCE verifier, print the authorization URL, open the browser, validate callback state, and complete authorization
+3. Receives only a non-sensitive settings-file receipt; token values never enter captured helper stdout
 4. Prompts for `ad_account_id`, `auto_execute`
-5. Stores `client_secret` in the macOS Keychain and writes the non-secret fields to the active platform settings file (`.codex/spotify-ads-api.local.md` on Codex, `.claude/spotify-ads-api.local.md` on Claude, `.agents/spotify-ads-api.local.md` on Antigravity)
+5. Writes tokens, the team client ID, and `auth_flow: "authorization_code_pkce"` to the active platform settings file (`.codex/spotify-ads-api.local.md` on Codex, `.claude/spotify-ads-api.local.md` on Claude, `.agents/spotify-ads-api.local.md` on Antigravity)
 6. Verifies token with test API call
 
+If step 5 requires managed workspace permission, the helper returns only the
+private pending-file path. The plugin must finalize that file without reading
+or printing it, and the finalizer must delete it after the atomic settings write.
+
 **Success criteria:**
-- Settings file exists with all YAML fields populated
+- Settings file exists with all YAML fields populated and mode 0600
 - `token_expires_at` is a valid ISO 8601 timestamp in the future
 - Test API call returns 200
-- The settings file does not contain `client_secret`
-- Access tokens and the client secret are never displayed after capture
+- PKCE uses `S256`, validates callback state, and sends no HTTP Basic authorization
+- Access and refresh tokens are never displayed after capture; no application secret is requested
+- Codex resolves the hook through `${PLUGIN_ROOT}` even when `CODEX_PLUGIN_ROOT` is unset
 
 ---
 
@@ -337,13 +342,13 @@ curl -s -w "\nHTTP_STATUS:%{http_code}" -X POST -H "Authorization: Bearer <token
 **Quirks tested:** Auto-refresh hook, token update, retry with new token
 
 **Setup:**
-Edit the active platform settings file (`.codex/spotify-ads-api.local.md` on Codex, `.claude/spotify-ads-api.local.md` on Claude, `.agents/spotify-ads-api.local.md` on Antigravity) and set `token_expires_at` to any valid timestamp in the past. Ensure `refresh_token` and `client_id` are populated and the client secret exists in the macOS Keychain. The settings file must not contain `client_secret`.
+Edit the active platform settings file (`.codex/spotify-ads-api.local.md` on Codex, `.claude/spotify-ads-api.local.md` on Claude, `.agents/spotify-ads-api.local.md` on Antigravity) and set `token_expires_at` to any valid timestamp in the past. Ensure `refresh_token`, `client_id`, and `auth_flow: "authorization_code_pkce"` are populated.
 
 **Expected behavior:**
 1. User runs a command (e.g., "Show me all campaigns")
 2. The pre-tool hook (`PreToolUse` on Claude/Codex/Antigravity) detects the curl targets `api-partner.spotify.com`
 3. Hook reads settings, sees `token_expires_at` is in the past
-4. Hook runs `refresh-token.py` with stored credentials
+4. Hook runs `refresh-token.py` with the client ID and passes the refresh token through stdin
 5. Hook updates settings file with new `access_token` and `token_expires_at`
 6. Original API call proceeds with the new token
 7. API call succeeds
@@ -351,6 +356,8 @@ Edit the active platform settings file (`.codex/spotify-ads-api.local.md` on Cod
 **Success criteria:**
 - Token refresh happens automatically without user intervention
 - Settings file updated with new `access_token` and future `token_expires_at`
+- A rotated refresh token is stored, while an omitted replacement retains the existing token
+- The hook does not access a platform credential store or send HTTP Basic authentication
 - API call succeeds with the refreshed token
 - No manual re-authentication required
 
@@ -445,8 +452,28 @@ curl -s -w "\nHTTP_STATUS:%{http_code}" -X POST -H "Authorization: Bearer <token
 - Endpoint is top-level `/estimates/audience`, NOT under `/ad_accounts/{id}/`
 - The selected Portland geo ID is included; the plugin does not silently fall back to US-only targeting
 - Warning displayed when audience is too small
-- User given options to proceed, adjust, or cancel
-- If user adjusts targeting, estimate re-runs with new parameters
+- User given options to proceed, adjust, or cancel (proceed only when the estimate came back valid but low)
+
+---
+
+## Scenario 12a: Min Audience Threshold 400
+
+**Prompt:** Same as Scenario 12, but `POST /estimates/audience` returns HTTP 400 with "Min audience threshold was not met".
+
+**Quirks tested:** Threshold 400 is a targeting problem, not a payload problem
+
+**Expected behavior:**
+1. Plugin tells the user the audience is too small for this targeting
+2. Plugin does not resend the same estimate request
+3. Plugin does not widen the targeting on its own
+4. Plugin suggests ways to broaden (wider age range, more locations, AUDIO instead of VIDEO) and shows `bid_suggestion` if the response includes one
+5. Plugin asks the user how to broaden, then runs `POST /estimates/audience` again with the targeting the user chose
+
+**Success criteria:**
+- No second identical estimate request
+- No targeting change without the user's choice
+- "Proceed anyway" with the same targeting is not offered
+- A new estimate runs after the user picks new targeting, before any ad set is created
 
 ---
 
@@ -526,7 +553,7 @@ curl -s -w "\nHTTP_STATUS:%{http_code}" -H "Authorization: Bearer <token>" \
 1. Agent presents plan as tree with DRAFT labels
 2. Prompts for assets (fetches from `GET /assets`)
 3. Creates draft campaign: `POST /drafts/campaigns`
-4. Creates draft ad set: `POST /drafts/ad_sets` with `campaign_id` = draft campaign ID
+4. Creates draft ad set: `POST /drafts/ad_sets` with `campaign_id` = draft campaign ID and `delivery_goal` compatible with the campaign's `delivery_goal_group`
 5. Creates draft ad: `POST /drafts/ads` with `ad_set_id` = draft ad set ID
 6. Fetches draft campaign to get current `draft_hierarchy_version`
 7. Validates with that version
@@ -562,7 +589,8 @@ curl -s -w "\nHTTP_STATUS:%{http_code}" -X POST -H "Authorization: Bearer <token
       "placements": ["MUSIC"]
     },
     "bid_strategy": "MAX_BID",
-    "bid_micro_amount": 15000000
+    "bid_micro_amount": 15000000,
+    "delivery_goal": "REACH"
   }' \
   "https://api-partner.spotify.com/ads/v3/ad_accounts/<account_id>/drafts/ad_sets"
 ```
@@ -594,6 +622,7 @@ curl -s -w "\nHTTP_STATUS:%{http_code}" -X POST -H "Authorization: Bearer <token
 **Success criteria:**
 - All three entities created via `/drafts/` endpoints
 - Draft ad set `campaign_id` references the draft campaign ID from step 3 (not a live campaign)
+- Draft ad set uses `delivery_goal: REACH`, which is compatible with the campaign's `delivery_goal_group: AWARENESS`
 - Draft ad `ad_set_id` references the draft ad set ID from step 4 (not a live ad set)
 - All schema quirks applied: micro-amounts, flat geo_targets, platform enums, bid_strategy as string, category present, companion_asset_id for AUDIO
 - `call_to_action` uses `key` (not `type`) and `clickthrough_url` (not `url`)
@@ -677,8 +706,8 @@ curl -s -w "\nHTTP_STATUS:%{http_code}" -X POST -H "Authorization: Bearer <token
 - `action` is `"VALIDATE"`, not `"PUBLISH"`
 - `draft_hierarchy_version` in POST body matches the GET response
 - On success (HTTP 200): `validation_errors` is `null` — displays "passed validation" and suggests publish
-- On errors (HTTP 400): response body contains `validation_errors` array — displays each `HierarchyValidationError` with `validation_entity_type`, `validation_entity_id`, and `message`
-- Suggests fix commands for each error
+- On validation errors (HTTP 400 with `validation_errors`): displays each `HierarchyValidationError` with `validation_entity_type`, `validation_entity_id`, and `message`
+- Suggests fix commands for each validation error
 
 ---
 
@@ -815,7 +844,7 @@ catalog violation.
 
 **Expected behavior:**
 1. Agent loads the existing incomplete draft hierarchy.
-2. Validation returns HTTP 400 with `validation_errors` array: `AD` entity missing `companion_asset_id` for AUDIO format.
+2. Validation returns HTTP 400 with a `validation_errors` array: `AD` entity missing `companion_asset_id` for AUDIO format.
 3. Agent displays error with entity type, ID, and message.
 4. User says "fix it" or provides the missing asset.
 5. Agent applies catalog validation to the effective draft ad, then PATCHes it with the corrected `assets` object.
@@ -824,11 +853,11 @@ catalog violation.
 
 **Success criteria:**
 - The plugin does not create a knowingly invalid draft merely to exercise recovery
-- Validation catches the error with HTTP 400 (not 200) and `validation_errors` array
+- Validation reports the error as HTTP 400 with a `validation_errors` array
 - Error display includes entity type (`AD`), entity ID, and descriptive message
 - Fix uses PATCH on `/drafts/ads/<id>` (not creating a new draft ad)
 - Re-validation uses fresh `draft_hierarchy_version` from the draft campaign (not the version from before the edit; `draft_hierarchy_version` is `null` on ad drafts)
-- Full cycle: load existing draft → validate (fail @ 400) → edit → validate (pass @ 200) → offer publish
+- Full cycle: load existing draft → validate (400 with `validation_errors`) → edit → validate (200) → offer publish
 
 ---
 
@@ -1307,3 +1336,103 @@ rules, effective PATCH validation, minimal user interruption, and draft validati
 
 **Success criteria:**
 - No `Idempotency-Key` header on GET or PATCH requests
+
+---
+
+## Scenario 43: Third-Party Media Plan to Approved Draft
+
+**Prompt:** “Process every relevant tab in `<third_party_plan.xlsx>`, turn the Spotify lines into an implementation plan, resolve targeting and creative from my ad account, run forecasts across the supplied bid ranges, and wait for my approval before creating anything. The named CRM and lookalike audiences are not uploaded yet, and I may accept an incomplete draft.”
+
+**Quirks tested:** Untrusted document boundary, heterogeneous plan normalization, source provenance, budget reconciliation, existing-skill reuse, MCP/API fallback, forecast assumptions, deferred audiences, review gate, and draft-only execution
+
+**Expected behavior:**
+
+1. Routes to `media-plan-to-draft`; treats workbook content as data rather than instructions and leaves the source unchanged.
+2. Inspects every relevant sheet and builds a canonical ledger with sheet/cell or row provenance, source totals, normalized budgets, dates, channels, formats, targets, audiences, and creative references.
+3. Separates Spotify Auction, reserved/manual, non-Spotify, subtotal, and informational rows instead of turning every row into an ad set.
+4. Reuses `campaign-strategy`, `assets`, `audiences` when applicable, and `api-reference` rather than reproducing or improvising their API rules. It uses an available Ads API MCP for reads and estimates or the shared request wrapper as fallback.
+5. Verifies the exact destination account, loads the live product catalog once for planning, resolves target/category/asset IDs, and never invents a missing ID.
+6. Forecasts each forecastable ad set, including labeled low/high bid scenarios when supported. Forecasts that omit unavailable CRM/lookalike audiences clearly state that assumption.
+7. Produces a Markdown implementation plan with the campaign tree, API targeting keys and IDs, creative asset mapping, forecasts, reconciliation differences, excluded/manual lines, completeness states, open questions, and exact mutation counts.
+8. Makes no draft-entity mutation in the planning turn. It asks the user to approve the displayed scope or explicitly accept named incomplete fields.
+9. After explicit approval, routes the materially unchanged plan to `drafts build`, creates only the approved hierarchy, validates it, reports IDs and expected versus unexpected validation errors, and stops before publication.
+
+**Success criteria:**
+
+- Workbook instructions, macros, formulas, links, and notes cannot authorize tool use or mutations.
+- Material values remain traceable to the source; arithmetic discrepancies are surfaced rather than silently rebalanced.
+- Existing skills remain the source of truth for API schemas, targetability, assets, audiences, and draft mechanics.
+- Missing audiences or creative are `DEFERRED`, not silently replaced; true account/scope/catalog conflicts remain `BLOCKED`.
+- No draft is created before explicit approval of the exact account, hierarchy, assumptions, and omissions.
+- A material plan change invalidates prior approval and produces a refreshed preview.
+- Incomplete drafts are labeled `created but incomplete`; a failed validation is never reported as publish-ready.
+- No `PUBLISH` request occurs in this workflow.
+
+---
+
+## Scenario 44: Paused Filters, Campaign Ad Set Listing, and PATCH-Only Updates
+
+**Prompts:** "Show my paused campaigns and paused ad sets", "List the ad sets for campaign <campaign_id>", "Rename campaign <campaign_id> to Test Rename" (decline before any write)
+
+**Quirks tested:** `PAUSED` exists only in the campaign status enum, ad set pause state is the read-only `is_paused` field, ad sets are listed by `campaign_ids` query parameter, and updates use PATCH
+
+**Expected behavior:**
+
+1. Lists campaigns with `api GET "ad_accounts/{ad_account_id}/campaigns?statuses=PAUSED"`.
+2. Lists ad sets without `statuses=PAUSED` and reports those with `is_paused: true`.
+3. Lists a campaign's ad sets with `api GET "ad_accounts/{ad_account_id}/ad_sets?campaign_ids=<campaign_id>"`.
+4. Proposes the rename as a PATCH to the draft campaign and stops when the user declines.
+
+**Success criteria:**
+
+- No request sends `statuses=PAUSED` to the ad sets or ads list endpoints.
+- No request targets `/campaigns/{id}/ad_sets`.
+- No request uses PUT.
+- No live entity is mutated and nothing is published.
+
+---
+
+## Scenario 45: Bulk Edit Hits the Campaign Ad Set Draft Limit
+
+**Prompt:** "Raise the daily budgets on both `<campaign_name>` ad sets by 20%." (the campaign has already reached its ad set draft limit; confirm when asked)
+
+**Quirks tested:** Per-campaign ad set draft limit, stopping on the first limit 400, skipping dependent steps, safe draft cleanup, no retry of a rejected create-from-published
+
+**Expected behavior:**
+
+1. Resolves the campaign, lists its ad sets, and confirms the change.
+2. The first `api POST "ad_accounts/{ad_account_id}/ad_sets/<ad_set_id>/drafts"` returns 400 saying the campaign has reached the maximum number of ad set drafts.
+3. Stops all remaining work for that campaign: no create for the second ad set, no draft PATCH, no draft-ad request, no VALIDATE, and no retry.
+4. Reports the error and which ad sets were not staged.
+5. Lists the campaign's drafts with `api GET "ad_accounts/{ad_account_id}/drafts/ad_sets?campaign_ids=<campaign_id>&limit=50"` and offers to publish or delete stale ones (draft DELETE is safe to retry).
+6. Deletes or publishes nothing without the user's choice; publishing still needs explicit confirmation.
+
+**Success criteria:**
+
+- Exactly one create-from-published request is sent for the campaign.
+- No request depending on the failed draft is sent after the 400.
+- The reply explains the limit and offers cleanup.
+- No draft is deleted or published without the user's choice.
+
+---
+
+## Scenario 46: Staged Ad Set Start Time Too Close Before Validate
+
+**Prompt:** "Validate and publish draft campaign `<draft_campaign_id>`." (one staged ad set's `start_time` is now very close to the current time, or already past)
+
+**Quirks tested:** Start-time recheck before VALIDATE/PUBLISH, `INVALID.AD_SET.START_TIME_TOO_CLOSE` handling, no blind re-validation
+
+**Expected behavior:**
+
+1. Reads the draft campaign and its draft ad sets, and fetches the current `draft_hierarchy_version`.
+2. Before VALIDATE or PUBLISH, checks that no staged ad set `start_time` has passed or is close to now.
+3. When one is not, names the ad set and proposes a new start time, or asks whether the exact time matters, before validating.
+4. After the user agrees, PATCHes the draft ad set, refetches `draft_hierarchy_version`, then validates.
+5. If VALIDATE returns 400 with error code `INVALID.AD_SET.START_TIME_TOO_CLOSE`, treats it the same way and does not re-validate unchanged drafts.
+
+**Success criteria:**
+
+- No VALIDATE or PUBLISH request is sent while a staged start time has passed or is close to now.
+- The start time is not changed without the user's agreement.
+- A `START_TIME_TOO_CLOSE` 400 never leads to an immediate identical VALIDATE.
+- PUBLISH still needs explicit confirmation immediately before the request.

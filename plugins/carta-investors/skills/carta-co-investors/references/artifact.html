@@ -9,72 +9,177 @@
        renders consistently on systems without "Inter var" installed locally. */
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
-    /* === SHARED CARTA STYLESHEET (inlined from ux-patterns/css/cap-table-artifact.css) === */
     :root {
-        color-scheme: light;
-        --surface-bg: #FFFFFF;
-        --surface-underlay: #F1F1F1;
-        --surface-darkgray-default: #1A1A1A;
-        --text-default: #1A1A1A;
-        --text-subtle: #656B6B;
-        --border-default: #A7AAAA;
-        --border-subtle: #DEDFDF;
-        --negative-subtle: #FFEEEF;
-        --negative-strong: #E52431;
-        --positive-subtle: #EBF7F6;
-        --positive-strong: #2D9E90;
-        --info-subtle: #EAF0F8;
-        --info-strong: #285DA3;
+      color-scheme: light dark;
+
+      /* === Text === */
+      --ink-color-global-text-default:     light-dark(#1A1A1A, #EDEDED);
+      --ink-color-global-text-subtle:      light-dark(#656B6B, #A7AAAA);
+      --ink-color-global-text-very-subtle: light-dark(#9C9F9F, #394040);
+      --ink-color-global-text-inverse:     light-dark(#FFFFFF, #1A1A1A);
+
+      /* === Surfaces === */
+      --ink-color-global-surface-background-default:  light-dark(#FFFFFF, rgb(18 18 18));
+      --ink-color-global-surface-background-underlay: light-dark(#F1F1F1, #2D2D2D);
+      --ink-color-global-surface-background-overlay:  light-dark(rgb(0 0 0 / 0.8), rgb(80 80 80 / 0.8));
+
+      /* === Borders === */
+      --ink-color-global-border-subtle:        light-dark(#DEDFDF, #2D2D2D);
+      --ink-color-global-border-default:       light-dark(#A7AAAA, #656B6B);
+      --ink-color-global-border-hover:         light-dark(#656B6B, #9C9F9F);
+      --ink-color-global-border-active:        light-dark(#1A1A1A, #CECFCF);
+      --ink-color-global-border-focus-default: light-dark(#285DA3, #8BABD6);
+      --ink-color-global-border-focus-light:   light-dark(#C0D1E9, #1A3E6D);
+
+      /* === Semantic feedback === */
+      --ink-color-global-feedback-positive-subtle: light-dark(#EBF7F6, #063A32);
+      --ink-color-global-feedback-positive-strong: light-dark(#2D9E90, #2D9E90);
+      --ink-color-global-feedback-negative-subtle: light-dark(#FFEEEF, #401018);
+      --ink-color-global-feedback-negative-strong: light-dark(#E52431, #FAD9D7);
+      --ink-color-global-feedback-warning-subtle:  light-dark(#FFFCED, #341C00);
+      --ink-color-global-feedback-warning-strong:  light-dark(#F8D648, #B58A00);
+      --ink-color-global-feedback-info-subtle:     light-dark(#EAF0F8, #122948);
+      --ink-color-global-feedback-info-strong:     light-dark(#285DA3, #2C67B5);
+
+      /* === Links === */
+      --ink-color-global-link-default: light-dark(#285DA3, #8BABD6);
+      --ink-color-global-link-hover:   light-dark(#1A3E6D, #4176BC);
+
+      /* === Radius === */
+      --ink-size-global-radius-flat:   0;
+      --ink-size-global-radius-subtle: 4px;
+      --ink-radius-pill: 9999px;
+
+      /* === Spacing === */
+      --ink-spacing-global-vertical-xxsmall: 4px;
+      --ink-spacing-global-vertical-xsmall:  8px;
+      --ink-spacing-global-vertical-small:   12px;
+      --ink-spacing-global-vertical-normal:  16px;
+      --ink-spacing-global-vertical-gutter:  20px;
+      --ink-spacing-global-vertical-large:   24px;
+      --ink-spacing-global-vertical-xlarge:  32px;
+
+      --ink-spacing-global-horizontal-xxsmall: 4px;
+      --ink-spacing-global-horizontal-xsmall:  8px;
+      --ink-spacing-global-horizontal-small:   12px;
+      --ink-spacing-global-horizontal-normal:  16px;
+      --ink-spacing-global-horizontal-large:   24px;
+      --ink-spacing-global-horizontal-xlarge:  32px;
+
+      /* === Typography === */
+      --ink-font-global-family-base:      "Inter", "Inter var", system-ui, sans-serif;
+      --ink-font-global-family-prominent: "SangBleu Versailles", Georgia, serif;
+
+      --ink-font-global-size-small-1:           12px;
+      --ink-font-global-size-body-1:            14px;
+      --ink-font-global-size-heading-3:         16px;
+      --ink-font-global-size-heading-2-desktop: 20px;
+      --ink-font-global-size-display-1:         28px;
+
+      --ink-font-global-leading-small-1:           20px;
+      --ink-font-global-leading-body-1:            24px;
+      --ink-font-global-leading-heading-3:         28px;
+      --ink-font-global-leading-heading-2-desktop: 36px;
+      --ink-font-global-leading-display-1:         48px;
+
+      --ink-font-global-weight-body-3:    400;
+      --ink-font-global-weight-body-2:    500;
+      --ink-font-global-weight-body-1:    600;
+      --ink-font-global-weight-heading-1: 400;
+      --ink-font-global-weight-heading-3: 500;
+      --ink-font-global-weight-small-1:   500;
+
+      /* === Elevation === */
+      --ink-elevation-global-shadow-small:  0 4px 12px 0 rgb(0 0 0 / 0.08);
+      --ink-elevation-global-shadow-large:  0 4px 20px 0 rgb(0 0 0 / 0.2);
+
+      /* === Focus ring === */
+      --ink-focus-ring: 0 0 0 4px var(--ink-color-global-border-focus-light);
     }
+    /* The host stamps data-theme for an explicit theme choice. light-dark() follows
+       color-scheme, so pinning it lets that choice beat the OS setting. */
+    :root[data-theme="light"] { color-scheme: light; }
+    :root[data-theme="dark"]  { color-scheme: dark; }
+    /* Page tokens beyond Ink's: the drawer's scrim, the same dim in both modes. */
+    :root { --scrim: rgb(0 0 0 / 0.32); }
 
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
     body {
-        font-family: "Inter var", "Inter", -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-        background: var(--surface-bg);
-        color: var(--text-default);
-        padding: 24px;
+        background: var(--ink-color-global-surface-background-default);
+        color: var(--ink-color-global-text-default);
+        font-family: var(--ink-font-global-family-base);
+        font-size: var(--ink-font-global-size-body-1);
+        line-height: var(--ink-font-global-leading-body-1);
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
     }
 
-    .container { max-width: 1100px; margin: 0 auto; }
+    :focus-visible {
+        outline: 2px solid var(--ink-color-global-border-focus-default);
+        box-shadow: var(--ink-focus-ring);
+        outline-offset: 0;
+    }
+
+    .container { padding: var(--ink-spacing-global-vertical-large) var(--ink-spacing-global-horizontal-xlarge) 40px; }
+    @media (max-width: 599px) { .container { padding: var(--ink-spacing-global-vertical-normal); } }
+
+    .carta-logo {
+      display: block;
+      width: 64px;
+      height: 32px;
+      margin-bottom: var(--ink-spacing-global-vertical-large);
+      color: var(--ink-color-global-text-default);
+    }
 
     .header { margin-bottom: 32px; }
-    /* Ink heading-1 spec is weight 400 (intended for SangBleu serif). At Inter,
-       weight 500 reads better than the canonical 600 without going under-emphasized. */
-    .header h1 { font-size: 28px; font-weight: 500; line-height: 40px; color: var(--text-default); margin-bottom: 8px; letter-spacing: -0.01em; }
-    .header p { color: var(--text-subtle); font-size: 14px; font-weight: 400; line-height: 24px; }
+    /* Ink heading-1: SangBleu serif at weight 400, as on carta-lpa-audit. */
+    .header h1 {
+        font-family: var(--ink-font-global-family-prominent);
+        font-size: var(--ink-font-global-size-display-1);
+        line-height: 40px;
+        font-weight: var(--ink-font-global-weight-heading-1);
+        color: var(--ink-color-global-text-default);
+    }
+    @media (max-width: 599px) { .header h1 { font-size: 22px; line-height: 32px; } }
+    .header p {
+        margin-top: var(--ink-spacing-global-vertical-xxsmall);
+        font-size: var(--ink-font-global-size-small-1);
+        line-height: var(--ink-font-global-leading-small-1);
+        color: var(--ink-color-global-text-subtle);
+    }
 
     .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 32px; }
-    .metric-card { background: var(--surface-bg); border: 1px solid #E9EAEA; padding: 20px; }
+    .metric-card { background: light-dark(var(--ink-color-global-surface-background-default), var(--ink-color-global-surface-background-underlay)); border: 1px solid var(--ink-color-global-border-subtle); padding: var(--ink-spacing-global-vertical-normal); border-radius: var(--ink-size-global-radius-flat); box-shadow: var(--ink-elevation-global-shadow-small); }
     /* Tooltipped tiles need positioning context + hover-elevation transition.
        Scoping these to .has-tooltip avoids attaching listeners to static tiles. */
     .metric-card.has-tooltip { position: relative; transition: box-shadow 0.15s ease, transform 0.15s ease; }
-    .metric-card.has-tooltip:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); }
-    .metric-label { font-size: 12px; color: var(--text-subtle); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; font-weight: 500; line-height: 20px; display: inline-flex; align-items: center; gap: 4px; }
-    .metric-value { font-size: 28px; font-weight: 600; line-height: 48px; color: var(--surface-darkgray-default); font-variant-numeric: tabular-nums; }
+    .metric-card.has-tooltip:hover { transform: translateY(-1px); box-shadow: var(--ink-elevation-global-shadow-large); }
+    .metric-label { font-size: 12px; color: var(--ink-color-global-text-subtle); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 4px; font-weight: var(--ink-font-global-weight-body-3); line-height: 16px; display: inline-flex; align-items: center; gap: 4px; }
+    .metric-value { font-size: 24px; font-weight: var(--ink-font-global-weight-body-3); line-height: 32px; color: var(--ink-color-global-text-default); font-variant-numeric: tabular-nums; }
     /* Text-shaped metric value — for tiles whose primary value is a name, not a number.
-       Slightly smaller, no tabular-nums so the name kerns naturally. */
-    .metric-value-text { font-size: 20px; font-weight: 600; line-height: 28px; color: var(--surface-darkgray-default); overflow-wrap: anywhere; }
-    .metric-sub { font-size: 13px; color: var(--text-subtle); margin-top: 4px; font-weight: 400; }
+       Same size as a number, without tabular-nums so the name kerns naturally. */
+    .metric-value-text { font-size: 24px; font-weight: var(--ink-font-global-weight-body-3); line-height: 32px; color: var(--ink-color-global-text-default); overflow-wrap: anywhere; }
+    .metric-sub { font-size: 12px; color: var(--ink-color-global-text-subtle); margin-top: 4px; font-weight: 400; line-height: 18px; }
 
-    /* Ink tooltip — black background, white text, caret pointing into the trigger.
+    /* Ink tooltip — inverse colors (dark on light, light on dark), caret pointing into the trigger.
        Spec: plugins/skill-dev/skills/theme-with-ink/SKILL.md — Tooltip section. */
     .has-tooltip { cursor: help; }
-    .has-tooltip:focus-visible { outline: 2px solid var(--info-strong); outline-offset: 2px; box-shadow: 0 0 0 4px var(--border-focus-light); border-radius: 2px; }
-    .tooltip-icon { display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; border-radius: 50%; border: 1px solid var(--text-subtle); font-size: 10px; font-weight: 600; line-height: 1; color: var(--text-subtle); font-family: "Inter var", "Inter", sans-serif; }
+    .has-tooltip:focus-visible { border-radius: 2px; }
+    .tooltip-icon { display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; border-radius: 50%; border: 1px solid var(--ink-color-global-text-subtle); font-size: 10px; font-weight: 600; line-height: 1; color: var(--ink-color-global-text-subtle); font-family: "Inter var", "Inter", sans-serif; }
     .tooltip {
       position: absolute;
       top: calc(100% + 10px);
       left: 50%;
       transform: translateX(-50%);
-      background: #1A1A1A;
-      color: #FFFFFF;
+      background: var(--ink-color-global-text-default);
+      color: var(--ink-color-global-text-inverse);
       padding: 10px 12px;
       border-radius: 4px;
       font-size: 12px;
       line-height: 18px;
       font-weight: 400;
-      font-family: "Inter var", "Inter", -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-family: inherit;
       width: max-content;
       max-width: 280px;
       text-align: left;
@@ -98,7 +203,7 @@
       height: 0;
       border-left: 6px solid transparent;
       border-right: 6px solid transparent;
-      border-bottom: 6px solid #1A1A1A;
+      border-bottom: 6px solid var(--ink-color-global-text-default);
     }
     .has-tooltip:hover .tooltip,
     .has-tooltip:focus-visible .tooltip { opacity: 1; visibility: visible; }
@@ -112,40 +217,41 @@
       transform: none;
       padding: 12px 14px;
     }
+    /* Hidden tooltips still take layout height; the cap on the inner body keeps the
+       tooltip from stretching the page. It clips the body, not the tooltip, so the
+       caret drawn outside the box stays visible. Every row is one line (the group
+       classes below truncate with an ellipsis), so the worst case is fixed by
+       TOOLTIP_MAX_MERGES (5) and TOOLTIP_MAX_MERGED_NAMES (3) in the script: intro
+       64 + label 30 + 5 groups x 84 + 4 gaps x 10 = 554px, under the cap. Raising
+       either constant means raising this max-height. */
+    .tooltip-wide .tt-body { max-height: 640px; overflow: hidden; }
     .tooltip-wide::after { left: 28px; transform: none; }
-    .tooltip-wide .tt-intro { color: rgba(255, 255, 255, 0.95); margin-bottom: 10px; }
-    .tooltip-wide .tt-section-label { color: rgba(255, 255, 255, 0.7); font-size: 11px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 8px; margin-top: 4px; }
+    .tooltip-wide .tt-intro { color: color-mix(in srgb, var(--ink-color-global-text-inverse) 95%, transparent); margin-bottom: 10px; }
+    .tooltip-wide .tt-section-label { color: color-mix(in srgb, var(--ink-color-global-text-inverse) 70%, transparent); font-size: 11px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 8px; margin-top: 4px; }
     .tooltip-wide .tt-group { margin-bottom: 10px; }
     .tooltip-wide .tt-group:last-child { margin-bottom: 0; }
-    .tooltip-wide .tt-group-canonical { color: #FFFFFF; font-weight: 600; font-size: 12px; line-height: 18px; margin-bottom: 2px; }
-    .tooltip-wide .tt-group-merged { color: rgba(255, 255, 255, 0.78); font-size: 11.5px; line-height: 16px; padding-left: 10px; }
-    .tooltip-wide .tt-empty { color: rgba(255, 255, 255, 0.85); font-style: italic; }
+    .tooltip-wide .tt-group-canonical { color: var(--ink-color-global-text-inverse); font-weight: 600; font-size: 12px; line-height: 18px; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .tooltip-wide .tt-group-merged { color: color-mix(in srgb, var(--ink-color-global-text-inverse) 78%, transparent); font-size: 11.5px; line-height: 16px; padding-left: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .tooltip-wide .tt-more { color: color-mix(in srgb, var(--ink-color-global-text-inverse) 70%, transparent); font-style: italic; font-size: 11.5px; line-height: 16px; }
+    .tooltip-wide .tt-group-merged .tt-more { padding-left: 0; }
+    .tooltip-wide .tt-empty { color: color-mix(in srgb, var(--ink-color-global-text-inverse) 85%, transparent); font-style: italic; }
 
-    .table-title { font-size: 16px; font-weight: 500; line-height: 28px; color: var(--text-default); margin-bottom: 12px; }
-    .table-container { background: var(--surface-bg); overflow-x: auto; }
+    .table-title { font-size: var(--ink-font-global-size-heading-3); font-weight: var(--ink-font-global-weight-heading-3); line-height: 28px; color: var(--ink-color-global-text-default); margin-bottom: 12px; }
+    .table-container { background: var(--ink-color-global-surface-background-default); overflow-x: auto; border: 1px solid var(--ink-color-global-border-subtle); }
     table { width: 100%; min-width: 480px; border-collapse: collapse; }
-    th { background: var(--surface-bg); padding: 10px 16px; text-align: left; font-size: 14px; font-weight: 500; color: var(--text-default); border-bottom: 1px solid var(--border-default); line-height: 20px; }
-    td { padding: 10px 16px; border-bottom: 1px solid var(--border-subtle); font-size: 14px; color: var(--text-default); line-height: 24px; }
-    tbody tr:hover { background: #E9EAEA; }
+    th { background: var(--ink-color-global-surface-background-underlay); padding: var(--ink-spacing-global-vertical-xsmall) var(--ink-spacing-global-horizontal-small); text-align: left; font-size: var(--ink-font-global-size-small-1); font-weight: var(--ink-font-global-weight-small-1); color: var(--ink-color-global-text-subtle); border-bottom: 1px solid var(--ink-color-global-border-subtle); line-height: 20px; white-space: nowrap; }
+    td { padding: 10px var(--ink-spacing-global-horizontal-small); border-bottom: 1px solid var(--ink-color-global-border-subtle); font-size: 14px; color: var(--ink-color-global-text-default); line-height: 24px; }
+    tbody tr:hover { background: color-mix(in srgb, var(--ink-color-global-surface-background-underlay) 50%, var(--ink-color-global-surface-background-default)); }
     tbody tr:last-child td { border-bottom: none; }
 
     .number { font-variant-numeric: tabular-nums; font-size: 14px; text-align: right; }
-    .timestamp { font-size: 12px; color: var(--text-subtle); margin-top: 24px; text-align: center; line-height: 20px; }
+    .timestamp { font-size: 12px; color: var(--ink-color-global-text-subtle); margin-top: 24px; text-align: center; line-height: 20px; }
 
     /* === ARTIFACT-SPECIFIC STYLES === */
 
-    /* Extended Ink tokens used by artifact-specific styles — not in the canonical
-       stylesheet but defined in plugins/skill-dev/skills/theme-with-ink/SKILL.md. */
-    :root {
-      --border-focus-light: #C0D1E9;       /* Ink border.focus.light */
-      --surface-lightgray-hover: #E9EAEA;  /* Ink surface.lightgray.hover */
-      --warning-subtle: #FFFCED;           /* Ink Category Yellow tag bg */
-      --tag-yellow-text: #C88600;          /* Ink Category Yellow tag text */
-    }
-
     .chip-more {
       font-size: 12px;
-      color: var(--text-subtle);
+      color: var(--ink-color-global-text-subtle);
       background: none;
       border: none;
       padding: 0;
@@ -154,10 +260,10 @@
       text-underline-offset: 2px;
       white-space: nowrap;
     }
-    .chip-more:hover { color: var(--text-default); }
-    .footer-note { font-size: 12px; color: var(--text-subtle); margin-top: 8px; }
+    .chip-more:hover { color: var(--ink-color-global-text-default); }
+    .footer-note { font-size: 12px; color: var(--ink-color-global-text-subtle); margin-top: 8px; }
     .company-link {
-      color: var(--info-strong);
+      color: var(--ink-color-global-link-default);
       font-size: 13px;
       font-weight: 400;
       text-decoration: underline;
@@ -170,13 +276,16 @@
       display: inline;
       white-space: nowrap;
     }
-    .company-link:hover { color: #1A3E6D; }
+    .company-link:hover { color: var(--ink-color-global-link-hover); }
+    /* A company with nothing to open: plain text in every state, so link blue always means clickable. */
+    .company-link--inert { color: var(--ink-color-global-text-subtle); text-decoration: none; cursor: default; }
+    .company-link--inert:hover { color: var(--ink-color-global-text-subtle); }
 
     .drawer-backdrop {
       display: none;
       position: fixed;
       inset: 0;
-      background: rgba(0,0,0,0.2);
+      background: var(--scrim);
       z-index: 999;
     }
     .drawer-backdrop.open { display: block; }
@@ -185,21 +294,24 @@
       position: fixed;
       right: 0;
       top: 0;
-      width: 680px;
-      max-width: 95vw;
+      width: clamp(560px, 50vw, 960px);
+      max-width: 100vw;
       height: 100vh;
-      background: var(--surface-bg);
-      box-shadow: -4px 0 24px rgba(0,0,0,0.12);
+      background: var(--ink-color-global-surface-background-default);
+      box-shadow: var(--ink-elevation-global-shadow-large);
       transform: translateX(100%);
       transition: transform 0.25s ease;
       z-index: 1000;
       overflow-y: auto;
-      padding: 24px;
+      padding: var(--ink-spacing-global-vertical-normal) var(--ink-spacing-global-horizontal-large) var(--ink-spacing-global-vertical-xlarge);
+      border-left: 1px solid var(--ink-color-global-border-subtle);
     }
     .drawer.open { transform: translateX(0); }
+    /* Off-canvas, a shadow would still show along the window's right edge. */
+    .drawer:not(.open) { box-shadow: none; }
     .drawer table { min-width: 0; }
 
-    /* Ink Transparent Button — 4px radius, surface.lightgray.hover on hover. */
+    /* Ink Transparent Button — 4px radius, underlay surface on hover. */
     .drawer-close {
       position: absolute;
       top: 12px;
@@ -212,19 +324,18 @@
       background: transparent;
       border: none;
       border-radius: 4px;
-      color: var(--text-default);
+      color: var(--ink-color-global-text-subtle);
       cursor: pointer;
       padding: 0;
       transition: background-color 0.12s ease;
     }
-    .drawer-close:hover { background: var(--surface-lightgray-hover); }
-    .drawer-close:active { background: var(--border-subtle); }
-    .drawer-close:focus-visible { outline: 2px solid var(--info-strong); outline-offset: 2px; box-shadow: 0 0 0 4px var(--border-focus-light); }
+    .drawer-close:hover { background: var(--ink-color-global-surface-background-underlay); color: var(--ink-color-global-text-default); }
+    .drawer-close:active { background: var(--ink-color-global-border-subtle); }
     .drawer-close svg { display: block; }
 
-    .drawer h2 { font-size: 18px; font-weight: 600; color: var(--text-default); margin-bottom: 4px; padding-right: 32px; }
-    .drawer-subtitle { font-size: 13px; color: var(--text-subtle); margin-bottom: 20px; }
-    .drawer-round-label { font-size: 14px; font-weight: 600; color: var(--text-default); margin: 16px 0 8px; padding-bottom: 6px; border-bottom: 1px solid var(--border-subtle); }
+    .drawer h2 { font-size: var(--ink-font-global-size-heading-2-desktop); font-weight: var(--ink-font-global-weight-heading-3); color: var(--ink-color-global-text-default); margin-bottom: 4px; padding-right: 32px; line-height: 28px; }
+    .drawer-subtitle { font-size: var(--ink-font-global-size-small-1); color: var(--ink-color-global-text-subtle); margin-bottom: 20px; line-height: var(--ink-font-global-leading-small-1); }
+    .drawer-round-label { font-size: var(--ink-font-global-size-heading-3); font-weight: var(--ink-font-global-weight-heading-3); color: var(--ink-color-global-text-default); margin: 16px 0 8px; padding-bottom: 0; border-bottom: 0; }
 
     .you-badge {
       display: inline-flex;
@@ -235,62 +346,52 @@
       border-radius: 4px;
       font-size: 11px;
       font-weight: 600;
-      background: var(--positive-subtle);
-      color: var(--positive-strong);
-      border: 1px solid var(--positive-strong);
+      background: var(--ink-color-global-feedback-positive-subtle);
+      color: var(--ink-color-global-feedback-positive-strong);
+      border: 1px solid var(--ink-color-global-feedback-positive-strong);
       vertical-align: middle;
     }
 
-    /* Ink spec: tables have no outer container border. Borders come from header
-       (#A7AAAA bottom) and body cells (#DEDFDF bottom) — see theme-with-ink. */
-    .drawer .table-container { box-shadow: none; }
+    .drawer .table-container { box-shadow: none; border: 1px solid var(--ink-color-global-border-subtle); }
     .drawer td, .drawer th { padding: 8px 12px; }
     /* Carta UX rule: totals always bolded. */
     .drawer tfoot td {
-      font-weight: 600;
+      font-weight: var(--ink-font-global-weight-body-1);
       font-size: 13px;
-      background: #EAF0F8;
-      border-top: 1px solid var(--border-default);
+      background: var(--ink-color-global-surface-background-underlay);
+      border-top: 1px solid var(--ink-color-global-border-subtle);
     }
 
     /* Ink Category/Flex Tag — no border, semantic colors. Used on entity-type cells.
-       Compact 24px height (vs Ink standard 28px) for table-cell density;
+       Compact 20px height (vs Ink standard 28px) for table-cell density;
        reserves the green (Positive) palette for the inline "You" badge. */
     .tag {
       display: inline-flex;
       align-items: center;
-      height: 24px;
-      padding: 0 8px;
-      border-radius: 4px;
-      font-size: 12px;
-      font-weight: 500;
+      height: 20px;
+      padding: 0 6px;
+      border-radius: var(--ink-size-global-radius-subtle);
+      font-size: var(--ink-font-global-size-small-1);
+      font-weight: var(--ink-font-global-weight-small-1);
       line-height: 1;
       white-space: nowrap;
     }
-    .tag-neutral { background: var(--surface-underlay); color: var(--text-default); }
-    .tag-blue { background: var(--info-subtle); color: var(--info-strong); }
-    .tag-yellow { background: var(--warning-subtle); color: var(--tag-yellow-text); }
+    .tag-neutral { background: var(--ink-color-global-surface-background-underlay); color: var(--ink-color-global-text-default); }
+    .tag-blue { background: var(--ink-color-global-feedback-info-subtle); color: var(--ink-color-global-link-default); }
+    .tag-yellow { background: var(--ink-color-global-feedback-warning-subtle); color: var(--ink-color-global-text-default); }
 
     .page-footer {
       margin-top: 32px;
       padding-top: 16px;
-      border-top: 1px solid var(--border-subtle);
+      border-top: 1px solid var(--ink-color-global-border-subtle);
       display: flex;
-      align-items: flex-start;
+      align-items: baseline;
       justify-content: space-between;
       flex-wrap: wrap;
       gap: 12px;
     }
-    .carta-link { font-size: 13px; color: var(--info-strong); text-decoration: none; }
-    .carta-link:hover { text-decoration: underline; }
-    .powered-by-carta {
-      position: fixed;
-      bottom: 20px; right: 20px;
-      width: min(13.5vw, calc(13.5vh * 5.66));
-      height: auto; line-height: 0;
-      pointer-events: none; z-index: 10;
-    }
-    .powered-by-carta svg { display: block; width: 100%; height: auto; }
+    .carta-link { font-size: 13px; color: var(--ink-color-global-link-default); text-decoration: none; }
+    .carta-link:hover { text-decoration: underline; color: var(--ink-color-global-link-hover); }
 
     /* Filter tab bar */
     .filter-bar {
@@ -299,26 +400,41 @@
       gap: 4px;
       margin-bottom: 16px;
     }
+    .filter-controls { margin-left: auto; display: flex; align-items: center; gap: 12px; font-size: 13px; color: var(--ink-color-global-text-subtle); }
+    .filter-select, .filter-btn {
+      height: 32px; border-radius: var(--ink-size-global-radius-subtle); font-size: var(--ink-font-global-size-body-1); font-family: inherit;
+      border: 1px solid var(--ink-color-global-border-default); background: var(--ink-color-global-surface-background-default); color: var(--ink-color-global-text-default);
+    }
+    .filter-select { padding: 0 32px 0 var(--ink-spacing-global-horizontal-small); background-position: right 12px center; appearance: none; -webkit-appearance: none; cursor: pointer; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6' fill='none' stroke='%23888' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1l4 4 4-4'/%3E%3C/svg%3E"); background-repeat: no-repeat; }
+    .filter-select:hover { border-color: var(--ink-color-global-border-hover); }
+    .filter-select:focus-visible { border-color: var(--ink-color-global-border-focus-default); outline: none; box-shadow: var(--ink-focus-ring); }
+    .filter-btn { padding: 0 12px; font-weight: 500; cursor: pointer; white-space: nowrap; }
+    .filter-btn:hover { background: var(--ink-color-global-surface-background-underlay); }
+    .footer-note .carta-link {
+      font: inherit; background: none; border: none; padding: 0; cursor: pointer;
+      text-decoration: underline; text-underline-offset: 2px;
+    }
+    .filter-check { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
     .filter-tab {
       display: inline-flex;
       align-items: center;
       height: 32px;
       padding: 0 14px;
-      border-radius: 4px;
-      font-size: 13px;
+      border-radius: var(--ink-size-global-radius-subtle);
+      font-size: var(--ink-font-global-size-body-1);
       font-weight: 500;
       cursor: pointer;
-      border: 1px solid var(--border-default);
-      background: var(--surface-bg);
-      color: var(--text-subtle);
+      border: 1px solid var(--ink-color-global-border-default);
+      background: var(--ink-color-global-surface-background-default);
+      color: var(--ink-color-global-text-subtle);
       transition: background-color 0.1s ease, color 0.1s ease, border-color 0.1s ease;
       font-family: inherit;
     }
-    .filter-tab:hover { background: var(--surface-underlay); color: var(--text-default); }
+    .filter-tab:hover { background: var(--ink-color-global-surface-background-underlay); color: var(--ink-color-global-text-default); }
     .filter-tab.active {
-      background: var(--text-default);
-      color: var(--surface-bg);
-      border-color: var(--text-default);
+      background: var(--ink-color-global-text-default);
+      color: var(--ink-color-global-text-inverse);
+      border-color: var(--ink-color-global-text-default);
     }
     .filter-count {
       display: inline-flex;
@@ -331,12 +447,12 @@
       font-size: 11px;
       font-weight: 600;
       margin-left: 6px;
-      background: rgba(255,255,255,0.2);
+      background: color-mix(in srgb, var(--ink-color-global-text-inverse) 20%, transparent);
       color: inherit;
     }
     .filter-tab:not(.active) .filter-count {
-      background: var(--surface-underlay);
-      color: var(--text-subtle);
+      background: var(--ink-color-global-surface-background-underlay);
+      color: var(--ink-color-global-text-subtle);
     }
 
     /* === Load / error states (live artifact only) ===
@@ -345,7 +461,7 @@
     #loading-state { padding: 8px 0 32px; }
     #loading-status {
       font-size: 13px;
-      color: var(--text-subtle);
+      color: var(--ink-color-global-text-subtle);
       margin-bottom: 16px;
       min-height: 18px;
     }
@@ -354,9 +470,9 @@
       border-radius: 6px;
       margin-bottom: 8px;
       background: linear-gradient(90deg,
-        var(--surface-underlay) 25%,
-        #E8E8E8 37%,
-        var(--surface-underlay) 63%);
+        var(--ink-color-global-surface-background-underlay) 25%,
+        color-mix(in srgb, var(--ink-color-global-surface-background-underlay) 70%, var(--ink-color-global-border-default)) 37%,
+        var(--ink-color-global-surface-background-underlay) 63%);
       background-size: 400% 100%;
       animation: shimmer 1.4s ease-in-out infinite;
     }
@@ -370,32 +486,41 @@
     #error-state {
       display: none;
       padding: 24px;
-      border: 1px solid #E0E0E0;
+      border: 1px solid var(--ink-color-global-border-subtle);
       border-radius: 8px;
-      background: var(--surface-underlay);
+      background: var(--ink-color-global-surface-background-underlay);
     }
     #error-state h2 {
-      font-size: 16px;
+      font-size: var(--ink-font-global-size-heading-3);
       font-weight: 600;
       margin: 0 0 8px;
-      color: var(--text-default);
+      color: var(--ink-color-global-text-default);
     }
     #error-state p {
       font-size: 13px;
-      color: var(--text-subtle);
+      color: var(--ink-color-global-text-subtle);
       margin: 0 0 6px;
       line-height: 1.5;
+    }
+    #error-details summary {
+      font-size: 11px;
+      color: var(--ink-color-global-text-subtle);
+      cursor: pointer;
     }
     #error-detail {
       font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
       font-size: 11px;
-      color: var(--text-subtle);
+      color: var(--ink-color-global-text-subtle);
       word-break: break-word;
     }
   </style>
 </head>
 <body>
   <div class="container">
+    <svg class="carta-logo" role="img" aria-label="Carta" fill="none" viewBox="0 0 64 32" xmlns="http://www.w3.org/2000/svg">
+        <rect x="0.64" y="0.64" width="62.72" height="30.72" stroke="currentColor" stroke-width="1.28"/>
+        <path d="M8.4 16.62C8.4 13.42 11.1 11.53 13.53 11.53C15.27 11.53 16.9 12.19 17.76 13.69L16.14 14.63C15.86 14.21 15.48 13.86 15.03 13.62C14.58 13.39 14.08 13.26 13.57 13.27C12.14 13.27 10.44 14.38 10.44 16.59C10.44 18.8 12.06 19.93 13.7 19.93C14.84 19.93 15.79 19.3 16.35 18.32L18.01 19.08C17.07 20.78 15.39 21.68 13.44 21.68C10.98 21.67 8.4 19.79 8.4 16.62L8.4 16.62ZM23.94 21.68C25.29 21.68 26.56 21.08 27.22 20.22V21.4H29.23V11.78H27.22V12.97C26.6 12.1 25.29 11.53 23.94 11.53C20.98 11.53 18.92 13.68 18.92 16.6C18.92 19.52 21 21.68 23.94 21.68V21.68ZM24.13 13.36C25.99 13.36 27.26 14.74 27.26 16.6C27.26 18.47 25.99 19.85 24.13 19.85C22.28 19.85 20.96 18.45 20.96 16.57C20.96 14.68 22.28 13.36 24.13 13.36V13.36ZM40.01 13.69H37.93V11.77H40.03V9.26H42.1V11.77H44.2V13.69H42.1V21.4H40.01V13.69ZM49.96 21.68C51.32 21.68 52.59 21.08 53.25 20.22V21.4H55.26V11.78H53.25V12.97C52.62 12.1 51.32 11.53 49.96 11.53C47.01 11.53 44.94 13.68 44.94 16.6C44.94 19.52 47.03 21.68 49.96 21.68V21.68ZM50.16 13.36C52.01 13.36 53.29 14.74 53.29 16.6C53.29 18.47 52.01 19.85 50.16 19.85C48.31 19.85 46.99 18.45 46.99 16.57C46.99 14.68 48.3 13.36 50.16 13.36V13.36ZM33.77 21.39H31.69V11.77H33.6V13.56C34.07 12.5 34.78 11.8 35.94 11.75C36.18 11.74 36.41 11.75 36.65 11.77L36.62 13.7C34.96 13.7 33.77 14.59 33.77 17.07V21.4H33.77L33.77 21.39Z" fill="currentColor"/>
+      </svg>
     <div class="header" id="page-header"></div>
 
     <div id="loading-state">
@@ -410,7 +535,10 @@
     <div id="error-state">
       <h2 id="error-title">Couldn't load your co-investor data</h2>
       <p id="error-message"></p>
-      <p id="error-detail"></p>
+      <details id="error-details">
+        <summary>Technical details</summary>
+        <p id="error-detail"></p>
+      </details>
     </div>
 
     <div id="content-area" style="display: none">
@@ -443,7 +571,8 @@
     // ── Injected at render time by scripts/render-artifact.py ─────────────────
     // FIRM_UUID          the firm whose co-investors this page shows. Pinned via
     //                    set_context on load, and substituted into every query.
-    // FIRM_NAME          display name, also the first firm-vehicle match pattern.
+    // FIRM_NAME          display name, and a firm-vehicle match pattern that holds
+    //                    even when the vehicles query below fails.
     // FIRM_CARTA_ID      the numeric organization pk, for the documents deep link.
     // CARTA_MCP_SERVER   the Carta connector's DISPLAY NAME. The artifact runtime
     //                    addresses a connector by display name only — never a UUID
@@ -454,8 +583,6 @@
     //                    into production.
     // CANONICAL_GROUPINGS  the {canonical, patterns} list from canonical-investors.json,
     //                    embedded so no agent has to build a 2,700-char SQL CASE.
-    // FIRM_VEHICLE_NAMES the firm's own fund vehicles, excluded from the co-investor
-    //                    list and flagged as `isFirm` inside each round.
     const STATE = JSON.parse(document.getElementById('co-investors-state').textContent);
     const FIRM_UUID = '{{FIRM_UUID}}';
     const FIRM_NAME = STATE.firm_name;
@@ -463,23 +590,36 @@
     const CARTA_MCP_SERVER = '{{CARTA_MCP_SERVER}}';
     const BASE_URL = STATE.base_url;
     const CANONICAL_GROUPINGS = STATE.canonical_groupings;
-    const FIRM_VEHICLE_NAMES = STATE.firm_vehicle_names;
 
     const CALL_TOOL = 'call_tool';
     const SET_CONTEXT_TOOL = 'set_context';
     const WELCOME_TOOL = 'welcome';
 
-    // Server caps `limit` at 10,000 and signals more rows with a next_offset token
-    // in the response header. One fetch covers every real firm; the paging loop is
-    // the tail guard, not the expected path.
-    const PAGE_LIMIT = 10000;
-    const MAX_PAGES = 10;
+    // The server returns an inline page only when it is under 200 KiB (otherwise a
+    // `too_large` error) and signals more rows with a next_offset token in the
+    // response header. Pages start at PAGE_LIMIT rows and shrink on `too_large`.
+    // The first page reports total_rows, so the rest are fetched PAGE_CONCURRENCY
+    // at a time. A query planned into more than MAX_PAGES ranges fails the load
+    // rather than showing a partial row set as complete.
+    const PAGE_LIMIT = 40;
+    const PAGE_CONCURRENCY = 4;
+    const MAX_PAGES = 500;
+
+    // Holders per Query C row: ~90 bytes each escaped, so a row stays far under the 200 KiB inline page.
+    const CAP_HOLDERS_PER_ROW = 500;
 
     let DATA = null;
     let welcomeCalledThisSession = false;
 
     // Active filter: 'all' | 'live' | 'exited'
     let currentFilter = 'all';
+    // Which source's evidence counts: 'all' | 'spa' | 'cap'
+    let currentSource = 'all';
+    let hideIndividuals = false;
+    // A list this long is trimmed to investors at two or more companies unless the
+    // viewer asks for everything; a shorter list is always shown whole.
+    const LONG_LIST_ROWS = 150;
+    let showSingles = false;
 
     // ── Page state ────────────────────────────────────────────────────────────
 
@@ -494,9 +634,9 @@
       document.getElementById('content-area').style.display = 'block';
     }
 
-    // `detail` carries the underlying error text. It is shown in a de-emphasized
-    // monospace line rather than hidden in the console: when a viewer reports "it
-    // won't load", the message they can copy is the whole diagnosis.
+    // `detail` carries the underlying error text. It sits in a collapsed "Technical
+    // details" fold rather than in the console: the viewer sees plain language first,
+    // and when they report "it won't load" the text they can copy is the whole diagnosis.
     function showError(message, detail) {
       document.getElementById('loading-state').style.display = 'none';
       document.getElementById('content-area').style.display = 'none';
@@ -504,6 +644,7 @@
       el.style.display = 'block';
       document.getElementById('error-message').textContent = message;
       document.getElementById('error-detail').textContent = detail || '';
+      document.getElementById('error-details').style.display = detail ? '' : 'none';
     }
 
     // ── Carta MCP plumbing ────────────────────────────────────────────────────
@@ -514,6 +655,13 @@
     // loose enough to survive minor wording tweaks from the MCP team.
     function isWelcomeRequiredMessage(text) {
       return typeof text === 'string' && /welcome/i.test(text);
+    }
+
+    // The text of an isError envelope. The gateway puts a wrapped command's own
+    // error in `result.result`, beside the generic message, so both are read.
+    function errorText(result) {
+      const text = (r) => (r && r.content && r.content[0] && r.content[0].text) || '';
+      return [text(result), text(result && result.result)].filter(Boolean).join(' ');
     }
 
     // Every Carta MCP call — call_tool, set_context, welcome alike — must carry
@@ -572,8 +720,7 @@
       const result = await callCartaTool(toolName, args);
       if (!result || !result.isError) return result;
 
-      const errorText = (result.content && result.content[0] && result.content[0].text) || '';
-      if (!isWelcomeRequiredMessage(errorText) || welcomeCalledThisSession) {
+      if (!isWelcomeRequiredMessage(errorText(result)) || welcomeCalledThisSession) {
         return result;
       }
 
@@ -581,8 +728,7 @@
       welcomeCalledThisSession = true;
       const welcomeResult = await callCartaTool(WELCOME_TOOL, {});
       if (welcomeResult && welcomeResult.isError) {
-        const msg = (welcomeResult.content && welcomeResult.content[0] && welcomeResult.content[0].text) || '<no message>';
-        throw new Error('Failed to initialize MCP session: ' + msg);
+        throw new Error('Failed to initialize MCP session: ' + (errorText(welcomeResult) || '<no message>'));
       }
 
       return await callCartaTool(toolName, args);
@@ -600,8 +746,7 @@
         throw new Error('Unexpected response shape: ' + (typeof result));
       }
       if (result.isError) {
-        const msg = (result.content && result.content[0] && result.content[0].text) || '<no message>';
-        throw new Error(msg);
+        throw new Error(errorText(result) || '<no message>');
       }
       if (result.content && Array.isArray(result.content) && result.content[0] && typeof result.content[0].text === 'string') {
         return result.content[0].text;
@@ -636,7 +781,8 @@
     function parseNdjson(text) {
       const rows = [];
       let nextOffset = null;
-      if (!text) return { rows, nextOffset };
+      let totalRows = null;
+      if (!text) return { rows, nextOffset, totalRows };
 
       let body = text;
       const stripped = text.trimStart();
@@ -644,6 +790,8 @@
       if (firstLine.startsWith('total_rows:') && text.includes('\n\n')) {
         const m = firstLine.match(/next_offset:\s*(\d+)/);
         if (m) nextOffset = parseInt(m[1], 10);
+        const t = firstLine.match(/total_rows:\s*([\d,]+)/);
+        if (t) totalRows = parseInt(t[1].replace(/,/g, ''), 10);
         body = text.slice(text.indexOf('\n\n') + 2);
       }
 
@@ -657,35 +805,113 @@
           console.warn('parseNdjson: skipping malformed line', e);
         }
       }
-      return { rows, nextOffset };
+      return { rows, nextOffset, totalRows };
     }
 
-    // Runs one query to exhaustion. `buildSql` takes (offset, limit). One fetch
-    // covers every real firm — the loop only engages if the server reports
-    // next_offset, and stops at MAX_PAGES so a misbehaving header can't spin.
-    async function fetchAllRows(buildSql, label) {
-      const all = [];
-      let offset = 0;
-      for (let page = 0; page < MAX_PAGES; page++) {
-        const result = await callMcpWithWelcomeRetry(CALL_TOOL, {
-          name: 'dwh__execute__query',
-          arguments: {
-            sql: buildSql(offset, PAGE_LIMIT),
-            format: 'ndjson',
-            // The server infers delivery shape from clientInfo.name, which cannot
-            // distinguish clients that accept a binary blob from those that reject
-            // it. `inline` forces the always-safe plain-string path.
-            response_mode: 'inline',
-            limit: PAGE_LIMIT,
-          },
-        });
-        const { rows, nextOffset } = parseNdjson(unwrapEnvelope(unwrapResponse(result)));
-        all.push(...rows);
-        if (nextOffset === null || rows.length === 0) return all;
-        offset = nextOffset;
+    // `too_large` is the server's "this page is over the inline ceiling" error;
+    // its fix text names a row count that fits ("lower the limit param to about 48").
+    // Returns the smaller limit to retry with, or null when the error is something
+    // else or the page is already a single row.
+    function shrunkLimit(message, limit) {
+      if (!/"code"\s*:\s*"too_large"/.test(message) || limit <= 1) return null;
+      const m = message.match(/limit param to about (\d+)/);
+      const suggested = m ? parseInt(m[1], 10) : limit;
+      return Math.max(1, Math.min(suggested, Math.floor(limit / 2)));
+    }
+
+    // Runs one query to exhaustion. The SQL carries no LIMIT or OFFSET: the server
+    // pages it from the `limit` / `offset` arguments. The first page is fetched
+    // alone, to learn total_rows and a page size that fits. The remaining ranges
+    // then run PAGE_CONCURRENCY at a time and are joined in offset order. A page
+    // that comes back `too_large` is retried at the same offset with fewer rows,
+    // and the smaller size is kept for the rest of the query. It returns every row
+    // of the query or rejects: a query needing more than MAX_PAGES pages, or any
+    // page that fails, fails the load, and no call for that query starts after that.
+    // `onProgress(loaded, total)` hears the running row count after every page.
+    async function fetchAllRows(buildSql, label, onProgress = () => {}) {
+      const sql = buildSql();
+      let limit = PAGE_LIMIT;
+      let failed = false;
+      let loaded = 0;
+      let total = null;
+
+      async function fetchPage(offset, count) {
+        for (;;) {
+          if (failed) throw new Error(label + ': stopped after a failed page');
+          const sent = Math.min(limit, count);
+          const result = await callMcpWithWelcomeRetry(CALL_TOOL, {
+            name: 'dwh__execute__query',
+            arguments: {
+              sql,
+              format: 'ndjson',
+              // The server infers delivery shape from clientInfo.name, which cannot
+              // distinguish clients that accept a binary blob from those that reject
+              // it. `inline` forces the always-safe plain-string path.
+              response_mode: 'inline',
+              limit: sent,
+              offset,
+            },
+          });
+          try {
+            return parseNdjson(unwrapEnvelope(unwrapResponse(result)));
+          } catch (error) {
+            const smaller = shrunkLimit(error.message || '', sent);
+            if (smaller === null) throw error;
+            // Concurrent pages sent at the old size fail together; only the first
+            // to report shrinks, the rest retry at the size it set.
+            limit = Math.min(limit, smaller);
+          }
+        }
       }
-      console.warn(label + ': hit MAX_PAGES (' + MAX_PAGES + '); results may be truncated.');
-      return all;
+
+      // Every row of [start, end), paged at the current size.
+      async function fetchRange(start, end) {
+        const rows = [];
+        let offset = start;
+        while (offset < end) {
+          const page = await fetchPage(offset, end - offset);
+          if (page.rows.length === 0) throw new Error(label + ': empty page at offset ' + offset);
+          rows.push(...page.rows);
+          offset += page.rows.length;
+          loaded += page.rows.length;
+          onProgress(loaded, total);
+        }
+        return rows;
+      }
+
+      const first = await fetchPage(0, Infinity);
+      loaded = first.rows.length;
+      if (first.nextOffset === null) {
+        onProgress(loaded, loaded);
+        return first.rows;
+      }
+      if (first.rows.length === 0) throw new Error(label + ': empty first page with more rows pending');
+      if (first.totalRows === null) throw new Error(label + ': next_offset without total_rows');
+      total = first.totalRows;
+      onProgress(loaded, total);
+
+      const ranges = [];
+      for (let start = first.nextOffset; start < first.totalRows; start += limit) {
+        ranges.push([start, Math.min(start + limit, first.totalRows)]);
+      }
+      if (ranges.length > MAX_PAGES) {
+        throw new Error(label + ': more than ' + MAX_PAGES + ' pages; results incomplete');
+      }
+      const pages = new Array(ranges.length);
+      let nextRange = 0;
+      async function worker() {
+        while (nextRange < ranges.length) {
+          const i = nextRange++;
+          try {
+            pages[i] = await fetchRange(ranges[i][0], ranges[i][1]);
+          } catch (error) {
+            failed = true;
+            throw error;
+          }
+        }
+      }
+      await Promise.all(Array.from({ length: Math.min(PAGE_CONCURRENCY, ranges.length) }, worker));
+      return first.rows.concat(...pages);
     }
 
     // ── SQL ───────────────────────────────────────────────────────────────────
@@ -705,14 +931,18 @@
     // company drops out of the Live/Exited filter. spa_fuzzy keeps only the
     // best-scoring row per SPA name, so a second candidate can only add a match.
     //
-    // The alias is read in two passes, and the ORDER matters. First a marker
+    // The alias is read in three passes, and the ORDER matters. First a marker
     // form -- "(dba BrandCo)", "(FKA: OldCo, Inc.)", separator [ :]+ so the
     // colon variants are not missed. Failing that, the WHOLE parenthetical
     // ("Airtable (Formagrid, Inc.)" -> "Formagrid, Inc."), because plenty of
     // firms write Brand (Legal Name) with no marker word at all -- at one firm
     // that is 705 of 772 companies, and marker-only matching does nothing for
     // them. A parenthetical that is not a name ("(a Delaware corporation)")
-    // just becomes a candidate that matches nothing, which is harmless.
+    // just becomes a candidate that matches nothing, which is harmless. Last, a
+    // marker with no parentheses -- "Newname Ltd. f.k.a. Cedar Hill" -- takes the
+    // text after it. Markers accept dotted spellings (F.K.A.) and must follow a
+    // space or comma, so "Takata" does not read as "AKA". The same markers cut
+    // the name itself before the suffix strip, so the primary name is "NEWNAME".
     //
     // The cost of the bare-parenthetical pass is that one company's brand can
     // equal another's legal name -- "Astra (Astra Space, Inc.)" vs "Astra
@@ -730,7 +960,10 @@
     // inside a word -- "HoldCo" -> "HOLD" via CO, "LLP" -> "L" via LP, and
     // "Inc." -> "" which matches everything. Longer alternatives come before
     // their own prefixes (INCORPORATED before INC, CORPORATION before CORP).
-    // COMPANY is deliberately absent: it carries meaning in real names.
+    // HOLDINGS? takes both spellings ("Birch Holding" / "Birch Holdings"),
+    // and HOLDINGS? +COMPANY goes first so "Cedar Hill Holding Company" strips to
+    // "CEDAR HILL". A bare COMPANY is deliberately absent: it carries meaning in
+    // real names.
     //
     // Coverage counts read norm_investments_base, never norm_investments —
     // counting the post-UNION ALL rows double-counts every aliased company in
@@ -746,35 +979,45 @@
     // beats a match on someone's former name.
     const SPA_CTE = `
       WITH spa_rec AS (SELECT * FROM FUND_ADMIN.DOCUMENT_AI_RECORD WHERE DOCUMENT_TYPE = 'stock_purchase_agreement' AND FIRM_ID = '${FIRM_UUID}'),
-      spa_issuer AS (SELECT EXTRACTION_ID, FIRM_ID, ATTRIBUTES:name::VARCHAR AS ISSUER_NAME FROM spa_rec WHERE RECORD_TYPE = 'company'),
-      spa_purchaser AS (SELECT EXTRACTION_ID, ATTRIBUTES:name::VARCHAR AS PURCHASER_NAME, ATTRIBUTES:entity_type::VARCHAR AS ENTITY_TYPE, ATTRIBUTES:share_class_name::VARCHAR AS SHARE_CLASS_NAME, ATTRIBUTES:shares_purchased_by_cash::NUMBER AS SHARES_PURCHASED, ATTRIBUTES:total_amount_paid::NUMBER(38,2) AS TOTAL_AMOUNT_PAID FROM spa_rec WHERE RECORD_TYPE = 'investor'),
-      spa_deal AS (SELECT EXTRACTION_ID, TRY_TO_DATE(ATTRIBUTES:effective_date::VARCHAR) AS CLOSING_DATE FROM spa_rec WHERE RECORD_TYPE = 'stock_purchase'),
-      norm_investments_base AS (SELECT ISSUER_NAME AS INV_NAME, TRIM(REGEXP_REPLACE(TRIM(REGEXP_REPLACE(TRIM(REGEXP_REPLACE(TRIM(REGEXP_REPLACE(UPPER(ISSUER_NAME), ' *[(][^)]*[)].*$', '')), ' +(D/?B/?A|F/?K/?A|AKA) +.*$', '')), '([ ,]+(INCORPORATED|INC|LLC|LTD|LIMITED|CORPORATION|CORP|L[.]P[.]|LLP|LP|PBC|PLC|CO[.]?|HOLDINGS|TECHNOLOGIES|TECHNOLOGY)[.]?)+ *$', '')), '[,.]', '')) AS NAME_NORM, COALESCE(REGEXP_SUBSTR(ISSUER_NAME, '[(] *(D[.]?/?B[.]?/?A[.]?|F[.]?/?K[.]?/?A[.]?|N[.]?/?K[.]?/?A[.]?|A[.]?K[.]?A[.]?|FORMERLY( +KNOWN +AS)?)[ :]+([^)]+)[)]', 1, 1, 'ie', 3), REGEXP_SUBSTR(ISSUER_NAME, '[(]([^)]+)[)]', 1, 1, 'e', 1)) AS ALIAS_RAW FROM FUND_ADMIN.AGGREGATE_INVESTMENTS WHERE FIRM_ID = '${FIRM_UUID}' GROUP BY ISSUER_NAME HAVING MAX(CASE WHEN ASSET_CLASS_TYPE IN ('PREFERRED_EQUITY', 'COMMON_EQUITY') THEN 1 ELSE 0 END) = 1),
-      norm_investments AS (SELECT INV_NAME, NAME_NORM, 0 AS IS_ALIAS FROM norm_investments_base UNION ALL SELECT INV_NAME, TRIM(REGEXP_REPLACE(TRIM(REGEXP_REPLACE(UPPER(ALIAS_RAW), '([ ,]+(INCORPORATED|INC|LLC|LTD|LIMITED|CORPORATION|CORP|L[.]P[.]|LLP|LP|PBC|PLC|CO[.]?|HOLDINGS|TECHNOLOGIES|TECHNOLOGY)[.]?)+ *$', '')), '[,.]', '')) AS NAME_NORM, 1 AS IS_ALIAS FROM norm_investments_base WHERE ALIAS_RAW IS NOT NULL AND TRIM(ALIAS_RAW) <> ''),
-      norm_spa AS (SELECT DISTINCT i.ISSUER_NAME AS SPA_NAME, LOWER(TRIM(i.ISSUER_NAME)) AS NORM_KEY, TRIM(REGEXP_REPLACE(TRIM(REGEXP_REPLACE(TRIM(REGEXP_REPLACE(TRIM(REGEXP_REPLACE(UPPER(i.ISSUER_NAME), ' *[(][^)]*[)].*$', '')), ' +(D/?B/?A|F/?K/?A|AKA) +.*$', '')), '([ ,]+(INCORPORATED|INC|LLC|LTD|LIMITED|CORPORATION|CORP|L[.]P[.]|LLP|LP|PBC|PLC|CO[.]?|HOLDINGS|TECHNOLOGIES|TECHNOLOGY)[.]?)+ *$', '')), '[,.]', '')) AS NAME_NORM FROM spa_issuer i WHERE i.FIRM_ID = '${FIRM_UUID}' AND i.ISSUER_NAME IS NOT NULL AND TRIM(i.ISSUER_NAME) <> ''),
+      spa_issuer AS (SELECT EXTRACTION_ID, FIRM_ID, CASE WHEN TYPEOF(RAW_JSON:company:name) = 'OBJECT' AND RAW_JSON:company:name:value::VARCHAR IS NOT NULL THEN RAW_JSON:company:name:value::VARCHAR WHEN TYPEOF(RAW_JSON:company:name) != 'OBJECT' AND RAW_JSON:company:name IS NOT NULL THEN RAW_JSON:company:name::VARCHAR ELSE ATTRIBUTES:name::VARCHAR END AS ISSUER_NAME FROM spa_rec WHERE RECORD_TYPE = 'company'),
+      spa_purchaser AS (SELECT r.EXTRACTION_ID, CASE WHEN TYPEOF(f.VALUE:name) = 'OBJECT' THEN f.VALUE:name:value::VARCHAR ELSE f.VALUE:name::VARCHAR END AS PURCHASER_NAME, CASE WHEN TYPEOF(f.VALUE:entity_type) = 'OBJECT' THEN f.VALUE:entity_type:value::VARCHAR ELSE f.VALUE:entity_type::VARCHAR END AS ENTITY_TYPE, CASE WHEN TYPEOF(f.VALUE:share_class_name) = 'OBJECT' THEN f.VALUE:share_class_name:value::VARCHAR ELSE f.VALUE:share_class_name::VARCHAR END AS SHARE_CLASS_NAME, CASE WHEN TYPEOF(f.VALUE:shares_purchased_by_cash) = 'OBJECT' THEN f.VALUE:shares_purchased_by_cash:value::NUMBER ELSE f.VALUE:shares_purchased_by_cash::NUMBER END AS SHARES_PURCHASED, CASE WHEN TYPEOF(f.VALUE:total_amount_paid) = 'OBJECT' THEN f.VALUE:total_amount_paid:value::NUMBER(38,2) ELSE f.VALUE:total_amount_paid::NUMBER(38,2) END AS TOTAL_AMOUNT_PAID FROM spa_rec r, LATERAL FLATTEN(input => r.RAW_JSON:purchasers) f WHERE r.RECORD_TYPE = 'company' AND r.RAW_JSON IS NOT NULL AND ARRAY_SIZE(r.RAW_JSON:purchasers) > 0 UNION ALL SELECT EXTRACTION_ID, ATTRIBUTES:name::VARCHAR, ATTRIBUTES:entity_type::VARCHAR, ATTRIBUTES:share_class_name::VARCHAR, ATTRIBUTES:shares_purchased_by_cash::NUMBER, ATTRIBUTES:total_amount_paid::NUMBER(38,2) FROM spa_rec WHERE RECORD_TYPE = 'investor' AND EXTRACTION_ID IN (SELECT EXTRACTION_ID FROM spa_rec WHERE RECORD_TYPE = 'company' AND COALESCE(ARRAY_SIZE(RAW_JSON:purchasers), 0) = 0)),
+      spa_deal AS (SELECT EXTRACTION_ID, TRY_TO_DATE(CASE WHEN TYPEOF(RAW_JSON:transaction_summary:closing_dates[0]) = 'OBJECT' AND RAW_JSON:transaction_summary:closing_dates[0]:value::VARCHAR IS NOT NULL THEN RAW_JSON:transaction_summary:closing_dates[0]:value::VARCHAR WHEN TYPEOF(RAW_JSON:transaction_summary:closing_dates[0]) != 'OBJECT' AND RAW_JSON:transaction_summary:closing_dates[0] IS NOT NULL THEN RAW_JSON:transaction_summary:closing_dates[0]::VARCHAR ELSE ATTRIBUTES:effective_date::VARCHAR END) AS CLOSING_DATE FROM spa_rec WHERE RECORD_TYPE = 'stock_purchase'),
+      norm_investments_base AS (SELECT ISSUER_NAME AS INV_NAME, TRIM(REGEXP_REPLACE(TRIM(REGEXP_REPLACE(TRIM(REGEXP_REPLACE(TRIM(REGEXP_REPLACE(UPPER(ISSUER_NAME), ' *[(][^)]*[)].*$', '')), ' +(D[.]?/?B[.]?/?A[.]?|F[.]?/?K[.]?/?A[.]?|N[.]?/?K[.]?/?A[.]?|A[.]?K[.]?A[.]?|FORMERLY( +KNOWN +AS)?) +.*$', '')), '([ ,]+(INCORPORATED|INC|LLC|LTD|LIMITED|CORPORATION|CORP|L[.]P[.]|LLP|LP|PBC|PLC|CO[.]?|HOLDINGS? +COMPANY|HOLDINGS?|TECHNOLOGIES|TECHNOLOGY|TECH)[.]?)+ *$', '')), '[,.]', '')) AS NAME_NORM, COALESCE(REGEXP_SUBSTR(ISSUER_NAME, '[(] *(D[.]?/?B[.]?/?A[.]?|F[.]?/?K[.]?/?A[.]?|N[.]?/?K[.]?/?A[.]?|A[.]?K[.]?A[.]?|FORMERLY( +KNOWN +AS)?)[ :]+([^)]+)[)]', 1, 1, 'ie', 3), IFF(REGEXP_LIKE(UPPER(TRIM(REGEXP_SUBSTR(ISSUER_NAME, '[(]([^)]+)[)]', 1, 1, 'e', 1))), '(.{0,2}|[0-9].*|SERIES.*|.*COMPANY|HELD .*|INVESTMENT .*|HOLDINGS?|GROUP|CAYMAN|BVI|PTY|DELAWARE|OFFSHORE|ONSHORE|FEEDER)'), NULL, REGEXP_SUBSTR(ISSUER_NAME, '[(]([^)]+)[)]', 1, 1, 'e', 1)), REGEXP_SUBSTR(ISSUER_NAME, '[ ,]+(D[.]?/?B[.]?/?A[.]?|F[.]?/?K[.]?/?A[.]?|N[.]?/?K[.]?/?A[.]?|A[.]?K[.]?A[.]?|FORMERLY( +KNOWN +AS)?)[ :]+([^(]+)', 1, 1, 'ie', 3)) AS ALIAS_RAW FROM FUND_ADMIN.AGGREGATE_INVESTMENTS WHERE FIRM_ID = '${FIRM_UUID}' GROUP BY ISSUER_NAME HAVING MAX(CASE WHEN ASSET_CLASS_TYPE IN ('PREFERRED_EQUITY', 'COMMON_EQUITY') THEN 1 ELSE 0 END) = 1),
+      norm_investments AS (SELECT INV_NAME, NAME_NORM, 0 AS IS_ALIAS FROM norm_investments_base UNION ALL SELECT INV_NAME, TRIM(REGEXP_REPLACE(TRIM(REGEXP_REPLACE(UPPER(ALIAS_RAW), '([ ,]+(INCORPORATED|INC|LLC|LTD|LIMITED|CORPORATION|CORP|L[.]P[.]|LLP|LP|PBC|PLC|CO[.]?|HOLDINGS? +COMPANY|HOLDINGS?|TECHNOLOGIES|TECHNOLOGY|TECH)[.]?)+ *$', '')), '[,.]', '')) AS NAME_NORM, 1 AS IS_ALIAS FROM norm_investments_base WHERE ALIAS_RAW IS NOT NULL AND TRIM(ALIAS_RAW) <> ''),
+      norm_spa AS (SELECT DISTINCT i.ISSUER_NAME AS SPA_NAME, LOWER(TRIM(i.ISSUER_NAME)) AS NORM_KEY, TRIM(REGEXP_REPLACE(TRIM(REGEXP_REPLACE(TRIM(REGEXP_REPLACE(TRIM(REGEXP_REPLACE(UPPER(i.ISSUER_NAME), ' *[(][^)]*[)].*$', '')), ' +(D[.]?/?B[.]?/?A[.]?|F[.]?/?K[.]?/?A[.]?|N[.]?/?K[.]?/?A[.]?|A[.]?K[.]?A[.]?|FORMERLY( +KNOWN +AS)?) +.*$', '')), '([ ,]+(INCORPORATED|INC|LLC|LTD|LIMITED|CORPORATION|CORP|L[.]P[.]|LLP|LP|PBC|PLC|CO[.]?|HOLDINGS? +COMPANY|HOLDINGS?|TECHNOLOGIES|TECHNOLOGY|TECH)[.]?)+ *$', '')), '[,.]', '')) AS NAME_NORM FROM spa_issuer i WHERE i.FIRM_ID = '${FIRM_UUID}' AND i.ISSUER_NAME IS NOT NULL AND TRIM(i.ISSUER_NAME) <> ''),
       spa_fuzzy AS (SELECT s.SPA_NAME, s.NORM_KEY, i.INV_NAME AS MATCHED_INV_NAME, ROW_NUMBER() OVER (PARTITION BY s.SPA_NAME ORDER BY JAROWINKLER_SIMILARITY(s.NAME_NORM, i.NAME_NORM) DESC NULLS LAST, i.IS_ALIAS, i.INV_NAME) AS RN FROM norm_spa s LEFT JOIN norm_investments i ON JAROWINKLER_SIMILARITY(s.NAME_NORM, i.NAME_NORM) >= 90),
       canonical_company AS (SELECT NORM_KEY, COALESCE(MIN(MATCHED_INV_NAME), MAX(SPA_NAME)) AS CANONICAL_NAME FROM spa_fuzzy WHERE RN = 1 GROUP BY NORM_KEY)`;
 
     // Query S — one row per purchaser, with the companies they appear alongside
-    // and the firm-wide SPA coverage counts embedded on every row.
-    function buildSummarySql(offset, limit) {
+    // and the portfolio size embedded on every row.
+    //
+    // The ORDER BY names output columns only. The server pages by restating it
+    // outside a `SELECT * FROM (...)` wrapper, where an aggregate or a table alias
+    // (`COUNT(DISTINCT cc.X)`, `p.NAME`) does not resolve; it then serves pages
+    // unordered, and pages overlap and skip rows with no error.
+    function buildSummarySql() {
       return `${SPA_CTE},
         doc_metadata AS (SELECT i.EXTRACTION_ID, cc.CANONICAL_NAME AS ISSUER_NAME, s.CLOSING_DATE, MIN(p.SHARE_CLASS_NAME) AS SHARE_CLASS_NAME FROM spa_issuer i JOIN canonical_company cc ON LOWER(TRIM(i.ISSUER_NAME)) = cc.NORM_KEY LEFT JOIN spa_deal s ON i.EXTRACTION_ID = s.EXTRACTION_ID LEFT JOIN spa_purchaser p ON i.EXTRACTION_ID = p.EXTRACTION_ID WHERE i.FIRM_ID = '${FIRM_UUID}' AND i.ISSUER_NAME IS NOT NULL AND TRIM(i.ISSUER_NAME) <> '' GROUP BY i.EXTRACTION_ID, cc.CANONICAL_NAME, s.CLOSING_DATE),
         dedup_docs AS (SELECT MAX(EXTRACTION_ID) AS EXTRACTION_ID FROM doc_metadata GROUP BY ISSUER_NAME, COALESCE(CAST(CLOSING_DATE AS VARCHAR), SHARE_CLASS_NAME, 'undated')),
-        coverage AS (SELECT (SELECT COUNT(*) FROM norm_investments_base ni WHERE EXISTS (SELECT 1 FROM spa_fuzzy sf WHERE sf.RN = 1 AND sf.MATCHED_INV_NAME = ni.INV_NAME)) AS SPA_COMPANIES, (SELECT COUNT(*) FROM norm_investments_base) AS TOTAL_COMPANIES)
-        SELECT p.PURCHASER_NAME, p.ENTITY_TYPE, ARRAY_AGG(DISTINCT cc.CANONICAL_NAME) WITHIN GROUP (ORDER BY cc.CANONICAL_NAME) AS COMPANIES, (SELECT SPA_COMPANIES FROM coverage) AS SPA_COMPANIES, (SELECT TOTAL_COMPANIES FROM coverage) AS TOTAL_COMPANIES
+        coverage AS (SELECT (SELECT COUNT(*) FROM norm_investments_base) AS TOTAL_COMPANIES)
+        SELECT p.PURCHASER_NAME, p.ENTITY_TYPE, ARRAY_AGG(DISTINCT cc.CANONICAL_NAME) WITHIN GROUP (ORDER BY cc.CANONICAL_NAME) AS COMPANIES, (SELECT TOTAL_COMPANIES FROM coverage) AS TOTAL_COMPANIES
         FROM dedup_docs dd
         JOIN spa_issuer i ON dd.EXTRACTION_ID = i.EXTRACTION_ID
         JOIN canonical_company cc ON LOWER(TRIM(i.ISSUER_NAME)) = cc.NORM_KEY
         JOIN spa_purchaser p ON dd.EXTRACTION_ID = p.EXTRACTION_ID
         WHERE p.ENTITY_TYPE NOT ILIKE '%notice%' AND p.ENTITY_TYPE NOT ILIKE '%law firm%'
         GROUP BY p.PURCHASER_NAME, p.ENTITY_TYPE
-        ORDER BY COUNT(DISTINCT cc.CANONICAL_NAME) DESC, p.PURCHASER_NAME, p.ENTITY_TYPE
-        LIMIT ${limit} OFFSET ${offset}`;
+        ORDER BY ARRAY_SIZE(COMPANIES) DESC, PURCHASER_NAME, ENTITY_TYPE`;
     }
 
     // Query R — one row per portfolio company, rounds nested as a compact JSON
-    // string. Short keys (sc/cd/inv, n/t/p/a) keep the payload small. The RN <= 15
+    // string. Short keys (sc/cd/cur/inv, n/t/p/a) keep the payload small.
+    //
+    // `cur` is the SPA's ISO currency, read from RAW_JSON only:
+    // ATTRIBUTES:currency_code defaults to USD when the extractor found none. The
+    // extractor sometimes writes the currency out ("United States dollars",
+    // "US$"); those common spellings map to their code, and anything else is
+    // null so the amount shows with no symbol rather than a guessed one. The RN <= 15
     // cap bounds each round's investor list; the tail past the 15th has near-zero
     // percentage of round and is not rendered prominently in the drill-down.
     //
@@ -782,26 +1025,97 @@
     // purchasers survive, and per_round groups on the per-purchaser share class,
     // so a tie changes how many rounds a company appears to have — not just their
     // order.
-    function buildRoundsSql(offset, limit) {
+    function buildRoundsSql() {
       return `${SPA_CTE},
         doc_metadata AS (SELECT i.EXTRACTION_ID, cc.CANONICAL_NAME AS ISSUER_NAME, s.CLOSING_DATE, MIN(p.SHARE_CLASS_NAME) AS SHARE_CLASS_NAME FROM spa_issuer i JOIN canonical_company cc ON LOWER(TRIM(i.ISSUER_NAME)) = cc.NORM_KEY LEFT JOIN spa_deal s ON i.EXTRACTION_ID = s.EXTRACTION_ID LEFT JOIN spa_purchaser p ON i.EXTRACTION_ID = p.EXTRACTION_ID WHERE i.FIRM_ID = '${FIRM_UUID}' GROUP BY i.EXTRACTION_ID, cc.CANONICAL_NAME, s.CLOSING_DATE),
         dedup_docs AS (SELECT MAX(EXTRACTION_ID) AS EXTRACTION_ID FROM doc_metadata GROUP BY ISSUER_NAME, COALESCE(CAST(CLOSING_DATE AS VARCHAR), SHARE_CLASS_NAME, 'undated')),
-        investor_rows AS (SELECT cc.CANONICAL_NAME AS ISSUER_NAME, p.SHARE_CLASS_NAME, s.CLOSING_DATE, dd.EXTRACTION_ID, p.PURCHASER_NAME, p.ENTITY_TYPE, p.SHARES_PURCHASED, p.TOTAL_AMOUNT_PAID, p.SHARES_PURCHASED / NULLIF(SUM(p.SHARES_PURCHASED) OVER (PARTITION BY dd.EXTRACTION_ID), 0) AS PCT_OF_ROUND, ROW_NUMBER() OVER (PARTITION BY dd.EXTRACTION_ID ORDER BY p.SHARES_PURCHASED DESC NULLS LAST, p.PURCHASER_NAME) AS RN FROM dedup_docs dd JOIN spa_issuer i ON dd.EXTRACTION_ID = i.EXTRACTION_ID JOIN canonical_company cc ON LOWER(TRIM(i.ISSUER_NAME)) = cc.NORM_KEY JOIN spa_purchaser p ON dd.EXTRACTION_ID = p.EXTRACTION_ID LEFT JOIN spa_deal s ON dd.EXTRACTION_ID = s.EXTRACTION_ID WHERE p.ENTITY_TYPE NOT ILIKE '%notice%' AND p.ENTITY_TYPE NOT ILIKE '%law firm%'),
-        per_round AS (SELECT ISSUER_NAME, SHARE_CLASS_NAME, CLOSING_DATE, EXTRACTION_ID, ARRAY_AGG(OBJECT_CONSTRUCT('n', PURCHASER_NAME, 't', ENTITY_TYPE, 'p', ROUND(PCT_OF_ROUND, 4), 'a', TOTAL_AMOUNT_PAID)) WITHIN GROUP (ORDER BY PCT_OF_ROUND DESC NULLS LAST, PURCHASER_NAME) AS INVESTORS FROM investor_rows WHERE RN <= 15 GROUP BY ISSUER_NAME, SHARE_CLASS_NAME, CLOSING_DATE, EXTRACTION_ID)
-        SELECT ISSUER_NAME, TO_JSON(ARRAY_AGG(OBJECT_CONSTRUCT('sc', SHARE_CLASS_NAME, 'cd', CLOSING_DATE, 'inv', INVESTORS)) WITHIN GROUP (ORDER BY CLOSING_DATE DESC NULLS LAST, SHARE_CLASS_NAME, EXTRACTION_ID)) AS ROUNDS_JSON
-        FROM per_round GROUP BY ISSUER_NAME ORDER BY ISSUER_NAME
-        LIMIT ${limit} OFFSET ${offset}`;
+        spa_currency AS (SELECT EXTRACTION_ID, CASE WHEN REGEXP_LIKE(CUR_RAW, '[A-Z]{3}') THEN CUR_RAW WHEN REGEXP_LIKE(CUR_RAW, 'US[$]|U[.]?S[.]? DOLLARS?|UNITED STATES (DOLLARS?|CURRENCY)') THEN 'USD' WHEN REGEXP_LIKE(CUR_RAW, 'CANADIAN (DOLLARS?|CURRENCY)') THEN 'CAD' WHEN REGEXP_LIKE(CUR_RAW, 'AUSTRALIAN DOLLARS?') THEN 'AUD' END AS CURRENCY FROM (SELECT EXTRACTION_ID, UPPER(TRIM(CASE WHEN TYPEOF(RAW_JSON:currency) = 'OBJECT' THEN RAW_JSON:currency:value::VARCHAR ELSE RAW_JSON:currency::VARCHAR END)) AS CUR_RAW FROM spa_rec WHERE RECORD_TYPE = 'company')),
+        investor_rows AS (SELECT cc.CANONICAL_NAME AS ISSUER_NAME, p.SHARE_CLASS_NAME, s.CLOSING_DATE, cur.CURRENCY, dd.EXTRACTION_ID, p.PURCHASER_NAME, p.ENTITY_TYPE, p.SHARES_PURCHASED, p.TOTAL_AMOUNT_PAID, p.SHARES_PURCHASED / NULLIF(SUM(p.SHARES_PURCHASED) OVER (PARTITION BY dd.EXTRACTION_ID), 0) AS PCT_OF_ROUND, ROW_NUMBER() OVER (PARTITION BY dd.EXTRACTION_ID ORDER BY p.SHARES_PURCHASED DESC NULLS LAST, p.PURCHASER_NAME) AS RN FROM dedup_docs dd JOIN spa_issuer i ON dd.EXTRACTION_ID = i.EXTRACTION_ID JOIN canonical_company cc ON LOWER(TRIM(i.ISSUER_NAME)) = cc.NORM_KEY JOIN spa_purchaser p ON dd.EXTRACTION_ID = p.EXTRACTION_ID LEFT JOIN spa_deal s ON dd.EXTRACTION_ID = s.EXTRACTION_ID LEFT JOIN spa_currency cur ON dd.EXTRACTION_ID = cur.EXTRACTION_ID WHERE p.ENTITY_TYPE NOT ILIKE '%notice%' AND p.ENTITY_TYPE NOT ILIKE '%law firm%'),
+        per_round AS (SELECT ISSUER_NAME, SHARE_CLASS_NAME, CLOSING_DATE, CURRENCY, EXTRACTION_ID, ARRAY_AGG(OBJECT_CONSTRUCT('n', PURCHASER_NAME, 't', ENTITY_TYPE, 'p', ROUND(PCT_OF_ROUND, 4), 'a', TOTAL_AMOUNT_PAID)) WITHIN GROUP (ORDER BY PCT_OF_ROUND DESC NULLS LAST, PURCHASER_NAME) AS INVESTORS FROM investor_rows WHERE RN <= 15 GROUP BY ISSUER_NAME, SHARE_CLASS_NAME, CLOSING_DATE, CURRENCY, EXTRACTION_ID)
+        SELECT ISSUER_NAME, TO_JSON(ARRAY_AGG(OBJECT_CONSTRUCT('sc', SHARE_CLASS_NAME, 'cd', CLOSING_DATE, 'cur', CURRENCY, 'inv', INVESTORS)) WITHIN GROUP (ORDER BY CLOSING_DATE DESC NULLS LAST, SHARE_CLASS_NAME, EXTRACTION_ID)) AS ROUNDS_JSON
+        FROM per_round GROUP BY ISSUER_NAME ORDER BY ISSUER_NAME`;
     }
 
-    // Query T — live/exited status per equity investment, behind the filter tabs.
-    function buildStatusSql(offset, limit) {
-      return `SELECT ISSUER_NAME, IS_ACTIVE_INVESTMENT
+    // Query V — the firm's own entities (funds, SPVs, GPs, management companies),
+    // excluded from the co-investor list and flagged as `isFirm` inside each round.
+    // Read here rather than handed in by the agent: a firm with hundreds of SPVs
+    // overflows the fa:list:entities response limit, and the page has no such cap.
+    function buildVehiclesSql() {
+      return `SELECT DISTINCT FUND_NAME
+        FROM FUND_ADMIN.FUNDS
+        WHERE FIRM_ID = '${FIRM_UUID}'
+          AND FUND_NAME IS NOT NULL
+        ORDER BY FUND_NAME`;
+    }
+
+    // Query P — the people and entities holding carried interest in the firm's own GP entities.
+    // They invest on the side, in their own name or through a personal vehicle, so they are the
+    // firm's team and not co-investors. Optional: where the account cannot read the view, or the
+    // firm has none, the report is unchanged.
+    function buildTeamSql() {
+      return `SELECT DISTINCT MEMBER_NAME
+        FROM FUND_ADMIN.GP_ENTITY_MEMBER_CARRY_PERCENTAGES
+        WHERE FIRM_ID = '${FIRM_UUID}'
+          AND MEMBER_NAME IS NOT NULL
+        ORDER BY MEMBER_NAME`;
+    }
+
+    // Query T — live/exited status per company, behind the filter tabs, and
+    // whether a matching SPA exists (HAS_SPA, the same match Mode B's QC counts).
+    // An SPA with no purchasers extracted leaves no trace in Queries S and R, so
+    // this is the only place it shows up as coverage.
+    // GROUP BY returns one row per company, so ISSUER_NAME is a unique ORDER BY
+    // key: offset paging returns each row once only when the sort key is unique.
+    function buildStatusSql() {
+      return `${SPA_CTE},
+        spa_cov AS (SELECT DISTINCT MATCHED_INV_NAME AS INV_NAME FROM spa_fuzzy WHERE RN = 1 AND MATCHED_INV_NAME IS NOT NULL)
+        SELECT ISSUER_NAME, MAX(CASE WHEN IS_ACTIVE_INVESTMENT = TRUE THEN 1 ELSE 0 END) AS IS_ACTIVE_INVESTMENT,
+          MAX(CASE WHEN INV_NAME IS NOT NULL THEN 1 ELSE 0 END) AS HAS_SPA
         FROM FUND_ADMIN.AGGREGATE_INVESTMENTS
+        LEFT JOIN spa_cov ON ISSUER_NAME = INV_NAME
         WHERE FIRM_ID = '${FIRM_UUID}'
           AND ASSET_CLASS_TYPE IN ('PREFERRED_EQUITY', 'COMMON_EQUITY')
           AND ISSUER_NAME IS NOT NULL
-        ORDER BY ISSUER_NAME
-        LIMIT ${limit} OFFSET ${offset}`;
+        GROUP BY ISSUER_NAME
+        ORDER BY ISSUER_NAME`;
+    }
+
+    // Query C — current holders from the stakeholder-level cap table, nested as a
+    // compact JSON string (short keys s/g/o: stakeholder, group, fully diluted
+    // ownership), as Query R nests rounds. A company's holders come back in chunks
+    // of CAP_HOLDERS_PER_ROW, one row per (company, corporation, chunk): per-holder rows would run
+    // to tens of thousands for a large firm, while one row per company could pass
+    // the server's inline page limit when a company has thousands of holders, and
+    // an oversize row fails the whole query. Every row stays bounded, and
+    // groupCapTable appends the chunks of one company back into one holder list.
+    // A company with cap table rows but no investor holders comes back as one row
+    // with an empty array, which is how the page tells it from a company the firm
+    // cannot see at all.
+    //
+    // Company identity is the SOI record: AGGREGATE_INVESTMENTS.ENTITY_LINK_ID ->
+    // CORPORATION_ENTITY_LINKS_V2 -> CORPORATION_ID, so ISSUER_NAME is the same
+    // INV_NAME that Query S's canonical_company resolves SPA issuers to. The table
+    // is row-access controlled; a company the firm cannot see yields no rows.
+    //
+    // Investor holders only: note blocks, and preferred share classes and warrants
+    // ('SHARCLASS' is the column's spelling). Common stock and option plans are the
+    // founders and employees. The ownership column repeats on every row of a holder,
+    // so it is aggregated with MAX, never summed.
+    //
+    // The ORDER BY is (ISSUER_NAME, CORPORATION_ID, CHUNK), unique per row, so
+    // offset paging returns each row once. STAKEHOLDER_ID makes the holder ranking
+    // total, so a holder is in exactly one chunk, and the order inside a chunk.
+        function buildCapTableSql() {
+      return `WITH entity_link AS (SELECT DISTINCT FIRM_ID, ENTITY_LINK_ID, CORPORATION_ID FROM FUND_ADMIN.CORPORATION_ENTITY_LINKS_V2 WHERE FIRM_ID = '${FIRM_UUID}' AND CORPORATION_ID IS NOT NULL),
+        soi_corp AS (SELECT DISTINCT a.ISSUER_NAME, l.CORPORATION_ID FROM FUND_ADMIN.AGGREGATE_INVESTMENTS a JOIN entity_link l ON a.FIRM_ID = l.FIRM_ID AND a.ENTITY_LINK_ID = l.ENTITY_LINK_ID WHERE a.FIRM_ID = '${FIRM_UUID}' AND a.ASSET_CLASS_TYPE IN ('PREFERRED_EQUITY', 'COMMON_EQUITY') AND a.ISSUER_NAME IS NOT NULL),
+        latest AS (SELECT CORPORATION_ID, STAKEHOLDER_ID, STAKEHOLDER_NAME, STAKEHOLDER_GROUP_NAME, SECURITY_CLASS_TYPE, AS_CONVERTED_SHARCLASS_STOCK_TYPE, STAKEHOLDER_FULLY_DILUTED_OWNERSHIP FROM FUND_ADMIN.STAKEHOLDER_CAP_TABLE WHERE CORPORATION_ID IN (SELECT CORPORATION_ID FROM soi_corp) QUALIFY AS_OF_DATE = MAX(AS_OF_DATE) OVER (PARTITION BY CORPORATION_ID)),
+        holders AS (SELECT CORPORATION_ID, STAKEHOLDER_ID, STAKEHOLDER_NAME, STAKEHOLDER_GROUP_NAME, MAX(STAKEHOLDER_FULLY_DILUTED_OWNERSHIP) AS OWNERSHIP FROM latest WHERE (SECURITY_CLASS_TYPE = 'note_block' OR (SECURITY_CLASS_TYPE IN ('share_class', 'warrant_block') AND AS_CONVERTED_SHARCLASS_STOCK_TYPE = 'Preferred')) AND COALESCE(LOWER(TRIM(STAKEHOLDER_NAME)), '') NOT IN ('outside investors', 'outside investor') AND COALESCE(LOWER(TRIM(STAKEHOLDER_GROUP_NAME)), '') NOT IN ('outside investors', 'outside investor') GROUP BY CORPORATION_ID, STAKEHOLDER_ID, STAKEHOLDER_NAME, STAKEHOLDER_GROUP_NAME),
+        ranked AS (SELECT *, ROW_NUMBER() OVER (PARTITION BY CORPORATION_ID ORDER BY OWNERSHIP DESC NULLS LAST, STAKEHOLDER_ID) AS RN FROM holders)
+        SELECT s.ISSUER_NAME, s.CORPORATION_ID, COALESCE(FLOOR((h.RN - 1) / ${CAP_HOLDERS_PER_ROW}), 0) AS CHUNK, TO_JSON(ARRAY_AGG(IFF(h.STAKEHOLDER_ID IS NULL, NULL, OBJECT_CONSTRUCT('s', h.STAKEHOLDER_NAME, 'g', h.STAKEHOLDER_GROUP_NAME, 'o', ROUND(h.OWNERSHIP, 6)))) WITHIN GROUP (ORDER BY h.OWNERSHIP DESC NULLS LAST, h.STAKEHOLDER_ID)) AS HOLDERS_JSON
+        FROM soi_corp s LEFT JOIN ranked h ON s.CORPORATION_ID = h.CORPORATION_ID
+        WHERE s.CORPORATION_ID IN (SELECT CORPORATION_ID FROM latest)
+        GROUP BY s.ISSUER_NAME, s.CORPORATION_ID, COALESCE(FLOOR((h.RN - 1) / ${CAP_HOLDERS_PER_ROW}), 0)
+        ORDER BY ISSUER_NAME, CORPORATION_ID, CHUNK`;
     }
 
     // ── Transform ─────────────────────────────────────────────────────────────
@@ -853,30 +1167,111 @@
     const ROMAN_RE = /\s+(VIII|VII|XII|XI|XIII|IX|IV|VI|V|III|II|I|X)$/i;
     const DIGITS_RE = /\s+[0-9]+$/;
 
-    // First matching grouping wins, mirroring the file order the SQL CASE used.
+    // The grouping in canonical-investors.json a name belongs to, or null. First
+    // match wins, mirroring the file order the SQL CASE uses. Whitespace is
+    // squashed first so a newline or non-breaking space inside a name cannot
+    // defeat an anchored pattern.
+    function canonicalGroupFor(name) {
+      const squashed = (name || '').replace(/\s+/g, ' ').trim();
+      for (const group of CANONICAL_GROUPINGS) {
+        if (group.patterns.some(p => sqlIlike(squashed, p))) return group;
+      }
+      return null;
+    }
+
     // Unmatched names fall through to suffix/series stripping so "Acme Ventures
     // III, L.P." and "Acme Ventures II" collapse to one canonical row.
     function applyCanonical(name) {
-      for (const group of CANONICAL_GROUPINGS) {
-        if (group.patterns.some(p => sqlIlike(name, p))) return group.canonical;
-      }
-      const cleaned = name.replace(SUFFIX_RE, '').replace(ROMAN_RE, '').replace(DIGITS_RE, '').trim();
-      return cleaned || name;
+      const squashed = (name || '').replace(/\s+/g, ' ').trim();
+      const group = canonicalGroupFor(squashed);
+      if (group) return group.canonical;
+      const cleaned = squashed.replace(SUFFIX_RE, '').replace(ROMAN_RE, '').replace(DIGITS_RE, '').trim();
+      return cleaned || squashed;
     }
 
     const LEGAL_SUFFIX_RE = / (LP|LLC|LTD|LIMITED|INC|CORP|CORPORATION|GP|PBC)$/;
     const TRAILING_ROMAN_RE = / (I|II|III|IV|V|VI|VII|VIII|IX|X|XI|XII|XIII)$/;
 
-    // Upper-case, drop the punctuation that varies between spellings of the same
-    // vehicle ("Acme Fund VI, L.P." vs "Acme Fund VI, LP"), collapse whitespace.
+    // Upper-case, drop diacritics, straighten quotes, drop the punctuation that
+    // varies between spellings of the same vehicle ("Acme Fund VI, L.P." vs "Acme
+    // Fund VI, LP"), close up hyphens and dashes ("Fund VIII - Entrepreneurs" vs
+    // "Fund VIII–Entrepreneurs"), collapse whitespace of every kind (newlines and
+    // non-breaking spaces included). Mode B's firm_vehicle SQL applies the same
+    // rule, except for diacritics.
     function normalizeName(name) {
-      return (name || '').toUpperCase().replace(/[.,]/g, '').replace(/ +/g, ' ').trim();
+      return (name || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase()
+        .replace(/[’‘`´]/g, "'").replace(/[.,]/g, '').replace(/ *[-‐‑‒–—] */g, '-')
+        .replace(/\s+/g, ' ').trim();
+    }
+
+    // Letters and digits only: "FJ Labs", "F&J Labs" and "FJLabs" all read FJLABS.
+    function compactName(normalized) {
+      return normalized.replace(/[^A-Z0-9]/g, '');
     }
 
     // Drop the legal suffix and any series numeral, so "Acme Growth Fund I, LP"
     // and "Acme Growth Fund, LP" reduce to the same stem.
     function stemName(normalized) {
       return normalized.replace(LEGAL_SUFFIX_RE, '').replace(TRAILING_ROMAN_RE, '').trim();
+    }
+
+    // The one identity of an investor, whichever source named it: canonical
+    // grouping first, then normalised, stripped of its legal suffix and series
+    // numeral, and compacted so spacing and punctuation never split an investor
+    // ("Upper90 Fund" and "Upper 90 Fund"). Mode B groups on the same expression.
+    function investorKey(name) {
+      const norm = normalizeName(applyCanonical(name));
+      return compactName(stemName(norm)) || compactName(norm);
+    }
+
+    // What is left of a name once the words every fund family shares are gone:
+    // "Mantis Capital Fund I, LP" and "Mantis Capital" both reduce to MANTIS.
+    // Used where two names at the same company are compared, never across
+    // companies, and only when at least LOOSE_STEM_MIN characters remain.
+    const LOOSE_WORD_RE = /^(FUND|FUNDS|CAPITAL|VENTURES|VENTURE|PARTNERS|PARTNER|GROWTH|OPPORTUNITY|OPPORTUNITIES|MANAGEMENT|HOLDINGS|GROUP|SERIES|THE|OF|LP|LLC|LLP|LTD|LIMITED|INC|CORP|CORPORATION|CO|COMPANY|GP|PBC|PLC|I|II|III|IV|V|VI|VII|VIII|IX|X|XI|XII|XIII|XIV|XV|[0-9]+)$/;
+    const LOOSE_STEM_MIN = 4;
+    function looseStem(name) {
+      const tokens = normalizeName(name).split(/[^A-Z0-9]+/).filter(t => t && !LOOSE_WORD_RE.test(t));
+      const stem = tokens.join('');
+      return stem.length >= LOOSE_STEM_MIN ? stem : '';
+    }
+
+    function namesRelated(a, b) {
+      const x = looseStem(a), y = looseStem(b);
+      return x !== '' && y !== '' && (x.includes(y) || y.includes(x));
+    }
+
+    // Who a cap table holder is. The group name is often a shared GP or custodian
+    // label ("Fund GP") over unrelated vehicles, so it is trusted only when it is a
+    // known grouping or visibly the same name as the stakeholder:
+    //   a. canonical grouping matched on the stakeholder name;
+    //   b. canonical grouping matched on the group name;
+    //   c. the group name, when it and the stakeholder name contain one another;
+    //   d. the stakeholder name.
+    // Returns the name to feed to applyCanonical. Mode B's cap_identity applies the same order.
+    function holderIdentity(stakeholder, group) {
+      if (canonicalGroupFor(stakeholder)) return stakeholder;
+      if (group && canonicalGroupFor(group)) return group;
+      if (group && namesRelated(group, stakeholder)) return group;
+      return stakeholder;
+    }
+
+    // The one place that decides whether an investor is a person. SPA purchasers
+    // carry an entity type, and it wins. Cap table holders do not, so for those the
+    // name decides, conservatively: a known investor (any canonical grouping) or a
+    // name with an institution word is never a person, and only a 2-4 word
+    // capitalised name beyond that counts. A lone word never does.
+    const INDIVIDUAL_TYPE_RE = /individual|person|natural/i;
+    const INSTITUTION_WORD_RE = /\b(LP|LLC|LLP|LTD|LIMITED|INC|CORP|CORPORATION|CO|COMPANY|FUND|FUNDS|CAPITAL|VENTURES|VENTURE|PARTNERS|PARTNERSHIP|HOLDINGS|TRUST|FOUNDATION|GROUP|INVESTMENTS|INVESTORS|MANAGEMENT|EQUITY|ASSOCIATES|SPV|GP|PBC|PLC|GMBH|AG|BV|SA|LABS|LAB|FAMILY|OFFICE|ENTERPRISES|BANK|UNIVERSITY|ACCELERATOR|GLOBAL|ANGEL|ANGELS|PORTFOLIO|CATALYST|ATLANTIC|LEVERAGE|WAVE|STUDIO|STUDIOS|MEDIA|TECH|SOFTWARE|NETWORK|SYSTEMS|HEALTH|BIO|INTERNATIONAL|COLLECTIVE|SERVICES|FINANCE|FINANCIAL|SYNDICATE|CIRCLE|HQ|VC|TECHNOLOGY|MARKETS|DEAL|ADVISORS|ADVISOR|ADVISORY|FOUNDERS|FOUNDER|GIFFORD|AVENUE|MOONSHOT|MOONSHOTS)\b/;
+    const PERSON_NAME_RE = /^[A-Z][A-Za-z'’.-]*( [A-Z][A-Za-z'’.-]*){1,3}$/;
+    function isKnownInvestor(name) {
+      const norm = normalizeName(name);
+      return canonicalGroupFor(name) !== null || CANONICAL_GROUPINGS.some(g => normalizeName(g.canonical) === norm);
+    }
+    function isIndividualInvestor(entityType, name) {
+      if (entityType && entityType !== '—') return INDIVIDUAL_TYPE_RE.test(entityType);
+      const trimmed = (name || '').trim();
+      return PERSON_NAME_RE.test(trimmed) && !INSTITUTION_WORD_RE.test(normalizeName(trimmed)) && !isKnownInvestor(trimmed);
     }
 
     // A stem is only used for matching when it still carries two or more words.
@@ -888,21 +1283,124 @@
       return stem.includes(' ') ? stem : null;
     }
 
-    const FIRM_VEHICLE_MATCHERS = FIRM_VEHICLE_NAMES
-      .filter(Boolean)
-      .map(v => { const norm = normalizeName(v); return { norm, stem: usableStem(norm) }; })
-      .filter(m => m.norm);
+    function vehicleMatchers(names) {
+      return names
+        .filter(Boolean)
+        .map(v => { const norm = normalizeName(v); return { norm, stem: usableStem(norm) }; })
+        .filter(m => m.norm);
+    }
 
-    // True when the purchaser IS one of the firm's own vehicles.
+    // The firm's own name as a compact string, or null when it is too short to
+    // look for inside other names: a firm called "Vela" must not wipe out every
+    // co-investor with Vela in its name.
+    function firmNameCompact(firmName) {
+      const stem = stemName(normalizeName(firmName));
+      const words = stem.split(/[^A-Z0-9]+/).filter(Boolean);
+      const compact = compactName(stem);
+      return words.length >= 2 || compact.length >= 6 ? compact : null;
+    }
+
+    // True when whole words of the name, run together, spell the firm's name
+    // ("F&J Labs Telenor Co-Invest", "FJLabs Fund IV").
+    function containsFirmName(norm, firmCompact) {
+      const words = norm.split(/[^A-Z0-9]+/).filter(Boolean);
+      for (let i = 0; i < words.length; i++) {
+        let run = '';
+        for (let j = i; j < words.length && run.length < firmCompact.length; j++) {
+          run += words[j];
+          if (run === firmCompact) return true;
+        }
+      }
+      return false;
+    }
+
+    const FIRM_NAME_COMPACT = firmNameCompact(FIRM_NAME);
+
+    // A name's words, sorted, without its legal suffix, series numeral or "Fund": two spellings that
+    // only reorder the same words ("IA Venture Strategies Fund II Side Fund" and "IA Venture
+    // Strategies II Side Fund, LP") share a key. Null under three words: a two-word key
+    // ("Fvlcrum Holdings") would also fold in an investor whose name merely reorders them.
+    function wordBagKey(norm) {
+      const words = stemName(norm).split(/[^A-Z0-9]+/).filter(w => w && w !== 'FUND');
+      return words.length >= 3 ? words.sort().join(' ') : null;
+    }
+
+    // The leading words of the firm's name that three or more of its own funds also lead with
+    // ("FVLCRUM" for "FVLCRUM Funds" and the funds "Fvlcrum Aggregator LP", "Fvlcrum Fund BL LP",
+    // "Fvlcrum Holdings LLC"). A lone word counts only at six letters or more, like the firm name itself.
+    function firmBrandPrefix(firmName, vehicleNames) {
+      const firmWords = stemName(normalizeName(firmName)).split(' ');
+      const vehicles = vehicleNames.map(v => normalizeName(v).split(' '));
+      for (let k = firmWords.length; k >= 1; k--) {
+        const prefix = firmWords.slice(0, k).join(' ');
+        if (k === 1 && compactName(prefix).length < 6) break;
+        if (vehicles.filter(w => w.slice(0, k).join(' ') === prefix).length >= 3) return prefix;
+      }
+      return null;
+    }
+
+    // The firm name alone until Query V returns; setFirmVehicles adds the rest.
+    let FIRM_VEHICLE_MATCHERS = vehicleMatchers([FIRM_NAME]);
+    let FIRM_VEHICLE_BAGS = new Set();
+    let FIRM_BRAND = null;
+
+    function setFirmVehicles(vehicleRows) {
+      const names = vehicleRows.map(r => (r.FUND_NAME || '').trim());
+      FIRM_VEHICLE_MATCHERS = vehicleMatchers([FIRM_NAME, ...names]);
+      FIRM_VEHICLE_BAGS = new Set(names.map(v => wordBagKey(normalizeName(v))).filter(Boolean));
+      FIRM_BRAND = firmBrandPrefix(FIRM_NAME, names);
+    }
+
+    // Name suffixes and numerals that are no part of a person's first or last name.
+    const PERSON_SUFFIX_RE = /^(JR|SR|II|III|IV|MD|PHD|ESQ)$/;
+
+    let FIRM_TEAM_NAMES = new Set();
+    let FIRM_TEAM_PEOPLE = [];
+
+    function setFirmTeam(teamRows) {
+      const names = teamRows.map(r => normalizeName(r.MEMBER_NAME)).filter(Boolean);
+      FIRM_TEAM_NAMES = new Set(names);
+      // A person is written in more than one way ("Jane Q. Doe", "Doe, Jane"), so the first and last
+      // word are what is compared. A trust or company is compared by its whole name only.
+      FIRM_TEAM_PEOPLE = names.filter(n => isIndividualInvestor(null, titleWords(n))).map(n => {
+        const words = n.split(/[^A-Z0-9']+/).filter(w => w && !PERSON_SUFFIX_RE.test(w));
+        return words.length >= 2 ? { first: words[0], last: words[words.length - 1] } : null;
+      }).filter(Boolean);
+    }
+
+    // The person rule reads capitalised words, so an upper-cased name is title-cased to be tested.
+    function titleWords(norm) {
+      return norm.toLowerCase().replace(/(^|[ '-])([a-z])/g, (m, a, b) => a + b.toUpperCase());
+    }
+
+    // True when the name is one of the firm's carry holders: the same name, or a person whose first
+    // and last name both appear in a short name. Matched against the investor, never the firm's funds.
+    function matchesFirmTeam(investorName) {
+      const norm = normalizeName(investorName);
+      if (!norm) return false;
+      if (FIRM_TEAM_NAMES.has(norm)) return true;
+      const words = norm.split(/[^A-Z0-9']+/).filter(Boolean);
+      if (words.length > 5) return false;
+      return FIRM_TEAM_PEOPLE.some(p => words.includes(p.first) && words.includes(p.last));
+    }
+
+    // True when the name IS one of the firm's own vehicles — the one rule for SPA
+    // purchasers and cap table holders alike.
     //
-    // Matching is anchored at a word boundary, never a bare substring, and the
-    // two loose directions — purchaser shorter than the listed vehicle, and stem
-    // equality — require at least two words on the short side. Acme Ventures has
-    // a fund named "Vela I, LP"; without that floor, a real co-investor called
-    // "Vela" is silently dropped from every report.
+    // Vehicle matching is anchored at a word boundary, never a bare substring, and
+    // the two loose directions — purchaser shorter than the listed vehicle, and
+    // stem equality — require at least two words on the short side. Acme Ventures
+    // has a fund named "Vela I, LP"; without that floor, a real co-investor called
+    // "Vela" is silently dropped from every report. Separately, the firm's own name
+    // anywhere in the name as whole words marks a vehicle ("Apollo Co-Invest Acme
+    // Ventures GmbH & Co. KG"), when the firm name is long enough to be specific.
     function matchesFirmVehicle(purchaserName) {
       const norm = normalizeName(purchaserName);
       if (!norm) return false;
+      if (FIRM_NAME_COMPACT !== null && containsFirmName(norm, FIRM_NAME_COMPACT)) return true;
+      if (FIRM_BRAND !== null && (norm === FIRM_BRAND || norm.startsWith(FIRM_BRAND + ' '))) return true;
+      const bag = wordBagKey(norm);
+      if (bag !== null && FIRM_VEHICLE_BAGS.has(bag)) return true;
       const stem = usableStem(norm);
       const multiWord = norm.includes(' ');
       return FIRM_VEHICLE_MATCHERS.some(v =>
@@ -921,44 +1419,158 @@
       return a.localeCompare(b) <= 0 ? a : b;
     }
 
-    function buildCoInvestors(summaryRows) {
-      const byCanonical = new Map();
+    // Cap table rows by company: whether the company has any rows (it has a Query C
+    // row) and its investor holders, decoded from HOLDERS_JSON. Like Query R's
+    // ROUNDS_JSON it arrives as a real array or a JSON-encoded string.
+    function groupCapTable(capRows) {
+      const byCompany = new Map();
+      for (const row of capRows) {
+        const company = (row.ISSUER_NAME || '').trim();
+        if (!company) continue;
+        let c = byCompany.get(company);
+        if (!c) { c = { holders: [] }; byCompany.set(company, c); }
+        let decoded = row.HOLDERS_JSON;
+        try {
+          if (typeof decoded === 'string') decoded = decoded.trim() ? JSON.parse(decoded) : [];
+        } catch (e) {
+          console.warn('could not parse HOLDERS_JSON for ' + company, e);
+          continue;
+        }
+        if (!Array.isArray(decoded)) continue;
+        for (const h of decoded) {
+          const stakeholder = ((h && h.s) || '').trim();
+          if (!stakeholder) continue;
+          c.holders.push({
+            stakeholder,
+            group: (h.g || '').trim() || stakeholder,
+            ownership: toFloat(h.o),
+          });
+        }
+      }
+      return byCompany;
+    }
+
+    // Every co-investor across SPAs and cap tables, one entry per investor.
+    //
+    // Every sighting of an investor — an SPA purchaser or a cap table holder at one
+    // company — is named, then identities are united in two steps. Equal
+    // investorKey is one investor, anywhere. Beyond that, inside a single company
+    // an SPA purchaser and a cap table holder with the same looseStem are one
+    // investor ("Mantis Capital Fund I, LP" on the SPA, "Mantis Capital" on the
+    // cap table), and that union holds everywhere the investor appears, so nobody
+    // is counted twice. Nothing else is compared across companies and there is no
+    // fuzzy similarity in the page.
+    //
+    // Also returns what the drill-down needs for companies with cap table rows:
+    // current holders, and "past investors" (named on an SPA, absent from the
+    // current cap table, still counted as co-investors).
+    function buildCoInvestors(summaryRows, capRows) {
+      const sightings = [];
+      function sight(company, source, name, rawName, entityType, ownership) {
+        sightings.push({ company, source, name, rawName, entityType, ownership, key: investorKey(name), loose: looseStem(name) });
+      }
+
       for (const row of summaryRows) {
         const purchaser = (row.PURCHASER_NAME || '').trim();
         if (!purchaser) continue;
-        if (matchesFirmVehicle(purchaser)) continue;
-        const canonical = applyCanonical(purchaser);
-        // Key case-insensitively: SPAs for the same investor arrive shouted and
-        // title-cased ("ACME FUND VII, LP" alongside "Acme Fund VII, LP"), and a
-        // case-sensitive key renders that investor as two rows.
-        const key = canonical.toUpperCase();
-        let entry = byCanonical.get(key);
-        if (!entry) {
-          entry = { name: canonical, rawNames: [], entityType: row.ENTITY_TYPE || '—', companies: new Set() };
-          byCanonical.set(key, entry);
-        } else {
-          entry.name = betterCased(entry.name, canonical);
+        if (matchesFirmVehicle(purchaser) || matchesFirmTeam(purchaser)) continue;
+        // Trimmed like buildCompanyRounds' and buildCompanyStatus' keys: a
+        // portfolio name stored with stray whitespace otherwise misses both maps.
+        for (const c of coerceArray(row.COMPANIES)) {
+          const company = c.trim();
+          if (company) sight(company, 'spa', applyCanonical(purchaser), purchaser, row.ENTITY_TYPE, 0);
         }
-        if (!entry.rawNames.includes(purchaser)) entry.rawNames.push(purchaser);
-        for (const c of coerceArray(row.COMPANIES)) entry.companies.add(c);
       }
 
-      const all = [...byCanonical.values()].map(entry => {
-        const companies = [...entry.companies].sort();
+      const capByCompany = groupCapTable(capRows || []);
+      const capCompanies = [];
+      for (const [company, cap] of capByCompany) {
+        if (cap.holders.length) capCompanies.push(company);
+        for (const h of cap.holders) {
+          const identity = holderIdentity(h.stakeholder, h.group);
+          if (matchesFirmVehicle(h.stakeholder) || matchesFirmVehicle(identity) ||
+              matchesFirmTeam(h.stakeholder) || matchesFirmTeam(identity)) continue;
+          sight(company, 'cap', applyCanonical(identity), h.stakeholder, null, h.ownership || 0);
+        }
+      }
+
+      const parent = new Map(sightings.map(s => [s.key, s.key]));
+      const find = k => { while (parent.get(k) !== k) { parent.set(k, parent.get(parent.get(k))); k = parent.get(k); } return k; };
+      const union = (a, b) => { parent.set(find(a), find(b)); };
+      const byCompany = new Map();
+      for (const s of sightings) {
+        if (!byCompany.has(s.company)) byCompany.set(s.company, []);
+        byCompany.get(s.company).push(s);
+      }
+      for (const group of byCompany.values()) {
+        const spaByLoose = new Map();
+        // Every SPA key of a stem, not one: two SPA vehicles of a family that
+        // compact to different keys are both the cap table's holder.
+        for (const s of group) if (s.source === 'spa' && s.loose) (spaByLoose.get(s.loose) || spaByLoose.set(s.loose, []).get(s.loose)).push(s.key);
+        for (const s of group) if (s.source === 'cap') for (const key of spaByLoose.get(s.loose) || []) union(s.key, key);
+      }
+
+      const byRoot = new Map();
+      for (const s of sightings) {
+        const root = find(s.key);
+        let entry = byRoot.get(root);
+        if (!entry) {
+          entry = { name: s.name, rawNames: [], entityType: '—', evidence: {} };
+          byRoot.set(root, entry);
+        } else {
+          entry.name = betterCased(entry.name, s.name);
+        }
+        if (s.entityType && entry.entityType === '—') entry.entityType = s.entityType;
+        if (!entry.rawNames.includes(s.rawName)) entry.rawNames.push(s.rawName);
+        const ev = entry.evidence[s.company] || (entry.evidence[s.company] = { spa: false, cap: false });
+        ev[s.source] = true;
+      }
+
+      const companyHolders = {};
+      for (const company of capByCompany.keys()) companyHolders[company] = { holdersByRoot: new Map(), past: [] };
+      for (const s of sightings) {
+        if (s.source !== 'cap') continue;
+        const root = find(s.key);
+        const held = companyHolders[s.company].holdersByRoot.get(root) || { entry: byRoot.get(root), ownership: 0 };
+        held.ownership += s.ownership;
+        companyHolders[s.company].holdersByRoot.set(root, held);
+      }
+
+      const all = [...byRoot.values()].map(entry => {
+        const companies = Object.keys(entry.evidence).sort();
         return {
           name: entry.name,
           rawNames: [...entry.rawNames].sort(),
           companyCount: companies.length,
-          entityType: entry.entityType || '—',
+          entityType: entry.entityType,
+          individual: isIndividualInvestor(entry.entityType, entry.name),
           companies,
+          evidence: entry.evidence,
         };
       });
       // Sort by overlap, then name so ties order deterministically across loads.
       all.sort((a, b) => (b.companyCount - a.companyCount) || a.name.localeCompare(b.name));
 
-      // Every co-investor, single-company overlaps included. The report makes no
-      // judgment about which overlaps are worth listing.
-      return all;
+      for (const inv of all) {
+        for (const company of inv.companies) {
+          const ev = inv.evidence[company];
+          // Past only against a cap table that lists investor holders, the same
+          // condition as capCompanies: with none there is nobody to compare against.
+          const cap = capByCompany.get(company);
+          if (cap && cap.holders.length > 0 && ev.spa && !ev.cap) companyHolders[company].past.push(inv.name);
+        }
+      }
+      const holdersOut = {};
+      for (const [company, { holdersByRoot, past }] of Object.entries(companyHolders)) {
+        const holders = [...holdersByRoot.values()]
+          .map(h => ({ name: h.entry.name, ownership: h.ownership }))
+          .sort((a, b) => (b.ownership - a.ownership) || a.name.localeCompare(b.name));
+        holdersOut[company] = { holders, past: past.sort((a, b) => a.localeCompare(b)) };
+      }
+
+      // Every co-investor, single-company overlaps included; the page decides how
+      // many rows to show (see visibleCoInvestors).
+      return { coInvestors: all, companyHolders: holdersOut, capCompanies: capCompanies.sort() };
     }
 
     function normalizeClosingDate(val) {
@@ -1000,6 +1612,7 @@
         const roundsList = roundsData.map(r => ({
           shareClass: r.sc || '—',
           closingDate: normalizeClosingDate(r.cd),
+          currency: r.cur || null,
           investors: (r.inv || []).map(inv => ({
             name: inv.n || '',
             entityType: inv.t || '—',
@@ -1018,6 +1631,17 @@
       return out;
     }
 
+    // Portfolio companies the SPA match resolved to, whether or not the SPA
+    // named any purchaser.
+    function buildSpaMatchedCompanies(statusRows) {
+      const out = new Set();
+      for (const row of statusRows) {
+        const name = (row.ISSUER_NAME || '').trim();
+        if (name && toBool(row.HAS_SPA)) out.add(name);
+      }
+      return out;
+    }
+
     // A company is live if ANY of its positions is active — a realised tranche
     // does not retire the company.
     function buildCompanyStatus(statusRows) {
@@ -1030,17 +1654,15 @@
       return out;
     }
 
-    // The coverage CTE emits identical counts on every row (scalar subqueries).
-    // Scan for the first non-null rather than trusting row[0], so a page whose
-    // values came back null can't zero out the headline coverage number.
-    function coverageFromSummary(summaryRows) {
-      let spa = 0, total = 0;
+    // The coverage CTE emits the same portfolio size on every row (a scalar
+    // subquery). Scan for the first non-null rather than trusting row[0], so a
+    // page whose values came back null can't zero out the coverage denominator.
+    function portfolioSizeFromSummary(summaryRows) {
       for (const row of summaryRows) {
-        if (!spa) spa = toInt(row.SPA_COMPANIES) || 0;
-        if (!total) total = toInt(row.TOTAL_COMPANIES) || 0;
-        if (spa && total) break;
+        const total = toInt(row.TOTAL_COMPANIES) || 0;
+        if (total) return total;
       }
-      return { spa, total };
+      return 0;
     }
 
     // ── Bootstrap ─────────────────────────────────────────────────────────────
@@ -1061,8 +1683,7 @@
       try {
         const contextResult = await callMcpWithWelcomeRetry(SET_CONTEXT_TOOL, { firm_id: FIRM_UUID });
         if (contextResult && contextResult.isError) {
-          const msg = (contextResult.content && contextResult.content[0] && contextResult.content[0].text) || '<no message>';
-          throw new Error(msg);
+          throw new Error(errorText(contextResult) || '<no message>');
         }
       } catch (error) {
         showError(
@@ -1073,36 +1694,55 @@
         return;
       }
 
-      let summaryRows, roundsRows, statusRows;
+      let summaryRows, roundsRows, statusRows, vehicleRows, capRows, teamRows;
       try {
         setLoadingStatus('Loading co-investor data from Carta…');
-        // Fully independent — issue all three concurrently so the wait is
-        // max(S, R, T) rather than S + R + T.
-        [summaryRows, roundsRows, statusRows] = await Promise.all([
+        // Fully independent — issue all six concurrently so the wait is the
+        // slowest query rather than their sum.
+        [summaryRows, roundsRows, statusRows, vehicleRows, capRows, teamRows] = await Promise.all([
           fetchAllRows(buildSummarySql, 'Query S'),
           fetchAllRows(buildRoundsSql, 'Query R'),
-          // Status only narrows the Live/Exited tabs, so it must never fail the
-          // report. On error the tabs fall back to counts without status.
+          // Query T supplies Live/Exited status, HAS_SPA and every coverage figure,
+          // but not the co-investor table, so it must never fail the report. On
+          // error the table still renders; the Live/Exited tabs and the header's
+          // coverage sentence are left out and the tile reads "Coverage unavailable".
           fetchAllRows(buildStatusSql, 'Query T').catch(err => {
-            console.warn('status query failed; Live/Exited filter disabled', err);
+            console.warn('status query failed; Live/Exited filter and coverage disabled', err);
+            return [];
+          }),
+          // Without vehicles the firm name is still excluded, so a failure here
+          // degrades the report rather than blocking it.
+          fetchAllRows(buildVehiclesSql, 'Query V').catch(err => {
+            console.warn('vehicles query failed; excluding the firm name only', err);
+            return [];
+          }),
+          // Cap tables add holders to the SPA picture, so a failure here degrades
+          // the report to SPA-only rather than blocking it.
+          fetchAllRows(buildCapTableSql, 'Query C').catch(err => {
+            console.warn('cap table query failed; showing SPA data only', err);
+            return [];
+          }),
+          // Carry holders only take team members off the list, so a failure here leaves the list as is.
+          fetchAllRows(buildTeamSql, 'Query P').catch(err => {
+            console.warn('carry holders query failed; not excluding the firm team', err);
             return [];
           }),
         ]);
       } catch (error) {
         showError(
           "Couldn't load your co-investor data just now. Try reloading in a moment. " +
-          'If it keeps happening, contact your Carta representative.',
+          'If it keeps happening, ask Claude to re-publish this report as it is, or contact your Carta representative.',
           error.message
         );
         return;
       }
 
-      // Zero rows here is ambiguous — no SPAs on file, or a firm context that
-      // resolved to nothing. Say both rather than asserting the first.
-      if (summaryRows.length === 0) {
+      // Zero rows from both sources is ambiguous — nothing on file, or a firm
+      // context that resolved to nothing. Say both rather than asserting the first.
+      if (summaryRows.length === 0 && capRows.length === 0) {
         showError(
-          'No SPA documents were found for ' + FIRM_NAME + '. Either no stock purchase ' +
-          'agreements have been uploaded yet, or your account does not have access to ' +
+          'No SPA documents or detailed cap tables were found for ' + FIRM_NAME + '. Either none ' +
+          'have been uploaded or shared yet, or your account does not have access to ' +
           "this firm's documents."
         );
         return;
@@ -1110,10 +1750,17 @@
 
       setLoadingStatus('Building your report…');
 
-      const coInvestors = buildCoInvestors(summaryRows);
-      const { spa, total } = coverageFromSummary(summaryRows);
+      setFirmVehicles(vehicleRows);
+      setFirmTeam(teamRows);
+      const { coInvestors, companyHolders, capCompanies } = buildCoInvestors(summaryRows, capRows);
+      const summaryTotal = portfolioSizeFromSummary(summaryRows);
       const companyRounds = buildCompanyRounds(roundsRows);
       const companyStatus = statusRows.length ? buildCompanyStatus(statusRows) : null;
+      // With no SPAs the summary carries no denominator; the portfolio list does.
+      const total = summaryTotal || (companyStatus ? Object.keys(companyStatus).length : 0);
+      const spaCompanies = new Set(Object.keys(companyRounds));
+      coInvestors.forEach(inv => inv.companies.forEach(c => { if (inv.evidence[c].spa) spaCompanies.add(c); }));
+      buildSpaMatchedCompanies(statusRows).forEach(c => spaCompanies.add(c));
 
       const now = new Date();
       const generatedAt = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -1122,7 +1769,6 @@
         meta: {
           firmName: FIRM_NAME,
           firmCartaId: FIRM_CARTA_ID,
-          spaCoverage: spa,
           totalCompanies: total,
           // Only multi-name merges are worth explaining in the tooltip.
           groupings: coInvestors.filter(inv => inv.rawNames.length > 1)
@@ -1131,22 +1777,31 @@
         },
         coInvestors,
         companyRounds,
+        companyHolders,
+        capCompanies,
+        spaCompanies: [...spaCompanies].sort(),
       };
       if (companyStatus) DATA.companyStatus = companyStatus;
 
-      renderHeader();
-      renderFilterBar();
-      renderMetrics('all');
-      renderMainTable('all');
-      renderFooter('all');
+      refresh();
       showContent();
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────
 
-    function fmt(n) {
+    // Amounts carry their round's currency. With none on the SPA the number
+    // shows bare: a guessed symbol would misstate a non-USD round.
+    function fmt(n, currency) {
       if (!n || n === 0) return '—';
-      return '$' + Math.round(n).toLocaleString('en-US');
+      const rounded = Math.round(n);
+      if (!currency) return rounded.toLocaleString('en-US');
+      try {
+        return new Intl.NumberFormat('en-US', {
+          style: 'currency', currency, minimumFractionDigits: 0, maximumFractionDigits: 0,
+        }).format(rounded);
+      } catch (_) {
+        return rounded.toLocaleString('en-US') + ' ' + currency;
+      }
     }
 
     function pct(n) {
@@ -1162,6 +1817,12 @@
       return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/'/g, '&#39;').replace(/"/g, '&quot;');
     }
 
+    // The browser decodes an attribute's entities before running it as script,
+    // so a quote needs a JS escape underneath escAttr's HTML one.
+    function jsString(s) {
+      return s.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    }
+
     function entityTagClass(entityType) {
       const t = (entityType || '').toLowerCase();
       if (t.indexOf('accelerator') !== -1 || t.indexOf('corporate') !== -1) return 'tag tag-blue';
@@ -1169,9 +1830,31 @@
       return 'tag tag-neutral';
     }
 
+    // Documents write an entity's type in hundreds of ways ("LP", "L.P.", "Delaware limited partnership",
+    // "LIMITED_PARTNERSHIP"), so the column shows one of a few kinds. The order matters: a trust company
+    // is a company, a limited liability company is not a partnership, and a bare "Limited" is a company.
+    const INVESTOR_TYPE_RULES = [
+      ['Individual', INDIVIDUAL_TYPE_RE],
+      ['Company', /trust compan/],
+      ['Trust', /trust/],
+      ['LLC', /\bl\.?l\.?c\.?\b|limited liability company|limitada/],
+      ['Partnership', /\bl\.?l?\.?p\.?\b|\blllp\b|\bilp\b|\bk\/s\b|partnership|\bscsp?\b|\bslp\b|\bkg\b/],
+      ['Fund', /\b(fund|vc|vcc)\b|fundo/],
+      ['Foundation', /foundation/],
+      ['IRA', /\bira\b/],
+      ['Company', /\b(inc|corp|corporation|company|ltd|ltda|limited|gmbh|ag|ab|sa|sas|bv|pte|pty|plc|spa|co|ug|spc|group|holdings)\b|s\.a\.|b\.v\.|s\.p\.a|c\.v\.|s\.à r\.l|a\.ş|\bs\.?l\b/],
+    ];
+
+    function investorTypeLabel(entityType) {
+      const t = (entityType || '').toLowerCase().replace(/_/g, ' ');
+      const rule = INVESTOR_TYPE_RULES.find(([, re]) => re.test(t));
+      return rule ? rule[0] : 'Other';
+    }
+
+    // The original text stays on hover, so nothing the document said is lost.
     function entityTag(entityType) {
       if (!entityType || entityType === '—') return '<span class="tag tag-neutral">—</span>';
-      return '<span class="' + entityTagClass(entityType) + '">' + esc(entityType) + '</span>';
+      return '<span class="' + entityTagClass(entityType) + '" title="' + escAttr(entityType) + '">' + esc(investorTypeLabel(entityType)) + '</span>';
     }
 
     function hasDate(d) { return d && d !== '—'; }
@@ -1200,13 +1883,17 @@
     // Companies past this count collapse behind a "+N more" toggle.
     const CHIP_LIMIT = 8;
 
+    function hasDrawer(c) {
+      return Boolean((DATA.companyRounds && DATA.companyRounds[c]) || (DATA.companyHolders && DATA.companyHolders[c]));
+    }
+
     function companyChip(c) {
-      // A company with no round data has nothing to show in the drawer —
-      // render it inert rather than as a button that opens nothing.
-      if (DATA.companyRounds && DATA.companyRounds[c]) {
-        return '<button class="company-link" onclick="openDrawer(\'' + escAttr(c) + '\')">' + esc(c) + '</button>';
+      // A company with neither round data nor cap table holders has nothing to
+      // show in the drawer — render it inert rather than as a button that opens nothing.
+      if (hasDrawer(c)) {
+        return '<button class="company-link" onclick="openDrawer(\'' + escAttr(jsString(c)) + '\')">' + esc(c) + '</button>';
       }
-      return '<span class="company-link" style="cursor:default;opacity:0.5;pointer-events:none">' + esc(c) + '</span>';
+      return '<span class="company-link company-link--inert">' + esc(c) + '</span>';
     }
 
     function expandChips(id, btn) {
@@ -1216,28 +1903,69 @@
 
     // Every co-investor the tab has anything to say about. A row must keep at
     // least one company or it would render with an empty overlap cell.
+    function sourcePasses(evidence) {
+      if (currentSource === 'spa') return evidence.spa;
+      if (currentSource === 'cap') return evidence.cap;
+      return true;
+    }
+
     function getFilteredCoInvestors(filter) {
       return DATA.coInvestors
+        .filter(inv => !(hideIndividuals && inv.individual))
         .map(inv => {
-          const filtered = inv.companies.filter(c => passesFilter(c, filter));
+          const filtered = inv.companies.filter(c => passesFilter(c, filter) && sourcePasses(inv.evidence[c]));
           return { ...inv, companies: filtered, companyCount: filtered.length };
         })
         .filter(inv => inv.companyCount > 0)
         .sort((a, b) => (b.companyCount - a.companyCount) || a.name.localeCompare(b.name));
     }
 
-    // Count of portfolio companies with an SPA that match a filter.
+    // What the table shows for a filter. `total` is every co-investor the tab
+    // has; `shown` is the whole list unless it is long (LONG_LIST_ROWS or more) and
+    // there are investors at two or more companies to narrow it to. `trimmable`
+    // is true when the toggle has something to switch.
+    // Together these bound the tooltip's height; keep `.tooltip-wide .tt-body` max-height in the CSS above in step.
+    const TOOLTIP_MAX_MERGES = 5;
+    const TOOLTIP_MAX_MERGED_NAMES = 3;
+
+    function visibleCoInvestors(filter) {
+      const all = getFilteredCoInvestors(filter);
+      const multi = all.filter(inv => inv.companyCount >= 2);
+      const trimmable = all.length >= LONG_LIST_ROWS && multi.length > 0 && multi.length < all.length;
+      return { all, total: all.length, shown: trimmable && !showSingles ? multi : all, trimmable };
+    }
+
+    // Portfolio companies covered by each source for a filter, as three disjoint
+    // groups: SPA only, cap table only, both. They sum to `covered` because all
+    // three are read off the same two name sets.
     //
-    // `companyRounds` is keyed by SPA issuer, and an SPA whose issuer matched no
-    // portfolio investment still gets a key (Query R canonicalises it to the raw
-    // SPA name). Counting keys therefore overshoots the portfolio denominator —
-    // it can read past 100%. `meta.spaCoverage` is the SQL-side count of
-    // *portfolio companies* holding at least one matching SPA, so the All tab
-    // reads that instead, and matches the header. Live/Exited are already safe:
-    // an unmatched issuer has no `companyStatus` entry, so `passesFilter` drops it.
-    function spaCountForFilter(filter) {
-      if (filter === 'all') return DATA.meta.spaCoverage;
-      return Object.keys(DATA.companyRounds).filter(name => passesFilter(name, filter)).length;
+    // `spaCompanies` can hold an SPA issuer that matched no portfolio investment
+    // (Query R canonicalises it to the raw SPA name), so both sets are cut to the
+    // portfolio -- the keys of `companyStatus`, which comes from the SOI. Cap
+    // table companies carry the SOI's name, so the overlap with the SPA side is an
+    // exact name match. With no status map there is no portfolio, so the function
+    // returns null: coverage is unknown, not zero, and callers must say so.
+    function coverageForFilter(filter) {
+      if (!DATA.companyStatus) return null;
+      const inScope = n => companyStatus(n) !== null && passesFilter(n, filter);
+      const spaSet = new Set(DATA.spaCompanies.filter(inScope));
+      const capSet = new Set(DATA.capCompanies.filter(inScope));
+      let spaOnly = 0, capOnly = 0, both = 0;
+      spaSet.forEach(n => { if (capSet.has(n)) both++; else spaOnly++; });
+      capSet.forEach(n => { if (!spaSet.has(n)) capOnly++; });
+      return { spaOnly, capOnly, both, covered: spaOnly + capOnly + both, total: totalForFilter(filter) };
+    }
+
+    function coverageSentence(c) {
+      return c.spaOnly + ' companies from SPAs only, ' + c.capOnly + ' from cap tables only, ' + c.both +
+        ' from both, ' + c.covered + ' covered in total';
+    }
+
+    function companySourceLabel(name) {
+      const spa = DATA.spaCompanies.includes(name);
+      const cap = DATA.capCompanies.includes(name);
+      if (spa && cap) return 'From SPAs and cap table';
+      return cap ? 'From cap table' : 'From SPAs';
     }
 
     // Total portfolio companies that match a filter (from companyStatus map)
@@ -1251,34 +1979,46 @@
 
     function renderHeader() {
       const m = DATA.meta;
-      const spaPct = m.totalCompanies > 0 ? Math.round(m.spaCoverage / m.totalCompanies * 100) : 0;
+      const c = coverageForFilter('all');
+      const coveredPct = c && c.total > 0 ? Math.round(c.covered / c.total * 100) : 0;
       document.getElementById('page-header').innerHTML =
-        '<h1>' + esc(m.firmName) + ' — Co-Investor Analysis</h1>' +
-        '<p>' + m.spaCoverage + ' of your ' + m.totalCompanies + ' portfolio companies have an SPA on file (' + spaPct + '%)</p>';
+        '<h1>Co-Investor Analysis</h1>' +
+        '<p>' + esc(m.firmName) + ' · From stock purchase agreements and cap tables · Data as of ' + esc(m.generatedAt) + '</p>' +
+        (c ? '<p>' + c.covered + ' of your ' + c.total + ' portfolio companies have an SPA or detailed cap table on file (' + coveredPct + '%)</p>' : '');
     }
 
     function renderFilterBar() {
       const s = DATA.companyStatus;
       // Query T is optional. Without it every Live/Exited tab would read 0 and
-      // filter the table down to nothing, so render no bar at all.
-      if (!s || Object.keys(s).length === 0) {
-        document.getElementById('filter-bar').innerHTML = '';
-        return;
-      }
-      const allCount = Object.keys(s).length;
-      const liveCount = Object.values(s).filter(v => v === true).length;
-      const exitedCount = Object.values(s).filter(v => v === false).length;
+      // filter the table down to nothing, so render no tabs at all.
+      let html = '';
+      if (s && Object.keys(s).length > 0) {
+        const allCount = Object.keys(s).length;
+        const liveCount = Object.values(s).filter(v => v === true).length;
+        const exitedCount = Object.values(s).filter(v => v === false).length;
 
-      function tab(id, label, count) {
-        const active = currentFilter === id ? ' active' : '';
-        return '<button class="filter-tab' + active + '" onclick="setFilter(\'' + id + '\')">' +
-          label + '<span class="filter-count">' + count + '</span></button>';
+        const tab = (id, label, count) => {
+          const active = currentFilter === id ? ' active' : '';
+          return '<button class="filter-tab' + active + '" onclick="setFilter(\'' + id + '\')">' +
+            label + '<span class="filter-count">' + count + '</span></button>';
+        };
+        html += tab('all', 'All', allCount) + tab('live', 'Live', liveCount) + tab('exited', 'Exited', exitedCount);
       }
 
-      document.getElementById('filter-bar').innerHTML =
-        tab('all', 'All', allCount) +
-        tab('live', 'Live', liveCount) +
-        tab('exited', 'Exited', exitedCount);
+      // The source filter only means something when a cap table was readable.
+      const option = (id, label) => '<option value="' + id + '"' + (currentSource === id ? ' selected' : '') + '>' + label + '</option>';
+      const sourceSelect = DATA.capCompanies.length
+        ? '<select class="filter-select" aria-label="Source" onchange="setSource(this.value)">' +
+            option('all', 'All sources') + option('spa', 'SPAs') + option('cap', 'Cap tables') + '</select>'
+        : '';
+      const view = visibleCoInvestors(currentFilter);
+      const singlesToggle = view.trimmable
+        ? singlesToggleButton('filter-btn', 'Show all ' + formatCount(view.total) + ' co-investors')
+        : '';
+      html += '<div class="filter-controls">' + singlesToggle + sourceSelect +
+        '<label class="filter-check"><input type="checkbox" onchange="setHideIndividuals(this.checked)"' +
+        (hideIndividuals ? ' checked' : '') + '> Hide individuals</label></div>';
+      document.getElementById('filter-bar').innerHTML = html;
     }
 
     function renderMetrics(filter) {
@@ -1287,16 +2027,24 @@
       const uniqueCount = ci.length;
 
       // Coverage tile
-      const spaCount = spaCountForFilter(filter);
-      const total = totalForFilter(filter);
-      const spaPct = total > 0 ? Math.round(spaCount / total * 100) : 0;
-      const coverageLabel = filter === 'live' ? 'Live SPA Coverage' : filter === 'exited' ? 'Exited SPA Coverage' : 'Portfolio Coverage';
-      const coverageValue = spaCount + ' / ' + total + ' — ' + spaPct + '%';
-      const missing = Math.max(total - spaCount, 0);
-      const coverageTooltip =
-        'Co-investor analysis only covers portfolio companies with a Stock Purchase Agreement (SPA) uploaded to Carta. ' +
-        spaCount + ' of ' + total + (filter === 'all' ? ' portfolio' : filter === 'live' ? ' live' : ' exited') + ' companies have an SPA on file' +
-        (missing > 0 ? ' — the remaining ' + missing + ' are not yet visible in this report.' : '.');
+      const cov = coverageForFilter(filter);
+      const coverageLabel = filter === 'live' ? 'Live Coverage' : filter === 'exited' ? 'Exited Coverage' : 'Portfolio Coverage';
+      const coverageIntro = 'Co-investor analysis covers portfolio companies with a Stock Purchase Agreement (SPA) uploaded to Carta, or a detailed cap table shared with you.';
+      let coverageValue, coverageSub, coverageTooltip;
+      if (cov) {
+        const total = cov.total;
+        const coveredPct = total > 0 ? Math.round(cov.covered / total * 100) : 0;
+        const missing = Math.max(total - cov.covered, 0);
+        coverageValue = cov.covered + ' / ' + total + ' — ' + coveredPct + '%';
+        coverageSub = coverageSentence(cov);
+        coverageTooltip = coverageIntro + ' ' +
+          cov.covered + ' of ' + total + (filter === 'all' ? ' portfolio' : filter === 'live' ? ' live' : ' exited') + ' companies are covered' +
+          (missing > 0 ? ' — the remaining ' + missing + ' are not yet visible in this report.' : '.');
+      } else {
+        coverageValue = 'Coverage unavailable';
+        coverageSub = '';
+        coverageTooltip = coverageIntro + ' The portfolio list did not load, so coverage could not be computed.';
+      }
 
       // Top co-investor
       const top = ci[0];
@@ -1309,10 +2057,16 @@
       let groupingsHTML = '<div class="tt-intro">Some firms invest through multiple legal vehicles (separate fund entities). We grouped them under one canonical name so each firm counts once.</div>';
       if (groupings.length > 0) {
         const mergeWord = groupings.length === 1 ? 'merge' : 'merges';
-        groupingsHTML += '<div class="tt-section-label">' + groupings.length + ' ' + mergeWord + ' applied</div>';
-        groupings.forEach(function (g) {
-          const lines = (g.merged || []).map(function (n) { return '· ' + esc(n); }).join('<br>');
-          groupingsHTML += '<div class="tt-group"><div class="tt-group-canonical">' + esc(g.canonical) + '</div><div class="tt-group-merged">' + lines + '</div></div>';
+        const shownNote = groupings.length > TOOLTIP_MAX_MERGES ? ' · ' + TOOLTIP_MAX_MERGES + ' largest shown' : '';
+        groupingsHTML += '<div class="tt-section-label">' + groupings.length + ' ' + mergeWord + ' applied' + shownNote + '</div>';
+        // A firm with hundreds of vehicles would otherwise list every one: show
+        // the biggest merges and say so in the label.
+        const biggest = groupings.slice().sort(function (a, b) { return (b.merged || []).length - (a.merged || []).length; });
+        biggest.slice(0, TOOLTIP_MAX_MERGES).forEach(function (g) {
+          const names = g.merged || [];
+          const lines = names.slice(0, TOOLTIP_MAX_MERGED_NAMES).map(function (n) { return '· ' + esc(n); });
+          if (names.length > TOOLTIP_MAX_MERGED_NAMES) lines.push('<span class="tt-more">+' + (names.length - TOOLTIP_MAX_MERGED_NAMES) + ' more</span>');
+          groupingsHTML += '<div class="tt-group"><div class="tt-group-canonical">' + esc(g.canonical) + '</div><div class="tt-group-merged">' + lines.join('<br>') + '</div></div>';
         });
       } else {
         groupingsHTML += '<div class="tt-empty">No multi-vehicle merges in this report.</div>';
@@ -1322,7 +2076,7 @@
         '<div class="metric-card has-tooltip" tabindex="0" aria-describedby="unique-tooltip">' +
           '<div class="metric-label">Unique Co-Investors <span class="tooltip-icon" aria-hidden="true">i</span></div>' +
           '<div class="metric-value">' + uniqueCount + '</div>' +
-          '<div class="tooltip tooltip-wide" id="unique-tooltip" role="tooltip">' + groupingsHTML + '</div>' +
+          '<div class="tooltip tooltip-wide" id="unique-tooltip" role="tooltip"><div class="tt-body">' + groupingsHTML + '</div></div>' +
         '</div>' +
         '<div class="metric-card">' +
           '<div class="metric-label">Top Co-Investor</div>' +
@@ -1332,6 +2086,7 @@
         '<div class="metric-card has-tooltip" tabindex="0" aria-describedby="coverage-tooltip">' +
           '<div class="metric-label">' + esc(coverageLabel) + ' <span class="tooltip-icon" aria-hidden="true">i</span></div>' +
           '<div class="metric-value" style="font-size:20px;line-height:40px">' + esc(coverageValue) + '</div>' +
+          '<div class="metric-sub">' + esc(coverageSub) + '</div>' +
           '<div class="tooltip" id="coverage-tooltip" role="tooltip">' + esc(coverageTooltip) + '</div>' +
         '</div>';
     }
@@ -1339,19 +2094,21 @@
     // "No rows" and "no co-investors" are different claims. Say which one it is.
     function emptyStateMessage(filter) {
       const scope = filter === 'all' ? 'portfolio' : filter;
-      if (spaCountForFilter(filter) === 0) {
-        return 'None of your ' + scope + ' companies have an SPA on file, so there is' +
+      const cov = coverageForFilter(filter);
+      if (cov && cov.covered === 0) {
+        return 'None of your ' + scope + ' companies have an SPA or detailed cap table on file, so there is' +
           ' nothing to compare here.';
       }
-      return 'The SPAs for your ' + scope + ' companies name no purchaser other than' +
+      return 'The SPAs and cap tables for your ' + scope + ' companies name no investor other than' +
         ' your own vehicles.';
     }
 
     function renderMainTable(filter) {
-      const ci = getFilteredCoInvestors(filter);
+      const view = visibleCoInvestors(filter);
+      const ci = view.shown;
       if (ci.length === 0) {
         document.getElementById('main-table').innerHTML =
-          '<p style="padding:24px;color:var(--text-subtle);font-size:14px">' +
+          '<p style="padding:24px;color:var(--ink-color-global-text-subtle);font-size:14px">' +
           esc(emptyStateMessage(filter)) + '</p>';
         return;
       }
@@ -1373,57 +2130,113 @@
     function renderFooter(filter) {
       const m = DATA.meta;
       let html = '<a class="carta-link" href="' + BASE_URL + '/investors/firm/' + m.firmCartaId + '/portfolio/documents/" target="_blank">View SPA source documents in Carta ↗</a>';
-      // The table holds nothing back, so the note says what it covers rather
-      // than what it omits. The count is the tab's, never the portfolio total.
+      // The counts are the tab's, never the portfolio total.
       const scope = filter === 'all' ? 'portfolio' : filter;
-      const shown = getFilteredCoInvestors(filter).length;
-      const note = 'Showing all ' + shown + ' co-investors named on the SPAs for your ' +
-        scope + ' companies.';
-      html += '<div class="footer-note">' + esc(note) + '</div>';
+      const view = visibleCoInvestors(filter);
+      const note = view.shown.length < view.total
+        ? 'Showing ' + formatCount(view.shown.length) + ' of ' + formatCount(view.total) + ' co-investors at 2 or more of your ' +
+            scope + ' companies.'
+        : 'Showing all ' + formatCount(view.total) + ' co-investors named on the SPAs and cap tables for your ' +
+            scope + ' companies.';
+      // The filter bar's toggle is easy to miss, so the sentence that says the
+      // list is trimmed carries the way out of it.
+      const toggle = !view.trimmable ? ''
+        : ' ' + singlesToggleButton('carta-link', 'Show all ' + formatCount(view.total));
+      html += '<div class="footer-note">' + esc(note) + toggle + '</div>';
       document.getElementById('page-footer').innerHTML = html;
     }
 
     // ── Filter switching ──────────────────────────────────────────────────────
 
+    function refresh() {
+      renderHeader();
+      renderFilterBar();
+      renderMetrics(currentFilter);
+      renderMainTable(currentFilter);
+      renderFooter(currentFilter);
+    }
+
     function setFilter(filter) {
       currentFilter = filter;
-      renderFilterBar();
-      renderMetrics(filter);
-      renderMainTable(filter);
-      renderFooter(filter);
+      refresh();
+    }
+
+    function setSource(source) {
+      currentSource = source;
+      refresh();
+    }
+
+    function formatCount(n) {
+      return n.toLocaleString('en-US');
+    }
+
+    // One markup for the filter bar's toggle and the footer's: only the class and the
+    // "show everything" label differ.
+    function singlesToggleButton(cls, showAllLabel) {
+      return '<button class="' + cls + '" onclick="setShowSingles(' + !showSingles + ')">' +
+        (showSingles ? 'Show only investors at 2+ companies' : showAllLabel) + '</button>';
+    }
+
+    function setShowSingles(show) {
+      showSingles = show;
+      refresh();
+    }
+
+    function setHideIndividuals(hide) {
+      hideIndividuals = hide;
+      refresh();
     }
 
     // ── Drawer ────────────────────────────────────────────────────────────────
 
-    function openDrawer(name) {
-      const rounds = DATA.companyRounds && DATA.companyRounds[name];
-      if (!rounds) return;
+    function currentHoldersHtml(cap) {
+      let html = '<div class="drawer-round-label">Current holders</div>';
+      if (cap.holders.length === 0) {
+        html += '<p class="drawer-subtitle">No investor holders on the current cap table.</p>';
+      } else {
+        html += '<div class="table-container"><table><thead><tr><th>Investor</th><th style="text-align:right">Current fully diluted ownership</th></tr></thead><tbody>';
+        cap.holders.forEach(h => {
+          html += '<tr><td>' + esc(h.name) + '</td><td class="number">' + pct(h.ownership) + '</td></tr>';
+        });
+        html += '</tbody></table></div>';
+      }
+      if (cap.past.length) {
+        html += '<div class="drawer-round-label">Past investors</div>' +
+          '<p class="drawer-subtitle">' + cap.past.map(esc).join(' · ') + '</p>';
+      }
+      return html;
+    }
 
-      document.getElementById('drawer-title').textContent = name;
-      const first = rounds[0];
-      document.getElementById('drawer-subtitle').textContent = roundLabel(first.shareClass, first.closingDate);
-
+    function roundsHtml(rounds) {
       let html = '';
       rounds.forEach((round) => {
-        if (rounds.length > 1) {
-          html += '<div class="drawer-round-label">' + esc(roundLabel(round.shareClass, round.closingDate)) + '</div>';
-        }
+        html += '<div class="drawer-round-label">' + esc(roundLabel(round.shareClass, round.closingDate)) + '</div>';
         html += '<div class="table-container"><table><thead><tr><th>Investor</th><th>Type</th><th style="text-align:right">% of round</th><th style="text-align:right">Amount paid</th></tr></thead><tbody>';
         const sorted = [...round.investors].sort((a, b) => (b.pctOfRound || 0) - (a.pctOfRound || 0));
         sorted.forEach(inv => {
           const bold = inv.isFirm ? 'font-weight:600' : '';
           const badge = inv.isFirm ? ' <span class="you-badge">You</span>' : '';
-          html += '<tr><td style="' + bold + '">' + esc(inv.name) + badge + '</td><td>' + entityTag(inv.entityType) + '</td><td class="number">' + pct(inv.pctOfRound) + '</td><td class="number">' + fmt(inv.amountPaid) + '</td></tr>';
+          html += '<tr><td style="' + bold + '">' + esc(inv.name) + badge + '</td><td>' + entityTag(inv.entityType) + '</td><td class="number">' + pct(inv.pctOfRound) + '</td><td class="number">' + fmt(inv.amountPaid, round.currency) + '</td></tr>';
         });
         const seen = new Set();
         let total = 0;
         round.investors.forEach(inv => {
           if (!seen.has(inv.name) && inv.amountPaid) { total += inv.amountPaid; seen.add(inv.name); }
         });
-        html += '</tbody><tfoot><tr><td colspan="3">Total raised</td><td class="number">' + fmt(total) + '</td></tr></tfoot></table></div>';
+        html += '</tbody><tfoot><tr><td colspan="3">Total raised</td><td class="number">' + fmt(total, round.currency) + '</td></tr></tfoot></table></div>';
       });
+      return html;
+    }
 
-      document.getElementById('drawer-content').innerHTML = html;
+    function openDrawer(name) {
+      const rounds = DATA.companyRounds && DATA.companyRounds[name];
+      const cap = DATA.companyHolders && DATA.companyHolders[name];
+      if (!rounds && !cap) return;
+
+      document.getElementById('drawer-title').textContent = name;
+      document.getElementById('drawer-subtitle').textContent = companySourceLabel(name);
+      document.getElementById('drawer-content').innerHTML =
+        (cap ? currentHoldersHtml(cap) : '') + (rounds ? roundsHtml(rounds) : '');
       document.getElementById('drawer').classList.add('open');
       document.getElementById('backdrop').classList.add('open');
     }
@@ -1439,8 +2252,5 @@
 
     bootstrap();
   </script>
-  <div class="powered-by-carta" aria-label="Powered by Carta">
-    <svg width="572" height="101" viewBox="0 0 572 101" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M370.228 0V100.61H571.448V0H370.228ZM567.423 96.5856H374.252V4.0244H567.423V96.5856ZM396.623 52.2674C396.623 42.1817 405.138 36.2615 412.777 36.2615C418.246 36.2615 423.347 38.3119 426.076 43.0367L420.967 45.9988C420.087 44.6697 418.883 43.5796 417.472 42.8341C416.057 42.0885 414.48 41.6995 412.878 41.7116C408.386 41.7116 403.042 45.2167 403.042 52.162C403.042 59.1074 408.151 62.6732 413.304 62.6732C416.888 62.6732 419.864 60.6756 421.628 57.5919L426.85 60.0029C423.894 65.3193 418.611 68.1517 412.477 68.1517C404.761 68.1436 396.623 62.2154 396.623 52.2633V52.2674ZM445.493 68.1517C449.738 68.1517 453.748 66.2796 455.816 63.5607V67.3008H462.125V37.0436H455.816V40.7918C453.85 38.0485 449.746 36.2615 445.493 36.2615C436.2 36.2615 429.701 43.0245 429.701 52.2066C429.701 61.3887 436.261 68.1517 445.493 68.1517ZM446.101 41.9993C451.932 41.9993 455.934 46.3472 455.934 52.2066C455.934 58.066 451.928 62.4139 446.101 62.4139C440.275 62.4139 436.139 58.0052 436.139 52.0851C436.139 46.1649 440.271 41.9993 446.101 41.9993ZM496.029 43.0488H489.481V37.0071H496.09V29.1217H502.59V37.0071H509.195V43.0488H502.59V67.2886H496.029V43.0488ZM527.315 68.1517C531.568 68.1517 535.578 66.2796 537.646 63.5607V67.3008H543.963V37.0436H537.646V40.7918C535.679 38.0485 531.576 36.2615 527.315 36.2615C518.03 36.2615 511.53 43.0245 511.53 52.2066C511.53 61.3887 518.086 68.1517 527.315 68.1517ZM527.931 41.9993C533.753 41.9993 537.767 46.3472 537.767 52.2066C537.767 58.066 533.753 62.4139 527.931 62.4139C522.108 62.4139 517.969 58.0052 517.969 52.0851C517.969 46.1649 522.1 41.9993 527.931 41.9993ZM476.409 67.2602H469.849V37.0031H475.858V42.6355C477.346 39.2885 479.58 37.1084 483.213 36.9261C483.963 36.9139 484.709 36.9261 485.459 37.0071L485.359 43.061C480.14 43.061 476.413 45.8569 476.413 53.6532V67.2643L476.409 67.2602Z" fill="#1A1A1A"/><path d="M0 67.2018V65.4679L2.60086 65.0633C4.62375 64.7743 4.97053 64.3119 4.97053 61.9422V28.6512C4.97053 26.2816 4.62375 25.8192 2.60086 25.5302L0 25.1256V23.3917H19.8243C28.3205 23.3917 37.4524 25.4146 37.4524 35.1245C37.4524 42.9849 30.0544 47.3774 19.8821 47.3774H10.9814V62C10.9814 64.3119 11.3282 64.7743 13.3511 64.9477L17.6858 65.3523V67.2018H0ZM10.9814 27.0907V44.8922H20.5179C26.76 44.8922 30.6323 42.0601 30.6323 35.2979C30.6323 28.5356 26.76 25.7036 20.5179 25.7036H13.8713C11.4438 25.7036 10.9814 25.877 10.9814 27.0907Z" fill="#1A1A1A"/><path d="M54.8109 67.8953C46.3725 67.8953 39.6681 61.8844 39.6681 52.5791C39.6681 43.2738 46.3725 37.263 54.8109 37.263C63.2492 37.263 69.9536 43.2738 69.9536 52.5791C69.9536 61.8844 63.2492 67.8953 54.8109 67.8953ZM54.8109 65.6412C59.6658 65.6412 64.0006 61.7111 64.0006 52.5791C64.0006 43.4472 59.6658 39.5171 54.8109 39.5171C49.9559 39.5171 45.6212 43.4472 45.6212 52.5791C45.6212 61.7111 49.9559 65.6412 54.8109 65.6412Z" fill="#1A1A1A"/><path d="M87.6815 67.8375L76.6423 42.2335C76.1221 41.0776 75.8331 40.6152 73.8102 40.1528L72.0763 39.7482V38.1877H86.41V39.7482L84.5604 40.1528C82.5376 40.6152 81.9596 41.0776 82.4798 42.2335L90.2823 60.6129L96.4088 46.6261L92.8832 38.1877H104.385V39.7482L102.535 40.1528C100.512 40.6152 99.9922 41.0776 100.455 42.2335L107.853 60.6129L115.655 42.2335C116.175 41.0776 115.771 40.6152 113.748 40.1528L111.898 39.7482V38.1877H122.995V39.7482L121.261 40.1528C119.239 40.6152 118.95 41.0776 118.429 42.2335L107.332 67.8375H105.252L97.7381 49.8627L89.7622 67.8375H87.6815Z" fill="#1A1A1A"/><path d="M139.946 67.8953C130.988 67.8953 125.15 61.4221 125.15 52.7525C125.15 43.0427 132.433 37.263 139.599 37.263C146.824 37.263 152.43 41.7711 153.644 49.9205H130.641C130.641 50.0939 130.641 50.2673 130.641 50.4407C130.641 59.0524 135.091 64.2541 141.911 64.2541C146.073 64.2541 150.465 62.6936 152.257 56.4515H154.106C152.488 64.0229 147.518 67.8953 139.946 67.8953ZM139.484 39.4015C135.265 39.4015 131.739 42.2335 130.872 47.6086H147.575C147.113 41.7133 143.818 39.4015 139.484 39.4015Z" fill="#1A1A1A"/><path d="M159.249 67.2018V65.6412L161.099 65.2367C163.122 64.7743 163.469 64.4275 163.469 63.156V42.8693C163.469 41.5977 163.122 41.251 161.099 40.7886L159.249 40.384V38.8235L168.67 37.4942V44.7188C170 39.806 174.045 37.4364 177.282 37.4364C179.594 37.4364 181.443 38.5345 181.443 40.9042C181.443 42.8115 179.998 44.083 178.265 44.083C175.837 44.083 175.201 41.7133 172.889 41.7133C170.924 41.7133 168.67 44.5454 168.67 48.2444V63.156C168.67 64.4275 169.017 64.8321 171.04 65.1211L174.045 65.5257V67.2018H159.249Z" fill="#1A1A1A"/><path d="M199.407 67.8953C190.448 67.8953 184.611 61.4221 184.611 52.7525C184.611 43.0427 191.893 37.263 199.06 37.263C206.285 37.263 211.891 41.7711 213.105 49.9205H190.102C190.102 50.0939 190.102 50.2673 190.102 50.4407C190.102 59.0524 194.552 64.2541 201.372 64.2541C205.533 64.2541 209.926 62.6936 211.718 56.4515H213.567C211.949 64.0229 206.978 67.8953 199.407 67.8953ZM198.945 39.4015C194.725 39.4015 191.2 42.2335 190.333 47.6086H207.036C206.574 41.7133 203.279 39.4015 198.945 39.4015Z" fill="#1A1A1A"/><path d="M232.581 67.8953C225.241 67.8953 218.884 62.1156 218.884 52.9837C218.884 43.794 225.415 37.263 233.911 37.263C237.494 37.263 239.806 38.7657 241.193 40.095V26.6861C241.193 25.4146 240.846 24.8944 238.823 24.6055L235.818 24.2009V22.6404L246.395 21.311V62.2312C246.395 63.5028 246.742 63.8495 248.765 64.3119L250.614 64.7165V66.277L241.193 67.4329V63.7339C240.153 64.8899 237.205 67.8953 232.581 67.8953ZM235.298 64.6587C238.246 64.6587 240.095 63.6184 241.193 62.6936V41.3666C239.517 40.3262 237.841 39.7482 235.356 39.7482C229.229 39.7482 224.663 44.372 224.663 51.9434C224.663 59.8038 229.171 64.6587 235.298 64.6587Z" fill="#1A1A1A"/><path d="M286.714 67.8953C283.131 67.8953 280.53 66.3926 279.143 65.0633L274.635 67.8375H274.23V26.6861C274.23 25.4146 273.883 25.0678 271.86 24.6055L270.011 24.2009V22.6404L279.432 21.311V41.4244C280.472 40.2684 283.42 37.263 288.043 37.263C295.384 37.263 301.741 43.0427 301.741 52.1746C301.741 61.3643 295.21 67.8953 286.714 67.8953ZM285.327 40.4996C282.379 40.4996 280.53 41.5399 279.432 42.4647V63.7917C281.108 64.8321 282.784 65.4101 285.269 65.4101C291.396 65.4101 295.962 60.7863 295.962 53.2149C295.962 45.3545 291.453 40.4996 285.327 40.4996Z" fill="#1A1A1A"/><path d="M311.899 81.8244C310.107 81.8244 309.067 80.495 309.067 79.1657C309.067 77.6052 310.223 76.2759 312.65 75.2933C314.789 74.4264 315.771 74.0218 316.812 71.6521L319.124 66.5082L308.662 42.2335C308.142 41.0776 307.853 40.6152 305.83 40.1528L304.096 39.7482V38.1877H318.43V39.7482L316.581 40.1528C314.558 40.6152 313.98 41.0776 314.5 42.2335L322.071 60.0927L330.105 42.2335C330.625 41.0776 330.221 40.6152 328.198 40.1528L326.348 39.7482V38.1877H337.445V39.7482L335.711 40.1528C333.688 40.6152 333.4 41.0776 332.879 42.2335L317.39 76.3915C315.482 80.6106 313.575 81.8244 311.899 81.8244Z" fill="#1A1A1A"/></svg>
-  </div>
 </body>
 </html>

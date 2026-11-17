@@ -1,0 +1,271 @@
+{
+  "carta-cap-table": null,
+  "carta-captable-home-build": null,
+  "carta-company-users": {
+    "category": "setup",
+    "name": "Manage company users and access",
+    "order": 10,
+    "prompts": [
+      "Who has access to {{COMPANY}} in Carta?",
+      "Invite [name] ([email]) to {{COMPANY}} as a Company Editor",
+      "Remove [name]'s access to {{COMPANY}}"
+    ],
+    "whatsNewCopy": {
+      "headline": "Invite, change and remove company users in chat",
+      "body": "Lists who can use your Carta account and their access levels, then invites, changes or removes a person after you approve a preview."
+    }
+  },
+  "carta-compensation-app": {
+    "category": "compensation",
+    "name": "Total Compensation app",
+    "order": 40,
+    "tag": "App",
+    "prompts": [
+      "Launch the compensation console for {{COMPANY}}",
+      "Open the pay benchmarks for {{COMPANY}} so I can filter them by job area"
+    ]
+  },
+  "carta-compensation-benchmarks": {
+    "category": "compensation",
+    "name": "Market pay benchmarks",
+    "order": 10,
+    "prompts": [
+      "What are the market benchmarks for a [job title]?",
+      "Put the P25/P50/P75 salary and equity ranges for our sales roles in a CSV"
+    ],
+    "whatsNewCopy": {
+      "headline": "Get market salary and equity ranges for any role",
+      "body": "Pulls Carta Total Compensation benchmarks for the role into a chat table or CSV, with salary, equity and total cash at each percentile."
+    }
+  },
+  "carta-compensation-rolematcher": {
+    "category": "compensation",
+    "name": "Role classification",
+    "order": 30,
+    "prompts": [
+      "How would the title '[job title]' map to the compensation taxonomy?",
+      "What job area, focus, level, and track does this job description fall into?"
+    ],
+    "whatsNewCopy": {
+      "headline": "Map any job title to Carta's compensation levels",
+      "body": "Classifies one title or a whole list into job area, focus, level and track in chat, so every role is benchmarked against the right peers."
+    }
+  },
+  "carta-compensation-scorecard": {
+    "category": "compensation",
+    "name": "Comp scorecard",
+    "order": 20,
+    "prompts": [
+      "How is our pay positioned against market for our employees?",
+      "Which employees at {{COMPANY}} are below P50 for their role?"
+    ],
+    "whatsNewCopy": {
+      "headline": "See who's paid below, at or above market",
+      "body": "Compares each employee's pay to Carta Total Compensation benchmarks in chat, with a company rollup and per-person compa-ratios that match your Total Compensation product."
+    }
+  },
+  "carta-conversion-calculator": {
+    "category": "equity",
+    "name": "SAFE & note conversion",
+    "order": 30,
+    "prompts": [
+      "How would the outstanding SAFEs and notes for {{COMPANY}} convert at $2.50 per share?",
+      "If we raise a $10M round at a $60M pre-money valuation, how many shares do our SAFEs convert into?"
+    ],
+    "whatsNewCopy": {
+      "headline": "See how your SAFEs and notes convert next round",
+      "body": "Reads every SAFE and note on your Carta cap table and works out each one's conversion shares at your round price, caps and discounts included."
+    }
+  },
+  "carta-field-definitions": {
+    "category": "reporting",
+    "name": "Report column definitions",
+    "order": 50,
+    "prompts": [
+      "What does the Quantity Outstanding column on the securities ledger report mean?",
+      "On the vesting details report, what does Total vested during the period mean?"
+    ],
+    "whatsNewCopy": {
+      "headline": "Understand any column on your Carta cap table reports",
+      "body": "Explains a column on a Carta cap table report in chat, with its meaning, its data type and the report tabs that show it."
+    }
+  },
+  "carta-grant-vesting": {
+    "category": "equity",
+    "name": "Vesting progress",
+    "order": 10,
+    "prompts": [
+      "How much has [employee name]'s option grant vested so far?",
+      "When does [employee name]'s cliff hit, and how many shares are still unvested?",
+      "Show me the vesting schedule for [employee name]'s RSUs at {{COMPANY}}"
+    ],
+    "whatsNewCopy": {
+      "headline": "See exactly how much of a grant has vested",
+      "body": "Reads one person's option, RSU or other grant from Carta and shows vested and unvested shares, the cliff date and what vests next, in chat."
+    }
+  },
+  "carta-hmrc-limits": null,
+  "carta-issuance": {
+    "category": "issuance",
+    "name": "Issue equity",
+    "order": 10,
+    "prompts": [
+      "Issue a 10,000-share NSO grant to [employee name] at {{COMPANY}}",
+      "Draft the option grants in this spreadsheet for {{COMPANY}}",
+      "Resume issuing from my last draft set for {{COMPANY}}"
+    ],
+    "whatsNewCopy": {
+      "headline": "Issue grants and certificates from a spreadsheet or a sentence",
+      "body": "Turns a spreadsheet, award document or plain request into drafts on your Carta cap table, then issues them only after you review each one."
+    }
+  },
+  "carta-manage-securities": {
+    "category": "issuance",
+    "name": "Fix, cancel, transfer or buy back a security",
+    "order": 20,
+    "prompts": [
+      "Correct the exercise price on option grant [grant label] for {{COMPANY}}",
+      "Cancel [employee name]'s option grant on {{COMPANY}}",
+      "Transfer certificate [certificate label] to [stakeholder name] on {{COMPANY}}"
+    ],
+    "whatsNewCopy": {
+      "headline": "Transfer, buy back and exercise issued equity",
+      "body": "Transfers or buys back shares, records option exercises, and approves or rejects exercise requests. Shows a preview of every change before saving."
+    }
+  },
+  "carta-market-benchmarks": {
+    "category": "governance",
+    "name": "Market norms",
+    "order": 50,
+    "prompts": [
+      "What is a typical option pool size at our stage?",
+      "How do our SAFE valuation caps and discount rates compare to the market?"
+    ],
+    "whatsNewCopy": {
+      "headline": "Check new deal terms against your own portfolio",
+      "body": "Computes the median and range of option pool sizes, SAFE valuation caps and round sizes across your companies in Carta, answered in chat."
+    }
+  },
+  "carta-portfolio-alerts": {
+    "category": "governance",
+    "name": "Risk & expiration alerts",
+    "order": 10,
+    "prompts": [
+      "What's expiring soon across our 409A valuations, SAFEs, option pool, 83(b) deadlines and Rule 701 limit?",
+      "Which convertible notes mature in the next 90 days?",
+      "Is the option pool running low at {{COMPANY}}?"
+    ],
+    "whatsNewCopy": {
+      "headline": "Catch expiring 409As, SAFEs and deadlines before they lapse",
+      "body": "Scans your companies for expiring 409As, SAFEs near their cap, low option pools, unfiled 83(b) elections and the Rule 701 limit, ranked by severity."
+    }
+  },
+  "carta-register-of-allotments": {
+    "category": "reporting",
+    "name": "Register of allotments (UK)",
+    "order": 30,
+    "prompts": [
+      "Show me the register of allotments for {{COMPANY}}",
+      "Which allotments at {{COMPANY}} are still missing an SH01 filing?"
+    ],
+    "whatsNewCopy": {
+      "headline": "See your UK statutory register of allotments",
+      "body": "Lists every share allotment from your Carta cap table with holder, share class, quantity, price and date, and shows which SH01 returns are filed."
+    }
+  },
+  "carta-reporting": {
+    "category": "reporting",
+    "name": "Cap table lookup",
+    "order": 10,
+    "prompts": [
+      "Show me every option grant at {{COMPANY}} with its holder, quantity, and status",
+      "List every outstanding security for {{COMPANY}} with its share class and quantity",
+      "Show me the SAFEs and convertible notes outstanding for {{COMPANY}}"
+    ],
+    "whatsNewCopy": {
+      "headline": "Build any cap table report without exports or SQL",
+      "body": "Pulls grants, stakeholders, SAFEs or preferences from Carta into a filtered, sorted report you open as an interactive table, markdown or Excel."
+    }
+  },
+  "carta-reporting-excel": {
+    "category": "reporting",
+    "name": "Excel cap table export",
+    "order": 20,
+    "prompts": [
+      "Export the cap table report for {{COMPANY}} to Excel",
+      "Export the securities ledger for {{COMPANY}} to Excel, sorted by issue date"
+    ],
+    "whatsNewCopy": {
+      "headline": "Export a branded cap table report to Excel",
+      "body": "Turns the Carta report you set up into a formatted Excel file with your chosen columns, filters and sorts, ready to share."
+    }
+  },
+  "carta-reporting-markdown": null,
+  "carta-round-history": {
+    "category": "governance",
+    "name": "Financing round history",
+    "order": 30,
+    "prompts": [
+      "Show the financing round history for {{COMPANY}} and who invested in each round",
+      "What was the price per share and total raised in our last priced round?"
+    ],
+    "whatsNewCopy": {
+      "headline": "See every financing round and who invested",
+      "body": "Reads your Carta cap table into a round-by-round table of dates, share classes, price per share, cash raised and the investors in each round."
+    }
+  },
+  "carta-stakeholder-ledger-companion": {
+    "category": "reporting",
+    "name": "Stakeholder ledger",
+    "order": 40,
+    "prompts": [
+      "Show me the stakeholders at {{COMPANY}}",
+      "Show me [stakeholder name]'s holdings"
+    ],
+    "whatsNewCopy": {
+      "headline": "Browse your stakeholders on a live ledger beside chat",
+      "body": "Opens Carta's read-only stakeholder ledger next to the chat and follows along as you ask about anyone, from their details to every holding."
+    }
+  },
+  "carta-start": null,
+  "carta-valuation-history": {
+    "category": "governance",
+    "name": "Valuation & FMV history",
+    "order": 40,
+    "prompts": [
+      "What is the current 409A valuation for {{COMPANY}}?",
+      "How has our FMV changed over time, and when does the current 409A expire?"
+    ],
+    "whatsNewCopy": {
+      "headline": "Check your current FMV and every past valuation",
+      "body": "Reads your 409A, EMI, CSOP or share price valuations from Carta and shows current fair market value, past values and expiry dates in chat."
+    }
+  },
+  "carta-voting-rights-optimizer": {
+    "category": "governance",
+    "name": "Voting coalition finder",
+    "order": 20,
+    "prompts": [
+      "Which stockholders do we need to approve this charter amendment?",
+      "Can we reach 66% approval without [investor name]?",
+      "Here's our voting rights report — what's the smallest coalition that passes the protective provision?"
+    ],
+    "whatsNewCopy": {
+      "headline": "Find the fewest stockholders needed to pass a vote",
+      "body": "Reads your Carta voting rights report and charter thresholds, then works out the smallest coalition that approves an amendment, step by step in chat."
+    }
+  },
+  "carta-witness-signatures": {
+    "category": "equity",
+    "name": "Signature status",
+    "order": 20,
+    "prompts": [
+      "Which grants at {{COMPANY}} are still waiting on a witness signature?",
+      "Which awards are awaiting spousal consent, and which requests have expired?"
+    ],
+    "whatsNewCopy": {
+      "headline": "See which equity awards still need a signature",
+      "body": "Checks witness and spousal-consent requests on option grants, RSAs and PIUs in Carta and lists who still needs to sign, for one company or many."
+    }
+  }
+}

@@ -71,6 +71,6 @@ It's exciting to build a business in a field with an unprecedented speed of inno
 
 ---
 
-_Author: AWS Editorial Team_
+> _Author: AWS Editorial Team_
 
 _The AWS Startups Content Marketing Team collaborates with startups of all sizes and across all sectors to deliver exceptional content that educates, entertains, and inspires._

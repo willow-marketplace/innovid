@@ -1,6 +1,6 @@
 ---
 name: sparkscan-web
-description: SparkScan single-barcode scanning with the pre-built scanning UI (floating trigger button, `<spark-scan-view>`) in web/browser projects (`@scandit/web-datacapture-barcode`), including React/Vite/Next.js apps. Use for integration, scan settings, result handling, trigger-button customization, React-specific issues (StrictMode, React 18 vs 19 binding), camera/HTTPS/COOP-COEP troubleshooting, or SDK version migration — not for SparkScan on native or hybrid platforms.
+description: SparkScan single-barcode scanning with the pre-built scanning UI (floating trigger button, `<spark-scan-view>`) in web/browser projects (`@scandit/web-datacapture-barcode`), including React/Vite/Next.js apps. Use for integration, scan settings, result handling, trigger-button customization, React-specific issues (StrictMode, React 18 vs 19 binding), camera/HTTPS/COOP-COEP troubleshooting, SDK version migration, or replacing a third-party scanner (ZXing-js, html5-qrcode, BarcodeDetector) — not for SparkScan on native or hybrid platforms.
 ---
 
 # SparkScan Web Skill
@@ -11,6 +11,13 @@ Your training data may contain outdated or incorrect Scandit SDK APIs. The Spark
 
 **Always verify APIs against the references provided in this skill before writing or suggesting code.** Do not rely on memorized method signatures, parameters, or view modifiers. If you cannot find an API in the provided references, fetch the relevant documentation page before responding.
 
+Web-specific gotchas worth flagging:
+
+- Do not add a `visibilitychange` handler to pause scanning: `SparkScanView` already switches to its idle state when the page is hidden.
+- SparkScan on web has no hardware (physical button) trigger: do not set `isHardwareTriggerEnabled` or invent a SparkScan setting for it. Say so, and offer the on-screen alternative: hide the built-in trigger (`triggerButtonVisible = false`) and start scanning from the app's own control with `startScanning()` (references/integration.md, **Custom trigger button**).
+- When the SDK is loaded from a CDN, pin one exact version (for example `@8.6.1`) in every URL: the import map and `libraryLocation`. A floating `@8` lets the JavaScript and the engine resolve to different releases, which breaks start-up.
+- Cross-origin isolation needs `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: require-corp`, also when the SDK comes from the jsDelivr CDN. Do not recommend `credentialless` for the SDK. In the page code, start `BrowserHelper.checkMultithreadingSupport()` (from `@scandit/web-datacapture-core`) without awaiting it, before `await DataCaptureContext.forLicenseKey()`, so the two run in parallel and set-up never waits for the check. When it resolves `false`, show the multithreading dialog unless the user asked to run single-threaded: import `showMultithreadingWarning` from the `multithreading-warning` helper module in references/integration.md, which needs no page markup. In React, render the same dialog from component state instead of importing the helper. The dialog shows at most once per page load and honors the "don't show again this session" checkbox. COEP `credentialless` is not a request to run single-threaded: Safari does not support it, so the dialog still shows there.
+
 ## Intent Routing
 
 Based on the user's request, load the appropriate reference file before responding. More than one may apply (e.g. a React integration that also hits a camera issue) — read all that are relevant:
@@ -18,6 +25,7 @@ Based on the user's request, load the appropriate reference file before respondi
 - **Integrating SparkScan from scratch** (e.g. "add SparkScan to my app", "set up barcode scanning", "how do I use SparkScan", "how do I handle feedback in SparkScan", "I want to build a scanning app") → read [references/integration.md](references/integration.md) and follow the instructions there. If the user has no existing project, the guide will direct you to offer the pre-built sample first.
 - **The project uses React** (a `react` dependency in `package.json`, `.tsx`/`.jsx` files, hooks, JSX) → also read [references/react.md](references/react.md). The correct way to bind the `<spark-scan-view>` custom element differs by React major version, so **check the `react` version in `package.json` first** — the guide explains the React 18 vs 19 difference and the context/lifecycle pitfalls. Always consult it before writing React code; the generic `integration.md` example is vanilla TS.
 - **Migrating or upgrading an existing SparkScan integration** (e.g. "upgrade from v6 to v7", "migrate my SparkScan", "what changed between SDK versions") → read [references/migration.md](references/migration.md) and follow the instructions there.
+- **Replacing a third-party scanner with SparkScan** (e.g. "migrate from @zxing/browser BrowserMultiFormatReader to SparkScan", "replace html5-qrcode Html5Qrcode / Html5QrcodeScanner with Scandit", "swap our BarcodeDetector getUserMedia loop for SparkScan") → read [references/third-party-migration.md](references/third-party-migration.md) and follow the instructions there.
 - **Runtime, camera, or deployment trouble** (e.g. "camera won't open on my phone", "works for a second then dies", cross-origin/COOP/COEP/header issues, "blank preview over a LAN IP") → read [references/troubleshooting.md](references/troubleshooting.md). These are environment/hosting issues, not API mistakes, and are easy to misdiagnose as code bugs.
 
 ## API Usage Policy
@@ -31,6 +39,20 @@ Only use APIs that are explicitly documented in the Scandit references below. Do
 
 URL structures can vary (e.g. `api/ui/` subdirectory) and guessing will lead to 404s.
 
+## Licence key
+
+Scanning needs a Scandit licence key. For this skill the licence product is `sdk` and the licence platform is `webassembly`.
+
+Work through these in order — never block the user on MCP:
+
+1. **The Scandit MCP server is connected** — call `ensure_scanner_setup` with product `sdk` and platforms `webassembly`, `app_identifier` (the app's bundle or application id; for web, its production domain, never `localhost`) and `env_var` `SCANDIT_LICENSE_KEY`. Do not run the command it returns. Then call `get_license_key` with the key's id, from that result or from `list_license_keys`; if `list_license_keys` shows the key is not a trial, ask the user before fetching it. Show at most a masked preview in chat; never print a full key.
+2. **It is not connected** — tell the user once that they can connect the remote Scandit MCP server, `https://ssl.scandit.com/mcp`, in their MCP client, then continue from step 1. Do not edit MCP client configuration yourself.
+
+   Authentication is browser-based, so it is **not supported headless or in CI**. The server provisions **trial** keys only; it never creates, revokes, or modifies production licences.
+3. **The user declines, or has no MCP client** — they generate a key themselves at <https://ssl.scandit.com> (no account yet: <https://ssl.scandit.com/dashboard/sign-up?p=test>) and paste it in.
+
+**Then put the key into the code**: write it into the licence-key call in place of the placeholder — the key `get_license_key` returned, or the one the user pastes or gives you — still showing only a masked preview in chat. Do not search the project, its files or the environment for a key.
+
 ## References
 
 Direct users to the right resource based on their question:
@@ -39,5 +61,5 @@ Direct users to the right resource based on their question:
 |---|---|
 | Basic integration | [Get Started](https://docs.scandit.com/sdks/web/sparkscan/get-started/) · [Sample](https://github.com/Scandit/datacapture-web-samples/tree/master/01_Single_Scanning_Samples/01_Barcode_Scanning_with_Pre-built_UI/ListBuildingSample) |
 | React integration | [Get Started](https://docs.scandit.com/sdks/web/sparkscan/get-started/) · [Sample](https://github.com/Scandit/datacapture-web-samples/tree/master/05_Framework_Integration_Samples/SparkScanReactSample) |
-| Advanced topics (custom feedback, hardware triggers, scanning modes, UI customization) | [Advanced Configurations](https://docs.scandit.com/sdks/web/sparkscan/advanced/) |
+| Advanced topics (custom feedback, scanning modes, UI customization) | [Advanced Configurations](https://docs.scandit.com/sdks/web/sparkscan/advanced/) |
 | Full API reference | [SparkScan API](https://docs.scandit.com/data-capture-sdk/web/barcode-capture/api.html#:~:text=SymbologySettings-,SparkScan,-SparkScan) |

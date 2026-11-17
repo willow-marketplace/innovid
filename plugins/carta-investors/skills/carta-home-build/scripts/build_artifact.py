@@ -6,7 +6,8 @@
 Inlines the CSS + config + app JS into the template and substitutes the Carta MCP
 connector name, producing ONE self-contained HTML file the Artifact tool publishes
 by path. The model never has to read the large HTML: to change what the
-directory shows, edit resources/carta-home.config.js; to change logic, edit
+directory's categories, edit resources/carta-home.config.js; to change its skills, edit
+the plugin's .claude-plugin/skill-directory.json; to change logic, edit
 resources/carta-home.app.js; then re-run this.
 
 Source parts (all in the skill's resources/ dir):
@@ -24,49 +25,104 @@ whereas .claude-plugin/ is plugin-level metadata and is always published.
 
 The `{{CARTA_MCP_SERVER}}` placeholder (throughout the template + app) is replaced with
 the Carta connector's display name — what the artifact runtime's mcp capability
-addresses a connector by. `{{FIRM}}` is left intact — it is a RUNTIME
+addresses a connector by. The Skill Directory's skills come from the plugin's .claude-plugin/skill-directory.json
+(placeholder: {{SKILL_DIRECTORY_JSON}}), baked in as the first paint; the page asks
+carta-mcp for the published copy once it is idle. `{{FIRM}}` is left intact — it is a RUNTIME
 placeholder the artifact fills in from list_contexts.
 
-`{{PAGE_TITLE}}` is the one firm-specific thing baked in: it becomes the page's `<title>`,
-and so the published artifact's name, "Carta Home - <firm>". It has to come from the file —
-the Artifact tool reads `<title>` out of the HTML and only falls back to its own `title`
-parameter when the file carries none, so a template with a fixed title publishes every
-firm's page under that one name. The body stays firm-agnostic and still detects whichever
-firm is active when a viewer opens it.
+`{{PAGE_TITLE}}` becomes the page's `<title>`, and so the published artifact's name,
+"Carta Home". It has to come from the file — the Artifact tool reads `<title>` out of the
+HTML and only falls back to its own `title` parameter when the file carries none. The
+name carries no firm; the on-page header shows the firm, which the body detects when a
+viewer opens it.
+
+`{{DASHBOARD_URLS}}` (in carta-home.config.js) becomes a JSON object of the dashboard
+artifact URLs published earlier in the same build run, keyed by a DASHBOARDS entry. A key
+passed to --dashboard-building carries the string "building" instead, so home can publish
+before its dashboards exist and redeploy over itself once they do. A key absent from both
+leaves that card on its copyable prompt.
+
+`{{SOI_FUND_UUIDS}}` (in carta-home.config.js) becomes a JSON array of the fund uuids a
+saved SOI page knows about (--soi-page): the funds it lists plus the ones it left out on
+purpose (`excluded`, e.g. churned funds). `null` when no page was passed, its state is
+unreadable, or it has no `excluded` list (a page rendered before carta-soi wrote one). The SOI card flags a fund in neither.
+
+The finished page carries a baseline of itself (lib/live_artifact_render/customizations.py), so a later rebuild
+can tell exactly what the user changed on the published copy.
 
 Usage:
   uv run scripts/build_artifact.py --mcp-server <connector-display-name> \
-      --firm-name "<firm name>" --out <path>/carta-home-<slug>.html
+      --out <path>/carta-home-<slug>.html \
+      [--dashboard-url soi=https://… --dashboard-building perf] [--soi-page <soi.html>]
 """
 import argparse
 import hashlib
 import json
 import re
 import sys
-from html import escape
+from datetime import datetime, timezone
 from pathlib import Path
+
+_LIB = next(p for p in Path(__file__).resolve().parents if (p / "lib" / "live_artifact_render").is_dir()) / "lib"
+sys.path.insert(0, str(_LIB))
+
+from live_artifact_render.customizations import stamp_baseline  # noqa: E402
 
 SKILL_DIR = Path(__file__).resolve().parent.parent
 RES = SKILL_DIR / "resources"
-VENDOR_DIR = SKILL_DIR.parent.parent / "vendor"  # plugin root / vendor/
+# Two ship locations: inside a plugin, and standing alone as a single uploaded skill.
+# Probing both lets the same bundle build either way.
+def _first_existing(*candidates):
+    for path in candidates:
+        if path.exists():
+            return path
+    return candidates[0]
+
+
+VENDOR_DIR = _first_existing(
+    SKILL_DIR.parent.parent / "vendor",  # plugin root / vendor/
+    SKILL_DIR / "vendor",
+)
 
 SKILL_NAME = SKILL_DIR.name
-VERSIONS_FILE = SKILL_DIR.parent.parent / ".claude-plugin" / "skill-versions.json"
+VERSIONS_FILE = _first_existing(
+    SKILL_DIR.parent.parent / ".claude-plugin" / "skill-versions.json",
+    SKILL_DIR / ".claude-plugin" / "skill-versions.json",
+)
+# The Skill Directory's entries, keyed by skill. Baked in as the page's first paint and
+# fallback; the page asks carta-mcp for the published copy of the same file when idle.
+DIRECTORY_FILE = _first_existing(
+    SKILL_DIR.parent.parent / ".claude-plugin" / "skill-directory.json",
+    SKILL_DIR / ".claude-plugin" / "skill-directory.json",
+)
+SKILLS_ROOT = SKILL_DIR.parent
 # A built artifact can never update itself, so it carries its version with it and
 # compares against the published one at runtime. Strict major.minor.patch: the
 # comparison is semver, and the banner fires on major/minor only.
 SEMVER_RE = re.compile(r"^\d+\.\d+\.\d+$")
 
 # App-layer JS is assembled from multiple source files, concatenated in this
-# order into the single __CARTA_HOME_APP_JS__ slot below. Concatenation order
-# doesn't matter functionally today (function/let declarations, no cross-file
-# execution-order dependencies) — list shared/core logic first by convention.
-# Add new feature files here as carta-home.app.js gets split further.
+# order into the single __CARTA_HOME_APP_JS__ slot below. Parts run top to
+# bottom, so code that runs at load (the Init block in carta-home.app.js, and
+# every function it calls) may only touch `const`/`let` bindings declared in its
+# own part or an earlier one; later parts' bindings are still in the temporal
+# dead zone. A later part that needs work at load starts it itself (see
+# version-check.js). Add new feature files here as carta-home.app.js gets split further.
 APP_JS_PARTS = [
     "carta-home.app.js",
+    "app/connection-states.js",
+    "app/firm-switcher.js",
     "app/capital-activity.js",
     "app/version-check.js",
     "app/live-content.js",
+    "app/directory-search.js",
+    "app/directory-views.js",
+    "app/skill-directory.js",
+    "app/whats-new.js",
+    "app/segment-dashboards.js",
+    "app/nda-card.js",
+    "app/law-only-home.js",
+    "app/soi-new-fund.js",
 ]
 
 MARKERS = {
@@ -80,19 +136,9 @@ VENDOR_MARKERS = {
 }
 APP_JS_MARKER = r"/\*\s*__CARTA_HOME_APP_JS__\s*\*/"
 
-# The published artifact's name, and the key SKILL.md Step 2 matches on to find this
-# firm's existing page. One firm per page, so one title per firm.
-TITLE_PREFIX = "Carta Home - "
-
-
-def page_title(firm_name):
-    """The `<title>` text for this firm's page.
-
-    Escapes only the three characters that would end the tag or start an entity —
-    a firm named `Ash & Rowe <Capital>` otherwise produces malformed HTML. Quotes are
-    left alone: this is element text, not an attribute.
-    """
-    return escape(TITLE_PREFIX + firm_name, quote=False)
+# The published artifact's name, and the key SKILL.md Step 2 matches on to find the
+# existing page.
+PAGE_TITLE = "Carta Home"
 
 
 def compute_build_id(template, parts):
@@ -129,12 +175,118 @@ def read_version():
     return version
 
 
-def build(mcp_server, firm_name):
+def read_skill_directory():
+    """Return the baked Skill Directory: a list of {skill, category, name, order, prompts},
+    plus `tag`, `requires`, `whatsNew` and `whatsNewCopy` where an entry sets them.
+
+    Opt-outs (null) are dropped, and so is any skill this install does not carry: the
+    file is plugin-level and always published, but a skill without `publish: true` never
+    reaches a customer's install, and its prompts would route nowhere. Fails the build on
+    a missing or unreadable file, like the version registry.
+    """
+    if not DIRECTORY_FILE.exists():
+        sys.exit("ERROR: {} is missing".format(DIRECTORY_FILE))
+    try:
+        data = json.loads(DIRECTORY_FILE.read_text())
+    except ValueError as exc:
+        sys.exit("ERROR: {} is not valid JSON: {}".format(DIRECTORY_FILE.name, exc))
+    if not isinstance(data, dict):
+        sys.exit("ERROR: {} must be an object keyed by skill".format(DIRECTORY_FILE.name))
+    entries = []
+    for skill, entry in sorted(data.items()):
+        if entry is None or not (SKILLS_ROOT / skill / "SKILL.md").exists():
+            continue
+        baked = {
+            "skill": skill,
+            "category": entry["category"],
+            "name": entry["name"],
+            "order": entry.get("order", 0),
+            "prompts": entry["prompts"],
+        }
+        baked.update({k: entry[k] for k in ("tag", "requires", "whatsNew", "whatsNewCopy") if k in entry})
+        entries.append(baked)
+    return entries
+
+
+def script_json(value, **kw):
+    """json.dumps for inlining into the page's one <script>: `<` is escaped so no value
+    can close the script tag early."""
+    return json.dumps(value, **kw).replace("<", "\\u003c")
+
+
+def directory_json(entries):
+    return script_json(entries, ensure_ascii=False)
+
+
+BUILDING = "building"
+
+
+def parse_dashboard_urls(pairs, building=None):
+    """Turn repeated --dashboard-url key=url into the {{DASHBOARD_URLS}} JSON object.
+
+    A key marked --dashboard-building carries the BUILDING sentinel instead of a URL, so
+    the first publish can say a dashboard is on its way before one exists. A key that is
+    absent from both renders that tile's prompt instead.
+    """
+    urls = {}
+    for pair in pairs or []:
+        key, sep, url = pair.partition("=")
+        if not sep or not key.strip() or not url.strip():
+            sys.exit("ERROR: --dashboard-url expects key=url, got {!r}".format(pair))
+        if not url.startswith(("http://", "https://")):
+            sys.exit("ERROR: --dashboard-url {} must be an http(s) URL, got {!r}".format(key, url))
+        urls[key.strip()] = url.strip()
+    # The marker wins over a URL for the same key: a rebuild replaces the page that URL
+    # points at, so the card says so rather than linking to data on its way out.
+    for key in building or []:
+        key = key.strip()
+        if not key:
+            sys.exit("ERROR: --dashboard-building expects a key")
+        urls[key] = BUILDING
+    return urls
+
+
+SOI_STATE_RE = re.compile(
+    r'<script[^>]*\bid=["\']soi-funds-state["\'][^>]*>(.*?)</script>', re.DOTALL | re.IGNORECASE
+)
+
+
+def read_soi_fund_uuids(path):
+    """The fund uuids a saved SOI page knows about, from its `soi-funds-state` JSON, or None.
+
+    Known = `funds` it lists plus `excluded` (funds carta-soi left out on purpose, like
+    churned ones), so a fund counts as new only when it is in neither. A page with no
+    `excluded` list cannot say which funds it dropped on purpose, so it reads as None too.
+
+    None (no banner) rather than a failed build: the banner is a hint, and a page whose
+    state cannot be read should not block Home from publishing.
+    """
+    if not path:
+        return None
+    try:
+        match = SOI_STATE_RE.search(Path(path).read_text())
+        state = json.loads(match.group(1)) if match else None
+    except (OSError, ValueError) as e:
+        print(f"warning: --soi-page {path} could not be read ({e}); the SOI new-fund banner is off", file=sys.stderr)
+        return None
+    if not isinstance(state, dict):
+        return None
+    funds, excluded = state.get("funds"), state.get("excluded")
+    if not isinstance(funds, list) or not isinstance(excluded, list):
+        return None
+    uuids = [f["uuid"] for f in funds if isinstance(f, dict) and isinstance(f.get("uuid"), str)]
+    uuids += [u for u in excluded if isinstance(u, str)]
+    return sorted(set(uuids))
+
+
+def build(mcp_server, dashboard_urls=None, soi_fund_uuids=None):
     template = (RES / "carta-home.template.html").read_text()
     parts = {name: (RES / name).read_text() for name in MARKERS}
     parts.update({name: (VENDOR_DIR / name).read_text() for name in VENDOR_MARKERS})
     parts.update({name: (RES / name).read_text() for name in APP_JS_PARTS})
-    build_id = compute_build_id(template, parts)
+    skill_directory = directory_json(read_skill_directory())
+    # The directory is content like any source part, so it moves the build id too.
+    build_id = compute_build_id(template, {**parts, DIRECTORY_FILE.name: skill_directory})
 
     out = template
     for filename, marker in {**MARKERS, **VENDOR_MARKERS}.items():
@@ -158,16 +310,35 @@ def build(mcp_server, firm_name):
     if "{{CARTA_MCP_SERVER}}" in out:
         sys.exit("ERROR: {{CARTA_MCP_SERVER}} still present after substitution")
 
-    out = out.replace("{{PAGE_TITLE}}", page_title(firm_name))
+    out = out.replace("{{PAGE_TITLE}}", PAGE_TITLE)
     if "{{PAGE_TITLE}}" in out:
         sys.exit("ERROR: {{PAGE_TITLE}} still present after substitution")
+    out = out.replace("{{DASHBOARD_URLS}}", json.dumps(dashboard_urls or {}, sort_keys=True))
+    if "{{DASHBOARD_URLS}}" in out:
+        sys.exit("ERROR: {{DASHBOARD_URLS}} still present after substitution")
+    out = out.replace("{{SOI_FUND_UUIDS}}", script_json(soi_fund_uuids))
+    if "{{SOI_FUND_UUIDS}}" in out:
+        sys.exit("ERROR: {{SOI_FUND_UUIDS}} still present after substitution")
+
+    out = out.replace("{{SKILL_DIRECTORY_JSON}}", skill_directory)
+    if "{{SKILL_DIRECTORY_JSON}}" in out:
+        sys.exit("ERROR: {{SKILL_DIRECTORY_JSON}} still present after substitution")
 
     out = out.replace("{{BUILD_ID}}", build_id)
+
+    # The update banner stays quiet for a week after this time (see version-check.js).
+    out = out.replace("{{BUILT_AT}}", datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"))
+    if "{{BUILT_AT}}" in out:
+        sys.exit("ERROR: {{BUILT_AT}} still present after substitution")
 
     version = read_version()
     out = out.replace("{{ARTIFACT_VERSION}}", version)
     if "{{ARTIFACT_VERSION}}" in out:
         sys.exit("ERROR: {{ARTIFACT_VERSION}} still present after substitution")
+
+    # Last, so the baseline records the page exactly as published. A later rebuild compares
+    # the live page against it to find what the user changed (SKILL.md Step 2c).
+    out = stamp_baseline(out, version)
 
     return out, build_id, version
 
@@ -176,24 +347,29 @@ def main():
     ap = argparse.ArgumentParser(description="Assemble the carta-home artifact.")
     ap.add_argument("--mcp-server", required=True,
                     help="Carta connector display name (the {{CARTA_MCP_SERVER}} value)")
-    ap.add_argument("--firm-name", required=True,
-                    help="active firm's name — becomes 'Carta Home - <name>' in the "
-                         "page's <title>, and so the published artifact's name")
     ap.add_argument("--out", required=True, help="output HTML path")
+    ap.add_argument("--dashboard-url", action="append", metavar="KEY=URL", default=[],
+                    help="published dashboard artifact URL, keyed by a DASHBOARDS entry "
+                         "in carta-home.config.js (repeatable). Omit one to leave that "
+                         "tile on its copyable prompt.")
+    ap.add_argument("--dashboard-building", action="append", metavar="KEY", default=[],
+                    help="mark a DASHBOARDS key as still being built (repeatable). The "
+                         "tile says so and keeps its prompt until a redeploy passes the "
+                         "real --dashboard-url for that key.")
+    ap.add_argument("--soi-page", metavar="PATH",
+                    help="saved SOI page (carta-soi output) that stays published; its fund "
+                         "list lets the SOI card flag funds the page does not list yet")
     args = ap.parse_args()
 
-    firm_name = args.firm_name.strip()
-    if not firm_name:
-        sys.exit("ERROR: --firm-name is empty")
-
-    html, build_id, version = build(args.mcp_server, firm_name)
+    html, build_id, version = build(args.mcp_server, parse_dashboard_urls(args.dashboard_url, args.dashboard_building),
+                                   read_soi_fund_uuids(args.soi_page))
     out_path = Path(args.out)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(html)
     print(
-        'wrote {} ({} bytes) — v{} build {} — publishes as "{}{}"'.format(
+        'wrote {} ({} bytes) — v{} build {} — publishes as "{}"'.format(
             out_path, len(html.encode("utf-8")), version, build_id,
-            TITLE_PREFIX, firm_name,
+            PAGE_TITLE,
         )
     )
 

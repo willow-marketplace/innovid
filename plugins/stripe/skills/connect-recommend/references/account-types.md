@@ -8,7 +8,7 @@
 
 Accounts v2 replaces the three fixed account types with three independent configuration dimensions. Each dimension is set separately, so platforms can mix and match to fit their exact business model.
 
-#### 1. Dashboard access (`dashboard`)
+#### 1. Dashboard access (dashboard)
 
 Controls what connected accounts see when they log in.
 
@@ -16,9 +16,9 @@ Controls what connected accounts see when they log in.
 | --- | --- | --- |
 | `express` | Lightweight dashboard showing earnings, payouts, and basic tax information. Stripe-branded with platform name. | Marketplace sellers, gig workers, or any connected account that needs visibility but not full Stripe control. |
 | `full` | Full, independent Stripe Dashboard. Connected accounts can manage their own settings, view all transactions, and install apps. | SaaS platforms where connected accounts are established businesses that want to operate independently. |
-| `none` | No Stripe dashboard. The platform owns the connected-account UI — use **[Embedded Components](https://docs.stripe.com/connect/supported-embedded-components.md)** (`@stripe/connect-js`) for pre-built widgets (account management, payouts, tax forms, and more) or build fully custom. | White-label platforms where connected accounts must never see Stripe branding. Use embedded components for pre-built functionality with white-label feel. **Fully custom (no embedded components)** adds significant complexity — the platform must build and maintain all connected account UX including onboarding remediation, refund and dispute flows, and ongoing requirement collection. |
+| `none` | No Stripe dashboard. The platform owns the connected-account UI — use **[Embedded Components](https://docs.stripe.com/connect/supported-embedded-components.md)** (`@stripe/connect-js`) for prebuilt widgets (account management, payouts, tax forms, and more) or build fully custom. | White-label platforms where connected accounts must never see Stripe branding. Use embedded components for prebuilt functionality with white-label feel. **Fully custom (no embedded components)** adds significant complexity — the platform must build and maintain all connected account UX including onboarding remediation, refund and dispute flows, and ongoing requirement collection. |
 
-#### 2. Fee collection (`defaults.responsibilities.fees_collector`)
+#### 2. Fee collection (defaults.responsibilities.fees_collector)
 
 Determines who is responsible for collecting Stripe processing fees from connected accounts.
 
@@ -30,9 +30,9 @@ Determines who is responsible for collecting Stripe processing fees from connect
 > **Fee collection behavior depends on charge type.** The `fees_collector` setting interacts with the charge pattern:
 > 
 > - **Direct charges:** `fees_collector` determines who pays Stripe processing fees. With `fees_collector: "stripe"`, the connected account pays fees directly. The `fee_payer` parameter can further control this — see [direct charges fee payer behavior](https://docs.stripe.com/connect/direct-charges-fee-payer-behavior.md).
-- **Destination charges and separate charges and transfers:** The platform always pays Stripe processing fees regardless of the `fees_collector` setting, because the charge lives on the platform account. The `fees_collector` setting in these cases governs the platform-level billing relationship with Stripe (single invoice vs per-account), not per-transaction fee deduction.
+> - **Destination charges and separate charges and transfers:** The platform always pays Stripe processing fees regardless of the `fees_collector` setting, because the charge lives on the platform account. The `fees_collector` setting in these cases governs the platform-level billing relationship with Stripe (single invoice vs per-account), not per-transaction fee deduction.
 
-#### 3. Loss liability (`defaults.responsibilities.losses_collector`)
+#### 3. Loss liability (defaults.responsibilities.losses_collector)
 
 Determines who bears financial responsibility for negative balances, disputes, and refunds on connected account activity.
 
@@ -46,13 +46,15 @@ Determines who bears financial responsibility for negative balances, disputes, a
 | Business Shape | Dashboard | Fees Collector | Losses Collector | Notes |
 | --- | --- | --- | --- | --- |
 | **Marketplace** | `express` | `application` | `application` | Platform owns fees and losses. Sellers get a lightweight dashboard. Required for Express dashboard + destination charges. Common for two-sided marketplace models. |
-| **SaaS enabling payments** | `full` | `stripe` | `stripe` | Connected accounts are independent businesses with their own full Stripe Dashboard. Platform collects revenue through application fees. **Use direct charges only** — other charge types with `losses_collector: 'stripe'` cause the platform to silently carry negative balance liabilities. |
+| **Self-serve SaaS, Stripe-managed pricing** | `express` | `stripe` | `stripe` | **Public preview.** Low-operations default for self-serve SaaS platforms using direct charges: Stripe-managed pricing and Stripe-managed negative balance liability, with a lightweight Express dashboard for connected accounts. |
+| **Self-serve SaaS, platform-managed pricing** | `express` | `application` | `stripe` | **Public preview.** For self-serve SaaS platforms using direct charges that want to control their own pricing (using the Platform Pricing Tool) while keeping Stripe-managed negative balance liability. |
+| **SaaS enabling payments (established merchants)** | `full` | `stripe` | `stripe` | Connected accounts are independent businesses that need full, independent Stripe operations, with their own full Stripe Dashboard. Platform collects revenue through application fees. **Use direct charges only** — other charge types with `losses_collector: 'stripe'` cause the platform to silently carry negative balance liabilities. |
 | **White-label / enterprise** | `none` | `application` | `application` | Platform owns the entire connected-account UI. No Stripe branding. Platform manages all billing and risk. Full control with higher operational responsibility. Compatible with all charge types. |
 | **Managed marketplace** | `express` | `application` | `application` | Platform wants seller-facing dashboard and also owns risk. Express dashboard requires platform to own both fees and losses. Compatible with all charge types — destination and separate charges require webhook-driven recovery flows for refunds and disputes (CAUTION: connected accounts have limited dispute and refund visibility from their dashboard). |
 
 #### Configuration Compatibility Warnings
 
-> **CRITICAL: `losses_collector: 'stripe'` restricts you to direct charges only — but only when `dashboard: "full"`.**
+> **CRITICAL: `losses_collector: 'stripe'` restricts you to direct charges only — but only when `dashboard: "full"` or `dashboard: "express"` (public preview).**
 > 
 > For `dashboard: "none"`, the only allowed path is `fees_collector: 'application'` + `losses_collector: 'application'`. All other responsibility combinations with `none` are BLOCKED, including direct charges with Stripe-owned responsibilities.
 > 
@@ -60,10 +62,11 @@ Determines who bears financial responsibility for negative balances, disputes, a
 
 Key rules:
 
-- **Express dashboard** requires `fees_collector: 'application'` AND `losses_collector: 'application'`
+- **Express dashboard with non-direct charges** requires `fees_collector: 'application'` AND `losses_collector: 'application'`. For **direct** charges, Express dashboard also supports Stripe-managed negative balance liability (`losses_collector: "stripe"`) as a public-preview capability, with either `fees_collector: "stripe"` (Stripe-managed pricing) or `fees_collector: "application"` (platform-managed pricing).
 - **`losses_collector: 'stripe'` + destination charges or separate charges and transfers** = BLOCKED. Platform silently inherits negative balance liability, fees are misattributed, and connected accounts can’t manage refunds or disputes from their dashboard.
 - **`losses_collector: 'application'`** is compatible with all charge types when `fees_collector` is also `'application'`, with one exception: `full` dashboard + `application/application` is SALES-GATED (redirect to [Stripe sales](https://stripe.com/contact/sales)). With `fees_collector: 'stripe'` (full or none dashboard), all charge types are BLOCKED.
 - **`dashboard: "full"` + `fees_collector: "application"`** = SALES-GATED. Do NOT recommend for self-serve paths. Redirect to [Stripe sales](https://stripe.com/contact/sales).
+- **`dashboard: "express"` + `losses_collector: "stripe"` + direct charges** (Stripe-managed pricing or platform-managed pricing) = ALLOWED as a public-preview path for self-serve SaaS platforms. Always disclose the public-preview status. Non-direct charge patterns with this combination remain BLOCKED.
 
 ### v2 API Example
 
@@ -94,7 +97,45 @@ const account = await stripe.v2.core.accounts.create({
 });
 ```
 
-**SaaS connected account (direct charges):**
+**Self-serve SaaS connected account (direct charges, Stripe-managed pricing — public preview):**
+
+> **Requires the `2026-06-24.preview` API version (or a later preview version that supports it).** `dashboard: 'express'` combined with `losses_collector: 'stripe'` (Stripe-managed pricing or platform-managed pricing) is only available on a Connect preview API version, not on a pinned GA API version. Pass the version explicitly (for example, using the `apiVersion` request option) rather than relying on the platform’s account-level pinned version — otherwise account creation is rejected. Never output a placeholder in place of the version; if you need a newer version, verify it in the [preview changelog](https://docs.stripe.com/changelog.md?preview=true) before writing code.
+
+```javascript
+const account = await stripe.v2.core.accounts.create(
+  {
+    contact_email: 'merchant@example.com',
+    display_name: 'Merchant Name',
+    dashboard: 'express',
+    identity: { country: 'us', entity_type: 'individual' },
+    configuration: {
+      merchant: {
+        capabilities: {
+          card_payments: { requested: true },
+        },
+      },
+    },
+    defaults: {
+      currency: 'usd',
+      responsibilities: {
+        fees_collector: 'stripe',
+        losses_collector: 'stripe',
+      },
+    },
+  },
+  {
+    // Required: dashboard: 'express' + losses_collector: 'stripe' (Stripe-managed
+    // pricing or platform-managed pricing) is only available on a Connect preview
+    // API version that supports it (introduced in 2026-06-24.preview). This call
+    // fails on a pinned GA API version.
+    apiVersion: '2026-06-24.preview',
+  },
+);
+```
+
+This Stripe-managed-pricing configuration (Express dashboard + Stripe-managed pricing + Stripe-managed negative balance liability, with direct charges) is the low-operations default for self-serve SaaS platforms and is currently in public preview, requiring the `2026-06-24.preview` API version shown above. For a self-serve SaaS platform that wants pricing control instead, use the platform-managed-pricing variant: same `dashboard: 'express'`, `losses_collector: 'stripe'`, and preview API version requirement, but set `fees_collector: 'application'` and configure pricing with the [Platform Pricing Tool](https://dashboard.stripe.com/settings/connect/platform_pricing).
+
+**SaaS connected account for established merchants needing independent Stripe operations (direct charges, full dashboard):**
 
 ```javascript
 const account = await stripe.v2.core.accounts.create({
@@ -156,7 +197,7 @@ configuration: {
 
 **Choose `dashboard: 'express'` when…**
 
-- You are building a marketplace or on-demand platform
+- You’re building a marketplace or on-demand platform
 - Connected accounts need to see their earnings and payout history
 - You want Stripe to host the seller dashboard so you can focus on your product
 - You want fast onboarding with Stripe-hosted flows
@@ -164,7 +205,7 @@ configuration: {
 **Choose `dashboard: 'full'` when…**
 
 - Connected accounts are established businesses that expect a full payments dashboard
-- You are a SaaS platform where merchants operate independently
+- You’re a SaaS platform where merchants operate independently
 - Connected accounts may want to install Stripe apps or manage their own settings
 - Sellers already have or expect to have their own Stripe relationship
 
@@ -178,7 +219,7 @@ configuration: {
 **Choose `losses_collector: 'stripe'` when…**
 
 - You want Stripe to bear financial responsibility for unresolved negative balances on connected accounts
-- You are starting out and want to minimize financial risk
+- You’re starting out and want to minimize financial risk
 - You don’t have a dedicated risk or fraud operations team
 - You plan to use direct charges
 
@@ -193,7 +234,7 @@ configuration: {
 **Choose `fees_collector: 'stripe'` when…**
 
 - You want the simplest operational model
-- You are fine with Stripe billing connected accounts directly
+- You’re fine with Stripe billing connected accounts directly
 - You don’t want to manage fee invoicing or reconciliation
 
 **Choose `fees_collector: 'application'` when…**
@@ -204,7 +245,7 @@ configuration: {
 
 ### Legacy Migration Note
 
-The terms **Standard**, **Express**, and **Custom** refer to the v1 Accounts API and its `type` parameter. They are no longer the recommended way to create connected accounts. Here is how they roughly map to v2 dimensions:
+The terms **Standard**, **Express**, and **Custom** refer to the v1 Accounts API and its `type` parameter. They’re no longer the recommended way to create connected accounts. Here is how they roughly map to v2 dimensions:
 
 | Legacy v1 Type | Approximate v2 Equivalent |
 | --- | --- |
@@ -212,7 +253,7 @@ The terms **Standard**, **Express**, and **Custom** refer to the v1 Accounts API
 | Express | `dashboard: 'express'`, `fees_collector: 'application'`, `losses_collector: 'application'` |
 | Custom | `dashboard: 'none'`, `fees_collector: 'application'`, `losses_collector: 'application'` |
 
-The mapping is approximate — v2 allows combinations that were impossible in v1, and legacy types have behavioral nuances that don’t carry over to their v2 “equivalents.” For example, the fee payer behavior in the approximate v2 config equivalent is different from what the legacy type provided.
+The mapping is approximate because legacy types have behavioral nuances that don’t carry over to their explicit-field “equivalents.” For example, the fee payer behavior in the approximate configuration equivalent differs from what the legacy type provided. The legacy Express approximation remains `dashboard: 'express'` + `fees_collector: 'application'` + `losses_collector: 'application'`. The Accounts v1 and v2 APIs both expose explicit fields for additional combinations, including an Express dashboard with Stripe responsible for connected-account negative balances on direct charges (Stripe-managed pricing or platform-managed pricing, public preview), but those combinations don’t correspond to a legacy `type` value.
 
 Stripe docs also expose legacy fee-payer variants for direct charges:
 

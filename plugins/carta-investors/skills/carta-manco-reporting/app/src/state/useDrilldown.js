@@ -12,6 +12,7 @@ export default function useDrilldown() {
   // `context` may narrow the account: `months` to the column that was
   // clicked, `childScope` to one value of a breakout beneath the row.
   // Neither is required — the dashboard opens a whole account with neither.
+  // `from` names the page that opened it, for DrilldownDrawer's open event.
   const openAccount = useCallback((name, context) => {
     setSelection({ kind: "account", name, ...(context || {}) });
   }, []);
@@ -21,9 +22,10 @@ export default function useDrilldown() {
   }, []);
 
   // For the breakdown pane driven by DateRangeControls. `start`/`end` are
-  // ISO YYYY-MM-DD strings (inclusive on both ends).
-  const openDateRangeCategory = useCallback((start, end, category, color) => {
-    setSelection({ kind: "date-range-category", start, end, category, color });
+  // ISO YYYY-MM-DD strings (inclusive on both ends). `from` names the control
+  // that opened it, for DrilldownDrawer's open event only.
+  const openDateRangeCategory = useCallback((start, end, category, color, from) => {
+    setSelection({ kind: "date-range-category", start, end, category, color, from });
   }, []);
 
   const openMonthSide = useCallback((month, side) => {
@@ -46,9 +48,11 @@ export default function useDrilldown() {
   // budget-vs-actuals comparison, so the drawer has to be able to restate
   // that comparison rather than only the actual side of it, and it restates
   // the table's own numbers instead of recomputing them.
-  const openTagValueAccount = useCallback((tagValue, account, accountType, accountTypeAll, comment, cartaTags, cell, period, origin, excludedClaims, dimension, scopes, cellKey) => {
+  const openTagValueAccount = useCallback((tagValue, account, accountType, accountTypeAll, comment, cartaTags, cell, period, origin, excludedClaims, dimension, scopes, cellKey, periodYear) => {
     setSelection({
       kind: "department-account",
+      // The budget's year: the cell summed only that year's entries.
+      periodYear: periodYear || null,
       // Which cell the table holds lit while this panel is open.
       cellKey: cellKey || null,
       tag_value: tagValue, account,
@@ -90,12 +94,13 @@ export default function useDrilldown() {
   }, []);
 
   // For the Budget-vs-Actuals outline view (client's own P&L, see
-  // BudgetActualsOutline). A cell is (row × quarter); the row carries
+  // BudgetActualsOutline). A cell is (row × period); the row carries
   // whichever join hint applies:
   //   glCodes + cartaTags → ManCo JEs at those GLs, scoped by Department tag
   //   glCodes alone       → ManCo JEs at those GLs, firm-wide
   //   fundMatch           → fund-side management-fee JEs for that fund
-  // `quarter` is "Q1".."Q4" or "Total" (no month constraint).
+  // `months` are the calendar months its column covers and `periodLabel`
+  // names them ("Q1", "Mar"); both null for a Total (no month constraint).
   // `comment` is the workbook's own Comments-column text for the row —
   // the budget rationale, surfaced in the drawer.
   const openOutlineCell = useCallback((opts) => {
@@ -105,7 +110,8 @@ export default function useDrilldown() {
       // one workbook names the same fund in two sections.
       cellKey:   opts.cellKey || null,
       label:     opts.label,
-      quarter:   opts.quarter || "Total",
+      periodLabel: opts.periodLabel || null,
+      months:    opts.months || null,
       glCodes:   opts.glCodes || [],
       cartaTags: opts.cartaTags || null,   // null = firm-wide, no tag filter
       // What else narrows the row — a sub-account, a vendor. Dropping it
@@ -115,6 +121,9 @@ export default function useDrilldown() {
       // so a drawer that kept them would contradict the cell it opened from.
       excludedClaims: opts.excludedClaims || null,
       fundMatch: opts.fundMatch || null,
+      // The mapping step answered this fee offset to the funds' ledger, so
+      // the drawer reads there too and its journals total the cell.
+      crossEntityGl: opts.crossEntityGl || null,
       // A breakout row under the line — one value of one dimension, on top
       // of everything the line itself is filtered by.
       childScope: opts.childScope || null,
@@ -122,6 +131,19 @@ export default function useDrilldown() {
       tag_value: opts.tag_value || null,
       dimension: opts.dimension || null,
       periodYear: opts.periodYear || null,
+      ...budgetSide(opts),
+    });
+  }, []);
+
+  // A custom report cell. `entries` is the exact set the table already
+  // filtered for this cell; `scopes` is its row-field breadcrumb.
+  const openCustomReport = useCallback((cellEntries, opts = {}) => {
+    setSelection({
+      kind: "custom-report",
+      cellKey: opts.cellKey || null,
+      label: opts.label || "",
+      entries: cellEntries || [],
+      scopes: opts.scopes || null,
       ...budgetSide(opts),
     });
   }, []);
@@ -136,7 +158,8 @@ export default function useDrilldown() {
       kind: "outline-total",
       cellKey:    opts.cellKey || null,
       label:      opts.label,
-      quarter:    opts.quarter || "Total",
+      periodLabel: opts.periodLabel || null,
+      months:     opts.months || null,
       members:    opts.members || [],
       dimension:  opts.dimension || null,
       periodYear: opts.periodYear || null,
@@ -145,7 +168,7 @@ export default function useDrilldown() {
     });
   }, []);
 
-  return { selection, openOutlineTotal, openAccount, openVendor, openDateRangeCategory, openMonthSide, openFundYear, openTagValueAccount, openOutlineCell, close };
+  return { selection, openOutlineTotal, openAccount, openVendor, openDateRangeCategory, openMonthSide, openFundYear, openTagValueAccount, openOutlineCell, openCustomReport, close };
 }
 
 // The budget half of a budget-vs-actuals cell, normalized onto the

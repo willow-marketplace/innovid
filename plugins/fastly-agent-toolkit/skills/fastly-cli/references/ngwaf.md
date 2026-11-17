@@ -23,7 +23,7 @@ fastly ngwaf workspace list --json
 fastly ngwaf workspace create --name=my-waf --description="WAF for my-service" --blockingMode=block
 
 # 3. Enable NGWAF product on the service (links the workspace)
-#    The CLI does not have a dedicated command for this — use the products API:
+#    API only: `fastly products` has no ngwaf option (it needs a workspace_id body)
 curl -X PUT -H "Fastly-Key: $(fastly auth token)" \
   -H "Content-Type: application/json" \
   -d '{"workspace_id":"WORKSPACE_ID"}' \
@@ -37,7 +37,7 @@ curl -H "Fastly-Key: $(fastly auth token)" \
 ### Disable NGWAF on a service
 
 ```bash
-# Fully disable — removes NGWAF from the service (stops all inspection)
+# Fully disable: removes NGWAF from the service (stops all inspection). API only, like enablement.
 curl -X DELETE -H "Fastly-Key: $(fastly auth token)" \
   "https://api.fastly.com/enabled-products/v1/ngwaf/services/SERVICE_ID"
 # Returns 204 No Content on success
@@ -46,7 +46,8 @@ curl -X DELETE -H "Fastly-Key: $(fastly auth token)" \
 fastly ngwaf workspace update --workspace-id WORKSPACE_ID --blockingMode log
 ```
 
-**IMPORTANT**: Prefer `$(fastly auth token)` to get the currently active API token for curl commands. It only writes to non-terminal stdout, so use it in a pipe or shell substitution. If you specifically need a stored token by name, use `$(fastly auth show TOKEN_NAME --reveal --quiet | awk '/^Token:/ {print $2}')`. NEVER run `fastly auth show --reveal` directly — it prints the full token value into the conversation, exposing credentials.
+Use `$(fastly auth token)` to get the active API token for curl commands, or `$(fastly auth token --token TOKEN_NAME)` for a specific stored token.
+The command refuses terminal output, but agent-captured stdout may be non-terminal, so never run it standalone or echo its result.
 
 ## Workspaces
 
@@ -73,7 +74,8 @@ fastly ngwaf workspace create \
   --blockingMode=block
 
 # Optional create flags: --attackThresholds, --clientIPHeaders,
-# --defaultBlockingCode, --defaultRedirectURL, --ipAnonimization, --json
+# --defaultBlockingCode, --defaultRedirectURL, --ipAnonymization,
+# --autoEnableNewVirtualPatches, --json
 
 # Get workspace details
 fastly ngwaf workspace get --workspace-id WORKSPACE_ID
@@ -327,6 +329,9 @@ fastly ngwaf workspace virtualpatch update \
   --virtual-patch-id=ID \
   --workspace-id=WORKSPACE-ID \
   [--enabled] [--mode] [--json]
+
+# Auto-enable future patches in block mode (existing ones unchanged); undo with --no-autoEnableNewVirtualPatches
+fastly ngwaf workspace update --workspace-id=WORKSPACE-ID --autoEnableNewVirtualPatches
 ```
 
 ## Redactions
@@ -521,7 +526,7 @@ fastly ngwaf workspace create \
   --description="Production WAF" \
   --blockingMode=block
 
-# 2. Enable NGWAF on the service (links workspace to service)
+# 2. Enable NGWAF on the service (links workspace to service; API only)
 curl -X PUT -H "Fastly-Key: $(fastly auth token)" \
   -H "Content-Type: application/json" \
   -d '{"workspace_id":"WORKSPACE_ID","traffic_ramp":"100"}' \

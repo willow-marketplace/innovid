@@ -1,6 +1,6 @@
 ---
 name: idmp-ai
-description: IDMP AI skill. Use it to confirm AI availability and usable data, inspect chat sessions, generate recommended questions or panels, create analyses or panels from prompts, and decide when `record` should persist the session.
+description: IDMP AI skill. Use it to confirm AI availability and usable data, inspect chat sessions, generate recommended questions or panels, create analyses or panels from prompts, and distinguish chat recording from draft recommendation usage logging.
 ---
 
 # ai
@@ -25,6 +25,8 @@ description: IDMP AI skill. Use it to confirm AI availability and usable data, i
 - Whether `record:true` is acceptable.
 
 ## Constrained live behaviors
+
+- On AI draft create endpoints, `record` controls recommendation usage logging; it does not save the draft or create a recorded chat session. Analysis draft generation can create output attributes even with `record:false`; inspect those effects after timeout or failed persistence.
 
 - Treat `datasource available list=false` as a hard stop.
 - `idmp-cli datasource available list` is the hard availability gate.

@@ -3,6 +3,9 @@ name: update-contact
 description: Updates an existing contact (person) record in the Carta CRM. Use this skill when the user says things like "update a contact", "edit contact", "update contact details", "change contact email", "update person's title", "update contact company", "add a tag to contact", or "/update-contact". Accepts a contact ID or name (will search if no ID provided). Only the fields explicitly provided are changed — all other fields are left untouched.
 ---
 
+<!-- carta:plugin-version -->
+<carta-plugin>carta-crm:1.20.20</carta-plugin>
+
 ## Overview
 
 Partially update an existing contact. Only fields provided are modified — this is

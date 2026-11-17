@@ -1,4 +1,5 @@
 import asyncio
+import contextvars
 import logging
 from concurrent.futures import ThreadPoolExecutor
 from typing import List, Optional
@@ -36,7 +37,7 @@ class WikipediaSearchToolInputSchema(BaseIOSchema):
     full_text: bool = Field(
         default=False,
         description=(
-            "When true, fetch the full plain-text extract for the top result of each"
+            "When true, fetch the full plain-text extract for the top returned result of each"
             " query in addition to the short summary. Costs an extra API call per"
             " query, so leave this off unless you need full article content."
         ),
@@ -154,7 +155,7 @@ class WikipediaSearchTool(BaseTool[WikipediaSearchToolInputSchema, WikipediaSear
     ) -> List[WikipediaArticle]:
         titles = await self._search_titles(session, query, language, limit)
         articles: List[WikipediaArticle] = []
-        for index, title in enumerate(titles):
+        for title in titles:
             try:
                 summary_data = await self._fetch_summary(session, title, language)
             except Exception as e:
@@ -163,7 +164,7 @@ class WikipediaSearchTool(BaseTool[WikipediaSearchToolInputSchema, WikipediaSear
             if not summary_data:
                 continue
             full = None
-            if full_text and index == 0:
+            if full_text and not articles:
                 try:
                     full = await self._fetch_full_extract(session, title, language)
                 except Exception as e:
@@ -205,7 +206,7 @@ class WikipediaSearchTool(BaseTool[WikipediaSearchToolInputSchema, WikipediaSear
 
     def run(self, params: WikipediaSearchToolInputSchema) -> WikipediaSearchToolOutputSchema:
         with ThreadPoolExecutor() as executor:
-            return executor.submit(asyncio.run, self.run_async(params)).result()
+            return executor.submit(contextvars.copy_context().run, asyncio.run, self.run_async(params)).result()
 
 
 #################

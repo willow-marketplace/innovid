@@ -117,7 +117,7 @@ The `/api/test-error` endpoint demonstrates manual exception capture. Use `?capt
 ## Project Structure
 
 ```
-basics/flask/
+example-apps/flask/
 ├── app/
 │   ├── __init__.py              # Application factory
 │   ├── config.py                # Configuration classes
@@ -1193,7 +1193,7 @@ Flask>=3.1.0
 Flask-Login>=0.6.3
 Flask-SQLAlchemy>=3.1.0
 python-dotenv>=1.0.0
-posthog>=3.0.0
+posthog>=7,<8
 Werkzeug>=3.0.0
 
 ```

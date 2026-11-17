@@ -8,6 +8,11 @@ description: "Fastly traffic numbers: cache hit ratio, bandwidth, request counts
 Prefer the `fastly` CLI. Drop to `curl` only for the seven things the CLI cannot do, listed under
 Raw API below.
 
+Requires the `fastly` CLI, `jq`, and network access to Fastly APIs; raw API examples also require `curl`.
+Use the user's locally configured authentication.
+If authentication is missing, direct the user to a local CLI login or local `FASTLY_API_TOKEN` configuration, never to paste a key in chat.
+Keep tokens out of output and avoid shell tracing for authenticated commands.
+
 ## Rules that decide whether the answer is right
 
 1. Bytes to GB is decimal SI: `bytes / 1e9`. TB is `/ 1e12`. Never `2^30`. Fastly bills in
@@ -156,16 +161,16 @@ reaches per-POP history. The two account-wide rows need `curl` because `stats hi
 resolves a service ID and errors without one; `fastly stats aggregate` is not a substitute, it sums
 every service into one series instead of breaking them out.
 
-Auth is the header `Fastly-Key: <token>`. Feed it from the CLI and keep `--quiet`: without it a
-pending upgrade notice lands inside the header value and produces `curl: (43)` or a spurious 401.
+Auth is the header `Fastly-Key: <token>`.
+Use `fastly auth token` in a shell substitution to supply it directly from the CLI.
 
 ```bash
-curl -sS -H "Fastly-Key: $(fastly auth token --quiet)" \
+curl -sS -H "Fastly-Key: $(fastly auth token)" \
   "https://api.fastly.com/stats/service/$SID?from=2026-07-01T00:00:00Z&to=2026-08-01T00:00:00Z&by=day&datacenter=SJC"
 ```
 
-Never run `fastly auth show --reveal` bare and never pass `-v` on an authenticated call; both
-print the token into the transcript.
+Never run `fastly auth token` standalone in an agent session: captured stdout can bypass its terminal-output guard.
+Do not echo the token or pass `-v` on an authenticated curl call; both expose it in the transcript.
 
 Endpoint paths, parameters and response shapes: [references/api.md](references/api.md).
 Field names and aggregation shape: [references/fields.md](references/fields.md).

@@ -5,7 +5,7 @@ title: "What does it mean to be an AWS Admin at a startup?"
 
 ## What does it mean to be an AWS Admin at a startup?
 
-_Guest Post by Faisal Farooq, Startup Solutions Architect and Abhi Singh, Sr. Security Solutions Architect_
+> _Guest Post by Faisal Farooq, Startup Solutions Architect and Abhi Singh, Sr. Security Solutions Architect_
 
 Most startups work at a high velocities, which can mean that release timelines often overshadow the security foundation. A frequent byproduct of this fast-paced culture can mean that the responsibilities of an Account Admin are not as defined or the role is distributed among several team members. As the team size grows and the company gains momentum, a startup's customers often require the company to enforce least privilege and clearly define who and what an Admin should do, leaving founders to backtrack architecture-level decisions that were made early on, creating friction and disrupting the business. In this blog post, we will define what an Account Admin's responsibilities should look like, the training that person, referred to hereafter as an Admin, should have to be effective in their role, and the continuous impact they make on the company.
 

@@ -20,7 +20,7 @@ When a user asks for help with scan results:
 7. **Suggest remediation** — provide concrete fix patterns for the vulnerability class (see [references/vulnerability-guide.md](references/vulnerability-guide.md))
 8. **Help prioritize** — triage by severity and exploitability
 
-**Related skills:** Use `scan-configuration` for setting up scans, `ci-cd-integration` for pipeline setup, `api-discovery` for spec extraction.
+**Related skills:** Use `scan-configuration` for setting up scans, `ci-cd-integration` for pipeline setup, `source-intelligence` for spec extraction.
 
 ## Exporting results
 
@@ -63,7 +63,7 @@ The agent should read the SARIF JSON, iterate over `results[]`, and explain each
 
 ### Code Traceback in SARIF
 
-When API Discovery generated the OpenAPI spec, it annotated endpoints with source file paths and line numbers. These appear in SARIF as `physicalLocation` entries, letting the agent navigate directly to the vulnerable code:
+When Source Intelligence generated the OpenAPI spec, it annotated endpoints with source file paths and line numbers. These appear in SARIF as `physicalLocation` entries, letting the agent navigate directly to the vulnerable code:
 
 ```json
 "locations": [{
@@ -142,7 +142,7 @@ Guide the user through this decision:
 3. **Review the code** — is the vulnerable pattern actually reachable in production?
 4. **Consider the context** — is this a test endpoint, internal-only, or behind additional access controls?
 
-If the finding is a false positive, the user can mark it in the NightVision web UI (app.nightvision.net) under the scan results. Status options: **Open**, **False Positive**, **Resolved**.
+If the finding is a false positive, the user can mark it in the NightVision web UI (app.nightviz.ai) under the scan results. Status options: **Open**, **False Positive**, **Resolved**.
 
 ## NightVision scanning engines
 
@@ -152,4 +152,8 @@ If the finding is a false positive, the user can mark it in the NightVision web 
 
 **Nuclei Templates** — Template-based detection of known CVEs and misconfigurations.
 
-Specific rules can be disabled per scan with `--disable-zap-active-alerts <ids>` or `--disable-nuclei-folders <paths>`, or entire engines with `--no-zap` / `--no-nuclei`.
+Specific rules can be disabled per scan with `--disable-zap-active-alerts <ids>`, `--disable-nuclei-folders <paths>` or `--disable-nuclei-templates <custom template ids>`, or entire engines with `--no-zap` / `--no-nuclei`.
+
+**AI endpoint checks:** Regular scans test the target's AI endpoints (see `scan-configuration`). **LLM Cloud Metadata Exposure** (CRITICAL) means the endpoint could be prompted into fetching the cloud instance metadata service, confirmed by the provider's own data in the response, so treat it as real and prioritize it: restrict or remove the model's URL-fetching tools, validate any URL the model can request against an allowlist, and block metadata addresses (169.254.169.254 and the cloud equivalents) from the app's egress. IMDSv2 alone does not stop this. Ordinary checks are kept off listed AI endpoints, so a SQL injection or code injection reported on an AI route deserves a careful curl check: a model's reply can echo payloads without any real injection.
+
+**Quantum readiness findings:** Shown on the target's Quantum readiness tab, not in the vulnerability list. Prioritize by status (Fix now first). They are migration work items with deadlines, not exploitable vulnerabilities; do not report them alongside exploitable findings as if they were.

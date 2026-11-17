@@ -3,6 +3,7 @@ import { z } from "zod";
 
 // Import tool implementations
 import { registerWebSearchTool } from "./tools/webSearch.js";
+import type { SearchType } from "./tools/searchType.js";
 import { registerCompanyResearchTool } from "./tools/companyResearch.js";
 import { registerWebFetchTool } from "./tools/webFetch.js";
 import { registerPeopleSearchTool } from "./tools/peopleSearch.js";
@@ -32,7 +33,9 @@ export interface McpConfig {
   exaSource?: string;
   mcpSessionId?: string;
   mcpClient?: unknown;
-  defaultSearchType?: "auto" | "fast" | "instant";
+  defaultSearchType?: SearchType;
+  /** Ask the web search tools for dynamic highlights (`?dynamicHighlights=true`, `DYNAMIC_HIGHLIGHTS=true`). */
+  dynamicHighlights?: boolean;
   oauthAccessToken?: string;
   agentCallWindowMs?: number;
   mcpMaxDurationSeconds?: number;
@@ -149,7 +152,7 @@ export function initializeMcpServer(server: any, config: McpConfig = {}) {
     }
 
     // Register prompts to help users get started
-    server.prompt("web_search_help", "Get help with web search using Exa", {}, async () => {
+    server.prompt("web_search_help", "Get help with web search using Exa", async () => {
       return {
         messages: [
           {

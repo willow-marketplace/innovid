@@ -29,7 +29,7 @@ Skills activate on their own when Claude detects relevant context — you don't 
 | Skill | Helps with | What it does |
 |-------|------------|--------------|
 | **Reporting Analyst** | Performance questions, metrics, reports | Pulls your campaign, automation, and deal records and produces structured analysis grounded in your real data |
-| **Campaign Strategist** | Campaign planning, email content, targeting | Guides campaign creation with audience selection, content strategy, and timing backed by your account data |
+| **Campaign Strategist** | Campaign planning, email content, targeting | Plans the campaign from your account data, then generates the email itself: a new AI-drafted campaign from a prompt, edits to copy or tone, copies of past sends, subject and preheader changes |
 | **Automation Builder** | Workflow design, triggers, drip sequences | Recommends automation patterns and triggers; can enroll contacts and manage the tags that trigger workflows |
 | **Contact Operations** | Segmentation, bulk updates, list/field management | Advises on organization strategy and executes contact/tag/list/field changes with a preview-and-confirm step |
 | **Deals & CRM** | Pipelines, stages, deals, owners, custom objects | Builds and operates your CRM — creates pipelines, stages, and deals, moves deals, reassigns owners, models custom objects, all with preview-and-confirm |
@@ -82,11 +82,12 @@ Contacts, tags, custom fields, campaigns, email activities, automations, lists, 
 - **Contacts & data:** create/update contacts, create and apply tags, list membership, custom fields and values, bulk import contacts.
 - **CRM / deals:** create and update deals, deal notes, bulk owner reassignment, create/update pipelines and stages, move deals between stages, create custom objects.
 - **Automation membership:** enroll/remove contacts from automations, and manage the tags that trigger them.
+- **Campaigns:** generate a new AI-drafted email campaign from a prompt (using your brand kit and content-manager images), rewrite copy or tone on an existing campaign, copy a past campaign as a new draft, rename it, and change the subject line, preheader, or sender. Drafts land in your account ready to review.
 
 Every change follows a **read → preview → confirm → execute → verify** flow, and each one also triggers Claude's own permission prompt — a deliberate second check before anything is written to your live account.
 
 ### Can't do
-- **Create, edit, or send campaigns** — the plugin designs the campaign and preps the audience; you send it in the ActiveCampaign UI.
+- **Send or schedule campaigns** — the plugin creates and edits the draft; you review and send it in the ActiveCampaign UI.
 - **Create automations or edit automation steps** — the plugin designs the flow; you build it in ActiveCampaign's automation builder.
 - **Compute aggregate metrics** (win rate, completion rate, average deal value, totals) — reports show the underlying records and counts; use ActiveCampaign's native reporting for true roll-ups.
 - **Verify DNS / inbox placement** — the Deliverability Advisor guides SPF/DKIM/DMARC but can't read your DNS directly.

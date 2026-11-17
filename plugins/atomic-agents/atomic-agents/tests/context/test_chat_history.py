@@ -1,13 +1,21 @@
-from enum import Enum
+from enum import Enum, IntEnum
+from unittest.mock import Mock, call
 
 import pytest
 import json
 from typing import List, Dict, Union
 from pathlib import Path
-from pydantic import Field
+from pydantic import Field, ValidationError
 from atomic_agents.context import ChatHistory, Message
 from atomic_agents import BaseIOSchema, VideoURL
 import instructor
+
+
+class TupleAttachments(BaseIOSchema):
+    """A message with typed attachments held in tuples."""
+
+    attachments: tuple[instructor.Image, instructor.processing.multimodal.PDF]
+    nested: dict[str, tuple[tuple[instructor.Image, ...], ...]]
 
 
 class InputSchema(BaseIOSchema):
@@ -53,6 +61,12 @@ class MockMultimodalSchema(BaseIOSchema):
     images: List[instructor.Image] = Field(..., description="The images to analyze")
     pdfs: List[instructor.processing.multimodal.PDF] = Field(..., description="The PDFs to analyze")
     audio: instructor.processing.multimodal.Audio = Field(..., description="The audio to analyze")
+
+
+class MockImageSchema(BaseIOSchema):
+    """Test schema for serialized image paths."""
+
+    image: instructor.Image = Field(..., description="An image with a local path")
 
 
 class ColorEnum(str, Enum):
@@ -125,6 +139,69 @@ def test_get_history_allow_unicode(history):
     assert json.loads(history[1]["content"]) == {"test_field": "â"}
 
 
+@pytest.mark.parametrize(
+    "media",
+    [
+        instructor.Image(source="private.jpg", media_type="image/jpeg"),
+        instructor.processing.multimodal.Audio(source="private.mp3", media_type="audio/mp3"),
+        instructor.processing.multimodal.PDF(source="private.pdf", media_type="application/pdf"),
+        VideoURL(url="https://example.com/private.mp4"),
+    ],
+    ids=["image", "audio", "pdf", "video"],
+)
+def test_get_history_omits_excluded_multimodal_fields(history, media):
+    class PrivateMediaSchema(BaseIOSchema):
+        """Message carrying media that must stay local."""
+
+        instruction: str
+        private_media: Union[
+            instructor.Image, instructor.processing.multimodal.Audio, instructor.processing.multimodal.PDF, VideoURL
+        ] = Field(exclude=True)
+
+    content = PrivateMediaSchema(instruction="public", private_media=media)
+    history.add_message("user", content)
+
+    assert history.get_history() == [{"role": "user", "content": content.model_dump_json()}]
+
+
+def test_get_history_preserves_visible_media_beside_nested_excluded_media(history):
+    class Document(BaseIOSchema):
+        """Document with a public image and a local source."""
+
+        caption: str
+        image: instructor.Image
+        original: instructor.Image = Field(exclude=True)
+
+    class DocumentsSchema(BaseIOSchema):
+        """Documents provided to the model."""
+
+        documents: List[Document]
+
+    visible = instructor.Image(source="visible.jpg", media_type="image/jpeg")
+    private = instructor.Image(source="private.jpg", media_type="image/jpeg")
+    content = DocumentsSchema(documents=[Document(caption="public", image=visible, original=private)])
+    history.add_message("user", content)
+
+    parts = history.get_history()[0]["content"]
+    assert json.loads(parts[0]) == {"documents": [{"caption": "public"}]}
+    assert parts[1:] == [visible]
+
+
+@pytest.mark.parametrize("container", [list, tuple, lambda values: {"media": values[0]}], ids=["list", "tuple", "dict"])
+def test_get_history_skips_excluded_containers(history, container):
+    class PrivateContainerSchema(BaseIOSchema):
+        """Message with an excluded collection of source media."""
+
+        image: instructor.Image
+        originals: object = Field(exclude=True)
+
+    visible = instructor.Image(source="visible.jpg", media_type="image/jpeg")
+    private = instructor.Image(source="private.jpg", media_type="image/jpeg")
+    history.add_message("user", PrivateContainerSchema(image=visible, originals=container([private])))
+
+    assert history.get_history() == [{"role": "user", "content": [visible]}]
+
+
 def test_copy(history):
     history.add_message("user", InputSchema(test_field="Hello"))
     copied_history = history.copy()
@@ -133,6 +210,29 @@ def test_copy(history):
     assert len(copied_history.history) == len(history.history)
     assert copied_history.history[0].role == history.history[0].role
     assert copied_history.history[0].content.test_field == history.history[0].content.test_field
+
+
+def test_copy_with_local_schema_is_independent(history):
+    class LocalSchema(BaseIOSchema):
+        """Message schema defined by an application factory."""
+
+        items: List[Dict[str, List[str]]]
+
+    history.add_message("user", LocalSchema(items=[{"values": ["original"]}]))
+    copied_history = history.copy()
+
+    assert copied_history.max_messages == history.max_messages
+    assert copied_history.current_turn_id == history.current_turn_id
+    assert copied_history.get_history() == history.get_history()
+    assert isinstance(copied_history.history[0].content, LocalSchema)
+
+    copied_history.history[0].content.items[0]["values"].append("changed")
+    copied_history.history[0].role = "assistant"
+    copied_history.add_message("user", LocalSchema(items=[]))
+
+    assert history.history[0].content.items == [{"values": ["original"]}]
+    assert history.history[0].role == "user"
+    assert history.get_message_count() == 1
 
 
 def test_get_current_turn_id(history):
@@ -267,6 +367,155 @@ def test_load_invalid_data(history):
         history.load("invalid json")
 
 
+MISSING = object()
+
+
+@pytest.fixture
+def saved_history(history: ChatHistory) -> tuple[ChatHistory, List[Message], Message, str]:
+    history.add_message("user", InputSchema(test_field="Keep this message"))
+    return history, history.history, history.history[0], history.dump()
+
+
+@pytest.fixture
+def replacement_history() -> ChatHistory:
+    replacement = ChatHistory(max_messages=2)
+    replacement.current_turn_id = "replacement-turn"
+    replacement.add_message("user", InputSchema(test_field="Replacement user message"))
+    replacement.add_message("assistant", MockOutputSchema(test_field="Replacement assistant message"))
+    return replacement
+
+
+def _assert_history_unchanged(
+    history: ChatHistory, original_history: List[Message], original_message: Message, original_dump: str
+) -> None:
+    original_data = json.loads(original_dump)
+    assert history.history is original_history
+    assert history.history[0] is original_message
+    assert history.dump() == original_dump
+    assert history.max_messages == original_data["max_messages"]
+    assert history.current_turn_id == original_data["current_turn_id"]
+
+
+def test_load_invalid_json_preserves_existing_history(saved_history) -> None:
+    history = saved_history[0]
+    with pytest.raises(ValueError, match="^Invalid serialized data: ") as error:
+        history.load("invalid json")
+    assert type(error.value) is ValueError
+    _assert_history_unchanged(*saved_history)
+
+
+@pytest.mark.parametrize(
+    "path, value, error_type, error_match",
+    [
+        pytest.param(("max_messages",), MISSING, ValueError, "'max_messages'", id="missing_max_messages"),
+        pytest.param(("current_turn_id",), MISSING, ValueError, "'current_turn_id'", id="missing_current_turn_id"),
+        pytest.param(("history",), MISSING, ValueError, "'history'", id="missing_history"),
+        pytest.param(("max_messages",), -1, ValueError, "^Invalid serialized data: max_messages", id="negative_capacity"),
+        pytest.param(("max_messages",), True, ValueError, "^Invalid serialized data: max_messages", id="boolean_capacity"),
+        pytest.param(("max_messages",), "4", ValueError, "^Invalid serialized data: max_messages", id="string_capacity"),
+        pytest.param(("max_messages",), 2.5, ValueError, "^Invalid serialized data: max_messages", id="fractional_capacity"),
+        pytest.param(("current_turn_id",), {}, ValueError, "current_turn_id", id="invalid_current_turn"),
+        pytest.param(("history",), {}, ValueError, "history must be a list", id="empty_mapping"),
+        pytest.param(("history", 0, "content", "class_name"), "builtins.str", ValueError, "BaseIOSchema", id="non_schema"),
+        pytest.param(("history",), None, ValueError, "^Invalid serialized data: ", id="invalid_history"),
+        pytest.param(("history", 0, "content"), MISSING, ValueError, "'content'", id="missing_content"),
+        pytest.param(
+            ("history", 0, "content", "class_name"),
+            f"{InputSchema.__module__}.NonexistentSchema",
+            ValueError,
+            "NonexistentSchema",
+            id="unknown_class",
+        ),
+        pytest.param(
+            ("history", 0, "content", "data"), "invalid json", ValidationError, "Invalid JSON", id="invalid_content_json"
+        ),
+        pytest.param(("history", 0, "content", "data"), "{}", ValidationError, "test_field", id="invalid_content"),
+        pytest.param(("history", 1, "content", "data"), "{}", ValidationError, "test_field", id="later_invalid_content"),
+        pytest.param(("history", 0, "role"), None, ValidationError, "role", id="invalid_role"),
+        pytest.param(("history", 0, "turn_id"), [], ValidationError, "turn_id", id="invalid_turn_id"),
+        pytest.param(("history", 1, "role"), None, ValidationError, "role", id="later_invalid_role"),
+        pytest.param(("history", 1, "turn_id"), [], ValidationError, "turn_id", id="later_invalid_turn_id"),
+        pytest.param(
+            ("history", 1, "content", "class_name"),
+            "nonexistent_chat_history_module.InputSchema",
+            ModuleNotFoundError,
+            "nonexistent_chat_history_module",
+            id="later_missing_module",
+        ),
+    ],
+)
+def test_load_failure_preserves_existing_history(
+    saved_history, replacement_history, path, value, error_type, error_match
+) -> None:
+    history = saved_history[0]
+    replacement_data = json.loads(replacement_history.dump())
+    target = replacement_data
+    for field in path[:-1]:
+        target = target[field]
+    if value is MISSING:
+        del target[path[-1]]
+    else:
+        target[path[-1]] = value
+
+    with pytest.raises(error_type, match=error_match) as error:
+        history.load(json.dumps(replacement_data))
+    assert type(error.value) is error_type
+    _assert_history_unchanged(*saved_history)
+
+
+@pytest.mark.parametrize(
+    "normalization_error_type, error_type, error_match",
+    [
+        pytest.param(TypeError, ValueError, "^Invalid serialized data: late normalization failure$", id="wrapped_type_error"),
+        pytest.param(RuntimeError, RuntimeError, "^late normalization failure$", id="unwrapped_runtime_error"),
+    ],
+)
+def test_load_late_normalization_failure_preserves_existing_history(
+    saved_history, monkeypatch, normalization_error_type, error_type, error_match
+) -> None:
+    history = saved_history[0]
+    replacement = ChatHistory(max_messages=2)
+    replacement.current_turn_id = "replacement-turn"
+    for source in ("test/first.jpg", "test/late.jpg"):
+        replacement.add_message("user", MockImageSchema(image=instructor.Image(source=source, media_type="image/jpeg")))
+    normalize_path = Mock(side_effect=[Path("test/first.jpg"), normalization_error_type("late normalization failure")])
+    monkeypatch.setattr("atomic_agents.context.chat_history.Path", normalize_path)
+
+    with pytest.raises(error_type, match=error_match) as error:
+        history.load(replacement.dump())
+    assert type(error.value) is error_type
+    assert normalize_path.call_args_list == [call("test/first.jpg"), call("test/late.jpg")]
+    _assert_history_unchanged(*saved_history)
+
+
+def test_load_replaces_existing_history(history: ChatHistory, replacement_history: ChatHistory) -> None:
+    history.add_message("user", InputSchema(test_field="Old message"))
+    original_history = history.history
+
+    history.load(replacement_history.dump())
+
+    assert history.history is not original_history
+    assert history.dump() == replacement_history.dump()
+    assert isinstance(history.history[0].content, InputSchema)
+    assert isinstance(history.history[1].content, MockOutputSchema)
+    assert history.max_messages == 2
+    assert history.current_turn_id == "replacement-turn"
+
+
+@pytest.mark.parametrize("max_messages, current_turn_id", [(None, None), (0, "empty-turn")])
+def test_load_empty_history_replaces_existing_history(history, max_messages, current_turn_id):
+    history.add_message("user", InputSchema(test_field="Old message"))
+    replacement = ChatHistory(max_messages=max_messages)
+    replacement.current_turn_id = current_turn_id
+
+    history.load(replacement.dump())
+
+    assert history.history == []
+    assert history.dump() == replacement.dump()
+    assert history.max_messages == max_messages
+    assert history.current_turn_id == current_turn_id
+
+
 def test_get_class_from_string():
     class_string = "tests.context.test_chat_history.InputSchema"
     cls = ChatHistory._get_class_from_string(class_string)
@@ -292,6 +541,43 @@ def test_history_with_no_max_messages():
     for i in range(100):
         unlimited_history.add_message("user", InputSchema(test_field=f"Message {i}"))
     assert len(unlimited_history.history) == 100
+
+
+@pytest.mark.parametrize("capacity", [-1, True, "4", 2.5])
+def test_history_rejects_invalid_capacity(capacity):
+    with pytest.raises(ValueError, match="max_messages"):
+        ChatHistory(max_messages=capacity)
+
+
+def test_history_accepts_int_subclass_capacity():
+    class Capacity(IntEnum):
+        ONE = 1
+
+    history = ChatHistory(max_messages=Capacity.ONE)
+    history.add_message("user", InputSchema(test_field="old"))
+    history.add_message("user", InputSchema(test_field="new"))
+    assert [message.content.test_field for message in history.history] == ["new"]
+
+    restored = ChatHistory()
+    restored.load(history.dump())
+    assert restored.max_messages == Capacity.ONE
+    assert [message.content.test_field for message in restored.history] == ["new"]
+
+
+@pytest.mark.parametrize(
+    "capacity, expected", [(None, ["first", "second", "third"]), (0, []), (1, ["third"]), (2, ["second", "third"])]
+)
+def test_load_trims_history_after_capacity_is_lowered(capacity, expected):
+    original = ChatHistory()
+    for text in ["first", "second", "third"]:
+        original.add_message("user", InputSchema(test_field=text))
+    original.max_messages = capacity
+
+    restored = ChatHistory()
+    restored.load(original.dump())
+
+    assert restored.max_messages == capacity
+    assert [message.content.test_field for message in restored.history] == expected
 
 
 def test_history_with_zero_max_messages():
@@ -538,6 +824,53 @@ def test_process_multimodal_paths_comprehensive():
     assert loaded_content.images[0].source == Path("test/sample.jpg")
     assert isinstance(loaded_content.pdfs[0].source, Path)
     assert loaded_content.pdfs[0].source == Path("test/doc.pdf")
+
+
+def test_tuple_attachment_paths_survive_history_round_trip():
+    original = ChatHistory()
+    original.add_message(
+        "user",
+        TupleAttachments(
+            attachments=(
+                instructor.Image(source=Path("image.png"), media_type="image/png"),
+                instructor.processing.multimodal.PDF(source=Path("document.pdf"), media_type="application/pdf"),
+            ),
+            nested={"images": ((instructor.Image(source=Path("nested.png"), media_type="image/png"),),)},
+        ),
+    )
+
+    restored = ChatHistory()
+    restored.load(original.dump())
+    content = restored.history[0].content
+
+    assert content.attachments[0].source == Path("image.png")
+    assert content.attachments[1].source == Path("document.pdf")
+    assert content.nested["images"][0][0].source == Path("nested.png")
+    assert isinstance(content.attachments, tuple)
+    parts = restored.get_history()[0]["content"]
+    assert len(parts) == 3
+    assert all(isinstance(part.source, Path) for part in parts)
+
+
+def test_tuple_url_and_data_sources_survive_history_round_trip():
+    original = ChatHistory()
+    original.add_message(
+        "user",
+        TupleAttachments(
+            attachments=(
+                instructor.Image(source="https://example.com/image.png", media_type="image/png"),
+                instructor.processing.multimodal.PDF(
+                    source="data:application/pdf;base64,JVBERi0=", media_type="application/pdf"
+                ),
+            ),
+            nested={},
+        ),
+    )
+    restored = ChatHistory()
+    restored.load(original.dump())
+    attachments = restored.history[0].content.attachments
+    assert attachments[0].source == "https://example.com/image.png"
+    assert attachments[1].source == "data:application/pdf;base64,JVBERi0="
 
 
 def test_get_history_nested_pydantic_with_toplevel_multimodal(history):

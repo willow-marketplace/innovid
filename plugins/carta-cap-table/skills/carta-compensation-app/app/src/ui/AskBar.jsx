@@ -16,8 +16,9 @@
 // than EventSource because the prompt has to go up as a POST body with the
 // X-Dash-Token header, and EventSource can do neither.
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { C, FS, RADIUS } from "./theme.js";
+import { CHAT_UNAVAILABLE, UNAVAILABLE_CODE, useClaudeStatus } from "./claudeStatus.js";
 
 // Split an SSE buffer into complete `data:` payloads, returning any trailing
 // partial frame so the next chunk can finish it. A frame split across two network
@@ -41,20 +42,26 @@ export function parseSSE(buffer) {
 }
 
 // Pull the human-readable text out of one stream-json event. Token deltas arrive as
-// stream_event/content_block_delta; the `assistant` shape is the non-streaming
-// fallback the CLI still emits when partial messages are unavailable.
+// stream_event/content_block_delta. The `assistant` events carry the full accumulated
+// message (--include-partial-messages is always on) and are intentionally ignored here
+// — appending both the delta and the accumulated text would duplicate every sentence.
 export function eventText(ev) {
   if (ev.type === "stream_event") {
     const d = ev.event?.delta;
     return d?.type === "text_delta" ? d.text || "" : "";
   }
-  if (ev.type === "assistant") {
-    return (ev.message?.content || [])
-      .filter((b) => b.type === "text")
-      .map((b) => b.text || "")
-      .join("");
-  }
   return "";
+}
+
+// Text blocks between tool calls start with no leading space. Joined as-is, they
+// run sentences together ("…each row.Now update…"), so each new block gets one.
+export function appendEvent(acc, ev) {
+  const e = ev.type === "stream_event" ? ev.event : null;
+  if (e?.type === "content_block_start" && e.content_block?.type === "text"
+      && acc && !/\s$/.test(acc)) {
+    return acc + " ";
+  }
+  return acc + eventText(ev);
 }
 
 const PLACEHOLDER = "Ask Claude to change this console — e.g. add an interpolated P60 column";
@@ -69,10 +76,10 @@ const PLACEHOLDER = "Ask Claude to change this console — e.g. add an interpola
  *  full stops. `prefers-reduced-motion` is honoured in GLOBAL_CSS, where the dots
  *  hold a mid-opacity instead of pulsing.
  */
-function Working() {
+function Working({ label = "Working" }) {
   return (
     <span role="status" aria-live="polite">
-      Working
+      {label}
       {[0, 1, 2].map((i) => (
         <span
           key={i}
@@ -90,27 +97,188 @@ function Working() {
 const REPLY_LINES = 3;
 const REPLY_LINE_HEIGHT = 1.5;
 
-export default function AskBar({ token, placeholder = PLACEHOLDER }) {
+// A turn that edited source ends in a reload, which would wipe its own "Done" before
+// the user sees it — so the finished turn is parked here and picked up once on mount.
+export const LAST_KEY = "ctc.ask.last";
+
+function parkTurn(page, submitted, reply) {
+  try {
+    sessionStorage.setItem(LAST_KEY, JSON.stringify({ page, submitted, reply }));
+  } catch {
+    // Private browsing and some webviews throw; losing the Done line is fine.
+  }
+}
+
+// One-shot, so a later manual refresh can't resurrect an old reply.
+function takeParkedTurn() {
+  try {
+    const parked = JSON.parse(sessionStorage.getItem(LAST_KEY));
+    if (typeof parked?.reply !== "string" || !parked.reply) return null;
+    sessionStorage.removeItem(LAST_KEY);
+    return {
+      page: parked.page,
+      submitted: typeof parked.submitted === "string" ? parked.submitted : "",
+      reply: parked.reply,
+    };
+  } catch {
+    return null;
+  }
+}
+
+// The turn lives here, not in AskBar state: switching tabs unmounts the view's
+// AskBar while the request keeps streaming, and the box it remounts must show it.
+const IDLE = {
+  page: null, submitted: "", reply: "", done: false,
+  error: "", stuck: false, reloading: false, busy: false,
+};
+let turn = IDLE;
+let parkedAdopted = false;
+let streamText = "";
+let frame = 0;
+const listeners = new Set();
+
+function setTurn(patch) {
+  turn = { ...turn, ...patch };
+  listeners.forEach((l) => l());
+}
+const subscribe = (l) => { listeners.add(l); return () => listeners.delete(l); };
+const getTurn = () => turn;
+
+function adoptParkedTurn() {
+  if (parkedAdopted) return;
+  parkedAdopted = true;
+  const parked = takeParkedTurn();
+  if (parked) turn = { ...IDLE, ...parked, done: true };
+}
+
+export function __resetAskStore() {
+  cancelAnimationFrame(frame);
+  turn = IDLE;
+  parkedAdopted = false;
+  streamText = "";
+}
+
+// Per-token setState would re-render the console per token; flush once per frame.
+function flushStream() {
+  cancelAnimationFrame(frame);
+  frame = requestAnimationFrame(() => setTurn({ reply: streamText }));
+}
+
+async function stopTurn(token) {
+  // Interrupt rather than abort the fetch: the turn ends with a normal result
+  // frame, so the subprocess survives and the next prompt reuses its context.
+  try {
+    await fetch("/api/ask/interrupt", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Dash-Token": token },
+      body: JSON.stringify({ sessionId: "default" }),
+    });
+  } catch {
+    // Nothing to stop, or the turn already ended — not worth surfacing.
+  }
+}
+
+async function runTurn({ token, page, text }) {
+  streamText = "";
+  setTurn({ ...IDLE, page, submitted: text, busy: true });
+  try {
+    const res = await fetch("/api/ask", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Dash-Token": token },
+      body: JSON.stringify({ prompt: text, sessionId: "default", page }),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      // A turn left holding the lock (e.g. a closed browser tab) makes every later
+      // prompt 409 until the server restarts, so offer a way out.
+      if (body.error === "turn_in_progress") setTurn({ stuck: true });
+      throw new Error(ERRORS[body.error] || CHAT_UNAVAILABLE);
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let shouldReload = false;
+    let failed = false;
+    let ended = false;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const { events, rest } = parseSSE(buffer);
+      buffer = rest;
+      for (const ev of events) {
+        streamText = appendEvent(streamText, ev);
+        if (ev.type === "result") {
+          ended = true;
+          if (ev.ctcReload) shouldReload = true;
+          // The CLI's own text ("Not logged in · Please run /login") names a
+          // terminal command a browser user can't act on; the cause is logged
+          // server-side instead.
+          if (ev.is_error || ev.subtype === "error") {
+            failed = true;
+            setTurn({ error: CHAT_UNAVAILABLE });
+          }
+        }
+        if (ev.type === "ctc_error") {
+          ended = true;
+          failed = true;
+          setTurn({ error: CHAT_UNAVAILABLE });
+        }
+      }
+      flushStream();
+    }
+    // A stream that stops without a result frame (the subprocess died, the server
+    // went away) would otherwise leave "Working…" on screen with nothing coming.
+    if (!ended) {
+      failed = true;
+      setTurn({ error: CHAT_UNAVAILABLE });
+    }
+    // Commit synchronously: reload below isn't deferred, so the frame flush can
+    // lose the race and never paint.
+    cancelAnimationFrame(frame);
+    setTurn({ reply: streamText, done: true });
+
+    if (shouldReload) {
+      // Reload drops memory, so park the turn for the store to re-adopt. A failed
+      // turn isn't parked: it would come back reading "Done".
+      if (!failed) parkTurn(page, text, streamText);
+      setTurn({ reloading: true });
+
+      // Delayed so the browser can paint the answer before navigating away.
+      setTimeout(() => window.location.reload(), 1400);
+    }
+  } catch (e) {
+    // Our own mapped messages pass through; anything else (a network failure,
+    // a server that is gone) gets the one message rather than a raw error.
+    setTurn({ error: KNOWN_MESSAGES.has(e.message) ? e.message : CHAT_UNAVAILABLE });
+  } finally {
+    setTurn({ busy: false });
+  }
+}
+
+const PAGE_LABEL = { "RefreshPlanner:SettingsStep": "Refresh Grant Planner" };
+const pageLabel = (p) => PAGE_LABEL[p] || p || "other";
+
+export default function AskBar({ token, page, placeholder = PLACEHOLDER }) {
+  useState(adoptParkedTurn);
+  const t = useSyncExternalStore(subscribe, getTurn);
   const [prompt, setPrompt] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [reply, setReply] = useState("");
-  const [error, setError] = useState("");
-  // A previous turn still holds the session lock. Distinct from `busy`, which is
-  // about THIS tab's request — the stuck turn may belong to a tab that is gone.
-  const [stuck, setStuck] = useState(false);
-  // Set by the server on the terminal frame when the turn edited app source. The
-  // reload is what makes the change visible (source is transpiled in-browser, so
-  // there is no HMR), and it is skipped otherwise — a question that changed
-  // nothing must not cost the user their tab and filters.
-  const [reloading, setReloading] = useState(false);
   const inputRef = useRef(null);
   const replyRef = useRef(null);
-  // Streaming setState on every token would re-render the whole console per token.
-  // Accumulate here and flush on a frame instead.
-  const textRef = useRef("");
-  const frameRef = useRef(0);
 
-  useEffect(() => () => cancelAnimationFrame(frameRef.current), []);
+  // There is one server session, so a turn from any page makes every box busy.
+  const busy = t.busy;
+  const mine = t.page === page;
+  const elsewhere = busy && !mine;
+  // Known up front that the CLI can't run here: say so before anyone types.
+  const unavailable = useClaudeStatus(token) === "unavailable" && !busy;
+
+  // Keep the newest line in view: the panel is capped at REPLY_LINES.
+  useEffect(() => {
+    const el = replyRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [t.reply]);
 
   // Cmd/Ctrl-K focuses the box from anywhere, so the feature is reachable without
   // taking a hand off the keyboard mid-analysis.
@@ -125,127 +293,69 @@ export default function AskBar({ token, placeholder = PLACEHOLDER }) {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  function flushText() {
-    cancelAnimationFrame(frameRef.current);
-    frameRef.current = requestAnimationFrame(() => {
-      setReply(textRef.current);
-      // Keep the newest line in view. The panel is capped at REPLY_LINES, so
-      // without this a streaming reply scrolls its own answer out of sight and
-      // the user watches three stale lines while the real one arrives below.
-      const el = replyRef.current;
-      if (el) el.scrollTop = el.scrollHeight;
-    });
-  }
-
-  async function stop() {
-    // Interrupt rather than abort the fetch: the turn ends with a normal result
-    // frame, so the subprocess survives and the next prompt reuses its context.
-    try {
-      await fetch("/api/ask/interrupt", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Dash-Token": token },
-        body: JSON.stringify({ sessionId: "default" }),
-      });
-    } catch {
-      // Nothing to stop, or the turn already ended — not worth surfacing.
-    }
-  }
-
-  async function send() {
+  function send() {
     const text = prompt.trim();
-    if (!text || busy) return;
-    setBusy(true);
-    setError("");
-    setStuck(false);
-    setReply("");
-    textRef.current = "";
+    if (!text || getTurn().busy || unavailable) return;
     setPrompt("");
-
-    try {
-      const res = await fetch("/api/ask", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Dash-Token": token },
-        body: JSON.stringify({ prompt: text, sessionId: "default" }),
-      });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        // A turn left holding the lock (a closed tab mid-stream, a client that
-        // vanished) would otherwise wedge the box permanently: every later prompt
-        // 409s and the only escape is restarting the server. Offer the way out.
-        if (body.error === "turn_in_progress") setStuck(true);
-        throw new Error(ERRORS[body.error] || `Request failed (${res.status})`);
-      }
-
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-      let shouldReload = false;
-      for (;;) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const { events, rest } = parseSSE(buffer);
-        buffer = rest;
-        for (const ev of events) {
-          textRef.current += eventText(ev);
-          if (ev.type === "result") {
-            if (ev.ctcReload) shouldReload = true;
-            if (ev.is_error || ev.subtype === "error") {
-              setError(ev.result || "Claude reported an error.");
-            }
-          }
-        }
-        flushText();
-      }
-      flushText();
-
-      if (shouldReload) {
-        // Persist first: the reload drops in-memory state, and landing the user
-        // back on a different tab than they left would read as the edit breaking
-        // something. App.jsx restores from sessionStorage on mount.
-        setReloading(true);
-        window.location.reload();
-      }
-    } catch (e) {
-      setError(e.message || String(e));
-    } finally {
-      setBusy(false);
-    }
+    runTurn({ token, page, text });
   }
 
-  const showPanel = busy || reply || error || stuck;
+  const stop = () => stopTurn(token);
+  const showPanel = elsewhere || (mine && (busy || t.reply || t.error || t.stuck || t.submitted));
 
   return (
     <div>
+      {unavailable && !showPanel && (
+        <div role="status" style={{
+          marginBottom: 10, fontSize: FS.sm, color: C.feedbackNegative,
+          lineHeight: REPLY_LINE_HEIGHT,
+        }}>
+          ⚠️ {CHAT_UNAVAILABLE}
+        </div>
+      )}
       {showPanel && (
         <div ref={replyRef} style={{
           marginBottom: 10, fontSize: FS.sm,
-          color: error ? C.feedbackNegative : C.textSubtle,
+          color: !elsewhere && t.error ? C.feedbackNegative : C.textSubtle,
           whiteSpace: "pre-wrap", lineHeight: REPLY_LINE_HEIGHT,
-          // Three lines, then scroll. Expressed in em rather than a pixel value so
-          // it stays three lines if the type scale moves. The box now sits inside a
-          // card next to other controls, and a reply that grew to eight lines
-          // pushed the card's own content around every time a turn ran.
+          // Three lines, then scroll, in em so it tracks the type scale. A panel
+          // that grows each turn would push the card's other controls around.
           maxHeight: `${REPLY_LINE_HEIGHT * REPLY_LINES}em`,
           overflowY: "auto",
         }}>
-          {error ? `⚠️ ${error}` : (reply || <Working />)}
-          {stuck && (
-            <button
-              type="button"
-              onClick={async () => { await stop(); setStuck(false); setError(""); }}
-              style={{
-                marginLeft: 8, padding: "1px 7px",
-                fontSize: FS.sm, fontFamily: "inherit",
-                color: C.textDefault, background: C.surfaceDefault,
-                border: `1px solid ${C.borderDefault}`, borderRadius: RADIUS,
-                cursor: "pointer",
-              }}
-            >
-              Stop it and retry
-            </button>
+          {elsewhere ? (
+            <Working label={`Claude is still working on your ${pageLabel(t.page)} request`} />
+          ) : (
+            <>
+              {t.submitted && (
+                <div style={{ marginBottom: 4, color: C.textQuiet }}>
+                  You: {t.submitted}
+                </div>
+              )}
+              {t.error
+                ? `⚠️ ${t.error}`
+                : t.done && t.reply
+                  ? <><span style={{ color: C.feedbackPositive }}>✓ Done</span> — {t.reply}</>
+                  : (t.reply || <Working />)
+              }
+              {t.stuck && (
+                <button
+                  type="button"
+                  onClick={async () => { await stop(); setTurn({ stuck: false, error: "" }); }}
+                  style={{
+                    marginLeft: 8, padding: "1px 7px",
+                    fontSize: FS.sm, fontFamily: "inherit",
+                    color: C.textDefault, background: C.surfaceDefault,
+                    border: `1px solid ${C.borderDefault}`, borderRadius: RADIUS,
+                    cursor: "pointer",
+                  }}
+                >
+                  Stop it and retry
+                </button>
+              )}
+              {t.reloading && <div style={{ color: C.textQuiet }}>Reloading to show the change…</div>}
+            </>
           )}
-          {reloading && <div style={{ color: C.textQuiet }}>Reloading to show the change…</div>}
         </div>
       )}
       <div style={{ display: "flex", gap: 8 }}>
@@ -253,7 +363,7 @@ export default function AskBar({ token, placeholder = PLACEHOLDER }) {
           ref={inputRef}
           type="text"
           value={prompt}
-          disabled={busy}
+          disabled={busy || unavailable}
           placeholder={placeholder}
           aria-label="Ask Claude to change this console"
           onChange={(e) => setPrompt(e.target.value)}
@@ -268,7 +378,7 @@ export default function AskBar({ token, placeholder = PLACEHOLDER }) {
         <button
           type="button"
           onClick={busy ? stop : send}
-          disabled={!busy && !prompt.trim()}
+          disabled={!busy && (unavailable || !prompt.trim())}
           style={{
             height: 40, padding: "0 15px",
             fontSize: FS.md, fontWeight: 500, fontFamily: "inherit",
@@ -288,9 +398,9 @@ export default function AskBar({ token, placeholder = PLACEHOLDER }) {
 
 // Server error codes → what the user should actually do about them.
 const ERRORS = {
-  claude_unavailable:
-    "Couldn't start Claude. Check that the `claude` CLI is installed, on your PATH, and logged in.",
+  [UNAVAILABLE_CODE]: CHAT_UNAVAILABLE,
   turn_in_progress: "Still working on the previous request.",
   empty_prompt: "Type a request first.",
   unauthorized: "Session expired — relaunch the dashboard from your Claude session.",
 };
+const KNOWN_MESSAGES = new Set(Object.values(ERRORS));

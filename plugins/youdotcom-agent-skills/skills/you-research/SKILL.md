@@ -1,6 +1,6 @@
 ---
 name: you-research
-description: Route research tasks between a cost-conscious agentic search workflow and the You.com you-research MCP tool for one-shot cited synthesis.
+description: Multi-source research with citations using You.com. Use for questions that need several sources compared and synthesized, such as library or framework comparisons, tool and vendor evaluations, market research, or deep-dive reports. Routes between a cost-conscious agentic search loop and the one-shot `you-research` MCP tool.
 ---
 
 # You.com Research Routing
@@ -11,7 +11,7 @@ Use this skill to choose the right You.com research path for the user's goal: ag
 
 The You.com MCP endpoint must be reachable from the host:
 
-- Managed research (`you-research`): `https://api.you.com/mcp/research` with `YDC_API_KEY` bearer auth, OAuth, or an MPP/x402-aware MCP client.
+- Managed research (`you-research`): `https://api.you.com/mcp/research` with OAuth (preferred), `YDC_API_KEY` bearer auth, or an MPP/x402-aware MCP client.
 
 MPP/x402-aware MCP clients may receive HTTP `402` payment challenges from You.com tools, then retry with payment headers. Let the host client handle external payment and retry; do not add wallet signing logic to this skill.
 

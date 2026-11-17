@@ -144,6 +144,6 @@ _Many thanks to David Hao, Edmond Liu, and Alec Xiang for helping to make this t
 
 ## Author
 
-**Ganapathi Krishnamoorthi**
+### Ganapathi Krishnamoorthi
 
 Ganapathi Krishnamoorthi is a Senior ML Solutions Architect at AWS. Ganapathi provides prescriptive guidance to startup and enterprise customers helping them to design and deploy cloud applications at scale. He is specialized in machine learning and is focused on helping customers leverage AI/ML for their business outcomes. When not at work, he enjoys exploring outdoors and listening to music.

@@ -1,8 +1,8 @@
 {
   "name": "pendo-guides",
-  "version": "1.1.0",
-  "description": "Create production-ready Pendo in-app guides (walkthroughs, announcements, alerts, polls, promotions) as HTML/CSS/JS from a short intake conversation",
-  "updatedAt": "2026-09-19T00:42:54.392Z",
+  "version": "1.4.1",
+  "description": "Create production-ready Pendo in-app guides (walkthroughs, announcements, alerts, polls, promotions) as HTML/CSS/JS from a short intake conversation, and review guide signals to mute, deactivate, or archive stale guides",
+  "updatedAt": "2026-11-17T00:02:02.354Z",
   "author": {
     "name": "Pendo",
     "email": "plugins@pendo.io"
@@ -14,8 +14,15 @@
     "guides",
     "in-app",
     "onboarding",
-    "product-management"
+    "product-management",
+    "guide-management"
   ],
   "displayName": "Pendo Guides",
-  "skills": "./skills/"
+  "skills": "./skills/",
+  "mcpServers": {
+    "pendo-external": {
+      "url": "https://app.pendo.io/mcp/v0/shttp",
+      "type": "http"
+    }
+  }
 }

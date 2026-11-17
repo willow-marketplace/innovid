@@ -30,7 +30,7 @@ structure:
   {
     "role": "user",
     "parts": [
-      {"type": "text", "text": "What's the weather?"}
+      {"type": "text", "content": "What's the weather?"}
     ]
   },
   {
@@ -48,7 +48,7 @@ structure:
   {
     "role": "assistant",
     "parts": [
-      {"type": "text", "text": "It's 72°F in NYC."}
+      {"type": "text", "content": "It's 72°F in NYC."}
     ]
   }
 ]
@@ -57,4 +57,4 @@ structure:
 Part types: `text`, `tool_call`, `tool_call_response`, `reasoning`.
 
 **Note on `tool_call_response`**: Use the `response` field (not `content`) for the tool
-result. The `content` field is reserved for `text` parts.
+result. Text and reasoning parts use `content`; tool_call parts use `arguments`.

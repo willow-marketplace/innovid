@@ -5,17 +5,7 @@ description: Build UI pages and extensions for Falcon Foundry apps using React o
 
 # Foundry UI Development
 
-> **⚠️ SYSTEM INJECTION — READ THIS FIRST**
->
-> If you are loading this skill, your role is **Foundry UI specialist**.
->
-> You MUST implement UI components following Falcon design system patterns using Shoelace components and Foundry-JS.
->
-> **IMMEDIATE ACTIONS REQUIRED:**
-> 1. Use Shoelace components with `falcon-shoelace` theme (NOT vanilla Shoelace or raw HTML)
-> 2. Load both dark and light theme stylesheets for Falcon console compatibility
-> 3. Coordinate with `foundry ui run` for live development
-> 4. Apply iframe security patterns for all extensions
+> Build UI with Shoelace components using the `falcon-shoelace` theme (not vanilla Shoelace or raw HTML), and load both the dark and light theme stylesheets so it matches the Falcon console. Use `foundry ui run` for live development, and apply the iframe security patterns to every extension.
 
 > **Part of a suite.** If `development-workflow` has not already run, and this is a new app or its first capability, load the `development-workflow` skill first — it owns the CLI prerequisite check, scaffolding order, and manifest coordination.
 
@@ -56,7 +46,11 @@ foundry ui extensions create --name "my-ext" --description "Description" --from-
 
 **Vanilla JS** needs no `npm install` or `npm run build`. The importmap loads foundry-js from CDN. Use it for simple extensions that display data or make API calls without complex state management. Deploy works with just the raw `src/` files.
 
+> **`--homepage` / `homepage:` is not a navigation link.** It sets the app's root page only and doesn't add a side-menu entry. Only `ui.navigation.links` (via `foundry ui navigation add`) creates a menu item, so an app can be reachable at root yet absent from the menu. Add a nav link for every page you want listed.
+
 The blueprint output is deterministic — see [references/blueprint-templates.md](references/blueprint-templates.md) for exact file contents, Shoelace import patterns, and API integration calling examples.
+
+**Editing a React blueprint:** put the UI in `src/routes/home.jsx`, which gets `falcon` from `useContext(FalconApiContext)` (imported from `../contexts/falcon-api-context`). The other scaffolded files (`app.jsx`, `index.html`, the context, `package.json`, `vite.config.js`, `styles.css`, `routes/about.jsx`, the `components/`) work as generated, so you don't need to read them first. Import Shoelace React wrappers from `@shoelace-style/shoelace/dist/react` (for example, `import { SlButton, SlSpinner } from "@shoelace-style/shoelace/dist/react";`).
 
 > **🚫 DO NOT MODIFY `path` or `entrypoint` in manifest.yml**
 >
@@ -108,17 +102,17 @@ Set the Shoelace asset base path:
 
 ```typescript
 import { setBasePath } from '@shoelace-style/shoelace/dist/utilities/base-path';
-setBasePath('https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.x/dist/');
+setBasePath('https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.20.1/cdn/'); // the version in package.json
 ```
 
-Use `var(--sl-*)` design tokens for all styling instead of hardcoding colors. This ensures the UI adapts correctly when users switch between light and dark mode in the Falcon console:
+Use design tokens instead of hardcoded colors so the UI follows the console's light and dark mode. Colors come from the Toucan tokens in `@crowdstrike/tailwind-toucan-base` (the React blueprint loads its `index.css`); falcon-shoelace defines `--sl-spacing-*` but no global `--sl-color-*` or `--sl-border-radius-*` tokens, so those resolve to nothing:
 
 ```css
 .my-component {
-  color: var(--sl-color-neutral-900);
-  background: var(--sl-color-neutral-0);
+  color: var(--titles-and-attributes);
+  background: var(--surface-md);
+  border: 1px solid var(--border-reg);
   padding: var(--sl-spacing-medium);
-  border-radius: var(--sl-border-radius-medium);
 }
 ```
 
@@ -132,141 +126,14 @@ For theming, dark/light mode switching, and design token values, see [references
 import FalconApi from '@crowdstrike/foundry-js';
 
 const falcon = new FalconApi();
-await falcon.connect();
-
-// Apply Falcon console theme
-const theme = await falcon.theme();
-document.documentElement.classList.add(`sl-theme-${theme}`);
+await falcon.connect();   // MUST resolve before any SDK call; also applies the console theme
 ```
 
-> **⚠️ `connect()` is async.** In React, `falcon.connect()` must be called inside a `useEffect` and navigation must only be accessed AFTER connect resolves. Use React state (`isInitialized`) as the `useMemo` dependency — not `falcon.isConnected` (which is a plain object property, not reactive state):
->
-> ```jsx
-> const [isInitialized, setIsInitialized] = useState(false);
-> const falcon = useMemo(() => new FalconApi(), []);
-> const navigation = useMemo(() => {
->   return isInitialized ? falcon.navigation : undefined;
-> }, [isInitialized]);
-> ```
->
-> Gate child rendering on `isInitialized` state. See [references/react-patterns.md](references/react-patterns.md) for the full `FalconApiProvider` pattern.
+There is no `falcon.theme()` method. `connect()` puts `theme-light` or `theme-dark` on `<html>` (also in `falcon.data.theme`) and swaps it on every `data` message. `@crowdstrike/falcon-shoelace` styles off those same classes, so Shoelace components follow the console with no theme code; only your own CSS keyed off something else needs to react (listen for `falcon.events.on('data', …)` or a `MutationObserver` on the `<html>` class).
 
-### Calling API Integrations
+> **⚠️ `connect()` is async.** In React, call it inside a `useEffect`, gate child rendering on an `isInitialized` state (NOT `falcon.isConnected`, which isn't reactive), and access `falcon.navigation` only after it resolves. Full `FalconApiProvider` pattern: [references/react-patterns.md](references/react-patterns.md).
 
-Use `falcon.apiIntegration()` for third-party APIs. Use `falcon.api.get()` for CrowdStrike Falcon APIs.
-
-```javascript
-const apiIntegration = falcon.apiIntegration({
-  definitionId: 'Okta',        // Must match name in manifest.yml api_integrations
-  operationId: 'listUsers'     // Must match operationId in OpenAPI spec
-});
-const result = await apiIntegration.execute({ request: { params: {} } });
-
-// Response is wrapped: access via resources[0]
-const body = result.resources?.[0]?.response_body;
-const status = result.resources?.[0]?.status_code;
-```
-
-Query and path parameters must match the types declared in the OpenAPI spec. `execute()` types params as `Record<string, unknown>`, so a quoted number compiles and ships fine, then fails server-side schema validation at runtime with `got string want integer`. The extension still renders, so this looks like an API or credential error rather than a bug in your code.
-
-```javascript
-// spec declares: - name: limit / schema: { type: integer }
-request: { params: { query: { limit: 25 } } }    // ✅ number
-request: { params: { query: { limit: '25' } } }  // ❌ got string want integer
-```
-
-Check the `schema.type` of each parameter in the spec before passing it. Numbers and booleans are unquoted; only `type: string` parameters take quotes.
-
-### Collection Operations
-
-```javascript
-const collection = falcon.collection({ collection: 'my_collection' });
-
-// CRUD operations
-await collection.write('item-key', { name: 'Item 1', status: 'active' });
-const item = await collection.read('item-key');
-await collection.delete('item-key');
-
-// List all items (returns IDs, then read each)
-const result = await collection.list({ start: 0, limit: 100 });
-const itemIds = result.resources || [];
-for (const id of itemIds) {
-  const item = await collection.read(id);
-  // Add 50ms delay between reads to avoid rate limiting
-}
-
-// Search with FQL filter
-const results = await collection.search({ filter: "status:'active'" });
-```
-
-### Workflow Execution
-
-```javascript
-// Execute an on-demand workflow by name
-const triggerResult = await falcon.api.workflows.postEntitiesExecuteV1(
-  { user_name: 'Developer' },           // workflow input parameters
-  { name: 'My Workflow', depth: 0 }     // config: workflow name + depth
-);
-
-// Poll for results using the execution ID
-const execId = triggerResult.resources?.[0];
-const result = await falcon.api.workflows.getEntitiesExecutionResultsV1({
-  ids: [execId]
-});
-const execution = result.resources?.[0];
-// Poll until execution.status is 'Completed', 'Failed', or 'Cancelled'
-```
-
-### Cloud Functions
-
-```javascript
-const cloudFunction = falcon.cloudFunction({
-  name: 'my_function',
-  version: 1
-});
-
-// Fluent API — chain .path() with HTTP method
-const result = await cloudFunction.path('/greet').post({ name: 'User' });
-const data = await cloudFunction.path('/items?status=active').get();
-await cloudFunction.path('/items/123').delete();
-```
-
-### LogScale
-
-```javascript
-// Write events
-await falcon.logscale.write({ event_type: 'user_login', username: 'jdoe' });
-
-// Dynamic query
-const results = await falcon.logscale.query({
-  name: 'LogScaleRepo',
-  search_query: 'event_type=user_login',
-  start: '24h',
-  end: 'now'
-});
-
-// Saved query
-const saved = await falcon.logscale.savedQuery({
-  id: 'saved-query-id',
-  start: '7d',
-  mode: 'sync',
-  parameters: {}
-});
-```
-
-### Events
-
-```javascript
-// Listen to Falcon console events (data, connect, disconnect, error, navigation)
-falcon.events.on('data', (data) => console.log('Data event:', data));
-falcon.events.on('navigation', (data) => console.log('Nav event:', data));
-
-// Clean up listeners on unmount
-falcon.events.off('data', handler);
-```
-
-For full React component examples, see [references/react-patterns.md](references/react-patterns.md).
-For full Vue component examples, see [references/vue-patterns.md](references/vue-patterns.md).
+Per-API usage lives in [references/foundry-js.md](references/foundry-js.md): API integrations (+ the `got string want integer` parameter-type gotcha), collections CRUD, on-demand workflow execute/poll, cloud functions (invoke by `name` not `id`, so it survives a clone), LogScale, and events. Full component examples: [references/react-patterns.md](references/react-patterns.md) and [references/vue-patterns.md](references/vue-patterns.md).
 
 ## Development Servers
 
@@ -289,22 +156,19 @@ Toggle via the **Developer tools** (`</>`) icon in the Falcon console toolbar:
 
 Only one mode at a time. Disable one before enabling the other.
 
+## Sandboxed Iframe Restrictions
+
+Pages and extensions run in an iframe sandboxed with `allow-scripts allow-forms allow-downloads` only:
+
+- **No `allow-same-origin`:** `localStorage`, `sessionStorage`, `document.cookie`, and `indexedDB` throw `SecurityError`. Keep state in memory or a collection.
+- **No `allow-modals`:** `alert()`, `confirm()`, `prompt()`, and `beforeunload` prompts are silently ignored — `confirm()` returns `false`. Show errors inline and confirm with `<sl-dialog>`.
+- **Page lifetime:** a loop over many items stops starting new calls when the user leaves. Save per item, make re-runs resume, or move the loop into a workflow.
+
+See [references/sandboxed-iframe.md](references/sandboxed-iframe.md) for the errors, a storage fallback, and a resumable bulk-processing pattern.
+
 ## Iframe Communication
 
-Extensions must validate message origins:
-
-```typescript
-const allowedOrigins = [
-  'https://falcon.crowdstrike.com',
-  'https://falcon.eu-1.crowdstrike.com',
-  'https://falcon.us-gov-1.crowdstrike.com',
-];
-
-window.addEventListener('message', (event: MessageEvent) => {
-  if (!allowedOrigins.includes(event.origin)) return;
-  // Process event.data
-});
-```
+foundry-js owns the channel to the console: `connect()` records the console's origin and sends every later message there, never to `'*'`. Don't add your own `postMessage` calls or `message` listeners. Read console context with `falcon.events.on('data', …)` and talk to other extensions of the same app with `falcon.sendBroadcast()` plus `falcon.events.on('broadcast', …)` ([foundry-js.md](references/foundry-js.md#events-inter-extension-communication)).
 
 ## Extension Socket Locations
 
@@ -313,8 +177,9 @@ Run `foundry ui extensions list-sockets` to get the current list of available so
 | Display Name | Technical ID for `--sockets` | Console Navigation |
 |-------------|------------------------------|--------------------|
 | Endpoint detection details | `activity.detections.details` | Endpoint security › Monitor › Endpoint detections |
-| Identity Protection detection details | `identity.detections.details` | Identity protection › Detections |
-| Next-Gen SIEM cases details | `xdr.cases.panel` | Next-Gen SIEM › Cases |
+| Identity detection details | `identity.detections.details` | Identity protection › Detections |
+| Next-Gen SIEM cases panel | `xdr.cases.panel` | Next-Gen SIEM › Cases |
+| Next-Gen SIEM cases details | `xdr.cases.details` | Next-Gen SIEM › Cases › open a case (details section; CLI 2.1.2+) |
 | Next-Gen SIEM workbench details | `ngsiem.workbench.details` | Next-Gen SIEM › Cases › open a case › workbench graph canvas › click a node |
 | Host management host details | `hosts.host.panel` | Host setup and management › Host management |
 | Automated leads details | `automated-leads.leads.details` | Next-Gen SIEM › Automated leads |
@@ -322,20 +187,24 @@ Run `foundry ui extensions list-sockets` to get the current list of available so
 
 ## Common Pitfalls
 
-> **Note:** The first three pitfalls below about `vite.config.js`, `npm install`, and `npm run build` apply to the React template only. Vanilla JS extensions have no build step — deploy the raw `src/` files directly.
+> **Note:** The first four pitfalls below, about the UI subdirectory, `npm install`, manifest paths, and `vite.config.js`, apply to the React template only. Vanilla JS extensions have no build step — deploy the raw `src/` files directly.
 
 - **Running `foundry` commands from a UI subdirectory.** After `cd ui/extensions/my-ext && npm install && npm run build`, you MUST `cd` back to the app root before running `foundry apps validate`, `foundry apps deploy`, or `foundry ui run`. The CLI resolves manifest paths relative to cwd — running from a subdirectory produces doubled paths like `ui/extensions/my-ext/ui/extensions/my-ext/src/dist/index.html`.
 - **NEVER edit manifest.yml `path` or `entrypoint` values.** The CLI sets these correctly. The format `ui/extensions/my-ext/src/dist/index.html` is NOT a doubled path — it is correct. If you see a deploy path error, you likely changed `vite.config.js` — revert your changes.
 - **NEVER modify `vite.config.js`.** The blueprint is turnkey. Do not change `base: './'` to `''` or anything else. Do not change `root: 'src'`. Do not remove `noAttr()`. Just edit your React/JS code and deploy.
+- **Hardcoding page or function IDs.** After an app clone Foundry re-mints every page/function id, so hardcoded `cloudFunction({id})` or `SETTINGS_PAGE_ID`/`DASH_PAGE_ID` constants silently target the ORIGINAL app — function probes return `error`/`[object Object]`, nav buttons jump to the old app. Invoke functions by `name`, and open modals by `name` with `falcon.ui.openModal({ type: 'page', name }, title)`. Navigation paths still need a page ID (`/foundry/page/<id>`), and foundry-js has no call that looks one up by name, so keep those IDs in one constants file and update it from the new `manifest.yml` after a clone.
+- **Cross-page navigation with `type: 'internal'`.** Each Foundry page is a separate SPA; `navigation.navigateTo({ type: 'internal' })` routes WITHIN the current SPA and silently falls back to its home (the "Settings button just reloads the dashboard" bug). Use `type: 'falcon'` with a RELATIVE path (`/foundry/page/<id>`). The console's `new URL(path)` throws `Invalid URL` on a relative path — but navigation still works, so that console error is cosmetic; do NOT "fix" it by passing an absolute URL, which forces the page to open in a NEW TAB (worse UX).
 - **Omitting `--sockets` on extension create.** This launches an interactive picker that hangs with `Error: EOF`. Always provide `--sockets "socket.id"` on the command line. Run `foundry ui extensions list-sockets` to see available sockets — do not guess or fabricate socket names.
 - **Importing vanilla Shoelace themes.** Use `@crowdstrike/falcon-shoelace` for Falcon console styling.
 - **Loading only light theme.** The Falcon console supports dark mode — users see broken styling without both themes.
-- **Hardcoding colors.** Use `var(--sl-*)` design tokens so the UI adapts to theme changes.
+- **Hardcoding colors.** Use Toucan tokens (`var(--titles-and-attributes)`, `var(--critical)`) so the UI adapts to theme changes. falcon-shoelace defines no global `--sl-color-*` tokens.
 - **Expecting backend to work with `foundry ui run`.** The dev server only serves UI — deploy backend capabilities first.
-- **Shoelace dialogs/drawers white in dark mode.** Override `--sl-panel-background-color` and `--sl-color-neutral-0` with `var(--ground-floor)`. See [references/shoelace-reference.md](references/shoelace-reference.md).
+- **Using `sl-badge` or `sl-tag` for status.** falcon-shoelace doesn't style them, so every variant looks the same. Also: `sl-option` values can't hold spaces, `sl-radio-group` gets two tab stops, and dialog events bubble from children. See [shoelace-reference](references/shoelace-reference.md#components-falcon-shoelace-doesnt-style).
 - **Using Tailwind arbitrary values with prebuilt toucan CSS.** Values like `max-h-[400px]` require JIT compilation. Use inline styles instead when using the prebuilt `tailwind-toucan-base/index.css`.
 - **Quoting numeric query parameters.** `execute()` accepts `Record<string, unknown>`, so `limit: '25'` passes type-checking and fails server-side with `got string want integer`. Match the `schema.type` declared in the OpenAPI spec — the extension still renders, so this reads as an API error rather than a code bug.
-- **Missing CSP for Shoelace icons.** The Foundry CSP only allows `assets.foundry.crowdstrike.com`. If using `setBasePath()` with `cdn.jsdelivr.net`, you must add it to `connect-src` and `img-src` in the manifest's `content_security_policy`. Alternatively, copy icon assets to your `dist/` folder and set a relative base path to avoid CDN dependencies entirely.
+- **Reading `localStorage` or `sessionStorage`.** The sandbox lacks `allow-same-origin`, so any access throws a `SecurityError` (see [Sandboxed Iframe Restrictions](#sandboxed-iframe-restrictions)). Use in-memory state or a collection; wrap legacy calls in `try/catch`.
+- **Reporting errors with `alert()` or guarding actions with `confirm()`.** The sandbox lacks `allow-modals`, so both are silently ignored: errors vanish and `confirm()`-guarded actions never run. Use inline errors and `<sl-dialog>`.
+- **Serving icons from `dist/`.** The default CSP already allows `cdn.jsdelivr.net` and `data:`, so the `setBasePath()` above needs no manifest change. Deploy drops `.svg` files and `connect-src` blocks the app's own host, so a local icon path fails. Inline custom SVGs ([falcon-theming](references/falcon-theming.md#shoelace-icons-and-the-csp)).
 
 ## Reading Guide
 
@@ -347,7 +216,8 @@ Run `foundry ui extensions list-sockets` to get the current list of available so
 | React component examples | [references/react-patterns.md](references/react-patterns.md) |
 | Vue component examples | [references/vue-patterns.md](references/vue-patterns.md) |
 | Foundry-JS: workflows, LogScale, cloud functions, collections CRUD | [references/foundry-js.md](references/foundry-js.md) |
-| Framework selection, ExtensionMessaging, E2E testing, Extension Builder, CSP, dev server coordination | [references/advanced-patterns.md](references/advanced-patterns.md) |
+| Sandbox restrictions (storage, modals), long-running page loops | [references/sandboxed-iframe.md](references/sandboxed-iframe.md) |
+| Framework selection, console messaging, Extension Builder, CSP, dev server coordination | [references/advanced-patterns.md](references/advanced-patterns.md) |
 
 ## Use Cases
 

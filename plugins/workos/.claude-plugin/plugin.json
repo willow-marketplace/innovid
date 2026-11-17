@@ -1,13 +1,18 @@
 {
   "name": "workos",
   "version": "1.0.0",
-  "description": "WorkOS integration skills for AuthKit, SSO, Directory Sync, RBAC, Vault, Audit Logs, migrations, and API references.",
-  "updatedAt": "2026-09-19T00:42:54.229Z",
+  "description": "Set up WorkOS AuthKit with no account: npx workos@latest install provisions an environment you can claim later. Also covers SSO, Directory Sync, RBAC, Vault, Audit Logs, migrations, and API references.",
+  "updatedAt": "2026-11-17T00:02:40.706Z",
   "author": {
     "name": "WorkOS",
     "email": "support@workos.com"
   },
   "homepage": "https://workos.com",
   "repository": "https://github.com/workos/skills",
-  "skills": "./skills/"
+  "skills": "./skills/",
+  "mcpServers": {
+    "workos": {
+      "url": "https://mcp.workos.com/mcp"
+    }
+  }
 }

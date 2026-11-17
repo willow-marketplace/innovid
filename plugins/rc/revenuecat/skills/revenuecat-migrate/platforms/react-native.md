@@ -12,8 +12,15 @@ Use observer mode. Your existing purchase code (JS or native module) keeps ownin
 
 ```bash
 npm install react-native-purchases
+```
+
+Then install the iOS native code. Most React Native apps use CocoaPods (an `ios/Podfile`):
+
+```bash
 cd ios && pod install && cd ..
 ```
+
+If the app uses React Native's Swift Package Manager integration (React Native 0.88+, with an `ios/*.xcodeproj/.spm-injected.json` file), skip `pod install`: the next Xcode build picks up the new package.
 
 For Expo managed projects:
 
@@ -53,6 +60,7 @@ In observer mode:
 
 - iOS: your StoreKit code must continue to finish transactions.
 - Android: your Play Billing code must continue to acknowledge purchases within 3 days.
+- Android: `react-native-purchases` 11.x puts Play Billing Library 9.1.0 on the app's classpath, so the purchase library you keep (for example `react-native-iap`) must support Play Billing Library 9. Versions that use APIs it removed, such as `SkuDetails`, fail at build time or at runtime.
 
 ### Tie existing users
 
@@ -79,7 +87,7 @@ Treat the SDK repo's docs as authoritative. Any version-specific diff written he
 After migration:
 
 1. App builds and launches on both iOS and Android.
-2. Native platform console (Xcode / logcat) shows the `Purchases is configured` banner.
+2. With `LOG_LEVEL.DEBUG`, the JavaScript console shows `[RevenueCat]` lines from configure, including one with `SDK Version - ` (see `integrate-revenuecat/platforms/react-native.md` for where to read it).
 3. A sandbox purchase on each platform shows on the RevenueCat dashboard Sandbox view with the right appUserID.
 4. A user with a pre migration active subscription still shows that entitlement active.
 5. `Purchases.setLogLevel(LOG_LEVEL.INFO);` before shipping.

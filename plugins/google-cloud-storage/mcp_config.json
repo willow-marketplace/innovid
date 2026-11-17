@@ -4,10 +4,12 @@
       "command": "npx",
       "args": [
         "-y",
-        "@toolbox-sdk/server@1.9.0",
+        "@toolbox-sdk/server@1.13.1",
         "--prebuilt",
         "cloud-storage",
-        "--stdio"
+        "--stdio",
+        "--user-agent-metadata",
+        "gcs-skills/1.0 (skill:gcs-skills-mcp-traffic)"
       ]
     }
   }

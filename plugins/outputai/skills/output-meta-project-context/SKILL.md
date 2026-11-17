@@ -21,12 +21,12 @@ This separation enables automatic retries, resumption, and debugging.
 
 | Component | Purpose | Key Rule |
 |-----------|---------|----------|
-| **Workflow** | Orchestrates step execution | Must be deterministic (no I/O, no Date.now(), no Math.random()) |
+| **Workflow** | Orchestrates step execution | Must be deterministic (no I/O, no Date.now(), no Math.random()). Call other workflows as functions (`await otherWorkflow( input )`) to run them as child workflows; never use `executeChild` or `startChild` from `@temporalio/workflow` |
 | **Step** | Handles all I/O operations | Where HTTP, LLM, DB calls happen |
 | **Evaluator** | Quality assessment | Returns confidence-scored results for validation loops |
 | **Scenario** | Test input data | JSON files matching workflow's inputSchema |
 | **Prompt** | LLM templates | Liquid.js templating with YAML frontmatter config |
-| **Eval Test** | Offline quality testing | Dataset-driven verification with `verify()` from `@outputai/evals` |
+| **Eval Test** | Offline quality testing | Dataset-driven verification with `verify()` from `@outputai/core/evals` |
 
 ## Project Structure
 
@@ -64,12 +64,13 @@ src/
 ## Code Reuse Rules
 
 **Shared directory** (`src/shared/`):
-- `shared/clients/` - API clients using `@outputai/http` for external services
+- `shared/clients/` - API clients using `@outputai/core/http` for external services
 - `shared/utils/` - Helper functions and utilities
 
 **Allowed imports:**
 - Workflows/steps can import from `../../shared/clients/*.js` and `../../shared/utils/*.js`
 - Workflows/steps can import from local files (`./types.js`, `./utils.js`)
+- Workflows can import another workflow's default export (`../other_workflow/workflow.js`) and call it as a function (child workflow)
 
 **Forbidden:**
 - Importing from sibling workflow folders (`../other_workflow/steps.js`)
@@ -80,11 +81,11 @@ src/
 | Rule | Correct | Incorrect |
 |------|---------|-----------|
 | Zod import | `import { z } from '@outputai/core'` | `import { z } from 'zod'` |
-| HTTP client | `import { createKyClient } from '@outputai/http'` | `import axios from 'axios'` |
+| HTTP client | `import { createKyClient } from '@outputai/core/http'` | `import axios from 'axios'` |
 | HTTP bodies | Read with `.json()`/`.text()` or cancel unused non-HEAD bodies | Read only `response.url`/`status` and leave body open |
 | Cost tracking | `addRequestCost` in an `afterResponse` hook for paid APIs | Cost left untracked, or tracked only at call sites |
-| Credentials | `import { credentials } from '@outputai/credentials'` | `process.env.SECRET` |
-| LLM calls | `import { generateText, aiSdk } from '@outputai/llm'` | Direct provider SDK |
+| Credentials | `import { credentials } from '@outputai/core/credentials'` | `process.env.SECRET` |
+| LLM calls | `import { generateText, aiSdk } from '@outputai/core/llm'` | Direct provider SDK |
 | ES imports | `import { fn } from './file.js'` | `import { fn } from './file'` |
 | Workflow I/O | Call steps for any I/O | Direct fetch/http in workflow |
 
@@ -147,7 +148,7 @@ src/
 | `output-error-try-catch` | Workflow try/catch patterns and typed step-error checks |
 | `output-error-missing-schemas` | Incomplete Zod schema exports |
 | `output-error-direct-io` | I/O operations in workflow files |
-| `output-error-http-client` | Using axios instead of @outputai/http |
+| `output-error-http-client` | Using axios instead of @outputai/core/http |
 
 #### Meta/Lifecycle
 | Skill | Purpose |
@@ -167,7 +168,7 @@ src/
 | `output-dev-llm-streaming` | Stream LLM progress with Temporal-safe error handling |
 | `output-dev-types-file` | Zod schema definitions |
 | `output-dev-evaluator-function` | Quality assessment functions |
-| `output-dev-eval-testing` | Offline eval tests with `@outputai/evals` |
+| `output-dev-eval-testing` | Offline eval tests with `@outputai/core/evals` |
 | `output-dev-prompt-file` | LLM prompt templates with Liquid.js |
 | `output-dev-model-selection` | Pick a current LLM model via the AI Gateway listing |
 | `output-dev-upgrade-prompt-models` | Bulk-upgrade `model:` fields across `.prompt` files |
@@ -191,7 +192,7 @@ src/
 |-------|---------|
 | `output-dev-credentials` | Full credentials system reference (API, scopes, merging, custom providers) |
 | `output-credentials-init` | Initialize encrypted credentials files for the first time |
-| `output-credentials-edit` | View and edit credential values with `show`/`get`/`edit` commands |
+| `output-credentials-edit` | View and edit credential values with `show`/`get`/`set`/`edit` commands |
 | `output-credentials-env-vars` | Wire credentials to env vars using the `credential:` convention |
 
 ---
@@ -229,6 +230,7 @@ npx output workflow dataset generate <name> --input '{}'  # Generate dataset
 # Credentials
 npx output credentials init                  # Initialize encrypted credentials
 npx output credentials edit                  # Edit credentials (decrypts, opens $EDITOR)
+npx output credentials set <path> <value>    # Set single credential value
 npx output credentials show                  # Show decrypted credentials
 npx output credentials get <path>            # Get single credential value
 ```
@@ -276,7 +278,7 @@ See `output-dev-workflow-function` for comprehensive patterns.
 ### Step Pattern
 ```typescript
 import { step, z } from '@outputai/core';
-import { createKyClient } from '@outputai/http';
+import { createKyClient } from '@outputai/core/http';
 
 export const fetchData = step(
   { name: 'fetchData', inputSchema: z.string(), outputSchema: z.any() },
@@ -297,8 +299,8 @@ Clients live in `src/shared/clients/` and are shared across all workflows.
 ```typescript
 // src/shared/clients/example.ts
 import { FatalError, ValidationError } from '@outputai/core';
-import { createKyClient } from '@outputai/http';
-import { credentials } from '@outputai/credentials';
+import { createKyClient } from '@outputai/core/http';
+import { credentials } from '@outputai/core/credentials';
 
 const API_KEY = credentials.require( 'example.api_key' );
 
@@ -390,7 +392,7 @@ Provide {{ numberOfPoints | default: 3 }} key insights.
 
 **Using in steps:**
 ```typescript
-import { generateText, aiSdk } from '@outputai/llm';
+import { generateText, aiSdk } from '@outputai/core/llm';
 import { z } from '@outputai/core';
 
 // Structured output
@@ -413,7 +415,7 @@ Call arguments: `prompt`, `promptDir`, `variables`, `tools`, `output`, `toolChoi
 
 For progress callbacks inside a step, prefer `generateTextWithStreaming()` or `Agent.generateWithStreaming()`. They return complete results and reject on stream failures. If direct `streamText()` access is required, capture `onError` and throw the captured error after consuming the stream. See `output-dev-llm-streaming`.
 
-**Provider & model selection:** the SDK supports `anthropic`, `openai`, `google-vertex`, `amazon-bedrock`, `azure`, and `perplexity`. Don't pin specific model IDs in docs — they drift. To pick a current model, run [`output-dev-model-selection`](../output-dev-model-selection/SKILL.md), which queries the AI Gateway model index live.
+**Provider & model selection:** the SDK supports `anthropic`, `openai`, `google-vertex`, `amazon-bedrock`, `azure`, and `perplexity`. Each needs its `@ai-sdk/*` package installed in the project (new projects ship `@ai-sdk/anthropic` and `@ai-sdk/openai`). Don't pin specific model IDs in docs — they drift. To pick a current model, run [`output-dev-model-selection`](../output-dev-model-selection/SKILL.md), which queries the AI Gateway model index live.
 
 See `output-dev-prompt-file` for comprehensive patterns.
 

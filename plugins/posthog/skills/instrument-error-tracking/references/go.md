@@ -1,10 +1,26 @@
 > AI agents: this is one page from PostHog's docs. Full index of Markdown docs for LLMs: https://posthog.com/llms.txt
 
-# Go Error Tracking installation - Docs
+# Go Error Tracking installation
 
-Copy page
+Canonical URL: https://posthog.com/docs/error-tracking/installation/go
 
-# Go Error Tracking installation - Docs
+> **Cloud region:** This page uses US Cloud hosts. For an EU Cloud project, use `https://eu.i.posthog.com` instead of `https://us.i.posthog.com` (ingestion host), and use `https://eu.posthog.com` instead of `https://app.posthog.com` (app host for links).
+
+## On this page
+
+- [Install with the wizard](#install-with-the-wizard)
+- [Install the Go SDK](#install-the-go-sdk)
+- [Initialize the client](#initialize-the-client)
+- [Capture exceptions](#capture-exceptions)
+- [Verify error tracking](#verify-error-tracking)
+
+## Install with the wizard
+
+Run this command in your project directory to add PostHog to your Go project. The wizard detects your framework, installs the SDK, and sets up your first events.
+
+`npx @posthog/wizard`
+
+Or set it up manually by following the rest of this guide.
 
 1.  1
 
@@ -12,11 +28,7 @@ Copy page
 
     Required
 
-    Install the [PostHog Go SDK](/docs/libraries/go.md):
-
-    Terminal
-
-    PostHog AI
+    Install the [PostHog Go SDK](https://posthog.com/docs/libraries/go.md):
 
     ```bash
     go get github.com/posthog/posthog-go
@@ -24,7 +36,7 @@ Copy page
 
     **Debug symbol uploads**
 
-    The Go SDK resolves stack traces in-process, so captured frames include file names, line numbers, function names, and inlined calls without any symbol uploads. To also see source context (the surrounding lines of code in the error tracking UI), [upload debug symbols](/docs/error-tracking/upload-source-maps/go.md). That needs posthog-go 1.22.0 or later.
+    The Go SDK resolves stack traces in-process, so captured frames include file names, line numbers, function names, and inlined calls without any symbol uploads. To also see source context (the surrounding lines of code in the error tracking UI), [upload debug symbols](https://posthog.com/docs/error-tracking/upload-source-maps/go.md). That needs posthog-go 1.22.0 or later.
 
 2.  2
 
@@ -32,15 +44,13 @@ Copy page
 
     Required
 
-    Go
-
-    PostHog AI
-
     ```go
     package main
+    
     import (
         "github.com/posthog/posthog-go"
     )
+    
     func main() {
         client, _ := posthog.NewWithConfig(
             "<ph_project_token>",
@@ -64,15 +74,12 @@ Copy page
 
     Use `NewDefaultException` to capture errors directly. This automatically generates a UUID and stack trace for you.
 
-    Go
-
-    PostHog AI
-
     ```go
     import (
         "time"
         "github.com/posthog/posthog-go"
     )
+    
     exception := posthog.NewDefaultException(
         time.Now(),
         "user_distinct_id",
@@ -84,17 +91,15 @@ Copy page
 
     For more control, build the `Exception` struct manually:
 
-    Go
-
-    PostHog AI
-
     ```go
     import (
         "time"
         "github.com/posthog/posthog-go"
     )
+    
     handled := true
     fingerprint := "my-custom-fingerprint"
+    
     exception := posthog.Exception{
         DistinctId: "user_distinct_id",
         Timestamp:  time.Now(),
@@ -112,7 +117,7 @@ Copy page
     client.Enqueue(exception)
     ```
 
-    To see how `net/http` services can automatically associate backend exceptions with frontend users, view the [Go request context documentation](/docs/libraries/go.md#request-context).
+    To see how `net/http` services can automatically associate backend exceptions with frontend users, view the [Go request context documentation](https://posthog.com/docs/libraries/go.md#request-context).
 
     ### Option B: Automatic capture with slog
 
@@ -120,18 +125,16 @@ Copy page
 
     By default, it captures logs at `Warning` level and above.
 
-    Go
-
-    PostHog AI
-
     ```go
     import (
         "context"
         "fmt"
         "log/slog"
         "os"
+    
         "github.com/posthog/posthog-go"
     )
+    
     client, _ := posthog.NewWithConfig(
         "<ph_project_token>",
         posthog.Config{
@@ -139,15 +142,18 @@ Copy page
         },
     )
     defer client.Close()
+    
     baseHandler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
         Level: slog.LevelInfo,
     })
+    
     logger := slog.New(posthog.NewSlogCaptureHandler(baseHandler, client,
         posthog.WithDistinctIDFn(func(ctx context.Context, r slog.Record) string {
             // Return the user ID from context or another source
             return "user_distinct_id"
         }),
     ))
+    
     // This warning is automatically captured as an exception in PostHog
     logger.Warn("Something broke",
         "error", fmt.Errorf("connection refused"),
@@ -158,12 +164,12 @@ Copy page
 
     | Option | Description | Default |
     | --- | --- | --- |
-    | WithMinCaptureLevel(level) | Minimum log level to capture | slog.LevelWarn |
-    | WithDistinctIDFn(fn) | Function to extract distinct ID from context/record | Returns "" (skips capture) |
-    | WithFingerprintFn(fn) | Custom fingerprint for error grouping | nil (PostHog assigns) |
-    | WithSkip(n) | Stack frames to skip | 5 |
-    | WithStackTraceExtractor(e) | Custom stack trace extractor | DefaultStackTraceExtractor |
-    | WithDescriptionExtractor(e) | Custom description extractor | ErrorExtractor |
+    | `WithMinCaptureLevel(level)` | Minimum log level to capture | `slog.LevelWarn` |
+    | `WithDistinctIDFn(fn)` | Function to extract distinct ID from context/record | Returns `""` (skips capture) |
+    | `WithFingerprintFn(fn)` | Custom fingerprint for error grouping | `nil` (PostHog assigns) |
+    | `WithSkip(n)` | Stack frames to skip | `5` |
+    | `WithStackTraceExtractor(e)` | Custom stack trace extractor | `DefaultStackTraceExtractor` |
+    | `WithDescriptionExtractor(e)` | Custom description extractor | `ErrorExtractor` |
 
     **Error extraction**
 
@@ -177,10 +183,6 @@ Copy page
 
     Trigger a test exception to confirm events are being sent to PostHog. You should see them appear in the [activity feed](https://app.posthog.com/activity/explore).
 
-    Go
-
-    PostHog AI
-
     ```go
     exception := posthog.NewDefaultException(
         time.Now(),
@@ -189,14 +191,7 @@ Copy page
         "This is a test exception from Go",
     )
     client.Enqueue(exception)
+    
     // Flush the queue before exiting
     client.Close()
     ```
-
-### Still have questions?
-
-Ask PostHog AI
-
-### Was this page useful?
-
-HelpfulCould be better

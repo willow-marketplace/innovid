@@ -35,16 +35,25 @@ jobs:
         run: |
           source .venv/bin/activate
           ./test-hooks.sh
+      - name: Run Antigravity swap tests
+        run: ./test-agy-plugin-swap.sh
+      - name: Run Cursor plugin stash tests
+        run: ./test-cursor-plugin-stash.sh
+      - name: Run A/B scoring tests
+        run: ./test-skill-scoring.sh
 
   validate:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
       - name: Validate hooks.json
-        run: python -m json.tool hooks/hooks.json > /dev/null
+        run: |
+          python -m json.tool hooks/hooks.json > /dev/null
+          python -m json.tool hooks/hooks-cursor.json > /dev/null
       - name: Validate plugin.json
         run: |
           python -m json.tool .claude-plugin/plugin.json > /dev/null
+          python -m json.tool .cursor-plugin/plugin.json > /dev/null
           python -m json.tool plugin.json > /dev/null
       - name: Validate SKILL.md frontmatter
         run: |
@@ -77,12 +86,20 @@ jobs:
               echo "WARN: $name ~${approx_tokens} tokens (${pct}% of ${max_tokens} limit)"
             fi
 
+            lines=$(wc -l < "$skill")
+            if [ "$lines" -gt 500 ]; then
+              echo "FAIL: $name ${lines} lines (Anthropic guidance: keep SKILL.md body under 500 lines)"
+              fail=1
+            elif [ "$lines" -gt 450 ]; then
+              echo "WARN: $name ${lines} lines (approaching the 500-line guidance)"
+            fi
+
             desc=$(sed -n 's/^description: *//p' "$skill")
             desc_len=${#desc}
             total_desc_chars=$((total_desc_chars + desc_len))
 
-            if [ "$desc_len" -gt 1536 ]; then
-              echo "FAIL: $name description ${desc_len} chars (max 1536)"
+            if [ "$desc_len" -gt 1024 ]; then
+              echo "FAIL: $name description ${desc_len} chars (Anthropic max 1024)"
               fail=1
             fi
           done
@@ -155,6 +172,13 @@ jobs:
             fail=1
           fi
 
+          # Cursor manifest must match plugin.json
+          cursor_plugin_version=$(jq -r '.version' .cursor-plugin/plugin.json)
+          if [ "$cursor_plugin_version" != "$plugin_version" ]; then
+            echo "FAIL: .cursor-plugin/plugin.json version '$cursor_plugin_version' != .claude-plugin/plugin.json '$plugin_version'"
+            fail=1
+          fi
+
           # Codex marketplace catalog pins a release tag, so its ref must match too
           agents_ref=$(jq -r '.plugins[0].source.ref' .agents/plugins/marketplace.json)
           if [ "${agents_ref#v}" != "$plugin_version" ]; then
@@ -192,7 +216,7 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
       - uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238  # v6.2.0
         with:
-          node-version: 22
+          node-version: 26.13.0
       - name: Run markdownlint
         run: npx markdownlint-cli2 "**/*.md"
       - name: Check relative links resolve
@@ -239,10 +263,15 @@ jobs:
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
         with:
           python-version: "3.13"
+      - uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238  # v6.2.0
+        with:
+          node-version: 26.13.0
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r requirements-test.txt
+          # foundry-js and TypeScript, for type-checking the skills' code snippets
+          npm ci --prefix tests/snippets --ignore-scripts
       - name: Run unit tests
         run: |
           python -m pytest tests/ -v

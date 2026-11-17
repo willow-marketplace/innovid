@@ -24,7 +24,7 @@ def setup_client(provider):
 
         api_key = os.getenv("OPENAI_API_KEY")
         client = instructor.from_openai(OpenAI(api_key=api_key))
-        model = "gpt-5-mini"
+        model = "gpt-5.6-terra"
         model_api_parameters = {"reasoning_effort": "low", "max_tokens": 2048}
         assistant_role = "assistant"
     elif provider == "2" or provider == "anthropic":
@@ -32,7 +32,7 @@ def setup_client(provider):
 
         api_key = os.getenv("ANTHROPIC_API_KEY")
         client = instructor.from_anthropic(Anthropic(api_key=api_key))
-        model = "claude-3-5-haiku-20241022"
+        model = "claude-haiku-5-5"
         model_api_parameters = {"max_tokens": 2048}
         assistant_role = "assistant"
     elif provider == "3" or provider == "groq":
@@ -40,7 +40,7 @@ def setup_client(provider):
 
         api_key = os.getenv("GROQ_API_KEY")
         client = instructor.from_groq(Groq(api_key=api_key), mode=instructor.Mode.JSON)
-        model = "mixtral-8x7b-32768"
+        model = "openai/gpt-oss-120b"
         model_api_parameters = {"max_tokens": 2048}
         assistant_role = "assistant"
     elif provider == "4" or provider == "ollama":
@@ -79,7 +79,7 @@ def setup_client(provider):
             MiniMaxClient(base_url="https://api.minimax.io/v1", api_key=api_key),
             mode=instructor.Mode.JSON,
         )
-        model = "MiniMax-M3"
+        model = "MiniMax-M3.1-Flash"  # Use "MiniMax-M3" for the alternative text model.
         model_api_parameters = {"max_tokens": 2048}
         assistant_role = "assistant"
     elif provider == "8" or provider == "edenai":

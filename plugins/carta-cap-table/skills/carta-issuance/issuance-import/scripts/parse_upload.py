@@ -9,8 +9,8 @@
 """Turn an uploaded spreadsheet or document into carta-issuance's `knowns.rows`.
 
 The file feeds the FRONT of the existing pipeline: this script's whole output
-contract is the same `knowns.rows` shape build_config.py already consumes, so
-the config panel opens prefilled and every downstream gate (Phase 1 resolve →
+contract is the same row shape every carta-issuance surface consumes, so
+the form opens prefilled and every downstream gate (Phase 1 resolve →
 Phase 1.5 save+validate → Phase 2 review → Phase 3 mutate) runs untouched.
 Nothing here writes to Carta.
 
@@ -36,14 +36,14 @@ Two rules the rest of the file exists to uphold:
    server cannot catch it.
 2. **Nothing is dropped silently.** Unmapped columns, skipped rows, and
    uncoercible cells all land in _import_report.json and, per row, in
-   `import_notes` so the panel can flag them. A dropped Exercise Price column
+   `import_notes` so the form can flag them. A dropped Exercise Price column
    is a wrong-priced grant the user has no way to notice.
 
 Usage:
   uv run parse_upload.py --file <path> [--sheet <name>] \
       [--reference <ref.json>] --out-dir <OUT_DIR>
 
-`--reference` is the same JSON build_config.py takes as `--data` (raw MCP
+`--reference` is the `issuance_init` payload written to a file (raw MCP
 section envelopes plus `stakeholders`). Omit it to parse without resolving.
 
 Writes to --out-dir:
@@ -65,7 +65,7 @@ from datetime import date, datetime
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
-# ── Enums, copied from build_config.py so a parsed value is panel-legal ──
+# ── Enums, mirroring lib/issuance_fields.py so a parsed value is legal ──
 
 RELATIONSHIP_CHOICES = [
     "Advisor", "Ex-Advisor", "Board member", "Ex-Board member",
@@ -97,7 +97,7 @@ GRANT_REASON_CHOICES = [
     "Performance bonus", "Boxcar grant",
 ]
 
-# Every key build_config.py reads off a row. A row carrying anything else would
+# Every key a row may carry. A row carrying anything else would
 # survive into the save_drafts payload and be rejected server-side.
 ROW_KEYS = {
     # shared
@@ -109,7 +109,7 @@ ROW_KEYS = {
     "option_type", "exercise_price", "document_set_id", "custom_label",
     "grant_reason", "early_exercise", "auto_exercise_at_vest",
     "is_flexible_issue_date", "is_hmrc_notified", "hmrc_notified",
-    "is_ato_notified", "grant_expiration_date", "employment_related",
+    "ato_notified", "grant_expiration_date", "employment_related",
     # certificate
     "share_class_prefix", "price_per_share", "legend_id", "prefix_number",
     "rule_144_mode", "rule_144_date", "rule_144_reason", "cash_paid",
@@ -175,7 +175,7 @@ _syn("early_exercise", "Early Exercise", "Allow Early Exercise")
 _syn("auto_exercise_at_vest", "Auto Exercise At Vest", "Auto Exercise")
 _syn("is_hmrc_notified", "HMRC Notified", "HMRC Notification")
 _syn("hmrc_notified", "HMRC Notified Date", "HMRC Notification Date")
-_syn("is_ato_notified", "ATO Notified", "ATO Notification")
+_syn("ato_notified", "ATO Notified", "ATO Notification")
 _syn("employment_related", "Employment Related", "Employment Related Securities",
      "Employment-Related", "ERS")
 _syn("fund_structure", "Part of fund structure", "Fund Structure")
@@ -214,7 +214,7 @@ _syn("_currency", "Currency")
 # Header signatures that decide security_type. Weighted: a header that only ever
 # appears on one kind of sheet counts, generic ones (Quantity, Email) don't.
 GRANT_SIGNALS = {"option_type", "exercise_price", "document_set_id",
-                 "_equity_plan", "is_hmrc_notified", "is_ato_notified"}
+                 "_equity_plan", "is_hmrc_notified", "ato_notified"}
 CERT_SIGNALS = {"share_class_prefix", "legend_id", "price_per_share",
                 "rule_144_date", "prefix_number", "cash_paid", "debt_canceled",
                 "returned_invested_capital"}
@@ -362,6 +362,17 @@ def map_headers(header_row: Sequence[Any]) -> Tuple[Dict[int, str], List[str]]:
     return mapping, unmapped
 
 
+def _quantity_header_is_amount(header_row: Sequence[Any], mapping: Dict[int, str]) -> bool:
+    """True when the column mapped to `quantity` was literally headed "Amount"
+    — the header a user reaches for when a column holds invested capital
+    rather than a unit count (column-map.md)."""
+    for i, field in mapping.items():
+        if field == "quantity":
+            label = header_row[i] if i < len(header_row) else None
+            return _norm(label) == "amount"
+    return False
+
+
 # ── Value coercion ──
 
 def _text(value: Any) -> str:
@@ -379,7 +390,7 @@ _DATE_FORMATS = ("%Y-%m-%d", "%m/%d/%Y", "%d/%m/%Y", "%m-%d-%Y", "%d-%m-%Y",
 
 
 def coerce_date(value: Any) -> Optional[str]:
-    """→ YYYY-MM-DD, the format every panel date input wants.
+    """→ YYYY-MM-DD, the format every date input wants.
 
     Ambiguous DD/MM vs MM/DD is resolved as MM/DD first (the template's own US
     example) and only re-read as DD/MM when the first field cannot be a month.
@@ -462,7 +473,7 @@ def coerce_stakeholder_kind(value: Any) -> Optional[str]:
         return "INDIVIDUAL"
     if key in {"non individual", "nonindividual", "entity", "organization",
                "organisation", "company", "corporation", "trust", "llc"}:
-        return "NON-INDIVIDUAL"
+        return "ORGANIZATION"
     return None
 
 
@@ -479,7 +490,7 @@ def _resolved(row: Dict[str, Any], field: str, value: Any) -> None:
 
     A note means "the file said something I couldn't turn into a value". Once
     something else supplies that value — the roster, typically — the note is
-    stale and must go, because `build_config.py` keys its force-blank behaviour
+    stale and must go, because a surface keys its force-blank behaviour
     off `import_notes` alone. Leaving it would blank a correctly-resolved field
     and tell the admin to pick one, inviting a wrong Individual/Non-individual
     or relationship choice over the cap-table-correct value.
@@ -557,7 +568,7 @@ def build_row(record: Dict[str, Any], security_type: str) -> Dict[str, Any]:
                 _note(row, field, raw, "couldn't read this date — enter it here")
 
     # Names resolve() will turn into ids; staged under private keys so a row can
-    # never reach the panel carrying a label where an id belongs.
+    # never reach the form carrying a label where an id belongs.
     for field in ("vesting_template_id", "acceleration_template",
                   "document_set_id", "legend_id", "share_class_prefix"):
         text = _text(_cell(record, field))
@@ -615,7 +626,7 @@ def _build_grant_fields(record: Dict[str, Any], row: Dict[str, Any]) -> None:
                   "not one of Carta's grant reasons — pick one")
 
     for field in ("early_exercise", "auto_exercise_at_vest", "is_hmrc_notified",
-                  "is_ato_notified"):
+                  "ato_notified"):
         raw = _cell(record, field)
         if not _text(raw):
             continue
@@ -688,7 +699,7 @@ def _build_cert_fields(record: Dict[str, Any], row: Dict[str, Any]) -> None:
         else:
             row["rule_144_date"] = value
             issue = row.get("issue_date")
-            # The panel's Rule 144 toggle is issue-date-or-other; a date that
+            # The form's Rule 144 toggle is issue-date-or-other; a date that
             # differs also needs a reason, which no template column carries.
             if issue and value != issue:
                 row["rule_144_mode"] = "other"
@@ -702,7 +713,7 @@ def _build_cert_fields(record: Dict[str, Any], row: Dict[str, Any]) -> None:
             row["prefix_number"] = match.group(2)
             # "CS-1" is a share-class prefix plus a number; only the number is a
             # payload field, so keep the original visible instead of silently
-            # reshaping it (and let the panel show what the sheet actually said).
+            # reshaping it (and let the form show what the sheet actually said).
             _note(row, "prefix_number", cert_id,
                   "read the certificate number from {!r}".format(cert_id))
         else:
@@ -872,6 +883,7 @@ def parse_file(path: Path, sheet: Optional[str] = None) -> Parsed:
         )
 
     target, header_idx, mapping, unmapped, security_type = candidates[0]
+    quantity_is_amount = _quantity_header_is_amount(target.rows[header_idx], mapping)
     rows: List[Dict[str, Any]] = []
     skipped: List[Dict[str, Any]] = []
     plan_names: List[str] = []
@@ -889,6 +901,12 @@ def parse_file(path: Path, sheet: Optional[str] = None) -> Parsed:
             })
             continue
         row = build_row(record, security_type)
+        # Staged like the other pre-resolution names: resolve() checks it against
+        # the row's share class and turns it into a note, or drops it unused.
+        if security_type in ("certificate", "piu") and quantity_is_amount:
+            raw_qty = _text(_cell(record, "quantity"))
+            if raw_qty:
+                row["_quantity_from_amount"] = raw_qty
         if not any(_text(v) for k, v in row.items() if k != "import_notes"):
             skipped.append({"row": line, "name": "",
                             "reason": "No usable values in this row."})
@@ -939,7 +957,7 @@ def _out_of_scope(record: Dict[str, Any]) -> Optional[str]:
 # ── Resolution against the reference payload ──
 
 def _unwrap(obj: Any) -> Any:
-    """Peel the MCP result envelopes build_config.py's _unwrap also handles."""
+    """Peel the MCP result envelopes every reference reader has to handle."""
     seen = 0
     while isinstance(obj, dict) and seen < 6:
         for key in ("result", "data", "content", "value"):
@@ -996,7 +1014,7 @@ def resolve(parsed: Parsed, reference: Dict[str, Any]) -> Parsed:
     """Turn the staged free-text names into ids, in place.
 
     A name that doesn't match exactly stays unset and gets an import_note, so
-    the panel falls back to its own default and shows what the file said. There
+    the form falls back to its own default and shows what the file said. There
     is no fuzzy fallback by design — see the module docstring.
     """
     sections = {
@@ -1028,13 +1046,23 @@ def resolve(parsed: Parsed, reference: Dict[str, Any]) -> Parsed:
                       "the {} {!r} is expired — pick another".format(label, raw))
                 continue
             _resolved(row, field, str(value))
+            if staged == "_share_class_prefix":
+                amount_raw = row.pop("_quantity_from_amount", None)
+                if amount_raw and record.get("quantity_semantics") == "INVESTED_CAPITAL":
+                    _note(row, "quantity", amount_raw,
+                          "this class computes ownership from invested capital — the "
+                          "sheet's \"Amount\" column isn't used as a quantity here")
+
+        # Still set when the class match above failed or was never staged —
+        # drop it rather than leak an internal key into the output.
+        row.pop("_quantity_from_amount", None)
 
         name = row.get("name")
         if name:
             match = _lookup(roster, name, ("full_name", "name"))
             if match:
                 # The cap-table record wins over the sheet for these three; Phase
-                # 1 re-resolves authoritatively, this just pre-fills the panel.
+                # 1 re-resolves authoritatively, this just pre-fills the form.
                 if match.get("email"):
                     _resolved(row, "email", match["email"])
                 if match.get("kind"):
@@ -1131,12 +1159,12 @@ def _write(out_dir: Path, name: str, payload: Any) -> Path:
 
 def main(argv: Optional[List[str]] = None) -> int:
     p = argparse.ArgumentParser(
-        description="Parse an uploaded spreadsheet/document into carta-issuance knowns.rows."
+        description="Parse an uploaded spreadsheet/document into carta-issuance draft rows."
     )
     p.add_argument("--file", required=True, type=Path)
     p.add_argument("--sheet", help="Sheet to import when the workbook has several")
     p.add_argument("--reference", type=Path,
-                   help="JSON of raw MCP reference sections (build_config's --data shape)")
+                   help="JSON of raw MCP reference sections (the issuance_init payload)")
     p.add_argument("--out-dir", required=True, type=Path)
     args = p.parse_args(argv)
 
@@ -1180,6 +1208,7 @@ def main(argv: Optional[List[str]] = None) -> int:
                     if raw:
                         _note(row, staged[1:], raw,
                               "couldn't check this {} against the company — pick one".format(label))
+                row.pop("_quantity_from_amount", None)
 
         knowns_path = _write(args.out_dir, "_import_knowns.json", build_import_knowns(parsed))
         report_path = _write(args.out_dir, "_import_report.json", build_report(parsed))

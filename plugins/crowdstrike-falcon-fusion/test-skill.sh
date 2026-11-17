@@ -14,6 +14,7 @@
 #   ./test-skill.sh --plugin-dir /path/to/plugin       # Use a different plugin dir
 #   ./test-skill.sh --no-plugin                        # Run without any plugin
 #   ./test-skill.sh --skip-deploy                      # Author + validate only (no live API)
+#   ./test-skill.sh --release-check                    # Also release each deployed workflow
 #   ./test-skill.sh --save results.json                # Save results to JSON
 #   ./test-skill.sh --baseline prev.json               # Compare against a baseline
 #   ./test-skill.sh --save new.json --baseline old.json --runs 5  # Full A/B
@@ -35,6 +36,7 @@ NO_PLUGIN=0
 SKIP_PLUGIN_MANAGE=0
 SKIP_DEPLOY=0
 KEEP_WORKFLOWS=0
+RELEASE_CHECK=0
 
 # Definition IDs created across all runs — deleted at the end unless
 # --keep-workflows is set, so deploy runs don't accumulate in the CID.
@@ -83,8 +85,12 @@ while [[ $# -gt 0 ]]; do
       KEEP_WORKFLOWS=1
       shift
       ;;
+    --release-check)
+      RELEASE_CHECK=1
+      shift
+      ;;
     *)
-      echo "Usage: $0 [--save <file.json>] [--baseline <file.json>] [--runs N] [--dir <path>] [--plugin-dir <path>] [--no-plugin] [--skip-plugin-manage] [--skip-deploy] [--keep-workflows]"
+      echo "Usage: $0 [--save <file.json>] [--baseline <file.json>] [--runs N] [--dir <path>] [--plugin-dir <path>] [--no-plugin] [--skip-plugin-manage] [--skip-deploy] [--keep-workflows] [--release-check]"
       exit 1
       ;;
   esac
@@ -199,17 +205,35 @@ rm -rf "$BASE_DIR"
 mkdir -p "$BASE_DIR"
 
 # Extract token counts from a stream-json log file.
-# Returns "input_tokens output_tokens" on stdout.
+# Returns "input_tokens output_tokens" on stdout. Input includes cache reads and
+# cache writes.
+#
+# The session's final "result" event carries the true totals. Per-message usage
+# is NOT safe to sum: a message with several content blocks is streamed as
+# several assistant events that repeat the same usage, and their output_tokens
+# is a partial count taken at message start (single digits). Without a result
+# event (a killed or timed-out run), fall back to one usage per message ID.
 get_tokens() {
   local log_file="$1"
-  local input output
-  input=$(grep '"type":"assistant"' "$log_file" 2>/dev/null | \
-    jq -r '[.message.usage.input_tokens // 0, .message.usage.cache_creation_input_tokens // 0, .message.usage.cache_read_input_tokens // 0] | add' 2>/dev/null | \
-    awk '{s+=$1} END {printf "%d", s+0}' || echo "0")
-  output=$(grep '"type":"assistant"' "$log_file" 2>/dev/null | \
-    jq -r '.message.usage.output_tokens // 0' 2>/dev/null | \
-    awk '{s+=$1} END {printf "%d", s+0}' || echo "0")
-  echo "$input $output"
+  [ -f "$log_file" ] || { echo "0 0"; return; }
+  jq -rs '
+    def total(u): [u.input_tokens, u.cache_creation_input_tokens, u.cache_read_input_tokens]
+      | map(. // 0) | add;
+    (map(select(.type=="result" and .usage)) | last) as $r
+    | if $r then "\(total($r.usage)) \($r.usage.output_tokens // 0)"
+      else (map(select(.type=="assistant" and .message.usage))
+            | group_by(.message.id) | map(last.message.usage)) as $u
+        | "\($u | map(total(.)) | add // 0) \($u | map(.output_tokens // 0) | add // 0)"
+      end
+  ' "$log_file" 2>/dev/null || echo "0 0"
+}
+
+# Total session cost in USD from the result event, or "null" when the run never
+# produced one.
+get_cost() {
+  local log_file="$1"
+  [ -f "$log_file" ] || { echo "null"; return; }
+  jq -rs 'map(select(.type=="result")) | last | .total_cost_usd // null' "$log_file" 2>/dev/null || echo "null"
 }
 
 # Find the generated workflow YAML file under a run directory.
@@ -254,33 +278,29 @@ count_anti_patterns() {
 #   - release-validation failure: "has no condition set", "outgoing flow ... not
 #     marked as default", or an explicit release/enable failure
 #   - API 500 / Internal Server Error responses
-#   - retry-copy creation: importing a second "... v2"/"-run-"/"retry" workflow
-#     after a failure instead of fixing the source
 # Echoes the integer count (0 = clean deploy).
 count_deploy_churn() {
   local log_file="$1"
   local count=0
   [ -n "$log_file" ] && [ -f "$log_file" ] || { echo 0; return; }
-  # Scope failure/500 detection to actual TOOL OUTPUT, not the whole transcript,
-  # and exclude Read/Skill results. In stream-json a tool's output is a
-  # tool_result block inside a user-type event; the model's reasoning is
-  # assistant TEXT. But a Read of a skill reference doc is ALSO a tool_result,
-  # and those docs quote the very phrases below ("release fails", "has no
-  # condition set", "status 500") to warn against them. So scoping to
-  # tool_result alone is not enough — a doc read still counts as churn. Join each
-  # tool_result to its originating tool_use by id and drop the ones produced by
-  # Read or Skill, leaving only script/command output (Bash) where a real
-  # failure would actually appear.
+  # Scope failure/500 detection to the output of commands that run a skill
+  # script (a .py file or python.sh). Skill reference docs quote the very
+  # phrases below ("release fails", "has no condition set", "status 500") to
+  # warn against them, and the agent reads them with Read, Skill, or a Bash
+  # cat/sed/grep. None of those run a script, so their output is skipped and
+  # only real script output (validate.py, import_workflows.py,
+  # release_workflow.py, ...) can count.
   local tool_output
   tool_output=$(jq -rs '
     (map(select(.type=="assistant")
          | .message.content[]?
-         | select(.type=="tool_use" and (.name=="Read" or .name=="Skill"))
-         | .id)) as $docids
+         | select(.type=="tool_use" and .name=="Bash"
+                  and ((.input.command // "") | test("\\.py\\b|python\\.sh")))
+         | .id)) as $scriptids
     | map(select(.type=="user")
           | .message.content[]?
           | select(type=="object" and .type=="tool_result"
-                   and ((.tool_use_id) as $t | ($docids | index($t)) | not))
+                   and ((.tool_use_id) as $t | ($scriptids | index($t))))
           | .content
           | if type=="array" then (.[] | .text? // empty) else (. // empty) end)
     | .[]
@@ -299,7 +319,7 @@ count_deploy_churn() {
   echo "$count"
 }
 check_api_health() {
-  env -u CLAUDECODE claude -p "Reply with OK" \
+  env -u CLAUDECODE claude --no-session-persistence -p "Reply with OK" \
     --model haiku > /dev/null 2>&1
   return $?
 }
@@ -342,7 +362,7 @@ for i in $(seq 1 $RUNS); do
   # Use stream-json to capture tool calls for anti-pattern analysis.
   cd "$RUN_DIR"
   RUN_START=$(date +%s)
-  env -u CLAUDECODE claude -p "$RUN_PROMPT" \
+  env -u CLAUDECODE claude --no-session-persistence -p "$RUN_PROMPT" \
     ${PLUGIN_DIR_FLAGS[@]+"${PLUGIN_DIR_FLAGS[@]}"} \
     --dangerously-skip-permissions \
     --model "${EVAL_MODEL:-opus}" \
@@ -493,6 +513,41 @@ check_run_status() {
   echo "FAILED"
 }
 
+# RELEASE CHECK (opt-in): release each run's deployed workflow, since a
+# workflow can import cleanly and still fail release (an unpinned NG-SIEM
+# trigger does exactly that). "DEPLOYED" only proves the import. The release
+# makes the workflow live, so it stays enabled only until the cleanup below
+# deletes it a few seconds later; --keep-workflows leaves it enabled. Uses the
+# LAST imported ID still on the tenant, since a --replace retry deletes earlier
+# ones. Writes "released" or "failed" to run-N.release.
+if [ "$SKIP_DEPLOY" != "1" ] && [ "$RELEASE_CHECK" = "1" ]; then
+  echo "========================================="
+  echo "  RELEASE CHECK"
+  echo "========================================="
+  RELEASE_PY="$SCRIPT_DIR/skills/deployment/scripts/release_workflow.py"
+  for i in $(seq 1 "$RUNS"); do
+    LOG_FILE="$BASE_DIR/run-$i.log"
+    REL_FILE="$BASE_DIR/run-$i.release"
+    rel_id=""
+    while IFS= read -r cand; do
+      printf '%s' "$TENANT_DEFS" | grep -q "$cand" && rel_id="$cand"
+    done < <(grep -oE 'Imported — ID: [a-f0-9]{32}' "$LOG_FILE" 2>/dev/null | grep -oE '[a-f0-9]{32}')
+    if [ -z "$rel_id" ]; then
+      echo "none" > "$REL_FILE"
+      echo "  Run $i: no deployed workflow to release"
+      continue
+    fi
+    if REL_OUT=$("$PYTHON" "$RELEASE_PY" --id "$rel_id" 2>&1) && printf '%s' "$REL_OUT" | grep -q "Released"; then
+      echo "released" > "$REL_FILE"
+      echo "  Run $i: ✅ released ($rel_id)"
+    else
+      echo "failed" > "$REL_FILE"
+      echo "  Run $i: ❌ release failed ($rel_id): $(printf '%s' "$REL_OUT" | grep -iE 'fail|error' | head -1 | sed 's/^ *//')"
+    fi
+  done
+  echo ""
+fi
+
 # Clean up the workflows these runs deployed so the CID doesn't accumulate
 # run-1..run-N copies. Deletes exactly the captured definition IDs via the
 # Workflows delete API — safer than a name-pattern blanket sweep. Skipped in
@@ -536,11 +591,19 @@ for i in $(seq 1 $RUNS); do
   grep -o '{"type":"assistant".*' "$LOG_FILE" 2>/dev/null | \
     jq -r 'select(.type=="assistant") | .message.content[]? | select(.type=="tool_use" and .name=="Skill") | .input.skill' 2>/dev/null > "$SKILLS_FILE" || true
 
-  # Extract reference file reads (Read tool calls to references/*.md).
+  # Extract the reference docs read, one name per line, each listed once. The
+  # agent reads them with the Read tool or with cat/sed/grep in Bash, so count
+  # both: Read paths under references/, references/<name>.md paths in Bash
+  # commands, and bare <name>.md in a Bash command that cd's into references/.
   REFS_FILE="$BASE_DIR/run-$i.refs"
-  grep -o '{"type":"assistant".*' "$LOG_FILE" 2>/dev/null | \
-    jq -r 'select(.type=="assistant") | .message.content[]? | select(.type=="tool_use" and .name=="Read") | .input.file_path' 2>/dev/null | \
-    grep '/references/' > "$REFS_FILE" || true
+  {
+    grep -o '{"type":"assistant".*' "$LOG_FILE" 2>/dev/null | \
+      jq -r 'select(.type=="assistant") | .message.content[]? | select(.type=="tool_use" and .name=="Read") | .input.file_path' 2>/dev/null | \
+      grep '/references/' | sed 's|.*/||'
+    grep -oE 'references/[A-Za-z0-9_.-]+\.md' "$TOOLS_FILE" 2>/dev/null | sed 's|.*/||'
+    grep -E 'cd [^;&|]*references' "$TOOLS_FILE" 2>/dev/null | \
+      grep -oE '[A-Za-z0-9_.-]+\.md\b' | grep -vE '^(SKILL|README|CHANGELOG|AGENTS|CLAUDE)\.md$'
+  } | awk 'NF && !seen[$0]++' > "$REFS_FILE" || true
 
   # Fall back to raw text if stream-json parsing fails.
   if [ ! -s "$TEXT_FILE" ] && [ -f "$LOG_FILE" ]; then
@@ -733,8 +796,10 @@ for i in $(seq 1 $RUNS); do
   LOG_FILE="$BASE_DIR/run-$i.log"
   read -r INPUT_TOKENS OUTPUT_TOKENS <<< "$(get_tokens "$LOG_FILE")"
   TOTAL_TOKENS=$((INPUT_TOKENS + OUTPUT_TOKENS))
-  printf "  Run %d: %7s input, %7s output, %7s total\n" \
-    "$i" "${INPUT_TOKENS:-0}" "${OUTPUT_TOKENS:-0}" "$TOTAL_TOKENS"
+  COST=$(get_cost "$LOG_FILE")
+  [ "$COST" = "null" ] && COST_FMT="?" || COST_FMT=$(printf '$%.2f' "$COST")
+  printf "  Run %d: %7s input, %7s output, %7s total, %s\n" \
+    "$i" "${INPUT_TOKENS:-0}" "${OUTPUT_TOKENS:-0}" "$TOTAL_TOKENS" "$COST_FMT"
 done
 echo ""
 echo "Full logs: $BASE_DIR/run-*.log"
@@ -791,6 +856,7 @@ REFS_JSON=""
 SKILLS_JSON=""
 ANTI_PATTERN_COUNTS=""
 DEPLOY_CHURN_COUNTS=""
+RELEASE_RESULTS=""
 for i in $(seq 1 $RUNS); do
   LOG_FILE="$BASE_DIR/run-$i.log"
   TEXT_FILE="$BASE_DIR/run-$i.text"
@@ -801,8 +867,9 @@ for i in $(seq 1 $RUNS); do
 
   IT=0; OT=0
   read -r IT OT <<< "$(get_tokens "$LOG_FILE")"
+  COST=$(get_cost "$LOG_FILE")
   SEP=""; [ "$i" -lt "$RUNS" ] && SEP=","
-  TOKENS_JSON="${TOKENS_JSON}    {\"run\": $i, \"input\": ${IT}, \"output\": ${OT}, \"total\": $(( IT + OT ))}${SEP}
+  TOKENS_JSON="${TOKENS_JSON}    {\"run\": $i, \"input\": ${IT}, \"output\": ${OT}, \"total\": $(( IT + OT )), \"cost_usd\": ${COST}}${SEP}
 "
 
   # Elapsed time per run.
@@ -847,13 +914,20 @@ for i in $(seq 1 $RUNS); do
     CHURN_COUNT=$(count_deploy_churn "$LOG_FILE")
   fi
   DEPLOY_CHURN_COUNTS="${DEPLOY_CHURN_COUNTS}${CHURN_COUNT}${SEP}"
+
+  # Release-check result per run: "released", "failed", "none", or null when
+  # the check didn't run.
+  REL_RESULT="null"
+  [ -s "$BASE_DIR/run-$i.release" ] && REL_RESULT="\"$(cat "$BASE_DIR/run-$i.release")\""
+  RELEASE_RESULTS="${RELEASE_RESULTS}${REL_RESULT}${SEP}"
 done
 
 RESULTS_JSON=$(cat <<ENDJSON
 {
   "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-  "git_branch": "$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")",
-  "git_commit": "$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")",
+  "git_branch": "$(git -C "$SCRIPT_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")",
+  "git_commit": "$(git -C "$SCRIPT_DIR" rev-parse --short HEAD 2>/dev/null || echo "unknown")",
+  "token_source": "result_event",
   "mode": "$([ "$SKIP_DEPLOY" = "1" ] && echo "author-only" || echo "deploy")",
   "runs": $RUNS,
   "passes": $PASS,
@@ -867,7 +941,8 @@ ${REFS_JSON}  },
   "skill_invocations": {
 ${SKILLS_JSON}  },
   "anti_pattern_counts": [${ANTI_PATTERN_COUNTS}],
-  "deploy_churn_counts": [${DEPLOY_CHURN_COUNTS}]
+  "deploy_churn_counts": [${DEPLOY_CHURN_COUNTS}],
+  "release_results": [${RELEASE_RESULTS}]
 }
 ENDJSON
 )
@@ -897,6 +972,10 @@ if [ -n "$BASELINE_FILE" ]; then
   B_AVG_AP=$(jq -r '[.anti_pattern_counts[]] | add / length' "$BASELINE_FILE" 2>/dev/null || echo "?")
   B_AVG_ELAPSED=$(jq -r 'if .elapsed then [.elapsed[].seconds] | add / length | floor else "?" end' "$BASELINE_FILE" 2>/dev/null || echo "?")
 
+  B_AVG_COST=$(jq -r '[.tokens[].cost_usd | select(. != null)] | if length > 0 then add / length * 100 | round / 100 else "?" end' "$BASELINE_FILE" 2>/dev/null || echo "?")
+  C_AVG_COST=$(echo "$RESULTS_JSON" | jq -r '[.tokens[].cost_usd | select(. != null)] | if length > 0 then add / length * 100 | round / 100 else "?" end' 2>/dev/null || echo "?")
+  B_TOKEN_SOURCE=$(jq -r '.token_source // "per_message"' "$BASELINE_FILE" 2>/dev/null || echo "per_message")
+
   C_TOTAL_TOKENS=$(echo "$RESULTS_JSON" | jq -r '[.tokens[].total] | add' 2>/dev/null || echo "?")
   C_AVG_TOKENS=$(echo "$RESULTS_JSON" | jq -r '[.tokens[].total] | add / length | floor' 2>/dev/null || echo "?")
   C_AVG_AP=$(echo "$RESULTS_JSON" | jq -r '[.anti_pattern_counts[]] | add / length' 2>/dev/null || echo "?")
@@ -908,6 +987,16 @@ if [ -n "$BASELINE_FILE" ]; then
   printf "  %-24s %-15s %-15s\n" "Passes" "$B_PASSES/$B_RUNS" "$PASS/$TOTAL"
   printf "  %-24s %-15s %-15s\n" "Total tokens" "$B_TOTAL_TOKENS" "$C_TOTAL_TOKENS"
   printf "  %-24s %-15s %-15s\n" "Avg tokens/run" "$B_AVG_TOKENS" "$C_AVG_TOKENS"
+  B_COST_FMT="?"; C_COST_FMT="?"
+  [ "$B_AVG_COST" != "?" ] && B_COST_FMT="\$$B_AVG_COST"
+  [ "$C_AVG_COST" != "?" ] && C_COST_FMT="\$$C_AVG_COST"
+  printf "  %-24s %-15s %-15s\n" "Avg cost/run" "$B_COST_FMT" "$C_COST_FMT"
+  # One expensive run (e.g. a template retyped through Write) moves a 10-run mean
+  # by about $0.07, as much as the changes being measured, so show the median too.
+  MEDIAN_JQ='[.tokens[]?.cost_usd | select(. != null)] | sort | if length == 0 then "?" elif length % 2 == 1 then .[length / 2 | floor] else (.[length / 2 - 1] + .[length / 2]) / 2 end | if type == "number" then "$" + ((. * 100 | round) / 100 | tostring) else . end'
+  B_MED_COST=$(jq -r "$MEDIAN_JQ" "$BASELINE_FILE" 2>/dev/null || echo "?")
+  C_MED_COST=$(echo "$RESULTS_JSON" | jq -r "$MEDIAN_JQ" 2>/dev/null || echo "?")
+  printf "  %-24s %-15s %-15s\n" "Median cost/run" "$B_MED_COST" "$C_MED_COST"
   # Format elapsed as m:ss.
   B_ELAPSED_FMT="?"
   C_ELAPSED_FMT="?"
@@ -919,9 +1008,19 @@ if [ -n "$BASELINE_FILE" ]; then
   fi
   printf "  %-24s %-15s %-15s\n" "Avg time/run" "$B_ELAPSED_FMT" "$C_ELAPSED_FMT"
   printf "  %-24s %-15s %-15s\n" "Avg anti-patterns/run" "$B_AVG_AP" "$C_AVG_AP"
+  RELEASES_JQ='if ([.release_results[]? | select(. != null)] | length) > 0 then "\([.release_results[] | select(. == "released")] | length)/\(.release_results | length)" else "?" end'
+  B_RELEASES=$(jq -r "$RELEASES_JQ" "$BASELINE_FILE" 2>/dev/null || echo "?")
+  C_RELEASES=$(echo "$RESULTS_JSON" | jq -r "$RELEASES_JQ" 2>/dev/null || echo "?")
+  printf "  %-24s %-15s %-15s\n" "Released" "$B_RELEASES" "$C_RELEASES"
 
+  # A baseline saved before tokens came from the result event summed
+  # per-message usage, which double-counts, so its tokens can't be compared.
+  if [ "$B_TOKEN_SOURCE" != "result_event" ]; then
+    echo ""
+    echo "  Token change: not comparable. The baseline counted tokens per streamed"
+    echo "  message, which double-counts. Re-run the baseline with --fresh."
   # Calculate token delta.
-  if [ "$B_AVG_TOKENS" != "?" ] && [ "$C_AVG_TOKENS" != "?" ]; then
+  elif [ "$B_AVG_TOKENS" != "?" ] && [ "$C_AVG_TOKENS" != "?" ]; then
     DELTA=$((C_AVG_TOKENS - B_AVG_TOKENS))
     if [ "$DELTA" -lt 0 ]; then
       PCT=$(echo "scale=1; $DELTA * 100 / $B_AVG_TOKENS" | bc)

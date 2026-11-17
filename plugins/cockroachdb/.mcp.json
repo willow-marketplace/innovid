@@ -4,17 +4,17 @@
       "url": "https://cockroachlabs.cloud/mcp",
       "type": "http",
       "headers": {
-        "mcp-cluster-id": "${COCKROACHDB_CLUSTER_ID}"
+        "mcp-cluster-id": "${COCKROACHDB_CLUSTER_ID:-}"
       }
     },
     "cockroachdb-toolbox": {
       "env": {
-        "COCKROACHDB_HOST": "${COCKROACHDB_HOST}",
-        "COCKROACHDB_PORT": "${COCKROACHDB_PORT}",
-        "COCKROACHDB_USER": "${COCKROACHDB_USER}",
-        "COCKROACHDB_SSLMODE": "${COCKROACHDB_SSLMODE}",
-        "COCKROACHDB_DATABASE": "${COCKROACHDB_DATABASE}",
-        "COCKROACHDB_PASSWORD": "${COCKROACHDB_PASSWORD}"
+        "COCKROACHDB_HOST": "${COCKROACHDB_HOST:-localhost}",
+        "COCKROACHDB_PORT": "${COCKROACHDB_PORT:-26257}",
+        "COCKROACHDB_USER": "${COCKROACHDB_USER:-root}",
+        "COCKROACHDB_SSLMODE": "${COCKROACHDB_SSLMODE:-require}",
+        "COCKROACHDB_DATABASE": "${COCKROACHDB_DATABASE:-defaultdb}",
+        "COCKROACHDB_PASSWORD": "${COCKROACHDB_PASSWORD:-}"
       },
       "args": [
         "--config",
@@ -22,11 +22,6 @@
         "--stdio"
       ],
       "command": "toolbox"
-    },
-    "cockroachdb-toolbox-http": {
-      "url": "http://127.0.0.1:5000/mcp",
-      "type": "http",
-      "_comment": "SSE transport — run 'toolbox --config tools.yaml' first, then connect via this URL"
     }
   }
 }

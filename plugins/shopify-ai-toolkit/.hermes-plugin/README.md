@@ -17,12 +17,12 @@ Verify:
 ```
 hermes
 /plugins
-# Expected: ✓ shopify-plugin v1.8.4 (22 skills, 1 cli command)
+# Expected: ✓ shopify-plugin v2.3.0 (2 skills, 1 cli command)
 ```
 
 ## Hermes-specific notes
 
-- **Skill loading** — `skill_view("shopify-plugin:<name>")` (e.g. `shopify-plugin:shopify-admin`).
+- **Skill loading** — `skill_view("shopify-plugin:<name>")` (e.g. `shopify-plugin:shopify`).
 - **CLI passthrough** — `hermes shopify <args>` shells out to the Shopify CLI
   on `$PATH`. Override the binary with `HERMES_SHOPIFY_BIN=/abs/path/to/shopify`.
 - **Hermes runtime** — `pipx install hermes-agent` (or per

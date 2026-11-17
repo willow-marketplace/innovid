@@ -53,19 +53,19 @@ The Activate Portfolio Package offers up to $100,000 in AWS Activate Credits for
 
 Here's a step-by-step checklist to follow as you apply for AWS Activate Credits:
 
-**Step 1: Sign in or create your AWS Builder ID**
+### Step 1: Sign in or create your AWS Builder ID
 
 To begin your application, select 'Apply Now' from the [AWS Credits](https://aws.amazon.com/startups/credits) page. You'll be prompted to create an AWS Builder ID - your personal profile for accessing AWS tools and services. This ID remains with you across jobs and organizations, so please use your personal email address when creating it.
 
 After creating your Builder ID, verify it through the confirmation email before proceeding. If you already have a Builder ID, select 'Sign in.'
 
-**Step 2: Complete your AWS Activate profile**
+### Step 2: Complete your AWS Activate profile
 
 Next, complete your AWS Activate profile. This one-time profile collects essential information about your startup to personalize your experience and streamline your credit application process.
 
 **Important:** Please use your business email address (matching your startup's domain) for both your AWS Activate profile and credit application. Using consistent domain information helps validate your application and confirm your startup's credentials.
 
-**Step 3: Choose your credit package**
+### Step 3: Choose your credit package
 
 Select between the Founders Package for self-funded startups or the Portfolio Package for provider-backed startups.
 
@@ -74,7 +74,7 @@ Select between the Founders Package for self-funded startups or the Portfolio Pa
 
 An Org ID is a unique, case-sensitive code provided by your accelerator, VC, or startup organization. Org IDs are confidential and must be submitted through the official AWS Activate application page. Contact your provider directly if you need an Org ID or if your code appears invalid.
 
-**Step 4: Provide startup details**
+### Step 4: Provide startup details
 
 Following package selection, submit accurate information about your startup, including business information, product details, and funding status. This information directly affects your eligibility. Here is what you'll provide:
 
@@ -84,7 +84,7 @@ Following package selection, submit accurate information about your startup, inc
 
 Review all information carefully before proceeding to the final application steps.
 
-**Step 5: Link your AWS account**
+### Step 5: Link your AWS account
 
 Next, link your startup's primary AWS account with your Builder ID. This is necessary to submit your application, and it enables credits to be applied to your startup's billing.
 
@@ -100,13 +100,13 @@ If you have trouble linking your AWS account, here are some key tips:
 
 If you need assistance with account linking or domain verification, consult the [AWS Activate FAQs](https://aws.amazon.com/startups/faq#AWS%20Activate%20Credit%20Application) or [contact your AWS account team](https://aws.amazon.com/startups/contact-us).
 
-**Step 6: Verify your AWS account**
+### Step 6: Verify your AWS account
 
 After linking your AWS account, you'll be prompted to verify it by selecting the 'Verify your account' button in the AWS Management Console. This final check ensures that AWS recognizes your Builder ID association correctly and that your account is valid, active, and ready for credits.
 
 If verification works smoothly, you'll see 'Accounts linked successfully' in the console. You can then close the console and return to the AWS Activate Credits application, where you should see that your account has been verified.
 
-**Step 7: Review and submit your application**
+### Step 7: Review and submit your application
 
 Your application for AWS Activate Credits is almost complete! Before you hit submit, double-check your startup's key information (e.g., funding stage, email domains) to prevent processing delays. After submission, you'll receive a confirmation email.
 

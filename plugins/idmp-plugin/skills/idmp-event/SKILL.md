@@ -66,8 +66,8 @@ idmp-cli event events items --params '{"eventId":123}'
 
 idmp-cli event events confirm --ack-risk --params '{"eventId":123}'
 idmp-cli event events confirm --dry-run --ack-risk --params '{"eventId":123}'
-idmp-cli event confirm create --ack-risk --data '[123,456]'
-idmp-cli event confirm create --dry-run --ack-risk --data '[123,456]'
+idmp-cli event batch confirm --ack-risk --data '[123,456]'
+idmp-cli event batch confirm --dry-run --ack-risk --data '[123,456]'
 idmp-cli event events resend --dry-run --ack-risk --params '{"eventId":123}'
 idmp-cli event annotations list --params '{"eventId":123}'
 ```
@@ -86,5 +86,5 @@ idmp-cli event annotations list --params '{"eventId":123}'
 1. Start the unacknowledged workflow with `idmp-cli schema event.count.list` and `idmp-cli event count list`.
 2. Read the current queue with `idmp-cli event events list --params '{"current":1,"size":20}'` and `idmp-cli event events search --params '{"keyword":"overcurrent","current":1,"size":20}'`.
 3. Inspect one event with `idmp-cli event events get --params '{"eventId":123}'` and `idmp-cli event events items --params '{"eventId":123}'`.
-4. Acknowledge a single event with `idmp-cli event events confirm --ack-risk --params '{"eventId":123}'`, then run batch acknowledgement with `idmp-cli event confirm create --ack-risk --data '[123,456]'` or preview it first with `--dry-run`.
+4. Acknowledge a single event with `idmp-cli event events confirm --ack-risk --params '{"eventId":123}'`, then run batch acknowledgement with `idmp-cli event batch confirm --ack-risk --data '[123,456]'` or preview it first with `--dry-run`.
 5. Preview follow-up actions with `idmp-cli event events resend --dry-run --ack-risk --params '{"eventId":123}'` and `idmp-cli event annotations list --params '{"eventId":123}'`.

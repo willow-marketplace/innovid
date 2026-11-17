@@ -1,182 +1,286 @@
-<p align="center">
-  <img src="https://voyager.postman.com/logo/postman-logo-orange.svg" alt="Postman" width="320">
-</p>
+<div align="center">
 
-# Postman Plugin for Claude Code
+<a href="https://www.postman.com/"><img src="https://assets.getpostman.com/common-share/postman-logo-horizontal-320x132.png" alt="Postman" width="240" /></a>
 
-The Postman Plugin provides a single, simple install for Claude Code. It provides full API lifecycle management, and best practices when working with Postman APIs. 
+# Postman Plugin
+**Powering API engineering for agents**
 
-## What's included:
-- Commands for setting up the Postman MCP Server (no more manual installs!), working with Collections, Tests, Mock Servers, and generating code and documentation from Collections
-- Skills for API discovery and client code generation, OpenAPI spec generation, Postman CLI workflows, and API best practices
-- Agent for reviewing API production readiness and providing recommendations based on the <a href="https://www.postman.com/ai/90-day-ai-readiness-playbook/">Postman API Readiness Guide</a>.
+The Postman plugin brings filesystem-first API development and organization-wide
+API context to coding agents. It enables agents to design, mock, test, document,
+monitor, and ship APIs directly from Claude Code, Cursor, and Codex. Every
+operation produces inspectable files or CLI commands that fit naturally into
+Git and CI, while the Postman Context Graph helps agents understand
+dependencies, ownership, runtime behavior, and the likely impact of a change.
 
-## Installation
+[Install](#install) · [Highlights](#highlights)
 
-Install from Anthropic's official plugin marketplace.
+</div>
 
-In Claude Code:
+## Install
 
-```
-/plugin install postman@claude-plugins-official
-```
-
-Or from the terminal:
+Install Postman in every compatible coding agent detected on your machine:
 
 ```bash
+npx @postman/postman-plugin@latest
+```
+
+One command configures **Antigravity, Claude Code, Codex, GitHub Copilot CLI, Cursor,
+Factory Droid, Kimi Code, OpenCode and Pi**. Run it again to update, `status` to see what's installed,
+and `remove` to uninstall; `--agent <id>` limits any of them to one agent. Keep `@latest`:
+without it, npx runs any older copy of the installer installed globally or in the current project.
+
+To uninstall:
+
+```bash
+npx @postman/postman-plugin@latest remove
+```
+
+`remove` uninstalls the plugin, then removes what it installed alongside it: the
+Postman marketplace in Claude Code, Codex, Copilot CLI and Factory Droid, once no
+plugin still installs from it; the approval of Postman's Codex session-start hook that
+releases before 0.7.2 wrote; and
+OpenCode's cached copy. Running it again cleans up what an earlier `remove` left
+behind. It never touches Anthropic's `claude-plugins-official` marketplace or
+another agent's settings, and it leaves project-scoped installs in place. Factory
+Droid lists project installs only for the current directory, so one elsewhere keeps
+working but stops getting updates once the marketplace is gone. Cursor Marketplace
+and Kimi Code installs can only be removed inside those apps; `remove` says how.
+
+You can also use the following commands to install individually:
+
+### Antigravity
+
+```bash
+agy plugin install https://github.com/postmanlabs/postman-plugin
+```
+
+Run the same command again to update; `agy plugin uninstall postman` removes it.
+In the Antigravity app, **Customizations → Plugins → + Install from URL** takes
+the same URL.
+
+### Claude Code
+
+[View Postman on Claude Plugins](https://claude.com/plugins/postman)
+
+```bash
+claude plugin marketplace add anthropics/claude-plugins-official
 claude plugin install postman@claude-plugins-official
 ```
 
-<details>
-<summary>Alternative: install from GitHub</summary>
+The first command registers Anthropic's official marketplace, which a fresh
+Claude Code doesn't have until an interactive session gets past sign-in. It
+does nothing where the marketplace is already registered.
+
+### Codex
+
+[View Postman on ChatGPT Plugins](https://chatgpt.com/plugins/postman?open_in_app)
 
 ```bash
-claude plugin install github:Postman-Devrel/postman-claude-code-plugin
+codex plugin marketplace add postmanlabs/postman-plugin --ref main
+codex plugin marketplace upgrade postman
+codex plugin add postman@postman
 ```
-</details>
 
-<details>
-<summary>Alternative: load from a local clone</summary>
+These commands track `main`, and Codex updates the plugin from it when a
+session starts.
+
+### Cursor
+
+[View Postman on the Cursor Marketplace](https://cursor.com/marketplace/postman)
+
+```text
+/add-plugin postman
+```
+
+### GitHub Copilot CLI
 
 ```bash
-git clone https://github.com/Postman-Devrel/postman-claude-code-plugin.git
-cd your-api-project/
-claude --plugin-dir /path/to/postman-claude-code-plugin
-```
-</details>
-
-## Quick Start
-
-1. Start Claude Code:
-```bash
-claude
+copilot plugin marketplace add postmanlabs/postman-plugin
+copilot plugin install postman@postman
 ```
 
-2. Run setup:
-```
-/postman:setup
-```
+`copilot plugin marketplace update postman`, then `copilot plugin update postman`, updates it. Sign in to Postman's MCP server
+with `/mcp` inside a Copilot CLI session.
 
-3. Authenticate when prompted — **OAuth (recommended)**, which opens a browser sign-in with no key copying, or an API key:
-```bash
-export POSTMAN_API_KEY=PMAK-your-key-here
-```
-If you use an API key, add it to your shell profile (`~/.zshrc` or `~/.bashrc`) to persist across sessions. Get one at [go.postman.co/settings/me/api-keys](https://go.postman.co/settings/me/api-keys).
-
-That's it. The plugin auto-configures the Postman MCP Server, verifies your connection, and lists your workspaces. You're ready to go.
-
-## Commands
-
-| Command | What It Does |
-|---------|-------------|
-| `/postman:setup` | Configure API key, verify connection, select workspace |
-| `/postman:sync` | Create or update Postman collections from OpenAPI specs |
-| `/postman:search` | Find APIs across your org's resources, your workspaces, and the public Postman network |
-| `/postman:context` | Fetch real API definitions, generate and maintain typed client code |
-| `/postman:test` | Run collection tests, diagnose failures, suggest fixes |
-| `/postman:mock` | Create mock servers for frontend development |
-| `/postman:docs` | Generate, improve, and publish API documentation |
-| `/postman:security` | Security audit against OWASP API Top 10 |
-| `/postman:learn` | Search the Postman Learning Center for how-to guidance and suggested workflows (Full mode) |
-
-## What You Can Do
-
-### Sync your API to Postman
-```
-"Sync my OpenAPI spec with Postman"
-→ Detects local spec, creates/updates collection, sets up environment
-```
-
-### Generate client code from private APIs
-```
-"Generate a TypeScript client for the payments API"
-→ Reads your Postman collection, detects project language, writes typed code
-```
-
-### Search across your workspace
-```
-"Is there an endpoint that returns user emails?"
-→ Searches across your org's collections, drills into endpoint details, shows response shapes
-```
-
-### Run API tests
-```
-"Run the tests for my User API collection"
-→ Executes collection, parses results, diagnoses failures, suggests code fixes
-```
-
-### Create mock servers
-```
-"Create a mock for frontend development"
-→ Generates missing examples, creates mock, provides integration config
-```
-
-### Audit API security
-```
-"Run a security audit on my API"
-→ 20+ checks including OWASP Top 10, severity scoring, remediation guidance
-```
-
-### Check if your API is agent-ready
-```
-"Is my API ready for AI agents?"
-→ 48 checks across 8 pillars, scored 0-100, prioritized fix recommendations
-```
-
-## Natural Language Routing
-
-You don't need to remember command names. Claude matches your intent to the right command or skill natively:
-
-- "Sync my collection" runs `/postman:sync`
-- "Check for vulnerabilities" runs `/postman:security`
-- "Is my API agent-ready?" triggers the readiness analyzer
-
-## API Readiness Analyzer
-
-The built-in readiness analyzer evaluates APIs for AI agent compatibility across 8 pillars:
-
-| Pillar | What It Checks |
-|--------|---------------|
-| Metadata | operationIds, summaries, descriptions, tags |
-| Errors | Error schemas, codes, retry guidance |
-| Introspection | Parameter types, required fields, examples |
-| Naming | Consistent casing, RESTful paths |
-| Predictability | Response schemas, pagination, date formats |
-| Documentation | Auth docs, rate limits |
-| Performance | Rate limit headers, caching, bulk endpoints |
-| Discoverability | OpenAPI version, server URLs |
-
-**70%+ with no critical failures = Agent-Ready.**
-
-## Requirements
-
-- Claude Code v1.0.33+
-- A Postman account — authenticate via OAuth during `/postman:setup`, or set a `POSTMAN_API_KEY` environment variable
-- No Python, Node, or other runtime dependencies
-
-## How It Works
-
-The plugin bundles a `.mcp.json` file that auto-configures the [Postman MCP Server](https://github.com/postmanlabs/postman-mcp-server) when installed. All commands communicate with Postman through MCP tools. No scripts, no dependencies, pure MCP.
-
-By default the plugin connects to the full Postman MCP Server (100+ tools). Recent Claude Code versions load MCP tool schemas on demand, so the full server adds little context overhead. If you're on an older client or want a lighter session, set `POSTMAN_MCP_MODE` before starting Claude Code to pick a smaller server mode:
+### Factory Droid
 
 ```bash
-export POSTMAN_MCP_MODE=minimal   # ~42 CRUD tools; code-generation (context) tools unavailable
-export POSTMAN_MCP_MODE=code      # ~24 read-only tools for API discovery and client code generation
+droid plugin marketplace add https://github.com/postmanlabs/postman-plugin.git
+droid plugin install postman@postman-plugin --scope user
 ```
+
+`droid plugin marketplace update postman-plugin`, then
+`droid plugin update postman@postman-plugin --scope user`, updates it. Sign in
+to Postman's MCP server with `/mcp` inside a Droid session.
+
+### Kimi Code
+
+Inside a Kimi Code session:
+
+```text
+/plugins install https://github.com/postmanlabs/postman-plugin/tree/main
+```
+
+Then run `/new` to start a session with the plugin. Run the same command again,
+then `/new`, to update; `/plugins remove postman` removes it. Sign in to
+Postman's MCP server with `/mcp-config login plugin-postman:postman`.
+
+### OpenCode
+
+```bash
+opencode plugin add github:postmanlabs/postman-plugin
+```
+
+That is OpenCode 2.0.4 or later. On OpenCode 1.14.33 or later the command is
+`opencode plugin --global github:postmanlabs/postman-plugin`.
+[opencode/README.md](opencode/README.md#install) has how to update and remove
+it, and the older clone-and-loader install.
+
+### Pi
+
+[View Postman in Pi's package gallery](https://pi.dev/packages/@postman/postman-plugin)
+
+```bash
+pi install npm:@postman/postman-plugin
+```
+
+`pi update npm:@postman/postman-plugin` updates it. Sign in to Postman's MCP
+server with `/mcp login postman` inside a Pi session. The shell's `pi mcp login`
+doesn't load extensions, so it reports no server named `postman`.
+
+## Highlights
+
+### Filesystem-first API development
+
+All postman resources have a filesystem representation, so your agent can work
+with the API ecosystem through the interface it understands best: files. API
+specifications, collections, environments, examples, mocks, documentation,
+and Flows can live beside the application code.
+
+The git-native [v3 collection schema](skills/collection-schema-v3/) makes this
+especially agent-friendly. A collection is a directory tree under
+`postman/collections/`, where every request, folder definition, and saved
+example is its own YAML file. Environments use the same file-first model under
+`postman/environments/`. HTTP, GraphQL, gRPC, WebSocket, Socket.IO, MQTT, MCP,
+and LLM requests all have defined schemas the agent can follow.
+
+That means the agent can:
+
+- Read or change one request without rewriting a large collection export.
+- Generate requests and examples directly from an API specification.
+- Produce small, reviewable Git diffs and resolve changes with normal code
+  review workflows.
+- Lint and test the files locally before anything is shared with a Postman
+  workspace.
+
+
+### Context Graph: know what breaks before you make a change
+
+A repository can show what an endpoint calls, but rarely who calls it, whether
+those consumers are active in production, where they are deployed, or which
+team owns them. The Context Graph fills that gap with a private, authenticated,
+organization-wide map of your API ecosystem.
+
+It reconciles signals from the systems where API knowledge already lives:
+
+- **Postman workspaces:** specifications, collections, monitors, and mocks
+- **GitHub:** repositories, API definitions, and source-level call sites
+- **New Relic:** deployments, runtime traffic, latency, errors, and telemetry
+
+The [`api-discovery`](skills/api-discovery/) skill lets the agent start with the
+thing you plan to change and ask one natural-language question:
+
+```bash
+postman context-graph ask "What could break if we change the billing API?" --wait
+```
+
+
+The graph discovers the surrounding scope—including repositories that are not
+checked out locally—before the agent starts editing code. It refreshes nightly
+as services, deployments, ownership, and runtime relationships change.
+
+In Postman's controlled benchmark across 468 repositories, starting with this
+map used **up to 74% fewer tokens, 52% fewer tool calls, and 72% lower cost**.
+Accuracy also improved in 18 of 21 scored prompt-model pairs. Most graph
+queries completed in roughly 20–40 seconds. Read the methodology and results in
+[Introducing the Context Graph API: One Map of Your API Ecosystem](https://blog.postman.com/introducing-the-context-graph-api-one-map-of-your-api-ecosystem/).
+
+### File-first API mocks
+
+The [`api-mocking`](skills/api-mocking/) skill creates a working mock from an
+OpenAPI specification or collection and stores the implementation beside the
+API code. The agent can run it locally, add success and failure scenarios, and
+test consumers without waiting for the real service to be ready or available.
+
+The mock stays local until you choose to push and deploy it. When teammates or
+external systems need access, the same mock can become a durable hosted URL
+without rebuilding it in another tool. Pushed to the service's own workspace,
+it's the mock other teams' simulations pull first.
+
+### Develop against simulated dependencies
+
+The [`api-simulation`](skills/api-simulation/) skill runs your code (a service
+you're changing, a frontend, a test suite or a demo) for real against stand-ins
+for the HTTP services it calls, served together on one port from one
+`.sim.yaml`. Each stand-in is the owning team's mock when they publish one.
+It reuses an existing `.sim.yaml`, proves a change with a request through the
+changed path, and answers "what happens if X goes down" by running each failure.
+Pushing the simulation is optional and needs your approval. It needs Postman CLI
+1.70.0 or later:
+
+```bash
+postman simulation run postman/simulations/orders-dev.sim.yaml --port 4900
+```
+
+The service under test is never mocked. It runs for real, so a passing run
+shows the change works against what the mocks model; it doesn't replace a run
+against the real upstreams. The simulation can also run in CI, and any
+dependency can take injected latency, error, rate-limit, or chaos conditions to
+exercise failure paths.
+
+
+## How Postman builds context
+
+`postman init` is idempotent and safe to run in any project. Run it before API
+engineering work to create the relevant local directories and make Postman
+skills available to guide the task, even if the project is already initialized.
+See [workspaces](skills/workspaces/SKILL.md) for init's
+workspace options and binding.
+
+Work done in a Postman folder produces artifacts: collection runs, lint
+results, request history, mock deployments. When that folder is connected to a
+Postman workspace after `postman init`, those artifacts are published to it as
+they are produced. The workspace persists that context for future work and
+enables teammates, reviewers, and other agents to share and build on what the
+agent did.
+
+What each command contributes to the connected workspace:
+
+| Command | What it publishes |
+| --- | --- |
+| `postman collection run` | Run results and run history |
+| `postman application test` | Test run results |
+| `postman spec lint` | Lint results, including violation counts and pass/fail |
+| `postman workspace push` | Local workspace contents, persisted as context for future work and sharing with others |
+| `postman runner start` | Runner processing and health activity |
+| `postman flows run` | Flow run results |
+| `postman request` | Agent's API interaction activity |
+
+
+Publishing happens by default. To change this workflow, you can set 
+`--report-events=false` per invocation.
+
+### Anonymous usage counts
+
+The CLI records command usage surface — a minimal,
+unauthenticated count with no workspace, user, or payload attached.
+
+### The MCP fallback
+
+The plugin registers Postman's hosted MCP server as a fallback for when the CLI
+cannot run. MCP tool calls reach Postman by design and are not governed by the
+CLI flags above; skip installing the MCP server if you do not want that path.
 
 ## License
 
-Apache-2.0
-
-## See Also
-
-- [Postman Plugin for Cursor](https://github.com/Postman-Devrel/cursor-postman-plugin) - Same capabilities, adapted for Cursor IDE
-- [Postman Agent Skills](https://github.com/Postman-Devrel/agent-skills) - Portable skills for any skills.sh-compatible agent
-- [Postman Cursor Rules](https://github.com/Postman-Devrel/postman-cursor-rules) - Lightweight MCP config + rules for Cursor
-
-## Links
-
-- [Postman MCP Server Docs](https://learning.postman.com/docs/developer/postman-mcp-server/)
-- [Get a Postman API Key](https://go.postman.co/settings/me/api-keys)
-- [Postman Status](https://status.postman.com)
+Apache-2.0 — see [LICENSE](LICENSE).

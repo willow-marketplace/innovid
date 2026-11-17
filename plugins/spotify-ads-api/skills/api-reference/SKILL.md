@@ -5,6 +5,8 @@ description: This skill should be used when the user asks to "call the Spotify A
 
 # Spotify Ads API v3 Reference
 
+Before sending any output to a human user, read and follow `$PLUGIN_ROOT/skills/api-reference/references/language-standards.md`.
+
 ## Overview
 
 The Spotify Ads API v3 enables programmatic management of advertising campaigns on Spotify. It follows a strict resource hierarchy and uses OAuth 2.0 bearer token authentication.
@@ -39,6 +41,16 @@ Before answering a schema question or making an Ads API v3 call, read and follow
 use the relevant operation and component definitions as the source of truth for paths,
 parameters, request bodies, responses, and enums.
 
+Before building estimate, ad set, report, or draft payloads, also read
+`references/api-behaviors.md` for runtime behaviour the spec does not express.
+
+Critical rules:
+
+- Send only fields the live spec defines for the operation; include every field it marks required, including ones whose description says "required" (e.g. `targets.placements`).
+- Set `placements` when creating an ad set and on every audience estimate, using only values the ad product catalog allows for that product's ad sets (and any narrower limit the objective's spec description states). On ad set updates, keep a valid `placements` in the merged result.
+- Never resend a request body that was rejected with a 4xx unchanged; fix it from the error first.
+- Before VALIDATE/PUBLISH, refetch `draft_hierarchy_version` from the draft campaign.
+
 ## Resource Hierarchy
 
 ```
@@ -69,7 +81,10 @@ For draft `VALIDATE` and `PUBLISH`, always fetch the draft campaign immediately 
 - **Pagination**: All list endpoints support `limit` (1-50, default 50) and `offset` (default 0).
 - **Sorting**: Most list endpoints support `sort_direction` (ASC/DESC) and entity-specific sort fields.
 - **Updates use PATCH**: Partial updates with minimum 1 property required. For campaign, ad set, and ad changes, PATCH the draft endpoint by default.
-- **No DELETE on live campaigns/ad sets/ads**: Use status changes (ARCHIVED, PAUSED) instead. Draft entities _can_ be deleted.
+- **Updates are PATCH, never PUT**: the spec defines no PUT on Ads API v3 endpoints.
+- **No DELETE on live campaigns/ad sets/ads**: Archive with `status: ARCHIVED` instead. Draft entities _can_ be deleted.
+- **Paused is not an ad set or ad status**: ad set and ad statuses have no `PAUSED` (only campaigns do). Pause or resume an ad set or ad with a live PATCH of `{"delivery":"OFF"}` or `{"delivery":"ON"}` (an ad set PATCH carrying `delivery` must contain only that field), and find paused ad sets from the read-only `is_paused` response field, never `statuses=PAUSED`.
+- **Ad sets for a campaign**: `api GET "ad_accounts/{ad_account_id}/ad_sets?campaign_ids=$CAMPAIGN_ID"`. There is no nested `/campaigns/{id}/ad_sets` route.
 
 ## Public Endpoint Groups
 
@@ -86,7 +101,7 @@ For draft `VALIDATE` and `PUBLISH`, always fetch the draft campaign immediately 
 
 ### Ads
 - `POST /ad_accounts/{id}/ads` — Create ad (required: name, assets; also needs tagline, advertiser_name, ad_set_id, call_to_action)
-- `GET /ad_accounts/{id}/ads` — List ads (filterable by ad_set_ids, campaign_ids, statuses)
+- `GET /ad_accounts/{id}/ads` — List ads (filterable by ad_set_ids, asset_ids, statuses; no campaign_ids filter, so list the campaign's ad sets first)
 - `GET /ad_accounts/{id}/ads/{ad_id}` — Get ad by ID
 - `PATCH /ad_accounts/{id}/ads/{ad_id}` — Update ad
 
@@ -95,7 +110,6 @@ For draft `VALIDATE` and `PUBLISH`, always fetch the draft campaign immediately 
 - `GET /ad_accounts/{id}/assets` — List assets
 - `GET /ad_accounts/{id}/assets/{asset_id}` — Get asset by ID
 - `PATCH /ad_accounts/{id}/assets/{asset_id}` — Update asset
-- `PATCH /ad_accounts/{id}/assets` — Bulk archive/unarchive
 
 ### Audiences
 - `POST /ad_accounts/{id}/audiences` — Create audience (CUSTOM or LOOKALIKE)
@@ -110,8 +124,9 @@ For draft `VALIDATE` and `PUBLISH`, always fetch the draft campaign immediately 
 - `GET/POST /businesses/{id}/mobile_apps` — List or register mobile apps
 - `GET/PATCH /businesses/{id}/mobile_apps/{mobile_app_id}` — Get or update a mobile app
 - `POST/DELETE /businesses/{id}/mobile_apps/{mobile_app_id}/ad_accounts/{ad_account_id}` — Share or unshare an app
-- `GET/POST /businesses/{id}/pixels` — List or create Pixels
-- `GET/PATCH /businesses/{id}/pixels/{pixel_id}` — Get or update a Pixel
+- `POST /businesses/{id}/pixels` — Create a Pixel
+- `GET /businesses/{id}/pixels/{pixel_id}` — Get a Pixel
+- `PATCH /businesses/{id}/pixels/{pixel_id}` — Update a Pixel
 - `POST /businesses/{id}/capi` — Create a CAPI integration
 - `GET/PATCH /businesses/{id}/capi/{connection_id}` — Get or update CAPI
 - `POST/GET/DELETE /businesses/{id}/capi/{connection_id}/tokens[...]` — Manage CAPI auth tokens
@@ -220,7 +235,7 @@ curl -s -w "\nHTTP_STATUS:%{http_code}" -X GET \
 
 </details>
 
-For error response format and common HTTP status codes, see `references/endpoints.md` (Error Responses section).
+For error response format, common HTTP status codes, and retry safety, see `references/api-behaviors.md` (Errors and Retry Safety section).
 
 ## Additional Resources
 
@@ -228,13 +243,12 @@ For error response format and common HTTP status codes, see `references/endpoint
 
 For detailed request/response schemas and field definitions, consult:
 - **`references/live-openapi.md`** — Mandatory workflow for fetching and inspecting the current public OpenAPI document
-- **`references/endpoints.md`** — Complete endpoint details with all parameters and response schemas
-- **`references/schemas.md`** — Request/response body schemas with field types, constraints, and required fields
-- **`references/enums.md`** — All enum values for status fields, asset formats, targeting options, report dimensions/metrics
+- **`references/api-behaviors.md`** — Runtime behavior the spec cannot express: micro-amounts, Reserved pricing and forecasting, estimates, geo lookup, reporting quirks, draft VALIDATE/PUBLISH semantics, and error handling and retry safety
+- **`references/create-retry-safety.md`** — Retry-safety procedure for create requests
 - **`references/ad-product-validation.md`** — Mandatory catalog-validation procedure for campaign, ad set, and ad mutations
 
 ### Example Files
 
-Working examples with complete curl commands and expected responses:
+Working examples with shared `api()` helper commands and expected responses:
 - **`examples/full-campaign-flow.md`** — End-to-end: create campaign, ad set, and ad with targeting
 - **`examples/aggregate-report.md`** — Pull aggregate metrics and create async CSV reports

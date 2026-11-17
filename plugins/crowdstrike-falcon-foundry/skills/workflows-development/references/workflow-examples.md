@@ -2,7 +2,7 @@
 
 > Parent skill: [workflows-development](../SKILL.md)
 
-Real production examples from foundry-sample repos. All examples use the actual Fusion YAML schema: `trigger` + `actions` + optional `loops`/`conditions`.
+Real examples from the foundry-sample repos. All examples use the actual Fusion YAML schema: `trigger` + `actions` + optional `loops`/`conditions`.
 
 ## Simple On-Demand Workflow
 
@@ -88,7 +88,7 @@ output_fields: []
 
 **Patterns demonstrated:**
 - API integration action ID format: `api_integrations.{name}.{operationId}`
-- `${data['action_key.API_Integration.Custom_Name.operationId.body']}` to access API response body via CEL expression
+- `${data['action_key.API_Integration.Custom_Name.Workflow_name.body']}` to access the API response body, where `Workflow_name` is the operation's `x-cs-operation-config.workflow.name` with spaces turned into underscores (here it's `listUsers`, the same as the `operationId`, but the two often differ). Copy the path from the editor's **Workflow data** panel
 - `output_fields: []` when no fields need to be surfaced
 
 ## Response Action Workflow (Contain Host)
@@ -122,7 +122,7 @@ actions:
             - print_result
         properties:
             device_id: "${data['device_id']}"
-        version_constraint: ~1
+        version_constraint: ~0
     print_result:
         id: aadbf530e35fc452a032f5f8acaaac2a
         properties:
@@ -150,7 +150,7 @@ conditions:
 
 ## Scheduled Workflow with Pagination Loop
 
-From [foundry-sample-anomali-threatstream](https://github.com/CrowdStrike/foundry-sample-anomali-threatstream). Scheduled trigger with loop-based pagination using a custom variable to track the cursor.
+Adapted from the original single-loop version of [foundry-sample-anomali-threatstream](https://github.com/CrowdStrike/foundry-sample-anomali-threatstream)'s `Anomali_Threat_Intelligence_Ingest.yml` (the current sample runs one branch per IOC type). Scheduled trigger with loop-based pagination using a custom variable to track the cursor.
 
 ```yaml
 name: Anomali Threat Intelligence Ingest
@@ -173,7 +173,6 @@ actions:
             - UpdateVariable
         id: functions.anomali-ioc-ingest.Anomali Ingest
         properties:
-            fail_fast_enabled: false
             limit: 1000
             repository: search-all
             status: active
@@ -201,7 +200,7 @@ actions:
         version_constraint: ~1
 loops:
     Loop:
-        display: While next exists And next is not equal to 0
+        display: While next exists And next is not equal to 0; 500 iterations; 2 hour limit
         for:
             input: ""
             condition: WorkflowCustomVariable.next:!null+WorkflowCustomVariable.next:!'0'
@@ -209,6 +208,8 @@ loops:
                 - next exists
                 - next is not equal to 0
             continue_on_partial_execution: false
+            max_execution_seconds: 7200
+            max_iteration_count: 500
             sequential: true
         trigger:
             next:
@@ -219,7 +220,6 @@ loops:
                     - UpdateVariable2
                 id: functions.anomali-ioc-ingest.Anomali Ingest
                 properties:
-                    fail_fast_enabled: false
                     limit: 1000
                     next: ${data['WorkflowCustomVariable.next']}
                     repository: search-all
@@ -241,6 +241,7 @@ loops:
 - The "0" gotcha: also check `WorkflowCustomVariable.next:!'0'` (see [pagination-patterns.md](pagination-patterns.md))
 - Loop has its own `trigger:`, `actions:` — a self-contained sub-workflow
 - Function action ID format: `functions.{function-name}.{display-name}`
+- `max_iteration_count` / `max_execution_seconds` raise the While-loop limits; without them a sequential loop stops at the default 50 iterations or 60 minutes, whichever comes first
 
 ## Conditions with Loops
 
@@ -265,7 +266,7 @@ loops:
                     device_id: "${device_query.Device.query.devices.#}"
                 version_constraint: ~1
             put_and_run_file:
-                id: b3305a8e09d3430b9cd4e2fc1dfa73f3
+                id: a29b38809708ffc5fb18a03676520b1a
                 properties:
                     device_id: "${device_query.Device.query.devices.#}"
                     file_name: installer.exe
@@ -284,7 +285,7 @@ loops:
 - `expression:` uses FQL-style syntax for field matching
 - `display:` provides human-readable description shown in Falcon console
 - `${array.#}` references the current loop iteration item
-- `continue_on_partial_execution: true` — loop continues if individual iterations fail
+- `continue_on_partial_execution: true` on a concurrent loop (no `sequential: true`) — nodes after the loop still run if some iterations fail, though the execution still shows as failed
 
 ## Workflow with Collection Config Lookup
 
@@ -349,8 +350,155 @@ The `get-channel-config` function reads from the collection using the `CustomSto
 | `${data['array_param.#.field']}` | Field of current loop item |
 | `${data['ActionLabel.OutputField']}` | Output from a prior action |
 | `${data['WorkflowCustomVariable.field']}` | Custom variable value |
-| `${data['action_key.API_Integration.Custom_Name.operationId.body']}` | API integration response body |
+| `${data['action_key.API_Integration.Custom_Name.Workflow_name.body']}` | API integration response body (`Workflow_name` from `x-cs-operation-config.workflow.name`, spaces → underscores) |
 | `${Workflow.Execution.ID}` | Current execution ID |
 | `${Workflow.Execution.Time.Date}` | Execution date |
 
 > **Note:** Always use `${data['...']}` CEL expression syntax. The older `$action.output.field` syntax passes as a literal string and is not resolved at runtime. See the parent SKILL.md [Variable References](#variable-references) section for full details.
+
+## Standard Trigger Actions Format
+
+The format produced by `foundry workflows create`, used by many Foundry sample apps:
+
+```yaml
+name: list-okta-users
+description: On-demand workflow to list Okta users and print results
+provision_on_install: true
+trigger:
+    next:
+        - list_users
+    name: On demand
+    type: On demand
+actions:
+    list_users:
+        id: api_integrations.Okta.listUsers
+        next:
+            - print_results
+        properties: {}
+        version_constraint: ~0
+    print_results:
+        id: aadbf530e35fc452a032f5f8acaaac2a
+        properties:
+            text_data: "${data['list_users.API_Integration.Custom_Okta.listUsers.body']}"
+        version_constraint: ~1
+output_fields: []
+```
+
+## Version Constraint Example
+
+`~N` is the major version of the activity's `semantic_version`: `~0` when it has none (functions, API integrations) or a `0.x` one (Contain device), `~1` for `1.x` (most platform actions):
+
+```yaml
+actions:
+    my_function:
+        id: functions.my-func.process
+        properties: {}
+        version_constraint: ~0       # no semantic_version defined
+    contain_host:
+        id: bec9fbeb4999d207937854fd56088107    # Contain device
+        properties:
+            device_id: "${data['device_id']}"
+        version_constraint: ~0       # semantic_version 0.0.x
+    print_results:
+        id: aadbf530e35fc452a032f5f8acaaac2a
+        properties:
+            text_data: "${data['my_function.FaaS.my-func.process.result']}"
+        version_constraint: ~1       # semantic_version 1.x
+```
+
+## API Integration Operation Call
+
+```yaml
+actions:
+    list_users_action:
+        id: api_integrations.Okta.listUsers    # {name}.{operationId}
+        properties: {}
+        version_constraint: ~0
+        next:
+            - print_data
+
+    print_data:
+        id: aadbf530e35fc452a032f5f8acaaac2a
+        properties:
+            text_data: "${data['list_users_action.API_Integration.Custom_Okta.listUsers.body']}"
+        version_constraint: ~1
+```
+
+The matching OpenAPI `operationId` needs an `x-cs-operation-config` with the workflow config nested under a `workflow:` key (a flat `expose_to_workflow: true` will not work):
+
+```yaml
+x-cs-operation-config:
+  workflow:
+    name: listUsers
+    description: List all users
+    expose_to_workflow: true
+    system: false
+```
+
+## Send Email Action
+
+Use Print data as the primary output; add Send email only when explicitly requested (skip entirely in headless runs). The `to` field must be a real address — placeholders like `user@example.com` fail at runtime:
+
+```yaml
+    send_email:
+        id: 07413ef9ba7c47bf5a242799f59902cc
+        properties:
+            to:
+                - recipient@company.com    # Ask user for real address, or mark as parameterized
+            subject: "Email subject"
+            msg: "${data['list_users_action.API_Integration.Custom_Okta.listUsers.body']}"
+            msg_type: "text"
+        version_constraint: ~1
+```
+
+## Control Flow: Loop and Condition Examples
+
+**Loop** — a self-contained sub-workflow at the root `loops:` level; the action before it must name it in `next:` or it never runs:
+
+```yaml
+loops:
+    DeviceLoop:
+        for:
+            input: device_query.Device.query.devices
+            continue_on_partial_execution: true
+        trigger:
+            next:
+                - get_device_details
+        actions:
+            get_device_details:
+                id: 6265dc947cc2252f74a5f25261ac36a9
+                next:
+                    - platform_check
+                properties:
+                    device_id: "${device_query.Device.query.devices.#}"
+                version_constraint: ~1
+            put_and_run_file:
+                id: a29b38809708ffc5fb18a03676520b1a
+                properties:
+                    device_id: "${device_query.Device.query.devices.#}"
+                    file_name: installer.exe
+                version_constraint: ~1
+        conditions:
+            platform_check:
+                next:
+                    - put_and_run_file
+                expression: get_device_details.Device.GetDetails.Platform:'Windows'
+                display:
+                    - Platform is Windows
+```
+
+The condition has no `else:`, so nothing runs for a device that isn't Windows. An `else:` must name an action, condition, or loop defined in the same block.
+
+**Condition** — FQL-style `expression:` or CEL `cel_expression:` with an optional `else:` fallback:
+
+```yaml
+conditions:
+    has_detection:
+        next:
+            - GetDetectionDetails
+        cel_expression: data['detection_id'] != null && data['detection_id'] != ''
+        display:
+            - Detection ID was provided
+        else:
+            - PrintSummary
+```

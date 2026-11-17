@@ -2,30 +2,31 @@
 // Images MUST be data: URIs: the Cowork sandbox CSP is img-src 'self' data:, so
 // a ctfassets URL (and client fetch() to it) is blocked — marketing:get:asset_data
 // returns the bytes over the MCP bridge instead. The server rewrites any tagged
-// blogPost to its parent webPage, so the client only adapts event/webPage/caseStudy.
+// blogPost to its parent webPage, so the client adapts event/webPage/caseStudy/flexPage.
 // Depends on core.js (carta-home.app.js): _mcp(), escHtml(), trackHome().
 // `NEWS_TAG` comes from carta-home.config.js — the curated tag is content, not logic.
 const NEWS_COUNT = 3; // cards rendered
 const NEWS_FETCH = 12; // entries pulled before filter/dedupe/truncate
 const NEWS_TAG_SOURCE = "metadata";
-// content_type intentionally UNSET so the query spans event/webPage/caseStudy/blogPost.
+// content_type intentionally UNSET so the query spans every tagged type; ADAPTERS picks the renderable ones.
 
 // Unwrap an MCP call_tool result into the plain object the command returned.
-// The command's output is {result: <entry|asset>}; prefer the structured payload,
-// fall back to JSON in the text content block.
-function _unwrap(res) {
-  if (!res || res.isError) return null;
-  let obj = res.payload ?? res.structured_content ?? res.structuredContent ?? null;
-  if (obj && obj.result !== undefined) obj = obj.result;
-  if (obj) return obj;
-  const txt = res.content?.[0]?.text;
-  if (!txt) return null;
+// FastMCP wraps the command's output as {result: "<json string>"}, so `result` is
+// parsed when it is a string. Prefer the structured payload, fall back to the text
+// content block. Returns null for an error or anything that is not JSON.
+function _parseJson(s) {
   try {
-    const parsed = JSON.parse(txt);
-    return parsed.result !== undefined ? parsed.result : parsed;
+    return JSON.parse(s);
   } catch (e) {
     return null;
   }
+}
+function _unwrap(res) {
+  if (!res || res.isError) return null;
+  let obj = res.payload ?? res.structured_content ?? res.structuredContent ?? null;
+  if (!obj && res.content?.[0]?.text) obj = _parseJson(res.content[0].text);
+  if (obj && obj.result !== undefined) obj = obj.result;
+  return typeof obj === "string" ? _parseJson(obj) : obj ?? null;
 }
 
 // Ask Contentful which entries to show, rather than naming entry IDs here, so
@@ -63,7 +64,7 @@ async function _resolveAsset(link) {
 }
 
 // ── seo helpers ── the linked seo entry carries eyebrow/description/image for
-// event and webPage; it is resolved by id from the `entries` map.
+// event, webPage and flexPage; it is resolved by id from the `entries` map.
 function _seoEntry(f, entries) {
   const id = f?.seo?.sys?.id;
   return (id && entries[id]?.fields) || {};
@@ -102,6 +103,14 @@ function _richText(rt) {
   return "";
 }
 
+// A Contentful page path ("learn/x" or "/learn/x/") → its carta.com URL, or "" when
+// empty. The path keeps its inner slashes, so only the outer ones are trimmed and it
+// is not encodeURIComponent'd.
+function _cartaPageUrl(path) {
+  const slug = String(path || "").replace(/^\/|\/$/g, "");
+  return slug ? `https://carta.com/${slug}/` : "";
+}
+
 // Null-safe timestamp: a missing/bad date sorts to 0 (end of the row).
 const _ts = (s) => { const t = Date.parse(s); return Number.isNaN(t) ? 0 : t; };
 
@@ -118,9 +127,10 @@ function _dateLabel(sortDate) {
   }
 }
 
-// ── adapters ── content_type id → normalized card. Each is pure (no I/O);
-// image links are resolved later, after truncation. `webPage` also serves every
-// tagged blogPost, which the server rewrote to its parent webPage.
+// ── adapters ── content_type id → normalized card. Each is pure (no I/O) and
+// takes (fields, entries, item); image links are resolved later, after truncation.
+// `webPage` also serves every tagged blogPost, which the server rewrote to its
+// parent webPage.
 const ADAPTERS = {
   caseStudy(f, entries) {
     const date = f.displayDate || "";
@@ -132,7 +142,7 @@ const ADAPTERS = {
         _plainSnippet(_seoField(f, entries, "description")) ||
         _richText(f.body),
       url: f.slug ? `https://carta.com/customer-stories/${encodeURIComponent(f.slug)}/` : "",
-      ctaLabel: "Read more →",
+      ctaLabel: "Read more",
       sortDate: date,
       dateLabel: _dateLabel(date),
       featuredImageLink: f.featuredImage || null,
@@ -149,7 +159,7 @@ const ADAPTERS = {
       headline: (f.title || "").trim(),
       snippet: _plainSnippet(_seoField(f, entries, "description")) || _richText(f.description),
       url: f.slug ? `https://carta.com/events/${encodeURIComponent(f.slug)}/` : "",
-      ctaLabel: "Watch recording →",
+      ctaLabel: "Watch recording",
       sortDate: date,
       dateLabel: _dateLabel(date),
       featuredImageLink: f.thumbnailImage || f.featuredImage || null,
@@ -160,22 +170,43 @@ const ADAPTERS = {
   },
   webPage(f, entries) {
     const date = f.displayDate || "";
-    // fullSlug is already path-prefixed (e.g. "learn/equity/stock-options");
-    // keep its slashes, so trim only leading/trailing ones — no encodeURIComponent.
-    const slug = String(f.fullSlug || "").replace(/^\/|\/$/g, "");
     return {
       contentType: "webPage",
       eyebrow: _seoField(f, entries, "eyebrow"),
       headline: (f.displayTitle || "").trim(),
       snippet: _plainSnippet(_seoField(f, entries, "description")),
-      url: slug ? `https://carta.com/${slug}/` : "",
-      ctaLabel: "Read more →",
+      // fullSlug is the page path, e.g. "learn/equity/stock-options".
+      url: _cartaPageUrl(f.fullSlug),
+      ctaLabel: "Read more",
       sortDate: date,
       dateLabel: _dateLabel(date),
       featuredImageLink: f.featuredImage || null,
       logoImageLink: null,
       seoImageLink: _seoLink(f, entries, "image"),
       _required: [f.displayTitle, f.fullSlug],
+    };
+  },
+  flexPage(f, entries, item) {
+    // displayDate when Content sets one, else the last publish (sys.updatedAt, which
+    // the server lists as the item's updated_at).
+    const date = f.displayDate || item?.updated_at || "";
+    const headline = (f.title || "").trim() || _seoField(f, entries, "title");
+    return {
+      contentType: "flexPage",
+      eyebrow: _seoField(f, entries, "eyebrow"),
+      headline,
+      snippet: _plainSnippet(_seoField(f, entries, "description")),
+      // url is the page path, e.g. "/learn/ai-fundamentals/".
+      url: _cartaPageUrl(f.url),
+      ctaLabel: "Read more",
+      sortDate: date,
+      dateLabel: _dateLabel(date),
+      // The seo image is a flexPage's only image. The server's fallback featuredImage
+      // is not read, so a flexPage without one shows the title tile.
+      featuredImageLink: null,
+      logoImageLink: null,
+      seoImageLink: _seoLink(f, entries, "image"),
+      _required: [headline, f.url],
     };
   },
 };
@@ -187,7 +218,7 @@ function _buildCards(items, entries) {
   return items
     .map((e) => {
       const adapt = e && e.fields && ADAPTERS[e.content_type];
-      return adapt ? adapt(e.fields, entries) : null; // unmapped/unknown → dropped
+      return adapt ? adapt(e.fields, entries, e) : null; // unmapped/unknown → dropped
     })
     .filter(Boolean)
     .filter((c) => !c.headline.toLowerCase().startsWith("[archived]"))
@@ -255,14 +286,14 @@ function renderLiveContent(cards) {
            <img src="${cs.featuredUrl}" alt="${escHtml(cs.headline)}" loading="lazy" style="width:100%;height:100%;object-fit:cover;" />
            ${cs.logoUrl ? `<div class="cs-logo-chip"><img src="${cs.logoUrl}" alt="${escHtml(cs.headline)} logo" loading="lazy" onerror="this.closest('.cs-logo-chip').remove()" /></div>` : ""}
          </div>`
-      : `<div class="plugin-news-thumb plugin-news-thumb--fake"></div>`;
+      : `<div class="plugin-news-thumb plugin-news-thumb--fake"><span class="plugin-news-fake-title">${escHtml(cs.headline)}</span></div>`;
     card.innerHTML = `
       ${thumb}
       <div class="plugin-news-content">
         ${cs.eyebrow ? `<span class="plugin-news-tag">${escHtml(cs.eyebrow)}</span>` : ""}
         <p class="plugin-news-title">${escHtml(cs.headline)}</p>
         <p class="plugin-news-desc">${escHtml(cs.snippet)}</p>
-        ${cs.ctaLabel ? `<span class="plugin-news-cta">${escHtml(cs.ctaLabel)}</span>` : ""}
+        ${cs.ctaLabel ? `<span class="plugin-news-cta">${escHtml(cs.ctaLabel)} <span class="cta-arrow" aria-hidden="true">→</span></span>` : ""}
       </div>`;
     card.addEventListener("click", () => trackHome("click", "CartaHome.CustomerStories.ReadMore"));
     grid.appendChild(card);
@@ -270,3 +301,56 @@ function renderLiveContent(cards) {
 }
 
 fetchLiveContent();
+
+// "What's new" prompts: pluginPrompt entries in the prompts space (In-App Upsells,
+// selected with `space`; delivery tokens are space-scoped so the server keys off that
+// name) for skills that recently went live. The DAG carta_skill_prompts_contentful
+// fills `goLiveDate` from SKILL_STATUS_HISTORY.GO_LIVE_DATE.
+//
+// Returns [{text, plugin, goLiveDate, skill}] where goLiveDate is the raw field value;
+// the recency window, plugin access and de-dupe against the Recommended row are applied
+// by selectWhatsNew() in app/whats-new.js, which has the user's profile. Always
+// returns an array: an empty one leaves What's new showing the microapps only, which is
+// a normal outcome (no bridge, command absent on this env, key unprovisioned, nothing
+// new) and must never throw into the render path.
+//
+// No server-side plugin filter: the `fields` param takes one equality filter, and the
+// row needs both "Investors Plugin" and "Cap Table Plugin" entries for users who have
+// access to each. Newest go-live first so the CDA's `limit` (applied after ordering)
+// keeps the freshest entries; selectWhatsNew re-sorts, so a null-ordering surprise on
+// entries without a goLiveDate costs nothing but a few wasted slots in FETCH.
+async function _listWhatsNewPrompts() {
+  const CONTENT_TYPE = "pluginPrompt";
+  const SPACE = "prompts";
+  const FETCH = 50;
+  const ORDER = "-fields.goLiveDate";
+  try {
+    // No bridge probe here: _mcp() resolves the connector itself and throws when it
+    // is unavailable, which the catch below turns into the microapps-only fallback.
+    const payload = _unwrap(await _mcp("call_tool", {
+      name: "marketing__list__content",
+      arguments: {
+        content_type: CONTENT_TYPE,
+        space: SPACE,
+        order: ORDER,
+        limit: String(FETCH),
+      },
+    }));
+    const items = Array.isArray(payload?.items) ? payload.items : [];
+    return items
+      .map((it) => {
+        const f = it?.fields || {};
+        const text = typeof f.prompt === "string" ? f.prompt.trim() : "";
+        const plugin = typeof f.plugin === "string" ? f.plugin.trim() : "";
+        // The CDA omits empty optional fields, so goLiveDate may be absent entirely.
+        const goLiveDate = typeof f.goLiveDate === "string" ? f.goLiveDate.trim() : "";
+        // The skill the prompt runs, which What's new names the item by.
+        const skill = typeof f.skill === "string" ? f.skill.trim() : "";
+        return text ? { text, plugin, goLiveDate, skill } : null;
+      })
+      .filter(Boolean);
+  } catch (err) {
+    console.error("[live-content] what's new prompts fetch failed — showing the microapps only", err);
+    return [];
+  }
+}

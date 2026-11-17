@@ -3,6 +3,9 @@ name: update-investor
 description: Updates an existing investor record in the Carta CRM. Use this skill when the user says things like "update an investor", "edit investor", "update investor details", "change investor name", "update investor website", "update investor fields", "add a tag to investor", or "/update-investor". Accepts an investor ID or name (will search if no ID provided). Only the fields explicitly provided are changed — all other fields are left untouched.
 ---
 
+<!-- carta:plugin-version -->
+<carta-plugin>carta-crm:1.20.20</carta-plugin>
+
 ## Overview
 
 Partially update an existing investor. Only fields provided are modified — this is

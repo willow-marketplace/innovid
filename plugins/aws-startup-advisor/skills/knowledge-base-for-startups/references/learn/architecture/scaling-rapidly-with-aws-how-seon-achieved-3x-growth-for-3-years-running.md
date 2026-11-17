@@ -47,7 +47,7 @@ Having raised $94 million in Series B funding in April 2022, SEON is looking to 
 
 ## About the Author
 
-**Bilal Dayeh**
+### Bilal Dayeh
 
 Bilal Dayeh is a Senior Technical Account Manager on the AWS Enterprise Support team. Previously a system engineer and subject-matter expert in cloud infrastructure, he deployed telecommunication solutions all over Europe, Africa, and the Middle East. Bilal is most passionate about leveraging the cloud to achieve customer goals and drive innovation. In his spare time, Bilal can be found on the basketball court or enjoying a good book.
 

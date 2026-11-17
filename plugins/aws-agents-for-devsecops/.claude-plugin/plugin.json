@@ -1,8 +1,8 @@
 {
   "name": "aws-agents-for-devsecops",
-  "version": "1.1.0",
+  "version": "1.2.1",
   "description": "Investigate incidents, review code and execute UAT for release readiness, scan code for vulnerabilities, and run penetration tests with AWS DevOps Agent and AWS Security Agent.",
-  "updatedAt": "2026-09-19T00:42:54.366Z",
+  "updatedAt": "2026-11-17T00:02:39.699Z",
   "author": {
     "name": "Amazon Web Services"
   },
@@ -50,7 +50,7 @@
   "commands": "./commands/",
   "mcpServers": {
     "aws-devops-agent": {
-      "url": "https://connect.aidevops.${DEVOPS_AGENT_REGION:-us-east-1}.api.aws/mcp",
+      "url": "https://connect.aidevops.us-east-1.api.aws/mcp",
       "type": "http",
       "headers": {
         "Authorization": "Bearer ${DEVOPS_AGENT_TOKEN}"

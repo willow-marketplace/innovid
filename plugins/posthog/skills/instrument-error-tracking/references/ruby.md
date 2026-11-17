@@ -1,10 +1,28 @@
 > AI agents: this is one page from PostHog's docs. Full index of Markdown docs for LLMs: https://posthog.com/llms.txt
 
-# Ruby Error Tracking installation - Docs
+# Ruby Error Tracking installation
 
-Copy page
+Canonical URL: https://posthog.com/docs/error-tracking/installation/ruby
 
-# Ruby Error Tracking installation - Docs
+> **Cloud region:** This page uses US Cloud hosts. For an EU Cloud project, use `https://eu.i.posthog.com` instead of `https://us.i.posthog.com` (ingestion host), and use `https://eu.posthog.com` instead of `https://app.posthog.com` (app host for links).
+
+## On this page
+
+- [Install with the wizard](#install-with-the-wizard)
+- [Install the gem](#install-the-gem)
+- [Configure PostHog](#configure-posthog)
+- [Send events](#send-events)
+- [Manually capture exceptions](#manually-capture-exceptions)
+- [Verify error tracking](#verify-error-tracking)
+- [Link releases](#link-releases)
+
+## Install with the wizard
+
+Run this command in your project directory to add PostHog to your Ruby project. The wizard detects your framework, installs the SDK, and sets up your first events.
+
+`npx @posthog/wizard`
+
+Or set it up manually by following the rest of this guide.
 
 1.  1
 
@@ -16,10 +34,8 @@ Copy page
 
     Gemfile
 
-    PostHog AI
-
     ```ruby
-    gem "posthog-ruby"
+    gem "posthog-ruby", "~> 3.0"
     ```
 
 2.  2
@@ -32,10 +48,9 @@ Copy page
 
     Ruby
 
-    PostHog AI
-
     ```ruby
     require 'posthog'
+    
     posthog = PostHog::Client.new({
         api_key: "<ph_project_token>",
         host: "https://us.i.posthog.com",
@@ -52,8 +67,6 @@ Copy page
     Once installed, you can manually send events to test your integration:
 
     Ruby
-
-    PostHog AI
 
     ```ruby
     posthog.capture({
@@ -77,8 +90,6 @@ Copy page
 
     Ruby
 
-    PostHog AI
-
     ```ruby
     begin
       # Code that might raise an exception
@@ -98,9 +109,9 @@ Copy page
 
     | Param | Type | Description |
     | --- | --- | --- |
-    | exception | Exception | The exception object to capture (required) |
-    | distinct_id | String | The distinct ID of the user (optional) |
-    | additional_properties | Hash | Additional properties to attach to the exception event (optional) |
+    | `exception` | `Exception` | The exception object to capture (required) |
+    | `distinct_id` | `String` | The distinct ID of the user (optional) |
+    | `additional_properties` | `Hash` | Additional properties to attach to the exception event (optional) |
 
 5.  ## Verify error tracking
 
@@ -110,14 +121,18 @@ Copy page
 
     Before proceeding, let's make sure exception events are being captured and sent to PostHog. You should see events appear in the activity feed.
 
-    ![Activity feed with events](https://res.cloudinary.com/dmukukwp6/image/upload/SCR_20250729_ouxl_f788dd8cd2.png)![Activity feed with events](https://res.cloudinary.com/dmukukwp6/image/upload/SCR_20250729_owae_7c3490822c.png)
+    ![Activity feed with events](https://res.cloudinary.com/dmukukwp6/image/upload/SCR_20250729_ouxl_f788dd8cd2.png)
 
     [Check for exceptions in PostHog](https://app.posthog.com/activity/explore)
 
-### Still have questions?
+6.  5
 
-Ask PostHog AI
+    ## Link releases
 
-### Was this page useful?
+    Optional
 
-HelpfulCould be better
+    Great, you're capturing exceptions! To see which release each exception comes from, give your app the release ID when you deploy.
+
+    Let's continue to the next section.
+
+    [Link releases](https://posthog.com/docs/error-tracking/link-releases/ruby.md)

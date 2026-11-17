@@ -5,7 +5,7 @@ description: Guide for agents to help users integrate NightVision DAST scanning 
 
 # NightVision CI/CD Integration
 
-Use this skill when helping users add NightVision security scanning to their CI/CD pipelines. NightVision is a white-box-assisted DAST tool that finds exploitable vulnerabilities in web applications and REST APIs. It combines API Discovery (static analysis to extract OpenAPI specs from source code) with dynamic scanning (ZAP + Nuclei engines), and traces vulnerabilities back to exact source code locations (Code Traceback).
+Use this skill when helping users add NightVision security scanning to their CI/CD pipelines. NightVision is a white-box-assisted DAST tool that finds exploitable vulnerabilities in web applications and REST APIs. It combines Source Intelligence (reads source code to extract OpenAPI specs) with dynamic scanning (ZAP + Nuclei engines), and traces vulnerabilities back to exact source code locations (Code Traceback).
 
 ## Agent workflow
 
@@ -17,12 +17,12 @@ When a user asks to set up NightVision in their pipeline:
    - Target URL (staging/production endpoint to scan)
    - Target type — web app or API?
    - Does the app require authentication to scan?
-   - What language is the backend? (needed for API Discovery)
+   - What language is the backend? (needed for Source Intelligence)
    - Have they already created a NightVision project, target, and token?
 4. **Tell the user what they must do locally** — some steps require interactive browser sessions that the agent cannot perform (see Prerequisites below)
 5. **Generate the pipeline config** — adapt the patterns below and the platform-specific examples in [references/ci-platforms.md](references/ci-platforms.md) to the user's repo, substituting their target name, language, app startup method, and CI platform conventions
 
-**Related skills:** Use `scan-configuration` for detailed target/auth setup, `api-discovery` for spec extraction details, `scan-triage` for interpreting results.
+**Related skills:** Use `scan-configuration` for detailed target/auth setup, `source-intelligence` for spec extraction details, `scan-triage` for interpreting results.
 
 ## Pipeline structure
 
@@ -93,7 +93,9 @@ For Linux ARM runners, substitute `linux_arm64` in the URL.
 | Variable | Required | Purpose |
 |----------|----------|---------|
 | `NIGHTVISION_TOKEN` | Yes | API token (store as CI secret) |
-| `NIGHTVISION_API_URL` | No | API endpoint (default: `https://api.nightvision.net/api/v1/`) |
+| `NIGHTVISION_API_URL` | No | API endpoint (default: `https://api.nightviz.ai/api/v1/`) |
+
+This API default applies to CLI 0.26.0 and later. Earlier releases default to `https://api.nightvision.net/api/v1/`; upgrade before configuring a `nightviz.ai` API host.
 
 All config keys accept env vars with the `NIGHTVISION_` prefix (hyphens become underscores).
 
@@ -101,30 +103,36 @@ All config keys accept env vars with the `NIGHTVISION_` prefix (hyphens become u
 
 Most `list` and `get` commands default to text output. Use `--format json` (or `-F json`) for machine-parseable output, or `--format table` for tabular display.
 
-## API Discovery (spec extraction from source code)
+## Source Intelligence (spec extraction from source code)
 
-For API targets, extract OpenAPI specs via static analysis. Supports Go, Python, Java, Ruby, C#, JavaScript.
+For API targets, extract OpenAPI specs from source with Source Intelligence. Supports C#, Go, Java, JavaScript/TypeScript, PHP, Python and Ruby; project roots and languages are detected automatically, so `--lang` is only needed to restrict a run.
 
 ```bash
 # Extract and upload to a target
-nightvision swagger extract . -t my-api -p my-project --lang python
+nightvision openapi extract . -t my-api -p my-project
 
-# Extract locally without uploading
-nightvision swagger extract . -o openapi-spec.yml --lang java --no-upload
+# Extract without a target (e.g. for a spec diff)
+nightvision openapi extract . -o openapi-spec.yml --no-target
 
 # Compare specs for breaking changes (useful in PR checks)
-nightvision swagger diff old-spec.yml new-spec.yml
+nightvision openapi diff old-spec.yml new-spec.yml
 ```
 
-**Important CI pattern — extraction fallback:** Extraction can fail if language detection fails. Always use:
+**Important CI pattern — extraction fallback:** Extraction exits non-zero when it finds no routes, for example on an unsupported framework, and also when the spec was written but the upload failed. Fall back to a backup spec only when no spec was written, keep `openapi-spec.diagnostics.json` as a build artifact, and print why the fallback was taken.
 ```bash
-nightvision swagger extract . -t $TARGET --lang java || true
-if [ ! -e openapi-spec.yml ]; then cp backup-openapi-spec.yml openapi-spec.yml; fi
+if ! nightvision openapi extract . -t $TARGET; then
+  if [ -e openapi-spec.yml ]; then
+    echo "Spec extracted but the upload failed; keeping openapi-spec.yml"
+  else
+    echo "Source Intelligence produced no spec; see openapi-spec.diagnostics.json"
+    cp backup-openapi-spec.yml openapi-spec.yml
+  fi
+fi
 ```
 
 ### Code Traceback
 
-When API Discovery generates the spec, it annotates endpoints with file paths and line numbers. Vulnerabilities found during scanning trace back to exact source locations. This powers the file/line links in GitHub Security Alerts, Azure Boards work items, and similar CI integrations.
+When Source Intelligence generates the spec, it annotates endpoints with file paths and line numbers. Vulnerabilities found during scanning trace back to exact source locations. This powers the file/line links in GitHub Security Alerts, Azure Boards work items, and similar CI integrations.
 
 ## Running scans
 
@@ -132,13 +140,15 @@ When API Discovery generates the spec, it annotates endpoints with file paths an
 # Basic scan
 nightvision scan my-target -p my-project
 
-# Authenticated scan
+# Authenticated scan: gate on the login first, so a broken login fails the job
+# instead of producing a quiet, mostly-public scan
+nightvision scan my-target -p my-project --auth my-auth --login-check
 nightvision scan my-target -p my-project --auth my-auth
 
 # Unauthenticated (explicit, skip any stored credentials)
 nightvision scan my-target -p my-project --no-auth
 
-# Extended duration (default 30 min, max 480 min / 8 hours)
+# Extended duration (default 30 min, max 480 min / 8 hours); use 120 for web apps
 nightvision scan my-target -p my-project --max-duration-minutes 120
 
 # Engine selection

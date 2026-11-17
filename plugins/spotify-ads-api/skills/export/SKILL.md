@@ -18,6 +18,10 @@ api() { "$PLUGIN_ROOT/scripts/api-request.sh" export "$@"; }
 
 Before the first Ads API v3 call, read and follow `$PLUGIN_ROOT/skills/api-reference/references/live-openapi.md`.
 
+Before sending any output to a human user, read and follow `$PLUGIN_ROOT/skills/api-reference/references/language-standards.md`.
+
+Also read `$PLUGIN_ROOT/skills/api-reference/references/api-behaviors.md` for API behaviour the spec does not express (reporting quirks, `SPEND` currency, micro-amounts).
+
 To retrieve settings values (TOKEN, AD_ACCOUNT_ID, AUTO_EXECUTE, BASE_URL, SDK_HEADER, SKILL_HEADER, PLUGIN_VERSION) for use outside API calls, run `api --env`. The output is eval-safe, so `eval $(api --env)` assigns them all.
 
 ## Parsing Arguments
@@ -60,6 +64,8 @@ api GET "ad_accounts/{ad_account_id}/campaigns/$CAMPAIGN_ID"
 ```bash
 api GET "ad_accounts/{ad_account_id}/ad_sets?limit=50&offset=0"
 ```
+
+**Ad sets for a campaign**: `api GET "ad_accounts/{ad_account_id}/ad_sets?campaign_ids=$CAMPAIGN_ID"`. There is no nested `/campaigns/{id}/ad_sets` route.
 
 For a single campaign: add `&campaign_ids=$CAMPAIGN_ID`. Paginate with `offset` until all ad sets are fetched.
 

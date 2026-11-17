@@ -1,12 +1,13 @@
 # Fetching journal entries from the warehouse
 
 Step 3 in full: fetching journal-entry and budget data directly in this skill's own
-context via `<SERVER>` (Step 1) — no subagent dispatch. `carta-investors:carta-fund-modeling`,
-another live-MCP microapp fetching a comparable volume of DWH data, uses the same
-direct-call pattern; a dispatched subagent's `tools:` list is a closed set with no
-cross-server wildcard, so it can never reach an MCP connector namespaced under an
-opaque ID (e.g. Claude Desktop's per-org connector) the way this skill's own,
-unrestricted tool surface can.
+context via `<SERVER>` (Step 1) — no subagent dispatch for this fetching.
+`carta-investors:carta-fund-modeling`, another live-MCP microapp fetching a comparable
+volume of DWH data, uses the same direct-call pattern; a subagent type with its own
+`tools:` list has a closed set with no cross-server wildcard, so it can never reach an MCP
+connector namespaced under an opaque ID (e.g. Claude Desktop's per-org connector) the way
+this skill's own, unrestricted tool surface can. (Step 5.2's push sub-agent is
+`general-purpose`, which inherits that surface.)
 
 > Steps referenced here that are documented elsewhere: **Step 2.5** → [budget-ingest.md](budget-ingest.md); **Step 2.75** → [budget-ingest.md](budget-ingest.md).
 
@@ -34,12 +35,12 @@ there is nothing left to verify by reading `<raw_dir>` yourself. A warm cache
 already holds it from a previous run, and a chart of accounts is not
 something a firm rewrites between two invocations on the same afternoon.
 
-Issue Query E's `call_tool` itself exactly as written under Step 3, then save
+Issue Query E's `read_tool` call itself exactly as written under Step 3, then save
 it alone:
 
 ```bash
 S="${CLAUDE_PLUGIN_ROOT}/skills/carta-manco-reporting/scripts/save_query_result.py"
-uv run "$S" --from-session 'DISTINCT ACCOUNT_TYPE' "<raw_dir>/accounts-all.txt"
+<UV_BIN> run "$S" --from-session 'DISTINCT ACCOUNT_TYPE' "<raw_dir>/accounts-all.txt"
 ```
 
 **Skip Step 3's "Verify the firm context" preamble.** That `list_contexts()`
@@ -52,7 +53,10 @@ Step 3's check would mean re-deriving it from scratch for a guard this query
 doesn't need. Use `<FIRM_UUID>` straight from Step 0.2's cache probe (or
 Step 1, on a BUILD path); identify `<SERVER>` the same bare way Step 1's
 opening paragraph does — scan connected tools for the Carta MCP prefix —
-without running any of Step 1's firm-*lookup* logic.
+without running any of Step 1's firm-*lookup* logic. When that scan finds no
+prefix, or Query E is refused, and Step 2.5's `raw_as_of` is not null, take
+Step 3's cached-actuals fallback below instead of Step 1's stop: Step 2.75
+reads the `accounts-all.txt` already on disk.
 
 `<raw_dir>` and `needs_fetch` both come from Step 2.5's `manco_paths.py
 resolve` output.
@@ -68,15 +72,50 @@ already on disk.
 
 ## Step 3 — Fetch from the warehouse
 
-**SILENT** — no user-facing output in this step, beyond the one cache line below.
+**SILENT** — no user-facing output in this step, beyond the one cache line and the
+one fallback line below.
 
 When `needs_fetch` is empty, say one line — *"Cache is current; nothing to refetch."* —
 and go to Step 4.
 
 Otherwise, run the fetch below using `<SERVER>` and `<FIRM_UUID>` (Step 1),
-`<MANCO_UUID>` / `<MANCO_ENTITY_ID>` (Step 2), and `raw_dir`, `needs_fetch`,
+`<MANCO_UUID>` / `<MANCO_ENTITY_ID>` (Step 2) — on a warm or soft cache hit,
+which skipped those steps, the identifiers come from Step 0.2's cache probe
+and `<SERVER>` from the connected tools' Carta MCP prefix, as in Step 2.6 —
+and `raw_dir`, `needs_fetch`,
 `<YEAR>`, `<MAX_MO>` and `<AS_OF>` — all from Step 2.5's `manco_paths.py resolve`
 output.
+
+### When the actuals pull can't run — serve the cache, dated as itself
+
+Applies only when Step 2.5's `raw_as_of` is not null, so a completed pull is
+on disk — on a warm and a soft cache hit alike. It covers Step 2.6 and Step 3.
+If any of these happens in Step 2.6, or in Step 3 before any of Step 3's
+results are saved:
+
+- no Carta MCP prefix is connected;
+- `list_contexts` / `set_context` cannot make `<FIRM_UUID>` the active firm
+  (the persistent mismatch below);
+- any query comes back 403, "not authorized", or with a break-the-glass
+  requirement;
+
+Step 3's queries go out in one parallel block, so judge the block as a whole:
+when any of them is refused, save none of its results, even the ones that came
+back — a `raw/` with today's cash balance beside last week's journal entries
+matches no single date.
+
+Then keep every file already under `raw/` (the cached `accounts-all.txt`
+included, and an `accounts-all.txt` Step 2.6 saved this run — it carries no
+as-of date), skip the rest of Step 2.6 and all of Step 3, do **not** write
+`.fetched-at`, and say one line: *"I couldn't reach Carta for today's
+actuals, so this shows your data as of `<raw_as_of>`."* Carry on with the next step that still runs — Step 2.75
+when the fallback was taken in Step 2.6, Step 4 otherwise — and Step 4 passes
+`raw_as_of` as `--as-of`
+([serve-and-update.md](serve-and-update.md)). This is how a packaged pilot
+without warehouse access, or an operator whose connector has dropped, still
+gets a dashboard — dated by the data it holds, never by today. When
+`raw_as_of` is null there is nothing to fall back to, and the stop rules below
+and in [errors.md](errors.md) apply as written.
 
 **`<YEAR>`, `<MAX_MO>` and `<AS_OF>` are read from `resolve`, never computed
 by hand.** They come back as `year`, `max_mo` and `as_of` on that same JSON.
@@ -84,14 +123,13 @@ Deriving them yourself is how two runs on the same day end up scoping to
 different months and building two different dashboards for one firm, with
 no error in between.
 
-**Parallel with Step 2.75b.** When the cache is cold (this step runs) and a workbook
-is being parsed (Step 2.75b will run), issue this step's `call_tool` block and Step
+**Parallel with Step 2.75b.** When a workbook is being parsed (Step 2.75b will run), issue this step's `read_tool` block and Step
 2.75b's `parse_budget_workbook.py` Bash calls in the **same tool-use message** — the
 two are independent once Step 2.75a has confirmed the workbook and sheets.
 
 ### Instrumentation — every Carta MCP call in this step carries `_instrumentation_v2`
 
-Pass it on **every** `list_contexts`, `set_context`, and `call_tool` call:
+Pass it on **every** `list_contexts`, `set_context`, `read_tool` and `call_tool` call:
 
 ```
 _instrumentation_v2={...}
@@ -113,11 +151,14 @@ something catches it first:
 mcp__<SERVER>__list_contexts(_instrumentation_v2={...})
 ```
 
+After this `list_contexts`, fetch `pk` per `${CLAUDE_PLUGIN_ROOT}/references/launch-user-id.md` (Build path).
+
 Find the entry marked active (however this MCP surfaces that — an `is_active: true`
 field, an `(active)` suffix on the firm's line, etc.) and compare its firm UUID
 against `<FIRM_UUID>`. If they don't match, retry
 `mcp__<SERVER>__set_context(firm_id="<FIRM_UUID>", _instrumentation_v2={...})` once; if the second attempt
-still doesn't match, stop and tell the user:
+still doesn't match, take the fallback above when `raw_as_of` is not null;
+otherwise stop and tell the user:
 
 > "The Carta session's active firm changed mid-run — please re-invoke the skill."
 
@@ -140,12 +181,23 @@ Skip the budget calls below when Step 2.75 ended with a workbook in play, even i
 **Issue every call in a SINGLE tool-use message.** Splitting into multiple messages
 turns a ~4s parallel fanout into 20+ seconds of sequential waiting.
 
-Run Queries A–D via `mcp__<SERVER>__call_tool` with `name="dwh__execute__query"`,
+Run Queries A–D via `mcp__<SERVER>__read_tool` with `name="dwh__execute__query"`,
 `arguments={"sql": "...", "format": "markdown"}`, and
 `_instrumentation_v2={...}`. Run
-cash balance and budget calls via `mcp__<SERVER>__call_tool` as shown below — each
+cash balance and budget calls via `mcp__<SERVER>__read_tool` as shown below — each
 also carries `_instrumentation_v2`. All go in **one assistant message** as parallel
 tool calls.
+
+**Every free-text column turns `|` into `/`.** The markdown result separates
+cells with ` | `, so a vendor, account or fund name that carries one shifts
+every cell after it on that line, and `build_manco_datadir.py` reads the wrong
+vendor type, partner and tags. On one firm, 158 journal lines had a `|` in the
+vendor name. Names, types, tags and descriptions go through
+`REPLACE(..., '|', '/')`; ids, dates, amounts and codes don't need it. A
+column added to these queries follows the same rule. The budget calls return
+JSON, but `build_manco_datadir.py` maps each budget's account name the same
+way, so it still matches the account Query A wrote. The hosted copies of these
+queries in `server/worker.js` fetch ndjson and keep the `|`.
 
 **Queries A–F below, plus cash balance and the budget calls, are the only
 `dwh__execute__query` / `fa__*` calls this skill ever issues.** Do not compose an
@@ -154,7 +206,7 @@ column invented from a plausible-sounding name (e.g. a `COMMITTED_CAPITAL` on
 `JOURNAL_ENTRIES` or `MANAGEMENT_FEE_SCHEDULES`) fails as a Snowflake compilation
 error, not a graceful empty result, and the error surfaces to the user as an
 opaque `DataWarehouseError`. Committed capital specifically is never fetched by
-SQL: `build_manco_datadir.py`'s `_build_fee_projections` infers it from the latest
+SQL: `manco_fees.py`'s `_build_fee_projections` infers it from the latest
 actual quarterly management fee divided by that period's rate, and that inference
 is already wired into the build. If a figure genuinely isn't covered
 by Queries A–F, that's a real product gap, not something to work around with a new
@@ -164,14 +216,16 @@ query in the moment.
 
 ```sql
 SELECT JOURNAL_ENTRY_LINE_ID AS id, JOURNAL_ENTRY_GLUUID AS gluuid, EFFECTIVE_DATE AS date,
-       MONTH(EFFECTIVE_DATE) AS mo, ACCOUNT_NAME AS account, ACCOUNT_TYPE AS acct_type,
-       COALESCE(SUB_ACCOUNT_NAME, '') AS sub,
-       COALESCE(SUB_ACCOUNT_TYPE, '') AS sub_code, AMOUNT AS amt,
-       COALESCE(JOURNAL_ENTRY_DESCRIPTION, '') AS descr, COALESCE(VENDOR_NAME, '') AS vendor,
-       COALESCE(VENDOR_TYPE, '') AS vendor_type,
-       COALESCE(PARTNER_NAME, '') AS partner, COALESCE(EVENT_TYPE, '') AS event_type,
-       COALESCE(REPORTING_TAGS, '') AS tags,
-       COALESCE(TO_VARCHAR(REPORTING_TAGS_JSON), '') AS tags_json
+       MONTH(EFFECTIVE_DATE) AS mo, REPLACE(ACCOUNT_NAME, '|', '/') AS account, ACCOUNT_TYPE AS acct_type,
+       REPLACE(COALESCE(SUB_ACCOUNT_NAME, ''), '|', '/') AS sub,
+       REPLACE(COALESCE(SUB_ACCOUNT_TYPE, ''), '|', '/') AS sub_code, AMOUNT AS amt,
+       REPLACE(REPLACE(REPLACE(COALESCE(JOURNAL_ENTRY_DESCRIPTION, ''), CHR(13), ' '), CHR(10), ' '), '|', '/') AS descr,
+       REPLACE(COALESCE(VENDOR_NAME, ''), '|', '/') AS vendor,
+       REPLACE(COALESCE(VENDOR_TYPE, ''), '|', '/') AS vendor_type,
+       REPLACE(COALESCE(PARTNER_NAME, ''), '|', '/') AS partner,
+       REPLACE(COALESCE(EVENT_TYPE, ''), '|', '/') AS event_type,
+       REPLACE(COALESCE(REPORTING_TAGS, ''), '|', '/') AS tags,
+       REPLACE(COALESCE(TO_VARCHAR(REPORTING_TAGS_JSON), ''), '|', '/') AS tags_json
 FROM JOURNAL_ENTRIES
 WHERE FUND_UUID = '<MANCO_UUID>'
   AND YEAR(EFFECTIVE_DATE) = <YEAR>
@@ -211,25 +265,35 @@ One column, one row per entry. The build joins it to the expense lines on
 
 #### Query B — ManCo income → `je-income.txt`
 
-Same SELECT as Query A (including `tags_json`), but `ABS(AMOUNT) AS amt` and
+Same SELECT as Query A (including `tags_json`), but `-AMOUNT AS amt` and
 `ACCOUNT_TYPE >= 4000 AND ACCOUNT_TYPE < 5000`, `LIMIT 1000`. Income keeps its
 upper bound — 4000-4999 is the income band; expenses start at 5000, so
 Query A's `>= 5000` (no upper bound) picks up everything above it.
+
+**`-AMOUNT`, not `ABS(AMOUNT)`.** Income posts as a credit, which the
+warehouse signs negative, so both turn an ordinary fee into a positive
+figure. They part company on a debit — a fee reduction, a stepdown
+returned, a reversal — which `ABS` reports as income earned. Measured on
+one firm, a single 250,000 stepdown return moved reported fee income by
+500,000, in the wrong direction. Negating keeps a credit positive and
+lets a debit reduce the account, which is what the ledger means.
 
 #### Query C — Fund-side management fee entries → `fund-fees.txt`
 
 ```sql
 SELECT JOURNAL_ENTRY_LINE_ID AS id, JOURNAL_ENTRY_GLUUID AS gluuid,
-       FUND_NAME AS fund, FUND_UUID AS fund_uuid,
+       REPLACE(FUND_NAME, '|', '/') AS fund, FUND_UUID AS fund_uuid,
        EFFECTIVE_DATE AS date, YEAR(EFFECTIVE_DATE) AS yr, MONTH(EFFECTIVE_DATE) AS mo,
-       ACCOUNT_NAME AS account, ACCOUNT_TYPE AS acct_type,
-       COALESCE(SUB_ACCOUNT_NAME, '') AS sub,
-       COALESCE(SUB_ACCOUNT_TYPE, '') AS sub_code, AMOUNT AS amt,
-       COALESCE(JOURNAL_ENTRY_DESCRIPTION, '') AS descr, COALESCE(VENDOR_NAME, '') AS vendor,
-       COALESCE(VENDOR_TYPE, '') AS vendor_type,
-       COALESCE(PARTNER_NAME, '') AS partner, COALESCE(EVENT_TYPE, '') AS event_type,
-       COALESCE(REPORTING_TAGS, '') AS tags,
-       COALESCE(TO_VARCHAR(REPORTING_TAGS_JSON), '') AS tags_json
+       REPLACE(ACCOUNT_NAME, '|', '/') AS account, ACCOUNT_TYPE AS acct_type,
+       REPLACE(COALESCE(SUB_ACCOUNT_NAME, ''), '|', '/') AS sub,
+       REPLACE(COALESCE(SUB_ACCOUNT_TYPE, ''), '|', '/') AS sub_code, AMOUNT AS amt,
+       REPLACE(REPLACE(REPLACE(COALESCE(JOURNAL_ENTRY_DESCRIPTION, ''), CHR(13), ' '), CHR(10), ' '), '|', '/') AS descr,
+       REPLACE(COALESCE(VENDOR_NAME, ''), '|', '/') AS vendor,
+       REPLACE(COALESCE(VENDOR_TYPE, ''), '|', '/') AS vendor_type,
+       REPLACE(COALESCE(PARTNER_NAME, ''), '|', '/') AS partner,
+       REPLACE(COALESCE(EVENT_TYPE, ''), '|', '/') AS event_type,
+       REPLACE(COALESCE(REPORTING_TAGS, ''), '|', '/') AS tags,
+       REPLACE(COALESCE(TO_VARCHAR(REPORTING_TAGS_JSON), ''), '|', '/') AS tags_json
 FROM JOURNAL_ENTRIES
 WHERE FIRM_ID = '<FIRM_UUID>'
   AND FUND_UUID != '<MANCO_UUID>'
@@ -287,7 +351,7 @@ like an account that doesn't exist, and its budget line becomes a question
 the operator has to answer about data Carta already holds.
 
 ```sql
-SELECT DISTINCT ACCOUNT_TYPE AS acct_type, ACCOUNT_NAME AS account
+SELECT DISTINCT ACCOUNT_TYPE AS acct_type, REPLACE(ACCOUNT_NAME, '|', '/') AS account
 FROM JOURNAL_ENTRIES
 WHERE FUND_UUID = '<MANCO_UUID>'
   AND ACCOUNT_NAME IS NOT NULL
@@ -307,8 +371,10 @@ schedule spans a fund's full life, and a period outside the reporting window
 is exactly the one a reader opens this table to check.
 
 ```sql
-SELECT fund_name AS fund, fund_id AS fund_uuid, period_name, fee_rate,
-       calculation_base, minimum_fee_amount, fixed_fee_amount, fee_currency,
+SELECT REPLACE(fund_name, '|', '/') AS fund, fund_id AS fund_uuid,
+       REPLACE(period_name, '|', '/') AS period_name, fee_rate,
+       REPLACE(calculation_base, '|', '/') AS calculation_base,
+       minimum_fee_amount, fixed_fee_amount, fee_currency,
        frequency, waived, start_date, end_date,
        period_order, uses_custom_calculation_base
 FROM FUND_ADMIN.MANAGEMENT_FEE_SCHEDULES
@@ -333,6 +399,56 @@ shows no fee-schedule terms for that fund without complaint). Do not retry
 this one query and do not let its failure abort Queries A–E, cash balance,
 or budgets.
 
+#### Query G — ManCo management fee income → `manco-fee-income.txt`
+
+The fee chart's own source. A fee has two sides — the fund expenses it
+(Query C), the ManCo earns it — and only the ManCo's side is on the
+trial balance this dashboard reports.
+
+```sql
+SELECT JOURNAL_ENTRY_LINE_ID AS id, JOURNAL_ENTRY_GLUUID AS gluuid,
+       EFFECTIVE_DATE AS date, YEAR(EFFECTIVE_DATE) AS yr, MONTH(EFFECTIVE_DATE) AS mo,
+       REPLACE(ACCOUNT_NAME, '|', '/') AS account, ACCOUNT_TYPE AS acct_type,
+       COALESCE(RELATED_ENTITY_ID, 0) AS related_entity_id,
+       -AMOUNT AS amt, REPLACE(COALESCE(EVENT_TYPE, ''), '|', '/') AS event_type,
+       REPLACE(REPLACE(REPLACE(COALESCE(JOURNAL_ENTRY_DESCRIPTION, ''), CHR(13), ' '), CHR(10), ' '), '|', '/') AS descr
+FROM JOURNAL_ENTRIES
+WHERE FIRM_ID = '<FIRM_UUID>'
+  AND FUND_UUID = '<MANCO_UUID>'
+  AND YEAR(EFFECTIVE_DATE) BETWEEN <YEAR>-5 AND <YEAR>
+  AND ACCOUNT_TYPE >= 4000 AND ACCOUNT_TYPE < 5000
+  AND (LOWER(ACCOUNT_NAME) LIKE '%management fee%' OR LOWER(ACCOUNT_NAME) LIKE '%mgmt fee%')
+ORDER BY yr DESC, EFFECTIVE_DATE, JOURNAL_ENTRY_LINE_ID
+LIMIT 1000
+```
+
+**The description is taken whole, not truncated.** A migrated line names
+no fund in `RELATED_ENTITY_ID`, and the only record of which fund it
+billed is its own description — often in the tail, after the account
+number. Clipping it to a preview length silently costs a year of
+attribution: on one firm a 70-character limit cut "- Unusual Ventures
+Fund I, LP" off every 2021 line and left the whole year unattributed.
+
+**`RELATED_ENTITY_ID` is what keeps the chart per fund.** It is the
+numeric `id` from `fa__list__entities`, so `entities.json` resolves it to
+the fund the line bills. Without it the ManCo's side is one undivided
+figure. A line that carries none — a migrated year, a lump payment
+covering several funds — is split across the funds the schedule says
+were billing that quarter, so the year still totals what the ManCo
+booked.
+
+**No `MONTH(EFFECTIVE_DATE) <= <MAX_MO>` here, unlike Query C.** A closed
+year is reported whole. The current year is year to date and completes
+itself with the quarters the fee schedule still expects, so clipping the
+closed years to match would understate every one of them and drop a
+fourth quarter billed years ago.
+
+**Overlaps Query B by design.** The current year's fee lines are in both
+files; Query B cannot serve this alone because it is one year, and has
+no `RELATED_ENTITY_ID`. Both now sign with `-AMOUNT`, so the two agree
+on the year they share — if they ever disagree, that is a bug, not a
+rounding difference.
+
 #### Cash balance → `cash-balance.json`
 
 **`firm_uuid` and `as_of_date` are both required and must not be sent empty or
@@ -346,7 +462,7 @@ failure doesn't block Queries A–F or the budget calls, so it is easy to miss u
 checked for explicitly once responses are back.
 
 ```
-mcp__<SERVER>__call_tool(name="fa__get__cash-balance", arguments={
+mcp__<SERVER>__read_tool(name="fa__get__cash-balance", arguments={
   "firm_uuid":  "<FIRM_UUID>",
   "as_of_date": "<AS_OF>",
   "entity_ids": [<MANCO_ENTITY_ID>]
@@ -368,7 +484,7 @@ refresh asks only for `<MAX_MO>` through 12. That is `needs_fetch`'s job — iss
 what it names, nothing more.
 
 ```
-mcp__<SERVER>__call_tool(name="fa__list__budgets", arguments={
+mcp__<SERVER>__read_tool(name="fa__list__budgets", arguments={
   "fund_uuid":  "<MANCO_UUID>",
   "start_date": "<YEAR>-<M zero-padded>-01",
   "end_date":   "<YEAR>-<M zero-padded>-<last day of month>"
@@ -390,7 +506,7 @@ that silently changes a firm's numbers, and it is never necessary.
 `entities.json` — the roster Step 4 reads each fund's own `carta_id` from
 for the fee-chart drill-down link (Query C carries no such column). If that
 call has scrolled out of the session log (a long Step 2.75 gap, or a
-compaction), re-issue `mcp__<SERVER>__call_tool(name="fa__list__entities", arguments={"entity_types": "management_co,fund"}, _instrumentation_v2={"skills": ["carta-investors:carta-manco-reporting"]})` fresh right before this save —
+compaction), re-issue `mcp__<SERVER>__read_tool(name="fa__list__entities", arguments={"entity_types": "management_co,fund"}, _instrumentation_v2={"skills": ["carta-investors:carta-manco-reporting"]})` fresh right before this save —
 it's a cheap, idempotent call, unlike Queries A–F. Keep the same `entity_types`
 filter Step 2 used (see [firm-lookup.md](firm-lookup.md)) — refetching unfiltered
 risks the same `ToolError: response too large` Step 2's filter exists to avoid.
@@ -401,16 +517,18 @@ a couple of seconds regardless of how many stems came back:
 ```bash
 S="${CLAUDE_PLUGIN_ROOT}/skills/carta-manco-reporting/scripts/save_query_result.py"
 R="<raw_dir>"
-uv run "$S" --from-session "FUND_UUID = '<MANCO_UUID>'" \
+<UV_BIN> run "$S" --from-session "FUND_UUID = '<MANCO_UUID>'" \
             --from-session 'ACCOUNT_TYPE >= 5000'        "$R/je-expense-page1.txt" &
-uv run "$S" --from-session 'ACCOUNT_TYPE >= 4000'        "$R/je-income.txt" &
-uv run "$S" --from-session "FUND_UUID != '<MANCO_UUID>'" "$R/fund-fees.txt" &
-uv run "$S" --from-session 'DISTINCT ACCOUNT_TYPE'          "$R/accounts-all.txt" &  # only if Step 2.6 skipped it
-uv run "$S" --from-session 'AGGREGATE_FUND_METRICS'      "$R/manco-currency.txt" &
-uv run "$S" --from-session 'MANAGEMENT_FEE_SCHEDULES'    "$R/management-fee-schedules.txt" &
-uv run "$S" --from-session 'fa__get__cash-balance'       "$R/cash-balance.json" &
-uv run "$S" --from-session '<YEAR>-01-01'                "$R/budget-<YEAR>-01.json" &
-uv run "$S" --from-session 'fa__list__entities'          "$R/entities.json" &
+<UV_BIN> run "$S" --from-session 'ACCOUNT_TYPE >= 4000' \
+            --from-session 'ORDER BY EFFECTIVE_DATE, ACCOUNT_TYPE, JOURNAL_ENTRY_LINE_ID' "$R/je-income.txt" &
+<UV_BIN> run "$S" --from-session "FUND_UUID != '<MANCO_UUID>'" "$R/fund-fees.txt" &
+<UV_BIN> run "$S" --from-session 'related_entity_id'           "$R/manco-fee-income.txt" &
+<UV_BIN> run "$S" --from-session 'DISTINCT ACCOUNT_TYPE'          "$R/accounts-all.txt" &  # only if Step 2.6 skipped it
+<UV_BIN> run "$S" --from-session 'AGGREGATE_FUND_METRICS'      "$R/manco-currency.txt" &
+<UV_BIN> run "$S" --from-session 'MANAGEMENT_FEE_SCHEDULES'    "$R/management-fee-schedules.txt" &
+<UV_BIN> run "$S" --from-session 'fa__get__cash-balance'       "$R/cash-balance.json" &
+<UV_BIN> run "$S" --from-session '<YEAR>-01-01'                "$R/budget-<YEAR>-01.json" &
+<UV_BIN> run "$S" --from-session 'fa__list__entities'          "$R/entities.json" &
 wait
 ```
 
@@ -423,7 +541,13 @@ recent match wins. One needle is rarely enough: `ACCOUNT_TYPE >= 5000` reads
 like Query A but names Query C as well, and `FUND_UUID = '<MANCO_UUID>'`
 names Query A and Query B — either one alone writes another query's rows
 into the file, and the dashboard renders them without complaint. Query A
-therefore takes both. The script warns when more than one call matched;
+therefore takes both. `ACCOUNT_TYPE >= 4000` alone has the same gap against
+Query G: both filter on `ACCOUNT_TYPE >= 4000 AND ACCOUNT_TYPE < 5000`, so
+whichever of the two answered last is written to je-income.txt. Query B
+shares Query A's `ORDER BY EFFECTIVE_DATE, ACCOUNT_TYPE,
+JOURNAL_ENTRY_LINE_ID` and Query G orders `yr DESC, EFFECTIVE_DATE, …`
+instead, so the `>= 4000` filter plus that ORDER BY names Query B only.
+Neither string is enough alone. The script warns when more than one call matched;
 treat that warning as a failed save and re-run with another needle. For a
 pagination page, add its offset: `--from-session 'OFFSET 1000'`.
 

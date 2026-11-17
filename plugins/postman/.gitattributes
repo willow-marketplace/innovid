@@ -1,0 +1,4 @@
+# Stored with the line endings each shell needs; -text keeps checkouts and archives byte-identical to the blob.
+# An eol= conversion here makes GitHub's tarball differ from the tree, which the Claude plugin directory rejects.
+hooks/session-start -text
+hooks/session-start.cmd -text

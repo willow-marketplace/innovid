@@ -2,7 +2,7 @@
 
 Run this sequence read-only before diagnosing or asking the customer anything.
 It produces the numbers you will cite back to them. The queries reuse the templates verified in
-[`../../diagnosing-experiment-results/references/diagnostic-snapshot.md`](../../diagnosing-experiment-results/references/diagnostic-snapshot.md) —
+[`../../diagnosing-experiment-health/references/diagnostic-snapshot.md`](../../diagnosing-experiment-health/references/diagnostic-snapshot.md) —
 read that file for the full rationale and edge cases; this is the customer-support-focused
 subset plus the numbers each cause needs.
 
@@ -10,16 +10,18 @@ subset plus the numbers each cause needs.
 
 Pull these fields; they are inputs to almost every cause:
 
-- `parameters.feature_flag_variants[].rollout_percentage` — the configured **split**.
-- `parameters.rollout_percentage` — the overall **rollout** (% of users entering the test).
 - `exposure_criteria.multiple_variant_handling` — `"exclude"` (default) or `"first_seen"`.
 - `exposure_criteria.exposure_config.event` — set means a **custom exposure event** (changes
   the query below); absent means the default `$feature_flag_called`.
 - `exposure_criteria.filterTestAccounts` — defaults to true.
 - `feature_flag.filters.groups[]` — per group read `variant`, `properties`,
-  `rollout_percentage`. Any non-null `variant` is a forced assignment (not randomized).
-- `feature_flag.filters.multivariate.variants[]` — the variant keys **and their stored order**;
-  the offline hash-recomputation test walks them in this order, so read it from the _live_ flag.
+  `rollout_percentage` (that group's **rollout**, % of the matched bucketing units — persons, or
+  groups when `aggregation_group_type_index` is set — that enter the test; each group has its own,
+  so there is no single overall rollout unless the flag has one unconditional group). Any non-null
+  `variant` is a forced assignment (not randomized).
+- `feature_flag.filters.multivariate.variants[]` — the variant keys, their `rollout_percentage`
+  (the configured **split**), **and their stored order**; the offline hash-recomputation test walks
+  them in this order, so read it from the _live_ flag.
 - `feature_flag.ensure_experience_continuity` — if `true`, assignment hashes a stored override key,
   so the offline hash test is unreliable (see the decisive test below).
 - `feature_flag.filters.aggregation_group_type_index` — if set, the experiment is
@@ -127,7 +129,7 @@ loaded get `false`/`undefined` and are dropped from their arm instead of showing
 
 | Cause                                     | The number that confirms it                                                                                                                        |
 | ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Uneven split + Exclude bias               | uneven `rollout_percentage` split **and** `$multiple` share > 0.1% (banner threshold), handling = `exclude`                                        |
+| Uneven split + Exclude bias               | uneven split of the served, analyzed variants **and** `$multiple` share > 0.1% from 5+ people (banner threshold), handling = `exclude`             |
 | Sample ratio mismatch                     | chi-squared p < 0.001 on §2's per-person `total_exposures` (see below); only meaningful once totals are healthy                                    |
 | Assignment override (assignment-side SRM) | the reassignment component carries the gap in the decisive test below; then localize with the SDK split / bootstrap mix below                      |
 | Capture-by-surface (capture-side SRM)     | a `$pathname`/`$screen_name` where one variant's share jumps to ~100% while other paths sit near the split                                         |

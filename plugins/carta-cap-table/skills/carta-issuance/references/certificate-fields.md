@@ -11,7 +11,7 @@ helpers](engine.md#shared-resolution-helpers).
 
 Use the `certificate_share_classes` section from the Phase 0.5 `issuance_init` payload — no
 separate call (fall back to
-`mcp__carta__call_tool({"name": "cap_table__get__certificate_share_classes", "arguments": {"corporation_id": <id>}})`
+`mcp__carta__read_tool({"name": "cap_table__get__certificate_share_classes", "arguments": {"corporation_id": <id>}})`
 only if init named it in `errors`).
 
 Each result has `id`, `name`, `prefix`, `authorized`, `outstanding`, `available`
@@ -24,7 +24,8 @@ unmatched names, build one table (User-supplied / Suggested match / Confidence) 
 never per-row.
 
 **No class named or implied → the builders pre-select a class only when the corp has
-exactly one.** With two or more the control renders **required and unselected**, and
+exactly one** (for a quantity given as a percentage, exactly one `PERCENT` class; see the
+[chat-surface.md](chat-surface.md) defaults table). With two or more the control renders **required and unselected**, and
 `missingFields()` holds **Review** on `a share class` until a human picks. Nothing is ranked:
 which class a holder lands in sets their liquidation preference, their price and their
 economics, so a ranked default hides the decision the field exists to capture — and the
@@ -32,7 +33,7 @@ response order is not dependable anyway. Metal corporation 7 returns its eight c
 neither `id` nor `created` order, so the last entry there is `PC` (Series C, created 2016)
 while the newest class is `PSB` (2019); "the last one" was never reliably "the latest one".
 
-Pass `knowns.share_class_prefix` only when the prompt actually named or implied a class.
+Carry a share-class prefix into the surface only when the prompt actually named or implied a class.
 Omitting it is what leaves the control unselected; never pick a class yourself and pass it as
 if the user had asked for it.
 
@@ -44,7 +45,7 @@ Unit-class reconciliation](piu-fields.md#unit-class-reconciliation).
 ## Legend resolution (certificate)
 
 Use the `legends` section from the Phase 0.5 `issuance_init` payload (fall back to
-`cap_table:get:legends` only if init named it in `errors`). One legend → default silently;
+`cap_table:get:legends`, wire `cap_table__get__legends`, only if init named it in `errors`). One legend → default silently;
 multiple → `AskUserQuestion`, one
 option per template. Stamp the chosen `id` as `legend_id`; **never send `legend` body** (the
 server resolves it). **Also stamp the chosen legend's full body text onto the row as
@@ -67,11 +68,11 @@ Certificate only. Read the resolved share class's `dividend` field:
 
 ## Rule 144 difference reason
 
-Certificate only; only when `rule_144_date` ≠ `issue_date`. **Side panel**: collected inline —
-`build_config.py` renders a reason `<select>` in the same block, shown the moment "Use a
-different date" is picked (same enum as below), and the panel won't enable Review until it's
-set. Read `rule_144_reason` off the submitted row and stamp it as
-`rule_144_difference_reason` — no separate prompt needed. **Cowork path only** (no panel):
+Certificate only; only when `rule_144_date` ≠ `issue_date`. **The artifact collects it
+inline** — a reason `<select>` in the same row, shown the moment "Use a different
+date" is picked, and it will not submit until it is set; read `rule_144_reason` off the row and
+stamp it as `rule_144_difference_reason`. **On the chat surface**, ask for it in the
+[collect batch](chat-surface.md#1-collect--one-batch-and-only-what-is-genuinely-open):
 `AskUserQuestion`, one option per enum (label → value): "Has determined 144 date" →
 `has_determined_144_date`; "Non-restricted 144" → `non_restricted_144`; "Relevance provision"
 → `relevance_provision`; "Affiliates" → `affiliates`; "Non-affiliates" → `non_affiliates`.
@@ -92,7 +93,7 @@ holds a value before review, and a `None` or empty is a skill bug.
     "issue_date_relationship": <stakeholder.event_relationship>,  # always
     "currency":                "USD",                             # always — US default
     "prefix":                  <share_class.prefix>,              # always — NOT share_class
-    "quantity":                <user>,                            # always
+    "quantity":                <user>,                            # a percentage on a PERCENT class; omitted on INVESTED_CAPITAL (payload-reference.md § PBO quantity)
     "law_firm_price":          <user>,                            # paid issuances; 0 only for LLC corps
     "board_approval_date":     <user, YYYY-MM-DD>,                # always
     "issue_date":              <user, YYYY-MM-DD>,                # always

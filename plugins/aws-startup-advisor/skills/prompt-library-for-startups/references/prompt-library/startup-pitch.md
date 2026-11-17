@@ -48,7 +48,7 @@ Be opinionated. Prefer serverless and managed services. Optimize for speed-to-ma
 
 ## How to use?
 
-**Prompt Instructions**
+### Prompt Instructions
 
 1. Copy the prompt - Click "Copy Prompt" to copy the prompt into your clipboard.
 2. Prepare your startup pitch - Write a 2-5 sentence description of your product: what it does, who it's for, and any key technical requirements (real-time, high concurrency, large file storage, etc.).
@@ -56,7 +56,7 @@ Be opinionated. Prefer serverless and managed services. Optimize for speed-to-ma
 4. Review the output - You'll get a 6-section architecture recommendation: architecture overview, AWS services table, cost estimates at 3 scale tiers, scaling strategy, startup-specific risks, and week-1 quick wins.
 5. Iterate - Refine your pitch description for more specific recommendations, or ask follow-up questions about any section.
 
-**Example Usage**
+### Example Usage
 
 **Input:**We're building a real-time collaborative design tool like Figma but for 3D models. Users can co-edit 3D scenes in the browser with sub-100ms latency. We expect to store millions of 3D assets and need real-time sync across up to 50 concurrent editors per session.
 

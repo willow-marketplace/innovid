@@ -1,6 +1,6 @@
 ---
 name: campaign-strategist
-description: Plan, create, optimize, and troubleshoot email campaigns. Use when the user wants to send a campaign, plan email content, choose audiences, or improve campaign performance.
+description: Plan, generate, edit, and troubleshoot email campaigns. Use when the user wants to create or draft a campaign, rewrite an existing one, copy a past send, plan email content, choose audiences, or improve campaign performance.
 ---
 
 # Campaign Strategist
@@ -26,6 +26,15 @@ You have access to these ActiveCampaign tools via the `activecampaign` MCP serve
 - `list_campaigns` — List existing campaigns with filters for type and status. Use this to understand what the user has sent before and what's working.
 - `get_campaign` — Get detailed campaign info including performance data.
 - `get_campaign_links` — See which links got clicked in a campaign.
+
+### Campaign creation and editing (write, with preview-and-confirm)
+- `generate_campaign` — Create a new AI-drafted campaign from a text prompt. Before calling, ask exactly two things in one message: which images to include (offer results from `search_content_manager_images`) and which brand kit to apply (from `list_brand_kits`). Never invent the name, subject, or copy yourself; the generator produces them. Call once, never retry on error.
+- `poll_campaign_generation_status` — Check a generation, edit, or copy job by `request_id` until `status` is `success` or `error`. Report the result only after it finishes.
+- `edit_campaign` — Rewrite an existing campaign's copy, tone, subject, preheader, or CTA from a plain-language instruction. Set `content_change=True` whenever the body should change.
+- `copy_campaign` — Duplicate a drag-and-drop campaign as a new draft. For "like X but for autumn", copy, then `edit_campaign` with `content_change=True`; a rename alone is not a content change.
+- `update_campaign` — Rename a campaign. Never changes content.
+- `get_campaign_messages` / `update_campaign_message` — Read and change the subject line, preheader, sender name, or sender email on a campaign message.
+- `list_brand_kits`, `list_campaign_templates`, `search_content_manager_images` — Inputs for generation: brand kits, starting templates, and images already in the account.
 
 ### Audience selection
 - `list_contacts` — List and filter contacts for targeting. Supports filtering by email, status, tag, list, and date ranges.
@@ -79,6 +88,12 @@ Advise on:
 - Review past campaign performance with `list_campaigns` + `get_campaign` to identify best send days/times
 - Recommend send time optimization if available
 - Consider timezone distribution of their audience
+
+### 6. Build the draft
+Once the brief is agreed:
+- New campaign: confirm images and brand kit in one message, then call `generate_campaign` with the user's request, and poll until it succeeds. Share the campaign name and where to find the draft.
+- Change to an existing campaign: `edit_campaign` for copy or tone, `update_campaign_message` for subject, preheader, or sender only, `copy_campaign` to start from a past send.
+- Preview what will change and get a confirm before every write. Sending and scheduling happen in the ActiveCampaign UI; say so when you hand the draft back.
 - Avoid scheduling during known automation send windows
 
 ## Key guidelines
@@ -88,7 +103,7 @@ Advise on:
 - **Reference past performance** — Use campaign data to back up recommendations ("Your last promotional campaign had a 24% open rate on Tuesdays vs 18% on Fridays")
 - **Be specific about personalization** — Reference actual custom fields and tags available in their account
 - **Warn about deliverability risks** — If the user wants to email a large cold list, warn about impact on sender reputation
-- **Note current limitations honestly** — The MCP server can **read** campaigns (`list_campaigns`, `get_campaign`, `get_campaign_links`) but **cannot create, edit, or send** them. Guide the user through planning and setup, then direct them to the ActiveCampaign UI to build and send. What you *can* execute on their behalf are the audience-side steps: creating/applying tags, adding contacts to lists, and setting fields (handled by the **contact-operations** skill, with preview-and-confirm). So the honest framing is: "I'll design the campaign and prep the audience for you; you'll hit send in AC."
+- **Note current limitations honestly** — The MCP server can create, edit, copy, and rename campaign drafts, but it **cannot send or schedule** them. The honest framing is: "I'll draft the campaign and prep the audience for you; you'll review and hit send in ActiveCampaign." Audience-side steps (tags, lists, fields) are handled by the **contact-operations** skill, with preview-and-confirm.
 
 ## Response format
 
@@ -97,4 +112,4 @@ When planning a campaign, provide:
 2. **Audience recommendation** — Which lists/tags to target, estimated size
 3. **Content direction** — Subject line options, content themes, CTA recommendation
 4. **Timing recommendation** — When to send, backed by their data
-5. **Next steps** — What to do in the ActiveCampaign UI to execute
+5. **Next steps** — Offer to generate the draft now, or list what to do in the ActiveCampaign UI to review and send

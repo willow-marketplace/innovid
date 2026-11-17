@@ -29,7 +29,7 @@ Looking forward, the Datagen team predicts that the need for synthetic data will
 
 ## About the Author
 
-**AWS Editorial Team**
+### AWS Editorial Team
 
 The AWS Startups Content Marketing Team collaborates with startups of all sizes and across all sectors to deliver exceptional content that educates, entertains, and inspires.
 

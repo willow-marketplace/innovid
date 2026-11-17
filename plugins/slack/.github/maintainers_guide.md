@@ -33,8 +33,8 @@ brew install pyenv
 Install necessary Python runtime for development/testing.
 
 ```sh
-pyenv install 3.14 # select the latest patch version
-pyenv local 3.14
+pyenv install 3.15 # select the latest patch version
+pyenv local 3.15
 
 pyenv rehash
 ```
@@ -73,7 +73,7 @@ commands by hand.
 ### Setup
 
 Run the one-time setup, which creates the virtualenv and installs the test and
-lint dependencies (requires Python 3.14+, see above):
+lint dependencies (requires Python 3.15+, see above):
 
 ```sh
 make install
@@ -137,6 +137,12 @@ Check the plugin's structure without launching a session:
 ```sh
 claude plugin validate
 ```
+
+The repo also ships the `slack` Claude Code marketplace at
+`.claude-plugin/marketplace.json`. Its entry installs the plugin from the latest
+release tag, not from your checkout, so use `--plugin-dir` to test local changes.
+The release PR moves the entry's `ref` to the new tag, through
+`scripts/sync_versions.py`.
 
 ### Testing in Cursor
 
@@ -240,6 +246,8 @@ New official package versions are published when the release PR created from cha
 
 5. **Communicate the release**: A Slack announcement is posted automatically to the release-announcements channel by `.github/workflows/release.yml` when the release PR is merged and a tag is cut. For broader outreach (e.g. `#tools-bolt` on [Slack Community](https://community.slack.com/)), post manually if desired.
 
+6. **Add a docs changelog entry**: Add an entry for the release to the [docs.slack.dev changelog](https://docs.slack.dev/changelog), tagged `[Release, Slack Skills Plugin]`. List the changes developers will notice, such as new skills, install paths, and bug fixes, and leave out internal changes like CI and maintainer docs.
+
 ## Everything Else
 
 ### CODEOWNERS
@@ -268,6 +276,9 @@ Patch and minor updates are auto-approved and auto-merged via the
   - `dependencies`: dependency updates (Dependabot applies this automatically)
   - `security`: vulnerability fixes, hardening, and security audit findings
     (apply alongside `bug`/`build`/`dependencies` as appropriate)
+- Area labels mark the part of the plugin a change touches. A PR gets one type
+  label from the list above and any area labels that apply. Run
+  `gh label list --search area` to see each area label and what it covers.
 
 ---
 

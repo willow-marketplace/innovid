@@ -107,4 +107,141 @@ class ContainerManagerTest {
         assertTrue(manager.isDefaultReady(), "A container that did come up must not report a stale timeout");
         assertNull(manager.getDefaultWarmupError());
     }
+
+    private static final String PGVECTOR = "ghcr.io/quarkusio/quarkus-agent-pgvector:pg17";
+
+    @Test
+    void containerNameIsStableAndDockerSafe() {
+        String name = ContainerManager.containerName("3.36.1", PGVECTOR, "quarkus", "quarkus", "quarkus");
+        assertEquals(name, ContainerManager.containerName("3.36.1", PGVECTOR, "quarkus", "quarkus", "quarkus"));
+        assertTrue(name.startsWith(ContainerManager.CONTAINER_NAME_PREFIX + "3.36.1-"), name);
+        assertTrue(name.matches("[a-zA-Z0-9][a-zA-Z0-9_.-]+"), name);
+        assertTrue(ContainerManager.containerName("999+local/x", "img", "u", "p", "d")
+                .matches("[a-zA-Z0-9][a-zA-Z0-9_.-]+"));
+    }
+
+    @Test
+    void containerNameDiffersPerImage() {
+        assertNotEquals(
+                ContainerManager.containerName("default", PGVECTOR, "quarkus", "quarkus", "quarkus"),
+                ContainerManager.containerName("default", "pgvector/pgvector:pg17", "quarkus", "quarkus", "quarkus"));
+    }
+
+    @Test
+    void containerNameDiffersPerPostgresSettings() {
+        String base = ContainerManager.containerName("default", PGVECTOR, "quarkus", "quarkus", "quarkus");
+        assertNotEquals(base, ContainerManager.containerName("default", PGVECTOR, "other", "quarkus", "quarkus"));
+        assertNotEquals(base, ContainerManager.containerName("default", PGVECTOR, "quarkus", "secret", "quarkus"));
+        assertNotEquals(base, ContainerManager.containerName("default", PGVECTOR, "quarkus", "quarkus", "other"));
+    }
+
+    private static final java.time.Instant NOW = java.time.Instant.parse("2026-09-28T12:00:00Z");
+    private static final java.time.Duration STOP_AFTER = java.time.Duration.ofHours(24);
+    private static final java.time.Duration REMOVE_AFTER = java.time.Duration.ofDays(14);
+
+    private static ContainerManager.CleanupAction action(boolean named, boolean running, java.time.Duration idle) {
+        return ContainerManager.cleanupAction(named, running, idle == null ? null : NOW.minus(idle), NOW,
+                STOP_AFTER, REMOVE_AFTER);
+    }
+
+    @Test
+    void namedContainersAreStoppedWhenIdleAndRemovedLongAfterStopping() {
+        assertEquals(ContainerManager.CleanupAction.KEEP, action(true, true, java.time.Duration.ofHours(23)));
+        assertEquals(ContainerManager.CleanupAction.STOP, action(true, true, java.time.Duration.ofHours(25)));
+        assertEquals(ContainerManager.CleanupAction.KEEP, action(true, false, java.time.Duration.ofDays(13)));
+        assertEquals(ContainerManager.CleanupAction.REMOVE, action(true, false, java.time.Duration.ofDays(15)));
+    }
+
+    @Test
+    void containersOfEarlierReleasesAreRemovedOnceStoppedOrIdle() {
+        assertEquals(ContainerManager.CleanupAction.REMOVE, action(false, false, java.time.Duration.ofMinutes(1)));
+        assertEquals(ContainerManager.CleanupAction.REMOVE, action(false, false, null));
+        assertEquals(ContainerManager.CleanupAction.KEEP, action(false, true, java.time.Duration.ofHours(23)));
+        assertEquals(ContainerManager.CleanupAction.REMOVE, action(false, true, java.time.Duration.ofHours(25)));
+    }
+
+    @Test
+    void containersWithUnknownIdleTimeAreKept() {
+        assertEquals(ContainerManager.CleanupAction.KEEP, action(true, true, null));
+        assertEquals(ContainerManager.CleanupAction.KEEP, action(true, false, null));
+    }
+
+    @Test
+    void noWarmUpRetryWhileTheTimedOutAttemptIsStillRunning() throws Exception {
+        ContainerManager manager = new ContainerManager();
+        Thread stuck = Thread.ofVirtual().start(() -> {
+            try {
+                Thread.sleep(60_000);
+            } catch (InterruptedException e) {
+                // released below
+            }
+        });
+        try {
+            manager.warmupWorker = stuck;
+            manager.recordWarmupFailure("Warm-up timed out after 300000 ms.");
+
+            assertFalse(manager.retryWarmUpIfFailed(),
+                    "A new attempt would queue behind the stuck one and could be overwritten by it");
+            assertEquals("Warm-up timed out after 300000 ms.", manager.getDefaultWarmupError());
+        } finally {
+            stuck.interrupt();
+            stuck.join();
+        }
+    }
+
+    // ── existing database (agent-mcp.doc-search.pg-host) ────────────────────────
+
+    @Test
+    void embeddingUrlDefaultsToTheDatabaseHost() {
+        ContainerManager manager = externalManager("docs-db", 5432);
+
+        assertTrue(manager.isExternal());
+        assertEquals("http://docs-db:9222", manager.getEmbeddingUrl());
+    }
+
+    @Test
+    void embeddingUrlCanBeSetAndLosesItsTrailingSlash() {
+        ContainerManager manager = externalManager("docs-db", 5432);
+        manager.externalEmbeddingUrl = java.util.Optional.of("https://embed.example.com/v1/");
+
+        assertEquals("https://embed.example.com/v1", manager.getEmbeddingUrl());
+    }
+
+    @Test
+    void unreachableDatabaseFailsWithoutNeedingDocker() throws Exception {
+        int unusedPort;
+        try (var socket = new java.net.ServerSocket(0)) {
+            unusedPort = socket.getLocalPort();
+        }
+        ContainerManager manager = externalManager("localhost", unusedPort);
+        manager.startupTimeout = java.time.Duration.ofSeconds(1);
+
+        var e = assertThrows(IllegalStateException.class, () -> manager.ensureRunning(null, null));
+
+        assertTrue(e.getMessage().contains("localhost:" + unusedPort + " or embedding server at http://localhost:9222 is not reachable"),
+                e.getMessage());
+        assertFalse(manager.dockerClientCreated(), "Docker must not be contacted");
+        assertTrue(manager.containers.isEmpty(), "A database that was never reached must not be cached");
+    }
+
+    @Test
+    void embeddingServerOfAnExistingDatabaseNeedsNoDefaultVersion() {
+        // Unreachable, so resolving the default version here would fail instead of returning
+        ContainerManager manager = externalManager("localhost", 1);
+
+        manager.ensureEmbeddingServer();
+
+        assertTrue(manager.containers.isEmpty(), "The default version must not be loaded into the shared database");
+        assertFalse(manager.dockerClientCreated());
+    }
+
+    static ContainerManager externalManager(String host, int port) {
+        ContainerManager manager = new ContainerManager();
+        manager.pgUser = "quarkus";
+        manager.pgPassword = "quarkus";
+        manager.pgDatabase = "quarkus";
+        manager.externalHost = java.util.Optional.of(host);
+        manager.externalPort = port;
+        return manager;
+    }
 }

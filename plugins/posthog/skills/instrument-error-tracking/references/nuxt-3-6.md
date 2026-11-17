@@ -1,10 +1,22 @@
 > AI agents: this is one page from PostHog's docs. Full index of Markdown docs for LLMs: https://posthog.com/llms.txt
 
-# Nuxt Error Tracking installation (v3.6 and below) - Docs
+# Nuxt Error Tracking installation (v3.6 and below)
 
-Copy page
+Canonical URL: https://posthog.com/docs/error-tracking/installation/nuxt-3-6
 
-# Nuxt Error Tracking installation (v3.6 and below) - Docs
+> **Cloud region:** This page uses US Cloud hosts. For an EU Cloud project, use `https://eu.i.posthog.com` instead of `https://us.i.posthog.com` (ingestion host), and use `https://eu.posthog.com` instead of `https://app.posthog.com` (app host for links).
+
+## On this page
+
+- [Install the package](#install-the-package)
+- [Add environment variables](#add-environment-variables)
+- [Create a plugin](#create-a-plugin)
+- [Server-side setup](#server-side-setup)
+- [Send events](#send-events)
+- [Manually capturing exceptions](#manually-capturing-exceptions)
+- [Configuring exception autocapture](#configuring-exception-autocapture)
+- [Verify error tracking](#verify-error-tracking)
+- [Upload source maps](#upload-source-maps)
 
 1.  1
 
@@ -14,35 +26,33 @@ Copy page
 
     Install the PostHog JavaScript library using your package manager:
 
-    PostHog AI
-
     ### npm
 
     ```bash
-    npm install posthog-js
+    npm install posthog-js@1
     ```
 
     ### yarn
 
     ```bash
-    yarn add posthog-js
+    yarn add posthog-js@1
     ```
 
     ### pnpm
 
     ```bash
-    pnpm add posthog-js
+    pnpm add posthog-js@1
     ```
 
     ### bun
 
     ```bash
-    bun add posthog-js
+    bun add posthog-js@1
     ```
 
     **Nuxt version**
 
-    This guide is for Nuxt v3.0 and above. For Nuxt v2.16 and below, see our [Nuxt docs](/docs/libraries/nuxt-js.md#nuxt-v216-and-below).
+    This guide is for Nuxt v3.0 and above. For Nuxt v2.16 and below, see our [Nuxt docs](https://posthog.com/docs/libraries/nuxt-js.md#nuxt-v216-and-below).
 
 2.  2
 
@@ -54,15 +64,13 @@ Copy page
 
     nuxt.config.js
 
-    PostHog AI
-
     ```javascript
     export default defineNuxtConfig({
       runtimeConfig: {
         public: {
           posthogPublicKey: '<ph_project_token>',
           posthogHost: 'https://us.i.posthog.com',
-          posthogDefaults: '2026-05-30'
+          posthogDefaults: '2026-08-30'
         }
       }
     })
@@ -78,11 +86,10 @@ Copy page
 
     plugins/posthog.client.js
 
-    PostHog AI
-
     ```javascript
     import { defineNuxtPlugin } from '#app'
     import posthog from 'posthog-js'
+    
     export default defineNuxtPlugin(nuxtApp => {
       const runtimeConfig = useRuntimeConfig();
       const posthogClient = posthog.init(runtimeConfig.public.posthogPublicKey, {
@@ -92,6 +99,7 @@ Copy page
           if (import.meta.env.MODE === 'development') posthog.debug();
         }
       })
+    
       return {
         provide: {
           posthog: () => posthogClient
@@ -108,48 +116,48 @@ Copy page
 
     To capture events from server routes, install `posthog-node` and instantiate it directly. You can also use it to evaluate feature flags on the server:
 
-    PostHog AI
-
     ### npm
 
     ```bash
-    npm install posthog-node
+    npm install posthog-node@5
     ```
 
     ### yarn
 
     ```bash
-    yarn add posthog-node
+    yarn add posthog-node@5
     ```
 
     ### pnpm
 
     ```bash
-    pnpm add posthog-node
+    pnpm add posthog-node@5
     ```
 
     ### bun
 
     ```bash
-    bun add posthog-node
+    bun add posthog-node@5
     ```
 
     server/api/example.js
 
-    PostHog AI
-
     ```javascript
     import { PostHog } from 'posthog-node'
+    
     export default defineEventHandler(async (event) => {
         const runtimeConfig = useRuntimeConfig()
+    
         const posthog = new PostHog(
             runtimeConfig.public.posthogPublicKey,
             { host: runtimeConfig.public.posthogHost }
         )
+    
         posthog.capture({
             distinctId: 'distinct_id_of_the_user',
             event: 'event_name'
         })
+    
         await posthog.shutdown()
     })
     ```
@@ -163,8 +171,6 @@ Copy page
     If you'd like, you can also manually capture custom events:
 
     JavaScript
-
-    PostHog AI
 
     ```javascript
     posthog.capture('my_custom_event', { property: 'value' })
@@ -180,8 +186,6 @@ Copy page
 
     Vue
 
-    PostHog AI
-
     ```html
     <script>
       const { $posthog } = useNuxtApp()
@@ -195,8 +199,6 @@ Copy page
     On the server side, you can use the `posthog` object directly.
 
     server/api/example.js
-
-    PostHog AI
 
     ```javascript
     const runtimeConfig = useRuntimeConfig()
@@ -224,8 +226,6 @@ Copy page
 
     JavaScript
 
-    PostHog AI
-
     ```javascript
     export default defineNuxtPlugin((nuxtApp) => {
         ...
@@ -244,7 +244,7 @@ Copy page
 
     Before proceeding, let's make sure exception events are being captured and sent to PostHog. You should see events appear in the activity feed.
 
-    ![Activity feed with events](https://res.cloudinary.com/dmukukwp6/image/upload/SCR_20250729_ouxl_f788dd8cd2.png)![Activity feed with events](https://res.cloudinary.com/dmukukwp6/image/upload/SCR_20250729_owae_7c3490822c.png)
+    ![Activity feed with events](https://res.cloudinary.com/dmukukwp6/image/upload/SCR_20250729_ouxl_f788dd8cd2.png)
 
     [Check for exceptions in PostHog](https://app.posthog.com/activity/explore)
 
@@ -258,12 +258,4 @@ Copy page
 
     Let's continue to the next section.
 
-    [Upload source maps](/docs/error-tracking/upload-source-maps/nuxt.md)
-
-### Still have questions?
-
-Ask PostHog AI
-
-### Was this page useful?
-
-HelpfulCould be better
+    [Upload source maps](https://posthog.com/docs/error-tracking/upload-source-maps/nuxt.md)

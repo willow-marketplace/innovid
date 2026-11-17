@@ -67,13 +67,13 @@ Use recommended regions based on user location (**cannot be changed once set**):
 
 ### 🖥️ Part 1: Console Operations (Phase 0-1)
 
-**Phase 0: Root Account Protection**
+#### Phase 0: Root Account Protection
 
 1. Create AWS account
 2. Enable root user MFA
 3. Securely store root user credentials
 
-**Phase 1: Organizations & Identity Center**
+#### Phase 1: Organizations & Identity Center
 
 1. Enable AWS Organizations
 2. Enable IAM Identity Center (select appropriate region)
@@ -85,20 +85,20 @@ Use recommended regions based on user location (**cannot be changed once set**):
 
 ### 💻 Part 2: CLI Operations (Phase 2-4)
 
-**Phase 2: CLI Configuration**
+#### Phase 2: CLI Configuration
 
 1. Verify AWS CLI v2 installation
 2. **Configure SSO with recorded Access Portal URL**
 3. Execute authentication test
 
-**Phase 3: Multi-Account Implementation**
+#### Phase 3: Multi-Account Implementation
 
 1. Create Workloads OU
 2. Create Dev/Staging/Production/Sandbox accounts
 3. Apply CloudTrail protection SCP to Production OU
 4. Apply cost control SCP to Sandbox OU
 
-**Phase 4: Cost Management**
+#### Phase 4: Cost Management
 
 1. Create monthly budget of $500
 2. Configure alerts (80% actual, 100% forecast)
@@ -134,22 +134,22 @@ Record at Part 1 completion, use in Part 2:
 
 ## Error Handling
 
-**CLI Configuration Failure**
+### CLI Configuration Failure
 
 - Cause: Incorrect Access Portal URL entry, network error
 - Resolution: Verify URL format (d-xxxxxxxxxx.awsapps.com/start), retry after confirming network
 
-**User Creation Failure**
+### User Creation Failure
 
 - Cause: Duplicate email address, format error
 - Resolution: Use different email address, correct format (user@domain.com)
 
-**Budget Configuration Failure**
+### Budget Configuration Failure
 
 - Cause: API throttling, input value error
 - Resolution: Wait 1 minute and retry, verify numeric format
 
-**SCP Application Failure**
+### SCP Application Failure
 
 - Cause: JSON syntax error, size limit exceeded
 - Resolution: Use pre-validated templates, remove unnecessary whitespace

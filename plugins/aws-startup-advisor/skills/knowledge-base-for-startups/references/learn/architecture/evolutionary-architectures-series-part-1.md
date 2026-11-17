@@ -11,7 +11,7 @@ _Discover the key steps of building a successful startup in the Evolutionary Arc
 
 ![A team evaluates an initial startup idea.](https://d22k7geae6sy8h.cloudfront.net/files/64a2e448db295100084079a6/8ljmzwka7-People-with-an-idea.jpg)
 
-_"I've got this great idea!"_
+> _"I've got this great idea!"_
 
 Every startup begins as an idea. Before you start worrying about funding or staff or distribution or any of the other myriad things, you have your fresh, new idea—a product or service that you think has potential.
 
@@ -27,13 +27,13 @@ In this stage it's extremely important to not let perfect get in the way of the 
 
 Let's check in on Example Startup and see how they approach this process.
 
-**The idea**
+### The idea
 
 Example Startup's idea is to create a "fantasy stock market." They used fantasy sports leagues as a baseline and applied the idea of stock market investing. They envision holding four "tournaments" over the course of a year.
 
 At the beginning of every quarter, a new cohort of investors starts with the same amount of funds. The fantasy stock market allows these investors to make their investment choices (based on companies and symbols from real stock markets) over the following 3 months. At the end of the quarter, participants are ranked and winners are announced.
 
-**The preparation**
+### The preparation
 
 To make their idea a reality, the two founders [bootstrapped](https://www.uschamber.com/co/start/startup/bootstrap-funding-pros-and-cons) their startup: they gathered their savings and borrowed money from friends and family.
 
@@ -52,19 +52,19 @@ They decide on the following:
 - Daily process for end-of-day portfolio calculations
 - A daily process that calculates rankings
 
-**The build**
+### The build
 
 After defining their scope, it's time to make some technical decisions about which technologies and components the fantasy stock market needs. Then, they'll create an implementation plan with milestones for the MVP launch.
 
-**Framework**
+#### Framework
 
 As a developer, one of Example Startup's founders has experience in [React](https://reactjs.org/), a JavaScript library for building user interfaces. Considering that a big portion of the MVP deliveries involve UI development, she thinks [AWS Amplify](https://aws.amazon.com/amplify/) looks like a great fit. With Amplify, the team gets built-in support for building and hosting React.js applications with lots of reusable components. Amplify can help with the backend as well—it can manage different databases like [Amazon DynamoDB](https://aws.amazon.com/dynamodb/), a great flexible option to start with, and it can use [AWS AppSync](https://aws.amazon.com/appsync/) to easily connect the front-end with data sources and develop the business logic.
 
-**Domain**
+#### Domain
 
 With the framework taken care of, it's time to get a domain name. [Amazon Route 53](https://aws.amazon.com/route53/) helps Example Startup to configure a [DNS (Domain Name System)](https://aws.amazon.com/route53/what-is-dns/) service that has good integration with the services they were already using, as well as with the process of domain registration.
 
-**Experimentation and Cost Management**
+#### Experimentation and Cost Management
 
 The team is able to meet most of their initial needs by simply picking an AWS service that aligns with their use case. The breadth of AWS services allows Example Startup to quickly experiment with multiple options and make decisions based on the experience.
 
@@ -72,7 +72,7 @@ Although many of the AWS services have a free tier, some of Example Startup's ex
 
 ![AWS Budgets sends budget alerts.](https://d22k7geae6sy8h.cloudfront.net/files/64a2e489db295100084079a8/8ljmzxyie-AWS-Budgets-1024x377.png)
 
-**Data**
+#### Data
 
 A month in, Example Startup already has a lot of the UI and some related features working with sample data. Next, they'll need batch processes that will do the heavy lifting with some real data.
 
@@ -84,13 +84,13 @@ With that, as shown in the initial architecture diagram, they have a design in p
 
 ![Initial architecture diagram](https://d22k7geae6sy8h.cloudfront.net/files/64a2e5dddb295100084079a9/8ljn058he-Initial-architecture-diagram-1024x353.png)
 
-**Testing**
+#### Testing
 
 The team is making great progress. Their architecture is growing, and they feel good about the 3-month deadline.
 
 However, as the number of people testing the solution grows, they notice an issue. Someone on the team asked: "How many people are active users and what's the average number of transactions per user?" But they couldn't really come up with a meaningful answer. They agree on "winging it" by temporarily running queries directly on the [DynamoDB console](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ConsoleDynamoDB.html) and start a "wish list" for the next iteration.
 
-**The launch**
+### The launch
 
 Example Startup made their deadline and launched the MVP. Before long, the team sees a huge list of registrations. They realize they are onto something, but they need help to improve their product and scale their business.
 
@@ -112,7 +112,7 @@ We will continue with their journey in upcoming blogs in the Evolutionary Archit
 
 ### Zoran Nakev
 
-Zoran is a Senior Solutions Architect at AWS, working primarily with FinTech startups and helping them to build solutions on the AWS platform. He uses his experience and passion for technology to assist startups in delivering on their goals. He lives in New Jersey with his family and enjoys spending his free time watching movies, listening to music, and taking long walks with his family dog.
+Zoran is a Senior Solutions Architect at AWS, working primarily with FinTech startups and helping them to build solutions on AWS. He uses his experience and passion for technology to assist startups in delivering on their goals. He lives in New Jersey with his family and enjoys spending his free time watching movies, listening to music, and taking long walks with his family dog.
 
 ### Aayzed Tanweer
 

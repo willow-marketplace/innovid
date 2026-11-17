@@ -36,6 +36,15 @@ var (
 	// so the provider is resolved per-event from the model name rather than
 	// forced to one value.
 	Copilot = Harness{Name: "github-copilot-cli", EnvPrefix: "COPILOT", DataSubdir: "copilot", ConfigDir: ".copilot"}
+	// OpenCode V2 serves several providers; each model step supplies its provider.
+	OpenCodeV2 = Harness{Name: "opencode-v2", EnvPrefix: "OPENCODE_V2", DataSubdir: "opencode-v2", ConfigDir: ".opencode-v2"}
+	// CopilotApp is the GitHub Copilot desktop app, instrumented through a
+	// session extension rather than CLI hooks. It reads the same configuration
+	// file as the CLI (~/.copilot), so one setup covers both, but reports its own
+	// identity and keeps its session state apart.
+	CopilotApp = Harness{Name: "github-copilot-app", EnvPrefix: "COPILOT_APP", DataSubdir: "copilot-app", ConfigDir: ".copilot"}
+	// Amp serves multiple models and providers within a single turn.
+	Amp = Harness{Name: "amp", EnvPrefix: "AMP", DataSubdir: "amp", ConfigDir: ".amp"}
 )
 
 // Harness names one coding agent's environment conventions.

@@ -30,11 +30,11 @@ sys.path.insert(
 )
 import _bootstrap  # pylint: disable=wrong-import-position
 _bootstrap.ensure_deps(__file__)  # re-exec via managed venv if deps are missing
-from auth import get_client  # pylint: disable=wrong-import-position
+from auth import get_client, raise_for_api_error  # pylint: disable=wrong-import-position
 
 # fetch_results and TERMINAL_STATUSES live alongside this script.
 sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
-from get_execution_results import fetch_results, TERMINAL_STATUSES  # pylint: disable=wrong-import-position
+from get_execution_results import fetch_results, TERMINAL_STATUSES, SUCCESS_STATUSES  # pylint: disable=wrong-import-position
 
 # Fix Windows console encoding
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -63,17 +63,18 @@ def get_trigger_parameters(definition_id):
     which returns only the properties for interactive prompting, this exposes the
     JSON-schema `required` array so callers can autofill the mandatory inputs a
     workflow will reject an execution for if omitted.
+
+    Raises RuntimeError on an API error: an empty schema would make --autofill
+    silently fill nothing and the execution fail input validation.
     """
-    try:
-        client = get_client()
-        resp = client.search_definitions(filter=f"id:'{definition_id}'")
-        resources = resp["body"].get("resources", [])
-        if not resources:
-            return {}, []
-        params = resources[0].get("trigger", {}).get("parameters", {})
-        return params.get("properties", {}) or {}, params.get("required", []) or []
-    except (ConnectionError, RuntimeError, OSError):
+    client = get_client()
+    resp = client.search_definitions(filter=f"id:'{definition_id}'")
+    raise_for_api_error(resp, "Fetching the workflow's trigger parameters")
+    resources = resp["body"].get("resources", [])
+    if not resources:
         return {}, []
+    params = resources[0].get("trigger", {}).get("parameters", {})
+    return params.get("properties", {}) or {}, params.get("required", []) or []
 
 
 def heuristic_value(field_name, field_schema):
@@ -102,7 +103,7 @@ def heuristic_value(field_name, field_schema):
         ("ip", "185.220.101.1"),   # a Tor exit node — returns a real VirusTotal verdict
         ("domain", "example.com"),
         ("url", "https://example.com"),
-        ("sha256", "44d88612fea8a8f36de82e1278abb02f"),  # EICAR test-file MD5
+        ("sha256", "275a021bbfb6489e54d471899f7db9d1663fc695ec2fe2a2c4538aabf651fd0f"),  # EICAR test-file SHA-256
         ("hash", "44d88612fea8a8f36de82e1278abb02f"),
     ]
     for needle, value in guesses:
@@ -201,46 +202,49 @@ def execute_workflow(definition_id, params, depth=1):
         return False, None, str(exc)
 
 
-def poll_results(execution_id, timeout=120, interval=5):
+def poll_results(execution_id, timeout=120, interval=5, stream=None):
     """
     Poll for execution results until a terminal state or timeout.
 
     Delegates the single-fetch + envelope parsing to fetch_results so this
     script and get_execution_results.py stay in sync on the API response shape.
-    Returns the result dict or None on timeout.
+    Progress goes to ``stream`` (stdout by default; stderr under --json so
+    stdout stays parseable). Returns the result dict or None on timeout.
     """
+    stream = stream or sys.stdout
     start = time.time()
-    print(f"\n  Polling for results (timeout: {timeout}s)...")
+    print(f"\n  Polling for results (timeout: {timeout}s)...", file=stream)
     while time.time() - start < timeout:
         ok, msg, result = fetch_results(execution_id)
         if ok and result:
             status = result.get("status", "")
             if status.lower() in TERMINAL_STATUSES:
                 return result
-            print(f"    Status: {status} ({int(time.time() - start)}s elapsed)")
+            print(f"    Status: {status} ({int(time.time() - start)}s elapsed)", file=stream)
         else:
-            print(f"    Poll error: {msg}")
+            print(f"    Poll error: {msg}", file=stream)
         time.sleep(interval)
 
-    print(f"  Timeout after {timeout}s — execution may still be running.")
+    print(f"  Timeout after {timeout}s — execution may still be running.", file=stream)
     return None
 
 
-def main():
-    """CLI entry point for workflow execution."""
-    parser = argparse.ArgumentParser(description="Trigger a Fusion workflow")
-    parser.add_argument("--id", required=True, metavar="DEF_ID", help="Workflow definition ID")
-    parser.add_argument("--params", metavar="JSON", help="Execution parameters as JSON string")
-    parser.add_argument("--autofill", action="store_true",
-                        help="Fill any required trigger params missing from --params "
-                             "using name/type heuristics (non-interactive verification)")
-    parser.add_argument("--email", metavar="ADDR",
-                        help="Override value for email-type required params when --autofill is set")
-    parser.add_argument("--wait", action="store_true", help="Poll for execution results")
-    parser.add_argument("--timeout", type=int, default=120, help="Poll timeout in seconds (default: 120)")
-    parser.add_argument("--json", action="store_true", help="Machine-readable JSON output")
-    args = parser.parse_args()
+def report_result(result, as_json):
+    """Print a terminal execution result; exit 1 unless the run succeeded."""
+    status = result.get("status", "?")
+    if as_json:
+        print(json.dumps(result, indent=2))
+    else:
+        print(f"\n  Execution {status}")
+        output = result.get("output", {})
+        if output:
+            print(f"  Output:\n{json.dumps(output, indent=4)}")
+    if str(status).lower() not in SUCCESS_STATUSES:
+        sys.exit(1)
 
+
+def _gather_params(args):
+    """Build the execution parameters from --params, --autofill, or prompts."""
     # Get parameters
     if args.params:
         params = json.loads(args.params)
@@ -257,42 +261,69 @@ def main():
     # harness so an On-demand workflow with required inputs (e.g. ip,
     # notify_email) is not rejected at input validation before any action runs.
     if args.autofill:
-        properties, required = get_trigger_parameters(args.id)
+        try:
+            properties, required = get_trigger_parameters(args.id)
+        except (ConnectionError, RuntimeError, OSError) as exc:
+            print(f"\n  ERROR: {exc}", file=sys.stderr)
+            sys.exit(1)
         overrides = {}
         if args.email:
             overrides = {n: args.email for n in required
                          if "email" in n.lower()}
         params = autofill_params(params, properties, required, overrides)
+    return params
 
-    print(f"\n  Executing workflow {args.id}")
-    print(f"  Parameters: {json.dumps(params, indent=2)}")
+
+def main():
+    """CLI entry point for workflow execution."""
+    parser = argparse.ArgumentParser(description="Trigger a Fusion workflow")
+    parser.add_argument("--id", required=True, metavar="DEF_ID", help="Workflow definition ID")
+    parser.add_argument("--params", metavar="JSON", help="Execution parameters as JSON string")
+    parser.add_argument("--autofill", action="store_true",
+                        help="Fill any required trigger params missing from --params "
+                             "using name/type heuristics (non-interactive verification)")
+    parser.add_argument("--email", metavar="ADDR",
+                        help="Override value for email-type required params when --autofill is set")
+    parser.add_argument("--wait", action="store_true", help="Poll for execution results")
+    parser.add_argument("--timeout", type=int, default=120, help="Poll timeout in seconds (default: 120)")
+    parser.add_argument("--json", action="store_true", help="Machine-readable JSON output")
+    args = parser.parse_args()
+    # The interactive prompt writes to stdout and waits on stdin, which would
+    # corrupt the JSON document and hang a non-interactive caller.
+    if args.json and args.params is None and not args.autofill:
+        parser.error("--json can't prompt for parameters; pass --params "
+                     "(use --params '{}' for none) or --autofill")
+
+    params = _gather_params(args)
+
+    # Under --json, progress goes to stderr so stdout is a single JSON document.
+    log = sys.stderr if args.json else sys.stdout
+    print(f"\n  Executing workflow {args.id}", file=log)
+    print(f"  Parameters: {json.dumps(params, indent=2)}", file=log)
 
     ok, exec_id, resp = execute_workflow(args.id, params)
 
     if not ok:
-        print(f"\n  Execution FAILED: {resp}")
+        print(f"\n  Execution FAILED: {resp}", file=log)
+        sys.exit(1)
+    if not exec_id:
+        print("\n  Execution FAILED: the API accepted the request but returned no execution ID.",
+              file=log)
         sys.exit(1)
 
-    print(f"  Execution ID: {exec_id}")
+    print(f"  Execution ID: {exec_id}", file=log)
 
     if args.json and not args.wait:
         print(json.dumps(resp, indent=2))
         return
 
     # Poll for results
-    if args.wait and exec_id:
-        result = poll_results(exec_id, timeout=args.timeout)
+    if args.wait:
+        result = poll_results(exec_id, timeout=args.timeout, stream=log)
         if result:
-            if args.json:
-                print(json.dumps(result, indent=2))
-            else:
-                status = result.get("status", "?")
-                print(f"\n  Execution {status}")
-                output = result.get("output", {})
-                if output:
-                    print(f"  Output:\n{json.dumps(output, indent=4)}")
+            report_result(result, args.json)
         else:
-            print("  No results returned within timeout.")
+            print("  No results returned within timeout.", file=log)
             sys.exit(1)
     elif not args.wait:
         print("\n  Execution submitted. Use --wait to poll for results.")

@@ -1,6 +1,6 @@
 # revenuecat-troubleshoot: React Native
 
-Work the universal checklist in `../SKILL.md` first. React Native bugs usually surface in JavaScript but are rooted in the underlying native SDK. The iOS and Android platform files in `platforms/` apply.
+Work the universal checklist in `../SKILL.md` first. React Native bugs usually surface in JavaScript but are rooted in the underlying native SDK. The iOS and Android platform files in `platforms/` apply to the native setup (store products, credentials, sandbox accounts), but not to logs: React Native routes the SDK logs to the JavaScript console, so use the log steps below instead of their Xcode and logcat checks.
 
 ## Turn on debug logging
 
@@ -10,26 +10,30 @@ import Purchases, { LOG_LEVEL } from 'react-native-purchases';
 Purchases.setLogLevel(LOG_LEVEL.DEBUG);
 ```
 
-Call this before `Purchases.configure(...)`. The SDK logs on the **native** console, not the Metro bundler console:
+Call this before `Purchases.configure(...)`. Unless the app passes its own handler to `Purchases.setLogHandler`, `configure` routes the native SDK logs through the **JavaScript** console with a `[RevenueCat]` prefix. They do not appear as native `[Purchases]` lines, so `adb logcat -s Purchases` shows nothing. Read them in:
 
-- iOS → Xcode console when the app is attached, or Console.app filtering by the app's bundle ID.
-- Android → Android Studio Logcat, or `adb logcat -s Purchases`.
+- React Native DevTools or the Expo CLI terminal.
+- Android → `adb logcat -s ReactNativeJS`, React Native's tag for JavaScript console output.
+- iOS → Xcode console while the app is attached.
 
-If you only see JS output in Metro, you are not looking at the SDK logs. This catches most "I have no logs" reports.
+Debug lines go through `console.debug`, so a console that hides debug output hides them too. With `LOG_LEVEL.DEBUG`, configure prints a line containing `SDK Version - ` (the native SDK's version). If no `[RevenueCat]` line appears at all, check for a custom `Purchases.setLogHandler` before concluding that `configure` never ran.
 
 ## Expo Go vs dev client
 
-`react-native-purchases` links native code and will throw if run in Expo Go. Symptom: any call to `Purchases.configure` or `Purchases.getOfferings` rejects with a "native module not found" error.
+Expo Go has no native module for `react-native-purchases`, so the SDK switches to a JavaScript Preview API Mode there. Symptom: with an `appl_` or `goog_` key, `Purchases.configure` throws "Invalid API key. The native store is not available when running inside Expo Go…", and every later call such as `Purchases.getOfferings` rejects because the SDK is not configured. A Test Store key works in Expo Go, but purchases are simulated and customer info listeners never fire.
+
+A "[RevenueCat] Native module (RNPurchases) not found" error is a different problem: the app is not Expo Go, but the installed build does not include the native module. Rebuild it after installing the package.
 
 Fix: produce a development build.
 
 ```bash
-npx expo prebuild # bare workflow
-# or
+npx expo install expo-dev-client
 eas build --profile development
+# or build locally:
+npx expo run:ios # or npx expo run:android
 ```
 
-Install the dev client, then reload. Expo Go itself cannot be fixed to support this.
+Install the development build, then reload.
 
 ## Cache problems after a dependency change
 
@@ -37,7 +41,9 @@ After changing `react-native-purchases`, the iOS Podfile, or Android Gradle file
 
 ```bash
 npx react-native start --reset-cache
-cd ios && pod install && cd ..
+cd ios && pod install && cd .. # CocoaPods projects
+# with React Native's Swift Package Manager integration instead:
+npx react-native spm
 # or for Expo:
 npx expo prebuild --clean
 ```
@@ -58,8 +64,8 @@ A common report: one platform works, the other returns `INVALID_CREDENTIALS`. Ca
 
 ## Offerings empty or products missing
 
-- Log the output of `await Purchases.getOfferings()`. If the returned object has `current: null` or `current.availablePackages` is an empty array, the dashboard offering is misconfigured.
-- Watch the native console for product lookup failures. Product IDs in the dashboard must match the store exactly, including case.
+- Log the output of `await Purchases.getOfferings()`. The native SDKs drop an offering that ends up with no packages, so a misconfigured current offering shows up as `current: null`, not as an empty `availablePackages`. Either the offering has no packages attached in the dashboard, or none of its products loaded from the store. If no offering has any products, `getOfferings` rejects with a configuration error.
+- Watch the `[RevenueCat]` lines for product lookup failures. Product IDs in the dashboard must match the store exactly, including case.
 
 ## Paywall does not render
 
@@ -73,12 +79,15 @@ A common report: one platform works, the other returns `INVALID_CREDENTIALS`. Ca
 
 - Await `Purchases.getCustomerInfo()` after the purchase promise resolves to get the fresh state.
 - The product must be attached to an entitlement in the dashboard.
-- On Android, if your app is sideloaded instead of installed from Play Internal Testing, purchases will fail or behave inconsistently. Use `eas build --profile preview` or a signed AAB installed via the Play opt-in link.
+- On Android, a sideloaded build makes test purchases only for a license tester who has opted in to the testing track. Other accounts either cannot buy or are charged real money, even when the build comes from the track, so add test accounts as license testers.
 
-## iOS pod install forgotten
+## iOS native code not updated
 
-After bumping `react-native-purchases`, `cd ios && pod install` is required. Without it, the native code on iOS is still the old version, and strange crashes at configure time appear. Check `ios/Podfile.lock` to confirm the installed pod version matches the JS package version.
+When the iOS native code stays on the old version after a `react-native-purchases` bump, strange crashes at configure time appear.
+
+- CocoaPods projects: run `cd ios && pod install` after every bump. Check `ios/Podfile.lock` to confirm the installed pod version matches the JS package version.
+- Projects using React Native's Swift Package Manager integration: the Xcode build syncs the new version automatically. On a fresh clone or CI checkout, or if Xcode reports missing packages, run `npx react-native spm` before building.
 
 ## Verify
 
-Reproduce with `LOG_LEVEL.DEBUG` and watch the native platform console. Confirm the success log, then confirm the RevenueCat dashboard shows the transaction. Drop back to `LOG_LEVEL.INFO` before shipping.
+Reproduce with `LOG_LEVEL.DEBUG` and watch the `[RevenueCat]` lines in the JavaScript console. Confirm the success log, then confirm the RevenueCat dashboard shows the transaction. Drop back to `LOG_LEVEL.INFO` before shipping.

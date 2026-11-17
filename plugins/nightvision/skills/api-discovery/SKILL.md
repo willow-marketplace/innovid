@@ -1,155 +1,75 @@
 ---
 name: api-discovery
-description: Guide for agents to help users extract OpenAPI specs from source code using NightVision API Discovery. Use when running swagger extract, identifying framework support, troubleshooting extraction, handling unresolved variables, comparing API specs, or understanding Code Traceback.
+description: Use when finding an API or owner, integrating a public provider, locating Postman resources, or investigating consumers and change impact across services. Turns discovered contracts and mocks into reusable dependencies and identifies evidence outside the current checkout. Use for requests such as "who consumes this endpoint".
 ---
 
-# NightVision API Discovery
+# API Discovery
 
-Use this skill when helping users generate OpenAPI specifications from their source code using `nightvision swagger extract`. API Discovery performs static analysis — no running application or compilation needed — and annotates the spec with source file paths and line numbers (Code Traceback) so that vulnerabilities found during DAST scans trace back to exact code locations.
+Existing contracts and owners' mocks reduce the assumptions an integration
+must invent. Relationship context broadens investigation beyond the checkout:
+passing this service's own tests does not establish that its consumers can
+still use a changed interface.
 
-## Agent workflow
+Postman search, the Context Graph and dependency downloads work only for a
+signed-in CLI. Check `postman status` before the first of them and sign in if
+it reports signed out. If signing in isn't possible, don't run them; say which
+sources were skipped.
 
-When a user asks to extract or document their API:
+1. Choose the source by the question:
 
-1. **Check prerequisites** — verify the NightVision CLI is available (`nightvision --help`)
-2. **Examine the repo** — identify the backend language and web framework to determine the `--lang` flag and whether the framework is supported (see [references/framework-support.md](references/framework-support.md))
-3. **Run extraction** — execute `nightvision swagger extract` with the appropriate flags. On success, the CLI prints `"Swagger file extracted successfully."` and writes the spec to the output path (default: `openapi-spec.yml`)
-4. **Review the output** — read the generated spec to check completeness. Handle unresolved variables if `nv.config` was created alongside the spec
-5. **Compare coverage** — if the user has an existing spec, run `nightvision swagger diff` to show what was discovered vs. what was documented
-6. **Upload to target** — attach the spec to a NightVision target for scanning
+   | Need | Use |
+   | --- | --- |
+   | Public provider endpoints and integration details | Orbit search, then integrate |
+   | A concrete Postman collection, request, spec, mock, or workspace | `postman search <type> <query>` |
+   | Consumers, ownership, dependencies, or likely change impact | `postman context-graph ask` |
 
-**Related skills:** Use `scan-configuration` for target/auth setup, `ci-cd-integration` for pipeline integration, `scan-triage` for interpreting scan results.
+   These sources answer different questions. A miss in one does not establish
+   absence in the others; combine entity search and relationship context when
+   both the resource and its impact matter.
+2. For public APIs, Orbit narrows discovery to task-relevant endpoints and
+   returns integration guidance instead of requiring a whole vendor spec in
+   context. Use it even when the provider is chosen: endpoint details and
+   capability limits still determine whether the integration fits the task.
+   `POST https://api.buildwithorbit.ai/v1/search` accepts a task in
+   `q`; pass the chosen results' `id` and `resourceType` unchanged to
+   `/v1/integrate`. Evaluate fit and limitations before choosing a provider,
+   then use the returned auth, base URL, steps, and gotchas to implement.
+   Read [Orbit's request schemas](reference/orbit.md) for the actual payloads
+   and error handling. Orbit access does not supply a provider's credentials.
+3. For Postman resources, narrow by entity type, ownership, and workspace.
+   Read `postman search <type> -h` for supported filters. An empty result in
+   the default ownership scope is incomplete evidence; consider
+   `--ownership all` or a relevant narrower scope before declaring absence.
+   Inspect the selected resource's owner and content rather than trusting a
+   similar name.
+4. For cross-service changes, ask the Context Graph a concrete question about
+   the endpoint, schema, or service. `--wait` waits for an answer; without it,
+   use the returned ID with `postman context-graph status <askId>`. The graph
+   can connect Postman definitions, repository call sites, and runtime
+   telemetry beyond the current checkout. Its coverage depends on connected
+   and ingested sources, so verify consequential leads against definitions,
+   source, or telemetry before treating them as facts. A newly added call may
+   not be present yet. The query uses the authenticated API key's team, not
+   the repository's workspace binding; changing that binding cannot fix a
+   query against the wrong organization's context.
+5. Before importing, tell this repository's owning workspace from a
+   dependency. For a dependency, `postman dependency add
+   <collection|environment|mock> <name-or-id>` declares and downloads the
+   selected resource without rebinding the repository. Prefer the discovered
+   ID; `--workspace <id>` disambiguates names. If the graph only identified a
+   service, search for its concrete resource first.
+6. Dependency declarations live in `.postman/resources.yaml`, with downloads
+   in `postman/.dependencies/`. `dependency install` restores them after a
+   clone or in CI; `dependency update` refreshes them. Review refreshes when
+   they can change test expectations. Copy a dependency into owned files to
+   customize it, because updating dependencies overwrites downloaded edits.
+   Use `dependency list` and command-specific help for targeted operations.
 
-## Language flags
+Use **api-simulation** to exercise the real service against discovered mocks,
+and **ci-integration** to keep the resulting contract checks repeatable in PRs.
 
-| Language | Flag | Frameworks |
-|----------|------|------------|
-| Python | `--lang python` | Django, DRF, Flask, Flask-RESTful, FastAPI |
-| Java | `--lang java` | Spring Boot, JAX-RS/Jersey, Micronaut, Java EE/Jakarta EE |
-| JavaScript | `--lang js` | Express, NestJS, Fastify |
-| C# | `--lang dotnet` | ASP.NET Core (controllers, minimal APIs) |
-| Go | `--lang go` | Gin, httprouter, net/http (experimental) |
-| Ruby | `--lang ruby` | Rails, Grape |
+## Verification
 
-See [references/framework-support.md](references/framework-support.md) for detailed component coverage per framework.
-
-## Running extraction
-
-```bash
-# Basic extraction (output defaults to openapi-spec.yml)
-nightvision swagger extract . --lang python
-
-# Specify output file and format
-nightvision swagger extract . --lang java -o api-spec.json --file-format json
-
-# Extract and upload directly to a NightVision target
-nightvision swagger extract . -t my-api -p my-project --lang python
-
-# Extract without uploading
-nightvision swagger extract . -o openapi-spec.yml --lang java --no-upload
-
-# Scan multiple source directories
-nightvision swagger extract ./service-a ./service-b --lang python
-
-# Extend an existing spec (add discovered endpoints to it)
-nightvision swagger extract . --lang python --extend existing-spec.yml
-
-# Exclude directories from analysis
-nightvision swagger extract . --lang python --exclude vendor,generated
-
-# Include code snippets in the spec (useful for debugging)
-nightvision swagger extract . --lang python --dump-code
-```
-
-### Extraction fallback for CI
-
-Extraction can fail if language detection fails or the framework isn't supported. Always guard against this in pipelines:
-
-```bash
-nightvision swagger extract . -t $TARGET --lang java || true
-if [ ! -e openapi-spec.yml ]; then cp backup-openapi-spec.yml openapi-spec.yml; fi
-```
-
-## Handling unresolved variables
-
-When static analysis can't resolve a variable (e.g., an API prefix read from an environment variable), it appears as a literal placeholder in the spec. NightVision generates an `nv.config` file to fix this.
-
-**Steps:**
-1. Run extraction — if unresolved variables exist, `nv.config` is created alongside the spec (in the first source directory passed to the command)
-2. Open `nv.config` — find the `replacements` object with `null` values
-3. Replace `null` with the actual values (check the app's config files, environment vars, etc.)
-4. Re-run extraction — the tool reads `nv.config` and substitutes the values. You can also use `-c` / `--config` to explicitly specify the config file path: `nightvision swagger extract . --lang python -c path/to/nv.config`
-
-```json
-// nv.config example
-{
-  "replacements": {
-    "Microsoft.AspNetCore.Builder.WebApplication.Services...ApiPrefix": null
-  }
-}
-```
-
-The agent should help the user find the actual value by searching their config files (`appsettings.json`, `.env`, `settings.py`, etc.) and updating `nv.config`.
-
-## Comparing API specs
-
-Use `swagger diff` to measure coverage or detect breaking changes:
-
-```bash
-# Summary diff (paths and schemas counts)
-nightvision swagger diff original-spec.yml discovered-spec.yml
-
-# Show only path-level changes (endpoints added/removed/modified)
-nightvision swagger diff original-spec.yml discovered-spec.yml --paths
-
-# Show only schema changes
-nightvision swagger diff original-spec.yml discovered-spec.yml --schemas
-
-# Show the full diff (paths and schemas together, with details)
-nightvision swagger diff original-spec.yml discovered-spec.yml --full-diff
-
-# Save diff output to file
-nightvision swagger diff original-spec.yml discovered-spec.yml -o diff-report.txt
-```
-
-Common use cases:
-- **Coverage analysis** — compare a hand-written spec against the discovered one to find undocumented shadow APIs
-- **PR checks** — diff specs from the base branch vs. PR branch to detect breaking API changes
-- **Audit** — verify that all endpoints are documented
-
-## Detecting existing specs
-
-Search the codebase for existing OpenAPI/Swagger files. The `detect` command takes no positional arguments — use `-p` to specify the root folder:
-
-```bash
-# Detect project roots in the current directory
-nightvision swagger detect
-
-# Detect in a specific directory
-nightvision swagger detect -p ./path/to/code
-
-# Save detection results as JSON
-nightvision swagger detect -o detection-results.json
-```
-
-## Code Traceback
-
-The generated spec includes `x-source` annotations on each endpoint with the file path and line number where the route is declared. When this spec is used for DAST scanning:
-
-- Vulnerabilities found by NightVision link directly to the source code
-- GitHub Security Alerts, Azure Boards work items, and Jenkins Warnings show the exact file and line
-- Developers see where to fix, not just what to fix
-
-This is why using NightVision-generated specs (vs. hand-written ones) significantly improves the triage experience.
-
-## Troubleshooting
-
-| Issue | Cause | Fix |
-|-------|-------|-----|
-| No endpoints found | Wrong `--lang` flag, or unsupported framework | Verify the framework is supported, check `--lang` value |
-| Unresolved variables in paths | Config values read from env vars without defaults | Fill in `nv.config` replacements and re-run |
-| Incomplete routes | Custom routing, non-standard framework usage | NightVision relies on standard framework patterns; custom routing may not be detected |
-| Extraction fails entirely | Syntax errors in source, missing files | Use `--diagnostics` to get language-level error details |
-| Spec missing sub-routes | Code in subdirectories not scanned | Pass multiple paths: `nightvision swagger extract ./src ./lib` |
-
-For unsupported frameworks or components, contact support@nightviz.ai.
+Report which source answered the question, the resource IDs or evidence it
+returned, what was reused, and any coverage gaps. A list of candidates alone
+is neither an integration nor proof of compatibility.

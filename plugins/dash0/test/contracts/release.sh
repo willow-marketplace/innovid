@@ -146,7 +146,7 @@ refuse "an unknown part" "expected patch, minor or major" -- \
 # Against the sandbox copy, not the checkout. `set` writes to the tree it lives
 # in, and its no-op guard compares the version against the set of DISTINCT pins
 # — so on a tree where the pins already disagree, the guard does not fire and
-# this case rewrites all thirteen files for real while reporting "accepted it".
+# this case rewrites every pinned file for real while reporting "accepted it".
 # CI never reaches that state (version.sh check runs first in the same job), but
 # a bare ./test/contracts/release.sh on a half-bumped tree would.
 # Its own pinned version, never a literal: a literal stops being a no-op after
@@ -158,15 +158,18 @@ echo "== What a release must contain =="
 # which had already gone stale once: Windows took the build from 16 artifacts to
 # 24 and "expected 16" was not updated with it.
 art=$("$REPO/scripts/expected-artifacts.sh")
-if [ "$(printf '%s\n' "$art" | wc -l | tr -d ' ')" = "24" ]; then
-  echo "  ok   24 binaries: four agents, three platforms, two architectures"
+if [ "$(printf '%s\n' "$art" | wc -l | tr -d ' ')" = "42" ]; then
+  echo "  ok   42 binaries: seven agents, three platforms, two architectures"
 else
-  echo "  FAIL expected 24 artifact names, got $(printf '%s\n' "$art" | wc -l | tr -d ' ')"; fail=1
+  echo "  FAIL expected 42 artifact names, got $(printf '%s\n' "$art" | wc -l | tr -d ' ')"; fail=1
 fi
 # Named, not counted — the point of the list. .exe only on Windows, because that
 # is what GoReleaser appends and what every bootstrap asks for.
 for want in claude-on-event-linux-amd64 cursor-on-event-darwin-arm64 \
-            codex-on-event-windows-amd64.exe copilot-on-event-windows-arm64.exe; do
+            codex-on-event-windows-amd64.exe copilot-on-event-windows-arm64.exe \
+            opencode-v2-on-event-linux-arm64 opencode-v2-on-event-windows-amd64.exe \
+            copilot-app-on-event-linux-arm64 \
+            amp-on-event-linux-amd64 amp-on-event-windows-arm64.exe; do
   printf '%s\n' "$art" | grep -qx "$want" \
     || { echo "  FAIL $want is not in the expected list"; fail=1; }
 done
@@ -174,7 +177,7 @@ printf '%s\n' "$art" | grep -q 'linux.*\.exe' \
   && { echo "  FAIL a non-Windows name carries .exe"; fail=1; }
 
 # Derived, not transcribed: dropping a platform from .goreleaser.yaml must drop
-# its four binaries. A transcribed list would keep reporting all 24 and the
+# its fourteen binaries. A transcribed list would keep reporting all 42 and the
 # workflow would then diff dist/ against binaries nobody asked it to build.
 # One trap for the whole script. `trap … EXIT` is not additive: a second one
 # silently replaces this, and this one already replaces lib.sh's _cleanup, which
@@ -187,10 +190,10 @@ mkdir -p "$gr/scripts"
 cp "$REPO/scripts/expected-artifacts.sh" "$gr/scripts/"
 grep -v '^      - darwin$' "$REPO/.goreleaser.yaml" >"$gr/.goreleaser.yaml"
 n=$("$gr/scripts/expected-artifacts.sh" | wc -l | tr -d ' ')
-if [ "$n" = "16" ]; then
+if [ "$n" = "28" ]; then
   echo "  ok   the list follows .goreleaser.yaml"
 else
-  echo "  FAIL dropping darwin left $n names, expected 16"; fail=1
+  echo "  FAIL dropping darwin left $n names, expected 28"; fail=1
 fi
 
 echo "== What a bump actually writes =="
@@ -199,39 +202,46 @@ echo "== What a bump actually writes =="
 # proves it refuses things. This proves it succeeds: the release job runs it on
 # main and commits whatever it produced, so a sed that quietly stops matching
 # would ship a release whose bootstraps ask for a version that was never tagged.
-# Thirteen pins across two syntaxes, and the PowerShell ones arrived after this
+# Fifteen pins across two syntaxes, and the PowerShell ones arrived after this
 # script did — exactly the drift this catches.
 # It runs against a copy — the script cds to its own parent, so the copy is the
 # only way to exercise the real writes without dirtying the working tree.
 ( cd "$REPO" && tar cf - scripts/version.sh \
     .claude-plugin/plugin.json .cursor-plugin/plugin.json .codex-plugin/plugin.json \
     copilot/plugin.json .github/plugin/marketplace.json \
+    opencode-v2/package.json opencode-v2/package-lock.json \
     claude/claude-on-event.sh cursor/cursor-on-event.sh \
     codex/codex-on-event.sh copilot/copilot-on-event.sh \
+    copilot-app/copilot-app-on-event.sh \
     cursor/cursor-on-event.ps1 codex/codex-on-event.ps1 \
-    copilot/copilot-on-event.ps1 ) | tar xf - -C "$sandbox"
+    copilot/copilot-on-event.ps1 opencode-v2/opencode-v2-on-event.sh \
+    opencode-v2/opencode-v2-on-event.ps1 copilot-app/copilot-app-on-event.ps1 ) | tar xf - -C "$sandbox"
 
 if out=$("$sandbox/scripts/version.sh" set 9.9.9 2>&1); then
   case "$out" in
-    *"all 13 pins agree on 9.9.9"*) echo "  ok   a bump rewrites every pin" ;;
+    *"all 20 pins agree on 9.9.9"*) echo "  ok   a bump rewrites every pin" ;;
     *) echo "  FAIL a bump rewrites every pin"; printf '    %s\n' "$out"; fail=1 ;;
   esac
   # Named individually, because `check` compares the pins to each other: were a
-  # bootstrap's VERSION= line to stop matching, all thirteen would still agree — on
+  # bootstrap's VERSION= line to stop matching, the remaining pins would still agree — on
   # the old version — and check would pass.
   for f in claude/claude-on-event.sh cursor/cursor-on-event.sh \
-           codex/codex-on-event.sh copilot/copilot-on-event.sh; do
+           codex/codex-on-event.sh copilot/copilot-on-event.sh opencode-v2/opencode-v2-on-event.sh \
+           copilot-app/copilot-app-on-event.sh; do
     grep -q '^VERSION="9.9.9"$' "$sandbox/$f" \
       || { echo "  FAIL $f still pins $(grep -m1 '^VERSION=' "$sandbox/$f")"; fail=1; }
   done
   # PowerShell pins the same version in its own syntax, so its rewrite is a
   # separate sed that can drift on its own.
-  for f in cursor/cursor-on-event.ps1 codex/codex-on-event.ps1 copilot/copilot-on-event.ps1; do
+  for f in cursor/cursor-on-event.ps1 codex/codex-on-event.ps1 copilot/copilot-on-event.ps1 opencode-v2/opencode-v2-on-event.ps1 \
+           copilot-app/copilot-app-on-event.ps1; do
     grep -q "^\$Version = '9.9.9'$" "$sandbox/$f" \
       || { echo "  FAIL $f did not get the new version"; fail=1; }
   done
   [ "$(jq -r '.metadata.version' "$sandbox/.github/plugin/marketplace.json")" = "9.9.9" ] \
     || { echo "  FAIL marketplace.json metadata.version was not rewritten"; fail=1; }
+  [ "$(jq -r '.packages[""].version' "$sandbox/opencode-v2/package-lock.json")" = "9.9.9" ] \
+    || { echo "  FAIL package-lock.json root package version was not rewritten"; fail=1; }
   # The refusal, now that every pin in the sandbox reads 9.9.9.
   refuse "a bump to the version already pinned" "nothing to prepare" -- \
     "$sandbox/scripts/version.sh" set 9.9.9

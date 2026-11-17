@@ -21,10 +21,25 @@ const DRILL_NAMES = {
   "account": "Account", "vendor": "Vendor", "date-range-category": "DateRangeCategory",
   "month-side": "MonthSide", "fund-year": "FundYear",
   "department-account": "DepartmentAccount", "outline-cell": "OutlineCell",
-  "outline-total": "OutlineTotal",
+  "outline-total": "OutlineTotal", "custom-report": "CustomReport",
 };
 
-export default function DrilldownDrawer({ selection, onClose, entries, fundFeeEntries, feeScheduleTerms, spendByGL, buildJournalUrl, topCategoryNames, asOf, onDrillAccountForMonth }) {
+// Where a kind with several entry points was opened from -> the suffix its id
+// carries. Read off the selection's `from` (or a department drill's existing
+// `origin`); an unmapped or absent entry point leaves the plain kind id.
+const DRILL_SOURCES = {
+  "account": { "dashboard": "Dashboard", "budget-vs-actuals": "BudgetVsActuals", "monthly-actuals": "MonthlyActuals" },
+  "department-account": { "department-cell": "BudgetVsActuals", "budget-category": "DashboardVariance" },
+  "date-range-category": { "chart": "Chart", "breakdown": "Breakdown" },
+};
+
+export function drillOpenEvent(selection) {
+  const name = DRILL_NAMES[selection.kind] || "Other";
+  const source = DRILL_SOURCES[selection.kind]?.[selection.from ?? selection.origin];
+  return `MancoReporting.Drilldown.Open.${name}${source ? `.${source}` : ""}`;
+}
+
+export default function DrilldownDrawer({ selection, onClose, entries, fundFeeEntries, mancoFeeEntries, feeScheduleTerms, spendByGL, buildJournalUrl, topCategoryNames, asOf, onDrillAccountForMonth }) {
   const open = !!selection;
   const drawerRef = useRef(null);
 
@@ -32,7 +47,7 @@ export default function DrilldownDrawer({ selection, onClose, entries, fundFeeEn
   // drill, so a swap that leaves the drawer open still counts.
   useEffect(() => {
     if (selection) {
-      trackRender(`MancoReporting.Drilldown.Open.${DRILL_NAMES[selection.kind] || "Other"}`);
+      trackRender(drillOpenEvent(selection));
     }
   }, [selection]);
 
@@ -104,6 +119,7 @@ export default function DrilldownDrawer({ selection, onClose, entries, fundFeeEn
             selection={selection}
             entries={entries}
             fundFeeEntries={fundFeeEntries}
+            mancoFeeEntries={mancoFeeEntries}
             feeScheduleTerms={feeScheduleTerms}
             spendByGL={spendByGL}
             buildJournalUrl={buildJournalUrl}

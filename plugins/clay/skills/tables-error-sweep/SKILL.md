@@ -5,6 +5,8 @@ description: Clay tables — sweep a table for errored rows and report grouped b
 
 # Error sweep
 
+Before using this skill, read the `clay` entry skill if you haven’t already this session, and follow its access guidance.
+
 **Use when:** "what's erroring in {table}?", "show failed rows", "is {action} failing?" — a table-level question with no specific record in hand. Goal: find the errored rows, read their messages, and report **grouped by root cause**, not row by row.
 
 Only **`action`** columns can be in `error`. `basic` and `source` columns don't error (a formula-backed basic can, rarely), so the sweep is about action columns.

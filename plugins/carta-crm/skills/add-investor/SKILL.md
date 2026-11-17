@@ -3,6 +3,9 @@ name: add-investor
 description: Adds one or more investor records to the Carta CRM via the Carta CRM MCP Server. Use this skill when the user says things like "add an investor", "/add-investor", "add investor to Carta CRM", "create investor record", "add this VC fund to the CRM", or "save investor data". Collects investor information conversationally, then creates it via the MCP server.
 ---
 
+<!-- carta:plugin-version -->
+<carta-plugin>carta-crm:1.20.20</carta-plugin>
+
 ## Overview
 
 Help the user create one or more investor records in the Carta CRM using the

@@ -1,0 +1,434 @@
+---
+name: merge-queue
+description: Use Mergify merge queue to queue/dequeue PRs, to monitor and inspect the queue, to diagnose a dequeued PR — whether it is queued, why it was dequeued, where its CI failure is, and what to do next — and to decide whether a change to a PR already in the queue is worth pushing now. ALWAYS use this skill when queuing or dequeuing a PR in the Mergify merge queue, checking its status, finding out why Mergify dequeued a PR, about to push, amend or rebase a PR that is in the Mergify merge queue, pausing/unpausing the Mergify merge queue, or debugging a merge the Mergify queue did not make. Triggers on mergify queue, @mergifyio queue, @mergifyio dequeue, Mergify merge queue, Mergify queue status, why did Mergify dequeue my PR, Mergify dequeue reason, push to a PR in the Mergify merge queue, review comment on a PR in the Mergify merge queue, Mergify queue pause, Mergify batch, Mergify bisecting, CHECKS_FAILED, PULL_REQUEST_UPDATED, CONFLICT_WITH_BASE_BRANCH, CONFLICT_WITH_PULL_AHEAD, Mergify merge conflict.
+---
+
+# Mergify Merge Queue
+
+## Overview
+
+The merge queue serializes PR merges, running CI on temporary merge commits to catch integration failures before they reach the target branch. Queue or dequeue a PR with `mergify queue add` / `mergify queue remove` (or a comment on the PR), and use the CLI to monitor queue state, inspect individual PRs, and manage the queue.
+
+`mergify queue show <PR>` reports on a PR that is **no longer** in the queue too — whether it was dequeued, merged by the queue, or never queued, and why — so start there for a PR that vanished from the queue. See [Diagnosing a dequeued PR](#diagnosing-a-dequeued-pr); the GitHub-side surfaces documented there are the fallback for when the CLI cannot read the activity log.
+
+## Queuing and Dequeuing a PR
+
+From the CLI, with a PR number or a PR URL (a URL names the repository, so `--repository` is not needed):
+
+```bash
+mergify queue add <PR>          # Ask Mergify to queue the PR (also use to requeue a dequeued PR)
+mergify queue remove <PR>       # Take the PR out of the queue, or cancel a waiting queue request
+mergify queue add <PR> --json   # {"repository", "number", "result": "queue_requested"}
+mergify queue remove <PR> --json # {"repository", "number", "result": "dequeued"}
+```
+
+`queue add` succeeding means the request is **recorded**, not that the PR is already in the queue: it enters once it meets the queue conditions of a queue rule (the rule is chosen as for `@mergifyio queue`; there is no option to pick one). Confirm with `mergify queue show <PR>`.
+
+A refusal exits **6** and names its error code on stderr — `cannot queue pull request #N (CODE): …`. Under `--json` it is also a document on stdout with `"result": "refused"`, `http_status`, `error_code`, `detail` and `documentation_url`:
+
+| `error_code` | Meaning |
+|---|---|
+| `PULL_REQUEST_ALREADY_QUEUED` | `add`: the PR is already in a merge queue |
+| `PULL_REQUEST_NOT_QUEUEABLE` | `add`: the PR is closed, merged or locked, or was opened by the merge queue |
+| `PULL_REQUEST_NOT_FOUND` | `add`: the repository has no such PR |
+| `MERGE_QUEUE_DISABLED` | `add`: the merge queue is not enabled on the repository |
+| `COMMAND_RESTRICTED` | the configuration's `commands_restrictions` do not let you run `queue` / `dequeue` on this PR |
+| `PULL_REQUEST_NOT_QUEUED` | `remove`: the PR is neither queued nor waiting to be |
+
+The same actions are available as **comments on the pull request**:
+
+| Comment | Effect |
+|---------|--------|
+| `@mergifyio queue` | Add the PR to the merge queue (also use to **requeue** a PR that was dequeued) |
+| `@mergifyio dequeue` | Remove (dequeue) the PR from the merge queue |
+
+`@mergifyio requeue` is accepted, but it is a deprecated alias that runs the same command as `@mergifyio queue` — there is no separate requeue behavior. Post `@mergifyio queue`.
+
+When Mergify processes the comment, it adds a 👍 (thumbs up) reaction to the comment to acknowledge receipt. After queuing, use `mergify queue show <PR_NUMBER>` to watch the PR's status as it progresses through the queue.
+
+## Pushing to a queued PR
+
+Any new commit on a queued PR's head takes it out of the queue: a push, an amend, a rebase, GitHub's **Update branch** button, a suggestion accepted on GitHub. Only the merge queue's own updates of the branch do not count. A change to make on a queued PR — a late review comment, a fix someone asked for, a rebase — is therefore a trade-off between what the push costs the PR and what holding the change back costs. Make that call **before** pushing: `PULL_REQUEST_UPDATED` in the [reason table](#dequeue-reasons-and-what-to-do-next) is what comes after.
+
+Start with `mergify queue show <PR>`. A PR that is not queued can take the push, with one catch: a push also cancels a queue request (`queue add`, `@mergifyio queue`) still waiting for the queue conditions, so request it again after the push.
+
+### What a push costs
+
+- **Its checks.** The PR leaves the queue with `PULL_REQUEST_UPDATED` and the CI the queue ran on it is lost. Back in the queue, it is checked again from the start.
+- **Other PRs' checks.** The PRs tested in the same batch, and those whose checks were built on top of it, restart theirs (`PR_AHEAD_DEQUEUED`).
+- **Its eligibility.** The new head needs its own CI green and the queue conditions met again. Where approvals are dismissed on push (a branch protection setting, or Mergify's `dismiss_reviews` action), it needs a new approval first.
+- **Its queue request**, when it was queued with `mergify queue add`, `@mergifyio queue` or the requeue checkbox: it stays out until queued again. A PR queued by a rule (a `queue` action in `pull_request_rules`, or `auto_merge_conditions`) comes back on its own once those conditions match on the new head.
+
+The cost grows with how far the PR has gone: small while it waits with no checks running, largest while its checks run in a batch with other PRs or when the queue's CI is long. `queue show` gives its position and CI state.
+
+### What holding the change back costs
+
+- The queued head merges as it is, and the change goes into a follow-up PR with its own review, CI and pass through the queue.
+- Until that follow-up merges, the base branch carries whatever the change fixes, and every PR merged meanwhile builds on it.
+- Nothing is saved when the queued head is going to fail anyway (`queue show` lists its checks failing): it leaves with `CHECKS_FAILED` and needs the push regardless.
+
+### Deciding
+
+| The change | Do |
+|---|---|
+| Fixes something that must not reach the base branch: a bug, a broken build or test, a leaked secret, a blocking review comment | `mergify queue remove <PR>` **first**, since the queue can merge the PR while you write the fix. Then push the fix and requeue |
+| Fixes a failure the queued head will hit in the queue's checks anyway | Push it |
+| Has to merge together with the PR: an interface change and its callers, a migration and the code that needs it | Push it |
+| Improves code that is correct as queued: a nit, a rename, a comment, a non-blocking suggestion, a refactor | Leave the PR in the queue and make the change in a follow-up PR |
+| Brings the branch up to date with its base branch | Don't push it. The queue tests the PR against the latest base branch itself, so a rebase or a merge of the base branch only dequeues it. Update it only once it leaves with `CONFLICT_WITH_BASE_BRANCH`: see [Conflicts](#conflicts) |
+
+When the case is not clear and someone else asked for the change, tell them what the push costs and let them choose between this PR and a follow-up rather than dequeuing it for them.
+
+In a Mergify stack, a new commit on top becomes a new PR and leaves the queued ones alone. Amending a commit changes its PR and every PR above it, and each of those that is queued leaves the queue.
+
+### After pushing
+
+Make every push first, then requeue once with `mergify queue add <PR>`. The request waits for the queue conditions to match on the new head, so it can go right after the last push, but a push made after it cancels it. Confirm with `mergify queue show <PR>`. If a rule already put the PR back, `queue add` is refused with `PULL_REQUEST_ALREADY_QUEUED`: there is nothing more to do.
+
+## Commands
+
+```bash
+mergify queue status                 # Show queue status (batches, waiting PRs)
+mergify queue status --branch main   # Filter by branch
+mergify queue status --json          # Machine-readable JSON output
+mergify queue show <PR_NUMBER>       # Detailed state of a PR in the queue
+mergify queue show <PR_NUMBER> -v    # Full checks table and conditions tree
+mergify queue show <PR_NUMBER> --json # Machine-readable JSON output
+mergify queue add <PR>               # Queue a PR (number or URL)
+mergify queue remove <PR>            # Dequeue a PR, or cancel its waiting queue request
+mergify queue pause --reason "..."   # Pause the queue (requires reason)
+mergify queue unpause                # Resume the queue
+```
+
+That is the whole `queue` group: `status`, `show`, `add`, `remove`, `pause`, `unpause`. The reason a PR was dequeued comes from `queue show` on a PR that has left the queue, not from a flag. For the full queue *trail* (every enter / checks / leave event, not just the last exit), use `mergify events --pr <PR> --since 90d` — see the `mergify-events` skill.
+
+## Is the PR queued, dequeued, or never queued?
+
+Start here — the rest of the workflow branches on this answer.
+
+`mergify queue show <PR>` answers all four cases. A PR with no queue entry is a normal answer, not an error: the command prints a notice and **exits 0** in every case below.
+
+| `queue show` result | Meaning |
+|---|---|
+| `PR #N` block with position / CI state | The PR **is in the queue** |
+| `PR #N was dequeued <when>` + a `Dequeue code` | It **left the queue without merging** — see the reason table |
+| `PR #N was merged by the merge queue <when>` | It left the queue **by merging**. Not a dequeue |
+| `PR #N is not in the merge queue` | **No queue activity in the retained window** — never queued, aged out, or not a real PR number |
+
+Under `--json`, a PR that is not currently queued carries `queued: false` plus a `dequeued` discriminator:
+
+```bash
+mergify queue show 1234 --json | jq -e '.queued == false' >/dev/null && echo "not in queue"
+```
+
+- `dequeued: true` — left without merging; the raw leave event is under `queue_leave`
+- `dequeued: false` — merged by the queue, or never queued (`queue_leave` tells the two apart: `null` means never queued)
+- `dequeued: null` — the lookup itself failed, and `queue_leave_error` says why. **Not** the same as "never queued" — fall back to the GitHub-side surfaces rather than concluding anything
+
+`queue_leave_head_sha` carries the head the diagnosis describes. **Compare it against the PR's current head before reporting anything from it** — a dequeue is often *caused* by a push, so its failing checks routinely belong to a commit the PR no longer has:
+
+```bash
+mergify queue show 1234 --json | jq -r '.queue_leave_head_sha'   # 31b4a485b8ce…
+gh pr view 1234 --json headRefOid -q .headRefOid                 # 340361aae580…  → superseded, stay quiet
+```
+
+Two limits to keep in mind. History goes back **90 days** (the activity log's retention), so an older dequeue reads as "no activity". And the command does not check that the PR exists, so a typo'd number prints the same "not in the merge queue" notice — confirm the PR is real (`gh pr view <PR>`) before concluding it was never queued.
+
+Do not use the presence of a `Mergify Merge Queue` check run as the test — a PR that merely *matches* the queue conditions gets one titled `Waiting for queue conditions` without ever being queued. A [status comment](#4-the-status-comment) shows that a queue request was made, and its payload's `state` says how far it went (`waiting`: the PR has not entered the queue). Its absence proves nothing, since the comment can be turned off per repository. The pre-queue "Queue this pull request" offer comment is not a status comment and carries no payload.
+
+## Diagnosing a dequeued PR
+
+Four surfaces carry the reason. Prefer them in this order.
+
+### 1. `mergify queue show <PR>` (start here)
+
+On a PR that is no longer queued, `queue show` reads the PR's last merge-queue exit and renders it:
+
+```
+PR #37823 was dequeued 24m ago
+
+  Dequeue code:  CHECKS_FAILED
+  Queue:         default
+  Queued at:     46m ago
+  Trigger:       merge queue internal
+  Head SHA:      31b4a48
+
+  The merge conditions cannot be satisfied due to failing checks
+
+  - `@github-actions/all-greens`
+
+  Failing checks:
+    ✗ all-greens  failure
+      https://github.com/Mergifyio/monorepo/actions/runs/…/job/…
+
+  Fix the cause above, then comment `@mergifyio queue` on the pull request.
+```
+
+That is the engine's own explanation plus the failing checks **with their job-log URLs** — go straight to the failing job rather than hunting for it. The explanation is capped at 12 lines in compact mode; add `-v` for the whole thing (a `PR_DEQUEUED` reason embeds the full unmet-condition tree, which runs to dozens of lines).
+
+`Head SHA` is the commit all of that describes. If it is not the PR's current head, the report is about a commit that has since been replaced — the checks above may already be green again. Check it before acting on the failure.
+
+`--json` gives the same thing machine-readably: `dequeued`, plus `queue_leave` carrying the raw event, so read `dequeue_code`, `reason`, and `unsuccessful_checks[].details_url` from `.queue_leave.metadata`. Use the promoted `queue_leave_head_sha` for the staleness check above.
+
+Reading the activity log is **best-effort**: a token scoped to the merge queue can be refused the repository's event log (403). The command then degrades to the plain "not in the merge queue" notice plus a warning on stderr, and reports `dequeued: null` — that is the signal to fall through to the surfaces below, not a statement that the PR was never queued.
+
+### 2. The Mergify activity log (what surface 1 reads underneath)
+
+`GET /v1/repos/{owner}/{repo}/logs` returns the queue lifecycle events, newest first. `queue show` calls this for you, and `mergify events --pr <PR> --since 90d` (the `mergify-events` skill) browses the whole lifecycle from the CLI — including every event type, not just queue ones. Go direct with `curl` only when it degrades (403 above, with a token that can read the log) or from somewhere the CLI is not installed:
+
+`MERGIFY_TOKEN` must hold a Mergify token: a GitHub token is being
+dropped from the Mergify API, and the credential `mergify
+auth login` stores lives in the OS keychain rather than the environment,
+so a raw `curl` cannot reach it.
+
+```bash
+REPO=owner/repo
+PR=1234
+FROM=$(date -u -d '90 days ago' +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -v-90d +%Y-%m-%dT%H:%M:%SZ)
+
+curl -sS -H @- \
+  "https://api.mergify.com/v1/repos/$REPO/logs?pull_request=$PR&event_type=action.queue.leave&received_from=$FROM" <<EOF |
+Authorization: Bearer ${MERGIFY_TOKEN:?set a Mergify token}
+EOF
+jq 'if .events == [] then "no leave event in window — never queued (or aged out)"
+      else .events[0].metadata
+           | {merged, dequeue_code, reason,
+              failing: [.unsuccessful_checks[]? | {name, state, details_url}]}
+      end'
+```
+
+The header goes through standard input, so the key stays out of the process list and `set -x` traces.
+
+```json
+{
+  "merged": false,
+  "dequeue_code": "CHECKS_FAILED",
+  "reason": "The merge conditions cannot be satisfied due to failing checks\n\n- `ci-gate`",
+  "failing": [
+    {
+      "name": "ci-gate",
+      "state": "failure",
+      "details_url": "https://github.com/owner/repo/actions/runs/28589756829/job/84771312071"
+    }
+  ]
+}
+```
+
+Read it as:
+
+- `"events": []` / `size: 0` → no leave event in the window → the PR was **never queued** (or the event aged out; see the window rule below).
+- `merged: true` → it left the queue **by merging**. Not a dequeue.
+- `merged: false` → it was **dequeued**; `dequeue_code` says why (see the reason table).
+- `unsuccessful_checks[].details_url` → **direct link to the failing CI job log**. This is how you reach the CI failure after the PR has left the queue.
+
+Two traps that make this silently return nothing:
+
+- **`received_from` is required in practice.** The window defaults to the *last 24 hours*. A dequeue from last week returns `size: 0` with no error, which reads exactly like "never queued". Always pass `received_from`.
+- **The window may not exceed 93 days** (retention is 90 days) or the call fails with `422 'received_from' and 'received_to' cannot span more than 93 days`.
+
+Same endpoint, other useful filters: `&outcome=failure` restricts leave events to dequeues (a merge is `success`); drop `event_type` to see the whole lifecycle (`action.queue.enter`, `checks_start`, `checks_end`, `leave`).
+
+### 3. The `Mergify Merge Queue` check run
+
+The check-run **title** names the reason directly, and its summary is the full queue report:
+
+```bash
+SHA=$(gh pr view $PR --repo $REPO --json headRefOid -q .headRefOid)
+gh api "repos/$REPO/commits/$SHA/check-runs" \
+  -q '.check_runs[] | select(.name=="Mergify Merge Queue") | {conclusion, title: .output.title, summary: .output.summary}'
+```
+
+Titles map to state without any parsing:
+
+| `output.title` | State |
+|---|---|
+| `Dequeued — <reason>` (conclusion `neutral`) | Dequeued, reason in the title |
+| `Dequeued from merge queue` (conclusion `neutral`) | Dequeued, but the reason did not resolve to a named code — use surface 1 |
+| `Merged via merge queue` (conclusion `success`) | Merged by the queue |
+| `Waiting for queue conditions`, `Checks …`, `In merge queue` | Still in the lifecycle |
+
+Caveat: the check run lives on the **head SHA it was written against**. If the dequeue was caused by a push (`PULL_REQUEST_UPDATED`, `DRAFT_PULL_REQUEST_CHANGED`), the current head has a *fresh* check run and the dequeue report sits on the previous SHA. Use surface 1 or 4 in that case — surface 1 names the SHA (`Head SHA` / `queue_leave_head_sha`), so it is the one that lets you *detect* the mismatch rather than fall into it. Note also that `gh pr view --json statusCheckRollup` returns a null `title` — go through `gh api .../check-runs` as above.
+
+### 4. The status comment
+
+`mergify[bot]` posts one status comment per queue session and edits it as the PR moves through the queue, so **read the last one**. It survives pushes, which makes it the most robust GitHub-side surface.
+
+Read its hidden payload, not its prose. The headings and sentences are written for people, and their wording changes; the payload is a versioned schema. It opens the comment, as one line of JSON between two marker lines inside an HTML comment:
+
+```
+<!---
+DO NOT EDIT
+-*- Mergify Payload -*-
+{"version": 1, "state": "dequeued", "queue_rule_name": "default", ...}
+-*- Mergify Payload End -*-
+-->
+```
+
+No other Mergify comment carries this block, so it is also how to pick the status comment out of the others:
+
+```bash
+gh api --paginate --slurp "repos/$REPO/issues/$PR/comments" \
+| jq '[.[][] | select(.user.login=="mergify[bot]") | .body
+       | capture("-\\*- Mergify Payload -\\*-\\n(?<json>.*)\\n-\\*- Mergify Payload End -\\*-")
+       | .json | fromjson] | last'
+```
+
+`null` means no comment on the PR carries a payload. `--paginate` matters: the endpoint returns 30 comments per page and the newest are on the *last* page, so without it `last` silently hands you a stale status comment (or none) on any PR with real discussion. `--slurp` collects the pages into an array of arrays — hence `.[][]` to flatten — and is incompatible with `-q`, so the filter goes through `jq` instead.
+
+`version` is `1`. Ignore keys you do not know: new ones are added without changing the version.
+
+| `state` | Meaning |
+|---|---|
+| `waiting` | A queue request was made, but the PR has not entered the queue yet |
+| `checking` | In the queue. `step` says what the queue is doing with it: `checks_running`, `waiting_for_batch`, `waiting_for_checks_slot`, `waiting_for_previous_batches`, `waiting_for_schedule`, `ready_to_merge`, … |
+| `paused` | In the queue, and the queue is paused: `pause.reason`, `pause.since` |
+| `frozen` | In the queue, its batch held by a freeze: `freeze.name`, when a single freeze holds it |
+| `bisecting` | Its batch failed and is being split to find the PR that broke it: round `bisection.round` of `bisection.max_rounds` |
+| `merged` | Merged by the queue, at `left_at` |
+| `dequeued` | Left the queue without merging, at `left_at`. Why is in `dequeue_reason` |
+
+A `state` missing from this table is newer than this skill: use `mergify queue show <PR>` for it.
+
+`dequeue_reason`, on a `dequeued` payload whose reason has a named code:
+
+- `code`: the `dequeue_code` of the [reason table](#dequeue-reasons-and-what-to-do-next)
+- `label`: the code in words; `message`: the reason in one sentence
+- `checks`: the failing checks' names, at most 10; `checks_count`: how many failed in all
+- `by`: who removed it, for a removal by hand, when known
+- `conditions`: the merge conditions as they stood when it left, for a PR dequeued because they stopped matching. Each node has `description`, `match` and `subconditions`
+
+The other fields: `queue_rule_name`, `queued_at`, `estimated_time_of_merge` (while queued, to the minute), `speculative_check_pr` (the draft PR running its checks, when there is one), `required_conditions` (the merge conditions while its checks run, same nodes as above), `blocked_by` (the PRs ahead it waits on), `checks` (`attempt`, `max_attempts`, `timeout_at`) and `batch` (`size`, `target`, `max`, `proceeds_at`) while it waits for a batch to fill.
+
+The payload carries no job-log URLs. Get them from surface 1 or 2 (`unsuccessful_checks[].details_url`).
+
+Caveats:
+
+- The comment can be turned off per repository (`merge_queue.status_comments: none`, or `outcomes` to post only when the PR leaves the queue). Absence of a comment does not prove the PR was never queued.
+- A queue request cancelled before the PR entered the queue rewrites its comment without a payload, and a comment too long for GitHub with the payload drops it. The filter above skips those comments, so its `last` can be an older session's: `mergify queue show <PR>` has no such gap.
+
+## Dequeue reasons and what to do next
+
+`dequeue_code` values and the action they call for. For a code not listed here, read the reason Mergify gives (`reason` on the leave event, `dequeue_reason.message` in the status comment's payload) and the next steps the status comment lists under it, rather than guessing.
+
+| `dequeue_code` | What happened | What to do next |
+|---|---|---|
+| `PR_MERGED` | Merged by the queue | Nothing — this is success |
+| `PR_MANUALLY_MERGED` | Merged outside the queue | Nothing |
+| `CHECKS_FAILED` | Required checks failed on the merge commit | Read `unsuccessful_checks[].details_url`, fix the CI, push the fix, then requeue with `mergify queue add <PR>` (see [After pushing](#after-pushing)). If it was flaky, requeue as-is with `mergify queue add <PR>` (or `@mergifyio queue`) |
+| `CHECKS_TIMEOUT` | `checks_timeout` elapsed before conditions were satisfied | Check the reason's details: checks that **never reported** mean the check names in your conditions don't match what CI publishes (fix the config, not the PR). Checks **still running** mean CI is too slow or stuck |
+| `PULL_REQUEST_UPDATED` | A new commit reached the PR's head while it was queued: a push, a rebase, GitHub's Update branch | Requeue with `mergify queue add <PR>` once the branch is final; a PR queued by a rule comes back on its own. Before the next push to a queued PR, see [Pushing to a queued PR](#pushing-to-a-queued-pr) |
+| `DRAFT_PULL_REQUEST_CHANGED` | The queue's draft/batch PR got commits Mergify did not create | Never push to the merge-queue draft branch. Requeue the original PR |
+| `CONFLICT_WITH_BASE_BRANCH` | The PR conflicts with its base branch | Read the conflicting files in the reason, then see [Conflicts](#conflicts) before resolving by hand |
+| `CONFLICT_WITH_PULL_AHEAD` | The PR conflicts with a PR ahead of it in the queue | If the reason names PRs ahead, wait for them: once one merges, handle it as a conflict with the base branch; if they leave the queue unmerged, requeue as-is. If it says none of them changes the conflicting files, handle it as a conflict with the base branch now. See [Conflicts](#conflicts) |
+| `BRANCH_UPDATE_FAILED` | Mergify could not update the PR's head branch | Read the reason details, update the branch yourself, requeue |
+| `BASE_BRANCH_MISSING` / `BASE_BRANCH_CHANGED` | The base branch is gone or changed | Retarget the PR to a live base branch, then requeue |
+| `PR_MANUALLY_DEQUEUED` | A human removed it (command, dashboard, or API) | The reason names who and how. Requeue only once you know why they pulled it |
+| `PR_DEQUEUED` | Queue conditions stopped matching | Look at the conditions in the report; fix the PR or requeue |
+| `DROPPED_BY_BISECTION_ELIMINATION` | Bisection blamed other PRs and dropped this one untested | It is unproven, not known-broken. Requeue to test it on its own |
+| `STACK_PREDECESSOR_DEQUEUED` | A predecessor in the same stack was dequeued | Fix the predecessor, requeue the stack |
+| `QUEUE_RULE_MISSING` / `CONFIGURATION_CHANGED` | The config changed under the queued PR | Fix `.mergify.yml` (see the `mergify-config` skill), then requeue |
+| `INCOMPATIBILITY_WITH_BRANCH_PROTECTIONS` | Queue settings clash with branch protections | Reconcile the repository's branch protections with the queue config — requeuing alone will not help |
+| `UNPROCESSABLE_PULL_REQUEST` | Too many check runs, comments, or files for Mergify to process | Shrink the PR |
+
+**Not every code means the PR left the queue.** These reasons interrupt the *checks* and the PR **stays queued** — do not treat them as a dequeue and do not requeue:
+
+`PR_AHEAD_DEQUEUED`, `BATCH_AHEAD_FAILED`, `PR_WITH_HIGHER_PRIORITY_QUEUED`, `MERGE_QUEUE_RESET`, `SCHEDULED_FREEZE_STATUS_CHANGED`, `SPECULATIVE_CHECK_NUMBER_REDUCED`, `INTERMEDIATE_RESULTS_SKIPPED`, `CHECKS_RETRIED`, `BATCH_SCOPES_CHANGED`, `SCHEDULE_BLOCKED_AHEAD_YIELDED`, `PR_CHECKS_STOPPED_BECAUSE_MERGE_QUEUE_PAUSE`
+
+They arrive as `abort_code` on an `action.queue.checks_end` event (with `aborted: true`) rather than as `dequeue_code` on a leave event, and the check-run title reads `Checks restarted — …` or `Checks aborted — …` rather than `Dequeued — …`. The authoritative test for "did it actually leave the queue" is an `action.queue.leave` event with `merged: false` — not the presence of a code from this list.
+
+### Conflicts
+
+A conflict reason lists the files the merge stopped on under `Conflicting files:`. A file followed by `(<strategy> declined: both sides changed <name>)` was handed to a conflict resolver, which found both sides changing the same thing; `(<strategy> could not read it)` means it could not parse the file. A file with nothing after it was handed to no resolver.
+
+Then look for `conflict_resolvers` in the repository's Mergify configuration (see the `mergify-config` skill):
+
+- **No `conflict_resolvers`, or no entry covering the listed files**: the conflict is the author's to settle. Update the PR with its base branch (merge or rebase), resolve the conflicts, push, and requeue — a PR queued by a rule comes back on its own once updated, one queued with a command needs `mergify queue add <PR>` again. If the reason adds that automatic conflict resolution can merge a conflict like this one, tell the user: `conflict_resolvers` (Preview, available on request) settles such conflicts from then on, but adding it is the repository's choice, not a step to unblock one PR.
+- **An entry covers them**: first fetch the PR's head. When the queue rule merges or squashes and the entries settle every conflict, Mergify pushes the merge into the PR itself, so there may be nothing left to resolve. Otherwise what the reason lists is a conflict the strategies declined or could not reach: resolve those files by hand as above. A queue rule with `merge_method: rebase` resolves nothing, whatever the entries say.
+
+## Checking Queue Status
+
+Use `mergify queue status` to see the current state of the merge queue:
+
+- **Batches**: groups of PRs being tested together, shown with their CI status and ETA
+- **Forming**: batches still collecting PRs (`○`), shown with their queue rule, scopes (or `all scopes` for a barrier), how many PRs they hold out of the rule's batch size, and when they start at the latest. A forming batch holds no place in the merge order yet: it has no id, runs no CI, and is not part of the batch tree. A PR in it shows `Waiting for mergeability check...` in `queue show`
+- **Waiting PRs**: PRs queued but not yet in a batch, shown with priority and queue time. PRs in a forming batch are listed under Forming instead; `--json` still lists them in `waiting_pull_requests` too
+- **Pause state**: whether the queue is paused and why
+
+Use `--json` when you need to parse the output programmatically.
+
+## Inspecting a PR in the queue
+
+Use `mergify queue show <PR_NUMBER>` to check why a PR is stuck or how it's progressing:
+
+- **Position**: where the PR sits in the queue
+- **Priority**: which priority rule matched
+- **CI timeout**: when the queue will give up on the PR's checks (`-` when no timeout is configured) — watch this to catch a `CHECKS_TIMEOUT` before it fires
+- **CI state**: whether checks are passing, pending, or failing
+- **Conditions**: which conditions are met and which are blocking
+- Use `-v` (verbose) for the full checks table and conditions tree
+
+`-v` lists check **names and states only — no links to the CI jobs**. For job-log URLs on a PR that is still queued, use the GitHub-side surfaces above (the check-run summary and the status comment); once the PR has left the queue, `queue show` itself prints them. `--json` is a raw passthrough of the API payload, so it carries one more field the human render drops: `queue_rule` (the resolved queue rule config, not just its name).
+
+## Queue States
+
+| State | Meaning |
+|-------|---------|
+| `running` | Batch is actively running CI |
+| `preparing` | Batch is being set up |
+| `bisecting` | Batch failed, bisecting to find the culprit |
+| `failed` | CI failed for this batch |
+| `merged` | PRs in this batch have been merged |
+| `waiting_for_merge` | CI passed, waiting for GitHub to merge |
+| `waiting_for_previous_batches` | Blocked on earlier batches completing |
+| `waiting_for_batch` | Waiting to be picked up into a batch |
+| `waiting_for_requeue` | A batch ahead failed; this batch will be re-embarked |
+| `waiting_schedule` | Outside the configured merge schedule |
+| `frozen` | Queue is paused |
+
+## Pausing and Unpausing
+
+Pause the queue to temporarily halt all merges (e.g., during incidents or deployments):
+
+```bash
+mergify queue pause --reason "production incident — halting merges"
+mergify queue unpause
+```
+
+- Pausing does **not** cancel running CI — it prevents new merges from starting
+- The reason is visible to all team members in the queue status
+- Use `--yes-i-am-sure` to skip the confirmation prompt in scripts
+
+## Troubleshooting
+
+**PR not entering the queue:**
+- Make sure the PR was queued: run `mergify queue add <PR>` (or post `@mergifyio queue` and confirm Mergify reacted with 👍 on the comment)
+- Check that the PR's merge conditions are met: `mergify queue show <PR_NUMBER> -v`
+- Look at the conditions section for unmet requirements
+- Do not assume the queue command never landed: `queue show` tells a PR that was queued and dequeued apart from one that never entered
+
+**PR stuck in queue:**
+- Check CI state: `mergify queue show <PR_NUMBER>`
+- If checks are failing, `-v` names them; for the job logs, follow the links in the `Mergify Merge Queue` check-run summary or the [status comment](#4-the-status-comment)
+- If the queue is paused, check who paused it: `mergify queue status`
+
+**PR disappeared from the queue:**
+- `mergify queue show <PR_NUMBER>` — it says whether the PR was dequeued, merged by the queue, or never queued, and prints the dequeue code, the reason, and the failing checks' URLs
+- Never assume "not in the merge queue" means "never queued": read the headline (or `dequeued` under `--json`) before telling anyone to requeue
+- Then act per the [reason table](#dequeue-reasons-and-what-to-do-next)
+
+**Queue moving slowly:**
+- Check for failing batches that trigger bisection: `mergify queue status`
+- Bisecting batches test PRs individually, which is slower than batch merging
+
+## When a command says there is no Mergify credential
+
+`no Mergify credential found` means neither `--token`, `MERGIFY_TOKEN` nor a stored login gave the CLI a credential. Stop and ask your user to log in:
+
+- Don't run `mergify auth login` yourself. It prints a URL and a code, then waits until a person approves it in a browser: you cannot finish it, and the tool call hangs.
+- In Claude Code, ask them to type `! mergify auth login` at the prompt. Elsewhere, ask them to run `mergify auth login` in their own terminal.
+- Wait until they say it's done, then run the same command again.
+- Don't look for the answer somewhere else (the GitHub API, the PR's comments) without asking them first.
+
+## When a command or flag is missing
+
+If `mergify` rejects a command or flag this skill names, the CLI is probably older than the skill: follow the `mergify-cli-upgrade` skill.

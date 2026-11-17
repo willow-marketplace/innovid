@@ -5,14 +5,16 @@
 ## Testing Workflows
 
 ```bash
-foundry workflows triggers view --mock --no-prompt       # Example mock trigger
-foundry workflows actions view --mock --no-prompt        # Example mock action
-foundry workflows executions validate --mocks mymocks.json              # Validate mocks
-foundry workflows executions start --definition my-workflow --mocks mymocks.json  # Run with mocks
-foundry workflows executions view <execution_id>                        # View results
+foundry workflows triggers view --name "Schedule" --mock --no-prompt   # Example mock trigger
+foundry workflows actions view --name "Print data" --mock --no-prompt  # Example mock action
+foundry workflows executions validate --definition my-workflow --mocks mymocks.json --no-prompt  # Validate mocks
+foundry workflows executions start --definition my-workflow --mocks mymocks.json --no-prompt     # Run with mocks
+foundry workflows executions view <execution_id> --no-prompt                                     # View results
 ```
 
 Use `foundry apps validate --no-prompt` to validate the manifest and schemas without deploying. Workflow YAML semantics are still validated server-side on deploy.
+
+`executions start` always runs a mock execution of the workflow YAML (`--mocks` is required with `--no-prompt`; an empty `{}` file mocks nothing). It doesn't resolve an app's own references, so an unmocked `functions.<name>.<handler>` action fails with `error code 1202: action not found` even when the deployed app works. Test those workflows through the installed app instead: an on-demand trigger can be run from the workflow in Falcon Fusion, while a scheduled one can't be started by hand, so give it a near-term `time_cycle` for the test and restore the real schedule afterward.
 
 ## Parameterized Fields Versioning Impact
 
@@ -66,8 +68,8 @@ foundry workflows executions validate --definition my-workflow --mocks mocks.jso
 # Start a workflow execution with mock data and wait for completion
 foundry workflows executions start --definition my-workflow --mocks mocks.json --wait-for 30
 
-# Check execution status
-foundry workflows executions view
+# Check execution status (use the execution ID that start printed)
+foundry workflows executions view <execution_id> --no-prompt
 ```
 
 > **Note:** There is no CLI command to query collections directly. Collection data can be verified through the Falcon console or via function code that reads the collection.
@@ -81,39 +83,38 @@ npx @redocly/cli lint api-integrations/MyApi.yaml
 
 > **Note:** Use `foundry apps validate --no-prompt` to validate the manifest and schemas without deploying. Workflow YAML semantics are still validated server-side on deploy. Use `npx @redocly/cli lint` for OpenAPI spec validation. Do NOT use Python/Ruby YAML parsers — they only check syntax, not OpenAPI structure.
 
-## Timeout Configuration
-
-```yaml
-- name: long_running_step
-  activity: invokeFunction
-  config:
-    functionName: heavy-processor
-  timeout: 300  # 5 minutes per step
-```
-
 ## Error Handling
 
 Foundry workflows handle errors through conditional routing and action-level flags — not `onError` blocks or retry middleware.
 
 | Mechanism | Scope | Usage |
 |-----------|-------|-------|
-| `fail_fast_enabled: false` | Function actions | Allow workflow to continue if a function call fails |
-| `continue_on_partial_execution: true` | Loop `for:` block | Continue loop if individual iterations fail |
-| `continue_on_partial_execution: false` | Loop `for:` block | Stop entire loop on first failure (default safe choice) |
+| `continue_on_error: true` | Any action, including `functions.` and `ai_agents.` actions | The run goes on after the action fails. Without it, a failing step stops the run |
+| `continue_on_partial_execution: true` | Loop `for:` block | The console's **Continue workflow on loop iteration failure** option, offered only on concurrent loops. Nodes after the loop still run if iterations fail (or the loop has no input), but the execution still shows as failed |
+| `continue_on_partial_execution: false` | Loop `for:` block | The workflow doesn't go past the loop when an iteration fails. Use it when later steps depend on every iteration succeeding |
 | `conditions:` with `else:` | Action routing | Route to fallback action when condition is false |
 
+`continue_on_error` sits on the action next to `id`, not under `properties:`. Anything under `properties:` is an input to the action, so a key like `fail_fast_enabled` there only does something if that function defines it.
+
+After an action that can fail, branch on `Workflow.Execution.Errors`. It is `null` when nothing failed, and a list of objects with `ErrorCode`, `ErrorType`, `HandledBy`, `Message`, and `SourceNodeID` when an action failed. The Falcon Fusion SOAR docs filter the list on `e.Name` and `e.Handled` instead (`data['Workflow.Execution.Errors'].exists(e, e.Name == 'Timeout')`), so before you filter on a field, copy its name from the editor's **Workflow data** panel (**Workflow > Execution > Workflow execution errors**). The `size()` check below works either way:
+
 ```yaml
-# Function-level: suppress non-critical failures
 actions:
     enrich_data:
         id: functions.enrichment.Enrich
-        properties:
-            fail_fast_enabled: false
+        continue_on_error: true
         version_constraint: ~0
         next:
+            - enrich_failed
+conditions:
+    enrich_failed:
+        cel_expression: data['Workflow.Execution.Errors'] != null && data['Workflow.Execution.Errors'].size() > 0
+        next:
+            - record_failure
+        else:
             - process_results
 
-# Loop-level: stop on first error
+# Loop-level: don't continue past the loop if an iteration fails
 loops:
     ContainDevices:
         for:
@@ -121,6 +122,10 @@ loops:
             continue_on_partial_execution: false
             sequential: true
 ```
+
+There is no per-action retry. Have the step that can fail write its failure state somewhere the UI can read, such as a collection.
+
+**Test a new error-handling shape in a scratch app.** `foundry apps validate` and a Falcon Fusion `validate_only` import both accept unknown action keys and broken CEL, so neither proves the YAML works, and a failed workflow artifact can block later deploys of the app that holds it. To make an agent action fail on purpose, send it empty input (`length of input is 0, which does not meet the minimum length of 5`).
 
 No built-in retry or exponential backoff exists. For pagination polling, use a `loops:` block with a cursor variable — see [pagination-patterns.md](pagination-patterns.md).
 
@@ -156,13 +161,54 @@ actions:
     #     properties: {}
 ```
 
-> **Common mistake:** Guessing platform action IDs (e.g., `send_email`, `log`). These are not valid. Use `foundry workflows actions view --name "..." --no-prompt` to discover valid IDs, use the `api_integrations.{name}.{operationId}` pattern for API integration actions, or set `provision_on_install: false` and configure platform actions in the Falcon console.
+> **Common mistake:** Guessing platform action IDs (e.g., `send_email`, `log`). These are not valid. Use `foundry workflows actions view --name "..." --no-prompt` to discover valid IDs, and use the `api_integrations.{name}.{operationId}` pattern for API integration actions. Set `provision_on_install: false` only for an action ID you can't find, and have the user configure it in the Falcon console (see Platform Action Fallback Strategy).
+
+## Diamond joins & the 2001 cyclic reference
+
+Falcon Fusion SOAR builds a DAG. A node inside a parallel branch must not reach a downstream join **both directly and through a child** — Falcon Fusion SOAR treats that as a cycle and fails the deploy with `2001 cyclic reference to previously seen node`. This bites whenever one parallel sibling also feeds another sibling that converges on the same join.
+
+**❌ Fails — `Services` fans to the `ELP` join both directly and via `Partner`:**
+
+```yaml
+actions:
+    ExecSummary:
+        next: [Services, ModuleGap]
+    Services:
+        next: [ELP, Partner]      # direct edge to the join …
+    Partner:
+        next: [ELP]               # … AND via a child → cycle
+    ModuleGap:
+        next: [ELP]
+    ELP:
+        next: [StoreResults]
+# → 2001 cyclic reference to previously seen node … FROM_Partner_TO_parallel_Services
+```
+
+**✅ Fixed — linearize the `Services → Partner` leg so each node is a single-path ancestor of the join:**
+
+```yaml
+actions:
+    ExecSummary:
+        next: [Services, ModuleGap]
+    Services:
+        next: [Partner]           # linear chain, no direct ELP edge
+    Partner:
+        next: [ELP]
+    ModuleGap:
+        next: [ELP]
+    ELP:
+        next: [StoreResults]
+```
+
+`Services`' data pill still reaches `ELP` because `Services` remains an ancestor via `Partner` — you do **not** need the direct edge, and adding it is exactly what creates the cycle.
+
+**Silent variant — the empty pill.** The same shape fails *without any error* when a store/aggregator reads a node `X`'s output (`${data['X.<field>']}`) when `X` sits on a diamond fork: at the join the pill resolves to an **empty string**, not an error, so the workflow "succeeds" with blank data. The fix is identical — make any node whose `.response` you read a single-path ancestor of the reader (linearize the fork), never a shared fork feeding the join two ways.
 
 ## Counter-Rationalizations Table
 
 | Your Excuse | Reality |
 |-------------|---------|
-| "YAML is simple, I don't need patterns" | Fusion YAML has execution semantics that standard YAML doesn't |
+| "YAML is simple, I don't need patterns" | Falcon Fusion YAML has execution semantics that standard YAML doesn't |
 | "I can chain API calls directly in code" | Workflows handle state persistence and parallelism automatically |
 | "I'll add error handling later" | Without conditional routing on `Workflow.Execution.Errors` and loop `continue_on_partial_execution`, failures abort the workflow and lose context |
 | "RTR is just like SSH" | RTR has session management, host targeting, and result aggregation built-in |
@@ -183,8 +229,8 @@ If you catch yourself:
 ## Integration with Other Skills
 
 - **development-workflow:** Workflows are delegated from the orchestrator
-- **functions-development:** Workflows invoke Functions via `invokeFunction` activity
-- **collections-development:** Workflows read/write Collections via `readCollection`/`writeCollection`
+- **functions-development:** Workflows call Functions as actions with `id: functions.<function name>.<handler>`
+- **collections-development:** Workflows read and write Collections as actions with `id: collections.<collection name>.<operation>` (for example `collections.security_events_csv.list` and `.search` in [foundry-sample-collections-toolkit](https://github.com/CrowdStrike/foundry-sample-collections-toolkit)'s `Paginate_security_events_collection.yml`)
 - **api-integrations:** Workflows call external APIs via registered integrations
 - **functions-falcon-api:** Functions called by workflows use Falcon APIs
 - **security-patterns:** Apply permission scoping to workflow activities; validate inputs
@@ -193,3 +239,14 @@ If you catch yourself:
 
 - [API Pagination Strategies for Falcon Foundry Functions and Workflows](https://www.crowdstrike.com/tech-hub/ng-siem/api-pagination-strategies-for-falcon-foundry-functions-and-workflows/)
 - [Build API Integrations with Falcon Fusion SOAR HTTP Actions](https://www.crowdstrike.com/tech-hub/ng-siem/build-api-integrations-with-falcon-fusion-soar-http-actions/)
+
+## Sticky-409 recovery
+
+Any structural edit that re-provisions a workflow (new action, edited `next`/edge, added trigger parameter) can 409 with `Duplicate workflow name` / `system definition with id … already provisioned on cid …`. Deleting the Falcon Fusion SOAR workflow does NOT free the name — a used name stays reserved. Reliable escape — rename to a brand-new unique name AND strip the id:
+
+1. In `workflows/*.yaml`, change `name:` to a new, never-used value.
+2. In `manifest.yml`, change the matching `workflows: - name:` to that same new value AND delete the entry's `id:`.
+3. Deploy. Foundry provisions a fresh workflow and writes a new `id` back into the manifest (commit it). The old workflow is a harmless orphan.
+4. If the UI triggers the workflow by name, update the `WORKFLOW_NAME` constant(s) — a stale name is a silent 404 at run time.
+
+Do both: either one alone still 409s. Rename + id-strip together forces a clean re-provision — no fresh app needed.

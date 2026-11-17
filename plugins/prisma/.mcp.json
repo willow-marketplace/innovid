@@ -3,7 +3,7 @@
     "Prisma-Local": {
       "args": [
         "-y",
-        "prisma",
+        "prisma@7.10.1",
         "mcp"
       ],
       "command": "npx"

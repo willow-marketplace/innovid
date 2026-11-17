@@ -2,10 +2,10 @@
 
 # Falcon Foundry Skills
 
-[![Version](https://img.shields.io/badge/version-1.5.0-blue)](https://github.com/CrowdStrike/foundry-skills/releases/tag/v1.5.0)
+[![Version](https://img.shields.io/badge/version-1.7.1-blue)](https://github.com/CrowdStrike/foundry-skills/releases/tag/v1.7.1)
 [![CI](https://github.com/CrowdStrike/foundry-skills/actions/workflows/main.yml/badge.svg)](https://github.com/CrowdStrike/foundry-skills/actions/workflows/main.yml)
 
-AI coding assistant skills for building [CrowdStrike Falcon Foundry](https://www.crowdstrike.com/en-us/platform/next-gen-siem/falcon-foundry/) apps. Build Foundry apps from a natural language prompt — API integrations, workflows, UI pages, functions, and collections — all scaffolded with the Foundry CLI and deployed to the Falcon console.
+AI coding assistant skills for building [CrowdStrike Falcon Foundry](https://www.crowdstrike.com/en-us/platform/next-gen-siem/falcon-foundry/) apps. Build Foundry apps from a natural language prompt — API integrations, workflows, UI pages, functions, collections, AI agents, and knowledge bases — all scaffolded with the Foundry CLI and deployed to the Falcon console.
 
 ## Getting Started
 
@@ -68,19 +68,19 @@ This prompt exercises the full skill set — API integration, workflow, and UI:
 
 > Create a Falcon Foundry app for me that has an Okta API integration with openapi. Share its listusers endpoint with Falcon Fusion SOAR. Then, create a workflow that can be run on-demand to email or print the list of users. Finally, create a UI extension that calls the listusers endpoint and displays the results.
 
-### How Claude Code skill routing works
+### How plugin skill routing works
 
-The Claude Code plugin includes hooks that ensure the right skills get used:
+Repository-backed installs in Claude Code, Codex, Copilot CLI, and Cursor include hooks that ensure the right skills get used. Codex requires reviewing and trusting bundled hooks through `/hooks` before they run. Cursor loads them from `.cursor-plugin/plugin.json`:
 
 1. **`UserPromptSubmit` hook** — Matches an action verb paired with a Foundry noun — e.g., "create a foundry app". Explicit CLI commands and skill requests also trigger it.
 
-2. **`PreToolUse` hook** — When Foundry intent is detected, injects a non-blocking advisory reminder to use the Foundry workflow skill. Claude can still use all tools normally. If [superpowers](https://github.com/obra/superpowers) is installed, also intercepts `superpowers:brainstorming` and redirects to the Foundry workflow skill.
+2. **`PreToolUse` hook** — When Foundry intent is detected, injects a non-blocking advisory reminder to use the Foundry workflow skill. The assistant can still use all tools normally. The one exception is `foundry api-integrations create`, which is blocked when the OpenAPI spec can't be adapted for Falcon Foundry. In Claude Code, calls to `superpowers:brainstorming` get advice to switch to the Foundry workflow skill when the task is Foundry app work.
 
-3. **`PreToolUse` hook (CLI guard)** — Validates all Bash commands to ensure Foundry CLI commands include `--no-prompt` flag (prevents `Error: EOF` failures) and blocks manual directory creation for app structure (prevents invalid `manifest.yml`). This enforcement is automatic and transparent — you'll only see it when it catches an error.
+3. **`PreToolUse` hook (CLI guard)** — Checks shell commands and flags Foundry CLI commands missing the `--no-prompt` flag (prevents `Error: EOF` failures) and manual directory creation for app structure (prevents invalid `manifest.yml`). It's advisory: it adds guidance to the tool call rather than blocking it, and you'll only see it when it catches a problem. Cursor's shell tool is `Shell`; the guard treats that the same as Claude's `Bash`.
 
 Hooks observe prompts and tool I/O to keyword-match Foundry-specific actions; no data leaves the session.
 
-Other assistants discover and follow the skills but do not run these Claude Code hooks. They must apply the documented `--no-prompt` guardrails and run the OpenAPI adaptation helper explicitly. Skill-specific helpers live beside their `SKILL.md` files so Agent Skills and plugin installations remain self-contained; this packaging is separate from Falcon Foundry CLI connectivity, which is covered by the sandbox diagnostics in the debugging skill.
+Local Codex installs made with skill symlinks, and other assistants that do not load bundled hooks, must apply the documented `--no-prompt` guardrails and run the OpenAPI adaptation helper explicitly. Skill-specific helpers live beside their `SKILL.md` files so Agent Skills and plugin installations remain self-contained; this packaging is separate from Falcon Foundry CLI connectivity, which is covered by the sandbox diagnostics in the debugging skill.
 
 ## Skills
 
@@ -93,9 +93,12 @@ Other assistants discover and follow the skills but do not run these Claude Code
 | `ui-development` | React/Vue UI pages with Shoelace components and Falcon theming |
 | `functions-development` | Go/Python serverless functions with CrowdStrike SDK |
 | `collections-development` | JSON Schema data modeling and CRUD operations |
+| `ai-agents-development` | AI agents and knowledge bases, plus exposing collections and API operations as agent tools |
 | `security-patterns` | OAuth scoping, input validation, content security |
 | `debugging-workflows` | Systematic troubleshooting for CLI, manifest, and deployment issues |
 | `e2e-testing` | End-to-end testing with `@crowdstrike/foundry-playwright` |
+| `app-upgrades` | Upgrade a template-installed app to a newer template version in place |
+| `app-audit` | Scan an existing app for documented anti-patterns and fix the safe ones |
 | `fusion-redirect` | Declines standalone Falcon Fusion workflow requests and points to the `crowdstrike-falcon-fusion` plugin |
 
 ## Architecture
@@ -112,18 +115,24 @@ graph TD
     O --> WF["Workflows Development"]
     O --> AI["API Integrations"]
     O --> FA["Functions — Falcon API"]
+    O --> AG["AI Agents &<br/>Knowledge Bases"]
 
     UI -.-> SP["Security Patterns"]
     FN -.-> SP
     CO -.-> SP
     WF -.-> SP
     AI -.-> SP
+    AG -.-> SP
 
     UI -.-> DB["Debugging Workflows"]
     FN -.-> DB
     CO -.-> DB
     WF -.-> DB
     AI -.-> DB
+    AG -.-> DB
+
+    CO -.->|"agent tool"| AG
+    AI -.->|"agent tool"| AG
 
     style O fill:#6366f1,stroke:#4f46e5,color:#fff
     style SP fill:#f59e0b,stroke:#d97706,color:#fff
@@ -162,6 +171,8 @@ foundry ui extensions create --name "X" --from-template React --sockets "activit
 foundry functions create --name "X" --language python --no-prompt              # Add function
 foundry collections create --name "X" --schema /tmp/schema.json --no-prompt   # Add collection
 foundry workflows create --name "X" --spec /tmp/workflow.yaml --no-prompt     # Add workflow
+foundry knowledge-bases create --name "X" --description "desc" --files /tmp/doc.md --no-prompt  # Add knowledge base
+foundry agents create --name "X" --description "desc" --system-prompt /tmp/prompt.md --expose-charlotte-chat --no-prompt  # Add AI agent
 foundry apps deploy --change-type Patch --change-log "msg" --no-prompt  # Deploy to cloud
 foundry apps release                                             # Release to catalog
 ```
@@ -202,7 +213,7 @@ caffeinate -i ./run-ab-test.sh --fresh 5
 ./test-hooks.sh
 ```
 
-Unit tests for the three hook scripts (skill router, superpowers bridge, CLI guard). Fast, no API calls, no Foundry CLI needed. Run after any hook change.
+Unit tests for the four hook scripts (skill router, superpowers bridge, CLI guard, session start). Fast, no API calls, no Foundry CLI needed. Run after any hook change.
 
 ### Skill test (single run)
 
@@ -238,7 +249,13 @@ Verifies apps created by `test-skill.sh` or A/B tests — analyzes OpenAPI specs
 ./run-ab-test.sh --no-skill        # No plugin vs local plugin (1 run each)
 ```
 
-Compares baseline ref skills (RED) against local branch skills (GREEN). The `--ref` flag accepts any git ref (tag, branch, commit SHA) and defaults to `main`. Results saved to `/tmp/foundry-skill-ab/baseline.json` and `/tmp/foundry-skill-ab/optimized.json`.
+To compare against the last release with a fresh baseline, without macOS sleeping mid-run:
+
+```bash
+caffeinate -i ./run-ab-test.sh --ref "$(git describe --tags --abbrev=0)" --fresh 5
+```
+
+Compares baseline ref skills (RED) against local branch skills (GREEN). The `--ref` flag accepts any git ref (tag, branch, commit SHA) and defaults to `main`. Results saved to `/tmp/foundry-skill-ab/baseline.json` and `/tmp/foundry-skill-ab/optimized.json`. Tokens and cost come from each session's final `result` event, so compare cost per run first; a baseline saved before that change is re-run automatically.
 
 ## Contributing
 
@@ -284,7 +301,7 @@ gh release create v<version> --target main --title "v<version>" --generate-notes
 
 This generates release notes from merged PRs and saves them as a draft. Review and edit the notes at [github.com/CrowdStrike/foundry-skills/releases](https://github.com/CrowdStrike/foundry-skills/releases), then click **Publish** when ready.
 
-After publishing the release, notify Anthropic of the new tag and SHA so they can update the marketplace pin. Do not open PRs to `anthropics/claude-plugins-official` or re-submit through the plugin submission form.
+After publishing the release, update the marketplaces that pin a snapshot. Build and upload the OpenAI skills-only bundle with `./release.sh --bundle v<version>`, email the Cursor marketplace team to re-index the listing, and open a PR to [github/awesome-copilot](https://github.com/github/awesome-copilot) that bumps the `version`, `ref`, and `sha` of the `crowdstrike-falcon-foundry` entry. `release.sh` prints the exact steps when it finishes.
 
 ## Cross-Plugin: Fusion Workflows
 

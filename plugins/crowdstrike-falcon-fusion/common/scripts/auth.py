@@ -18,6 +18,9 @@ secret wins)
 -----------------------------------------------------------------------------
 1. Environment variables: FALCON_CLIENT_ID, FALCON_CLIENT_SECRET, and the
    optional FALCON_BASE_URL. Use these for CI and one-off overrides.
+   FalconPy discovers the API host for US-1, US-2, and EU-1 from the token
+   response, so FALCON_BASE_URL (or a profile's base_url) is needed only for
+   other clouds, such as US-3 and GovCloud. A short name such as "usgov1" works.
 2. TOML profile file at ~/.cache/crowdstrike-falcon-fusion/credentials.toml.
    The profile used is the one named by the FALCON_PROFILE environment
    variable, or the file's top-level `default` key when FALCON_PROFILE is
@@ -33,6 +36,25 @@ secret wins)
    Parsed with the standard-library `tomllib` (Python 3.11+), falling back to
    the `tomli` package on 3.10. If neither is importable, the TOML step is
    skipped silently.
+
+Secret-manager references
+-------------------------
+Either source can hold a 1Password secret reference instead of a plain value
+for the client ID or secret, so the secret never sits on disk:
+
+    client_secret = "op://Private/Falcon Fusion skills/credential"
+
+Values starting with op:// are read with the 1Password CLI, all in one
+`op inject` call, when credentials are resolved. The resolved values stay in
+memory only.
+
+TLS-inspecting proxies
+----------------------
+On a network that re-signs TLS traffic, set a profile's `ca_bundle` to your
+organization's CA bundle (PEM). It's exported as REQUESTS_CA_BUNDLE for this
+process, replacing any inherited value:
+
+    ca_bundle = "~/certs/corporate-ca.pem"
 
 Run `/crowdstrike-falcon-fusion:setup` to configure credentials interactively
 (it writes the TOML profile).
@@ -68,6 +90,7 @@ only when a client is actually requested, not at import time.
 
 import os
 import re
+import subprocess
 import sys
 
 # Fix Windows console encoding so the Unicode box characters below render.
@@ -120,8 +143,8 @@ def _load_toml(path):
 
 def _creds_from_toml():
     """
-    Return (client_id, client_secret, base_url) from the TOML profile file,
-    or None if unavailable/incomplete.
+    Return (client_id, client_secret, base_url, ca_bundle, profile) from the
+    TOML profile file, or None if unavailable/incomplete.
 
     The profile is chosen by FALCON_PROFILE, falling back to the file's
     top-level `default` key.
@@ -144,10 +167,122 @@ def _creds_from_toml():
         return None
 
     base_url = section.get("base_url", DEFAULT_BASE_URL)
-    return client_id, client_secret, base_url
+    return client_id, client_secret, base_url, section.get("ca_bundle", ""), profile
+
+
+def _fail(message):
+    """Print an error to stderr and exit, matching get_credentials()."""
+    print(f"ERROR: {message}", file=sys.stderr)
+    sys.exit(1)
+
+
+def _is_secret_ref(value):
+    return isinstance(value, str) and value.startswith("op://")
+
+
+def _resolve_secret_refs(fields):
+    """
+    Return the values in `fields` (a list of (name, value) pairs), replacing
+    each 1Password op:// reference with the secret it points to.
+
+    Every reference is resolved in one `op inject` call, so 1Password asks for
+    approval once per run rather than once per value. The command runs with
+    an argument list (no shell) and the resolved values are never printed.
+    """
+    refs = [(name, value) for name, value in fields if _is_secret_ref(value)]
+    if not refs:
+        return [value for _, value in fields]
+    names = " and ".join(name for name, _ in refs)
+    template = "".join(f"{{{{ {value} }}}}\n" for _, value in refs)
+    # The approval prompt can take several seconds to appear; say what's
+    # happening so the wait doesn't look like a hang. stderr keeps the
+    # scripts' JSON output on stdout clean.
+    print(
+        "Reading Falcon API credentials from 1Password. Approve the 1Password "
+        "prompt when it appears (it can take a few seconds).",
+        file=sys.stderr,
+    )
+    try:
+        result = subprocess.run(
+            ["op", "inject"],
+            input=template,
+            capture_output=True,
+            text=True,
+            timeout=120,
+            check=False,
+        )
+    except FileNotFoundError:
+        _fail(
+            f"{names} is a 1Password reference (op://...), but the 1Password "
+            "CLI (op) isn't installed. Install it from "
+            "https://www.1password.dev/cli/get-started/ or use a "
+            "plain value."
+        )
+    except subprocess.TimeoutExpired:
+        _fail(
+            f"Timed out reading {names} from 1Password. Approve the 1Password "
+            "prompt, or run `op signin`, and try again."
+        )
+    resolved = result.stdout.splitlines()
+    if (
+        result.returncode != 0
+        or len(resolved) != len(refs)
+        or not all(v.strip() for v in resolved)
+    ):
+        detail = result.stderr.strip()
+        _fail(
+            f"Couldn't read {names} from 1Password "
+            f"({', '.join(value for _, value in refs)}). Check that op is "
+            "signed in (`op signin`) and the reference exists."
+            + (f" op said: {detail}" if detail else "")
+        )
+    secrets = iter(v.strip() for v in resolved)
+    return [next(secrets) if _is_secret_ref(value) else value for _, value in fields]
+
+
+# Where the CA bundle in use came from, for the self-test. Set by
+# _apply_ca_bundle() when a profile's ca_bundle replaces an inherited one.
+_ca_bundle_note = ""  # pylint: disable=invalid-name
+
+
+def _apply_ca_bundle(ca_bundle):
+    """
+    Export a profile's ca_bundle as REQUESTS_CA_BUNDLE for this process. It
+    replaces an inherited REQUESTS_CA_BUNDLE, because a bundle named in this
+    plugin's profile is more deliberate than one left in the environment.
+    """
+    global _ca_bundle_note  # pylint: disable=global-statement  # self-test detail
+    if not ca_bundle:
+        return
+    path = os.path.expanduser(ca_bundle)
+    if not os.path.isfile(path):
+        _fail(f"The profile's ca_bundle file doesn't exist: {path}")
+    inherited = os.environ.get("REQUESTS_CA_BUNDLE")
+    _ca_bundle_note = (
+        "profile ca_bundle, overrides REQUESTS_CA_BUNDLE"
+        if inherited and inherited != path
+        else "profile ca_bundle"
+    )
+    os.environ["REQUESTS_CA_BUNDLE"] = path
+
+
+def describe_ca_bundle():
+    """Describe the CA bundle requests will use, for the self-test."""
+    for var in ("REQUESTS_CA_BUNDLE", "CURL_CA_BUNDLE"):
+        path = os.environ.get(var)
+        if path:
+            note = _ca_bundle_note if var == "REQUESTS_CA_BUNDLE" and _ca_bundle_note else var
+            return f"{path} ({note})"
+    return "default (certifi)"
 
 
 # ── Credentials ─────────────────────────────────────────────────────────────
+
+
+# Resolved credentials and where they came from, cached so each op:// value is
+# read from 1Password once per process. Cleared by reset_client().
+_credentials = None  # pylint: disable=invalid-name
+_credentials_source = ""  # pylint: disable=invalid-name
 
 
 def get_credentials():
@@ -156,30 +291,64 @@ def get_credentials():
     resolution order: environment variables, then the TOML profile file. The
     first source supplying both an ID and a secret wins.
 
-    Exits with a clear error if no source provides credentials.
+    Values that are 1Password op:// references are resolved with `op inject`.
+    The result is cached for the process. Exits with a clear error if no
+    source provides credentials.
     """
+    global _credentials, _credentials_source  # pylint: disable=global-statement  # per-process cache
+    if _credentials is None:
+        _credentials, _credentials_source = _resolve_credentials()
+    return _credentials
+
+
+def get_credentials_source():
+    """Describe where get_credentials() found the credentials, for the self-test."""
+    get_credentials()
+    return _credentials_source
+
+
+def _describe_source(source, *values):
+    """Append "(1Password)" to a source description when a value is an op:// ref."""
+    if any(_is_secret_ref(v) for v in values):
+        return f"{source} (1Password)"
+    return source
+
+
+def _resolve_credentials():
+    """Resolve credentials and describe their source; see get_credentials()."""
     # 1. Environment variables (for CI and overrides). These outrank the TOML
     #    file so a run can be redirected without editing the profile.
     client_id = os.environ.get("FALCON_CLIENT_ID", "")
     client_secret = os.environ.get("FALCON_CLIENT_SECRET", "")
     if client_id and client_secret:
         base_url = os.environ.get("FALCON_BASE_URL", DEFAULT_BASE_URL)
-        return client_id, client_secret, base_url.rstrip("/")
+        creds = (
+            *_resolve_secret_refs(
+                [("FALCON_CLIENT_ID", client_id), ("FALCON_CLIENT_SECRET", client_secret)]
+            ),
+            base_url.rstrip("/"),
+        )
+        return creds, _describe_source("environment variables", client_id, client_secret)
 
     # 2. TOML profile file (canonical; written by the setup command).
     toml_creds = _creds_from_toml()
     if toml_creds:
-        client_id, client_secret, base_url = toml_creds
-        return client_id, client_secret, base_url.rstrip("/")
+        client_id, client_secret, base_url, ca_bundle, profile = toml_creds
+        _apply_ca_bundle(ca_bundle)
+        creds = (
+            *_resolve_secret_refs([("client_id", client_id), ("client_secret", client_secret)]),
+            base_url.rstrip("/"),
+        )
+        return creds, _describe_source(
+            f"profile {profile} in {TOML_CREDENTIALS_PATH}", client_id, client_secret
+        )
 
-    print(
-        "ERROR: FALCON_CLIENT_ID and FALCON_CLIENT_SECRET must be set via "
+    return _fail(
+        "FALCON_CLIENT_ID and FALCON_CLIENT_SECRET must be set via "
         "environment variables or the TOML credentials file "
         "(~/.cache/crowdstrike-falcon-fusion/credentials.toml). "
-        "Run /crowdstrike-falcon-fusion:setup to configure credentials.",
-        file=sys.stderr,
+        "Run /crowdstrike-falcon-fusion:setup to configure credentials."
     )
-    sys.exit(1)
 
 
 # ── FalconPy version guard ────────────────────────────────────────────────────
@@ -280,11 +449,53 @@ def get_ngsiem_client():
 
 
 def reset_client():
-    """Reset both shared clients (useful for testing)."""
-    global _workflows_client, _ngsiem_client  # pylint: disable=global-statement  # reset cached singletons
+    """Reset both shared clients and the cached credentials (useful for testing)."""
+    global _workflows_client, _ngsiem_client, _credentials, _credentials_source, _ca_bundle_note  # pylint: disable=global-statement  # reset cached singletons
     _workflows_client = None
     _ngsiem_client = None
+    _credentials = None
+    _credentials_source = ""
+    _ca_bundle_note = ""
 
+
+def raise_for_api_error(resp, action):
+    """
+    Raise RuntimeError if a FalconPy response carries errors or a 4xx/5xx status.
+
+    FalconPy does not raise on HTTP errors: a 401/403/429/500 comes back as a
+    dict with an empty or missing ``resources`` list, which reads exactly like
+    "no results". List and search helpers call this so an auth or rate-limit
+    failure can't masquerade as an empty CID (and silently disable a
+    duplicate check or report "nothing to delete").
+    """
+    body = resp.get("body") or {}
+    errors = body.get("errors") or []
+    status = resp.get("status_code")
+    if errors:
+        detail = "; ".join(
+            e.get("message", str(e)) if isinstance(e, dict) else str(e) for e in errors
+        )
+        raise RuntimeError(f"{action} failed (HTTP {status}): {detail}")
+    if isinstance(status, int) and status >= 400:
+        raise RuntimeError(f"{action} failed: API returned HTTP {status}")
+
+
+def describe_base_url(client, configured):
+    """
+    Return the base URL a client settled on, marked "(discovered)" when it
+    differs from the configured one. FalconPy discovers US-1, US-2, and EU-1
+    while it builds the client, so the configured default can be the wrong
+    region to show.
+    """
+    found = str(getattr(client, "base_url", "") or configured).rstrip("/")
+    return f"{found} (discovered)" if found != configured else found
+
+
+TOKEN_FAILURE_HINT = (
+    "  Check the client ID, secret, and base URL. If they're right, check the CA\n"
+    "  bundle above: behind a TLS-inspecting proxy, it must be your\n"
+    "  organization's bundle (set ca_bundle in the profile)."
+)
 
 # ── Self-test ───────────────────────────────────────────────────────────────
 
@@ -292,17 +503,20 @@ if __name__ == "__main__":
     print("CrowdStrike Auth — self-test (FalconPy)")
     print("─" * 40)
     cid, csec, burl = get_credentials()
-    print(f"  Base URL  : {burl}")
+    print(f"  Source    : {get_credentials_source()}")
+    print(f"  CA bundle : {describe_ca_bundle()}")
     print(f"  Client ID : {cid[:8]}...{cid[-4:]}")
-    print(f"  Secret    : {'*' * 8}...{csec[-4:]}")
-    print()
+    print(f"  Secret    : {'set' if csec else 'missing'}")
     try:
         wf_client = get_client()
+        print(f"  Base URL  : {describe_base_url(wf_client, burl)}")
+        print()
         if wf_client.token_expired():
             print(
                 "  Authentication FAILED: could not obtain token (Workflows)",
                 file=sys.stderr,
             )
+            print(TOKEN_FAILURE_HINT, file=sys.stderr)
             sys.exit(1)
         print("  Authentication successful (FalconPy Workflows client)")
 
@@ -312,6 +526,7 @@ if __name__ == "__main__":
                 "  Authentication FAILED: could not obtain token (NGSIEM)",
                 file=sys.stderr,
             )
+            print(TOKEN_FAILURE_HINT, file=sys.stderr)
             sys.exit(1)
         print("  Authentication successful (FalconPy NGSIEM client)")
     # Self-test reports any auth failure cause to the user, so a broad catch is

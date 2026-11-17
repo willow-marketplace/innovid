@@ -1,5 +1,11 @@
 # Third-Party Multi-Barcode Scanner → MatrixScan Batch Migration (React Native)
 
+## Migration principles
+
+- **Authority.** When this guide and the API reference disagree, trust the API reference — and a runtime check in the user's project — over this guide. Say which source you followed and why in the summary.
+- **Behaviour changes.** Never present a visual or behaviour change (new default, different overlay look, changed feedback, changed scan timing) as a 1:1 rename. List each one in the summary as a judgment call the user must confirm.
+- **Compatibility layer.** When the scanning code sits behind a shared scanner library or wrapper that other code calls, keep that library's public API frozen (same types, method names, callbacks) and replace only the third-party scanner calls underneath with Scandit ones.
+
 ## Before anything else
 
 Read the existing code. Do not ask the user to describe what their scanner does. Identify:
@@ -46,21 +52,28 @@ When configuring `BarcodeBatchSettings`, map code types from the old scanner usi
 
 ### Symbology mapping
 
-| react-native-vision-camera `CodeType` | Scandit `Symbology.*` |
+<!-- BEGIN GENERATED symbology-table sources=vision-camera-v4 style=js -->
+| vision-camera v4 `CodeType` | Scandit `Symbology` |
 |---|---|
-| `'qr'` | `Symbology.QR` |
+| `'qr'` | `Symbology.QR` (**not** `QRCode`) |
 | `'ean-13'` | `Symbology.EAN13UPCA` |
 | `'ean-8'` | `Symbology.EAN8` |
-| `'upc-a'` | `Symbology.EAN13UPCA` (UPC-A is read by the EAN-13/UPC-A symbology in Scandit) |
+| `'upc-a'` | `Symbology.EAN13UPCA` (UPC-A is read by the EAN-13/UPC-A symbology) |
 | `'upc-e'` | `Symbology.UPCE` |
 | `'code-39'` | `Symbology.Code39` |
 | `'code-93'` | `Symbology.Code93` |
 | `'code-128'` | `Symbology.Code128` |
-| `'itf'` | `Symbology.InterleavedTwoOfFive` |
+| `'itf'` / `'itf-14'` | `Symbology.InterleavedTwoOfFive` (no ITF-14 symbology; ITF-14 is a 14-digit Interleaved 2 of 5) |
 | `'codabar'` | `Symbology.Codabar` |
 | `'data-matrix'` | `Symbology.DataMatrix` |
 | `'aztec'` | `Symbology.Aztec` |
 | `'pdf-417'` | `Symbology.PDF417` |
+| `'gs1-data-bar'` | `Symbology.GS1Databar` |
+| `'gs1-data-bar-limited'` | `Symbology.GS1DatabarLimited` |
+| `'gs1-data-bar-expanded'` | `Symbology.GS1DatabarExpanded` |
+
+**Recommended default set** when the source scanned every format and nothing in the app narrows it: `Symbology.QR`, `Symbology.EAN13UPCA`, `Symbology.EAN8`, `Symbology.UPCE`, `Symbology.Code39`, `Symbology.Code93`, `Symbology.Code128`, `Symbology.InterleavedTwoOfFive`, `Symbology.Codabar`, `Symbology.DataMatrix`, `Symbology.Aztec`, `Symbology.PDF417`.
+<!-- END GENERATED symbology-table -->
 
 If you encounter a code type not in this table, fetch the [BarcodeBatch API reference](https://docs.scandit.com/data-capture-sdk/react-native/barcode-capture/api.html) for the correct `Symbology` enum value before writing the code.
 
@@ -202,6 +215,68 @@ const styles = StyleSheet.create({
 });
 ```
 
+## SDK 8.7+: BarcodeBatchAioView
+
+On 8.7 or newer you may replace the context, mode, camera and overlay setup above with `BarcodeBatchAioView` from `scandit-react-native-datacapture-barcode`. It handles focus and app background itself. It must be rendered inside a root `<ScanditProvider licenseKey="...">` from `scandit-react-native-datacapture-core` (once, around the navigator), which initialises the context, so drop `DataCaptureContext.initialize`. Permission, torch, camera facing and provider placement work as in the `barcode-capture-rn` skill's **SDK 8.7+: BarcodeCaptureAioView** section (core `useCameraPermission()`, nested provider `torchState` / `cameraPosition`).
+
+| Old | `BarcodeBatchAioView` |
+|---|---|
+| format list | `symbologies={[...]}` (required, or `barcodeBatchSettings`) |
+| per-frame codes callback | `didScan={(trackedBarcodes, session, getFrameData) => ...}`: only the codes newly tracked in this frame; read `tracked.barcode.data` (`string \| null`). Keep the app's own dedupe |
+| `isActive` | `disabled={...}`, or `ref.current?.disable()` / `enable()` |
+| focus | `navigation={navigation}` |
+| highlight per code, tap on a code | `basicOverlay={{ brushForTrackedBarcode, didTapTrackedBarcode }}` |
+| custom view per code | `advancedOverlay={{ viewForTrackedBarcode, anchorForTrackedBarcode, offsetForTrackedBarcode }}` |
+
+These props build the same `BarcodeBatchBasicOverlay` / `BarcodeBatchAdvancedOverlay` as the classic path, so the same prerequisites apply: `brushForTrackedBarcode`, `didTapTrackedBarcode` and `advancedOverlay` need the MatrixScan AR add-on, and `advancedOverlay` on iOS with RN ≥ 0.79 needs the `ScanditReactNativeFactoryContainer` `AppDelegate` (see `SKILL.md`).
+
+The view renders no children: draw counters and buttons as absolutely positioned siblings. Compiled against 8.8.0-beta.1:
+
+```tsx
+import React, { useEffect, useRef, useState } from 'react';
+import { Button, StyleSheet, Text, View } from 'react-native';
+import { useCameraPermission } from 'scandit-react-native-datacapture-core';
+import { BarcodeBatchAioView, Symbology } from 'scandit-react-native-datacapture-barcode';
+
+export function BatchScreen() {
+  const { hasPermission, permissionStatus, requestPermission } = useCameraPermission();
+  const seen = useRef(new Set<string>());
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    if (permissionStatus === 'not-determined') void requestPermission();
+  }, [permissionStatus, requestPermission]);
+
+  if (!hasPermission) {
+    return <Button title="Allow camera" onPress={() => void requestPermission()} />;
+  }
+
+  return (
+    <View style={styles.container}>
+      <BarcodeBatchAioView
+        style={styles.container}
+        symbologies={[Symbology.EAN13UPCA, Symbology.Code128, Symbology.QR]}
+        didScan={trackedBarcodes => {
+          for (const tracked of trackedBarcodes) {
+            const value = tracked.barcode.data;
+            if (value != null && !seen.current.has(value)) {
+              seen.current.add(value);
+              setCount(seen.current.size);
+            }
+          }
+        }}
+      />
+      <Text style={styles.counter}>{count} codes</Text>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1 },
+  counter: { position: 'absolute', top: 48, left: 16, color: '#fff' },
+});
+```
+
 ---
 
-When done, show only what changed. Do not list APIs that were unchanged. Include the setup checklist from `references/integration.md` so the user knows which packages to install (`scandit-react-native-datacapture-core`, `scandit-react-native-datacapture-barcode`), to run `npx pod-install` for iOS, to add `NSCameraUsageDescription` to `ios/<App>/Info.plist`, and to replace the license key placeholder.
+When done, show only what changed. Do not list APIs that were unchanged. Include the setup checklist from `references/integration.md` so the user knows which packages to install (`scandit-react-native-datacapture-core`, `scandit-react-native-datacapture-barcode`), to run `npx pod-install@1.2.1` for iOS, to add `NSCameraUsageDescription` to `ios/<App>/Info.plist`, and to replace the license key placeholder.

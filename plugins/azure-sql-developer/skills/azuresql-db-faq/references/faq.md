@@ -85,19 +85,20 @@ first: `CAST(CAST(? AS NVARCHAR(MAX)) AS VECTOR(n))`, with `n` a literal dimensi
 
 ## Platform / image / access
 
-**Is a non-x64 host supported?** The image is x64 only (`linux/amd64`). On a
-non-x64 host it runs under emulation when you add `--platform linux/amd64` (Docker) or
-`platform: linux/amd64` (compose). Treat that as "runs under emulation", not "supported".
+**Is ARM64 supported?** Yes. The image supports native `linux/amd64` and
+`linux/arm64`; the container runtime selects the matching architecture
+automatically. Use `--platform linux/amd64` (Docker) or
+`platform: linux/amd64` (Compose) only to explicitly test x64 emulation.
 
 **Why isn't the image on Docker Hub or MCR?** This is a container-only Private Preview.
 The image is in a private registry; the shared, pull-only username and password are
 provided when you sign up for the Private Preview at https://aka.ms/sqldbcontainerpreview-signup
 and may be rotated during the preview.
 
-**Why is my container missing a recent engine fix?** `:latest` is a moving tag and the image
-is rebuilt almost daily, but Docker's default pull policy for `docker run` is `missing`: once a
-`:latest` is on disk it reuses that cached copy and never re-checks the registry, so you can
-silently keep running a stale build. Refresh with `docker pull sqldbpreview-dpgaeqhmgphzd4bk.azurecr.io/azure-sql/db-dev:latest`,
+**Why is my container missing a recent engine fix?** `:latest` is a moving tag, but Docker's
+default pull policy for `docker run` is `missing`: once a `:latest` is on disk it reuses that
+cached copy and never re-checks the registry, so you can silently keep running a stale build.
+Pull with `docker pull sqldbpreview-dpgaeqhmgphzd4bk.azurecr.io/azure-sql/db-dev:latest` to check for a newer build,
 then recreate the container. Prefer an explicit pull over `docker run --pull always` so offline
 work still works after the first pull.
 
@@ -135,11 +136,17 @@ a target database for a one-shot validation pass.
 
 **How do I create a least-privilege app user, and why does `CREATE USER ... WITH
 PASSWORD` fail?** On the container, a SQL **contained** user
-(`CREATE USER appuser WITH PASSWORD = '...'`) fails with **Msg 15007**, and you
-cannot turn containment on. `ALTER DATABASE appdb SET CONTAINMENT = PARTIAL` fails
-with **Msg 12844**, "ALTER DATABASE statement failed; this functionality is not
-available in the current edition of SQL Server". The container's edition does not
-have partial containment, so there is nothing to configure.
+(`CREATE USER appuser WITH PASSWORD = '...'`) fails with **Msg 33233**, "You can
+only create a user with a password in a contained database", and you cannot turn
+containment on. `ALTER DATABASE appdb SET CONTAINMENT = PARTIAL` fails with
+**Msg 12824**, "The sp_configure value 'contained database authentication' must be
+set to 1 in order to alter a contained database", followed by **Msg 5069**, "ALTER
+DATABASE statement failed". The setting it names cannot be reached, because
+`sp_configure` does not exist on this engine and returns **Msg 2812**, so there is
+nothing to configure. Measured 2026-09-19 on image tag `18.0.226_4_147`,
+`EngineEdition` 5, Edition `SQL Azure`, build `12.0.2000.8`; the numbers
+**Msg 15007** and **Msg 12844** printed here before that date were wrong, though the
+refusals themselves were not.
 Create the app identity as a **server login mapped to a database
 user** instead: `CREATE LOGIN applogin WITH PASSWORD = '...'` on a `master`
 connection, then `CREATE USER appuser FOR LOGIN applogin` plus role grants

@@ -1,10 +1,30 @@
 > AI agents: this is one page from PostHog's docs. Full index of Markdown docs for LLMs: https://posthog.com/llms.txt
 
-# React Feature Flags installation - Docs
+# React Feature Flags installation
 
-Copy page
+Canonical URL: https://posthog.com/docs/feature-flags/installation/react
 
-# React Feature Flags installation - Docs
+> **Cloud region:** This page uses US Cloud hosts. For an EU Cloud project, use `https://eu.i.posthog.com` instead of `https://us.i.posthog.com` (ingestion host).
+
+## On this page
+
+- [Install with the wizard](#install-with-the-wizard)
+- [Install the package](#install-the-package)
+- [Add environment variables](#add-environment-variables)
+- [Initialize PostHog](#initialize-posthog)
+- [Accessing PostHog in your code](#accessing-posthog-in-your-code)
+- [Send events](#send-events)
+- [Use feature flags](#use-feature-flags)
+- [Running experiments](#running-experiments)
+- [Next steps](#next-steps)
+
+## Install with the wizard
+
+Run this command in your project directory to add PostHog to your React project. The wizard detects your framework, installs the SDK, and sets up your first events.
+
+`npx @posthog/wizard`
+
+Or set it up manually by following the rest of this guide.
 
 1.  1
 
@@ -14,30 +34,28 @@ Copy page
 
     Install [`posthog-js`](https://github.com/posthog/posthog-js) and `@posthog/react` using your package manager:
 
-    PostHog AI
-
     ### npm
 
     ```bash
-    npm install posthog-js @posthog/react
+    npm install posthog-js@1 @posthog/react@1
     ```
 
     ### yarn
 
     ```bash
-    yarn add posthog-js @posthog/react
+    yarn add posthog-js@1 @posthog/react@1
     ```
 
     ### pnpm
 
     ```bash
-    pnpm add posthog-js @posthog/react
+    pnpm add posthog-js@1 @posthog/react@1
     ```
 
     ### bun
 
     ```bash
-    bun add posthog-js @posthog/react
+    bun add posthog-js@1 @posthog/react@1
     ```
 
 2.  2
@@ -49,8 +67,6 @@ Copy page
     Add your PostHog project token and host to your environment variables. For Vite-based React apps, use the `VITE_` prefix to expose them to the client:
 
     .env
-
-    PostHog AI
 
     ```bash
     VITE_POSTHOG_PROJECT_TOKEN=<ph_project_token>
@@ -67,18 +83,18 @@ Copy page
 
     main.tsx
 
-    PostHog AI
-
     ```jsx
     import { StrictMode } from 'react'
     import { createRoot } from 'react-dom/client'
     import './index.css'
     import App from './App.jsx'
     import { PostHogProvider } from '@posthog/react'
+    
     const options = {
       api_host: import.meta.env.VITE_POSTHOG_HOST,
-      defaults: '2026-05-30',
+      defaults: '2026-08-30',
     } as const
+    
     createRoot(document.getElementById('root')).render(
       <StrictMode>
         <PostHogProvider apiKey={import.meta.env.VITE_POSTHOG_PROJECT_TOKEN} options={options}>
@@ -90,7 +106,7 @@ Copy page
 
     **defaults option**
 
-    The `defaults` option automatically configures PostHog with recommended settings for new projects. See [SDK defaults](/docs/libraries/js.md#sdk-defaults) for details.
+    The `defaults` option automatically configures PostHog with recommended settings for new projects. See [SDK defaults](https://posthog.com/docs/libraries/js.md#sdk-defaults) for details.
 
 4.  4
 
@@ -102,15 +118,16 @@ Copy page
 
     MyComponent.tsx
 
-    PostHog AI
-
     ```jsx
     import { usePostHog } from '@posthog/react'
+    
     function MyComponent() {
         const posthog = usePostHog()
+    
         function handleClick() {
             posthog.capture('button_clicked', { button_name: 'signup' })
         }
+    
         return <button onClick={handleClick}>Sign up</button>
     }
     ```
@@ -119,10 +136,9 @@ Copy page
 
     utils/analytics.ts
 
-    PostHog AI
-
     ```jsx
     import posthog from 'posthog-js'
+    
     export function trackPurchase(amount: number) {
         posthog.capture('purchase_completed', { amount })
     }
@@ -140,8 +156,6 @@ Copy page
 
     JavaScript
 
-    PostHog AI
-
     ```javascript
     posthog.capture('my_custom_event', { property: 'value' })
     ```
@@ -158,6 +172,7 @@ Copy page
 
     ```jsx
     import { useFeatureFlagEnabled } from '@posthog/react'
+    
     function App() {
         const showWelcomeMessage = useFeatureFlagEnabled('flag-key')
         const payload = useFeatureFlagPayload('flag-key')
@@ -185,6 +200,7 @@ Copy page
 
     ```jsx
     import { useFeatureFlagVariantKey } from '@posthog/react'
+    
     function App() {
         const variantKey = useFeatureFlagVariantKey('show-welcome-message')
         let welcomeMessage = ''
@@ -217,6 +233,7 @@ Copy page
 
     ```jsx
     import { useFeatureFlagPayload, useFeatureFlagEnabled } from '@posthog/react'
+    
     function App() {
         const variant = useFeatureFlagEnabled('show-welcome-message')
         const payload = useFeatureFlagPayload('show-welcome-message')
@@ -244,10 +261,9 @@ Copy page
 
     App.tsx
 
-    PostHog AI
-
     ```jsx
     import { PostHogFeature } from '@posthog/react'
+    
     function App() {
         return (
             <PostHogFeature flag='show-welcome-message' match={true}>
@@ -265,8 +281,6 @@ Copy page
     If your flag has a payload, you can pass a function to children whose first argument is the payload:
 
     App.tsx
-
-    PostHog AI
 
     ```jsx
     <PostHogFeature flag='show-welcome-message' match={true}>
@@ -299,16 +313,8 @@ Copy page
 
     | Resource | Description |
     | --- | --- |
-    | [Creating a feature flag](/docs/feature-flags/creating-feature-flags.md) | How to create a feature flag in PostHog |
-    | [Adding feature flag code](/docs/feature-flags/adding-feature-flag-code.md) | How to check flags in your code for all platforms |
-    | [Framework-specific guides](/docs/feature-flags/tutorials.md#framework-guides) | Setup guides for React Native, Next.js, Flutter, and other frameworks |
-    | [How to do a phased rollout](/tutorials/phased-rollout.md) | Gradually roll out features to minimize risk |
-    | [More tutorials](/docs/feature-flags/tutorials.md) | Other real-world examples and use cases |
-
-### Still have questions?
-
-Ask PostHog AI
-
-### Was this page useful?
-
-HelpfulCould be better
+    | [Creating a feature flag](https://posthog.com/docs/feature-flags/creating-feature-flags.md) | How to create a feature flag in PostHog |
+    | [Adding feature flag code](https://posthog.com/docs/feature-flags/adding-feature-flag-code.md) | How to check flags in your code for all platforms |
+    | [Framework-specific guides](https://posthog.com/docs/feature-flags/tutorials.md#framework-guides) | Setup guides for React Native, Next.js, Flutter, and other frameworks |
+    | [How to do a phased rollout](https://posthog.com/tutorials/phased-rollout.md) | Gradually roll out features to minimize risk |
+    | [More tutorials](https://posthog.com/docs/feature-flags/tutorials.md) | Other real-world examples and use cases |

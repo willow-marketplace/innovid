@@ -2,8 +2,8 @@
 #
 # Windows / PowerShell counterpart to track-telemetry.sh. Reads a tool
 # event from stdin, decides whether it is a Shopify AI Toolkit skill
-# invocation (Skill tool call OR SKILL.md read inside a recognized
-# install path), and emits a `skill_invocation` event to
+# invocation (Skill tool call OR SKILL.md read inside this hook's own
+# install root), and emits a `skill_invocation` event to
 # https://shopify.dev/mcp/usage.
 #
 # Behavior matches the bash hook exactly — see that file for full design
@@ -240,44 +240,137 @@ if ($env:COPILOT_CLI -eq '1') {
 
 # Names of Shopify AI Toolkit skills we are willing to report. Anything
 # not on this list is treated as "not our skill" — same guard the bash
-# version applies (case-list match on `shopify-*` or `ucp`).
+# version applies (case-list match on `shopify`, `shopify-*` or `ucp`).
 function Test-ShopifyToolkitSkillName {
     param([string]$name)
     if (-not $name) { return $false }
+    if ($name -eq 'shopify') { return $true }
     if ($name -like 'shopify-*') { return $true }
     if ($name -eq 'ucp') { return $true }
     return $false
 }
 
-function Test-ShopifyInstallPath {
-    param([string]$p)
-    if (-not $p) { return $false }
-    $norm = ($p -replace '\\', '/') -replace '//+', '/'
-    $lower = $norm.ToLower()
-
-    $patterns = @(
-        '*.claude/plugins/cache/shopify-ai-toolkit/*/skills/*',
-        '*.claude/plugins/cache/shopify/shopify-ai-toolkit/*/skills/*',
-        '*.cursor/extensions/shopify.shopify-plugin*/skills/*',
-        '*.cursor/plugins/cache/shopify-ai-toolkit/*/skills/*',
-        '*.copilot/installed-plugins/shopify-ai-toolkit/*/skills/*',
-        '*agent-plugins/github.com/shopify/shopify-ai-toolkit/*/skills/*',
-        '*/shopify-ai-toolkit/skills/*',
-        '*/shopify-plugin/skills/*',
-        '*.agents/skills/shopify-*'
+# Path reads need an exact current/legacy published name. Keep this frozen list
+# in sync with DEPRECATED_SKILL_NAMES in generate-agent-skills.ts; the broader
+# matcher above remains only for host Skill-tool compatibility.
+function Test-ShopifyToolkitPathSkillName {
+    param([string]$name)
+    if (-not $name) { return $false }
+    $published = @(
+        'shopify',
+        'ucp',
+        'shopify-admin',
+        'shopify-app-pricing',
+        'shopify-app-store-review',
+        'shopify-custom-data',
+        'shopify-customer',
+        'shopify-dev',
+        'shopify-functions',
+        'shopify-hydrogen',
+        'shopify-liquid',
+        'shopify-onboarding-dev',
+        'shopify-onboarding-merchant',
+        'shopify-partner',
+        'shopify-payments-apps',
+        'shopify-polaris-admin-extensions',
+        'shopify-polaris-app-home',
+        'shopify-polaris-checkout-extensions',
+        'shopify-polaris-customer-account-extensions',
+        'shopify-pos-ui',
+        'shopify-shopifyql',
+        'shopify-storefront-graphql',
+        'shopify-use-shopify-cli'
     )
-    foreach ($pat in $patterns) {
-        if ($lower -like $pat) { return $true }
-    }
-    return $false
+    return $published -ccontains $name
 }
 
-function Get-SkillNameFromPath {
+function Test-SamePath {
+    param([string]$left, [string]$right)
+    if (-not $left -or -not $right) { return $false }
+    $comparison = if ([Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT) {
+        [StringComparison]::OrdinalIgnoreCase
+    } else {
+        [StringComparison]::Ordinal
+    }
+    return [string]::Equals(
+        $left.TrimEnd([char[]]@('\', '/')),
+        $right.TrimEnd([char[]]@('\', '/')),
+        $comparison
+    )
+}
+
+# Derive provenance from the running hook, not from the untrusted Read path.
+# Plugin copies live at <root>/hooks/scripts/track-telemetry.ps1; standalone
+# skill copies live at <root>/scripts/track-telemetry.ps1.
+function Get-HookInstallRoot {
+    try {
+        $candidate = if ($hookSource -eq 'plugin') {
+            Join-Path $PSScriptRoot '../..'
+        } elseif ($hookSource -eq 'skill') {
+            Join-Path $PSScriptRoot '..'
+        } else {
+            return $null
+        }
+        return (Resolve-Path -LiteralPath $candidate -ErrorAction Stop).ProviderPath
+    } catch {
+        return $null
+    }
+}
+
+function Test-ReparsePoint {
+    param([string]$path)
+    try {
+        $entry = Get-Item -LiteralPath $path -Force -ErrorAction Stop
+        return ($entry.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0
+    } catch {
+        # Path validation is a telemetry boundary: missing/uninspectable entries
+        # fail closed rather than being assumed safe.
+        return $true
+    }
+}
+
+# Return the resolved path and known skill name only when the read is rooted in
+# this exact installation. Suffix lookalikes in unrelated repositories are not
+# provenance. GetFullPath removes `..`; reparse points in the file or any
+# descendant directory below the trusted root are rejected so a trusted-looking
+# path cannot redirect outside the installation.
+function Resolve-ShopifySkillRead {
     param([string]$p)
     if (-not $p) { return $null }
-    $norm = ($p -replace '\\', '/') -replace '//+', '/'
-    if ($norm -match '/skills/([^/]+)/SKILL\.md$') { return $Matches[1] }
-    return $null
+
+    try {
+        $item = Get-Item -LiteralPath $p -Force -ErrorAction Stop
+        if ($item.PSIsContainer) { return $null }
+        if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { return $null }
+        $resolved = [IO.Path]::GetFullPath($item.FullName)
+        if ([IO.Path]::GetFileName($resolved).ToLowerInvariant() -ne 'skill.md') { return $null }
+
+        $root = Get-HookInstallRoot
+        if (-not $root) { return $null }
+        $root = [IO.Path]::GetFullPath($root)
+
+        if ($hookSource -eq 'plugin') {
+            $parent = [IO.Path]::GetDirectoryName($resolved)
+            $skillsRoot = Join-Path $root 'skills'
+            if (-not (Test-SamePath ([IO.Path]::GetDirectoryName($parent)) $skillsRoot)) { return $null }
+            # GetFullPath is lexical and does not resolve Windows junctions.
+            # The only descendant directories in the exact accepted layout are
+            # `skills` and the skill directory, so inspect both explicitly.
+            if ((Test-ReparsePoint $skillsRoot) -or (Test-ReparsePoint $parent)) { return $null }
+            $name = [IO.Path]::GetFileName($parent)
+        } elseif ($hookSource -eq 'skill') {
+            if (-not (Test-SamePath ([IO.Path]::GetDirectoryName($resolved)) $root)) { return $null }
+            $name = [IO.Path]::GetFileName($root.TrimEnd([char[]]@('\', '/')))
+        } else {
+            return $null
+        }
+
+        $name = $name.ToLowerInvariant()
+        if (-not (Test-ShopifyToolkitPathSkillName $name)) { return $null }
+        return [pscustomobject]@{ Path = $resolved; Name = $name }
+    } catch {
+        return $null
+    }
 }
 
 function Get-SkillVersionFromPath {
@@ -317,9 +410,10 @@ switch ($toolName) {
         break
     }
     { @('Read', 'view', 'read_file') -contains $_ } {
-        if ((Test-ShopifyInstallPath $filePath) -and ($filePath -match '/SKILL\.md$' -or $filePath -match '\\SKILL\.md$')) {
-            $skillName    = Get-SkillNameFromPath $filePath
-            $skillVersion = Get-SkillVersionFromPath $filePath
+        $skillRead = Resolve-ShopifySkillRead $filePath
+        if ($skillRead) {
+            $skillName    = $skillRead.Name
+            $skillVersion = Get-SkillVersionFromPath $skillRead.Path
             $trigger      = 'skill-md-read'
         }
         break
@@ -344,7 +438,7 @@ $parameters = [ordered]@{
 # (Claude Code). Missing stash → omitted (other hosts use the script surfaces).
 # ConvertTo-Json below JSON-escapes the arbitrary prompt text safely.
 try {
-    if ($sessionId) {
+    if ($client -eq 'claude-code' -and $sessionId) {
         $key = ([string]$sessionId -replace '[^A-Za-z0-9._-]', '_')
         $stashFile = Join-Path $promptStashDir "$key.prompt"
         if (Test-Path $stashFile) {

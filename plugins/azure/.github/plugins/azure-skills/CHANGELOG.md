@@ -1,84 +1,388 @@
 # Changelog
 
-## 1.2.49
+## 1.2.125
+
+- feature: add Hosted Voice conversation engine transport ([#3525](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3525))
+
+## 1.2.124
+
+- Agent Skills Foundry Tracing: verify optional App Insight tracing across agent workflows ([#3447](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3447))
+
+## 1.2.123
+
+- fix: correct Python runtime discovery query ([#3508](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3508))
+
+## 1.2.122
+
+- feature: add GPT-Live voice agent skill support ([#3485](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3485))
+
+## 1.2.121
+
+- fix: improve Foundry quickstart and evaluation workflows ([#3507](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3507))
+
+## 1.2.120
+
+- fix: pass packaged allowlists to telemetry reporter ([#3505](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3505))
+
+## 1.2.119
+
+- fix: improve telemetry hook host identification ([#3497](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3497))
+
+## 1.2.118
+
+- fix: require supported Node.js 22+ deployment runtimes ([#3491](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3491))
+
+## 1.2.117
+
+- chore: refresh Azure MCP allowlists to 4.0.0-beta.6 ([#3494](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3494))
+
+## 1.2.116
+
+- feat: automate Azure MCP tool allowlist refresh ([#3484](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3484))
+
+## 1.2.115
+
+- fix: harden Python App Service deployment preflight and packaging ([#3461](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3461))
+
+## 1.2.114
+
+- fix: keep onboarding phase documents out of skill discovery ([#3483](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3483))
+
+## 1.2.113
+
+- feat(azure-ai): add Speech SDK client diagnostics and offline log analyzer ([#3422](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3422))
+
+## 1.2.112
+
+- fix: flag PHP2Shell-vulnerable PHP and offer a fix at the scaffold gate ([#3464](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3464))
+
+## 1.2.111
+
+- fix: pin plugin npx package versions ([#3471](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3471))
+
+## 1.2.110
+
+- feat: adopt Agent Plugins 1.0 package format ([#3469](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3469))
+
+## 1.2.109
+
+- fix: remove runtime JSON parsing from Bash telemetry hook ([#3459](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3459))
+
+## 1.2.108
+
+- fix: use compatible array expansion with old bash versions ([#3463](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3463))
+
+## 1.2.107
+
+- test: address Azure Diagnostics review feedback ([#3438](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3438))
+
+## 1.2.106
+
+- feature: adopt Copilot harness discriminator contract ([#3398](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3398))
+
+## 1.2.105
+
+- fix: update hook telemetry reporter to 0.1.16 ([#3443](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3443))
+
+## 1.2.104
+
+- feat: add aks-cost-optimization skill to aks skills ([#3369](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3369))
+
+## 1.2.103
+
+- test: expand Azure Diagnostics resource-free evaluation coverage ([#3374](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3374))
+
+## 1.2.102
+
+- Update PyJWT version in requirements.txt ([#3441](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3441))
+
+## 1.2.101
+
+- fix: run Cursor hooks with bash ([#3425](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3425))
+
+## 1.2.100
+
+- fix: harden SQL access grant scripts ([#3435](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3435))
+
+## 1.2.99
+
+- fix: exclude venv in agentignore ([#3433](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3433))
+
+## 1.2.98
+
+- feature: implement Microsoft Foundry Voice Agent skill support ([#3385](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3385))
+
+## 1.2.97
+
+- fix: use MAR images in Python template ([#3414](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3414))
+
+## 1.2.96
+
+- Updates to Windows to Flex upgrade skill ([#3379](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3379))
+
+## 1.2.95
+
+- feature: support per plugin hook ([#3370](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3370))
+
+## 1.2.94
+
+- fix: enable standalone telemetry reporter by default ([#3383](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3383))
+
+## 1.2.93
+
+- feat: add Azure Advisor skills plugin ([#3310](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3310))
+
+## 1.2.92
+
+- feature: add Managed Harness Agent development workflow ([#3256](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3256))
+
+## 1.2.91
+
+- fix: safely pass quota JSON to Python ([#3377](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3377))
+
+## 1.2.90
+
+- Adding Windows Consumption to Flex upgrade skills ([#3121](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3121))
+
+## 1.2.89
+
+- chore: update telemetry reporter release ([#3365](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3365))
+
+## 1.2.88
+
+- feat: add Functions trigger and Durable troubleshooting ([#3123](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3123))
+
+## 1.2.87
+
+- fix: handle private Python indexes in Foundry agent workflows ([#3361](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3361))
+
+## 1.2.86
+
+- feat: support musl telemetry reporter builds and releases ([#3337](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3337))
+
+## 1.2.85
+
+- fix: pin hooks to latest telemetry reporter release ([#3356](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3356))
+
+## 1.2.84
+
+- feat: refine Azure Kusto discovery guidance ([#3355](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3355))
+
+## 1.2.83
+
+- feat: add AKS operational skills sibling plugin ([#3164](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3164))
+
+## 1.2.82
+
+- fix: clarify telemetry publisher debug logs ([#3336](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3336))
+
+## 1.2.81
+
+- feat: improve Azure Diagnostics from evaluations ([#3334](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3334))
+
+## 1.2.80
+
+- fix: appinsights-instrumentation prerequisite ([#3292](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3292))
+
+## 1.2.79
+
+- fix: distro-aware SSH probe for Ubuntu 24.04 ([#3294](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3294))
+
+## 1.2.78
+
+- fix: mcp enable command ([#3290](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3290))
+
+## 1.2.77
+
+- use consistent line ending ([#3313](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3313))
+
+## 1.2.76
+
+- docs: add telemetry disclosure to azure-skills README ([#3305](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3305))
+
+## 1.2.75
+
+- feat: add standalone telemetry reporter bootstrap ([#3273](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3273))
+
+## 1.2.74
+
+- fix: azure-reliability instruction ([#3291](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3291))
+
+## 1.2.73
+
+- fix: run Windows telemetry hooks with PowerShell ([#3263](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3263))
+
+## 1.2.72
+
+- fix: handle uv.lock samples behind private package index in Foundry hosted agent quick start ([#3264](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3264))
+
+## 1.2.71
+
+- feature: add discover-azure-skills skill ([#3053](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3053))
+
+## 1.2.70
+
+- fix: use session_start telemetry event ([#3245](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3245))
+
+## 1.2.69
+
+- Document npx usage in plugin README and their security implication ([#3240](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3240))
+
+## 1.2.68
+
+- feature: add standalone Azure Cost plugin ([#3151](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3151))
+
+## 1.2.67
+
+- fix: bump plugin versions for hook changes ([#3227](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3227))
+
+## 1.2.66
+
+- refactor: clarify evidence checks in hosted-agent validation rules ([#3236](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3236))
+
+## 1.2.65
+
+- feat: add scoped hosted-agent validation rules ([#3235](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3235))
+
+## 1.2.64
+
+- feat: report session start telemetry ([#3216](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3216))
+
+## 1.2.63
+
+- feat: add Foundry IQ skills plugin ([#3209](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3209))
+
+## 1.2.62
+
+- feature: new onboard-plugin skill ([#3191](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3191))
+
+## 1.2.61
+
+- fix: decode Cursor telemetry input as UTF-8 ([#3214](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3214))
+
+## 1.2.60
 
 - feat: expand Foundry validation rules ([#3192](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3192))
 
-## 1.2.48
+## 1.2.59
 
 - feat(microsoft-foundry): add MCP-backed agent insights workflow ([#3207](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3207))
 
-## 1.2.47
+## 1.2.58
+
+- feature: add azure-local-skills plugin (standard + multi-rack) ([#2163](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/2163))
+
+## 1.2.57
 
 - feat: improve Foundry validation reports ([#3170](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3170))
 
-## 1.2.46
+## 1.2.56
 
 - chore: foundry skill improvements on sample selection, model query, trigger words, and evals ([#3177](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3177))
 
-## 1.2.45
+## 1.2.55
 
 - fix: use TCP checks for local agent readiness in Foundry Skill ([#3169](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3169))
 
-## 1.2.44
+## 1.2.54
 
 - fix: refine Foundry agent setup and deployment guidance ([#3165](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3165))
 
-## 1.2.43
+## 1.2.53
 
 - fix: remove unnecessary trigger phrase in azure-compliance skill body ([#3118](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3118))
 
-## 1.2.42
+## 1.2.52
+
+- fix: normalize Cursor telemetry input ([#3158](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3158))
+
+## 1.2.51
 
 - feat: add Azure Functions hosting and cold-start guidance ([#3122](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3122))
 
-## 1.2.41
+## 1.2.50
 
 - fix: improve langchain-azure-ai migration ([#3160](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3160))
 
-## 1.2.40
+## 1.2.49
+
+- fix: add cross-platform Cursor telemetry runner ([#3146](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3146))
+
+## 1.2.48
+
+- fix: restore Cursor telemetry reporting ([#3141](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3141))
+
+## 1.2.47
 
 - chore: clean duplicate trigger words in Foundry Skill description ([#3145](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3145))
 
-## 1.2.39
+## 1.2.46
+
+- fix: deduplicate events from track-telemetry script ([#3142](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3142))
+
+## 1.2.45
+
+- chore: bring back additional filter for multiple plugins ([#3131](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3131))
+
+## 1.2.44
 
 - feat: Add more validate rules ([#3130](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3130))
 
-## 1.2.38
+## 1.2.43
 
 - feat: route explicit Foundry agent validation ([#3128](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3128))
 
-## 1.2.37
+## 1.2.42
 
 - Add agent validation rules ([#3127](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3127))
 
-## 1.2.36
+## 1.2.41
 
 - feat: add Foundry agent validation skill entry point ([#3115](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3115))
 
-## 1.2.35
+## 1.2.40
 
 - fix: role ([#3114](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3114))
 
-## 1.2.34
+## 1.2.39
+
+- misc: revert additional path pattern for kusto graph plugin ([#3108](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3108))
+
+## 1.2.38
 
 - feat: Added Referenced Workloads Updates to Azure Enterprise Infra Planner Skills (feature: Referenced Workloads) ([#3094](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3094))
 
-## 1.2.33
+## 1.2.37
+
+- chore: log plugin version ([#3102](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3102))
+
+## 1.2.36
 
 - refactor: remove duplicate content from Foundry skill description ([#3104](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3104))
 
-## 1.2.32
+## 1.2.35
+
+- fix: detect Cursor client in telemetry hook via cursor_version field ([#3100](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3100))
+
+## 1.2.34
+
+- fix: track reference file reads regardless of plugin catalog name ([#3096](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3096))
+
+## 1.2.33
 
 - Update outdated runtime references in plugin skills to latest LTS versions ([#3011](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3011))
 
-## 1.2.31
+## 1.2.32
 
 - feat: replace azure-diagnostics AKS pod-failure evidence bundle with a script ([#2933](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/2933))
 
-## 1.2.30
+## 1.2.31
 
 - fix: mark Azure diagnostics shell script executable ([#3029](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3029))
+
+## 1.2.30
+
+- feature: extend telemetry for new plugins ([#3059](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3059))
 
 ## 1.2.29
 

@@ -1,8 +1,8 @@
 {
   "name": "cockroachdb",
-  "version": "0.1.10",
+  "version": "0.1.11",
   "description": "Connect Claude Code directly to your CockroachDB clusters for hands-on database work — explore schemas, write optimized SQL, debug queries, and manage distributed database clusters. This plugin provides tools across MCP backends (self-hosted MCP Toolbox and managed CockroachDB Cloud MCP Server), specialized agents (DBA, Developer, Operator), skills across operational domains, and built-in safety hooks.",
-  "updatedAt": "2026-09-19T00:42:54.354Z",
+  "updatedAt": "2026-11-17T00:01:30.338Z",
   "author": {
     "url": "https://github.com/cockroachdb",
     "name": "Cockroach Labs"
@@ -28,11 +28,11 @@
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "mcp__cockroachdb-toolbox__cockroachdb-execute-sql",
+        "matcher": "mcp__plugin_cockroachdb_cockroachdb-toolbox__cockroachdb-execute-sql|mcp__cockroachdb-toolbox__cockroachdb-execute-sql",
         "hooks": [
           {
             "type": "command",
-            "command": "python3 -c 'import sys, os, runpy; p = os.path.normpath(r\"${CLAUDE_PLUGIN_ROOT}/scripts/validate-sql.py\"); p = (\"\\\\?\\\\\" + p) if os.name == \"nt\" else p; runpy.run_path(p, run_name=\"__main__\")'; exit 0"
+            "command": "python3 -c 'import os, runpy; r = r\"${CLAUDE_PLUGIN_ROOT}\"; r = r if r and not r.startswith(\"$\") else os.environ.get(\"CLAUDE_PLUGIN_ROOT\", \"\"); p = os.path.normpath(os.path.join(r, \"scripts\", \"validate-sql.py\")) if r else \"\"; p = chr(92) * 2 + \"?\" + chr(92) + p if p and os.name == \"nt\" else p; p and os.path.isfile(p) and runpy.run_path(p, run_name=\"__main__\")'; exit 0"
           }
         ]
       }
@@ -43,7 +43,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 -c 'import sys, os, runpy; p = os.path.normpath(r\"${CLAUDE_PLUGIN_ROOT}/scripts/check-sql-files.py\"); p = (\"\\\\?\\\\\" + p) if os.name == \"nt\" else p; runpy.run_path(p, run_name=\"__main__\")'; exit 0"
+            "command": "python3 -c 'import os, runpy; r = r\"${CLAUDE_PLUGIN_ROOT}\"; r = r if r and not r.startswith(\"$\") else os.environ.get(\"CLAUDE_PLUGIN_ROOT\", \"\"); p = os.path.normpath(os.path.join(r, \"scripts\", \"check-sql-files.py\")) if r else \"\"; p = chr(92) * 2 + \"?\" + chr(92) + p if p and os.name == \"nt\" else p; p and os.path.isfile(p) and runpy.run_path(p, run_name=\"__main__\")'; exit 0"
           }
         ]
       }
@@ -54,17 +54,17 @@
       "url": "https://cockroachlabs.cloud/mcp",
       "type": "http",
       "headers": {
-        "mcp-cluster-id": "${COCKROACHDB_CLUSTER_ID}"
+        "mcp-cluster-id": "${COCKROACHDB_CLUSTER_ID:-}"
       }
     },
     "cockroachdb-toolbox": {
       "env": {
-        "COCKROACHDB_HOST": "${COCKROACHDB_HOST}",
-        "COCKROACHDB_PORT": "${COCKROACHDB_PORT}",
-        "COCKROACHDB_USER": "${COCKROACHDB_USER}",
-        "COCKROACHDB_SSLMODE": "${COCKROACHDB_SSLMODE}",
-        "COCKROACHDB_DATABASE": "${COCKROACHDB_DATABASE}",
-        "COCKROACHDB_PASSWORD": "${COCKROACHDB_PASSWORD}"
+        "COCKROACHDB_HOST": "${COCKROACHDB_HOST:-localhost}",
+        "COCKROACHDB_PORT": "${COCKROACHDB_PORT:-26257}",
+        "COCKROACHDB_USER": "${COCKROACHDB_USER:-root}",
+        "COCKROACHDB_SSLMODE": "${COCKROACHDB_SSLMODE:-require}",
+        "COCKROACHDB_DATABASE": "${COCKROACHDB_DATABASE:-defaultdb}",
+        "COCKROACHDB_PASSWORD": "${COCKROACHDB_PASSWORD:-}"
       },
       "args": [
         "--config",
@@ -72,11 +72,6 @@
         "--stdio"
       ],
       "command": "toolbox"
-    },
-    "cockroachdb-toolbox-http": {
-      "url": "http://127.0.0.1:5000/mcp",
-      "type": "http",
-      "_comment": "SSE transport — run 'toolbox --config tools.yaml' first, then connect via this URL"
     }
   }
 }

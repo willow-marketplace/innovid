@@ -3,6 +3,9 @@ name: search-notes
 description: Searches for and retrieves note records from the Carta CRM. Use this skill when the user says things like "find a note", "search notes", "look up a note", "show me notes about [topic]", "list notes", "find notes mentioning [keyword]", or "/search-notes". Returns note details including ID, title, and text content.
 ---
 
+<!-- carta:plugin-version -->
+<carta-plugin>carta-crm:1.20.20</carta-plugin>
+
 ## Overview
 
 Search for notes in the Carta CRM by keyword using `search_notes`.

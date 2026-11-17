@@ -55,12 +55,50 @@ didn't point you at.
 ## What this skill is not for
 
 Runbooks and architecture docs — those are content with their own formats, owned by
-the `runbooks` and `architecture` skills in this plugin; a skill is instructions for an
-agent, not knowledge for a person. And reviewing all your plugins at once ("are our
-skills healthy?") is the `doctor` skill's job — this skill works one skill at a time,
-from evidence about that skill.
+the `runbooks`, `runbooks-author`, `architecture` and `architecture-author` skills in
+this plugin; a skill is instructions for an agent, not knowledge for a person. And reviewing all your
+plugins at once ("are our skills healthy?") is the `doctor` skill's job — this skill
+works one skill at a time, from evidence about that skill.
+
+How the incident summaries and updates incident.io suggests are written — their sections,
+structure and tone — is set in
+[Settings → Summaries](https://app.incident.io/~/settings/summaries) and
+[Settings → Updates](https://app.incident.io/~/settings/updates) in the incident.io
+dashboard, not in a skill: those suggestions don't load skills. Point the user there
+instead of writing one.
 
 ## Ground rules
-- **Speak the user's language, not this skill's.** The user hasn't read this file so
-  say what you're doing plainly. Never cite a reference filename or similar detail 
-  to them, and use human-friendly names and titles rather than IDs.
+- **Speak the user's language, not this skill's.** The user may not have read this
+  file; say what you're doing plainly. While you're driving a job, each reply has this
+  shape — a one-off question gets a plain answer:
+
+  ```markdown
+  <the answer — a few sentences, in the user's words>
+
+  **Progress**
+  - [x] <done>
+  - [ ] <this reply's step> ← now
+  - [ ] <still to come>
+
+  **Next step:** <one action for the user — what it unblocks>
+  ```
+
+  The list is fixed once agreed — same items, same words, same order; only the ticks
+  move. If the plan changes, say so and change it once.
+
+  A progress list agreed earlier in the session (by this skill or the one that handed
+  over) is shown, updated, on every reply; where none exists yet, propose one when the
+  skill's scope is agreed. Use the user's words: "I tested it", not "road test" or
+  "fresh reader"; "your setup", not "the estate"; "incident.io has picked up your
+  changes", not "synced". Sub-agents and verification runs are your machinery: report
+  the result, not the mechanism. The `talking-to-the-user` skill has the full
+  table.
+- **Stamp what you write.** Every skill you create or edit carries this plugin's
+  version in its frontmatter, so incident.io can tell which skills came through this
+  flow. If you loaded this skill through the incident.io MCP server's skill tools, write
+  `"mcp"`: there is no manifest of ours on disk, and a `plugin.json` you can see belongs
+  to the repo you're working in. Otherwise read the version from this plugin's manifest,
+  `plugin.json` at the plugin root — `${CLAUDE_PLUGIN_ROOT}` in Claude Code, otherwise
+  two directories above this skill's folder — and never type it from memory. If the
+  manifest can't be read, write `"unknown"` and tell the user. The format is in
+  format.md's provenance stamp section.

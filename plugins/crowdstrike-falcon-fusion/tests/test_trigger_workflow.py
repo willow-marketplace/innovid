@@ -219,12 +219,46 @@ class TestGetTriggerParameters:
         assert props == {"a": {}}
         assert required == []
 
-    def test_empty_on_exception(self, monkeypatch):
-        """Errors while fetching degrade to empty containers."""
+    def test_api_error_raises(self, monkeypatch):
+        """An API error must not degrade to an empty schema (autofill would fill nothing)."""
         mock_client = MagicMock()
-        mock_client.search_definitions.side_effect = RuntimeError("boom")
+        mock_client.search_definitions.return_value = {
+            "status_code": 403, "body": {"errors": [{"message": "forbidden"}]},
+        }
         monkeypatch.setattr(trigger_workflow, "get_client", lambda: mock_client)
-        assert trigger_workflow.get_trigger_parameters("def_id") == ({}, [])
+        with pytest.raises(RuntimeError, match="forbidden"):
+            trigger_workflow.get_trigger_parameters("def_id")
+
+    def test_main_autofill_api_error_exits_1(self, monkeypatch, capsys):
+        def boom(_def_id):
+            raise RuntimeError("Fetching the workflow's trigger parameters failed")
+        monkeypatch.setattr(trigger_workflow, "get_trigger_parameters", boom)
+        monkeypatch.setattr(
+            trigger_workflow, "execute_workflow",
+            lambda *_a, **_k: pytest.fail("must not execute with an unknown schema"),
+        )
+        monkeypatch.setattr("sys.argv", ["trigger_workflow.py", "--id", "def_id", "--autofill"])
+        with pytest.raises(SystemExit) as exc:
+            trigger_workflow.main()
+        assert exc.value.code == 1
+        assert "trigger parameters" in capsys.readouterr().err
+
+
+    def test_main_json_without_params_refuses_to_prompt(self, monkeypatch, capsys):
+        monkeypatch.setattr(
+            "builtins.input", lambda *_a: pytest.fail("must not prompt under --json"),
+        )
+        monkeypatch.setattr(
+            trigger_workflow, "execute_workflow",
+            lambda *_a, **_k: pytest.fail("must not execute"),
+        )
+        monkeypatch.setattr("sys.argv", ["trigger_workflow.py", "--id", "def_id", "--json"])
+        with pytest.raises(SystemExit) as exc:
+            trigger_workflow.main()
+        assert exc.value.code == 2
+        captured = capsys.readouterr()
+        assert captured.out == ""
+        assert "--params" in captured.err
 
 
 class TestHeuristicValue:
@@ -244,6 +278,11 @@ class TestHeuristicValue:
 
     def test_hash_field_by_name(self):
         assert trigger_workflow.heuristic_value("file_hash", {"type": "string"})
+
+    def test_sha256_field_gets_sha256_length_value(self):
+        value = trigger_workflow.heuristic_value("sha256", {"type": "string"})
+        assert len(value) == 64
+        int(value, 16)  # hex
 
     def test_integer_type(self):
         assert trigger_workflow.heuristic_value("count", {"type": "integer"}) == 1
@@ -498,6 +537,61 @@ class TestMain:
         assert "Succeeded" in out
         assert "done" in out
 
+    def test_main_wait_unsuccessful_status_exits_1(self, monkeypatch, capsys):
+        """A terminal Failed result is reported and exits non-zero."""
+        monkeypatch.setattr(
+            "sys.argv",
+            ["trigger_workflow.py", "--id", "def_id", "--params", "{}", "--wait"],
+        )
+        monkeypatch.setattr(
+            trigger_workflow,
+            "execute_workflow",
+            lambda *_a, **_k: (True, "exec_123", {}),
+        )
+        monkeypatch.setattr(
+            trigger_workflow,
+            "poll_results",
+            lambda *_a, **_k: {"status": "Failed"},
+        )
+        with pytest.raises(SystemExit) as exc:
+            trigger_workflow.main()
+        assert exc.value.code == 1
+        assert "Execution Failed" in capsys.readouterr().out
+
+    def test_main_wait_completed_status_succeeds(self, monkeypatch):
+        """Completed is the status a normal successful run reports."""
+        monkeypatch.setattr(
+            "sys.argv",
+            ["trigger_workflow.py", "--id", "def_id", "--params", "{}", "--wait"],
+        )
+        monkeypatch.setattr(
+            trigger_workflow,
+            "execute_workflow",
+            lambda *_a, **_k: (True, "exec_123", {}),
+        )
+        monkeypatch.setattr(
+            trigger_workflow,
+            "poll_results",
+            lambda *_a, **_k: {"status": "Completed"},
+        )
+        trigger_workflow.main()
+
+    def test_main_missing_execution_id_exits_1(self, monkeypatch, capsys):
+        """An execute response without an execution ID is not a submission."""
+        monkeypatch.setattr(
+            "sys.argv",
+            ["trigger_workflow.py", "--id", "def_id", "--params", "{}"],
+        )
+        monkeypatch.setattr(
+            trigger_workflow,
+            "execute_workflow",
+            lambda *_a, **_k: (True, None, {"resources": []}),
+        )
+        with pytest.raises(SystemExit) as exc:
+            trigger_workflow.main()
+        assert exc.value.code == 1
+        assert "no execution ID" in capsys.readouterr().out
+
     def test_main_interactive_mode_no_params(self, monkeypatch, capsys):
         """Without --params, main() fetches the schema and prompts for params."""
         monkeypatch.setattr(
@@ -540,12 +634,23 @@ class TestMain:
             lambda *_a, **_k: (True, "exec_123", {"resources": ["exec_123"]}),
         )
         trigger_workflow.main()
-        out = capsys.readouterr().out
-        # The trailing JSON block (after the "Execution ID" line) must parse.
-        json_block = out[out.rindex("Execution ID:"):]
-        json_block = json_block[json_block.index("{"):]
-        parsed = json.loads(json_block)
+        captured = capsys.readouterr()
+        # stdout must be exactly one JSON document; progress goes to stderr.
+        parsed = json.loads(captured.out)
         assert parsed["resources"] == ["exec_123"]
+        assert "Execution ID: exec_123" in captured.err
+
+    def test_main_json_wait_stdout_is_pure_json(self, monkeypatch, capsys):
+        monkeypatch.setattr(
+            "sys.argv",
+            ["trigger_workflow.py", "--id", "def_id", "--params", "{}", "--json", "--wait"],
+        )
+        monkeypatch.setattr(trigger_workflow, "execute_workflow",
+                            lambda *_a, **_k: (True, "exec_123", {}))
+        monkeypatch.setattr(trigger_workflow, "fetch_results",
+                            lambda _eid: (True, "OK", {"status": "Completed", "output": {}}))
+        trigger_workflow.main()
+        assert json.loads(capsys.readouterr().out)["status"] == "Completed"
 
     def test_main_requires_id(self, monkeypatch):
         """argparse enforces the required --id argument."""

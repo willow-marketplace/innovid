@@ -1,7 +1,8 @@
 // URL routing for the fund-modeling app.
 //
-// Shape: /firm/<slug>/<page>
-//   - The firm slug and the page both live in the PATH. A reload therefore
+// Shape: /firm/<firm>/<page>
+//   - <firm> is an ID on the hosted app (see isFirmId) and the firm's name slug locally.
+//   - The firm and the page both live in the PATH. A reload therefore
 //     reopens the exact firm and page you were on.
 //   - The /api auth token is not in the URL — it lives in localStorage (see dash-token.js).
 //   - Path-based (History API), not a hash: serve.py and Vite dev both serve
@@ -13,11 +14,30 @@
 // fires no event of its own, so navigate() dispatches NAV_EVENT to notify them.
 
 export const NAV_EVENT = "fm:navigate";
+// Marks the app document embedded in the outer shell's iframe; scripts/serve.py reads it too.
+export const FRAME_PARAM = "frame";
+
+export const CARTA_ID_RE = /^[1-9][0-9]*$/;
+export const FIRM_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+// Hosted URLs name a firm by Carta ID, or by firm UUID while Carta sends no Carta ID.
+export const isFirmId = (firm) => CARTA_ID_RE.test(firm || "") || FIRM_UUID_RE.test(firm || "");
+/** The query string that names `firm` to the /api routes; empty without a firm. */
+export const firmQuery = (firm) => (firm ? `?firm=${encodeURIComponent(firm)}` : "");
+
+// In a Claude MCP App panel the page's own URL belongs to the host and the History API may be
+// refused, so the route lives in memory there instead (see useMemoryRoute).
+let memoryHref = null;
+const currentHref = () => memoryHref ?? window.location.href;
+
+/** Keep the route in memory from now on, starting at `path`. */
+export function useMemoryRoute(path = "/") {
+  memoryHref = new URL(path, "https://panel.invalid").href;
+}
 
 /** Parse the current path into { firm, tab }. Either may be null. */
 export function parseRoute() {
   if (typeof window === "undefined") return { firm: null, tab: null };
-  const segs = window.location.pathname.replace(/^\/+/, "").split("/").filter(Boolean);
+  const segs = new URL(currentHref()).pathname.replace(/^\/+/, "").split("/").filter(Boolean);
   if (segs[0] === "firm" && segs[1]) {
     return { firm: decodeURIComponent(segs[1]), tab: segs[2] || null };
   }
@@ -25,7 +45,7 @@ export function parseRoute() {
 }
 
 function urlFor({ firm, tab }) {
-  const url = new URL(window.location.href);
+  const url = new URL(currentHref());
   url.pathname = firm ? `/firm/${encodeURIComponent(firm)}${tab ? `/${tab}` : ""}` : "/";
   return url;
 }
@@ -34,8 +54,9 @@ function urlFor({ firm, tab }) {
  *  previous page); pass { replace: true } for redirects that shouldn't stack. */
 export function navigate({ firm, tab }, { replace = false } = {}) {
   const url = urlFor({ firm, tab });
-  if (url.href === window.location.href) return;
-  window.history[replace ? "replaceState" : "pushState"]({}, "", url);
+  if (url.href === currentHref()) return;
+  if (memoryHref !== null) memoryHref = url.href;
+  else window.history[replace ? "replaceState" : "pushState"]({}, "", url);
   window.dispatchEvent(new Event(NAV_EVENT));
 }
 

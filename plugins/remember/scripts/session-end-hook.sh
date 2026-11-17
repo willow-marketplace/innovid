@@ -29,7 +29,7 @@
 #
 # STDIN
 #   The SessionEnd payload. `session_id` and `reason` are read with the same
-#   bounded, non-blocking approach post-tool-hook.sh uses for `session_id`:
+#   bounded, non-blocking approach the PostToolUse hook uses for `session_id`:
 #   never from a tty, and time-bounded (`read -t 1`) so a pipe held open with
 #   nothing in it costs at most a second rather than hanging session teardown.
 #   Read once, by the process Claude Code invoked; the detached child gets
@@ -73,12 +73,12 @@
 # ============================================================================
 
 # --- Where this script lives ---
-# Same parameter-expansion resolution as post-tool-hook.sh / user-prompt-hook.sh
+# Same parameter-expansion resolution as the PostToolUse hook / the UserPromptSubmit hook
 # (#230) rather than three `dirname` forks. A path with no slash in it leaves
 # the filename behind, not a directory; `dirname` answered "." and this must
 # too.
 _HOOK_DIR="${BASH_SOURCE[0]%/*}"
-[ "$_HOOK_DIR" = "${BASH_SOURCE[0]}" ] && _HOOK_DIR="."
+[ "$_HOOK_DIR" = "${BASH_SOURCE[0]}" ] && _HOOK_DIR="$(pwd)"
 
 # --- Nested summarizer: there is no project here (#204) ---
 # Same guard every hook in this plugin carries: this plugin can re-enter its
@@ -88,7 +88,7 @@ _HOOK_DIR="${BASH_SOURCE[0]%/*}"
 [ -n "${REMEMBER_NESTED_SUMMARIZER:-}" ] && exit 0
 
 # --- Read stdin: session_id and reason ---
-# Cleared, not merely left alone (#266) — see post-tool-hook.sh's identical
+# Cleared, not merely left alone (#266) — see the PostToolUse hook's identical
 # comment. This plugin can re-enter its own hooks from a nested session, and
 # both names are exported at points elsewhere in this plugin's hooks, so a
 # stale value here would be the plausible-and-wrong answer rather than the
@@ -134,14 +134,9 @@ if [ -n "${REMEMBER_SESSION_END_DETACHED:-}" ]; then
     HOOK_STDIN="${REMEMBER_SESSION_END_PAYLOAD:-}"
     unset REMEMBER_SESSION_END_DETACHED REMEMBER_SESSION_END_PAYLOAD
 else
-    HOOK_STDIN=""
-    if [ ! -t 0 ]; then
-        _line=""
-        while IFS= read -r -t 1 _line || [ -n "$_line" ]; do
-            HOOK_STDIN="$HOOK_STDIN$_line"
-            _line=""
-        done
-    fi
+    # Chunked, never byte at a time (#1040): see lib-stdin.sh.
+    source "$_HOOK_DIR/lib-stdin.sh"
+    _remember_read_stdin_into HOOK_STDIN
     if [ -z "${REMEMBER_SESSION_END_FOREGROUND:-}" ]; then
         REMEMBER_SESSION_END_DETACHED=1 REMEMBER_SESSION_END_PAYLOAD="$HOOK_STDIN" \
             nohup bash "${BASH_SOURCE[0]}" </dev/null >/dev/null 2>&1 &
@@ -152,57 +147,66 @@ fi
 
 source "$_HOOK_DIR/lib-clock.sh"
 
-# The same deliberately narrow extractor post-tool-hook.sh and
-# session-start-hook.sh use: the key must be followed by nothing but
+# The same deliberately narrow extractor the PostToolUse hook and
+# the SessionStart hook use: the key must be followed by nothing but
 # whitespace and a colon before the value's opening quote, so a field of the
 # same name appearing inside some other part of the payload is not mistaken
-# for it. Duplicated rather than sourced from session-start-hook.sh, for the
+# for it. Duplicated rather than sourced from the SessionStart hook, for the
 # same reason that file gives for keeping its own copy: a hook that has to
 # survive a broken install is better served by a few duplicated lines than a
 # shared library it might fail to source.
 #
 # #494: whether a real host payload can nest a `cwd` key AHEAD of this
-# field is researched in scripts/user-prompt-hook.sh, next to its own
+# field is researched in the UserPromptSubmit hook, next to its own
 # `_stdin_cwd` -- same extractor mechanism, same finding, not repeated here.
 _stdin_json_string() {
-    local key="$1" raw="$2" rest prefix value
-    case "$raw" in *"\"$key\""*) ;; *) return 1 ;; esac
-    rest=${raw#*\"$key\"}
-    prefix=${rest%%\"*}
-    case "$prefix" in *[!:[:space:]]*) return 1 ;; esac
-    value=${rest#*\"}
-    value=${value%%\"*}
+    local field="$1" raw="$2" rest prefix value dq
+    # The double quote is held in `dq` (octal 042) rather than written
+    # backslash-escaped: the plugin directory's scanner mis-tracks an
+    # escaped quote (#898 round 8). Same patterns, same quoting of $field.
+    printf -v dq '\042'
+    [[ "$raw" == *"$dq$field$dq"* ]] || return 1
+    rest=${raw#*"$dq"$field"$dq"}
+    prefix=${rest%%"$dq"*}
+    if [[ "$prefix" == *[!:[:space:]]* ]]; then return 1; fi
+    value=${rest#*"$dq"}
+    value=${value%%"$dq"*}
+    # A JSON encoder writes each backslash as `\\` -- a Windows `cwd` from
+    # Codex arrives as `C:\\work\\proj` otherwise (#829).
+    value=${value//\\\\/\\}
     [ -n "$value" ] || return 1
     printf '%s' "$value"
 }
 
 STDIN_SESSION_ID=$(_stdin_json_string session_id "$HOOK_STDIN" 2>/dev/null) || STDIN_SESSION_ID=""
 # stdin is not more trustworthy than a basename — same validation
-# post-tool-hook.sh applies before this id becomes a path component or an
+# the PostToolUse hook applies before this id becomes a path component or an
 # argument to another script.
 #
 # #600: this value reaches save-session.sh's argv below (`bash "$SAVE_SCRIPT"
 # "$STDIN_SESSION_ID" --force`), and that script's own arg loop treats a
 # leading-dash value as a FLAG rather than a positional session id, exactly
 # the gap #576 already closed at the sibling agy-stop-hook.sh call site
-# (`case ... in ''|.|..|-*|*[!A-Za-z0-9._-]*)`). Without `-*` here, a
+# (`case ... in ''|[.]|[.][.]|-*|*[!A-Za-z0-9._-]*)`). Without `-*` here, a
 # session_id of "--dry" passes this guard untouched and turns the last-
 # chance flush into a silent dry-run preview: no summary written, position
 # not advanced, log line reads like an ordinary run.
-case "$STDIN_SESSION_ID" in
-    ''|.|..|-*|*[!A-Za-z0-9._-]*) STDIN_SESSION_ID="" ;;
-esac
+if [ -z "${STDIN_SESSION_ID#.}" ] || [ -z "${STDIN_SESSION_ID#..}" ] \
+    || [ "${STDIN_SESSION_ID#-}" != "$STDIN_SESSION_ID" ] \
+    || [[ "$STDIN_SESSION_ID" == *[!A-Za-z0-9._-]* ]]; then
+    STDIN_SESSION_ID=""
+fi
 
 SESSION_END_REASON=$(_stdin_json_string reason "$HOOK_STDIN" 2>/dev/null) || SESSION_END_REASON=""
 # Not narrowed to a known enum on purpose (see STDIN comment above) — only
 # sanitised so an unexpected payload shape cannot put an arbitrary byte
 # sequence into a log line.
-case "$SESSION_END_REASON" in
-    ''|*[!A-Za-z0-9_]*) SESSION_END_REASON="unknown" ;;
-esac
+if [ -z "$SESSION_END_REASON" ] || [[ "$SESSION_END_REASON" == *[!A-Za-z0-9_]* ]]; then
+    SESSION_END_REASON="unknown"
+fi
 
 # ── The transcript path the host handed us (#407) ─────────────────────────
-# Same field, same reasoning as session-start-hook.sh's identical block:
+# Same field, same reasoning as the SessionStart hook's identical block:
 # exported for pipeline/host.transcript_path() to pick up in any Python
 # process this hook spawns. Data from a host payload, validated at the point
 # of entry -- only a carriage return is rejected, since a transcript path
@@ -214,13 +218,14 @@ esac
 # preserves one.) Whether the value names an openable file is decided on the
 # Python side, which falls back to derivation when it does not.
 REMEMBER_TRANSCRIPT_PATH=$(_stdin_json_string transcript_path "$HOOK_STDIN" 2>/dev/null) || REMEMBER_TRANSCRIPT_PATH=""
-case "$REMEMBER_TRANSCRIPT_PATH" in
-    *$'\n'*|*$'\r'*) REMEMBER_TRANSCRIPT_PATH="" ;;
-esac
+if [[ "$REMEMBER_TRANSCRIPT_PATH" == *$'\n'* ]] \
+    || [[ "$REMEMBER_TRANSCRIPT_PATH" == *$'\r'* ]]; then
+    REMEMBER_TRANSCRIPT_PATH=""
+fi
 export REMEMBER_TRANSCRIPT_PATH
 
 # ── The cwd the host handed us (#411) ─────────────────────────────────────
-# Same field, same reasoning as session-start-hook.sh's identical block:
+# Same field, same reasoning as the SessionStart hook's identical block:
 # exported for resolve-paths.sh (sourced below) to consult as its fallback
 # once CLAUDE_PROJECT_DIR is unset -- still the state Codex leaves it in
 # (live-confirmed, #463); Gemini CLI's own bundled docs now say it DOES set
@@ -235,13 +240,14 @@ export REMEMBER_TRANSCRIPT_PATH
 # actually names a directory is decided in resolve-paths.sh, which falls
 # back to the existing derivation when it does not.
 REMEMBER_HOOK_CWD=$(_stdin_json_string cwd "$HOOK_STDIN" 2>/dev/null) || REMEMBER_HOOK_CWD=""
-case "$REMEMBER_HOOK_CWD" in
-    *$'\n'*|*$'\r'*) REMEMBER_HOOK_CWD="" ;;
-esac
+if [[ "$REMEMBER_HOOK_CWD" == *$'\n'* ]] \
+    || [[ "$REMEMBER_HOOK_CWD" == *$'\r'* ]]; then
+    REMEMBER_HOOK_CWD=""
+fi
 export REMEMBER_HOOK_CWD
 
 # --- Resolve paths, tools, directories, logging ---
-# Opt into resolve-paths.sh's soft-failure mode, exactly as post-tool-hook.sh
+# Opt into resolve-paths.sh's soft-failure mode, exactly as the PostToolUse hook
 # does: this hook must never block session teardown, so a resolution failure
 # (e.g. a nested/headless session with no CLAUDE_PROJECT_DIR) is a silent
 # no-op, not a crash.
@@ -252,7 +258,7 @@ source "$PIPELINE_DIR/scripts/log.sh" 2>/dev/null
 # log.sh returns early on a store it cannot create a logs/ dir in — before it
 # defines log(), report_error() or dispatch() — so the source succeeding
 # above is not the same question as those existing (#361, #372). Same guard
-# post-tool-hook.sh and user-prompt-hook.sh already carry, for the same
+# the PostToolUse hook and the UserPromptSubmit hook already carry, for the same
 # reason: `declare -F`, NOT `type` or `command -v` — on macOS /usr/bin/log is
 # Apple's unified-logging CLI, so `type log` is true whether or not a shell
 # function was ever defined, the guard would pass, and the stub below would
@@ -269,14 +275,16 @@ source "$PIPELINE_DIR/scripts/log.sh" 2>/dev/null
 # "Falls back to stderr if log file is unwritable" — this reproduces exactly
 # that fallback, because it is the same fallback for the same reason:
 # $REMEMBER_DIR/logs is what could not be created. hook-errors.log and the
-# notices channel user-prompt-hook.sh reads (#200, #253) are both files under
+# notices channel the UserPromptSubmit hook reads (#200, #253) are both files under
 # that same directory, so neither is reachable here; stderr is the only
 # channel left, and bootstrap-dirs.sh only redirects it into hook-errors.log
 # once that directory exists (bootstrap-dirs.sh:230-231) — on this path it is
 # still going wherever Claude Code sends an unredirected hook's stderr,
 # which is not nowhere.
 declare -F log >/dev/null 2>&1 || log() {
-    printf '%s [%s] %s\n' "$(_remember_date +%H:%M:%S)" "$1" "$2" >&2
+    local _ts
+    _remember_date_into _ts +%H:%M:%S
+    printf '%s [%s] %s\n' "$_ts" "$1" "$2" >&2
 }
 declare -F report_error >/dev/null 2>&1 || report_error() { log "$1" "$2"; }
 log "hook" "session-end: reason=$SESSION_END_REASON session=${STDIN_SESSION_ID:-unresolved}"
@@ -319,7 +327,15 @@ log "hook" "session-end: reason=$SESSION_END_REASON session=${STDIN_SESSION_ID:-
 # problem that does not exist. Reported the same way save-session.sh:428
 # reports its own fall-through, so a read-only store or a full disk shows
 # up as a fault rather than as silence.
-if ! mkdir -p "$REMEMBER_DIR/logs/autonomous" 2>/dev/null; then
+# #920 gap 1 (scheduler review round 2): say WHY the directory was never
+# attempted -- "could not create" previously covered both this refusal and
+# an ordinary mkdir failure (read-only root, missing parent) under the same
+# wording, and the two call for different responses from whoever reads
+# hook-errors.log (an unsafe REMEMBER_DIR needs the value fixed; a mkdir
+# failure needs the filesystem fixed).
+if [ "${REMEMBER_DIR_UNSAFE:-0}" = 1 ]; then
+    report_error "session-end" "WARNING: REMEMBER_DIR ($REMEMBER_DIR) was refused as unsafe -- this session's flush will not be recorded, and /remember:doctor may misreport SessionEnd as never having fired."
+elif ! mkdir -p "$REMEMBER_DIR/logs/autonomous" 2>/dev/null; then
     report_error "session-end" "WARNING: could not create $REMEMBER_DIR/logs/autonomous -- this session's flush will not be recorded, and /remember:doctor may misreport SessionEnd as never having fired."
 fi
 # `$$` (this hook process's own PID) suffixes the second-granularity
@@ -337,7 +353,8 @@ fi
 # `session-end-*.log` glob (#370's SessionEnd-liveness check) needs no
 # change for this: the `*` already matches whatever follows the timestamp,
 # suffix included.
-_END_LOG="$REMEMBER_DIR/logs/autonomous/session-end-$(_remember_date +%H%M%S)-$$.log"
+_remember_date_into _END_LOG_TS +%H%M%S
+_END_LOG="$REMEMBER_DIR/logs/autonomous/session-end-${_END_LOG_TS}-$$.log"
 # Seeded with a header line BEFORE the subshell below ever opens it, and the
 # subshell appends (`>>`) rather than truncates (`>`) -- not cosmetic (#483).
 # save-session.sh's own housekeeping sweep (unconditional on every flush
@@ -365,7 +382,8 @@ _END_LOG="$REMEMBER_DIR/logs/autonomous/session-end-$(_remember_date +%H%M%S)-$$
 # scripts/doctor.sh's own liveness check then misreporting it as a hook
 # that never fired at all. Reported the same way save-session.sh:428
 # reports its own fall-through.
-if ! printf '%s [session-end] flush started\n' "$(_remember_date +%H:%M:%S)" >> "$_END_LOG" 2>/dev/null; then
+_remember_date_into _FLUSH_START_TS +%H:%M:%S
+if ! printf '%s [session-end] flush started\n' "$_FLUSH_START_TS" >> "$_END_LOG" 2>/dev/null; then
     report_error "session-end" "WARNING: could not seed $_END_LOG -- if this file stays absent or empty, an ordinary housekeeping sweep will reclaim it, and /remember:doctor may misreport this session as one where SessionEnd never fired."
 fi
 
@@ -395,7 +413,7 @@ fi
 # position without a Haiku call, so this hook costs nothing extra when there
 # is genuinely nothing to flush.
 #
-# Backgrounded, the same way post-tool-hook.sh forks its own call — NOT run
+# Backgrounded, the same way the PostToolUse hook forks its own call — NOT run
 # and waited on in the foreground, which an earlier version of this hook did.
 # Claude Code kills a hook process after `hooks.dispatch_timeout_seconds`'
 # sibling budget for the events it waits on: this repo's own README documents
@@ -414,8 +432,8 @@ fi
 # the background flush itself finishes — which is what the subshell below
 # does.
 #
-# tmp/save-session.pid is the SAME marker post-tool-hook.sh's own
-# background fork writes (scripts/post-tool-hook.sh), not a second one: both
+# tmp/save-session.pid is the SAME marker the PostToolUse hook's own
+# background fork writes (the PostToolUse hook), not a second one: both
 # are "a save-session.sh is in flight" and nothing downstream needs to tell
 # them apart.
 # REMEMBER_TEST_COMPLETION_MARKER (opt-in, unset in production): CI
@@ -443,22 +461,67 @@ fi
 # `result.stderr`) and for the second, inside the subshell, is $_END_LOG
 # (which _dump_dir already surfaces in full on assertion failure).
 if [ -n "${REMEMBER_TEST_COMPLETION_MARKER:-}" ]; then
-    printf '%s session-end: about to launch subshell\n' "$(_remember_date +%H:%M:%S)" \
+    _remember_date_into _subshell_ts +%H:%M:%S
+    printf '%s session-end: about to launch subshell\n' "$_subshell_ts" \
         >> "$REMEMBER_TEST_COMPLETION_MARKER" 2>&1
 fi
 (
-    if [ -n "$STDIN_SESSION_ID" ]; then
-        bash "$SAVE_SCRIPT" "$STDIN_SESSION_ID" --force
-    else
-        bash "$SAVE_SCRIPT" --force
-    fi
+    _remember_session_end_flush() {
+        if [ -n "$STDIN_SESSION_ID" ]; then
+            bash "$SAVE_SCRIPT" "$STDIN_SESSION_ID" --force
+        else
+            bash "$SAVE_SCRIPT" --force
+        fi
+    }
+    _remember_session_end_flush
     _flush_status=$?
+    # One bounded retry (#1056): the scenario this hook exists to rescue --
+    # an app restart reconnecting many sessions in one project, each one's
+    # flush competing for the same process table -- is exactly the scenario
+    # that produces MSYS's own "fork: retry: Resource temporarily
+    # unavailable". There is no next cooldown tick to catch this tail later
+    # (see #345 above): this is the last chance. A short sleep gives
+    # transient fork pressure a chance to clear before the one retry.
+    #
+    # Gated on save-session.sh's own EXIT_RETRYABLE_BEFORE_WRITE (75), NOT on
+    # "any nonzero exit" (#1056 round 2 self-review finding -- the comment
+    # this replaces claimed retrying ANY failure was safe because position
+    # bookkeeping only advances on success, which is true but not the whole
+    # story). save-session.sh reserves 75 for an unexpected failure that
+    # struck BEFORE now.md was touched; every deliberate outcome there (a
+    # lock timeout, an invalid session id, a refused REMEMBER_DIR, a cooldown
+    # skip, nothing to save, a summarizer failure, a write error) keeps its
+    # ordinary 0/1 and this comparison therefore never retries it. Two
+    # concrete reasons that mattered: a summarizer failure already counts
+    # itself against save-session.sh's thresholds.max_summary_failures, so
+    # retrying it here doubled that count and could drop a span for good in
+    # one SessionEnd; and a failure that strikes AFTER now.md's append but
+    # during the position write is NOT the harmless re-invocation the old
+    # comment described -- it IS a duplicate save, because the retried run
+    # re-extracts and re-summarizes the same unadvanced span into a SECOND
+    # entry (save-session.sh's own PENDING_POSITION_MARKER is the backstop
+    # for every OTHER caller that can reach that same half-success; this
+    # retry is simply excluded from it by never firing there in the first
+    # place).
+    _REMEMBER_SAVE_RETRYABLE_EXIT=75
+    _retried=0
+    if [ "$_flush_status" -eq "$_REMEMBER_SAVE_RETRYABLE_EXIT" ]; then
+        sleep 1
+        _remember_session_end_flush
+        _flush_status=$?
+        _retried=1
+    fi
     if [ -n "${REMEMBER_TEST_COMPLETION_MARKER:-}" ]; then
+        _remember_date_into _subshell_done_ts +%H:%M:%S
         printf '%s session-end: save-session.sh exited status=%s\n' \
-            "$(_remember_date +%H:%M:%S)" "$_flush_status" >> "$REMEMBER_TEST_COMPLETION_MARKER" 2>&1
+            "$_subshell_done_ts" "$_flush_status" >> "$REMEMBER_TEST_COMPLETION_MARKER" 2>&1
     fi
     if [ "$_flush_status" -ne 0 ]; then
-        report_error "session-end" "WARNING: save-session.sh --force exited $_flush_status at session end -- this session's unsaved tail may be lost. See $_END_LOG for what save-session.sh itself logged."
+        if [ "$_retried" -eq 1 ]; then
+            report_error "session-end" "WARNING: save-session.sh --force exited $_flush_status at session end (after one retry) -- this session's unsaved tail may be lost. See $_END_LOG for what save-session.sh itself logged."
+        else
+            report_error "session-end" "WARNING: save-session.sh --force exited $_flush_status at session end (not retried -- not the transient pre-write failure class this hook's bounded retry covers) -- this session's unsaved tail may be lost. See $_END_LOG for what save-session.sh itself logged."
+        fi
     fi
 ) < /dev/null >> "$_END_LOG" 2>&1 &
 echo $! > "$REMEMBER_DIR/tmp/save-session.pid" 2>/dev/null

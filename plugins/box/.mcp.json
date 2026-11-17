@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "box": {
+      "url": "https://mcp.box.com",
+      "type": "streamable-http"
+    }
+  }
+}

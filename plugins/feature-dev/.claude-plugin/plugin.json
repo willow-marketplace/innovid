@@ -1,8 +1,8 @@
 {
   "name": "feature-dev",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Comprehensive feature development workflow with specialized agents for codebase exploration, architecture design, and quality review",
-  "updatedAt": "2026-09-19T00:42:54.360Z",
+  "updatedAt": "2026-11-17T00:02:03.982Z",
   "author": {
     "name": "Anthropic",
     "email": "support@anthropic.com"

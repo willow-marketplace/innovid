@@ -1,9 +1,9 @@
 # Chat review content
 
-The **Cowork adapter's** `showReview` content spec — printed as markdown, then confirmed
-with one `AskUserQuestion` ([cowork-adapter.md §2–3](cowork-adapter.md#2-showreview--chat-markdown)).
-Referenced from [issue-and-close.md § Phase 2](issue-and-close.md#phase-2--render-the-review-surface-mandatory-pre-save-gate).
-The Code adapter renders its panel instead and does not use this file.
+The content spec for the chat surface's review — markdown in the `preview` of the confirm's
+first option, in one `AskUserQuestion` ([chat-surface.md §2–3](chat-surface.md#2-review--in-the-confirms-preview)).
+Referenced from [issue-and-close.md § Phase 2](issue-and-close.md#phase-2--the-review-gate).
+The artifact renders its own review and does not use this file.
 
 Render **every** always-render column when there's no richer surface to lean on;
 defaulted/autofilled/looked-up values appear too, each with a `(default)` /
@@ -11,20 +11,26 @@ defaulted/autofilled/looked-up values appear too, each with a `(default)` /
 customer consents to defaults too). All date columns in `MM/DD/YYYY`.
 
 The chat review has no header bar or KPI strip to carry batch-level values, and no earlier
-screen the user can go back to, so it keeps the **full** list below. (The Code panel's
-`DETAIL_TABLE` is a deliberately shorter recap for exactly those reasons —
-[issuance-review/SKILL.md](../issuance-review/SKILL.md#block-detail_table).)
+screen the user can go back to, so it keeps the **full** list below.
+
+**Use each name below as its label, word for word.** Render a markdown table: one column per
+name, or a two-column `| Field | Value |` table with one row per name. Never `Label: value`
+lines and never another label (`Holder`, `Vesting`, `Expiration`). A tag goes in the value
+cell, never in a third column. `Type` is the stakeholder type (`INDIVIDUAL` or `ORGANIZATION`), in its own
+cell, never folded into `Stakeholder`.
 
 - **Certificate — always (13):** Stakeholder · Type · Email · Relationship · Share class
   (prefix) · Quantity · Price/share · Board approval · Issue date · Rule 144 date · Build
-  legend (body text — full body in a fenced block if long) · Exemption · Currency.
+  legend · Exemption · Currency. Build legend holds the legend's body text; put a long body
+  in full in a fenced block below the table.
 - **Option grant — always (16):** Stakeholder · Type · Email · Relationship · Plan · Option
   type · Quantity · Exercise price · Currency · Board approval · Issue date · Vesting schedule
   · Exercise periods · Grant expiration · Exemption · Documents.
 - **PIU — always (13):** Holder · Type · Email · Relationship · Unit class (prefix) · Equity
-  plan (or *"Direct from unit class"*) · Quantity · `<Threshold|Hurdle>` value ·
-  `<Threshold|Hurdle>` value type · Board approval · Issue date · Exemption · Currency. **No
-  price column of any kind** — a PIU has neither an exercise price nor a price per share.
+  plan · Quantity · `<Threshold|Hurdle>` value · `<Threshold|Hurdle>` value type · Board
+  approval · Issue date · Exemption · Currency. With no plan, the Equity plan value is
+  *"Direct from unit class"*. **No price column of any kind** — a PIU has neither an exercise
+  price nor a price per share.
 
 **Conditional columns** (render only when the trigger fires): Rule 144 reason (when
 `rule_144_date` ≠ `issue_date`); Dividend accrual start date (share class `dividend =
@@ -50,7 +56,7 @@ grant flow's and does not exist here.
 Rule 144 date (holding-period start for restricted securities); Board approval pending
 (grant issues pending; record the date later in Carta); Federal exemption (certificates default
 to Section 4(a)(2) private placement; US grants are left to the server, which applies Rule 701
-for options under a written compensatory plan); Stakeholder type (INDIVIDUAL = person; NON-INDIVIDUAL =
+for options under a written compensatory plan); Stakeholder type (INDIVIDUAL = person; ORGANIZATION =
 trust/LLC/fund/corp); Build/Exercise legend (legal transfer-restriction text — full body
 shown to read before confirming); Option type (ISO/NSO/INTL/EMI/CSOP/Unapproved/AU types,
 ZEPO = zero-exercise-price); Currency/Exemption autofill (set by the option type's
@@ -63,8 +69,8 @@ directly from the unit class, so the unit class's own authorized total is the ce
 than a plan pool).
 
 **Confirm** — hand straight off to
-[cowork-adapter.md §3](cowork-adapter.md#3-confirm--one-askuserquestion), which carries the one
-`AskUserQuestion` and its four options.
+[chat-surface.md §3](chat-surface.md#3-confirm--exactly-one-askuserquestion), which carries the
+one `AskUserQuestion` and its four options.
 
 ---
 
@@ -75,7 +81,7 @@ uniform batch: 30 grantees at the same terms produces ~300 lines of near-duplica
 When every row genuinely shares the same terms, collapse the review instead of repeating
 them per person.
 
-**When to compress.** After [Phase 1.5](engine.md#phase-15--save--validate-before-review-or-save-only)
+**When to compress.** Only a batch of 2 or more rows. One row is always the full table. After [Phase 1.5](engine.md#phase-15--save--validate-before-review-or-save-only)
 saves and validates the batch, compare every row's non-personal terms:
 
 - **Option grant** — `exercise_price`, `issue_date`, `vesting_template`, `document_set_id`,
@@ -92,8 +98,8 @@ saves and validates the batch, compare every row's non-personal terms:
 
 **Compressed layout** (target: under 25 lines of markdown):
 
-1. **Shared terms, once** — one small block (not a table; a short list) stating every
-   always-column value from the [full spec](#chat-review-content) that's now identical across
+1. **Shared terms, once** — one `| Field | Value |` table stating every always-column value
+   from the [full spec](#chat-review-content), with the same labels, that's now identical across
    the batch, each still tagged `(default)` / `(autofill — <so_type> rule)` / `(from existing
    record)` exactly as the per-row table would — compressing the layout must never compress
    away a default's disclosure (Voice & defaults' rule that every skill-chosen value stays

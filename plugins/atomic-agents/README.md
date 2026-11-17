@@ -12,7 +12,9 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-yellow?style=flat-square)](LICENSE)
 [![GitHub Stars](https://img.shields.io/github/stars/eigenwise/atomic-agents?style=social)](https://github.com/eigenwise/atomic-agents/stargazers)
 [![GitHub Forks](https://img.shields.io/github/forks/eigenwise/atomic-agents?style=social)](https://github.com/eigenwise/atomic-agents/network/members)
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/eigenwise/atomic-agents)
+[![Ask DeepWiki](https://img.shields.io/badge/Ask-DeepWiki-blue?style=flat-square)](https://deepwiki.com/eigenwise/atomic-agents)
+[![GitHub Sponsors](https://img.shields.io/badge/sponsor-%E2%9D%A4-EA4AAA?style=flat-square&logo=githubsponsors&logoColor=white)](https://github.com/sponsors/Eigenwise)
+[![Ko-fi](https://img.shields.io/badge/ko--fi-buy%20me%20a%20coffee-FF5E5B?style=flat-square&logo=kofi&logoColor=white)](https://ko-fi.com/eigenwise)
 
 ## What is Atomic Agents?
 
@@ -27,6 +29,8 @@ Think of it like building AI applications with LEGO blocks - each component (age
 Built on [Instructor](https://github.com/jxnl/instructor) and [Pydantic](https://docs.pydantic.dev/latest/), it enables you to create AI applications with the same software engineering principles you already know and love.
 
 **NEW: Join our community on Discord at [discord.gg/J3W9b5AZJR](https://discord.gg/J3W9b5AZJR) and our official subreddit at [/r/AtomicAgents](https://www.reddit.com/r/AtomicAgents/)!**
+
+> **Free and MIT-licensed.** If Atomic Agents saves you time, [sponsoring on GitHub](https://github.com/sponsors/Eigenwise) or [buying me a coffee](https://ko-fi.com/eigenwise) genuinely helps me keep building and maintaining it. More in [Support](#support).
 
 ## Table of Contents
 
@@ -122,7 +126,7 @@ client = instructor.from_openai(OpenAI())
 agent = AtomicAgent[BasicChatInputSchema, CustomOutputSchema](
     config=AgentConfig(
         client=client,
-        model="gpt-5-mini",
+        model="gpt-5.6-terra",
         system_prompt_generator=system_prompt_generator,
         history=ChatHistory(),
     )
@@ -178,7 +182,7 @@ Here's a simple example:
 from atomic_agents.context import BaseDynamicContextProvider
 
 class SearchResultsProvider(BaseDynamicContextProvider):
-    def __init__(self, title: str, search_results: List[str]):
+    def __init__(self, title: str, search_results: list[str]):
         super().__init__(title=title)
         self.search_results = search_results
 
@@ -229,7 +233,7 @@ class QueryAgentInputSchema(BaseIOSchema):
 query_agent = AtomicAgent[QueryAgentInputSchema, SearXNGSearchTool.input_schema](
     config=AgentConfig(
         client=instructor.from_openai(openai.OpenAI()),
-        model="gpt-5-mini",
+        model="gpt-5.6-terra",
         system_prompt_generator=SystemPromptGenerator(
             background=[
                 "You are an intelligent query generation expert.",
@@ -287,6 +291,7 @@ For full, runnable examples, please refer to the following files in the `atomic-
 In addition to the quickstart examples, we have more complex examples demonstrating the power of Atomic Agents:
 
 - [Hooks System](/atomic-examples/hooks-example/README.md): Comprehensive demonstration of the AtomicAgent hook system for monitoring, error handling, and performance metrics with intelligent retry mechanisms.
+- [Phoenix Tracing](/atomic-examples/phoenix-tracing/README.md): Traces agents and tools in Arize Phoenix with the OpenTelemetry instrumentor (`pip install "atomic-agents[phoenix]"`).
 - [Basic Multimodal](/atomic-examples/basic-multimodal/README.md): Demonstrates how to analyze images with text, focusing on extracting structured information from nutrition labels using GPT-4 Vision capabilities.
 - [Deep Research](/atomic-examples/deep-research/README.md): An advanced example showing how to perform deep research tasks.
 - [Orchestration Agent](/atomic-examples/orchestration-agent/README.md): Shows how to create an Orchestrator Agent that intelligently decides between using different tools (search or calculator) based on user input.
@@ -296,6 +301,10 @@ In addition to the quickstart examples, we have more complex examples demonstrat
 - [YouTube to Recipe](/atomic-examples/youtube-to-recipe/README.md): An example that extracts structured recipe information from cooking videos, demonstrating complex information extraction and structuring.
 
 For a complete list of examples, see the [examples directory](/atomic-examples/).
+
+## Observability
+
+Every agent and tool run is an OpenTelemetry span. Works with any OpenTelemetry backend (Grafana, Sentry, Phoenix, Langfuse, ...), including Datadog, Honeycomb, Jaeger or a plain OTLP collector. Install it with `pip install "atomic-agents[observability]"` and see the [Observability guide](docs/guides/observability.md).
 
 ## AI-Assisted Development
 
@@ -348,10 +357,16 @@ Atomic Forge is a collection of tools that can be used with Atomic Agents to ext
 - BoCha Search
 - Calculator
 - DateTime
+- deed.page Publisher
 - Fía Signals
+- Firecrawl Search
+- FXMacroData
 - Hacker News Search
+- Outcrawl Search
 - PDF Reader
 - SearXNG Search
+- Serply Search
+- Sofya Search
 - Tavily Search
 - Webpage Scraper
 - Weather

@@ -10,9 +10,7 @@ SparkScan is a pre-built scanning UI for high-volume single-scanning workflows. 
   - `scandit-capacitor-datacapture-core`
   - `scandit-capacitor-datacapture-barcode`
 - After installing, run `npx cap sync` to sync the native projects.
-- A valid Scandit license key:
-  - Sign in at https://ssl.scandit.com to generate one
-  - No account yet? Sign up at https://ssl.scandit.com/dashboard/sign-up?p=test
+- A valid Scandit license key — see **Licence key** in this skill's `SKILL.md`.
 - Camera permissions configured by the app:
   - iOS: `NSCameraUsageDescription` in `Info.plist`
   - Android: handled automatically by the plugin
@@ -29,7 +27,7 @@ After providing the code, show this setup checklist:
 1. Install packages: `npm install scandit-capacitor-datacapture-core scandit-capacitor-datacapture-barcode`
 2. Run `npx cap sync` to apply native changes.
 3. Add `NSCameraUsageDescription` to `ios/App/App/Info.plist`.
-4. Replace `-- ENTER YOUR SCANDIT LICENSE KEY HERE --` with your key from https://ssl.scandit.com.
+4. Replace `-- ENTER YOUR SCANDIT LICENSE KEY HERE --` with your key (see **Licence key** in `SKILL.md`).
 5. Store references to `sparkScan` and `sparkScanView` on `window` or at module scope to prevent garbage collection.
 
 ## Step 1 — Initialize Plugins and Create DataCaptureContext
@@ -151,10 +149,10 @@ All callbacks are optional. Implement only what you need.
 ```javascript
 import { SparkScanView } from 'scandit-capacitor-datacapture-barcode';
 
-const sparkScanView = SparkScanView.forContext(context, sparkScan);
+const sparkScanView = SparkScanView.forContext(context, sparkScan, null);
 ```
 
-> The third parameter `SparkScanViewSettings | null` is optional. Pass `null` or omit it for defaults.
+> The third parameter `SparkScanViewSettings | null` is required. Pass `null` for defaults.
 
 ## Step 5 — SparkScanView Lifecycle
 
@@ -204,6 +202,32 @@ All colors use `Color.fromHex('#RRGGBB')` from `scandit-capacitor-datacapture-co
 |----------|------|-------------|
 | `triggerButtonImage` | `string \| null` | Custom image for the trigger button. |
 | `SparkScanView.defaultBrush` | `Brush` (static) | Default highlight brush. |
+
+### Scanning mode and preview
+
+`SparkScanViewSettings.defaultScanningMode` picks target mode (aim-to-scan) and the preview behavior. `SparkScanPreviewBehavior.Persistent` keeps the camera preview visible when not scanning. Pass the settings as the third argument of `SparkScanView.forContext`:
+
+```javascript
+import {
+  SparkScanScanningBehavior,
+  SparkScanPreviewBehavior,
+  SparkScanScanningModeTarget,
+  SparkScanView,
+  SparkScanViewSettings,
+} from 'scandit-capacitor-datacapture-barcode';
+
+const viewSettings = new SparkScanViewSettings();
+viewSettings.defaultScanningMode = new SparkScanScanningModeTarget(
+  SparkScanScanningBehavior.Single,
+  SparkScanPreviewBehavior.Persistent
+);
+
+const sparkScanView = SparkScanView.forContext(context, sparkScan, viewSettings);
+```
+
+For the regular (non-target) mode with a persistent preview, use `new SparkScanScanningModeDefault(SparkScanScanningBehavior.Single, SparkScanPreviewBehavior.Persistent)` instead.
+
+> `SparkScanScanningModeTarget` and `SparkScanScanningModeDefault` are deprecated since 8.6 in favor of `SparkScanSettings.selectionMode` (`SelectionMode.On` for target mode, `SelectionMode.Off` for the default mode, from `scandit-capacitor-datacapture-core`). At 8.6 `defaultScanningMode` is still the only way to set the preview behavior. From 8.7 the view settings expose `previewBehavior` and `scanningBehavior` directly; they are 8.7+ only, so do not use them against 8.6.x.
 
 ## Step 7 — Custom Feedback
 
@@ -264,7 +288,7 @@ sparkScanView.uiListener = {
   didTapBarcodeCountButton: (view) => { /* navigate to count screen */ },
   didTapBarcodeFindButton: (view) => { /* navigate to find screen */ },
   didTapLabelCaptureButton: (view) => { /* navigate to label screen */ },
-  didChangeViewState: (newState) => { /* expanded/collapsed */ },
+  didChangeViewState: (newState) => { /* initial, idle, inactive, active, error */ },
   didChangeScanningMode: (newScanningMode) => { /* single vs continuous */ },
 };
 ```
@@ -429,7 +453,7 @@ async function runApp() {
   });
 
   // 6. Create SparkScanView — native overlay, no DOM element needed
-  window.sparkScanView = SparkScanView.forContext(context, window.sparkScan);
+  window.sparkScanView = SparkScanView.forContext(context, window.sparkScan, null);
 
   // 7. Set per-barcode feedback
   window.sparkScanView.feedbackDelegate = {

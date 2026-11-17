@@ -1,6 +1,6 @@
 ---
 name: slideshow
-description: ">"
+description: slideshow
 ---
 
 # Slideshow authoring contract

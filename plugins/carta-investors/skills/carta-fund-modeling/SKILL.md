@@ -1,10 +1,12 @@
 ---
 name: carta-fund-modeling
-description: 'Spin up an interactive local web console for FIRM-LEVEL scenario modeling over Carta Fund Admin data — a React app to reprice portfolio companies and model exits ACROSS MULTIPLE COMPANIES, with five tabs: Overview (fund-family rollup, investment pacing, concentration), Companies (per-company repricing + LP make-whole waterfall + carry banking, plus a plan of dated partial sales, each at its own price — secondary proceeds off the table before the exit), Exit & IRR (exit scenarios, XIRR, GP & LP returns, plus a per-fund DPI/RVPI/TVPI glidepath in the LP Returns view), Reserves (per-fund dry-powder planning), and Cohort Standing (peer-cohort + S&P-equivalent benchmarking). Scenarios persist locally. Invoke with a firm name, e.g. "fund modeling for Demo Capital" or "model portfolio scenarios for a firm". Fund Admin only. NOT Tactyc/Fund Forecasting — use carta-fund-forecasting for Tactyc funds. NOT for single-exit waterfalls on one company. NOT read-only fund data queries — use carta-explore-data.'
+description: 'Spin up an interactive local web console for FIRM-LEVEL scenario modeling over Carta Fund Admin data — a React app to reprice portfolio companies and model exits ACROSS MULTIPLE COMPANIES. Tabs: Overview, Companies (repricing, LP make-whole waterfall, carry banking, partial sales), LP Returns and GP Economics (exit scenarios, XIRR, carry), Reserves (dry-powder planning), Reports (power law, DPI/RVPI/TVPI glidepath, pacing), Plan New Fund (beta). Also hosted at fund-modeling.carta.cloud. Invoke with a firm name, e.g. "fund modeling for Demo Capital". Use for firm-wide scenarios: what-if on marks, reserves plan, carry forecast, projected IRR/TVPI, "model our fund". Fund Admin only. NOT for funds in Fund Forecasting (Tactyc) — use carta-fund-forecasting. NOT single-company exit waterfalls. NOT a single current number (IRR, TVPI, NAV) — use carta-explore-data. NOT peer comparison — use carta-fund-performance.'
 ---
 
 <!-- carta:plugin-version -->
-<carta-plugin>carta-investors:6.32.1</carta-plugin>
+<carta-plugin>carta-investors:7.49.2</carta-plugin>
+
+> **If this plugin's files can't be found:** a path that still shows an unreplaced `${…}` variable, or a "not found" when you read or run one of this skill's files, means the skill loaded before this session's computer link was ready. Invoke this skill once more with the Skill tool and use the paths that copy gives. If they're still unreplaced, tell the user Carta's plugin files aren't available in this session yet (link your computer, then ask again) and stop. Don't search the disk for them. One exception: when Gate 0's `detect-surface` can't run, or a hosted hand-off's own `gate-in-app-browser.md` read fails, take the sandboxed/hosted branch instead of stopping — the hosted app itself needs no plugin files.
 
 [PATTERN carta-writing-style v0.0.2]
 [PATTERN etiquette v0.0.6]
@@ -21,22 +23,24 @@ Builds a firm's baseline from Carta Fund Admin data, writes it to a local data d
 never calls the Carta MCP** — this skill fetches the data; the server only serves JSON + the built app. The
 repricing/waterfall/IRR is a **transparent estimate** (the ported `model/`), not Carta's official engine.
 
-> **Runs locally only.** Because it starts a localhost web server and opens your browser, this skill works only
-> in a Claude Code session running on your machine (a local terminal, or Claude Desktop set to run locally). It
-> can't run in a **sandboxed** session — **Cowork**, or a Claude Code **cloud** session — where that server is
-> unreachable and no local browser exists. Gate 0 stops early and tells the user to switch.
+> **Hosted or local.** Carta hosts the same app at **https://fund-modeling.carta.cloud** — the user signs in
+> with Carta and opens their firm there (Gate 1 links to the requested one when it can), with nothing to build. The local build starts a localhost web server and
+> opens your browser, so it works only in a Claude Code session running on your machine (a local terminal, or
+> Claude Desktop set to run locally). In a **sandboxed** session — **Cowork**, or a Claude Code **cloud**
+> session — Gate 0 points the user at the hosted app; in a local session Gate 1 asks which they want.
 
 ## No demo data — real firm required
 **Never** fabricate, synthesize, sample, or fall back to demo/placeholder data, and never launch against an
 empty or partial data dir. Every dashboard runs against **one real Carta firm's** Fund Admin data — either
-fetched fresh or served from a prior local fetch (cache). If the invocation includes no firm (name or URL), do
-**not** auto-pick, list, or guess — **stop and ask the user to name a firm**, then proceed only once they
-answer. A missing or unresolved firm is a graceful exit, not a reason to invent data.
+fetched fresh or served from a prior local fetch (cache). On a local build (after Gate 1), if the invocation
+includes no firm (name or URL), do **not** auto-pick, list, or guess — **stop and ask the user to name a firm**,
+then proceed only once they answer. The hosted app needs no firm here; when one is named, Gate 1 resolves it for a deep link, otherwise the user picks it there. A missing or unresolved firm is a graceful exit, not a reason to invent data.
 
 ## Launch order — cache-first, MCP-lazy
 Building a dashboard needs the Carta MCP; **launching a warm cache does not.** Resolve the firm **name** and
 check the local cache *before* touching any MCP — a fresh cache launches with **no MCP call**. Only a
-build/refresh (Step 1 onward) identifies the MCP and resolves the firm over it.
+build/refresh (Step 1 onward) identifies the MCP and resolves the firm over it. The one exception is Gate 1's
+hosted hand-off for a named firm, which makes read-only MCP calls to build a deep link (see Gate 1).
 
 ## Gate 0 — Surface check (run first, before anything else)
 
@@ -44,23 +48,90 @@ Step 4 launches `serve.py`, which binds `127.0.0.1` and opens the user's default
 Claude Code runs on the user's own machine (a local terminal, or Claude Desktop set to run locally). In a
 **sandboxed** session — **Cowork**, or a Claude Code **cloud** session (Claude Desktop can run sessions in the
 cloud, which is the default) — the server runs in a remote container the user can't reach and there is no local
-browser to open, so the dashboard URL goes nowhere. The skill must not run there.
+browser to open, so the dashboard URL goes nowhere. claude.ai chat can't run the local build at all. The skill
+must not build in any of these; it welcomes the user to the hosted app instead.
 
 **Before Step 0 — before any cache scan, MCP call, or greeting — run this once and route on it:**
 ```bash
 uv run "${CLAUDE_PLUGIN_ROOT}/skills/carta-fund-modeling/scripts/fm_paths.py" detect-surface
 ```
 - Output contains **`surface=sandboxed`** → **stop immediately.** Do **not** scan caches, resolve a firm, touch
-  the MCP, or launch `serve.py`. Reply with this message (substance verbatim), then end the turn:
-  > Fund Modeling launches an interactive web app on your own machine — a local server plus your browser — so it
-  > only works in a Claude Code session running locally. It can't run in a sandboxed session: Cowork, or a Claude
-  > Code cloud session (in Claude Desktop, running in the cloud is the default — switch it to run locally).
-  > Please re-run from a local session, e.g. "fund modeling for \<firm\>".
+  the Carta MCP, or launch `serve.py`. **Open the hosted app** with the bare link, then reply with this message
+  (substance verbatim), then end the turn:
+  > ### Welcome to Carta Fund Modeling
+  > **Model what happens next across your entire portfolio.** Reprice companies, play out exits, and watch LP
+  > and GP returns move in real time.
+  >
+  > - **Scenarios:** change any company's valuation and see the firm-wide impact
+  > - **Returns:** LP IRR, GP carry, and DPI/TVPI glidepaths
+  > - **Reserves:** plan how to deploy your dry powder
+  >
+  > **→ Open it now: https://fund-modeling.carta.cloud** — sign in with Carta and pick your firm. There's
+  > nothing to install, and your scenarios are saved for your firm automatically.
+  >
+  > **Want to customize what data is shown, or integrate your own data?** Open Claude Code and ask, "Use Carta
+  > to run the locally hosted fund modeling app".
+
+  If the invocation named a firm, add one line to that reply, after the "Open it now" line: "You asked about **\<firm\>** — the app
+  reopens the last firm used in your browser, so use **Switch firm** if it opens a different one." (No
+  deep link here: a sandboxed session does not reliably have the MCP.)
 
   This is a graceful exit. Do **not** retry `detect-surface`, do **not** try to launch anyway, and do **not**
-  fall back to another surface or tool — a sandboxed verdict will not change on retry.
-- Otherwise (**`surface=local`**, the normal case) → continue to **Step 0** silently. Say nothing about this
+  fall back to another surface or tool — a sandboxed verdict will not change on retry. (Opening the hosted link in the in-app browser is not a fallback; it is part of this reply.)
+- The command **can't run** — there is no Bash tool, or it fails because the script isn't found (an
+  unreplaced `${…}` path, "No such file") → you are in claude.ai chat or another sandboxed surface. Take the
+  **`surface=sandboxed`** branch above. Do not retry the command.
+- Otherwise (**`surface=local`**, the normal case) → continue to **Gate 1** silently. Say nothing about this
   check — it stays quiet, like the rest of Step 0.
+
+## Gate 1 — Hosted or local (local sessions only)
+
+Carta hosts this app at **https://fund-modeling.carta.cloud**. The user signs in with Carta there and the app
+shows only the firms their Carta login can open, so the hosted path needs no local cache; when a firm is named, Gate 1 may build a deep link to it (below). Ask before Step 0 — before any cache scan or MCP call — with `AskUserQuestion`:
+
+> **Header:** "Where to run"
+> **Question:** "Open the hosted Fund Modeling app, or build it locally on this machine?"
+> - **"Open hosted app"** — Use it in your browser at fund-modeling.carta.cloud: sign in with Carta, nothing
+>   to install. The scenarios and fund plans you make are automatically saved and viewable by other members
+>   of your firm.
+> - **"Build locally"** — Run it on this computer from your firm's data, pulled through your Carta
+>   connection. Your scenarios stay on this machine, visible only to you, until a firm admin publishes one
+>   to share it with the firm.
+
+Skip the question when the invocation already chose: "hosted", "online" or fund-modeling.carta.cloud → hosted;
+"local", "locally hosted", "build", "refresh", or reopening a local dashboard → local ("locally hosted" is the
+phrase Gate 0's welcome tells users to ask with, so it means local despite containing "hosted"). A pasted Carta firm URL chooses neither,
+so ask as usual.
+
+- **Hosted, no firm named** → **Open the hosted app** with the bare link, then reply with it and end the turn: "Open **https://fund-modeling.carta.cloud**
+  in your browser, sign in with Carta, and pick your firm." Do **not** scan caches, touch the Carta MCP or launch
+  `serve.py`.
+- **Hosted, firm named** (name, Carta firm URL or UUID) → the app reopens the last firm used in the browser, so a
+  bare link can open the wrong firm. Link straight to the firm the user named instead. The only MCP calls allowed are
+  `welcome` and `list_contexts {firm_name: "<typed firm name>"}` on the Carta MCP (identify it by Step 1's
+  tool-list scan, since no command can test for the MCP, and fall back at once if it finds none; verify it as in
+  Step 1; a URL/UUID goes in as the `firm_id` it takes) — read-only, **never `set_context`**, which would change
+  the user's active firm. Pick the firm by Step 1's *Resolve the firm* rules, without `AskUserQuestion`; if they
+  leave no single firm, fall back. The hosted app names a firm by its **Carta ID**, the integer `carta_id`
+  that `list_contexts` returns for it, or by its firm UUID (`firm_id`) when `carta_id` is null. **Open the hosted app** with
+  `https://fund-modeling.carta.cloud/firm/<carta_id>` (else `/firm/<firm_id>`), then reply and end the turn: "Open
+  **\<link\>** and sign in with Carta to open **\<canonical name\>**." Do **not** launch `serve.py` or scan
+  caches. Fall back: **Open the hosted app** with the bare link, then reply with it plus the **Switch firm** line from Gate 0, naming the firm as typed, and end the turn, when
+  there is no Carta MCP or `list_contexts` leaves no single firm. Never put a firm name in the link.
+- **Local** → continue to **Step 0** silently.
+
+### Open the hosted app
+
+Read `${CLAUDE_PLUGIN_ROOT}/references/gate-in-app-browser.md` (the plugin's own `references/`, not this skill's; do
+not search for it) and follow it to set `browser_family`, then its "Open a link" section to open the hosted link. If
+that file can't be read, skip opening and give the reply with the link — never stop.
+
+When `browser_family` is `claude_browser`, also run `ToolSearch(query: "select:mcp__ccd_view__show_pane")` with the
+gate's probe. Then, when tabs-context reports the Browser pane isn't open yet (`browserOpen: false`), skip
+tabs-create, which fails with no pane, and `navigate` straight to the link; `navigate` opens the pane itself but
+leaves it hidden. Right after that navigate, once, call `mcp__ccd_view__show_pane` with `{"pane": "preview"}` when
+that tool is available; when it isn't, add to the reply that the user can open the Browser pane to see the page.
+When the pane is already open, follow the gate's steps as written.
 
 ## Step 0 — Resolve identity + check the local cache
 
@@ -184,16 +255,19 @@ warm-cache launch skips this step entirely — no MCP.
 > plugin provides it). Your cached dashboards still open without it."
 **If exactly one found:** call `mcp__<SERVER>__welcome` to verify. This is `<SERVER>`.
 **If multiple found:** ask the user which to use via `AskUserQuestion`. Default to `carta` (production) if present.
-**Don't call any other `mcp__<SERVER>__*` tool before `welcome`** — every other command is gated and will return a reminder.
+**Don't call any other `mcp__<SERVER>__*` tool before `welcome`** — the server instructions require `welcome` as the first call.
+After `welcome`, fetch `pk` per `${CLAUDE_PLUGIN_ROOT}/references/launch-user-id.md` (Build path).
 **Fund Admin only — never `fund_forecasting:*`.**
+
+> **Checkpoint**: Once `welcome` succeeds, call `mcp__<SERVER>__skill_checkpoint(skill_name="carta-investors:carta-fund-modeling", checkpoint_label="skill_started")` before proceeding. `<SERVER>` is the server you called `welcome` on above. If the tool is deferred, load it first with `ToolSearch(query: "select:mcp__<SERVER>__skill_checkpoint")`. If it is still unavailable, or any checkpoint call fails, carry on: checkpoints never stop a run. A run that has not recorded `skill_started` records no other checkpoint.
+
+Each run records each checkpoint at most once, and exactly one of `skill_finished` or `skill_failed`. A step reached again later in the same run (a refresh that re-runs Steps 1–3, a batch re-issued after a lapsed context, a re-run of the builder, the second invocation the note at the top of this file asks for) does not checkpoint again.
 
 **Classify the environment from `<SERVER>`'s name.** A name containing `test`/`sandbox`/`demo`/`preprod`/
 `preproduction` (case-insensitive) → `cartaEnvironment = "nonprod"`. Everything else — `carta`,
 `carta_production`, any other name, or an opaque UUID (some connectors expose one instead of a name, per
-`carta-home-build/SKILL.md`'s Step 0) — → `"production"`. This is a customer-facing plugin, so the common
-case by volume is real production usage; an unrecognized identifier is far more likely to be a production
-connector we haven't named yet than a staff test session, and staff noise is filterable downstream (the
-server already knows `is_staff` per request). Carry `cartaEnvironment` to Step 3's `meta.json`.
+`carta-home-build/SKILL.md`'s Step 0) — → `"production"`. Most use is production, so an unrecognized
+identifier counts as production. Carry `cartaEnvironment` to Step 3's `meta.json`.
 
 **Resolve the firm via `list_contexts`.** Call `list_contexts {firm_name: "<typed firm name>"}` — **always pass
 the typed name; never call it bare** (bare can return an already-active firm instead of the one asked for).
@@ -237,20 +311,34 @@ Read `${CLAUDE_PLUGIN_ROOT}/skills/carta-fund-modeling/references/queries.md`. S
 `raw_dir`** for `<raw_dir>` in every command below. The dir is created on demand by the first writer that
 touches it (the Write tool, `save_query_result.py`, or `touch-empty`); there is no shell `CACHE`/`RAW` variable
 to set.
-Enumerate the firm's entities with the **compact DWH directory query in queries.md §0** (a firm-scoped
-`MONTHLY_NAV_CALCULATIONS` SELECT) — **not the fund-admin entity-list command**, which returns verbose per-entity objects and
-**exceeds the MCP 40k-char limit on large firms** (a firm with ~100+ SPVs breaks it). The §0 query **excludes SPVs**
-(`entity_type_name NOT ILIKE '%SPV%'`) — single-deal SPVs are out of scope and are what blow the limit — so it
-stays tiny and returns only Fund/GP entities. Then **write that query's `fund_uuid` column to
-`<raw_dir>/fund_uuids.txt` (one uuid per line)** with the Write tool — this is the only value you extract by hand;
-because SPVs are already filtered out of the directory, no SPV is ever fetched. From here the queries
-are generated deterministically: **do NOT hand-write SQL or paste an IN-list.** Get every stem's ready-to-run
-query from the emitter, which fills the `fund_uuid` / `corporation_id` IN-list from the manifest
-(`scripts/stem_queries.py`, the source of truth for stem SQL).
+Enumerate the firm's entities with the **§0 firm directory query**. Print it with the emitter — never hand-write
+it (it is a three-table UNION; queries.md §0 explains why):
+```bash
+uv run "${CLAUDE_PLUGIN_ROOT}/skills/carta-fund-modeling/scripts/emit_stem_sql.py" --directory --firm-uuid "<firm_uuid>"
+```
+Run the printed `{"sql","limit","format"}` through `dwh__execute__query`, then capture the result **with the
+helper, not the Write tool**:
+```bash
+uv run "${CLAUDE_PLUGIN_ROOT}/skills/carta-fund-modeling/scripts/save_query_result.py" <result_path> "<raw_dir>/_enumerate.ndjson"
+```
+`_enumerate.ndjson` is the census: the emitter fills every stem's IN-list from its `fund_uuid` column and
+`build_datadir.py` seeds the fund universe from it, so no id is transcribed by hand. It is **not the fund-admin
+entity-list command** (verbose per-entity objects that **exceed the MCP 40k-char limit on large firms** — a firm
+with ~100+ SPVs breaks it); the directory **excludes SPVs** and returns only Fund/GP entities, so no SPV is ever
+fetched. From here the queries are generated deterministically: **do NOT hand-write SQL or paste an IN-list.**
+Get every stem's ready-to-run query from the emitter (`queries.json` holds every stem's SQL).
+
+**Zero rows means a lapsed firm context, not an empty firm.** These tables are row-scoped by `set_context`; when
+the context lapses every query returns 0 rows with no error. If the directory query — or, later, a rows-required
+stem (`nav_latest`, `investments`) — comes back empty, re-run `set_context {"firm_id": "<firm_uuid>"}` and reissue
+it **once**: the directory query on its own, or the **whole batch** the empty stem came from (a lapsed context
+empties every query in that batch, so re-fetching one stem leaves the others silently empty). A second empty result
+is final: stop the fetch and report it (the strict build refuses to launch on it). Do not vary the SQL, widen the
+filter, or try another table.
 
 ### GP carry opt-in check (before Wave 1)
 
-`gp_carry` contains **per-member names** — run this check after writing `fund_uuids.txt` and before emitting Wave 1:
+`gp_carry` contains **per-member names** — run this check after capturing `_enumerate.ndjson` and before emitting Wave 1:
 
 **1. Probe for data access.** Emit the `gp_carry` query and run it with `limit: 1` to check both permission and data presence:
 ```bash
@@ -291,7 +379,7 @@ For **each batch**, two mechanical moves:
 
 1. Issue the whole batch in one call:
    ```
-   call_tool({"name":"dwh__execute__queries","arguments":{"queries": <batch.queries>, "limit": 10000, "format": "ndjson"}})
+   read_tool({"name":"dwh__execute__queries","arguments":{"queries": <batch.queries>, "limit": 10000, "format": "ndjson"}})
    ```
    Pass `limit:10000` and `format:"ndjson"` **explicitly** — the command defaults to `limit:1000` / `format:markdown`,
    both wrong for us. The queries run in parallel server-side and return a **positional JSON array**, one element
@@ -329,7 +417,7 @@ For **each batch**, two mechanical moves:
 
 **Fallback — per-stem serial fetch.** If `dwh__execute__queries` is unavailable (`Unknown tool` / `NotFoundError`
 on an older MCP) or `save_batch_result.py` can't split the envelope, fall back to fetching each stem singly:
-`emit_stem_sql.py --stem <name>` → `call_tool({"name":"dwh__execute__query","arguments": <that {sql,limit,format}>})`
+`emit_stem_sql.py --stem <name>` → `read_tool({"name":"dwh__execute__query","arguments": <that {sql,limit,format}>})`
 → `save_query_result.py <result_path> "<raw_dir>/<stem>.ndjson"`. Same pagination and contract rules apply. This
 is the pre-batch path; it is correct but slower (one serial round-trip per stem).
 
@@ -363,15 +451,16 @@ hand-reconstructed file is exactly the "0 funds / 0 companies" / silently-trunca
 `emit_stem_sql.py` call returns all of them and there is no ordering dependency between any two:
 `nav_latest`, `investments`, `cashflows`, `fund_metrics`, `accrued_carry`, `distributed_carry`, `waterfall`,
 `cohort`, `deal_irr`, `partners`, `gp_partners`, `gp_carry` (if opted in — see the GP carry opt-in check above),
-`ownership`, `financing` (§11), `captable` (§15), `corporations` (§16). Issue them together, then normalize each
-returned result with `save_query_result.py`. **Also run the §14 `financials` query in the same batch** (it takes
-no `fund_uuid` list — it is firm-context-scoped). The whole build runs off the MCP DWH and these local helpers only.
+`ownership`, `financing` (§11), `captable` (§15), `corporations` (§16), `financials` (§14 — firm-context-scoped,
+so its query carries no IN-list; the emitter includes it like every other stem). Issue them together, then
+normalize each returned result with `save_query_result.py`. The whole build runs off the MCP DWH and these local
+helpers only.
 
 **Do not stop after the fund-level stems** — `financing` supplies each company's last priced round, `captable`
 populates its cap table on the dashboard, and `corporations` is the id bridge those enrichments (cap table AND
-"Latest round" on Overview) resolve through. All three are file-required (see contract below): a missing
+"Last priced round" in a Companies row's Cap table tab) resolve through. All three are file-required (see contract below): a missing
 `<stem>.ndjson` hard-fails the build, so skipping them can no longer silently yield "0 cap tables" / blank
-"Latest round" fields, indistinguishable from a firm that legitimately has none.
+"Last priced round" fields, indistinguishable from a firm that legitimately has none.
 
 `financing`, `captable` and `corporations` filter by corporation, but they take **only the `fund_uuid` list** —
 their corporation scope is a subquery over `FUND_CORPORATION_OWNERSHIP` (see queries.md §11). **Never** rewrite
@@ -405,14 +494,14 @@ Stems → queries.md section. **The DWH stems below are file-required — the bu
 is missing any of their `<stem>.ndjson` files** (write an empty file when truly none):
 `nav_latest`(§2, **rows required**), `investments`(§3, **rows required**),
 `cashflows`(§5 — the single 7-column query that feeds both LP IRR and the NAV/TVPI trend; do **not** run a
-separate §13), `fund_metrics`(§1/§12), `accrued_carry`(§7), `distributed_carry`(§7 — realized "Carried interest
-earned"; feeds the "Carry distributed" callout, $0→"—"), `cohort`(§8), `deal_irr`(§10), `financing`(§11),
+separate §13), `fund_metrics`(§1/§12), `accrued_carry`(§7), `distributed_carry`(§7 — realized carry, fund-level "Carried interest
+earned" or GP-entity carry distributions; feeds the "Carry distributed" callout, $0→"—"), `cohort`(§8), `deal_irr`(§10), `financing`(§11),
 `partners`(§9), `ownership`(§4), `captable`(§15 — a present-but-empty file is fine for firms whose portcos
 aren't Carta cap-table customers, but the file itself must exist), `corporations`(§16 — the entity_link ->
 corporation_uuid bridge that `captable` and `financing`'s "Latest round" enrichment depend on; same
 empty-file-OK, absent-file-fails rule).
-`financials`(§14, **portfolio-company financials via Carta Data Collection**) is fetched via its own §14 query
-below and is *not* gated by the builder. `waterfall`(§6, `PROFIT_ALLOCATION_WATERFALL_CONFIG` — real per-fund
+`financials`(§14, **portfolio-company financials via Carta Data Collection**) is firm-context-scoped (no IN-list)
+and attempt-required: an empty file is fine, an absent file fails the build. `waterfall`(§6, `PROFIT_ALLOCATION_WATERFALL_CONFIG` — real per-fund
 carry / preferred return / GP catch-up), `gp_carry`(§7b, `ALLOCATIONS` GP-entity `Carried interest accrued`) and
 `gp_partners`(§9, `IS_GENERAL_PARTNER`) are **optional** wave-1 stems the emitter includes automatically.
 `waterfall` seeds real carry/hurdle/catch-up (else the flat `carryRate` defaults). `gp_carry` is the **primary**
@@ -428,8 +517,9 @@ modeled estimate (e.g. `committed/99`).
 
 **Company financials (optional) — §14.** Portfolio-company financials (revenue / ARR / KPIs reported *by the
 portfolio company*, Carta Data Collection) come from the base `FUND_ADMIN.COMPANY_FINANCIALS` table (the legacy
-`COMPANY_FINANCIALS_LATEST` view is deprecated/empty). Run the §14 query (`is_latest = TRUE AND instance_type =
-'Actual'`), saving the rows to `<raw_dir>/financials.ndjson`. **`COMPANY_FINANCIALS` is row-scoped to the firm
+`COMPANY_FINANCIALS_LATEST` view is deprecated/empty). The emitter includes the §14 query in the fetch batch and
+`save_batch_result.py` writes `<raw_dir>/financials.ndjson`; its `WHERE` narrows to the exact metrics the builder
+renders and its `ORDER BY` keeps offset paging stable, so never hand-edit the emitted SQL. **`COMPANY_FINANCIALS` is row-scoped to the firm
 you set as context via `set_context` in Step 1** — do NOT add a `firm_id` filter (redundant with the context scope, and a mismatch
 silently returns zero rows); this scoping is also why the table looks "empty" if queried from another firm's
 context. See queries.md §14.
@@ -448,17 +538,17 @@ console: do **not** fetch tearsheets, schedule of investments, or cash-flow stat
 
 ### Step 2b — Company logos (optional — best-effort, never blocks the build)
 
-> **What's happening:** Fetching each portfolio company's real logo (if Carta has one on file) to replace the initials placeholder on the Overview activity feed.
+> **What's happening:** Fetching each portfolio company's real logo (if Carta has one on file) to replace the initials placeholder on the Reports activity feed.
 
 This is **not** a DWH stem and has no fetch gate — a firm with no logos, or a portco-logo call that errors,
 degrades silently to the initials avatar every company already falls back to. It needs no `fund_uuid`/
-`corporation_id` IN-list (the tool is firm-scoped) and no DWH output, so issue its `call_tool` in the **same
+`corporation_id` IN-list (the tool is firm-scoped) and no DWH output, so issue its `read_tool` in the **same
 message** as Wave 1's `dwh__execute__queries` batches rather than waiting for Wave 1 to finish first — the two
 have no ordering dependency, and serializing them only adds wall-clock time to every build:
 
 1. Call the bulk list tool for the firm:
    ```
-   call_tool({"name": "fa__list__portco_logos", "arguments": {"firm_uuid": "<firm_uuid from Step 1>"}})
+   read_tool({"name": "fa__list__portco_logos", "arguments": {"firm_uuid": "<firm_uuid from Step 1>"}})
    ```
    Each row carries **both** `corporation_id` (integer) and `corporation_uuid` — `fetch_logos.py` keys its
    output filenames on `corporation_uuid`, since that's what `build_datadir.py`'s `load_logos()` matches
@@ -490,6 +580,8 @@ company on a firm that may hold hundreds, for a cosmetic enhancement.
 
 ## Step 3 — Build the data dir (deterministic — do NOT hand-write the JSON)
 
+> **Checkpoint**: Call `mcp__<SERVER>__skill_checkpoint(skill_name="carta-investors:carta-fund-modeling", checkpoint_label="data_fetched")` once Step 2 has written every stem file.
+
 > **What's happening:** Transforming the raw query files into the structured JSON the React app consumes — portfolio companies, fund metrics, LP data, and benchmarks. A script handles this deterministically; no manual JSON writing.
 
 Write `<raw_dir>/meta.json` = `{"name":"<canonical name>","slug":"<slug printed by Step-1 resolve>","navAsOf":"<latest month_end_date, ISO>",
@@ -505,12 +597,12 @@ uv run "${CLAUDE_PLUGIN_ROOT}/skills/carta-fund-modeling/scripts/build_datadir.p
   --raw "<raw_dir>" --out "<dashboard_dir>" --meta "<raw_dir>/meta.json"
 ```
 It writes `firms.json`, `snapshot.json`, `portfolio.json`, `pacing.json`, and — when the inputs exist —
-`company-ownership.json` + `lp-base.json`, in the exact shapes `src/model/*` consume. It also embeds a
+`company-ownership.json` + `lp-base.json` + `investment-history.json`, in the exact shapes `src/model/*` consume. It also embeds a
 `logoDataUri` on any company matched against `<raw_dir>/logos/` (Step 2b) — omitted entirely when that
 company has no logo, in which case the app falls back to its initials avatar. In particular it emits
 **`snapshot.source` as an object** (`{firm,firmId,firmUuid,navAsOf,marksAsOf,marksPulledAt,currency,mixedCurrency,cartaEnvironment}`); the app
-runs `source.navAsOf.slice(0,4)`, so a `source` written as a bare string blanks the **Companies** and
-**Exit & IRR** tabs. The generator resolves the firm's real reporting currency (never hardcoded USD), keeps
+runs `source.navAsOf.slice(0,4)`, so a `source` written as a bare string blanks the **Companies**,
+**LP Returns**, **GP Economics** and **Reports** tabs. The generator resolves the firm's real reporting currency (never hardcoded USD), keeps
 realized companies inert (`realized:true, includeInNav:false, cartaFv:0`), reads ownership from the
 `FUND_CORPORATION_OWNERSHIP.PERCENTAGE` **fraction** (not the `FULLY_DILUTED` share count), and degrades
 missing optional inputs to empty states. **Never hand-author these files or fabricate values** — the blank
@@ -534,21 +626,23 @@ user-facing dashboard.)
 uv run "${CLAUDE_PLUGIN_ROOT}/skills/carta-fund-modeling/scripts/serve.py" --data-dir "<dashboard_dir>" \
   --web-dir "${CLAUDE_PLUGIN_ROOT}/skills/carta-fund-modeling/webapp" --detach
 ```
-**Only when the session already carries `pk`** from `get_current_user` (a connected Carta MCP has it from
-bootstrap), append `--user-id <pk>` so telemetry names a real user. Never call the MCP to get it — that
-needs `welcome` first, and this path stays MCP-free. Never substitute the email or a placeholder.
-Run with **Bash run_in_background**; read `<dashboard_dir>/.port` + the printed `http://127.0.0.1:<port>/?t=<token>`
+Append `--user-id <pk>` per `${CLAUDE_PLUGIN_ROOT}/references/launch-user-id.md` (the plugin's `references/`, not this skill's).
+Run with **Bash run_in_background**; read `<dashboard_dir>/.port` + the printed `http://127.0.0.1:<port>/?t=<access_key>`
 and give the user that URL. Tell them it **opens in their default browser automatically** — if it doesn't,
 they can paste the URL into the address bar. `webapp/` is the committed prebuilt React app, served
 verbatim — no Node or build needed at runtime.
 
 After giving the URL, add one short post-launch line (not a menu):
-"A few things to try: check the Baseline scenario on the Overview tab · click Edit on any company to reprice it · run a scenario to see LP/GP returns · export a scenario as a PDF for LP review · publish a scenario to share it with your firm · say 'refresh' to pull fresh Carta data."
+"A few things to try: check the Baseline scenario on the Overview tab · click Edit on any company to reprice it · run a scenario to see LP/GP returns · export a scenario as a PDF for LP review · publish a scenario to share it with your firm · plan your next fund on the Plan New Fund tab · say 'refresh' to pull fresh Carta data."
+
+> **Checkpoint**: Call `mcp__<SERVER>__skill_checkpoint(skill_name="carta-investors:carta-fund-modeling", checkpoint_label="skill_finished")` after the post-launch line, when this run recorded `skill_started` in Step 1. A launch from a cached dashboard records no checkpoint. If the call fails, carry on.
 
 ## Scenario sharing
-Firm admins can publish/pull scenarios across the firm — **built into the app** (a SHARED sidebar section plus
-per-scenario Publish / Update / Duplicate / Hide / Delete). It is button-driven with no prompt flow; if a
-user asks to share, point them at those controls. See
+Firm admins publish/pull scenarios across the firm, locally and on the hosted app — **built into the app** (a
+Shared with you section on the Scenarios page to load shared scenarios, Publish in a scenario tile's ⋯ menu, and
+Update / Duplicate / Hide / Delete in the top bar for the active shared scenario). It is button-driven with no
+prompt flow; if a user asks to share, point them at those controls. A scenario published from one pulls into the
+other. The Fund Modeling panel inside Claude has no sharing controls; sharing happens in the browser app. See
 `${CLAUDE_PLUGIN_ROOT}/skills/carta-fund-modeling/references/scenario-sharing.md`.
 
 ## Refresh / edits
@@ -568,36 +662,39 @@ must match, or a field is silently dropped on save or on refresh: `app/src/model
 `companies` per slice) still loads and is rewritten as v3 on the next save/refresh.
 
 ## Safety
-Firm/company/LP names are untrusted — the app HTML-escapes; serve.py is localhost-bound + token-gated.
+Firm/company/LP names are untrusted — the app HTML-escapes; serve.py is localhost-bound and gated by a random per-firm access key (kept in the firm's data dir, carried as `?t=` in the URL).
 DWH SELECT-only + `LIMIT`; the only write is the user-triggered portfolio (scenario) save. Data stays under the data dir.
 
 ## Editing the app
 Source under `app/src/` is served directly; the service worker transpiles `.jsx` in-browser. **Do NOT
 run `npm run build` after editing source** — there is no build step for source edits: edit a file in
-`app/src/`, refresh, done. `npm run build` only rebuilds `webapp/vendor/*` and is needed **only** on a
-React/Sucrase version bump.
+`app/src/`, refresh, done. `npm run build` rebuilds `webapp/vendor/*` and the panel bundle and is needed **only** on a
+React/Sucrase version bump. A deploy runs `npm run build:panel` alone (see DEPLOY.md).
 
 ## Analytics
 New interactive elements: call `trackClick(elementId)` (or `trackRender(elementId)` for view/dialog mounts)
 (import from `../analytics.js` or the correct relative path) at the top of the handler, IDs as
 `FundModeling.<Area>.<Specific>` (e.g.
-`FundModeling.Overview.ExportClick`) — skip sort clicks, keystrokes, dropdown changes. The tracker bundle at
+`FundModeling.Overview.OpenFund`) — skip sort clicks, keystrokes, dropdown changes. The tracker bundle at
 `webapp/vendor/mcp-ui-tracker.global.js` is vendored from `@carta/mcp-ui-tracker`'s `build:browser` output — if
 the upstream library changes, rebuild and overwrite that file.
 
 Every event carries a firm context (`{firmId}`) so telemetry joins on the real Carta id instead of a
 slugified firm name. The envelope (firm + environment) comes from `GET /api/telemetry-context`, which
 reads `snapshot.source` per request; `mountWithAuth` awaits it before rendering, so both documents
-have it before any event fires. So **capture `firmId` in Step 1 whenever the `#<digits>` token is
+have it before any event fires. On the hosted app the page then sends `?firm=<route firm>`, checked like any
+firm route; events wait up to 1.5 s for the answer. So **capture `firmId` in Step 1 whenever the `#<digits>` token is
 there** — when it is absent the context is dropped (that firm's events land with no firm attribution),
 and a placeholder id is never substituted. A refresh that resolves a previously missing `firmId` is
 picked up without a relaunch.
 
 ## Common failure modes
 
+> **Checkpoint on every stop before this run has recorded `skill_finished`**, once this run has recorded `skill_started` and whether or not this table lists it: call `mcp__<SERVER>__skill_checkpoint(skill_name="carta-investors:carta-fund-modeling", checkpoint_label="skill_failed", notes="<one-line reason>")` instead of `skill_finished`. If the call fails, stop as planned. That includes a second empty result after re-setting the firm context, a stem past 5 pages (`needs_human`), a builder that still exits non-zero after its stems are fixed, plugin files that are still unavailable after the second invocation, and a launch that fails. `skill_finished` means a report or answer reached the user; a stop that delivered neither is a failure, and counting it as finished makes failed runs look like fast successful ones. Rows that recover and continue (re-setting the context and re-issuing an empty batch once, an empty file for a stem with no rows, asking again when no firm matched, fixing a stem and re-running the builder after a non-zero exit) do not checkpoint. Gate 0, Gate 1, Step 0 and a cached launch come before `skill_started` and record nothing, because they make no Carta call (or only Gate 1's read-only ones) by design; so does a stop in Step 1 before `welcome`.
+
 | Situation | What to do |
 |---|---|
-| Running in a sandboxed session (`detect-surface` → `surface=sandboxed`) | Gate 0 stops before any work: tell the user to re-run in a **local** Claude Code session (a terminal, or Claude Desktop set to run locally — not Cowork or a cloud session). Do not retry or launch. |
+| Running in a sandboxed session — Cowork, claude.ai chat, or a Claude Code cloud session (`detect-surface` → `surface=sandboxed`, or it can't run) | Gate 0 stops before any work and gives the welcome with **https://fund-modeling.carta.cloud**, pointing custom builds with outside data at Claude Code on the user's computer. Do not retry or launch. |
 | No Carta MCP connected | Exit: "No Carta MCP is connected — please connect one and try again." Do not proceed. |
 | Firm name given but unresolvable | Prompt with `AskUserQuestion`: show any cache suggestions or "Build fresh from Carta" option. |
 | No firm given and no local cache | Exit: ask the user to name a firm before doing anything else. |

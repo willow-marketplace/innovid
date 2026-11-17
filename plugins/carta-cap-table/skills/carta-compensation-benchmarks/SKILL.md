@@ -1,10 +1,10 @@
 ---
 name: carta-compensation-benchmarks
-description: "Retrieves Carta Total Compensation market benchmarks (salary, equity, total cash) for a role. Output to chat or CSV. Market benchmarks are triggered by queries like: \"sales benchmarks\", \"comp benchmarks\", \"market rate\", \"what does a [role] pay\", \"put benchmarks in a CSV\", \"get benchmarks\", \"get carta's market benchmarks\", \"show me benchmarks for [role]\", \"compensation ranges for [role]\", \"p25/p50/p75 for [role]\". Do NOT use for job classification or role mapping — use carta-compensation-rolematcher for that. Do NOT use for \"how is OUR company positioned vs market\", \"who at our company is below market\", or \"our internal pay bands vs benchmarks\" — those are roster-level positioning, use carta-compensation-scorecard. Do NOT use for fund performance benchmarks (use carta-performance-benchmarks) or portfolio structural metrics like SAFE terms and option pool sizes (use carta-market-benchmarks)."
+description: "See market pay for a role: salary, equity and total cash. Retrieves Carta Total Compensation (CTC) market benchmarks for the role. Output to chat or CSV. Market benchmarks are triggered by queries like: \"sales benchmarks\", \"comp benchmarks\", \"market rate\", \"what does a [role] pay\", \"put benchmarks in a CSV\", \"get benchmarks\", \"get carta's market benchmarks\", \"show me benchmarks for [role]\", \"compensation ranges for [role]\", \"p25/p50/p75 for [role]\". Do NOT use for job classification or role mapping — use carta-compensation-rolematcher for that. Do NOT use for \"how is OUR company positioned vs market\", \"who at our company is below market\", or \"our internal pay bands or employees' salaries vs benchmarks\" — those are roster-level positioning, use carta-compensation-scorecard. Do NOT use for fund performance benchmarks (use carta-fund-performance) or portfolio structural metrics like SAFE terms and option pool sizes (use carta-market-benchmarks)."
 ---
 
 <!-- carta:plugin-version -->
-<carta-plugin>carta-cap-table:6.85.6</carta-plugin>
+<carta-plugin>carta-cap-table:6.114.20</carta-plugin>
 
 # Benchmark Query
 
@@ -16,18 +16,18 @@ Look up Carta Total Compensation (CTC) market salary and equity benchmarks for a
 >
 > | Field | Use in user-facing text | Never |
 > |---|---|---|
-> | Job area | `Engineering`, `Sales`, `Customer Success`, `Project Management`, `Human Resources` | `ENGINEER`, `SALES`, `CUSTOMER_SUCCESS`, `PROJECT_MANAGEMENT`, `HR` |
-> | Focus | `DevOps and Site Reliability`, `Account Executive`, `FP&A` | `devops and site reliability`, `account executive`, `fp&a` |
-> | Level | `Entry`, `Mid 1`, `Senior 1`, `Staff 2`, `VP 1`, `C-Level`, `CEO`, `Unknown` | `ENTRY`, `MID1`, `SENIOR1`, `STAFF2`, `VP1`, `C_LEVEL`, `UNKNOWN` |
+> | Job area | the `label` of that job in Step 2b's `params.job` | the `value` (`ENGINEER`, `CUSTOMER_SUCCESS`) |
+> | Focus | the exact API focus value, the same in text and in the API call | a re-cased or reworded focus, `ACCOUNT_EXECUTIVE` — wrong in text and in the API call |
+> | Level | Title Case, as the rolematcher writes it (`Mid 1`, `Senior 1`, `VP 1`), with the `ic_label` (IC track) or `manager_label` (Manager and Executive tracks) from Step 2b's `params.level` when you cite the level code | the `value` (`MID1`, `C_LEVEL`) |
 > | Track | `IC`, `Manager`, `Executive`, `Unknown` | `ic`, `manager`, `executive`, `UNKNOWN` |
 >
-> The UPPER_SNAKE_CASE enums are **only** for machine handoff — i.e. the `job`, `level`, `focus`, `is_leader` parameters you pass to `compensation:get:benchmark`. Inside the JSON payload for the API call, keep the enum form. Outside the API call, switch to Title Case before any value reaches the user. Even in narration like "Engineering maps to ENGINEER", drop the API enum — say *"Pulling Engineering benchmarks for corp 7"* instead.
+> The UPPER_SNAKE_CASE values are **only** for machine handoff — i.e. the `job` and `level` parameters you pass to `compensation:get:benchmark`. `focus` is the exception: the API takes the exact focus name from the rolematcher's taxonomy, unchanged (see Step 4). Inside the JSON payload for the API call, keep the `value`. Outside the API call, switch to the display name before anything reaches the user. Even in narration like "Engineering maps to ENGINEER", drop the `value` — say *"Pulling Engineering benchmarks for corp 7"* instead.
 >
 > See `carta-compensation-rolematcher` → "Display → API enum tables" for the full mapping.
 
-> **Use MCP, not CLI.** Every API call in this skill goes through the carta MCP server's `mcp__carta__call_tool` tool, with `compensation:*` commands. Do NOT shell out to the `carta` CLI (`carta compensation ...`, `carta web ...`, etc.) — that bypasses the formatters, the 403 handler, and the attribution requirement. The Bash tool is allowed only for writing CSV/JSON files locally, never for calling Carta APIs.
+> **Use MCP, not CLI.** Every API call in this skill goes through the carta MCP server's `mcp__carta__read_tool` tool, with `compensation:*` commands. Do NOT shell out to the `carta` CLI (`carta compensation ...`, `carta web ...`, etc.) — that bypasses the formatters, the 403 handler, and the attribution requirement. The Bash tool is allowed only for writing CSV/JSON files locally, never for calling Carta APIs.
 >
-> Examples below use shorthand `call_tool({"name": "compensation__get__plan", "arguments": {...}})` — read this as `mcp__carta__call_tool({"name": "compensation__get__plan", "arguments": {...}})`.
+> Examples below use shorthand `read_tool({"name": "compensation__get__plan", "arguments": {...}})` — read this as `mcp__carta__read_tool({"name": "compensation__get__plan", "arguments": {...}})`.
 
 > **CRITICAL — Show only PERCENTILE columns (p25/p50/p75/p90) for all three rating types.**
 >
@@ -105,6 +105,8 @@ Look up Carta Total Compensation (CTC) market salary and equity benchmarks for a
 > ..., equity_notional_p25..p90, equity_fd_pct_p25..p90, equity_shares_p25..p90
 > ```
 >
+> For a peer group with `peer_group.notional_available: true`, add `--notional-first` to the `export_benchmarks.py` call that writes the file — that flag is what produces the order above, and without it the CSV comes out in the default order with notional last.
+>
 > Field source map (from each `benchmarks[i]` entry):
 > - `salary_p*` → `salary_benchmarks.percentiles.{p25,p50,p75,p90}`
 > - `tcc_p*` → `tcc_benchmarks.percentiles.{p25,p50,p75,p90}`
@@ -114,6 +116,17 @@ Look up Carta Total Compensation (CTC) market salary and equity benchmarks for a
 > - `currency` → `salary_benchmarks.currency_code`
 >
 > Note: equity percentiles are nested objects (`percentiles.p25.as_shares`, etc.), not flat values like salary/tcc.
+>
+> Rows that came from the bulk export (`compensation:export:benchmarks`, Step 4) have a different source: that response is columnar and already flat, with its own short column names. Zip `columns` against each row **by name** — the export may append a column, so a positional read shifts every figure — and map:
+>
+> - `salary_p*` → `sal_{p25,p50,p75,p90}`
+> - `tcc_p*` → `tcc_{p25,p50,p75,p90}`
+> - `equity_fd_pct_p*` → `eq_{p25,p50,p75,p90}_fd`
+> - `equity_shares_p*` → `eq_{p25,p50,p75,p90}_sh`
+> - `equity_notional_p*` → `eq_{p25,p50,p75,p90}_nv`
+> - `job`, `ladder`, `level`, `currency` → the same names
+>
+> `export_benchmarks.py --export-page` applies exactly this mapping — use it rather than mapping a page by hand. It writes the CSV too: pass `--output "<path>.csv"` and it emits the field keys above as the header row, in this order, with the attribution as the final row in a single cell.
 >
 > If a column's source field is missing for a particular row (e.g. some roles have no equity), leave that cell blank — do not invent zeros and do not drop the column.
 >
@@ -135,6 +148,8 @@ Look up Carta Total Compensation (CTC) market salary and equity benchmarks for a
 
 ### Excel export — exact steps
 
+> **Came from the bulk export?** When the rows came from `compensation:export:benchmarks` (Step 4), skip Steps 1 and 2 entirely: pass each saved page straight to the script with a repeated `--export-page <saved_page_path>`, and it maps the export's columns (`sal_p25`, `eq_p90_nv`, …) onto the output's columns by name and checks the sweep covered every job area. The same call writes a CSV instead of the workbook when `--output` ends in `.csv`. Add `--notional-first` when `peer_group.notional_available` is true — this path skips Step 3, where that flag is otherwise named, so without it a large peer group's export silently gets the default order with notional last. Do not rebuild the rows below by hand from a page — that is the hand-copying the capture rule forbids. Steps 1–3 below are for rows you read from `compensation:get:benchmark`.
+
 **Step 1 — Build a JSON array of row objects** (one dict per `(job, ladder, level)`). Use `null` for missing values, never `0` or empty string.
 
 ```json
@@ -154,12 +169,10 @@ Write /tmp/benchmarks_export.json  ← the JSON array
 ```
 
 **Step 3 — Run the export script**:
+Run it as its own command on one line, path exactly as written and every argument quoted.
+Add `--notional-first` at the end when `peer_group.notional_available` is true:
 ```bash
-uv run ${CLAUDE_PLUGIN_ROOT}/skills/carta-compensation-benchmarks/scripts/export_benchmarks.py \
-  --data @/tmp/benchmarks_export.json \
-  --output <output_path>.xlsx \
-  --attribution "<full attribution string>" \
-  [--notional-first]   # required when peer_group.notional_available is true
+uv run "${CLAUDE_PLUGIN_ROOT}/skills/carta-compensation-benchmarks/scripts/export_benchmarks.py" --data "@/tmp/benchmarks_export.json" --output "<output_path>.xlsx" --attribution "<full attribution string>"
 ```
 
 The script handles all branding automatically — do not modify its output styling. The attribution string must also appear in the chat reply per the attribution rules above.
@@ -188,9 +201,14 @@ Serialize the fetched benchmark results into this shape:
   "version": "v3.1",
   "benchmark_version_id": 51,
   "peer_group": { "dimension": "post_money", "code": "ONE_HUNDRED_MILLION", "label": "$100M-$250M" },
+  "filter_options": { "benchmark_version": { "id": 51, "version": "v3.1" }, "params": { /* Step 2b's params, verbatim */ } },
   "fetchedAt": "2026-05-27T10:00:00Z"
 }
 ```
+
+> **`filter_options` is REQUIRED in the payload** — Step 2b's response with `coverage` left out (the panel does not read it). The panel builds its job list, each job's levels, the level order and Manager/Executive split, the job names and the four-year-grant `equity_quantity` from it, so its dropdowns and re-fetches send the same values this skill does. Pass the response for the same `benchmark_version_id` as the rows.
+
+> **The panel's location picker lists every supported location.** At runtime it reads `compensation__get__plan` and `compensation__get__benchmark_locations` for the selected company through its `read_tool` grant, and fetches international markets in local currency by default (a Local currency / USD toggle appears once a row is international). Pre-seed international rows with the same `convert_to_local_currency: true` fetch, so the seed matches the toggle.
 
 > **`benchmark_version_id` is REQUIRED in the payload** (the numeric `benchmark_version.id` from `compensation:get:plan` / the benchmark response — NOT the `"v21.0"` display string). The artifact's interactive controls (changing level, location, adding a row) re-fetch via `compensation:get:benchmark` and must pin the same benchmark version the pre-seed used; omitting it causes those re-fetches to fail. The top-level `version` string is display-only.
 
@@ -224,9 +242,9 @@ Field mapping from the `compensation:get:benchmark` response:
 - `equity.p*.notional` ← `equity_benchmarks.percentiles.p*.as_notional_value`
 - `equity.p*.shares` ← `equity_benchmarks.percentiles.p*.as_shares`
 - `equity.p*.fdpct` ← `equity_benchmarks.percentiles.p*.as_fd_percentage`
-- `ladder` ← `benchmarks[i].ladder` (`"IC"` or `"LEADER"`). The artifact derives the row's track from this + the level: `IC` → IC track; `LEADER` with level rank ≤8 → Manager track; `LEADER` with level rank ≥9 (VP1+) → Executive track. This is what makes the displayed track and per-track level name (e.g. VP1 shows as "Distinguished" on IC but "Vice President" on Executive) match the CTC product UI — pass `ladder` through verbatim.
+- `ladder` ← `benchmarks[i].ladder` (`"IC"` or `"LEADER"`). The artifact derives the row's track from this + the level: `IC` → IC track; `LEADER` with a level whose `executive` flag in Step 2b's `params.level` is `false` → Manager track; `LEADER` with an `executive: true` level → Executive track. This is what makes the displayed track and per-track level name (e.g. VP1 shows as "Distinguished" on IC but "Vice President" on Executive) match the CTC product UI — pass `ladder` through verbatim.
 - `currency` ← `salary_benchmarks.currency_code` (fall back to `tcc_benchmarks.currency_code`; surface `null` if neither is present — do NOT default to `"USD"`)
-- `location` ← the **API location string** you passed as the `location` param to `compensation:get:benchmark` (the `"City,ST,USA"` form, e.g. `"San Francisco,CA,USA"`; `",,US"` for national). This is what pre-seeds the artifact's per-row location dropdown — it must be the API value, NOT the display label. Omit or set `null` when you queried without a location (the dropdown then seeds to "Any").
+- `location` ← the **API location value** you passed as the `location` param to `compensation:get:benchmark` (from the supported-locations list, e.g. `"San Francisco,CA,USA"`, `"US National Average"`, `",,GBR"` — see "Locations" in Step 4). This is what pre-seeds the artifact's per-row location picker — it must be the API value, NOT the display label. Omit or set `null` when you queried without a location (the picker then shows the plan's default location). The panel loads the full location list itself, so do not put the list in the payload.
 - `geo` ← `geo_adjustment.label` (the MSA *display* label, e.g. `"San Francisco-Oakland-Hayward, CA"`). Display-only — drives the read-only "Location:" line, NOT the dropdown selection. Keep it distinct from `location`: the label is not a valid API value and must never be sent back as the `location` param.
 - `version` ← `benchmark_version.version_major` and `version_minor` concatenated as `"v<major>.<minor>"`
 - `error` ← `null` for successful rows; populate with a short string when a per-job/level fetch failed so the table can render an explicit error cell instead of fabricating zeros
@@ -239,12 +257,19 @@ Write the payload to `/tmp/benchmark_payload_<corp_id>.json`.
 
 **Step 2 — Publish the artifact panel**
 
-Read the engine HTML, replace `{{CARTA_MCP_SERVER}}` with the Carta connector's display
-name, and inject the payload as a `<script>` block before the engine's own JavaScript runs:
+Read the engine HTML and the plugin's version registry (the full paths below — do not
+search for them):
 
 ```
 Read ${CLAUDE_PLUGIN_ROOT}/skills/carta-compensation-benchmarks/assets/artifact_engine.html
+Read ${CLAUDE_PLUGIN_ROOT}/.claude-plugin/skill-versions.json
 ```
+
+In the engine HTML, replace `{{CARTA_MCP_SERVER}}` with the Carta connector's display name
+and `{{ARTIFACT_VERSION}}` with the `version` of the `carta-compensation-benchmarks` entry
+in `skill-versions.json` (for example `1.0.0`). The panel shows an update banner when a
+newer version is published; a wrong or missing version hides it. Then inject the payload
+as a `<script>` block before the engine's own JavaScript runs.
 
 `Write` `<script>window._BENCHMARK_PAYLOAD = <payload JSON>;</script>` + engine HTML to
 `comp-benchmarks-<company-slug>.html`. The script tag MUST appear in the document before
@@ -261,12 +286,13 @@ Artifact({
   description: "Compensation benchmarks for <Company Name>",
   favicon: "💰",
   capabilities: {
-    mcp: { servers: [{ server: "<CARTA_MCP_SERVER>", tools: ["list_accounts", "fetch"] }] }
+    mcp: { servers: [{ server: "<CARTA_MCP_SERVER>", tools: ["list_accounts", "read_tool"] }] }
   }
 })
 ```
 
-The panel's own controls (corp search, refetch, Download Excel) call Carta at runtime, so
+The panel's own controls (corp search, refetch, Download Excel) and its update banner
+(`read_tool` with `plugin__get__version`) call Carta at runtime, so
 both tools must be in the grant or those controls fail with `not_in_manifest`. Re-renders
 for the same company reuse the same `url`, so redeploying in place is the common case
 after the first publish.
@@ -400,8 +426,8 @@ Do **not** show the user a raw JSON dump of accounts. Do **not** attempt any com
 
 If Paths 2/3/4 returned **zero** `corporation_pk:` entries, the user may have no cap table access at all — a Fund Admin user whose access is fund accounting only. Confirm before doing anything else:
 
-1. `call_tool({"name": "context_tools__get__profile", "arguments": {}})` — returns `corporations[]`, the corporations the user holds a cap-table role on (it excludes `NO_ACCESS` roles, and returns `[]` for a user with no corporation roles).
-2. If `corporations[]` is **empty** → the user has no cap table. Send the **no-cap-table CTC message** from *Subscription gating* below (the "your firm" variant) and **STOP**. Do **not** ask them to name a corporation — they don't have one. Do **not** call any compensation endpoint.
+1. `read_tool({"name": "context_tools__get__profile", "arguments": {}})` — returns `corporations[]`, the corporations the user holds a cap-table role on (it excludes `NO_ACCESS` roles, and returns `[]` for a user with no corporation roles).
+2. If `corporations[]` is **empty** → the user has no cap table. Send the **"your firm"** subscription message from `${CLAUDE_PLUGIN_ROOT}/references/gate-ctc-subscription.md` (*The subscription message*; read it by that path, do not search for it) and **STOP**. Do **not** ask them to name a corporation — they don't have one. Do **not** call any compensation endpoint.
 3. If `corporations[]` is **non-empty** → the user does have cap tables; the name search just missed. Do **not** send an upsell. Ask them to confirm the exact company name or numeric corp ID (same handling as a Path 2 miss) and re-resolve.
 
 > Why `profile` and not `list_accounts` for this check: `list_accounts` groups corporations *and funds* under the same `corporation_pk:` prefix, so a Fund Admin user's funds can read as cap table access. `context_tools:get:profile` returns corporations only.
@@ -424,14 +450,35 @@ Extract the numeric `corporation_pk` (the integer after `corporation_pk:`) for a
 >
 > The role question is a **separate turn** that happens *after* a confirmed `is_subscribed: true`.
 
+**When this conversation already holds a classified outcome of the gate for this corp** (the gate file's *Call it once per corp per conversation*), skip the Read and the call and act on that outcome per the bullets below. Otherwise, read the gate file before the call, even if you think you know it:
+
 ```
-call_tool({"name": "compensation__get__subscription_status", "arguments": {"corporation_id": <corporation_pk>}})
+Read ${CLAUDE_PLUGIN_ROOT}/references/gate-ctc-subscription.md
 ```
 
-Three outcomes:
-- `is_subscribed: true` → **only now** proceed to Step 3a and ask for the role.
-- `is_subscribed: false` → stop and send the subscription message (see **Subscription gating**). Do not call `plans/` or `benchmark/` — they return empty data anyway and waste a round-trip. Do not invoke the rolematcher — don't make the user level a role we can't benchmark.
-- **403** → the caller lacks a CTC role on this corp. Stop and send the no-access message (see **Access gating**). Do not retry or re-authenticate.
+It is the plugin's own `references/`, not this skill's: read it by that path, do not search for it. It holds the call, the once-per-conversation rule, the four outcomes and the exact messages to send — send those verbatim, never a paraphrase. What this skill adds:
+- **PASS** → **only now** proceed to Step 3a and ask for the role.
+- **FAIL — no subscription** → follow **Subscription gating** below. Do not invoke the rolematcher — don't make the user level a role we can't benchmark.
+- **FAIL — no access** → follow **Access gating** below.
+
+### Step 2b — Load the filter options (REQUIRED — HARD GATE)
+
+> **Call this once, right after `is_subscribed: true`, before any other compensation command that takes a filter.** It returns the exact values `compensation:get:benchmark` accepts, read from compensation-service. This skill does not list them, so there is nothing else to read them from.
+
+```
+read_tool({"name": "compensation__get__filter_options", "arguments": {"corporation_id": <corporation_pk>}})
+```
+
+Keep the response for the rest of the conversation. It returns:
+- `params` — per filter param (`job`, `level`, `post_money_bucket`, `capital_raised_bucket`, `headcount_bucket`, `equity_quantity`, `equity_competitiveness_percentile`, `salary_competitiveness_percentile`, `industry`), the values it accepts. `job`, `level`, `industry` and the three bucket params are lists of entries with a `value` to send and a `label` to show. Each `job` entry lists the `levels` (values) it supports. Each `level` entry carries its `rank` (low to high, for ordering only), its role code on each track (`ic_label` such as `IC 4`, and `manager_label` such as `MGR 4`, `null` below the manager levels), and `executive`, which is `true` for the executive levels. `equity_quantity` is `{default, values}`: the backend `default`, and every `values` entry the API accepts. The percentile params are plain numbers.
+- `coverage` — a list with one entry per job area (`job`) in the corp's benchmark version: its `industries`, its `focuses` (each `{focus, industry}`, `industry` being `null` when the focus is not industry-specific), and the salary and equity percentiles it has.
+- `benchmark_version` — the version these options describe: the corp's active plan version.
+
+Rules — every benchmark call in this skill follows them:
+1. **Every filter value you send is a `value` copied verbatim from this response.** Never type one from memory, from an example in this file, or from a display label.
+2. **Map the user's wording to a value through the names**: job `label`; for a level, the Title Case of its `value` (`Senior 1` ↔ `SENIOR1`, `C-Level` ↔ `C_LEVEL`), or its `ic_label` / `manager_label` when the user gives a role code (`IC 4`, `MGR 4`); bucket `label`. If the wording matches no entry, ask with `AskUserQuestion` offering those names — do not pick the nearest-looking value.
+3. **A different benchmark version needs its own options**: when you query a version other than the plan's (see *Version Override*), call this again with `"benchmark_version_id": <that id>`.
+4. **If this call fails, stop.** HTTP 403 → follow *Access gating*. HTTP 404 → the corp has no active CTC plan; say so. `Unknown tool` → the connected Carta MCP is too old for this skill; tell the user and stop. In every case, do NOT fall back to typed values and do NOT call `compensation:get:benchmark`.
 
 ### Step 3a — Map role to CTC taxonomy
 
@@ -442,6 +489,8 @@ Skill("carta-compensation-rolematcher")
 ```
 
 Pass the user's role description as input. Do not freelance the mapping — the rolematcher has the canonical job_area / focus / level / track logic and will return values that align with the CTC enums.
+
+If the user already named the job area and specialization (e.g. *"Engineering, AI and Machine Learning, Senior Staff"*), pass them to the rolematcher as stated — it keeps a stated pair rather than reclassifying it — and check its output still says that job area and focus before calling the API. An AI/ML engineering role is **Engineering / AI and Machine Learning** (`job: ENGINEER`, `focus: "AI and Machine Learning"`), not Data.
 
 **When to invoke:** anytime the user provides a job title or job description in the context of a benchmark/comp conversation, even if their phrasing sounds like something else. Treat all of these as rolematcher invocations:
 
@@ -456,9 +505,9 @@ Pass the user's role description as input. Do not freelance the mapping — the 
 **If the user's question is ambiguous** between "classify this for benchmark" vs "help me write the JD copy" vs "give me career advice", invoke the rolematcher first to get the classification, then use the result to answer their actual question. Do not skip the rolematcher and freelance — the user is in a comp/benchmark conversation.
 
 Capture the output:
-- `job_area` — **passed to the API as `job`, NOT as `job_area`** (see the rename note below). Must be one of: `ACCOUNTING`, `ADMIN`, `CEO`, `CORPORATE_AFFAIRS`, `CUSTOMER_SUCCESS`, `DATA`, `DESIGN`, `ENGINEER`, `FINANCE`, `HR`, `IT`, `LEGAL`, `MANUFACTURING`, `MARKETING`, `OPERATIONS`, `PRODUCT`, `PROJECT_MANAGEMENT`, `RESEARCH`, `SALES`, `STRATEGY`, `SUPPORT`, `OTHER`
-- `focus` (e.g. `"backend"`, `"devops and site reliability"`, `null`) — job-area-dependent; the rolematcher returns lowercase multi-word strings matching the taxonomy verbatim — pass them through as-is to the API
-- `level` — must be one of (low to high seniority): `ENTRY`, `MID1`, `MID2`, `SENIOR1`, `SENIOR2`, `STAFF1`, `STAFF2`, `PRINCIPAL`, `VP1`, `VP2`, `C_LEVEL`, `CEO`
+- `job_area` — **passed to the API as `job`, NOT as `job_area`** (see the rename note below). Must be a `params.job[].value` from Step 2b.
+- `focus` (e.g. `"AI and Machine Learning"`, `"DevOps and Site Reliability"`, `null`) — job-area-dependent. The API matches focus **exactly and case-sensitively**, and the rolematcher already returns it in the API's spelling — pass it through unchanged, never re-cased or reworded. When the rolematcher returns `None`, omit `focus`. Otherwise check it against Step 2b's `coverage` before calling (see Step 4)
+- `level` — must be one of the `levels` that job lists in Step 2b's `params.job`. When it is not, offer only that job's `levels`.
 - `track` — the value returned by the rolematcher (`ic`, `manager`, `executive`, or `UNKNOWN`). Map to `is_leader`: `manager` or `executive` → `true`, `ic` → `false`. If `UNKNOWN`, stop and ask the user before calling the API — see Error Handling.
 
 > **Rename the field on handoff: `job_area` → `job`.** The rolematcher's output label and the CTC product both say *"job area"*, but the parameter on `compensation:get:benchmark` is `job`. Passing `job_area` returns HTTP 400 — there is no `job_area` parameter on any compensation endpoint.
@@ -468,7 +517,7 @@ Capture the output:
 >
 > `focus` and `level` keep their names; only `job_area` is renamed.
 
-If the rolematcher returns a value not in these enums (e.g. `LEAD1`, `PRODUCT_MANAGER`), map it to the closest valid value before calling the API. If unsure, read the valid enum list from `search_tools({"query": "compensation get benchmark"})` — do NOT guess a plausible-looking name or invent a `compensation:list:*` command to look it up. Ask the user if still ambiguous.
+If the rolematcher returns a job or level that Step 2b does not list for that job, map it through the names in Step 2b, rule 2 (job `label`; level Title Case or role code) to a listed `value`. If nothing matches, ask the user — do NOT guess a plausible-looking name or invent a `compensation:list:*` command to look it up.
 
 If the user provides only a job title, that is sufficient minimum input for the rolematcher.
 
@@ -479,47 +528,51 @@ If the user provides only a job title, that is sufficient minimum input for the 
 ### Step 3b — Fetch the corporation's active benchmark version + peer group
 
 ```
-call_tool({"name": "compensation__get__plan", "arguments": {"corporation_id": <corporation_pk>}})
+read_tool({"name": "compensation__get__plan", "arguments": {"corporation_id": <corporation_pk>}})
 ```
 
-Capture three things from the response:
+Capture these from the response:
 - `benchmark_version.id` — use as `benchmark_version_id` in the next step.
+- `benchmark_version.geo_adjustment_version.id` — the id that lists this plan's supported locations (see "Locations" in Step 4). Absent on an older Carta MCP; then use the fallback in that section.
+- `geo_adjustment_config.default_location.location` — the location the API applies when a call passes none, and the one the CTC Benchmarks page opens on.
 - `peer_group` — `{code, label, dimension, notional_available}`. The `label` (e.g. `"$50M-$100M"`) is required for the data-source footnote. The `dimension` — one of `post_money` / `capital_raised` / `headcount` — selects BOTH the data-source attribution phrase (see "Required attribution") AND which bucket param to pass in Step 4. Many corps default to `capital_raised`, NOT `post_money` — do not assume. The `notional_available` boolean tells you the equity column order (see Step 5).
 - If `peer_group.dimension` is missing or not one of those three values, follow Step 4a (STOP).
 
 ### Step 4 — Fetch the benchmark
 
-> **CRITICAL — Valid enum values: read them, don't guess them. Two failure modes to avoid.**
+> **CRITICAL — every filter value comes from Step 2b. Two failure modes to avoid.**
 >
-> Every filter param on `compensation:get:benchmark` (`job`, `level`, `focus`, the three `*_bucket` params, `equity_quantity`) takes a fixed **UPPER_SNAKE_CASE enum value**. The API validates by exact enum name and returns **HTTP 400** for anything else. Two things burn retries:
+> Every filter param on `compensation:get:benchmark` except `focus` (`job`, `level`, the three `*_bucket` params, `equity_quantity`, the competitiveness percentiles, `industry`) accepts only the values in Step 2b's `params`. The API returns **HTTP 400** for anything else.
 >
-> **1. There is NO `compensation:list:*` command for these enums. Do not invent one.**
-> `compensation:list:job_types`, `list:jobs`, `list:peer_groups`, `list:post_money_buckets`, `list:capital_raised_buckets`, `list:headcount_buckets` — **none of these exist.** Calling them returns `Unknown command` and wastes a turn. The only `compensation:list:*` command is `compensation:list:benchmark_versions`. To see the valid filter values, **read the `compensation:get:benchmark` command help** — it enumerates every `job`, `level`, and bucket value:
-> ```
-> search_tools({"query": "compensation get benchmark"})
-> ```
-> Read the enum lists from that help; never self-discover via a guessed `list:` command.
+> **1. There is NO `compensation:list:*` command for these values. Do not invent one.**
+> `compensation:list:job_types`, `list:jobs`, `list:peer_groups`, `list:post_money_buckets`, `list:capital_raised_buckets`, `list:headcount_buckets` — **none of these exist.** The only source is `compensation:get:filter_options` (Step 2b).
 >
-> **2. Pass the enum NAME, not the human display label.**
-> The API wants `MARKETING`, not `"Marketing"`; `CUSTOMER_SUCCESS`, not `"Customer Success"` or `"Customer Support"`; `SENIOR1`, not `"Senior 1"`. For buckets, pass the enum name (`TWENTY_FIVE_MILLION`), not the dollar label (`"$25M-$50M"`). The Title-Case forms are for **user-facing text only** (see the casing rule at the top of this file) — they are never valid API values. If you only have a free-text role, that's what the `carta-compensation-rolematcher` in Step 3a is for; it returns canonical enum names. Do not hand-translate a display label into a guessed enum.
+> **2. Send the `value`, never the `label`.**
+> Labels are for **user-facing text only** (see the casing rule at the top of this file). If you only have a free-text role, that's what the `carta-compensation-rolematcher` in Step 3a is for; check its output against Step 2b before calling.
 >
-> **Anti-patterns (all observed in real failures):**
-> - ❌ `call_tool({"name": "compensation__list__job_types"})` → `Unknown tool`. Read `search_tools({"query": "compensation get benchmark"})` instead.
-> - ❌ `job: "Marketing"` / `job: "Engineering"` / `job: "Customer Support"` → HTTP 400. Use `MARKETING` / `ENGINEER` / `CUSTOMER_SUCCESS`.
-> - ❌ `job: "PRODUCT_MANAGER"` → HTTP 400 (invented). The value is `PRODUCT`. When unsure, read the help — don't guess a plausible-looking name.
-> - ❌ `capital_raised_bucket: "$250M-$500M"` (a label) or a fabricated name → HTTP 400. Pass a real `CapitalRaisedBuckets` name from the help.
+> **On HTTP 400**, compare every filter value you sent with Step 2b's `params` and resend the listed `value`. Retry at most once; if it 400s again, stop and report the error.
 >
-> Bucketing across many job functions? Iterate over the valid `job` enum names from the help — do **not** loop over display labels.
+> Bucketing across many job functions? Iterate over Step 2b's `params.job[].value` — do **not** loop over display labels.
+
+> **`focus` is an exact name, not an enum — and a near-miss fails silently.**
+> A `focus` the version does not carry returns the **job-area blend with HTTP 200**, not a 400, so a wrong one looks like a good answer. `AI_AND_MACHINE_LEARNING`, `ai and machine learning` and `AI/ML` all come back as the blend. Choose the focus **before** calling:
+>
+> 1. Take the `coverage` entry whose `job` is the job you are sending, and read its `focuses`.
+> 2. Keep the focuses whose `industry` is `null` or equals the `industry` you send (`all` when you send none).
+> 3. Send the rolematcher's focus only if it appears in that list, character for character (the match is case-sensitive). If it does not, but one listed focus clearly is what the user meant, send that exact one. Otherwise omit `focus` and tell the user this benchmark version has no data for that focus, or ask which listed focus they want, with the focuses verbatim.
+>
+> When the requested focus matches, each benchmark entry's bands are the focus-specific figures, its `focus` echoes your value, and the blend sits under `job_area_blend`. `focus_warning` in a response is the fallback signal: nothing matched, so present the numbers as the job-area blend, never as focus-specific. If the warning lists a focus value that clearly matches what the user meant, retry once with that exact value.
 
 ```
-call_tool({"name": "compensation__get__benchmark", "arguments": {
+read_tool({"name": "compensation__get__benchmark", "arguments": {
   "corporation_id": <corporation_pk>,
   "job": <job_area>,                        # omit to get ALL job areas
   "level": <level>,                         # omit to get ALL levels for the job
   "focus": <focus>,                         # omit if null
   "is_leader": <true if track == "manager" or track == "executive" else false>,
   "benchmark_version_id": <benchmark_version.id>,
-  "location": <location string>,            # optional, for geo adjustment
+  "location": <location value>,             # optional — from compensation:get:benchmark_locations, verbatim (see "Locations" below)
+  "convert_to_local_currency": true,        # only with an international location — see "Locations" below
 
   # --- The corp's plan-default peer group. Include EXACTLY ONE bucket
   #     param. Do NOT include two or three. Pick the key by string-mapping
@@ -549,57 +602,52 @@ call_tool({"name": "compensation__get__benchmark", "arguments": {
   #     "capital_raised_bucket": "ONE_HUNDRED_MILLION"   ← 400 Bad Request
   #     (also wrong: passing both — only one bucket param per call)
 
-  "equity_quantity": "FOUR_YEAR_GRANT"      # REQUIRED — match the CTC product UI default
+  "equity_quantity": <the four-year-grant value in Step 2b's params.equity_quantity.values>   # REQUIRED — match the CTC product UI default
 }})
 ```
 
-> **`equity_quantity` defaults to `NTM_VESTING` on the MCP side, but the CTC product UI defaults to `FOUR_YEAR_GRANT`.** Always pass `FOUR_YEAR_GRANT` explicitly so the skill's numbers tie out against the in-product UI. If you omit it, you'll return ~25% of the value HR users expect — that's a hard tie-out failure, not a stylistic preference. Applies to every benchmark call: single role, bulk CSV, live artifact panel, Excel export.
+> **Always pass the four-year-grant `equity_quantity` explicitly.** When `equity_quantity` is omitted, the backend default applies (Step 2b's `params.equity_quantity.default`: next-12-months vesting), which is ~25% of the four-year grant the CTC product UI shows. That's a hard tie-out failure, not a stylistic preference. Applies to every benchmark call: single role, bulk CSV, live artifact panel, Excel export. If the user asks for "one year of equity" or "annual equity value", send the next-12-months value instead. Both values are in `params.equity_quantity.values`; send only those.
 
-> **`equity_quantity` (`EquityQuantity`) has exactly TWO valid values. There are no others.**
+> **Accepted params — nothing else.** `compensation:get:benchmark` takes `corporation_id`, `job`, `level`, `focus`, `location`, `convert_to_local_currency`, `is_leader`, `benchmark_version_id`, `post_money_bucket`, `capital_raised_bucket`, `headcount_bucket`, `equity_quantity`, `equity_competitiveness_percentile`, `salary_competitiveness_percentile`, `industry` and `raw`. Any other param fails the whole call with `unknown_param`. In particular there is **no `job_title`** (nor `title`, `role` or `job_area`) and **no `detail_mode`**. A title the user typed goes through the rolematcher (Step 3a) and reaches the API only as the `job`, `level` and `focus` values it maps to in Step 2b — `job` never carries free text such as `"Software Engineer"` or `"Director of Growth"`, which returns HTTP 400.
 >
-> | Value | Meaning |
-> |---|---|
-> | `FOUR_YEAR_GRANT` | Total value of the full four-year grant. **Use this** — matches the CTC product UI. |
-> | `NTM_VESTING` | Value vesting over the next twelve months (≈25% of the four-year grant). |
->
-> ❌ `ONE_YEAR_GRANT` → HTTP 400. **This is the most common invented value** — do not use it, not even to express "one year of vesting". The concept you want is `NTM_VESTING`.
-> ❌ `ANNUAL`, `ONE_YEAR`, `TWO_YEAR_GRANT`, `THREE_YEAR_GRANT`, `NTM`, `NEXT_TWELVE_MONTHS`, `REFRESH_GRANT` → all HTTP 400. None exist.
->
-> Why `ONE_YEAR_GRANT` looks plausible but is wrong: compensation-service's *internal* field for this concept is named `one_year_grant_benchmark` (its source comment notes it "used to be known as `ntm_vesting_benchmark`"). That internal name is **not** the API enum and never reaches the wire. If the user asks for "one year of equity" or "annual equity value", map it to `NTM_VESTING`.
+> **On `unknown_param` or `invalid_argument`**: read the error's `allowed_params` and `did_you_mean`, drop or rename the offending param to one of those, and resend once. Never resend the same call. If the corrected call fails too, stop and report the error.
 
 **Peer-group override (user-driven sensitivity analysis).** When the user explicitly asks to see a different peer group than the corp's plan default (*"show me $10M-$25M benchmarks instead"* or *"what would this look like for a 100-500 person company"*), **DROP the plan-default bucket param entirely and replace it with the override**. Do not include both — the API's behavior when more than one bucket is non-null is undefined and may change.
 
-So a Meetly-corp call that normally has `post_money_bucket: "ONE_HUNDRED_MILLION"` (plan default), when the user asks for "show me the $1M-$10M raised peer group instead", becomes:
+Pick the override from Step 2b:
+1. Choose the dimension from the user's wording: a valuation → `post_money_bucket`, money raised → `capital_raised_bucket`, a company size → `headcount_bucket`.
+2. Find the entry in that param's list (`params.post_money_bucket`, `params.capital_raised_bucket`, `params.headcount_bucket`) whose `label` matches the range the user named, and send its `value`. The lists hold only the buckets this benchmark version supports.
+3. If no label matches, ask with `AskUserQuestion`, offering that dimension's labels verbatim.
 
 ```
-call_tool({"name": "compensation__get__benchmark", "arguments": {
-  "corporation_id": 7, "job": "ENGINEER", "level": "ENTRY",
-  # post_money_bucket DROPPED — replaced by capital_raised_bucket below
-  "capital_raised_bucket": "ONE_TO_TEN_MILLION",
-  "equity_quantity": "FOUR_YEAR_GRANT",
+read_tool({"name": "compensation__get__benchmark", "arguments": {
+  "corporation_id": <corporation_pk>, "job": <job value>, "level": <level value>,
+  "<override dimension>_bucket": <that bucket's value from Step 2b>,
+  "equity_quantity": <four-year-grant value>,
   ...
 }})
 ```
 
-User-phrasing → override mapping:
+Never derive a bucket value from another dimension's naming: the three bucket params use different value names for the same range, so a value valid for one is a 400 on the other two.
 
-| User says | Bucket param key | Bucket value (note: each dimension's enum uses different naming) |
-|---|---|---|
-| *"$10M-$25M valuation"* | `post_money_bucket` | `TEN_MILLION` (post-money enum uses single-lower-bound names) |
-| *"$25M-$50M valuation"* | `post_money_bucket` | `TWENTY_FIVE_MILLION` |
-| *"$1M-$10M raised"* | `capital_raised_bucket` | `ONE_TO_TEN_MILLION` (capital-raised enum uses range names) |
-| *"$10M-$25M raised"* | `capital_raised_bucket` | `TEN_TO_TWENTY_FIVE_MILLION` |
-| *"100-500 employees"* | `headcount_bucket` | `HUNDRED_TO_FIVE_HUNDRED` |
-| *"25-100 employees"* | `headcount_bucket` | `TWENTY_FIVE_TO_HUNDRED` |
+#### Locations
 
-**Important: the naming asymmetry between the three enums is intentional, not a typo.**
+Omit `location` and the API applies the plan's default location (`geo_adjustment_config.default_location`). When the user names a place — a city, a country, "national", "remote" — pass that place's **`location` value from the supported-locations list, verbatim**. Never build the string yourself: the API matches the server's own city name (Charlotte-Concord-Gastonia is `"Charlotte,NC,USA"`), and a value it doesn't recognise comes back unadjusted rather than as an error.
 
-- `PostMoneyBuckets` names a bucket by its **lower bound only**: `TEN_MILLION` IS the `$10M-$25M` band.
-- `CapitalRaisedBuckets` and `HeadcountBuckets` name a bucket by its **explicit range**: `TEN_TO_TWENTY_FIVE_MILLION` is the `$10M-$25M` band.
+1. List the supported locations once per conversation, with the id from Step 3b:
+   ```
+   read_tool({"name": "compensation__get__benchmark_locations",
+              "arguments": {"geo_adjustment_version_id": <benchmark_version.geo_adjustment_version.id>}})
+   ```
+   The result is ~444 entries (~65KB), so the client usually saves it to a file. Find the place in it with the lookup script instead of reading the file:
+   ```bash
+   uv run "${CLAUDE_PLUGIN_ROOT}/skills/carta-compensation-benchmarks/scripts/find_location.py" "<saved_result_file>" "<place>"
+   ```
+   It prints `location=…  label=…  international=…  currency=…` per match. One match → use it. Several (e.g. "Portland" in Oregon and Maine) → ask with `AskUserQuestion`, using the labels verbatim. None → say that location isn't in CTC's list and offer the closest matches, or the national average.
+2. **The US national average is `"US National Average"`** — for "national", "remote", "anywhere in the US". It returns the national adjustment. Never send `",,US"`: the API applies no adjustment for it, so the figures come back at the top-market rate, about 25% above the national average.
+3. **International markets** (`international=true`): also pass `"convert_to_local_currency": true`, so the figures are in the local currency, as the CTC Benchmarks page shows them. Leave it out only when the user asks for USD. Report the currency with the figures.
 
-Do NOT "fix" `post_money_bucket: "TEN_MILLION"` to `post_money_bucket: "TEN_TO_TWENTY_FIVE_MILLION"` thinking it's a typo. The post-money enum has no `_TO_` form — passing `TEN_TO_TWENTY_FIVE_MILLION` returns HTTP 400.
-
-Reference for the full enum sets is in `compensation:get:benchmark`'s help (run `search_tools({"query": "compensation get benchmark"})` to verify a specific value). There is no `compensation:list:*` command for bucket enums — read them from the command help.
+If Step 3b found no `geo_adjustment_version`, or the command is unknown (an older Carta MCP), use `"US National Average"` for national and `"City,ST,USA"` for a US metro, from the user's own words. Say the location list isn't available, so a metro may not match the product's figures exactly.
 
 ### Step 4a — Unknown / missing `peer_group.dimension` (STOP)
 
@@ -615,9 +663,25 @@ If the dimension is one of the three known values, continue to Step 4 above.
 
 ### Step 4 — bulk-fetch nuances
 
-**Single-job bulk:** omit `level` to get every level for one job in one call (~17 rows, fits well under the gateway response budget).
+**Single-job bulk:** omit `level` to get every level for one job in one call (one row per level in that job's `levels`, fits well under the server response budget).
 
-**Multi-job bulk (CSV across all functions):** issue **one fetch per job area** in parallel — do **not** omit both `job` and `level`. The unfiltered query returns ~22 jobs × ~17 levels in a single payload that exceeds the 40K-char gateway budget and will be rejected with `"response too large"`. Iterating per-job stays inside the budget and parallelizes cleanly.
+**Multi-job bulk (CSV or Excel across many functions): use `compensation:export:benchmarks`.** It returns the market matrix for many job areas in one columnar response, and it is the command built for exactly this. Pass `jobs` as a list of Step 2b `params.job[].value`s, or omit `jobs` to sweep every job area a page at a time. Carry over the same filters you would have sent to `compensation:get:benchmark` — `equity_quantity` (the four-year-grant value, per the rule above — the export defaults to next-12-months vesting exactly as `get:benchmark` does), `level`, `location`, `focus`, `is_leader`, the peer-group bucket param, `benchmark_version_id`.
+
+The response is columnar — `{"columns": [...], "rows": [[...], ...]}`, one row per `(job, ladder, level)` — and its column names are the export's short forms (`sal_p25`, `tcc_p50`, `eq_p75_fd`, `eq_p90_nv`, …), not the nested objects `get:benchmark` returns. Zip `columns` against each row **by name**: the server may append a column, so a positional read silently shifts every figure. You do not have to do that mapping yourself — `export_benchmarks.py --export-page` does it (below), for a CSV as well as for the workbook; the "Field source map" above lists the names it applies.
+
+**Paging — one call is not the sweep.** The server returns at most 12 job areas per response, and an explicit `job_limit` above 12 is a 400 error rather than a clamp, so never raise it, and never change it mid-sweep (that shifts the window under offsets you already computed — one value for the whole sweep, whether that is omitted here or the fixed `job_limit: 6` of the no-blob fallback below). Omit `job_limit`, then call again with `job_offset` set to the previous response's `next_job_offset`, until that field comes back `null`. **The sweep is complete only when the union of every page's `jobs_covered` and `jobs_empty` equals `total_job_areas`** — `export_benchmarks.py` re-checks that and refuses a short sweep. Never present one page as every job area. (Same contract as `carta-compensation-app`'s `references/queries.md` §3 — keep the two in step rather than restating the numbers anywhere else.)
+
+**Writing the pages to a file rather than reading the numbers yourself** (every CSV and every XLSX built from the export): send `"response_mode": "blob"` on the **first** call and on every page after it — do not fetch a page and then re-fetch it. Your client writes each page to disk and returns only the counts and the paging cursor. Pass every saved path to the export script, which maps the export columns by name. `--output` decides the format — `.csv` for a CSV, `.xlsx` for the branded workbook. Add `--notional-first` at the end when `peer_group.notional_available` is true — this route skips Steps 1–3 of the Excel export, where that flag is otherwise named, so without it a ≥ $500M peer group's file comes out in the default order with notional last:
+
+```bash
+uv run "${CLAUDE_PLUGIN_ROOT}/skills/carta-compensation-benchmarks/scripts/export_benchmarks.py" --export-page "<page_1_path>" --export-page "<page_2_path>" --output "<output_path>.csv" --attribution "<full attribution string>"
+```
+
+> **Benchmark figures reach a CSV or XLSX only through that script.** Never hand-copy them out of a page and never retype them into a JSON file or a heredoc — except the verbatim page save in the no-blob fallback below, where the whole response goes to disk unedited. A page carries thousands of numbers and a single wrong digit is invisible in the output — the same rule `carta-compensation-app` states in its capture contract.
+
+**If `response_mode` comes back as an unknown parameter**, this MCP predates blob delivery and the page arrives inline. Drop the parameter and set `job_limit: 6`, so a page is small enough to write back out faithfully. The offsets are then known up front — 0, 6, 12, … up to `total_job_areas` — so fetch each page at its own offset rather than following the cursor. Save each page **verbatim** with the Write tool — the whole response object as received, nothing re-keyed, no figure retyped — then pass every saved path to `--export-page` as above. Do not fall back to a `compensation:get:benchmark` loop. (Same fallback as `carta-compensation-app`'s `references/queries.md` §3.)
+
+> **Do not loop `compensation:get:benchmark` once per job area.** The server rejects it by design. Equally, do not call `get:benchmark` with both `job` and `level` omitted: that asks for every job at every level in one payload, which never fits.
 
 ### Step 5 — Present results
 
@@ -693,7 +757,9 @@ If a `benchmarks` array entry has empty `salary_benchmarks`, empty `equity_bench
 
 ## Version Override
 
-If the user asks about the current benchmark version or wants to query against a different version, follow the workflow in `${CLAUDE_PLUGIN_ROOT}/skills/carta-compensation-benchmarks/references/benchmark-versions.md`.
+If the user asks about the current benchmark version or wants to query against a different version, follow the workflow in `${CLAUDE_PLUGIN_ROOT}/skills/carta-compensation-benchmarks/references/benchmark-versions.md`. A different version needs its own filter options: re-run Step 2b with that version's `benchmark_version_id`.
+
+`compensation:list:benchmark_versions` is the one compensation command that takes **no arguments** — versions are global, not per corporation. Call it with `"arguments": {}`; never pass `corporation_id`, which returns `unknown_param`.
 
 ## Subscription gating (REQUIRED before any benchmark query)
 
@@ -701,27 +767,21 @@ If the user asks about the current benchmark version or wants to query against a
 
 Compensation-service's `plans/` and `benchmark/` endpoints return 200 even for corporations that don't have an active CTC subscription — the response just has empty/null ratings. **You cannot infer subscription status from those calls.** That's why `subscription_status` exists.
 
-Once you have resolved the corporation (Step 1), call `compensation:get:subscription_status` as **Step 2 — before any `plans/` or `benchmark/` call, and before asking the user for a role** (see Step 2 above). It returns `{corporation_id, is_subscribed}`. "First" here means first among the *compensation* calls, not before corp resolution — you still need a `corporation_pk` from Step 1 to make this call.
+Once you have resolved the corporation (Step 1), call `compensation:get:subscription_status` as **Step 2 — before any `plans/` or `benchmark/` call, and before asking the user for a role** (see Step 2 above). Classify its result with the gate file Step 2 names. "First" here means first among the *compensation* calls, not before corp resolution — you still need a `corporation_pk` from Step 1 to make this call.
 
 **Single-corp query:**
-1. `call_tool({"name": "compensation__get__subscription_status", "arguments": {"corporation_id": <id>}})`
-2. If `is_subscribed` is `false`:
-   - Determine whether the user has cap table access: `call_tool({"name": "context_tools__get__profile", "arguments": {}})` and check whether `corporations[]` is non-empty. Treat a **non-empty** list as "has cap table access" — the endpoint already excludes `NO_ACCESS` roles, so presence is the signal. Do **not** match on the `role` label: those strings are raw and unnormalized (`'Admin'` and `'Administrator'` both occur), so an allowlist would misclassify real admins. Do **not** test whether *this specific corp* is in the list — the list is capped server-side, so a large-portfolio admin can be a false negative.
-   - If `corporations[]` is **non-empty**, tell the user:
-     > *"That's a Carta Total Compensation (CTC) question — CTC runs on Carta's private market salary and equity data. The data can be segmented by level, function, stage, and geography, directly in Claude. It's not active for your company yet. Reach out to your account team or [request a demo](https://carta.com/demo/total-comp/?&utm_medium=product&utm_source=carta-web&utm_campaign=ctc-plugin-inq-amer-q2-26) to unlock it.*
-     >
-     > *I can pull cap table data — grants, vesting, round history — in the meantime."*
-   - If `corporations[]` is **empty** — a Fund-Admin-only user, or the corp came from a hand-typed numeric ID (Path 1) that they hold no cap-table role on — tell the user:
-     > *"That's a Carta Total Compensation (CTC) question — CTC runs on Carta's private market salary and equity data. The data can be segmented by level, function, stage, and geography, directly in Claude. It's not active for your firm yet. Reach out to your account team or [request a demo](https://carta.com/demo/total-comp/?&utm_medium=product&utm_source=carta-web&utm_campaign=ctc-plugin-inq-amer-q2-26) to unlock it."*
-   - If the profile call errors or returns an unreadable response, use the **"your firm"** variant — it promises nothing you can't deliver. Do not retry it.
+1. Run the gate (Step 2).
+2. **FAIL — no access** → follow **Access gating** below and STOP.
+3. **FAIL — no subscription**:
+   - Send the subscription message from the gate file (it picks the company or firm variant).
    - **STOP.** Do not call `plans/`, `benchmark/`, `benchmark_versions`, or any other compensation endpoint for this corp.
    - Do not generate a CSV/JSON file for this corp. No "framework" file. No "structure-only" file. Nothing.
    - Do not "try the benchmark to see if it works anyway". The answer is no.
-3. If `is_subscribed` is `true` → proceed with the benchmark workflow.
+4. **PASS** → proceed with the benchmark workflow.
 
 **Multi-corp / bulk query:**
 0. If any corp turns out to be unsubscribed, call `context_tools__get__profile` **once** for the whole batch and reuse the result. The cap-table-access branch is per-**user**, not per-corp — never re-fetch it inside the loop.
-1. Call `compensation:get:subscription_status` for each corp up front. Partition them into `subscribed` and `unsubscribed` lists.
+1. Run the gate for each corp up front. Partition them by its outcome into `subscribed` (**PASS**), `unsubscribed` (**FAIL — no subscription**) and `no_access` (**FAIL — no access**) lists. Handle `no_access` per **Access gating**.
 2. Run benchmark queries (`plans/`, `benchmark/`) **only** for corps in the `subscribed` list. Never query the API for corps in `unsubscribed`.
 3. In the chat reply, list unsubscribed corps separately: *"The following corporations don't have an active CTC subscription and were excluded: [Corp A], [Corp B]."*
 4. In any generated file (CSV/JSON), unsubscribed corps must not appear as data rows. Optionally include a separate "Excluded (no CTC subscription)" section for transparency. Never invent zeros or blanks for them.
@@ -739,34 +799,30 @@ A `compensation:*` read can fail for two unrelated reasons that must NOT be conf
 - **No subscription** — the corporation doesn't have Carta Total Compensation. Remediation: a sales/demo conversation.
 - **No access** — the corporation HAS CTC, but the **current user** doesn't hold a CTC role on it (Company Viewer, Compensation Manager, Company Editor, Company Admin). A user can be a stakeholder, board member, or cap-table admin without any CTC role. Remediation: an internal role grant — NOT a sales conversation.
 
-> **You distinguish these — the MCP layer does not.** The carta MCP gateway is a thin, domain-agnostic adapter: when a compensation command hits a 403 it surfaces the raw error, it does NOT probe subscription state or compose a friendly message. The authoritative signal for the distinction is `compensation:get:subscription_status`: when it succeeds it returns `{corporation_id, is_subscribed}` — `false` is no-subscription, `true` means a later `plan`/`benchmark` 403 is no-access. When it *itself* returns a 403, that 403 is the signal: the caller lacks a CTC role, so it's no-access. Step 2 already calls it up front — use its result (or its 403) to classify, per the table below.
+> **You distinguish these — the MCP layer does not compose the message.** The authoritative signal is the subscription gate (Step 2), whose outcomes already separate no-subscription from no-access. When a compensation command hits a 403 the server surfaces the raw error and does not compose a friendly message. Step 2 already calls `subscription_status` up front — use its result to classify, per the table below.
 
 **How to classify a failure:**
 
 | What you observe | Meaning | What to do |
 |---|---|---|
-| `subscription_status` → `is_subscribed: false` | No subscription | Follow **Subscription gating** — send the demo-link message, STOP. Do not call `plans/` or `benchmark/`. |
-| `subscription_status` → `is_subscribed: true`, but a later `plan`/`benchmark` read returns **403** | No access (corp has CTC, you lack a role) | Send the no-access message below, STOP. Do NOT show a demo link — the corp already has CTC. |
-| `subscription_status` itself returns **403** | No access (the 403 means you lack a CTC role on this corp) | Send the no-access message below, STOP. Treat a 403 on the status probe as no-access, not as "couldn't determine subscription". |
+| Gate → **FAIL — no access** | No access (you lack a CTC role on this corp; its subscription state is withheld) | Send the gate's no-access message, STOP. |
+| Gate → **FAIL — no subscription** | No subscription | Follow **Subscription gating** — send the demo-link message, STOP. |
+| Gate → **PASS**, but a later `plan`/`benchmark` read returns **403** | No access (corp has CTC, you lack a role) | Send the gate's no-access message, STOP. Do NOT show a demo link — the corp already has CTC. |
 
-**The no-access message (surface this verbatim):**
-
-> *"Your account doesn't have a CTC role for this corporation, contact a company admin for access"*
-
-This wording is deliberately neutral on subscription state: it's correct for both no-access rows above, including the `subscription_status`-403 case where the corp's subscription status is unknown (a 403 only establishes the caller lacks a CTC role, not that the corp has CTC). Do not assert that the corporation has Carta Total Compensation.
+**The no-access message:** send the gate file's *no-access message* verbatim. Do not assert that the corporation has Carta Total Compensation.
 
 > **HARD STOP RULE:** Both outcomes are FINAL. Do NOT re-authenticate, retry, or "try a different command to see if it works" — re-authentication issues a fresh token for the **same user** and does not grant a role they don't have. Do NOT generate a CSV/JSON file for that corp. No partial output.
 
-**Multi-corp / bulk query:** call `subscription_status` for each corp up front; for corps that come back `is_subscribed: true`, a subsequent benchmark 403 means no-access. Partition and surface the two failure classes separately:
+**Multi-corp / bulk query:** run the gate for each corp up front. Corps that get **FAIL — no access** are no-access; for corps that get **PASS**, a subsequent benchmark 403 also means no-access. Partition and surface the two failure classes separately:
 - *"The following corporations don't have an active CTC subscription and were excluded: [Corp A]."*
 - *"Your account doesn't have a CTC role for the following corporations, contact a company admin for access: [Corp B]."*
 
 ### Anti-patterns to avoid
 
 - ❌ Treating the failure as a transient auth issue and asking the user to re-login. Re-authentication issues a fresh token for the **same user** — it does not grant a role they don't have.
-- ❌ Expecting the gateway to hand you a finished, user-ready message. It returns a raw sanitized 403 — YOU classify it using the `subscription_status` result and compose the message.
-- ❌ Showing a CTC product demo link for the access-denied case. The user needs an internal role grant, not a sales conversation — and on a `subscription_status` 403 you don't even know the corp lacks CTC, so a demo link would be a guess.
-- ❌ Treating a 403 on `subscription_status` as "subscription unknown, try the benchmark anyway". A 403 there means no-access — stop and send the no-access message.
+- ❌ Expecting the server to hand you a finished, user-ready message. YOU classify the outcome using the `subscription_status` result and compose the message.
+- ❌ Showing a CTC product demo link for the access-denied case. The user needs an internal role grant, not a sales conversation — and with `has_ctc_access: false` you don't even know the corp lacks CTC, so a demo link would be a guess.
+- ❌ Treating `has_ctc_access: false` (with `is_subscribed: null`) as "subscription unknown, try the benchmark anyway". It means no-access — stop and send the gate's no-access message.
 
 ## Error Handling
 
@@ -774,9 +830,10 @@ This wording is deliberately neutral on subscription state: it's correct for bot
 |---|---|---|
 | Rolematcher returns `UNKNOWN` for `job_area` | Role description too vague or not in CTC taxonomy | "Could you clarify the role? For example: job area (Engineering, Sales), seniority level, and whether it's an IC or manager track." |
 | Rolematcher returns `UNKNOWN` for `track` | Level is also UNKNOWN — no seniority signals present | "Is this an individual contributor (IC), manager, or executive role? This determines which benchmark track to use." |
-| Benchmark response has no data for role/level (subscribed corp) | Data coverage gap — no snapshot for that exact slice | "No benchmark data is available for [role] at [level] in this benchmark version. Want to try a different level or focus?" |
-| `compensation:get:subscription_status` returns `is_subscribed: false` | Corp doesn't have an active CTC subscription | See **Subscription gating** — stop and send the subscription message. |
-| `compensation:get:subscription_status` returns **403**, OR `is_subscribed: true` but a `plan`/`benchmark` read returns **403** | The current user lacks a CTC role on this corp | See **Access gating** — send the no-access message, stop. No demo link; do NOT re-authenticate (won't grant a missing role). |
+| Benchmark response has no data for role/level (subscribed corp) | Data coverage gap — no snapshot for that exact slice | Look at Step 2b first: the job's `levels` and its `coverage` entry's `focuses` (for the industry in use) are what exists. Ask with `AskUserQuestion`, offering only those levels and focuses by label: "No benchmark data is available for [role] at [level] in this benchmark version. Which of these would you like instead?" |
+| `unknown_param` or `invalid_argument` on a compensation command | A param outside the command's accepted list | Follow Step 4's **On `unknown_param` or `invalid_argument`** rule. A `job` / `level` / bucket value that is not a Step 2b `value` is an HTTP 400 instead: follow Step 4's **On HTTP 400** rule. |
+| Gate → **FAIL — no subscription** | Corp doesn't have an active CTC subscription | See **Subscription gating** — stop and send the subscription message. No further compensation calls. |
+| Gate → **FAIL — no access**, OR gate → **PASS** but a `plan`/`benchmark` read returns **403** | The current user lacks a CTC role on this corp | See **Access gating** — send the gate's no-access message, stop. No demo link; do NOT re-authenticate (won't grant a missing role). |
 
 ## What next?
 

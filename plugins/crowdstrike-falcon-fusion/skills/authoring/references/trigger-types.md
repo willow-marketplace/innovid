@@ -71,6 +71,8 @@ trigger:
     version_constraint: ~1
 ```
 
+**Pin the trigger with its `version_constraint`** (see the table below). Without it, a workflow that reads any `Trigger.*` field imports and passes the API dry run, but release fails with only "Workflow has validation errors and cannot be enabled". Confirmed live on the NG-SIEM trigger, where adding `version_constraint: ~1` is the whole fix; `validate.py` flags it there as an error and on other Signal triggers as a warning.
+
 A Signal trigger is identified by `event` + `name`, **not** by a hex `id`. Do NOT
 add an `id:` to a Signal trigger — exported workflows carry no trigger id, and it
 is not needed for import. (This corrects earlier guidance in this file that told
@@ -90,6 +92,7 @@ import.)
 | `Case` | `Case` | `~1` |
 | `Case > Case Created` | `Case/Created` | `~1` |
 | `Audit event` | `FalconAudit` | `~1` |
+| `Recon notification` | `ReconNotification` | `~1` |
 
 For an event source not in this table, discover its `event:` (category) with
 `trigger_search.py` rather than guessing.
@@ -169,7 +172,9 @@ bare form used inside interpolated strings as "unknown variable". The shipped
 **Some NG-SIEM indicators ARE on the trigger — the ones `trigger_search.py
 --fields Investigatable/NGSIEM` lists. Read those from the trigger directly; use
 an Event Query only for fields not in that list.** The rule is exactly the
-`--fields` output: a path it lists resolves at release; a path it does not list
+`--fields` output: a path it lists resolves at release, unless `--fields` marks
+it **NOT release-valid** (`Trigger.Detection.Description` and the
+`MitreAttack.*` fields are advertised but rejected); a path it does not list
 is rejected. Confirmed live with two release probes of identical shape (only the
 field name changed):
 
@@ -210,7 +215,7 @@ request_url: "https://www.virustotal.com/api/v3/ip_addresses/${data['Trigger.Det
 **For indicators genuinely NOT on the trigger** (anything `--fields` doesn't
 list), hydrate with an Event Query and read from its `results` array:
 `${data['HydrateDetection.results'][0].<Field>}`. See
-`references/event-query-action.md` for that pattern. **Do NOT route query results
+`event-query-action.md` for that pattern. **Do NOT route query results
 through an inline Python extractor** (`cs.json.decode(data['<Python>.output_stdout'])`)
 — that form does not resolve at release. Read `results[0].<Field>` directly.
 
@@ -226,7 +231,7 @@ the event-level detail that composed the detection; a **Get Detection Details**
 action (or an HTTP Request to `/alerts/entities/alerts/v2` passing the composite
 `DetectionID` as `composite_id`) returns the detection object instead — use it when
 the object's summary fields are all you need. See
-`references/event-query-vs-api.md`.
+`event-query-vs-api.md`.
 
 **Not every `Trigger.Detection.*` field resolves on the NG-SIEM trigger.**
 `${Trigger.Detection.Product}` and `${Trigger.Detection.Description}` are available
@@ -294,6 +299,82 @@ trigger:
     type: Signal
     version_constraint: ~1
 ```
+
+### Recon notification
+
+Fires when an item matches a Falcon Intelligence Recon monitoring rule (exposed
+credentials, typosquatting domains, and so on). Release fails with `missing
+required subscription to use trigger 'Recon notification'` on a CID without a
+Recon subscription.
+
+```yaml
+trigger:
+    next:
+        - GetExposedDataRecords
+    name: Recon notification
+    event: ReconNotification
+    type: Signal
+    version_constraint: ~1
+```
+
+**Use `~1`, not `~0`.** Both import, but with `~0` release rejects every
+`Trigger.ReconNotification.*` field as an unknown variable. `~2` fails import
+with `trigger not found`.
+
+**Use the base `ReconNotification` event for new workflows**, not the
+`Recon notification > Recon notification creation`
+(`ReconNotification/ReconNotificationCreation`) or
+`Recon notification > Recon notification update`
+(`ReconNotification/ReconNotificationUpdate`) sub-triggers.
+
+Fields that release resolves on the base trigger include
+`Trigger.ReconNotification.NotificationId`, `.MonitoringRuleName`, `.Priority`,
+`.NotificationDate`, `.Topic`, `.Type`, `.Domain`, and
+`.HasNewlyDetectedCredentials` (a `bool`). Run
+`trigger_search.py --fields ReconNotification` for the full list.
+
+**Don't read exposed data records from the trigger.** The trigger's `EDRs` is
+a partial view of the notification. In the execution history of an
+exposed-credentials workflow, `EDRs` was missing from the payload entirely in 10
+of 40 runs, even with `HasNewlyDetectedCredentials` set to `true`. When it was
+present, it often held fewer records than the action below returned for the
+same notification, such as 3 instead of 20. It's an exception to the
+`--fields` rule above, too: `--fields` lists
+`Trigger.ReconNotification.EDRs.Email` and `.EDRs.HostName`, but release
+rejects both as unknown variables, because `EDRs` is a list of records (each
+with `Email` and `HostName` keys). `--fields` marks both as not release-valid,
+and `validate.py` flags a workflow that uses them.
+
+Get the full set with the **Get exposed data records from a Recon notification**
+action instead. It's paginated: each call returns up to 500 records plus a
+`scroll_token`. The first call returns a token even when it already holds every
+record, so pass the token back in as the `scroll_token` property and call it
+again. The call after the last
+page returns no records and no `scroll_token`. Stop there: calling again with
+the empty token starts over from the first page.
+
+```yaml
+GetExposedDataRecords:
+    id: 90bf52fbdab54d9abb6832da7e2087a7_2bb508fe0b8c5f4cc1f193fadbae3820
+    name: Get exposed data records from a Recon notification
+    next:
+        - NextAction
+    properties:
+        id: ${Trigger.ReconNotification.NotificationId}
+    version_constraint: ~0
+```
+
+Its outputs are `${data['GetExposedDataRecords.reconExposedDataRecords']}`, a
+list of records, and `${data['GetExposedDataRecords.scroll_token']}` for the
+next page. Record fields include `login_id`, `email`, `domain`,
+`credentials_domain`, `credential_status` (`newly_reported` or
+`previously_reported`), `file_name`, `hash_type`, and `password`. Not every
+record has `email`, and empty fields usually hold `-` rather than an empty
+string. Records can carry a plaintext `password`, so leave it out of emails,
+tickets, and logs unless you mean to send it. The action needs the same Recon
+subscription as the trigger. CrowdStrike's out-of-the-box Recon playbooks, such
+as **Send email with new exposed credentials list**, use this action, so start
+from one of them when you can.
 
 ---
 
@@ -380,6 +461,46 @@ trigger:
 
 The parent workflow calls this child using an "Execute workflow" action,
 passing parameters that become available as trigger data.
+
+---
+
+## Inbound webhook
+
+Started when an external system POSTs JSON to a URL that Fusion generates for the
+workflow. Use it to drive a workflow from a SIEM, ticketing system, or threat feed
+outside Falcon. It is the structural odd one out among trigger types: no `event:`
+field, and a `webhook_config` block instead.
+
+**FQL trigger.type value**: `Inbound webhook`
+
+Create it in the console — the URL is generated there and is **not** part of the
+exported/importable definition. A console export looks like this:
+
+```yaml
+trigger:
+    next:
+        - FirstAction
+    name: Inbound webhook
+    type: Inbound webhook
+    version_constraint: 0.0.2
+    webhook_config:
+        name: My Webhook
+        webhook_schema:
+            $schema: https://json-schema.org/draft-07/schema
+            type: object
+        auth_config:
+            auth_type: basic_auth        # basic_auth | hmac | api_key
+            basic_auth_config:
+                username: <username>
+        response_config:
+            status_code: 200
+        ip_mask: {}                      # optional allowed-caller CIDR ranges
+```
+
+Limits and notes: authentication is required (Basic, HMAC, or API key); a workflow
+can have only one webhook trigger; the payload must be raw JSON up to 1 MB; failed
+requests are not retried. Read the payload downstream from the `InboundWebhook`
+namespace (e.g. `${data['InboundWebhook.Data']}`).
 
 ---
 

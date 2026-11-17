@@ -103,6 +103,9 @@ func TestDataDirPrecedence(t *testing.T) {
 		copilotDir, err := Copilot.DataDir()
 		require.NoError(t, err)
 		assert.NotEqual(t, codexDir, copilotDir)
+		appDir, err := CopilotApp.DataDir()
+		require.NoError(t, err)
+		assert.NotEqual(t, copilotDir, appDir, "the app and the CLI must not share session state")
 	})
 }
 
@@ -112,6 +115,7 @@ func TestAgentName(t *testing.T) {
 		assert.Equal(t, "codex", Codex.AgentName())
 		// Copilot's reported name is not its data subdirectory.
 		assert.Equal(t, "github-copilot-cli", Copilot.AgentName())
+		assert.Equal(t, "github-copilot-app", CopilotApp.AgentName())
 	})
 
 	t.Run("DASH0_AGENT_NAME overrides", func(t *testing.T) {
@@ -240,6 +244,7 @@ func TestHarnessNameIsNotConfigurable(t *testing.T) {
 
 	assert.Equal(t, "claude-code", Claude.HarnessName())
 	assert.Equal(t, "github-copilot-cli", Copilot.HarnessName())
+	assert.Equal(t, "github-copilot-app", CopilotApp.HarnessName())
 
 	// The two coincide only by default; an override separates them.
 	assert.Equal(t, "from-plugin-ui", Claude.AgentName())
@@ -391,6 +396,11 @@ func TestConfigDirIsSetForEveryAgent(t *testing.T) {
 	} {
 		assert.Equal(t, "."+h.DataSubdir, h.ConfigDir, "%s.ConfigDir", label)
 	}
+	// V2's state namespace is deliberately distinct from OpenCode's config dir.
+	assert.Equal(t, "opencode-v2", OpenCodeV2.DataSubdir)
+	assert.Equal(t, ".opencode-v2", OpenCodeV2.ConfigDir)
+	assert.Equal(t, "OPENCODE_V2", OpenCodeV2.EnvPrefix)
+	assert.Equal(t, "opencode-v2", OpenCodeV2.HarnessName())
 }
 
 func TestPluginOptionFallsBackToTheConfigFile(t *testing.T) {
@@ -529,12 +539,12 @@ func TestEnabled(t *testing.T) {
 }
 
 func TestEveryAgentReadsItsOwnConfigDir(t *testing.T) {
-	for _, h := range []Harness{Claude, Cursor, Codex, Copilot} {
+	for _, h := range []Harness{Claude, Cursor, Codex, Copilot, OpenCodeV2} {
 		t.Run(h.Name, func(t *testing.T) {
 			chdirTo(t, writeConfig(t, t.TempDir(), h, "---\ndataset: mine\n---\n"))
 			assert.Equal(t, "mine", h.PluginOption("DATASET"))
 
-			for _, other := range []Harness{Claude, Cursor, Codex, Copilot} {
+			for _, other := range []Harness{Claude, Cursor, Codex, Copilot, OpenCodeV2} {
 				if other.ConfigDir == h.ConfigDir {
 					continue
 				}

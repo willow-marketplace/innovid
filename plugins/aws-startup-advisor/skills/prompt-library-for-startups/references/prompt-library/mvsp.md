@@ -299,10 +299,10 @@ When generating or modifying infrastructure code:
 
 ### AWS Documentation and Code Examples
 
-**When writing or modifying AWS infrastructure code**, you WILL leverage the AWS Documentation MCP server when available:
+**When writing or modifying AWS infrastructure code**, you WILL leverage the unified AWS MCP Server (`aws-mcp`) when available:
 
-1. **Check for AWS Documentation MCP Server**: Verify if the AWS Knowledge MCP server is available in your tool list.
-2. **Use MCP for Technical Implementation**: If available, you WILL use the MCP server to:
+1. **Check for the AWS MCP Server**: Verify that `aws___search_documentation` and `aws___read_documentation` are in your tool list.
+2. **Use MCP for Technical Implementation**: If available, you WILL use those tools to:
    - Get current AWS service documentation and API references
    - Retrieve up-to-date code examples and syntax
    - Verify correct resource properties and configuration options
@@ -325,7 +325,7 @@ Security requirements (from MVSP.md):
 → Must have encryption at rest enabled
 → Must have proper security group restrictions
 → Must have CloudWatch logging enabled
-Implementation details (from AWS MCP if available):
+Implementation details (from aws___search_documentation / aws___read_documentation if available):
 → Query: "RDS Terraform resource configuration"
 → Get: Latest aws_db_instance resource syntax
 → Get: Current encryption parameter names
@@ -333,7 +333,7 @@ Implementation details (from AWS MCP if available):
 Result: Secure code with current AWS syntax
 ```
 
-## If the MCP server is NOT available, you WILL still generate code using your training knowledge, but you SHOULD inform the user that they should verify the syntax and parameters against current AWS documentation.
+## If the AWS MCP Server is NOT available, you WILL still generate code using your training knowledge, but you SHOULD inform the user that they should verify the syntax and parameters against current AWS documentation.
 
 ## Additional Resources
 
@@ -348,7 +348,7 @@ Result: Secure code with current AWS syntax
 ## How to use?
 
 Place MVSP.md in .kiro/steering/ folder
-Optional: Configure AWS Documentation MCP in .kiro/settings/mcp.json
+Optional: Configure the unified AWS MCP Server in .kiro/settings/mcp.json (`uvx mcp-proxy-for-aws-cli@latest https://aws-mcp.us-east-1.api.aws/mcp --skip-auth`)
 Start asking Kiro to generate infrastructure
 Prerequisites: Kiro IDE, AWS account, Terraform or CloudFormation knowledge
 

@@ -27,7 +27,7 @@ Set `YDC_API_KEY` in the environment for the authenticated servers (get one at [
 
 ## What it configures
 
-- Skills from `./skills`: `you-research`, `you-finance`, and `you-discover`, registered under the `youcom` skill provider name. `you-web` and `you-free` are excluded at build time: `you-web` teaches the MCP tool names `you-search`/`you-contents`, which don't exist here (the keyed `you` MCP server is not mounted — its search/fetch tools duplicate the native `web_search`/`web_fetch` providers), and `you-free` duplicates the keyless fallback built into the search provider.
+- Skills from `./skills`: `you-research`, `you-finance`, and `you-discover`, registered under the `youcom` skill provider name. `you-web` is excluded at build time: it teaches the MCP tool names `you-search`/`you-contents`, which don't exist here (the keyed `you` MCP server is not mounted — its search/fetch tools duplicate the native `web_search`/`web_fetch` providers).
 - MCP server `you-discover`: no-auth discovery (`profile=discover`)
 - MCP server `you-finance`: finance tools
 - MCP server `you-research`: one-shot cited research synthesis
@@ -66,7 +66,7 @@ The plugin takes an optional config. Every field defaults when omitted, so the s
 
 ## Requirements
 
-DeepSeek Harness is in developer preview and ships `cordis` / `dsh-mcp-client` / `dsh-skill` / `dsh-skill-filesystem` / `dsh-web` as separate peer dependencies. The peer-dep ranges in [`package.json`](./package.json) track dsh's prerelease line accordingly. The composition must already have `@deepseek-ai/dsh-skill`, `@deepseek-ai/dsh-mcp-client`, and `@deepseek-ai/dsh-web` loaded — every shipped dsh profile does.
+DeepSeek Harness is in developer preview and ships `cordis` / `dsh-launch-environment` / `dsh-mcp-client` / `dsh-skill-filesystem` / `dsh-web` as separate peer dependencies. The `dsh-*` peer-dep ranges in [`package.json`](./package.json) set a minimum supported dsh version, with no upper bound; `cordis` keeps a `^4.0.4` range. The composition must already have `@deepseek-ai/dsh-skill`, `@deepseek-ai/dsh-mcp-client`, and `@deepseek-ai/dsh-web` loaded — every shipped dsh profile does.
 
 > The keyless search path sends a bare `tools/call` (no `initialize` handshake) to the `you-search` tool on the anonymous MCP server, relying on observed rather than documented server behavior. If the upstream ever starts requiring an `initialize` round-trip, the keyless path will need a small session-cache layer. The keyed path uses the regular You.com HTTP API and is unaffected.
 

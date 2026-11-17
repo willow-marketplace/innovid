@@ -33,6 +33,11 @@ from .spawn_counting import make_shim_dir, spawns
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SESSION_START = REPO_ROOT / "scripts" / "session-start-hook.sh"
+# #1067: _find_previous_transcript and _transcript_is_pluginless_sdk moved
+# into this separate, non-inlined file (a release-budget extraction);
+# _stdin_json_string_into exists, byte-identical, in both -- session-start-
+# hook.sh still needs its own copy on its hot synchronous path.
+CAPTURE_GAP_CHECK = REPO_ROOT / "scripts" / "capture-gap-check.sh"
 
 BASH = resolve_bash()
 pytestmark = pytest.mark.skipif(
@@ -50,19 +55,47 @@ def _function_body(name: str) -> str:
     test runs the actual code, not a hand-copied stand-in that can drift
     from it. Neither function this issue touches uses a nested `{ }` brace
     group, so the first `\n}\n` after the opening line is genuinely the
-    function's own close."""
-    source = SESSION_START.read_text(encoding="utf-8")
+    function's own close.
+
+    Tried against SESSION_START first, then CAPTURE_GAP_CHECK (#1067:
+    _find_previous_transcript and _transcript_is_pluginless_sdk moved into
+    the latter; _stdin_json_string_into is defined, identically, in both)."""
     start_marker = f"\n{name}() {{\n"
-    start = source.index(start_marker)
-    if start == -1:
-        raise AssertionError(f"{name}() not found in {SESSION_START}")
-    end = source.index("\n}\n", start) + len("\n}")
-    return source[start + 1 : end]
+    for candidate in (SESSION_START, CAPTURE_GAP_CHECK):
+        source = candidate.read_text(encoding="utf-8")
+        start = source.find(start_marker)
+        if start != -1:
+            end = source.index("\n}\n", start) + len("\n}")
+            return source[start + 1 : end]
+    raise AssertionError(
+        f"{name}() not found in {SESSION_START} or {CAPTURE_GAP_CHECK}"
+    )
+
+
+def _function_bodies(*names: str) -> str:
+    """Both `previous_transcript` and `_second_newest_jsonl` call
+    `_transcript_is_pluginless_sdk` since #745, which in turn calls
+    `_stdin_json_string` -- neither extracted alone, an isolated script would
+    hit an UNDEFINED function (a plain PATH lookup, not a fork the spawn
+    shims below would ever catch), print "command not found" to stderr, and
+    -- because this file runs no `set -e` -- carry on to the final `printf`
+    regardless, silently exercising a positional/id fallback that happens to
+    equal the intended answer for every fixture in this file (none of which
+    contain an `entrypoint` field at all). Pulling every dependency's own
+    body in, not just the one under test, is what makes a real regression in
+    the pluginless-SDK exclusion actually fail here instead of being masked
+    by a fixture set that never needed it."""
+    return "\n".join(_function_body(name) for name in names)
 
 
 def _run(script: str, args: list[str], env: dict) -> subprocess.CompletedProcess:
+    """The script goes in on stdin, not as a `-c` argument: Git for Windows'
+    bash.exe re-parses its command line and collapses the `\\\\` sequences the
+    decode-bearing extractor contains (#829), observed on Windows 11 / Git
+    Bash 5.2."""
     return subprocess.run(
-        [BASH, "-c", script, "bash", *args],
+        [BASH, "-s", "--", *args],
+        input=script,
         env=env, capture_output=True, text=True, timeout=60, check=False,
     )
 
@@ -84,16 +117,75 @@ def _populate(dir_: Path, count: int, exclude_index: int | None = None) -> list[
     return paths
 
 
+# #819's own fixture shape: an "entrypoint" field on a line with no dialogue
+# "message" {role, content} object -- the minimal content
+# _transcript_is_pluginless_sdk() (extracted verbatim by _function_bodies
+# above) recognizes as a pluginless-SDK transcript. No "message" key at all,
+# so the shape-discrimination #803 added never even engages; only the
+# "entrypoint" arm below it matters here.
+_PLUGINLESS_SDK_LINE = '{"entrypoint":"sdk-py"}\n'
+
+
+def _populate_with_pluginless_sdk_prefix(
+    dir_: Path, count: int, pluginless_count: int
+) -> list[Path]:
+    """Like `_populate` above, but the `pluginless_count` NEWEST files (the
+    highest indices, i.e. the ones the #745/#819 retry loop would consider
+    FIRST) are pluginless-SDK transcripts rather than the plain "{}\n" every
+    other fixture in this file uses. Same one-second-apart mtime scheme as
+    `_populate`, for the same reason."""
+    now = int(time.time()) - count - 10
+    paths = []
+    for i in range(count):
+        p = dir_ / f"session-{i:05d}.jsonl"
+        if i >= count - pluginless_count:
+            p.write_text(_PLUGINLESS_SDK_LINE)
+        else:
+            p.write_text("{}\n")
+        os.utime(p, (now + i, now + i))
+        paths.append(p)
+    return paths
+
+
+# #823: `log` is not defined in this extracted-function sandbox at all (the
+# real definition lives in scripts/log.sh, never sourced here) -- a bare
+# `log "hook" "..."` call inside either function under test would print
+# "command not found" to stderr and otherwise be silently swallowed (no
+# `set -e`), which is worse than useless for a test asserting the WARNING
+# fires: it would look identical to the message being written correctly.
+# This stub gives the cap-hit warning somewhere real to land.
+_LOG_STUB = r"""
+log() {
+    printf 'LOG[%%s]: %%s\n' "$1" "$2" >&2
+}
+"""
+
+# #898: both call-site modes now go through the one lookup,
+# _find_previous_transcript -- with this session's id, or with "" for the
+# positional no-id fallback the second template exercises. It reads the
+# transcript suffix from a variable assigned once at top level in the hook,
+# so that assignment is pulled from the real file too.
+# #1067: this assignment moved along with _find_previous_transcript into
+# CAPTURE_GAP_CHECK.
+_SUFFIX_LINE = next(
+    line
+    for line in CAPTURE_GAP_CHECK.read_text(encoding="utf-8").splitlines()
+    if line.startswith("_TRANSCRIPT_SUFFIX=")
+)
+
 PREVIOUS_TRANSCRIPT_SCRIPT = r"""
+""" + _LOG_STUB + _SUFFIX_LINE + r"""
 %s
 CURRENT_SESSION_ID="$2"
-previous_transcript "$1"
+_find_previous_transcript "$1" "$CURRENT_SESSION_ID"
+printf '%%s' "$PREV_JSONL"
 """
 
 SECOND_NEWEST_SCRIPT = r"""
+""" + _LOG_STUB + _SUFFIX_LINE + r"""
 %s
-_second_newest_jsonl "$1"
-printf '%%s' "$_TWO_NEWEST_JSONL_SECOND"
+_find_previous_transcript "$1" ""
+printf '%%s' "$PREV_JSONL"
 """
 
 
@@ -136,7 +228,7 @@ def test_previous_transcript_picks_the_newest_excluding_current_at_scale(tmp_pat
     current = files[-1]  # newest -- excluding it must fall back to the next one
     expected = files[-2]
 
-    body = _function_body("previous_transcript")
+    body = _function_bodies("_stdin_json_string_into", "_transcript_is_pluginless_sdk", "_find_previous_transcript")
     script = PREVIOUS_TRANSCRIPT_SCRIPT % body
     log = tmp_path / "spawn.log"
     shims = make_shim_dir(tmp_path, log)
@@ -169,7 +261,7 @@ def test_previous_transcript_excludes_current_by_id_not_position(tmp_path):
     middle = files[10]
     newest = files[-1]
 
-    body = _function_body("previous_transcript")
+    body = _function_bodies("_stdin_json_string_into", "_transcript_is_pluginless_sdk", "_find_previous_transcript")
     script = PREVIOUS_TRANSCRIPT_SCRIPT % body
     env = {**os.environ}
 
@@ -183,7 +275,7 @@ def test_previous_transcript_returns_nothing_when_only_file_is_current(tmp_path)
     sessions.mkdir()
     files = _populate(sessions, 1)
 
-    body = _function_body("previous_transcript")
+    body = _function_bodies("_stdin_json_string_into", "_transcript_is_pluginless_sdk", "_find_previous_transcript")
     script = PREVIOUS_TRANSCRIPT_SCRIPT % body
     env = {**os.environ}
 
@@ -204,7 +296,7 @@ def test_second_newest_fallback_matches_ls_t_tail_head_semantics_at_scale(tmp_pa
     files = _populate(sessions, REALISTIC_COUNT)
     expected = files[-2]  # second-newest by mtime
 
-    body = _function_body("_second_newest_jsonl")
+    body = _function_bodies("_stdin_json_string_into", "_transcript_is_pluginless_sdk", "_find_previous_transcript")
     script = SECOND_NEWEST_SCRIPT % body
     log = tmp_path / "spawn.log"
     shims = make_shim_dir(tmp_path, log)
@@ -233,10 +325,208 @@ def test_second_newest_fallback_empty_with_fewer_than_two_transcripts(tmp_path):
     sessions.mkdir()
     _populate(sessions, 1)
 
-    body = _function_body("_second_newest_jsonl")
+    body = _function_bodies("_stdin_json_string_into", "_transcript_is_pluginless_sdk", "_find_previous_transcript")
     script = SECOND_NEWEST_SCRIPT % body
     env = {**os.environ}
 
     result = _run(script, [str(sessions)], env)
     assert result.returncode == 0, result.stderr
     assert result.stdout.strip() == ""
+
+
+# ── #819: the #745 retry loop was itself O(n**2) -- see scripts/session-start-hook.sh ──
+#
+# Must-fire / must-not-fire pair, per this repo's own convention: a run of
+# pluginless-SDK transcripts BELOW the cap must still be walked past (the
+# #745 exclusion keeps working), while a run ABOVE the cap must make the
+# function give up and return nothing (the #819 fix's own new behaviour --
+# unbounded before this change, since the old retry loop had no cap at all
+# and would eventually find the real transcript no matter how many
+# pluginless-SDK candidates preceded it).
+
+
+def test_previous_transcript_skips_a_run_of_pluginless_sdk_below_the_cap(tmp_path):
+    """Must-fire case: a run of pluginless-SDK transcripts among the newest,
+    well under the exclusion cap, must still be walked past to reach the
+    real previous session -- the #745 exclusion itself must keep working
+    under the #819 fix, not just terminate faster."""
+    sessions = tmp_path / "sessions"
+    sessions.mkdir()
+    files = _populate_with_pluginless_sdk_prefix(sessions, 30, pluginless_count=5)
+    expected = files[-6]  # newest file that is NOT pluginless-SDK
+
+    body = _function_bodies("_stdin_json_string_into", "_transcript_is_pluginless_sdk", "_find_previous_transcript")
+    script = PREVIOUS_TRANSCRIPT_SCRIPT % body
+    env = {**os.environ}
+
+    result = _run(script, [str(sessions), "no-such-session-id"], env)
+    assert result.returncode == 0, result.stderr
+    assert _norm(result.stdout.strip()) == _norm(expected), (
+        f"expected the newest non-pluginless-SDK transcript {expected}, "
+        f"got {result.stdout.strip()!r}: {result.stderr}"
+    )
+
+
+def test_previous_transcript_gives_up_past_the_exclusion_cap(tmp_path):
+    """#819 regression pin: past the exclusion cap, previous_transcript()
+    must give up and return nothing rather than keep walking -- "a previous
+    session hidden behind that many headless runs is not worth finding" (the
+    issue's own words). RED before #819: the old retry loop had no cap at
+    all, so however slowly, it still found the one real transcript below a
+    run of 25 pluginless-SDK candidates and returned its path instead of
+    nothing."""
+    sessions = tmp_path / "sessions"
+    sessions.mkdir()
+    pluginless_run = 25  # > _PREV_TRANSCRIPT_EXCLUDE_CAP (20)
+    files = _populate_with_pluginless_sdk_prefix(
+        sessions, pluginless_run + 1, pluginless_count=pluginless_run
+    )
+    real_previous = files[0]
+    assert real_previous.read_text() == "{}\n"  # sanity: this is the one "findable" file
+
+    body = _function_bodies("_stdin_json_string_into", "_transcript_is_pluginless_sdk", "_find_previous_transcript")
+    script = PREVIOUS_TRANSCRIPT_SCRIPT % body
+    env = {**os.environ}
+
+    result = _run(script, [str(sessions), "no-such-session-id"], env)
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip() == "", (
+        f"expected previous_transcript() to give up past the exclusion cap "
+        f"and return nothing, got {result.stdout.strip()!r} (the real "
+        f"transcript {real_previous} exists but sits behind {pluginless_run} "
+        f"pluginless-SDK transcripts): {result.stderr}"
+    )
+
+
+def test_second_newest_skips_a_run_of_pluginless_sdk_below_the_cap(tmp_path):
+    """Sibling of the previous_transcript() must-fire case above, for
+    _second_newest_jsonl()'s own copy of the same retry shape (#819's
+    "apply the same shape" requirement)."""
+    sessions = tmp_path / "sessions"
+    sessions.mkdir()
+    # newest file ("own") plus a run of 5 pluginless-SDK candidates below it.
+    files = _populate_with_pluginless_sdk_prefix(sessions, 31, pluginless_count=6)
+    expected = files[-7]  # newest candidate (excluding "own") that is NOT pluginless-SDK
+
+    body = _function_bodies("_stdin_json_string_into", "_transcript_is_pluginless_sdk", "_find_previous_transcript")
+    script = SECOND_NEWEST_SCRIPT % body
+    env = {**os.environ}
+
+    result = _run(script, [str(sessions)], env)
+    assert result.returncode == 0, result.stderr
+    assert _norm(result.stdout.strip()) == _norm(expected), (
+        f"expected the newest non-pluginless-SDK second-newest transcript {expected}, "
+        f"got {result.stdout.strip()!r}: {result.stderr}"
+    )
+
+
+def test_second_newest_gives_up_past_the_exclusion_cap(tmp_path):
+    """Sibling of the previous_transcript() cap-pin above, for
+    _second_newest_jsonl(). RED before #819 for the same reason: no cap
+    existed, so the real second-newest transcript was still found (slowly)
+    no matter how many pluginless-SDK candidates preceded it."""
+    sessions = tmp_path / "sessions"
+    sessions.mkdir()
+    pluginless_run = 22  # > _PREV_TRANSCRIPT_EXCLUDE_CAP (20) once "own" is excluded
+    files = _populate_with_pluginless_sdk_prefix(
+        sessions, pluginless_run + 2, pluginless_count=pluginless_run
+    )
+    real_second_newest = files[0]
+    assert real_second_newest.read_text() == "{}\n"
+
+    body = _function_bodies("_stdin_json_string_into", "_transcript_is_pluginless_sdk", "_find_previous_transcript")
+    script = SECOND_NEWEST_SCRIPT % body
+    env = {**os.environ}
+
+    result = _run(script, [str(sessions)], env)
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip() == "", (
+        f"expected _second_newest_jsonl() to give up past the exclusion cap "
+        f"and return nothing, got {result.stdout.strip()!r} (the real "
+        f"transcript {real_second_newest} exists but sits behind "
+        f"{pluginless_run} pluginless-SDK transcripts): {result.stderr}"
+    )
+
+
+def test_previous_transcript_logs_on_cap_give_up(tmp_path):
+    """#823: giving up past the exclusion cap used to return the exact same
+    empty result as "no previous transcript exists at all", with nothing
+    logged anywhere -- so a real previous session sitting behind more than
+    the cap's worth of pluginless-SDK runs was never reported as skipped.
+    Must-fire case: hitting the cap must log something naming the cap."""
+    sessions = tmp_path / "sessions"
+    sessions.mkdir()
+    pluginless_run = 25  # > _PREV_TRANSCRIPT_EXCLUDE_CAP (20)
+    _populate_with_pluginless_sdk_prefix(
+        sessions, pluginless_run + 1, pluginless_count=pluginless_run
+    )
+
+    body = _function_bodies("_stdin_json_string_into", "_transcript_is_pluginless_sdk", "_find_previous_transcript")
+    script = PREVIOUS_TRANSCRIPT_SCRIPT % body
+    env = {**os.environ}
+
+    result = _run(script, [str(sessions), "no-such-session-id"], env)
+    assert result.returncode == 0, result.stderr
+    assert "_find_previous_transcript" in result.stderr, (
+        f"hitting the exclusion cap logged nothing identifying which "
+        f"function gave up: {result.stderr!r}"
+    )
+
+
+def test_previous_transcript_does_not_log_below_the_cap(tmp_path):
+    """Positive control: the new cap-hit log line must not fire on the
+    ordinary "found it below the cap" path this file already pins above."""
+    sessions = tmp_path / "sessions"
+    sessions.mkdir()
+    _populate_with_pluginless_sdk_prefix(sessions, 30, pluginless_count=5)
+
+    body = _function_bodies("_stdin_json_string_into", "_transcript_is_pluginless_sdk", "_find_previous_transcript")
+    script = PREVIOUS_TRANSCRIPT_SCRIPT % body
+    env = {**os.environ}
+
+    result = _run(script, [str(sessions), "no-such-session-id"], env)
+    assert result.returncode == 0, result.stderr
+    assert "LOG[" not in result.stderr, (
+        f"the cap-hit warning fired even though the real transcript was "
+        f"found well below the cap: {result.stderr!r}"
+    )
+
+
+def test_second_newest_logs_on_cap_give_up(tmp_path):
+    """Sibling of test_previous_transcript_logs_on_cap_give_up for
+    _second_newest_jsonl()'s own copy of the same retry shape."""
+    sessions = tmp_path / "sessions"
+    sessions.mkdir()
+    pluginless_run = 22  # > _PREV_TRANSCRIPT_EXCLUDE_CAP (20) once "own" is excluded
+    _populate_with_pluginless_sdk_prefix(
+        sessions, pluginless_run + 2, pluginless_count=pluginless_run
+    )
+
+    body = _function_bodies("_stdin_json_string_into", "_transcript_is_pluginless_sdk", "_find_previous_transcript")
+    script = SECOND_NEWEST_SCRIPT % body
+    env = {**os.environ}
+
+    result = _run(script, [str(sessions)], env)
+    assert result.returncode == 0, result.stderr
+    assert "_find_previous_transcript" in result.stderr, (
+        f"hitting the exclusion cap logged nothing identifying which "
+        f"function gave up: {result.stderr!r}"
+    )
+
+
+def test_second_newest_does_not_log_below_the_cap(tmp_path):
+    """Positive control: sibling of the previous_transcript() one above."""
+    sessions = tmp_path / "sessions"
+    sessions.mkdir()
+    _populate_with_pluginless_sdk_prefix(sessions, 31, pluginless_count=6)
+
+    body = _function_bodies("_stdin_json_string_into", "_transcript_is_pluginless_sdk", "_find_previous_transcript")
+    script = SECOND_NEWEST_SCRIPT % body
+    env = {**os.environ}
+
+    result = _run(script, [str(sessions)], env)
+    assert result.returncode == 0, result.stderr
+    assert "LOG[" not in result.stderr, (
+        f"the cap-hit warning fired even though the real transcript was "
+        f"found well below the cap: {result.stderr!r}"
+    )

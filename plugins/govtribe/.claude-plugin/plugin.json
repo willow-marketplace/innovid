@@ -1,0 +1,30 @@
+{
+  "name": "govtribe",
+  "version": "1.2.1",
+  "description": "GovCon research and capture",
+  "updatedAt": "2026-11-17T00:01:43.667Z",
+  "author": {
+    "name": "Government Executive Media Group LLC"
+  },
+  "homepage": "https://govtribe.com/docs/govtribe-for-agents",
+  "repository": "https://github.com/GovTribe/claude-plugin",
+  "keywords": [
+    "govcon",
+    "government contracting",
+    "federal contracts",
+    "procurement",
+    "capture",
+    "proposals",
+    "pricing",
+    "grants",
+    "state and local"
+  ],
+  "displayName": "GovTribe Skills",
+  "skills": "./skills/",
+  "mcpServers": {
+    "govtribe": {
+      "url": "https://govtribe.com/mcp",
+      "type": "http"
+    }
+  }
+}

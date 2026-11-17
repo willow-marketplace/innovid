@@ -1,139 +1,114 @@
-# Firecrawl Plugin for Claude Code
+# Firecrawl for Claude
 
-Turn any website into clean, LLM-ready markdown or structured data — directly from Claude Code.
+Firecrawl is the context API for AI agents. This plugin connects Claude to
+Firecrawl's hosted search tools to search the web, read the pages your searches
+find, look up Alexandria data providers for structured data, and research
+developer documentation, government publications, and scientific papers.
 
-This plugin adds the [Firecrawl CLI](https://github.com/firecrawl/cli) as a skill to Claude Code, giving it the ability to scrape, search, crawl, and map the web.
+This plugin includes nineteen skills: the core `firecrawl` skill,
+plus workflows for brand assets, business contacts, website design, professional
+enrichment, lead discovery, fantasy sports, deep research, job openings,
+developer documentation, research papers, SEO audits, product prices, local
+businesses, video and podcast transcripts, news coverage, market data and SEC filings,
+property listings, and flights and hotels. It connects to Firecrawl's hosted MCP
+server, configured in `.mcp.json`.
 
-## Features
+## Install
 
-- **Search** - Web search with optional scraping of results (supports web, news, and image sources)
-- **Scrape** - Extract clean markdown content from any webpage, with JavaScript rendering
-- **Map** - Discover all URLs on a website
-- **Crawl** - Extract content from entire websites
-- **Browser** - Launch cloud browser sessions and execute Playwright code remotely
+In Claude.ai or Cowork, upload the plugin ZIP through **Customize > Plugins >
+Add > Upload plugin**, then connect Firecrawl from the plugin's **Connectors**
+tab. Installing a plugin and connecting its tools are separate steps.
 
-All operations include automatic JavaScript rendering, anti-bot handling, and proxy rotation.
+In Claude Code, open `/plugin`, search for **firecrawl**, and install it.
+The official marketplace controls which release is available there.
 
-## Installation
+You can also add this repository directly as a marketplace:
 
-### 1. Install the Plugin
-
-In Claude Code, run `/plugin` and search for **firecrawl**, then select it to install.
-
-### 2. Install the Firecrawl CLI
-
-The plugin requires the Firecrawl CLI to be installed globally:
-
-```bash
-npm install -g firecrawl-cli
+```text
+/plugin marketplace add firecrawl/firecrawl-claude-plugin
+/plugin install firecrawl@firecrawl
 ```
 
-### 3. Authenticate
+Choose one installation of Firecrawl. If switching from the official marketplace
+to this repository, disable the previous Firecrawl plugin first. After an
+update, run `/reload-plugins` or start a new session, then use `/mcp` to complete
+the account connection.
 
-Run the following to authenticate via your browser:
+## Upgrading from 1.x
 
-```bash
-firecrawl login --browser
+Version 2.0.0 connects to Firecrawl's hosted MCP server instead of the Firecrawl
+CLI. You no longer need to install or authenticate the CLI for this plugin;
+connect your account with `/mcp` instead.
+
+The CLI skills (map, crawl, interact, monitor, agent, parse, download and the
+other CLI commands) are no longer part of this plugin. To keep using them,
+install them from the CLI's own skill distribution, either with:
+
+```sh
+npx skills add firecrawl/cli
 ```
 
-Or authenticate with an API key directly:
+or as a Claude Code plugin from the Firecrawl skills catalog:
 
-```bash
-firecrawl login --api-key "fc-YOUR-API-KEY"
+```text
+/plugin marketplace add firecrawl/skills
+/plugin install firecrawl@firecrawl-skills
 ```
 
-You can also set the key as an environment variable (add to `~/.zshrc` or `~/.bashrc` for persistence):
+The CLI skills and this plugin both include a skill named `firecrawl`. The CLI versions run
+CLI commands and the versions here call MCP tools. If you install both, Claude
+Code lists both.
 
-```bash
-export FIRECRAWL_API_KEY=fc-YOUR-API-KEY
+## Commands
+
+In Claude Code, the plugin also adds short commands:
+
+- `/firecrawl:setup` checks the account connection and explains how to connect
+  through `/mcp`.
+- `/firecrawl:search <query>` searches the web and cites the results.
+- `/firecrawl:scrape <url>` reads a page.
+- `/firecrawl:map <site>` lists pages found on a site through search and its links.
+- `/firecrawl:crawl <site>` reads several pages of a site and combines them.
+- `/firecrawl:agent <question>` runs a cited multi-source investigation.
+
+Plain requests work without a command; the skills choose the tools.
+
+## Use
+
+- Find recent sources on a topic and summarize them with citations.
+- Read a supplied webpage and extract the requested information.
+- Research a programming question using indexed repositories and documentation.
+- Find scientific papers and read passages relevant to a question.
+- Search US government publications and retrieve structured provider data.
+- Gather a company's existing identity assets or document a website's design.
+- Find business contacts, research one professional, or qualify a lead list.
+- Verify job openings, compare fantasy options, or audit pages for SEO issues.
+- Investigate a question across sources and produce a cited answer or report.
+
+The skills report connection and authentication failures so you can reconnect
+from the plugin's **Connectors** tab in Claude.ai and Cowork, or through `/mcp`
+in Claude Code. Requests send search queries, page URLs, and requested provider
+inputs to Firecrawl; include only the information needed for the task.
+
+## Development
+
+This repository is a generated distribution of the Firecrawl MCP plugin package.
+Edits here are replaced by the next package release.
+
+To validate a local checkout:
+
+```sh
+claude plugin validate .
+claude --plugin-dir .
 ```
-
-**Get your free API key at:** https://firecrawl.dev/app/api-keys
-
-### 4. Verify Setup
-
-```bash
-firecrawl --status
-```
-
-You should see your authentication status, concurrency limit, and remaining credits.
-
-## Usage
-
-Once installed, Claude Code will automatically use Firecrawl for web tasks. Just ask naturally:
-
-**Search the web:**
-```
-Search for "best practices for React testing" and compile the key recommendations
-```
-
-**Scrape a page:**
-```
-Scrape https://docs.firecrawl.dev/introduction and summarize the key points
-```
-
-**Discover site structure:**
-```
-Map all URLs on https://firecrawl.dev
-```
-
-**Research a topic:**
-```
-Research the latest developments in AI agents and give me a summary
-```
-
-### CLI Commands
-
-The plugin uses these Firecrawl CLI commands under the hood:
-
-| Command | Description |
-|---------|-------------|
-| `firecrawl search "query"` | Search the web (supports `--sources`, `--scrape`, `--tbs` for time filters) |
-| `firecrawl scrape <url>` | Scrape a single page to markdown |
-| `firecrawl map <url>` | Discover all URLs on a site |
-| `firecrawl browser launch/execute/list/close` | Manage cloud browser sessions and execute Playwright code |
-| `firecrawl --status` | Check auth status, concurrency, and credits |
-
-### Output Files
-
-Results are saved to a `.firecrawl/` directory in your project to keep Claude Code's context window clean:
-
-```
-.firecrawl/search-react_server_components.json
-.firecrawl/docs.github.com-actions-overview.md
-.firecrawl/firecrawl.dev.md
-```
-
-## Configuration
-
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `FIRECRAWL_API_KEY` | Yes (if not using `firecrawl login`) | Your Firecrawl API key |
-| `FIRECRAWL_API_URL` | No | Custom API endpoint (for self-hosted instances) |
-
-## Self-Hosted Deployment
-
-Firecrawl can be self-hosted. Set `FIRECRAWL_API_URL` to point to your instance:
-
-```bash
-export FIRECRAWL_API_URL=https://your-firecrawl-instance.com
-```
-
-See the [Firecrawl documentation](https://docs.firecrawl.dev) for self-hosting instructions.
 
 ## Resources
 
-- [Firecrawl Documentation](https://docs.firecrawl.dev)
-- [Firecrawl CLI Repository](https://github.com/firecrawl/cli)
-- [API Reference](https://docs.firecrawl.dev/api-reference)
-- [Get API Key](https://firecrawl.dev)
+- [Firecrawl documentation](https://docs.firecrawl.dev)
+- [Firecrawl](https://www.firecrawl.dev)
+- [Report a problem](https://github.com/firecrawl/firecrawl-claude-plugin/issues)
 
 ## License
 
-This plugin is licensed under AGPL-3.0, consistent with Firecrawl's open-source license.
-
-## Support
-
-- [Firecrawl Discord](https://discord.gg/gSmWdAkdwd)
-- [GitHub Issues](https://github.com/mendableai/firecrawl/issues)
-- Email: hello@firecrawl.dev
+MIT. See [LICENSE](LICENSE). The `firecrawl-deep-research` skill carries its own
+ISC notice in [SKILL.md](skills/firecrawl-deep-research/SKILL.md).

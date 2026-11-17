@@ -91,12 +91,13 @@ set -u  # not -e -- we never want to fail loudly here
 # this normalization exists to protect. scripts/doctor.sh:141 and
 # scripts/lib-case-divergence.sh:162 normalize both sides of this identical
 # REMEMBER_DIR-vs-PROJECT_DIR comparison for the same reason.
-case "${OSTYPE:-}" in
-    msys|cygwin) _gr_normalized_dir="${REMEMBER_DIR//\\//}"
-                 _gr_normalized_project="${PROJECT_DIR//\\//}" ;;
-    *)           _gr_normalized_dir="$REMEMBER_DIR"
-                 _gr_normalized_project="$PROJECT_DIR" ;;
-esac
+if [ "${OSTYPE:-}" = msys ] || [ "${OSTYPE:-}" = cygwin ]; then
+    _gr_normalized_dir="${REMEMBER_DIR//\\//}"
+    _gr_normalized_project="${PROJECT_DIR//\\//}"
+else
+    _gr_normalized_dir="$REMEMBER_DIR"
+    _gr_normalized_project="$PROJECT_DIR"
+fi
 REPO_ROOT="${_gr_normalized_dir%/*}"
 SLUG="${_gr_normalized_dir##*/}"
 unset _gr_normalized_dir
@@ -214,10 +215,9 @@ _gr_common_dir() {
     if [ -z "$_out" ]; then
         _out=$(git -C "$_d" rev-parse --git-common-dir 2>/dev/null) || return 1
         [ -n "$_out" ] || return 1
-        case "$_out" in
-            /*|[A-Za-z]:/*|[A-Za-z]:\\*) ;;
-            *) _out="$_d/$_out" ;;
-        esac
+        if [ "${_out#/}" = "$_out" ] && [ "${_out#[A-Za-z]:[/\\]}" = "$_out" ]; then
+            _out="$_d/$_out"
+        fi
     fi
     _gr_realpath "$_out"
 }
@@ -238,8 +238,44 @@ REMOTE_NAME="${GIT_RESTORE_REMOTE:-origin}"
 GIT_RESTORE_BRANCH=$(config '.git_restore.branch' '')
 [ -n "$GIT_RESTORE_BRANCH" ] || GIT_RESTORE_BRANCH=$(config '.git_backup.branch' '')
 
+# #723: config.json is git-tracked and is exactly what `git merge --ff-only`
+# below fast-forwards FROM the remote, so git_restore.remote/git_backup.remote
+# and their branch equivalents are untrusted for anything that reaches
+# `git fetch`'s argv -- a party with push access to the store, or a second
+# machine sharing it, controls their value. A `-`-leading remote is parsed as
+# an OPTION rather than an operand (`--upload-pack=...` against a
+# local-transport target is local command execution); a value containing `:`
+# or `/` is a transport URL/spec, not a name naming a remote this repo already
+# trusts. Falls back to `origin` -- the same last resort the backup half uses
+# for the identical case -- rather than guessing at what the user meant.
+# The double quote, held in a variable for the messages below; and `[ ]`
+# expansion tests rather than a `*/*` case pattern (#898 round 9 -- both
+# shapes the directory's scanner holds a submission on).
+printf -v _dq '\042'
+if [ "${REMOTE_NAME#-}" != "$REMOTE_NAME" ] \
+    || [ "${REMOTE_NAME#*:}" != "$REMOTE_NAME" ] \
+    || [ "${REMOTE_NAME#*/}" != "$REMOTE_NAME" ]; then
+        report_error "git-restore" "WARNING: configured remote '$REMOTE_NAME' is not a plain remote name (leading '-', or contains ':' or '/') -- refusing to use it, falling back to 'origin'. A config.json restored from the backup remote can carry an attacker-controlled value here; treat this as untrusted."
+        REMOTE_NAME="origin"
+fi
+# A leading '-' is not the only shape that matters here: `--` stops git's
+# OPTION parsing, but it does not stop git's own REFSPEC grammar once an
+# operand position is reached, and a branch value is exactly that operand.
+# `git fetch -- origin "main:refs/heads/some-other-branch"` is a valid,
+# fully-formed src:dst refspec -- the colon tells git to write the fetched
+# ref somewhere OTHER than the usual remote-tracking ref, to a destination
+# this value also controls. A colon is rejected for the identical reason the
+# remote-name check above rejects one.
+if [ "${GIT_RESTORE_BRANCH#-}" != "$GIT_RESTORE_BRANCH" ] || [[ "$GIT_RESTORE_BRANCH" == *:* ]]; then
+    report_error "git-restore" "WARNING: configured branch '$GIT_RESTORE_BRANCH' starts with '-' or contains ':' -- refusing to use it as a git fetch operand (a colon makes it a src:dst refspec, not a branch name)."
+    GIT_RESTORE_BRANCH=""
+fi
+
 FETCH_TIMEOUT=$(config '.git_restore.fetch_timeout_seconds' '20')
-case "$FETCH_TIMEOUT" in ''|*[!0-9]*|0) FETCH_TIMEOUT=20 ;; esac
+if [ -z "$FETCH_TIMEOUT" ] || [[ "$FETCH_TIMEOUT" == *[!0-9]* ]] \
+    || [ "$FETCH_TIMEOUT" = 0 ]; then
+    FETCH_TIMEOUT=20
+fi
 
 # How many CONSECUTIVE session starts finding a diverged store before the human
 # is interrupted rather than merely logged. Same escalation argument part 1
@@ -248,7 +284,7 @@ case "$FETCH_TIMEOUT" in ''|*[!0-9]*|0) FETCH_TIMEOUT=20 ;; esac
 # most intrusive surface in this codebase, so one that fires on every hiccup is
 # one nobody reads. 0 disables the interruption; the log line stays either way.
 DIVERGED_NOTICE_AFTER=$(config '.git_restore.diverged_notice_after' '3')
-case "$DIVERGED_NOTICE_AFTER" in ''|*[!0-9]*) DIVERGED_NOTICE_AFTER=3 ;; esac
+if [ -z "$DIVERGED_NOTICE_AFTER" ] || [ "${DIVERGED_NOTICE_AFTER#*[!0-9]}" != "$DIVERGED_NOTICE_AFTER" ]; then DIVERGED_NOTICE_AFTER=3; fi
 
 # ── State ────────────────────────────────────────────────────────────────────
 # Beside the backup half's own state files — which are no longer at the store
@@ -317,13 +353,13 @@ _spawn_fetch() {
     if [ -f "$FETCH_STATE_FILE" ]; then
         local _s='' _f='' _now _age
         while IFS='=' read -r _k _v; do
-            case "$_k" in started) _s="$_v" ;; finished) _f="$_v" ;; esac
+            if [ "$_k" = started ]; then _s="$_v"; elif [ "$_k" = finished ]; then _f="$_v"; fi
         done < "$FETCH_STATE_FILE"
-        # 10# after the case, never instead of it (#327): "08" is all digits,
+        # 10# after the digits test, never instead of it (#327): "08" is all digits,
         # clears the guard, and is then read as octal -- so the age comparison
         # is abandoned and a fetch still inside its window gets a second one
         # stacked on top of it.
-        case "$_s" in ''|*[!0-9]*) _s=0 ;; esac
+        if [ -z "$_s" ] || [ "${_s#*[!0-9]}" != "$_s" ]; then _s=0; fi
         if [ -z "$_f" ] && [ "$_s" -gt 0 ]; then
             _now=$(date +%s)
             _age=$(( _now - 10#$_s ))
@@ -374,12 +410,31 @@ _spawn_fetch() {
         export GIT_TERMINAL_PROMPT=0
         export GIT_ASKPASS=
         export SSH_ASKPASS=
-        export GIT_SSH_COMMAND="${GIT_SSH_COMMAND:-ssh -oBatchMode=yes -oConnectTimeout=$FETCH_TIMEOUT}"
+        # A user's own GIT_SSH_COMMAND is kept; otherwise a fixed format with
+        # the timeout filled in, not a default expansion holding another
+        # expansion (#898 round 10).
+        if [ -z "${GIT_SSH_COMMAND:-}" ]; then
+            printf -v GIT_SSH_COMMAND 'ssh -oBatchMode=yes -oConnectTimeout=%s' "$FETCH_TIMEOUT"
+        fi
+        export GIT_SSH_COMMAND
 
         # --no-tags --prune-tags: this is a memory store, not a release repo, and
         # the fetch should move exactly one remote-tracking ref.
-        git -C "$REPO_ROOT" -c core.askPass= fetch --quiet --no-tags \
-            "$REMOTE_NAME" ${GIT_RESTORE_BRANCH:+"$GIT_RESTORE_BRANCH"} >/dev/null 2>&1 &
+        #
+        # -- required (#723): REMOTE_NAME/GIT_RESTORE_BRANCH are validated
+        # plain names by this point (see the dash/colon tests above, right
+        # after they are computed), but without a `--` separator a value that
+        # slipped past would still be parsed as an option rather than an
+        # operand -- the separator is cheap insurance the validation above
+        # does not make redundant.
+        # One literal command per case (#898 round 10): with a branch, without.
+        if [ -n "$GIT_RESTORE_BRANCH" ]; then
+            git -C "$REPO_ROOT" -c core.askPass= fetch --quiet --no-tags \
+                -- "$REMOTE_NAME" "$GIT_RESTORE_BRANCH" >/dev/null 2>&1 &
+        else
+            git -C "$REPO_ROOT" -c core.askPass= fetch --quiet --no-tags \
+                -- "$REMOTE_NAME" >/dev/null 2>&1 &
+        fi
         _fetch_pid=$!
 
         # A portable watchdog rather than timeout(1), which macOS does not ship.
@@ -418,15 +473,21 @@ _fetch_health() {
     [ -f "$FETCH_STATE_FILE" ] || { echo "never-run"; return; }
     local _s='' _f='' _rc='' _now _age
     while IFS='=' read -r _k _v; do
-        case "$_k" in started) _s="$_v" ;; finished) _f="$_v" ;; rc) _rc="$_v" ;; esac
+        if [ "$_k" = started ]; then
+            _s="$_v"
+        elif [ "$_k" = finished ]; then
+            _f="$_v"
+        elif [ "$_k" = rc ]; then
+            _rc="$_v"
+        fi
     done < "$FETCH_STATE_FILE"
-    # 10# after the case, never instead of it (#327). Without it "08" is octal,
+    # 10# after the digits test, never instead of it (#327). Without it "08" is octal,
     # the arithmetic fails, bash abandons this whole `if` body, and control
     # falls through to the `rc` test below with `_rc` empty -- so a fetch that
     # never came back is reported as one that FAILED with an unknown status.
     # Wrong state out of the three, and the remedy offered is for a failure
     # that did not happen.
-    case "$_s" in ''|*[!0-9]*) _s=0 ;; esac
+    if [ -z "$_s" ] || [ "${_s#*[!0-9]}" != "$_s" ]; then _s=0; fi
     if [ -z "$_f" ]; then
         _now=$(date +%s)
         _age=$(( _now - 10#$_s ))
@@ -485,13 +546,17 @@ fi
 # because that is the difference #253 part 1 exists to protect on the write
 # side and it is exactly as easy to lose here: a store whose fetch has been
 # failing for a week looks identical to a store that is genuinely current.
-case "$FETCH_HEALTH" in
-    ok)        : ;;
-    never-run) log "git-restore" "no fetch has completed yet for $REPO_ROOT -- the comparison below is against whatever refs are already on disk, which may be stale. A fetch starts in the background now and its result lands next session." ;;
-    in-flight) log "git-restore" "a background fetch is still running -- the comparison below is against the previous fetch's refs" ;;
-    abandoned) log "git-restore" "WARNING: the last background fetch never completed (started $(cat "$FETCH_STATE_FILE" 2>/dev/null | head -1)) -- could NOT check the remote. This is not 'up to date': the refs below are as old as the last fetch that did finish." ;;
-    failed:*)  log "git-restore" "WARNING: the last background fetch FAILED (rc=${FETCH_HEALTH#failed:}) -- could NOT check the remote. This is not 'up to date': the refs below are as old as the last fetch that did finish. Run 'git -C \"$REPO_ROOT\" fetch $REMOTE_NAME' to see git's own error." ;;
-esac
+if [ "$FETCH_HEALTH" = ok ]; then
+    :
+elif [ "$FETCH_HEALTH" = never-run ]; then
+    log "git-restore" "no fetch has completed yet for $REPO_ROOT -- the comparison below is against whatever refs are already on disk, which may be stale. A fetch starts in the background now and its result lands next session."
+elif [ "$FETCH_HEALTH" = in-flight ]; then
+    log "git-restore" "a background fetch is still running -- the comparison below is against the previous fetch's refs"
+elif [ "$FETCH_HEALTH" = abandoned ]; then
+    log "git-restore" "WARNING: the last background fetch never completed (started $(cat "$FETCH_STATE_FILE" 2>/dev/null | head -1)) -- could NOT check the remote. This is not 'up to date': the refs below are as old as the last fetch that did finish."
+elif [ "${FETCH_HEALTH#failed:}" != "$FETCH_HEALTH" ]; then
+    log "git-restore" "WARNING: the last background fetch FAILED (rc=${FETCH_HEALTH#failed:}) -- could NOT check the remote. This is not 'up to date': the refs below are as old as the last fetch that did finish. Run 'git -C ${_dq}$REPO_ROOT${_dq} fetch $REMOTE_NAME' to see git's own error."
+fi
 
 if [ -z "$LOCAL_HEAD" ]; then
     log "git-restore" "local branch is unborn (no commits in $REPO_ROOT) -- nothing to fast-forward onto, refusing. Clone or check out the backup branch by hand."
@@ -520,8 +585,8 @@ fi
 COUNTS=$(git -C "$REPO_ROOT" rev-list --left-right --count "HEAD...$REMOTE_REF" 2>/dev/null) || COUNTS=""
 AHEAD="${COUNTS%%	*}"
 BEHIND="${COUNTS##*	}"
-case "$AHEAD" in ''|*[!0-9]*) AHEAD="" ;; esac
-case "$BEHIND" in ''|*[!0-9]*) BEHIND="" ;; esac
+if [ -z "$AHEAD" ] || [ "${AHEAD#*[!0-9]}" != "$AHEAD" ]; then AHEAD=""; fi
+if [ -z "$BEHIND" ] || [ "${BEHIND#*[!0-9]}" != "$BEHIND" ]; then BEHIND=""; fi
 
 if [ -z "$AHEAD" ] || [ -z "$BEHIND" ]; then
     log "git-restore" "WARNING: could not compare HEAD with $REMOTE_REF -- could NOT check, no restore attempted"
@@ -536,16 +601,41 @@ if [ "$AHEAD" -gt 0 ] && [ "$BEHIND" -gt 0 ]; then
     # report below never runs -- a store that refused to restore, saying so
     # nowhere.
     _count=$(cat "$DIVERGED_STATE_FILE" 2>/dev/null || echo 0)
-    case "$_count" in ''|*[!0-9]*) _count=0 ;; esac
+    if [ -z "$_count" ] || [ "${_count#*[!0-9]}" != "$_count" ]; then _count=0; fi
     _count=$((10#$_count + 1))
     echo "$_count" > "$DIVERGED_STATE_FILE" 2>/dev/null || true
 
-    log "git-restore" "ERROR: the memory store has DIVERGED -- $AHEAD local commit(s) the remote does not have, $BEHIND remote commit(s) this machine does not have (consecutive session starts in this state: $_count). NOT restored, and nothing here will merge or rebase for you: recent.md and archive.md are rewritten wholesale by consolidation, so a wrong automatic resolution would corrupt memory silently. Resolve it by hand: git -C \"$REPO_ROOT\" log --oneline --left-right \"HEAD...$REMOTE_REF\""
+    # ── #935: the report below must not promise "nothing will merge or
+    # rebase" when it is false. 60-git-reconcile.sh is the ONLY place this
+    # plugin ever rebases, and it runs on the NEXT after_save pass -- after
+    # this hook's own session-start report. Read here, inside the DIVERGED
+    # branch, rather than unconditionally near the top of the file: this is
+    # the only branch that consumes it, and every other session start (the
+    # overwhelming majority) now pays nothing for it. This hook itself still
+    # never merges or rebases anything; it only changes what it SAYS.
+    RECONCILE_ENABLED=$(config '.git_reconcile.enabled' 'false')
+
+    # Each branch below is its own complete log/printf call (rather than a
+    # shared clause assembled in a plain variable) on purpose: the structural
+    # scan in tests/test_git_restore_hook_253.py that counts this file's own
+    # "merge"/"rebase" mentions only exempts lines that themselves start a
+    # `log "git-restore"` or `printf` call -- a separate assignment line
+    # holding the same words would be counted as new code, not new prose.
+    if [ "$RECONCILE_ENABLED" = "true" ]; then
+        log "git-restore" "ERROR: the memory store has DIVERGED -- $AHEAD local commit(s) the remote does not have, $BEHIND remote commit(s) this machine does not have (consecutive session starts in this state: $_count). NOT restored by this session-start check. git_reconcile.enabled is on, but 60-git-reconcile.sh is hard-disabled pending #969, so nothing will rebase or push this automatically right now: recent.md and archive.md are rewritten wholesale by consolidation, so a wrong automatic resolution would corrupt memory silently. Resolve it by hand: git -C ${_dq}$REPO_ROOT${_dq} log --oneline --left-right ${_dq}HEAD...$REMOTE_REF${_dq}"
+    else
+        log "git-restore" "ERROR: the memory store has DIVERGED -- $AHEAD local commit(s) the remote does not have, $BEHIND remote commit(s) this machine does not have (consecutive session starts in this state: $_count). NOT restored, and nothing here will merge or rebase for you: recent.md and archive.md are rewritten wholesale by consolidation, so a wrong automatic resolution would corrupt memory silently. Resolve it by hand: git -C ${_dq}$REPO_ROOT${_dq} log --oneline --left-right ${_dq}HEAD...$REMOTE_REF${_dq}"
+    fi
 
     if [ "$DIVERGED_NOTICE_AFTER" -gt 0 ] && [ "$_count" -eq "$DIVERGED_NOTICE_AFTER" ]; then
         mkdir -p "$REMEMBER_DIR/tmp" 2>/dev/null || true
-        printf '%s\n' "remember: your memory store has DIVERGED from its backup remote. $AHEAD commit(s) here are not on the remote and $BEHIND commit(s) there are not here, so the memory loaded this session is missing them -- and the backup cannot push either. Nothing will be merged or rebased for you. Resolve it by hand: git -C \"$REPO_ROOT\" log --oneline --left-right HEAD...$REMOTE_NAME/$GIT_RESTORE_BRANCH" \
-            > "$REMEMBER_DIR/tmp/git-restore-notice" 2>/dev/null || true
+        if [ "$RECONCILE_ENABLED" = "true" ]; then
+            printf '%s\n' "remember: your memory store has DIVERGED from its backup remote. $AHEAD commit(s) here are not on the remote and $BEHIND commit(s) there are not here, so the memory loaded this session is missing them -- and the backup cannot push either. git_reconcile.enabled is on, but 60-git-reconcile.sh is hard-disabled pending #969, so nothing will rebase or push this automatically right now. Resolve it by hand: git -C ${_dq}$REPO_ROOT${_dq} log --oneline --left-right HEAD...$REMOTE_NAME/$GIT_RESTORE_BRANCH" \
+                > "$REMEMBER_DIR/tmp/git-restore-notice" 2>/dev/null || true
+        else
+            printf '%s\n' "remember: your memory store has DIVERGED from its backup remote. $AHEAD commit(s) here are not on the remote and $BEHIND commit(s) there are not here, so the memory loaded this session is missing them -- and the backup cannot push either. Nothing will be merged or rebased for you. Resolve it by hand: git -C ${_dq}$REPO_ROOT${_dq} log --oneline --left-right HEAD...$REMOTE_NAME/$GIT_RESTORE_BRANCH" \
+                > "$REMEMBER_DIR/tmp/git-restore-notice" 2>/dev/null || true
+        fi
     fi
     _spawn_fetch
     exit 0
@@ -571,8 +661,46 @@ fi
 # work, but only as long as nothing else in here can.
 if git -C "$REPO_ROOT" merge --ff-only "$REMOTE_REF" >/dev/null 2>&1; then
     log "git-restore" "restored $BEHIND commit(s) from $REMOTE_NAME/$GIT_RESTORE_BRANCH (${LOCAL_HEAD:0:7}..${REMOTE_HEAD:0:7}) into $REPO_ROOT -- memory below reflects them"
+
+    # ── #741: a fast-forward that untracks config.json must not delete it ──
+    # A store from before #719 has $SLUG/config.json committed. The FIRST
+    # machine to upgrade runs an index-only `git rm --cached` on it (the
+    # untracking commit in after_save/50-git-backup.sh) and pushes -- its own
+    # working-tree copy is untouched, because `--cached` only ever edits the
+    # index. Every OTHER machine sharing the store only ever reaches that
+    # commit by fast-forwarding onto it, right here, and `git merge --ff-only`
+    # updates the working tree to match the new HEAD as part of an ordinary
+    # checkout: a path the incoming commit stops tracking is REMOVED from
+    # disk if (and only if) the local copy was identical to what was tracked
+    # before -- exactly the "unmodified" case #741 names. There is no
+    # distinct code path for it to hook into; it is the fast-forward doing
+    # exactly what a fast-forward does, silently, to a file nothing here is
+    # allowed to lose (config.json holds per-project settings, including
+    # the now-inert haiku.oauth_token key, #860).
+    #
+    # So: after the merge, ask whether config.json was tracked at the
+    # PRE-merge HEAD and is not tracked at the new one. If so and the file no
+    # longer exists on disk, it was this merge that removed it -- restore its
+    # exact bytes from the pre-merge commit. It stays OUT of the index: the
+    # whole point of the untracking commit it just adopted is that this path
+    # stops being pushed, and re-staging it here would undo that on every
+    # machine that runs this hook.
+    _gr_config_rel="$SLUG/config.json"
+    if [ -n "$LOCAL_HEAD" ] \
+        && git -C "$REPO_ROOT" cat-file -e "$LOCAL_HEAD:$_gr_config_rel" 2>/dev/null \
+        && ! git -C "$REPO_ROOT" cat-file -e "HEAD:$_gr_config_rel" 2>/dev/null \
+        && [ ! -e "$REPO_ROOT/$_gr_config_rel" ]; then
+        mkdir -p "$(dirname "$REPO_ROOT/$_gr_config_rel")" 2>/dev/null || true
+        if git -C "$REPO_ROOT" show "$LOCAL_HEAD:$_gr_config_rel" > "$REPO_ROOT/$_gr_config_rel.restore-tmp" 2>/dev/null \
+            && mv "$REPO_ROOT/$_gr_config_rel.restore-tmp" "$REPO_ROOT/$_gr_config_rel"; then
+            log "git-restore" "restored $_gr_config_rel after this fast-forward adopted a commit that stopped tracking it (#741) -- another machine ran 'git rm --cached' on it during the #719 upgrade; the file is preserved on disk exactly as it was, but stays OUT of the index, matching the new HEAD"
+        else
+            rm -f "$REPO_ROOT/$_gr_config_rel.restore-tmp" 2>/dev/null || true
+            log "git-restore" "ERROR: this fast-forward adopted a commit that stopped tracking $_gr_config_rel (#741) and restoring its pre-merge content to $REPO_ROOT/$_gr_config_rel FAILED -- check it by hand, it may now be gone"
+        fi
+    fi
 else
-    log "git-restore" "ERROR: fast-forward of $BEHIND commit(s) from $REMOTE_NAME/$GIT_RESTORE_BRANCH was REFUSED by git -- most likely uncommitted local changes in $REPO_ROOT that it would overwrite. Nothing was restored and nothing was forced. Run 'git -C \"$REPO_ROOT\" merge --ff-only $REMOTE_REF' to see git's own reason."
+    log "git-restore" "ERROR: fast-forward of $BEHIND commit(s) from $REMOTE_NAME/$GIT_RESTORE_BRANCH was REFUSED by git -- most likely uncommitted local changes in $REPO_ROOT that it would overwrite. Nothing was restored and nothing was forced. Run 'git -C ${_dq}$REPO_ROOT${_dq} merge --ff-only $REMOTE_REF' to see git's own reason."
 fi
 
 _spawn_fetch

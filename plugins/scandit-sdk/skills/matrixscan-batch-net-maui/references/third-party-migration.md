@@ -1,5 +1,11 @@
 # Third-Party Multi-Barcode Scanner → MatrixScan Batch Migration (.NET MAUI)
 
+## Migration principles
+
+- **Authority.** When this guide and the API reference disagree, trust the API reference — and a runtime check in the user's project — over this guide. Say which source you followed and why in the summary.
+- **Behaviour changes.** Never present a visual or behaviour change (new default, different overlay look, changed feedback, changed scan timing) as a 1:1 rename. List each one in the summary as a judgment call the user must confirm.
+- **Compatibility layer.** When the scanning code sits behind a shared scanner library or wrapper that other code calls, keep that library's public API frozen (same types, method names, callbacks) and replace only the third-party scanner calls underneath with Scandit ones.
+
 ## Before anything else
 
 Read the existing code. Do not ask the user to describe what their scanner does. Identify:
@@ -30,6 +36,7 @@ MatrixScan Batch replaces all of the above. It owns the camera, runs the recogni
 - The scanner's event handler (e.g. `BarcodesDetected`, `OnDetectionFinished`) and any options class (e.g. `BarcodeReaderOptions`, `BarcodeFormats`).
 - The continuous-scan loop / frame analyzer if one was used to emulate batch behavior (`while (...)`, `_ = StartScanAsync()` re-trigger).
 - Any UI code specific to the old scanner — manually-drawn highlight rectangles, custom viewfinder overlay layers. MatrixScan Batch's `<scandit:DataCaptureView>` + `BarcodeBatchBasicOverlay` (or `BarcodeBatchAdvancedOverlay`) replace all of it.
+- Still-image decode calls (`BarcodeReader.DecodeAsync`, `Methods.ScanFromImageAsync`) migrate too; see "Still-image decode" below.
 
 ---
 
@@ -52,21 +59,25 @@ When configuring `BarcodeBatchSettings`, map symbologies from the old scanner us
 
 ### Symbology mapping
 
-| ZXing.Net.Maui `BarcodeFormat` / ZXing `BarcodeFormat` | BarcodeScanning.Native.Maui `BarcodeFormats` | Scandit `Symbology.*` |
-|---|---|---|
-| `QrCode` / `QR_CODE` | `QrCode` | `Symbology.Qr` |
-| `Ean13` / `EAN_13` | `Ean13` | `Symbology.Ean13Upca` |
-| `Ean8` / `EAN_8` | `Ean8` | `Symbology.Ean8` |
-| `UpcA` / `UPC_A` | `UpcA` | `Symbology.Ean13Upca` (UPC-A is decoded by the Scandit EAN-13/UPC-A symbology) |
-| `UpcE` / `UPC_E` | `UpcE` | `Symbology.Upce` |
-| `Code39` / `CODE_39` | `Code39` | `Symbology.Code39` |
-| `Code93` / `CODE_93` | `Code93` | `Symbology.Code93` |
-| `Code128` / `CODE_128` | `Code128` | `Symbology.Code128` |
-| `Itf` / `ITF` | `Itf` | `Symbology.InterleavedTwoOfFive` |
-| `Codabar` / `CODABAR` | `Codabar` | `Symbology.Codabar` |
-| `DataMatrix` / `DATA_MATRIX` | `DataMatrix` | `Symbology.DataMatrix` |
-| `Aztec` / `AZTEC` | `Aztec` | `Symbology.Aztec` |
-| `Pdf417` / `PDF_417` | `Pdf417` | `Symbology.Pdf417` |
+<!-- BEGIN GENERATED symbology-table sources=zxing-net-maui,zxing-net,barcodescanning-native-maui style=csharp -->
+| ZXing.Net.Maui `BarcodeFormat` | ZXing.Net / ZXing.Net.Mobile `BarcodeFormat` | BarcodeScanning.Native.Maui `BarcodeFormats` | Scandit `Symbology` |
+|---|---|---|---|
+| `QrCode` | `QR_CODE` | `QRCode` | `Symbology.Qr` |
+| `Ean13` | `EAN_13` | `Ean13` | `Symbology.Ean13Upca` |
+| `Ean8` | `EAN_8` | `Ean8` | `Symbology.Ean8` |
+| `UpcA` | `UPC_A` | `Upca` | `Symbology.Ean13Upca` (UPC-A is read by the EAN-13/UPC-A symbology) |
+| `UpcE` | `UPC_E` | `Upce` | `Symbology.Upce` |
+| `Code39` | `CODE_39` | `Code39` | `Symbology.Code39` |
+| `Code93` | `CODE_93` | `Code93` | `Symbology.Code93` |
+| `Code128` | `CODE_128` | `Code128` | `Symbology.Code128` |
+| `Itf` | `ITF` | `Itf` / `I2OF5` | `Symbology.InterleavedTwoOfFive` (no ITF-14 symbology; ITF-14 is a 14-digit Interleaved 2 of 5) |
+| `Codabar` | `CODABAR` | `CodaBar` | `Symbology.Codabar` |
+| `DataMatrix` | `DATA_MATRIX` | `DataMatrix` | `Symbology.DataMatrix` |
+| `Aztec` | `AZTEC` | `Aztec` | `Symbology.Aztec` |
+| `Pdf417` | `PDF_417` | `Pdf417` | `Symbology.Pdf417` |
+
+**Recommended default set** when the source scanned every format and nothing in the app narrows it: `Symbology.Qr`, `Symbology.Ean13Upca`, `Symbology.Ean8`, `Symbology.Upce`, `Symbology.Code39`, `Symbology.Code93`, `Symbology.Code128`, `Symbology.InterleavedTwoOfFive`, `Symbology.Codabar`, `Symbology.DataMatrix`, `Symbology.Aztec`, `Symbology.Pdf417`.
+<!-- END GENERATED symbology-table -->
 
 If you encounter a symbology not in this table, check the BarcodeBatch API reference for the correct `Symbology` enum value before writing the code:
 - [.NET Android](https://docs.scandit.com/data-capture-sdk/dotnet.android/barcode-capture/api.html)
@@ -84,6 +95,17 @@ If you encounter a symbology not in this table, check the BarcodeBatch API refer
 | Per-result bounding box (`result.BoundingBox`, `result.ResultPoints`) | `trackedBarcode.Location` (`Quadrilateral` in image-space; the basic overlay draws the highlight for you, or call `dataCaptureView.MapFrameQuadrilateralToView(location)` to convert to view space) |
 | "Have I seen this code yet?" (manual `HashSet<string>` dedupe on `result.Value`) | `trackedBarcode.Identifier` is the stable per-barcode tracking ID. New barcodes show up in `session.AddedTrackedBarcodes`; the same physical code keeps the same identifier across frames until it leaves the view. Track identifiers in your own `HashSet<int>` if you need an "ever seen" set, or accumulate `Barcode.Data` from `AddedTrackedBarcodes`. |
 | "Which barcodes are currently visible?" | `session.TrackedBarcodes` — `IDictionary<int, TrackedBarcode>` keyed by tracking ID. |
+
+### Still-image decode
+
+ZXing.Net.Maui `BarcodeReader.Decode` / `DecodeAsync` / `DecodeFromFileAsync` (with `Multiple = true`) and BarcodeScanning.Native.Maui `Methods.ScanFromImageAsync(byte[] / FileResult / string / Stream)` map to an `ImageFrameSource` that feeds the same `BarcodeBatch` mode:
+
+1. `var imageSource = await ImageSource.FromFile(path).CreateImageFrameSourceAsync(mauiContext);` where `mauiContext` is the `IMauiContext` of a loaded element, e.g. `this.Handler.MauiContext` in a page (for a `FileResult` use `ImageSource.FromFile(file.FullPath)`, for a `Stream` `ImageSource.FromStream(() => stream)`, for a `byte[]` `ImageSource.FromStream(() => new MemoryStream(bytes))`). The extension is in `Scandit.DataCapture.Core.Source` (`Scandit.DataCapture.Core.Maui`, Android and iOS). `null` means the image could not be loaded.
+2. Enable the symbologies in `BarcodeBatchSettings`, `await context.SetFrameSourceAsync(imageSource);`, keep `barcodeBatch.Enabled = true`, then `await imageSource.SwitchToDesiredStateAsync(FrameSourceState.On);`
+3. The results arrive in `SessionUpdated` / `OnSessionUpdated` as `session.AddedTrackedBarcodes`, not as a return value. If the caller awaited the result set, keep its signature and complete a `TaskCompletionSource` from the handler, with a short timeout for an image that holds no barcode (a judgment call for the summary).
+4. One frame per switch to On: create a new source per image, and set the camera back (`SetFrameSourceAsync(camera)`) before live scanning resumes.
+
+An image-only page needs no `DataCaptureView`, overlay, camera or camera permission: skip those integration steps and register `.UseScanditCore().UseScanditBarcode()`. Keep them only when the page also scans live.
 
 ---
 
@@ -228,4 +250,4 @@ And the page code-behind creates the basic overlay inside `HandlerChanged` (see 
 
 ---
 
-When done, show only what changed. Do not list APIs that were unchanged. Include the setup checklist from `references/integration.md` so the user knows which NuGet packages to add (all four: Core, Core.Maui, Barcode, Barcode.Maui), the `MauiProgram.cs` builder chain update, the `<scandit:DataCaptureView>` XAML namespace + element, and the platform permission entries (`NSCameraUsageDescription` on iOS; `Permissions.Camera` on Android).
+When done, show only what changed. Do not list APIs that were unchanged. Include the setup checklist from `references/integration.md` so the user knows which NuGet packages to add (all four: Core, Core.Maui, Barcode, Barcode.Maui), the `MauiProgram.cs` builder chain update, and, when the page scans live, the `<scandit:DataCaptureView>` XAML namespace + element and the platform permission entries (`NSCameraUsageDescription` on iOS; `Permissions.Camera` on Android).

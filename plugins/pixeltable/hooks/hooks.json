@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/session_orientation.py\""
+            "command": "sh -c 'for p in python python3 \"py -3\"; do $p -c \"import sys; sys.exit(sys.version_info < (3, 9))\" >/dev/null 2>&1 && exec $p \"$0\"; done; exit 0' \"${CLAUDE_PLUGIN_ROOT}/hooks/session_orientation.py\""
           }
         ]
       }
@@ -17,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/validate_antipatterns.py\""
+            "command": "sh -c 'for p in python python3 \"py -3\"; do $p -c \"import sys; sys.exit(sys.version_info < (3, 9))\" >/dev/null 2>&1 && exec $p \"$0\"; done; exit 0' \"${CLAUDE_PLUGIN_ROOT}/hooks/validate_antipatterns.py\""
           }
         ]
       }

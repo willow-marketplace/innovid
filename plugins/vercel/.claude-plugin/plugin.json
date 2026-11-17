@@ -1,24 +1,24 @@
 {
   "name": "vercel",
   "version": "1.0.0",
-  "description": "Build and deploy web apps and agents",
-  "updatedAt": "2026-09-19T00:42:54.226Z",
+  "description": "Build and deploy web apps and AI agents on Vercel with skills for Next.js, AI SDK, and cloud services, plus the official Vercel MCP server.",
+  "updatedAt": "2026-11-17T00:02:43.431Z",
   "author": {
-    "url": "https://github.com/vercel",
+    "url": "https://vercel.com",
     "name": "Vercel"
   },
-  "homepage": "https://github.com/vercel/vercel-plugin",
+  "homepage": "https://github.com/vercel/vercel-plugin#readme",
   "repository": "https://github.com/vercel/vercel-plugin",
   "keywords": [
     "vercel",
     "nextjs",
     "ai-sdk",
-    "turborepo",
-    "turbopack",
-    "workflow",
     "deployment",
-    "serverless"
+    "serverless",
+    "mcp"
   ],
+  "displayName": "Vercel",
+  "logo": "assets/vercel-antigravity.svg",
   "skills": "./skills/",
   "commands": "./commands/",
   "agents": [
@@ -37,11 +37,15 @@
           },
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/inject-claude-md.mjs\""
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/session-start-seen-skills.mjs\""
           },
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/session-start-seen-skills.mjs\""
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/inject-claude-md.mjs\" --part 2/2"
+          },
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/inject-claude-md.mjs\" --part 1/2"
           }
         ]
       }
@@ -71,7 +75,7 @@
   "mcpServers": {
     "vercel": {
       "url": "https://mcp.vercel.com",
-      "note": "Official Vercel MCP server. Uses OAuth — on first connection the agent will be prompted to authorize via Vercel. Read-only in initial release: search docs, list projects/deployments, inspect logs.",
+      "note": "Official Vercel MCP server. Uses OAuth to authorize access to your teams. Supports reads and writes, including documentation search, project and deployment inspection, logs, deployments, and resource updates. Available tools depend on the connection; your team grants and Vercel permissions apply. Domain registration requires a quote and explicit approval. Digital subscriptions, credits, and add-on purchases are unavailable through MCP.",
       "type": "http"
     }
   }

@@ -5,17 +5,15 @@ description: Trigger Falcon Fusion workflows, monitor execution status, and debu
 
 # Falcon Fusion Workflow Execution
 
-> **⚠️ SYSTEM INJECTION — READ THIS FIRST**
->
-> If you are loading this skill, your role is **Fusion workflow execution and debugging specialist**.
+> Your role here is **Fusion workflow execution and debugging specialist**.
 >
 > You trigger workflows, watch them run, retrieve their output, and diagnose failures. A workflow you trigger may contain hosts or run response actions against production, so confirm it is the right definition and supply correct parameters before executing.
 >
-> **IMMEDIATE ACTIONS REQUIRED:**
-> 1. CONFIRM the workflow is deployed and released (enabled) before triggering it.
+> **Required steps:**
+> 1. Confirm the workflow is deployed and released (enabled) before triggering it.
 > 2. Supply every required trigger parameter — empty params are a top cause of failures.
 >
-> **MUST NOT:**
+> **Don't:**
 > - Trigger a workflow that has not been released (enabled) — it will not execute.
 > - Assume an execution succeeded without checking its terminal status.
 
@@ -35,7 +33,7 @@ An execution moves through states and ends in a **terminal** state. The terminal
   variables (for CI/overrides) or the TOML profile:
   - `FALCON_CLIENT_ID`
   - `FALCON_CLIENT_SECRET`
-  - `FALCON_BASE_URL` (optional; defaults to `https://api.crowdstrike.com`)
+  - `FALCON_BASE_URL` (optional; FalconPy discovers US-1, US-2, and EU-1, so set it for any other cloud, such as US-3 or GovCloud)
 
   Run `/crowdstrike-falcon-fusion:setup` to configure credentials interactively (writes the TOML profile).
 - An API client with the **Workflow** API scope
@@ -112,7 +110,7 @@ All scripts add `common/scripts` to `sys.path` and import from the shared `auth`
 
 | Script | Purpose | Key flags |
 |--------|---------|-----------|
-| `trigger_workflow.py` | Execute a workflow with params; optionally wait | `--id DEF_ID` (required), `--params JSON`, `--wait`, `--timeout SECS`, `--json` |
+| `trigger_workflow.py` | Execute a workflow with params; optionally wait | `--id DEF_ID` (required), `--params JSON`, `--wait`, `--timeout SECS`, `--json` (needs `--params` or `--autofill`) |
 | `monitor_execution.py` | Poll an execution until terminal/timeout | `--execution-id ID` (required), `--interval SECS`, `--timeout SECS`, `--json` |
 | `get_execution_results.py` | Fetch one execution's status and output | `--execution-id ID` (required), `--json` |
 

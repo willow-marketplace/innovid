@@ -1,6 +1,6 @@
 {
   "name": "@atlassian/opencode-twg",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "OpenCode setup bridge for Atlassian Teamwork Graph CLI (twg). Installs no runtime and handles no credentials.",
   "type": "module",
   "exports": {

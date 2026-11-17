@@ -6,10 +6,21 @@
       "command": "npx",
       "args": [
         "-y",
-        "@toolbox-sdk/server@1.9.0",
+        "@toolbox-sdk/server@1.13.1",
         "--prebuilt",
         "cloud-storage",
-        "--stdio"
+        "--stdio",
+        "--user-agent-metadata",
+        "gcs-skills/1.0 (skill:gcs-skills-mcp-traffic)"
+      ]
+    },
+    "google-cloud-storage-okf": {
+      "type": "stdio",
+      "command": "uv",
+      "args": [
+        "run",
+        "--script",
+        "${PLUGIN_ROOT}/skills/google-cloud-storage-okf/scripts/mcp_server.py"
       ]
     }
   }

@@ -1,10 +1,6 @@
 {
   "mcpServers": {
     "bigquery": {
-      "env": {
-        "BIGQUERY_PROJECT": "${user_config.bigquery_project}",
-        "BIGQUERY_LOCATION": "${user_config.bigquery_location}"
-      },
       "args": [
         "-y",
         "@toolbox-sdk/server@1.10.0",
@@ -12,6 +8,7 @@
         "bigquery",
         "--stdio"
       ],
+      "type": "stdio",
       "command": "npx"
     }
   }

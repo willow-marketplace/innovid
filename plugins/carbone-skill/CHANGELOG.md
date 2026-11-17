@@ -1,5 +1,38 @@
 # Changelog
 
+## Unreleased
+- `docx-tips.md`, `xlsx-tips.md` and `pptx-tips.md` renamed `docx-templates.md`, `xlsx-templates.md` and `pptx-templates.md`, like the other format guides
+
+## 2.3.0
+- New guides for CSV, TXT (fixed-width records, receipts, ZPL labels), XML, SVG and IDML templates
+- Word, Excel, PowerPoint, PDF, HTML and Markdown guides checked against every tested example of the docs
+- `:appendTemplate` works on Carbone Cloud; `:sign` is no longer beta
+- Fixes: array filters have no `>=` or `<=`; `:drop` does not exist in text formats; barcode options are separate arguments; colors in SVG and Markdown are plain tags
+
+## 2.2.0
+- Updated for Carbone v5.18.0
+- Excel formulas, merged cells, tables, charts and pivot tables that follow loop rows (`{o.preReleaseFeatureIn=5018000}`)
+- New `:mergeCell` formatter and `acc` option for `:formatN` and `:formatC`
+- New PowerPoint guide; expanded Word, PDF form, Markdown and HTML guides
+- Fixes: PPTX has no horizontal loops; `:attachFile` takes a PDF relationship type; `{bindColor}` binds each color once
+
+## 2.1.0
+- Updated for Carbone v5.17.0 (tracked version 5.14.0 → 5.17.0)
+- New formatter `:toWord` (v5.16.0) in `formatters.md`: numbers in words in 50 languages — cardinal `W`, ordinal `O`, amount with currency `C`, precision rules, wording keywords and error cases; quick-reference line in `SKILL.md` §5, "amount in words" invoice example in `practical-examples.md`, trigger phrase in the skill description
+- `:formatC` default precision follows ISO 4217 (v5.16.0): no decimal for JPY and the other zero-decimal currencies, three for JOD, LYD and TND; new ISO 4217 codes accepted by `:formatC`, `:convCurr` and `:toWord` (XAF, XCG replacing ANG, CDF, STN, SHP, SVC, MRU, SLE, VES, VED, ZWG)
+- `:convCRLF` supports XLSX templates (v5.17.0), line breaks show with the cell's Wrap text option — `formatters.md` row and example, new section in `xlsx-tips.md`
+- Formatter argument limits (v5.14.4), rejected rather than reduced: `:formatN`/`:formatC` precision 40, `:padl`/`:padr` length 10,000, barcode `width`/`height` 1,000 mm and 25 million pixels with `scale`, `textsize` 100 pt — `formatters.md` rows and `SKILL.md` §8b
+- `in-template-options.md`: Carbone ICE (`{o.converter=I}`) converts DOCX and ODT to PDF
+- `html-templates.md`: `<carbone-pdf-options>`, `<carbone-pdf-header>` and `<carbone-pdf-footer>` are ignored when the output is an image; `page-ranges` accepts `"1-5"` and `"2"` (v5.15.0)
+- `formatters.md`: the 26 table examples written as a literal followed by a formatter (`'Hello':upperCase`) are now real tags with a JSON input and the output (`{d.name:upperCase}` — `"Hello"` → `"HELLO"`), so no example shows a syntax Carbone does not accept; the convention is stated once above the first table
+- Examples corrected after a full review of every page
+
+## 2.0.0
+- The Carbone plugin now bundles the skill and the hosted Carbone MCP server, for any AI agent, including Claude, ChatGPT, Codex, Cursor, GitHub Copilot, Gemini CLI and Antigravity
+- The repository is renamed carbone-agent-plugin
+- The skill moved to `skills/carbone/`, and its front matter follows the Agent Skills spec
+- The plugin and its marketplace are named `carbone`, so the Claude Code install command is now `/plugin install carbone@carbone`
+
 ## 1.6.1
 - Updated for Carbone v5.14.0 (tracked version 5.13.0 → 5.14.0)
 - `in-template-options.md`: the `{o.converter=...}` row now names Chromium correctly and adds the v5.14.0 engine `I` (Carbone ICE, DOCX to PDF only) — the four accepted values are `L`, `O`, `C` and `I`

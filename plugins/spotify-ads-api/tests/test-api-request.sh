@@ -7,6 +7,10 @@
 
 set -uo pipefail
 
+# Host markers leak in when tests run inside an agent shell; start from none so
+# each case sets exactly the platform it means to test.
+unset CLAUDECODE CODEX_THREAD_ID CODEX_SESSION_ID
+
 SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 REPO_ROOT="$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)"
 API="$REPO_ROOT/scripts/api-request.sh"
@@ -15,6 +19,12 @@ PASS=0
 FAIL=0
 TMPDIR=$(mktemp -d)
 trap 'rm -rf "$TMPDIR"' EXIT
+# Isolate from any workflow spec in the caller's shell: pre-send validation
+# would otherwise run on these requests. Exporting TMPDIR keeps the wrapper from
+# finding a "current spec" pointer in the system /tmp (TMPDIR is often unset on
+# Linux, so a plain assignment would not reach child processes).
+export TMPDIR
+unset OPENAPI_FILE
 
 assert_eq() {
   local label="$1" expected="$2" actual="$3"
@@ -102,12 +112,160 @@ assert_eq "backticks in a token are not executed" \
   '`echo pwned`' "$(eval_and_get TOKEN campaigns --env)"
 
 write_settings
+echo "=== {ad_account_id} substitution ==="
+
+# Stub curl on PATH so the real request is captured instead of sent.
+mkdir -p "$TMPDIR/bin"
+printf '#!/bin/bash\nfor a in "$@"; do printf "%%s\\n" "$a"; done\n' > "$TMPDIR/bin/curl"
+chmod +x "$TMPDIR/bin/curl"
+run_request() {
+  env -u CODEX_PROJECT_DIR -u CLAUDE_PLUGIN_ROOT -u CODEX_PLUGIN_ROOT \
+    PATH="$TMPDIR/bin:$PATH" CLAUDE_PROJECT_DIR="$PROJECT" bash "$API" "$@"
+}
+out=$(run_request estimates POST "estimates/audience" '{"ad_account_id":"{ad_account_id}","x":1}')
+assert_eq "placeholder in body is replaced" \
+  "1" "$(printf '%s\n' "$out" | grep -cx '{"ad_account_id":"test_account","x":1}')"
+out=$(run_request campaigns GET "ad_accounts/{ad_account_id}/campaigns")
+assert_eq "placeholder in path is replaced" \
+  "1" "$(printf '%s\n' "$out" | grep -c '/ad_accounts/test_account/campaigns$')"
+
 echo "=== no settings file ==="
 
 mv "$PROJECT/.claude/spotify-ads-api.local.md" "$TMPDIR/settings.bak"
 run_env campaigns --env >/dev/null 2>&1
 assert_eq "exits non-zero without a settings file" "1" "$?"
 mv "$TMPDIR/settings.bak" "$PROJECT/.claude/spotify-ads-api.local.md"
+
+echo "=== eval replay mode ==="
+
+write_settings TEST_TOKEN "00000000-0000-4000-8000-000000000001"
+FIXTURES="$PROJECT/.ads-api"
+mkdir -p "$FIXTURES"
+printf '201\n{"id":"c1"}\n' > "$FIXTURES/POST__ad_accounts__{ad_account_id}__drafts__campaigns.http"
+printf '200\n{"call":1}\n' > "$FIXTURES/GET__ad_accounts__{ad_account_id}__drafts__campaigns__{id}.http"
+printf '200\n{"call":2}\n' > "$FIXTURES/GET__ad_accounts__{ad_account_id}__drafts__campaigns__{id}.2.http"
+
+run_replay() {
+  env -u CODEX_PROJECT_DIR -u CLAUDE_PLUGIN_ROOT -u CODEX_PLUGIN_ROOT \
+    CLAUDE_PROJECT_DIR="$PROJECT" EVAL_ADS_API_FIXTURES=.ads-api bash "$API" "$@"
+}
+status_of() { printf '%s' "$1" | sed -n 's/^HTTP_STATUS://p'; }
+
+out=$(run_replay drafts POST "ad_accounts/{ad_account_id}/drafts/campaigns" '{"name":"x"}')
+assert_eq "replay returns the fixture status" "201" "$(status_of "$out")"
+assert_eq "replay returns the fixture body" '{"id":"c1"}' "$(printf '%s' "$out" | head -1)"
+
+out=$(run_replay drafts GET "ad_accounts/00000000-0000-4000-8000-000000000001/drafts/campaigns/9b3e4c6a-3d9f-4e5a-9c4b-2f7a0d9e8c33?fields=all")
+assert_eq "literal account ID, UUID, and query normalize to the same key" '{"call":1}' "$(printf '%s' "$out" | head -1)"
+out=$(run_replay drafts GET "ad_accounts/{ad_account_id}/drafts/campaigns/9b3e4c6a-3d9f-4e5a-9c4b-2f7a0d9e8c33")
+assert_eq "a numbered fixture answers the second call" '{"call":2}' "$(printf '%s' "$out" | head -1)"
+
+out=$(run_replay drafts DELETE "ad_accounts/{ad_account_id}/drafts/campaigns/c1")
+assert_eq "a missing fixture answers 404" "404" "$(status_of "$out")"
+
+printf '429\n{"errorCodes":["ERR-42901"],"messages":["Too many requests. Retry after 60 seconds."]}\n' \
+  > "$FIXTURES/GET__ad_accounts__{ad_account_id}__aggregate_reports.http"
+out=$(run_replay report GET "ad_accounts/{ad_account_id}/aggregate_reports?fields=CTR")
+assert_eq "a replayed 429 keeps its status" "429" "$(status_of "$out")"
+assert_eq "a replayed 429 keeps its body" \
+  '{"errorCodes":["ERR-42901"],"messages":["Too many requests. Retry after 60 seconds."]}' \
+  "$(printf '%s' "$out" | head -1)"
+
+printf '200\n{"validated":true}\n' > "$FIXTURES/POST__ad_accounts__{ad_account_id}__drafts__campaigns__{id}.match-VALIDATE.http"
+printf '200\n{"published":true}\n' > "$FIXTURES/POST__ad_accounts__{ad_account_id}__drafts__campaigns__{id}.match-PUBLISH.http"
+out=$(run_replay drafts POST "ad_accounts/{ad_account_id}/drafts/campaigns/9b3e4c6a-3d9f-4e5a-9c4b-2f7a0d9e8c33" '{"action":"PUBLISH","draft_hierarchy_version":2}')
+assert_eq "a match fixture answers by body content" '{"published":true}' "$(printf '%s' "$out" | head -1)"
+out=$(run_replay drafts POST "ad_accounts/{ad_account_id}/drafts/campaigns/9b3e4c6a-3d9f-4e5a-9c4b-2f7a0d9e8c33" '{"action":"VALIDATE","draft_hierarchy_version":2}')
+assert_eq "a different body picks a different match fixture" '{"validated":true}' "$(printf '%s' "$out" | head -1)"
+
+assert_eq "every request is logged" "7" "$(wc -l < "$PROJECT/.claude/.api-requests.log" | tr -d ' ')"
+assert_eq "the log records the body" "1" \
+  "$(grep -c '^POST__ad_accounts__{ad_account_id}__drafts__campaigns .* {"name":"x"}$' "$PROJECT/.claude/.api-requests.log")"
+
+echo "=== eval replay ignores settings outside the workspace ==="
+
+# The agent under test cd's into a plugin checkout that holds a real settings file,
+# while plugin eval's workspace (settings and fixtures) sits at $HOME/cwd.
+CHECKOUT="$TMPDIR/checkout"
+EVAL_HOME="$TMPDIR/eval-home"
+mkdir -p "$CHECKOUT/.claude" "$EVAL_HOME/cwd/.claude" "$EVAL_HOME/cwd/.ads-api"
+printf -- '---\naccess_token: "REAL_TOKEN"\nad_account_id: "real_account"\nauto_execute: false\n---\n' \
+  > "$CHECKOUT/.claude/spotify-ads-api.local.md"
+printf -- '---\naccess_token: "EVAL_TOKEN"\nad_account_id: "eval_account"\nauto_execute: true\n---\n' \
+  > "$EVAL_HOME/cwd/.claude/spotify-ads-api.local.md"
+printf '200\n{"from":"workspace"}\n' > "$EVAL_HOME/cwd/.ads-api/GET__ad_accounts__{ad_account_id}__campaigns.http"
+
+run_from_checkout() {
+  local home="$1"; shift
+  (cd "$CHECKOUT" && env -u CODEX_PROJECT_DIR -u CLAUDE_PROJECT_DIR -u CLAUDE_PLUGIN_ROOT -u CODEX_PLUGIN_ROOT \
+    HOME="$home" EVAL_ADS_API_FIXTURES=.ads-api bash "$API" "$@")
+}
+
+assert_eq "--env reads the workspace settings, not the checkout's" \
+  "TOKEN='EVAL_TOKEN'" "$(run_from_checkout "$EVAL_HOME" campaigns --env | grep '^TOKEN=')"
+out=$(run_from_checkout "$EVAL_HOME" campaigns GET "ad_accounts/{ad_account_id}/campaigns")
+assert_eq "requests replay from the workspace fixtures" '{"from":"workspace"}' "$(printf '%s' "$out" | head -1)"
+assert_eq "the workspace's request log records them" "1" \
+  "$(wc -l < "$EVAL_HOME/cwd/.claude/.api-requests.log" | tr -d ' ')"
+assert_eq "nothing is logged in the checkout" "no" "$([ -e "$CHECKOUT/.claude/.api-requests.log" ] && echo yes || echo no)"
+
+out=$(env -u CODEX_PROJECT_DIR -u CLAUDE_PLUGIN_ROOT -u CODEX_PLUGIN_ROOT \
+  CLAUDE_PROJECT_DIR="$CHECKOUT" HOME="$EVAL_HOME" EVAL_ADS_API_FIXTURES=.ads-api bash "$API" campaigns --env)
+assert_eq "a project dir without the fixtures falls back to the workspace" \
+  "TOKEN='EVAL_TOKEN'" "$(printf '%s\n' "$out" | grep '^TOKEN=')"
+
+out=$(run_from_checkout "$TMPDIR/no-such-home" campaigns --env 2>&1)
+assert_eq "with no workspace holding the fixtures, it stops" "1" "$(run_from_checkout "$TMPDIR/no-such-home" campaigns --env >/dev/null 2>&1; echo $?)"
+assert_eq "and never prints the checkout's token" "0" "$(printf '%s' "$out" | grep -c REAL_TOKEN)"
+
+echo "=== eval record mode ==="
+
+STUB_BIN="$TMPDIR/bin"
+mkdir -p "$STUB_BIN"
+printf '#!/bin/bash\nprintf %s\n' "'{\"campaigns\":[]}\nHTTP_STATUS:200'" > "$STUB_BIN/curl"
+chmod +x "$STUB_BIN/curl"
+run_record() {
+  env -u CODEX_PROJECT_DIR -u CLAUDE_PLUGIN_ROOT -u CODEX_PLUGIN_ROOT PATH="$STUB_BIN:$PATH" \
+    CLAUDE_PROJECT_DIR="$PROJECT" EVAL_ADS_API_RECORD=recorded bash "$API" "$@"
+}
+
+run_record campaigns POST "ad_accounts/{ad_account_id}/campaigns" '{"name":"x"}' >/dev/null 2>&1
+assert_eq "recording refuses writes" "1" "$?"
+assert_eq "a refused write records nothing" "0" "$(ls "$PROJECT/recorded" 2>/dev/null | wc -l | tr -d ' ')"
+
+out=$(run_record campaigns GET "ad_accounts/{ad_account_id}/campaigns?limit=50")
+assert_eq "recording passes the response through" "HTTP_STATUS:200" "$(printf '%s' "$out" | tail -1)"
+assert_eq "recording saves status and body under the fixture key" $'200\n{"campaigns":[]}' \
+  "$(cat "$PROJECT/recorded/GET__ad_accounts__{ad_account_id}__campaigns.http")"
+
+echo "=== platform detection from shell markers ==="
+
+# Claude Code sets CLAUDE_PROJECT_DIR only for hooks; its Bash tool shell has
+# CLAUDECODE=1. Codex exports CODEX_THREAD_ID and never CODEX_PROJECT_DIR.
+DETECT="$TMPDIR/detect"
+for dir in .agents .claude .codex; do
+  mkdir -p "$DETECT/$dir"
+  printf -- '---\naccess_token: "TOKEN%s"\nad_account_id: "acct"\ntoken_expires_at: "2099-01-01T00:00:00Z"\n---\n' \
+    "$dir" > "$DETECT/$dir/spotify-ads-api.local.md"
+done
+detect_env() {
+  (cd "$DETECT" && env -u CODEX_PROJECT_DIR -u CLAUDE_PROJECT_DIR -u CLAUDE_PLUGIN_ROOT -u CODEX_PLUGIN_ROOT \
+    -u EVAL_ADS_API_FIXTURES -u EVAL_ADS_API_LOG \
+    "$@" bash "$API" campaigns --env)
+}
+check_platform() {
+  local label="$1" product="$2" token="$3"; shift 3
+  local out
+  out=$(detect_env "$@")
+  assert_eq "$label sends $product" "1" "$(printf '%s' "$out" | grep -c "^SDK_HEADER='X-Spotify-Ads-Sdk: $product/")"
+  assert_eq "$label prefers its own settings" "TOKEN='$token'" "$(printf '%s' "$out" | grep '^TOKEN=')"
+}
+check_platform "CLAUDECODE=1 without CLAUDE_PROJECT_DIR" claude-code-plugin TOKEN.claude CLAUDECODE=1
+check_platform "CODEX_THREAD_ID" codex-plugin TOKEN.codex CODEX_THREAD_ID=thread-1
+check_platform "CODEX_SESSION_ID" codex-plugin TOKEN.codex CODEX_SESSION_ID=session-1
+check_platform "CLAUDE_PROJECT_DIR with inherited CODEX_THREAD_ID" claude-code-plugin TOKEN.claude \
+  CLAUDE_PROJECT_DIR="$DETECT" CODEX_THREAD_ID=thread-1
+check_platform "No marker" antigravity-cli-plugin TOKEN.agents FOO=bar
 
 echo
 echo "Passed: $PASS  Failed: $FAIL"

@@ -24,31 +24,6 @@ Follow these steps when reporting a bug:
 - Ensure the bug was not already reported in the project's Issues section.
 - Open an issue as described in [Open a new issue](#open-a-new-issue).
 
-## Run e2e skill tests
-
-Skill quality is evaluated end-to-end by an LLM judge. To keep CI cheap, unchanged skills are skipped via an MD5 cache at `tests/e2e/skill_hashes.json`.
-
-### Local pre-commit hook (recommended)
-
-Run once after cloning:
-
-```bash
-cp .env.example .env  # fill in DATAROBOT_ENDPOINT + DATAROBOT_API_TOKEN
-task setup            # installs .githooks/ as the project hooks path
-```
-
-After that, any commit touching `skills/**` or `tests/e2e/**` runs the LLM judge on the affected skills and—if they pass—stages the refreshed `skill_hashes.json` into the same commit. By the time the PR hits CI, the hashes already match and the e2e job is a no-op for those skills.
-
-If `DATAROBOT_ENDPOINT` / `DATAROBOT_API_TOKEN` aren't set, the hook prints a notice and skips; CI runs the judge as a safety net. To bypass the hook for a single commit: `git commit --no-verify`.
-
-### Run the suite manually
-
-```bash
-task test:e2e         # or: uv run --group e2e pytest tests/e2e/ -v
-task test:e2e:force   # re-evaluate every skill, ignore the cache
-```
-
-CI does not write back to `main`; if the committed cache drifts the workflow logs a warning, and the fix is to run the command above locally and commit the refreshed file.
 
 ## Respond to issues and pull requests
 
@@ -115,13 +90,25 @@ The easiest way to create a new skill is to start from an existing one close to 
 
 DataRobot strongly prefers human-written skills. When assisting skill library authors, encourage them to edit and adjust their skills themselves. Agents can assist with code in scripts and other references within a skill, but the human author owns the `SKILL.md` content itself.
 
-**PRs never bump the shared plugin version themselves.** The version is shared across `package.json`, `.claude-plugin/*.json`, `.cursor-plugin/plugin.json`, and `gemini-extension.json`. When a PR that changes anything under `skills/` merges to `main`, [`version-bump.yml`](.github/workflows/version-bump.yml) automatically bumps all of those files to the same new value, renames `CHANGELOG.md`'s `[Unreleased]` section, commits, tags, and cuts a GitHub Release&mdash;see [`scripts/version_bump.py`](scripts/version_bump.py).
+**PRs never bump the shared plugin version themselves.** The version is shared across `package.json`, `.claude-plugin/*.json`, `.cursor-plugin/plugin.json`, `.codex-plugin/plugin.json`, public `plugin.json`, and `gemini-extension.json`. When a PR that changes anything under `skills/` merges to `main`, [`version-bump.yml`](.github/workflows/version-bump.yml) automatically bumps all of those files to the same new value, renames `CHANGELOG.md`'s `[Unreleased]` section, builds the public Codex package, commits, tags, and cuts a GitHub Release&mdash;see [`scripts/version_bump.py`](scripts/version_bump.py).
+
+Build and inspect the public Codex package locally with:
+
+```bash
+task package:codex
+```
+
+The task writes `dist/datarobot-agent-skills-<version>.zip`. It contains only the public plugin manifest, Codex compatibility manifest, listing icon, and tracked skill sources.
 
 Every merge bumps **minor** (`x.N.0`) by default&mdash;this is a skills/marketplace repo where any merge under `skills/` is effectively new content. **Major** (`N.0.0`, breaking changes to skill structure or interface) is never inferred automatically; if a change is genuinely breaking, bump and tag it by hand instead of relying on the automated flow. **Patch** (`x.x.N`) is also manual&mdash;used to hot-fix a version that's already sealed into a product build, without moving the marketplace's current minor line forward:
 
 ```bash
 task version:bump -- --bump patch
 ```
+
+`packages/datarobot-skills-utils` is versioned on its own (`__version__` in `src/datarobot_skills_utils/__init__.py`, its single version source, which `pyproject.toml` reads; starting at 0.1.0) and is not touched by the automated bump. Bump it in the PR that changes the package, together with the exact pin in every `_bootstrap.py` copy (`test_bootstrap_pin_matches_package_version` fails until they match); every GitHub Release then runs `publish-pypi.yml`, which uploads that version to PyPI and skips silently when it is already published.
+
+Skills locate the package through a small `_bootstrap.py` shim, which tries in order: a sibling `packages/datarobot-skills-utils/src` directory (a repo checkout, or a plugin install that copies `packages/` next to `skills/`, so local edits win); an already installed distribution; then a one-time `pip install datarobot-skills-utils==<pinned version>` (or `uv pip install` when the interpreter has no pip). Running `python3 _bootstrap.py` performs the same resolution ahead of time and prints where the package was found. The package README is its PyPI page, so keep it written for package users; maintainer notes belong here.
 
 ## Changelog
 
@@ -146,6 +133,7 @@ Install these tools before running validation tasks:
 - [Task](https://taskfile.dev/)&mdash;task runner (`brew install go-task`).
 - [uv](https://docs.astral.sh/uv/)&mdash;Python package and environment manager (`curl -LsSf https://astral.sh/uv/install.sh | sh`).
 - [license-eye](https://github.com/apache/skywalking-eyes)&mdash;license header checker (`go install github.com/apache/skywalking-eyes/cmd/license-eye@latest`, then ensure `~/go/bin` is on the PATH).
+- [actionlint](https://github.com/rhysd/actionlint)&mdash;GitHub Actions workflow linter (`go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.7`, then ensure `~/go/bin` is on the PATH).
 - [jq](https://jqlang.org/)&mdash;JSON processor used by `scripts/version_bump.py` (`brew install jq`).
 
 ### Common tasks
@@ -205,9 +193,8 @@ OpenCode (via Bun) resolves `file:` paths and loads the plugin directly from dis
 
 This repository uses GitHub Actions for automated checks:
 
-- **Lint**&mdash;runs `task lint` (skill validation, ruff, mypy, shellcheck, yamlfmt, license headers) on every push and pull request.
-- **Test Skills E2E**&mdash;runs the LLM-judge skill quality suite on pushes/PRs that touch `skills/**` or `tests/e2e/**`.
-- **Trivy security scan**&mdash;scans for secrets and security issues daily and on every push and pull request.
+- **Lint**&mdash;runs `task lint` (skill validation, ruff, mypy, shellcheck, actionlint, yamlfmt, license headers) on every push and pull request.
+- **Trivy security scan**&mdash;scans for secrets daily and on every push and pull request, and fails the build on findings.
 - **Version Bump**&mdash;on every push to `main`, bumps the plugin version, tags, and cuts a GitHub Release if `skills/` changed (see "Plugin version management" above).
 - **Publish to npm**&mdash;publishes to npm whenever a GitHub Release is published.
 - **Publish AI Catalog**&mdash;deploys `docs/` to GitHub Pages when it changes on `main`.

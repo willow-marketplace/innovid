@@ -60,6 +60,12 @@ func run() error {
 		return err
 	}
 
+	// Claude Code spawns the hook in the directory it was launched from, while the
+	// payload's cwd follows the session (including a `cd` in Bash). Chdir so
+	// vcs.Detect() reports the branch being worked on. The config file and .env
+	// were already resolved against the launch directory above, and stay so.
+	pipeline.ChdirToEventCwd(event)
+
 	cfg := hn.Config()
 	now := time.Now().UTC()
 	result, err := pipeline.Process(event, cfg, dataDir, now)
@@ -91,7 +97,7 @@ func printSessionMessage(event map[string]any, result pipeline.Result, cfg otlp.
 		// The pipeline names the missing attribute; where to set it is per-agent, so
 		// the route lives here.
 		if hookEvent == "SessionStart" && strings.HasPrefix(text, pipeline.NoTeamPrefix) {
-			text += " Set Team Name via /plugin → Configure."
+			text += " Ask Claude to run the dash0-configure skill to set Team Name, then run /reload-plugins and start a new session to check."
 		}
 		if text != "" {
 			texts = append(texts, text)

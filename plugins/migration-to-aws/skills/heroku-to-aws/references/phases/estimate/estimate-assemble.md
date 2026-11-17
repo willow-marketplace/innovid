@@ -117,9 +117,11 @@ After outer-run `HANDOFF_OK` (not an inner workshop reprice):
 2. Ensure `phases.workshop` exists (seed `"pending"` if the key is missing).
 3. **Do not** set `current_phase` to `"generate"` yet — leave `current_phase` at
    `"estimate"` until the workshop sidebar is resolved (entered then exited, or
-   declined). This matches sidebar semantics: workshop never owns
-   `current_phase`, and mid-workshop fixtures correctly stay on `estimate`.
-4. Offer the what-if workshop below.
+   declined) **and** the Decision gate below has been answered. This matches
+   sidebar semantics: workshop never owns `current_phase`, and mid-workshop
+   fixtures correctly stay on `estimate`.
+4. Offer the what-if workshop below. On exit or decline, present the Decision
+   gate (below) — do **not** fall through to Generate directly.
 
 ---
 
@@ -130,24 +132,160 @@ update — offer:
 
 ```
 Phase 4 of 6 complete (Estimate). Remaining: Generate (+ optional Feedback).
-Before Generate, want to see how the numbers move if you change something?
+Before you decide, want to see how the numbers move if you change something?
 I can reprice scenarios side by side in about a minute each, without
 re-running discovery — for example: a different AWS region, single-AZ
 database for staging, a different compute target, or ARM-based (Graviton)
 instances.
 
 [A] Enter what-if workshop
-[B] Proceed toward Generate
+[B] Proceed to the decision
 ```
 
 **Data-justified scenario hint (add one line when applicable):** if a material assumption was defaulted or tier-derived rather than confirmed — most commonly `database_ha` — append: "Suggestion: we assumed [assumption]; comparing a [alternative] scenario would bound it before you commit." Suggest at most one.
 
 - **A** → Load `references/phases/workshop/workshop.md` (sidebar) and follow it
   (baseline capture if `scenarios/` missing, then the sheet). Keep
-  `current_phase: estimate`; set `phases.workshop` → `"in_progress"`.
+  `current_phase: estimate`; set `phases.workshop` → `"in_progress"`. On
+  workshop exit, **return to the Decision gate below** (do not advance to
+  Generate directly) — the workshop's active scenario carries into it.
 - **B** → Mark `phases.workshop` → `"completed"` (resolved/declined — no
-  `scenarios/` required). Set `current_phase` → `"generate"`. Continue with the
-  Feedback/Generate sidebars in `SKILL.md`.
+  `scenarios/` required). Proceed to the Decision gate below.
 
 On first workshop entry after this Estimate, `workshop-refresh.md` baseline
 capture snapshots the current artifacts as `scenario-001` before any edits.
+
+---
+
+## Post-Estimate: Decision Gate
+
+**The decision is the product; execution artifacts are opt-in.** The verdict
+(`recommendation.outcome` / `path`) already exists in `estimation-infra.json` —
+present it and let the user choose what happens next. Never advance to
+Generate without an explicit choice of option C (or an explicit later request
+for Terraform/scripts).
+
+Reached only after the what-if workshop offer above has been resolved
+(entered-and-exited, or declined) — never presented while `phases.workshop`
+is `"pending"` or `"in_progress"`.
+
+Present (values from `estimation-infra.json`; one line each):
+
+```
+Phase 4 of 6 complete (Estimate). Remaining: Generate (+ optional Feedback).
+
+### Decision pack ready
+
+- Verdict: [outcome_label when recommendation.outcome exists; else path_label]
+- AWS estimate (Balanced): $[X]/mo · Your Heroku baseline: [figure, or "not
+  established" when current_costs.source is unavailable]
+- Timeline if you execute: ~[N–M] weeks ([complexity_tier], from
+  references/vendored/estimate/complexity-tiers.json)
+
+[A] Done for now — I have what I need to decide
+[B] Explore what-ifs — reprice scenarios side by side (~1 min each): region,
+    single-AZ database, compute target, Graviton
+[C] Generate Terraform and migration scripts
+```
+
+Omit option **B** if the workshop sidebar is already `"completed"` from the
+offer above (do not re-offer the same choice twice in one turn) — present only
+**[A] Done for now** and **[C] Generate Terraform and migration scripts** in
+that case.
+
+**Choice handling:**
+
+- **A** → Then:
+  1. **Render the decision pack:** load
+     `references/shared/report-decision-core.md` and render it in **decision**
+     mode — write `$MIGRATION_DIR/decision-report.html` and
+     `$MIGRATION_DIR/DECISION.md` per that file's decision-mode rules (no
+     appendices, no Terraform, CTA footer). Validate with
+     `python3 "<SKILL_BASE>/scripts/validate-heroku-migration-report.py" "$MIGRATION_DIR/decision-report.html" --mode decision --migration-dir "$MIGRATION_DIR"`
+     (absolute paths — cwd must not be load-bearing; `--migration-dir` is required
+     so the decision-mode pre-execution check — `.phase-status.json`'s
+     `phases.generate` must be `"pending"` or absent for THIS cycle, not raw
+     `terraform/` / `generation-*.json` absence; see `report-decision-core.md` —
+     actually runs) and fix failures before presenting.
+  2. Set `run_mode: "decide"` and `current_phase: "complete"` in
+     `.phase-status.json` (`phases.generate` **stays** `"pending"` — this
+     combination means "decision complete, execution available on request";
+     see `references/vendored/state/phase-status.schema.json`).
+  3. **Write the web-handoff summary (fail-open):** run
+     `python3 "<SKILL_BASE>/scripts/emit-plan-json.py" --migration-dir "$MIGRATION_DIR" --plugin-json "$PLUGIN_ROOT/.claude-plugin/plugin.json"`
+     (absolute paths — cwd must not be load-bearing). It reads the estimate
+     artifacts and writes `$MIGRATION_DIR/plan.json`, the uploadable handoff
+     file, printing `PLAN_OK | …` or `PLAN_SKIP | reason=…`. This is an optional
+     enhancement, never a gate: on any skip or error the decision is still
+     complete — continue without it and do not surface the script output to the
+     user.
+  4. Continue with the Feedback sidebar per `SKILL.md`. Close with:
+     "Your decision report is saved at `decision-report.html` (plus a
+     Slack-friendly `DECISION.md`). If you decide to migrate, say 'generate
+     the Terraform and migration scripts' — everything is saved and I'll pick
+     up from here."
+  5. **Web-handoff — only when step 3 printed `PLAN_OK`** (if it printed
+     `PLAN_SKIP`, omit this whole block; there is no file to upload). The
+     `plan.json` filename appears in EXACTLY ONE place — with the saved files the
+     close already names — and NEVER in the What's next block. Make two edits:
+     - **(a)** The close above is a sentence that names the saved files
+       (`decision-report.html`, `DECISION.md`). Extend that same sentence to name
+       `plan.json` too, with **AWS Startups Migrate** as a Markdown link — the
+       close is prose (not a code block), so a link renders here, unlike the
+       fenced Generate produced-list which stays plain text. Substitute the run's
+       `run_id` (from `.phase-status.json`) — e.g. "…and your uploadable plan at
+       `plan.json` — upload it to
+       [AWS Startups Migrate](https://startups.aws.com/startups/en-US/migrate/credits?source=plugin&run=<run_id>)
+       for up to $1,500 in credits." Keep it in the close sentence; do not float
+       it as a separate line above the What's next block.
+     - **(b)** Then append the What's next block below, verbatim, replacing
+       `<run_id>` in the link with the run's `run_id` (from `.phase-status.json`).
+       It MUST begin with the "💬 What's next" heading — do NOT add a `plan.json`
+       line (or any file line) above or inside it. The call-to-action must be a
+       Markdown link so it renders as clickable text with no bare URL. Do not
+       reword it — this copy is owned by the web experience:
+
+     > **💬 What's next**
+     >
+     > - **Refine your plan**
+     >   Tell me what to change. For example: "use Fargate instead," "make it multi-region," or "reduce the cost."
+     > - **Claim your credits**
+     >   When you're happy with your plan, upload it below to apply for up to $1,500 in AWS migration credits.
+     >
+     > [🎉 Get up to $1,500 in AWS migration credits →](https://startups.aws.com/startups/en-US/migrate/credits?source=plugin&run=<run_id>)
+     >
+     > Upload your plan to AWS Startups Migrate to see what you qualify for and unlock:
+     >
+     > - Interactive plan dashboard
+     > - Monthly cost estimate
+     > - Migration paths: AI Agent, AWS Expert, or AWS Partner
+     > - Up to $1,500 in AWS migration credits
+
+     Ship note: this reaches customers only after the import page and the
+     ImportPlan API are both live in production. This `plan.json` import handoff
+     is separate from the base64url plan-share link gated off in
+     `SKILL.md`/`feedback-collect.md`.
+- **B** → Load `references/phases/workshop/workshop.md`. Keep
+  `current_phase: estimate`; set `phases.workshop` → `"in_progress"`. On
+  workshop exit, **return to this gate** (options A and C; the workshop's
+  active scenario carries into either) — do not advance to Generate directly.
+- **C** → Set `run_mode: "decide_and_execute"` and `current_phase` →
+  `"generate"`. Continue with the Feedback/Generate sidebars in `SKILL.md`.
+
+### Decide-complete resume
+
+If a warm start finds `current_phase == "complete"` AND `run_mode == "decide"`
+AND `phases.generate == "pending"`: this is the decide-complete terminal state,
+not an incomplete run. Do **not** re-run Estimate. Offer:
+
+```
+Your last session ended with a decision (see decision-report.html /
+DECISION.md). Want to generate the Terraform and migration scripts now?
+
+[A] Yes, generate now
+[B] No, I'm still deciding
+```
+
+- **A** → Set `run_mode: "decide_and_execute"` and `current_phase` →
+  `"generate"` **before** loading `generate.md`. Continue to Generate.
+- **B** → Leave state unchanged; end the turn.

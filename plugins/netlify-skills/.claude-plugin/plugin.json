@@ -1,17 +1,32 @@
 {
   "name": "netlify-skills",
-  "version": "1.5.0",
-  "description": "Netlify platform skills for Claude Code",
-  "updatedAt": "2026-09-19T00:42:54.289Z",
+  "version": "1.9.0",
+  "description": "Build and deploy on Netlify: functions, edge functions, blobs, database, identity, forms, image CDN, caching, and AI Gateway, plus the Netlify MCP server.",
+  "updatedAt": "2026-11-17T00:02:00.288Z",
   "author": {
+    "url": "https://www.netlify.com",
     "name": "Netlify"
   },
-  "homepage": "https://github.com/netlify/context-and-tools",
+  "homepage": "https://docs.netlify.com",
   "repository": "https://github.com/netlify/context-and-tools",
+  "keywords": [
+    "netlify",
+    "deploy",
+    "serverless",
+    "functions",
+    "edge-functions",
+    "blobs",
+    "database",
+    "image-cdn",
+    "forms",
+    "mcp"
+  ],
+  "displayName": "Netlify",
+  "logo": "assets/logo.svg",
   "skills": "./skills/",
   "mcpServers": {
     "netlify": {
-      "url": "https://netlify-mcp.netlify.app/mcp",
+      "url": "https://mcp.netlify.com/mcp",
       "note": "Official Netlify MCP server (hosted, streamable HTTP). Authorizes via OAuth on first connection — the agent is prompted to sign in to Netlify; no token or local install required. Lets the agent create and manage Netlify projects, deploys, and environment variables.",
       "type": "http"
     }

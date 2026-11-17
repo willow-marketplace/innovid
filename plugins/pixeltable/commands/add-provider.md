@@ -1,15 +1,15 @@
 ---
 name: add-provider
-description: Add an AI provider call as a Pixeltable computed column (correct import + output shape).
+description: Add embeddings, transcription, vision, or an LLM call as a Pixeltable computed column (correct import and output shape). Use when wiring OpenAI, Whisper, CLIP, or another provider instead of a for-loop.
 ---
 
-Wire an AI provider into a Pixeltable table as a computed column. The model runs automatically on insert : never write a `for row in ...:` loop calling the model.
+Wire an AI provider into a Pixeltable table as a computed column. The model runs automatically on insert; never write a `for row in ...:` loop calling the model.
 
 Request: `$ARGUMENTS`
 
 Steps:
 
-1. Identify the provider module under `pixeltable.functions.<provider>` (e.g. `openai`, `anthropic`, `gemini`, `groq`, `bedrock`, `together`, `fireworks`, `ollama`, `whisper`). Confirm the exact import and output shape in the `pixeltable` skill (`references/providers.md` → Quick Reference) before writing code.
+1. Identify the provider module under `pixeltable.functions.<provider>` (e.g. `openai`, `anthropic`, `gemini`, `groq`, `bedrock`, `together`, `fireworks`, `ollama`, `whisper`). Confirm the exact import, model argument (`model=` on most, `model_id=` on `bedrock` and `huggingface`), extra-parameter dict, and output shape in the `pixeltable` skill (`references/providers.md`) before writing code. Anthropic `messages` requires `max_tokens=`.
 
 2. Add the call as a computed column, extracting the right field from the response. App file (assignment on the model):
 

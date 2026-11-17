@@ -1,10 +1,18 @@
 > AI agents: this is one page from PostHog's docs. Full index of Markdown docs for LLMs: https://posthog.com/llms.txt
 
-# Monitor and search issues - Docs
+# Monitor and search issues
 
-Copy page
+Canonical URL: https://posthog.com/docs/error-tracking/monitoring
 
-# Monitor and search issues - Docs
+> **Cloud region:** This page uses US Cloud hosts. For an EU Cloud project, use `https://eu.posthog.com` instead of `https://app.posthog.com` (app host for links).
+
+## On this page
+
+- [Monitoring issues](#monitoring-issues)
+- [Finding specific issues](#finding-specific-issues)
+- [Issue details](#issue-details)
+- [Improving search performance](#improving-search-performance)
+- [Suppressing issues](#suppressing-issues)
 
 This guide covers how to find the most relevant, urgent, and impactful issues in your error tracking using the [issues page](https://app.posthog.com/error_tracking).
 
@@ -31,13 +39,13 @@ Sorting by **last seen** and **occurrences** are great ways to get a general sen
 
 ### Monitoring issues assigned to you
 
-You can filter issues by the **Assigned to** property to find issues assigned to you. This is especially useful if you configure [automatic issue assignment](/docs/error-tracking/assigning-issues.md) and configure [alerts](/docs/error-tracking/alerts.md) to notify you when new issues are created.
+You can filter issues by the **Assigned to** property to find issues assigned to you. This is especially useful if you configure [automatic issue assignment](https://posthog.com/docs/error-tracking/assigning-issues.md) and configure [alerts](https://posthog.com/docs/error-tracking/alerts.md) to notify you when new issues are created.
 
 ## Finding specific issues
 
 You can use the search bar at the top of the [issue page](https://app.posthog.com/error_tracking) to filter issues based on the properties of the exceptions in that issue.
 
-Search results are matched based on [properties of exception events](/docs/error-tracking/issues-and-exceptions.md) grouped into the issues. For example, if you search for "TypeError", we show you all issues where *any* exception grouped into the issue has a type of "TypeError".
+Search results are matched based on [properties of exception events](https://posthog.com/docs/error-tracking/issues-and-exceptions.md) grouped into the issues. For example, if you search for "TypeError", we show you all issues where *any* exception grouped into the issue has a type of "TypeError".
 
 **Unrelated results**
 
@@ -51,11 +59,11 @@ The search bar provides two modes of filtering:
 
 This operates like property filters elsewhere in PostHog, enabling you to add terms like `where 'http_referer' is set` or `where 'library' equals 'web'`. You add a property filter by clicking the property name shown here:
 
-![Adding a property to the property filter](https://res.cloudinary.com/dmukukwp6/image/upload/pasted_image_2026_06_24_T10_06_35_277_Z_54ad9274ba.png)![Adding a property to the property filter](https://res.cloudinary.com/dmukukwp6/image/upload/pasted_image_2026_06_24_T10_07_25_246_Z_709bdb93ad.png)
+![Adding a property to the property filter](https://res.cloudinary.com/dmukukwp6/image/upload/pasted_image_2026_06_24_T10_06_35_277_Z_54ad9274ba.png)
 
 Added property filters look like this:
 
-![Search bar with property filter](https://res.cloudinary.com/dmukukwp6/image/upload/pasted_image_2026_06_24_T10_08_41_220_Z_ac7ad6c492.png)![Search bar with property filter](https://res.cloudinary.com/dmukukwp6/image/upload/pasted_image_2026_06_24_T10_08_14_625_Z_6c0ba08732.png)
+![Search bar with property filter](https://res.cloudinary.com/dmukukwp6/image/upload/pasted_image_2026_06_24_T10_08_41_220_Z_ac7ad6c492.png)
 
 The results of both of these filter types (property filters and freeform search) are combined with `AND` logic, such that only exceptions that match all filters are included in the search results.
 
@@ -69,8 +77,6 @@ This does text matching for a subset of the error tracking specific properties o
 -   The file paths in the exception stack trace (if known)
 
 For example, imagine you have an exception that looks like this:
-
-PostHog AI
 
 ```
 TypeError: Cannot read property 'name' of undefined
@@ -109,7 +115,7 @@ This page shows you the following:
 -   Name, description, status, assignee, and external tracking links for the issue.
 -   A filterable list of all exceptions in the issue. **Selecting an exception** will show you the stack trace, properties, and sessions related to that exception at the top of the page.
 
-![An issue, with an unfiltered exception list](https://res.cloudinary.com/dmukukwp6/image/upload/pasted_image_2026_06_24_T13_50_11_322_Z_dfe9b9dd79.png)![An issue, with an unfiltered exception list](https://res.cloudinary.com/dmukukwp6/image/upload/pasted_image_2026_06_24_T13_49_48_664_Z_30d13a2ef1.png)
+![An issue, with an unfiltered exception list](https://res.cloudinary.com/dmukukwp6/image/upload/pasted_image_2026_06_24_T13_50_11_322_Z_dfe9b9dd79.png)
 
 ### Filtering exception occurrences within an issue
 
@@ -117,11 +123,11 @@ Once you've found and opened the issue you want to investigate, you can use the 
 
 For example, you can add a property filter on `http_referer` that shows all exceptions where the `http_referer` is set:
 
-![An issue, with a filtered exception list](https://res.cloudinary.com/dmukukwp6/image/upload/pasted_image_2026_06_24_T10_11_45_290_Z_bf3b371db8.png)![An issue, with a filtered exception list](https://res.cloudinary.com/dmukukwp6/image/upload/pasted_image_2026_06_24_T10_11_28_842_Z_fe608ddf0a.png)
+![An issue, with a filtered exception list](https://res.cloudinary.com/dmukukwp6/image/upload/pasted_image_2026_06_24_T10_11_45_290_Z_bf3b371db8.png)
 
 **Alerts**
 
-If you have a set of filters that you use often, you can create alerts for them. This way you can be notified when new issues match your filters. Learn more about [alerts](/docs/error-tracking/alerts.md).
+If you have a set of filters that you use often, you can create alerts for them. This way you can be notified when new issues match your filters. Learn more about [alerts](https://posthog.com/docs/error-tracking/alerts.md).
 
 ## Improving search performance
 
@@ -135,12 +141,4 @@ If you find your queries timing out or taking more than 30 seconds, please [let 
 
 ## Suppressing issues
 
-If you find issues that are not useful to you, you can suppress them by changing the status to **Suppressed**. We recommend that you also implement [client-side suppression](/docs/error-tracking/capture.md#suppressing-exceptions) to not capture these exceptions in the first place, for cost and performance reasons.
-
-### Still have questions?
-
-Ask PostHog AI
-
-### Was this page useful?
-
-HelpfulCould be better
+If you find issues that are not useful to you, you can suppress them by changing the status to **Suppressed**. We recommend that you also implement [client-side suppression](https://posthog.com/docs/error-tracking/capture.md#suppressing-exceptions) to not capture these exceptions in the first place, for cost and performance reasons.

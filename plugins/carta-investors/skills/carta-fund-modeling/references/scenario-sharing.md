@@ -1,15 +1,26 @@
 # Scenario sharing (publish / pull)
 
 Firm admins can share Fund Modeling scenarios across their firm. Sharing is **built into the
-app** — there is no chat/prompt flow. If a user asks to share, publish, or pull scenarios,
-point them at the in-app controls below.
+app**, local (`serve.py`) and hosted alike — there is no chat/prompt flow. If a user asks to
+share, publish, or pull scenarios, point them at the in-app controls below. A scenario published
+from one pulls into the other.
+
+On the hosted app, each user's scenarios and fund plans are their own: a colleague who opens the
+same firm sees only theirs. Publish and pull share scenarios across the firm, with other hosted
+users and with local apps alike. The Fund Modeling panel inside Claude has no sharing controls:
+sharing happens in the browser app.
 
 ## In the app
 
-- **SHARED sidebar section** — always shown, below your local SCENARIOS. Its **Load shared
-  scenarios** (⤓) control pulls the firm's shared scenarios; they render under SHARED.
-- **Per-scenario actions** (top bar, for the active scenario):
-  - **Publish** — a local scenario → shared with the firm.
+- **Shared with you** — a section of the Scenarios page (the **Scenario** switcher at the top of the sidebar → **View all**).
+  Its header's **Update data** link pulls the firm's shared scenarios (until any are loaded, the section reads
+  "Update data to check for any new shared scenarios", the same link); they render there and, with a **Shared** tag, in the
+  sidebar menu too. Hidden ones come back from its "N hidden · Show" link.
+- **Publish** — a local scenario → shared with the firm. In the **Scenario** switcher at the top of the sidebar, open the
+  scenario tile's **⋯** menu and choose Publish (in a narrow window, the row of buttons under the scenario
+  chips has it for the active scenario).
+- **Shared-scenario actions** (top bar, for the active shared scenario):
+  - **Rename** — rename it; Update then pushes the new name to the firm.
   - **Update** — push your local edits to the shared scenario (any firm admin;
     last-write-wins, with a prompt if a teammate changed it since you loaded it). Shown
     disabled until you edit the scenario, so the edit→publish path is visible up front. If the
@@ -17,17 +28,19 @@ point them at the in-app controls below.
     (re-share your edits) or **Keep private** (drop the link, keep a local copy).
   - **Duplicate** — an independent private copy that drops the share link.
   - **Hide** — take the scenario off your list; the firm's copy stays and a later pull keeps
-    it hidden. "N hidden · Show" in the SHARED header brings hidden scenarios back.
+    it hidden. "N hidden · Show" in the Scenarios page's Shared with you header brings hidden scenarios back.
   - **Delete** — owner only; removes the scenario for the whole firm.
 - A shared scenario shows "updated {when} · by you / another admin" and, when it was built
   against a different data vintage than yours, an informational drift banner.
 
 ## How it works
 
-- **The browser never calls Carta.** `serve.py` exposes `POST /api/scenarios/{publish,pull,delete}`
-  and `GET /api/scenarios/share-status`; `scripts/share.py` drives a headless Claude MCP session
-  (the same bridge the "Update data" refresh button uses) to call the `fa:*:investor_scenarios`
-  commands, then merges the result into `portfolio.json`. The local server holds no credentials.
+- **The browser never calls Carta.** Both servers expose `POST /api/scenarios/{publish,pull,delete}`
+  and `GET /api/scenarios/share-status`. Locally, `scripts/share.py` drives a headless Claude MCP
+  session (the same bridge the "Update data" refresh button uses) to call the
+  `fa:*:investor_scenarios` commands, then merges the result into `portfolio.json`; the local
+  server holds no credentials. The hosted app's server calls the same five commands directly
+  with the signed-in user's Carta token and merges the result into that user's own scenarios.
 - A shared scenario is an ordinary slice carrying
   `shared:{uuid, createdBy, updatedBy, updatedAt, snapshotBasis, dirty}`. **Pull** re-hydrates each
   payload onto your current baseline by `entity_link_id` and upserts by `shared.uuid` — idempotent,
@@ -36,8 +49,8 @@ point them at the in-app controls below.
 - **Firm-admin gated**. When sharing isn't enabled for the firm, the
   app surfaces one clean message ("Scenario sharing isn't enabled for this firm yet") and does
   nothing else — no retry, no fallback.
-- The headless session reaches Carta the same way the refresh button does (via the connected Carta
-  MCP), so sharing works wherever the refresh button does.
+- Locally, the headless session reaches Carta the same way the refresh button does (via the
+  connected Carta MCP), so sharing works wherever the refresh button does.
 
 ## LP data & XSS
 

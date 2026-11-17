@@ -1,18 +1,21 @@
 {
   "name": "fullstory",
-  "version": "0.1.0",
+  "version": "0.2.2",
   "description": "Connect Claude to Fullstory to query behavioral analytics, session replays, and customer experience insights.",
-  "updatedAt": "2026-09-19T00:42:54.335Z",
+  "updatedAt": "2026-11-17T00:01:41.783Z",
   "author": {
+    "url": "https://www.fullstory.com",
     "name": "Fullstory"
   },
   "homepage": "https://www.fullstory.com",
+  "repository": "https://github.com/fullstorydev/fullstory-skills",
   "keywords": [
     "analytics",
     "customer-experience",
     "behavioral-analytics",
     "session-replay"
   ],
+  "displayName": "Fullstory",
   "skills": "./skills/",
   "agents": [
     "./agents/session-context.md"

@@ -15,18 +15,39 @@ Supports **Codex** (plugins), **Claude Code** (Claude Code CLI / Cowork), **Curs
 | `signal-prospect` | Start from a buying signal (funding, hiring surge, job change) and get the right decision makers' phones |
 | `lookalike-prospect` | Give Lusha 5+ reference companies or contacts — get a matched list enriched with phone numbers |
 
+**Prioritise and follow up**
+
+| Skill | What it does |
+|-------|-------------|
+| `work-my-accounts` | Ask "who should I go after?" — get 10 recommended accounts with the reason each is listed, then a call list of decision makers at the ones you pick |
+| `score-my-list` | Bring a CSV, a list of domains or a Workspace table — get it scored by ICP fit and live buying signals and split into A, B and C tiers |
+| `website-visitor-followup` | Rank the companies visiting your website, keep the hot ones, and get the decision makers' phones |
+| `set-up-my-icp` | Set up your ICP Target Profile one question at a time, with each answer drafted for you, then preview 10 matching accounts |
+| `save-or-export` | Save any result to a Lusha Workspace table or export it to your CRM; checks the CRM connection first and offers to connect one |
+
 **Write outreach** — a two-stage pair, run in order
 
 | Skill | What it does |
 |-------|-------------|
-| `outreach-research` | Stage 1. Capture what you sell, to whom, and how you differentiate as a portable positioning brief (`lusha-outreach-brief.md`). Text only — makes no Lusha API calls |
-| `outreach-sequence` | Stage 2. Turn that brief plus a contact list into personalized, signal-grounded Email 1 (optionally E2/E3 and LinkedIn), handoff-ready as flat CSV |
+| `outreach-research` | Stage 1. Capture what you sell, to whom, with what proof, and how you differentiate as a portable positioning brief (`lusha-outreach-brief.md`). Text only — makes no Lusha API calls |
+| `outreach-sequence` | Stage 2. Turn that brief plus a contact list into short, signal-grounded Email 1 (optionally Emails 2–3 and LinkedIn messages), handoff-ready as flat CSV, with each draft's hook and personal-touch source alongside it |
 
 ## How it works
 
 The find-and-enrich skills each chain multiple Lusha API calls into a complete workflow, and surface verified phone numbers prominently — direct lines and mobile numbers are first-class outputs, not an afterthought.
 
-The outreach pair sits on top of them. `outreach-research` is pure conversation, producing a brief you save and reuse. `outreach-sequence` consumes that brief and never calls Lusha directly: it delegates signal discovery and harvest to `signal-prospect`, and contact enrichment to `enrich-contact`, so credit handling stays in one place. Every call it triggers is tagged with a `reason_for_invocation` starting `outreach-sequence: `, which is how skill-driven usage is attributed.
+The prioritise skills start from what you already have: your ICP profile, your own list, or your website traffic. Each one starts with the free calls (your ICP profiles, your CRM connection, your visit data) and branches on what it finds. Anything not set up yet gets a setup offer or a fallback, not an error.
+
+Every skill that spends credits:
+- states the cost before the call
+- previews 10 before pulling a full page
+- reveals only the people you pick
+
+Some reveals finish in the background when third-party sources answer later. The skills wait for those reveals rather than charging twice. Each find, prioritise and enrich skill ends with the same two options, save to a Workspace table or export to your CRM (both through `save-or-export`), plus one related skill.
+
+Every Lusha call a skill makes passes the `conversation_id` from the previous response and tags `reason_for_invocation` with the skill's name.
+
+The outreach pair sits on top of them. `outreach-research` is pure conversation, producing a brief you save and reuse. `outreach-sequence` consumes that brief and never calls Lusha directly: it delegates signal discovery and harvest to `signal-prospect`, and contact enrichment to `enrich-contact`, so credit handling stays in one place. Every call it triggers is tagged with a `reason_for_invocation` starting `outreach-sequence: `, which is how skill-driven usage is attributed (each other skill tags its calls with its own name the same way).
 
 All clients load the **same** `skills/*/SKILL.md` files and the **same** Lusha MCP server — only the per-client manifest and store endpoint differ:
 
@@ -71,7 +92,7 @@ Select **Lusha Plugins**, install the Lusha plugin, then start a new Codex threa
 
 ### Cursor
 
-Cursor reads the plugin manifest at `.cursor-plugin/plugin.json` and discovers the bundled `skills/` automatically. Add the repo as a plugin marketplace, then install the Lusha plugin from `.cursor-plugin/marketplace.json` (catalog `lusha-plugins`, plugin `lusha`). All six skills activate from natural-language requests once the MCP server connects.
+Cursor reads the plugin manifest at `.cursor-plugin/plugin.json` and discovers the bundled `skills/` automatically. Add the repo as a plugin marketplace, then install the Lusha plugin from `.cursor-plugin/marketplace.json` (catalog `lusha-plugins`, plugin `lusha`). All skills activate from natural-language requests once the MCP server connects.
 
 ### VS Code Copilot
 
@@ -81,7 +102,7 @@ Requires a VS Code version with agent-plugin support and the GitHub Copilot exte
 2. Run **Chat: Install Plugin From Source**.
 3. Paste the repository name: `lusha-oss/lusha-mcp-plugin`.
 
-The Lusha MCP server and all six skills load automatically. Invoke a skill from Copilot Chat with `/enrich-contact`, `/prospect`, `/signal-prospect`, `/lookalike-prospect`, `/outreach-research`, or `/outreach-sequence`.
+The Lusha MCP server and all skills load automatically. Invoke a skill from Copilot Chat with its name, e.g. `/enrich-contact`, `/prospect`, `/work-my-accounts`, `/score-my-list`, or `/outreach-sequence`.
 
 ### Gemini CLI
 
@@ -91,7 +112,7 @@ The repo ships a `gemini-extension.json` manifest at its root, so Gemini CLI wir
 gemini extensions install https://github.com/lusha-oss/lusha-mcp-plugin
 ```
 
-All six skills are registered as extension skills — Gemini activates the matching one on demand (e.g. when you ask it to find a contact's phone number, build a prospect list, or draft outreach). Run `gemini skills list` to confirm they loaded.
+All skills are registered as extension skills — Gemini activates the matching one on demand (e.g. when you ask it to find a contact's phone number, build a prospect list, or draft outreach). Run `gemini skills list` to confirm they loaded.
 
 ## Authentication
 
@@ -104,6 +125,10 @@ Skills are designed to feed into each other:
 - `prospect` → `signal-prospect`: build a list, then filter it to companies showing buying signals
 - `lookalike-prospect` → `signal-prospect`: find lookalikes, then prioritize by signal
 - `enrich-contact` → `lookalike-prospect`: enrich a single contact, then find similar people
+- `prospect` / `lookalike-prospect` → `score-my-list`: rank the list you just built by ICP fit and buying signals
+- `work-my-accounts` ↔ `set-up-my-icp`: recommendations run on a calculated profile until you set up your own; a new profile previews its top accounts
+- `score-my-list` → `work-my-accounts`: find the decision makers at your A tier
+- any find or prioritise skill → `save-or-export`: save the result to a Workspace table or export it to your CRM
 - `outreach-research` → `outreach-sequence`: capture positioning once, then draft against it
 - `prospect` → `outreach-sequence`: hand a lead list straight into drafting (optional — any CSV with `full_name`, `company`, and `title` works)
 
@@ -117,6 +142,22 @@ Skills are designed to feed into each other:
 - **Automated** — the caller declares a non-interactive run (`"non-interactive"`, `"headless"`, `"automated run"`, or `"no user is available to answer"`), as an automation runner or scheduled job would. Every question resolves from a supplied value or a documented default and execution continues, because an emitted question would become the final output and the run would produce nothing.
 
 Automated mode never relaxes the data rules: the brief and audience stay hard-required, signal and enrichment work still delegates to the other skills, and nothing may be fabricated to fill a gap.
+
+### What the drafts follow
+
+- **Email 1** is five short parts (why now, pain, what the product does, one proof point, one question), 50–90 words, with a 3–5-word subject. It asks about interest, never for a meeting, unless you ask for one.
+- **A signal is the reason for writing** only when it is relevant to the persona's pain, dated within 90 days, and stated as the source states it: the month, never "last week"; no percentages or estimated figures. Website visits and intent topics set the timing but never appear in a message. When no signal qualifies, Email 1 leads with the persona's pain and names one real detail about the contact or their company.
+- **Email 2** brings one new reason (a second signal, a proof point, or a question about the pain); **Email 3** closes the thread by naming Email 1's topic. Both reuse Email 1's subject so your sending tool threads them.
+- **LinkedIn** copy is the message for once they accept; send the connection request blank unless you ask for notes (at most 200 characters).
+- **No placeholders.** A part that needs a fact the brief lacks is left out, and one line under the table says what to add to the brief. A personal touch comes only from a Lusha enrich result that shows a prior employer: the prior title and employer, nothing more.
+
+### Output columns (0.1.3)
+
+`linkedin_message` (the message for once they accept) and `linkedin_connection_note` replace `linkedin_message_1`–`linkedin_message_3`, and every drafted row gains `hook_source` and `personal_touch_source`. Update any Braze, Outreach or Salesloft template that used the old LinkedIn columns.
+
+### Brief format
+
+`outreach-research` writes brief **v2** (`<!-- lusha-outreach-brief v2 -->`): it adds proof points (each marked *OK to name in email*), titles to match per persona, an optional email style, and an ` (unconfirmed)` marker for values from a web search that you have not confirmed. Both skills still read a v1 brief.
 
 ## Contributing
 

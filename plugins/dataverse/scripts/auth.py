@@ -37,6 +37,7 @@ Functions:
   get_client(skill)     — returns a DataverseClient with plugin attribution
   get_token(scope=None) — returns a raw access token string
   get_plugin_headers(skill, token) — returns headers dict for raw Web API calls
+  get_cli_context(skill) — returns the unwrapped attribution value for CLI --context
 
 Usage:
     # PREFERRED — SDK with plugin attribution:
@@ -830,35 +831,95 @@ def get_token(scope=None):
 
 _ALLOWED_SKILLS = frozenset({
     "dv-overview", "dv-connect", "dv-data", "dv-query",
-    "dv-metadata", "dv-solution", "dv-admin", "dv-security", "erp-xpp",
+    "dv-metadata", "dv-solution", "dv-admin", "dv-security", "erp-xpp", "erp-sql",
     "unknown",
 })
 _ALLOWED_AGENTS = frozenset({
-    "claude-code", "copilot", "cursor", "codex", "unknown",
+    "claude-code", "copilot", "cursor", "codex", "gemini-cli",
+    "antigravity-cli", "unknown",
 })
 # Strict format: key=value pairs, semicolon-separated. No spaces, no PII.
 _CONTEXT_RE = re.compile(
     r"^[a-zA-Z0-9_-]+=[a-zA-Z0-9_./-]+(;[a-zA-Z0-9_-]+=[a-zA-Z0-9_./-]+)*$"
 )
+# Charset for the optional "<agent>/<surface>" suffix. The IDE surface is not
+# enumerated -- it only needs to be charset-safe (no spaces/PII), so a new surface
+# needs no code change.
+_SAFE_VALUE_RE = re.compile(r"[a-zA-Z0-9_.-]+")
+
+
+_PLUGIN_VERSION_CACHE = None
 
 
 def _plugin_version():
     """Return the plugin version for telemetry attribution.
 
-    Sourced from DATAVERSE_PLUGIN_VERSION, which dv-connect writes into .env from
-    the live plugin manifest on every connect (Step 0 / Step 3). The deployed
-    layout copies this file to <project>/scripts/auth.py -- away from the plugin
-    manifest -- so a manifest path relative to __file__ is unreliable here; the
-    env var, refreshed at connect, is the source of truth.
+    Primary source is DATAVERSE_PLUGIN_VERSION, which dv-connect writes into .env
+    from the live plugin manifest on marketplace / plugin installs. npx and the
+    JetBrains registry install skill folders only (no manifest), so the env var is
+    often "unknown" there; in that case resolve the version from the canonical
+    manifest (local if reachable, else fetched once and cached).
+
+    Fail-open: a value that would break the closed-schema context string is
+    coerced to "unknown", so attribution can never block the operation.
     """
-    return os.environ.get("DATAVERSE_PLUGIN_VERSION", "unknown")
+    env_version = os.environ.get("DATAVERSE_PLUGIN_VERSION", "").strip()
+    if env_version and env_version != "unknown":
+        return env_version if re.fullmatch(r"[a-zA-Z0-9_./-]+", env_version) else "unknown"
+    ver = _resolve_manifest_version()
+    return ver if re.fullmatch(r"[a-zA-Z0-9_./-]+", ver or "") else "unknown"
+
+
+def _resolve_manifest_version():
+    """Resolve the plugin version from the canonical manifest, cached per process.
+
+    Tries a local manifest (present on repo-clone / plugin installs), then fetches
+    it from GitHub (npx / registry installs ship no manifest). Network and parse
+    failures degrade to "unknown" -- this never raises.
+    """
+    global _PLUGIN_VERSION_CACHE
+    if _PLUGIN_VERSION_CACHE is not None:
+        return _PLUGIN_VERSION_CACHE
+    import json
+
+    version = "unknown"
+    for manifest in (".claude-plugin/plugin.json",
+                     ".github/plugins/dataverse/.claude-plugin/plugin.json"):
+        try:
+            with open(manifest, encoding="utf-8") as fh:
+                version = json.load(fh).get("version") or version
+            break
+        except (OSError, ValueError):
+            continue
+    if version == "unknown":
+        try:
+            import urllib.request
+            url = ("https://raw.githubusercontent.com/microsoft/Dataverse-skills/"
+                   "main/.github/plugins/dataverse/.claude-plugin/plugin.json")
+            with urllib.request.urlopen(url, timeout=5) as resp:
+                version = json.load(resp).get("version") or "unknown"
+        except Exception:
+            version = "unknown"
+    _PLUGIN_VERSION_CACHE = version
+    return version
 
 
 def _current_agent():
-    agent = os.environ.get("DATAVERSE_PLUGIN_AGENT", "unknown")
-    if agent not in _ALLOWED_AGENTS:
-        raise ValueError(f"Unknown agent '{agent}'; allowed: {_ALLOWED_AGENTS}")
-    return agent
+    """Return the attribution agent, with an optional "/<surface>" suffix, fail-open.
+
+    dv-connect writes DATAVERSE_PLUGIN_AGENT -- a bare agent (e.g. "codex") or, on a
+    detected IDE surface, "<agent>/<surface>" (e.g. "codex/jetbrains"). The base is
+    validated against the agent allowlist; the surface suffix only needs to be
+    charset-safe (it is not enumerated, so a new surface needs no code change).
+    Anything unrecognized is coerced/dropped rather than raised -- attribution must
+    never gate the data operation.
+    """
+    raw = os.environ.get("DATAVERSE_PLUGIN_AGENT", "unknown")
+    base, sep, surface = raw.partition("/")
+    base = base if base in _ALLOWED_AGENTS else "unknown"
+    if sep and _SAFE_VALUE_RE.fullmatch(surface):
+        return f"{base}/{surface}"
+    return base
 
 
 def _validate_skill(skill):
@@ -867,26 +928,41 @@ def _validate_skill(skill):
     return skill
 
 
-def _build_operation_context(skill):
-    """Build and validate the operation_context string.
+def _operation_context_str(skill):
+    """Assemble the attribution string, fail-open.
 
-    Returns an OperationContext object for the SDK.  The string is validated
-    both here (via allowlists) and inside OperationContext.__post_init__
-    (via regex + control-char check).
-
-    SECURITY: Only closed-schema values from _ALLOWED_SKILLS and
-    _ALLOWED_AGENTS are used.  Never pass user-provided or free-form
-    strings into operation_context — it is written to HTTP headers and
-    server-side telemetry logs.
+    agent/version are already allow-listed / charset-safe (the agent may carry a
+    "<agent>/<surface>" suffix), so the result satisfies _CONTEXT_RE. The final
+    check is a defensive net: on any mismatch it degrades to a minimal safe context
+    instead of raising, so a bad attribution value can never block the call.
     """
     ctx_str = f"app=dataverse-skills/{_plugin_version()};skill={skill};agent={_current_agent()}"
     if not _CONTEXT_RE.match(ctx_str):
-        raise ValueError(
-            f"operation_context failed format validation: {ctx_str!r}. "
-            "Must be semicolon-separated key=value pairs with no spaces or special characters."
-        )
+        safe_skill = skill if skill in _ALLOWED_SKILLS else "unknown"
+        ctx_str = f"app=dataverse-skills/unknown;skill={safe_skill};agent=unknown"
+    return ctx_str
+
+
+def get_cli_context(skill):
+    """Return validated plugin attribution for CLI --context, without parentheses."""
+    _validate_skill(skill)
+    return _operation_context_str(skill)
+
+
+def _build_operation_context(skill):
+    """Build the operation_context for the SDK, fail-open.
+
+    An older installed SDK may not yet accept the "<agent>/<surface>" suffix and
+    would raise. In that case strip the suffix and retry with the bare agent, so
+    attribution degrades gracefully and never gates the data operation.
+    """
+    ctx_str = _operation_context_str(skill)
     from PowerPlatform.Dataverse.core.config import OperationContext
-    return OperationContext(user_agent_context=ctx_str)
+    try:
+        return OperationContext(user_agent_context=ctx_str)
+    except ValueError:
+        base_ctx = re.sub(r"(;agent=[a-zA-Z0-9_-]+)/[a-zA-Z0-9_.-]+", r"\1", ctx_str)
+        return OperationContext(user_agent_context=base_ctx)
 
 
 def get_client(skill, **kwargs):
@@ -914,11 +990,39 @@ def get_client(skill, **kwargs):
     )
 
 
-def get_plugin_headers(skill, token=None):
-    """Return HTTP headers for raw Web API calls, with plugin attribution.
+_RAW_FALLBACK_HINT_EMITTED = False
 
-    Use this for operations the SDK does not support (forms, views, $apply,
-    N:N $expand, unbound actions).
+
+def _emit_raw_fallback_hint():
+    """Emit a one-time, non-fatal hint that this is the raw Web API fallback.
+
+    Printed once per process to stderr so an agent is informed without polluting
+    stdout/data. The call still succeeds -- this only informs, it never blocks.
+    Set DATAVERSE_SUPPRESS_FALLBACK_HINT=1 to silence.
+    """
+    global _RAW_FALLBACK_HINT_EMITTED
+    if _RAW_FALLBACK_HINT_EMITTED or os.environ.get("DATAVERSE_SUPPRESS_FALLBACK_HINT"):
+        return
+    _RAW_FALLBACK_HINT_EMITTED = True
+    try:
+        print(
+            "[dataverse-skills] get_plugin_headers() is the raw Web API FALLBACK. "
+            "Prefer get_client() (SDK) for record CRUD, queries, bulk delete, batching, "
+            "and metadata; use raw HTTP only for genuine gaps (unbound actions, global option sets).",
+            file=sys.stderr,
+        )
+    except Exception:
+        pass  # best-effort diagnostic; must never break header construction
+
+
+def get_plugin_headers(skill, token=None):
+    """Return HTTP headers for a raw Web API call -- the FALLBACK path.
+
+    PREFER ``get_client(skill)`` (the SDK). The SDK covers all record CRUD,
+    queries (aggregation via ``client.query.fetchxml()``, N:N via
+    ``builder().expand()``), bulk delete, batching, and metadata. Reach for this
+    raw-HTTP helper ONLY for genuine SDK gaps -- unbound actions such as
+    ``PublishXml`` / ``AddSolutionComponent``, or global option sets.
 
     IMPORTANT: Do not modify the User-Agent context — it uses a closed
     schema (app/skill/agent) for safe server-side attribution.  Never
@@ -929,11 +1033,8 @@ def get_plugin_headers(skill, token=None):
     :returns: Headers dict with User-Agent and optional Authorization.
     """
     _validate_skill(skill)
-    ctx_str = f"app=dataverse-skills/{_plugin_version()};skill={skill};agent={_current_agent()}"
-    if not _CONTEXT_RE.match(ctx_str):
-        raise ValueError(
-            f"operation_context failed format validation: {ctx_str!r}."
-        )
+    _emit_raw_fallback_hint()
+    ctx_str = _operation_context_str(skill)
     headers = {"User-Agent": f"Python-urllib ({ctx_str})"}
     if token:
         headers["Authorization"] = f"Bearer {token}"

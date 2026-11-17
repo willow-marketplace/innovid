@@ -11,7 +11,7 @@ Label Capture (Smart Label Capture) extracts multiple fields from a single label
 - After installing, run `cordova prepare ios` and `cordova prepare android`. For iOS, a fresh `pod install` inside `platforms/ios/` may be required.
 - Cordova `>=11`, `cordova-ios >=6.2`, `cordova-android >=10`.
 - Android `minSdkVersion` 24 or higher.
-- A valid Scandit license key from <https://ssl.scandit.com>.
+- A valid Scandit license key — see **Licence key** in this skill's `SKILL.md`.
 - Camera permissions:
   - iOS: `NSCameraUsageDescription` in `Info.plist` (or via `<config-file>` in `config.xml`).
   - Android: declared automatically by the plugin; request at runtime via `cordova.plugins.diagnostic` (or similar) if `minSdkVersion >= 23`.
@@ -349,7 +349,7 @@ When the user reports a problem, map the symptom to its cause before suggesting 
 
 - **Text / OCR fields never match (`ExpiryDateText`, `TotalPriceText`, `CustomText`, etc.)** — the on-device text models must be bundled. The `ScanditLabelCaptureText` module is required for arbitrary text fields and `ScanditPriceLabel` for price fields (`UnitPriceText` / `TotalPriceText`); both ship inside `scandit-cordova-datacapture-label`, so confirm that plugin is installed and `cordova prepare` was re-run. Barcode-only labels do not need them.
 
-- **A field never matches even though the text is on the label** — the field's `valueRegexes` or `anchorRegexes` is too strict. Prefer the preset field (its regexes are tuned) over a hand-written `Scandit.CustomText`. If the label has no keyword near the value, clear the anchors with `field.anchorRegexes = []` and rely on the value regex alone. Keep regexes simple — lookahead/lookbehind are not supported and silently fail to match.
+- **A field never matches even though the text is on the label** — the field's `valueRegexes` or `anchorRegexes` is too strict. Prefer the preset field (its regexes are tuned) over a hand-written `Scandit.CustomText`. If the label has no keyword near the value, clear the anchors with `field.anchorRegexes = []` and rely on the value regex alone. Keep each value regex bounded with explicit length limits; lookahead and lookbehind are supported.
 
 - **Handwritten or non-Latin text is never read** — expected. Label Capture reads **printed text** in the supported Latin character set only (see Recognition Limits above). Use the Validation Flow's manual-entry sheet so the user can type the value when it cannot be scanned.
 

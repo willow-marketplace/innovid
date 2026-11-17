@@ -9,7 +9,7 @@ title: "Empowering the Next Generation of Startups to Scale with Real-Time Data"
 
 ### Up to $20,000 in Confluent Cloud credits
 
-Deploy the power of Apache Kafka and Apache Flink while maintaining the speed and agility that early-stage businesses need. The Confluent for Startups program combines up to one year of Confluent Cloud alongside technical help to get you up and running with our simple, fully-managed service. Interested in learning more about our program? Check out our video [here](https://www.youtube.com/watch?v=htwL_gOqaBQ&t=4s).
+Deploy the power of Apache Kafka and Apache Flink while maintaining the speed and agility that early-stage businesses need. The Confluent for Startups program combines up to one year of Confluent Cloud alongside technical help to get you up and running with our simple, fully-managed service. Interested in learning more about our program? Check out our video [on YouTube](https://www.youtube.com/watch?v=htwL_gOqaBQ&t=4s).
 
 Utilize free product credits along with expert technical help to deploy the power of Apache Kafka and Apache Flink while maintaining the speed and agility that early-stage businesses need.
 

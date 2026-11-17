@@ -1,10 +1,28 @@
 > AI agents: this is one page from PostHog's docs. Full index of Markdown docs for LLMs: https://posthog.com/llms.txt
 
-# React Native Feature Flags installation - Docs
+# React Native Feature Flags installation
 
-Copy page
+Canonical URL: https://posthog.com/docs/feature-flags/installation/react-native
 
-# React Native Feature Flags installation - Docs
+> **Cloud region:** This page uses US Cloud hosts. For an EU Cloud project, use `https://eu.i.posthog.com` instead of `https://us.i.posthog.com` (ingestion host).
+
+## On this page
+
+- [Install with the wizard](#install-with-the-wizard)
+- [Install the package](#install-the-package)
+- [Configure PostHog](#configure-posthog)
+- [Send events](#send-events)
+- [Use feature flags](#use-feature-flags)
+- [Running experiments](#running-experiments)
+- [Next steps](#next-steps)
+
+## Install with the wizard
+
+Run this command in your project directory to add PostHog to your React Native project. The wizard detects your framework, installs the SDK, and sets up your first events.
+
+`npx @posthog/wizard`
+
+Or set it up manually by following the rest of this guide.
 
 1.  1
 
@@ -13,8 +31,6 @@ Copy page
     Required
 
     Install the PostHog React Native library and its dependencies:
-
-    PostHog AI
 
     ### Expo
 
@@ -26,6 +42,7 @@ Copy page
 
     ```bash
     yarn add posthog-react-native @react-native-async-storage/async-storage react-native-device-info react-native-localize
+    
     # for iOS
     cd ios && pod install
     ```
@@ -34,6 +51,7 @@ Copy page
 
     ```bash
     npm i -s posthog-react-native @react-native-async-storage/async-storage react-native-device-info react-native-localize
+    
     # for iOS
     cd ios && pod install
     ```
@@ -48,10 +66,9 @@ Copy page
 
     App.tsx
 
-    PostHog AI
-
     ```jsx
     import { PostHogProvider } from 'posthog-react-native'
+    
     export function MyApp() {
         return (
             <PostHogProvider
@@ -76,17 +93,18 @@ Copy page
 
     Component.tsx
 
-    PostHog AI
-
     ```jsx
     import { usePostHog } from 'posthog-react-native'
+    
     function MyComponent() {
         const posthog = usePostHog()
+    
         const handlePress = () => {
             posthog.capture('button_pressed', {
                 button_name: 'signup'
             })
         }
+    
         return <Button onPress={handlePress} title="Sign Up" />
     }
     ```
@@ -101,18 +119,19 @@ Copy page
 
     Component.tsx
 
-    PostHog AI
-
     ```jsx
     import { usePostHog } from 'posthog-react-native'
+    
     function MyComponent() {
         const posthog = usePostHog()
         const isMyFlagEnabled = posthog.isFeatureEnabled('flag-key')
+    
         if (isMyFlagEnabled) {
             // Do something differently for this user
             // Optional: fetch the payload
             const matchedFlagPayload = posthog.getFeatureFlagResult('flag-key')?.payload
         }
+    
         return <View>...</View>
     }
     ```
@@ -123,18 +142,19 @@ Copy page
 
     Component.tsx
 
-    PostHog AI
-
     ```jsx
     import { usePostHog } from 'posthog-react-native'
+    
     function MyComponent() {
         const posthog = usePostHog()
         const enabledVariant = posthog.getFeatureFlag('flag-key')
+    
         if (enabledVariant === 'variant-key') { // replace 'variant-key' with the key of your variant
             // Do something differently for this user
             // Optional: fetch the payload
             const matchedFlagPayload = posthog.getFeatureFlagResult('flag-key')?.payload
         }
+    
         return <View>...</View>
     }
     ```
@@ -157,16 +177,8 @@ Copy page
 
     | Resource | Description |
     | --- | --- |
-    | [Creating a feature flag](/docs/feature-flags/creating-feature-flags.md) | How to create a feature flag in PostHog |
-    | [Adding feature flag code](/docs/feature-flags/adding-feature-flag-code.md) | How to check flags in your code for all platforms |
-    | [Framework-specific guides](/docs/feature-flags/tutorials.md#framework-guides) | Setup guides for React Native, Next.js, Flutter, and other frameworks |
-    | [How to do a phased rollout](/tutorials/phased-rollout.md) | Gradually roll out features to minimize risk |
-    | [More tutorials](/docs/feature-flags/tutorials.md) | Other real-world examples and use cases |
-
-### Still have questions?
-
-Ask PostHog AI
-
-### Was this page useful?
-
-HelpfulCould be better
+    | [Creating a feature flag](https://posthog.com/docs/feature-flags/creating-feature-flags.md) | How to create a feature flag in PostHog |
+    | [Adding feature flag code](https://posthog.com/docs/feature-flags/adding-feature-flag-code.md) | How to check flags in your code for all platforms |
+    | [Framework-specific guides](https://posthog.com/docs/feature-flags/tutorials.md#framework-guides) | Setup guides for React Native, Next.js, Flutter, and other frameworks |
+    | [How to do a phased rollout](https://posthog.com/tutorials/phased-rollout.md) | Gradually roll out features to minimize risk |
+    | [More tutorials](https://posthog.com/docs/feature-flags/tutorials.md) | Other real-world examples and use cases |

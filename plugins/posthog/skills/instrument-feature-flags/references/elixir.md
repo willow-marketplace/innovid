@@ -1,18 +1,22 @@
 > AI agents: this is one page from PostHog's docs. Full index of Markdown docs for LLMs: https://posthog.com/llms.txt
 
-# Elixir Feature Flags installation - Docs
+# Elixir Feature Flags installation
 
-Copy page
+Canonical URL: https://posthog.com/docs/feature-flags/installation/elixir
 
-# Elixir Feature Flags installation - Docs
+> **Cloud region:** This page uses US Cloud hosts. For an EU Cloud project, use `https://eu.i.posthog.com` instead of `https://us.i.posthog.com` (ingestion host).
+
+## Install with the wizard
+
+Run this command in your project directory to add PostHog to your Elixir project. The wizard detects your framework, installs the SDK, and sets up your first events.
+
+`npx @posthog/wizard`
+
+Or set it up manually by following the rest of this guide.
 
 > This library was built by the community but it's being maintained by the PostHog core team since v1.0.0. Thank you to [Nick Kezhaya](https://github.com/nkezhaya) for building it originally. Thank you to [Alex Martsinovich](https://github.com/martosaur) for contributing v2.0.0.
 
 The package can be installed by adding `posthog` to your list of dependencies in `mix.exs`:
-
-Elixir
-
-PostHog AI
 
 ```elixir
 def deps do
@@ -25,8 +29,6 @@ end
 ### Configuration
 
 config/config.exs
-
-PostHog AI
 
 ```elixir
 config :posthog,
@@ -43,11 +45,3 @@ Optionally, you might want to enable the [Plug integration](https://hexdocs.pm/p
 #### Development/Test mode
 
 For a test environment, you can pass in `test_mode: true` value to the config. This causes events to be dropped instead of sent to PostHog.
-
-### Still have questions?
-
-Ask PostHog AI
-
-### Was this page useful?
-
-HelpfulCould be better

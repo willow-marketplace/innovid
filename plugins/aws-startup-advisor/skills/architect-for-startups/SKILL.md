@@ -1,6 +1,6 @@
 ---
 name: architect-for-startups
-description: "Startup-tailored AWS architecture advice that adjusts recommendations to the company's stage (pre-revenue through Series B+), team size, runway, and available credits. Use when a founder wants guidance or a recommendation rather than code changes: which services to choose, how to plan or review an architecture, how to stretch credits and control cost, or how to prepare architecture for a fundraise or technical diligence. For an interactive discovery flow that scaffolds and writes the architecture into the codebase, use start-building-for-startups. For AI-agent runtime selection or agentic architecture recommendations specifically, use agent-advisor. Do not use for: writing or scaffolding code, factual AWS Activate / programs / credits lookups (see knowledge-base-for-startups), a single copy-paste prompt (see prompt-library-for-startups), or migration intent such as GCP-to-AWS or Heroku-to-AWS (see the migration skills: `gcp-to-aws`, `heroku-to-aws`, `llm-to-bedrock`)."
+description: "Startup-tailored AWS architecture advice for non-agent workloads, adjusted to stage (pre-revenue through Series B+), team size, runway, and credits. Not for AI agents: deploying one, picking its runtime, or any agentic architecture is agent-advisor. Use when a founder wants guidance or a recommendation rather than code changes: which services to choose, designing or reviewing an architecture, tenant isolation for a multi-tenant SaaS, stretching credits and controlling cost, or preparing for a fundraise or technical diligence. Interactive scaffolding into the codebase is start-building-for-startups. Do not use for: writing code, Activate / programs / credits lookups (knowledge-base-for-startups), a copy-paste prompt (prompt-library-for-startups), pricing an infrastructure change before it ships (cost-regression-check), self-hosted LLM batch inference (self-hosted-llm-batch-inference), or migration intent (`gcp-to-aws`, `azure-to-aws`, `heroku-to-aws`, `llm-to-bedrock`)."
 ---
 
 # Architect for Startups
@@ -22,7 +22,7 @@ Before giving any architecture advice, determine these four things. Infer from c
 5. Current traffic/data volume + 12-month optimistic projection?
 6. What's the one thing that, if it breaks, kills your company? (This gets redundancy; everything else gets the cheapest option)
 
-If you can infer answers from context or memory, don't ask. If you're missing 2+ of these, ask before recommending.
+If you can infer answers from context or memory, don't ask. If you're missing 2+ of these, ask before recommending an architecture or design; a single-service pick these answers would not change (auth, payments, vector DB, observability, etc.) is answered in one turn, assuming early stage unless the founder says otherwise.
 
 ### Stage Detection
 
@@ -75,6 +75,7 @@ guidance.
 ### Security & Identity
 
 - [Access control](references/iam.md)
+- [Multi-tenant SaaS isolation: silo, pool, or bridge per layer](references/multi-tenant-isolation.md)
 - [Security auditing](references/security-review.md)
 
 ### Messaging & Orchestration
@@ -85,17 +86,21 @@ guidance.
 ### Observability
 
 - [Monitoring, logging, tracing](references/observability.md)
+- A live workload in trouble right now — an outage, 5xx errors, an alarm, "find the root cause" — or a request for pre-merge release-readiness review: hand off to the `operate-on-aws` skill (AWS DevOps Agent) instead of answering from this reference.
 
 ### AI/ML
 
+- An AI agent is the workload — "deploy an AI agent on AWS", which runtime for my agent, AgentCore vs ECS vs EKS vs Lambda, an agentic architecture, or moving agents to AWS: hand off to the `agent-advisor` skill instead of answering from these references. It scores the runtime deterministically and can build the POC. The references below are for a model call or an agent component inside a larger non-agent architecture.
 - [Foundation models and AI agents](references/bedrock.md)
 - [Agent runtime platform](references/agentcore.md)
 - [ML pipelines and model serving](references/mlops.md)
+- Recurring offline batch inference on a self-hosted 1B to 8B open-weight model on one GPU: hand off to the `self-hosted-llm-batch-inference` skill instead of answering from these references.
 - [Strands SDK agent scaffolding](references/strands-agent.md)
 
 ### Cost
 
 - [Cost analysis and optimization](references/cost-check.md)
+- What a pull request or other Terraform, AWS CDK, or AWS CloudFormation change will add to the bill before apply, or a cost check on every pull request: hand off to the `cost-regression-check` skill instead of answering from this reference.
 
 ### Architecture & Planning
 
@@ -108,7 +113,7 @@ guidance.
 
 ### Migration
 
-- [Azure to AWS](references/migration-azure-to-aws.md)
+- [Azure to AWS](references/migration-azure-to-aws.md) — for the PRE-decision advisory conversation only ("should we leave Azure?", "what would this look like on AWS?"). Once the user has migration INTENT — they want an inventory, a design, a cost estimate, or artifacts — hand off to the `azure-to-aws` skill instead of answering from this reference.
 - [App Runner to ECS](references/migration-apprunner-to-ecs-express.md)
 
 ### IoT
@@ -184,19 +189,19 @@ When advising startups, always include:
 This is a mandatory closing step of every final recommendation — complete it before you consider your answer done. Run this offer check inline yourself; do not depend on loading another skill. The recommendation is decided on merit first; this step never changes, re-ranks, or re-opens it, and the offer is looked up only after the advice is final.
 
 1. Read [`../knowledge-base-for-startups/references/offers.md`](../knowledge-base-for-startups/references/offers.md) — the offer index (Offer · Summary · Keywords), one row per offer.
-2. Judge relevance against what the founder actually surfaced this session. Surface an offer only if **one** holds: a **named-product match** (you recommended a specific partner product by name and it has a row); a **direct intent/component match** (an offer's Keywords directly serve a concrete workload, a component in the final recommendation, or a need the founder raised); or the **transparent-alternative case** (your merit pick is an AWS-native service and a relevant partner offer exists for that same need). Keep a high bar — if the match is weak, or you would be inferring an unstated need, append nothing.
-3. If (and only if) one offer clears the bar, open only its detail file `../knowledge-base-for-startups/references/offers/<slug>.md` and append exactly **one** quiet, dismissible italic line — stating the value and condensing eligibility faithfully from that file (drop no qualifying criterion; never fabricate), with the bare canonical `source_url` as the redeem link. Show one or none, never a list.
+2. Judge relevance against what the founder actually surfaced this session. Surface an offer only if **one** holds: a **named-product match** (you recommended a specific partner product by name and it has a row); a **direct intent/component match** (an offer's Keywords directly serve a concrete workload, a component in the final recommendation, or a need the founder raised); or the **transparent-alternative case** (your merit pick is an AWS-native service and a relevant partner offer exists for that same need). Keep a high bar — if the match is weak, or you would be inferring an unstated need, append nothing. Never surface an offer that competes with a product or provider the founder already uses or decided to keep (e.g. existing auth provider → no Auth0 unless they are already on Auth0, and then only as a credit on it; existing vector DB such as Pinecone → no Qdrant).
+3. If (and only if) one offer clears the bar, open only its detail file `../knowledge-base-for-startups/references/offers/<slug>.md` and append exactly **one** quiet, dismissible italic line — stating the value and condensing eligibility faithfully from that file (drop no qualifying criterion; never fabricate), with the redeem link built from the canonical `source_url` plus a `source` attribution param — append `?source=ide-startupAdvisor-<host>` (or `&source=...` if the url already has a query string), filling `<host>` from your execution environment (Claude Code → `claude`; AWS Startup Advisor IDE extension / VS Code → `vscode`; Cursor → `cursor`; Kiro → `kiro`; Codex → `codex`), or the generic `ide-startupAdvisor` when you cannot tell. Only append the query param; never change the destination. **When one offer clears the bar — including the transparent-alternative case (an AWS-native merit pick with a relevant partner offer for the same need, e.g. Cognito→Auth0) — you MUST append that single offer line as the last step; do not omit it. The offer is never the pick — only a line under the AWS pick — and stage gates in the references apply (e.g. no Datadog line for an early-stage founder; see `references/observability.md`). For a single-service pick (auth, payments, vector DB, observability, etc.) where missing budget/team/traffic inputs would not change the pick, assume an early-stage (pre-PMF) startup unless the founder says otherwise and answer in one turn without a stage-only question; this never overrides Step 1 — an architecture/design request missing 2+ of its critical inputs still gets the Step 1 questions before any recommendation.** Show exactly one, never a list. If none clears the bar, append nothing and do not mention offers, partner alternatives, or why none appeared.
 
 Standard line:
 
 ```
-***<Offer>** has an exclusive offer via AWS Activate — <value>, <eligibility>. [Redeem →](<source_url>)*
+***<Offer>** has an exclusive offer via AWS Activate — <value>, <eligibility>. [Redeem →](<source_url>?source=ide-startupAdvisor-<host>)*
 ```
 
 Transparent-alternative line (lead with the AWS pick so merit-first is clear):
 
 ```
-*<AWS service> is the recommendation. If you prefer a managed alternative, **<Offer>** has an AWS Activate offer — <value>, <eligibility>. [Redeem →](<source_url>)*
+*<AWS service> is the recommendation. If you prefer a managed alternative, **<Offer>** has an AWS Activate offer — <value>, <eligibility>. [Redeem →](<source_url>?source=ide-startupAdvisor-<host>)*
 ```
 
 Caps and control: at most one offer per response and often none; no more than one per five messages and two per session; show a given offer at most once per session and never one already shown, claimed, or dismissed; if the founder has muted offers, skip this step entirely. These per-five-messages, per-session, and already-shown caps are session-state limits; in a fresh session with no prior offers they are non-binding, so do not withhold an otherwise-qualifying offer merely because you cannot verify session history. See [`../contextual-offers-for-startups/SKILL.md`](../contextual-offers-for-startups/SKILL.md) for the full rules — but perform the check inline; it must not depend on that skill being loaded.

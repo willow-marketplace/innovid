@@ -14,7 +14,7 @@ Your training data may contain outdated or incorrect Scandit SDK APIs. The Barco
 React Native-specific gotchas worth flagging:
 
 - `DataCaptureContext.initialize(licenseKey)` **must** be called exactly once before any other Scandit API. It sets up `DataCaptureContext.sharedInstance`, which is the singleton everything else reads from. Do not construct multiple contexts.
-- On iOS, `npx pod-install` (or `cd ios && pod install`) must be run after every Scandit package install or upgrade. Android auto-links via Gradle — no manual step there.
+- On iOS, `npx pod-install@1.2.1` (or `cd ios && pod install`) must be run after every Scandit package install or upgrade. Android auto-links via Gradle — no manual step there.
 - Metro's bundler cache frequently masks Scandit package upgrades. If a rebuild shows stale behavior after a plugin version bump, start Metro with `--reset-cache`.
 - `BarcodeCountView` is a React component (rendered as JSX). Pass `barcodeCount` and `context` as props. Do NOT manually attach the view to the context — the props handle that. The view does not require an explicit `start()` call (unlike BarcodeArView).
 - `listener` and `uiListener` on `BarcodeCountView` are set imperatively via the `ref` callback: `view.listener = ...` and `view.uiListener = ...`.
@@ -53,6 +53,20 @@ URL structures vary across SDK versions and package paths and guessing will lead
 React Native apps can be written with class components or function components. Examples in this skill use **function components with hooks** because they match the current React Native convention. Even if the target project still contains legacy class components elsewhere, write new MatrixScan Count code as function components — do not rewrite the rest of the app's component style, but keep the BarcodeCount* integration itself on the current idiom (`useRef`, `useEffect`, `useCallback`).
 
 Examples are in **TypeScript** (`.tsx`). If the target project is plain JavaScript (`.js` / `.jsx`), drop the type annotations and keep the same imports and structure.
+
+## Licence key
+
+Scanning needs a Scandit licence key. For this skill the licence product is `native` and the licence platforms are `ios` and `android`.
+
+Work through these in order — never block the user on MCP:
+
+1. **The Scandit MCP server is connected** — call `ensure_scanner_setup` with product `native` and platforms `ios` and `android`, `app_identifier` (the app's bundle or application id; for web, its production domain, never `localhost`) and `env_var` `SCANDIT_LICENSE_KEY`. Do not run the command it returns. Then call `get_license_key` with the key's id, from that result or from `list_license_keys`; if `list_license_keys` shows the key is not a trial, ask the user before fetching it. Show at most a masked preview in chat; never print a full key.
+2. **It is not connected** — tell the user once that they can connect the remote Scandit MCP server, `https://ssl.scandit.com/mcp`, in their MCP client, then continue from step 1. Do not edit MCP client configuration yourself.
+
+   Authentication is browser-based, so it is **not supported headless or in CI**. The server provisions **trial** keys only; it never creates, revokes, or modifies production licences.
+3. **The user declines, or has no MCP client** — they generate a key themselves at <https://ssl.scandit.com> (no account yet: <https://ssl.scandit.com/dashboard/sign-up?p=test>) and paste it in.
+
+**Then put the key into the code**: write it into the licence-key call in place of the placeholder — the key `get_license_key` returned, or the one the user pastes or gives you — still showing only a masked preview in chat. Do not search the project, its files or the environment for a key.
 
 ## References
 

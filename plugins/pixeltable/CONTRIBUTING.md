@@ -17,7 +17,7 @@ This repo is an agent **plugin**: one skill (the content core) wrapped with comm
 
 ```
 pixeltable-skill/
-├── skills/pixeltable-skill/   # THE skill : do not split
+├── skills/pixeltable-skill/   # THE skill (name: pixeltable); do not split
 │   ├── SKILL.md               # Core instructions (<500 lines)
 │   └── references/            # Detailed reference (loaded on demand)
 ├── commands/                  # Slash commands (Markdown): /pixeltable:scaffold, add-provider
@@ -26,6 +26,8 @@ pixeltable-skill/
 ├── scripts/validate_plugin.py # Manifest + frontmatter validator
 ├── install.sh                 # Standalone skill installer
 ├── plugin.json                # Portable Agent Plugins manifest
+├── gemini-extension.json      # Gemini CLI extension + gallery listing
+├── GEMINI.md                  # Gemini CLI context (points at skills/)
 ├── .plugin/ .cursor-plugin/   # Vendor-neutral + Cursor manifests (npx plugins)
 ├── .claude-plugin/            # Claude Code plugin + marketplace metadata
 ├── .codex-plugin/             # Codex compatibility manifest
@@ -36,8 +38,8 @@ pixeltable-skill/
 Install paths: `npx plugins add pixeltable/pixeltable-skill` (full plugin, Claude Code + Cursor) or `npx skills add pixeltable/pixeltable-skill` (skill only, 40+ agents). Keep both working.
 
 ### Conventions
-- Plugin identity is `pixeltable` (commands render as `/pixeltable:<name>`); keep root `plugin.json` and all compatibility manifest versions in sync.
-- Hooks are **pure Python** (`python3 "${CLAUDE_PLUGIN_ROOT}/hooks/*.py"`) : no Node/Bun/TypeScript.
+- Plugin identity is `pixeltable` (commands render as `/pixeltable:<name>`); keep root `plugin.json`, `gemini-extension.json`, and all compatibility manifest versions in sync.
+- Hooks are **pure Python** (`hooks/*.py`, 3.9+), no Node/Bun/TypeScript. The `hooks.json` command tries `python`, `python3`, then `py -3`, because a python.org install on Windows ships no `python3.exe`.
 - Run `python3 scripts/validate_plugin.py` before submitting structural changes.
 
 ## What to Contribute
@@ -45,8 +47,15 @@ Install paths: `npx plugins add pixeltable/pixeltable-skill` (full plugin, Claud
 - Fix incorrect API examples
 - Add missing patterns for common use cases
 - Update provider examples for new Pixeltable releases
-- Keep `SKILL.md` concise : detailed content goes in `references/`
-- `SKILL.md` should stay under 500 lines
+- Keep `SKILL.md` concise: detailed content goes in `references/`
+- `skills/pixeltable-skill/SKILL.md` should stay under 500 lines
+- Do not add a second skill under `skills/`, including in a nested folder. `npx skills`
+  discovers every `SKILL.md` there and ships it as its own skill. Job names (video search,
+  agent memory, ...) belong in the SKILL.md `description` and the manifest keywords.
+- `description` in SKILL.md and `commands/*.md` is a **single-line quoted string**
+  (<= 1024 chars); SkillKit treats `description: >` as the literal `>`.
+- Do not rename `skills/pixeltable-skill` to match `name: pixeltable` without a coordinated
+  move of `pxt skills install`, the public skills index, and the docs/release stub.
 
 ## Guidelines
 
@@ -74,7 +83,7 @@ Before submitting, verify:
 2. All code examples are syntactically correct Python
 3. Provider examples match the current Pixeltable API
 4. Start from `pxt service example --out app.py` (or `pxt schema example --brief`). No `--template` zoo. No starter kit.
-5. The install script works for `claude-code`, `cursor-skill`, and `codex-skill`
+5. The install script works for `claude-code`, `cursor-skill`, `codex-skill`, and `antigravity`
 6. Plugin layout validates: `python3 scripts/validate_plugin.py`
 7. Discovery resolves: `npx plugins discover .` and `npx skills add . --list`
 8. Cursor install (from repo): `npx plugins add . -y --target cursor` then restart Agent; verify `/pixeltable:scaffold` and 5 files under `~/.cursor/skills/pixeltable-skill/references/` (or plugin cache)

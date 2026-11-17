@@ -23,7 +23,7 @@ Beyond that, C2i Genomics faced a complicated legal landscape. Genomic data is s
 
 By working with Amazon Web Services (AWS), C2i Genomics found assistance with both of these complicating factors. It's a collaboration that enabled C2i Genomics to manage potential issues efficiently and cost effectively, and it put the company on track to impact healthcare worldwide.
 
-> _"Utilization of the AWS platform was really a key factor in our success," says Boris._
+> _Boris says that building on AWS was "really a key factor in our success."_
 
 ## Activating success
 
@@ -39,17 +39,17 @@ Creating a pioneering diagnostic solution can be an expensive undertaking, even 
 
 To better manage their expenses, C2i Genomics worked closely with the solutions architect at AWS to identify and explore three key areas of cloud optimization.
 
-**Automatically optimizing storage costs**
+### Automatically optimizing storage costs
 
 The first area of optimization involved using Amazon S3 Intelligent-Tiering, which monitors data for changes in access patterns and automatically moves data to the most cost-effective access tier. This can produce significant savings for companies such as C2i Genomics, who have variable data access patterns.
 
-**Choosing the AWS solutions to meet their use cases**
+### Choosing the AWS solutions to meet their use cases
 
 Next, C2i Genomics and AWS worked together to find the most efficient AWS solutions for their use cases. To allow C2i Genomics' researchers to launch experiments and evaluate algorithms results quicker, they implemented [Amazon Managed Workflows for Apache Airflow (Amazon MWAA)](https://aws.amazon.com/managed-workflows-for-apache-airflow/). C2i Genomics also chose to use [Amazon FSx for Lustre](https://aws.amazon.com/fsx/lustre/) for more efficient storage.
 
 During the course of maximizing efficiencies, the team recognized an opportunity to optimize costs by transferring some on-demand instances of [Amazon Elastic Compute Cloud (Amazon EC2)](https://aws.amazon.com/ec2/) to [spot instances](https://aws.amazon.com/ec2/spot/)—in some cases, crafting solutions tailored to C2i Genomics' unique data needs.
 
-**Securing genomic data on the cloud**
+### Securing genomic data on the cloud
 
 The third major optimization challenge involved with uploading personalized genomic data to cloud storage—a centerpiece of C2i Genomics' platform. C2i Genomics needed to assure their customers that they handle their data responsibly while navigating a complex global regulatory environment. "We needed to work both on the technological side but also on legal to make this happen," says Boris. "The help of the AWS team was really crucial here."
 

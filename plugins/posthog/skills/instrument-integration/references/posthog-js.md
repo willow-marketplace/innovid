@@ -171,12 +171,12 @@ Set HMAC-based identity verification.
 
 **Notes:**
 
-When set, products like conversations use server-verified identity (distinct_id + HMAC hash) instead of anonymous session identifiers. The hash should be computed server-side as HMAC-SHA256 of the distinct_id using the project's API secret. Any additional signed identity claims are cleared because they are bound to the previously configured distinct_id.
+When set, products like conversations use server-verified identity (distinct_id + HMAC hash) instead of anonymous session identifiers. The hash should be computed server-side as HMAC-SHA256 of the distinct_id, signed with the Secret API key from Support settings. Project secret API keys (project settings) and personal API keys are rejected. Any additional signed identity claims are cleared because they are bound to the previously configured distinct_id.
 
 ### Parameters
 
 - **`distinctId`** (`string`) - The verified user distinct_id
-- **`hash`** (`string`) - HMAC-SHA256 of distinctId using the project API secret
+- **`hash`** (`string`) - HMAC-SHA256 of distinctId, signed with the Secret API key from Support settings
 
 ### Returns
 
@@ -767,6 +767,7 @@ Removes properties from the person profile associated with the current `distinct
 **Notes:**
 
 Deletes the given person properties from the person profile in PostHog. This is the counterpart to  — instead of hand-passing `$unset` inside a `capture()` call, you can remove properties with a dedicated method. If `person_profiles` is set to `never`, this call is ignored.
+`$fbc` and `$fbp` read by the SDK are unset for this call only. `save_campaign_params: false` stops the reads.
 
 ### Parameters
 
@@ -972,6 +973,32 @@ function callback(surveys, context) {
 }
 
 posthog.getSurveys(callback, false)
+```
+
+---
+
+#### onActiveMatchingSurveysChanged()
+
+**Release Tag:** public
+
+Register an event listener that runs when the set of active matching surveys changes. The listener receives the initial matching set and updates after event/action triggers, cancellation, consumption, session expiry, definitions refresh, captured pageviews, feature-flag updates, marking a survey as seen, and reset. Unchanged results are suppressed.
+URL conditions are re-evaluated on captured `$pageview` events, including automatic SPA pageviews when `capture_pageview` is `'history_change'`. With automatic pageviews disabled, capture `$pageview` after navigation. This does not observe arbitrary DOM mutations or time passing; selector, device and wait-period conditions are checked on the supported updates.
+The optional callback context distinguishes load errors from a successfully loaded empty result. New subscribers receive the current snapshot without replaying earlier errors: a settled unavailable state is `([], { isLoaded: false })`, while usable cached definitions are evaluated normally. An initial load already in progress delivers when it resolves. Recoverable load failures keep the subscription alive. Unsubscribing prevents any further delivery, including callbacks from an outstanding initial request.
+
+### Parameters
+
+- **`callback`** (`SurveyCallback`) - The callback to call with active matching surveys.
+
+### Returns
+
+- `() => void`
+
+### Examples
+
+```ts
+const unsubscribe = posthog.onActiveMatchingSurveysChanged((surveys) => {
+    // respond to changes in currently matching surveys
+})
 ```
 
 ---
@@ -1293,6 +1320,7 @@ posthog.unregister('plan_type')
 **Release Tag:** public
 
 Capture a log entry and send it to the PostHog logs endpoint.
+Note: logs are not subject to the user agent (bot) filter that drops events, so they are still sent from sessions whose events are dropped.
 
 ### Parameters
 
@@ -1419,6 +1447,7 @@ Checks if the user has opted out of data capturing.
 **Notes:**
 
 Returns the current consent status for event tracking and data persistence.
+In cookieless `'always'` mode this returns `true`, because the SDK does not store data for the user. Events are still captured in this mode. To check if the SDK captures events, use `is_capturing()`.
 
 ### Returns
 
@@ -1463,7 +1492,7 @@ Opts the user into data capturing and persistence.
 
 **Notes:**
 
-Enables event tracking and data persistence (cookies/localStorage) for this PostHog instance. By default, captures an `$opt_in` event unless disabled.
+Enables event tracking and data persistence (cookies/localStorage) for this PostHog instance. By default, captures an `$opt_in` event unless disabled. The event is only captured when the user was not already opted in, so calling this on every page load (for example from a consent tool callback that re-applies stored consent) sends it once per user rather than once per page.
 
 ### Parameters
 
@@ -1997,7 +2026,7 @@ if (posthog.isFeatureEnabled('feature', { send_event: false })) {
 
 **Release Tag:** public
 
-Register an event listener that runs when feature flags become available or when they change. If there are flags, the listener is called immediately in addition to being called on future changes. Note that this is not called only when we fetch feature flags from the server, but also when they change in the browser.
+Register an event listener that runs when feature flags become available or when they change. If there are flags, the listener is called immediately in addition to being called on future changes. Note that this is not called only when we fetch feature flags from the server, but also when they change in the browser, including when another open tab of your site stores new flags. Do not call `reloadFeatureFlags()` inside this callback: each reload in one tab triggers the callback in the other tabs, which can send flag requests in a loop.
 
 ### Parameters
 

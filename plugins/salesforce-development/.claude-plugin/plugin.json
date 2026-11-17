@@ -1,0 +1,262 @@
+{
+  "name": "salesforce-development",
+  "version": "2.8.0",
+  "description": "Build Salesforce apps and agents using these core building blocks: metadata, Apex, deploy/retrieve, security, reporting, and generated installed-versus-available capability discovery.",
+  "updatedAt": "2026-11-17T00:02:39.699Z",
+  "author": {
+    "url": "https://github.com/forcedotcom/sf-skills",
+    "name": "Salesforce"
+  },
+  "homepage": "https://github.com/forcedotcom/sf-skills/tree/main/plugins/builder/salesforce-development",
+  "repository": "https://github.com/forcedotcom/sf-skills.git",
+  "keywords": [
+    "salesforce",
+    "apex",
+    "flow",
+    "soql",
+    "metadata",
+    "deploy"
+  ],
+  "displayName": "Salesforce Development",
+  "skills": "./skills/",
+  "commands": "./commands/",
+  "agents": [
+    "./agents/salesforce-dev.md"
+  ],
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/scripts/sf-context telemetry-capture session_start"
+          },
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/scripts/sf-context detect"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/scripts/sf-context cli-update-notice"
+          },
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/scripts/sf-context verify-org"
+          },
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/scripts/sf-deploy-gate prod-check"
+          },
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/scripts/sf-deploy-gate destructive"
+          },
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/bin/lsp-precheck"
+          },
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/scripts/sf-context skills-first-advisory"
+          },
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/scripts/sf-context scaffold-gate"
+          }
+        ]
+      },
+      {
+        "matcher": "Skill",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/scripts/sf-context record-skill-dispatch"
+          },
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/scripts/sf-context telemetry-capture skill_dispatched"
+          }
+        ]
+      },
+      {
+        "matcher": "Task|Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/scripts/sf-context telemetry-capture agent_dispatched"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/scripts/sf-context prompt-dispatch"
+          }
+        ]
+      }
+    ],
+    "UserPromptExpansion": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/scripts/sf-context prompt-dispatch"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/scripts/sf-context post-bash"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/scripts/sf-deploy-gate auto-deploy"
+          }
+        ]
+      },
+      {
+        "matcher": "Skill",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/scripts/sf-context resolution-trace"
+          }
+        ]
+      },
+      {
+        "matcher": "AskUserQuestion",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/scripts/sf-context post-ask-question"
+          }
+        ]
+      },
+      {
+        "matcher": "mcp__.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/scripts/sf-context telemetry-capture mcp_tool_used success"
+          }
+        ]
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/scripts/sf-context post-deploy-failure"
+          },
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/scripts/sf-context post-test-failure"
+          },
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/scripts/sf-context telemetry-capture command_invoked failure"
+          }
+        ]
+      },
+      {
+        "matcher": "mcp__.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/scripts/sf-context telemetry-capture mcp_tool_used failure"
+          }
+        ]
+      }
+    ],
+    "StopFailure": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/scripts/sf-context telemetry-capture exception api_error"
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/scripts/sf-context telemetry-flush"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/scripts/sf-context feedback-nudge"
+          }
+        ]
+      }
+    ]
+  },
+  "mcpServers": {
+    "salesforce-lsp": {
+      "args": [
+        "${CLAUDE_PLUGIN_ROOT}/bin/sf-lsp-host.bundled.js"
+      ],
+      "type": "stdio",
+      "command": "node"
+    },
+    "salesforce-headless-360": {
+      "env": {
+        "SF_HEADLESS_360_ENABLED": "${user_config.headless_360_enabled}"
+      },
+      "args": [
+        "${CLAUDE_PLUGIN_ROOT}/scripts/sf-headless-360-optin.js",
+        "${CLAUDE_PLUGIN_ROOT}/scripts/sf-mcp-proxy.bundled.js",
+        "headless-360"
+      ],
+      "type": "stdio",
+      "command": "node"
+    },
+    "salesforce-metadata-experts": {
+      "args": [
+        "${CLAUDE_PLUGIN_ROOT}/scripts/sf-mcp-proxy.bundled.js",
+        "metadata-experts"
+      ],
+      "type": "stdio",
+      "command": "node"
+    },
+    "salesforce-metadata-grounding": {
+      "args": [
+        "${CLAUDE_PLUGIN_ROOT}/scripts/sf-mcp-proxy.bundled.js",
+        "metadata-grounding"
+      ],
+      "type": "stdio",
+      "command": "node"
+    }
+  }
+}

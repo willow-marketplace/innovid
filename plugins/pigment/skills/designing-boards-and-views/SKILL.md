@@ -13,6 +13,8 @@ Number formatting (decimals, currency, percent, K/M scaling) is set on the **Met
 
 Never create Views on sublists.
 
+Whenever you create or restyle a Grid View (`Table` or `List` display), load `skill:design-business-views`: it gives the layout rules every Grid follows (row/column/page placement, page order, tree mode, column widths) and recurring patterns such as the tabular input View or the default View of a Transaction List.
+
 ## Pick the Right Tool
 
 | Goal | Tool |
@@ -28,14 +30,17 @@ Never create Views on sublists.
 | Discover which pivots are valid | `tool:get_available_pivots` |
 | Create a View | `tool:create_view` |
 | Pivots on Metric / Table Views | `tool:update_view_pivots` |
-| Pivots on List Views | `tool:update_list_view_pivots` |
-| Value fields (add, remove, hide) | `tool:update_view_values` |
+| List Views: groupings, page selectors, and which properties are shown (show, hide, reorder) | `tool:update_list_view_pivots` |
+| Value fields on Metric / Table Views (add, remove, hide) | `tool:update_view_values` |
+| (Un)hide the tooltip displayed when hovering a Metric or Property header, on one View only (`tooltipHidden` on its value field) | `tool:update_view_values` |
+| Show a value as % of total, growth, cumulative, … | `tool:update_view_show_value_as` |
 | Totals and aggregators | `tool:update_view_aggregations` |
+| Calculated items (variance, growth rows/columns) | `tool:update_view_calculated_items` |
 | Filters / sorts | `tool:update_view_filters` / `tool:update_view_sorts` |
 | Chart type and options | `tool:update_view_chart_config` |
 | KPI options | `tool:update_view_kpi_config` |
 | Cell colors, bold, alignment | `tool:update_view_formatting` |
-| Tree vs tabular, row height, totals position | `tool:update_view_grid_layout` |
+| Tree vs tabular, row height, totals position, column widths | `tool:update_view_grid_layout` |
 | Name, description, template, `sharingStatus` | `tool:update_view` |
 | Grid templates | `tool:get_all_view_templates` |
 | Save draft Views | `tool:save_draft_views` |
@@ -126,13 +131,13 @@ Chart and Grid heights depend on data complexity: rows, columns, legends, axis l
 
 ## Reuse or Create
 
-Call `tool:search_views` to see what exists; this is a light pass, not a hard prerequisite. Pass `display_intent` (`Kpi`, `Grid`, or `Chart`, plus an optional `chart_type`) to get candidates sorted by compatibility. **On a List block use `Grid` or omit it** -- `Kpi`, `Chart` and any `chart_type` return an error, because a List only supports Grid display. Results are paginated and the intent only sorts within one page, so read the later pages before you conclude that nothing fits.
+Call `tool:search_views` to see what exists; this is a light pass, not a hard prerequisite. Pass `display_intent` (`Kpi`, `Grid`, or `Chart`, plus an optional `chart_type`) to keep only the candidates set up for that display mode. **On a List block use `Grid` or omit it** -- `Kpi`, `Chart` and any `chart_type` return an error, because a List only supports Grid display. With `block_ids` set, results are limited to Views on those blocks (`underlyingName` says which). `chartTypes` is the saved chart config, not the display mode, so a Grid can list one. Results are paginated, so read the later pages when the first one is full. If the intent returns nothing, search again without it: a View with the right pivots can still be adapted.
 
 Judge the **name** first: `View 1`, `Test` and other generic defaults are product placeholders, so create a new View instead. A descriptive name plus pivots that fit this widget and its board siblings is a reuse signal.
 
 Then judge the pivots: reuse when rows, columns and pages already match, or when one cheap edit (swap axes, remove a pivot, change granularity, add a missing page) closes the gap. Reusing does not let you inherit an empty `pages`: if the View is headed for a Board, adding the pages it lacks is part of the reuse, not a reason to reject the candidate. Prefer a richer View (formatting, conditional formatting) over a bare exact match; removing a pivot is cheap, recreating formatting is not. A View missing a dimension you need is harder to fix than a View with extra dimensions you can drop. For a KPI intent, an extra **row** pivot disqualifies a candidate; extra column pivots are fine. Restructuring a Grid into a Chart is expensive, and **Grid and Spreadsheet cannot be converted into each other at all** -- they are different display paradigms, so create a new View instead.
 
-When unclear, create. Convention for a new View: time dimensions in Columns, entity dimensions in Rows, and on a Table `metricsLocation: Rows` -- but `Columns` when the View is headed for a KPI widget. Name Grids without a suffix, Charts with the chart type (`Revenue - Waterfall`), KPIs with ` - KPI`.
+When unclear, create. Convention for a new View: time dimensions in Columns, entity dimensions in Rows, and on a Table `metricsLocation: Rows` -- but `Columns` when the View is headed for a KPI widget, or when it matches a pattern in `skill:design-business-views` that says otherwise. Name Grids without a suffix, Charts with the chart type (`Revenue - Waterfall`), KPIs with ` - KPI`.
 
 ## Create a View
 
@@ -181,7 +186,7 @@ Filters are applied after creation with `tool:update_view_filters`. Send the ful
 - **`byValue`** -- filter by a value field's cell values: `pivotFieldId`, `valueFieldId`, `compareOperator`, `values`, plus `projections`.
 - **`byProperty`** -- filter a pivoted dimension by one of its list properties: `pivotFieldId`, `listPropertyPath`, `compareOperator`, `values`. `listPropertyPath` takes the property's **friendly name** (e.g. `"Name"`); technical names (`_name_XXXXXX`) are not resolved and fail with "property not found". Not supported when the View's underlying block is a List -- there, filter on the value field for that property with a `byValue` rule instead.
 
-`compareOperator` takes the full tool enum name -- `Equal`, `GreaterThan`, `GreaterThanOrEqual` -- never a short form such as `Eq` or `Gt`. Each operator only works on some target types and expects its own number of `values` (`Between*` two, `IsBlank` none, `IsIn`/`IsNotIn` modality IDs on Dimension-typed targets only); the tool schema lists them per operator.
+`compareOperator` takes the full tool enum name -- `Equal`, `GreaterThan`, `GreaterThanOrEqual` -- never a short form such as `Eq` or `Gt`. Each operator only works on some target types and expects its own number of `values` (`Between*` two, `IsBlank` none, `IsIn`/`IsNotIn` modality IDs on Dimension-typed targets only); the tool schema lists them per operator. Data can be sparse: for "is blank"/"has no value"/"is empty" on a `byValue` rule, use `compareOperator: IsBlank` (or `IsNotBlank` for the opposite) with an empty `values` array.
 
 Two rules make or break filters. The `pivotFieldId` **must** come from `rows` or `columns`, never from `pages`; `byValue` and `byProperty` also need a dimension pivot, never the Scenario one. And a `byValue` rule needs exactly one `projection` per pivot on the **opposite** axis whose dimension the metric carries -- no more, no fewer -- naming which modality to compare on; the filtered pivot must be the innermost such pivot on its own axis. A wrong projection set or an operator invalid for the target's type fails the update; a rule with an empty selection or the wrong number of `values` is dropped and reported in `metadata.warnings`.
 

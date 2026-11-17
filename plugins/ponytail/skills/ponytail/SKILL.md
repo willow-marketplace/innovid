@@ -1,6 +1,6 @@
 ---
 name: ponytail
-description: ">"
+description: ponytail
 ---
 
 # Ponytail

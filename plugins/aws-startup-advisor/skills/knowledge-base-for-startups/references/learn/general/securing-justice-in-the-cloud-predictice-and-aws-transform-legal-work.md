@@ -5,7 +5,7 @@ title: "Securing justice in the cloud: Predictice and AWS transform legal work"
 
 ## Securing justice in the cloud: Predictice and AWS transform legal work
 
-_AWS Startups Customer Story_
+> _AWS Startups Customer Story_
 
 ![Predictice](https://d22k7geae6sy8h.cloudfront.net/files/68c7f07b5a0de3000cd61038/Predictice+2.jpg)
 

@@ -1,0 +1,20 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
+  "mcpServers": {
+    "domino_server": {
+      "type": "stdio",
+      "command": "uv",
+      "args": [
+        "run",
+        "--frozen",
+        "--directory",
+        "${PLUGIN_ROOT}/mcp-servers/domino_mcp_server",
+        "domino_mcp_server.py"
+      ]
+    },
+    "domino_docs": {
+      "type": "streamable-http",
+      "url": "https://docs.domino.ai/mcp"
+    }
+  }
+}

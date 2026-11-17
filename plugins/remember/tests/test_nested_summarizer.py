@@ -1,7 +1,9 @@
 """The nested Haiku summarizer must not scaffold a memory directory (#204).
 
-pipeline/haiku.py spawns `claude -p` with cwd=tempfile.gettempdir() to keep the
-summarizer out of the user's repo. Claude Code loads plugins in that child and
+pipeline/summarizer.py spawns `claude -p` with cwd set to a scratch directory (a
+fresh, isolated per-call one since #724 -- previously the shared
+tempfile.gettempdir()) to keep the summarizer out of the user's repo. Claude
+Code loads plugins in that child and
 derives its CLAUDE_PROJECT_DIR from that cwd — so this plugin's own hooks fire
 inside the summarizer, resolve the temp dir as a project, and build a memory
 store under its slug:
@@ -17,7 +19,7 @@ SessionStart and UserPromptSubmit.
 
 The guard was always intended — session-start-hook.sh documented a no-op for
 "the remember pipeline's own Haiku call" — but it keyed on the child having no
-CLAUDE_PROJECT_DIR, and the child has one. _child_env() now sets a positive
+CLAUDE_PROJECT_DIR, and the child has one. _summarizer_environment() now sets a positive
 marker that resolve-paths.sh stops on, so the signal is one we own rather than
 one we deleted.
 
@@ -44,7 +46,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 
 sys.path.insert(0, str(REPO_ROOT))
 
-from pipeline.haiku import NESTED_SUMMARIZER_ENV, _child_env  # noqa: E402
+from pipeline.summarizer import NESTED_SUMMARIZER_ENV, _summarizer_environment  # noqa: E402
 
 
 def _external_home(tmp_path: Path) -> tuple[Path, Path]:
@@ -112,19 +114,65 @@ def _run_hook(script: str, project_dir: Path, home: Path, nested: bool) -> subpr
     )
 
 
-def test_child_env_marks_the_nested_summarizer():
-    """The spawn side of the contract: the marker is on the child env."""
-    assert _child_env()[NESTED_SUMMARIZER_ENV] == "1"
+def test_child_env_marks_the_nested_summarizer(monkeypatch):
+    """The spawn side of the contract: the marker is in the environment the
+    child inherits, for as long as the spawn lasts (#898 round 15)."""
+    import os
+
+    monkeypatch.delenv(NESTED_SUMMARIZER_ENV, raising=False)
+    with _summarizer_environment():
+        assert os.environ.get(NESTED_SUMMARIZER_ENV) == "1"
 
 
 def test_the_marker_does_not_escape_into_the_parent_environment(monkeypatch):
-    """_child_env() builds a dict; it must not mutate os.environ, or the
-    plugin would go silent in the user's real session too."""
-    monkeypatch.delenv(NESTED_SUMMARIZER_ENV, raising=False)
-    _child_env()
+    """The marker is scoped to the spawn: once it returns, this process's
+    environment is back as it was, or the plugin would go silent in the
+    user's real session too. Paired with the test above, which proves the
+    marker was set at all."""
     import os
 
+    monkeypatch.delenv(NESTED_SUMMARIZER_ENV, raising=False)
+    with _summarizer_environment():
+        assert os.environ.get(NESTED_SUMMARIZER_ENV) == "1"
     assert NESTED_SUMMARIZER_ENV not in os.environ
+
+
+def test_auto_memory_disabled_during_the_spawn(monkeypatch):
+    """The CLI's own auto-memory scaffolds `<project>/memory/` at startup for
+    any cwd Claude Code resolves a project from -- including the isolated,
+    per-call cwd this spawn gets (_isolated_summarizer_cwd, #724). That folder
+    is never used by the summarizer and never cleaned up, so it piles up as
+    junk under ~/.claude/projects/ (#1054). CLAUDE_CODE_DISABLE_AUTO_MEMORY=1
+    for the spawn is what stops the CLI from creating it in the first place."""
+    import os
+
+    monkeypatch.delenv("CLAUDE_CODE_DISABLE_AUTO_MEMORY", raising=False)
+    with _summarizer_environment():
+        assert os.environ.get("CLAUDE_CODE_DISABLE_AUTO_MEMORY") == "1"
+
+
+def test_auto_memory_marker_is_restored_afterward(monkeypatch):
+    """Scoped to the spawn like the nested-summarizer marker above: restored
+    to whatever it was before, with a positive control (the assertion inside
+    the `with`) proving the marker really was set -- a bare restore-check
+    alone would also pass if the context manager silently did nothing."""
+    import os
+
+    monkeypatch.setenv("CLAUDE_CODE_DISABLE_AUTO_MEMORY", "pre-existing")
+    with _summarizer_environment():
+        assert os.environ.get("CLAUDE_CODE_DISABLE_AUTO_MEMORY") == "1"
+    assert os.environ.get("CLAUDE_CODE_DISABLE_AUTO_MEMORY") == "pre-existing"
+
+
+def test_auto_memory_marker_not_left_set_when_previously_unset(monkeypatch):
+    """The other half of restore: when nothing was set before the spawn,
+    nothing is left set after it either."""
+    import os
+
+    monkeypatch.delenv("CLAUDE_CODE_DISABLE_AUTO_MEMORY", raising=False)
+    with _summarizer_environment():
+        pass
+    assert "CLAUDE_CODE_DISABLE_AUTO_MEMORY" not in os.environ
 
 
 def test_the_temp_dir_project_is_reproduced_without_the_marker(tmp_path):

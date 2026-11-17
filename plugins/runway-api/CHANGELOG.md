@@ -1,9 +1,16 @@
 # Changelog
 
+## 4.0.0 (unreleased)
+
+- Runway Dev plugin bundles the hosted Dev MCP and seven refreshed integration/setup skills for Codex, Claude Code, and Cursor. Replit can use the same skills and a separate MCP install link.
+- Setup guides browser sign-in or signup, account/project verification, and server-side application credentials.
+- **Migration:** The repository root is the Dev plugin, keeping the `runway-api` install ID and using the Runway Dev display name. Earlier skills and helpers are no longer shipped; older commit-pinned installs stay on their prior version until updated.
+- **Claude plugin:** Claude installs load `claude/`, which connects to the `/mcp/claude` endpoint without `create_avatar` and uses skill copies that leave live generations, Sessions, Recipe calls and Workflow invocations to the user's application.
+- Allowlisted reproducible ZIP export without copied plugin trees, portable schema validation, packaging tests, and draft review cases.
+
 ## 3.0.0
 
 - **Breaking:** Removed legacy `rw-integrate-*`, setup, compatibility, and static API-reference skills. Use `runway-dev` with the relevant `runway-dev-*` surface skill for application integration.
-- **Direct API actions remain separate:** `rw-generate-*`, `use-runway-api`, and `rw-check-org-details` remain available.
 - **Durable guidance:** Moved server-boundary, API-key, uploads, Characters UI, and lifecycle guidance into the new Dev Platform skill set.
 
 ## 2.2.0
@@ -20,9 +27,7 @@
 
 ## 2.0.0
 
-- **Media generation:** New `rw-generate-video`, `rw-generate-image`, `rw-generate-audio` skills that run Python scripts directly via `uv run` — no SDK setup required
-- **Runnable scripts:** Added `scripts/` directory with `generate_video.py`, `generate_image.py`, `generate_audio.py`, `list_models.py`, `get_task.py`, and shared `runway_helpers.py`
-- **Seedance 2 support:** Added `seedance2` model across all generation scripts and skills (TTV, ITV, VTV, 36 credits/sec)
+- **Seedance 2 support:** Added `seedance2` model documentation (TTV, ITV, VTV, 36 credits/sec)
 - **Plugin metadata:** Updated descriptions and keywords for both Claude and Cursor plugins
 
 ## 1.1.0

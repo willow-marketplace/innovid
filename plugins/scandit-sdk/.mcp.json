@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "scandit": {
+      "url": "https://ssl.scandit.com/mcp",
+      "type": "http"
+    }
+  }
+}

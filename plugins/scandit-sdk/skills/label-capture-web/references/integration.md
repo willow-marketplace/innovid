@@ -12,7 +12,7 @@ If the user has no existing app yet, offer the official sample as the fastest pa
 
 Tell the user to clone the repo and open the sample folder. Once they have it open, help them:
 
-1. Replace `-- ENTER YOUR SCANDIT LICENSE KEY HERE --` with their key from <https://ssl.scandit.com>
+1. Replace `-- ENTER YOUR SCANDIT LICENSE KEY HERE --` with your key (see **Licence key** in `SKILL.md`).
 2. Adjust the label definition to match their use case (fields, symbologies, regex patterns)
 3. Run `npm install` (or their package manager of choice) and start the app
 
@@ -26,9 +26,180 @@ Only proceed to the manual integration steps below if the user already has an ex
   - `@scandit/web-datacapture-core`
   - `@scandit/web-datacapture-barcode`
   - `@scandit/web-datacapture-label`
-- A valid Scandit license key:
-  - Sign in at <https://ssl.scandit.com> to generate one.
-  - No account yet? Sign up at <https://ssl.scandit.com/dashboard/sign-up?p=test>.
+- A valid Scandit license key — see **Licence key** in this skill's `SKILL.md`.
+
+### Loading the SDK without a bundler
+
+For a plain-HTML page without a bundler, set the SDK up as follows. The headers and the multithreading check also apply to a bundled app.
+
+<!-- BEGIN GENERATED web-cdn packages=core,barcode,label engine=label -->
+**CDN caveat.** A public CDN ties the page's start-up to that CDN's availability and speed, so for production [the docs](https://docs.scandit.com/sdks/web/add-sdk/#install-via-cdn) recommend self-hosting the SDK files or a paid enterprise CDN.
+
+**Import map.** Load the SDK as ES modules through an import map, as in the docs' [complete CDN example](https://docs.scandit.com/sdks/web/add-sdk/#complete-cdn-example). Pin one exact version in every URL: a floating `@8` is resolved separately for each file, so after a new 8.x release the JavaScript and the engine can come from different releases, which breaks start-up. The `es-module-shims` script adds import-map support to browsers that lack it.
+
+```html
+<script type="importmap">
+  {
+    "imports": {
+      "@scandit/web-datacapture-core": "https://cdn.jsdelivr.net/npm/@scandit/web-datacapture-core@8.6.1/build/js/index.js",
+      "@scandit/web-datacapture-core/": "https://cdn.jsdelivr.net/npm/@scandit/web-datacapture-core@8.6.1/",
+      "@scandit/web-datacapture-barcode": "https://cdn.jsdelivr.net/npm/@scandit/web-datacapture-barcode@8.6.1/build/js/index.js",
+      "@scandit/web-datacapture-barcode/": "https://cdn.jsdelivr.net/npm/@scandit/web-datacapture-barcode@8.6.1/",
+      "@scandit/web-datacapture-label": "https://cdn.jsdelivr.net/npm/@scandit/web-datacapture-label@8.6.1/build/js/index.js",
+      "@scandit/web-datacapture-label/": "https://cdn.jsdelivr.net/npm/@scandit/web-datacapture-label@8.6.1/"
+    }
+  }
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/es-module-shims@2.6.2/dist/es-module-shims.js"></script>
+```
+
+Use the same version in `libraryLocation`: `https://cdn.jsdelivr.net/npm/@scandit/web-datacapture-label@8.6.1/sdc-lib/`.
+
+**Cross-origin isolation headers.** Serve the page with both headers, whether the SDK files come from jsDelivr or are self-hosted:
+
+```
+Cross-Origin-Opener-Policy: same-origin
+Cross-Origin-Embedder-Policy: require-corp
+```
+
+Do not recommend `credentialless` for `Cross-Origin-Embedder-Policy` in the SDK set-up: Safari does not support it, so the page would not be cross-origin isolated there.
+
+jsDelivr serves the SDK files and `es-module-shims` with `Cross-Origin-Resource-Policy: cross-origin` and `Access-Control-Allow-Origin: *`, which `require-corp` accepts.
+
+**Serving the page.** From the folder that holds `index.html`, run [`serve`](https://www.npmjs.com/package/serve) with `npx serve@14.2.6` or `pnpm dlx serve@14.2.6`, and put the headers in a `serve.json` next to `index.html`:
+
+```json
+{
+  "headers": [
+    {
+      "source": "**",
+      "headers": [
+        { "key": "Cross-Origin-Opener-Policy", "value": "same-origin" },
+        { "key": "Cross-Origin-Embedder-Policy", "value": "require-corp" }
+      ]
+    }
+  ]
+}
+```
+
+`serve` matches `source` against the path of the file it serves: `index.html` served at `/` gets the headers, a directory listing does not.
+
+Any other server must send the same two headers. Plain `python3 -m http.server` does not send them, so it is not enough on its own; this small Python server does (save it as `server.py` next to `index.html`, run `python3 server.py`, and open `http://localhost:8000`):
+
+```python
+from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+
+class CrossOriginIsolatedHandler(SimpleHTTPRequestHandler):
+    def end_headers(self):
+        self.send_header("Cross-Origin-Opener-Policy", "same-origin")
+        self.send_header("Cross-Origin-Embedder-Policy", "require-corp")
+        super().end_headers()
+
+ThreadingHTTPServer(("127.0.0.1", 8000), CrossOriginIsolatedHandler).serve_forever()
+```
+
+**Multithreading check.** Start `BrowserHelper.checkMultithreadingSupport()` without awaiting it, then await `DataCaptureContext.forLicenseKey()`: the two run in parallel, so set-up never waits for the check. The check needs no engine and no context. It resolves `false` when the page is not cross-origin isolated (the COOP/COEP headers are missing) or the device has fewer than 2 CPU cores or no nested workers. Scanning then still works, single-threaded and slower, and the SDK logs its own console warning, so do not add another: tell the person scanning with the dialog below instead.
+
+**Dialog helper.** Save this module as `multithreading-warning.js` next to `index.html` and import it as `"./multithreading-warning.js"`, or as `multithreading-warning.ts` in a bundled app and import it as `"./multithreading-warning"`: it has no type annotations, so it is valid as either. `index.html` needs no markup for it: the helper adds the dialog to the page itself, unless the page already has a `<dialog id="multithreading-warning">`. The dialog shows at most once per page load (a module-level flag, so a scanner restart does not reopen it), and not again during the browser session once it was closed with the checkbox ticked. Every `sessionStorage` access sits in a `try`/`catch`: storage can be blocked, and that only means the dialog may show again on the next page load.
+
+```typescript
+const multithreadingWarningDismissedKey = "scandit-multithreading-warning-dismissed";
+let multithreadingWarningShown = false;
+
+export function isMultithreadingWarningDismissed() {
+  try {
+    return sessionStorage.getItem(multithreadingWarningDismissedKey) === "true";
+  } catch {
+    return false;
+  }
+}
+
+export function rememberMultithreadingWarningDismissed() {
+  try {
+    sessionStorage.setItem(multithreadingWarningDismissedKey, "true");
+  } catch {}
+}
+
+function multithreadingWarningDialog() {
+  const existing = document.querySelector("dialog#multithreading-warning");
+  if (existing instanceof HTMLDialogElement) {
+    return existing;
+  }
+  const dialog = document.createElement("dialog");
+  dialog.id = "multithreading-warning";
+  dialog.innerHTML = `
+        <form method="dialog">
+          <h2>Scanning may be slower</h2>
+          <p>This browser or device can't use all of its processing power for scanning. You can keep scanning, but scanning may take longer.</p>
+          <p><a href="https://docs.scandit.com/sdks/web/matrixscan/get-started/#improve-runtime-performance-by-enabling-browser-multithreading" target="_blank" rel="noopener">Learn more</a></p>
+          <label><input type="checkbox" /> Don't show this again during this session</label>
+          <button autofocus>OK</button>
+        </form>`;
+  document.body.append(dialog);
+  return dialog;
+}
+
+export function showMultithreadingWarning() {
+  if (multithreadingWarningShown || isMultithreadingWarningDismissed()) {
+    return;
+  }
+  const dialog = multithreadingWarningDialog();
+  multithreadingWarningShown = true;
+  dialog.addEventListener(
+    "close",
+    () => {
+      const dontShowAgain = dialog.querySelector('input[type="checkbox"]');
+      if (dontShowAgain instanceof HTMLInputElement && dontShowAgain.checked) {
+        rememberMultithreadingWarningDismissed();
+      }
+    },
+    { once: true }
+  );
+  dialog.showModal();
+}
+```
+
+**Starting the check.** Import the helper and start the check before `forLicenseKey()`. The dialog opens as soon as the check resolves `false`, while the engine keeps loading. This snippet has no type annotations either, so it runs as is in a `<script type="module">`:
+
+```typescript
+import { BrowserHelper, DataCaptureContext } from "@scandit/web-datacapture-core";
+import { labelCaptureLoader } from "@scandit/web-datacapture-label";
+import { showMultithreadingWarning } from "./multithreading-warning.js";
+
+BrowserHelper.checkMultithreadingSupport()
+  .then((supported) => {
+    if (!supported) {
+      showMultithreadingWarning();
+    }
+  })
+  .catch(console.error);
+
+await DataCaptureContext.forLicenseKey("-- ENTER YOUR SCANDIT LICENSE KEY HERE --", {
+  libraryLocation: "https://cdn.jsdelivr.net/npm/@scandit/web-datacapture-label@8.6.1/sdc-lib/",
+  moduleLoaders: [labelCaptureLoader()],
+});
+```
+
+If the user explicitly asks to run single-threaded, leave the check and the dialog out.
+
+**UMD build, last resort.** Use the classic-script bundles only when the target browsers support neither ES modules nor the [`es-module-shims`](https://github.com/guybedford/es-module-shims) polyfill: they cannot be tree-shaken, so the page downloads more code and starts slower. Load them in this order, since each bundle reads the globals of the ones before it:
+
+```html
+<script src="https://cdn.jsdelivr.net/npm/@scandit/web-datacapture-core@8.6.1/build/js/umd/index.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@scandit/web-datacapture-barcode@8.6.1/build/js/umd/index.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@scandit/web-datacapture-label@8.6.1/build/js/umd/index.js"></script>
+```
+
+- `@scandit/web-datacapture-core/build/js/umd/index.js` exposes exactly one global, `SDCCore`.
+- `@scandit/web-datacapture-barcode/build/js/umd/index.js` exposes exactly one global, `SDCBarcode`.
+- `@scandit/web-datacapture-label/build/js/umd/index.js` exposes exactly one global, `SDCLabel`.
+
+The Scandit web UMD globals are `SDCCore`, `SDCBarcode`, `SDCLabel`, `SDCId`, `SDCParser`; no others exist. `SDCParser` is only for an app that parses data with `@scandit/web-datacapture-parser`: load that bundle after the core bundle.
+
+A classic `<script>` has no top-level `await`: take the exports off these globals (`const { DataCaptureContext } = SDCCore;`) and wrap the set-up in an async function.
+<!-- END GENERATED web-cdn -->
+
+Label Capture runs faster with browser multithreading, so keep the headers and the check in any app, bundled or not.
 
 ## Interactive Label Definition
 
@@ -77,7 +248,7 @@ Before writing any code, walk the user through their label. Ask one question at 
 | **Basic Overlay** | Fully automated scanning with no confirmation step. The app processes results as soon as all required fields match, with no chance for the user to review or correct. Use when the label is very clean and OCR accuracy is not a concern. |
 | **Advanced Overlay** | The app needs fully custom AR rendering — drawing its own overlays on top of the camera feed with full control over position, style, and animations. Only choose this if Basic Overlay and Validation Flow are not flexible enough visually. |
 
-Default to recommending Validation Flow unless the user explicitly says they do not want a confirmation step or need a fully custom AR experience.
+Default to recommending Validation Flow unless the user explicitly says they do not want a confirmation step or need a fully custom AR experience. When you pick the Validation Flow without the user having chosen it, say in one line that the Basic Overlay can replace it for fully automated scanning with no confirmation step.
 
 > **VIN and price label use cases with the Validation Flow:** The web SDK ships ready-made `LabelDefinition.createVinLabelDefinition(name)` and `LabelDefinition.createPriceCaptureDefinition(name)` definitions (see **Pre-built Label Definitions** below). These pre-made definitions are **not compatible with the Validation Flow overlay** — use them only with the Basic Overlay. If the user specifically wants VIN or price capture *inside the Validation Flow*, build the label by hand with custom field builders (`CustomBarcodeBuilder` + `CustomTextBuilder`) instead; the builder API gives full control over the fields the Validation Flow can render.
 
@@ -89,7 +260,7 @@ Once the user has answered Questions A, B, and C, generate the integration code 
 
 ```typescript
 import { Symbology } from "@scandit/web-datacapture-barcode";
-import { Camera, DataCaptureContext, DataCaptureView, FrameSourceState } from "@scandit/web-datacapture-core";
+import { BrowserHelper, Camera, DataCaptureContext, DataCaptureView, FrameSourceState } from "@scandit/web-datacapture-core";
 import {
   CustomBarcodeBuilder,
   ExpiryDateTextBuilder,
@@ -98,13 +269,23 @@ import {
   LabelCaptureSettingsBuilder,
   LabelDefinitionBuilder,
   labelCaptureLoader,
+  type LabelCaptureListener,
   type LabelCaptureSession,
   type LabelField,
 } from "@scandit/web-datacapture-label";
+import { showMultithreadingWarning } from "./multithreading-warning";
 
 async function run() {
   const view = new DataCaptureView();
   view.connectToElement(document.getElementById("data-capture-view")!);
+
+  BrowserHelper.checkMultithreadingSupport()
+    .then((supported) => {
+      if (!supported) {
+        showMultithreadingWarning();
+      }
+    })
+    .catch(console.error);
 
   const context = await DataCaptureContext.forLicenseKey(
     "-- ENTER YOUR SCANDIT LICENSE KEY HERE --",
@@ -142,8 +323,8 @@ async function run() {
 
   await LabelCaptureBasicOverlay.withLabelCaptureForView(mode, view);
 
-  const labelCaptureListener = {
-    didUpdateSession: (_labelCapture, session: LabelCaptureSession, _frameData) => {
+  const labelCaptureListener: LabelCaptureListener = {
+    didUpdateSession: (_labelCapture, session: LabelCaptureSession) => {
       for (const capturedLabel of session.capturedLabels) {
         for (const field of capturedLabel.fields as LabelField[]) {
           console.log(field.name, "=", field.barcode?.data ?? field.text);
@@ -164,6 +345,8 @@ async function run() {
 run();
 ```
 
+The multithreading check runs in parallel with `forLicenseKey()`. Import `showMultithreadingWarning` from the `multithreading-warning` helper module in [Loading the SDK without a bundler](#loading-the-sdk-without-a-bundler), which adds the dialog to the page itself, so the page needs no markup for it. Leave the check out when the user asked to run single-threaded.
+
 ## anchorRegex vs valueRegex
 
 Every text field definition has two kinds of regex:
@@ -182,7 +365,7 @@ await new ExpiryDateTextBuilder()
   .build("Expiry Date")
 ```
 
-**Keep regexes simple.** The SDK regex engine supports standard character classes (`\d`, `[A-Z]`), quantifiers (`{2}`, `+`, `*`), and groups. Lookahead and lookbehind assertions are not supported and will cause the pattern to fail to match.
+**Keep regexes bounded.** The SDK regex engine is PCRE2. Lookahead and lookbehind (`(?=…)`, `(?!…)`, `(?<=…)`, `(?<!…)`) are supported in value and anchor regexes; a negative lookahead or lookbehind keeps a value regex from matching inside a longer number (for example card-number digits read as an expiry date). Give every value regex explicit length limits (`\d{2}`, `{4,6}`) rather than open-ended `+`/`*`.
 
 ## Notes when generating this code
 
@@ -200,9 +383,11 @@ After writing the integration code, show this checklist:
    - `@scandit/web-datacapture-core`
    - `@scandit/web-datacapture-barcode`
    - `@scandit/web-datacapture-label`
-2. Replace `-- ENTER YOUR SCANDIT LICENSE KEY HERE --` with your license key from <https://ssl.scandit.com>.
-3. Make sure `libraryLocation` points to a self-hosted copy of the SDK library (the path in `new URL(...)`). You can copy the `sdc-lib` directory from `node_modules/@scandit/web-datacapture-label/sdc-lib/`, or use the CDN instead: `libraryLocation: "https://cdn.jsdelivr.net/npm/@scandit/web-datacapture-label@8/sdc-lib/"`.
+2. Replace `-- ENTER YOUR SCANDIT LICENSE KEY HERE --` with your key (see **Licence key** in `SKILL.md`).
+3. Make sure `libraryLocation` points to a self-hosted copy of the SDK library (the path in `new URL(...)`). You can copy the `sdc-lib` directory from `node_modules/@scandit/web-datacapture-label/sdc-lib/`, or use the CDN pinned to the exact version you import, as in [Loading the SDK without a bundler](#loading-the-sdk-without-a-bundler).
 4. Ensure a DOM element with id `data-capture-view` exists on the page before `run()` executes. The element must have a defined size and be visible — `DataCaptureView` renders the camera feed into it, so if the element has zero dimensions or `display: none` the viewfinder will not appear. A common setup is `width: 100%; height: 100vh;` or any other CSS that gives the element a non-zero area.
+5. For a plain-HTML page, serve it with the `Cross-Origin-Opener-Policy` and `Cross-Origin-Embedder-Policy` headers, as in [Loading the SDK without a bundler](#loading-the-sdk-without-a-bundler).
+6. Add the `multithreading-warning` helper module from [Loading the SDK without a bundler](#loading-the-sdk-without-a-bundler) (`multithreading-warning.js` on a plain-HTML page, `multithreading-warning.ts` in a bundled app) and import `showMultithreadingWarning` from it. The helper adds the dialog to the page itself, so the page needs no markup for it.
 
 ## Overlay Integration
 
@@ -413,7 +598,61 @@ mode.addListener(labelCaptureListener);
 
 ### Advanced Overlay
 
-Use `LabelCaptureAdvancedOverlay` only when the app needs fully custom AR rendering — drawing its own HTML elements or canvas graphics on top of the camera feed with full positional control. This requires significantly more implementation work. Refer to the [Advanced Configurations](https://docs.scandit.com/sdks/web/label-capture/advanced/) page for the listener interface and anchor points.
+Use `LabelCaptureAdvancedOverlay` only when the app needs fully custom AR rendering — its own HTML elements that follow captured labels and fields on top of the camera feed. It is more work than the Basic Overlay or the Validation Flow.
+
+The overlay is created with the static `withLabelCaptureForView` (there is no constructor on web), and the listener is a plain object assigned to `listener`. `viewForCapturedLabelField()` returns an `HTMLElement` for a field, or `null` to show nothing; `anchorForCapturedLabelField()` picks the anchor on the field, and `offsetForCapturedLabelField()` moves the element away from it. The `...CapturedLabel` methods do the same for a whole label. Read dates from `field.date` (`day`, `month`, `year`) rather than parsing `field.text`.
+
+```typescript
+import {
+  Anchor,
+  MeasureUnit,
+  NumberWithUnit,
+  PointWithUnit,
+} from "@scandit/web-datacapture-core";
+import { LabelCaptureAdvancedOverlay, type LabelField } from "@scandit/web-datacapture-label";
+
+const EXPIRY_FIELD_NAME = "<your-expiry-date-field-name>";
+const WARNING_DAYS = 3;
+
+function daysUntilExpiry(field: LabelField): number | null {
+  const date = field.date;
+  if (date?.day == null || date.month == null || date.year == null) {
+    return null;
+  }
+  const expiry = new Date(date.year, date.month - 1, date.day);
+  return Math.ceil((expiry.getTime() - Date.now()) / (24 * 60 * 60 * 1000));
+}
+
+const advancedOverlay = await LabelCaptureAdvancedOverlay.withLabelCaptureForView(mode, view);
+
+advancedOverlay.listener = {
+  viewForCapturedLabelField: (_overlay, field) => {
+    const days = field.name === EXPIRY_FIELD_NAME ? daysUntilExpiry(field) : null;
+    if (days == null || days > WARNING_DAYS) {
+      return null;
+    }
+    const badge = document.createElement("div");
+    badge.textContent = "Expires soon";
+    badge.style.cssText = "background: #d32f2f; color: #fff; padding: 4px 8px; border-radius: 4px; font: 600 14px sans-serif;";
+    return badge;
+  },
+  anchorForCapturedLabelField: () => Anchor.BottomCenter,
+  offsetForCapturedLabelField: () =>
+    new PointWithUnit(new NumberWithUnit(0, MeasureUnit.Pixel), new NumberWithUnit(8, MeasureUnit.Pixel)),
+};
+
+// Up to SDK 8.7 the advanced overlay only draws while the mode has a LabelCaptureListener.
+mode.addListener({ didUpdateSession: () => {} });
+```
+
+Notes for generating this code:
+
+- **Up to SDK 8.7, keep a `LabelCaptureListener` on the mode.** The advanced overlay receives no updates otherwise and draws nothing. If the app already has one, that is enough; never remove it while the overlay is in use.
+- Always return the anchor and the offset explicitly. Offsets are `new PointWithUnit(new NumberWithUnit(x, unit), new NumberWithUnit(y, unit))`; web `MeasureUnit` has only `Pixel` and `Fraction` (a fraction of the element's own size).
+- Return `null` (not `undefined`) for fields that get no element.
+- Keep the elements cheap to build: up to SDK 8.7 the listener is called on every frame.
+- `setViewForCapturedLabelField(field, label, element)` sets an element from code, for example from `didUpdateSession`; it takes precedence over the listener. Up to SDK 8.7, the first element set for a field stays until `clearCapturedLabelViews()`, so prefer the listener for content that changes.
+- Do not use `LabelCaptureAdvancedOverlayView` or `MeasureUnit.Dip`: they belong to the React Native and native SDKs, not web.
 
 ---
 
@@ -510,7 +749,7 @@ Both factories accept an optional second `AdaptiveRecognitionMode` argument (see
 
 ## Receipt Scanning (Beta)
 
-> **Beta.** Receipt Scanning is built on the Adaptive Recognition Engine and is still in Beta — it may change in future SDK versions. It requires a subscription with the feature enabled; tell the user to contact <support@scandit.com> to enable it. Do not suggest it by default.
+> **Beta.** Receipt Scanning is built on the Adaptive Recognition Engine and is still in Beta — it may change in future SDK versions. It requires a subscription with the feature enabled. Tell the user all three: it is a Beta feature built on the Adaptive Recognition Engine, it may change in future SDK versions, and they must contact <support@scandit.com> to enable it. Do not suggest it by default.
 
 Receipt Scanning extracts structured data from a whole receipt (store details, payment totals, line items) in the cloud. It uses a **different integration pattern** from standard label capture — a dedicated overlay and listener rather than the Basic / Validation Flow overlays:
 

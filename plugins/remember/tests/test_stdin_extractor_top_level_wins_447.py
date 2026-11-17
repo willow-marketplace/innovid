@@ -74,6 +74,7 @@ from pathlib import Path
 import pytest
 
 from ._bash_runner import resolve_bash
+from ._compiled_hooks import skip_if_dropped
 
 # #432: a blanket skipif(sys.platform == "win32") makes the windows-latest CI
 # leg collect these tests, skip every one of them, and report the leg green --
@@ -92,6 +93,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 
 def _extract_function(script: str, func_name: str) -> str:
     """Pull `func_name() { ... }` verbatim out of `script`, brace-balanced."""
+    skip_if_dropped(REPO_ROOT / script, func_name)
     text = (REPO_ROOT / script).read_text(encoding="utf-8")
     m = re.search(rf"^{re.escape(func_name)}\(\)\s*\{{", text, re.MULTILINE)
     assert m, func_name + " not found in " + script
@@ -107,12 +109,24 @@ def _extract_function(script: str, func_name: str) -> str:
 
 
 def _call(script: str, func_name: str, keyed: bool, key: str, raw: str):
-    """Run the extracted function in a fresh bash, return (returncode, stdout)."""
+    """Run the extracted function in a fresh bash, return (returncode, stdout).
+
+    The script goes in on stdin, not as a `-c` argument: Git for Windows'
+    bash.exe re-parses its command line and collapses the `\\\\` sequences
+    the extractors contain (#829), observed on Windows 11 / Git Bash 5.2.
+    """
     body = _extract_function(script, func_name)
     args = [key, raw] if keyed else [raw]
-    call = func_name + " " + " ".join(shlex.quote(a) for a in args)
+    if func_name.endswith("_into"):
+        # The printf -v form (#665): same extraction, written into a named
+        # variable; its return code is the extraction's verdict.
+        call = (func_name + " OUT_447 " + " ".join(shlex.quote(a) for a in args)
+                + '; rc=$?; printf %s "$OUT_447"; exit $rc')
+    else:
+        call = func_name + " " + " ".join(shlex.quote(a) for a in args)
     result = subprocess.run(
-        [BASH, "-c", body + "\n" + call],
+        [BASH],
+        input=body + "\n" + call,
         capture_output=True,
         text=True,
         timeout=10,
@@ -138,13 +152,14 @@ def _nested_before(key: str, top: str, nested: str) -> str:
 # `_stdin_json_string KEY RAW` (session-start/-end, post-tool) from
 # user-prompt-hook.sh's own `_stdin_cwd RAW`, which hardcodes the key.
 CASES = [
-    pytest.param("scripts/session-start-hook.sh", "_stdin_json_string", True, "source", id="session-start/source"),
-    pytest.param("scripts/session-start-hook.sh", "_stdin_json_string", True, "cwd", id="session-start/cwd"),
-    pytest.param("scripts/session-start-hook.sh", "_stdin_json_string", True, "session_id", id="session-start/session_id"),
+    # session-start reads every field through the printf -v form (#898).
+    pytest.param("scripts/session-start-hook.sh", "_stdin_json_string_into", True, "source", id="session-start/source"),
+    pytest.param("scripts/session-start-hook.sh", "_stdin_json_string_into", True, "cwd", id="session-start/cwd"),
+    pytest.param("scripts/session-start-hook.sh", "_stdin_json_string_into", True, "session_id", id="session-start/session_id"),
     pytest.param("scripts/session-end-hook.sh", "_stdin_json_string", True, "cwd", id="session-end/cwd"),
     pytest.param("scripts/session-end-hook.sh", "_stdin_json_string", True, "session_id", id="session-end/session_id"),
-    pytest.param("scripts/post-tool-hook.sh", "_stdin_json_string", True, "cwd", id="post-tool/cwd"),
-    pytest.param("scripts/post-tool-hook.sh", "_stdin_json_string", True, "session_id", id="post-tool/session_id"),
+    pytest.param("scripts/post-tool-hook.sh", "_stdin_json_string_into", True, "cwd", id="post-tool/cwd"),
+    pytest.param("scripts/post-tool-hook.sh", "_stdin_json_string_into", True, "session_id", id="post-tool/session_id"),
     pytest.param("scripts/user-prompt-hook.sh", "_stdin_cwd", False, "cwd", id="user-prompt/cwd"),
 ]
 
@@ -181,6 +196,6 @@ def test_a_key_with_no_nested_shadow_is_unaffected():
     top-level value -- the pairing above must not be trivially satisfied by
     an extractor that always returns the wrong thing."""
     raw = '{"session_id":"PLAIN-VALUE-447","cwd":"/does/not/matter"}'
-    rc, out = _call("scripts/session-start-hook.sh", "_stdin_json_string", True, "session_id", raw)
+    rc, out = _call("scripts/session-start-hook.sh", "_stdin_json_string_into", True, "session_id", raw)
     assert rc == 0
     assert out == "PLAIN-VALUE-447"

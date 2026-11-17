@@ -32,7 +32,7 @@ The .NET-Android-specific facts most often gotten wrong by pattern-matching from
 
 Based on the user's request, load the appropriate reference file before responding:
 
-- **Integrating Label Capture from scratch, defining the label (fields, symbologies, regexes, optional vs required), creating the mode, hosting the `DataCaptureView` + `LabelCaptureBasicOverlay`, wiring the camera lifecycle, handling captured labels, customizing feedback or brushes, or using prebuilt definitions (VIN / price label / 7-segment)** (e.g. "add Smart Label Capture to my .NET Android app", "scan a barcode and an expiry date from a price tag in C#", "read the total price field", "use the recommended camera settings") → read [references/integration.md](references/integration.md) and follow it.
+- **Integrating Label Capture from scratch, defining the label (fields, symbologies, regexes, optional vs required), creating the mode, hosting the `DataCaptureView` + `LabelCaptureBasicOverlay`, wiring the camera lifecycle, handling captured labels, customizing feedback or brushes, using prebuilt definitions (VIN / price label / 7-segment), the Adaptive Recognition cloud fallback (Step 11), or Receipt Scanning — store receipts, line items, totals (beta, Step 12)** (e.g. "add Smart Label Capture to my .NET Android app", "scan a barcode and an expiry date from a price tag in C#", "read the total price field", "use the recommended camera settings") → read [references/integration.md](references/integration.md) and follow it.
 - **Enabling or customizing the Validation Flow** (e.g. "add the guided validation flow so users can review and correct fields", "let the user type a field that didn't scan", "customize the validation-flow hint text / button labels", "the keyboard covers the input field") → read [references/validation-flow.md](references/validation-flow.md) and follow it.
 
 ## API Usage Policy
@@ -44,6 +44,20 @@ Only use APIs that are explicitly documented in the Scandit references below. Do
 2. If no direct link was found, fetch the API index (see **Full API reference** in the table below), extract the actual link from it, and follow that.
 
 URL structures can vary (e.g. an `api/ui/` subdirectory) and guessing will lead to 404s.
+
+## Licence key
+
+Scanning needs a Scandit licence key. For this skill the licence product is `native` and the licence platform is `android`.
+
+Work through these in order — never block the user on MCP:
+
+1. **The Scandit MCP server is connected** — call `ensure_scanner_setup` with product `native` and platforms `android`, `app_identifier` (the app's bundle or application id; for web, its production domain, never `localhost`) and `env_var` `SCANDIT_LICENSE_KEY`. Do not run the command it returns. Then call `get_license_key` with the key's id, from that result or from `list_license_keys`; if `list_license_keys` shows the key is not a trial, ask the user before fetching it. Show at most a masked preview in chat; never print a full key.
+2. **It is not connected** — tell the user once that they can connect the remote Scandit MCP server, `https://ssl.scandit.com/mcp`, in their MCP client, then continue from step 1. Do not edit MCP client configuration yourself.
+
+   Authentication is browser-based, so it is **not supported headless or in CI**. The server provisions **trial** keys only; it never creates, revokes, or modifies production licences.
+3. **The user declines, or has no MCP client** — they generate a key themselves at <https://ssl.scandit.com> (no account yet: <https://ssl.scandit.com/dashboard/sign-up?p=test>) and paste it in.
+
+**Then put the key into the code**: write it into the licence-key call in place of the placeholder — the key `get_license_key` returned, or the one the user pastes or gives you — still showing only a masked preview in chat. Do not search the project, its files or the environment for a key.
 
 ## References
 
@@ -84,7 +98,7 @@ All classes documented with `:available: dotnet.android` in the official RST doc
 
 These are real `dotnet.android` symbols but out of scope for a first integration — don't invent their shapes; fetch the [Advanced Configurations](https://docs.scandit.com/sdks/net/android/label-capture/advanced/) page if the user asks for them:
 
-- **Adaptive Recognition (cloud backup):** `LabelCaptureAdaptiveRecognitionOverlay`, `LabelCaptureAdaptiveRecognitionSettings`, `ILabelCaptureAdaptiveRecognitionListener`, and the result types `AdaptiveRecognitionResult` / `AdaptiveRecognitionResultType` / `ReceiptScanningResult` / `ReceiptScanningLineItem`. Enabled per-definition via `AdaptiveRecognitionMode`.
+- **Adaptive Recognition (cloud backup):** `LabelCaptureAdaptiveRecognitionOverlay`, `LabelCaptureAdaptiveRecognitionSettings`, `ILabelCaptureAdaptiveRecognitionListener`, and the result types `AdaptiveRecognitionResult` / `AdaptiveRecognitionResultType` / `ReceiptScanningResult` / `ReceiptScanningLineItem`. Enabled per-definition via `AdaptiveRecognitionMode`. Exception: the Receipt Scanning (beta) overlay + listener wiring is in [references/integration.md](references/integration.md) Step 12 — use those names; only the receipt label settings come from the docs.
 - **Advanced overlay (arbitrary Android views over labels):** `LabelCaptureAdvancedOverlay`, `ILabelCaptureAdvancedOverlayListener`.
 - **`LabelFieldLocation` / `LabelFieldLocationType`** — used with `SetLocation(...)` on custom field builders to constrain where a field is expected on the label.
 

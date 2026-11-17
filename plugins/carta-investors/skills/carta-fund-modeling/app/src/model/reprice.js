@@ -20,16 +20,40 @@ import { fmtB } from "../ui/format.js";
 // `waterfallMode` on, the company's valuation slider is read as an EXIT company
 // (equity) value and the fund's FV becomes its actual proceeds through the
 // preference stack (model/liqpref.js) — non-linear, with the preference floor —
-// instead of the flat `cartaFv × multiple` line. Off (the default) → unchanged.
+// instead of the flat `cartaFv × multiple` line. Anything but an explicit on → unchanged.
 
 /** True if the company has an embedded Carta cap table with share classes. */
 export function companyHasCapTable(c) {
   return !!(c && c.capTable && c.capTable.classes && c.capTable.classes.length);
 }
 
-/** True if this company should reprice through the liquidation waterfall. */
+/** Whether the company page offers the MOIC / Company valuation dropdown: a cap
+ *  table and a reference exit to value it at, and no realized, defunct or $-basis
+ *  mark (a $-basis company has its own toggle). */
+export function valuationModeOffered(c) {
+  return !!(c && companyHasCapTable(c) && !c.realized && !c.defunct
+    && !(c.positions || []).some((p) => p.markBasisB) && companyReferenceExit(c) > 0);
+}
+
+/** Whether an unchosen company opens in Company valuation. `waterfallMode` is
+ *  true/false once someone has chosen, null/undefined until then. DISPLAY ONLY:
+ *  the label and the slider's units. Pricing never reads it (see
+ *  `pricesViaWaterfall`), so an untouched company keeps its Carta FV. Applies only
+ *  while the company is held at the Carta mark (`includeInNav` off). */
+export function waterfallByDefault(c) {
+  return !!c && !c.includeInNav && valuationModeOffered(c);
+}
+
+/** The mode the company page SHOWS: the stored choice, else the default. Drives
+ *  the label, the slider's units and the dropdown — not the price. */
 export function companyIsWaterfall(c) {
-  return !!(c && c.waterfallMode && companyHasCapTable(c));
+  return !!(c && companyHasCapTable(c) && (c.waterfallMode ?? waterfallByDefault(c)));
+}
+
+/** True if this company's FV is priced through the liquidation waterfall: only
+ *  when someone chose it. An unset mode is priced by the flat reprice. */
+export function pricesViaWaterfall(c) {
+  return !!(c && c.waterfallMode === true && companyHasCapTable(c));
 }
 
 /** A reference "current" exit company value ($ absolute) for a cap-table company:
@@ -64,7 +88,7 @@ export function companyExitValueAbs(c) {
 export function positionReprice(company, position, opts = {}) {
   const live = opts.live !== false;
   const dil = opts.dilution != null ? opts.dilution : company.futureDilution ?? 0;
-  if (live && companyIsWaterfall(company)) {
+  if (live && pricesViaWaterfall(company)) {
     const repricedFv = positionValueAt(company, position, {
       valuationB: company.valuationB,
       dilution: dil,
@@ -210,7 +234,7 @@ export function positionTotalValue(company, position, opts = {}) {
  *  through the same engine — liquidation waterfall included — as the mark it is
  *  compared against. */
 export function positionValueAt(company, position, { valuationB, markMultiple, dilution = 0 } = {}) {
-  if (companyIsWaterfall(company)) {
+  if (pricesViaWaterfall(company)) {
     const totalFv = company.positions.reduce((s, p) => s + (p.cartaFv || 0), 0);
     const exitAbs = valuationB != null ? valuationB * 1e9 : companyReferenceExit(company);
     const wfFv = fundExitProceeds(company.capTable, exitAbs).proceeds;
@@ -255,7 +279,8 @@ export const BOOKED_CARRY_RATE = 0.2;
  * caller passes as the fund's own baseline (LPA/config) carry rate so Baseline
  * ties out to Carta's books (factor 1); it defaults to 20% for callers with no
  * per-fund rate. The booked carry rescales by carryRate/bookedRate (linear, no
- * hurdle), and the marginal uplift splits (1−c)/c. Below
+ * hurdle); with a bookedRate of 0 it stays as booked, whatever the dial. The
+ * marginal uplift splits (1−c)/c. Below
  * the make-whole line (deep markdown scenarios), LPs absorb 100% of the move
  * and accrued carry floors at zero — the GP holds no carry until LPs are made
  * whole. Value is conserved at the gross marks, so cutting the rate moves
@@ -268,19 +293,18 @@ export const BOOKED_CARRY_RATE = 0.2;
 export function fundReprice(base, uplift, cfg, bookedRate = BOOKED_CARRY_RATE) {
   const wf = typeof cfg === "number" ? { carryRate: cfg } : (cfg || {});
   const carryRate = wf.carryRate ?? 0.2;
-  // Anchor the booked-carry rescale to a non-zero rate. A fund can carry at 0%
-  // (its config carryRate is a real 0, so `?? default` upstream keeps it), which
-  // would make carryRate/bookedRate a divide-by-zero → NaN that poisons lpNav and
-  // every firm rollup. A 0% fund has no booked carry to rescale anyway, so falling
-  // back to the flat default is safe (0 × anything = 0).
-  const anchor = bookedRate > 0 ? bookedRate : BOOKED_CARRY_RATE;
+  // The booked carry rescales by carryRate/bookedRate. A fund booked at 0% (a real 0, so
+  // `?? default` upstream keeps it) has no rate to rescale against, and dividing by it would
+  // be NaN: its booked carry stays as booked at every dial value, and the dial moves only
+  // the marginal carry on uplift. Accrued carry therefore never falls as the dial rises.
+  const carryScale = bookedRate > 0 ? carryRate / bookedRate : 1;
   const gross0 = base.lpNav + base.accruedCarry + base.lpDistributed;
   const gross1 = gross0 + uplift;
   const profit = (g) => Math.max(0, g - base.lpPaidIn);
   // Marginal carry across the reprice, through the full waterfall (pref + catch-up).
   // Flat case: splitProfit(p) = carryRate·p, so this reduces to carryRate·Δprofit.
   const gpCarryAt = (g) => splitProfit(profit(g), base.lpPaidIn, wf).gpCarry;
-  const rawCarry = base.accruedCarry * (carryRate / anchor) + (gpCarryAt(gross1) - gpCarryAt(gross0));
+  const rawCarry = base.accruedCarry * carryScale + (gpCarryAt(gross1) - gpCarryAt(gross0));
   // Hard invariants, in priority order: carry is never negative, and carry can
   // never exceed total profit above the make-whole line — so an underwater
   // fund holds zero carry even when Carta's base carry exceeds carryRate ×
@@ -427,7 +451,7 @@ export const SENTIMENT_MULTIPLES = [0, 1, 3, 5, 10, 20];
 
 /** Red→green sentiment color for a quick-pick multiple. Literal HSL (semantic —
  *  red = down, green = up — so it reads correctly in both light and dark mode;
- *  same "literal colors are intentional" precedent as Overview's chart PALETTE). */
+ *  same "literal colors are intentional" precedent as the chart PALETTE in ui/theme.js). */
 export function sentimentColor(mult) {
   if (mult <= 0) return "hsl(2, 62%, 50%)";   // write-off — red
   if (mult < 1.5) return "hsl(40, 6%, 46%)";  // held at Carta — neutral grey
@@ -456,11 +480,11 @@ function sentimentPresets(anchor) {
  *  same function — same modes, same units, same presets — against its own fields.
  */
 function repriceConfig(company, { totalFv, hasBasis, cartaMoic, cartaRef, updateCompany,
-                                  target = company, write }) {
+                                  target = company, write, waterfall = companyIsWaterfall(company) }) {
   const set = write || ((patch) => updateCompany(company.id, { ...patch, includeInNav: true }));
   // Waterfall mode: the slider is an EXIT company valuation ($B). 1× snaps to the
   // company's reference (current) value; proceeds flow through the preference stack.
-  if (companyIsWaterfall(company)) {
+  if (waterfall) {
     const refB = companyReferenceExit(company) / 1e9; // billions
     const cur = target.valuationB ?? refB ?? 0;
     // `ref` (→ max, → presets) must NEVER fall back to `cur` — cur is the value
@@ -489,11 +513,11 @@ function repriceConfig(company, { totalFv, hasBasis, cartaMoic, cartaRef, update
     };
   }
   if (cartaMoic) {
-    const cur = (target.markMultiple ?? 1) * cartaMoic;
+    const cur = moicAtMark(target.markMultiple, cartaMoic);
     return {
       value: cur, min: 0, max: Math.max(60, Math.ceil(cartaMoic * 22)), step: 0.05,
       fmtVal: (x) => x.toFixed(2) + "×", resetValue: cartaMoic,
-      onChange: (m) => set({ markMultiple: m / cartaMoic }),
+      onChange: (m) => set({ markMultiple: markForMoic(m, cartaMoic) }),
       presets: sentimentPresets(cartaMoic),
     };
   }
@@ -514,6 +538,18 @@ function repriceConfig(company, { totalFv, hasBasis, cartaMoic, cartaRef, update
  * or archived). Shared by the Companies table and any other view that exposes
  * a per-company reprice slider (e.g. a sidebar scoped to a fund).
  */
+/** The company's MOIC at Carta's mark: its positions' fair value over their cost, or null with no cost. The MOIC
+ *  slider shows `markMultiple` times this. */
+export function cartaMoicOf(company) {
+  const totalFv = company.positions.reduce((s, p) => s + (p.cartaFv || 0), 0);
+  const totalCost = company.positions.reduce((s, p) => s + (p.cost || 0), 0);
+  return totalCost > 0 ? totalFv / totalCost : null;
+}
+
+/** The MOIC the slider shows for a multiple of Carta's mark, and back. */
+export const moicAtMark = (markMultiple, cartaMoic) => (markMultiple ?? 1) * cartaMoic;
+export const markForMoic = (moic, cartaMoic) => moic / cartaMoic;
+
 export function companyRepriceState(company, updateCompany) {
   const live = company.includeInNav && !company.archived;
   let uplift = 0;
@@ -521,11 +557,10 @@ export function companyRepriceState(company, updateCompany) {
     uplift += positionReprice(company, p, { live }).uplift;
   }
   const totalFv = company.positions.reduce((s, p) => s + (p.cartaFv || 0), 0);
-  const totalCost = company.positions.reduce((s, p) => s + (p.cost || 0), 0);
   const hasBasis = company.positions.some((p) => p.markBasisB);
   const canReprice = !company.realized && !company.defunct
-    && (hasBasis || totalFv > 0 || companyIsWaterfall(company));
-  const cartaMoic = totalCost > 0 ? totalFv / totalCost : null;
+    && (hasBasis || totalFv > 0 || pricesViaWaterfall(company));
+  const cartaMoic = cartaMoicOf(company);
   const cartaRef = cartaReferenceB(company);
   const cfg = canReprice && !company.archived
     ? repriceConfig(company, { totalFv, hasBasis, cartaMoic, cartaRef, updateCompany })
@@ -551,20 +586,22 @@ export function companyRepriceState(company, updateCompany) {
  *  price sells at the mark, so the reset chip must sit where that lands. */
 export function saleRepriceConfig(company, sale, write) {
   const totalFv = company.positions.reduce((s, p) => s + (p.cartaFv || 0), 0);
-  const totalCost = company.positions.reduce((s, p) => s + (p.cost || 0), 0);
   const args = {
     totalFv,
     hasBasis: company.positions.some((p) => p.markBasisB),
-    cartaMoic: totalCost > 0 ? totalFv / totalCost : null,
+    cartaMoic: cartaMoicOf(company),
     cartaRef: cartaReferenceB(company),
   };
-  const atMark = repriceConfig(company, { ...args, target: company, write: () => {} });
-  const cfg = repriceConfig(company, { ...args, target: salePrice(company, sale), write });
+  // A sale's price is read by the pricing engine, so it takes the PRICING mode's units, not the
+  // display default: an unset mode is MOIC here even while the company's own slider shows valuation.
+  const waterfall = pricesViaWaterfall(company);
+  const atMark = repriceConfig(company, { ...args, target: company, write: () => {}, waterfall });
+  const cfg = repriceConfig(company, { ...args, target: salePrice(company, sale), write, waterfall });
   return { ...cfg, resetValue: atMark.value };
 }
 
 /** True when the company's reprice mode is a $ company valuation rather than a
  *  MOIC multiple — the two units a price can be entered in. */
 export function repricesByValuation(company) {
-  return companyIsWaterfall(company) || company.positions.some((p) => p.markBasisB);
+  return pricesViaWaterfall(company) || company.positions.some((p) => p.markBasisB);
 }

@@ -31,7 +31,7 @@ To support operations when deployed into a customer account, EngFlow's Remote Ex
 
 ![Figure 1. EngFlow Remote Execution solution architecture on AWS](https://d22k7geae6sy8h.cloudfront.net/files/64a2f47773217a00082c811b/8ljn2dcnp-Figure-1.-EngFlow-Remote-Execution-solution-architecture-on-AWS-1.png)
 
-_Figure 1. EngFlow Remote Execution solution architecture on AWS_
+> _Figure 1. EngFlow Remote Execution solution architecture on AWS_
 
 Let's take a deeper look at how EngFlow enables fast, reliable, cost-efficient builds on AWS and how they identified areas to improve their Remote Execution solution when working through their Well-Architected review.
 

@@ -1,178 +1,103 @@
-# Runway API Skills
+# Runway Dev
 
-Media Generation at scale. One platform to run the best image, video, audio and real-time models. Generate videos, images, and audio with Runway's API — batch Ad campaigns, product videos, multishot stories, and creative iteration. Supports seedance2, gen4.5, veo3, Nano, Banana Pro, and more.
+Runway Dev helps your coding agent build AI video, image and audio generation into your apps with Runway’s API, including Runway’s own models alongside the best from other labs.
 
-Works with [Claude Code](https://docs.anthropic.com/en/docs/claude-code), [Cursor](https://cursor.com), [Codex](https://openai.com/index/codex/), and other compatible agents.
+## What’s included
 
-## Two Ways to Use
+- **The Runway Dev MCP** connects your agent to your Runway Developer Portal account. It can look up available models, prices and limits; set up Model Routers based on cost, speed or quality, with an optional credit cap; and manage real-time avatars. It can also inspect failed tasks and routing decisions to help you work out what to check next.
+- **Skills** show your agent how to integrate the API with the official SDKs, and how to build with models, Model Routers, Recipes, Workflows and real-time avatars.
 
-### 1. Generate media at scale
+This repository is the plugin: root manifests and MCP configuration load the seven active skills in `skills/`. Claude uses a separate plugin folder, `claude/`, described below. The install ID remains `runway-api`; the display name is Runway Dev.
 
-Tell your agent what to create and it handles the rest — calls the API, polls for completion, downloads the result. Generate one asset or orchestrate hundreds.
+Installing a plugin does not configure an application's API key or automatically create a Runway account. Public directory availability depends on each host's listing.
 
-```
-Generate a 15-second product video from this image using seedance2
-```
+## Claude Code
 
-```
-Generate a video for each of these 5 product photos, 9:16 ratio for Instagram Reels
-```
+The Claude plugin lives in `claude/`, with its own manifest, MCP configuration and copies of the seven skills. It connects to `https://dev.runwayml.com/mcp/claude`, which omits the `create_avatar` tool; users create new avatars in the Developer Portal. Its skills validate integrations with local checks and leave live generations, Sessions, Recipe calls and Workflow invocations to the user's application.
 
-```
-Create a voiceover for this ad script, then generate a sound effect of applause
-```
+Install from the Runway-maintained marketplace:
 
-### 2. Build Runway into your app
-
-Use Dev MCP for live project context and the official SDK for application code. The agent inspects the existing backend and UI, follows current docs, implements the relevant product surface, and verifies it safely.
-
-```
-Set up Runway video generation in my Next.js app
+```sh
+claude plugin marketplace add runwayml/skills
+claude plugin install runway-api@runway-dev
 ```
 
-## Installation
+For local testing:
 
-### Claude Code (community marketplace)
-
-```bash
-claude plugin marketplace add anthropics/claude-plugins-community
-claude plugin install runway-api-skills@claude-community
+```sh
+claude plugin marketplace add /absolute/path/to/skills
+claude plugin install runway-api@runway-dev
 ```
 
-You can also run `/plugin` in Claude Code, open **Discover**, search for **runway-api-skills**, and install from there. After installing or updating plugins, run `/reload-plugins` if skills do not appear immediately.
+Ask Claude to help connect your Runway Dev account, or run `/runway-api:runway-dev-setup`. Complete browser sign-in and consent yourself.
 
-### Other agents (`npx skills`)
+The `runway-api@claude-plugins-official` listing is managed by Anthropic and may pin a different version from the Runway-maintained marketplace.
 
-```bash
-npx skills add runwayml/skills
+## Codex and ChatGPT
+
+For local development, register this repository and install its plugin:
+
+```sh
+codex plugin marketplace add /absolute/path/to/skills
+codex plugin add runway-api@runway-dev
 ```
 
-Select all the skills with your keyboard (Space to select, arrow keys to navigate), then press Enter to install.
+The Git-backed equivalent is `codex plugin marketplace add runwayml/skills`. The package declares an onboarding skill; run setup or ask the agent to help connect your Runway Dev account. Public directory availability requires submission and review.
 
-For Dev Platform integration, install the foundation plus the skill for your surface:
+For an OpenAI package export, use Node.js 24.12 or newer:
 
-```bash
-npx skills add runwayml/skills --skill runway-dev --skill runway-dev-models --agent cursor claude-code codex -y
+```sh
+npm --prefix tooling ci --ignore-scripts
+npm --prefix tooling run build:plugin
 ```
 
-## Prerequisites
+This creates `.build/runway-api-4.0.0.zip`. It exports the root plugin files and active Dev skills from an explicit allowlist, excluding the Claude plugin folder and development files. Package validation and native authentication are separate checks.
 
-- A [Runway developer account](https://dev.runwayml.com/) with prepaid credits ($10 minimum)
-- For generation skills: [uv](https://docs.astral.sh/uv/) (Python package runner) and `RUNWAYML_API_SECRET` env var
-- For integration skills: a server-side project — Node.js 18+ or Python 3.8+ with a backend framework
+## Cursor
 
-## Available Skills
+The root `.cursor-plugin/plugin.json` defines **Runway Dev** (`runway-api`) and selects the root developer skills and MCP connection. For testing, use Cursor's local plugin workflow or its repository install flow with the branch containing this package. A standalone [MCP connection](https://docs.dev.runwayml.com/guides/mcp/) remains available; adding only MCP does not install skills.
 
-### Dev Platform (integrate via Dev MCP + SDK)
+## Replit
 
-These skills use Dev MCP for live project context and the SDK for server-side integration.
+Replit distributes MCP connections and Agent Skills separately:
 
-| Skill                      | Description                                            |
-| -------------------------- | ------------------------------------------------------ |
-| `runway-dev`               | Shared MCP, docs, auth, task polling, and error flow   |
-| `runway-dev-models`        | Model endpoint integration                             |
-| `runway-dev-model-routers` | Model Router setup and routed SDK calls                |
-| `runway-dev-characters`    | Characters and realtime avatar sessions                |
-| `runway-dev-recipes`       | Recipe pipeline integration                            |
-| `runway-dev-workflows`     | Runway app workflows exposed through API endpoints     |
+1. [Add Runway Dev MCP to Replit](https://replit.com/integrations?mcp=eyJkaXNwbGF5TmFtZSI6IlJ1bndheSBEZXYiLCJiYXNlVXJsIjoiaHR0cHM6Ly9kZXYucnVud2F5bWwuY29tL21jcCJ9) and complete browser authorization.
+2. Install the setup, foundation, and relevant surface skills:
 
-### Generation (run directly)
-
-Generate media assets directly — your agent runs the scripts, polls for completion, and saves the output.
-
-| Skill                | Description                                                                         |
-| -------------------- | ----------------------------------------------------------------------------------- |
-| `rw-generate-video`  | Generate videos: text-to-video, image-to-video, video-to-video                     |
-| `rw-generate-image`  | Generate images: text-to-image with optional reference images                       |
-| `rw-generate-audio`  | Generate audio: TTS, sound effects, voice isolation, dubbing, voice conversion      |
-
-### Utilities
-
-| Skill                  | Description                                                                                    |
-| ---------------------- | ---------------------------------------------------------------------------------------------- |
-| `use-runway-api`       | Call public API endpoints directly to manage resources, trigger generations, and inspect state |
-| `rw-check-org-details` | Query organization rate limits, credit balance, usage tier, and generation counts              |
-
-## Supported Models
-
-### Video
-
-| Model                    | Use Case                                 | Cost              |
-| ------------------------ | ---------------------------------------- | ----------------- |
-| `seedance2`              | Reference image and video, long duration | 36 credits/sec    |
-| `gen4.5`                 | High quality, general purpose            | 12 credits/sec    |
-| `gen4_turbo`             | Fast, image-driven (image required)      | 5 credits/sec     |
-| `gen4_aleph`             | Video-to-video editing                   | 15 credits/sec    |
-| `veo3`                   | Premium quality                          | 40 credits/sec    |
-| `veo3.1` / `veo3.1_fast` | High quality / fast Google models       | 10–40 credits/sec |
-
-### Image
-
-| Model              | Cost        |
-| ------------------ | ----------- |
-| `gen4_image`       | 5–8 credits |
-| `gen4_image_turbo` | 2 credits   |
-| `gemini_2.5_flash` | 5 credits   |
-
-### Audio
-
-| Model                        | Use Case                     |
-| ---------------------------- | ---------------------------- |
-| `eleven_multilingual_v2`     | Text-to-speech               |
-| `eleven_text_to_sound_v2`    | Sound effects                |
-| `eleven_voice_isolation`     | Isolate voice from audio     |
-| `eleven_voice_dubbing`       | Dub audio to other languages |
-| `eleven_multilingual_sts_v2` | Voice conversion             |
-
-### Characters
-
-| Model          | Description                                          |
-| -------------- | ---------------------------------------------------- |
-| `gwm1_avatars` | Real-time conversational avatars (5-min max session) |
-
-## Quick Start
-
-### Generate media directly
-
-```
-Generate a 10-second video of a sunset over the ocean
+```sh
+npx skills add runwayml/skills --skill runway-dev-setup --skill runway-dev --skill runway-dev-models -a replit
 ```
 
+The MCP link and standalone skills are separate installations.
+
+## Skills
+
+| Skill | Purpose |
+| --- | --- |
+| `runway-dev-setup` | Connect an account and project; guide application key setup when needed |
+| `runway-dev` | Shared server boundary, current docs, credentials, SDK tasks, and errors |
+| `runway-dev-models` | Integrate direct model endpoints |
+| `runway-dev-model-routers` | Configure and integrate Model Routers |
+| `runway-dev-characters` | Integrate real-time Characters and Sessions |
+| `runway-dev-recipes` | Implement documented Recipe pipelines |
+| `runway-dev-workflows` | Call published Runway app Workflows through the API |
+
+Standalone installation works for compatible agents without the plugin:
+
+```sh
+npx skills add runwayml/skills --skill runway-dev --skill runway-dev-models --agent cursor claude-code codex
 ```
-Generate an image of a red door in a white wall
-```
 
-```
-Create a voiceover saying "Welcome to our store" and save it as welcome.mp3
-```
+Standalone skills do not automatically configure MCP. Use one installation path for each skill to avoid duplicate copies.
 
-### Integrate into a project
+## Credentials and usage
 
-```
-Use Dev MCP to add Runway video generation to my existing Next.js app
-```
+MCP uses browser OAuth at `https://dev.runwayml.com/mcp`; do not put an API key in its configuration. Your application uses its own server-side `RUNWAYML_API_SECRET`. Create the key in [Developer Portal](https://dev.runway.com/) and keep it out of browser bundles, chat, and source control. API generations may consume credits.
 
-```
-Add a Runway Character with domain knowledge to this support app
-```
+Use the [current docs](https://docs.dev.runwayml.com/), [MCP connection guide](https://docs.dev.runwayml.com/guides/mcp/), and [agent context](https://docs.dev.runwayml.com/ai-context.md) for current contracts. No model catalog or prices are pinned in this README.
 
-## Supported Frameworks
+## Development and release
 
-The Dev Platform skills inspect and integrate with server-side stacks including:
+Edit the root manifests and active `skills/` directly. When a skill changes, make the matching change in `claude/skills/` unless it conflicts with the Claude variant's differences above; there is no generated copy or sync step. Build and test dependencies live under `tooling/` so plugin installation does not install development packages. Run `npm --prefix tooling run build:plugin` to export a ZIP; add any new skill resources to its explicit file allowlist. CI checks the export, cross-host paths, and portable schemas. See [the maintainer guide](https://github.com/runwayml/skills/blob/main/docs/plugin-release.md).
 
-- **Node.js** — Express, Fastify, Next.js (App Router & Pages Router), Remix, SvelteKit, Nuxt, Astro
-- **Python** — FastAPI, Flask, Django
-- **Serverless** — Vercel Functions, AWS Lambda, Cloudflare Workers
-
-## API Reference
-
-- **Base URL:** `https://api.dev.runwayml.com`
-- **Auth header:** `Authorization: Bearer <RUNWAYML_API_SECRET>`
-- **Version header:** `X-Runway-Version: 2024-11-06`
-- **Official docs:** [docs.dev.runwayml.com](https://docs.dev.runwayml.com/)
-- **API Reference:** [docs.dev.runwayml.com/api](https://docs.dev.runwayml.com/api)
-- **Developer portal:** [dev.runwayml.com](https://dev.runwayml.com/)
-
-## License
-
-[MIT](LICENSE)
+Licensed under [MIT](LICENSE).

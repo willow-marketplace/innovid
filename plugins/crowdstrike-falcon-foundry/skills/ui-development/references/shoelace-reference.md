@@ -10,9 +10,7 @@ import '@shoelace-style/shoelace/dist/components/button/button.js';
 import '@shoelace-style/shoelace/dist/components/card/card.js';
 import '@shoelace-style/shoelace/dist/components/alert/alert.js';
 import '@shoelace-style/shoelace/dist/components/spinner/spinner.js';
-import '@shoelace-style/shoelace/dist/components/badge/badge.js';
 import '@shoelace-style/shoelace/dist/components/details/details.js';
-import '@shoelace-style/shoelace/dist/components/tag/tag.js';
 import '@shoelace-style/shoelace/dist/components/icon/icon.js';
 import '@shoelace-style/shoelace/dist/components/input/input.js';
 import '@shoelace-style/shoelace/dist/components/select/select.js';
@@ -28,8 +26,10 @@ Set the base path for Shoelace icons and assets:
 
 ```typescript
 import { setBasePath } from '@shoelace-style/shoelace/dist/utilities/base-path';
-setBasePath('https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.x/dist/');
+setBasePath('https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.20.1/cdn/');
 ```
+
+Pin the Shoelace version from `package.json`, as the samples do, so icons and assets match the components you bundle.
 
 ## Commonly Used Components
 
@@ -88,15 +88,19 @@ setBasePath('https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.x/dist/');
 ### Data Display
 
 ```html
-<!-- Badges for status indicators -->
-<sl-badge variant="success">Active</sl-badge>
-<sl-badge variant="danger">Critical</sl-badge>
-<sl-badge variant="warning">Pending</sl-badge>
-<sl-badge variant="neutral">Inactive</sl-badge>
+<!-- Status indicators: falcon-shoelace does not style sl-badge or sl-tag (see below) -->
+<span class="status status--danger">Critical</span>
+```
 
-<!-- Tags for categorization -->
-<sl-tag variant="primary" size="small">Category</sl-tag>
-<sl-tag removable>Removable Tag</sl-tag>
+```css
+/* Toucan tokens follow the console theme */
+.status { font-weight: 600; }
+.status--danger { color: var(--critical); }
+.status--warning { color: var(--medium); }
+.status--success { color: var(--positive); }
+```
+
+```html
 
 <!-- Spinners for loading states -->
 <sl-spinner></sl-spinner>
@@ -129,28 +133,25 @@ dialog.show();  // Open
 dialog.hide();  // Close
 ```
 
-**Dark mode fix for dialogs and drawers:** The `sl-dialog` and `sl-drawer` panel background defaults to white regardless of theme. Override these CSS custom properties for dark mode compatibility:
+**Dialogs follow the theme.** With falcon-shoelace 0.4.0 an `sl-dialog` panel is dark in dark mode (`#2c2c30`) with no overrides. If an older version or a custom panel shows white, set `--sl-panel-background-color: var(--ground-floor)` on the element.
 
-```css
-sl-dialog,
-sl-drawer {
-  --sl-panel-background-color: var(--ground-floor);
-  --sl-color-neutral-0: var(--ground-floor);
-  color: var(--titles-and-attributes);
-}
-```
-
-Or in React JSX using inline styles:
+**Guard dialog events with `event.target`.** `sl-show`, `sl-hide`, `sl-after-hide`, and `sl-request-close` bubble, so an `SlDetails`, `SlAlert`, or `SlDropdown` inside a dialog fires the dialog's handlers. An unguarded `onSlAfterHide={() => setOpen(false)}` closes the dialog when a details section inside it collapses:
 
 ```jsx
-<sl-dialog label="My Dialog" style={{
-  "--sl-panel-background-color": "var(--ground-floor)",
-  "--sl-color-neutral-0": "var(--ground-floor)",
-  color: "var(--titles-and-attributes)",
-}}>
+<SlDialog open={open}
+  onSlAfterHide={(e) => { if (e.target === e.currentTarget) setOpen(false); }}
+  onSlRequestClose={(e) => { if (e.target === e.currentTarget) setOpen(false); }}>
 ```
 
-Without these overrides, dialogs appear with a white background in dark mode.
+### Components falcon-shoelace doesn't style
+
+falcon-shoelace 0.4.0 has no rules for `sl-tag` or `sl-badge`, and it doesn't define the `--sl-color-<variant>-*` tokens their variants use, so every variant renders the same: transparent background and body-text color (`variant="success"` and `variant="danger"` look identical). Use a styled `<span>`, or style `::part(base)` yourself with the console's own color tokens. Before using a component not shown in this file, check `@crowdstrike/falcon-shoelace/dist/style.css` for its tag name.
+
+### Form control quirks
+
+- **`sl-option` values can't contain spaces.** Shoelace replaces them with underscores and logs `Option values cannot include a space`, so `value="two words"` comes back as `two_words`. Use slugs.
+- **`sl-radio-group` has two tab stops after a click.** The first radio keeps `tabindex="0"` while nothing is chosen, and clicking another radio gives that one `tabindex="0"` too without clearing the first. Arrow keys fix it. After the value changes, await the group's and radios' `updateComplete`, then set `tabindex` to `0` on the checked radio and `-1` on the rest.
+- **`sl-radio` doesn't reflect `checked`.** It sets the `checked` property and `aria-checked`, never the attribute, so a `sl-radio[checked]` selector matches nothing. Select on `[aria-checked="true"]`.
 
 ### Tabs
 
@@ -199,31 +200,25 @@ export const showToast = (
 
 ## CSS Customization
 
-Override Shoelace component styles using CSS parts and custom properties:
+Override Shoelace component styles through CSS parts, using Toucan tokens for colors (falcon-shoelace defines no `--sl-color-*` tokens; see [falcon-theming.md](falcon-theming.md#design-tokens)):
 
 ```css
 /* Override card styling */
 sl-card::part(base) {
-  border: 1px solid var(--sl-color-neutral-200);
+  border: 1px solid var(--border-reg);
 }
 
 sl-card::part(header) {
-  background: var(--sl-color-neutral-50);
-}
-
-/* Override button styling */
-sl-button::part(base) {
-  border-radius: var(--sl-border-radius-medium);
+  background: var(--surface-md);
 }
 
 /* Override input styling */
 sl-input::part(base) {
-  border-color: var(--sl-color-neutral-300);
+  border-color: var(--border-bold);
 }
 
 sl-input::part(base):focus-within {
-  border-color: var(--sl-color-primary-500);
-  box-shadow: 0 0 0 3px var(--sl-color-primary-100);
+  border-color: var(--focus);
 }
 ```
 
@@ -237,13 +232,11 @@ import {
   SlCard,
   SlAlert,
   SlSpinner,
-  SlBadge,
   SlInput,
   SlSelect,
   SlOption,
   SlDialog,
   SlDetails,
-  SlTag,
   SlIcon,
 } from '@shoelace-style/shoelace/dist/react';
 ```

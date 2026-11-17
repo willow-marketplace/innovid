@@ -1,8 +1,8 @@
 {
   "name": "monday-crm",
   "version": "1.0.0",
-  "description": "Run your sales pipeline in monday CRM from plain language. Start the day with a ranked deal briefing, build a forecast, turn meeting notes into deal updates, set up a CRM workspace from scratch, keep your data clean, manage sequences end-to-end, log calls and meetings to timelines, analyze team activity and rep performance, and set up automations — every result written straight back into monday. Built on the official monday MCP connector.",
-  "updatedAt": "2026-09-19T00:42:54.176Z",
+  "description": "Run your sales pipeline in monday CRM from plain language. Start the day with a ranked deal briefing, build a forecast, turn meeting notes into deal updates, set up a CRM workspace from scratch, keep your data clean, manage sequences end-to-end, log calls and meetings to timelines, analyze team activity and rep performance, review why closed deals were won or lost, and set up automations — every result written straight back into monday. Built on the official monday MCP connector.",
+  "updatedAt": "2026-11-17T00:01:53.529Z",
   "author": {
     "url": "https://monday.com",
     "name": "monday.com",
@@ -25,7 +25,8 @@
     "automation",
     "activity",
     "timeline",
-    "activity-insights"
+    "activity-insights",
+    "win-loss"
   ],
   "displayName": "monday CRM",
   "skills": "./skills/",

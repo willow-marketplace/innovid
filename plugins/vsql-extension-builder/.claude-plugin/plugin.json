@@ -2,11 +2,17 @@
   "name": "vsql-extension-builder",
   "version": "1.0.0",
   "description": "Skills for VillageSQL (MySQL with extensions): build extensions end-to-end (including porting PostgreSQL extensions to MySQL) and install VillageSQL Server.",
-  "updatedAt": "2026-09-19T00:42:54.230Z",
+  "updatedAt": "2026-11-17T00:02:39.374Z",
   "author": {
     "name": "VillageSQL"
   },
   "homepage": "https://villagesql.com",
   "displayName": "VillageSQL Skills",
-  "skills": "./skills/"
+  "skills": "./skills/",
+  "mcpServers": {
+    "villagesql-docs": {
+      "url": "https://villagesql.com/docs/mcp",
+      "type": "http"
+    }
+  }
 }

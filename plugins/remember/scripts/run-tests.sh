@@ -19,7 +19,7 @@
 #   python3, pytest, bash, jq
 #   Fixtures: tests/fixtures/sample-session.jsonl, tests/fixtures/team/
 #   Scripts: save-session.sh (for dry-run test)
-#   Python: pipeline.shell, pipeline.haiku (for live test)
+#   Python: pipeline.shell, pipeline.summarizer (for live test)
 #
 # EXIT CODES
 #   0   All tests passed
@@ -125,7 +125,7 @@ echo ""
 # ── 4. Module imports ────────────────────────────────────────────────────
 echo "4. Module imports"
 
-for mod in types extract haiku log prompts consolidate shell; do
+for mod in types extract summarizer log prompts consolidate shell; do
     if python3 -c "import sys; sys.path.insert(0,'$PIPELINE_DIR'); import pipeline.$mod" 2>/dev/null; then
         pass "pipeline.$mod"
     else
@@ -153,7 +153,9 @@ if [ -f "$FIXTURES/sample-session.jsonl" ]; then
     # drift tomorrow" shape as the four copies of this rule #177 is about, and
     # it would not survive a non-ASCII or over-200-character TMPDIR.
     source "$(dirname "$0")/lib-slug.sh"
-    SESSION_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/projects/$(session_dir_slug "$TMP_PROJECT")"
+    _RT_CONFIG_DIR="${CLAUDE_CONFIG_DIR:-}"
+    [ -n "$_RT_CONFIG_DIR" ] || _RT_CONFIG_DIR="$HOME/.claude"
+    SESSION_DIR="$_RT_CONFIG_DIR/projects/$(session_dir_slug "$TMP_PROJECT")"
     mkdir -p "$SESSION_DIR" "$(dirname "$TMP_PROJECT/.remember/tmp/last-save.json")"
     mkdir -p "$TMP_PROJECT/.remember/tmp"
     cp "$FIXTURES/sample-session.jsonl" "$SESSION_DIR/test-session.jsonl"
@@ -293,7 +295,7 @@ echo "8. Live Haiku test"
 if [ "$LIVE" = true ]; then
     LIVE_OUT=$(cd "$PIPELINE_DIR" && python3 -c "
 import sys; sys.path.insert(0, '.')
-from pipeline.haiku import call_haiku
+from pipeline.summarizer import call_haiku
 r = call_haiku('Reply with exactly one word: WORKING', timeout=30)
 print(f'text={r.text.strip()}')
 print(f'tokens_in={r.tokens.input}')

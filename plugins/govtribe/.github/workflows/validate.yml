@@ -1,0 +1,27 @@
+name: Validate plugin
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check file types
+        run: |
+          bad=$(git ls-files | grep -Ev '(^|/)(LICENSE|\.gitignore)$|\.(md|json|ya?ml|txt|png|jpe?g|gif|webp)$' || true)
+          if [ -n "$bad" ]; then echo "Disallowed file types:"; echo "$bad"; exit 1; fi
+          while IFS= read -r -d '' f; do
+            if [ "$(head -c 2 "$f")" = '#!' ]; then echo "Script header in $f"; exit 1; fi
+          done < <(git ls-files -z)
+      - run: npx --yes @anthropic-ai/claude-code@2.1.292 plugin validate . --strict
+      - run: npx --yes @anthropic-ai/claude-code@2.1.292 plugin validate .claude-plugin/plugin.json --strict
+      - run: npx --yes @anthropic-ai/claude-code@2.1.292 plugin validate skills --strict

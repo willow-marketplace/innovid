@@ -1,6 +1,6 @@
 ---
 name: otel-genai-instrumentation
-description: 'Guides instrumentation of GenAI/LLM applications with OpenTelemetry for Honeycomb, including content capture and agent failure detection. Trigger phrases: "instrument my GenAI app", "add tracing to LLM calls", "trace AI agent", "instrument OpenAI", "instrument Anthropic", "GenAI observability", "trace tool calling", "LLM token usage", "instrument embeddings", "trace MCP", "GenAI metrics", "instrument LangChain", "add GenAI spans", "capture prompts", "capture LLM responses", "enable GenAI content capture", "streaming tracing", "trace streaming responses", or any request about instrumenting GenAI/LLM applications.'
+description: 'Instrumenting GenAI/LLM applications with OpenTelemetry for Honeycomb, including content capture and agent failure detection. Trigger phrases: "instrument my GenAI app", "add tracing to LLM calls", "trace AI agent", "instrument OpenAI", "instrument Anthropic", "GenAI observability", "trace tool calling", "LLM token usage", "instrument embeddings", "trace MCP", "GenAI metrics", "instrument LangChain", "add GenAI spans", "capture prompts", "capture LLM responses", "enable GenAI content capture", "streaming tracing", "trace streaming responses".'
 ---
 
 # GenAI Instrumentation for Honeycomb
@@ -528,7 +528,8 @@ OTEL_SEMCONV_STABILITY_OPT_IN=gen_ai_latest_experimental
 - Tool arguments/results — YES (always recommended)
 
 Message JSON schema: `role` + `parts` (text, tool_call, tool_call_response, reasoning);
-`tool_call_response` uses `response` field (not `content`) for the tool result.
+text/reasoning parts use `content`, tool_call parts use `arguments`, and
+`tool_call_response` uses `response` (not `content`) for the tool result.
 
 ### Privacy Controls (If Content Capture Enabled)
 

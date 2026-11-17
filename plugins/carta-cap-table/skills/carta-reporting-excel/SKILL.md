@@ -1,32 +1,38 @@
 ---
 name: carta-reporting-excel
-description: Internal subskill for carta-reporting. Exports Carta report data to a branded Excel file. Invoked by carta-reporting or carta-reporting-markdown when the user requests Excel output. Also the entry point when the main skill receives a message starting with "Generate Carta Excel —" (the artifact prompt bar payload).
+description: 'Internal step of carta-reporting: saves a report as an Excel file. Exports Carta report data to a branded Excel file. Invoked by carta-reporting or carta-reporting-markdown when the user requests Excel output. Also the entry point when the main skill receives a message starting with "Generate Carta Excel —" (the artifact prompt bar payload).'
 ---
 
 <!-- carta:plugin-version -->
-<carta-plugin>carta-cap-table:6.85.6</carta-plugin>
+<carta-plugin>carta-cap-table:6.114.20</carta-plugin>
 
 # Excel Export
 
 **Context expected from the calling skill (must be in session before this skill is invoked):**
 - `user_report_pk` — needed to check for the cached report file and to fetch a fresh download URL if the file is absent
-- `corporation_id` — needed for `call_tool({"name": "reporting__get__download_url", ...})`
-- Column config — either parsed from the artifact prompt bar payload (Claude Desktop) or confirmed during the Customization Checkpoint in `carta-reporting-markdown` (Claude Code)
+- `_carta_prefix` — the confirmed `mcp__<segment>__` of the Carta connector
+- `corporation_id` — needed for `read_tool({"name": "reporting__get__download_url", ...})`
+- Column config — either parsed from the artifact prompt bar payload (ARTIFACT mode, `Artifact` tool available) or confirmed during the Customization Checkpoint in `carta-reporting-markdown` (MARKDOWN mode, `Artifact` tool not available)
 - Corporation legal name, `as_of_date`, user full name — used as `--title`, `--as-of-date`, `--generated-by` args to `excel_exporter.py`
 
-## Column source (Claude Desktop — artifact prompt bar)
+## Column source (ARTIFACT mode — artifact prompt bar)
 
 When the user pastes an **artifact prompt bar payload**, it arrives as a complete instruction starting with `Generate Carta Excel —`:
 
 ```
 Generate Carta Excel —
 Corporation: Meetly, Inc. (ID: 7)
+As of: 2024-01-15
+Environment: Sandbox
+Reports:
+  Equity Grants: user_report_pk 4812; corporation_id 7; source sheet: Equity Grants
+  Vesting Schedule: user_report_pk 4812; corporation_id 7; source sheet: Vesting Schedule
 Columns:
   Equity Grants: columns: Grant ID, Award Type, Exercise Price; sorted by: Grant Date desc
   Vesting Schedule: columns: Grant ID, Vest Date, Shares Vested; totals: Shares Vested sum
 ```
 
-Use the `Corporation:` line to confirm which company the export is for. Each indented line under `Columns:` is one sheet tab. This is always **one Excel file** with one tab per sheet. Parse each sheet line and pass all sheets to `report_processor.py` in a single run using the per-sheet `sheets` dict format. No further questions needed.
+Use the `Corporation:` line to confirm which company the export is for, and `As of:` as `as_of_date`. The optional `Environment:` line names the Carta environment that built the report; `carta-reporting` gate 0b has already used it to set `_carta_prefix`. Each `Reports:` line gives the report behind that sheet: use its `user_report_pk` and `corporation_id` for the cached file and download URL, and its `source sheet` as the sheet name in `report_processor.py` (a multi-corporation page names sheets `Corp — Sheet`, which matches no single report's own sheet). Sheets from different corporations come from different reports, so run steps 1-4 below once per `user_report_pk`, each with its own `--out` and `--output`. Each indented line under `Columns:` is one sheet tab. This is always **one Excel file per report (one per corporation)**, with one tab per sheet. Parse the sheet lines of one report and pass its sheets to `report_processor.py` in a single run using the per-sheet `sheets` dict format. No further questions needed.
 
 **The column list from the artifact is authoritative; do not merge with or override it from the earlier conversation.**
 
@@ -47,29 +53,44 @@ whether the account is share-class-scoped, so it cannot label a percentage colum
 name the in-scope classes — the same limitation as `label_overrides`. The numbers are correct and
 already scoped; only the labelling is generic. Do not describe any total as company-wide.
 
-## Column source (Claude Code)
+## Column source (MARKDOWN mode)
 
 Use the column list confirmed during the Customization Checkpoint (resolved in `carta-reporting-markdown`).
 
+## Preflight access check (ARTIFACT mode)
+
+A prompt bar payload can be pasted into a session other than the one that built it: another user, firm or environment. That session may have no access to the payload's company, and a `user_report_pk` belongs to the user who generated it. Before reading any report data, confirm this session can reach each payload `corporation_id`.
+
+Confirm access once per distinct `corporation_id` on the `Reports:` lines, using only the ID: no company name is needed, and a name search cannot confirm a comma-joined `Corporation:` line or a payload with no name. For each one, make the same first read `carta-reporting` step 1a makes, on `_carta_prefix`:
+
+```
+read_tool({"name": "cap_table__list__cbus", "arguments": { corporation_id, detail: "minimal", page_size: 1 }})
+```
+
+- **Success:** that company is accessible, whatever `data.results` holds. Once every ID succeeds, go on with the export. If the report is then expired or `report_status` returns `not_found`, follow the Error Handling table: that is a stale report, not an access problem.
+- **Company error** (as `${CLAUDE_PLUGIN_ROOT}/references/find-the-company.md` *Company errors* defines it): that company is not accessible. Read every ID first, then **stop**. Do not fall back to DWH or other reads to find the data, and do not write a file. Tell the user this export request was created in a session with different Carta access, so this session cannot see each unreachable company. Name each one as `<label> (ID <corporation_id>)`, taking the label from the `Corporation — Sheet` sheet name or the `Corporation:` line. Ask them to sign in to Carta with the account that generated the report, or to request cap table access to those companies, then regenerate the report and copy a fresh Excel prompt.
+- **Any other error:** follow the Error Handling table. Do not give the access explanation.
+
 ## Running the export
 
-Check if `/tmp/carta_report_<user_report_pk>.json` is available (use `user_report_pk` from this session):
-- **File ready** → pass it as `"local_file"` to `report_processor.py`.
-- **Not ready** → call `call_tool({"name": "reporting__get__download_url", "arguments": { user_report_pk, corporation_id }})` to get a fresh presigned URL and pass it as `"download_url"` instead.
+Hand the user the generated `.xlsx` file itself. Never give them a Carta web link to the report: it makes them sign in to Carta. If the file cannot be delivered, the presigned `download_url` works without signing in but expires, so say so.
 
-**Always pipe through `report_processor.py` → `excel_exporter.py`, regardless of data size or complexity.** Never write Excel files directly with openpyxl or any other library — the scripts handle Carta branding (logo, header, fonts, number formats) that will be missing from any ad-hoc implementation. This applies even when the dataset is small (e.g. 3 rows) or when sheets need to be combined.
+
+Make every Carta call (`read_tool`, `call_tool`) through `_carta_prefix`, in both modes.
+
+Check if `carta-reporting/carta_report_<user_report_pk>.json` is available (use the current `user_report_pk` from this session: a recreated report's pk replaces the original):
+- **File ready** → pass it as `"local_file"` to `report_processor.py`.
+- **Not ready** → call `read_tool({"name": "reporting__get__report_status", "arguments": { user_report_pk }})` first (no `corporation_id`). Only when it is `complete`, call `read_tool({"name": "reporting__get__download_url", "arguments": { user_report_pk, corporation_id }})` to get a fresh presigned URL and pass it as `"download_url"` instead. While it is `pending`, poll every 5 s up to 20 attempts. On `error` or `failed`, tell the user the report failed. On `not_found` or a timeout, say the report is not available and offer to regenerate it. If `download_url` itself returns `not_found`, check `report_status` once more: if `complete`, call `download_url` once more; if `pending`, resume polling within the attempts left. Never call `download_url` more than twice; if the second call fails, say the report is not available and offer to regenerate it. Never give the user the `url` that `report_status` returns: it is a Carta web page that needs a sign-in.
+
+**Always run `report_processor.py` then `excel_exporter.py`, regardless of data size or complexity.** Never write Excel files directly with openpyxl or any other library — the scripts handle Carta branding (logo, header, fonts, number formats) that will be missing from any ad-hoc implementation. This applies even when the dataset is small (e.g. 3 rows) or when sheets need to be combined.
 
 For combining sheets into one tab, use `merge_sheets` in the `report_processor.py` call.
 
-Pass all sheets in one run using the `sheets` dict. Pipe into `excel_exporter.py`. Reuse the cached `_report_processor_path` if the parent session resolved it (it may be unset on the fresh `Generate Carta Excel —` prompt-bar path — the `find` fallback handles that):
+Pass all of one report's sheets in one run using the `sheets` dict; with several reports, repeat steps 1-4 for each `user_report_pk` (file names below use `<user_report_pk>`). Two commands, each run on its own, on one line: a heredoc, a pipe or a chained command needs approval every time. Never search for the scripts.
 
-```bash
-UV_PYTHON_DOWNLOADS=never uv run "${_report_processor_path:-$(find ~ -name "report_processor.py" -path "*/carta-reporting/scripts/*" 2>/dev/null | head -1)}" <<'EOF' | \
-    UV_PYTHON_DOWNLOADS=never uv run "$(find ~ -name "excel_exporter.py" -path "*/carta-reporting-excel/scripts/*" 2>/dev/null | head -1)" \
-        --title "Securities Ledger Report" \
-        --as-of-date 2024-01-15 \
-        --generated-by "Jane Doe" \
-        --output ./{report-slug}.xlsx
+1. `Write` `carta-reporting/config.json` (in the working directory) with the config:
+
+```json
 {
   "local_file": "<path or use download_url if file not ready>",
   "sheets": {
@@ -79,14 +100,44 @@ UV_PYTHON_DOWNLOADS=never uv run "${_report_processor_path:-$(find ~ -name "repo
                          "sort": [{"column": "Vest Date", "direction": "asc"}]}
   }
 }
-EOF
 ```
 
-The script prints the absolute output path on success. Present it as a clickable link: `computer://<absolute-path>` (e.g. `computer:///Users/jane/meetly-equity-grants.xlsx`). Tell the user their file is ready to open, then offer next steps:
+2. Process it into `carta-reporting/result-<user_report_pk>.json`:
+
+```bash
+UV_PYTHON_DOWNLOADS=never uv run "${CLAUDE_PLUGIN_ROOT}/skills/carta-reporting/scripts/report_processor.py" --config "carta-reporting/config.json" --out "carta-reporting/result-<user_report_pk>.json"
+```
+
+3. Check `carta-reporting/result-<user_report_pk>.json` before exporting: if its `warnings` is non-empty, or any sheet's `stats` has `schema_warnings`, tell the user which sheet was left out and why (wording: the `warnings.*` rows of the Error Handling table in `carta-reporting`), then export what is there. For each sheet in `warnings.unknown_sheets.requested`, or a payload sheet that the report does not have, write the `warnings.unknown_sheets` row's sentence word for word. Never present a workbook with a missing sheet or merged rows as complete.
+
+4. Export the workbook:
+
+```bash
+UV_PYTHON_DOWNLOADS=never uv run "${CLAUDE_PLUGIN_ROOT}/skills/carta-reporting-excel/scripts/excel_exporter.py" --input "carta-reporting/result-<user_report_pk>.json" --title "Securities Ledger Report" --as-of-date "2024-01-15" --generated-by "Jane Doe" --output "./{corporation-slug}-{report-slug}.xlsx"
+```
+
+`excel_exporter.py` prints the absolute output path on success. Present it as a clickable link: `computer://<absolute-path>` (e.g. `computer:///Users/jane/meetly-equity-grants.xlsx`). Tell the user their file is ready to open (with several reports, list one link per file, naming the corporation each is for), then offer next steps:
 
 - **Run another report** — for a different company or report type
 - **Customize this export** — adjust filters, columns, or formulas
 - **Change the date range or filters** — re-run with different parameters
+
+## Gates
+
+**Required inputs**: `user_report_pk`, `corporation_id` and the column list, from the calling skill or the `Generate Carta Excel —` payload. Without a payload or a report in this session, ask for the payload as "Column source" says.
+
+**AI computation**: No — the scripts format Carta report data. Totals are Excel formulas from `aggregations`.
+
+## Error Handling
+
+| Situation | What to do |
+|---|---|
+| `report_status` or `download_url` returns `not_found` | The report expired or belongs to another session. Follow the retry rule in "Running the export", then say the report is not available and offer to regenerate it with carta-reporting. If the preflight access check found the company, give this advice, not the access explanation. |
+| A script does not run (for example `uv` not found, or the Bash call is blocked) | Do not write the file with another library. Say the Excel file cannot be built here. Show the data as a table, or give the presigned `download_url` and say it expires. |
+| `excel_exporter.py` stops with `as_of_date must be in YYYY-MM-DD format` | Run it once more with `--as-of-date` as `YYYY-MM-DD`. |
+| `unknown_param` or `invalid_argument` on a `cap_table__*` command | This skill reads only the report file. Do not pull rows with other commands: build the report with carta-reporting. |
+| 403, `role_required` or access denied | Say the user's role cannot run Carta reports for this company. Do not retry and do not look for the data elsewhere. |
+| Company error | Follow *Company errors* in `${CLAUDE_PLUGIN_ROOT}/references/find-the-company.md`. |
 
 ## Carta Excel Formatting Conventions
 
@@ -99,6 +150,6 @@ The script prints the absolute output path on success. Present it as a clickable
 | Subtitle | Cell B3, Arial 10pt, `#666666` — `"As of MMM d, yyyy • Generated with Claude AI by {user} at MMM d, yyyy h:mm:ss AM/PM TZ • Date format: MMM D, YYYY"` |
 | Header row | Row 5 with auto-filter; freeze panes at A6; data starts at row 6 |
 
-Column type → number format: `money` → `$#,##0.00` · `percentage` → `0.00%` · `integer` → `#,##0` · `date` → `mmm d, yyyy` · `decimal` → `#,##0.0000`
+Column type → number format: `money` → the row's currency symbol quoted before `#,##0.00####`, set per cell by the exporter (no symbol when the data names none) · `percentage` → `0.00%` · `integer` → `#,##0` · `date` → `mmm d, yyyy` · `decimal` → `#,##0.0#####`
 
 Column widths: string/date → **35**, number types → **18**.

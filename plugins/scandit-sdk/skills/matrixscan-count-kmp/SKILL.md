@@ -17,7 +17,7 @@ KMP-specific gotchas worth flagging:
 - All Kotlin API packages are `com.kmp.datacapture.*` (e.g. `com.kmp.datacapture.barcode.count.BarcodeCount`), not `com.scandit.datacapture.*` — that package is the wrapped native implementation and is never imported by app code.
 - **Two ways to host the view — they expose different surfaces, not just different syntax:**
   - The **Compose Multiplatform wrapper** — `@Composable fun BarcodeCountView(...)` in `com.kmp.datacapture.barcode.compose` — is the fastest path and is what the official `MatrixScanCountSimpleSample` uses on Android. It only exposes: `settings`, `style`, button-visibility booleans (`showUserGuidanceView/showListButton/showExitButton/showShutterButton/showToolbar/showSingleScanButton`), `onScan`, `onExitTap`/`onListTap`/`onSingleScanTap`, an `overlay` slot, and an escape-hatch `barcodeCount` override.
-  - It does **not** expose brushes, icons, hint text, toolbar settings, the status provider, hardware trigger, tap-to-uncount, filter highlight settings, accessibility labels, or per-barcode delegate callbacks. For any of those you must drop to the **base (non-Compose) `BarcodeCountView`** class in `com.kmp.datacapture.barcode.count` and host it yourself (`toAndroidView()` on Android, `toUIView()` on iOS) — see `references/integration.md` for both the Compose and base-view interop patterns. Do not tell a user "just set `recognizedBrush` on the `BarcodeCountView` composable" — that parameter does not exist on the composable.
+  - It does **not** expose brushes, icons, hint text, toolbar settings, the status provider, hardware trigger, tap-to-uncount, filter highlight settings, accessibility labels, or per-barcode delegate callbacks. For any of those you must drop to the **base (non-Compose) `BarcodeCountView`** class in `com.kmp.datacapture.barcode.count` and host it yourself (`toAndroidView()` on Android, `toUIView()` on iOS) — see [`references/integration.md`](references/integration.md) for both the Compose and base-view interop patterns. Do not tell a user "just set `recognizedBrush` on the `BarcodeCountView` composable" — that parameter does not exist on the composable.
 - **The base `BarcodeCountView` constructor differs per platform and cannot be called uniformly from shared `commonMain` code**: Android's is `BarcodeCountView(context: Context, barcodeCount: BarcodeCount, style: BarcodeCountViewStyle = ICON)`; iOS's is `BarcodeCountView(barcodeCount: BarcodeCount, style: BarcodeCountViewStyle = ICON)` (no `Context` — it derives everything from the mode). Base-view construction therefore happens in **platform-specific** code (an Android Activity/Compose `AndroidView`, or Swift via `UIViewRepresentable`), exactly like the sample's iOS `ScannerView.swift` does.
 - **`BarcodeCount.forContext(dataCaptureContext, settings)`** is the constructor (not `BarcodeCount(settings)` — that Flutter/JS-only overload does not exist on KMP). Camera settings: `BarcodeCount.createRecommendedCameraSettings()` is a **method** on Android/KMP (unlike iOS/.NET native, where it is a property).
 - **No SDK-initialize step is needed** (unlike Flutter's `await ScanditFlutterDataCaptureBarcode.initialize()`). `DataCaptureContext.forLicenseKey(licenseKey)` (or `DataCaptureContext.sharedInstance` after `DataCaptureContext.initialize(licenseKey)`) is usable immediately.
@@ -30,7 +30,7 @@ KMP-specific gotchas worth flagging:
 
 ## Intent Routing
 
-This skill has a single reference file. For any MatrixScan Count / BarcodeCount request on KMP — integrating from scratch, hosting the view (Compose or base-view interop), capture lists, status mode, toolbar/UI customization, lifecycle, or troubleshooting — read `references/integration.md` and follow the instructions there.
+This skill has a single reference file. For any MatrixScan Count / BarcodeCount request on KMP — integrating from scratch, hosting the view (Compose or base-view interop), capture lists, status mode, toolbar/UI customization, lifecycle, or troubleshooting — read [`references/integration.md`](references/integration.md) and follow the instructions there.
 
 ## API Usage Policy
 
@@ -39,6 +39,20 @@ Only use APIs that are explicitly documented in the Scandit references below. Do
 **Never construct or guess documentation URLs.** When you need a specific class or property's API page:
 1. First check whether the page you already fetched contains a direct hyperlink to it.
 2. If no direct link was found, fetch the API index and extract the actual link from it.
+
+## Licence key
+
+Scanning needs a Scandit licence key. For this skill the licence product is `native` and the licence platforms are `ios` and `android`.
+
+Work through these in order — never block the user on MCP:
+
+1. **The Scandit MCP server is connected** — call `ensure_scanner_setup` with product `native` and platforms `ios` and `android`, `app_identifier` (the app's bundle or application id; for web, its production domain, never `localhost`) and `env_var` `SCANDIT_LICENSE_KEY`. Do not run the command it returns. Then call `get_license_key` with the key's id, from that result or from `list_license_keys`; if `list_license_keys` shows the key is not a trial, ask the user before fetching it. Show at most a masked preview in chat; never print a full key.
+2. **It is not connected** — tell the user once that they can connect the remote Scandit MCP server, `https://ssl.scandit.com/mcp`, in their MCP client, then continue from step 1. Do not edit MCP client configuration yourself.
+
+   Authentication is browser-based, so it is **not supported headless or in CI**. The server provisions **trial** keys only; it never creates, revokes, or modifies production licences.
+3. **The user declines, or has no MCP client** — they generate a key themselves at <https://ssl.scandit.com> (no account yet: <https://ssl.scandit.com/dashboard/sign-up?p=test>) and paste it in.
+
+**Then put the key into the code**: write it into the licence-key call in place of the placeholder — the key `get_license_key` returned, or the one the user pastes or gives you — still showing only a masked preview in chat. Do not search the project, its files or the environment for a key.
 
 ## References
 

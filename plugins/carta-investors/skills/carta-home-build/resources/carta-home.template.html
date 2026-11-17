@@ -13,7 +13,7 @@
     /* __CARTA_HOME_CSS__ */
   </style>
 </head>
-<body>
+<body class="home-pending">
 <div class="container">
 
   <!-- Top bar -->
@@ -28,9 +28,13 @@
   </div>
 
   <!-- Page header -->
-  <h1 class="page-title">Carta Home</h1>
-  <!-- fetchLiveData() in carta-home.app.js writes the detected firm's name here. -->
-  <p class="page-subtitle" id="firm-subtitle">Your home base for fund data, plugin updates and news.</p>
+  <!-- fetchLiveData() in carta-home.app.js writes the detected firm's name into #firm-title. -->
+  <h1 class="page-title">Carta Home<span class="page-title-firm" id="firm-title" hidden><span class="page-title-sep" aria-hidden="true">|</span><span id="firm-title-name"></span></span></h1>
+  <div class="firm-switcher" id="firm-switcher" hidden>
+    <label class="firm-switcher-label" for="firm-switcher-select">Firm</label>
+    <select class="firm-switcher-select" id="firm-switcher-select"></select>
+  </div>
+  <p class="page-subtitle">Your home base for fund data, plugin updates and news.</p>
 
   <!-- Update banner — rendered by version-check.js when a newer build is published -->
   <div id="update-banner-slot"></div>
@@ -46,47 +50,50 @@
 
   <!-- ── Capital activity ── -->
   <section id="ca-section-v2" style="display:none">
-    <p class="section-label">Capital activity</p>
-    <div class="ca-section-row" id="ca-section-cards"></div>
+    <div class="ca-collapse">
+      <p class="section-label">Capital activity</p>
+      <div class="ca-section-row" id="ca-section-cards"></div>
+    </div>
   </section>
 
   <!-- ── Portfolio analytics ── -->
-  <section id="dashboards-section">
+  <section id="dashboards-section" hidden>
     <div class="section-label-row">
-      <p class="section-label" style="margin:0">Dashboards</p>
+      <p class="section-label" style="margin:0">Your dashboards</p>
     </div>
-    <div class="card-grid">
+    <div class="card-grid" id="dashboard-grid" data-cards="2">
 
       <!-- Schedule of Investments -->
-      <div class="skill-card">
+      <div class="skill-card dash-card" id="soi-card" hidden>
         <div class="card-header">
           <div class="card-header-text">
-            <div class="card-title">Schedule of investments dashboard</div>
-            <div class="card-desc">A full schedule of holdings with shares, value and gain / loss.</div>
+            <div class="card-title">Schedule of investments</div>
+            <div class="card-desc" id="soi-card-desc">Every holding with cost, value and gain/loss.</div>
           </div>
         </div>
         <div class="card-preview">
           <div class="tbl-label" id="soi-fund-label">FUNDS</div>
           <div class="tbl-row tbl-header">
-            <span class="tbl-col-name">FUND</span>
-            <span class="tbl-col-val">VALUE</span>
+            <span class="tbl-col-name" id="soi-col-name">FUND</span>
+            <span class="tbl-col-val">TOTAL VALUE</span>
             <span class="tbl-col-gl">GAIN/LOSS</span>
           </div>
           <div id="soi-rows">
             <div class="loading-row">Loading…</div>
           </div>
+          <div id="soi-new-fund-slot"></div>
+          <div class="soi-scope-note" id="soi-fof-note" hidden></div>
+          <div class="soi-scope-note" id="soi-scope-note" hidden></div>
         </div>
-        <div class="card-footer">
-          <button class="run-btn" onclick="openSoiPage()">View full SOI →</button>
-        </div>
+        <div class="card-footer" id="soi-card-footer"></div>
       </div>
 
       <!-- Fund Performance -->
-      <div class="skill-card">
+      <div class="skill-card dash-card" id="perf-card" hidden>
         <div class="card-header">
           <div class="card-header-text">
-            <div class="card-title">Fund performance dashboard</div>
-            <div class="card-desc">Dashboard of IRR, MOIC, TVPI, DPI and other metrics across funds.</div>
+            <div class="card-title">Fund performance</div>
+            <div class="card-desc">IRR, TVPI and DPI for each fund against peer benchmarks.</div>
           </div>
         </div>
         <div class="card-preview">
@@ -94,80 +101,79 @@
             <canvas id="benchmark-chart"></canvas>
           </div>
           <div id="benchmark-metrics"></div>
+          <div class="soi-scope-note" id="perf-scope-note" hidden></div>
         </div>
-        <div class="card-footer">
-          <button class="run-btn" onclick="openPerfPage()">View fund performance →</button>
+        <div class="card-footer" id="perf-card-footer"></div>
+      </div>
+
+      <!-- LP summary — shown for Fund Admin firms (app/segment-dashboards.js) -->
+      <div class="skill-card dash-card" id="lp-card" hidden>
+        <div class="card-header">
+          <div class="card-header-text">
+            <div class="card-title">LP summary</div>
+            <div class="card-desc" id="lp-card-desc">Every LP's commitments, returns and exposure across all funds.</div>
+          </div>
         </div>
+        <div class="card-preview">
+          <div class="tbl-row tbl-header">
+            <span class="tbl-col-name" id="lp-col-name">LARGEST LPS</span>
+            <span class="tbl-col-lp">COMMITTED · TVPI</span>
+          </div>
+          <div id="lp-rows">
+            <div class="loading-row">Loading…</div>
+          </div>
+        </div>
+        <div class="card-footer" id="lp-card-footer"></div>
+      </div>
+
+      <!-- NDA insights — shown when the firm has NDAs Carta has read (app/segment-dashboards.js) -->
+      <div class="skill-card dash-card" id="nda-card" hidden>
+        <div class="card-header">
+          <div class="card-header-text">
+            <div class="card-title">NDA insights</div>
+            <div class="card-desc">Your NDAs that expire soonest, and how many companies are under an active restriction.</div>
+          </div>
+        </div>
+        <div class="card-preview">
+          <div class="tbl-row tbl-header">
+            <span class="tbl-col-name">EXPIRING SOON</span>
+            <span class="tbl-col-lp">EXPIRES</span>
+          </div>
+          <div id="nda-rows"></div>
+          <div class="soi-scope-note" id="nda-note" hidden></div>
+        </div>
+        <div class="card-footer" id="nda-card-footer"></div>
       </div>
 
     </div>
 
   </section>
 
-  <!-- ── What to try next ── -->
-  <section>
-    <p class="section-label">What to try next</p>
-
-    <!-- Personalized recommendations — populated by renderCapabilities() in app.js -->
-    <div class="cap-grid" id="cap-grid-dynamic" style="display:none"></div>
-
-    <!-- Static fallback — shown when recommendations are unavailable -->
-    <div class="cap-grid" id="cap-grid-static">
-      <div class="cap-card cap-card-blue" onclick="this.querySelector('.cap-card-icon').click()">
-        <div class="cap-card-text">Use my firm's tear sheet template and generate tear sheets for this quarter</div>
-        <button class="cap-card-icon" data-prompt="Use my firm's tear sheet template and generate tear sheets for this quarter" onclick="event.stopPropagation(); capCopy(this)"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" style="margin-right:5px;vertical-align:middle;"><rect x="5" y="5" width="9" height="9" rx="1" stroke="currentColor" stroke-width="1.4"/><path d="M11 5V3a1 1 0 0 0-1-1H3a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>Copy this prompt</button>
-      </div>
-      <div class="cap-card cap-card-teal" onclick="this.querySelector('.cap-card-icon').click()">
-        <div class="cap-card-text">Show me my firm's balance sheet as of this month</div>
-        <button class="cap-card-icon" data-prompt="Show me my firm's balance sheet as of this month" onclick="event.stopPropagation(); capCopy(this)"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" style="margin-right:5px;vertical-align:middle;"><rect x="5" y="5" width="9" height="9" rx="1" stroke="currentColor" stroke-width="1.4"/><path d="M11 5V3a1 1 0 0 0-1-1H3a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>Copy this prompt</button>
-      </div>
-      <div class="cap-card cap-card-amber" onclick="this.querySelector('.cap-card-icon').click()">
-        <div class="cap-card-text">What is our regulatory AUM</div>
-        <button class="cap-card-icon" data-prompt="What is our regulatory AUM" onclick="event.stopPropagation(); capCopy(this)"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" style="margin-right:5px;vertical-align:middle;"><rect x="5" y="5" width="9" height="9" rx="1" stroke="currentColor" stroke-width="1.4"/><path d="M11 5V3a1 1 0 0 0-1-1H3a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>Copy this prompt</button>
-      </div>
-      <div class="cap-card cap-card-violet" onclick="this.querySelector('.cap-card-icon').click()">
-        <div class="cap-card-text">Compare YTD actuals against the budget</div>
-        <button class="cap-card-icon" data-prompt="Compare YTD actuals against the budget" onclick="event.stopPropagation(); capCopy(this)"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" style="margin-right:5px;vertical-align:middle;"><rect x="5" y="5" width="9" height="9" rx="1" stroke="currentColor" stroke-width="1.4"/><path d="M11 5V3a1 1 0 0 0-1-1H3a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>Copy this prompt</button>
-      </div>
-    </div>
+  <!-- ── Suggested for you ── -->
+  <section id="prompts-section">
+    <p class="section-label">Suggested for you</p>
+    <!-- Filled by renderCapabilities() in app.js: personalized prompts, padded from CAP_STATIC_PAD. -->
+    <div class="cap-grid" id="cap-grid"></div>
   </section>
 
-  <!-- ── What's new ── -->
-  <!-- Hidden until the cards are wired to real data; drop `hidden` to show it. -->
-  <section id="whats-new-section" style="margin-bottom: 32px;" hidden>
-    <p class="section-label">What's new</p>
-    <div class="whats-new-grid">
-
-      <div class="wn-card">
-        <div class="wn-card-header">
-          <span class="wn-tag">New</span>
-        </div>
-        <div class="wn-card-title">Consolidating P&amp;L</div>
-        <div class="wn-card-body">Generate a firm-wide income statement across all entities — with budget vs. actual variance and executive summary tab — in one command.</div>
-        <span class="wn-copy-btn" onclick="(function(el){var t='Generate a consolidating P&L for our firm for this month';if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(function(){el.textContent='✓ Copied';setTimeout(function(){el.textContent='Copy prompt'},2000)})}else{var ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);el.textContent='✓ Copied';setTimeout(function(){el.textContent='Copy prompt'},2000)}})(this)">Copy prompt</span>
+  <!-- ── What's new + Plugin news share one band under a rule ── -->
+  <div class="wn-band">
+  <!-- Featured microapps (WHATS_NEW_MICROAPPS) and recently launched skills; filled and
+       un-hidden by renderWhatsNew() in app/whats-new.js once get_current_user answers. -->
+  <section id="whats-new-section" hidden>
+    <h2 class="wn-heading">What's new</h2>
+    <div class="wn-carousel" id="wn-carousel"
+         onmouseenter="wnPause('hovered', true)" onmouseleave="wnPause('hovered', false)"
+         onfocusin="wnPause('focused', true)"
+         onfocusout="if (!this.contains(event.relatedTarget)) wnPause('focused', false)">
+      <div class="wn-index">
+        <div id="wn-index-items" role="tablist" aria-label="What's new" aria-orientation="vertical"></div>
+        <button class="wn-see-all" onclick="switchTab('directory')">See all skills and microapps →</button>
       </div>
-
-      <div class="wn-card">
-        <div class="wn-card-header">
-          <span class="wn-tag">New</span>
-        </div>
-        <div class="wn-card-title">AGM Deck Builder</div>
-        <div class="wn-card-body">Auto-generate a branded annual meeting deck from your live fund data — NAV, TVPI, portfolio highlights, LP base — with your firm's colors and logo.</div>
-        <span class="wn-copy-btn" onclick="(function(el){var t='Build an AGM deck for our firm';if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(function(){el.textContent='✓ Copied';setTimeout(function(){el.textContent='Copy prompt'},2000)})}else{var ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);el.textContent='✓ Copied';setTimeout(function(){el.textContent='Copy prompt'},2000)}})(this)">Copy prompt</span>
-      </div>
-
-      <div class="wn-card">
-        <div class="wn-card-header">
-          <span class="wn-tag">Updated</span>
-        </div>
-        <div class="wn-card-title">Portfolio Valuations</div>
-        <div class="wn-card-body">Run valuations across your entire portfolio in one pass — auto-select comparables, compute GPC multiples, and push results back to Carta.</div>
-        <span class="wn-copy-btn" onclick="(function(el){var t='Work on my portfolio valuations today';if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(function(){el.textContent='✓ Copied';setTimeout(function(){el.textContent='Copy prompt'},2000)})}else{var ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);el.textContent='✓ Copied';setTimeout(function(){el.textContent='Copy prompt'},2000)}})(this)">Copy prompt</span>
-      </div>
-
+      <div class="wn-center" id="wn-center" role="tabpanel"></div>
+      <div class="wn-preview" id="wn-preview"></div>
     </div>
   </section>
-
 
   <!-- ── Plugin news ── -->
   <section id="plugin-news-section" style="margin-top:8px;">
@@ -184,7 +190,7 @@
           <span class="plugin-news-tag">Webinar</span>
           <p class="plugin-news-title">Live webinar: AI-native fund admin workflows</p>
           <p class="plugin-news-desc">See how fund admins are cutting reporting time in half with Claude and Carta.</p>
-          <span class="plugin-news-cta">Watch recording →</span>
+          <span class="plugin-news-cta">Watch recording <span class="cta-arrow" aria-hidden="true">→</span></span>
         </div>
       </a>
 
@@ -192,12 +198,13 @@
          href="https://carta.com/blog/" target="_blank" rel="noopener">
         <div class="plugin-news-thumb plugin-news-thumb--fake">
           <div class="plugin-news-fake-play">▶</div>
+          <span class="plugin-news-fake-title">Getting started with the capital activity plugin</span>
         </div>
         <div class="plugin-news-content">
           <span class="plugin-news-tag">Video</span>
           <p class="plugin-news-title">Getting started with the capital activity plugin</p>
           <p class="plugin-news-desc">A quick walkthrough of creating cap calls and distributions end-to-end.</p>
-          <span class="plugin-news-cta">Read more →</span>
+          <span class="plugin-news-cta">Read more <span class="cta-arrow" aria-hidden="true">→</span></span>
         </div>
       </a>
 
@@ -211,13 +218,15 @@
           <span class="plugin-news-tag">Story</span>
           <p class="plugin-news-title">Internal transformation: AI at the core</p>
           <p class="plugin-news-desc">How one CFO restructured their team's workflows around Claude and Carta plugins.</p>
-          <span class="plugin-news-cta">Read more →</span>
+          <span class="plugin-news-cta">Read more <span class="cta-arrow" aria-hidden="true">→</span></span>
         </div>
       </a>
 
     </div>
   </section>
 
+
+  </div><!-- /wn-band -->
 
   <div style="text-align:right;padding:12px 0 4px;">
     <span class="build-stamp" style="font-size:11px;color:var(--ink-color-global-text-subtle);font-variant-numeric:tabular-nums;">v{{ARTIFACT_VERSION}} · build {{BUILD_ID}}</span>
@@ -231,10 +240,21 @@
          titles ("Capital activity"), so the two match exactly by construction. -->
     <p class="section-label">Directory</p>
 
-    <!-- Category grid -->
-    <div class="dir-grid" id="dir-grid">
+    <!-- Search box: shown by app/directory-views.js once the list is ready -->
+    <div class="dir-search" id="dir-search" hidden>
+      <span class="dir-search-icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="4.5" stroke="currentColor" stroke-width="1.4"/><path d="M10.5 10.5 14 14" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></span>
+      <input id="dir-search-input" class="dir-search-input" type="search" autocomplete="off" spellcheck="false"
+        aria-label="Search skills and prompts" placeholder="What do you want to do? e.g. “build an LP report”"
+        oninput="dirOnSearch(this.value)">
+      <button class="dir-search-clear" id="dir-search-clear" type="button" aria-label="Clear search" onclick="dirClearSearch()" hidden>×</button>
+    </div>
+
+    <!-- Category cards, or the search results -->
+    <div class="dir-root" id="dir-grid">
       <!-- Populated by JS below -->
     </div>
+    <!-- Announces a directory copy. Outside the rows: a role="button" row hides its children. -->
+    <span class="visually-hidden" id="dir-copied-status" role="status"></span>
 
 
   <div style="text-align:right;padding:12px 0 4px;">
@@ -247,11 +267,6 @@
 <!-- Toast notification -->
 <div id="toast" role="status" aria-live="polite">Skill queued in chat ↗</div>
 
-<!-- Tooltip target for the .perf-th-info metric-definition buttons. Present in
-     the markup (rather than only created on first hover) so aria-describedby
-     resolves for keyboard users the moment a trigger takes focus. -->
-<div id="perf-tip"></div>
-
 <!-- ── Guided Tour ── -->
 <!-- Overlay is click-to-advance only; the same action is on the Next button, so
      it is hidden from AT rather than announced as an unlabelled control. -->
@@ -260,7 +275,7 @@
 <div id="tour-tooltip" role="dialog" aria-modal="true" aria-labelledby="tour-title" onclick="event.stopPropagation()">
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
     <span id="tour-counter" style="font-size:11px;color:var(--ink-color-global-text-subtle);font-weight:600;text-transform:uppercase;letter-spacing:.07em;"></span>
-    <button onclick="tourSkip()" style="background:none;border:none;cursor:pointer;font-size:12px;color:var(--ink-color-global-text-subtle);font-family:inherit;padding:0;line-height:1;">Skip</button>
+    <button onclick="tourSkip()" style="background:none;border:none;cursor:pointer;font-size:12px;color:var(--ink-color-global-text-subtle);font-family:inherit;padding:0;line-height:1;">Skip tour</button>
   </div>
   <p id="tour-title" style="font-size:14px;font-weight:600;color:var(--ink-color-global-text-default);margin:0 0 6px;line-height:1.35;"></p>
   <p id="tour-desc" style="font-size:13px;color:var(--ink-color-global-text-subtle);margin:0 0 18px;line-height:1.55;"></p>
@@ -276,115 +291,6 @@
 /* __CARTA_HOME_APP_JS__ */
 </script>
 
-<!-- ── SOI Full-Page Overlay ── -->
-<div id="soi-page" style="display:none; position:fixed; inset:0; z-index:200; background:var(--ink-color-global-surface-background-default); overflow-y:auto; flex-direction:column;">
-  <div style="position:sticky; top:0; z-index:10; background:var(--ink-color-global-surface-background-default); border-bottom:1px solid var(--ink-color-global-border-subtle); padding:0 32px;">
-    <div style="max-width:1100px; margin:0 auto; display:flex; align-items:center; gap:16px; height:56px;">
-      <button onclick="closeSoiPage()" style="display:flex; align-items:center; gap:6px; background:none; border:none; cursor:pointer; color:var(--ink-color-global-text-subtle); font-size:13px; font-family:inherit; padding:6px 0;">
-        <svg viewBox="0 0 16 16" fill="none" width="16" height="16"><path d="M10 12L6 8l4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        Back
-      </button>
-      <span style="color:var(--ink-color-global-border-default);">|</span>
-      <span style="font-size:13px; color:var(--ink-color-global-text-subtle); text-transform:uppercase; letter-spacing:.06em; font-weight:600;" id="soi-page-label">Schedule of Investments</span>
-      <div style="flex:1;"></div>
-      <!-- Multi-select fund dropdown -->
-      <div id="soi-multi-wrap" style="position:relative; display:none;">
-        <button id="soi-fund-btn" onclick="soiToggleMultiDrop(event)" style="font-family:inherit; font-size:13px; background:transparent; color:var(--ink-color-global-text-default); padding:4px 28px 4px 10px; border-radius:var(--ink-size-global-radius-subtle); cursor:pointer; border:1px solid var(--ink-color-global-border-subtle); position:relative; white-space:nowrap; min-width:130px; text-align:left;">
-          All funds <span style="position:absolute; right:8px; top:50%; transform:translateY(-50%); font-size:10px; pointer-events:none;">▼</span>
-        </button>
-        <div id="soi-multi-drop" style="display:none; position:absolute; top:calc(100% + 4px); right:0; min-width:240px; background:var(--ink-color-global-surface-background-default); border:1px solid var(--ink-color-global-border-subtle); border-radius:6px; box-shadow:0 4px 16px rgba(0,0,0,.12); z-index:300; padding:0;">
-          <div style="padding:7px 12px 7px; border-bottom:1px solid var(--ink-color-global-border-subtle); display:flex; align-items:center; justify-content:space-between;">
-            <span style="font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-color-global-text-subtle);">Funds</span>
-            <button onclick="soiToggleAllFunds()" id="soi-toggle-all-btn" style="font-family:inherit; font-size:12px; color:var(--ink-color-global-interactive-default); background:none; border:none; cursor:pointer; padding:0; font-weight:500;">Unselect all</button>
-          </div>
-          <div id="soi-fund-checkboxes" style="max-height:280px; overflow-y:auto; padding:4px 0;"></div>
-        </div>
-      </div>
-    </div>
-  </div>
-  <div style="max-width:1100px; margin:0 auto; padding:24px 32px; width:100%; box-sizing:border-box;">
-    <div id="soi-page-metrics" style="display:flex; gap:0; margin-bottom:20px; border:1px solid var(--ink-color-global-border-subtle);">
-    </div>
-    <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
-      <input id="soi-page-search" type="search" placeholder="Filter by company…" oninput="soiFilterCompanies(this.value)"
-        style="flex:1; max-width:320px; padding:7px 12px; font-family:inherit; font-size:13px; border-radius:var(--ink-size-global-radius-subtle); background:transparent; color:var(--ink-color-global-text-default);" />
-      <span id="soi-page-count" style="font-size:12px; color:var(--ink-color-global-text-subtle);"></span>
-    </div>
-    <div id="soi-page-status" style="color:var(--ink-color-global-text-subtle); font-size:13px; font-style:italic; padding:40px 0; text-align:center; display:none;"></div>
-    <div id="soi-page-table-wrap" style="overflow-x:auto;">
-      <table id="soi-page-table" style="width:100%; border-collapse:collapse; font-size:13px; display:none;">
-        <thead id="soi-page-thead"></thead>
-        <tbody id="soi-page-tbody"></tbody>
-      </table>
-    </div>
-  </div>
-</div>
-<!-- ── Fund Performance nested page ── -->
-<div id="perf-page" style="display:none; position:fixed; inset:0; z-index:200; background:var(--ink-color-global-surface-background-default); overflow-y:auto; flex-direction:column;">
-  <div style="position:sticky; top:0; z-index:10; background:var(--ink-color-global-surface-background-default); border-bottom:1px solid var(--ink-color-global-border-subtle); padding:0 32px;">
-    <div style="max-width:1100px; margin:0 auto; display:flex; align-items:center; gap:16px; height:56px;">
-      <button id="perf-back-btn" onclick="closePerfPage()" style="display:flex;align-items:center;gap:6px;background:none;border:none;cursor:pointer;color:var(--ink-color-global-text-subtle);font-size:13px;font-family:inherit;padding:6px 0;">
-        <svg viewBox="0 0 16 16" fill="none" width="16" height="16"><path d="M10 12L6 8l4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        <span id="perf-back-text">Back</span>
-      </button>
-      <span style="color:var(--ink-color-global-border-default);">|</span>
-      <!-- Fund title + chevron — acts as dropdown trigger in detail view -->
-      <div style="position:relative;">
-        <button id="perf-fund-title-btn" onclick="perfToggleFundDropdown(event)">
-          <span style="font-size:13px;color:var(--ink-color-global-text-subtle);text-transform:uppercase;letter-spacing:.06em;font-weight:600;" id="perf-page-label">Fund Performance</span>
-          <svg id="perf-fund-chevron" style="display:none;color:var(--ink-color-global-text-subtle);flex-shrink:0;" width="12" height="12" viewBox="0 0 16 16" fill="none">
-            <path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-        </button>
-        <div id="perf-fund-dropdown"></div>
-      </div>
-      <div style="flex:1;"></div>
-    </div>
-  </div>
-  <!-- ── All-funds list view ── -->
-  <div id="perf-list-view" style="max-width:1200px; margin:0 auto; padding:24px 32px; width:100%; box-sizing:border-box;">
-    <div class="perf-list-status">Loading fund performance…</div>
-  </div>
-  <!-- ── Single-fund detail view (charts) ── -->
-  <div id="perf-detail-view" style="display:none; max-width:1100px; margin:0 auto; padding:24px 32px; width:100%; box-sizing:border-box;">
-    <div class="perf-metrics-strip" id="perf-page-metrics"></div>
-    <div id="perf-detail-metrics-table" style="margin-top:20px;margin-bottom:8px;"></div>
-    <div id="perf-cohort-label" style="display:none;font-size:10px;color:var(--ink-color-global-text-subtle);margin-bottom:20px;letter-spacing:.01em;"></div>
-    <div id="perf-page-status" style="color:var(--ink-color-global-text-subtle);font-size:13px;font-style:italic;padding:40px 0;text-align:center;display:none;"></div>
-    <div class="perf-chart-grid" id="perf-chart-grid">
-      <!-- TVPI half-width -->
-      <div class="perf-chart-card">
-        <div class="perf-chart-header">
-          <div class="perf-chart-title">TVPI vs Benchmarks</div>
-        </div>
-        <div class="perf-chart-wrap"><canvas id="perf-tvpi-chart"></canvas></div>
-      </div>
-      <!-- DPI half-width -->
-      <div class="perf-chart-card">
-        <div class="perf-chart-header">
-          <div class="perf-chart-title">DPI vs Benchmarks</div>
-        </div>
-        <div class="perf-chart-wrap"><canvas id="perf-dpi-chart"></canvas></div>
-      </div>
-      <!-- Net IRR half-width -->
-      <div class="perf-chart-card">
-        <div class="perf-chart-header">
-          <div class="perf-chart-title">Net IRR vs Benchmarks</div>
-        </div>
-        <div class="perf-legend" id="perf-irr-legend"></div>
-        <div class="perf-chart-wrap"><canvas id="perf-irr-chart"></canvas></div>
-      </div>
-      <!-- MOIC half-width -->
-      <div class="perf-chart-card">
-        <div class="perf-chart-header">
-          <div class="perf-chart-title">MOIC vs Benchmarks</div>
-        </div>
-        <div class="perf-chart-wrap"><canvas id="perf-moic-chart"></canvas></div>
-      </div>
-    </div>
-  </div>
-
-</div>
 
 <!-- ── Customize popover (shared, floating) ── -->
 <div id="customize-popover">

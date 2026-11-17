@@ -1,6 +1,6 @@
 ---
 name: bulk
-description: Stage batch changes to Spotify Ads API campaigns, ad sets, and ads through drafts by default — pause, resume, budgets, delivery, archive, creative, and tracking changes. Use direct live writes only when explicitly requested.
+description: Stage batch changes to Spotify Ads API campaigns, ad sets, and ads through drafts by default — pause, resume, budgets, delivery, archive, creative, and tracking changes. Ad set and ad pause, resume, and delivery toggles are confirmed live writes because drafts cannot carry delivery; other live writes only when explicitly requested.
 ---
 
 # Spotify Ads API — Bulk Operations
@@ -17,6 +17,10 @@ api() { "$PLUGIN_ROOT/scripts/api-request.sh" bulk "$@"; }
 ```
 
 Before the first Ads API v3 call, read and follow `$PLUGIN_ROOT/skills/api-reference/references/live-openapi.md`.
+
+Before sending any output to a human user, read and follow `$PLUGIN_ROOT/skills/api-reference/references/language-standards.md`.
+
+Also read `$PLUGIN_ROOT/skills/api-reference/references/api-behaviors.md` for API behaviour the spec does not express (no DELETE on live entities, micro-amounts, retry safety).
 
 To retrieve settings values (TOKEN, AD_ACCOUNT_ID, AUTO_EXECUTE, BASE_URL, SDK_HEADER, SKILL_HEADER, PLUGIN_VERSION) for use outside API calls, run `api --env`. The output is eval-safe, so `eval $(api --env)` assigns them all.
 
@@ -82,26 +86,50 @@ Show a summary of what will change. For budget operations, show before/after val
 Include one compact catalog-validation status in this existing summary. Do not print
 per-field checklists or add a separate confirmation.
 
-### 4. Stage changes
+### 5. Stage changes
+
+Ad set and ad pause, resume, and delivery toggles skip this step: they are confirmed live `delivery` PATCHes (see Operations), with no draft and no VALIDATE. Report them as "Applied live".
 
 Group selected entities by parent campaign. For each target, check for an existing same-ID draft and disclose pending changes. If none exists, create a draft from the published entity, then PATCH the draft endpoint. Preserve fields the user did not request to change.
 
-After staging all selected changes, fetch each affected draft campaign's current `draft_hierarchy_version` and validate once per campaign. Continue on per-entity staging failures, but do not validate a campaign until all successful edits for that campaign are staged.
+Draft creates may run in a loop, one loop per campaign. Break at the first non-2xx `HTTP_STATUS:` so you can read the error before sending more creates:
 
-### 6. Show results
+```bash
+for AD_SET_ID in $AD_SET_IDS; do
+  out=$(api POST "ad_accounts/{ad_account_id}/ad_sets/$AD_SET_ID/drafts")
+  echo "$out"
+  case "$out" in *"HTTP_STATUS:2"*) ;; *) break ;; esac
+done
+```
+
+After a failure, read the error. If it is the max-ad-set-drafts 400, stop that campaign (see below). After a non-limit failure, skip that ad set and its dependents, then resume the loop with the ad sets not yet attempted. Only the max-ad-set-drafts 400 stops the whole campaign.
+
+If creating a draft fails, skip every step that depends on it: its PATCH, draft ads under it, reads of it, and its campaign's VALIDATE. Report those targets as skipped. Continue only with targets that don't depend on the failed draft.
+
+A campaign can hold only a limited number of ad set drafts, and stale drafts accumulate on heavily edited campaigns. The limit isn't a fixed public value. If create-from-published returns 400 saying the campaign has reached the maximum number of ad set drafts, stop all remaining work for that campaign, because every further create there fails the same way. Don't retry. Report the error message and which targets were staged and which were skipped. Then list the campaign's ad set drafts (`api GET "ad_accounts/{ad_account_id}/drafts/ad_sets?campaign_ids=$CAMPAIGN_ID&limit=50"`, paging with `offset`) and offer to validate and publish them, or to delete stale ones (draft DELETE is safe to retry). Resume only after the user chooses. Continue with other campaigns. Bulk draft creates (`drafts/ad_sets/bulk`, `drafts/ads/bulk`) are atomic, so one item over the limit fails the whole request. Split the request or clean up first. The spec also caps each request: bulk create takes at most 40 draft ad sets or 100 draft ads, and bulk delete (`DELETE drafts/ad_sets` or `DELETE drafts/ads`) takes at most 40 draft ad set IDs or 100 draft ad IDs.
+
+After staging all selected changes, fetch each affected draft campaign's current `draft_hierarchy_version` and validate once per campaign. Run the start-time recheck below before each VALIDATE. Do not validate a campaign until all successful edits for that campaign are staged, and skip VALIDATE for a campaign stopped by the draft limit.
+
+### 6. Recheck start times before VALIDATE
+
+The live ad product catalog's `start_time` constraint text (in its constraint and required-field lists) states the minimum lead time. Apply it when choosing start times. When the user gives no exact start time, propose one well clear of that minimum, such as the start of the hour after next, so it stays valid through staging and confirmation. If the user wants an exact time close to the minimum, warn that it can expire before validation. Times that were valid at staging can expire during a long batch. Immediately before each VALIDATE (and again before PUBLISH), compare every staged ad set `start_time` in that campaign with the current UTC time and the catalog's minimum. If any falls short, don't validate. Show the affected ad sets and propose a later start time, or ask whether the exact time matters. PATCH only after the user agrees, then refetch `draft_hierarchy_version`. If VALIDATE still returns `INVALID.AD_SET.START_TIME_TOO_CLOSE`, follow the error message and handle it the same way. Never re-validate an unchanged hierarchy.
+
+### 7. Show results
 
 Display a final summary table:
 
 ```
 Bulk Pause Staging Results:
-| Ad Set | Status | Result |
+| Campaign | Status | Result |
 |--------|--------|--------|
-| US 18-34 Audio | PAUSED | Staged; validation passed |
-| UK All Audio | PAUSED | Staged; validation passed |
-| US All Display | — | Failed: error details |
+| Summer Sale | PAUSED | Staged; validation passed |
+| Holiday Promo | PAUSED | Staged; validation passed |
+| Spring Launch | — | Failed: [what went wrong, in plain words] |
 
 2/3 changes staged. Nothing was published.
 ```
+
+For live `delivery` changes, use the result "Applied live" and say the changes are already in effect instead of "Nothing was published".
 
 ---
 
@@ -127,16 +155,16 @@ api GET "ad_accounts/{ad_account_id}/campaigns?statuses=ACTIVE&limit=50&sort_dir
 
 #### Apply
 
-For each selected ad set, create or reuse its draft, then:
+Ad sets have no `PAUSED` status; they pause through `delivery`. Draft ad sets and ads cannot carry `delivery`, so this is a live change: show the full list and get explicit confirmation before the first request. Then, for each selected ad set (`delivery` must be the only field in the body):
 
 ```bash
-api PATCH "ad_accounts/{ad_account_id}/drafts/ad_sets/$AD_SET_ID" \
-  '{"status":"PAUSED"}'
+api PATCH "ad_accounts/{ad_account_id}/ad_sets/$AD_SET_ID" \
+  '{"delivery":"OFF"}'
 ```
 
-For campaigns, create or reuse the campaign draft and PATCH `/drafts/campaigns/{id}` instead.
+For campaigns, create or reuse the campaign draft and PATCH `/drafts/campaigns/{id}` with `{"status":"PAUSED"}` instead.
 
-Skip entities that are already PAUSED — note them as "Already paused, skipped" in the results.
+Skip entities that are already paused (ad sets with `is_paused: true`, campaigns with status `PAUSED`) — note them as "Already paused, skipped" in the results.
 
 ---
 
@@ -147,17 +175,21 @@ Resume paused ad sets or campaigns.
 #### List candidates
 
 ```bash
-api GET "ad_accounts/{ad_account_id}/ad_sets?statuses=PAUSED&limit=50&sort_direction=DESC"
+api GET "ad_accounts/{ad_account_id}/ad_sets?delivery=OFF&limit=50&sort_direction=DESC"
 ```
+
+Keep only ad sets with `is_paused: true` and `pause_reason: USER_PAUSED` (`statuses=PAUSED` is not a valid ad set filter). Ad sets paused for an account-level reason cannot be resumed through `delivery`; list them separately and tell the user the account issue must be resolved. For campaigns, list with `statuses=PAUSED`.
 
 #### Apply
 
-For each selected ad set, create or reuse its draft, then:
+Draft ad sets and ads cannot carry `delivery`, so this is a live change: show the full list and get explicit confirmation before the first request. Then, for each selected ad set:
 
 ```bash
-api PATCH "ad_accounts/{ad_account_id}/drafts/ad_sets/$AD_SET_ID" \
-  '{"status":"ACTIVE"}'
+api PATCH "ad_accounts/{ad_account_id}/ad_sets/$AD_SET_ID" \
+  '{"delivery":"ON"}'
 ```
+
+For campaigns, create or reuse the campaign draft and PATCH `/drafts/campaigns/{id}` with `{"status":"ACTIVE"}`.
 
 ---
 
@@ -217,7 +249,7 @@ Toggle ad delivery ON or OFF across multiple ads.
 api GET "ad_accounts/{ad_account_id}/ads?limit=50&sort_direction=DESC"
 ```
 
-To filter by campaign or ad set: add `&campaign_ids=$CAMPAIGN_ID` or `&ad_set_ids=$AD_SET_ID`.
+To filter by ad set: add `&ad_set_ids=$AD_SET_ID` (repeat per ad set). Ads have no `campaign_ids` filter, so for a campaign list its ad sets first with `ad_sets?campaign_ids=$CAMPAIGN_ID`.
 
 Present the table showing current delivery status (ON/OFF), ad name, ad set name, and status.
 
@@ -227,10 +259,10 @@ Ask the user: toggle all selected to ON, or toggle all to OFF?
 
 #### Apply
 
-For each selected ad, create or reuse its draft, then:
+Draft ad sets and ads cannot carry `delivery`, so this is a live change: show the full list and get explicit confirmation before the first request. Then, for each selected ad:
 
 ```bash
-api PATCH "ad_accounts/{ad_account_id}/drafts/ads/$AD_ID" \
+api PATCH "ad_accounts/{ad_account_id}/ads/$AD_ID" \
   '{"delivery":"ON"}'
 ```
 
@@ -252,7 +284,8 @@ Fetch non-archived entities of the selected type:
 
 ```bash
 # For ad sets:
-api GET "ad_accounts/{ad_account_id}/ad_sets?statuses=ACTIVE&statuses=PAUSED&limit=50&sort_direction=DESC"
+api GET "ad_accounts/{ad_account_id}/ad_sets?limit=50&sort_direction=DESC"
+# then drop ad sets whose status is already ARCHIVED (paused ad sets are not a status; they show is_paused: true)
 ```
 
 #### Confirm with warning
@@ -378,7 +411,7 @@ Creative Swap Results:
 - If `auto_execute` is `false`, present each curl command and ask for confirmation before executing.
 - Always check the `HTTP_STATUS:` line from curl output to determine success or failure before interpreting the response body.
 - On error for any individual entity, log the error and continue with remaining entities. Never automatically retry POST or PATCH requests.
-- Display a final summary showing success/failure count and per-entity results.
+- Display a final summary showing success/failure count and per-entity results. For each failure, read its error message, then give the cause and the fix in plain words. Keep error codes and HTTP statuses out of the reply unless the user asks for them.
 - For accounts with >50 entities, show the first 50 and suggest using a campaign filter (`--campaign <id>`) to narrow results.
 - Never publish staged bulk changes automatically. Publishing is a separate operation and requires explicit confirmation immediately before each affected campaign's `PUBLISH` request.
 - Only use direct published endpoints when the user explicitly asks for immediate/direct live changes. If such a request returns HTTP 403 or an edit-permission error, describe only the direct-write denial and offer draft staging; do not infer that the credentials are read-only.

@@ -16,6 +16,8 @@ api() { "$PLUGIN_ROOT/scripts/api-request.sh" account-admin "$@"; }
 
 Before the first Ads API v3 call, read and follow `$PLUGIN_ROOT/skills/api-reference/references/live-openapi.md`.
 
+Before sending any output to a human user, read and follow `$PLUGIN_ROOT/skills/api-reference/references/language-standards.md`.
+
 ## Discovery and audit
 
 There is no top-level `GET /ad_accounts`. Discover accounts through businesses:
@@ -56,7 +58,7 @@ Create an ad account:
 
 ```bash
 api POST "businesses/<business_id>/ad_accounts" \
-  '{"name":"Example Advertiser","type":"BRAND_ADVERTISER","industry":"<industry>","country_code":"US","legal_entity_name":"Example LLC","website":"https://example.com"}'
+  '{"name":"Example Advertiser","type":"BRAND_ADVERTISER","industry":"<industry>","country_code":"US","legal_entity_name":"Example LLC","website":"https://example.com","bill_to_address":{"name":"Example LLC","street":"<street>","city":"<city>","region":"<region>","postal_code":"<postal_code>"}}'
 ```
 
 Update an ad account only with public `UpdateAdAccountRequest` fields: `name`, `industry`, `billing_address`, `tax_id`, `tax_ids`, `legal_entity_name`, or `website`.

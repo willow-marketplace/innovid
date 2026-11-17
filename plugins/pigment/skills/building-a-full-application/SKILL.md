@@ -57,7 +57,7 @@ Version is a dimension. Dimensions and Version can be created in either order; b
 - Time-based partitioning (e.g. "actuals are Jan-Jun, plan is Jul-Dec") is NOT a replacement for a Version dimension.
 - Plan switchover properties (e.g. Switchover Month, Start Month, End Month) so each version can separate actuals from plan.
 - Place the Version dimension in the Hub when shared across apps.
-- Decide how completed versions are protected: snapshots (data slices) freeze numbers but cannot serve as basis for replanning; keep a live version alongside for that purpose.
+- Decide how completed versions are protected: snapshots freeze numbers but cannot serve as basis for replanning; keep a live version alongside for that purpose.
 - Decide how new versions are initialized (import from another version, bulk copy, clone data, re-import from scenario, or start from scratch).
 - Max ~10 live versions recommended; every live version carries ongoing calculation cost.
 
@@ -93,7 +93,7 @@ Version is a dimension. Dimensions and Version can be created in either order; b
 #### Phase 8 — Formatting and Highlighting
 
 - Decide number formats, metric display names, units, and visual conventions for all user-facing metrics.
-- Conditional highlighting is UI-only (metric settings → Conditional highlighting). Ask the user to configure it if requested.
+- Conditional formatting is a View setting (Format panel), applied with `tool:update_view_formatting` through `scope.condition` (`skill:formatting-and-highlighting`). Plan it per View, not per metric.
 
 #### Phase 9 — Views
 
@@ -129,7 +129,7 @@ If other applications need data from this one (or vice versa):
 
 The spec is a single document you write in your reply, ordered by phase, covering only the phases in scope.
 
-Close the spec with two short sections: the **open questions** you could not resolve from context, and the **UI-only steps** the user must finish by hand (conditional highlighting, access-right apply rules, connectors and scheduled imports).
+Close the spec with two short sections: the **open questions** you could not resolve from context, and the **UI-only steps** the user must finish by hand (access-right apply rules, connectors and scheduled imports).
 
 ---
 

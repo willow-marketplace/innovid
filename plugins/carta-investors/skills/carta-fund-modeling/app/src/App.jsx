@@ -1,60 +1,84 @@
 import { useState, useMemo, useEffect, useRef, useSyncExternalStore } from "react";
 import usePortfolio from "./state/usePortfolio.js";
-import { computeFundStates, firmRollup, firmBaseRollup } from "./model/funds.js";
+import { computeFundStates, firmRollup, isPooledScope, isLiveFamilyScope, scopeFundIds } from "./model/funds.js";
+import { scenarioFirmFigures } from "./model/report.js";
 import { effectiveExitHorizons } from "./model/reprice.js";
-import { FS, tightSans, sans, GLOBAL_CSS, GRAD_DARK, MICRO, SMALL_1 } from "./ui/theme.js";
-import { Btn, LockIcon, Mark, SunIcon, MoonIcon, ChatIcon, ALL_FUNDS, Num, StatBar, Eyebrow, Heading2, H3, DeltaCaret } from "./ui/components.jsx";
-import { fmtAsOf, fmtM, fmtX, setDisplayCurrency } from "./ui/format.js";
+import { FS, tightSans, sans, GLOBAL_CSS, GRAD_DARK, PINNED_Z } from "./ui/theme.js";
+import { Btn, ScenarioMarker, CartaLogo, SunIcon, MoonIcon, ChatIcon, ALL_FUNDS, H3, landBelowPinnedBars, SideNavButton, SignOutIcon, icon } from "./ui/components.jsx";
+import { fmtAsOf, setDisplayCurrency } from "./ui/format.js";
 import UpdateDataButton from "./ui/UpdateDataButton.jsx";
 import useShare from "./state/useShare.js";
-import { ShareControls, PullButton, SharePopover } from "./ui/ScenarioSharing.jsx";
-import { isShared, isHidden } from "./model/slices.js";
+import { ShareControls, SharePopover } from "./ui/ScenarioSharing.jsx";
+import { isShared, isHidden, scenariosInTileOrder } from "./model/slices.js";
 import Overview from "./views/Overview.jsx";
 import Companies from "./views/Companies.jsx";
-import PowerLaw from "./views/returns/PowerLaw.jsx";
 import LpReturns from "./views/returns/LpReturns.jsx";
 import GpEconomics from "./views/returns/GpEconomics.jsx";
 import Reserves from "./views/Reserves.jsx";
-import CohortStanding from "./views/CohortStanding.jsx";
 import Report from "./views/Report.jsx";
+import Scenarios from "./views/Scenarios.jsx";
+import { ActivityPage } from "./views/reports/Activity.jsx";
+import Reports from "./views/reports/Reports.jsx";
+import WelcomeCard from "./ui/WelcomeCard.jsx";
+import FundConstruction from "./views/construction/FundConstruction.jsx";
 import ScenarioDialog from "./ui/ScenarioDialog.jsx";
+import ScenarioMenu from "./ui/ScenarioMenu.jsx";
 import ConfirmDialog from "./ui/ConfirmDialog.jsx";
 import { warn, WarnToast, BASELINE_LOCKED_MSG } from "./ui/warn.jsx";
 import { parseRoute, navigate, subscribeNav } from "./route.js";
 import { fmContext } from "./pinpoint/fmContext.js";
 import { postToOuter, onFromOuter } from "./bridge-client.js";
+import { signOut } from "./sign-out.js";
 import { trackClick, trackRender } from "./analytics.js";
+import LoadingScreen from "./ui/LoadingScreen.jsx";
 
-const I = ({ d, extra }) => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ flex: "none" }}>
-    <path d={d} />{extra && <path d={extra} />}
-  </svg>
-);
-// Ink-style line icons — a fresh, distinct set. Each is [icon, extra?].
+// Ink icons, drawn with the Lucide glyph Ink's kit maps each one to (Ink name → Lucide name
+// in the comment). Each entry is [id, label, paths].
 const TABS = [
-  ["overview", "Firm Overview", "M4 18a8 8 0 0116 0", "M12 18l5-5"],
-  ["companies", "Companies", "M12 3l9 5-9 5-9-5z", "M3 13l9 5 9-5"],
-  ["lp-returns", "LP Returns", "M3 16l5-5 4 4 8-8", "M16 7h4v4"],
-  ["gp-economics", "GP Economics", "M4 7h16", "M9 7v13M15 7v13"],
-  ["reserves", "Reserves", "M4 7h13v10H4z", "M17 10h3v4h-3"],
-  ["power-law", "Power Law", "M4 20h16", "M4 20C10 20 13 5 20 4"],
-  ["cohort", "Benchmarks", "M5 19a9 9 0 1114 0", "M12 19l5-6"],
-  ["export", "Export", "M7 3h7l4 4v13a1 1 0 01-1 1H7a1 1 0 01-1-1V4a1 1 0 011-1z", "M14 3v4h4"],
+  // quickaction → zap
+  ["overview", "Firm Overview", ["M15.914 4a1.5 1.5 0 00-2.474-1.561l-9 9A1.5 1.5 0 005.5 14h4.002a.5.5 0 01.471.666L8.086 20a1.5 1.5 0 002.475 1.56l9-9A1.5 1.5 0 0018.5 10h-3.997a.5.5 0 01-.472-.667z"]],
+  // corporation → building-2
+  ["companies", "Companies", ["M10 12h4", "M10 8h4", "M14 21v-3a2 2 0 0 0-4 0v3", "M6 10H4a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-2", "M6 21V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v16"]],
+  // invest → trending-up
+  ["lp-returns", "LP Returns", ["M16 7h6v6", "m22 7-8.5 8.5-5-5L2 17"]],
+  // capitalization → chart-pie
+  ["gp-economics", "GP Economics", ["M21 12c.552 0 1.005-.449.95-.998a10 10 0 0 0-8.953-8.951c-.55-.055-.998.398-.998.95v8a1 1 0 0 0 1 1z", "M21.21 15.89A10 10 0 1 1 8 2.83"]],
+  // bank → landmark
+  ["reserves", "Reserves", ["M10 18v-7", "M11.119 2.205a2 2 0 0 1 1.762 0l7.84 3.846A.5.5 0 0 1 20.5 7h-17a.5.5 0 0 1-.22-.949z", "M14 18v-7", "M18 18v-7", "M3 22h18", "M6 18v-7"]],
+  // Lucide layout-grid
+  ["reports", "Reports", ["M4 3h5a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z", "M15 3h5a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1h-5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z", "M15 14h5a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1h-5a1 1 0 0 1-1-1v-5a1 1 0 0 1 1-1z", "M4 14h5a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-5a1 1 0 0 1 1-1z"]],
+  // download → download
+  ["export", "Export", ["M12 15V3", "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4", "m7 10 5 5 5-5"]],
+  // plant → sprout
+  ["construction", "Plan New Fund", ["M14 9.536V7a4 4 0 0 1 4-4h1.5a.5.5 0 0 1 .5.5V5a4 4 0 0 1-4 4 4 4 0 0 0-4 4c0 2 1 3 1 5a5 5 0 0 1-1 3", "M4 9a5 5 0 0 1 8 4 5 5 0 0 1-8-4", "M5 21h14"]],
 ];
-const TAB_IDS = TABS.map(([id]) => id);
+// Every scenario as tiles — reached from the scenario menu's "View all", not the nav.
+const SCENARIOS_PAGE = "scenarios";
+const TAB_ICONS = Object.fromEntries(TABS.map(([id, , paths]) => [id, icon(paths)]));
+// Pages with no nav item of their own, each mapped to the tab whose nav item stays lit
+// on it: the full activity feed opens from the Reports activity card, and the
+// Scenarios page reads as a detail view of Firm Overview.
+const SUB_PAGES = { activity: "reports", [SCENARIOS_PAGE]: "overview" };
+const TAB_IDS = [...TABS.map(([id]) => id), ...Object.keys(SUB_PAGES)];
+// The nav item a page lights up.
+export const navTabOf = (tab) => SUB_PAGES[tab] ?? tab;
+// Plans a new fund rather than viewing the portfolio, so no scenario applies to it.
+const NEW_FUND_TAB = "construction";
 const DEFAULT_TAB = "overview";
 
 // PascalCase view names for analytics IDs (FundModeling.<ViewName>.*) — keyed
 // by the same tab id used in routing/TABS above.
 const TAB_VIEW_NAMES = {
   overview: "Overview",
+  activity: "Activity",
   companies: "Companies",
-  "power-law": "PowerLaw",
   "lp-returns": "LpReturns",
   "gp-economics": "GpEconomics",
   reserves: "Reserves",
-  cohort: "CohortStanding",
+  reports: "Reports",
+  construction: "FundConstruction",
   export: "Export",
+  scenarios: "Scenarios",
 };
 
 // The active page is the third path segment (/firm/<slug>/<page>) — see route.js.
@@ -84,90 +108,18 @@ function useNarrow() {
   return narrow;
 }
 
-/** Live firm key-metrics strip — recomputes from the firm rollup so any
- *  valuation/carry/exit edit updates these instantly. Shown only on Firm Overview.
- *  Titled "Firm metrics" inside the card via StatBar's `title` prop, matching
- *  the design spec's "Summary" tile (title + key values inside one bordered card). */
-function MetricBar({ firm, firmBase, firmLpDelta, firmGpCarry, narrow }) {
-  // Horizontal padding matches <main>'s own narrow/wide padding (App.jsx's maxWidth:1320
-  // block below) so this card's edges line up with the page content under it — both boxes
-  // share the same 1320 maxWidth and box-sizing:border-box, so padding parity is what aligns them.
-  const pad = narrow ? "6px 18px 16px" : "6px 40px 16px";
-  // Never sum across currencies: when the firm's funds span reporting currencies,
-  // a combined firm total is meaningless — don't show one.
-  if (firm.mixedCurrency) {
-    return (
-      <div style={{ maxWidth: 1320, padding: pad }}>
-        <div className="card stat-bar" style={{ padding: "18px 24px" }}>
-          <Heading2 style={{ margin: "2px 0 12px" }}>Firm metrics</Heading2>
-          <div style={{ ...sans, fontSize: FS.body, color: "var(--ink-color-global-text-subtle)" }}>
-            Firm-level totals aren't shown — this firm's funds report in multiple currencies, which can't be summed. Open a fund on the Companies, LP Returns or GP Economics tabs for per-fund figures.
-          </div>
-        </div>
-      </div>
-    );
-  }
-  // each metric shows its move vs the baseline scenario (green/red) — the delta uses
-  // the metric's own formatter (× for TVPI, $ for the rest) and its own epsilon.
-  const tvpiDelta = firm.tvpi - firmBase.tvpi;
-  const items = [
-    { label: "LP NAV", value: firm.lpNav, fmt: fmtM, delta: firmLpDelta, dfmt: (n) => fmtM(n), eps: 0.5 },
-    { label: "TVPI", value: firm.tvpi, fmt: (n) => fmtX(n), delta: tvpiDelta, dfmt: (n) => n.toFixed(2) + "×", eps: 0.005 },
-    { label: "GP carry", value: firmGpCarry, fmt: fmtM, delta: firmGpCarry - firmBase.gpCarry, dfmt: (n) => fmtM(n), eps: 0.5 },
-    { label: "LP distributions", value: firm.lpDistributed, fmt: fmtM, delta: firm.lpDistributed - firmBase.lpDistributed, dfmt: (n) => fmtM(n), eps: 0.5 },
-  ];
-  return (
-    <div style={{ maxWidth: 1320, padding: pad }}>
-    <StatBar title="Firm metrics" serif={false} itemStyle={{ padding: "0 16px" }} stats={items.map((it) => ({
-      key: it.label,
-      label: it.label,
-      value: <Num value={it.value} fmt={it.fmt} />,
-      sub: it.delta != null && Math.abs(it.delta) > it.eps
-        ? <span style={{ ...SMALL_1, display: "inline-flex", alignItems: "center", gap: 4, fontVariantNumeric: "tabular-nums", color: it.delta >= 0 ? "var(--ink-color-global-feedback-positive-strong)" : "var(--ink-color-global-feedback-negative-strong)" }}>
-            <DeltaCaret up={it.delta >= 0} />{it.dfmt(Math.abs(it.delta))} vs Baseline
-          </span>
-        : <span style={{ display: "block", height: 15 }} />,
-    }))} />
-    </div>
-  );
-}
+// The sidebar and top bar are sticky, so each stacks its own children. The scenario
+// menu's floating panel opens from the sidebar, so the sidebar stacks above the top
+// bar and the pinned table header (PINNED_Z), which the panel must cover; modal
+// dialogs still cover it.
+const TOPBAR_Z = 20;
+const SIDEBAR_Z = PINNED_Z + 1;
 
-function NavItem({ id, label, icon, extra, active, onClick }) {
+// The active row's orange icon tile lives in CSS (.navitem.active .navitem-icon).
+function NavItem({ id, label, icon, active, onClick }) {
   return (
-    <button
-      onClick={onClick}
-      data-testid={`tab-${id}`}
-      className={`navitem${active ? " active" : ""}`}
-      style={{ ...sans, display: "flex", alignItems: "center", gap: 10, width: "100%", textAlign: "left",
-        fontSize: FS.bodyLg, fontWeight: active ? 600 : 500, padding: "6.5px 12px", border: "1px solid transparent",
-        borderRadius: 4, cursor: "pointer", background: active ? "var(--accent-soft)" : "transparent",
-        color: active ? "var(--ink-button-background-color-primary-base-default)" : "var(--ink-color-global-text-subtle)" }}
-    >
-      <I d={icon} extra={extra} />
-      {label}
-    </button>
-  );
-}
-
-function ScenarioItem({ slice, active, onClick }) {
-  return (
-    <button
-      onClick={onClick}
-      className={`navitem sliceitem${active ? " active" : ""}`}
-      title={slice.locked ? "Baseline mirrors reported figures and stays locked" : `Created ${slice.createdAt}`}
-      style={{ ...sans, display: "flex", alignItems: "center", gap: 9, width: "100%", textAlign: "left",
-        fontSize: FS.bodyLg, fontWeight: active ? 650 : 500, padding: "5.5px 12px", border: "1px solid transparent",
-        borderRadius: 4, cursor: "pointer", background: "transparent",
-        color: active ? "var(--ink-color-global-link-default)" : "var(--ink-color-global-text-subtle)" }}
-    >
-      <span aria-hidden style={{ width: 14, display: "inline-flex", justifyContent: "center", color: active ? "var(--ink-color-global-feedback-positive-strong)" : MICRO }}>
-        {slice.locked
-          ? <LockIcon size={11.5} strokeWidth={2} />
-          : <span style={{ width: slice.color ? 8 : 5, height: slice.color ? 8 : 5, borderRadius: "50%",
-              background: slice.color || "currentColor", alignSelf: "center" }} />}
-      </span>
-      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{slice.name}</span>
-    </button>
+    <SideNavButton onClick={onClick} data-testid={`tab-${id}`} active={active} icon={icon} label={label}
+      color={active ? "var(--ink-color-global-brand-black)" : undefined} />
   );
 }
 
@@ -176,7 +128,7 @@ function ScenarioItem({ slice, active, onClick }) {
  *  not the app, so this surfaces the instruction). No save chrome — scenario
  *  edits persist silently. */
 /** Bottom-of-rail data provenance — a single quiet line (the app wordmark sits
- *  just above it, and the Update-data control is now a top-bar icon). */
+ *  just above it, and the Update data, theme and chat rows above that). */
 function DataStatus({ asOf }) {
   return (
     <div style={{ padding: "6px 9px 2px" }}>
@@ -187,10 +139,10 @@ function DataStatus({ asOf }) {
   );
 }
 
-export default function App({ firm, onChooseFirm }) {
-  const { snapshot, doc, slice, selectSlice, createSlice, renameSlice, forkSlice, deleteSlice, hideShared, showHidden, unshareSlice, update, updateCompany, setAssumption, reload, flush, pauseAutosave, resumeAutosave } =
+export default function App({ firm, features, canSwitchFirm, onChooseFirm }) {
+  const { snapshot, doc, slice, selectSlice, sliceIds, createSlice, renameSlice, forkSlice, deleteSlice, hideShared, showHidden, unshareSlice, update, updateCompany, setAssumption, reload, flush, pauseAutosave, resumeAutosave } =
     usePortfolio(firm, { onLockedEdit: () => warn(BASELINE_LOCKED_MSG) });
-  const share = useShare();
+  const share = useShare(firm);
   // Current user's Carta id, for the owner-only Delete on a shared scenario (self-vs-other).
   const [userId, setUserId] = useState(null);
   useEffect(() => {
@@ -200,6 +152,11 @@ export default function App({ firm, onChooseFirm }) {
   // (never hardcoded USD); drives fmt$/fmtM/fmtB across the app.
   setDisplayCurrency(snapshot?.source?.currency);
   const [tab, setTab] = useTabRoute(firm);
+  const navTab = navTabOf(tab);
+  const lastPortfolioTab = useRef(DEFAULT_TAB);
+  useEffect(() => {
+    if (tab !== NEW_FUND_TAB) lastPortfolioTab.current = tab;
+  }, [tab]);
   // Nav-click tracking is separate from setTab itself — setTab is also called
   // from drill-downs (openFund/openFundSection) and the per-fund-tab auto-select,
   // which aren't user nav clicks.
@@ -229,7 +186,7 @@ export default function App({ firm, onChooseFirm }) {
     const name = snapshot?.branding?.firmName ?? snapshot?.source?.firm;
     postToOuter("title", { firmName: name });
   }, [snapshot]);
-  const [fundScope, setFundScope] = useState(ALL_FUNDS); // global fund scope: "ALL" or a fund id; shared across views
+  const [fundScope, setFundScope] = useState(ALL_FUNDS); // global fund scope (model/funds.js): ALL_FUNDS, a family scope or a fund id; shared across views
   // Ambient context for pinpoint anchors — "where the user was" (firm/tab/scenario
   // slice/fund scope/currency) so a pinned data question narrows to the right slice.
   useEffect(() => {
@@ -244,11 +201,12 @@ export default function App({ firm, onChooseFirm }) {
   // Chat-turn soft lock registry — the outer shell (via bridge-client.js) pauses
   // autosave for the duration of a chat turn and resumes + reloads once it ends,
   // so an in-flight Claude edit and the user's own scenario edits can't race.
+  // The Claude panel's entry (panel.jsx) also reads the scenario IDs and selects one.
   useEffect(() => {
     if (typeof window !== "undefined") {
-      window.__fmPortfolioCtl = { pauseAutosave, resumeAutosave, reload, flush };
+      window.__fmPortfolioCtl = { pauseAutosave, resumeAutosave, reload, flush, selectSlice, sliceIds };
     }
-  }, [pauseAutosave, resumeAutosave, reload, flush]);
+  }, [pauseAutosave, resumeAutosave, reload, flush, selectSlice, sliceIds]);
   // Mirrors the outer shell's chat rail state so the topbar toggle can label
   // itself "Ask Claude" vs "Close chat panel". The rail starts closed (the shell
   // persists the user's choice), and re-posts on every iframe load, so this
@@ -256,13 +214,20 @@ export default function App({ firm, onChooseFirm }) {
   // (and when running frameless).
   const [chatOpen, setChatOpen] = useState(false);
   useEffect(() => onFromOuter("chat-state", (p) => setChatOpen(!!(p && p.open))), []);
-  const [scenarioDialog, setScenarioDialog] = useState(null); // {mode:"new"|"rename"} or null
+  const [scenarioDialog, setScenarioDialog] = useState(null); // {mode:"new"} | {mode:"rename", target} | null
   const [confirm, setConfirm] = useState(null); // {title, message, confirmLabel, danger, onConfirm} or null
   const narrow = useNarrow();
   const contentRef = useRef(null); // the app's scrollable content div — window.scrollTo is a no-op here
-  // reset scroll to top on every tab switch, not just the drill-down callbacks below
+  const pendingSection = useRef(null); // id of the element a drill-down lands on once its tab has drawn
+  // reset scroll to top on every tab switch, not just the drill-down callbacks below —
+  // unless a drill-down named a section, which then scrolls in below the sticky top bar
+  // and the page's jump links
   useEffect(() => {
-    contentRef.current?.scrollTo({ top: 0 });
+    const el = pendingSection.current && document.getElementById(pendingSection.current);
+    pendingSection.current = null;
+    if (!el) { contentRef.current?.scrollTo({ top: 0 }); return; }
+    landBelowPinnedBars(el);
+    el.scrollIntoView({ block: "start" });
   }, [tab]);
 
   // dark mode — opt-in via the toggle and persisted; defaults to LIGHT (ignores
@@ -297,63 +262,81 @@ export default function App({ firm, onChooseFirm }) {
     const exitHorizon = effectiveExitHorizons(snapshot, slice);
     return { ...slice, assumptions: { ...slice.assumptions, exitHorizon } };
   }, [snapshot, slice]);
+  // Scenarios in tile order, for the sidebar's scenario menu, the Scenarios page and the
+  // narrow chips. The tiles compute their own figures, and only
+  // while they are on screen.
+  const tileSlices = useMemo(() => (doc?.slices ? scenariosInTileOrder(doc.slices) : []), [doc]);
 
-  // The Returns family (Power Law / LP Returns / GP Economics) is per-entity: when
-  // landing on one with the firm-wide "All Funds" scope, auto-select the first fund
-  // so the page (and its picker) name a real entity instead of silently falling back.
-  const PER_FUND_TABS = ["power-law", "lp-returns", "gp-economics"];
+  // A family scope names a family the snapshot currently lists; after a reload in which Fund Admin
+  // removed it or cut it to one fund, fall back to all funds so no view holds a family scope that
+  // matches no picker option.
   useEffect(() => {
-    if (PER_FUND_TABS.includes(tab) && fundScope === ALL_FUNDS && snapshot?.funds?.length) {
-      setFundScope(snapshot.funds[0].id);
+    if (snapshot?.funds && !isLiveFamilyScope(snapshot.funds, fundScope)) setFundScope(ALL_FUNDS);
+  }, [fundScope, snapshot]);
+
+  // LP Returns and GP Economics are per-entity tabs: when landing on one with a scope that
+  // spans funds (firm-wide "All Funds", or a family), auto-select its first fund so the page
+  // (and its picker) name a real entity instead of silently falling back.
+  const PER_FUND_TABS = ["lp-returns", "gp-economics"];
+  useEffect(() => {
+    if (PER_FUND_TABS.includes(tab) && isPooledScope(fundScope) && snapshot?.funds?.length) {
+      setFundScope(scopeFundIds(snapshot.funds, fundScope)[0]);
     }
   }, [tab, fundScope, snapshot]);
 
+  // "idle" | "busy" | "failed". A success reloads the page, so there is no state for it.
+  const [signOutState, setSignOutState] = useState("idle");
+  const onSignOut = () => {
+    setSignOutState("busy");
+    signOut().catch(() => setSignOutState("failed"));
+  };
+  const signOutLabel = signOutState === "failed" ? "Sign out failed, retry" : signOutState === "busy" ? "Signing out…" : "Sign out";
+
   if (!fundStates) {
     return (
-      <div style={{ ...sans, minHeight: "100vh", background: "var(--ink-color-global-surface-background-default)", color: "var(--ink-color-global-text-subtle)", display: "grid", placeItems: "center" }}>
-        <div style={{ textAlign: "center" }}>
-          <Mark size={56} style={{ margin: "0 auto", opacity: 0.9 }} />
-          <div style={{ marginTop: 12, fontSize: FS.bodyLg }}>Loading fund data…</div>
-        </div>
-      </div>
+      <LoadingScreen label="Loading fund data…">
+        <CartaLogo size={40} style={{ margin: "0 auto 12px", opacity: 0.9 }} />
+      </LoadingScreen>
     );
   }
 
   const locked = !!slice.locked;
+  // Drill-down to any tab, landing a per-fund tab on fund `id` and on element `section` when given (Overview widgets).
+  const openTab = (tabId, id, section) => { if (id) setFundScope(id); pendingSection.current = section ?? null; setTab(tabId); contentRef.current?.scrollTo({ top: 0 }); };
   // Row drill-down lands on LP Returns (the default returns view for a fund).
-  const openFund = (id) => { if (id) setFundScope(id); setTab("lp-returns"); contentRef.current?.scrollTo({ top: 0 }); };
+  const openFund = (id) => openTab("lp-returns", id);
   // Deep-link from the Performance sidebar: LP-returns label → LP Returns tab,
   // GP-returns (GP carry) label → GP Economics tab. Each section is now its own
   // tab, so selecting the tab lands the user directly on it (no in-page scroll).
-  const openFundSection = (id, sectionId) => {
-    if (id) setFundScope(id);
-    setTab(sectionId === "gp-returns" ? "gp-economics" : "lp-returns");
-    contentRef.current?.scrollTo({ top: 0 });
+  const openFundSection = (id, sectionId) => openTab(sectionId === "gp-returns" ? "gp-economics" : "lp-returns", id);
+
+  // live firm figures + moves vs Baseline for the Companies sidebar's Firm impact
+  const firmFigs = scenarioFirmFigures(fundStates);
+  // live firm rollup for Overview, the Welcome card, Reports and Activity — reflects this slice's marks
+  const firmAgg = firmRollup(fundStates);
+
+  // what the Returns-family views take: LP Returns, GP Economics, and the Power Law and LP reports on Reports
+  const returnsProps = {
+    snapshot, portfolio: effSlice, fundStates,
+    baseAssumptions: baseSlice.assumptions,
+    exitHorizonOverrides: slice.assumptions.exitHorizon || {},
+    fundScope, setFundScope, setAssumption, readOnly: locked,
   };
 
-  // live firm rollup for the persistent metric bar — reflects this slice's marks
-  const firmAgg = firmRollup(fundStates);
-  const firmBase = firmBaseRollup(fundStates); // Carta baseline — for vs-Carta deltas
-  const firmLpDelta = fundStates.reduce((s, f) => s + (f.lpNav - f.baseLpNav), 0);
-  // GP carry = carried interest only (accrued that survives the make-whole +
-  // carry banked from exits). The GP's own capital NAV (gpCapitalNavLive) is the
-  // GP commitment, NOT carry — it's shown separately as the Overview "GP NAV"
-  // column — so it's excluded here. This makes the header/sidebar "GP carry"
-  // tie out to the Overview GP Carry column exactly.
-  const firmGpCarry = firmAgg.accruedCarry + firmAgg.carryBanked;
-
   const onNewSlice = () => setScenarioDialog({ mode: "new" });
-  const onRename = () => setScenarioDialog({ mode: "rename" });
-  const onDelete = () =>
+  // Per-scenario actions from a scenario tile's menu — they act on that tile's
+  // scenario, which need not be the active one.
+  const onRename = (target) => setScenarioDialog({ mode: "rename", target });
+  const onDelete = (target) =>
     setConfirm({
       title: "Delete scenario",
-      message: `Delete “${slice.name}”? This can't be undone.`,
+      message: `Delete “${target.name}”? This can't be undone.`,
       confirmLabel: "Delete scenario",
       danger: true,
-      onConfirm: () => { deleteSlice(slice.id); setConfirm(null); },
+      onConfirm: () => { deleteSlice(target.id); setConfirm(null); },
     });
   // Scenario sharing (publish/pull/delete via useShare; fork/remove are local doc ops).
-  const onPublish = () => share.publish(slice.id);
+  const onPublish = (id) => share.publish(id);
   const onFork = () => forkSlice(slice.id);
   const onRemove = () => hideShared(slice.id); // hide from my list; firm row + local copy stay
   const onDeleteShared = () =>
@@ -371,10 +354,12 @@ export default function App({ firm, onChooseFirm }) {
   // Returns) — not the global chrome — since selection is page context, not
   // app-wide. `fundScope` stays shared state so the selection carries between
   // them and the Overview drill-down (openFund) still works.
+  // Header icons for the narrow layout, which has no sidebar; the wide layout's
+  // sidebar draws the same controls as rows.
+  const themeLabel = dark ? "Switch to light mode" : "Switch to dark mode";
   const themeToggle = (
     <button onClick={toggleTheme} data-testid="theme-toggle"
-      title={dark ? "Switch to light mode" : "Switch to dark mode"}
-      aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}
+      title={themeLabel} aria-label={themeLabel}
       style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 40, height: 40,
         border: `1px solid var(--ink-color-global-border-subtle)`, borderRadius: 4, background: "var(--ink-color-global-surface-background-default)", color: "var(--ink-color-global-text-subtle)", cursor: "pointer", lineHeight: 0 }}>
       {dark ? <SunIcon size={16} /> : <MoonIcon size={16} />}
@@ -384,7 +369,7 @@ export default function App({ firm, onChooseFirm }) {
   // Opens/closes the chat rail in the outer shell — the app itself only owns
   // the toggle button; OuterShell holds the open/closed state and ChatPanel.
   const chatToggleLabel = chatOpen ? "Close chat panel" : "Ask Claude";
-  const chatToggle = (
+  const chatToggle = features.askClaude && (
     <button onClick={() => postToOuter("toggle-chat")} data-testid="chat-toggle"
       title={chatToggleLabel} aria-label={chatToggleLabel} aria-expanded={chatOpen}
       style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 40, height: 40,
@@ -393,57 +378,71 @@ export default function App({ firm, onChooseFirm }) {
     </button>
   );
 
-  const sliceTools = !locked && (
-    <span style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-      <Btn onClick={onRename} style={{ height: "auto", padding: "6px 13px", fontSize: FS.small }}>Rename</Btn>
-      {!isShared(slice) && <Btn kind="danger" onClick={onDelete} style={{ height: "auto", padding: "6px 13px", fontSize: FS.small }}>Delete scenario</Btn>}
-      <ShareControls slice={slice} snapshot={snapshot} userId={userId} busy={share.running}
-        onPublish={onPublish} onFork={onFork} onRemove={onRemove} onDelete={onDeleteShared} />
-    </span>
+  // The active scenario's controls. The wide top bar shows them for a shared scenario;
+  // own scenarios act from their tile's ⋯ menu.
+  const shareControls = (
+    <ShareControls slice={slice} snapshot={snapshot} userId={userId} busy={share.running}
+      onPublish={() => onPublish(slice.id)} onFork={onFork} onRemove={onRemove} onDelete={onDeleteShared}
+      onRename={() => onRename(slice)} />
+  );
+  const sliceTools = features.share && isShared(slice) && shareControls;
+
+  const switchFirm = canSwitchFirm && (
+    <Btn kind="link" onClick={onChooseFirm} data-testid="switch-firm"
+      style={{ fontSize: FS.small, textDecoration: "underline" }}>
+      Switch firm
+    </Btn>
   );
 
   // ── full sidebar — firm header, tab nav (icon + label), scenarios, data status ──
+  const scenariosOff = tab === NEW_FUND_TAB;
+  const pickSlice = (id) => {
+    selectSlice(id);
+    if (scenariosOff) setTab(lastPortfolioTab.current);
+  };
+  // The scenario tiles' data and handlers — one set for the sidebar's menu and the Scenarios page.
+  // Without sharing there is no onPublish, so the tiles' ⋯ menus offer no Publish.
+  const tileProps = { slices: tileSlices, snapshot, activeSliceId: slice.id, onPick: pickSlice,
+    onNew: onNewSlice, onRename, onPublish: features.share ? (s) => onPublish(s.id) : undefined, onDelete, publishBusy: share.running };
   const sidebar = (
-    <aside style={{ width: 232, flex: "none", background: "var(--ink-color-global-surface-background-default)", borderRight: `1px solid var(--ink-color-global-border-subtle)`,
+    <aside style={{ width: 240, flex: "none", background: "var(--ink-color-global-surface-background-default)", borderRight: `1px solid var(--ink-color-global-border-subtle)`,
       display: "flex", flexDirection: "column", gap: 1, padding: "14px 10px 10px",
-      position: "sticky", top: 0, height: "100vh", overflowY: "auto" }}>
-      <div style={{ padding: "0 8px 12px", display: "flex", alignItems: "flex-start", gap: 10 }}>
-        <Mark branding={snapshot.branding} size={28} style={{ flex: "none", marginTop: 1 }} />
+      position: "sticky", top: 0, height: "100vh", overflowY: "auto", zIndex: SIDEBAR_Z }}>
+      {/* Logo's left edge lines up with the nav icon tiles (row inset 20px, minus the
+          aside's 10px). Nudged up 5px — (20px line − 30px logo) / 2 — so a one-line
+          firm name centres on the logo and a second line hangs below it. */}
+      <div style={{ padding: "4px 10px 16px", display: "flex", alignItems: "flex-start", gap: 12 }}>
+        <CartaLogo size={30} style={{ flex: "none", transform: "translateY(-5px)" }} />
         <div style={{ minWidth: 0 }}>
-          <H3 as="div" style={{ lineHeight: 1.2, wordBreak: "break-word" }}>{snapshot.branding?.firmName ?? snapshot.source.firm}</H3>
+          <div style={{ ...sans, fontSize: 14, fontWeight: 600, lineHeight: "20px", letterSpacing: "-0.01em", color: "var(--ink-color-global-text-default)", wordBreak: "break-word" }}>{snapshot.branding?.firmName ?? snapshot.source.firm}</div>
+          {switchFirm}
         </div>
       </div>
-      {TABS.map(([id, label, icon, extra]) => (
-        <NavItem key={id} id={id} label={label} icon={icon} extra={extra} active={tab === id} onClick={() => selectTab(id)} />
-      ))}
-      <div style={{ height: 1, background: "var(--ink-color-global-border-subtle)", margin: "9px 8px" }} />
-      <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "0 8px 4px" }}>
-        <Eyebrow color={MICRO}>Scenarios</Eyebrow>
-        <button onClick={onNewSlice} data-testid="new-slice" title="New scenario — copied from the current one" aria-label="New scenario"
-          className="addslice" style={{ width: 18, height: 18, borderRadius: 4, border: "none", background: "var(--accent-soft)",
-            color: "var(--ink-button-background-color-primary-base-default)", cursor: "pointer", display: "grid", placeItems: "center", fontSize: FS.bodyLg, fontWeight: 600, lineHeight: 1, padding: 0 }}>+</button>
+      {/* hidden on Plan New Fund, where no scenario applies */}
+      {!scenariosOff && (
+        <div style={{ padding: "0 0 12px" }}>
+          <ScenarioMenu {...tileProps} activeName={slice.name} onShowAll={() => setTab(SCENARIOS_PAGE)} />
+        </div>
+      )}
+      <div style={{ margin: "0 -10px", display: "flex", flexDirection: "column" }}>
+        {TABS.map(([id, label]) => (
+          <NavItem key={id} id={id} label={label} icon={TAB_ICONS[id]} active={navTab === id} onClick={() => selectTab(id)} />
+        ))}
       </div>
-      {doc.slices.filter((s) => !isShared(s)).map((s) => (
-        <ScenarioItem key={s.id} slice={s} active={s.id === slice.id} onClick={() => selectSlice(s.id)} />
-      ))}
-      <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "12px 8px 4px" }}>
-        <Eyebrow color={MICRO}>Shared</Eyebrow>
-        <PullButton onPull={share.pull} busy={share.running} />
-        {doc.slices.filter(isHidden).length > 0 && (
-          <button onClick={showHidden} title="Show hidden shared scenarios"
-            style={{ ...sans, fontSize: FS.micro, color: "var(--ink-button-background-color-primary-base-default)",
-              background: "none", border: "none", cursor: "pointer", padding: 0, marginLeft: "auto" }}>
-            {doc.slices.filter(isHidden).length} hidden · Show
-          </button>
+      <span style={{ flex: 1, minHeight: 10 }} />
+      <div style={{ margin: "0 -10px", display: "flex", flexDirection: "column" }}>
+        {features.updateData && <UpdateDataButton features={features} firm={firm} inSidebar />}
+        <SideNavButton onClick={toggleTheme} data-testid="theme-toggle" icon={dark ? SunIcon : MoonIcon}
+          label={dark ? "Light mode" : "Dark mode"} aria-label={themeLabel} />
+        {features.askClaude && (
+          <SideNavButton onClick={() => postToOuter("toggle-chat")} data-testid="chat-toggle" icon={ChatIcon}
+            label={chatOpen ? "Close chat" : "Ask Claude"} aria-label={chatToggleLabel} aria-expanded={chatOpen} />
+        )}
+        {features.signOut && (
+          <SideNavButton onClick={onSignOut} disabled={signOutState === "busy"} data-testid="sign-out" icon={SignOutIcon} label={signOutLabel} />
         )}
       </div>
-      {doc.slices.some((s) => isShared(s) && !isHidden(s))
-        ? doc.slices.filter((s) => isShared(s) && !isHidden(s)).map((s) => (
-            <ScenarioItem key={s.id} slice={s} active={s.id === slice.id} onClick={() => selectSlice(s.id)} />
-          ))
-        : <div style={{ ...sans, fontSize: FS.micro, color: "var(--ink-color-global-text-subtle)", padding: "2px 12px 4px" }}>None yet — load to check.</div>}
-      <span style={{ flex: 1, minHeight: 10 }} />
-      <div style={{ height: 1, background: "var(--ink-color-global-border-subtle)", margin: "6px 8px 0" }} />
+      <div style={{ height: 1, background: "var(--ink-color-global-border-subtle)", margin: "9px 8px 0" }} />
       <div style={{ padding: "9px 9px 0" }}>
         <span style={{ ...tightSans, fontSize: FS.body, fontWeight: 700, color: "var(--ink-color-global-text-default)", letterSpacing: "-0.01em" }}>Carta Fund Modeling</span>
       </div>
@@ -451,70 +450,76 @@ export default function App({ firm, onChooseFirm }) {
     </aside>
   );
 
-  // ── top context bar + live metrics (wide layout) ──
+  // ── top context bar + live metrics (wide layout); none on New fund, which has no scenario ──
+  // The sidebar's Scenario switcher names the scenario; the top bar carries only an
+  // active shared scenario's controls. It stays mounted on every scenario tab and
+  // collapses to nothing without them, so the bars that pin below it (usePinnedHeight)
+  // follow its height as the scenario switches.
   const topBar = (
-    <div data-testid="app-topbar" style={{ position: "sticky", top: 0, zIndex: 20, background: "var(--ink-color-global-surface-background-default)", borderBottom: `1px solid var(--ink-color-global-border-subtle)` }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 24px", flexWrap: "wrap" }}>
-        <span style={{ ...sans, fontSize: FS.body, color: "var(--ink-color-global-text-subtle)" }}>Scenario: <strong style={{ color: "var(--ink-color-global-text-default)", fontWeight: 700 }}>{slice.name}</strong></span>
-        {sliceTools}
-        <span style={{ flex: 1 }} />
-        <UpdateDataButton />
-        {themeToggle}
-        {chatToggle}
-      </div>
-      {tab === "overview" && <MetricBar firm={firmAgg} firmBase={firmBase} firmLpDelta={firmLpDelta} firmGpCarry={firmGpCarry} narrow={false} />}
+    <div data-testid="app-topbar" data-pinned-bar style={{ position: "sticky", top: 0, zIndex: TOPBAR_Z, background: "var(--ink-color-global-surface-background-default)",
+      borderBottom: sliceTools ? `1px solid var(--ink-color-global-border-subtle)` : "none" }}>
+      {sliceTools && (
+        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 24px", flexWrap: "wrap" }}>
+          {sliceTools}
+        </div>
+      )}
     </div>
   );
 
   const narrowHeader = (
     <div style={{ borderBottom: `1px solid var(--ink-color-global-border-subtle)`, background: "var(--ink-color-global-surface-background-default)", padding: "12px 18px", display: "flex", flexDirection: "column", gap: 10 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-        <Mark branding={snapshot.branding} size={24} />
+        <CartaLogo size={24} />
         <H3>{snapshot.branding?.firmName ?? snapshot.source.firm}</H3>
+        {switchFirm}
         <span style={{ flex: 1 }} />
         <span style={{ fontSize: FS.micro, color: "var(--ink-color-global-text-subtle)" }}>{statusLine}</span>
-        <UpdateDataButton />
+        {features.updateData && <UpdateDataButton features={features} firm={firm} />}
         {themeToggle}
         {chatToggle}
+        {features.signOut && (
+          <Btn kind="link" onClick={onSignOut} disabled={signOutState === "busy"} data-testid="sign-out"
+            style={{ fontSize: FS.small, textDecoration: "underline" }}>{signOutLabel}</Btn>
+        )}
       </div>
       <div style={{ display: "flex", gap: 4, overflowX: "auto" }}>
         {TABS.map(([id, label]) => (
           <button key={id} onClick={() => selectTab(id)} data-testid={`tab-${id}`}
-            style={{ ...sans, fontSize: FS.body, fontWeight: tab === id ? 600 : 500, padding: "7px 13px", border: "none",
+            style={{ ...sans, fontSize: FS.body, fontWeight: navTab === id ? 600 : 500, padding: "7px 13px", border: "none",
               borderRadius: 4, cursor: "pointer", whiteSpace: "nowrap",
-              background: tab === id ? "var(--ink-color-global-surface-lightgray-default)" : "transparent", color: tab === id ? "var(--ink-button-background-color-primary-base-default)" : "var(--ink-color-global-text-subtle)" }}>
+              background: navTab === id ? "var(--ink-color-global-surface-lightgray-default)" : "transparent", color: navTab === id ? "var(--ink-button-background-color-primary-base-default)" : "var(--ink-color-global-text-subtle)" }}>
             {label}
           </button>
         ))}
       </div>
       <div style={{ display: "flex", gap: 6, overflowX: "auto", alignItems: "center" }}>
-        {doc.slices.filter((s) => !isHidden(s)).map((s) => (
-          <button key={s.id} onClick={() => selectSlice(s.id)}
-            style={{ ...sans, fontSize: FS.bodyLg, fontWeight: s.id === slice.id ? 600 : 500, padding: "6px 13px", borderRadius: 4,
-              border: `1px solid ${s.id === slice.id ? "var(--ink-color-global-text-default)" : "var(--ink-color-global-border-subtle)"}`, cursor: "pointer", whiteSpace: "nowrap",
-              background: s.id === slice.id ? "var(--ink-color-global-text-default)" : "var(--ink-color-global-surface-background-default)", color: s.id === slice.id ? "var(--ink-color-global-surface-background-default)" : "var(--ink-color-global-text-subtle)",
-              display: "inline-flex", alignItems: "center", gap: 6 }}>
-            {s.locked
-              ? <LockIcon size={11} strokeWidth={2} />
-              : s.color && <span style={{ width: 8, height: 8, borderRadius: "50%", background: s.color, flex: "none" }} />}
-            {s.name}
-          </button>
-        ))}
+        {tileSlices.map((s) => {
+          const on = !scenariosOff && s.id === slice.id;
+          return (
+            <button key={s.id} onClick={() => pickSlice(s.id)}
+              style={{ ...sans, fontSize: FS.bodyLg, fontWeight: on ? 600 : 500, padding: "6px 13px", borderRadius: 4,
+                border: `1px solid ${on ? "var(--ink-color-global-text-default)" : "var(--ink-color-global-border-subtle)"}`, cursor: "pointer", whiteSpace: "nowrap",
+                background: on ? "var(--ink-color-global-text-default)" : "var(--ink-color-global-surface-background-default)", color: on ? "var(--ink-color-global-surface-background-default)" : "var(--ink-color-global-text-subtle)",
+                display: "inline-flex", alignItems: "center", gap: 6 }}>
+              <ScenarioMarker slice={s} />
+              {s.name}
+            </button>
+          );
+        })}
         <button onClick={onNewSlice} data-testid="new-slice"
           style={{ ...sans, fontSize: FS.bodyLg, fontWeight: 600, padding: "6px 13px", borderRadius: 4, border: `1px dashed var(--ink-color-global-border-subtle)`,
             background: "transparent", color: "var(--ink-button-background-color-primary-base-default)", cursor: "pointer", whiteSpace: "nowrap" }}>
           + New scenario
         </button>
-        <button onClick={share.pull} disabled={share.running} data-testid="pull-shared-narrow"
+        {features.share && <button onClick={share.pull} disabled={share.running} data-testid="pull-shared-narrow"
           style={{ ...sans, fontSize: FS.bodyLg, fontWeight: 600, padding: "6px 13px", borderRadius: 4, border: `1px dashed var(--ink-color-global-border-subtle)`,
             background: "transparent", color: "var(--ink-button-background-color-primary-base-default)", cursor: share.running ? "default" : "pointer", whiteSpace: "nowrap" }}>
           ⤓ Load shared
-        </button>
+        </button>}
       </div>
-      {!locked && (
+      {features.share && !locked && !scenariosOff && (
         <div style={{ display: "flex", gap: 6, overflowX: "auto", alignItems: "center" }}>
-          <ShareControls slice={slice} snapshot={snapshot} userId={userId} busy={share.running}
-            onPublish={onPublish} onFork={onFork} onRemove={onRemove} onDelete={onDeleteShared} />
+          {shareControls}
         </div>
       )}
     </div>
@@ -532,14 +537,16 @@ export default function App({ firm, onChooseFirm }) {
         {!narrow && sidebar}
 
         <div ref={contentRef} style={{ flex: 1, minWidth: 0, height: "100vh", overflowY: "auto" }}>
-          {narrow ? narrowHeader : topBar}
-          {narrow && tab === "overview" && <MetricBar firm={firmAgg} firmBase={firmBase} firmLpDelta={firmLpDelta} firmGpCarry={firmGpCarry} narrow={true} />}
+          {narrow ? narrowHeader : !scenariosOff && topBar}
 
           <main style={{ maxWidth: 1320, padding: narrow ? "22px 18px 48px" : "28px 40px 64px" }}>
             <div key={tab} className="pagein">
               {tab === "overview" && (
                 <Overview fundStates={fundStates} snapshot={snapshot} portfolio={slice}
-                  sliceName={slice.name} onOpenFund={openFund} />
+                  firm={firmAgg}
+                  welcome={!narrow && <WelcomeCard key={firm} firm={firm} slices={doc.slices} userId={userId} fundStates={fundStates} mixedCurrency={firmAgg.mixedCurrency}
+                    onNew={onNewSlice} onOpenCompanies={() => selectTab("companies")} />}
+                  onOpenFund={openFund} onNavigate={openTab} />
               )}
               {tab === "reserves" && (
                 <Reserves snapshot={snapshot} portfolio={slice}
@@ -551,22 +558,24 @@ export default function App({ firm, onChooseFirm }) {
                   updateCompany={updateCompany} updateSlice={update} setAssumption={setAssumption}
                   readOnly={locked} reload={reload} flush={flush}
                   holdingsPulled={holdingsPulled} fundScope={fundScope} setFundScope={setFundScope}
-                  fundStates={fundStates} firmAgg={firmAgg} firmLpDelta={firmLpDelta} firmGpCarry={firmGpCarry}
+                  fundStates={fundStates} firmFigs={firmFigs}
                   sliceName={slice.name} onOpenFundSection={openFundSection} />
               )}
-              {(tab === "power-law" || tab === "lp-returns" || tab === "gp-economics") && (() => {
-                const returnsProps = {
-                  snapshot, portfolio: effSlice, fundStates,
-                  baseAssumptions: baseSlice.assumptions,
-                  exitHorizonOverrides: slice.assumptions.exitHorizon || {},
-                  fundScope, setFundScope, setAssumption, readOnly: locked,
-                };
-                if (tab === "power-law") return <PowerLaw {...returnsProps} />;
-                if (tab === "lp-returns") return <LpReturns {...returnsProps} />;
-                return <GpEconomics {...returnsProps} />;
-              })()}
-              {tab === "cohort" && <CohortStanding snapshot={snapshot} fundStates={fundStates} portfolio={slice} />}
+              {tab === "lp-returns" && <LpReturns {...returnsProps} />}
+              {tab === "gp-economics" && <GpEconomics {...returnsProps} />}
+              {tab === "reports" && (
+                <Reports returnsProps={returnsProps} snapshot={snapshot} portfolio={slice}
+                  fundStates={fundStates} mixedCurrency={firmAgg.mixedCurrency} onShowActivity={() => openTab("activity")} />
+              )}
+              {tab === "activity" && (
+                <ActivityPage snapshot={snapshot} portfolio={slice} mixed={firmAgg.mixedCurrency} onBack={() => openTab("reports")} />
+              )}
+              {tab === "construction" && <FundConstruction snapshot={snapshot} firm={firm} companies={baseSlice?.companies} />}
               {tab === "export" && <Report doc={doc} snapshot={snapshot} baseSlice={baseSlice} />}
+              {tab === SCENARIOS_PAGE && (
+                <Scenarios {...tileProps} share={features.share ? { onPull: share.pull, busy: share.running,
+                  hiddenCount: doc.slices.filter(isHidden).length, onShowHidden: showHidden } : null} />
+              )}
             </div>
           </main>
         </div>
@@ -575,12 +584,12 @@ export default function App({ firm, onChooseFirm }) {
       {scenarioDialog && (
         <ScenarioDialog
           mode={scenarioDialog.mode}
-          initialName={scenarioDialog.mode === "rename" ? slice.name : (locked ? "Experiment" : `${slice.name} copy`)}
-          initialColor={scenarioDialog.mode === "rename" ? (slice.color ?? null) : null}
+          initialName={scenarioDialog.mode === "rename" ? scenarioDialog.target.name : (locked ? "Experiment" : `${slice.name} copy`)}
+          initialColor={scenarioDialog.mode === "rename" ? (scenarioDialog.target.color ?? null) : null}
           fromName={slice.name}
           onCancel={() => setScenarioDialog(null)}
           onSubmit={(name, color) => {
-            if (scenarioDialog.mode === "rename") renameSlice(slice.id, name, color);
+            if (scenarioDialog.mode === "rename") renameSlice(scenarioDialog.target.id, name, color);
             else createSlice(name, { color });
             setScenarioDialog(null);
           }}

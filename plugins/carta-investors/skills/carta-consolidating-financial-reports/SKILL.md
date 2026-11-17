@@ -1,10 +1,12 @@
 ---
 name: carta-consolidating-financial-reports
-description: 'Builds multi-entity consolidating financial reports in Excel: consolidating P&L (income statement), balance sheet, and trial balance — individually or all three together. Resolves the firm, the entities to include, the reporting period, and the target workbook, then builds the chosen report(s). TRIGGER on "consolidating financial reports", "consolidating P&L", "firm-wide income statement", "P&L for all entities", "P&L by tag", "P&L by department", "consolidating balance sheet", "BS by entity", "balance sheet of all entities", "consolidating trial balance", "TB by entity", "all three consolidating reports", "the full financial package". ALSO fires on a generic ask with no report named — "consolidating financials", "firm-wide financial statements" — and shows the report menu. NOT FOR: single-fund/entity financials, ManCo budgets/actuals/pacing/what-if (carta-manco), consolidating cash flow (carta-manco), SOI, co-investors, Form ADV, LP reporting, cap tables, Fund Admin requests (carta-fund-admin-requests).'
+description: 'Builds multi-entity consolidating financial reports in Excel: consolidating P&L (income statement), balance sheet, and trial balance — individually or all three together. Resolves the firm, entities, reporting period, and target workbook, then builds the chosen report(s). TRIGGER on "consolidating/consolidated financial reports", "consolidating/consolidated P&L", "firm-wide income statement", "P&L for all entities", "P&L by tag", "P&L by department", "consolidating/consolidated balance sheet", "BS by entity", "balance sheet of all entities", "consolidating trial balance", "TB by entity", "all three reports", "full financial package". ALSO fires on a generic ask with no report named — "consolidating financials", "firm-wide financial statements" — and shows the report menu. NOT FOR: single-fund/entity financials, ManCo budgets/actuals/pacing/what-if (carta-manco), consolidating cash flow (not available), SOI, co-investors, Form ADV, LP reporting, cap tables, Fund Admin requests (carta-fund-admin-requests).'
 ---
 
 <!-- carta:plugin-version -->
-<carta-plugin>carta-investors:6.32.1</carta-plugin>
+<carta-plugin>carta-investors:7.49.2</carta-plugin>
+
+> **If this plugin's files can't be found:** a path that still shows an unreplaced `${…}` variable, or a "not found" when you read or run one of this skill's files, means the skill loaded before this session's computer link was ready. Invoke this skill once more with the Skill tool and use the paths that copy gives. If they're still unreplaced, tell the user Carta's plugin files aren't available in this session yet (link your computer, then ask again) and stop. Don't search the disk for them.
 
 [PATTERN carta-writing-style v0.0.2]
 [PATTERN etiquette v0.0.6]
@@ -68,7 +70,7 @@ produce an exact match — before falling back to the welcome screen +
 | See profitability split by department or cost center | "P&L by department", "income statement by cost center", "spend by project code" | `pnl` (tag-view) |
 | See firm-wide financial position across entities | "what's our financial position", "firm-wide assets and liabilities", "balance sheet for the whole firm" | `balance-sheet` |
 | See every account balance across entities | "give me every account balance across the firm", "trial balance for all entities" | `trial-balance` |
-| Understand where cash moved across entities | "where did our cash go", "sources and uses across the firm" | Out of scope — see STOP rows (`carta-manco`) |
+| Understand where cash moved across entities | "where did our cash go", "sources and uses across the firm" | Out of scope — see STOP rows (not available) |
 | Get every consolidating statement at once, without picking just one | "give me everything", "the full financial package", "all three reports", "P&L, balance sheet, and trial balance" | `all` |
 
 ---
@@ -127,8 +129,8 @@ re-implement or pre-run its logic here.
 
 **The Carta connector asks for its `welcome` tool as your first action on
 connecting; that directive starts at Gate 0.** It governs the order of Carta
-*tool calls* — `welcome` before `set_context`, `list_contexts`, `call_tool`, or
-`fetch` — and the welcome screen is text, not a tool call. Emit the screen, then
+*tool calls* — `welcome` before `set_context`, `list_contexts`, `read_tool`, or
+`call_tool` — and the welcome screen is text, not a tool call. Emit the screen, then
 call `welcome` at Gate 0. If the handshake already fired, the screen is still
 owed: a connection banner is not the welcome screen, and no tool emits the
 screen — you write it.
@@ -150,7 +152,7 @@ Everywhere else in the routing and gate sequence, the reply is the tool call. Co
 - Progress announcements — "Now I have the Carta MCP tools", "Proceeding with Gate 0", "Now checking…", "Now calling…".
 - Server or prefix details — "Server prefix is `<X>`", "Found server `<X>`".
 - Summaries of a tool result — "Context set to…".
-- Tool inventories — "Only `<X>` surfaced", "this server lacks `list_contexts`". `list_contexts` and `call_tool` load lazily and are often absent from the visible tool list; that is expected and they still work, so there is nothing here worth reporting.
+- Tool inventories — "Only `<X>` surfaced", "this server lacks `list_contexts`". `list_contexts`, `read_tool` and `call_tool` load lazily and are often absent from the visible tool list; that is expected and they still work, so there is nothing here worth reporting.
 - MCP tool or command names in user-facing text, including inside an error message or a request for help. Describe what you need in plain English ("I can't reach your Carta connector") and name only the connector the user sees in their settings.
 - A description of a step in place of the step. When a step calls for text, that text *is* the reply: a sentence about the welcome screen leaves the reader without the screen. Third-person narration ("The user asked for…", "no specific report was named"), narrated deliberation ("Let me check the args"), and announced intent ("I need to show the welcome menu") are all this same failure.
 - Internal tool errors — `context_snip` failures, compression notes, and similar plumbing.
@@ -202,11 +204,11 @@ actually use. One sentence of plain-English context around it is fine.
 | Message signals | Action |
 |---|---|
 | "single-entity P&L", "single-entity balance sheet", "single-entity trial balance", "one fund's balance sheet", "fund-level balance sheet", "fund account balances as of [date]" | **Stop.** These reports always roll up across entities. Tell the user: "For a single fund or single entity, try `carta-investors:carta-explore-data` — these consolidating reports always aggregate across multiple entities." |
-| "consolidating cash flow", "cash flow statement", "sources and uses" | **Stop.** Tell the user: "The consolidating cash flow statement is routed from `carta-investors:carta-manco` — try that." |
+| "consolidating cash flow", "cash flow statement", "sources and uses" | **Stop.** Tell the user: "A consolidating cash flow statement isn't available yet — only P&L, balance sheet, and trial balance are supported today." |
 | "new budget", "create a budget", "build a budget", "pull our budget", "fetch the budget", "refresh actuals", "pull actuals", "pacing", "what-if", "budget scenario" | **Stop.** Tell the user: "Budgets, actuals, pacing, and what-if scenarios live in `carta-investors:carta-manco`." |
-| "SOI", "schedule of investments", "fund holdings", "co-investor", "performance benchmark", "peer comparison" | **Stop.** Tell the user: "Fund holdings, co-investor analysis, and performance benchmarks live in a separate skill set — try `carta-investors:carta-portfolio-analytics-routing`." |
-| "Form ADV", "Schedule D", "regulatory AUM", "Form PF", "SEC filing" | **Stop.** Tell the user: "Form ADV and regulatory filing data live in a separate skill set — try `carta-investors:carta-compliance-routing`." |
-| "tear sheet", "AGM deck", "LP deck", "K-1", "capital call notice", "distribution notice" | **Stop.** Tell the user: "LP documents and reporting live in a separate skill set — try `carta-investors:carta-lp-reporting-routing`." |
+| "SOI", "schedule of investments", "fund holdings", "co-investor", "performance benchmark", "peer comparison" | **Stop.** Tell the user: "Fund holdings, co-investor analysis, and performance benchmarks live in separate skills — try `carta-investors:carta-soi` for holdings, `carta-investors:carta-co-investors` for co-investors, and `carta-investors:carta-fund-performance` for performance benchmarks." |
+| "Form ADV", "Schedule D", "regulatory AUM", "Form PF", "SEC filing" | **Stop.** Tell the user: "Form ADV and regulatory filing data live in a separate skill set — try `carta-investors:carta-form-adv`." |
+| "tear sheet", "AGM deck", "LP deck", "K-1", "capital call notice", "distribution notice" | **Stop.** Tell the user: "AGM decks have their own skill — try `carta-investors:carta-agm-deck-builder`. For a tear sheet, ask for the figures as a report and I'll build it from your Carta data; for a fund in Fund Forecasting, ask about Fund Forecasting. For an investor's own K-1s and notices, say 'show me my LP documents'. Documents your fund sent to its LPs are managed in Carta directly." |
 | "cap table", "equity grants", "409A", "option pool" | **Stop.** Tell the user: "Cap table and equity administration live in Carta's cap table tools, not here." |
 
 If none of the rows above match, continue below.
@@ -295,38 +297,45 @@ last `__`. Examples: `mcp__carta__welcome` → `carta`,
 **If none found:** tell the user no Carta MCP is connected and stop.
 **If exactly one found:** call `mcp__<SERVER>__welcome(_instrumentation_v2={...})` to verify. This is `<SERVER>`.
 **If multiple found:** ask which to use via `AskUserQuestion`. Default to `carta` (production) if present.
-**Don't call any other `mcp__<SERVER>__*` tool before `welcome`** — every other command is gated and will return a reminder.
+**Don't call any other `mcp__<SERVER>__*` tool before `welcome`** — the server instructions require `welcome` as the first call.
+
+> **Checkpoint**: Once `welcome` succeeds, call `mcp__<SERVER>__skill_checkpoint(skill_name="carta-investors:carta-consolidating-financial-reports", checkpoint_label="skill_started")` before proceeding. `<SERVER>` is the server you called `welcome` on above. If the tool is deferred, load it first with `ToolSearch(query: "select:mcp__<SERVER>__skill_checkpoint")`. If it is still unavailable, or any checkpoint call fails, carry on: checkpoints never stop a run. A run that has not recorded `skill_started` records no other checkpoint.
+
+Each run records each checkpoint at most once, and exactly one of `skill_finished` or `skill_failed`. A step reached again later in the same run (a report offered from the post-run menu, a retry after a timeout, the second invocation the note at the top of this file asks for) does not checkpoint again. The reports of an `all` batch record nothing on their own; the batch records `skill_finished` once, after its last report.
 
 ### The five Carta tools load lazily — a short tool list is not a missing tool
 
-Derive `<SERVER>` from the server name as shown above. After that, the five
-suffixes `welcome`, `set_context`, `list_contexts`, `call_tool`, `fetch` are
-exhaustive for every Carta MCP server regardless of environment. Call
+Derive `<SERVER>` from the server name as shown above. After that, the seven
+suffixes `welcome`, `set_context`, `list_contexts`, `read_tool`, `call_tool`,
+`search_tools`, and `skill_checkpoint` are exhaustive for every Carta MCP server regardless of environment. Call
 `mcp__<SERVER>__<suffix>` directly.
 
-**`list_contexts` and `call_tool` load lazily. They will often NOT appear in
+**`list_contexts`, `read_tool`, `call_tool` and `skill_checkpoint` load lazily. They will often NOT appear in
 your tool list, and that is expected — they still exist and still work.** Only
-`welcome`, `set_context`, and `fetch` are reliably visible up front; a server
-may also expose extras like `get_current_user` or `mutate` that this skill does
+`welcome` and `set_context` are reliably visible up front; a server
+may also expose extras like `get_current_user` that this skill does
 not use. Never treat a tool's absence from the visible list as evidence it is
 unavailable, and never tell the user a Carta tool "doesn't exist" or that the
 connector is missing a capability. Just call it.
 
 **Never search for these tools.** Do not run `tool_search_tool_bm25` under any
-circumstances — not to discover the prefix, not to find `list_contexts` or
-`call_tool`, not for anything. A BM25 search returns only the eagerly-loaded
+circumstances — not to discover the prefix, not to find `list_contexts`,
+`read_tool` or `call_tool`, not for anything. A BM25 search returns only the eagerly-loaded
 subset, so it will appear to prove the lazy tools are missing when they are not.
 That false negative is the trap: it leads to abandoning the run and telling the
 user to re-authenticate a working connector. If you genuinely must search, use
-the connector's own `mcp__<SERVER>__search_tools`, never the generic search.
+the connector's own `mcp__<SERVER>__search_tools`, never the generic search. Loading a deferred tool by its exact name with `ToolSearch(query: "select:mcp__<SERVER>__<suffix>")` is not a search and is allowed; the `skill_started` checkpoint above uses it.
+[references/report-feedback.md](references/report-feedback.md)'s availability
+check is the one place this skill calls `search_tools` on its own initiative —
+once per session, to confirm `fa:create:feedback` before filing it.
 
 If a call to one of the five genuinely errors, handle it from the error table at
 the end of this skill — do not infer from a tool listing.
 
 ### Instrumentation — every Carta MCP call carries `_instrumentation_v2`
 
-Pass it on **every** `welcome`, `set_context`, `list_contexts`, `call_tool`, and
-`fetch` call, exactly as written in the examples below:
+Pass it on **every** `welcome`, `set_context`, `list_contexts`, `read_tool`, `call_tool`,
+and `search_tools` call, exactly as written in the examples below:
 
 ```
 _instrumentation_v2={...}
@@ -517,6 +526,8 @@ Then load the matched report and follow it exactly:
 logic from memory** — each one carries exact SQL, Excel number-format strings,
 column maps, and approval gates that must not be paraphrased.
 
+> **Checkpoint**: When `<REPORT>` is a single report: call `mcp__<SERVER>__skill_checkpoint(skill_name="carta-investors:carta-consolidating-financial-reports", checkpoint_label="skill_finished")` once the report has written its tabs and reported the result to the user.
+
 ### `<REPORT>` is `all`
 
 Build all three, one after another, into the same target workbook. Gate 0 and
@@ -560,6 +571,8 @@ back to back. If one report fails or the user declines its approval gate, say
 so in one sentence and continue to the next report rather than aborting the
 whole batch.
 
+> **Checkpoint**: Call `mcp__<SERVER>__skill_checkpoint(skill_name="carta-investors:carta-consolidating-financial-reports", checkpoint_label="skill_finished")` once the last report of the batch has run, if at least one of the three wrote its tabs. If none did, the run ends with `skill_failed` instead.
+
 **Why the data pull isn't shared.** The three reports query different
 account-type ranges and different time semantics — the P&L sums two date
 windows (period and YTD) over accounts `>= '4000'`, the balance sheet takes a
@@ -588,21 +601,37 @@ skill's directory.
 
 ## If Something Goes Wrong
 
+> **Checkpoint on every stop before this run has recorded `skill_finished`**, once this run has recorded `skill_started` and whether or not this table lists it: call `mcp__<SERVER>__skill_checkpoint(skill_name="carta-investors:carta-consolidating-financial-reports", checkpoint_label="skill_failed", notes="<one-line reason>")` instead of `skill_finished`. That includes a firm with only one entity, a timeout the user does not retry, a 403, a report that fails or whose approval the user declines, and plugin files still unavailable after the second invocation. `skill_finished` means a report was built and reached the user; a stop that built no report is a failure, and counting it as finished makes failed runs look like fast successful ones. Rows that recover and continue (a corrected firm spelling, a retried query, a re-probed prefix, a lazily loaded tool, a silent re-send with `_instrumentation_v2`, one report of an `all` batch failing while the next runs) do not checkpoint. Paths before `skill_started` record nothing: the Router Gate's STOP redirects, and no Carta MCP server found.
+
 Out-of-scope topics are handled proactively by the STOP rows in the Router Gate
 — they never reach this table. This table covers issues that surface mid-flow.
 
-| Situation | Response |
-|---|---|
-| No Carta MCP server found | "I can't see your Carta connector. Open **Settings → Connectors** in Claude, enable Carta, then ask me again." |
-| `list_contexts` returns no firm | Echo the name back and ask for the correct spelling. Don't silently near-match. |
-| Firm resolves but has only one entity | Say so plainly, and offer to run the single-entity report via `carta-investors:carta-explore-data` instead. A consolidating report over one entity is just that entity's statement. |
-| The user asks for two (but not all three) reports at once | Build the first, then offer the second from the post-run menu. Do not run both in one pass. |
-| The user asks for all three reports | Route to `<REPORT> = all` — see "Build" above. Builds all three in one pass instead of offering them one at a time. |
-| Query times out | Tell the user it's slow and offer to retry — never auto-retry. |
-| Auth / permission error from the MCP | Ask the user to reconnect Carta in Settings → Connectors. |
-| Connector connected, tool calls fail (`McpAuthError` / "tool not available") | Prefix mismatch — NOT an auth issue. Re-run `refresh_mcp_connectors` and probe the matching prefix's `welcome`. Never tell the user to re-auth without verifying the prefix mismatch first. |
-| `list_contexts` or `call_tool` is not in your visible tool list | **Not a failure — they load lazily.** Call the tool anyway. Do not search for it, do not report a connector gap, and do not ask the user to re-authenticate a connector that just answered `welcome`. |
-| A Carta MCP call is rejected for missing instrumentation | Re-send the same call with `_instrumentation_v2` as specified in Gate 0. Do not surface this to the user — it is an internal contract, and the retry is silent. |
+See [references/report-feedback.md](references/report-feedback.md) for the
+`fa:create:feedback` contract — the **File?** column below decides whether a
+given row also goes to Carta's team, per that contract.
+
+| Situation | Response | File? |
+|---|---|---|
+| No Carta MCP server found | "I can't see your Carta connector. Open **Settings → Connectors** in Claude, enable Carta, then ask me again." | Don't file — the user's own connection, not a skill defect. |
+| `list_contexts` returns no firm | Echo the name back and ask for the correct spelling. Don't silently near-match. | Don't file — an input the user corrects in the same turn. |
+| Firm resolves but has only one entity | Say so plainly, and offer to run the single-entity report via `carta-investors:carta-explore-data` instead. A consolidating report over one entity is just that entity's statement. | Don't file — routing advice, not a skill defect. |
+| The user asks for two (but not all three) reports at once | Build the first, then offer the second from the post-run menu. Do not run both in one pass. | Don't file — routing, not a failure. |
+| The user asks for all three reports | Route to `<REPORT> = all` — see "Build" above. Builds all three in one pass instead of offering them one at a time. | Don't file — routing, not a failure. |
+| Query times out | Tell the user it's slow and offer to retry — never auto-retry. | Don't file on the first timeout (it may just be slow). If the user asks you to retry and it times out again, file — a query that reliably times out is developer-actionable. |
+| Auth / permission error from the MCP connection itself (an expired or revoked connector token, an OAuth error — not a 403 from an in-session tool call, which is the row below) | Ask the user to reconnect Carta in Settings → Connectors. | Don't file — a connector-level auth failure, not a skill defect. |
+| Connector connected, tool calls fail (`McpAuthError` / "tool not available") | Prefix mismatch — NOT an auth issue. Re-run `refresh_mcp_connectors` and probe the matching prefix's `welcome`. Never tell the user to re-auth without verifying the prefix mismatch first. | Don't file — even if no connected prefix's tools work after probing, filing cannot reach Carta either with no working connector; surface the connection problem to the user instead. |
+| `list_contexts`, `read_tool` or `call_tool` is not in your visible tool list | **Not a failure — they load lazily.** Call the tool anyway. Do not search for it, do not report a connector gap, and do not ask the user to re-authenticate a connector that just answered `welcome`. | N/A — not a failure; see "The five Carta tools load lazily" above. |
+| A Carta MCP call is rejected for missing instrumentation | Re-send the same call with `_instrumentation_v2` as specified in Gate 0. Do not surface this to the user — it is an internal contract, and the retry is silent. | N/A — resolved silently by the retry described; not a failure a developer needs to hear about. |
+| A Carta tool (`fa:*`, `dwh:*`) returns a validation or internal error outside the rows above — a bad-argument rejection, an unexpected 5xx, a malformed response | Surface the failure; let the user decide whether to retry. | File — developer-fixable, unlike a local connection problem. Put the exact tool name, arguments, and error message in `context`/`flowSummary`. |
+| A Carta tool returns 403/"not authorized" or a break-the-glass requirement | Surface it in plain English and stop. | Don't file — an access decision about the user or firm, not a skill defect a developer could fix. |
+
+---
+
+## Reporting issues
+
+Before this skill's first failure, read [references/report-feedback.md](references/report-feedback.md)
+(when and how to file `fa:create:feedback`). This skill has no separate `errors.md`: the
+table above marks which specific failures in this skill file, and which don't.
 
 ---
 

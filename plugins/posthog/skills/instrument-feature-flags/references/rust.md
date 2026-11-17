@@ -1,27 +1,27 @@
 > AI agents: this is one page from PostHog's docs. Full index of Markdown docs for LLMs: https://posthog.com/llms.txt
 
-# Rust Feature Flags installation - Docs
+# Rust Feature Flags installation
 
-Copy page
+Canonical URL: https://posthog.com/docs/feature-flags/installation/rust
 
-# Rust Feature Flags installation - Docs
+## Install with the wizard
+
+Run this command in your project directory to add PostHog to your Rust project. The wizard detects your framework, installs the SDK, and sets up your first events.
+
+`npx @posthog/wizard`
+
+Or set it up manually by following the rest of this guide.
 
 Install the `posthog-rs` crate by adding it to your `Cargo.toml`.
 
 Cargo.toml
 
-PostHog AI
-
 ```toml
 [dependencies]
-posthog-rs = "0.14"
+posthog-rs = "0.31"
 ```
 
 Next, set up the client with your PostHog project key.
-
-Rust
-
-PostHog AI
 
 ```rust
 let client = posthog_rs::client("<ph_project_token>").await;
@@ -33,13 +33,9 @@ Our Rust SDK supports both blocking and async clients. The async client is the d
 
 If you need to use a synchronous client instead – like we do in our [CLI](https://github.com/PostHog/posthog/tree/master/cli) –, you can opt into it by disabling the asynchronous feature on your `Cargo.toml` file.
 
-toml
-
-PostHog AI
-
 ```toml
 [dependencies]
-posthog-rs = { version = "0.14", default-features = false }
+posthog-rs = { version = "0.31", default-features = false }
 ```
 
 With the blocking client, the same methods are available without `.await`. Either way, `capture` is non-blocking: it hands the event to a background worker that batches and sends it, so it returns immediately instead of waiting on the network. Because delivery happens in the background, call `flush()` or `shutdown()` before your program exits, or buffered events may be lost.
@@ -54,16 +50,14 @@ Call `client.evaluate_flags()` once for the user, then read values from the retu
 
 #### Boolean feature flags
 
-Rust
-
-PostHog AI
-
 ```rust
 use posthog_rs::EvaluateFlagsOptions;
+
 let flags = client.evaluate_flags(
     "distinct_id_of_your_user",
     EvaluateFlagsOptions::default(),
 ).await.unwrap();
+
 if flags.is_enabled("flag-key") {
     // Do something differently for this user
     // Optional: fetch the payload
@@ -73,16 +67,14 @@ if flags.is_enabled("flag-key") {
 
 #### Multivariate feature flags
 
-Rust
-
-PostHog AI
-
 ```rust
 use posthog_rs::{EvaluateFlagsOptions, FlagValue};
+
 let flags = client.evaluate_flags(
     "distinct_id_of_your_user",
     EvaluateFlagsOptions::default(),
 ).await.unwrap();
+
 match flags.get_flag("flag-key") {
     Some(FlagValue::String(variant)) if variant == "variant-key" => {
         // Do something differently for this user
@@ -99,9 +91,9 @@ match flags.get_flag("flag-key") {
 
 ### Step 2: Include feature flag information when capturing events
 
-If you want use your feature flag to breakdown or filter events in your [insights](/docs/product-analytics/insights.md), you'll need to include feature flag information in those events. This ensures that the feature flag value is attributed correctly to the event.
+If you want use your feature flag to breakdown or filter events in your [insights](https://posthog.com/docs/product-analytics/insights.md), you'll need to include feature flag information in those events. This ensures that the feature flag value is attributed correctly to the event.
 
-> **Note:** This step is only required for events captured using our server-side SDKs or [API](/docs/api.md).
+> **Note:** This step is only required for events captured using our server-side SDKs or [API](https://posthog.com/docs/api.md).
 
 There are two methods you can use to include feature flag information in your events:
 
@@ -109,19 +101,18 @@ There are two methods you can use to include feature flag information in your ev
 
 Pass the same `flags` object that you used for branching. This attaches the exact flag values from that evaluation and doesn't make another `/flags` request.
 
-Rust
-
-PostHog AI
-
 ```rust
 use posthog_rs::{EvaluateFlagsOptions, Event};
+
 let flags = client.evaluate_flags(
     "distinct_id_of_your_user",
     EvaluateFlagsOptions::default(),
 ).await.unwrap();
+
 if flags.is_enabled("flag-key") {
     // Do something differently for this user
 }
+
 let mut event = Event::new("event_name", "distinct_id_of_your_user");
 event.with_flags(&flags);
 client.capture(event);
@@ -131,15 +122,12 @@ By default, this attaches every flag in the snapshot using `$feature/<flag-key>`
 
 To reduce event property bloat, pass a filtered snapshot:
 
-Rust
-
-PostHog AI
-
 ```rust
 // Attach only flags accessed with is_enabled() or get_flag() before this call
 let mut event = Event::new("event_name", "distinct_id_of_your_user");
 event.with_flags(&flags.only_accessed());
 client.capture(event);
+
 // Attach only specific flags
 let mut event = Event::new("event_name", "distinct_id_of_your_user");
 event.with_flags(&flags.only(&["checkout-flow", "new-dashboard"]));
@@ -152,12 +140,9 @@ client.capture(event);
 
 In the event properties, include `$feature/feature_flag_name: variant_key`:
 
-Rust
-
-PostHog AI
-
 ```rust
 use posthog_rs::Event;
+
 let mut event = Event::new("event_name", "distinct_id_of_your_user");
 event.insert_prop("$feature/feature-flag-key", "variant-key").unwrap();
 client.capture(event);
@@ -167,12 +152,9 @@ client.capture(event);
 
 By default, `evaluate_flags()` evaluates every flag for the user. If you only need a few flags, pass `flag_keys` to request only those flags:
 
-Rust
-
-PostHog AI
-
 ```rust
 use posthog_rs::EvaluateFlagsOptions;
+
 let flags = client.evaluate_flags(
     "distinct_id_of_your_user",
     EvaluateFlagsOptions {
@@ -184,7 +166,7 @@ let flags = client.evaluate_flags(
 
 ### Sending `$feature_flag_called` events
 
-Capturing `$feature_flag_called` events enables PostHog to know when a flag was accessed by a user and provide [analytics and insights](/docs/product-analytics/insights.md) on the flag. With `evaluate_flags()`, the SDK sends this event when you call `flags.is_enabled()` or `flags.get_flag()` for a flag.
+Capturing `$feature_flag_called` events enables PostHog to know when a flag was accessed by a user and provide [analytics and insights](https://posthog.com/docs/product-analytics/insights.md) on the flag. With `evaluate_flags()`, the SDK sends this event when you call `flags.is_enabled()` or `flags.get_flag()` for a flag.
 
 The SDK deduplicates these events per `(distinct_id, flag, value)` in a local cache. If you reinitialize the PostHog client, the cache resets and `$feature_flag_called` events may be sent again. PostHog handles duplicates, so duplicate `$feature_flag_called` events don't affect your analytics.
 
@@ -194,16 +176,14 @@ The SDK deduplicates these events per `(distinct_id, flag, value)` in a local ca
 
 If you're using the blocking client (with `default-features = false`), the API is the same but without `.await`:
 
-Rust
-
-PostHog AI
-
 ```rust
 use posthog_rs::EvaluateFlagsOptions;
+
 let flags = client.evaluate_flags(
     "distinct_id_of_your_user",
     EvaluateFlagsOptions::default(),
 ).unwrap();
+
 if flags.is_enabled("flag-key") {
     // Do something differently for this user
 }
@@ -213,16 +193,8 @@ Now that you're evaluating flags, continue with the resources below to learn wha
 
 | Resource | Description |
 | --- | --- |
-| [Creating a feature flag](/docs/feature-flags/creating-feature-flags.md) | How to create a feature flag in PostHog |
-| [Adding feature flag code](/docs/feature-flags/adding-feature-flag-code.md) | How to check flags in your code for all platforms |
-| [Framework-specific guides](/docs/feature-flags/tutorials.md#framework-guides) | Setup guides for React Native, Next.js, Flutter, and other frameworks |
-| [How to do a phased rollout](/tutorials/phased-rollout.md) | Gradually roll out features to minimize risk |
-| [More tutorials](/docs/feature-flags/tutorials.md) | Other real-world examples and use cases |
-
-### Still have questions?
-
-Ask PostHog AI
-
-### Was this page useful?
-
-HelpfulCould be better
+| [Creating a feature flag](https://posthog.com/docs/feature-flags/creating-feature-flags.md) | How to create a feature flag in PostHog |
+| [Adding feature flag code](https://posthog.com/docs/feature-flags/adding-feature-flag-code.md) | How to check flags in your code for all platforms |
+| [Framework-specific guides](https://posthog.com/docs/feature-flags/tutorials.md#framework-guides) | Setup guides for React Native, Next.js, Flutter, and other frameworks |
+| [How to do a phased rollout](https://posthog.com/tutorials/phased-rollout.md) | Gradually roll out features to minimize risk |
+| [More tutorials](https://posthog.com/docs/feature-flags/tutorials.md) | Other real-world examples and use cases |

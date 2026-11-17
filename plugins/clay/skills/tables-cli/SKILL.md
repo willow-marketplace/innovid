@@ -3,10 +3,11 @@ name: tables-cli
 description: Clay tables — inspect, query, and export data from an existing table via the `clay tables` CLI (list, columns, rows, query-live, structured query). To investigate a table or record, use the focused `/tables-*` skills (analyze, trace, error-sweep, value-trace, capacity).
 ---
 
+Before using this skill, read the `clay` entry skill if you haven’t already this session, and follow its access guidance.
+
 Clay tables are spreadsheet-like: columns (basic, formula, or enrichment), rows
 (usually people or companies), and sources that add rows. This skill only **reads**
-tables that already exist. If `clay` isn't on PATH or `clay whoami` fails on auth,
-run the `setup` skill.
+tables that already exist. For tool access or authentication problems, read the `clay` entry skill before continuing.
 
 ## Finding a table
 
@@ -22,7 +23,7 @@ ID prefixes: `t_` table, `f_` column, `r_` row, `wb_` workbook.
 
 - **Creating tables** (or adding fields/columns). Tell the user to create the table
   in the Clay app first; you can work with it once it exists.
-- **Writing data.** The CLI cannot insert rows, update cells, or trigger enrichments.
+- **Writing data.** These table operations cannot insert rows, update cells, or trigger enrichments.
   `clay tables update` only toggles whether a table is queryable (`--query-enabled`);
   it does not write data. Rows enter through the Clay app. The Public API is
   query/list-only as well.
@@ -34,8 +35,10 @@ Prefer `columns list|get` / `get` / `rows list|get` / `query-live` for everyday 
 `rows` are command groups — `clay tables columns <tableId>` is not a command.)
 
 **Availability:** `clay tables query` requires **API table sync** (Enterprise).
-Without sync, `clay tables query` and `clay tables update --query-enabled true`
-fail with `auth_forbidden` ("API table sync is not enabled for this workspace") —
+Without sync, `clay tables query` fails with `auth_forbidden` and
+`clay tables update --query-enabled true` with `plan_upgrade_required` (older CLI
+versions report `auth_forbidden`), both saying "API table sync is not enabled for
+this workspace" —
 that's an account limitation, not a bug: don't retry or re-login. Fall back to
 `columns` / `rows` / `query-live` (no sync required), and tell the user to contact
 Clay about Enterprise access for synced `query`.
@@ -108,6 +111,11 @@ clay tables columns get t_abc123
 clay tables query-live t_abc123 --query 'SELECT {{Name}}, {{ARR}} ORDER BY {{ARR}} DESC LIMIT 10'
 ```
 
+ClayQL is a whitelisted SQL subset — `clay tables query-live --help` lists the exact
+supported grammar. The two most common traps: date ranges use literal ISO strings
+(`{{Close date}} >= '2026-06-01'`) because `NOW()`, `INTERVAL`, and date arithmetic are
+rejected, and `CAST` works only to `decimal`.
+
 See `clay tables query-live --help` for output shape and errors. Output is
 `{ query, queryName?, rowCount, results }` — rows live under **`results`**, not `data`.
 Each call returns at most **100 rows**; page with `LIMIT n OFFSET m` in `--query` (bump
@@ -156,21 +164,21 @@ clay tables query --query ./query.json --limit 100 --cursor cursor_abc123
 
 Typical flow: `clay tables list --filter queryEnabled=true` to find the id → (if needed)
 `clay tables update <id> --query-enabled true` → wait, then `clay tables query`. To
-export, convert the JSON `data` array to CSV with the Write tool.
+export, serialize the JSON `data` array to CSV with a real writer (see below).
 
 ### Saving query results to CSV
 
 After a `query-live` or `query` run, save the results locally as a CSV so the user can
-access them. Convert the row array to CSV and write it with the Write tool — use
-**`.results`** for `query-live` and **`.data`** for synced `query`. For `query-live`,
-page with `LIMIT`/`OFFSET` and append each page so the CSV isn't truncated at 100 rows.
-
-1. Run `clay tables query-live` or `clay tables query`
-2. Take rows from `.results` (`query-live`) or `.data` (`query`); for live queries, keep
-   paging until a page is short
-3. Extract column headers from the first result row
-4. Convert each row to comma-separated values (quote fields containing commas)
-5. Write to a local file like `./query-results.csv`
+access them — **`.results`** for `query-live` (responses are capped, so page with
+`LIMIT`/`OFFSET` and append until a page comes back short), **`.data`** for synced
+`query`, projecting
+each synced cell wrapper to its `value` with an explicit marker for error and pending
+cells (they carry no `value`, and a blank would misread as empty). Serialize with a
+keyed CSV writer (for example `csv.DictWriter`, with fieldnames seeded from the
+response's `fields` plus any extra keys seen in rows), never by hand-writing delimiter
+text, prefix string values starting with `=`, `+`, `-`, or `@`
+with a single quote (leave numeric cells untouched), and write to a file like
+`./query-results.csv`.
 
 ## Example: join across tables
 

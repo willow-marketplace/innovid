@@ -170,6 +170,34 @@ class TestPromoOnlyWhenNotInstalled:
         # Positive control (#602): see test_suppressed_when_key_present.
         assert "=== REMEMBER ===" in out
 
+    def test_non_object_plugins_shape_is_cannot_tell(self, tmp_path):
+        """#762: `.plugins` as a JSON array must suppress like any other
+        cannot-tell case, never be read as "not installed".
+
+        `to_entries` does not error on an array the way `.plugins[$k]`
+        errored on the old per-candidate query, so a naive up-front probe
+        reads a real installed_id as absent and fires the promo -- exactly
+        backwards from the #574 "cannot-tell suppresses" decision.
+        """
+        home, project, remember = _store(tmp_path)
+        plugins_dir = home / ".claude" / "plugins"
+        plugins_dir.mkdir(parents=True, exist_ok=True)
+        (plugins_dir / "installed_plugins.json").write_text(
+            json.dumps({"version": "2", "plugins": ["x", "y"]}), encoding="utf-8"
+        )
+        result = subprocess.run(
+            ["bash", str(SESSION_START)],
+            input=_payload(),
+            env=_env(home, project, remember),
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        assert result.returncode == 0, result.stderr
+        assert "systemMessage" not in result.stdout
+        # Positive control (#602): see test_suppressed_when_key_present.
+        assert "=== REMEMBER ===" in result.stdout
+
 
 class TestOffSwitch:
     def test_disabled_via_project_config_suppresses(self, tmp_path):
@@ -245,8 +273,10 @@ class TestPromosFileIsData:
         (fake_plugin_root / "scripts").symlink_to(REPO_ROOT / "scripts")
         (fake_plugin_root / "prompts").symlink_to(REPO_ROOT / "prompts")
         (fake_plugin_root / "pipeline").symlink_to(REPO_ROOT / "pipeline")
+        # the install manifest is resolve-paths.sh's plugin-root marker (#898)
+        (fake_plugin_root / ".claude-plugin").symlink_to(REPO_ROOT / ".claude-plugin")
         (fake_plugin_root / "promos.json").write_text(
-            json.dumps({"promos": [{"id": "no-url-promo", "text": "hello", "installed_key": "x@y"}]}),
+            json.dumps({"promos": [{"id": "no-url-promo", "text": "hello", "installed_id": "x@y"}]}),
             encoding="utf-8",
         )
         result = subprocess.run(
@@ -274,6 +304,8 @@ class TestPromosFileIsData:
         (fake_plugin_root / "scripts").symlink_to(REPO_ROOT / "scripts")
         (fake_plugin_root / "prompts").symlink_to(REPO_ROOT / "prompts")
         (fake_plugin_root / "pipeline").symlink_to(REPO_ROOT / "pipeline")
+        # the install manifest is resolve-paths.sh's plugin-root marker (#898)
+        (fake_plugin_root / ".claude-plugin").symlink_to(REPO_ROOT / ".claude-plugin")
         result = subprocess.run(
             ["bash", str(SESSION_START)],
             input=_payload(),
@@ -298,6 +330,8 @@ class TestPromosFileIsData:
         (fake_plugin_root / "scripts").symlink_to(REPO_ROOT / "scripts")
         (fake_plugin_root / "prompts").symlink_to(REPO_ROOT / "prompts")
         (fake_plugin_root / "pipeline").symlink_to(REPO_ROOT / "pipeline")
+        # the install manifest is resolve-paths.sh's plugin-root marker (#898)
+        (fake_plugin_root / ".claude-plugin").symlink_to(REPO_ROOT / ".claude-plugin")
         long_text = "x" * 130
         (fake_plugin_root / "promos.json").write_text(
             json.dumps(
@@ -306,7 +340,7 @@ class TestPromosFileIsData:
                         {
                             "id": "too-long-promo",
                             "text": long_text,
-                            "installed_key": "x@y",
+                            "installed_id": "x@y",
                             "url": "https://example.com/z",
                         }
                     ]
@@ -443,15 +477,15 @@ class TestPromoCarriesItsOwnOffSwitch:
 
         for entry in promos:
             # Install every OTHER plugin so this one is the only candidate.
-            # `.get("installed_key")` (#657): a `gate`-based entry (the star
-            # ask) carries no `installed_key` at all, so it cannot be marked
+            # `.get("installed_id")` (#657): a `gate`-based entry (the star
+            # ask) carries no `installed_id` at all, so it cannot be marked
             # "installed" and must not appear on this side of the dict either
             # -- a KeyError here reads as "this suite was never updated for
             # the new entry shape", which is exactly what caught this gap.
             others = {
-                p["installed_key"]: [{"name": p["id"]}]
+                p["installed_id"]: [{"name": p["id"]}]
                 for p in promos
-                if p.get("installed_key") and p["id"] != entry["id"]
+                if p.get("installed_id") and p["id"] != entry["id"]
             }
             if entry.get("gate") == "recent_nonempty":
                 # The #657 shape: not an install check at all. Give it the

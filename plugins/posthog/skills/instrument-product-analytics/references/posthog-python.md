@@ -2,7 +2,7 @@
 
 # PostHog Python SDK
 
-**SDK Version:** 7.47.3
+**SDK Version:** 7.86.6
 
 Integrate PostHog into any python application.
 
@@ -13,6 +13,7 @@ Integrate PostHog into any python application.
 - Capture
 - Error Tracking
 - Feature flags
+- Tracing
 - Contexts
 - Events
 - Client management
@@ -42,7 +43,7 @@ Initialize a new PostHog client instance.
 - **`gzip`** (`bool`) - Whether to gzip event upload payloads.
 - **`max_retries`** (`int`) - Number of upload retries. Values below 0 are treated as 0.
 - **`sync_mode`** (`bool`) - If True, send each event synchronously instead of using         background worker threads. This blocks the calling thread; in         asyncio applications such as FastAPI, use ``AsyncPosthog``         instead.
-- **`timeout`** (`int`) - HTTP request timeout in seconds for event uploads.
+- **`timeout`** (`float`) - HTTP request timeout in seconds for event uploads.
 - **`thread`** (`int`) - Number of background consumer threads.
 - **`poll_interval`** (`int`) - Seconds between local feature flag definition refreshes.
 - **`personal_api_key`** (`any`) - Deprecated alias for ``secret_key``. Still honored         for backwards compatibility; prefer ``secret_key``, which also         accepts a Project Secret API Key.
@@ -50,7 +51,7 @@ Initialize a new PostHog client instance.
 - **`disable_geoip`** (`bool`) - Whether to disable server-side GeoIP enrichment.         Defaults to True.
 - **`is_server`** (`bool`) - Whether events are emitted from a server-side runtime.         Defaults to True; set to False when using the SDK as a client/CLI         so the device OS is attributed to the person normally.
 - **`historical_migration`** (`bool`) - Mark events as historical migration imports.
-- **`feature_flags_request_timeout_seconds`** (`int`) - Timeout in seconds for feature         flag and remote config requests.
+- **`feature_flags_request_timeout_seconds`** (`float`) - Timeout in seconds for feature         flag and remote config requests.
 - **`feature_flags_request_max_retries`** (`int`) - Number of retries for feature flag         requests after network, transport, or timeout failures. Defaults         to 1. Set to 0 to disable retries.
 - **`super_properties`** (`any`) - Properties merged into every captured event.
 - **`enable_exception_autocapture`** (`bool`) - Automatically capture uncaught         exceptions.
@@ -79,6 +80,11 @@ Initialize a new PostHog client instance.
 - **`capture_trace_context`** (`bool`) - When OpenTelemetry is installed and a valid span is         active at capture time, add its trace and span IDs as ``$trace_id`` and         ``$span_id`` properties to events captured with ``capture()`` and         ``capture_ai()``, so they can be correlated with backend traces. Explicit         ``$trace_id``/``$span_id`` values passed in ``properties`` win. Exception         events (``capture_exception``) always attach these IDs regardless of this         setting. Defaults to False.
 - **`_use_ai_lane`** (`bool`)
 - **`_enable_multimodal_capture`** (`bool`)
+- **`traces?`** (`dict`) - Config dict for distributed tracing: ``service_name``,         ``service_version``, ``environment``, ``resource_attributes``,         ``flush_interval`` (5 s), ``max_queue_size`` (2048),         ``max_export_batch_size`` (512), ``max_live_spans`` (10000),         ``max_span_age`` (3600 s), ``max_attributes_per_span`` (128),         ``max_events_per_span`` (128), ``max_attribute_value_length``         (8192). ``before_span_send`` is a callable, or a         list run in order, that receives each finished span as a dict         (``trace_id``, ``span_id`` and ``parent_span_id`` are read-only)         and returns it, edited, or ``None`` to drop it; a hook that         raises drops the span. Tracing is off until this is provided.         Spans export on a background timer even with ``sync_mode``;         serverless handlers should call ``flush()`` before returning.         Defaults to None.
+- **`app_host?`** (`str`) - Your PostHog app host, such as ``https://posthog.example.com``.         ``emails`` sends there. Needed only when ``host`` is not PostHog         Cloud, for example a reverse proxy, which must not receive the         secret key.
+- **`email_request_timeout_seconds`** (`float`) - Timeout in seconds for each email send         request. Defaults to 15.
+- **`email_request_max_retries`** (`int`) - Number of retries for an email send after a         network error, a rate limit, or an unavailable service. Defaults to 2.         Set to 0 when a job runner already retries the send.
+- **`migrated_from?`** (`str`) - The email provider you moved from, such as         ``"resend"``. ``emails`` sends it with every request.
 
 ### Returns
 
@@ -319,7 +325,7 @@ Evaluate all feature flags for a user in a single call and return a :class:`Feat
 - **`groups?`** (`Mapping[str, Union[str, int]]`) - Mapping of group type to group key.
 - **`person_properties?`** (`dict[str, Any]`) - Person properties to use for evaluation.
 - **`group_properties?`** (`dict[str, dict[str, Any]]`) - Group properties keyed by group type.
-- **`only_evaluate_locally`** (`bool`) - If True, never fall back to remote evaluation —         flags that can't be evaluated locally are simply omitted from the snapshot.
+- **`only_evaluate_locally`** (`bool`) - If True, never fall back to remote evaluation —         flags that can't be evaluated locally are omitted from the snapshot and         listed with a reason in its ``unresolved_flags``.
 - **`disable_geoip?`** (`bool`) - Whether to disable GeoIP lookup.
 - **`flag_keys?`** (`list[str]`) - Optional list that scopes local evaluation, the underlying         ``/flags`` request, and the returned snapshot. When omitted or ``None``, all         flags are evaluated. An empty list returns an empty snapshot without evaluating         flags. A requested key absent from loaded local definitions is included in one         remote fallback per ``evaluate_flags`` call unless ``only_evaluate_locally`` is         True. If the server also does not know the key, it is omitted from the snapshot.
 - **`device_id?`** (`str`) - Optional device ID override. If not provided, falls back to the         context device_id (which may be set via tracing headers). Used by         experience-continuity flags to match users across distinct_id changes.
@@ -480,6 +486,58 @@ if enabled_variant == 'variant-key': # replace 'variant-key' with the key of you
 
 ---
 
+#### get_feature_flag_evaluation_runtime()
+
+**Release Tag:** public
+
+Return where a locally loaded feature flag is meant to be evaluated.
+
+### Parameters
+
+- **`key?`** (`str`) - The feature flag key.
+
+### Returns
+
+- `Optional[FeatureFlagEvaluationRuntime]`
+
+### Examples
+
+```python
+from posthog import FeatureFlagEvaluationRuntime
+
+runtime = posthog.get_feature_flag_evaluation_runtime("my-flag")
+if runtime is FeatureFlagEvaluationRuntime.SERVER:
+    ...
+```
+
+---
+
+#### get_feature_flag_keys_by_evaluation_runtime()
+
+**Release Tag:** public
+
+Return the keys of locally loaded flags that a runtime can evaluate.  A flag set to ``FeatureFlagEvaluationRuntime.ALL`` suits either runtime, so it is returned for ``CLIENT`` and for ``SERVER``, and asking for ``ALL`` returns every loaded flag. Use this to decide which flags to hand to a browser when a backend serves flags to its own frontend.
+
+### Parameters
+
+- **`evaluation_runtime?`** (`FeatureFlagEvaluationRuntime`) - The runtime to match, as a         ``FeatureFlagEvaluationRuntime`` or its string value.
+
+### Returns
+
+- `list[str]`
+
+### Examples
+
+```python
+from posthog import FeatureFlagEvaluationRuntime
+
+client_keys = posthog.get_feature_flag_keys_by_evaluation_runtime(
+    FeatureFlagEvaluationRuntime.CLIENT
+)
+```
+
+---
+
 #### get_feature_flag_payload()
 
 **Release Tag:** public
@@ -548,7 +606,7 @@ result = posthog.get_feature_flags_and_payloads('<distinct_id>')
 
 **Release Tag:** public
 
-Get feature flag payloads for a user.
+Get feature flag payloads for a user, preserving valid serialized JSON.
 
 ### Parameters
 
@@ -562,7 +620,7 @@ Get feature flag payloads for a user.
 
 ### Returns
 
-- `dict[str, str]`
+- `dict[str, Optional[str]]`
 
 ### Examples
 
@@ -662,11 +720,11 @@ posthog.load_feature_flags()
 
 **Release Tag:** public
 
-Force a flush from the internal queue to the server. Do not use directly, call `shutdown()` instead.
+Attempt immediate delivery of queued events, ended spans and autocaptured metrics, keeping the client reusable.  For a client shared across requests or serverless invocations (including the module-level client), call ``flush()`` before a short-lived invocation returns. Use ``shutdown()`` instead only for final process cleanup or when disposing of a client that will not be reused. Flush does not stop the background workers or feature flag poller, and does not end open spans.  Returning does not guarantee server receipt: pending work can remain after a timeout or span export failure, and failed events may be dropped by the consumers. Calls made directly from SDK callbacks such as ``on_error`` are deferred rather than blocking the worker that invoked the callback.
 
 ### Parameters
 
-- **`timeout_seconds?`** (`float`) - Maximum seconds to wait for the queue to flush.         Defaults to 10 seconds. Pass ``None`` to wait indefinitely.
+- **`timeout_seconds?`** (`float`) - Seconds to wait for event queues to drain, shared         across event lanes. Defaults to 10 seconds. Pass ``None`` to wait         without a time limit; this does not guarantee successful delivery.         Queued spans flush concurrently. The span exporter waits up to         this many seconds for an in-flight flush, then uses a fresh drain         budget once it acquires the lock. If the lock wait times out, the         in-flight flush is left to finish. At least one span request is         attempted after acquiring the lock, even with no budget left;         retriable failures are retried after backoff while budget remains,         with one last attempt at the deadline. Each span request is         bounded by the client's ``timeout`` in         seconds, and the last request is not cut short. This is therefore         not a strict wall-clock limit for the whole call. With ``None``,         a retriable span failure is left for a later flush rather than         retried within this call.
 
 ### Returns
 
@@ -675,8 +733,9 @@ Force a flush from the internal queue to the server. Do not use directly, call `
 ### Examples
 
 ```python
-posthog.capture('event_name')
-posthog.flush()  # Ensures the event is sent immediately
+posthog.capture('event_name', distinct_id='user_id')
+# Before a serverless invocation returns; keep the shared client open.
+posthog.flush(timeout_seconds=10)
 ```
 
 ---
@@ -737,7 +796,7 @@ posthog.join()
 
 **Release Tag:** public
 
-Flush all messages and cleanly shutdown the client. Call this before the process ends in serverless environments to avoid data loss.  Normally this method blocks until queued events have been attempted and cleanup finishes. Failed or undrainable events may be dropped and reported through logging or ``on_error``; returning does not guarantee server receipt. Lifecycle cleanup is attempted once, and cleanup failures are logged without retry. When called directly from an SDK callback such as ``on_error``, shutdown is deferred to avoid blocking the worker that invoked the callback. If the callback must coordinate a blocking shutdown, have it signal an application-owned thread and return before that thread calls shutdown. Do not wait inside the callback for another thread or task that calls a lifecycle method.
+Attempt final delivery and permanently shut down the client.  Call this for final process cleanup or when disposing of a client that will not be reused. It closes capture lanes, stops background workers and the feature flag poller, and tears down integrations. Do not call it at the end of each request or serverless invocation when the client is shared; call ``flush()`` before returning instead. A shut-down client cannot be reused; create a new client if needed.  Normally this method blocks until queued events have been attempted and cleanup finishes. Failed or undrainable events may be dropped and reported through logging or ``on_error``; returning does not guarantee server receipt. Event draining has no timeout. Queued spans get one final flush with up to 30 seconds waiting for an in-flight flush, then a fresh 30-second drain budget; the last HTTP request is not cut short. Any spans it cannot send are discarded with a warning, as are spans still open. Lifecycle cleanup is attempted once, and cleanup failures are logged without retry. When called directly from an SDK callback such as ``on_error``, shutdown is deferred to avoid blocking the worker that invoked the callback. If the callback must coordinate a blocking shutdown, have it signal an application-owned thread and return before that thread calls shutdown. Do not wait inside the callback for another thread or task that calls a lifecycle method.
 
 ### Returns
 
@@ -747,6 +806,61 @@ Flush all messages and cleanly shutdown the client. Call this before the process
 
 ```python
 posthog.shutdown()
+```
+
+---
+
+### Tracing methods
+
+#### get_active_span()
+
+**Release Tag:** public
+
+The span that is active in the current context, or ``None``. Alpha.  Only entering a span (``with posthog.start_span(...) as span:``) makes it active; a span started manually is not. Use it to propagate the trace to the next service: ``span.traceparent()`` is the header value.
+
+### Returns
+
+- `Optional[Span]`
+
+### Examples
+
+```python
+span = posthog.get_active_span()
+if span is not None:
+    headers["traceparent"] = span.traceparent()
+```
+
+---
+
+#### start_span()
+
+**Release Tag:** public
+
+Start a span for distributed tracing. Alpha.  Returns a span handle. Use it as a context manager to make it the active span for the block and end it on exit (recording a raised exception on the way out); or call ``end()`` yourself for a span that cannot wrap a block. Spans started inside the block nest under it automatically. Always returns a usable handle, even when tracing is off, so calling code never branches.
+
+### Parameters
+
+- **`name?`** (`str`) - A low-cardinality operation name, e.g. ``GET /users/:id``.         Variable values belong in attributes, not the name.
+- **`kind?`** (`str`) - ``internal`` (default), ``server``, ``client``, ``producer``         or ``consumer``.
+- **`attributes?`** (`Mapping[str, Any]`) - Initial attributes.
+- **`parent`** (`Span`) - A span handle, or an inbound W3C ``traceparent`` header         value to continue a remote trace. Defaults to the active span.         A forked child starts with no active span; pass the parent         span to continue a trace across a fork.
+- **`tracestate?`** (`str`) - The inbound ``tracestate`` header accompanying a         ``traceparent`` string ``parent``; preserved and propagated.
+- **`start_time`** (`datetime`) - A ``datetime`` or epoch seconds, to backdate the span.
+
+### Returns
+
+- `Span`
+
+### Examples
+
+```python
+posthog = Posthog("<ph_project_api_key>", traces={"service_name": "checkout-api"})
+
+with posthog.start_span("POST /checkout", parent=request.headers.get("traceparent")) as span:
+    span.set_attribute("plan", user.plan)
+    with posthog.start_span("db.query", kind="client"):
+        ...
+    outgoing_headers = {"traceparent": span.traceparent()}
 ```
 
 ---
@@ -1133,7 +1247,7 @@ Capture exception is idempotent - if it is called twice with the same exception 
 
 ### Parameters
 
-- **`exception`** (`BaseException`) - The exception to capture. If not provided, the current exception is captured via `sys.exc_info()`     **kwargs: Optional capture arguments including distinct_id, properties,         timestamp, uuid, groups, flags, send_feature_flags, and disable_geoip.
+- **`exception`** (`BaseException`) - The exception to capture. If not provided, the current exception is captured via `sys.exc_info()`     **kwargs: Optional capture arguments including distinct_id, properties,         timestamp, uuid, groups, flags, send_feature_flags, and disable_geoip.         Overriding reserved exception properties through ``properties`` is         deprecated and will stop working in the next major version.
 - **`kwargs?`** (`Unpack[OptionalCaptureArgs]`)
 
 ### Returns
@@ -1167,7 +1281,7 @@ Evaluate all feature flags for a user in a single call and return a :class:`Feat
 - **`groups?`** (`Mapping[str, Union[str, int]]`) - Mapping of group type to group key.
 - **`person_properties?`** (`dict[str, Any]`) - Person properties to use for evaluation.
 - **`group_properties?`** (`dict[str, dict[str, Any]]`) - Group properties keyed by group type.
-- **`only_evaluate_locally`** (`bool`) - If ``True``, never fall back to remote evaluation and         omit flags that cannot be evaluated locally.
+- **`only_evaluate_locally`** (`bool`) - If ``True``, never fall back to remote evaluation and         omit flags that cannot be evaluated locally. The snapshot's         ``unresolved_flags`` lists them with a reason.
 - **`disable_geoip?`** (`bool`) - Whether to disable GeoIP lookup.
 - **`flag_keys?`** (`list[str]`) - Optional list that scopes local evaluation, the underlying ``/flags``         request, and the returned snapshot. When omitted or ``None``, all flags are evaluated.         An empty list returns an empty snapshot without evaluating flags. A requested key         absent from loaded local definitions is included in one remote fallback per         ``evaluate_flags`` call unless ``only_evaluate_locally`` is ``True``. If the server         also does not know the key, it is omitted from the snapshot.
 - **`device_id?`** (`str`) - Optional device ID override. If not provided, falls back to the         context device_id (which may be set via tracing headers). Used by         experience-continuity flags to match users across distinct_id changes.
@@ -1345,6 +1459,60 @@ if enabled_variant == 'variant-key':
 
 ---
 
+#### get_feature_flag_evaluation_runtime()
+
+**Release Tag:** public
+
+Return where a locally loaded feature flag is meant to be evaluated.
+
+**Notes:**
+
+Reads the `evaluation_runtime` each flag definition carries, so no extra     request is made. Returns `None` when local evaluation has not loaded a     definition for this key. A definition that carries no runtime reports     `FeatureFlagEvaluationRuntime.ALL`, the default PostHog applies.
+
+### Parameters
+
+- **`key?`** (`str`)
+
+### Returns
+
+- `Optional[FeatureFlagEvaluationRuntime]`
+
+### Examples
+
+```python
+from posthog import FeatureFlagEvaluationRuntime, get_feature_flag_evaluation_runtime
+runtime = get_feature_flag_evaluation_runtime("my-flag")
+```
+
+---
+
+#### get_feature_flag_keys_by_evaluation_runtime()
+
+**Release Tag:** public
+
+Return the keys of locally loaded flags that a runtime can evaluate.
+
+**Notes:**
+
+A flag set to `FeatureFlagEvaluationRuntime.ALL` suits either runtime, so     it is returned for `CLIENT` and for `SERVER`. Use this to decide which     flags to hand to a browser when a backend serves flags to its own     frontend.
+
+### Parameters
+
+- **`evaluation_runtime?`** (`FeatureFlagEvaluationRuntime`)
+
+### Returns
+
+- `list[str]`
+
+### Examples
+
+```python
+from posthog import FeatureFlagEvaluationRuntime, get_feature_flag_keys_by_evaluation_runtime
+client_keys = get_feature_flag_keys_by_evaluation_runtime(FeatureFlagEvaluationRuntime.CLIENT)
+```
+
+---
+
 #### get_feature_flag_payload()
 
 **Release Tag:** public
@@ -1395,11 +1563,11 @@ load_feature_flags()
 
 **Release Tag:** public
 
-Tell the client to flush all queued events.
+Attempt immediate delivery of queued events and ended spans, keeping the global client reusable.  Call ``flush()`` before a short-lived request or serverless invocation returns when using the shared module-level client. Use ``shutdown()`` only for final process cleanup or a client that will not be reused. Flush does not stop the background workers or feature flag poller, and does not end open spans.  Returning does not guarantee server receipt: pending work can remain after a timeout or span export failure, and failed events may be dropped by consumers. Calls made directly from SDK callbacks such as ``on_error`` are deferred rather than blocking the worker that invoked the callback.
 
 ### Parameters
 
-- **`timeout_seconds?`** (`float`) - Maximum seconds to wait for the queue to flush.         Defaults to 10 seconds. Pass ``None`` to wait indefinitely.
+- **`timeout_seconds?`** (`float`) - Seconds to wait for event queues to drain, shared across         event lanes. Defaults to 10 seconds. Pass ``None`` to wait without a         time limit; this does not guarantee successful delivery. Queued spans         flush concurrently, waiting up to this many seconds for an in-flight         flush before starting a fresh drain budget. A lock wait timeout leaves         the in-flight flush to finish. At least one span request is attempted         after acquiring the lock, even with no budget left; retriable failures         are retried after backoff while budget remains, with one last attempt         at the deadline. The last span request is not cut short and is bounded         by the client's ``timeout`` in seconds,         so this is not a strict wall-clock limit for the whole call. With         ``None``, a retriable span failure is left for a later flush rather than         retried within this call.
 
 ### Returns
 
@@ -1408,8 +1576,10 @@ Tell the client to flush all queued events.
 ### Examples
 
 ```python
-from posthog import flush
-flush()
+import posthog
+posthog.capture('event_name', distinct_id='user_id')
+# Before a serverless invocation returns; keep the global client open.
+posthog.flush(timeout_seconds=10)
 ```
 
 ---
@@ -1437,7 +1607,7 @@ join()
 
 **Release Tag:** public
 
-Flush all messages and cleanly shutdown the client.  This normally blocks until queued events have been attempted and cleanup finishes. Failed or undrainable events may be dropped and reported through logging or ``on_error``; returning does not guarantee server receipt. Lifecycle cleanup is attempted once, and cleanup failures are logged without retry. Calls made directly from SDK callbacks such as ``on_error`` are deferred to avoid deadlocking the worker. If blocking completion is required, signal an application-owned thread, return from the callback, and call ``shutdown()`` from that thread. Do not wait inside a callback for another thread or task calling a lifecycle method.
+Attempt final delivery and permanently shut down the global client.  Call this for final process cleanup, not at the end of each request or serverless invocation that shares the module-level client. Use ``flush()`` before returning from those invocations instead. Shutdown closes capture lanes, stops background workers and the feature flag poller, and tears down integrations. The global client is not recreated automatically after shutdown.  This normally blocks until queued events have been attempted and cleanup finishes. Failed or undrainable events may be dropped and reported through logging or ``on_error``; returning does not guarantee server receipt. Event draining has no timeout. Queued spans get a final flush with up to 30 seconds waiting for an in-flight flush, then a fresh 30-second drain budget; the last HTTP request is not cut short. Unsent queued spans and still-open spans are discarded with a warning. Lifecycle cleanup is attempted once, and cleanup failures are logged without retry. Calls made directly from SDK callbacks such as ``on_error`` are deferred to avoid deadlocking the worker. If blocking completion is required, signal an application-owned thread, return from the callback, and call ``shutdown()`` from that thread. Do not wait inside a callback for another thread or task calling a lifecycle method.
 
 ### Returns
 
@@ -1448,6 +1618,62 @@ Flush all messages and cleanly shutdown the client.  This normally blocks until 
 ```python
 from posthog import shutdown
 shutdown()
+```
+
+---
+
+### Tracing methods
+
+#### get_active_span()
+
+**Release Tag:** public
+
+The span that is active in the current context, or ``None``. Alpha.  Only entering a span (``with posthog.start_span(...) as span:``) makes it active; a span started manually is not. Use it to propagate the trace to the next service: ``span.traceparent()`` is the header value.
+
+### Returns
+
+- `Optional[Span]`
+
+### Examples
+
+```python
+span = posthog.get_active_span()
+if span is not None:
+    headers["traceparent"] = span.traceparent()
+```
+
+---
+
+#### start_span()
+
+**Release Tag:** public
+
+Start a span for distributed tracing. Alpha.  Returns a span handle. Use it as a context manager to make it the active span for the block and end it on exit (recording a raised exception on the way out); or call ``end()`` yourself for a span that cannot wrap a block. Spans started inside the block nest under it automatically. Always returns a usable handle, even when tracing is off, so calling code never branches.
+
+### Parameters
+
+- **`name?`** (`str`) - A low-cardinality operation name, e.g. ``GET /users/:id``.         Variable values belong in attributes, not the name.
+- **`kind?`** (`str`) - ``internal`` (default), ``server``, ``client``, ``producer`` or         ``consumer``.
+- **`attributes?`** (`Mapping[str, Any]`) - Initial attributes.
+- **`parent`** (`Span`) - A span handle, or an inbound W3C ``traceparent`` header value         to continue a remote trace. Defaults to the active span.
+- **`tracestate?`** (`str`) - The inbound ``tracestate`` header accompanying a         ``traceparent`` string ``parent``; preserved and propagated.
+- **`start_time`** (`datetime`) - A ``datetime`` or epoch seconds, to backdate the span.
+
+### Returns
+
+- `Span`
+
+### Examples
+
+```python
+import posthog
+posthog.traces = {"service_name": "checkout-api"}
+
+with posthog.start_span("POST /checkout", parent=request.headers.get("traceparent")) as span:
+    span.set_attribute("plan", user.plan)
+    with posthog.start_span("db.query", kind="client"):
+        ...
+    outgoing_headers = {"traceparent": span.traceparent()}
 ```
 
 ---

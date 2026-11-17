@@ -1,6 +1,6 @@
 {
   "name": "@youdotcom-oss/pi",
-  "version": "0.6.0",
+  "version": "0.8.1",
   "description": "Pi extension for You.com MCP tools and skills",
   "license": "MIT",
   "repository": {
@@ -28,6 +28,7 @@
   },
   "files": [
     "main.ts",
+    "mcp.json",
     "skills"
   ],
   "publishConfig": {
@@ -48,12 +49,7 @@
       "./skills"
     ]
   },
-  "dependencies": {
-    "@modelcontextprotocol/client": "^2.0.0",
-    "typebox": "^1.3.6"
-  },
   "devDependencies": {
-    "@earendil-works/pi-coding-agent": "^0.81.1",
-    "@modelcontextprotocol/server": "^2.0.0"
+    "@earendil-works/pi-coding-agent": "^0.99.1"
   }
 }

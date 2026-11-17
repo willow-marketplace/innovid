@@ -39,6 +39,6 @@ It's exciting, but for someone who was used to doing it all himself, Roustem is 
 
 ## About the Author
 
-**AWS Editorial Team**
+### AWS Editorial Team
 
 The AWS Startups Content Marketing Team collaborates with startups of all sizes and across all sectors to deliver exceptional content that educates, entertains, and inspires.

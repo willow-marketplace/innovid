@@ -15,4 +15,4 @@ This page includes a video presentation hosted on Vidyard.
 
 ---
 
-_Category: Generative AI Technical Resources_
+> _Category: Generative AI Technical Resources_

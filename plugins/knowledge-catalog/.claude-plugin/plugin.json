@@ -2,19 +2,16 @@
   "name": "knowledge-catalog",
   "version": "1.0.0",
   "description": "Connect to Knowledge Catalog to discover, manage, monitor, and govern data and AI artifacts across your data platform",
-  "updatedAt": "2026-09-19T00:42:54.270Z",
+  "updatedAt": "2026-11-17T00:01:46.602Z",
   "author": {
     "name": "Google LLC",
     "email": "data-cloud-ai-integrations@google.com"
   },
   "homepage": "https://cloud.google.com/dataplex",
-  "repository": "https://github.com/gemini-cli-extensions/knowledge-catalog",
+  "repository": "https://github.com/GoogleCloudPlatform/knowledge-catalog-plugin",
   "skills": "./skills/",
   "mcpServers": {
     "dataplex": {
-      "env": {
-        "DATAPLEX_PROJECT": "${user_config.dataplex_project}"
-      },
       "args": [
         "-y",
         "@toolbox-sdk/server@1.9.0",
@@ -22,6 +19,7 @@
         "dataplex",
         "--stdio"
       ],
+      "type": "stdio",
       "command": "npx"
     }
   }

@@ -6,10 +6,10 @@ Each skill is specific to a product and a framework (e.g. SparkScan iOS), and bu
 
 ## Installation
 
-Install the plugin. One command, and your agent gets all 74 skills:
+Install the plugin. One command, and your agent gets all 87 skills:
 
 ```bash
-npx plugins add scandit/skills
+npx plugins@1.3.4 add scandit/skills
 ```
 
 It detects which coding agents you have and installs into each of them. Re-run the same command to pull the latest skills.
@@ -18,18 +18,14 @@ Or install from your agent's own marketplace:
 
 | Agent | Install | Updates |
 | --- | --- | --- |
-| Codex / ChatGPT App | [One click install](https://chatgpt.com/plugins/plugins_6a6c6b6440a08191987ecc241e8660f7), or search **Scandit SDK** in the [plugin directory](https://learn.chatgpt.com/docs/plugins?surface=app#plugin-directory-in-the-codex-app) | Automatic |
-| Claude Code | `/plugin marketplace add scandit/skills`<br>`/plugin install scandit-sdk@scandit-plugins` | `/plugin` → **Marketplaces** → `scandit-plugins` → **Enable auto-update** |
-| Cursor | [One click install](https://cursor.com/marketplace/scandit), or `/add-plugin scandit-sdk` in the editor | Automatic |
+| Codex / ChatGPT App | [One click install](https://chatgpt.com/plugins/plugins_6a6c6b6440a08191987ecc241e8660f7), or search **Scandit SDK** in the [plugin directory](https://learn.chatgpt.com/docs/plugins?surface=app#plugin-directory-in-the-codex-app) | When Scandit publishes a new directory version |
+| Claude Code | `/plugin install scandit-sdk@claude-plugins-official`, or search **Scandit SDK** in `/plugin` → **Discover** | Automatic, on each Scandit release |
+| Cursor | [One click install](https://cursor.com/marketplace/scandit), or `/add-plugin scandit-sdk` in the editor | Automatic, on each Scandit release |
 | Codex CLI | `codex plugin marketplace add scandit/skills`<br>`codex plugin add scandit-sdk@scandit-plugins` | `codex plugin marketplace upgrade scandit-plugins` |
 | Copilot CLI | `copilot plugin marketplace add scandit/skills`<br>`copilot plugin install scandit-sdk@scandit-plugins` | `copilot plugin update scandit-sdk` |
-| Everyone else | `npx skills add scandit/skills` | `npx skills update scandit/skills` |
+| Everyone else | `npx plugins@1.3.4 add scandit/skills` | Re-run `npx plugins@1.3.4 add scandit/skills` |
 
-**Just one skill?** Your agent only loads the skills your prompt needs, so the full bundle is usually the right choice. To install a single one, name it: for SparkScan Web, use
-
-```bash
-npx skills add scandit/skills --skill sparkscan-web
-```
+**Just one skill?** Your agent only loads the skills your prompt needs, so the full bundle is the right choice — install once with `npx plugins@1.3.4 add scandit/skills`.
 
 ## How to use it
 
@@ -57,6 +53,16 @@ Describe what you want in plain language. Your agent loads the right skill on it
 /sparkscan-android replace our current third-party barcode scanner with SparkScan
 ```
 
+## Licence keys
+
+These skills write the integration; they don't provision the licence key by themselves. The [Scandit MCP server](https://ssl.scandit.com/mcp) does that part — connect it (`claude mcp add --transport http scandit https://ssl.scandit.com/mcp`) alongside the skills (`npx plugins@1.3.4 add scandit/skills`) and each implementation skill's `## Licence key` section will use it to fetch a trial key and write it into your app's licence-key call, showing only a masked preview in chat. The skills never look for a key on your machine: it comes from the MCP server or from you. The key ends up as a literal in your source code, so keep any non-trial key out of version control.
+
+Keys provisioned this way are **trials only**, and the MCP server's auth is browser-based, so it does not work headless or in CI. Without it, the dashboard flow at <https://ssl.scandit.com> still works — every skill falls back to that. The Linux skill (`scandit-linux-sdk`) uses only that flow: the MCP server provisions no Linux keys.
+
+## Privacy
+
+The skills themselves send nothing anywhere. The bundled Scandit MCP server (`https://ssl.scandit.com/mcp`) talks to your Scandit account to provision trial licence keys; Scandit's privacy policy is at <https://www.scandit.com/privacy/>.
+
 ## Available skills
 
 | Skill | Description |
@@ -75,6 +81,7 @@ Describe what you want in plain language. Your agent loads the right skill on it
 | `id-capture-{framework}` | [ID Capture](https://docs.scandit.com/sdks/ios/id-capture/intro/) (identity-document scanning — passports, driver's licenses, ID cards, MRZ/VIZ/barcode/mobile documents) integration & v7→v8 migration (`scannerType`→`scanner` wrapper, `AamvaBarcodeVerifier` removal), plus the three add-on capability modules (voided-ID detection, European driving-license decoding, AAMVA barcode verification). Available for `web`, `flutter`, `cordova`, `rn` (React Native), `capacitor`, `kmp` (Kotlin Multiplatform). |
 | `id-bolt` | [ID Bolt](https://docs.scandit.com/hosted/id-bolt/api-overview/) — Scandit's hosted, drop-in ID scanning for websites (a thin wrapper around ID Capture that runs in a Scandit-hosted pop-up, so you don't build a UI workflow). `IdBoltSession.create(...)` + `start()`, `DocumentSelection`, scanner/validators/anonymization, `onCompletion`/`onCancellation`, theming & localization. Uses `@scandit/web-id-bolt` (not the ID Capture SDK). Web only. |
 | `parser-kmp` | [Parser](https://docs.scandit.com/sdks/ios/parser/get-started/) — parse GS1 AI, HIBC, AAMVA, EPC, Swiss QR and other structured barcode data into typed fields. Available for `kmp` (Kotlin Multiplatform). |
+| `scandit-linux-sdk` | [Linux SDK](https://docs.scandit.com/sdks/linux/overview/) (low-level C API, usable from C++, plus Python bindings; amd64 and arm64) — single barcode scanning from images, V4L2 cameras or your own frames (OpenCV, GStreamer), MatrixScan multi-barcode tracking, parser and barcode generator; JSON settings, troubleshooting status codes, 7→8 migration, replacing ZBar/pyzbar, ZXing, libdmtx or OpenCV, and why a code doesn't scan (pixels per module, camera and lens planning). Linux keys come from the dashboard, not the MCP server. |
 | `scandit-xamarin-to-net-migration` | Migrate the **Scandit SDK integration** after a Xamarin app has already been moved onto the supported .NET stack — .NET for Android, .NET for iOS, or .NET MAUI (e.g. after Microsoft's .NET app-modernization tooling; Xamarin support ended May 2024). A post-migration, Scandit-only companion: it swaps `Scandit.DataCapture.*.Xamarin(.Forms)` packages for their .NET/`*.Maui` equivalents, fixes SDK-8 init, the `.Unified` namespaces and views, verifies scanning, and hands off to the matching `*-net-android` / `*-net-ios` / `*-net-maui` skill. The general app migration stays with Microsoft's tooling (the GitHub Copilot app-modernization agent, successor to the deprecated .NET Upgrade Assistant). Produces a Scandit migration report. |
 
 ## Contributing
@@ -83,6 +90,10 @@ We welcome feedback that improves the quality of these skills:
 
 - **Report issues.** File bugs, outdated SDK patterns, or incorrect guidance in the [issue tracker](https://github.com/scandit/skills/issues).
 - **Request new skills.** If a Scandit product, framework, or workflow you need isn't covered, open a feature request.
+
+**Branches:** development happens on [`main`](https://github.com/scandit/skills/tree/main), so target it with pull requests. The default `dist` branch is an install-only copy (no evals or internal tooling) that CI regenerates on every push to `main`; changes pushed to it are overwritten. Because `main` is not the default branch, `Fixes #N` in a PR does not close the issue on merge: close it by hand.
+
+**Pre-push check:** in a `main` clone, run `git config core.hooksPath internal/githooks` once. Every push then runs the skill-auditor structure lint and its tests, and is refused while either reports a finding.
 
 ## License
 

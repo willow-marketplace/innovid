@@ -14,9 +14,12 @@ Layout, all of it discovered from the file rather than hardcoded:
                for detection — the super-header is the department name.
   Sub-header   One of {Actual, Budget, Budget Variance, % of Budget,
                Comments} per column within each department block.
-  Data rows    Col A = GL account_type (int), or comma-separated ints for
-               multi-GL lines (e.g. "4170, 4175"), or None for
-               subtotal/section-header rows. Col B = indented line name.
+  Data rows    GL account_type (int, or comma-separated ints for multi-GL
+               lines like "4170, 4175", or absent for subtotal/section-
+               header rows) and the indented line name — normally columns
+               A and B, but detected rather than assumed: a workbook that
+               leaves A blank for outline/grouping shifts both right (see
+               `_detect_gl_label_columns`).
 
 We mirror the tab's own outline. Rows keep the workbook's line items, in
 the workbook's order, at the workbook's nesting depth — its section
@@ -74,6 +77,7 @@ from pathlib import Path
 from openpyxl import load_workbook
 
 from .gl_column import find_gl_header_column
+from .vocab import is_comment_header
 
 
 # Row landmarks in the crosstab header block. Used only as a last resort —
@@ -125,9 +129,21 @@ def parse(workbook_path: str | Path, sheet_name: str, **_) -> dict:
 
     # A dedicated "Account #"-style column outranks column A when the
     # header names one — some workbooks give column A to a label instead.
-    gl_col = find_gl_header_column(ws, range(1, subheader_row + 1)) or 1
+    gl_col = find_gl_header_column(ws, range(1, subheader_row + 1))
+    label_col = 2
+    if gl_col is None:
+        # No header names it — some workbooks leave A blank for outline/
+        # grouping and shift the real code and label columns right (B/C
+        # instead of A/B). Guess from the data itself, scoped to the
+        # columns left of the first department block: money and comments
+        # live to the right and would otherwise look like codes too.
+        first_anchor_col = min(cols["anchor"] for cols in dept_blocks.values())
+        gl_col, detected_label_col = _detect_gl_label_columns(
+            ws, first_data_row, max(1, first_anchor_col - 1))
+        if detected_label_col is not None:
+            label_col = detected_label_col
 
-    scanned = _scan_rows(ws, wsf, dept_blocks, first_data_row, gl_col)
+    scanned = _scan_rows(ws, wsf, dept_blocks, first_data_row, gl_col, label_col)
     depth_of = _depth_scale(r["indent"] for r in scanned)
     kept = _drop_scaffolding(scanned)
 
@@ -161,6 +177,9 @@ def parse(workbook_path: str | Path, sheet_name: str, **_) -> dict:
                 key_of[n] for n in calc.pop("constituent_rows") if n in key_of
             ]
             row["calculated"] = calc
+        if r.get("source_formula"):
+            row["source_formula"] = r["source_formula"]
+            row["row_ix"] = r["row_ix"]
         rows.append(row)
 
     return {
@@ -198,7 +217,8 @@ _RANGE_RX = re.compile(r"\$?[A-Z]{1,3}\$?(\d+)\s*:\s*\$?[A-Z]{1,3}\$?(\d+)")
 _TOTAL_LABEL_RX = re.compile(r"^(total|net)\b", re.IGNORECASE)
 
 
-def _scan_rows(ws, wsf, dept_blocks, first_data_row: int, gl_col: int = 1) -> list[dict]:
+def _scan_rows(ws, wsf, dept_blocks, first_data_row: int, gl_col: int | None = 1,
+               label_col: int = 2) -> list[dict]:
     """Read every data row into an intermediate record.
 
     Classification happens here because it needs both loads of the sheet:
@@ -208,9 +228,9 @@ def _scan_rows(ws, wsf, dept_blocks, first_data_row: int, gl_col: int = 1) -> li
     out: list[dict] = []
     section = None
     for row_ix in range(first_data_row, ws.max_row + 1):
-        raw_label = ws.cell(row_ix, 2).value
+        raw_label = ws.cell(row_ix, label_col).value
         label = str(raw_label).rstrip() if raw_label is not None else ""
-        gl_codes = _parse_gl_codes(ws.cell(row_ix, gl_col).value)
+        gl_codes = _parse_gl_codes(ws.cell(row_ix, gl_col).value) if gl_col else []
         if not label.strip() and not gl_codes:
             continue
 
@@ -268,6 +288,13 @@ def _scan_rows(ws, wsf, dept_blocks, first_data_row: int, gl_col: int = 1) -> li
         if kind == "section_header":
             section = label.strip()
 
+        # Raw formula only; manco_gl_matching.py resolves it once every
+        # sibling row's own GL identity has settled, not before.
+        source_formula = (
+            _formula_for_row(wsf, row_ix, dept_blocks)
+            if kind == "line" and not gl_codes else None
+        )
+
         # Whether a figure beating its budget is good news. Spending over
         # plan is bad; earning over plan is good, and colouring both the
         # same way reports a revenue shortfall as favourable. Read from the
@@ -290,6 +317,7 @@ def _scan_rows(ws, wsf, dept_blocks, first_data_row: int, gl_col: int = 1) -> li
             "calculated": calculated,
             "row_kind": kind,
             "has_value": has_value,
+            "source_formula": source_formula,
         })
     return out
 
@@ -366,6 +394,16 @@ def _calculated_for(wsf, row_ix, dept_blocks) -> dict | None:
         # operators are preserved for the UI to render literally.
         calc["expression"] = _operator_form(sample)
     return calc
+
+
+def _formula_for_row(wsf, row_ix, dept_blocks):
+    """This row's own value formula — the first department column that
+    holds one, same selection rule `_calculated_for` uses."""
+    for _dept, cols in dept_blocks.items():
+        f = wsf.cell(row_ix, cols["budget"]).value
+        if isinstance(f, str) and f.startswith("="):
+            return f
+    return None
 
 
 def _formula_rows(formula: str) -> list[int]:
@@ -495,14 +533,22 @@ def _anchor_spans(anchors: list[tuple[int, str]], max_column: int) -> list[tuple
     return [(cols[i], cols[i + 1]) for i in range(len(anchors))]
 
 
-def _spans_have_budget(ws, row: int, spans: list[tuple[int, int]]) -> bool:
-    """Whether any span carries a literal 'Budget' cell in `row`."""
+def _spans_budget_match_count(ws, row: int, spans: list[tuple[int, int]]) -> int:
+    """How many of `spans` carry a literal 'Budget' cell in `row`.
+
+    The scoring signal `_locate_header_rows` ranks candidates by: a stray
+    notes row that happens to have two anchors and one coincidental
+    'Budget' cell nearby scores lower than the real header, where every
+    department's span carries its own 'Budget' column.
+    """
+    count = 0
     for start, end in spans:
         for c in range(start, end):
             v = ws.cell(row, c).value
             if isinstance(v, str) and v.strip().lower() == "budget":
-                return True
-    return False
+                count += 1
+                break
+    return count
 
 
 def _locate_header_rows(ws) -> tuple[int, int] | None:
@@ -516,7 +562,16 @@ def _locate_header_rows(ws) -> tuple[int, int] | None:
     because two real workbooks carry that row one line higher than others.
     A lone anchor is skipped: its "span" is the whole row width, which
     would match a 'Budget' cell anywhere below it regardless of layout.
+
+    Every (dept_row, subheader_row) pair in the scan window that matches
+    at all is scored by how many of its spans actually carry 'Budget'
+    (ties broken by how many anchors the dept row has), and the
+    best-scoring pair wins — not the first one found. A stray notes row
+    earlier in the sheet that coincidentally has two anchors and a single
+    'Budget' cell nearby would otherwise hijack the real header further
+    down, which has a 'Budget' column in every department's span.
     """
+    best = None  # ((matched_spans, anchor_count), dept_row, subheader_row)
     max_dept_row = min(ws.max_row, _HEADER_SCAN_ROWS)
     for dept_row in range(1, max_dept_row + 1):
         anchors = _collect_anchors(ws, dept_row)
@@ -527,9 +582,15 @@ def _locate_header_rows(ws) -> tuple[int, int] | None:
             subheader_row = dept_row + offset
             if subheader_row > ws.max_row:
                 break
-            if _spans_have_budget(ws, subheader_row, spans):
-                return dept_row, subheader_row
-    return None
+            matched = _spans_budget_match_count(ws, subheader_row, spans)
+            if not matched:
+                continue
+            score = (matched, len(anchors))
+            if best is None or score > best[0]:
+                best = (score, dept_row, subheader_row)
+    if best is None:
+        return None
+    return best[1], best[2]
 
 
 def _find_dept_blocks(ws, dept_row: int = _DEPT_ROW,
@@ -573,7 +634,7 @@ def _find_dept_blocks(ws, dept_row: int = _DEPT_ROW,
                     budget_col = c
                 elif s == "actual" and actual_col is None:
                     actual_col = c
-                elif s == "comments" and comment_col is None:
+                elif is_comment_header(sub) and comment_col is None:
                     comment_col = c
         if budget_col is None:
             print(
@@ -610,6 +671,52 @@ def _parse_gl_codes(value) -> list[int]:
         codes = [int(m) for m in _GL_CODE_RX.findall(value)]
         return codes
     return []
+
+
+def _detect_gl_label_columns(ws, first_data_row: int, last_col: int,
+                              scan: int = 40) -> tuple[int | None, int | None]:
+    """Guess the GL-code and label columns from the data itself, when no
+    header names a GL column (see `find_gl_header_column`).
+
+    Column A conventionally holds the code and B the label, but a workbook
+    that leaves A blank for outline/grouping and posts codes in B (labels
+    in C) shifts the layout right. Rather than assume a position, test
+    occupancy: a code column is a bare integer/int-like string on a
+    majority of its non-empty rows in the window; a label column is the
+    remaining column with the most plain text. Scoped to the columns left
+    of the first department block — money and comments live to the right
+    and would otherwise look like codes or labels too.
+    """
+    end = min(ws.max_row, first_data_row + scan)
+    stats = {}
+    for c in range(1, last_col + 1):
+        seen = codes = texts = 0
+        for r in range(first_data_row, end + 1):
+            v = ws.cell(r, c).value
+            if v is None or (isinstance(v, str) and not v.strip()):
+                continue
+            seen += 1
+            if isinstance(v, (int, float)) or (isinstance(v, str) and v.strip().isdigit()):
+                codes += 1
+            elif isinstance(v, str):
+                texts += 1
+        stats[c] = (seen, codes, texts)
+
+    gl_col = None
+    best_codes = 0
+    for c, (seen, codes, _texts) in stats.items():
+        if seen and codes * 2 > seen and codes > best_codes:
+            gl_col, best_codes = c, codes
+
+    label_col = None
+    best_texts = 0
+    for c, (seen, _codes, texts) in stats.items():
+        if c == gl_col or not seen:
+            continue
+        if texts > best_texts:
+            label_col, best_texts = c, texts
+
+    return gl_col, label_col
 
 
 def _clean_label(value) -> str:
@@ -683,11 +790,14 @@ def _period_start(ws):
 
 def _guess_period_year(ws) -> int | None:
     """Best-effort year extraction from the sub-title band
-    (\'For the Period Ending <month> <day>, <year>\')."""
+    (\'For the Period Ending <month> <day>, <year>\'), else the year of the
+    date the sheet says it runs through, wherever in the title band that sits.
+    A share needs a year, and a title like "Apr–Jun" states none in B2/B3."""
     for r in (2, 3):
         v = ws.cell(r, 2).value
         if isinstance(v, str):
             m = re.search(r"20\d{2}", v)
             if m:
                 return int(m.group(0))
-    return None
+    end = _period_end(ws)
+    return int(end[:4]) if end else None

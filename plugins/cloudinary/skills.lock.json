@@ -1,0 +1,42 @@
+{
+  "skillsRepo": "cloudinary-devs/skills",
+  "skills": [
+    {
+      "name": "cloudinary-docs",
+      "source": "skills-repo",
+      "path": "skills/platform/cloudinary-docs",
+      "version": "1.2.0",
+      "commit": "c41e79f4b5e350fb994c541f6190538e838660b8",
+      "tree": "21b5190478c9d393dc67a574abe1d155dd22b038"
+    },
+    {
+      "name": "cloudinary-transformations",
+      "source": "skills-repo",
+      "path": "skills/platform/cloudinary-transformations",
+      "version": "1.1.0",
+      "commit": "c41e79f4b5e350fb994c541f6190538e838660b8",
+      "tree": "0336ba9c9d30105c08afaa27176e0183955cc0d1"
+    },
+    {
+      "name": "cloudinary-upload",
+      "source": "skills-repo",
+      "path": "skills/platform/cloudinary-upload",
+      "version": "1.0.0",
+      "commit": "c41e79f4b5e350fb994c541f6190538e838660b8",
+      "tree": "001d75d83b6410a418454ae6ea7c2d9af144020b"
+    },
+    {
+      "name": "cloudinary-video",
+      "source": "skills-repo",
+      "path": "skills/platform/cloudinary-video",
+      "version": "1.0.0",
+      "commit": "c41e79f4b5e350fb994c541f6190538e838660b8",
+      "tree": "a79e630fa6d9c445f7f1c32c0d4141da5bd3f907"
+    },
+    {
+      "name": "claimable-cloud",
+      "source": "plugin-local",
+      "version": "1.0.0"
+    }
+  ]
+}

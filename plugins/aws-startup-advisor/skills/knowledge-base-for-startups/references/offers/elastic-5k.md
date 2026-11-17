@@ -7,7 +7,7 @@ title: "Up to $5,000 Credit in Elastic Cloud for  AWS Activate Members"
 
 ### Estimated offer value: $5,000.00
 
-**Up to $5,000 Elastic Cloud Credit for AWS Activate Members**
+### Up to $5,000 Elastic Cloud Credit for AWS Activate Members
 
 Deliver real-time insights in Search, Vector Database, Logs, and AI. Get started with credits for Elastic Cloud and Elasticsearch Serverless, expert technical advice, and more.
 

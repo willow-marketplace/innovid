@@ -1,10 +1,32 @@
 > AI agents: this is one page from PostHog's docs. Full index of Markdown docs for LLMs: https://posthog.com/llms.txt
 
-# React Error Tracking installation - Docs
+# React Error Tracking installation
 
-Copy page
+Canonical URL: https://posthog.com/docs/error-tracking/installation/react
 
-# React Error Tracking installation - Docs
+> **Cloud region:** This page uses US Cloud hosts. For an EU Cloud project, use `https://eu.i.posthog.com` instead of `https://us.i.posthog.com` (ingestion host), and use `https://eu.posthog.com` instead of `https://app.posthog.com` (app host for links).
+
+## On this page
+
+- [Install with the wizard](#install-with-the-wizard)
+- [Install the package](#install-the-package)
+- [Add environment variables](#add-environment-variables)
+- [Initialize PostHog](#initialize-posthog)
+- [Accessing PostHog in your code](#accessing-posthog-in-your-code)
+- [Send events](#send-events)
+- [Set up exception autocapture](#set-up-exception-autocapture)
+- [Set up error boundaries](#set-up-error-boundaries)
+- [Manually capture exceptions](#manually-capture-exceptions)
+- [Verify error tracking](#verify-error-tracking)
+- [Upload source maps](#upload-source-maps)
+
+## Install with the wizard
+
+Run this command in your project directory to add PostHog to your React project. The wizard detects your framework, installs the SDK, and sets up your first events.
+
+`npx @posthog/wizard`
+
+Or set it up manually by following the rest of this guide.
 
 1.  1
 
@@ -14,30 +36,28 @@ Copy page
 
     Install [`posthog-js`](https://github.com/posthog/posthog-js) and `@posthog/react` using your package manager:
 
-    PostHog AI
-
     ### npm
 
     ```bash
-    npm install posthog-js @posthog/react
+    npm install posthog-js@1 @posthog/react@1
     ```
 
     ### yarn
 
     ```bash
-    yarn add posthog-js @posthog/react
+    yarn add posthog-js@1 @posthog/react@1
     ```
 
     ### pnpm
 
     ```bash
-    pnpm add posthog-js @posthog/react
+    pnpm add posthog-js@1 @posthog/react@1
     ```
 
     ### bun
 
     ```bash
-    bun add posthog-js @posthog/react
+    bun add posthog-js@1 @posthog/react@1
     ```
 
 2.  2
@@ -49,8 +69,6 @@ Copy page
     Add your PostHog project token and host to your environment variables. For Vite-based React apps, use the `VITE_` prefix to expose them to the client:
 
     .env
-
-    PostHog AI
 
     ```bash
     VITE_POSTHOG_PROJECT_TOKEN=<ph_project_token>
@@ -67,18 +85,18 @@ Copy page
 
     main.tsx
 
-    PostHog AI
-
     ```jsx
     import { StrictMode } from 'react'
     import { createRoot } from 'react-dom/client'
     import './index.css'
     import App from './App.jsx'
     import { PostHogProvider } from '@posthog/react'
+    
     const options = {
       api_host: import.meta.env.VITE_POSTHOG_HOST,
-      defaults: '2026-05-30',
+      defaults: '2026-08-30',
     } as const
+    
     createRoot(document.getElementById('root')).render(
       <StrictMode>
         <PostHogProvider apiKey={import.meta.env.VITE_POSTHOG_PROJECT_TOKEN} options={options}>
@@ -90,7 +108,7 @@ Copy page
 
     **defaults option**
 
-    The `defaults` option automatically configures PostHog with recommended settings for new projects. See [SDK defaults](/docs/libraries/js.md#sdk-defaults) for details.
+    The `defaults` option automatically configures PostHog with recommended settings for new projects. See [SDK defaults](https://posthog.com/docs/libraries/js.md#sdk-defaults) for details.
 
 4.  4
 
@@ -102,15 +120,16 @@ Copy page
 
     MyComponent.tsx
 
-    PostHog AI
-
     ```jsx
     import { usePostHog } from '@posthog/react'
+    
     function MyComponent() {
         const posthog = usePostHog()
+    
         function handleClick() {
             posthog.capture('button_clicked', { button_name: 'signup' })
         }
+    
         return <button onClick={handleClick}>Sign up</button>
     }
     ```
@@ -119,10 +138,9 @@ Copy page
 
     utils/analytics.ts
 
-    PostHog AI
-
     ```jsx
     import posthog from 'posthog-js'
+    
     export function trackPurchase(amount: number) {
         posthog.capture('purchase_completed', { amount })
     }
@@ -139,8 +157,6 @@ Copy page
     If you'd like, you can also manually capture custom events:
 
     JavaScript
-
-    PostHog AI
 
     ```javascript
     posthog.capture('my_custom_event', { property: 'value' })
@@ -165,8 +181,6 @@ Copy page
     You can use the `PostHogErrorBoundary` component to capture rendering errors thrown by components:
 
     JavaScript
-
-    PostHog AI
 
     ```javascript
     import { PostHogProvider, PostHogErrorBoundary } from '@posthog/react'
@@ -196,8 +210,6 @@ Copy page
 
     JavaScript
 
-    PostHog AI
-
     ```javascript
     posthog.captureException(error, additionalProperties)
     ```
@@ -210,7 +222,7 @@ Copy page
 
     Before proceeding, let's make sure exception events are being captured and sent to PostHog. You should see events appear in the activity feed.
 
-    ![Activity feed with events](https://res.cloudinary.com/dmukukwp6/image/upload/SCR_20250729_ouxl_f788dd8cd2.png)![Activity feed with events](https://res.cloudinary.com/dmukukwp6/image/upload/SCR_20250729_owae_7c3490822c.png)
+    ![Activity feed with events](https://res.cloudinary.com/dmukukwp6/image/upload/SCR_20250729_ouxl_f788dd8cd2.png)
 
     [Check for exceptions in PostHog](https://app.posthog.com/activity/explore)
 
@@ -224,12 +236,4 @@ Copy page
 
      Let's continue to the next section.
 
-     [Upload source maps](/docs/error-tracking/upload-source-maps/react.md)
-
-### Still have questions?
-
-Ask PostHog AI
-
-### Was this page useful?
-
-HelpfulCould be better
+     [Upload source maps](https://posthog.com/docs/error-tracking/upload-source-maps/react.md)

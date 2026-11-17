@@ -9,46 +9,148 @@
        renders consistently on systems without "Inter var" installed locally. */
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
-    /* === SHARED CARTA STYLESHEET === */
     :root {
-        color-scheme: light;
-        --surface-bg: #FFFFFF;
-        --surface-underlay: #F1F1F1;
-        --surface-darkgray-default: #1A1A1A;
-        --text-default: #1A1A1A;
-        --text-subtle: #656B6B;
-        --border-default: #A7AAAA;
-        --border-subtle: #DEDFDF;
-        --negative-subtle: #FFEEEF;
-        --negative-strong: #E52431;
-        --positive-subtle: #EBF7F6;
-        --positive-strong: #2D9E90;
-        --info-subtle: #EAF0F8;
-        --info-strong: #285DA3;
-        --warning-subtle: #FFFCED;
-        --warning-strong: #C88600;
-        --border-focus-light: #C0D1E9;
-        --surface-lightgray-hover: #E9EAEA;
+      color-scheme: light dark;
+
+      /* === Text === */
+      --ink-color-global-text-default:     light-dark(#1A1A1A, #EDEDED);
+      --ink-color-global-text-subtle:      light-dark(#656B6B, #A7AAAA);
+      --ink-color-global-text-very-subtle: light-dark(#9C9F9F, #394040);
+      --ink-color-global-text-inverse:     light-dark(#FFFFFF, #1A1A1A);
+
+      /* === Surfaces === */
+      --ink-color-global-surface-background-default:  light-dark(#FFFFFF, rgb(18 18 18));
+      --ink-color-global-surface-background-underlay: light-dark(#F1F1F1, #2D2D2D);
+      --ink-color-global-surface-background-overlay:  light-dark(rgb(0 0 0 / 0.8), rgb(80 80 80 / 0.8));
+
+      /* === Borders === */
+      --ink-color-global-border-subtle:        light-dark(#DEDFDF, #2D2D2D);
+      --ink-color-global-border-default:       light-dark(#A7AAAA, #656B6B);
+      --ink-color-global-border-hover:         light-dark(#656B6B, #9C9F9F);
+      --ink-color-global-border-active:        light-dark(#1A1A1A, #CECFCF);
+      --ink-color-global-border-focus-default: light-dark(#285DA3, #8BABD6);
+      --ink-color-global-border-focus-light:   light-dark(#C0D1E9, #1A3E6D);
+
+      /* === Semantic feedback === */
+      --ink-color-global-feedback-positive-subtle: light-dark(#EBF7F6, #063A32);
+      --ink-color-global-feedback-positive-strong: light-dark(#2D9E90, #2D9E90);
+      --ink-color-global-feedback-negative-subtle: light-dark(#FFEEEF, #401018);
+      --ink-color-global-feedback-negative-strong: light-dark(#E52431, #FAD9D7);
+      --ink-color-global-feedback-warning-subtle:  light-dark(#FFFCED, #341C00);
+      --ink-color-global-feedback-warning-strong:  light-dark(#F8D648, #B58A00);
+      --ink-color-global-feedback-info-subtle:     light-dark(#EAF0F8, #122948);
+      --ink-color-global-feedback-info-strong:     light-dark(#285DA3, #2C67B5);
+
+      /* === Links === */
+      --ink-color-global-link-default: light-dark(#285DA3, #8BABD6);
+      --ink-color-global-link-hover:   light-dark(#1A3E6D, #4176BC);
+
+      /* === Radius === */
+      --ink-size-global-radius-flat:   0;
+      --ink-size-global-radius-subtle: 4px;
+      --ink-radius-pill: 9999px;
+
+      /* === Spacing === */
+      --ink-spacing-global-vertical-xxsmall: 4px;
+      --ink-spacing-global-vertical-xsmall:  8px;
+      --ink-spacing-global-vertical-small:   12px;
+      --ink-spacing-global-vertical-normal:  16px;
+      --ink-spacing-global-vertical-gutter:  20px;
+      --ink-spacing-global-vertical-large:   24px;
+      --ink-spacing-global-vertical-xlarge:  32px;
+
+      --ink-spacing-global-horizontal-xxsmall: 4px;
+      --ink-spacing-global-horizontal-xsmall:  8px;
+      --ink-spacing-global-horizontal-small:   12px;
+      --ink-spacing-global-horizontal-normal:  16px;
+      --ink-spacing-global-horizontal-large:   24px;
+      --ink-spacing-global-horizontal-xlarge:  32px;
+
+      /* === Typography === */
+      --ink-font-global-family-base:      "Inter", "Inter var", system-ui, sans-serif;
+      --ink-font-global-family-prominent: "SangBleu Versailles", Georgia, serif;
+
+      --ink-font-global-size-small-1:           12px;
+      --ink-font-global-size-body-1:            14px;
+      --ink-font-global-size-heading-3:         16px;
+      --ink-font-global-size-heading-2-desktop: 20px;
+      --ink-font-global-size-display-1:         28px;
+
+      --ink-font-global-leading-small-1:           20px;
+      --ink-font-global-leading-body-1:            24px;
+      --ink-font-global-leading-heading-3:         28px;
+      --ink-font-global-leading-heading-2-desktop: 36px;
+      --ink-font-global-leading-display-1:         48px;
+
+      --ink-font-global-weight-body-3:    400;
+      --ink-font-global-weight-body-2:    500;
+      --ink-font-global-weight-body-1:    600;
+      --ink-font-global-weight-heading-1: 400;
+      --ink-font-global-weight-heading-3: 500;
+      --ink-font-global-weight-small-1:   500;
+
+      /* === Elevation === */
+      --ink-elevation-global-shadow-small:  0 4px 12px 0 rgb(0 0 0 / 0.08);
+      --ink-elevation-global-shadow-large:  0 4px 20px 0 rgb(0 0 0 / 0.2);
+
+      /* === Focus ring === */
+      --ink-focus-ring: 0 0 0 4px var(--ink-color-global-border-focus-light);
     }
+    /* The host stamps data-theme for an explicit theme choice. light-dark() follows
+       color-scheme, so pinning it lets that choice beat the OS setting. */
+    :root[data-theme="light"] { color-scheme: light; }
+    :root[data-theme="dark"]  { color-scheme: dark; }
+    /* Page tokens beyond Ink's. Ink's dark negative-strong is a text color, so the Missing
+       fills (bar segment, swatch, tile edge) keep one red in both modes; the drawer's scrim
+       dims the same in both. */
+    :root { --negative-fill: #E52431; --scrim: rgb(0 0 0 / 0.32); }
 
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
     body {
-        font-family: "Inter var", "Inter", -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-        background: var(--surface-bg);
-        color: var(--text-default);
-        padding: 24px;
-        /* Bottom padding clears the fixed-positioned "Powered by Carta"
-           watermark — without this, long tables scroll under the badge
-           and the last few rows render with the wordmark on top. */
-        padding-bottom: 80px;
+        background: var(--ink-color-global-surface-background-default);
+        color: var(--ink-color-global-text-default);
+        font-family: var(--ink-font-global-family-base);
+        font-size: var(--ink-font-global-size-body-1);
+        line-height: var(--ink-font-global-leading-body-1);
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
     }
 
-    .container { max-width: 1100px; margin: 0 auto; }
+    :focus-visible {
+        outline: 2px solid var(--ink-color-global-border-focus-default);
+        box-shadow: var(--ink-focus-ring);
+        outline-offset: 0;
+    }
+
+    .container { padding: var(--ink-spacing-global-vertical-large) var(--ink-spacing-global-horizontal-xlarge) 40px; }
+    @media (max-width: 599px) { .container { padding: var(--ink-spacing-global-vertical-normal); } }
+
+    .carta-logo {
+      display: block;
+      width: 64px;
+      height: 32px;
+      margin-bottom: var(--ink-spacing-global-vertical-large);
+      color: var(--ink-color-global-text-default);
+    }
 
     .header { margin-bottom: 32px; }
-    .header h1 { font-size: 28px; font-weight: 500; line-height: 40px; color: var(--text-default); margin-bottom: 8px; letter-spacing: -0.01em; }
-    .header p { color: var(--text-subtle); font-size: 14px; font-weight: 400; line-height: 24px; }
+    .header h1 {
+        font-family: var(--ink-font-global-family-prominent);
+        font-size: var(--ink-font-global-size-display-1);
+        line-height: 40px;
+        font-weight: var(--ink-font-global-weight-heading-1);
+        color: var(--ink-color-global-text-default);
+    }
+    @media (max-width: 599px) { .header h1 { font-size: 22px; line-height: 32px; } }
+    .header p {
+        margin-top: var(--ink-spacing-global-vertical-xxsmall);
+        font-size: var(--ink-font-global-size-small-1);
+        line-height: var(--ink-font-global-leading-small-1);
+        color: var(--ink-color-global-text-subtle);
+    }
+    /* A div, not a p: the tooltip inside holds a list, and a list closes an open p. */
+    .header-fyi { margin-top: var(--ink-spacing-global-vertical-xsmall); }
 
     /* Five-tile stat grid — one tile per bucket. Auto-fits to viewport
        width; gap buckets carry their full color accent, the trailing two
@@ -61,17 +163,19 @@
         margin-bottom: 20px;
     }
     .metric-card {
-        background: var(--surface-bg);
-        border: 1px solid #E9EAEA;
-        padding: 14px 16px;
+        background: light-dark(var(--ink-color-global-surface-background-default), var(--ink-color-global-surface-background-underlay));
+        border: 1px solid var(--ink-color-global-border-subtle);
+        padding: var(--ink-spacing-global-vertical-normal);
+        border-radius: var(--ink-size-global-radius-flat);
+        box-shadow: var(--ink-elevation-global-shadow-small);
     }
     .metric-label {
-        font-size: 11px;
-        color: var(--text-subtle);
+        font-size: 12px;
+        color: var(--ink-color-global-text-subtle);
         text-transform: uppercase;
-        letter-spacing: 0.5px;
-        margin-bottom: 6px;
-        font-weight: 500;
+        letter-spacing: 0.04em;
+        margin-bottom: 4px;
+        font-weight: var(--ink-font-global-weight-body-3);
         line-height: 16px;
         display: inline-flex;
         align-items: center;
@@ -79,19 +183,20 @@
         white-space: nowrap;
     }
     .metric-value {
-        font-size: 28px;
-        font-weight: 600;
-        line-height: 36px;
-        color: var(--surface-darkgray-default);
+        font-size: 24px;
+        font-weight: var(--ink-font-global-weight-body-3);
+        line-height: 32px;
+        color: var(--ink-color-global-text-default);
         font-variant-numeric: tabular-nums;
     }
     .metric-sub {
         font-size: 12px;
-        color: var(--text-subtle);
-        margin-top: 2px;
+        color: var(--ink-color-global-text-subtle);
+        margin-top: 4px;
         font-weight: 400;
         font-variant-numeric: tabular-nums;
         white-space: nowrap;
+        line-height: 18px;
     }
 
     /* Coverage-by-cost-basis bar — value-weighted companion to the count
@@ -99,56 +204,33 @@
        an interpretive callout contrasting count coverage vs value coverage. */
     .coverage-bar-section { margin-bottom: 20px; }
     .coverage-bar-head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
-    .coverage-bar-head .label { font-size: 13px; font-weight: 500; color: var(--text-default); }
-    .coverage-bar-head .value { font-size: 13px; font-weight: 600; color: var(--text-default); font-variant-numeric: tabular-nums; margin-left: auto; }
+    .coverage-bar-head .label { font-size: 13px; font-weight: 500; color: var(--ink-color-global-text-default); }
+    .coverage-bar-head .value { font-size: 13px; font-weight: 600; color: var(--ink-color-global-text-default); font-variant-numeric: tabular-nums; margin-left: auto; }
     .bar-mode-toggle { display: flex; gap: 2px; }
-    .bar-mode-btn { font-size: 11px; font-family: inherit; padding: 2px 8px; border: 1px solid var(--border-default); border-radius: 4px; background: transparent; color: var(--text-subtle); cursor: pointer; }
-    .bar-mode-btn.active { background: var(--surface-darkgray-default); color: #fff; border-color: var(--surface-darkgray-default); }
-    .coverage-bar-track { display: flex; height: 18px; border-radius: 4px; overflow: hidden; background: var(--surface-underlay); }
+    .bar-mode-btn { font-size: var(--ink-font-global-size-small-1); font-family: inherit; padding: 0 10px; border: 1px solid var(--ink-color-global-border-default); border-radius: 4px; background: transparent; color: var(--ink-color-global-text-subtle); cursor: pointer; height: 28px; }
+    .bar-mode-btn.active { background: var(--ink-color-global-text-default); color: var(--ink-color-global-text-inverse); border-color: var(--ink-color-global-text-default); }
+    .coverage-bar-track { display: flex; height: 18px; border-radius: 4px; overflow: hidden; background: var(--ink-color-global-surface-background-underlay); }
     .coverage-bar-seg { height: 100%; }
-    .coverage-bar-seg.missing    { background: var(--negative-strong); }
-    .coverage-bar-seg.unexecuted { background: var(--warning-strong); }
-    .coverage-bar-seg.executed   { background: var(--positive-strong); }
-    .coverage-bar-seg.notNeeded  { background: var(--text-subtle); }
-    .coverage-legend { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 8px; font-size: 12px; color: var(--text-subtle); }
+    .coverage-bar-seg.missing    { background: var(--negative-fill); }
+    .coverage-bar-seg.unexecuted { background: var(--ink-color-global-feedback-warning-strong); }
+    .coverage-bar-seg.executed   { background: var(--ink-color-global-feedback-positive-strong); }
+    .coverage-bar-seg.notNeeded  { background: var(--ink-color-global-text-subtle); }
+    .coverage-legend { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 8px; font-size: 12px; color: var(--ink-color-global-text-subtle); }
     .coverage-legend .item { display: inline-flex; align-items: center; gap: 6px; }
     .coverage-legend .swatch { width: 10px; height: 10px; border-radius: 2px; }
-    .coverage-legend .swatch.missing    { background: var(--negative-strong); }
-    .coverage-legend .swatch.unexecuted { background: var(--warning-strong); }
-    .coverage-legend .swatch.executed   { background: var(--positive-strong); }
-    .coverage-legend .swatch.notNeeded  { background: var(--text-subtle); }
-    .coverage-callout { font-size: 13px; color: var(--text-default); line-height: 18px; margin-top: 10px; }
+    .coverage-legend .swatch.missing    { background: var(--negative-fill); }
+    .coverage-legend .swatch.unexecuted { background: var(--ink-color-global-feedback-warning-strong); }
+    .coverage-legend .swatch.executed   { background: var(--ink-color-global-feedback-positive-strong); }
+    .coverage-legend .swatch.notNeeded  { background: var(--ink-color-global-text-subtle); }
+    .coverage-callout { font-size: 13px; color: var(--ink-color-global-text-default); line-height: 18px; margin-top: 10px; }
 
     /* Left-edge bucket accent — color encodes the bucket, paired with text label */
-    .metric-card.bucket-missing    { border-left: 3px solid var(--negative-strong); }
-    .metric-card.bucket-unexecuted { border-left: 3px solid var(--warning-strong); }
-    .metric-card.bucket-executed   { border-left: 3px solid var(--positive-strong); }
-    .metric-card.bucket-not-needed { border-left: 3px solid var(--text-subtle); }
+    .metric-card.bucket-missing    { border-left: 3px solid var(--negative-fill); }
+    .metric-card.bucket-unexecuted { border-left: 3px solid var(--ink-color-global-feedback-warning-strong); }
+    .metric-card.bucket-executed   { border-left: 3px solid var(--ink-color-global-feedback-positive-strong); }
+    .metric-card.bucket-not-needed { border-left: 3px solid var(--ink-color-global-text-subtle); }
 
-    /* Pending-extraction FYI pill — sits inline in the page-header subtitle
-       when pendingExtractionDocs > 0. Hover reveals a tooltip with the full
-       explanation. Pending docs can't be linked to specific portfolio
-       companies pre-extraction, so we keep this as an FYI surface (not a
-       tile / bucket). */
-    .pending-pill {
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
-        padding: 1px 8px;
-        background: var(--info-subtle);
-        color: var(--info-strong);
-        border-radius: 4px;
-        font-size: 12px;
-        font-weight: 500;
-        line-height: 18px;
-        position: relative;
-        cursor: help;
-    }
-    .pending-pill-icon { font-size: 13px; line-height: 1; }
-    .pending-pill-text { font-variant-numeric: tabular-nums; }
-
-    /* Unmatched-SPA FYI pill — same Ink chip pattern as the pending pill, but
-       warning-amber instead of info-blue. These are SPAs that have nowhere to
+    /* Unmatched-SPA FYI pill — an Ink chip in warning amber. These are SPAs that have nowhere to
        land in the four-bucket audit because their issuer name didn't fuzzy-
        match any portfolio investment. Action-oriented (reconcile names), not
        just "wait." */
@@ -157,8 +239,8 @@
         align-items: center;
         gap: 4px;
         padding: 1px 8px;
-        background: var(--warning-subtle);
-        color: var(--warning-strong);
+        background: var(--ink-color-global-feedback-warning-subtle);
+        color: var(--ink-color-global-text-default);
         border-radius: 4px;
         font-size: 12px;
         font-weight: 500;
@@ -169,20 +251,16 @@
     .orphaned-pill-icon { font-size: 13px; line-height: 1; }
     .orphaned-pill-text { font-variant-numeric: tabular-nums; }
 
-    /* Ink-style tooltip — black bg, white text, caret pointing up into the
+    /* Ink-style tooltip — inverse colors (dark on light, light on dark), caret pointing up into the
        trigger. Matches the pattern shipped in plugins/skill-dev/skills/
        theme-with-ink/SKILL.md. */
-    .has-tooltip:focus-visible {
-        outline: 2px solid var(--info-strong);
-        outline-offset: 2px;
-        border-radius: 4px;
-    }
+    .has-tooltip:focus-visible { border-radius: 4px; }
     .tooltip {
         position: absolute;
         top: calc(100% + 10px);
         left: 0;
-        background: #1A1A1A;
-        color: #FFFFFF;
+        background: var(--ink-color-global-text-default);
+        color: var(--ink-color-global-text-inverse);
         padding: 10px 12px;
         border-radius: 4px;
         font-size: 12px;
@@ -209,7 +287,7 @@
         height: 0;
         border-left: 6px solid transparent;
         border-right: 6px solid transparent;
-        border-bottom: 6px solid #1A1A1A;
+        border-bottom: 6px solid var(--ink-color-global-text-default);
     }
     .has-tooltip:hover .tooltip,
     .has-tooltip:focus-visible .tooltip {
@@ -227,13 +305,13 @@
         justify-content: center;
         margin-left: 4px;
         font-size: 11px;
-        color: var(--text-subtle);
+        color: var(--ink-color-global-text-subtle);
         cursor: help;
         line-height: 1;
     }
-    .help-icon:hover { color: var(--text-default); }
+    .help-icon:hover { color: var(--ink-color-global-text-default); }
 
-    /* Tile-anchored tooltip — same Ink-style as the pending-pill tooltip
+    /* Tile-anchored tooltip — same Ink-style as the header-pill tooltip
        but right-aligned so the popup doesn't overflow the viewport when
        triggered on the rightmost tile in the row. */
     .tooltip--tile {
@@ -247,44 +325,42 @@
         right: 8px;
     }
 
-    /* Muted tile treatment — Executed + No-SPA-needed get visually
-       de-emphasized per Vispan's "surface the gaps" feedback. Same border
-       color (semantics preserved) but lighter background, smaller value. */
-    .metric-card--muted { background: var(--surface-bg); }
-    .metric-card--muted .metric-value { color: var(--text-default); }
-    .metric-card--muted .metric-label { color: var(--text-subtle); }
-    .metric-card--muted .metric-sub { color: var(--text-subtle); }
+    /* Muted tiles (Executed, No SPA needed) share the tile surface and bucket
+       border; their value and label keep the default and subtle text colors. */
+    .metric-card--muted .metric-value { color: var(--ink-color-global-text-default); }
+    .metric-card--muted .metric-label { color: var(--ink-color-global-text-subtle); }
+    .metric-card--muted .metric-sub { color: var(--ink-color-global-text-subtle); }
 
     /* Bucket badge in the table — color + text label (a11y: never color-only) */
     .bucket-badge {
         display: inline-flex;
         align-items: center;
-        height: 22px;
-        padding: 0 8px;
-        border-radius: 4px;
-        font-size: 12px;
-        font-weight: 500;
+        height: 20px;
+        padding: 0 6px;
+        border-radius: var(--ink-size-global-radius-subtle);
+        font-size: var(--ink-font-global-size-small-1);
+        font-weight: var(--ink-font-global-weight-small-1);
         line-height: 1;
         white-space: nowrap;
     }
-    .bucket-badge.missing    { background: var(--negative-subtle); color: var(--negative-strong); }
-    .bucket-badge.unexecuted { background: var(--warning-subtle); color: var(--warning-strong); }
-    .bucket-badge.executed   { background: var(--positive-subtle); color: var(--positive-strong); }
-    .bucket-badge.notNeeded  { background: var(--surface-underlay); color: var(--text-subtle); }
+    .bucket-badge.missing    { background: var(--ink-color-global-feedback-negative-subtle); color: var(--ink-color-global-feedback-negative-strong); }
+    .bucket-badge.unexecuted { background: var(--ink-color-global-feedback-warning-subtle); color: var(--ink-color-global-text-default); }
+    .bucket-badge.executed   { background: var(--ink-color-global-feedback-positive-subtle); color: var(--ink-color-global-feedback-positive-strong); }
+    .bucket-badge.notNeeded  { background: var(--ink-color-global-surface-background-underlay); color: var(--ink-color-global-text-subtle); }
 
-    .table-title { font-size: 16px; font-weight: 500; line-height: 28px; color: var(--text-default); margin-bottom: 12px; }
-    .table-container { background: var(--surface-bg); overflow-x: auto; }
+    .table-title { font-size: var(--ink-font-global-size-heading-3); font-weight: var(--ink-font-global-weight-heading-3); line-height: 28px; color: var(--ink-color-global-text-default); margin-bottom: 12px; }
+    .table-container { background: var(--ink-color-global-surface-background-default); overflow-x: auto; border: 1px solid var(--ink-color-global-border-subtle); }
     table { width: 100%; min-width: 480px; border-collapse: collapse; }
-    th { background: var(--surface-bg); padding: 10px 16px; text-align: left; font-size: 14px; font-weight: 500; color: var(--text-default); border-bottom: 1px solid var(--border-default); line-height: 20px; }
-    td { padding: 10px 16px; border-bottom: 1px solid var(--border-subtle); font-size: 14px; color: var(--text-default); line-height: 24px; }
+    th { background: var(--ink-color-global-surface-background-underlay); padding: var(--ink-spacing-global-vertical-xsmall) var(--ink-spacing-global-horizontal-small); text-align: left; font-size: var(--ink-font-global-size-small-1); font-weight: var(--ink-font-global-weight-small-1); color: var(--ink-color-global-text-subtle); border-bottom: 1px solid var(--ink-color-global-border-subtle); line-height: 20px; white-space: nowrap; }
+    td { padding: 10px var(--ink-spacing-global-horizontal-small); border-bottom: 1px solid var(--ink-color-global-border-subtle); font-size: 14px; color: var(--ink-color-global-text-default); line-height: 24px; }
     tbody tr.clickable { cursor: pointer; }
-    tbody tr.clickable:hover { background: var(--surface-lightgray-hover); }
+    tbody tr:hover { background: color-mix(in srgb, var(--ink-color-global-surface-background-underlay) 50%, var(--ink-color-global-surface-background-default)); }
     tbody tr:last-child td { border-bottom: none; }
 
     .number { font-variant-numeric: tabular-nums; font-size: 14px; text-align: right; }
     .company-name { font-weight: 500; }
-    .row-caret { margin-left: 4px; color: var(--text-subtle); font-size: 12px; }
-    .similarity-asterisk { color: var(--warning-strong); font-weight: 600; cursor: help; margin-left: 4px; }
+    .row-caret { margin-left: 4px; color: var(--ink-color-global-text-subtle); font-size: 12px; }
+    .similarity-asterisk { color: var(--ink-color-global-text-default); font-weight: 600; cursor: help; margin-left: 4px; }
 
     /* Toolbar above the table — filter pills on the left, search on the right */
     .table-toolbar {
@@ -304,31 +380,32 @@
     .filter-select-label {
         font-size: 13px;
         font-weight: 500;
-        color: var(--text-subtle);
+        color: var(--ink-color-global-text-subtle);
     }
     .filter-select {
-        height: 28px;
-        padding: 0 30px 0 10px;
-        border: 1px solid var(--border-default);
-        border-radius: 4px;
-        font-size: 13px;
+        height: 32px;
+        padding: 0 32px 0 var(--ink-spacing-global-horizontal-small);
+        border: 1px solid var(--ink-color-global-border-default);
+        border-radius: var(--ink-size-global-radius-subtle);
+        font-size: var(--ink-font-global-size-body-1);
         font-weight: 500;
         font-family: inherit;
-        color: var(--text-default);
-        background-color: var(--surface-bg);
-        background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6' fill='none' stroke='%23656B6B' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'><path d='M1 1l4 4 4-4'/></svg>");
+        color: var(--ink-color-global-text-default);
+        background-color: var(--ink-color-global-surface-background-default);
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6' fill='none' stroke='%23888' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1l4 4 4-4'/%3E%3C/svg%3E");
         background-repeat: no-repeat;
-        background-position: right 10px center;
+        background-position: right 12px center;
         cursor: pointer;
         outline: none;
         appearance: none;
         -webkit-appearance: none;
         transition: border-color 0.12s ease, box-shadow 0.12s ease;
     }
-    .filter-select:hover { background-color: var(--surface-lightgray-hover); }
+    .filter-select:hover { border-color: var(--ink-color-global-border-hover); }
     .filter-select:focus {
-        border-color: var(--info-strong);
-        box-shadow: 0 0 0 3px var(--border-focus-light);
+        border-color: var(--ink-color-global-border-focus-default);
+        box-shadow: var(--ink-focus-ring);
+        outline: none;
     }
     .filter-pill {
         display: inline-flex;
@@ -339,48 +416,50 @@
         border-radius: 4px;
         font-size: 13px;
         font-weight: 500;
-        background: var(--surface-bg);
-        color: var(--text-default);
-        border: 1px solid var(--border-default);
+        background: var(--ink-color-global-surface-background-default);
+        color: var(--ink-color-global-text-default);
+        border: 1px solid var(--ink-color-global-border-default);
         cursor: pointer;
         font-family: inherit;
     }
-    .filter-pill:hover { background: var(--surface-lightgray-hover); }
+    .filter-pill:hover { background: var(--ink-color-global-surface-background-underlay); }
     .filter-pill.active {
-        background: var(--surface-darkgray-default);
-        color: var(--surface-bg);
-        border-color: var(--surface-darkgray-default);
+        background: var(--ink-color-global-text-default);
+        color: var(--ink-color-global-surface-background-default);
+        border-color: var(--ink-color-global-text-default);
     }
     .filter-pill .count { font-variant-numeric: tabular-nums; opacity: 0.8; }
 
-    /* Search input — Ink input pattern: 1px border, 4px radius, 28px height, focus ring */
+    /* Search input — Ink input pattern: 1px border, 4px radius, 32px height, focus ring */
     .table-search {
         position: relative;
     }
     .table-search input {
-        width: 240px;
-        height: 28px;
+        width: 260px;
+        height: 32px;
         padding: 0 8px 0 30px;
-        border: 1px solid var(--border-default);
-        border-radius: 4px;
-        font-size: 13px;
+        border: 1px solid var(--ink-color-global-border-default);
+        border-radius: var(--ink-size-global-radius-subtle);
+        font-size: var(--ink-font-global-size-body-1);
         font-family: inherit;
-        color: var(--text-default);
-        background: var(--surface-bg);
+        color: var(--ink-color-global-text-default);
+        background: var(--ink-color-global-surface-background-default);
         outline: none;
         transition: border-color 0.12s ease, box-shadow 0.12s ease;
     }
-    .table-search input::placeholder { color: var(--text-subtle); }
+    .table-search input::placeholder { color: var(--ink-color-global-text-subtle); }
+    .table-search input:hover { border-color: var(--ink-color-global-border-hover); }
     .table-search input:focus {
-        border-color: var(--info-strong);
-        box-shadow: 0 0 0 3px var(--border-focus-light);
+        border-color: var(--ink-color-global-border-focus-default);
+        box-shadow: var(--ink-focus-ring);
+        outline: none;
     }
     .table-search svg {
         position: absolute;
         left: 8px;
         top: 50%;
         transform: translateY(-50%);
-        color: var(--text-subtle);
+        color: var(--ink-color-global-text-subtle);
         pointer-events: none;
     }
 
@@ -390,23 +469,23 @@
         user-select: none;
         position: relative;
     }
-    th.sortable:hover { background: var(--surface-lightgray-hover); }
+    th.sortable:hover { background: var(--ink-color-global-surface-background-underlay); color: var(--ink-color-global-text-default); }
     th.sortable .sort-caret {
         display: inline-block;
         margin-left: 4px;
-        color: var(--text-subtle);
+        color: var(--ink-color-global-text-subtle);
         font-size: 10px;
         line-height: 1;
         opacity: 0.4;
     }
-    th.sortable.sort-active .sort-caret { opacity: 1; color: var(--text-default); }
+    th.sortable.sort-active .sort-caret { opacity: 1; color: var(--ink-color-global-text-default); }
 
-    /* Drawer — lifted verbatim from co-investors */
+    /* Drawer — slides over the page from the right */
     .drawer-backdrop {
         display: none;
         position: fixed;
         inset: 0;
-        background: rgba(0,0,0,0.2);
+        background: var(--scrim);
         z-index: 999;
     }
     .drawer-backdrop.open { display: block; }
@@ -417,15 +496,18 @@
         width: 92vw;
         max-width: 92vw;
         height: 100vh;
-        background: var(--surface-bg);
-        box-shadow: -4px 0 24px rgba(0,0,0,0.12);
+        background: var(--ink-color-global-surface-background-default);
+        box-shadow: var(--ink-elevation-global-shadow-large);
         transform: translateX(100%);
         transition: transform 0.25s ease;
         z-index: 1000;
         overflow-y: auto;
-        padding: 24px;
+        padding: var(--ink-spacing-global-vertical-normal) var(--ink-spacing-global-horizontal-large) var(--ink-spacing-global-vertical-xlarge);
+        border-left: 1px solid var(--ink-color-global-border-subtle);
     }
     .drawer.open { transform: translateX(0); }
+    /* Off-canvas, a shadow would still show along the window's right edge. */
+    .drawer:not(.open) { box-shadow: none; }
     .drawer table { min-width: max-content; }
     .drawer-close {
         position: absolute;
@@ -439,36 +521,35 @@
         background: transparent;
         border: none;
         border-radius: 4px;
-        color: var(--text-default);
+        color: var(--ink-color-global-text-subtle);
         cursor: pointer;
         padding: 0;
         transition: background-color 0.12s ease;
     }
-    .drawer-close:hover { background: var(--surface-lightgray-hover); }
-    .drawer-close:focus-visible { outline: 2px solid var(--info-strong); outline-offset: 2px; box-shadow: 0 0 0 4px var(--border-focus-light); }
-    .drawer h2 { font-size: 18px; font-weight: 600; color: var(--text-default); margin-bottom: 4px; padding-right: 32px; }
-    .drawer-subtitle { font-size: 13px; color: var(--text-subtle); margin-bottom: 20px; }
+    .drawer-close:hover { background: var(--ink-color-global-surface-background-underlay); color: var(--ink-color-global-text-default); }
+    .drawer h2 { font-size: var(--ink-font-global-size-heading-2-desktop); font-weight: var(--ink-font-global-weight-heading-3); color: var(--ink-color-global-text-default); margin-bottom: 4px; padding-right: 32px; line-height: 28px; }
+    .drawer-subtitle { font-size: var(--ink-font-global-size-small-1); color: var(--ink-color-global-text-subtle); margin-bottom: 20px; line-height: var(--ink-font-global-leading-small-1); }
     .drawer-spa-label {
-        font-size: 14px;
-        font-weight: 600;
-        color: var(--text-default);
+        font-size: var(--ink-font-global-size-heading-3);
+        font-weight: var(--ink-font-global-weight-heading-3);
+        color: var(--ink-color-global-text-default);
         margin: 20px 0 8px;
-        padding-bottom: 6px;
-        border-bottom: 1px solid var(--border-subtle);
+        padding-bottom: 0;
+        border-bottom: 0;
         display: flex;
         align-items: center;
         gap: 8px;
     }
-    .drawer-spa-meta { font-size: 12px; color: var(--text-subtle); font-weight: 400; }
-    .drawer-spa-footnote { font-size: 11px; color: var(--text-subtle); margin: -24px 0 32px; }
+    .drawer-spa-meta { font-size: 12px; color: var(--ink-color-global-text-subtle); font-weight: 400; }
+    .drawer-spa-footnote { font-size: 11px; color: var(--ink-color-global-text-subtle); margin: -24px 0 32px; }
     /* Bounded scroller: each SPA's table-container scrolls internally so a
        sticky header pins while a long purchaser list scrolls, with horizontal
        scroll as the fallback. Short tables don't reach max-height. */
-    .drawer .table-container { box-shadow: none; overflow: auto; max-height: 60vh; margin-bottom: 32px; }
+    .drawer .table-container { box-shadow: none; overflow: auto; max-height: 60vh; margin-bottom: 32px; border: 1px solid var(--ink-color-global-border-subtle); }
     .drawer thead th {
         position: sticky;
         top: 0;
-        background: var(--surface-bg);
+        background: var(--ink-color-global-surface-background-underlay);
         z-index: 2;
     }
     /* Cap the purchaser-name column so long fund names wrap instead of
@@ -490,10 +571,10 @@
     }
     .drawer td, .drawer th { padding: 8px 12px; }
     .drawer tfoot td {
-        font-weight: 600;
+        font-weight: var(--ink-font-global-weight-body-1);
         font-size: 13px;
-        background: var(--info-subtle);
-        border-top: 1px solid var(--border-default);
+        background: var(--ink-color-global-surface-background-underlay);
+        border-top: 1px solid var(--ink-color-global-border-subtle);
     }
 
     /* Action-CTA cards — sit between the Gaps grid and the Covered grid.
@@ -512,23 +593,23 @@
         align-items: center;
         gap: 16px;
         padding: 14px 18px;
-        border: 1px solid var(--border-subtle);
+        border: 1px solid var(--ink-color-global-border-subtle);
         border-radius: 0;
     }
-    .cta-card--missing    { background: #FFF7F2; border-left: 3px solid #C77B3F; }
-    .cta-card--unexecuted { background: var(--info-subtle); border-left: 3px solid var(--info-strong); }
-    .cta-card--reconcile  { background: #FDF6E3; border-left: 3px solid #B7791F; }
+    .cta-card--missing    { background: var(--ink-color-global-feedback-negative-subtle); border-left: 3px solid var(--negative-fill); }
+    .cta-card--unexecuted { background: var(--ink-color-global-feedback-info-subtle); border-left: 3px solid var(--ink-color-global-feedback-info-strong); }
+    .cta-card--reconcile  { background: var(--ink-color-global-feedback-warning-subtle); border-left: 3px solid var(--ink-color-global-feedback-warning-strong); }
     .cta-card-body { flex: 1; min-width: 0; }
     .cta-card-title {
         font-size: 14px;
         font-weight: 600;
-        color: var(--text-default);
+        color: var(--ink-color-global-text-default);
         margin-bottom: 2px;
         line-height: 20px;
     }
     .cta-card-text {
         font-size: 13px;
-        color: var(--text-default);
+        color: var(--ink-color-global-text-default);
         line-height: 18px;
     }
     .cta-card-action {
@@ -542,41 +623,37 @@
         font-size: 13px;
         font-weight: 600;
         font-family: inherit;
-        color: #FFFFFF;
-        background: var(--surface-darkgray-default);
+        color: var(--ink-color-global-text-inverse);
+        background: var(--ink-color-global-text-default);
         border: none;
         text-decoration: none;
         white-space: nowrap;
         cursor: pointer;
         transition: background-color 0.12s ease;
     }
-    .cta-card-action:hover { background: #000000; }
+    .cta-card-action:hover { background: color-mix(in srgb, var(--ink-color-global-text-default) 85%, var(--ink-color-global-surface-background-default)); }
     .cta-card-action--secondary {
-        background: var(--surface-bg);
-        color: var(--text-default);
-        border: 1px solid var(--border-default);
+        background: var(--ink-color-global-surface-background-default);
+        color: var(--ink-color-global-text-default);
+        border: 1px solid var(--ink-color-global-border-default);
     }
     .cta-card-action--secondary:hover {
-        background: var(--surface-lightgray-hover);
-    }
-    .cta-card-action:focus-visible {
-        outline: 2px solid var(--info-strong);
-        outline-offset: 2px;
+        background: var(--ink-color-global-surface-background-underlay);
     }
 
     /* Empty state for buckets with zero companies */
     .empty-bucket {
         padding: 24px;
         text-align: center;
-        color: var(--text-subtle);
+        color: var(--ink-color-global-text-subtle);
         font-size: 14px;
-        border: 1px dashed var(--border-subtle);
+        border: 1px dashed var(--ink-color-global-border-subtle);
         border-radius: 0;
     }
 
     .footer-note {
         font-size: 12px;
-        color: var(--text-subtle);
+        color: var(--ink-color-global-text-subtle);
         margin-top: 16px;
         line-height: 18px;
     }
@@ -584,44 +661,28 @@
     .page-footer {
         margin-top: 32px;
         padding-top: 16px;
-        border-top: 1px solid var(--border-subtle);
+        border-top: 1px solid var(--ink-color-global-border-subtle);
         display: flex;
-        align-items: flex-start;
+        align-items: baseline;
         justify-content: space-between;
         flex-wrap: wrap;
         gap: 12px;
     }
-    .carta-link { font-size: 13px; color: var(--info-strong); text-decoration: none; }
-    .carta-link:hover { text-decoration: underline; }
-    .powered-by-carta {
-        position: fixed;
-        bottom: 20px; right: 20px;
-        width: min(13.5vw, calc(13.5vh * 5.66));
-        height: auto; line-height: 0;
-        pointer-events: none; z-index: 10;
-        /* Hidden until scrolled to the bottom (toggled by setupPoweredBy). */
-        opacity: 0;
-        visibility: hidden;
-        transition: opacity 0.2s ease, visibility 0.2s ease;
-    }
-    .powered-by-carta.visible {
-        opacity: 1;
-        visibility: visible;
-    }
-    .powered-by-carta svg { display: block; width: 100%; height: auto; }
+    .carta-link { font-size: 13px; color: var(--ink-color-global-link-default); text-decoration: none; }
+    .carta-link:hover { text-decoration: underline; color: var(--ink-color-global-link-hover); }
 
     .tag {
         display: inline-flex;
         align-items: center;
-        height: 24px;
-        padding: 0 8px;
-        border-radius: 4px;
-        font-size: 12px;
-        font-weight: 500;
+        height: 20px;
+        padding: 0 6px;
+        border-radius: var(--ink-size-global-radius-subtle);
+        font-size: var(--ink-font-global-size-small-1);
+        font-weight: var(--ink-font-global-weight-small-1);
         line-height: 1;
         white-space: nowrap;
     }
-    .tag-neutral { background: var(--surface-underlay); color: var(--text-default); }
+    .tag-neutral { background: var(--ink-color-global-surface-background-underlay); color: var(--ink-color-global-text-default); }
 
     /* ── Fund / Geography multi-select filter ─────────────────────────────── */
     .filter-group {
@@ -638,23 +699,24 @@
         display: inline-flex;
         align-items: center;
         gap: 4px;
-        padding: 5px 10px;
-        font-size: 13px;
+        padding: 0 var(--ink-spacing-global-horizontal-small);
+        font-size: var(--ink-font-global-size-body-1);
         font-family: inherit;
-        font-weight: 500;
-        color: var(--text-default);
-        background: var(--surface-bg);
-        border: 1px solid var(--border-default);
-        border-radius: 4px;
+        font-weight: var(--ink-font-global-weight-body-3);
+        color: var(--ink-color-global-text-default);
+        background: var(--ink-color-global-surface-background-default);
+        border: 1px solid var(--ink-color-global-border-default);
+        border-radius: var(--ink-size-global-radius-subtle);
         cursor: pointer;
         white-space: nowrap;
         transition: background 0.12s, border-color 0.12s;
+        height: 32px;
     }
-    .fund-filter-btn:hover { background: var(--surface-lightgray-hover); }
+    .fund-filter-btn:hover { border-color: var(--ink-color-global-border-hover); }
     .fund-filter-btn.active {
-        background: var(--info-subtle);
-        border-color: var(--info-strong);
-        color: var(--info-strong);
+        background: var(--ink-color-global-feedback-info-subtle);
+        border-color: var(--ink-color-global-feedback-info-strong);
+        color: var(--ink-color-global-link-default);
     }
     .fund-caret { font-size: 10px; opacity: 0.7; }
     .fund-dropdown-panel {
@@ -666,10 +728,10 @@
         min-width: 200px;
         max-height: 280px;
         overflow-y: auto;
-        background: var(--surface-bg);
-        border: 1px solid var(--border-default);
+        background: var(--ink-color-global-surface-background-default);
+        border: 1px solid var(--ink-color-global-border-default);
         border-radius: 4px;
-        box-shadow: 0 4px 16px rgba(0,0,0,0.10);
+        box-shadow: var(--ink-elevation-global-shadow-small);
         padding: 6px 0;
     }
     .fund-dropdown-panel.open { display: block; }
@@ -683,9 +745,9 @@
         user-select: none;
         transition: background 0.1s;
     }
-    .fund-option:hover { background: var(--surface-lightgray-hover); }
-    .fund-option input[type="checkbox"] { accent-color: var(--info-strong); flex-shrink: 0; }
-    .fund-sep { border: none; border-top: 1px solid var(--border-subtle); margin: 4px 0; }
+    .fund-option:hover { background: var(--ink-color-global-surface-background-underlay); }
+    .fund-option input[type="checkbox"] { accent-color: var(--ink-color-global-feedback-info-strong); flex-shrink: 0; }
+    .fund-sep { border: none; border-top: 1px solid var(--ink-color-global-border-subtle); margin: 4px 0; }
 
     /* Status filter tab bar (All / Live / Exited) */
     .status-bar {
@@ -699,21 +761,21 @@
       align-items: center;
       height: 32px;
       padding: 0 14px;
-      border-radius: 4px;
-      font-size: 13px;
+      border-radius: var(--ink-size-global-radius-subtle);
+      font-size: var(--ink-font-global-size-body-1);
       font-weight: 500;
       cursor: pointer;
-      border: 1px solid var(--border-default);
-      background: var(--surface-bg);
-      color: var(--text-subtle);
+      border: 1px solid var(--ink-color-global-border-default);
+      background: var(--ink-color-global-surface-background-default);
+      color: var(--ink-color-global-text-subtle);
       transition: background-color 0.1s ease, color 0.1s ease, border-color 0.1s ease;
       font-family: inherit;
     }
-    .status-tab:hover { background: var(--surface-underlay); color: var(--text-default); }
+    .status-tab:hover { background: var(--ink-color-global-surface-background-underlay); color: var(--ink-color-global-text-default); }
     .status-tab.active {
-      background: var(--text-default);
-      color: var(--surface-bg);
-      border-color: var(--text-default);
+      background: var(--ink-color-global-text-default);
+      color: var(--ink-color-global-text-inverse);
+      border-color: var(--ink-color-global-text-default);
     }
     .status-tab-count {
       display: inline-flex;
@@ -726,12 +788,12 @@
       font-size: 11px;
       font-weight: 600;
       margin-left: 6px;
-      background: rgba(255,255,255,0.2);
+      background: color-mix(in srgb, var(--ink-color-global-text-inverse) 20%, transparent);
       color: inherit;
     }
     .status-tab:not(.active) .status-tab-count {
-      background: var(--surface-underlay);
-      color: var(--text-subtle);
+      background: var(--ink-color-global-surface-background-underlay);
+      color: var(--ink-color-global-text-subtle);
     }
 
     /* === Load / error states (live artifact only) ===
@@ -740,7 +802,7 @@
     #loading-state { padding: 8px 0 32px; }
     #loading-status {
       font-size: 13px;
-      color: var(--text-subtle);
+      color: var(--ink-color-global-text-subtle);
       margin-bottom: 16px;
       min-height: 18px;
     }
@@ -749,9 +811,9 @@
       border-radius: 6px;
       margin-bottom: 8px;
       background: linear-gradient(90deg,
-        var(--surface-underlay) 25%,
-        #E8E8E8 37%,
-        var(--surface-underlay) 63%);
+        var(--ink-color-global-surface-background-underlay) 25%,
+        color-mix(in srgb, var(--ink-color-global-surface-background-underlay) 70%, var(--ink-color-global-border-default)) 37%,
+        var(--ink-color-global-surface-background-underlay) 63%);
       background-size: 400% 100%;
       animation: shimmer 1.4s ease-in-out infinite;
     }
@@ -765,32 +827,41 @@
     #error-state {
       display: none;
       padding: 24px;
-      border: 1px solid #E0E0E0;
+      border: 1px solid var(--ink-color-global-border-subtle);
       border-radius: 8px;
-      background: var(--surface-underlay);
+      background: var(--ink-color-global-surface-background-underlay);
     }
     #error-state h2 {
-      font-size: 16px;
+      font-size: var(--ink-font-global-size-heading-3);
       font-weight: 600;
       margin: 0 0 8px;
-      color: var(--text-default);
+      color: var(--ink-color-global-text-default);
     }
     #error-state p {
       font-size: 13px;
-      color: var(--text-subtle);
+      color: var(--ink-color-global-text-subtle);
       margin: 0 0 6px;
       line-height: 1.5;
+    }
+    #error-details summary {
+      font-size: 11px;
+      color: var(--ink-color-global-text-subtle);
+      cursor: pointer;
     }
     #error-detail {
       font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
       font-size: 11px;
-      color: var(--text-subtle);
+      color: var(--ink-color-global-text-subtle);
       word-break: break-word;
     }
   </style>
 </head>
 <body>
   <div class="container">
+    <svg class="carta-logo" role="img" aria-label="Carta" fill="none" viewBox="0 0 64 32" xmlns="http://www.w3.org/2000/svg">
+        <rect x="0.64" y="0.64" width="62.72" height="30.72" stroke="currentColor" stroke-width="1.28"/>
+        <path d="M8.4 16.62C8.4 13.42 11.1 11.53 13.53 11.53C15.27 11.53 16.9 12.19 17.76 13.69L16.14 14.63C15.86 14.21 15.48 13.86 15.03 13.62C14.58 13.39 14.08 13.26 13.57 13.27C12.14 13.27 10.44 14.38 10.44 16.59C10.44 18.8 12.06 19.93 13.7 19.93C14.84 19.93 15.79 19.3 16.35 18.32L18.01 19.08C17.07 20.78 15.39 21.68 13.44 21.68C10.98 21.67 8.4 19.79 8.4 16.62L8.4 16.62ZM23.94 21.68C25.29 21.68 26.56 21.08 27.22 20.22V21.4H29.23V11.78H27.22V12.97C26.6 12.1 25.29 11.53 23.94 11.53C20.98 11.53 18.92 13.68 18.92 16.6C18.92 19.52 21 21.68 23.94 21.68V21.68ZM24.13 13.36C25.99 13.36 27.26 14.74 27.26 16.6C27.26 18.47 25.99 19.85 24.13 19.85C22.28 19.85 20.96 18.45 20.96 16.57C20.96 14.68 22.28 13.36 24.13 13.36V13.36ZM40.01 13.69H37.93V11.77H40.03V9.26H42.1V11.77H44.2V13.69H42.1V21.4H40.01V13.69ZM49.96 21.68C51.32 21.68 52.59 21.08 53.25 20.22V21.4H55.26V11.78H53.25V12.97C52.62 12.1 51.32 11.53 49.96 11.53C47.01 11.53 44.94 13.68 44.94 16.6C44.94 19.52 47.03 21.68 49.96 21.68V21.68ZM50.16 13.36C52.01 13.36 53.29 14.74 53.29 16.6C53.29 18.47 52.01 19.85 50.16 19.85C48.31 19.85 46.99 18.45 46.99 16.57C46.99 14.68 48.3 13.36 50.16 13.36V13.36ZM33.77 21.39H31.69V11.77H33.6V13.56C34.07 12.5 34.78 11.8 35.94 11.75C36.18 11.74 36.41 11.75 36.65 11.77L36.62 13.7C34.96 13.7 33.77 14.59 33.77 17.07V21.4H33.77L33.77 21.39Z" fill="currentColor"/>
+      </svg>
     <div class="header" id="page-header"></div>
 
     <div id="loading-state">
@@ -805,7 +876,10 @@
     <div id="error-state">
       <h2 id="error-title">Couldn't load your SPA coverage data</h2>
       <p id="error-message"></p>
-      <p id="error-detail"></p>
+      <details id="error-details">
+        <summary>Technical details</summary>
+        <p id="error-detail"></p>
+      </details>
     </div>
 
     <div id="content-area" style="display: none">
@@ -872,7 +946,6 @@
     //   Query D — buildDrilldownSql            per-company SPA + purchaser detail (required)
     //   Query E — buildEnrichmentSql           fund / geography / SOI valuation (optional)
     //   Query T — buildStatusSql               live/exited status (optional)
-    //   Query P — buildPendingExtractionSql    pending-extraction FYI count (optional, scalar)
     //   Query O — buildOrphanedSpasSql         unmatched-SPA FYI count + names (optional, scalar)
     //   coverage — buildCoverageSpaSql         scalar count (required). totalCompanies is
     //              derived client-side from Query A's rows (below) rather than a second
@@ -892,11 +965,15 @@
     const SET_CONTEXT_TOOL = 'set_context';
     const WELCOME_TOOL = 'welcome';
 
-    // Server caps `limit` at 10,000 and signals more rows with a next_offset token
-    // in the response header. One fetch covers every real firm; the paging loop is
-    // the tail guard, not the expected path.
-    const PAGE_LIMIT = 10000;
-    const MAX_PAGES = 10;
+    // The server returns an inline page only when it is under 200 KiB (otherwise a
+    // `too_large` error) and signals more rows with a next_offset token in the
+    // response header. Pages start at PAGE_LIMIT rows and shrink on `too_large`.
+    // The first page reports total_rows, so the rest are fetched PAGE_CONCURRENCY
+    // at a time. A query planned into more than MAX_PAGES ranges fails the load
+    // rather than showing a partial row set as complete.
+    const PAGE_LIMIT = 40;
+    const PAGE_CONCURRENCY = 4;
+    const MAX_PAGES = 500;
 
     let DATA = null;
 
@@ -913,9 +990,9 @@
       document.getElementById('content-area').style.display = 'block';
     }
 
-    // `detail` carries the underlying error text. It is shown in a de-emphasized
-    // monospace line rather than hidden in the console: when a viewer reports "it
-    // won't load", the message they can copy is the whole diagnosis.
+    // `detail` carries the underlying error text. It sits in a collapsed "Technical
+    // details" fold rather than in the console: the viewer sees plain language first,
+    // and when they report "it won't load" the text they can copy is the whole diagnosis.
     function showError(message, detail) {
       document.getElementById('loading-state').style.display = 'none';
       document.getElementById('content-area').style.display = 'none';
@@ -923,6 +1000,7 @@
       el.style.display = 'block';
       document.getElementById('error-message').textContent = message;
       document.getElementById('error-detail').textContent = detail || '';
+      document.getElementById('error-details').style.display = detail ? '' : 'none';
     }
 
     // ── Carta MCP plumbing ────────────────────────────────────────────────────
@@ -933,6 +1011,13 @@
     // loose enough to survive minor wording tweaks from the MCP team.
     function isWelcomeRequiredMessage(text) {
       return typeof text === 'string' && /welcome/i.test(text);
+    }
+
+    // The text of an isError envelope. The gateway puts a wrapped command's own
+    // error in `result.result`, beside the generic message, so both are read.
+    function errorText(result) {
+      const text = (r) => (r && r.content && r.content[0] && r.content[0].text) || '';
+      return [text(result), text(result && result.result)].filter(Boolean).join(' ');
     }
 
     // Every Carta MCP call — call_tool, set_context, welcome alike — must carry
@@ -987,7 +1072,7 @@
     // above: the first caller to hit "welcome required" starts the recovery and
     // stashes the promise here; every other concurrent caller awaits this same
     // promise instead of racing its own welcome() call or giving up on a stale
-    // error. `bootstrap()` fires ~8 Carta MCP queries in one `Promise.all` — if
+    // error. `bootstrap()` fires six Carta MCP queries in one `Promise.all` — if
     // the session had actually expired, several of them can independently see
     // "welcome required" before any of their continuations get a chance to run,
     // so a plain boolean flag only rescues whichever call happens to resume
@@ -1003,8 +1088,7 @@
         _welcomeRecoveryPromise = (async () => {
           const welcomeResult = await callCartaTool(WELCOME_TOOL, {});
           if (welcomeResult && welcomeResult.isError) {
-            const msg = (welcomeResult.content && welcomeResult.content[0] && welcomeResult.content[0].text) || '<no message>';
-            throw new Error('Failed to initialize MCP session: ' + msg);
+            throw new Error('Failed to initialize MCP session: ' + (errorText(welcomeResult) || '<no message>'));
           }
         })();
       }
@@ -1022,8 +1106,7 @@
       const result = await callCartaTool(toolName, args);
       if (!result || !result.isError) return result;
 
-      const errorText = (result.content && result.content[0] && result.content[0].text) || '';
-      if (!isWelcomeRequiredMessage(errorText)) {
+      if (!isWelcomeRequiredMessage(errorText(result))) {
         return result;
       }
 
@@ -1043,8 +1126,7 @@
         throw new Error('Unexpected response shape: ' + (typeof result));
       }
       if (result.isError) {
-        const msg = (result.content && result.content[0] && result.content[0].text) || '<no message>';
-        throw new Error(msg);
+        throw new Error(errorText(result) || '<no message>');
       }
       if (result.content && Array.isArray(result.content) && result.content[0] && typeof result.content[0].text === 'string') {
         return result.content[0].text;
@@ -1079,7 +1161,8 @@
     function parseNdjson(text) {
       const rows = [];
       let nextOffset = null;
-      if (!text) return { rows, nextOffset };
+      let totalRows = null;
+      if (!text) return { rows, nextOffset, totalRows };
 
       let body = text;
       const stripped = text.trimStart();
@@ -1087,6 +1170,8 @@
       if (firstLine.startsWith('total_rows:') && text.includes('\n\n')) {
         const m = firstLine.match(/next_offset:\s*(\d+)/);
         if (m) nextOffset = parseInt(m[1], 10);
+        const t = firstLine.match(/total_rows:\s*([\d,]+)/);
+        if (t) totalRows = parseInt(t[1].replace(/,/g, ''), 10);
         body = text.slice(text.indexOf('\n\n') + 2);
       }
 
@@ -1100,38 +1185,116 @@
           console.warn('parseNdjson: skipping malformed line', e);
         }
       }
-      return { rows, nextOffset };
+      return { rows, nextOffset, totalRows };
     }
 
-    // Runs one query to exhaustion. `buildSql` takes (offset, limit). One fetch
-    // covers every real firm — the loop only engages if the server reports
-    // next_offset, and stops at MAX_PAGES so a misbehaving header can't spin.
-    async function fetchAllRows(buildSql, label) {
-      const all = [];
-      let offset = 0;
-      for (let page = 0; page < MAX_PAGES; page++) {
-        const result = await callMcpWithWelcomeRetry(CALL_TOOL, {
-          name: 'dwh__execute__query',
-          arguments: {
-            sql: buildSql(offset, PAGE_LIMIT),
-            format: 'ndjson',
-            // The server infers delivery shape from clientInfo.name, which cannot
-            // distinguish clients that accept a binary blob from those that reject
-            // it. `inline` forces the always-safe plain-string path.
-            response_mode: 'inline',
-            limit: PAGE_LIMIT,
-          },
-        });
-        const { rows, nextOffset } = parseNdjson(unwrapEnvelope(unwrapResponse(result)));
-        all.push(...rows);
-        if (nextOffset === null || rows.length === 0) return all;
-        offset = nextOffset;
+    // `too_large` is the server's "this page is over the inline ceiling" error;
+    // its fix text names a row count that fits ("lower the limit param to about 48").
+    // Returns the smaller limit to retry with, or null when the error is something
+    // else or the page is already a single row.
+    function shrunkLimit(message, limit) {
+      if (!/"code"\s*:\s*"too_large"/.test(message) || limit <= 1) return null;
+      const m = message.match(/limit param to about (\d+)/);
+      const suggested = m ? parseInt(m[1], 10) : limit;
+      return Math.max(1, Math.min(suggested, Math.floor(limit / 2)));
+    }
+
+    // Runs one query to exhaustion. The SQL carries no LIMIT or OFFSET: the server
+    // pages it from the `limit` / `offset` arguments. The first page is fetched
+    // alone, to learn total_rows and a page size that fits. The remaining ranges
+    // then run PAGE_CONCURRENCY at a time and are joined in offset order. A page
+    // that comes back `too_large` is retried at the same offset with fewer rows,
+    // and the smaller size is kept for the rest of the query. It returns every row
+    // of the query or rejects: a query needing more than MAX_PAGES pages, or any
+    // page that fails, fails the load, and no call for that query starts after that.
+    // `onProgress(loaded, total)` hears the running row count after every page.
+    async function fetchAllRows(buildSql, label, onProgress = () => {}) {
+      const sql = buildSql();
+      let limit = PAGE_LIMIT;
+      let failed = false;
+      let loaded = 0;
+      let total = null;
+
+      async function fetchPage(offset, count) {
+        for (;;) {
+          if (failed) throw new Error(label + ': stopped after a failed page');
+          const sent = Math.min(limit, count);
+          const result = await callMcpWithWelcomeRetry(CALL_TOOL, {
+            name: 'dwh__execute__query',
+            arguments: {
+              sql,
+              format: 'ndjson',
+              // The server infers delivery shape from clientInfo.name, which cannot
+              // distinguish clients that accept a binary blob from those that reject
+              // it. `inline` forces the always-safe plain-string path.
+              response_mode: 'inline',
+              limit: sent,
+              offset,
+            },
+          });
+          try {
+            return parseNdjson(unwrapEnvelope(unwrapResponse(result)));
+          } catch (error) {
+            const smaller = shrunkLimit(error.message || '', sent);
+            if (smaller === null) throw error;
+            // Concurrent pages sent at the old size fail together; only the first
+            // to report shrinks, the rest retry at the size it set.
+            limit = Math.min(limit, smaller);
+          }
+        }
       }
-      console.warn(label + ': hit MAX_PAGES (' + MAX_PAGES + '); results may be truncated.');
-      return all;
+
+      // Every row of [start, end), paged at the current size.
+      async function fetchRange(start, end) {
+        const rows = [];
+        let offset = start;
+        while (offset < end) {
+          const page = await fetchPage(offset, end - offset);
+          if (page.rows.length === 0) throw new Error(label + ': empty page at offset ' + offset);
+          rows.push(...page.rows);
+          offset += page.rows.length;
+          loaded += page.rows.length;
+          onProgress(loaded, total);
+        }
+        return rows;
+      }
+
+      const first = await fetchPage(0, Infinity);
+      loaded = first.rows.length;
+      if (first.nextOffset === null) {
+        onProgress(loaded, loaded);
+        return first.rows;
+      }
+      if (first.rows.length === 0) throw new Error(label + ': empty first page with more rows pending');
+      if (first.totalRows === null) throw new Error(label + ': next_offset without total_rows');
+      total = first.totalRows;
+      onProgress(loaded, total);
+
+      const ranges = [];
+      for (let start = first.nextOffset; start < first.totalRows; start += limit) {
+        ranges.push([start, Math.min(start + limit, first.totalRows)]);
+      }
+      if (ranges.length > MAX_PAGES) {
+        throw new Error(label + ': more than ' + MAX_PAGES + ' pages; results incomplete');
+      }
+      const pages = new Array(ranges.length);
+      let nextRange = 0;
+      async function worker() {
+        while (nextRange < ranges.length) {
+          const i = nextRange++;
+          try {
+            pages[i] = await fetchRange(ranges[i][0], ranges[i][1]);
+          } catch (error) {
+            failed = true;
+            throw error;
+          }
+        }
+      }
+      await Promise.all(Array.from({ length: Math.min(PAGE_CONCURRENCY, ranges.length) }, worker));
+      return first.rows.concat(...pages);
     }
 
-    // Query P, Query O, and the two coverage counts each return exactly one row —
+    // Query O and the coverage count each return exactly one row —
     // no pagination needed, just one call and a column read.
     async function fetchScalarRow(sql) {
       const result = await callMcpWithWelcomeRetry(CALL_TOOL, {
@@ -1163,24 +1326,24 @@
     // how a UUID or join key silently corrupts.
 
     // Query A — the main four-bucket audit. Identical to Mode B Step B1's query.
-    function buildAuditSql(offset, limit) {
-      return `WITH spa_issuers AS (SELECT ATTRIBUTES:name::STRING AS ISSUER_NAME, ATTRIBUTES:executed_by_issuer::BOOLEAN AS EXECUTED_BY_ISSUER FROM FUND_ADMIN.DOCUMENT_AI_RECORD WHERE FIRM_ID = '${FIRM_UUID}' AND DOCUMENT_TYPE = 'stock_purchase_agreement' AND RECORD_TYPE = 'company' AND ATTRIBUTES:name::STRING IS NOT NULL), norm_spa AS (SELECT ISSUER_NAME AS spa_name, TRIM(REGEXP_REPLACE(TRIM(REGEXP_REPLACE(TRIM(REGEXP_REPLACE(TRIM(REGEXP_REPLACE(UPPER(ISSUER_NAME), ' *[(][^)]*[)].*$', '')), ' +(D/?B/?A|F/?K/?A|AKA) +.*$', '')), '([ ,]+(INCORPORATED|INC|LLC|LTD|LIMITED|CORPORATION|CORP|L[.]P[.]|LLP|LP|PBC|PLC|CO[.]?|HOLDINGS|TECHNOLOGIES|TECHNOLOGY)[.]?)+ *$', '')), '[,.]', '')) AS name_norm, MAX(CASE WHEN EXECUTED_BY_ISSUER = TRUE THEN 1 ELSE 0 END) AS has_executed_spa FROM spa_issuers GROUP BY ISSUER_NAME), norm_investments_base AS (SELECT ISSUER_NAME, MAX(CASE WHEN ASSET_CLASS_TYPE = 'PREFERRED_EQUITY' THEN 1 ELSE 0 END) AS has_preferred, MAX(CASE WHEN ASSET_CLASS_TYPE = 'COMMON_EQUITY' THEN 1 ELSE 0 END) AS has_common, MIN(INVESTMENT_DATE) AS first_invested, SUM(CASE WHEN IS_FOREIGN_CURRENCY_INVESTMENT THEN BASE_CURRENCY_TOTAL_COST ELSE TOTAL_COST END) AS total_cost_basis, COUNT(DISTINCT CASE WHEN IS_FOREIGN_CURRENCY_INVESTMENT THEN BASE_CURRENCY_CODE ELSE CURRENCY_CODE END) AS currency_count, MAX(CASE WHEN IS_FOREIGN_CURRENCY_INVESTMENT THEN BASE_CURRENCY_CODE ELSE CURRENCY_CODE END) AS currency_code, TRIM(REGEXP_REPLACE(TRIM(REGEXP_REPLACE(TRIM(REGEXP_REPLACE(TRIM(REGEXP_REPLACE(UPPER(ISSUER_NAME), ' *[(][^)]*[)].*$', '')), ' +(D/?B/?A|F/?K/?A|AKA) +.*$', '')), '([ ,]+(INCORPORATED|INC|LLC|LTD|LIMITED|CORPORATION|CORP|L[.]P[.]|LLP|LP|PBC|PLC|CO[.]?|HOLDINGS|TECHNOLOGIES|TECHNOLOGY)[.]?)+ *$', '')), '[,.]', '')) AS name_norm, COALESCE(REGEXP_SUBSTR(ISSUER_NAME, '[(] *(D[.]?/?B[.]?/?A[.]?|F[.]?/?K[.]?/?A[.]?|N[.]?/?K[.]?/?A[.]?|A[.]?K[.]?A[.]?|FORMERLY( +KNOWN +AS)?)[ :]+([^)]+)[)]', 1, 1, 'ie', 3), REGEXP_SUBSTR(ISSUER_NAME, '[(]([^)]+)[)]', 1, 1, 'e', 1)) AS alias_raw FROM FUND_ADMIN.AGGREGATE_INVESTMENTS WHERE FIRM_ID = '${FIRM_UUID}' GROUP BY ISSUER_NAME), norm_investments AS (SELECT ISSUER_NAME, has_preferred, has_common, first_invested, total_cost_basis, currency_count, currency_code, name_norm, 0 AS is_alias FROM norm_investments_base UNION ALL SELECT ISSUER_NAME, has_preferred, has_common, first_invested, total_cost_basis, currency_count, currency_code, TRIM(REGEXP_REPLACE(TRIM(REGEXP_REPLACE(UPPER(alias_raw), '([ ,]+(INCORPORATED|INC|LLC|LTD|LIMITED|CORPORATION|CORP|L[.]P[.]|LLP|LP|PBC|PLC|CO[.]?|HOLDINGS|TECHNOLOGIES|TECHNOLOGY)[.]?)+ *$', '')), '[,.]', '')) AS name_norm, 1 AS is_alias FROM norm_investments_base WHERE alias_raw IS NOT NULL AND TRIM(alias_raw) <> ''), fuzzy_matched AS (SELECT i.ISSUER_NAME, i.has_preferred, i.has_common, i.first_invested, i.total_cost_basis, i.currency_count, i.currency_code, s.spa_name, s.has_executed_spa, ROW_NUMBER() OVER (PARTITION BY i.ISSUER_NAME ORDER BY JAROWINKLER_SIMILARITY(i.name_norm, s.name_norm) DESC NULLS LAST, s.has_executed_spa DESC, i.is_alias, s.spa_name) AS rn FROM norm_investments i LEFT JOIN norm_spa s ON JAROWINKLER_SIMILARITY(i.name_norm, s.name_norm) >= 90), best AS (SELECT * FROM fuzzy_matched WHERE rn = 1), labeled AS (SELECT CASE WHEN has_preferred = 0 AND has_common = 0 THEN 4 WHEN spa_name IS NULL THEN 1 WHEN has_executed_spa = 0 THEN 2 ELSE 3 END AS sort_key, CASE WHEN has_preferred = 0 AND has_common = 0 THEN '4. No SPA needed' WHEN spa_name IS NULL THEN '1. Missing SPA' WHEN has_executed_spa = 0 THEN '2. SPA not executed' ELSE '3. Executed SPA' END AS spa_bucket, ISSUER_NAME AS company, spa_name, first_invested, total_cost_basis, currency_count, currency_code FROM best) SELECT spa_bucket, company, spa_name, first_invested, total_cost_basis, currency_count, currency_code FROM labeled ORDER BY sort_key, total_cost_basis DESC NULLS LAST, company LIMIT ${limit} OFFSET ${offset}`;
+    function buildAuditSql() {
+      return `WITH spa_issuers AS (SELECT ISSUER_NAME, EXECUTED_BY_ISSUER FROM (SELECT CASE WHEN TYPEOF(RAW_JSON:company:name) = 'OBJECT' AND RAW_JSON:company:name:value::STRING IS NOT NULL THEN RAW_JSON:company:name:value::STRING WHEN TYPEOF(RAW_JSON:company:name) = 'VARCHAR' THEN RAW_JSON:company:name::STRING ELSE ATTRIBUTES:name::STRING END AS ISSUER_NAME, CASE WHEN TYPEOF(RAW_JSON:company:executed_by_issuer) = 'OBJECT' AND TRY_TO_BOOLEAN(RAW_JSON:company:executed_by_issuer:value::VARCHAR) IS NOT NULL THEN TRY_TO_BOOLEAN(RAW_JSON:company:executed_by_issuer:value::VARCHAR) WHEN TYPEOF(RAW_JSON:company:executed_by_issuer) = 'BOOLEAN' THEN TRY_TO_BOOLEAN(RAW_JSON:company:executed_by_issuer::VARCHAR) ELSE ATTRIBUTES:executed_by_issuer::BOOLEAN END AS EXECUTED_BY_ISSUER FROM FUND_ADMIN.DOCUMENT_AI_RECORD WHERE FIRM_ID = '${FIRM_UUID}' AND DOCUMENT_TYPE = 'stock_purchase_agreement' AND RECORD_TYPE = 'company') WHERE ISSUER_NAME IS NOT NULL), norm_spa AS (SELECT ISSUER_NAME AS spa_name, TRIM(REGEXP_REPLACE(TRIM(REGEXP_REPLACE(TRIM(REGEXP_REPLACE(TRIM(REGEXP_REPLACE(UPPER(ISSUER_NAME), ' *[(][^)]*[)].*$', '')), ' +(D[.]?/?B[.]?/?A[.]?|F[.]?/?K[.]?/?A[.]?|N[.]?/?K[.]?/?A[.]?|A[.]?K[.]?A[.]?|FORMERLY( +KNOWN +AS)?) +.*$', '')), '([ ,]+(INCORPORATED|INC|LLC|LTD|LIMITED|CORPORATION|CORP|L[.]P[.]|LLP|LP|PBC|PLC|CO[.]?|HOLDINGS? +COMPANY|HOLDINGS?|TECHNOLOGIES|TECHNOLOGY|TECH)[.]?)+ *$', '')), '[,.]', '')) AS name_norm, MAX(CASE WHEN EXECUTED_BY_ISSUER = TRUE THEN 1 ELSE 0 END) AS has_executed_spa FROM spa_issuers GROUP BY ISSUER_NAME), norm_investments_base AS (SELECT ISSUER_NAME, MAX(CASE WHEN ASSET_CLASS_TYPE = 'PREFERRED_EQUITY' THEN 1 ELSE 0 END) AS has_preferred, MAX(CASE WHEN ASSET_CLASS_TYPE = 'COMMON_EQUITY' THEN 1 ELSE 0 END) AS has_common, MIN(INVESTMENT_DATE) AS first_invested, SUM(CASE WHEN IS_FOREIGN_CURRENCY_INVESTMENT THEN BASE_CURRENCY_TOTAL_COST ELSE TOTAL_COST END) AS total_cost_basis, COUNT(DISTINCT CURRENCY_CODE) AS currency_count, MAX(CURRENCY_CODE) AS currency_code, TRIM(REGEXP_REPLACE(TRIM(REGEXP_REPLACE(TRIM(REGEXP_REPLACE(TRIM(REGEXP_REPLACE(UPPER(ISSUER_NAME), ' *[(][^)]*[)].*$', '')), ' +(D[.]?/?B[.]?/?A[.]?|F[.]?/?K[.]?/?A[.]?|N[.]?/?K[.]?/?A[.]?|A[.]?K[.]?A[.]?|FORMERLY( +KNOWN +AS)?) +.*$', '')), '([ ,]+(INCORPORATED|INC|LLC|LTD|LIMITED|CORPORATION|CORP|L[.]P[.]|LLP|LP|PBC|PLC|CO[.]?|HOLDINGS? +COMPANY|HOLDINGS?|TECHNOLOGIES|TECHNOLOGY|TECH)[.]?)+ *$', '')), '[,.]', '')) AS name_norm, COALESCE(REGEXP_SUBSTR(ISSUER_NAME, '[(] *(D[.]?/?B[.]?/?A[.]?|F[.]?/?K[.]?/?A[.]?|N[.]?/?K[.]?/?A[.]?|A[.]?K[.]?A[.]?|FORMERLY( +KNOWN +AS)?)[ :]+([^)]+)[)]', 1, 1, 'ie', 3), IFF(REGEXP_LIKE(UPPER(TRIM(REGEXP_SUBSTR(ISSUER_NAME, '[(]([^)]+)[)]', 1, 1, 'e', 1))), '(.{0,2}|[0-9].*|SERIES.*|.*COMPANY|HELD .*|INVESTMENT .*|HOLDINGS?|GROUP|CAYMAN|BVI|PTY|DELAWARE|OFFSHORE|ONSHORE|FEEDER)'), NULL, REGEXP_SUBSTR(ISSUER_NAME, '[(]([^)]+)[)]', 1, 1, 'e', 1)), REGEXP_SUBSTR(ISSUER_NAME, '[ ,]+(D[.]?/?B[.]?/?A[.]?|F[.]?/?K[.]?/?A[.]?|N[.]?/?K[.]?/?A[.]?|A[.]?K[.]?A[.]?|FORMERLY( +KNOWN +AS)?)[ :]+([^(]+)', 1, 1, 'ie', 3)) AS alias_raw FROM FUND_ADMIN.AGGREGATE_INVESTMENTS WHERE FIRM_ID = '${FIRM_UUID}' GROUP BY ISSUER_NAME), norm_investments AS (SELECT ISSUER_NAME, has_preferred, has_common, first_invested, total_cost_basis, currency_count, currency_code, name_norm, 0 AS is_alias FROM norm_investments_base UNION ALL SELECT ISSUER_NAME, has_preferred, has_common, first_invested, total_cost_basis, currency_count, currency_code, TRIM(REGEXP_REPLACE(TRIM(REGEXP_REPLACE(UPPER(alias_raw), '([ ,]+(INCORPORATED|INC|LLC|LTD|LIMITED|CORPORATION|CORP|L[.]P[.]|LLP|LP|PBC|PLC|CO[.]?|HOLDINGS? +COMPANY|HOLDINGS?|TECHNOLOGIES|TECHNOLOGY|TECH)[.]?)+ *$', '')), '[,.]', '')) AS name_norm, 1 AS is_alias FROM norm_investments_base WHERE alias_raw IS NOT NULL AND TRIM(alias_raw) <> ''), fuzzy_matched AS (SELECT i.ISSUER_NAME, i.has_preferred, i.has_common, i.first_invested, i.total_cost_basis, i.currency_count, i.currency_code, s.spa_name, s.has_executed_spa, ROW_NUMBER() OVER (PARTITION BY i.ISSUER_NAME ORDER BY JAROWINKLER_SIMILARITY(i.name_norm, s.name_norm) DESC NULLS LAST, s.has_executed_spa DESC, i.is_alias, s.spa_name) AS rn FROM norm_investments i LEFT JOIN norm_spa s ON JAROWINKLER_SIMILARITY(i.name_norm, s.name_norm) >= 90), best AS (SELECT * FROM fuzzy_matched WHERE rn = 1), labeled AS (SELECT CASE WHEN has_preferred = 0 AND has_common = 0 THEN '4. No SPA needed' WHEN spa_name IS NULL THEN '1. Missing SPA' WHEN has_executed_spa = 0 THEN '2. SPA not executed' ELSE '3. Executed SPA' END AS spa_bucket, ISSUER_NAME AS company, spa_name, first_invested, total_cost_basis, currency_count, currency_code FROM best) SELECT spa_bucket, company, spa_name, first_invested, total_cost_basis, currency_count, currency_code FROM labeled ORDER BY spa_bucket, total_cost_basis DESC NULLS LAST, company`;
     }
 
     // Query D — per-company SPA drill-down (batch, all companies). SPAS_JSON
     // nests every SPA + purchaser breakdown as a compact JSON string, decoded by
     // buildCompanies() below (short keys num/sc/td/ud/cc/ex/p for SPAs, n/t/sh/pp/a
     // for purchasers).
-    function buildDrilldownSql(offset, limit) {
-      return `WITH gen_rec AS (SELECT DOCUMENT_ID, RECORD_TYPE, ATTRIBUTES, CREATED_AT FROM FUND_ADMIN.DOCUMENT_AI_RECORD WHERE FIRM_ID = '${FIRM_UUID}' AND DOCUMENT_TYPE = 'stock_purchase_agreement'), spa_docs AS (SELECT c.DOCUMENT_ID, c.ATTRIBUTES:name::STRING AS ISSUER_NAME, c.ATTRIBUTES:executed_by_issuer::BOOLEAN AS EXECUTED_BY_ISSUER, TRY_TO_DATE(e.ATTRIBUTES:closing_dates[0]::STRING) AS CLOSING_DATE, IFF(REGEXP_LIKE(e.ATTRIBUTES:currency_code::STRING, '^[A-Z]{3}$'), e.ATTRIBUTES:currency_code::STRING, NULL) AS CURRENCY_CODE, c.CREATED_AT::DATE AS UPLOAD_DATE FROM gen_rec c LEFT JOIN gen_rec e ON e.DOCUMENT_ID = c.DOCUMENT_ID AND e.RECORD_TYPE = 'stock_purchase' WHERE c.RECORD_TYPE = 'company' AND c.ATTRIBUTES:name::STRING IS NOT NULL), gen_purch AS (SELECT DOCUMENT_ID, ATTRIBUTES:name::STRING AS PURCHASER_NAME, ATTRIBUTES:entity_type::STRING AS ENTITY_TYPE, ATTRIBUTES:share_class_name::STRING AS SHARE_CLASS_NAME, ATTRIBUTES:shares_purchased_by_cash::NUMBER AS SHARES_PURCHASED, ATTRIBUTES:price_per_share::NUMBER AS PRICE_PER_SHARE, ATTRIBUTES:total_amount_paid::NUMBER AS TOTAL_AMOUNT_PAID FROM gen_rec WHERE RECORD_TYPE = 'investor'), purchaser_rows AS (SELECT sd.ISSUER_NAME, DENSE_RANK() OVER (PARTITION BY sd.ISSUER_NAME ORDER BY sd.DOCUMENT_ID) AS spa_num, sd.CLOSING_DATE, sd.CURRENCY_CODE, sd.UPLOAD_DATE AS upload_date, gp.SHARE_CLASS_NAME, gp.PURCHASER_NAME, gp.ENTITY_TYPE, gp.SHARES_PURCHASED, gp.PRICE_PER_SHARE, gp.TOTAL_AMOUNT_PAID, sd.EXECUTED_BY_ISSUER FROM spa_docs sd LEFT JOIN gen_purch gp ON gp.DOCUMENT_ID = sd.DOCUMENT_ID AND (gp.ENTITY_TYPE IS NULL OR (gp.ENTITY_TYPE NOT ILIKE '%notice%' AND gp.ENTITY_TYPE NOT ILIKE '%law firm%'))), per_spa AS (SELECT ISSUER_NAME, spa_num, ANY_VALUE(CLOSING_DATE) AS transaction_date, ANY_VALUE(upload_date) AS upload_date, ANY_VALUE(CURRENCY_CODE) AS currency_code, ANY_VALUE(SHARE_CLASS_NAME) AS share_class, MAX(CASE WHEN EXECUTED_BY_ISSUER = TRUE THEN 1 ELSE 0 END) = 1 AS executed, ARRAY_AGG(OBJECT_CONSTRUCT('n', PURCHASER_NAME, 't', ENTITY_TYPE, 'sh', SHARES_PURCHASED, 'pp', PRICE_PER_SHARE, 'a', TOTAL_AMOUNT_PAID)) WITHIN GROUP (ORDER BY SHARES_PURCHASED DESC NULLS LAST, PURCHASER_NAME) AS purchasers FROM purchaser_rows GROUP BY ISSUER_NAME, spa_num) SELECT ISSUER_NAME, TO_JSON(ARRAY_AGG(OBJECT_CONSTRUCT('num', spa_num, 'sc', share_class, 'td', transaction_date, 'ud', upload_date, 'cc', currency_code, 'ex', executed, 'p', purchasers)) WITHIN GROUP (ORDER BY spa_num)) AS SPAS_JSON FROM per_spa GROUP BY ISSUER_NAME ORDER BY ISSUER_NAME LIMIT ${limit} OFFSET ${offset}`;
+    function buildDrilldownSql() {
+      return `WITH gen_rec AS (SELECT EXTRACTION_ID, RECORD_TYPE, ATTRIBUTES, RAW_JSON, CREATED_AT FROM FUND_ADMIN.DOCUMENT_AI_RECORD WHERE FIRM_ID = '${FIRM_UUID}' AND DOCUMENT_TYPE = 'stock_purchase_agreement'), spa_docs AS (SELECT EXTRACTION_ID, ISSUER_NAME, EXECUTED_BY_ISSUER, CLOSING_DATE, CURRENCY_CODE, UPLOAD_DATE FROM (SELECT c.EXTRACTION_ID, CASE WHEN TYPEOF(c.RAW_JSON:company:name) = 'OBJECT' AND c.RAW_JSON:company:name:value::STRING IS NOT NULL THEN c.RAW_JSON:company:name:value::STRING WHEN TYPEOF(c.RAW_JSON:company:name) = 'VARCHAR' THEN c.RAW_JSON:company:name::STRING ELSE c.ATTRIBUTES:name::STRING END AS ISSUER_NAME, CASE WHEN TYPEOF(c.RAW_JSON:company:executed_by_issuer) = 'OBJECT' AND TRY_TO_BOOLEAN(c.RAW_JSON:company:executed_by_issuer:value::VARCHAR) IS NOT NULL THEN TRY_TO_BOOLEAN(c.RAW_JSON:company:executed_by_issuer:value::VARCHAR) WHEN TYPEOF(c.RAW_JSON:company:executed_by_issuer) = 'BOOLEAN' THEN TRY_TO_BOOLEAN(c.RAW_JSON:company:executed_by_issuer::VARCHAR) ELSE c.ATTRIBUTES:executed_by_issuer::BOOLEAN END AS EXECUTED_BY_ISSUER, TRY_TO_DATE(e.ATTRIBUTES:closing_dates[0]::STRING) AS CLOSING_DATE, IFF(REGEXP_LIKE(e.ATTRIBUTES:currency_code::STRING, '^[A-Z]{3}$'), e.ATTRIBUTES:currency_code::STRING, NULL) AS CURRENCY_CODE, c.CREATED_AT::DATE AS UPLOAD_DATE FROM gen_rec c LEFT JOIN gen_rec e ON e.EXTRACTION_ID = c.EXTRACTION_ID AND e.RECORD_TYPE = 'stock_purchase' WHERE c.RECORD_TYPE = 'company') WHERE ISSUER_NAME IS NOT NULL), gen_purch AS (SELECT EXTRACTION_ID, ATTRIBUTES:name::STRING AS PURCHASER_NAME, ATTRIBUTES:entity_type::STRING AS ENTITY_TYPE, ATTRIBUTES:share_class_name::STRING AS SHARE_CLASS_NAME, ATTRIBUTES:shares_purchased_by_cash::NUMBER AS SHARES_PURCHASED, ATTRIBUTES:price_per_share::NUMBER(38, 6) AS PRICE_PER_SHARE, ATTRIBUTES:total_amount_paid::NUMBER(38, 2) AS TOTAL_AMOUNT_PAID FROM gen_rec WHERE RECORD_TYPE = 'investor'), purchaser_rows AS (SELECT sd.ISSUER_NAME, DENSE_RANK() OVER (PARTITION BY sd.ISSUER_NAME ORDER BY sd.EXTRACTION_ID) AS spa_num, sd.CLOSING_DATE, sd.CURRENCY_CODE, sd.UPLOAD_DATE AS upload_date, gp.SHARE_CLASS_NAME, gp.PURCHASER_NAME, gp.ENTITY_TYPE, gp.SHARES_PURCHASED, gp.PRICE_PER_SHARE, gp.TOTAL_AMOUNT_PAID, sd.EXECUTED_BY_ISSUER FROM spa_docs sd LEFT JOIN gen_purch gp ON gp.EXTRACTION_ID = sd.EXTRACTION_ID AND (gp.ENTITY_TYPE IS NULL OR (gp.ENTITY_TYPE NOT ILIKE '%notice%' AND gp.ENTITY_TYPE NOT ILIKE '%law firm%'))), per_spa AS (SELECT ISSUER_NAME, spa_num, ANY_VALUE(CLOSING_DATE) AS transaction_date, ANY_VALUE(upload_date) AS upload_date, ANY_VALUE(CURRENCY_CODE) AS currency_code, ANY_VALUE(SHARE_CLASS_NAME) AS share_class, MAX(CASE WHEN EXECUTED_BY_ISSUER = TRUE THEN 1 ELSE 0 END) = 1 AS executed, ARRAY_AGG(OBJECT_CONSTRUCT('n', PURCHASER_NAME, 't', ENTITY_TYPE, 'sh', SHARES_PURCHASED, 'pp', PRICE_PER_SHARE, 'a', TOTAL_AMOUNT_PAID)) WITHIN GROUP (ORDER BY SHARES_PURCHASED DESC NULLS LAST, PURCHASER_NAME) AS purchasers FROM purchaser_rows GROUP BY ISSUER_NAME, spa_num) SELECT ISSUER_NAME, TO_JSON(ARRAY_AGG(OBJECT_CONSTRUCT('num', spa_num, 'sc', share_class, 'td', transaction_date, 'ud', upload_date, 'cc', currency_code, 'ex', executed, 'p', purchasers)) WITHIN GROUP (ORDER BY spa_num)) AS SPAS_JSON FROM per_spa GROUP BY ISSUER_NAME ORDER BY ISSUER_NAME`;
     }
 
     // Query E — fund / geography / SOI valuation enrichment. Optional: never let
     // it fail the audit. IS_ACTIVE_INVESTMENT = TRUE scopes to positions with
     // remaining value, so a fully-exited company returns no row (correctly
     // degrading to funds=[], regionTag='—', soiValuation=null).
-    function buildEnrichmentSql(offset, limit) {
-      return `SELECT ISSUER_NAME AS COMPANY, ARRAY_AGG(DISTINCT FUND_NAME) WITHIN GROUP (ORDER BY FUND_NAME) AS FUNDS, MAX(GET(GET(TAGS_JSON, '  Region'), 0)::STRING) AS REGION_TAG, SUM(CASE WHEN IS_FOREIGN_CURRENCY_INVESTMENT THEN BASE_CURRENCY_REMAINING_VALUE ELSE REMAINING_VALUE END) AS SOI_VALUATION, COUNT(DISTINCT CASE WHEN IS_FOREIGN_CURRENCY_INVESTMENT THEN BASE_CURRENCY_CODE ELSE CURRENCY_CODE END) AS SOI_CURRENCY_COUNT, MAX(CASE WHEN IS_FOREIGN_CURRENCY_INVESTMENT THEN BASE_CURRENCY_CODE ELSE CURRENCY_CODE END) AS SOI_CURRENCY_CODE FROM FUND_ADMIN.AGGREGATE_INVESTMENTS WHERE FIRM_ID = '${FIRM_UUID}' AND IS_ACTIVE_INVESTMENT = TRUE GROUP BY ISSUER_NAME ORDER BY ISSUER_NAME LIMIT ${limit} OFFSET ${offset}`;
+    function buildEnrichmentSql() {
+      return `SELECT ISSUER_NAME AS COMPANY, ARRAY_AGG(DISTINCT FUND_NAME) WITHIN GROUP (ORDER BY FUND_NAME) AS FUNDS, MAX(GET(GET(TAGS_JSON, '  Region'), 0)::STRING) AS REGION_TAG, SUM(CASE WHEN IS_FOREIGN_CURRENCY_INVESTMENT THEN BASE_CURRENCY_REMAINING_VALUE ELSE REMAINING_VALUE END) AS SOI_VALUATION, COUNT(DISTINCT CURRENCY_CODE) AS SOI_CURRENCY_COUNT, MAX(CURRENCY_CODE) AS SOI_CURRENCY_CODE FROM FUND_ADMIN.AGGREGATE_INVESTMENTS WHERE FIRM_ID = '${FIRM_UUID}' AND IS_ACTIVE_INVESTMENT = TRUE GROUP BY ISSUER_NAME ORDER BY COMPANY`;
     }
 
     // Query T — live/exited status per company. Optional: disables the
@@ -1197,28 +1360,20 @@
     // needed" counted correctly under All but read 0 under Live and 0 under
     // Exited. Query T's scope must match Query A's, not a narrower one.
     //
-    // GROUP BY collapses to one row per company, so widening the asset-class
-    // scope still returns fewer rows than the old per-position query — that
-    // keeps us clear of the MAX_PAGES truncation ceiling.
+    // GROUP BY returns one row per company, so ISSUER_NAME is a unique ORDER BY
+    // key: offset paging returns each row once only when the sort key is unique.
     //
     // `IS_ACTIVE_INVESTMENT IS NOT NULL` is load-bearing: a company whose
     // positions carry no status at all stays absent from the map (unchanged
     // behaviour) rather than folding to false and being mislabelled as exited.
-    function buildStatusSql(offset, limit) {
-      return `SELECT ISSUER_NAME, MAX(CASE WHEN IS_ACTIVE_INVESTMENT = TRUE THEN 1 ELSE 0 END) AS IS_ACTIVE_INVESTMENT FROM FUND_ADMIN.AGGREGATE_INVESTMENTS WHERE FIRM_ID = '${FIRM_UUID}' AND ISSUER_NAME IS NOT NULL AND IS_ACTIVE_INVESTMENT IS NOT NULL GROUP BY ISSUER_NAME ORDER BY ISSUER_NAME LIMIT ${limit} OFFSET ${offset}`;
-    }
-
-    // Query P — pending-extraction count (FYI pill). Scalar, single row, no
-    // pagination. Cross-database read into PROD_DOCUMENT_AI_DB — optional, and
-    // not every firm context has the grant.
-    function buildPendingExtractionSql() {
-      return `SELECT COUNT(DISTINCT document_id) AS pending_extraction_docs FROM PROD_DOCUMENT_AI_DB.DOCUMENT_AI.documents_metadata WHERE owner_id = '${FIRM_UUID}' AND owner_type = 'firm' AND document_type = 'Stock Purchase Agreement (SPA)' AND (extracted_at IS NULL OR enriched_at IS NULL)`;
+    function buildStatusSql() {
+      return `SELECT ISSUER_NAME, MAX(CASE WHEN IS_ACTIVE_INVESTMENT = TRUE THEN 1 ELSE 0 END) AS IS_ACTIVE_INVESTMENT FROM FUND_ADMIN.AGGREGATE_INVESTMENTS WHERE FIRM_ID = '${FIRM_UUID}' AND ISSUER_NAME IS NOT NULL AND IS_ACTIVE_INVESTMENT IS NOT NULL GROUP BY ISSUER_NAME ORDER BY ISSUER_NAME`;
     }
 
     // Query O — orphaned-SPA count + names (FYI pill). Scalar, single row, no
     // pagination.
     function buildOrphanedSpasSql() {
-      return `WITH norm_spa AS (SELECT ISSUER_NAME, TRIM(REGEXP_REPLACE(TRIM(REGEXP_REPLACE(TRIM(REGEXP_REPLACE(TRIM(REGEXP_REPLACE(UPPER(ISSUER_NAME), ' *[(][^)]*[)].*$', '')), ' +(D/?B/?A|F/?K/?A|AKA) +.*$', '')), '([ ,]+(INCORPORATED|INC|LLC|LTD|LIMITED|CORPORATION|CORP|L[.]P[.]|LLP|LP|PBC|PLC|CO[.]?|HOLDINGS|TECHNOLOGIES|TECHNOLOGY)[.]?)+ *$', '')), '[,.]', '')) AS name_norm FROM (SELECT ATTRIBUTES:name::STRING AS ISSUER_NAME FROM FUND_ADMIN.DOCUMENT_AI_RECORD WHERE FIRM_ID = '${FIRM_UUID}' AND DOCUMENT_TYPE = 'stock_purchase_agreement' AND RECORD_TYPE = 'company' AND ATTRIBUTES:name::STRING IS NOT NULL) GROUP BY ISSUER_NAME), norm_inv_base AS (SELECT ISSUER_NAME, MAX(CASE WHEN ASSET_CLASS_TYPE IN ('PREFERRED_EQUITY', 'COMMON_EQUITY') THEN 1 ELSE 0 END) AS is_equity, TRIM(REGEXP_REPLACE(TRIM(REGEXP_REPLACE(TRIM(REGEXP_REPLACE(TRIM(REGEXP_REPLACE(UPPER(ISSUER_NAME), ' *[(][^)]*[)].*$', '')), ' +(D/?B/?A|F/?K/?A|AKA) +.*$', '')), '([ ,]+(INCORPORATED|INC|LLC|LTD|LIMITED|CORPORATION|CORP|L[.]P[.]|LLP|LP|PBC|PLC|CO[.]?|HOLDINGS|TECHNOLOGIES|TECHNOLOGY)[.]?)+ *$', '')), '[,.]', '')) AS name_norm, COALESCE(REGEXP_SUBSTR(ISSUER_NAME, '[(] *(D[.]?/?B[.]?/?A[.]?|F[.]?/?K[.]?/?A[.]?|N[.]?/?K[.]?/?A[.]?|A[.]?K[.]?A[.]?|FORMERLY( +KNOWN +AS)?)[ :]+([^)]+)[)]', 1, 1, 'ie', 3), REGEXP_SUBSTR(ISSUER_NAME, '[(]([^)]+)[)]', 1, 1, 'e', 1)) AS alias_raw FROM FUND_ADMIN.AGGREGATE_INVESTMENTS WHERE FIRM_ID = '${FIRM_UUID}' GROUP BY ISSUER_NAME), norm_inv AS (SELECT ISSUER_NAME, is_equity, name_norm FROM norm_inv_base UNION ALL SELECT ISSUER_NAME, is_equity, TRIM(REGEXP_REPLACE(TRIM(REGEXP_REPLACE(UPPER(alias_raw), '([ ,]+(INCORPORATED|INC|LLC|LTD|LIMITED|CORPORATION|CORP|L[.]P[.]|LLP|LP|PBC|PLC|CO[.]?|HOLDINGS|TECHNOLOGIES|TECHNOLOGY)[.]?)+ *$', '')), '[,.]', '')) AS name_norm FROM norm_inv_base WHERE alias_raw IS NOT NULL AND TRIM(alias_raw) <> ''), matched AS (SELECT DISTINCT s.ISSUER_NAME FROM norm_spa s JOIN norm_inv i ON JAROWINKLER_SIMILARITY(s.name_norm, i.name_norm) >= 90), matched_inv AS (SELECT DISTINCT i.ISSUER_NAME FROM norm_inv i JOIN norm_spa s ON JAROWINKLER_SIMILARITY(i.name_norm, s.name_norm) >= 90 WHERE i.is_equity = 1) SELECT COUNT(DISTINCT ns.ISSUER_NAME) AS orphaned_spas, ARRAY_AGG(DISTINCT ns.ISSUER_NAME) WITHIN GROUP (ORDER BY ns.ISSUER_NAME) AS orphaned_spa_names, (SELECT COUNT(*) FROM matched_inv) AS matched_companies FROM norm_spa ns LEFT JOIN matched m ON ns.ISSUER_NAME = m.ISSUER_NAME WHERE m.ISSUER_NAME IS NULL`;
+      return `WITH norm_spa AS (SELECT ISSUER_NAME, TRIM(REGEXP_REPLACE(TRIM(REGEXP_REPLACE(TRIM(REGEXP_REPLACE(TRIM(REGEXP_REPLACE(UPPER(ISSUER_NAME), ' *[(][^)]*[)].*$', '')), ' +(D[.]?/?B[.]?/?A[.]?|F[.]?/?K[.]?/?A[.]?|N[.]?/?K[.]?/?A[.]?|A[.]?K[.]?A[.]?|FORMERLY( +KNOWN +AS)?) +.*$', '')), '([ ,]+(INCORPORATED|INC|LLC|LTD|LIMITED|CORPORATION|CORP|L[.]P[.]|LLP|LP|PBC|PLC|CO[.]?|HOLDINGS? +COMPANY|HOLDINGS?|TECHNOLOGIES|TECHNOLOGY|TECH)[.]?)+ *$', '')), '[,.]', '')) AS name_norm FROM (SELECT ISSUER_NAME FROM (SELECT CASE WHEN TYPEOF(RAW_JSON:company:name) = 'OBJECT' AND RAW_JSON:company:name:value::STRING IS NOT NULL THEN RAW_JSON:company:name:value::STRING WHEN TYPEOF(RAW_JSON:company:name) = 'VARCHAR' THEN RAW_JSON:company:name::STRING ELSE ATTRIBUTES:name::STRING END AS ISSUER_NAME FROM FUND_ADMIN.DOCUMENT_AI_RECORD WHERE FIRM_ID = '${FIRM_UUID}' AND DOCUMENT_TYPE = 'stock_purchase_agreement' AND RECORD_TYPE = 'company') WHERE ISSUER_NAME IS NOT NULL) GROUP BY ISSUER_NAME), norm_inv_base AS (SELECT ISSUER_NAME, MAX(CASE WHEN ASSET_CLASS_TYPE IN ('PREFERRED_EQUITY', 'COMMON_EQUITY') THEN 1 ELSE 0 END) AS is_equity, TRIM(REGEXP_REPLACE(TRIM(REGEXP_REPLACE(TRIM(REGEXP_REPLACE(TRIM(REGEXP_REPLACE(UPPER(ISSUER_NAME), ' *[(][^)]*[)].*$', '')), ' +(D[.]?/?B[.]?/?A[.]?|F[.]?/?K[.]?/?A[.]?|N[.]?/?K[.]?/?A[.]?|A[.]?K[.]?A[.]?|FORMERLY( +KNOWN +AS)?) +.*$', '')), '([ ,]+(INCORPORATED|INC|LLC|LTD|LIMITED|CORPORATION|CORP|L[.]P[.]|LLP|LP|PBC|PLC|CO[.]?|HOLDINGS? +COMPANY|HOLDINGS?|TECHNOLOGIES|TECHNOLOGY|TECH)[.]?)+ *$', '')), '[,.]', '')) AS name_norm, COALESCE(REGEXP_SUBSTR(ISSUER_NAME, '[(] *(D[.]?/?B[.]?/?A[.]?|F[.]?/?K[.]?/?A[.]?|N[.]?/?K[.]?/?A[.]?|A[.]?K[.]?A[.]?|FORMERLY( +KNOWN +AS)?)[ :]+([^)]+)[)]', 1, 1, 'ie', 3), IFF(REGEXP_LIKE(UPPER(TRIM(REGEXP_SUBSTR(ISSUER_NAME, '[(]([^)]+)[)]', 1, 1, 'e', 1))), '(.{0,2}|[0-9].*|SERIES.*|.*COMPANY|HELD .*|INVESTMENT .*|HOLDINGS?|GROUP|CAYMAN|BVI|PTY|DELAWARE|OFFSHORE|ONSHORE|FEEDER)'), NULL, REGEXP_SUBSTR(ISSUER_NAME, '[(]([^)]+)[)]', 1, 1, 'e', 1)), REGEXP_SUBSTR(ISSUER_NAME, '[ ,]+(D[.]?/?B[.]?/?A[.]?|F[.]?/?K[.]?/?A[.]?|N[.]?/?K[.]?/?A[.]?|A[.]?K[.]?A[.]?|FORMERLY( +KNOWN +AS)?)[ :]+([^(]+)', 1, 1, 'ie', 3)) AS alias_raw FROM FUND_ADMIN.AGGREGATE_INVESTMENTS WHERE FIRM_ID = '${FIRM_UUID}' GROUP BY ISSUER_NAME), norm_inv AS (SELECT ISSUER_NAME, is_equity, name_norm FROM norm_inv_base UNION ALL SELECT ISSUER_NAME, is_equity, TRIM(REGEXP_REPLACE(TRIM(REGEXP_REPLACE(UPPER(alias_raw), '([ ,]+(INCORPORATED|INC|LLC|LTD|LIMITED|CORPORATION|CORP|L[.]P[.]|LLP|LP|PBC|PLC|CO[.]?|HOLDINGS? +COMPANY|HOLDINGS?|TECHNOLOGIES|TECHNOLOGY|TECH)[.]?)+ *$', '')), '[,.]', '')) AS name_norm FROM norm_inv_base WHERE alias_raw IS NOT NULL AND TRIM(alias_raw) <> ''), matched AS (SELECT DISTINCT s.ISSUER_NAME FROM norm_spa s JOIN norm_inv i ON JAROWINKLER_SIMILARITY(s.name_norm, i.name_norm) >= 90), matched_inv AS (SELECT DISTINCT i.ISSUER_NAME FROM norm_inv i JOIN norm_spa s ON JAROWINKLER_SIMILARITY(i.name_norm, s.name_norm) >= 90 WHERE i.is_equity = 1) SELECT COUNT(DISTINCT ns.ISSUER_NAME) AS orphaned_spas, ARRAY_AGG(DISTINCT ns.ISSUER_NAME) WITHIN GROUP (ORDER BY ns.ISSUER_NAME) AS orphaned_spa_names, (SELECT COUNT(*) FROM matched_inv) AS matched_companies FROM norm_spa ns LEFT JOIN matched m ON ns.ISSUER_NAME = m.ISSUER_NAME WHERE m.ISSUER_NAME IS NULL`;
     }
 
     // Coverage scalar — required. If it fails, the whole audit errors (see
@@ -1227,7 +1382,7 @@
     // (totalCompanies is derived from Query A's row count instead of a second
     // scalar query — see the comment above buildAuditSql's call site.)
     function buildCoverageSpaSql() {
-      return `SELECT COUNT(DISTINCT ATTRIBUTES:name::STRING) AS spa_companies FROM FUND_ADMIN.DOCUMENT_AI_RECORD WHERE FIRM_ID = '${FIRM_UUID}' AND DOCUMENT_TYPE = 'stock_purchase_agreement' AND RECORD_TYPE = 'company' AND ATTRIBUTES:name::STRING IS NOT NULL`;
+      return `SELECT COUNT(DISTINCT ISSUER_NAME) AS spa_companies FROM (SELECT CASE WHEN TYPEOF(RAW_JSON:company:name) = 'OBJECT' AND RAW_JSON:company:name:value::STRING IS NOT NULL THEN RAW_JSON:company:name:value::STRING WHEN TYPEOF(RAW_JSON:company:name) = 'VARCHAR' THEN RAW_JSON:company:name::STRING ELSE ATTRIBUTES:name::STRING END AS ISSUER_NAME FROM FUND_ADMIN.DOCUMENT_AI_RECORD WHERE FIRM_ID = '${FIRM_UUID}' AND DOCUMENT_TYPE = 'stock_purchase_agreement' AND RECORD_TYPE = 'company') WHERE ISSUER_NAME IS NOT NULL`;
     }
 
     // ── Transform ─────────────────────────────────────────────────────────────
@@ -1369,9 +1524,6 @@
         entry.soiCurrency = enrich.soiCurrency !== undefined ? enrich.soiCurrency : null;
         out[bucketKey].push(entry);
       }
-      for (const key of Object.keys(out)) {
-        out[key].sort((a, b) => (-(a.costBasis || 0) - -(b.costBasis || 0)) || a.company.localeCompare(b.company));
-      }
       return out;
     }
 
@@ -1472,8 +1624,7 @@
       try {
         const contextResult = await callMcpWithWelcomeRetry(SET_CONTEXT_TOOL, { firm_id: FIRM_UUID });
         if (contextResult && contextResult.isError) {
-          const msg = (contextResult.content && contextResult.content[0] && contextResult.content[0].text) || '<no message>';
-          throw new Error(msg);
+          throw new Error(errorText(contextResult) || '<no message>');
         }
       } catch (error) {
         showError(
@@ -1484,13 +1635,13 @@
         return;
       }
 
-      let auditRows, drilldownRows, enrichmentRows, statusRows, pendingCount, orphaned, coverageSpa;
+      let auditRows, drilldownRows, enrichmentRows, statusRows, orphaned, coverageSpa;
       try {
         setLoadingStatus('Loading SPA coverage data from Carta…');
         // Query A, D, and the coverage scalar are required — a failure on any
-        // of them errors the whole page (below). Query E, T, P, and O each
+        // of them errors the whole page (below). Query E, T, and O each
         // degrade to a safe default on failure and never fail the audit.
-        [auditRows, drilldownRows, enrichmentRows, statusRows, pendingCount, orphaned, coverageSpa] = await Promise.all([
+        [auditRows, drilldownRows, enrichmentRows, statusRows, orphaned, coverageSpa] = await Promise.all([
           fetchAllRows(buildAuditSql, 'Query A'),
           fetchAllRows(buildDrilldownSql, 'Query D'),
           fetchAllRows(buildEnrichmentSql, 'Query E').catch(err => {
@@ -1501,10 +1652,6 @@
             console.warn('status query failed; Live/Exited filter disabled', err);
             return [];
           }),
-          fetchScalar(buildPendingExtractionSql(), 'PENDING_EXTRACTION_DOCS').catch(err => {
-            console.warn('pending-extraction query failed; FYI pill disabled', err);
-            return 0;
-          }),
           fetchOrphaned().catch(err => {
             console.warn('orphaned-SPA query failed; FYI pill disabled', err);
             return { count: 0, names: [], matchedCompanies: null };
@@ -1514,7 +1661,7 @@
       } catch (error) {
         showError(
           "Couldn't load your SPA coverage data just now. Try reloading in a moment. " +
-          'If it keeps happening, contact your Carta representative.',
+          'If it keeps happening, ask Claude to re-publish this audit as it is, or contact your Carta representative.',
           error.message
         );
         return;
@@ -1557,7 +1704,6 @@
           // for the identical table.
           totalCompanies: auditRows.filter(r => (r.COMPANY || '').trim()).length,
           spaCompanies: toInt(coverageSpa) || 0,
-          pendingExtractionDocs: toInt(pendingCount) || 0,
           orphanedSpas: (orphaned && orphaned.count) || 0,
           orphanedSpaNames: (orphaned && orphaned.names) || [],
           matchedCompanies: orphaned && orphaned.matchedCompanies != null
@@ -1568,6 +1714,8 @@
         companies,
       };
       if (companyStatus) DATA.companyStatus = companyStatus;
+      // byCostBasis reads valueCurrency(), which reads DATA.buckets.
+      for (const key of Object.keys(buckets)) buckets[key].sort(byCostBasis);
 
       computeDerivedState();
 
@@ -1591,29 +1739,45 @@
     // and COLUMNS are computed once in computeDerivedState() for the same reason.
 
     // ---------- Formatters ----------
-    // Cost basis and SOI valuation now carry the currency their amount is
-    // denominated in, resolved per company by the same IS_FOREIGN_CURRENCY_INVESTMENT
-    // flag that picks the amount column. fmtMoneyIn() stamps it; fmtMoney()
+    // Cost basis and SOI valuation carry the holding's own CURRENCY_CODE;
+    // BASE_CURRENCY_CODE is not used because it reads USD or NULL on some
+    // foreign rows. fmtMoneyIn() stamps it; fmtMoney()
     // stays bare and is used where no currency is in hand — including a company
     // whose own rows span more than one, which must never be stamped with any
     // single code. Still never assume USD.
-    // Firm-level totals (the coverage bar) may only be stamped when every
-    // company agrees on one currency. Any disagreement, or any company whose
-    // own rows span currencies, returns null and the total renders bare.
-    let FIRM_CCY;
-    function firmCurrency() {
-        if (FIRM_CCY !== undefined) return FIRM_CCY;
-        const seen = new Set();
+    // Firm-level totals (stat tiles, coverage bar) never add amounts in
+    // different currencies. They sum only the companies whose cost basis is in
+    // the currency most companies carry; a company in another currency, or
+    // whose own rows span currencies, is left out and counted so the page can
+    // say so. Adding one IDR holding into a USD total can lift a 47% coverage
+    // figure to 99%.
+    let VALUE_CCY;
+    function valueCurrency() {
+        if (VALUE_CCY !== undefined) return VALUE_CCY;
+        const counts = {};
         for (const key of Object.keys(DATA.buckets || {})) {
             for (const r of DATA.buckets[key] || []) {
-                if (!r.costBasis) continue;      // no amount, no opinion
-                if (!r.currency) { FIRM_CCY = null; return FIRM_CCY; }
-                seen.add(r.currency);
+                if (r.costBasis && r.currency) counts[r.currency] = (counts[r.currency] || 0) + 1;
             }
         }
-        FIRM_CCY = seen.size === 1 ? seen.values().next().value : null;
-        return FIRM_CCY;
+        const ranked = Object.keys(counts).sort((a, b) => counts[b] - counts[a] || a.localeCompare(b));
+        VALUE_CCY = ranked.length ? ranked[0] : null;
+        return VALUE_CCY;
     }
+    function inValueCurrency(r, ccyKey = 'currency') { const c = valueCurrency(); return c !== null && r[ccyKey] === c; }
+    // Amount order that never ranks one currency against another: value-
+    // currency companies first, then the rest grouped by currency, each group
+    // largest first, ties by company name.
+    const AMOUNT_CURRENCY = { costBasis: 'currency', soiValuation: 'soiCurrency' };
+    function byAmount(key) {
+        const ccyKey = AMOUNT_CURRENCY[key];
+        const inValue = r => inValueCurrency(r, ccyKey);
+        return (a, b) => (inValue(b) - inValue(a))
+            || (a[ccyKey] || '').localeCompare(b[ccyKey] || '')
+            || ((b[key] || 0) - (a[key] || 0))
+            || a.company.localeCompare(b.company);
+    }
+    const byCostBasis = byAmount('costBasis');
 
     function fmtMoneyIn(n, ccy) {
         const bare = fmtMoney(n);
@@ -1665,9 +1829,11 @@
         if (n === null || n === undefined) return '—';
         return Math.round(n).toLocaleString('en-US') + ccyTag(ccy);
     }
+    // Seed-stage prices run to four or five decimals ($0.05071); cents alone
+    // would show many of them as 0.05 or 0.00.
     function fmtPriceCcy(n, ccy) {
         if (n === null || n === undefined) return '—';
-        return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ccyTag(ccy);
+        return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: Math.abs(n) < 1 ? 6 : 4 }) + ccyTag(ccy);
     }
     function fmtAmountCcyCompact(n, ccy) {
         if (n === null || n === undefined) return '—';
@@ -1691,12 +1857,7 @@
     }
 
     // ---------- Bucket metadata ----------
-    // Four bucket tiles. Pending-extraction is NOT a bucket — pending docs
-    // can't be attributed to specific portfolio companies until extraction
-    // completes (the issuer_name comes from extraction), so promoting them
-    // to a bucket tile would imply a precision we don't have. The pending
-    // count is surfaced as an FYI pill in the page-header instead (see
-    // renderHeader below).
+    // Four bucket tiles.
     const BUCKETS = [
         { key: 'executed',   label: 'Executed',   filterLabel: 'Executed SPA',     icon: '✓', cardClass: 'bucket-executed',   muted: true  },
         { key: 'unexecuted', label: 'Unexecuted', filterLabel: 'SPA not executed', icon: '○', cardClass: 'bucket-unexecuted', muted: false },
@@ -1730,25 +1891,10 @@
         return filteredBucketRows(b).length;
     }
 
-    // ---------- Header (firm name + coverage line + pending pill) ----------
-    // Coverage % rides in the page header as a small contextual line. When
-    // there are pending-extraction docs, a hover-tooltipped pill chip sits
-    // inline in the subtitle to surface the count without claiming any
-    // company-level attribution.
+    // ---------- Header (firm name + unmatched-SPA pill) ----------
     function renderHeader() {
         const m = DATA.meta;
         const c = DATA.coverage;
-        const pending = c.pendingExtractionDocs || 0;
-        const pendingPill = pending > 0
-            ? ' · <span class="pending-pill has-tooltip" tabindex="0" aria-describedby="pending-tooltip">' +
-                '<span class="pending-pill-icon" aria-hidden="true">ⓘ</span>' +
-                '<span class="pending-pill-text">' + pending + ' pending extraction</span>' +
-                '<span class="tooltip" id="pending-tooltip" role="tooltip">' +
-                    'Heads up: ' + pending + ' SPA documents are still being processed by Carta\'s Document Intelligence. ' +
-                    'Once extraction completes, they\'ll appear in this audit and may move companies out of "Missing SPA."' +
-                '</span>' +
-              '</span>'
-            : '';
         const orphaned = c.orphanedSpas || 0;
         const orphanedNames = c.orphanedSpaNames || [];
         const orphanWord = orphaned === 1 ? 'SPA' : 'SPAs';
@@ -1770,12 +1916,13 @@
               '</span>'
             : '';
         // Coverage itself is shown in the "Coverage by cost basis" section
-        // below. The pending-extraction and unmatched-SPA FYI pills (when
-        // present) surface as their own line beneath the title.
-        const fyiPills = (pendingPill + orphanedPill).replace(/^ · /, '');
-        const fyiLine = fyiPills ? '<p>' + fyiPills + '</p>' : '';
+        // below. The unmatched-SPA FYI pill (when present) surfaces as its own
+        // line beneath the title.
+        const fyiPills = orphanedPill.replace(/^ · /, '');
+        const fyiLine = fyiPills ? '<div class="header-fyi">' + fyiPills + '</div>' : '';
         document.getElementById('page-header').innerHTML =
-            '<h1>' + esc(m.firmName) + ' — SPA coverage audit</h1>' + fyiLine;
+            '<h1>SPA Audit</h1>' +
+            '<p>' + esc(m.firmName) + ' · Extracted from stock purchase agreements · Data as of ' + esc(m.generatedAt) + '</p>' + fyiLine;
     }
 
     // ---------- Stat tiles — one per bucket ----------
@@ -1783,7 +1930,12 @@
     // read at full visual weight; the trailing two (Executed / No SPA needed)
     // use muted styling so the user's eye lands on the gaps first.
     function bucketTotal(key) {
-        return filteredBucketRowsByKey(key).reduce((s, r) => s + (r.costBasis || 0), 0);
+        return filteredBucketRowsByKey(key).filter(r => inValueCurrency(r)).reduce((s, r) => s + (r.costBasis || 0), 0);
+    }
+    // Companies with a cost basis that bucketTotal() leaves out for being in
+    // another currency.
+    function otherCurrencyCount() {
+        return BUCKETS.reduce((n, b) => n + filteredBucketRows(b).filter(r => r.costBasis && !inValueCurrency(r)).length, 0);
     }
     function renderMetricsGrid() {
         // Grand total across all buckets — each tile's cost basis is shown as
@@ -1793,9 +1945,10 @@
             const count = bucketCount(b);
             const total = bucketTotal(b.key);
             let sub = '';
-            if (filteredBucketRows(b).length > 0) {
-                const pct = grandTotal > 0 ? (total / grandTotal * 100) : 0;
-                sub = pct.toFixed(1) + '% of total cost basis';
+            // grandTotal is 0 when no company carries the value currency, and
+            // then there is no share to show.
+            if (grandTotal > 0 && filteredBucketRows(b).length > 0) {
+                sub = (total / grandTotal * 100).toFixed(1) + '% of ' + valueCurrency() + ' cost basis';
             }
             // Optional info icon + hover tooltip — used by tiles whose label
             // doesn't fully convey what's in the bucket (notably "No SPA
@@ -1821,7 +1974,8 @@
 
     function renderCoverageBar() {
         const grand = BUCKETS.reduce((s, b) => s + bucketTotal(b.key), 0);
-        if (grand <= 0) { document.getElementById('coverage-bar').innerHTML = ''; return; }
+        const totalCos = BUCKETS.reduce((s, b) => s + filteredBucketRows(b).length, 0);
+        if (totalCos === 0) { document.getElementById('coverage-bar').innerHTML = ''; return; }
 
         const coveredVal = bucketTotal('executed') + bucketTotal('unexecuted');
         // Priced-equity only, matching the by-count denominator below — cost
@@ -1832,7 +1986,6 @@
 
         const covered = filteredBucketRowsByKey('executed').length + filteredBucketRowsByKey('unexecuted').length;
         const notNeededCount = filteredBucketRowsByKey('notNeeded').length;
-        const totalCos = BUCKETS.reduce((s, b) => s + filteredBucketRows(b).length, 0);
         const equityCos = totalCos - notNeededCount;
         const countPct = equityCos > 0 ? Math.round(covered / equityCos * 100) : 0;
 
@@ -1843,7 +1996,10 @@
             { key: 'notNeeded',  label: 'No SPA needed' },
         ];
 
-        const useCount = BAR_MODE === 'count';
+        // No value-currency amount in view: there are no value figures, but the
+        // count coverage still holds.
+        const hasValue = grand > 0;
+        const useCount = BAR_MODE === 'count' || !hasValue;
         const totalForBar = useCount ? totalCos : grand;
 
         let segs = '', legend = '';
@@ -1853,19 +2009,21 @@
             const p = v / totalForBar * 100;
             const titleAttr = useCount
                 ? escAttr(o.label + ': ' + v + ' companies (' + p.toFixed(1) + '%)')
-                : escAttr(o.label + ': ' + fmtMoneyIn(v, firmCurrency()) + ' (' + p.toFixed(1) + '%)');
+                : escAttr(o.label + ': ' + fmtMoneyIn(v, valueCurrency()) + ' (' + p.toFixed(1) + '%)');
             segs += '<div class="coverage-bar-seg ' + o.key + '" style="width:' + p + '%" title="' + titleAttr + '"></div>';
             legend += '<span class="item"><span class="swatch ' + o.key + '"></span>' +
                 esc(o.label) + ' ' + p.toFixed(1) + '%</span>';
         });
 
+        const otherCcy = otherCurrencyCount();
         const headerValue = useCount
             ? countPct + '% of companies covered'
-            : valuePct.toFixed(1) + '% of total cost basis covered';
+            : valuePct.toFixed(1) + '% of ' + valueCurrency() + ' cost basis covered' +
+              (otherCcy ? ' · ' + otherCcy + (otherCcy === 1 ? ' company' : ' companies') + ' in other currencies not counted' : '');
 
         const toggleHtml =
             '<div class="bar-mode-toggle">' +
-                '<button class="bar-mode-btn' + (!useCount ? ' active' : '') + '" onclick="setBarMode(\'weight\')" type="button">By value</button>' +
+                (hasValue ? '<button class="bar-mode-btn' + (!useCount ? ' active' : '') + '" onclick="setBarMode(\'weight\')" type="button">By value</button>' : '') +
                 '<button class="bar-mode-btn' + (useCount ? ' active' : '') + '" onclick="setBarMode(\'count\')" type="button">By count</button>' +
             '</div>';
 
@@ -1939,26 +2097,26 @@
                         '<div class="cta-card-title">Close the coverage gap</div>' +
                         '<div class="cta-card-text">Upload Stock Purchase Agreements for ' +
                             '<strong>' + missing + ' ' + companyWord + '</strong> ' +
-                            'missing an SPA — unlocks co-investor analysis and more downstream skills.</div>' +
+                            'missing an SPA: drop the files into this chat, or upload them in Carta. ' +
+                            'Unlocks co-investor analysis and more downstream skills.</div>' +
                     '</div>' +
                     '<button type="button" class="cta-card-action" onclick="openExternal(\'' + escAttr(docsUrl) + '\')">' +
-                        'Upload missing SPAs <span aria-hidden="true">↗</span>' +
+                        'Upload in Carta <span aria-hidden="true">↗</span>' +
                     '</button>' +
                 '</div>';
         }
 
         if (unexecuted > 0) {
             const spaWord = unexecuted === 1 ? 'SPA is' : 'SPAs are';
-            const btnLabel = missing > 0 ? 'Upload SPAs' : 'Upload signed copy';
             html +=
                 '<div class="cta-card cta-card--unexecuted">' +
                     '<div class="cta-card-body">' +
                         '<div class="cta-card-title">Get executed copies on file</div>' +
                         '<div class="cta-card-text"><strong>' + unexecuted + ' ' + spaWord + '</strong> ' +
-                            'marked unexecuted — if you already have a signed copy, upload it now. If not, follow up with the issuer to get it signed.</div>' +
+                            'marked unexecuted. If you already have a signed copy, drop it into this chat or upload it in Carta. If not, follow up with the issuer to get it signed.</div>' +
                     '</div>' +
                     '<button type="button" class="cta-card-action cta-card-action--secondary" onclick="openExternal(\'' + escAttr(docsUrl) + '\')">' +
-                        btnLabel + ' <span aria-hidden="true">↗</span>' +
+                        'Upload in Carta <span aria-hidden="true">↗</span>' +
                     '</button>' +
                 '</div>';
         }
@@ -2236,7 +2394,10 @@
         const dir = SORT_DIR === 'asc' ? 1 : -1;
         rows.sort((a, b) => {
             let av, bv;
-            if (col.type === 'number') {
+            if (col.key in AMOUNT_CURRENCY) {
+                const c = byAmount(col.key)(a, b);
+                if (c !== 0) return c * -dir;
+            } else if (col.type === 'number') {
                 av = a[col.key] || 0;
                 bv = b[col.key] || 0;
                 if (av !== bv) return (av - bv) * dir;
@@ -2254,10 +2415,8 @@
                 bv = (b[col.key] || '').toString();
                 if (av !== bv) return av.localeCompare(bv) * dir;
             }
-            // Stable tiebreaker: cost basis DESC, then company ASC
-            const cbDiff = (b.costBasis || 0) - (a.costBasis || 0);
-            if (cbDiff !== 0) return cbDiff;
-            return a.company.localeCompare(b.company);
+            // Stable tiebreaker: cost basis DESC within a currency, then company ASC
+            return byCostBasis(a, b);
         });
 
         if (rows.length === 0) {
@@ -2421,20 +2580,6 @@
         if (row) openDrawer(row.dataset.dkey);
     });
 
-    // ---------- Powered-by watermark — only visible at page bottom ----------
-    function setupPoweredBy() {
-        const el = document.querySelector('.powered-by-carta');
-        if (!el) return;
-        const update = () => {
-            const atBottom = (window.innerHeight + window.scrollY) >= (document.documentElement.scrollHeight - 4);
-            el.classList.toggle('visible', atBottom);
-        };
-        window.addEventListener('scroll', update, { passive: true });
-        window.addEventListener('resize', update);
-        update();
-    }
-    window.addEventListener('load', setupPoweredBy);
-
     // Close every dropdown the click landed outside of. A click inside a filter
     // wrap — including on its checkboxes — leaves that wrap's own panel open.
     document.addEventListener('click', e => {
@@ -2450,8 +2595,5 @@
     bootstrap();
   </script>
 
-  <div class="powered-by-carta" aria-label="Powered by Carta">
-    <svg width="572" height="101" viewBox="0 0 572 101" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M370.228 0V100.61H571.448V0H370.228ZM567.423 96.5856H374.252V4.0244H567.423V96.5856ZM396.623 52.2674C396.623 42.1817 405.138 36.2615 412.777 36.2615C418.246 36.2615 423.347 38.3119 426.076 43.0367L420.967 45.9988C420.087 44.6697 418.883 43.5796 417.472 42.8341C416.057 42.0885 414.48 41.6995 412.878 41.7116C408.386 41.7116 403.042 45.2167 403.042 52.162C403.042 59.1074 408.151 62.6732 413.304 62.6732C416.888 62.6732 419.864 60.6756 421.628 57.5919L426.85 60.0029C423.894 65.3193 418.611 68.1517 412.477 68.1517C404.761 68.1436 396.623 62.2154 396.623 52.2633V52.2674ZM445.493 68.1517C449.738 68.1517 453.748 66.2796 455.816 63.5607V67.3008H462.125V37.0436H455.816V40.7918C453.85 38.0485 449.746 36.2615 445.493 36.2615C436.2 36.2615 429.701 43.0245 429.701 52.2066C429.701 61.3887 436.261 68.1517 445.493 68.1517ZM446.101 41.9993C451.932 41.9993 455.934 46.3472 455.934 52.2066C455.934 58.066 451.928 62.4139 446.101 62.4139C440.275 62.4139 436.139 58.0052 436.139 52.0851C436.139 46.1649 440.271 41.9993 446.101 41.9993ZM496.029 43.0488H489.481V37.0071H496.09V29.1217H502.59V37.0071H509.195V43.0488H502.59V67.2886H496.029V43.0488ZM527.315 68.1517C531.568 68.1517 535.578 66.2796 537.646 63.5607V67.3008H543.963V37.0436H537.646V40.7918C535.679 38.0485 531.576 36.2615 527.315 36.2615C518.03 36.2615 511.53 43.0245 511.53 52.2066C511.53 61.3887 518.086 68.1517 527.315 68.1517ZM527.931 41.9993C533.753 41.9993 537.767 46.3472 537.767 52.2066C537.767 58.066 533.753 62.4139 527.931 62.4139C522.108 62.4139 517.969 58.0052 517.969 52.0851C517.969 46.1649 522.1 41.9993 527.931 41.9993ZM476.409 67.2602H469.849V37.0031H475.858V42.6355C477.346 39.2885 479.58 37.1084 483.213 36.9261C483.963 36.9139 484.709 36.9261 485.459 37.0071L485.359 43.061C480.14 43.061 476.413 45.8569 476.413 53.6532V67.2643L476.409 67.2602Z" fill="#1A1A1A"/><path d="M0 67.2018V65.4679L2.60086 65.0633C4.62375 64.7743 4.97053 64.3119 4.97053 61.9422V28.6512C4.97053 26.2816 4.62375 25.8192 2.60086 25.5302L0 25.1256V23.3917H19.8243C28.3205 23.3917 37.4524 25.4146 37.4524 35.1245C37.4524 42.9849 30.0544 47.3774 19.8821 47.3774H10.9814V62C10.9814 64.3119 11.3282 64.7743 13.3511 64.9477L17.6858 65.3523V67.2018H0ZM10.9814 27.0907V44.8922H20.5179C26.76 44.8922 30.6323 42.0601 30.6323 35.2979C30.6323 28.5356 26.76 25.7036 20.5179 25.7036H13.8713C11.4438 25.7036 10.9814 25.877 10.9814 27.0907Z" fill="#1A1A1A"/><path d="M54.8109 67.8953C46.3725 67.8953 39.6681 61.8844 39.6681 52.5791C39.6681 43.2738 46.3725 37.263 54.8109 37.263C63.2492 37.263 69.9536 43.2738 69.9536 52.5791C69.9536 61.8844 63.2492 67.8953 54.8109 67.8953ZM54.8109 65.6412C59.6658 65.6412 64.0006 61.7111 64.0006 52.5791C64.0006 43.4472 59.6658 39.5171 54.8109 39.5171C49.9559 39.5171 45.6212 43.4472 45.6212 52.5791C45.6212 61.7111 49.9559 65.6412 54.8109 65.6412Z" fill="#1A1A1A"/><path d="M87.6815 67.8375L76.6423 42.2335C76.1221 41.0776 75.8331 40.6152 73.8102 40.1528L72.0763 39.7482V38.1877H86.41V39.7482L84.5604 40.1528C82.5376 40.6152 81.9596 41.0776 82.4798 42.2335L90.2823 60.6129L96.4088 46.6261L92.8832 38.1877H104.385V39.7482L102.535 40.1528C100.512 40.6152 99.9922 41.0776 100.455 42.2335L107.853 60.6129L115.655 42.2335C116.175 41.0776 115.771 40.6152 113.748 40.1528L111.898 39.7482V38.1877H122.995V39.7482L121.261 40.1528C119.239 40.6152 118.95 41.0776 118.429 42.2335L107.332 67.8375H105.252L97.7381 49.8627L89.7622 67.8375H87.6815Z" fill="#1A1A1A"/><path d="M139.946 67.8953C130.988 67.8953 125.15 61.4221 125.15 52.7525C125.15 43.0427 132.433 37.263 139.599 37.263C146.824 37.263 152.43 41.7711 153.644 49.9205H130.641C130.641 50.0939 130.641 50.2673 130.641 50.4407C130.641 59.0524 135.091 64.2541 141.911 64.2541C146.073 64.2541 150.465 62.6936 152.257 56.4515H154.106C152.488 64.0229 147.518 67.8953 139.946 67.8953ZM139.484 39.4015C135.265 39.4015 131.739 42.2335 130.872 47.6086H147.575C147.113 41.7133 143.818 39.4015 139.484 39.4015Z" fill="#1A1A1A"/><path d="M159.249 67.2018V65.6412L161.099 65.2367C163.122 64.7743 163.469 64.4275 163.469 63.156V42.8693C163.469 41.5977 163.122 41.251 161.099 40.7886L159.249 40.384V38.8235L168.67 37.4942V44.7188C170 39.806 174.045 37.4364 177.282 37.4364C179.594 37.4364 181.443 38.5345 181.443 40.9042C181.443 42.8115 179.998 44.083 178.265 44.083C175.837 44.083 175.201 41.7133 172.889 41.7133C170.924 41.7133 168.67 44.5454 168.67 48.2444V63.156C168.67 64.4275 169.017 64.8321 171.04 65.1211L174.045 65.5257V67.2018H159.249Z" fill="#1A1A1A"/><path d="M199.407 67.8953C190.448 67.8953 184.611 61.4221 184.611 52.7525C184.611 43.0427 191.893 37.263 199.06 37.263C206.285 37.263 211.891 41.7711 213.105 49.9205H190.102C190.102 50.0939 190.102 50.2673 190.102 50.4407C190.102 59.0524 194.552 64.2541 201.372 64.2541C205.533 64.2541 209.926 62.6936 211.718 56.4515H213.567C211.949 64.0229 206.978 67.8953 199.407 67.8953ZM198.945 39.4015C194.725 39.4015 191.2 42.2335 190.333 47.6086H207.036C206.574 41.7133 203.279 39.4015 198.945 39.4015Z" fill="#1A1A1A"/><path d="M232.581 67.8953C225.241 67.8953 218.884 62.1156 218.884 52.9837C218.884 43.794 225.415 37.263 233.911 37.263C237.494 37.263 239.806 38.7657 241.193 40.095V26.6861C241.193 25.4146 240.846 24.8944 238.823 24.6055L235.818 24.2009V22.6404L246.395 21.311V62.2312C246.395 63.5028 246.742 63.8495 248.765 64.3119L250.614 64.7165V66.277L241.193 67.4329V63.7339C240.153 64.8899 237.205 67.8953 232.581 67.8953ZM235.298 64.6587C238.246 64.6587 240.095 63.6184 241.193 62.6936V41.3666C239.517 40.3262 237.841 39.7482 235.356 39.7482C229.229 39.7482 224.663 44.372 224.663 51.9434C224.663 59.8038 229.171 64.6587 235.298 64.6587Z" fill="#1A1A1A"/><path d="M286.714 67.8953C283.131 67.8953 280.53 66.3926 279.143 65.0633L274.635 67.8375H274.23V26.6861C274.23 25.4146 273.883 25.0678 271.86 24.6055L270.011 24.2009V22.6404L279.432 21.311V41.4244C280.472 40.2684 283.42 37.263 288.043 37.263C295.384 37.263 301.741 43.0427 301.741 52.1746C301.741 61.3643 295.21 67.8953 286.714 67.8953ZM285.327 40.4996C282.379 40.4996 280.53 41.5399 279.432 42.4647V63.7917C281.108 64.8321 282.784 65.4101 285.269 65.4101C291.396 65.4101 295.962 60.7863 295.962 53.2149C295.962 45.3545 291.453 40.4996 285.327 40.4996Z" fill="#1A1A1A"/><path d="M311.899 81.8244C310.107 81.8244 309.067 80.495 309.067 79.1657C309.067 77.6052 310.223 76.2759 312.65 75.2933C314.789 74.4264 315.771 74.0218 316.812 71.6521L319.124 66.5082L308.662 42.2335C308.142 41.0776 307.853 40.6152 305.83 40.1528L304.096 39.7482V38.1877H318.43V39.7482L316.581 40.1528C314.558 40.6152 313.98 41.0776 314.5 42.2335L322.071 60.0927L330.105 42.2335C330.625 41.0776 330.221 40.6152 328.198 40.1528L326.348 39.7482V38.1877H337.445V39.7482L335.711 40.1528C333.688 40.6152 333.4 41.0776 332.879 42.2335L317.39 76.3915C315.482 80.6106 313.575 81.8244 311.899 81.8244Z" fill="#1A1A1A"/></svg>
-  </div>
 </body>
 </html>

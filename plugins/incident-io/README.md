@@ -15,12 +15,17 @@ workflows unreliably.
 
 | Skill | What it does |
 |-------|--------------|
-| [extensions](./skills/extensions) | Understand and configure your incident.io agent estate: what plugins, skills, and connectors are, what's registered and connected today, and which mechanism solves a given problem — a skill, a runbook, an architecture doc, a connector, or a combination. Scaffolds and registers a plugin, then hands every specialised job to the skill that owns it. The entrypoint: load this first when working on extensions. |
-| [runbooks](./skills/runbooks) | Find, follow, write, and maintain runbooks wherever they live — your repo, your plugins, or providers like Notion and Confluence synced into incident.io. Find the runbook that owns a symptom, follow its read-only diagnostic flow, write new runbooks into the right home, and keep a corpus honest (curate from closed incidents, split bloated files, verify claims against the code). |
-| [architecture](./skills/architecture) | Answer estate questions — "how does X run", "what is Y", "where does Z live" — from architecture docs wherever they live, cited rather than guessed. And write those docs through an interview that pins down what each system actually is before anything is written. Pairs with runbooks: runbooks own procedures, architecture owns facts. |
-| [skill-authoring](./skills/skill-authoring) | Create and improve the skills in your own plugins — the ones incident.io's agents and your coding agents load. Author a new skill from concrete trigger examples, or improve an existing one from incident.io's per-skill usage feedback without undoing what the feedback credits. Carries the format rules and the empirical patterns that make skills get selected and followed. |
-| [doctor](./skills/doctor) | Review the health of your incident.io agent estate and say what to fix, without fixing anything itself. Checks plugins and their skills end to end — sync failures, skills that load but don't get followed, feedback issues worth acting on, convention drift — and reports what it can't read honestly. Every finding routes somewhere: a brief for skill-authoring, or a dashboard page. Built to recur. |
-| [extensions-review](./skills/extensions-review) | Review what your extensions did over a window — the skill loads that made a real difference, each verified against the incident or conversation it happened in, plus the incidents no skill or runbook covered, turned into briefs for what to write next. Delivers as a chat thread, a document, or plain text, so it suits a scheduled digest. Doctor says whether the estate is healthy; this says what it actually did. |
+| [architecture](./skills/architecture) | Answers questions about how your systems are built, deployed and run, using your architecture docs. |
+| [architecture-author](./skills/architecture-author) | Interviews you to write and maintain the architecture docs that say what each system is, where it runs and what it depends on. |
+| [catalog](./skills/catalog) | Answers questions from your catalog, such as who owns a service, what it depends on and what a team owns. |
+| [doctor](./skills/doctor) | Reviews the health of your setup: sync failures, skills that load but don't get followed, and feedback worth acting on. It reports what to fix and never edits anything. |
+| [extensions](./skills/extensions) | The place to start. Reads your current plugins and connectors, works out whether a plugin or a connector solves your problem, scaffolds and registers a plugin, then hands off to the skill that owns the rest. |
+| [incidents](./skills/incidents) | Reads and updates incidents, including status, severity, roles, custom fields and updates, and looks back at past incidents. |
+| [on-call](./skills/on-call) | Shows who is on call, manages overrides and cover requests on your schedules, and pages people and checks whether a page reached them. |
+| [postmortem](./skills/postmortem) | Finds, reads, edits and reviews postmortem documents, checking their claims against what actually happened. |
+| [skill-authoring](./skills/skill-authoring) | Writes new skills from your team's knowledge, verifies them before they ship, and improves existing skills from the usage feedback we record. |
+| [talking-to-the-user](./skills/talking-to-the-user) | Sets how the incident.io skills talk to you, including one clear next step at the end of each reply. |
+| [telemetry](./skills/telemetry) | Queries your logs, metrics, traces, dashboards and databases to find evidence for an answer. |
 
 ## Connections
 
@@ -33,18 +38,14 @@ Every connection these skills call, and where it comes from in each environment:
 Skills may also use provider tools the session already has (a Notion search, a wiki
 search) — those are the session's, not dependencies of this plugin.
 
-## How these skills are designed
-
-The skills follow one deliberate pattern — machinery in the plugin, your content wherever
-you keep it, one interface across every environment, conventions as the contract, and
-epistemics that keep produced content honest. [docs/philosophy.md](./docs/philosophy.md)
-describes the pattern; new skills are judged against it.
-[docs/agent-environments.md](./docs/agent-environments.md) maps the environments the
-skills run in — filesystem layouts, tools per capability, and the shared search strategy.
-
 ## Where your content lives
 
 This plugin carries incident.io's guidance, not your content. Runbooks, architecture notes,
 and other operational knowledge belong in your own repositories, where they live next to the
 code they describe and are reviewed like it. The skills here help you write that content
 well and keep it current.
+
+## Privacy
+
+This plugin connects to your incident.io account through the bundled MCP server. See the
+[incident.io privacy policy](https://incident.io/privacy).

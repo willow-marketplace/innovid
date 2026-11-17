@@ -11,14 +11,17 @@ connect as. This skill wires the app to a **least-privilege user**, picks the
 in the cloud, changing only the connection string), secures the connection, and
 keeps the secret out of source control.
 
-Verified on 2026-09-05 against the container image
-`sqldbpreview-dpgaeqhmgphzd4bk.azurecr.io/azure-sql/db-dev:latest`, reporting `EngineEdition`
-5, Edition `SQL Azure`, build `12.0.2000.8`. All seven executable checks behind this skill
-passed, including `Msg 15007` for a contained user, `Msg 12844` for `SET CONTAINMENT =
-PARTIAL`, `Msg 37525` for `CREATE USER ... FROM EXTERNAL PROVIDER` on a container started
-without Entra configuration, and the fixed database roles this skill grants. The cloud side of
-this guidance, Azure Key Vault and managed identity, was not measured by that run and comes
-from Microsoft Learn.
+Re-measured on 2026-09-19 against the container image tag `18.0.226_4_147`, reporting
+`EngineEdition` 5, Edition `SQL Azure`, build `12.0.2000.8`. All seven executable checks
+behind this skill pass, and **three of the numbers this skill used to print were wrong**:
+a contained user is refused with `Msg 33233` and not `Msg 15007`, `SET CONTAINMENT =
+PARTIAL` is refused with `Msg 12824` and not `Msg 12844`, and
+`CREATE USER ... FROM EXTERNAL PROVIDER` on a container started without Entra
+configuration is refused with `Msg 33134` and not `Msg 37525`. Each statement is still
+refused, so every instruction here is unchanged; only the numbers to expect are. The fixed
+database roles this skill grants were confirmed on the same run. The cloud side of this
+guidance, Azure Key Vault and managed identity, was not measured and comes from Microsoft
+Learn.
 
 ## Load-bearing facts (inlined; full engine detail in azuresql-db-container)
 
@@ -26,7 +29,8 @@ from Microsoft Learn.
   image `mcr.microsoft.com/mssql/server`. `SERVERPROPERTY('EngineEdition')`
   returns `5`, `Edition` returns `'SQL Azure'`.
 - Image: `sqldbpreview-dpgaeqhmgphzd4bk.azurecr.io/azure-sql/db-dev:latest`
-  (x64; on a non-x64 host add `--platform linux/amd64`). Required env
+  (multi-architecture: `linux/amd64` and `linux/arm64`; the runtime selects
+  the matching image). Required env
   `ACCEPT_EULA=Y` + a complex `MSSQL_SA_PASSWORD`. Engine listens on 1433.
 - The engine does **NOT** auto-create databases. `CREATE DATABASE appdb` on a
   **master** connection first; do not `USE` to switch databases (a user-database
@@ -36,18 +40,22 @@ from Microsoft Learn.
   self-signed cert.
 - **Container-specific and verified:** a SQL **contained** user
   (`CREATE USER ... WITH PASSWORD`) does **not** work on the container today, and
-  you cannot turn it on. `CREATE USER ... WITH PASSWORD` fails with `Msg 15007`.
-  `ALTER DATABASE ... SET CONTAINMENT = PARTIAL` fails with `Msg 12844`, because
-  the container's edition does not have partial containment at all. Create a SQL
+  you cannot turn it on. `CREATE USER ... WITH PASSWORD` fails with `Msg 33233`
+  ("You can only create a user with a password in a contained database").
+  `ALTER DATABASE ... SET CONTAINMENT = PARTIAL` fails with `Msg 12824`, which asks
+  for the `contained database authentication` setting to be 1, and `sp_configure`
+  does not exist on this engine (`Msg 2812`), so there is nothing to set. Create a SQL
   app identity as a **server login mapped to a database user** instead. This is the
   inverse of Azure SQL Database in the cloud, where the contained user is the norm.
+  Measured 2026-09-19 on image tag `18.0.226_4_147`.
 - **Entra has to be configured on the engine before you can use it.** On a
   container started with no Microsoft Entra ID configuration,
-  `CREATE USER [name] FROM EXTERNAL PROVIDER` is refused with `Msg 37525`, which
-  names Azure Active Directory as not configured for this instance. That is a
-  missing engine configuration, not a broken statement: enable Entra first (see
-  `references/entra-auth.md` in the **azuresql-db-container** skill) and the same
-  statement then works.
+  `CREATE USER [name] FROM EXTERNAL PROVIDER` is refused with `Msg 33134`,
+  "Principal '...' could not be resolved. Error message: 'Unable to query Azure AD
+  certificate from local cert store.'" That is a missing engine configuration, not a
+  broken statement: enable Entra first (see `references/entra-auth.md` in the
+  **azuresql-db-container** skill) and the same statement then works. Measured
+  2026-09-19 on image tag `18.0.226_4_147`.
 
 ## Step 1: create a least-privilege user (not `sa`)
 
@@ -75,7 +83,7 @@ The app then connects as `applogin`, never `sa`.
 For Entra (which works on the container too, once enabled), use
 `CREATE USER [name] FROM EXTERNAL PROVIDER` in `appdb`. Enable Entra on the engine
 first via the **azuresql-db-container** skill, `references/entra-auth.md`; without
-that configuration the statement is refused with `Msg 37525`. In the
+that configuration the statement is refused with `Msg 33134`. In the
 cloud with SQL auth, `CREATE USER ... WITH PASSWORD` is the norm there. Full
 recipes for every path are in
 [references/auth-and-secrets.md](references/auth-and-secrets.md).
@@ -114,7 +122,7 @@ that can be committed:
 
 ```bash
 dotnet user-secrets init
-dotnet user-secrets set "SQL_CONNECTION_STRING" "Server=localhost,1433;Database=appdb;User Id=appuser;Password=YourStr0ng_Passw0rd;TrustServerCertificate=true"
+dotnet user-secrets set "SQL_CONNECTION_STRING" "Server=localhost,1433;Database=appdb;User Id=appuser;Password=$MSSQL_SA_PASSWORD;TrustServerCertificate=true"
 ```
 
 Open [references/auth-and-secrets.md](references/auth-and-secrets.md) when you need the
@@ -141,8 +149,8 @@ per-stack handling for Key Vault, user-secrets or `.env`.
 ## Do not
 
 - Do not connect the application as `sa`; `sa` is for provisioning only.
-- Do not try to create a SQL contained user with `CREATE USER ... WITH PASSWORD` on the container; it fails with `Msg 15007`. Do not try to turn partial containment on either: `ALTER DATABASE ... SET CONTAINMENT = PARTIAL` fails with `Msg 12844`, because the container's edition does not have that functionality. Use a server login plus a mapped database user locally.
-- Do not run `CREATE USER ... FROM EXTERNAL PROVIDER` against a container with no Entra configuration; it is refused with `Msg 37525`. Configure Entra on the engine first.
+- Do not try to create a SQL contained user with `CREATE USER ... WITH PASSWORD` on the container; it fails with `Msg 33233`. Do not try to turn partial containment on either: `ALTER DATABASE ... SET CONTAINMENT = PARTIAL` fails with `Msg 12824`, and the `sp_configure` setting it asks for does not exist on this engine. Use a server login plus a mapped database user locally.
+- Do not run `CREATE USER ... FROM EXTERNAL PROVIDER` against a container with no Entra configuration; it is refused with `Msg 33134`. Configure Entra on the engine first.
 - Do not grant the app `db_owner` or server admin when read/write roles suffice.
 - Do not commit the connection string or the SA password; use a secret store or a git-ignored env var.
 - Do not set `TrustServerCertificate=true` against Azure SQL Database in the cloud; that disables cert validation on a real certificate.

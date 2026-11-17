@@ -4,6 +4,10 @@
 #   "flask>=3.0.0",
 #   "requests>=2.32.0",
 #   "waitress>=3.0.0",
+#   # Security floors for indirect dependencies.
+#   "certifi>=2026.10.19",
+#   "urllib3>=2.8.0",
+#   "werkzeug>=3.1.9",
 # ]
 # ///
 
@@ -21,6 +25,7 @@ import json
 import logging
 import os
 import secrets
+import sys
 import threading
 import time
 import webbrowser
@@ -246,13 +251,15 @@ def get_shub_apikey(*, config: dict[str, str], access_token: str) -> str:
 
 
 def save_file(data: str, path: Path) -> Path:
-    with path.open("w") as fp:
+    with path.open("w", encoding="utf-8") as fp:
         fp.write(data)
     logging.info("Saved data to %s", path)
     return path
 
 
 def main() -> None:
+    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
     parser = argparse.ArgumentParser()
     parser.add_argument("--host", default=DEFAULT_HOST)
     parser.add_argument("--port", type=int, default=DEFAULT_PORT)

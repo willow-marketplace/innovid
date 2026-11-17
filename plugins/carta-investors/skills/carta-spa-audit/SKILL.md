@@ -1,10 +1,12 @@
 ---
 name: carta-spa-audit
-description: SPA coverage audit across your portfolio — categorizes every equity investment as missing, unexecuted, executed, or not needed. Use when asked about SPA coverage, missing SPAs, unexecuted SPAs, or document completeness.
+description: "SPA (stock purchase agreement) coverage audit across your portfolio — categorizes every equity investment as missing, unexecuted, executed, or not needed, and can drill into a specific company's SPA documents. Use for any question about which investments are missing an SPA or an executed or signed SPA (\"Which of our investments are missing an executed SPA?\", \"what's our SPA status?\"), SPA coverage, document completeness, or a named company's SPA — even when the same request also asks for another skill, such as co-investors: run both. Not for general portfolio metrics; for who else invested alongside you, use carta-co-investors."
 ---
 
 <!-- carta:plugin-version -->
-<carta-plugin>carta-investors:6.32.1</carta-plugin>
+<carta-plugin>carta-investors:7.49.2</carta-plugin>
+
+> **If this plugin's files can't be found:** a path that still shows an unreplaced `${…}` variable, or a "not found" when you read or run one of this skill's files, means the skill loaded before this session's computer link was ready. Invoke this skill once more with the Skill tool and use the paths that copy gives. If they're still unreplaced, tell the user Carta's plugin files aren't available in this session yet (link your computer, then ask again) and stop. Don't search the disk for them.
 
 <!-- Part of the official Carta AI Agent Plugin -->
 
@@ -24,7 +26,7 @@ Follow these rules every time except for machine-readable output (JSON, XML):
 - **Punctuation:** No period at the end of headings or titles.
 - **Bullets:** Always use `•` — never `-` or `*` for user-facing bullets. Numbered lists use `1.` `2.` `3.`
 - **Dates:** `Mmm D, yyyy` format (e.g. `Jan 5, 2024`). Exception: first invested dates are shown as `Mmm yyyy` (month-level — day precision is not meaningful for portfolio-entry dates).
-- **Currency (standard):** `$123,456`. Negative: `($445,443)`.
+- **Currency (standard):** `$123,456`. Negative: `($445,443)`. Cost basis follows its own rule in Step B2 — it carries each company's currency code, never a `$`.
 - **Null values:** Use `—` (em-dash), never `N/A`, blank, or prose like "not recorded".
 
 ### Tables [PATTERN tables v0.0.12]
@@ -62,23 +64,13 @@ Never go silent for more than one step. Never present results without a prior st
 
 > **User-facing language — no internals, ever.** The user is a fund manager, not an engineer. Status lines, summaries, and error messages must use plain investor vocabulary only. **Never** expose any of the following to the user — not in a status line, a summary, an error, or an aside: query names, SQL, pagination/pages/offsets, `total_rows`, row or byte counts, blob/file paths, "Snowflake"/"DWH"/"ndjson", latency or timing breakdowns, retries, UUIDs, or exit codes. Talk about *companies*, *SPAs*, *portfolios*, and *coverage* — never the machinery that produces them.
 
-### Carta watermark [PATTERN carta-watermark v0.0.10]
-
-Every time you respond in natural language to a human user using this skill, show this Carta ASCII logo at the start of the response:
-
-```
-┌───────┐
-│ carta │
-└───────┘
-```
-
 ---
 
 ## Prerequisites
 
-- **Carta MCP connection** — `list_contexts` and `fetch` tools available; user has an active session for at least one investment firm.
+- **Carta MCP connection** — `list_contexts` and `read_tool` tools available; user has an active session for at least one investment firm.
 - **SPA documents uploaded** — the firm has Stock Purchase Agreements in Carta's Document Intelligence; without them, all equity companies land in bucket 1 (missing SPA).
-- **Mode A needs Cowork.** Live Artifacts only render there. Claude Desktop and the Claude Code CLI get Mode B, which is a full text answer, not a degraded one.
+- **Mode A needs the `Artifact` tool**; without it, Mode B gives a full text answer, not a degraded one.
 
 ## Accessibility
 
@@ -92,7 +84,7 @@ The Mode A interactive HTML artifact has **not yet been formally audited for WCA
 - Tables use proper `<thead>` / `<tbody>` semantics; sort headers expose `aria-sort` state.
 - Search input has an `aria-label`.
 
-Users who need a WCAG-compliant text view should request Mode B explicitly ("text only", "no file", "quick summary").
+Users who need a WCAG-compliant text view can ask for text ("text only", "no file", "quick summary"), which Step 2 routes to Mode B.
 
 ---
 
@@ -104,17 +96,36 @@ Users who need a WCAG-compliant text view should request Mode B explicitly ("tex
 - "Which portfolio companies have executed SPAs?"
 - "What's our SPA status?"
 - "Do we have SPAs on file for all our equity investments?"
+- "Find the SPA for Acme Corp" / "Show me all SPA documents for a specific company" (routes to the drill-down — see Step 2)
 
 ---
 
 ## SPA data source
 
-Every SPA query below reads one surface: `FUND_ADMIN.DOCUMENT_AI_RECORD`, the generic, document-type-agnostic view. Extracted fields live in the `ATTRIBUTES` JSON column and need explicit casts (`ATTRIBUTES:name::STRING`).
+Every SPA query below reads one surface: `FUND_ADMIN.DOCUMENT_AI_RECORD`, the generic, document-type-agnostic view. Two VARIANT columns carry the extracted fields: `ATTRIBUTES` (flat, one row per entity) and `RAW_JSON` (the full per-document extraction payload, repeated on every row of that document). `RAW_JSON` can be null; the company's `name` and `executed_by_issuer` are read from it with an `ATTRIBUTES` fallback:
+
+```sql
+CASE
+  WHEN TYPEOF(RAW_JSON:company:name) = 'OBJECT' AND RAW_JSON:company:name:value::STRING IS NOT NULL
+    THEN RAW_JSON:company:name:value::STRING
+  WHEN TYPEOF(RAW_JSON:company:name) = 'VARCHAR'
+    THEN RAW_JSON:company:name::STRING
+  ELSE ATTRIBUTES:name::STRING
+END
+```
+
+Three gotchas if you touch this:
+
+- **Check `TYPEOF` explicitly rather than `COALESCE`-ing the reads together.** A populated envelope *object* cast straight to the target type returns a stringified JSON blob, not the scalar or the fallback.
+- **Cast before the null check** — `:value::TYPE IS NOT NULL`, never the bare `:value IS NOT NULL`. A VARIANT holding a JSON `null` is not SQL `NULL`, so the uncast form treats a missing value as present and never falls through to `ATTRIBUTES`.
+- **`BOOLEAN` casts on `RAW_JSON` must go through `TRY_TO_BOOLEAN(...::VARCHAR)`, never a bare `::BOOLEAN`.** Casting a VARIANT envelope object straight to `BOOLEAN` errors the whole query — not just the rows where that branch fires. `executed_by_issuer`'s legacy-scalar branch must also check `TYPEOF(...) = 'BOOLEAN'` specifically, not just "not an object": a bare JSON `null` (no envelope at all) types as `NULL_VALUE`, and treating that as a legacy scalar commits to a `NULL` result instead of falling through to `ATTRIBUTES`.
+
+`name` and `executed_by_issuer` are the only fields migrated so far — the drill-down's transaction date, currency, and purchaser fields still read `ATTRIBUTES` only.
 
 Two rules when writing or editing any of these queries:
 
 1. **Filter on both `DOCUMENT_TYPE = 'stock_purchase_agreement'` and the relevant `RECORD_TYPE`.** The `RECORD_TYPE` labels (`company`, `investor`, `security`, `stock_purchase`) are generic and reused by other document types — an LPA also has `company` and `investor` records. `RECORD_TYPE` alone silently pulls unrelated documents into the audit.
-2. **Relate record types within a document by `DOCUMENT_ID` or `EXTRACTION_ID`** — the view holds exactly one extraction per document, so either key works and no deduplication is needed.
+2. **Relate record types by `EXTRACTION_ID`, never `DOCUMENT_ID`.** One uploaded document can hold several extractions — a packet Document AI split into segments can carry two SPAs — and `EXTRACTION_ID` identifies one extracted agreement. Joining the `company`, `investor` and `stock_purchase` rows on `DOCUMENT_ID` pairs one SPA's issuer with another's purchasers. The view serves only each segment's current extraction, so no deduplication is needed.
 
 > **A SPA extracted before this pipeline became the source of record will not appear.** Those documents live only in the older per-type views (`DOCUMENT_AI_SPA_ISSUER` and friends), which this skill no longer reads, and the company will read as "Missing SPA" until it is re-extracted. Do not reintroduce a read of those views to patch an individual gap — the source of record is one surface, and a fix belongs upstream in the extraction backfill.
 
@@ -127,6 +138,10 @@ Open every invocation with:
 > "I'll audit SPA coverage across your portfolio — pulling every investment record and SPA document from Carta, then categorizing each company by execution status. Larger portfolios take a moment."
 
 Then proceed immediately to Step 1.
+
+> **Checkpoint**: Call `mcp__<SERVER>__skill_checkpoint(skill_name="carta-investors:carta-spa-audit", checkpoint_label="skill_started")` before proceeding. `<SERVER>` is the MCP server name you're using for `list_contexts` in this session.
+
+Each run records each checkpoint at most once, and exactly one of `skill_finished` or `skill_failed`. A step reached again later in the same run (a re-render, a follow-up, a drill-down, a re-publish) does not checkpoint again.
 
 ---
 
@@ -142,19 +157,30 @@ Then proceed immediately to Step 1.
 
 Tell the user: `Firm context loaded: <firm_name>. Fetching investment records and SPA documents…`
 
+**Uploads offered in this skill.** Every "drop … into this chat" line in this skill (the artifact, the next-step text, the error-handling rows and the drill-down) follows two rules. Without a Bash tool (claude.ai chat), leave out the drop-in half and keep the Carta link: the upload can't reach the user's files there. Files the user drops or names during this conversation go to `carta-investors:carta-upload-firm-document` for `<firm_name>`, so it does not ask which firm.
+
 ---
 
 ## Step 2: Route
 
 **The default output of this skill is the interactive artifact (Mode A). Proceed directly to Mode A Step A1.**
 
-Only route to **text-only (Mode B)** when the user explicitly signals it:
-- Says "text only", "no file", "quick summary", "just tell me", or "list missing only" → Mode B
-- Asks to drill into a specific named company (any phrasing) → run Mode B Step B0 cache check + drill-down only
+> **ALWAYS build the interactive artifact (Mode A). This is not a preference or a default — it is the required output of this skill.** Text is for a session with no `Artifact` tool, a user who asks for it outright, or a drill-down into one named company — never a choice you make from how a general request was phrased.
 
-Everything else — including any general "audit my SPAs" or "show coverage" request — goes to Mode A.
+**A question about the gaps is a request for the audit.** "Which of our investments are missing an executed SPA?", "Which companies are missing SPAs?" and "What's our SPA status?" are all answered by the artifact: its missing and unexecuted tiles are that list, ranked by cost basis. Do not read them as "just list the gaps".
 
-Route to Mode B when Step A1's gate finds no `Artifact` tool — that means this session is not Cowork.
+**Do NOT route to Mode B because of the question's wording or the portfolio's size:**
+
+| User signal | What must happen |
+|---|---|
+| "Which … are missing / unexecuted?", "list the gaps" | Still build Mode A. The artifact's missing and unexecuted buckets are the list. |
+| Large portfolio, many entities, many SPAs | Still build Mode A. The page pages its own queries and never routes rows through your context, so size is not a reason for text. |
+| Speed / cost concern | Still build Mode A. It costs nothing extra in your context. |
+
+Route to **text-only (Mode B)** only when:
+- The user explicitly asks for text: "text only", "no file", "quick summary" or "just tell me".
+- The user asks to drill into one specific named company (any phrasing) → run Mode B Step B0 cache check + drill-down only.
+- Step A1's first check still finds no `Artifact` tool after loading it.
 
 ---
 
@@ -166,7 +192,7 @@ The artifact shows the firm's four-bucket SPA audit — missing, unexecuted, exe
 >
 > Consequences worth holding onto:
 > - There is no NDJSON blob to resolve, no `process.py`, and no data file to assemble.
-> - Do **not** hand-write or edit the artifact HTML. Every render goes through `render-artifact.py`.
+> - Do **not** hand-write or edit the artifact HTML, including its paging, even to fix a problem the viewer reports. Every render goes through `render-artifact.py`.
 > - Do **not** pre-fetch SPA data "to check it worked". The artifact reports its own errors to the viewer.
 
 ### Step A1: Checks before building
@@ -178,7 +204,7 @@ Run both checks, and stay quiet about them when they pass:
 
 Both sit in the **plugin's** `references/` directory — `${CLAUDE_PLUGIN_ROOT}/references/`, alongside the other plugin-wide references. They are *not* under this skill's own `references/`. Read them by that exact path; don't search for them.
 
-If the `Artifact` tool is missing, this session is not Cowork: go to Mode B and tell the user plainly *"I'll give you the audit as text."* Say nothing about artifacts, Cowork, or sandboxes.
+This skill has its own text answer, so a failed first check does not stop it and its stop message is not shown. If `Artifact` is still missing once that check has tried to load it, go to Mode B and open with one plain sentence: *"The interactive SPA audit needs an up-to-date Claude Code or Cowork with Artifacts turned on for your organization, so here is the audit as text."* Say nothing about checks, modes, or sandboxes.
 
 Store the `name` the connector gate resolves as `<CARTA_MCP_SERVER>`. Step A2 passes it to the render script and Step A3 puts it in the `capabilities.mcp` grant. It is one string; there is nothing to derive and nothing to keep in sync.
 
@@ -186,25 +212,12 @@ Store the `name` the connector gate resolves as `<CARTA_MCP_SERVER>`. Step A2 pa
 
 Locate the script:
 
-```bash
-find /sessions "$HOME/mnt" -type f -path '*/carta-spa-audit/scripts/render-artifact.py' 2>/dev/null | head -1
-```
+The script is `${CLAUDE_PLUGIN_ROOT}/skills/carta-spa-audit/scripts/render-artifact.py`. Bash reaches that path on every surface, Cowork included, so do not search for it.
 
-If it prints nothing, use `${CLAUDE_PLUGIN_ROOT}/skills/carta-spa-audit/scripts/render-artifact.py`.
-
-Keep the `find` scoped to those two roots — the remote plugin mounts, the only place bash can reach this script, since it cannot reach the path `${CLAUDE_PLUGIN_ROOT}` expands to there. Locally neither exists, the `find` is empty, and the plugin-root path is the correct one. Do not broaden to `$HOME` or `/`: it takes tens of seconds and can resolve a stale cached copy.
-
-Render, substituting the path found above **literally**. `allowed-tools` matches the command text, so a shell variable in place of the path fails the allowlist and the call has to be approved by hand each time:
+Render. Run it on one line, exactly as written below. `allowed-tools` matches the command text, so a shell variable, a different path, or a line break fails the allowlist and the call has to be approved by hand each time:
 
 ```bash
-uv run "<SCRIPT_PATH>" \
-    "<CWD>/<firm-slug>-spa-audit.html" \
-    "<firm-slug>-spa-audit" \
-    "<CARTA_MCP_SERVER>" \
-    "<firm_id>" \
-    "<firm_name>" \
-    "<org_pk>" \
-    "<base_url>"
+uv run "${CLAUDE_PLUGIN_ROOT}/skills/carta-spa-audit/scripts/render-artifact.py" "<CWD>/<firm-slug>-spa-audit.html" "<firm-slug>-spa-audit" "<CARTA_MCP_SERVER>" "<firm_id>" "<firm_name>" "<org_pk>" "<base_url>"
 ```
 
 Positional arguments:
@@ -266,13 +279,17 @@ Keep `title` and `favicon` stable across redeploys, and restate the whole `capab
 
 ### Step A4: Confirm
 
-> Your SPA coverage audit for **<Firm Name>** is loading in the Cowork sidebar.
+> Your SPA coverage audit for **<Firm Name>** is ready: [Open <Firm Name> — SPA coverage audit](<url the publish returned>)
+
+Fill the link with the `url` the publish call returned. The side panel does not always open by itself, and this link is how the user reaches the page when it stays closed, so never say the page is loading or open in the sidebar.
 
 Then a 3–5 bullet summary of what it shows — the four-bucket audit (missing, unexecuted, executed, no SPA needed) ranked by cost basis, a coverage stat contrasting count vs. cost-basis coverage, click any company with an SPA on file to see the document and purchaser breakdown in a drawer, fund and geography filters, live/exited tabs. Keep it brief; the customer can see the artifact. Skip the bullets on re-invocation if you've already shown them.
 
 **Cross-skill follow-up.** Always append a one-line suggestion to run `carta-co-investors`: *"Want to see who co-invests alongside you in these portfolio companies? Run the `carta-co-investors` skill — it builds an interactive co-investor report from the same SPA data this audit just collected."*
 
 > **Numbers live in the artifact, not in your reply.** Do not restate coverage percentages, bucket counts, or company names in chat — you have not seen them. The page queries Carta after your turn ends, so any figure you quote is invented.
+
+> **Checkpoint**: Call `mcp__<SERVER>__skill_checkpoint(skill_name="carta-investors:carta-spa-audit", checkpoint_label="skill_finished")` once the publish in Step A3 has succeeded. Mode A has no `data_fetched` checkpoint — the page fetches its own data after your turn ends.
 
 ---
 
@@ -282,38 +299,32 @@ Render the four-bucket audit as Markdown tables. Single fetch, single render.
 
 ### Step B0: Resolve workspace and check cache
 
-Before fetching anything, resolve a stable, cross-platform working directory. The audit cache and (in v0.4.0) the HTML artifact both live under `$WORKSPACE`. **Both the Claude process AND the preview-panel host must be able to read this path** — on Cowork demo VMs running macOS 26.5+ the host can no longer see `~/.cache/...` or `/tmp/...`. The probe below picks the right path automatically: Cowork sandboxes get `$HOME/mnt/outputs/` (the bind-mounted session outputs dir, visible from both VM and host), regular Claude Code CLI laptops get `carta workspace cache`, and anything else falls back to `$TMPDIR`.
+Before fetching anything, resolve a stable, cross-platform working directory, `<WORKSPACE>`, where the audit cache lives. **Both the Claude process AND the preview-panel host must be able to read this path** — on Cowork demo VMs running macOS 26.5+ the host can no longer see `~/.cache/...` or `/tmp/...`. Run each command below as its own Bash call, exactly as written: each matches an `allowed-tools` entry, and a shell variable does not survive from one Bash call to the next, so write the resolved path into later commands literally.
+
+1. `test -d "$HOME/mnt/outputs"` — succeeds in the Cowork sandbox, where `mnt/outputs/` under the session root is the folder the host can read too. `<WORKSPACE>` is that folder (expand `$HOME` with `pwd` if needed) plus `/carta-spa-audit`.
+2. Otherwise `command -v carta` — succeeds on a Claude Code laptop. Run `carta workspace cache carta-spa-audit`; it prints a quoted path, which is `<WORKSPACE>` without the quotes.
+3. Otherwise `<WORKSPACE>` is `<CWD>/carta-spa-audit`, with `<CWD>` from `pwd`.
+
+Then create it:
 
 ```bash
-if [ -d "${HOME}/mnt/outputs" ] && [ -w "${HOME}/mnt/outputs" ]; then
-  # Cowork sandbox: $HOME is the session root (/sessions/<name>) and
-  # mnt/outputs/ is the bind mount the macOS host sees as
-  # ~/Library/Application Support/Claude/.../outputs/. Writes here are
-  # readable by both the sandboxed Claude process and the host.
-  WORKSPACE="${HOME}/mnt/outputs/carta-spa-audit"
-elif command -v carta >/dev/null 2>&1; then
-  # Regular Claude Code CLI on a developer laptop.
-  WORKSPACE=$(carta workspace cache carta-spa-audit | jq -r .)
-else
-  # Last-resort fallback (e.g. CI / hosted runtimes without Carta CLI).
-  WORKSPACE="${TMPDIR:-/tmp}/carta-spa-audit"
-fi
-mkdir -p "$WORKSPACE"
+mkdir -p "<WORKSPACE>"
 ```
 
 Do not hardcode `/tmp` — it breaks on Windows and is invisible to the Cowork host on macOS 26.5+.
 
-**Cache check.** If `$WORKSPACE/carta-spa-audit-data.json` exists AND is less than 60 minutes old AND the cached `firmId` matches the current `<firm_id>`, read it and skip Step B1 entirely:
+**Cache check:**
 
 ```bash
-test -f "$WORKSPACE/carta-spa-audit-data.json" && \
-  find "$WORKSPACE/carta-spa-audit-data.json" -mmin -60 -print
+date +%s && date -r "<WORKSPACE>/carta-spa-audit-data.json" +%s
 ```
 
-If the file is fresh:
-1. `Read` it.
+The cache is fresh when the two printed numbers differ by less than 3600 (60 minutes). If the second command fails, there is no cache.
+
+If the cache is fresh:
+1. `Read` `<WORKSPACE>/carta-spa-audit-data.json`.
 2. Confirm `data.meta.firmId == <firm_id>` (cache is per-firm; a stale cache from another firm must be ignored).
-3. Tell the user: `Using cached SPA data from $(date -r "$WORKSPACE/carta-spa-audit-data.json" "+%H:%M"). Preparing results…`
+3. Run `date -r "<WORKSPACE>/carta-spa-audit-data.json" +%H:%M` and tell the user: `Using cached SPA data from <that time>. Preparing results…`
 4. Skip Step B1 and proceed directly to Step B2.
 
 **Fall through to Step B1 (live fetch) when:**
@@ -336,34 +347,36 @@ Reads the unified SPA source (see below), groups by issuer name to deduplicate m
 
 > **`fuzzy_matched` needs a total ordering — do not drop a trailing ORDER BY key.** Once `norm_investments` emits an alias candidate alongside the primary name, one investment can score 100 against two different SPAs, and `has_executed_spa DESC` alone does not separate them. With a tie, `ROW_NUMBER()` picks whichever row the plan happens to emit first, so the SPA named against a company changes between runs of the *same* audit. The rank ends `..., s.has_executed_spa DESC, i.is_alias, s.spa_name`: the executed flag keeps its precedence so bucket assignment is untouched, `is_alias` prefers a match on the company's own name over its former name, and `spa_name` makes the order total.
 
-> **`NULLS LAST` on that same rank is load-bearing — do not drop it.** `fuzzy_matched` ranks candidates through a `LEFT JOIN`, and Snowflake sorts NULLs **first** on a `DESC` ordering. Without `NULLS LAST`, a company whose primary name finds no SPA but whose alias scores 100 has its NULL row win `rn = 1`, carries a NULL `spa_name` into `labeled`, and gets bucketed "1. Missing SPA" — silently discarding exactly the matches the alias candidates exist to recover. At one firm that was the difference between 66 and 133 companies in Executed SPA. Like the total ordering above, it only became load-bearing once `norm_investments` emitted more than one row per investment. The co-investors skill carries the same clause; keep the two in step.
+> **`NULLS LAST` on that same rank is load-bearing — do not drop it.** `fuzzy_matched` ranks candidates through a `LEFT JOIN`, and Snowflake sorts NULLs **first** on a `DESC` ordering. Without `NULLS LAST`, a company whose primary name finds no SPA but whose alias scores 100 has its NULL row win `rn = 1`, carries a NULL `spa_name` into `labeled`, and gets bucketed "1. Missing SPA" — silently discarding exactly the matches the alias candidates exist to recover. At one firm that was the difference between 66 and 133 companies in Executed SPA. Like the total ordering above, it only became load-bearing once `norm_investments` emitted more than one row per investment. The co-investors skill carries the same clause; keep the two in step. `carta-portfolio-rights/references/portfolio-rights.sql` copies this query's name normalisation and alias expressions; change them there too.
 
-> **CRITICAL — fetch ONCE; never re-issue this query with a different `offset`.** A single fetch with `limit: 500` covers any real portfolio (even Sequoia-scale firms top out around 300 portfolio companies). Do **not** re-run this query for "later pages." Reason: when the model re-types this ~1,500-char SQL for a second call it reliably corrupts a token — the embedded firm UUID drifts (e.g. `…8af6…` → `…8ad6…`), or a JOIN key changes (`d.DOCUMENT_ID` → `s.DOCUMENT_ID`), silently dropping rows or failing the call. One fetch means the SQL is authored exactly once and this whole class of error cannot happen.
+> **A bare parenthetical is an alias only when it could be a name.** `alias_raw` takes the text after `fka`/`dba`/`formerly` when the investment name has one, and otherwise any parenthetical — but investment names carry many that are not names: `(1 CASE)`, `(Series A)`, `(Cayman)`, `(US)`, `(Holding)`, `(Israeli company)`. The `IFF(REGEXP_LIKE(...), NULL, ...)` around the bare fallback drops those — two characters or fewer, a leading digit, a series, a "held …" or "investment …" phrase, "… company", or a structural word (holding, group, feeder, onshore/offshore, and the jurisdictions Cayman, BVI, Delaware, Pty) — before they reach the fuzzy match, where a generic word scores ≥ 90 against another company's SPA (`(Holding)` against `SP Holding LTD`). Query O, `carta-portfolio-rights/references/portfolio-rights.sql` and the `carta-co-investors` page carry the same expression; `test_former_name_expression_matches_the_mode_b_audit` fails when one drifts. The name strip, legal-suffix list and alias legs around it are copied the same way: `carta-co-investors` (`references/artifact.html` `SPA_CTE` and the Mode B queries in its SKILL.md), `carta-portfolio-rights/references/portfolio-rights.sql` and this skill's Query A and artifact. Change one and change all; `test_company_name_matching_fragments_are_in_every_copy` and `test_company_name_matching_fragments_are_in_every_name_matching_copy` fail when one drifts; `tests/carta-investors/spa_audit_parity.py` ports the suffix step to Python, and `test_parity_script_suffix_step_is_the_sql_suffix_step` pins it.
+
+> **CRITICAL — fetch ONCE; never re-issue this query with a different `offset`.** A single fetch with `limit: 1000` covers any real portfolio — the query returns one row per company the firm holds, SAFEs and fund positions included, and active multi-fund firms reach 500. Do **not** re-run this query for "later pages." Reason: when the model re-types this ~1,500-char SQL for a second call it reliably corrupts a token — the embedded firm UUID drifts (e.g. `…8af6…` → `…8ad6…`), or a JOIN key changes (`d.DOCUMENT_ID` → `s.DOCUMENT_ID`), silently dropping rows or failing the call. One fetch means the SQL is authored exactly once and this whole class of error cannot happen.
 >
-> **If the row count ever exceeds 500** (it won't for any real firm — flag it as a data anomaly rather than paginating): raise `limit` in the same single call. Never add `offset` pages.
+> **If the row count ever exceeds 1000** (flag it as a data anomaly rather than paginating): raise `limit` in the same single call. Never add `offset` pages.
 
 Replace `<firm_id>` with the firm id from Step 1.
 
 ```
-call_tool({"name": "dwh__execute__query", "arguments": {
-  "sql": "WITH spa_issuers AS (SELECT ATTRIBUTES:name::STRING AS ISSUER_NAME, ATTRIBUTES:executed_by_issuer::BOOLEAN AS EXECUTED_BY_ISSUER FROM FUND_ADMIN.DOCUMENT_AI_RECORD WHERE FIRM_ID = '<firm_id>' AND DOCUMENT_TYPE = 'stock_purchase_agreement' AND RECORD_TYPE = 'company' AND ATTRIBUTES:name::STRING IS NOT NULL), norm_spa AS (SELECT ISSUER_NAME AS spa_name, TRIM(REGEXP_REPLACE(TRIM(REGEXP_REPLACE(TRIM(REGEXP_REPLACE(TRIM(REGEXP_REPLACE(UPPER(ISSUER_NAME), ' *[(][^)]*[)].*$', '')), ' +(D/?B/?A|F/?K/?A|AKA) +.*$', '')), '([ ,]+(INCORPORATED|INC|LLC|LTD|LIMITED|CORPORATION|CORP|L[.]P[.]|LLP|LP|PBC|PLC|CO[.]?|HOLDINGS|TECHNOLOGIES|TECHNOLOGY)[.]?)+ *$', '')), '[,.]', '')) AS name_norm, MAX(CASE WHEN EXECUTED_BY_ISSUER = TRUE THEN 1 ELSE 0 END) AS has_executed_spa FROM spa_issuers GROUP BY ISSUER_NAME), norm_investments_base AS (SELECT ISSUER_NAME, MAX(CASE WHEN ASSET_CLASS_TYPE = 'PREFERRED_EQUITY' THEN 1 ELSE 0 END) AS has_preferred, MAX(CASE WHEN ASSET_CLASS_TYPE = 'COMMON_EQUITY' THEN 1 ELSE 0 END) AS has_common, MIN(INVESTMENT_DATE) AS first_invested, SUM(CASE WHEN IS_FOREIGN_CURRENCY_INVESTMENT THEN BASE_CURRENCY_TOTAL_COST ELSE TOTAL_COST END) AS total_cost_basis, COUNT(DISTINCT CASE WHEN IS_FOREIGN_CURRENCY_INVESTMENT THEN BASE_CURRENCY_CODE ELSE CURRENCY_CODE END) AS currency_count, MAX(CASE WHEN IS_FOREIGN_CURRENCY_INVESTMENT THEN BASE_CURRENCY_CODE ELSE CURRENCY_CODE END) AS currency_code, TRIM(REGEXP_REPLACE(TRIM(REGEXP_REPLACE(TRIM(REGEXP_REPLACE(TRIM(REGEXP_REPLACE(UPPER(ISSUER_NAME), ' *[(][^)]*[)].*$', '')), ' +(D/?B/?A|F/?K/?A|AKA) +.*$', '')), '([ ,]+(INCORPORATED|INC|LLC|LTD|LIMITED|CORPORATION|CORP|L[.]P[.]|LLP|LP|PBC|PLC|CO[.]?|HOLDINGS|TECHNOLOGIES|TECHNOLOGY)[.]?)+ *$', '')), '[,.]', '')) AS name_norm, COALESCE(REGEXP_SUBSTR(ISSUER_NAME, '[(] *(D[.]?/?B[.]?/?A[.]?|F[.]?/?K[.]?/?A[.]?|N[.]?/?K[.]?/?A[.]?|A[.]?K[.]?A[.]?|FORMERLY( +KNOWN +AS)?)[ :]+([^)]+)[)]', 1, 1, 'ie', 3), REGEXP_SUBSTR(ISSUER_NAME, '[(]([^)]+)[)]', 1, 1, 'e', 1)) AS alias_raw FROM FUND_ADMIN.AGGREGATE_INVESTMENTS WHERE FIRM_ID = '<firm_id>' GROUP BY ISSUER_NAME), norm_investments AS (SELECT ISSUER_NAME, has_preferred, has_common, first_invested, total_cost_basis, currency_count, currency_code, name_norm, 0 AS is_alias FROM norm_investments_base UNION ALL SELECT ISSUER_NAME, has_preferred, has_common, first_invested, total_cost_basis, currency_count, currency_code, TRIM(REGEXP_REPLACE(TRIM(REGEXP_REPLACE(UPPER(alias_raw), '([ ,]+(INCORPORATED|INC|LLC|LTD|LIMITED|CORPORATION|CORP|L[.]P[.]|LLP|LP|PBC|PLC|CO[.]?|HOLDINGS|TECHNOLOGIES|TECHNOLOGY)[.]?)+ *$', '')), '[,.]', '')) AS name_norm, 1 AS is_alias FROM norm_investments_base WHERE alias_raw IS NOT NULL AND TRIM(alias_raw) <> ''), fuzzy_matched AS (SELECT i.ISSUER_NAME, i.has_preferred, i.has_common, i.first_invested, i.total_cost_basis, i.currency_count, i.currency_code, s.spa_name, s.has_executed_spa, ROW_NUMBER() OVER (PARTITION BY i.ISSUER_NAME ORDER BY JAROWINKLER_SIMILARITY(i.name_norm, s.name_norm) DESC NULLS LAST, s.has_executed_spa DESC, i.is_alias, s.spa_name) AS rn FROM norm_investments i LEFT JOIN norm_spa s ON JAROWINKLER_SIMILARITY(i.name_norm, s.name_norm) >= 90), best AS (SELECT * FROM fuzzy_matched WHERE rn = 1), labeled AS (SELECT CASE WHEN has_preferred = 0 AND has_common = 0 THEN 4 WHEN spa_name IS NULL THEN 1 WHEN has_executed_spa = 0 THEN 2 ELSE 3 END AS sort_key, CASE WHEN has_preferred = 0 AND has_common = 0 THEN '4. No SPA needed' WHEN spa_name IS NULL THEN '1. Missing SPA' WHEN has_executed_spa = 0 THEN '2. SPA not executed' ELSE '3. Executed SPA' END AS spa_bucket, ISSUER_NAME AS company, spa_name, first_invested, total_cost_basis, currency_count, currency_code FROM best) SELECT spa_bucket, company, spa_name, first_invested, total_cost_basis, currency_count, currency_code FROM labeled ORDER BY sort_key, total_cost_basis DESC NULLS LAST, company",
-  "limit": 500
+read_tool({"name": "dwh__execute__query", "arguments": {
+  "sql": "WITH spa_issuers AS (SELECT ISSUER_NAME, EXECUTED_BY_ISSUER FROM (SELECT CASE WHEN TYPEOF(RAW_JSON:company:name) = 'OBJECT' AND RAW_JSON:company:name:value::STRING IS NOT NULL THEN RAW_JSON:company:name:value::STRING WHEN TYPEOF(RAW_JSON:company:name) = 'VARCHAR' THEN RAW_JSON:company:name::STRING ELSE ATTRIBUTES:name::STRING END AS ISSUER_NAME, CASE WHEN TYPEOF(RAW_JSON:company:executed_by_issuer) = 'OBJECT' AND TRY_TO_BOOLEAN(RAW_JSON:company:executed_by_issuer:value::VARCHAR) IS NOT NULL THEN TRY_TO_BOOLEAN(RAW_JSON:company:executed_by_issuer:value::VARCHAR) WHEN TYPEOF(RAW_JSON:company:executed_by_issuer) = 'BOOLEAN' THEN TRY_TO_BOOLEAN(RAW_JSON:company:executed_by_issuer::VARCHAR) ELSE ATTRIBUTES:executed_by_issuer::BOOLEAN END AS EXECUTED_BY_ISSUER FROM FUND_ADMIN.DOCUMENT_AI_RECORD WHERE FIRM_ID = '<firm_id>' AND DOCUMENT_TYPE = 'stock_purchase_agreement' AND RECORD_TYPE = 'company') WHERE ISSUER_NAME IS NOT NULL), norm_spa AS (SELECT ISSUER_NAME AS spa_name, TRIM(REGEXP_REPLACE(TRIM(REGEXP_REPLACE(TRIM(REGEXP_REPLACE(TRIM(REGEXP_REPLACE(UPPER(ISSUER_NAME), ' *[(][^)]*[)].*$', '')), ' +(D[.]?/?B[.]?/?A[.]?|F[.]?/?K[.]?/?A[.]?|N[.]?/?K[.]?/?A[.]?|A[.]?K[.]?A[.]?|FORMERLY( +KNOWN +AS)?) +.*$', '')), '([ ,]+(INCORPORATED|INC|LLC|LTD|LIMITED|CORPORATION|CORP|L[.]P[.]|LLP|LP|PBC|PLC|CO[.]?|HOLDINGS? +COMPANY|HOLDINGS?|TECHNOLOGIES|TECHNOLOGY|TECH)[.]?)+ *$', '')), '[,.]', '')) AS name_norm, MAX(CASE WHEN EXECUTED_BY_ISSUER = TRUE THEN 1 ELSE 0 END) AS has_executed_spa FROM spa_issuers GROUP BY ISSUER_NAME), norm_investments_base AS (SELECT ISSUER_NAME, MAX(CASE WHEN ASSET_CLASS_TYPE = 'PREFERRED_EQUITY' THEN 1 ELSE 0 END) AS has_preferred, MAX(CASE WHEN ASSET_CLASS_TYPE = 'COMMON_EQUITY' THEN 1 ELSE 0 END) AS has_common, MIN(INVESTMENT_DATE) AS first_invested, SUM(CASE WHEN IS_FOREIGN_CURRENCY_INVESTMENT THEN BASE_CURRENCY_TOTAL_COST ELSE TOTAL_COST END) AS total_cost_basis, COUNT(DISTINCT CURRENCY_CODE) AS currency_count, MAX(CURRENCY_CODE) AS currency_code, TRIM(REGEXP_REPLACE(TRIM(REGEXP_REPLACE(TRIM(REGEXP_REPLACE(TRIM(REGEXP_REPLACE(UPPER(ISSUER_NAME), ' *[(][^)]*[)].*$', '')), ' +(D[.]?/?B[.]?/?A[.]?|F[.]?/?K[.]?/?A[.]?|N[.]?/?K[.]?/?A[.]?|A[.]?K[.]?A[.]?|FORMERLY( +KNOWN +AS)?) +.*$', '')), '([ ,]+(INCORPORATED|INC|LLC|LTD|LIMITED|CORPORATION|CORP|L[.]P[.]|LLP|LP|PBC|PLC|CO[.]?|HOLDINGS? +COMPANY|HOLDINGS?|TECHNOLOGIES|TECHNOLOGY|TECH)[.]?)+ *$', '')), '[,.]', '')) AS name_norm, COALESCE(REGEXP_SUBSTR(ISSUER_NAME, '[(] *(D[.]?/?B[.]?/?A[.]?|F[.]?/?K[.]?/?A[.]?|N[.]?/?K[.]?/?A[.]?|A[.]?K[.]?A[.]?|FORMERLY( +KNOWN +AS)?)[ :]+([^)]+)[)]', 1, 1, 'ie', 3), IFF(REGEXP_LIKE(UPPER(TRIM(REGEXP_SUBSTR(ISSUER_NAME, '[(]([^)]+)[)]', 1, 1, 'e', 1))), '(.{0,2}|[0-9].*|SERIES.*|.*COMPANY|HELD .*|INVESTMENT .*|HOLDINGS?|GROUP|CAYMAN|BVI|PTY|DELAWARE|OFFSHORE|ONSHORE|FEEDER)'), NULL, REGEXP_SUBSTR(ISSUER_NAME, '[(]([^)]+)[)]', 1, 1, 'e', 1)), REGEXP_SUBSTR(ISSUER_NAME, '[ ,]+(D[.]?/?B[.]?/?A[.]?|F[.]?/?K[.]?/?A[.]?|N[.]?/?K[.]?/?A[.]?|A[.]?K[.]?A[.]?|FORMERLY( +KNOWN +AS)?)[ :]+([^(]+)', 1, 1, 'ie', 3)) AS alias_raw FROM FUND_ADMIN.AGGREGATE_INVESTMENTS WHERE FIRM_ID = '<firm_id>' GROUP BY ISSUER_NAME), norm_investments AS (SELECT ISSUER_NAME, has_preferred, has_common, first_invested, total_cost_basis, currency_count, currency_code, name_norm, 0 AS is_alias FROM norm_investments_base UNION ALL SELECT ISSUER_NAME, has_preferred, has_common, first_invested, total_cost_basis, currency_count, currency_code, TRIM(REGEXP_REPLACE(TRIM(REGEXP_REPLACE(UPPER(alias_raw), '([ ,]+(INCORPORATED|INC|LLC|LTD|LIMITED|CORPORATION|CORP|L[.]P[.]|LLP|LP|PBC|PLC|CO[.]?|HOLDINGS? +COMPANY|HOLDINGS?|TECHNOLOGIES|TECHNOLOGY|TECH)[.]?)+ *$', '')), '[,.]', '')) AS name_norm, 1 AS is_alias FROM norm_investments_base WHERE alias_raw IS NOT NULL AND TRIM(alias_raw) <> ''), fuzzy_matched AS (SELECT i.ISSUER_NAME, i.has_preferred, i.has_common, i.first_invested, i.total_cost_basis, i.currency_count, i.currency_code, s.spa_name, s.has_executed_spa, ROW_NUMBER() OVER (PARTITION BY i.ISSUER_NAME ORDER BY JAROWINKLER_SIMILARITY(i.name_norm, s.name_norm) DESC NULLS LAST, s.has_executed_spa DESC, i.is_alias, s.spa_name) AS rn FROM norm_investments i LEFT JOIN norm_spa s ON JAROWINKLER_SIMILARITY(i.name_norm, s.name_norm) >= 90), best AS (SELECT * FROM fuzzy_matched WHERE rn = 1), labeled AS (SELECT CASE WHEN has_preferred = 0 AND has_common = 0 THEN '4. No SPA needed' WHEN spa_name IS NULL THEN '1. Missing SPA' WHEN has_executed_spa = 0 THEN '2. SPA not executed' ELSE '3. Executed SPA' END AS spa_bucket, ISSUER_NAME AS company, spa_name, first_invested, total_cost_basis, currency_count, currency_code FROM best) SELECT spa_bucket, company, spa_name, first_invested, total_cost_basis, currency_count, currency_code FROM labeled ORDER BY spa_bucket, total_cost_basis DESC NULLS LAST, company",
+  "limit": 1000
 }})
 ```
 
 ### Coverage queries (run in parallel with the main query)
 
 ```
-call_tool({"name": "dwh__execute__query", "arguments": {
-  "sql": "SELECT COUNT(DISTINCT ATTRIBUTES:name::STRING) AS spa_companies FROM FUND_ADMIN.DOCUMENT_AI_RECORD WHERE FIRM_ID = '<firm_id>' AND DOCUMENT_TYPE = 'stock_purchase_agreement' AND RECORD_TYPE = 'company' AND ATTRIBUTES:name::STRING IS NOT NULL"
+read_tool({"name": "dwh__execute__query", "arguments": {
+  "sql": "SELECT COUNT(DISTINCT ISSUER_NAME) AS spa_companies FROM (SELECT CASE WHEN TYPEOF(RAW_JSON:company:name) = 'OBJECT' AND RAW_JSON:company:name:value::STRING IS NOT NULL THEN RAW_JSON:company:name:value::STRING WHEN TYPEOF(RAW_JSON:company:name) = 'VARCHAR' THEN RAW_JSON:company:name::STRING ELSE ATTRIBUTES:name::STRING END AS ISSUER_NAME FROM FUND_ADMIN.DOCUMENT_AI_RECORD WHERE FIRM_ID = '<firm_id>' AND DOCUMENT_TYPE = 'stock_purchase_agreement' AND RECORD_TYPE = 'company') WHERE ISSUER_NAME IS NOT NULL"
 }})
 
-call_tool({"name": "dwh__execute__query", "arguments": {
+read_tool({"name": "dwh__execute__query", "arguments": {
   "sql": "SELECT COUNT(DISTINCT ISSUER_NAME) AS total_companies FROM FUND_ADMIN.AGGREGATE_INVESTMENTS WHERE FIRM_ID = '<firm_id>'"
 }})
 ```
 
-If any query fails with a table-not-found error, call `call_tool({"name": "dwh__list__tables", "arguments": {}})` to confirm available table names, then retry.
+If any query fails with a table-not-found error, call `read_tool({"name": "dwh__list__tables", "arguments": {}})` to confirm available table names, then retry.
 
 **Bucket definitions:**
 - **1. Missing SPA** — holds equity (preferred or common) but no SPA document found in Carta
@@ -375,7 +388,7 @@ Tell the user: `SPA data loaded. Building your coverage report…`
 
 ### Step B1.5: Write cache
 
-After both queries return, assemble a cache payload and write it to `$WORKSPACE/carta-spa-audit-data.json` so a re-invocation within 60 minutes can skip the live fetch (Step B0).
+After both queries return, assemble a cache payload and write it to `<WORKSPACE>/carta-spa-audit-data.json` so a re-invocation within 60 minutes can skip the live fetch (Step B0).
 
 Cache schema:
 
@@ -392,7 +405,7 @@ Cache schema:
     "spaCompanies": <X>
   },
   "buckets": {
-    "missing":     [{"company": "...", "firstInvested": "YYYY-MM-DD", "costBasis": <number>}, ...],
+    "missing":     [{"company": "...", "firstInvested": "YYYY-MM-DD", "costBasis": <number>, "currency": "<currency_code, or null when currency_count is not 1>"}, ...],
     "unexecuted":  [...],
     "executed":    [...],
     "notNeeded":   [...]
@@ -400,11 +413,13 @@ Cache schema:
 }
 ```
 
-Use `Write` to write the JSON. Group the main audit query's rows by `spa_bucket` into the four bucket arrays. Drill-down data is NOT cached (always fetched live in Step B2 follow-ups).
+Use `Write` to write the JSON. Group the main audit query's rows by `spa_bucket` into the four bucket arrays. Store `currency` as the row's `currency_code` when `currency_count` is 1, otherwise null. Drill-down data is NOT cached (always fetched live in Step B2 follow-ups).
 
 ---
 
 ### Step B2: Present results
+
+> **Checkpoint**: Call `mcp__<SERVER>__skill_checkpoint(skill_name="carta-investors:carta-spa-audit", checkpoint_label="data_fetched")` once the audit data is in hand, whether Step B1 fetched it or Step B0 read it from the cache.
 
 **BLUF lead:** One sentence with the coverage fraction and bucket breakdown before the tables.
 
@@ -415,12 +430,12 @@ Use `Write` to write the JSON. Group the main audit query's rows by `spa_bucket`
 Then present **four separate sub-tables** — one per bucket, in priority order, each with its own heading. Do not combine into one flat table.
 
 **Formatting rules (all tables):**
-- Currency: `$X,XXX,XXX` with commas, no cents
+- Cost basis: `X,XXX,XXX <currency_code>` with commas, no cents (e.g. `30,534,806 USD`, `28,080,000,000 IDR`). Write `Multiple currencies` when `currency_count` > 1, and append `*` with the footnote `* currency not recorded` when the code is null. Never prefix `$`, and never add or compare amounts in different currencies
 - Dates: `Mmm yyyy` (e.g. "Dec 2017") — month-level is intentional for first invested
 - `#` column for row references — does not count toward the 6-column limit
 - Never show raw UUIDs
-- Sort each sub-table by `total_cost_basis DESC` when rendering — filter rows by their `spa_bucket` value and sort within that bucket, regardless of the order rows arrived from the query
-- Within actionable buckets, insert a `— Exited / written-off positions —` divider row between the last `$>0` entry and the first `$0` cost-basis row
+- Sort each sub-table by `total_cost_basis DESC` when rendering — filter rows by their `spa_bucket` value and sort within that bucket, regardless of the order rows arrived from the query. Sort the companies in the currency most companies share first, then the rest grouped by currency code, each group by cost basis — never rank an amount against one in another currency
+- Within actionable buckets, insert a `— Exited / written-off positions —` divider row between the last entry with cost basis above 0 and the first with 0
 - **Fuzzy-match footnote:** if any company was matched to its SPA via Jaro-Winkler similarity (not an exact name match), append `*` to that company name and add a footnote below the table: `* matched via name similarity`
 
 ---
@@ -431,7 +446,7 @@ Show all rows individually — each represents a gap to remediate.
 
 | # | Company | First invested | Cost basis |
 |---|---------|---------------|----------:|
-| 1 | Acme Holdings, Inc. | Nov 2017 | $30,534,806 |
+| 1 | Acme Holdings, Inc. | Nov 2017 | 30,534,806 USD |
 
 ---
 
@@ -441,7 +456,7 @@ SPA is on file but needs the issuer's signature.
 
 | # | Company | First invested | Cost basis |
 |---|---------|---------------|----------:|
-| 1 | PortCo Beta, Inc. | Dec 2017 | $52,405,204 |
+| 1 | PortCo Beta, Inc. | Dec 2017 | 52,405,204 USD |
 
 ---
 
@@ -449,7 +464,7 @@ SPA is on file but needs the issuer's signature.
 
 | # | Company | First invested | Cost basis |
 |---|---------|---------------|----------:|
-| 1 | Greenfield Tech, Inc. | Aug 2021 | $24,515,309 |
+| 1 | Greenfield Tech, Inc. | Aug 2021 | 24,515,309 USD |
 
 ---
 
@@ -457,7 +472,7 @@ SPA is on file but needs the issuer's signature.
 
 | # | Company | First invested | Cost basis |
 |---|---------|---------------|----------:|
-| 1 | Example Co., Inc. | Jul 2023 | $1,500,000 |
+| 1 | Example Co., Inc. | Jul 2023 | 1,500,000 USD |
 
 ---
 
@@ -467,6 +482,8 @@ SPA is on file but needs the issuer's signature.
 
 • Largest cost-basis position in bucket 1 (missing SPA) — biggest blind spot, no document on file
 • Largest cost-basis position in bucket 2 (unexecuted SPA) — most urgent to chase for signature
+
+Pick each largest position only among companies in the currency most companies share.
 
 ---
 
@@ -488,9 +505,11 @@ AskUserQuestion(
 )
 ```
 
-If the user picks "Drill into a company," continue with the **Drill-down** section below. If they pick "Show only gaps," re-render Step B2 with only buckets 1 and 2. If they pick "Run co-investor analysis," hand off to `carta-co-investors` (do not re-fetch — the SPA data is already cached at `$WORKSPACE`).
+If the user picks "Drill into a company," continue with the **Drill-down** section below. If they pick "Show only gaps," re-render Step B2 with only buckets 1 and 2. If they pick "Run co-investor analysis," hand off to `carta-co-investors` (do not re-fetch — the SPA data is already cached at `<WORKSPACE>`).
 
-**Suggested next step after presenting the audit.** Always append, in plain text after Step B2 and before the AskUserQuestion: *"To close any coverage gap, upload missing SPAs to your Carta portfolio documents page — uploaded SPAs unlock co-investor analysis and more downstream skills. [View or upload SPA documents in Carta](\<base_url>/investors/firm/\<org_pk>/portfolio/documents/)"*
+> **Checkpoint**: Call `mcp__<SERVER>__skill_checkpoint(skill_name="carta-investors:carta-spa-audit", checkpoint_label="skill_finished")` after showing the next-step question.
+
+**Suggested next step after presenting the audit.** Always append, in plain text after Step B2 and before the AskUserQuestion: *"To close any coverage gap, drop missing or signed SPAs into this chat and I'll add them to your firm's Documents page, or [upload them in Carta](\<base_url>/investors/firm/\<org_pk>/portfolio/documents/). Uploaded SPAs unlock co-investor analysis and more downstream skills."*
 
 ---
 
@@ -507,11 +526,13 @@ If the user hasn't named a company, ask: "Which company would you like to review
 Run this query, replacing `<company_name>` with their input:
 
 ```
-call_tool({"name": "dwh__execute__query", "arguments": {
-  "sql": "WITH gen_rec AS (SELECT DOCUMENT_ID, RECORD_TYPE, ATTRIBUTES, CREATED_AT FROM FUND_ADMIN.DOCUMENT_AI_RECORD WHERE FIRM_ID = '<firm_id>' AND DOCUMENT_TYPE = 'stock_purchase_agreement'), spa_docs AS (SELECT c.DOCUMENT_ID, c.ATTRIBUTES:name::STRING AS ISSUER_NAME, c.ATTRIBUTES:executed_by_issuer::BOOLEAN AS EXECUTED_BY_ISSUER, TRY_TO_DATE(e.ATTRIBUTES:closing_dates[0]::STRING) AS CLOSING_DATE, IFF(REGEXP_LIKE(e.ATTRIBUTES:currency_code::STRING, '^[A-Z]{3}$'), e.ATTRIBUTES:currency_code::STRING, NULL) AS CURRENCY_CODE, c.CREATED_AT::DATE AS UPLOAD_DATE FROM gen_rec c LEFT JOIN gen_rec e ON e.DOCUMENT_ID = c.DOCUMENT_ID AND e.RECORD_TYPE = 'stock_purchase' WHERE c.RECORD_TYPE = 'company' AND c.ATTRIBUTES:name::STRING IS NOT NULL), gen_purch AS (SELECT DOCUMENT_ID, ATTRIBUTES:name::STRING AS PURCHASER_NAME, ATTRIBUTES:entity_type::STRING AS ENTITY_TYPE, ATTRIBUTES:share_class_name::STRING AS SHARE_CLASS_NAME, ATTRIBUTES:shares_purchased_by_cash::NUMBER AS SHARES_PURCHASED, ATTRIBUTES:price_per_share::NUMBER AS PRICE_PER_SHARE, ATTRIBUTES:total_amount_paid::NUMBER AS TOTAL_AMOUNT_PAID FROM gen_rec WHERE RECORD_TYPE = 'investor') SELECT DENSE_RANK() OVER (ORDER BY sd.DOCUMENT_ID) AS spa_num, sd.UPLOAD_DATE AS upload_date, sd.ISSUER_NAME, gp.PURCHASER_NAME, gp.SHARE_CLASS_NAME, gp.SHARES_PURCHASED, gp.PRICE_PER_SHARE, gp.TOTAL_AMOUNT_PAID, sd.CURRENCY_CODE, sd.CLOSING_DATE AS transaction_date, CASE WHEN sd.EXECUTED_BY_ISSUER = TRUE THEN 'Yes' ELSE 'No' END AS executed FROM spa_docs sd LEFT JOIN gen_purch gp ON gp.DOCUMENT_ID = sd.DOCUMENT_ID AND (gp.ENTITY_TYPE IS NULL OR (gp.ENTITY_TYPE NOT ILIKE '%notice%' AND gp.ENTITY_TYPE NOT ILIKE '%law firm%')) WHERE UPPER(sd.ISSUER_NAME) LIKE UPPER('%<company_name>%') ORDER BY sd.DOCUMENT_ID, gp.PURCHASER_NAME",
-  "limit": 100
+read_tool({"name": "dwh__execute__query", "arguments": {
+  "sql": "WITH gen_rec AS (SELECT EXTRACTION_ID, RECORD_TYPE, ATTRIBUTES, RAW_JSON, CREATED_AT FROM FUND_ADMIN.DOCUMENT_AI_RECORD WHERE FIRM_ID = '<firm_id>' AND DOCUMENT_TYPE = 'stock_purchase_agreement'), spa_docs AS (SELECT EXTRACTION_ID, ISSUER_NAME, EXECUTED_BY_ISSUER, CLOSING_DATE, CURRENCY_CODE, UPLOAD_DATE FROM (SELECT c.EXTRACTION_ID, CASE WHEN TYPEOF(c.RAW_JSON:company:name) = 'OBJECT' AND c.RAW_JSON:company:name:value::STRING IS NOT NULL THEN c.RAW_JSON:company:name:value::STRING WHEN TYPEOF(c.RAW_JSON:company:name) = 'VARCHAR' THEN c.RAW_JSON:company:name::STRING ELSE c.ATTRIBUTES:name::STRING END AS ISSUER_NAME, CASE WHEN TYPEOF(c.RAW_JSON:company:executed_by_issuer) = 'OBJECT' AND TRY_TO_BOOLEAN(c.RAW_JSON:company:executed_by_issuer:value::VARCHAR) IS NOT NULL THEN TRY_TO_BOOLEAN(c.RAW_JSON:company:executed_by_issuer:value::VARCHAR) WHEN TYPEOF(c.RAW_JSON:company:executed_by_issuer) = 'BOOLEAN' THEN TRY_TO_BOOLEAN(c.RAW_JSON:company:executed_by_issuer::VARCHAR) ELSE c.ATTRIBUTES:executed_by_issuer::BOOLEAN END AS EXECUTED_BY_ISSUER, TRY_TO_DATE(e.ATTRIBUTES:closing_dates[0]::STRING) AS CLOSING_DATE, IFF(REGEXP_LIKE(e.ATTRIBUTES:currency_code::STRING, '^[A-Z]{3}$'), e.ATTRIBUTES:currency_code::STRING, NULL) AS CURRENCY_CODE, c.CREATED_AT::DATE AS UPLOAD_DATE FROM gen_rec c LEFT JOIN gen_rec e ON e.EXTRACTION_ID = c.EXTRACTION_ID AND e.RECORD_TYPE = 'stock_purchase' WHERE c.RECORD_TYPE = 'company') WHERE ISSUER_NAME IS NOT NULL), gen_purch AS (SELECT EXTRACTION_ID, ATTRIBUTES:name::STRING AS PURCHASER_NAME, ATTRIBUTES:entity_type::STRING AS ENTITY_TYPE, ATTRIBUTES:share_class_name::STRING AS SHARE_CLASS_NAME, ATTRIBUTES:shares_purchased_by_cash::NUMBER AS SHARES_PURCHASED, ATTRIBUTES:price_per_share::NUMBER(38, 6) AS PRICE_PER_SHARE, ATTRIBUTES:total_amount_paid::NUMBER(38, 2) AS TOTAL_AMOUNT_PAID FROM gen_rec WHERE RECORD_TYPE = 'investor') SELECT DENSE_RANK() OVER (ORDER BY sd.EXTRACTION_ID) AS spa_num, sd.UPLOAD_DATE AS upload_date, sd.ISSUER_NAME, gp.PURCHASER_NAME, gp.SHARE_CLASS_NAME, gp.SHARES_PURCHASED, gp.PRICE_PER_SHARE, gp.TOTAL_AMOUNT_PAID, sd.CURRENCY_CODE, sd.CLOSING_DATE AS transaction_date, CASE WHEN sd.EXECUTED_BY_ISSUER = TRUE THEN 'Yes' ELSE 'No' END AS executed FROM spa_docs sd LEFT JOIN gen_purch gp ON gp.EXTRACTION_ID = sd.EXTRACTION_ID AND (gp.ENTITY_TYPE IS NULL OR (gp.ENTITY_TYPE NOT ILIKE '%notice%' AND gp.ENTITY_TYPE NOT ILIKE '%law firm%')) WHERE UPPER(sd.ISSUER_NAME) LIKE UPPER('%<company_name>%') ORDER BY sd.EXTRACTION_ID, gp.PURCHASER_NAME",
+  "limit": 500
 }})
 ```
+
+> **Checkpoint**: Call `mcp__<SERVER>__skill_checkpoint(skill_name="carta-investors:carta-spa-audit", checkpoint_label="data_fetched")` after the Step B query returns.
 
 ### Step C
 
@@ -529,12 +550,14 @@ Present results in two sub-tables. Both use `SPA #` as the join key so the user 
 |------:|-----------------|------------|-------:|------------:|-------------:|
 | 1 | Sample Fund IV, L.P. | Series C Preferred | 125,000 | 40.00 USD | 5,000,000 USD |
 
-Every amount carries the `CURRENCY_CODE` of its SPA — never assume USD, and never total across SPAs with different codes. When `CURRENCY_CODE` is null the document did not state a currency: render the bare number with a `*` and add the footnote `* currency not stated in the source document`.
+Show each price per share with the decimals the document states (`0.05071`, not `0.05`) — seed-stage prices are often fractions of a cent. Every amount carries the `CURRENCY_CODE` of its SPA — never assume USD, and never total across SPAs with different codes. When `CURRENCY_CODE` is null the document did not state a currency: render the bare number with a `*` and add the footnote `* currency not stated in the source document`.
 
 **Field notes:**
 - **Upload date** — when Carta extracted the document. For SPAs that predate the current extraction pipeline this falls back to a data-refresh date and reads as approximate.
 - **Executed?** — Yes/No from document extraction; a specific execution date is not available
 - **Currency** — read from the document extraction, per SPA. Null when the document itself stated no currency.
+
+> **Checkpoint**: Call `mcp__<SERVER>__skill_checkpoint(skill_name="carta-investors:carta-spa-audit", checkpoint_label="skill_finished")` after the two sub-tables.
 
 ### Step D
 
@@ -570,6 +593,8 @@ AskUserQuestion(
 
 ## Error handling
 
+> **Checkpoint on every stop before this run has recorded `skill_finished`**, whether or not this table lists it: call `mcp__<SERVER>__skill_checkpoint(skill_name="carta-investors:carta-spa-audit", checkpoint_label="skill_failed", notes="<one-line reason>")` instead of `skill_finished`. `skill_finished` means a report or answer reached the user; a stop that delivered neither is a failure, and counting it as finished makes failed runs look like fast successful ones. Rows that recover and continue (a retry, a fall-through to Mode B, an audit with every company in bucket 1) do not checkpoint.
+
 | Symptom | Likely cause | What to tell the user |
 |---------|-------------|----------------------|
 | `list_contexts` returns no firm | User not authenticated or MCP session dropped | "I couldn't find any Carta data associated with your account. Try reconnecting to the Carta MCP server. If you believe you're already connected, contact your Carta representative." |
@@ -577,12 +602,12 @@ AskUserQuestion(
 | 401 or 403 from any query | Carta session expired | "Your Carta session has expired. Reconnect to the Carta MCP server and try again." |
 | Query fails with table-not-found | DWH schema name changed or table not yet provisioned for this firm | Call `dwh:list:tables` to confirm available table names, then retry with the correct name. |
 | 0 rows from `AGGREGATE_INVESTMENTS` | DWH not yet populated for this firm | "No investment data found for your firm. Contact your Carta representative." |
-| 0 rows from the unified SPA source | No SPAs uploaded yet, or extractions still processing | All equity companies land in bucket 1 (missing SPA). Include in BLUF: "No SPA documents were found in Carta for your portfolio. Upload SPAs via your Carta portfolio documents page to populate this audit." |
+| 0 rows from the unified SPA source | No SPAs uploaded yet, or extractions still processing | All equity companies land in bucket 1 (missing SPA). Include in BLUF: "No SPA documents were found in Carta for your portfolio. Drop your SPAs into this chat, or upload them on your Carta portfolio documents page, to populate this audit." |
 | Drill-down returns 0 rows | Company name didn't match any SPA issuer name | "No SPA found matching '[name]'. Check the spelling or confirm the SPA is uploaded in Carta." |
 | Company shows as 'Missing SPA' despite having one on file | Company was renamed after investment — fuzzy match can't bridge historical name changes | "This may be a company rename. Try the drill-down with the old company name to locate the SPA manually." |
 | `render-artifact.py` exits non-zero | Bad UUID, non-numeric Carta ID, malformed base URL, unusable connector name, output outside CWD, or a missing template/placeholder | Surface the script's stderr and stop. Never hand-write the artifact HTML. |
-| No `Artifact` tool (Step A1 gate) | This session is not Cowork | Go to Mode B. Tell the user "I'll give you the audit as text" — nothing about Cowork, artifacts, or sandboxes. |
-| Artifact publishes but renders an error | The page's own bootstrap() hit a required-query failure or found 0 audit rows | That error is the page's own and names its cause. Do not re-run Mode A blind; read what the viewer sees first. |
+| No `Artifact` tool, even after Step A1 tried to load it | Artifacts are off or Claude is out of date | Go to Mode B, opening with Step A1's sentence on why the answer is text. |
+| Artifact publishes but renders an error | The page's own bootstrap() hit a required-query failure or found 0 audit rows | That error is the page's own and names its cause. Do not re-run Mode A blind; read what the viewer sees first. A "too large" error is not a reason to change the page: it already sizes its own requests and retries smaller ones. Re-run Step A2 and A3 with the script's template unchanged. If the error returns, say the audit couldn't load and stop. |
 
 ---
 
@@ -591,8 +616,8 @@ AskUserQuestion(
 - SPA execution status comes from Carta's document AI extraction. Documents uploaded but not yet processed by Carta won't appear.
 - Deduplication is by issuer name: if the same company has multiple SPA uploads, the query takes `MAX(EXECUTED_BY_ISSUER)` — executed wins over unexecuted for the same issuer.
 - Only SPAs extracted by the current Document AI pipeline are visible. A document that was extracted before the cutover and never re-extracted makes its company read as "Missing SPA" even though the SPA is uploaded in Carta.
-- Amounts are shown in the currency the SPA document states, and are marked when it stated none. Amounts in different currencies are never summed.
-- Cost basis is the sum across all funds and asset classes for that issuer — total capital deployed, not current fair market value. It sums `BASE_CURRENCY_TOTAL_COST` for foreign-currency investments and `TOTAL_COST` for the rest, keyed off `IS_FOREIGN_CURRENCY_INVESTMENT`: on a foreign-currency row `TOTAL_COST` is **0** and the amount lives in the base-currency column, so summing `TOTAL_COST` alone silently values those holdings at zero. Do **not** "simplify" this to `COALESCE(BASE_CURRENCY_TOTAL_COST, TOTAL_COST)` — the two base-currency columns differ in null semantics (`BASE_CURRENCY_REMAINING_VALUE` is `0`, not NULL, on domestic rows), so COALESCE collapses SOI valuation. The currency each amount is denominated in follows the same flag, and is carried through so the artifact can render the amount in it rather than labelling the column ambiguously.
+- SPA amounts are shown in the currency the SPA document states, and are marked when it stated none. Cost basis is shown in each holding's own currency. Amounts in different currencies are never summed or ranked against each other.
+- Cost basis is the sum across all funds and asset classes for that issuer — total capital deployed, not current fair market value. It sums `BASE_CURRENCY_TOTAL_COST` for foreign-currency investments and `TOTAL_COST` for the rest, keyed off `IS_FOREIGN_CURRENCY_INVESTMENT`: on a foreign-currency row `TOTAL_COST` is often **0** and the amount lives in the base-currency column, so summing `TOTAL_COST` alone silently values those holdings at zero. Do **not** "simplify" this to `COALESCE(BASE_CURRENCY_TOTAL_COST, TOTAL_COST)` — the two base-currency columns differ in null semantics (`BASE_CURRENCY_REMAINING_VALUE` is `0`, not NULL, on domestic rows), so COALESCE collapses SOI valuation. Both `TOTAL_COST` on a domestic row and `BASE_CURRENCY_TOTAL_COST` on a foreign one are in the holding's own `CURRENCY_CODE`, so that column labels the amount on every row. Do **not** label foreign rows with `BASE_CURRENCY_CODE`: it reads `USD` or NULL on some foreign rows whose amount is in IDR, BRL, CAD or EUR, which would show an IDR 28B holding as $28B. A company whose rows span currencies gets `currency_count` > 1 and no single code. Nothing adds or ranks amounts across currencies: Mode B shows each cost basis with its own code; the artifact's value totals count only the companies in the currency most of them share, and both surfaces sort those companies first, then the rest grouped by currency.
 - **Renamed companies** may show as "Missing SPA" even when a SPA exists under the old name. If an investment is recorded as "OldName Insurance" but the SPA was uploaded under "NewName Services, Inc." (the former name), the fuzzy match won't link them. Flag these cases with a footnote when they appear in results.
 - A company whose SPA documents were uploaded under variant name spellings (e.g. `ACMECORP INC.`, `AcmeCorp Inc.`, `AcmeCorp, Inc.`) will match correctly — the query treats the company as executed if **any** name variant has `EXECUTED_BY_ISSUER = true`.
 - If the same company appears as two separate investment records (e.g. "PortCo A, Inc. d/b/a PortCo B" and "PortCo B"), each record is evaluated independently. One may show as executed, the other as missing. This reflects the investment data, not an error.

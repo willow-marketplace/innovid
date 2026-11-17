@@ -17,17 +17,16 @@ Use `tool:calendar_create` with these parameters:
 - `start_date` (required): e.g. "2020-01-01"
 - `end_date` (required): e.g. "2026-12-31"
 - `selected_time_dimensions` (required): list of time dimensions, e.g. ["Month", "Quarter", "Year"]
-- `actual_vs_forecast_enabled` (required): **always set to `false`.** See below.
 - `gregorian_config.fiscal_year_starting_month` (optional): 1-12, defaults to 1 (January)
 
-> **`actual_vs_forecast_enabled` is not how you split actuals from plan**, despite what the tool description suggests. It is legacy, and it gives one global switchover for the whole application: it cannot vary per planning cycle, so a Budget and a Forecast with different switchover dates cannot coexist. Pass `false` and model the split with a Version Dimension carrying a `Switchover Month` property plus `Is_Actual` / `Is_Plan` metrics — see `skill:building-versions-and-planning-cycles`.
+> The calendar does not split actuals from plan. Model that split with a Version Dimension carrying a `Switchover Month` property plus `Is_Actual` / `Is_Plan` metrics — see `skill:building-versions-and-planning-cycles`.
 
 ## Sharing Calendar Dimensions
 
 `tool:calendar_create` produces Private time dimension lists (Month, Quarter, Year). For a Hub application where calendars must be shared:
 
 1. After creating the calendar, call `tool:calendar_get` to retrieve the time dimension list IDs.
-2. For each time dimension list, call `tool:update_list` with `sharing_status: "Shared"`.
+2. Make a single call to `tool:bulk_update_lists` for all the time dimension lists, each with `sharing_status: "Shared"`.
 
 This is separate from `tool:batch_share_blocks` which is for metrics and other blocks.
 
@@ -57,7 +56,7 @@ Impact:
 
 Example with April start: FY 2026 = April 2025 - March 2026; Q1 = Apr-Jun 2025.
 
-**Set the fiscal year start during initial setup.** Changing it later affects existing formulas and YEARTODATE calculations.
+**Set the fiscal year start during initial setup.** It can't be changed afterwards.
 
 ## Define the Date Range
 
@@ -66,7 +65,7 @@ Example with April start: FY 2026 = April 2025 - March 2026; Q1 = Apr-Jun 2025.
 
 Common pattern: 3 years historical + 5 years forward = 8-year range.
 
-Use `tool:calendar_expand` to extend the range later. Extending is safe; existing data is preserved. Shortening is not possible if data exists in those periods.
+Use `tool:calendar_expand` to extend the range later. Extending is safe; existing data is preserved. Shortening will result in data loss.
 
 ## Select Time Dimensions
 
@@ -103,7 +102,7 @@ These repeat across years and enable pattern analysis:
 Year → Half → Quarter → Month → Week → Day
 ```
 
-Each level aggregates its children. This hierarchy powers `CUMULATE`, `LAG`, `YEARTODATE`, and `TIMEDIM`. Week may overlap month boundaries; Pigment handles this automatically.
+Each level aggregates its children. This hierarchy powers `CUMULATE`, `YEARTODATE`, and `TIMEDIM`. Week may overlap month boundaries; Pigment handles this automatically.
 
 ## Common Setup Patterns
 

@@ -1,9 +1,10 @@
-"""Shell integration helpers — output shell-evaluable variables from Python.
+"""Shell integration helpers — output KEY=VALUE variables a shell script assigns.
 
 Each ``cmd_*`` function prints ``KEY=VALUE`` pairs to stdout that shell
-scripts consume via ``eval "$(python3 -m pipeline.shell <command> ...)"```.
-This eliminates the pattern of calling ``python3 -c`` multiple times to
-read individual fields from the same JSON.
+scripts read through ``assign_kv`` (scripts/log.sh), which assigns only
+lines shaped like a plain variable assignment and never runs the text as
+code. This eliminates the pattern of calling ``python3 -c`` multiple times
+to read individual fields from the same JSON.
 
 Large text values (exchanges, Haiku responses) are written to temp files
 and their paths are printed as shell variables, avoiding shell escaping
@@ -39,21 +40,22 @@ from .extract import (
     mark_unread_envelope,
     read_positions,
 )
-from .haiku import _parse_response
 from .prompts import build_save_prompt, build_ndc_prompt
+from .summarizer import _parse_response
 
 
 def _shell_escape(value: str) -> str:
-    """Emit a value for the shell variable bridge consumed by ``safe_eval``.
+    """Emit a value for the shell variable bridge consumed by ``assign_kv``.
 
-    ``scripts/log.sh:safe_eval`` parses ``KEY=VALUE`` lines and assigns
-    ``VALUE`` verbatim via ``printf -v`` — no shell expansion, no ``eval``.
-    The only constraint is that ``VALUE`` must not contain a newline
-    (the parser is line-oriented).
+    ``scripts/log.sh:assign_kv`` parses ``KEY=VALUE`` lines and assigns
+    ``VALUE`` verbatim via ``printf -v`` — no shell expansion, no
+    re-parsing of the text as shell source. The only constraint is that
+    ``VALUE`` must not contain a newline (the parser is line-oriented).
 
-    Earlier versions single-quote-wrapped per POSIX ``eval`` convention,
-    which broke on Windows: paths with backslashes were quoted, but
-    ``safe_eval``'s verbatim assignment kept the quotes literal (issue #84).
+    Earlier versions single-quote-wrapped per the convention the shell's own
+    command-substitution/parsing builtin expects, which broke on Windows:
+    paths with backslashes were quoted, but ``assign_kv``'s verbatim
+    assignment kept the quotes literal (issue #84).
 
     Args:
         value: Raw string. Must not contain newlines.
@@ -262,6 +264,9 @@ def _emit_haiku_result(r, output_file: str = "") -> None:
     # a call-haiku declines (spawn guard) before it even reaches whichever
     # provider it would have used.
     print(f"PROVIDER={_shell_escape(r.provider)}")
+    # Which model actually ran this call (#1055) -- so a Sonnet or Codex
+    # user's log says which model ran, not just a tag naming neither.
+    print(f"MODEL={_shell_escape(r.model)}")
     print(f"TK_IN={r.tokens.input}")
     print(f"TK_OUT={r.tokens.output}")
     print(f"TK_CACHE={r.tokens.cache}")
@@ -290,7 +295,7 @@ def cmd_call_haiku(prompt_file: str, output_file: str = "", timeout: int = 120) 
     ``thresholds.max_summary_failures``, advances the read cursor past it — so
     reporting a working cap as a failure would lose the span it protected.
     """
-    from .haiku import call_haiku
+    from .summarizer import call_haiku
     from .spawn_guard import EXIT_SPAWN_DECLINED, SummarizerSpawnDeclined
 
     try:
@@ -587,7 +592,8 @@ def cmd_consolidate_snapshot(staging_dir: str, snapshot_dir: str) -> None:
 
 
 def cmd_consolidate(staging_dir: str, recent_file: str, archive_file: str,
-                    max_prompt_bytes: int = 0, snapshot_dir: str = "") -> None:
+                    max_prompt_bytes: int = 0, snapshot_dir: str = "",
+                    timeout: int = 180) -> None:
     """Run the full consolidation pipeline and print shell variables.
 
     Collects staging files (excluding today's and ``.done`` files), reads
@@ -607,6 +613,9 @@ def cmd_consolidate(staging_dir: str, recent_file: str, archive_file: str,
             because the basenames are identical on both sides. Empty reads the
             live directory — the pre-#235 behaviour, kept so a caller that has
             not been taught the two-step still works.
+        timeout: Wall-clock budget (seconds) forwarded to ``consolidate()``'s
+            Haiku call (#806), configurable via
+            ``thresholds.consolidate_timeout_seconds``.
 
     Prints:
         STAGING_COUNT (0 if nothing to consolidate), RECENT_OUT and
@@ -750,7 +759,7 @@ def cmd_consolidate(staging_dir: str, recent_file: str, archive_file: str,
 
     try:
         result = consolidate(staging_contents, recent, archive,
-                             max_prompt_bytes=max_prompt_bytes)
+                             max_prompt_bytes=max_prompt_bytes, timeout=timeout)
     except ConsolidationTooLarge:
         # archive.md is the bulk of the oversized prompt. Rotate it to a dated
         # sibling (memory preserved in cold storage) and retry once with a fresh
@@ -783,7 +792,7 @@ def cmd_consolidate(staging_dir: str, recent_file: str, archive_file: str,
             return
         try:
             result = consolidate(staging_contents, recent, "",
-                                 max_prompt_bytes=max_prompt_bytes)
+                                 max_prompt_bytes=max_prompt_bytes, timeout=timeout)
         except ConsolidationSkipped:
             _restore_rotation()  # still too big -> undo, skip
             _emit_skip()
@@ -829,7 +838,8 @@ def cmd_consolidate(staging_dir: str, recent_file: str, archive_file: str,
     #   while IFS= read -r -d '' path; do ...; done < "$STAGING_PATHS_FILE"
     # Each record is path\0consumed_bytes\0. The byte count is what was actually
     # read into this prompt: run-consolidation.sh renames the file afterwards,
-    # and a save can land in between — the Haiku call above has a 180s budget
+    # and a save can land in between — the Haiku call above has a configurable
+    # budget (180s by default, thresholds.consolidate_timeout_seconds, #806)
     # and consolidation runs disowned alongside any live session. Renaming
     # blindly sealed those newer bytes inside the .done.md, which nothing globs
     # again and session start never injects: written to disk, then unreachable.
@@ -917,6 +927,7 @@ def main() -> None:
             archive_file=sys.argv[4],
             max_prompt_bytes=int(sys.argv[5]) if len(sys.argv) > 5 else 0,
             snapshot_dir=sys.argv[6] if len(sys.argv) > 6 else "",
+            timeout=int(sys.argv[7]) if len(sys.argv) > 7 else 180,
         )
     else:
         print(f"Unknown command: {cmd}", file=sys.stderr)

@@ -1,10 +1,29 @@
 > AI agents: this is one page from PostHog's docs. Full index of Markdown docs for LLMs: https://posthog.com/llms.txt
 
-# Android Error Tracking installation - Docs
+# Android Error Tracking installation
 
-Copy page
+Canonical URL: https://posthog.com/docs/error-tracking/installation/android
 
-# Android Error Tracking installation - Docs
+> **Cloud region:** This page uses US Cloud hosts. For an EU Cloud project, use `https://eu.i.posthog.com` instead of `https://us.i.posthog.com` (ingestion host), and use `https://eu.posthog.com` instead of `https://app.posthog.com` (app host for links).
+
+## On this page
+
+- [Install with the wizard](#install-with-the-wizard)
+- [Install the dependency](#install-the-dependency)
+- [Configure PostHog](#configure-posthog)
+- [Send events](#send-events)
+- [Set up exception autocapture](#set-up-exception-autocapture)
+- [Manually capture exceptions](#manually-capture-exceptions)
+- [Verify error tracking](#verify-error-tracking)
+- [Upload mapping files](#upload-mapping-files)
+
+## Install with the wizard
+
+Run this command in your project directory to add PostHog to your Android project. The wizard detects your framework, installs the SDK, and sets up your first events.
+
+`npx @posthog/wizard`
+
+Or set it up manually by following the rest of this guide.
 
 1.  1
 
@@ -15,8 +34,6 @@ Copy page
     Add the PostHog Android SDK to your `build.gradle` dependencies:
 
     build.gradle
-
-    PostHog AI
 
     ```kotlin
     dependencies {
@@ -34,21 +51,23 @@ Copy page
 
     SampleApp.kt
 
-    PostHog AI
-
     ```kotlin
     class SampleApp : Application() {
+    
         companion object {
             const val POSTHOG_PROJECT_TOKEN = "<ph_project_token>"
             const val POSTHOG_HOST = "https://us.i.posthog.com"
         }
+    
         override fun onCreate() {
             super.onCreate()
+    
             // Create a PostHog Config with the given project token and host
             val config = PostHogAndroidConfig(
                 apiKey = POSTHOG_PROJECT_TOKEN,
                 host = POSTHOG_HOST
             )
+    
             // Setup PostHog with the given Context and Config
             PostHogAndroid.setup(this, config)
         }
@@ -65,10 +84,9 @@ Copy page
 
     Kotlin
 
-    PostHog AI
-
     ```kotlin
     import com.posthog.PostHog
+    
     PostHog.capture(
         event = "button_clicked",
         properties = mapOf(
@@ -91,8 +109,6 @@ Copy page
 
     Kotlin
 
-    PostHog AI
-
     ```kotlin
     import com.posthog.android.PostHogAndroidConfig
     val config = PostHogAndroidConfig(
@@ -109,7 +125,7 @@ Copy page
 
     **Planned features**
 
-    We currently don't support [source code context](/docs/error-tracking/stack-traces.md) associated with an exception.
+    We currently don't support [source code context](https://posthog.com/docs/error-tracking/stack-traces.md) associated with an exception.
 
     These features will be added in a future release.
 
@@ -122,8 +138,6 @@ Copy page
     It is also possible to manually capture exceptions using the `captureException` method:
 
     Kotlin
-
-    PostHog AI
 
     ```kotlin
     PostHog.captureException(
@@ -142,7 +156,7 @@ Copy page
 
     Before proceeding, let's make sure exception events are being captured and sent to PostHog. You should see events appear in the activity feed.
 
-    ![Activity feed with events](https://res.cloudinary.com/dmukukwp6/image/upload/SCR_20250729_ouxl_f788dd8cd2.png)![Activity feed with events](https://res.cloudinary.com/dmukukwp6/image/upload/SCR_20250729_owae_7c3490822c.png)
+    ![Activity feed with events](https://res.cloudinary.com/dmukukwp6/image/upload/SCR_20250729_ouxl_f788dd8cd2.png)
 
     [Check for exceptions in PostHog](https://app.posthog.com/activity/explore)
 
@@ -156,12 +170,4 @@ Copy page
 
     Let's continue to the next section.
 
-    [Upload mapping files](/docs/error-tracking/upload-mappings/android.md)
-
-### Still have questions?
-
-Ask PostHog AI
-
-### Was this page useful?
-
-HelpfulCould be better
+    [Upload mapping files](https://posthog.com/docs/error-tracking/upload-mappings/android.md)

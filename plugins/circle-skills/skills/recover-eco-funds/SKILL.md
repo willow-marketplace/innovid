@@ -1,6 +1,6 @@
 ---
 name: recover-eco-funds
-description: Recover USDC from a legacy Circle CLI Gateway `--method eco` deposit whose fixed refund recipient is the SCA's backing EOA. Use this skill for legacy Eco intents that are stuck, expired, waiting for refund, refunded to `eoaOwnerAddress`, missing from Gateway, or need a permissionless self-refund. Do not use its executable recovery phases for current Gateway v2 deposits, which set `refundRecipient` to the SCA. It covers calling Eco's Portal `refund(...)` with exact onchain intent data, then moving refunded USDC from the backing EOA to the linked SCA with ERC-3009, relayed by the SCA so the backing EOA needs no gas.
+description: Recover USDC from a legacy Circle CLI Gateway `--method eco` deposit whose fixed refund recipient is the SCA's backing EOA. Use this skill for legacy Eco intents that are stuck, expired, waiting for refund, refunded to `eoaOwnerAddress`, missing from Gateway, or need a permissionless self-refund. Do not use its executable recovery phases for current Gateway v2 deposits, which set `refundRecipient` to the SCA. It covers calling Eco's Portal `refund(...)` with exact onchain intent data, then moving refunded USDC from the backing EOA to the linked SCA with ERC-3009, relayed by the SCA so the backing EOA needs no gas. The backing-EOA sweep also applies when USDC was sent directly to an Agent Wallet's backing EOA and the CLI reports "Wallet not found" for that address.
 ---
 
 # Recover Legacy Eco Funds
@@ -17,6 +17,8 @@ Do not classify a deposit as legacy from its age or endpoint version alone. Deco
 - `reward.creator == SCA`: current direct-to-SCA refund behavior; stop before the executable legacy phases.
 - neither: stop because the selected Circle wallet does not own the fixed refund recipient.
 
+If there is no Eco deposit and USDC was simply sent to an Agent Wallet's backing EOA (the CLI reports "Wallet not found" for that address), skip Phases 1 and 2 and go straight to [Phase 3](#phase-3-move-backing-eoa-usdc-to-the-linked-sca).
+
 Use the `use-circle-cli` and `use-agent-wallet` skills first if the Circle CLI is not installed, the Terms gate is unresolved, or the agent session is invalid. Do not trigger multiple login requests: each fresh request invalidates the prior OTP.
 
 ## Understand the two recovery legs
@@ -31,6 +33,7 @@ Current Gateway v2/Circle CLI Eco deposits set the SCA as the refund recipient. 
 ## Safety boundary
 
 - Treat event/creation chain, vault/refund chain, intent destination value, Gateway destination chain, SCA, backing EOA, creation-chain Portal, refund-chain Portal, vault, token, amount, route hash, intent hash, and deadline as different fields. Never substitute one for another. A composed Eco flow can publish the event on one chain while leaving the refundable vault on another, and Portal deployment addresses need not match across chains.
+- Check every value before putting it in a command, whether it came from the user, an evidence file, or the Eco API: addresses are `0x` + 40 hex characters; transaction and intent hashes are `0x` + 64 hex characters; chains are Circle CLI codes (`BASE`, `ARB-SEPOLIA`); chain IDs are digits only; RPC URLs start with `http://` or `https://` and contain no whitespace, quotes, backticks, `$`, `;`, `|`, `&`, `(`, `)`, `<`, `>`, or backslashes. Single-quote every value in the command. If a value fails, stop and ask the user; never edit it to make it pass. The allowed-tools entries for the two scripts accept any arguments, so this check is the guard; the scripts re-validate the same fields.
 - Derive the backing EOA from the Circle wallet API's `eoaOwnerAddress`; do not accept a user-supplied owner without comparing it to that field.
 - Before a legacy self-refund broadcast, require `reward.creator` to equal the selected Circle wallet's API-verified `eoaOwnerAddress`. If it equals the SCA, classify it as the current direct-to-SCA flow and stop before executable recovery. Although `refund(...)` is permissionless, never spend the user's gas to refund an unrelated wallet.
 - Reconstruct the refund tuple from the source-chain `IntentPublished` event. The Eco status API is useful context but is not authoritative enough to build calldata.
@@ -40,7 +43,7 @@ Current Gateway v2/Circle CLI Eco deposits set the SCA as the refund recipient. 
 - Ask for explicit approval immediately before each money-moving action. Present chain, token, raw and decimal amount, source, destination, contract, intent/nonce, and estimated gas.
 - Use one persisted idempotency key per intended broadcast. On an ambiguous response, reconcile onchain state before attempting anything new.
 - Never log user tokens, session secrets, OTPs, private keys, or raw EIP-712 signatures. Log a signature hash instead.
-- If `CIRCLE_PROXY_URL` overrides Circle's default, inspect the exact origin and obtain explicit user trust before sending an agent session token through it. The helpers require `--allow-proxy-origin <scheme://host>` when an override is present.
+- If `CIRCLE_PROXY_URL` overrides Circle's default, inspect the exact origin and obtain explicit user trust before sending an agent session token through it. The Phase 2 helper requires `--allow-proxy-origin <scheme://host>` when an override is present. The Phase 3 script talks only to Circle production and refuses to run while an override is set.
 - Never use `refundTo(...)` as a shortcut. It can change the recipient and is creator-restricted on current Eco contracts. The permissionless `refund(...)` path is sufficient.
 
 ## Create an evidence directory
@@ -70,9 +73,9 @@ circle contract query --help
 Identify the SCA and inspect the creation chain, candidate vault/refund chains, and Gateway destination:
 
 ```bash
-circle wallet list --chain <SOURCE_CHAIN> --type agent --output json
-circle wallet balance --address <SCA> --chain <SOURCE_CHAIN> --output json
-circle gateway balance --address <SCA> --chain <GATEWAY_DESTINATION_CHAIN> --output json
+circle wallet list --chain '<SOURCE_CHAIN>' --type agent --output json
+circle wallet balance --address '<SCA>' --chain '<SOURCE_CHAIN>' --output json
+circle gateway balance --address '<SCA>' --chain '<GATEWAY_DESTINATION_CHAIN>' --output json
 ```
 
 Collect at least one intent identifier:
@@ -88,24 +91,24 @@ Eco does not provide a list-intents-by-SCA endpoint. Map the SCA to the single-u
 1. Identify the source-chain SCA:
 
    ```bash
-   circle wallet list --chain <SOURCE_CHAIN> --type agent --output json
+   circle wallet list --chain '<SOURCE_CHAIN>' --type agent --output json
    ```
 
-2. Get `<VAULT_ADDRESS>` from the original `circle gateway deposit --output json` result or the saved evidence. Its `vaultAddress`, `sourceAddress`, `sourceBlockchain`, `transferTxHash`, and `deadline` fields identify the deposit. If that output was not saved, list the SCA's confirmed outbound transfers and find the exact USDC funding transaction; its `destinationAddress` is the Eco vault:
+2. Get `<VAULT_ADDRESS>` from the original `circle gateway deposit --output json` result or the saved evidence. Its `vaultAddress`, `sourceAddress`, `sourceBlockchain`, `transferTxHash`, and `deadline` fields identify the deposit. If that output was not saved, list the SCA's completed outbound transfers and find the exact USDC funding transaction; its `destinationAddress` is the Eco vault:
 
    ```bash
    circle transaction list \
-     --address <SCA> \
-     --chain <SOURCE_CHAIN> \
+     --address '<SCA>' \
+     --chain '<SOURCE_CHAIN>' \
      --operation transfer \
      --tx-type outbound \
-     --state confirmed \
+     --state complete \
      --output json
    ```
 
    Match the intended amount, time, USDC token, and transaction hash. Do not select a vault from address alone when multiple deposits exist.
 
-3. Query the current Gateway deposit-vault record. Use the EVM chain ID for the chain that funded the vault (`8453` for Base mainnet or `84532` for Base Sepolia; verify current CLI support with `circle gateway deposit --help`):
+3. Query the current Gateway deposit-vault record with the EVM chain ID of the chain that funded the vault — `8453` (Base), `42161` (Arbitrum), `10` (OP Mainnet), or `84532` (Base Sepolia). Verify current CLI support with `circle gateway deposit --help`:
 
    ```bash
    curl -fsS \
@@ -153,7 +156,9 @@ Classify the state:
 
 ## Helper prerequisites
 
-The bundled helpers require a trusted `circle-cli` developer checkout with dependencies installed because the current public command surface does not expose either raw contract calldata submission or backing-EOA typed-data signing. They reuse Circle CLI's existing secure session and challenge code; they do not read or print keychain secrets directly.
+The Phase 2 helper (`eco-self-refund.mjs`) requires a trusted `circle-cli` developer checkout with dependencies installed because the current public command surface does not expose raw contract calldata submission. It reuses Circle CLI's existing secure session and challenge code; it does not read or print keychain secrets directly.
+
+The Phase 3 helper (`sign-eoa-authorization.mjs`) needs only Node.js 20.18.2+ and the public `@circle-fin/cli` 1.1.4 or newer, logged in with `circle wallet login`. No checkout is required.
 
 Resolve both paths explicitly:
 
@@ -175,18 +180,18 @@ Prefer a native Circle CLI recovery command if the installed CLI exposes one in 
 ```bash
 <CIRCLE_CLI_REPO>/node_modules/.bin/tsx \
   <SKILL_DIR>/scripts/eco-self-refund.mjs \
-  --circle-cli-repo <CIRCLE_CLI_REPO> \
-  --chain <REFUND_CHAIN> \
-  --event-chain-id <CREATION_CHAIN_EVM_ID> \
-  --refund-chain-id <REFUND_CHAIN_EVM_ID> \
-  --event-rpc-url <CREATION_CHAIN_RPC_URL> \
-  --refund-rpc-url <REFUND_CHAIN_RPC_URL> \
-  --sca <SCA> \
-  --event-portal <CREATION_CHAIN_ECO_PORTAL> \
-  --portal <REFUND_CHAIN_ECO_PORTAL> \
-  --creation-tx <SOURCE_TX_HASH> \
-  --intent-hash <INTENT_HASH> \
-  --evidence-dir <EVIDENCE_DIR> \
+  --circle-cli-repo '<CIRCLE_CLI_REPO>' \
+  --chain '<REFUND_CHAIN>' \
+  --event-chain-id '<CREATION_CHAIN_EVM_ID>' \
+  --refund-chain-id '<REFUND_CHAIN_EVM_ID>' \
+  --event-rpc-url '<CREATION_CHAIN_RPC_URL>' \
+  --refund-rpc-url '<REFUND_CHAIN_RPC_URL>' \
+  --sca '<SCA>' \
+  --event-portal '<CREATION_CHAIN_ECO_PORTAL>' \
+  --portal '<REFUND_CHAIN_ECO_PORTAL>' \
+  --creation-tx '<SOURCE_TX_HASH>' \
+  --intent-hash '<INTENT_HASH>' \
+  --evidence-dir '<EVIDENCE_DIR>' \
   --estimate-fee
 ```
 
@@ -195,7 +200,7 @@ The invocation is read-only. It decodes `IntentPublished` from the explicitly se
 After showing a preflight with `recipientOwnership.checked: true` and an `estimatedFee`, and receiving explicit user approval, re-run with both:
 
 ```bash
---submit --confirm-intent <INTENT_HASH>
+--submit --confirm-intent '<INTENT_HASH>'
 ```
 
 The confirmation value binds approval to one intent rather than to an open-ended refund operation.
@@ -218,44 +223,30 @@ Skip this phase when the refund already reached the SCA.
 
 Read [references/eoa-to-sca.md](references/eoa-to-sca.md) before acting. This is a standard USDC ERC-3009 transfer authorized by the backing EOA and relayed by its linked SCA.
 
-Inspect only:
+Confirm the backing EOA's balance, then show the chain, USDC contract, backing EOA, SCA, and raw and decimal amount, and get explicit user approval before signing:
 
 ```bash
-<CIRCLE_CLI_REPO>/node_modules/.bin/tsx \
-  <SKILL_DIR>/scripts/eoa-to-sca.mjs \
-  --circle-cli-repo <CIRCLE_CLI_REPO> \
-  --chain <SOURCE_CHAIN> \
-  --chain-id <EVM_CHAIN_ID> \
-  --rpc-url <SOURCE_RPC_URL> \
-  --sca <SCA> \
-  --usdc <USDC_CONTRACT> \
-  --amount-atomic <RAW_USDC_AMOUNT> \
-  --evidence-dir <EVIDENCE_DIR> \
-  --estimate-fee
+circle contract query "balanceOf(address)" '<BACKING_EOA>' --contract '<USDC_CONTRACT>' --chain '<SOURCE_CHAIN>'
+
+node <SKILL_DIR>/scripts/sign-eoa-authorization.mjs \
+  --chain '<SOURCE_CHAIN>' \
+  --sca '<SCA>' \
+  --eoa '<BACKING_EOA>' \
+  --usdc '<USDC_CONTRACT>' \
+  --amount-atomic '<RAW_USDC_AMOUNT>'
 ```
 
-This resolves `eoaOwnerAddress`, reads balances, checks USDC metadata, and prints the unsigned authorization plan with a pre-signing fee estimate. The fee probe uses an ephemeral local signer and a zero-value ERC-3009 authorization, so it cannot move user funds and does not request a Circle signature from the backing EOA.
+The helper:
 
-After showing the estimate and receiving explicit user approval for both the transfer and a native-token fee ceiling, run:
-
-```bash
---submit \
-  --confirm-transfer <BACKING_EOA>:<SCA>:<RAW_USDC_AMOUNT> \
-  --max-network-fee <APPROVED_DECIMAL_NATIVE_TOKEN_AMOUNT>
-```
-
-The helper repeats the zero-value fee probe and refuses before requesting the backing EOA signature when it exceeds `--max-network-fee`. After signing, it estimates the exact calldata and refuses before broadcast if that exact fee exceeds the same ceiling. If this post-signing refusal occurs, retain the nonce evidence and let the authorization expire before creating another.
-
-When `CIRCLE_PROXY_URL` is set, apply the same explicit `--allow-proxy-origin <scheme://host>` gate before resolving or signing with the backing EOA.
-
-The helper then:
-
-1. Verifies the fresh pre-signing fee estimate is within the explicitly approved ceiling.
-2. Builds `TransferWithAuthorization` with `from=backing EOA`, `to=linked SCA`, exact raw amount, a fresh 32-byte nonce, and a short expiry.
+1. Requires `--sca` to be one of the logged-in account's Agent Wallets and its API-reported `eoaOwnerAddress` to equal `--eoa`.
+2. Builds `TransferWithAuthorization` with `from=backing EOA`, `to=linked SCA`, exact raw amount, a fresh 32-byte nonce, and a one-hour expiry, using the live USDC `name()`/`version()` for the EIP-712 domain.
 3. Requests typed-data signing with `walletAddress=<backing EOA>` and `blockchain=<SOURCE_CHAIN>`. Signing by the SCA wallet ID is incorrect because it can produce an EIP-1271 replay-safe SCA wrapper instead of the raw EOA signature USDC expects.
-4. Recovers the signer locally and requires it to equal `eoaOwnerAddress`.
-5. Requires `authorizationState(backing EOA, nonce) == false`, simulates the exact USDC call from the SCA, and verifies its exact fee is still within the approved ceiling.
-6. Submits `transferWithAuthorization(...)` through the linked SCA as relayer.
+4. Recovers the signer locally and requires it to equal the backing EOA.
+5. Prints, without submitting, the `authorizationState` check, the `circle wallet execute ... --estimate` fee estimate, the single submit command with a fixed idempotency key, and the verification queries.
+
+The script talks only to Circle production (`https://agentic-wallet.circle.com`). If `CIRCLE_PROXY_URL` is set, it stops before reading the session. Unset the variable, run `circle wallet login` again, and re-run; the printed `circle wallet execute` commands must also run without the override.
+
+Run the printed commands in order before the authorization expires. Show the `--estimate` result and get explicit approval for the transfer and network fee before running the submit command. The submit command contains the raw signature; keep it out of the evidence directory and record a signature hash instead.
 
 After confirmation, verify:
 
@@ -292,7 +283,7 @@ Report:
 
 - Eco Portal contract: https://docs.eco.com/routes/architecture/portal
 - Eco vaults: https://docs.eco.com/routes/architecture/vault
-- Eco intent status API: https://docs.eco.com/api-reference/quotes-v3/get-intent-status
+- Eco intent status (undocumented legacy endpoint): `POST https://quotes.eco.com/api/v3/intents/intentStatus`
 - Eco contracts: https://github.com/eco/eco-routes
 - EIP-3009: https://eips.ethereum.org/EIPS/eip-3009
 - Circle USDC contracts: https://developers.circle.com/stablecoins/usdc-contract-addresses

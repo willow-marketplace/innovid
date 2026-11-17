@@ -11,6 +11,8 @@ Supported platforms: React, Next.js, Web (JavaScript), Node.js, Python, PHP, Rub
 
 ## Instructions
 
+Before you edit anything, read `references/COMMANDMENTS.md`. It lists the rules every PostHog install follows: how to install the SDK, where to create the client, how to identify users, Content Security Policy and multi-platform apps, plus the rules for this framework.
+
 Follow these steps IN ORDER:
 
 STEP 1: Analyze the codebase and detect the platform.
@@ -26,7 +28,10 @@ STEP 2: Research instrumentation. (Skip if PostHog is already set up.)
 
 STEP 3: Install and initialize the PostHog SDK. (Skip if PostHog is already set up.)
   - Add the PostHog SDK package for the detected platform. Do not manually edit package.json — use the package manager's install command.
+  - If the project keeps more than one lockfile for the same manifest, such as a second Gemfile lock for another bundle, update each one.
   - Follow the framework reference for where and how to initialize.
+  - For posthog-js, set `defaults` to the preset the framework docs reference shows. The example projects can show an older preset.
+  - For posthog-js, if the framework reference documents a reverse proxy for this framework, set it up as part of this change. Otherwise, suggest one in your final message: a reverse proxy keeps ad blockers from dropping events, and the `instrument-reverse-proxy` skill sets one up (https://posthog.com/docs/advanced/proxy.md).
 
 STEP 4: Enable exception autocapture.
   - Follow the platform reference to enable exception autocapture. This automatically captures unhandled exceptions without additional code.
@@ -43,10 +48,13 @@ STEP 6: Upload source maps (frontend/mobile only).
 
 STEP 7: Set up environment variables.
   - Check if the project already has PostHog environment variables configured (e.g. in `.env`, `.env.local`, or framework-specific env files). If valid values already exist, skip this step.
-  - If the PostHog project token is missing, use the PostHog MCP server's `projects-get` tool to retrieve the project's `api_token`. If multiple projects are returned, ask the user which project to use. If the MCP server is not connected or not authenticated, ask the user for their PostHog project token instead.
-  - For the PostHog host URL: check the `projects-get` MCP response for a `region` field — `US` maps to `https://us.i.posthog.com`, `EU` maps to `https://eu.i.posthog.com`. If the region is not available from the MCP response or from existing project configuration, ask the user: "Are you on PostHog US Cloud or EU Cloud?" Do not assume US Cloud.
+  - If the PostHog project token is missing, use the project token that the tool or CLI which started this setup already gave you (for example in its output or instructions).
+  - If it gave you none, use the PostHog MCP server's `projects-get` tool to retrieve the project's `api_token`. If multiple projects are returned, ask the user which project to use. If the MCP server is not connected or not authenticated, ask the user for their PostHog project token instead.
+  - For the PostHog host URL: use the host that the tool or CLI which started this setup already gave you. If it gave you none, check the `projects-get` MCP response for a `region` field — `US` maps to `https://us.i.posthog.com`, `EU` maps to `https://eu.i.posthog.com`. If you still have no host from the calling tool, the MCP response, or existing project configuration, ask the user: "Are you on PostHog US Cloud or EU Cloud?" Do not assume US Cloud.
   - Write these values to the appropriate env file using the framework's naming convention.
   - Reference these environment variables in code instead of hardcoding them.
+  - List the key names in `.env.example`, or the env template the project already uses, with placeholder values, so the next developer knows what to set. Create `.env.example` if the project has none. Never put real values in it.
+  - Read the keys as optional: a missing key must never break the build or boot. Follow the missing-configuration rule in `references/COMMANDMENTS.md`.
 
 STEP 8: Verify and clean up.
   - Check the project for errors. Look for type checking or build scripts in package.json.
@@ -55,36 +63,36 @@ STEP 8: Verify and clean up.
 
 ## Reference files
 
-- `references/react.md` - React error tracking installation - docs
-- `references/web.md` - Web error tracking installation - docs
-- `references/nextjs.md` - Next.js error tracking installation - docs
-- `references/node.md` - Node.js error tracking installation - docs
-- `references/python.md` - Python error tracking installation - docs
-- `references/django.md` - Django - docs
-- `references/flask.md` - Flask - docs
-- `references/php.md` - Php error tracking installation - docs
-- `references/laravel.md` - Laravel - docs
-- `references/ruby.md` - Ruby error tracking installation - docs
-- `references/ruby-on-rails.md` - Ruby on rails error tracking installation - docs
-- `references/ruby-on-rails.md` - Ruby on rails - docs
-- `references/go.md` - Go error tracking installation - docs
-- `references/dotnet.md` - .net error tracking installation - docs
-- `references/dotnet.md` - .net - docs
-- `references/elixir.md` - Elixir error tracking installation - docs
-- `references/angular.md` - Angular error tracking installation - docs
-- `references/svelte.md` - Sveltekit error tracking installation - docs
-- `references/nuxt-3-7.md` - Nuxt error tracking installation (v3.7 and above) - docs
-- `references/nuxt-3-6.md` - Nuxt error tracking installation (v3.6 and below) - docs
-- `references/react-native.md` - React native error tracking installation - docs
-- `references/flutter.md` - Flutter error tracking installation - docs
-- `references/ios.md` - Ios error tracking installation - docs
-- `references/android.md` - Android error tracking installation - docs
-- `references/hono.md` - Hono error tracking installation - docs
-- `references/fingerprints.md` - Fingerprints - docs
-- `references/alerts.md` - Send error tracking alerts - docs
-- `references/monitoring.md` - Monitor and search issues - docs
-- `references/assigning-issues.md` - Assign issues to teammates - docs
-- `references/upload-source-maps.md` - Upload source maps - docs
+- `references/react.md` - React error tracking installation
+- `references/web.md` - Web error tracking installation
+- `references/nextjs.md` - Next.js error tracking installation
+- `references/node.md` - Node.js error tracking installation
+- `references/python.md` - Python error tracking installation
+- `references/django.md` - Django
+- `references/flask.md` - Flask
+- `references/php.md` - Php error tracking installation
+- `references/laravel.md` - Laravel
+- `references/ruby.md` - Ruby error tracking installation
+- `references/ruby-on-rails.md` - Ruby on rails error tracking installation
+- `references/ruby-on-rails.md` - Ruby on rails
+- `references/go.md` - Go error tracking installation
+- `references/dotnet.md` - .net error tracking installation
+- `references/dotnet.md` - .net
+- `references/elixir.md` - Elixir error tracking installation
+- `references/angular.md` - Angular error tracking installation
+- `references/svelte.md` - Sveltekit error tracking installation
+- `references/nuxt-3-7.md` - Nuxt error tracking installation (v3.7 and above)
+- `references/nuxt-3-6.md` - Nuxt error tracking installation (v3.6 and below)
+- `references/react-native.md` - React native error tracking installation
+- `references/flutter.md` - Flutter error tracking installation
+- `references/ios.md` - Ios error tracking installation
+- `references/android.md` - Android error tracking installation
+- `references/hono.md` - Hono error tracking installation
+- `references/fingerprints.md` - Fingerprints
+- `references/alerts.md` - Send error tracking alerts
+- `references/monitoring.md` - Monitor and search issues
+- `references/assigning-issues.md` - Assign issues to teammates
+- `references/upload-source-maps.md` - Upload source maps
 - `references/COMMANDMENTS.md` - Framework-specific rules the integration must follow
 
 Each platform reference contains SDK-specific installation and manual capture patterns. Find the one matching the user's stack.

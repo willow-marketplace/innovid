@@ -5,10 +5,11 @@
  */
 
 import { createHash } from "node:crypto";
-import { appendFileSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename } from "node:path";
 import { join, resolve } from "node:path";
+import { upsertSessionEnvExports } from "./session-env-file.mjs";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -44,16 +45,6 @@ export interface SkillEntry {
   validate?: ValidationRule[];
   chainTo?: ChainToRule[];
   retrieval?: RetrievalMetadata;
-}
-
-/**
- * Full manifest skill entry: base SkillEntry plus pre-compiled regex sources.
- * Written by build-manifest.ts, read by the PreToolUse hook.
- */
-export interface ManifestSkill extends SkillEntry {
-  pathRegexSources: string[];
-  bashRegexSources: string[];
-  importRegexSources: Array<{ source: string; flags: string }>;
 }
 
 export interface CompiledPattern {
@@ -343,10 +334,6 @@ function isHighPrioritySkill(
   return typeof priority === "number" && priority >= minPriority;
 }
 
-function escapeShellEnvValue(value: string): string {
-  return value.replace(/(["\\$`])/g, "\\$1");
-}
-
 function persistCompactionResetEnv(nextSeenEnv: string): void {
   process.env.VERCEL_PLUGIN_SEEN_SKILLS = nextSeenEnv;
   process.env.VERCEL_PLUGIN_CONTEXT_COMPACTED = "";
@@ -355,17 +342,11 @@ function persistCompactionResetEnv(nextSeenEnv: string): void {
   if (!envFile) return;
 
   try {
-    appendFileSync(
-      envFile,
-      [
-        `export VERCEL_PLUGIN_SEEN_SKILLS="${escapeShellEnvValue(nextSeenEnv)}"`,
-        'export VERCEL_PLUGIN_CONTEXT_COMPACTED=""',
-      ].join("\n") + "\n",
-      "utf-8",
-    );
-  } catch {
-    // Hooks can continue even when env persistence fails.
-  }
+    upsertSessionEnvExports(envFile, {
+      VERCEL_PLUGIN_SEEN_SKILLS: nextSeenEnv,
+      VERCEL_PLUGIN_CONTEXT_COMPACTED: "",
+    });
+  } catch {}
 }
 
 function pruneSessionSeenSkillArtifacts(sessionId: string, clearedSkills: Set<string>): void {

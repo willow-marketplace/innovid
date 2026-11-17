@@ -75,7 +75,7 @@ Migrating workloads and applications to AWS is just the beginning. Proto has tak
 
 In migrating to AWS it's lightened the (technical) load for its team while expanding their creative abilities, and is more easily building, scaling and deploying its own gen AI applications with security, privacy and responsible AI. Whether you're a startup looking to begin your journey with generative AI, or you want to optimize and enhance your current workflow and products, the [AWS Migration Acceleration Program](https://aws.amazon.com/migration-acceleration-program/) can help you explore your options, and discover more about how Amazon Bedrock can work for you.
 
-_With contributing writing from Shaun Wang and Tony Gabriel Silva_
+> _With contributing writing from Shaun Wang and Tony Gabriel Silva_
 
 ---
 

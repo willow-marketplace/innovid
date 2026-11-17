@@ -28,7 +28,7 @@ Identify these from the user's prompt. Use defaults if unspecified — do not as
 
 ## Workflow
 
-Once the target is resolved, `get_company`, `search_web_visits`, and `search_companies_signals` can be called in parallel. Keep total tool calls to four to stay within the 10-second budget.
+Once the target is resolved, Step 1.5 checks coverage and gets the credit go-ahead; only then do `get_company` and `search_companies_signals` run in parallel (Step 2), reusing Step 1.5's visit data. Make only the calls each step lists.
 
 ### Step 0 — Resolve the Leadfeeder account (before any other tool call)
 
@@ -74,9 +74,9 @@ Once Step 1.5 is **COVERED** or the user has consented to the credit cost, call 
 - `search_web_visits` — filtered by `company_id`, using the user's lookback window. Aggregate the same fields the Visit context section renders (keep terminology identical to `visitor-company-brief`): **total sessions**, **first seen and last seen**, **top landing pages** by frequency (use `landing_page_path` — the `engagements` array within each visit record is typically empty and cannot be used for per-page path analysis), **top sources** (`source` + `medium`), **deep visits** (`page_depth >= 3` or `visit_length >= 60s`), and the identified-vs-anonymous breakdown. **In the output, describe deep visits in plain language** (sales reps read this too): "viewed 4 pages", "spent 83 seconds" — never "page depth 4" or "dwell". `page_depth`/`visit_length` are internal fields; translate them into plain page counts and seconds.
 - `search_companies_signals` — filtered by `company_id`. Apply default filters:
   - **Recency:** `event_date.from` = today minus 90 days (or the user's lookback if longer).
-  - **Exclude regulatory noise:** Pass the full default `categories` array, omitting `regulatory_compliance_updates`:
+  - **Exclude regulatory noise:** Pass the full default `categories` array, omitting `regulatory_and_compliance_updates`:
     ```
-    ["business_expansion", "competitive_landscape", "event_participation", "industry_recognition", "leadership_changes", "corporate_challenges", "mergers_and_acquisitions", "customer_acquisition", "investment_activity", "product_and_service_development", "partnerships_and_collaborations", "financial_struggles", "job_ads", "register_updates"]
+    ["business_expansion", "competitive_landscape", "event_participation", "industry_recognition", "leadership_changes", "mergers_and_acquisitions", "customer_acquisition", "investment_activity", "product_and_service_development", "partnerships_collaborations", "job_ads", "employee_count_changes", "revenue_changes"]
     ```
 
 ### Step 3 — Synthesise talking points

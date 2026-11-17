@@ -5,7 +5,7 @@ title: "Riding the AI Wave: How Xelix is Breaking Boundaries in Fintech"
 
 ## Riding the AI Wave: How Xelix is Breaking Boundaries in Fintech
 
-_AWS Startups Customer Story_
+> _AWS Startups Customer Story_
 
 ## Overview
 

@@ -43,13 +43,22 @@ Concrete example (from `dsql_lint(sql="CREATE INDEX idx ON t (c);", fix=true)`):
 
 **Schema notes:**
 
-- `rule` is a snake_case string identifying the rule (e.g., `index_async`, `truncate`, `json_type`, `set_transaction`); `line` is 1-indexed.
+- `rule` is a snake_case string identifying the rule (e.g., `index_async`, `index_sort_direction`, `truncate`, `json_type`, `set_transaction`); `line` is 1-indexed.
 - `fix_result.status` is one of three values: `fixed`, `fixed_with_warning`, or `unfixable`. Always check this field — `fix_result` is present for every diagnostic when `fix=true`.
 - `fix_result.detail` is present for `fixed` and `fixed_with_warning`; absent for `unfixable`.
 - `fixed_sql` contains rewritten SQL when the linter produces a rewrite. Do not assume it is present
   when no rewrite is needed. Presence of `fixed_sql` does NOT mean the SQL is safe to execute —
   check every diagnostic first.
 - `summary.errors` counts `unfixable` diagnostics; `summary.warnings` counts `fixed_with_warning`; `summary.fixed` counts `fixed`.
+- **Do not gate a pipeline on any one counter.** Severity is derived from `fix_result.status`, so the
+  same rule can land in different counters depending on the input: `index_sort_direction` reports
+  `fixed_with_warning` for `DESC` but a silent `fixed` for `ASC`, even though DSQL rejects both. A
+  check on `errors == 0` or `warnings == 0` passes SQL that was rewritten underneath it. Check
+  `len(diagnostics)` instead — but zero means no lint rule fired, not that DSQL accepts the SQL:
+  operator classes pass with no diagnostic and are rejected
+  ([index-conversion.md](pg-migrations/index-conversion.md)), while valid `BEGIN ATOMIC` bodies
+  raise a `parse_error` (see [Error Handling](#error-handling)). Do not compare `fixed_sql` to
+  the input; it can match while an `unfixable` diagnostic is present.
 - `statement_preview` is the linter's pointer to the offending statement — useful when presenting diagnostics to the user.
 
 ---
@@ -105,15 +114,14 @@ When `dsql_lint` returns a diagnostic with `fix_result.status == "unfixable"`, *
 
 Only diagnostics with `fix_result.status == "unfixable"` need user-confirmed rewrites — these are the most common:
 
-| Rule                         | Resolution                                                                                                              |
-| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `create_table_as`            | CREATE TABLE with explicit columns, then `INSERT ... SELECT`                                                            |
-| `truncate`                   | Use `DELETE FROM table_name` (batch if > 3,000 rows)                                                                    |
-| `unsupported_alter_table_op` | Use Table Recreation Pattern — see [ddl-migrations/overview.md](ddl-migrations/overview.md) and Workflow 7              |
-| `add_column_constraint`      | ADD COLUMN with name + type only, then backfill via UPDATE. If NOT NULL/DEFAULT required, use Table Recreation Pattern. |
-| `index_expression`           | Create a computed column, then index that column                                                                        |
-| `index_partial`              | Create a full index; filter at query time                                                                               |
-| `set_transaction`            | Omit — DSQL uses Repeatable Read (fixed); remove `SET TRANSACTION ISOLATION LEVEL`                                      |
+| Rule                         | Resolution                                                                                                                                                   |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `create_table_as`            | CREATE TABLE with explicit columns, then `INSERT ... SELECT`                                                                                                 |
+| `truncate`                   | Use `DELETE FROM table_name` (batch if > 3,000 rows)                                                                                                         |
+| `unsupported_alter_table_op` | Use Table Recreation Pattern — see [ddl-migrations/overview.md](ddl-migrations/overview.md) and Workflow 7                                                   |
+| `add_column_constraint`      | ADD COLUMN with name + type only, then backfill via UPDATE. If NOT NULL/DEFAULT required, use Table Recreation Pattern.                                      |
+| `index_volatile_function`    | Rewrite as an equivalent immutable expression, index the plain column and filter in the query, or compute the value in the application and index that column |
+| `set_transaction`            | Omit — DSQL uses Repeatable Read (fixed); remove `SET TRANSACTION ISOLATION LEVEL`                                                                           |
 
 Other rules such as `temp_table`, `inherits`, `index_using`, and `transaction_isolation` are emitted as `fixed` or `fixed_with_warning` — follow the Fix Result Statuses table rather than rewriting manually.
 
@@ -124,5 +132,5 @@ Other rules such as `temp_table`, `inherits`, `index_using`, and `transaction_is
 If `dsql_lint` is unavailable, returns a parse error, or times out:
 
 - **MCP unavailable:** Inform the user that deterministic validation is unavailable and ask whether to (a) retry later or (b) proceed with manual validation using [development-guide.md](development-guide.md) DDL rules and type constraints. Proceed only on explicit user confirmation — the MUST-validate gate is not silently bypassed.
-- **Parse error (`parse_error` rule):** The SQL contains syntax the PostgreSQL parser cannot handle (MySQL-specific dialect, malformed SQL, etc.). Fall back to [mysql-migrations/type-mapping.md](mysql-migrations/type-mapping.md) for manual conversion. Present the proposed rewrite to the user and obtain confirmation before re-running `dsql_lint(fix=true)`; execute only when the re-lint is clean.
+- **Parse error (`parse_error` rule):** The SQL contains syntax the linter cannot parse (MySQL-specific dialect, malformed SQL, etc.). Fall back to [mysql-migrations/type-mapping.md](mysql-migrations/type-mapping.md) for manual conversion. Present the proposed rewrite to the user and obtain confirmation before re-running `dsql_lint(fix=true)`; execute only when the re-lint is clean. Exception: valid DSQL the linter cannot parse, such as `BEGIN ATOMIC` function bodies — no re-lint will be clean, so discard `fixed_sql` and keep the statement as written.
 - **Timeout:** Retry once. If the retry also times out, inform the user and obtain confirmation before falling back to splitting the SQL at statement boundaries and linting each in a bounded single-pass loop. If an individual statement still times out, stop and surface to the user — do not recurse further.

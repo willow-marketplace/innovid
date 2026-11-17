@@ -40,7 +40,7 @@ Requirements:
 - Enable versioning and encryption on all S3 buckets
 - Set up metric filters for security event detection
 
-Output should be production-ready, well-documented, and deployable in under 10 minutes.
+Output should serve as a starting point for a production security baseline — well-documented and deployable in under 10 minutes. Review all generated resources against your organization's security requirements and conduct an application security review before deploying to production.
 
 ## How to use?
 
@@ -48,7 +48,7 @@ Output should be production-ready, well-documented, and deployable in under 10 m
 
 **Required Access:**
 
-1. AWS Knowledge MCP Server integration enabled in AI assistant
+1. Unified AWS MCP Server (`aws-mcp`) available for documentation lookups — it ships with this plugin, so no separate install is needed
 2. AWS account access (read-only sufficient for assessment)
 3. Basic understanding of AWS services (EC2, RDS, S3, IAM)
 
@@ -65,7 +65,7 @@ Output should be production-ready, well-documented, and deployable in under 10 m
 
 ### Instructions
 
-**Step 1: Prepare Assessment Context**
+#### Step 1: Prepare Assessment Context
 
 Gather the following information:
 
@@ -73,13 +73,13 @@ Gather the following information:
 - AWS Environment: Services in use, account structure, team size
 - Security Goals: Primary objectives, timeline, budget, compliance requirements
 
-**Step 2: Configure the Prompt**
+#### Step 2: Configure the Prompt
 
 - Copy the complete prompt composition
 - Replace all bracketed placeholders [LIKE_THIS] with your specific information
 - Ensure all sections are completed, especially Current Environment Context
 
-**Step 3: Execute Assessment**
+#### Step 3: Execute Assessment
 
 - Submit configured prompt to AI assistant with MCP support
 - Assistant will systematically assess each control using MCP tools

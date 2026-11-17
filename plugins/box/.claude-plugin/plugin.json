@@ -2,7 +2,7 @@
   "name": "box",
   "version": "1.0.0",
   "description": "Box Plugin for Claude Code to help with Box Platform integrations including content workflows, shared links, webhooks, metadata, and Box AI retrieval.",
-  "updatedAt": "2026-09-19T00:42:54.196Z",
+  "updatedAt": "2026-11-17T00:01:19.059Z",
   "author": {
     "name": "Box"
   },
@@ -14,5 +14,11 @@
     "file-management",
     "collaboration"
   ],
-  "skills": "./skills/"
+  "skills": "./skills/",
+  "mcpServers": {
+    "box": {
+      "url": "https://mcp.box.com",
+      "type": "streamable-http"
+    }
+  }
 }

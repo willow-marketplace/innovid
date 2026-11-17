@@ -1,17 +1,26 @@
 {
   "mcpServers": {
     "cloud-storage": {
-      "env": {
-        "CLOUD_STORAGE_PROJECT": "${user_config.cloud_storage_project}"
-      },
       "args": [
         "-y",
-        "@toolbox-sdk/server@1.9.0",
+        "@toolbox-sdk/server@1.13.1",
         "--prebuilt",
         "cloud-storage",
-        "--stdio"
+        "--stdio",
+        "--user-agent-metadata",
+        "gcs-skills/1.0 (skill:gcs-skills-mcp-traffic)"
       ],
+      "type": "stdio",
       "command": "npx"
+    },
+    "google-cloud-storage-okf": {
+      "args": [
+        "run",
+        "--script",
+        "${PLUGIN_ROOT}/skills/google-cloud-storage-okf/scripts/mcp_server.py"
+      ],
+      "type": "stdio",
+      "command": "uv"
     }
   }
 }

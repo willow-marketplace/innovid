@@ -18,6 +18,7 @@ The following files live exclusively in this repository and welcome PRs:
 - `README.md`, `CONTRIBUTING.md`, `llms.txt`
 - `prompts/**` — reusable prompt templates
 - `plugins/**` — plugin manifests and agent configurations
+- `.claude-plugin/**`, `.cursor-plugin/**`, `.antigravity-plugin/**`, `mcp_config.json` — harness plugin manifests and MCP configs
 - `tests/**` — CI test scripts
 - `.github/**` — GitHub Actions workflows
 
@@ -34,11 +35,19 @@ When bumping the version, update all of the following to match:
 
 - `.claude-plugin/plugin.json` → `"version"` (canonical)
 - `.cursor-plugin/plugin.json` → `"version"`
-- `mcp.json` → `"X-Http-Source": "dynatrace-for-ai/<version>"`
-- `.mcp.json` → `"X-Http-Source": "dynatrace-for-ai/<version>"`
-- `server.json` → `"version"` and the `X-Http-Source` header value
+- `.antigravity-plugin/plugin.json` → `"version"` (the Antigravity Marketplace requires every published update to increment it)
+- `mcp_config.json` → `"Dt-External-Source": "dynatrace-for-ai/<version>"`
+- `mcp.json` → `"Dt-External-Source": "dynatrace-for-ai/<version>"`
+- `.mcp.json` → `"Dt-External-Source": "dynatrace-for-ai/<version>"`
+- `server.json` → `"version"` and the `Dt-External-Source` header value
 
 Run `node scripts/check-versions.js` to verify — CI also enforces this on every PR.
+
+When a PR that changes the `version` in `.claude-plugin/plugin.json` merges to `main`,
+`.github/workflows/release.yml` creates the `vX.Y.Z` tag and a GitHub release with auto-generated
+notes (covering everything since the previous published release), then starts the MCP registry
+publish described below. Edit the notes afterwards with `gh release edit vX.Y.Z` if they need a
+user-facing summary. To release manually instead, push the tag yourself.
 
 Pushing the `vX.Y.Z` tag also publishes `server.json` to the
 [official MCP registry](https://registry.modelcontextprotocol.io) via

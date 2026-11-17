@@ -1,17 +1,8 @@
 {
   "mcpServers": {
-    "domino_server": {
-      "env": {
-        "DOMINO_HOST": "${DOMINO_HOST}",
-        "DOMINO_API_KEY": "${DOMINO_API_KEY}"
-      },
-      "args": [
-        "--directory",
-        "$/mnt/code/.claude/mcp-servers/domino_mcp_server",
-        "run",
-        "domino_mcp_server.py"
-      ],
-      "command": "uv"
+    "domino_docs": {
+      "url": "https://docs.domino.ai/mcp",
+      "type": "http"
     }
   }
 }

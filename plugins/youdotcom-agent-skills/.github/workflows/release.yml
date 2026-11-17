@@ -32,6 +32,11 @@ on:
         required: false
         type: boolean
         default: true
+      publish_pypi:
+        description: "Publish the strands Python package to PyPI when publish_artifacts is enabled"
+        required: false
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -44,6 +49,7 @@ jobs:
     outputs:
       has_npm: ${{ steps.outputs.outputs.has_npm }}
       has_clawhub: ${{ steps.outputs.outputs.has_clawhub }}
+      has_strands: ${{ steps.outputs.outputs.has_strands }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -69,6 +75,7 @@ jobs:
           {
             echo "has_npm=$(jq -r 'any(.units.npm[]?; .bump != "none")' release-plan.json)"
             echo "has_clawhub=$(jq -r 'any(.units.clawhub[]?; .bump != "none")' release-plan.json)"
+            echo "has_strands=$(jq -r '(.units.strands.youdotcom.bump // "none") != "none"' release-plan.json)"
           } >> "$GITHUB_OUTPUT"
 
       - name: Upload release plan
@@ -163,7 +170,7 @@ jobs:
           if [[ "${APPLY_VERSIONS}" == "true" ]]; then
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
-            git add skills packages plugin.json .plugin .claude-plugin .codex-plugin .cursor-plugin .kimi-plugin .grok-plugin .agents/plugins .github/plugin
+            git add skills packages plugin.json .plugin .claude-plugin .codex-plugin .cursor-plugin .kimi-plugin .grok-plugin .agents/plugins .github/plugin marketplace
             if git diff --staged --quiet; then
               echo "No version changes to commit"
             else
@@ -178,7 +185,10 @@ jobs:
 
   publish-npm:
     name: Publish npm packages
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_artifacts && inputs.publish_npm && needs.plan.outputs.has_npm == 'true' }}
+    # The strands packages publish on their own unit (skills/mcp.json/package
+    # code changes), so the job also runs when only that unit moved — the
+    # per-package jq gates inside decide what actually publishes.
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_artifacts && inputs.publish_npm && (needs.plan.outputs.has_npm == 'true' || needs.plan.outputs.has_strands == 'true') }}
     needs: [plan, apply]
     runs-on: ubuntu-latest
     environment: npm
@@ -230,6 +240,13 @@ jobs:
             fi
           done
 
+          # The strands packages share one version line driven by the strands
+          # unit (skills, mcp.json, or package code changes) — publish the TS
+          # package when it moved. PyPI publishing is its own job.
+          if jq -e '(.units.strands.youdotcom.bump // "none") != "none"' release-plan.json >/dev/null; then
+            npm publish --provenance --access public ./packages/strands-agents/typescript
+          fi
+
   publish-clawhub:
     name: Publish ClawHub package
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_artifacts && inputs.publish_clawhub && needs.plan.outputs.has_clawhub == 'true' }}
@@ -263,12 +280,16 @@ jobs:
           cp -R packages/openclaw "${CLAWHUB_PACKAGE_DIR}"
           jq '.name = "you"' "${CLAWHUB_PACKAGE_DIR}/package.json" > "${CLAWHUB_PACKAGE_DIR}/package.json.tmp"
           mv "${CLAWHUB_PACKAGE_DIR}/package.json.tmp" "${CLAWHUB_PACKAGE_DIR}/package.json"
+          # code-plugin publishes a ClawPack built from compiled output, and the
+          # entry imports the host's openclaw/* SDK, which resolves only at
+          # gateway runtime — so bundle it with those imports left external.
+          (cd "${CLAWHUB_PACKAGE_DIR}" && bun build ./plugin.ts --outdir dist --target node --format esm --external 'openclaw/*')
           bunx clawhub login --token "${CLAWHUB_TOKEN}" --no-browser
           for attempt in 1 2 3; do
             if bunx clawhub package publish "${CLAWHUB_PACKAGE_DIR}" \
               --source-path packages/openclaw \
               --source-repo youdotcom-oss/agent-skills \
-              --family bundle-plugin \
+              --family code-plugin \
               --owner youdotcom-oss \
               --name you \
               --version "${VERSION}" \
@@ -282,14 +303,83 @@ jobs:
             sleep 30
           done
 
+  publish-pypi:
+    name: Publish Python package
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_artifacts && inputs.publish_pypi }}
+    needs: [plan, apply]
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout release commit
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.apply.outputs.release_sha }}
+
+      - name: Download release plan
+        uses: actions/download-artifact@v8
+        with:
+          name: release-plan
+
+      - name: Compute strands bump
+        id: strands
+        run: echo "bump=$(jq -r '.units.strands.youdotcom.bump // "none"' release-plan.json)" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Bun (staging script)
+        if: steps.strands.outputs.bump != 'none'
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Set up uv
+        if: steps.strands.outputs.bump != 'none'
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: '3.13'
+
+      - name: Build distributions
+        if: steps.strands.outputs.bump != 'none'
+        working-directory: packages/strands-agents/python
+        run: |
+          bun scripts/stage.ts
+          uv build
+          uvx twine check dist/*
+
+      - name: Publish to PyPI
+        if: steps.strands.outputs.bump != 'none'
+        # v1.14.2: bundles twine v7, which accepts Metadata-Version 2.5 wheels emitted
+        # by current hatchling; v1.13.0 rejects them at the twine check. Pin the release
+        # commit, not the annotated tag object (GHCR resolves image tags from commit SHAs).
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
+        with:
+          packages-dir: packages/strands-agents/python/dist/
+
   release:
     name: Create dated release
     if: ${{ !cancelled() && inputs.publish_artifacts && contains(needs.*.result, 'failure') == false && contains(needs.*.result, 'cancelled') == false }}
-    needs: [plan, apply, publish-npm, publish-clawhub]
+    needs: [plan, apply, publish-npm, publish-clawhub, publish-pypi]
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
+      - name: Checkout release commit
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.apply.outputs.release_sha }}
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build OpenAI marketplace submission archive
+        run: bun scripts/package-openai.ts
+
       - name: Create dated tag and GitHub release
         env:
           GH_TOKEN: ${{ secrets.PUBLISH_TOKEN }}
@@ -301,3 +391,4 @@ jobs:
             --target "${RELEASE_SHA}" \
             --title "${tag}" \
             --generate-notes
+          gh release upload "${tag}" dist/you-openai.zip --clobber

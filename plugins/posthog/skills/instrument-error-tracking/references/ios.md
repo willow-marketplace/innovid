@@ -1,10 +1,30 @@
 > AI agents: this is one page from PostHog's docs. Full index of Markdown docs for LLMs: https://posthog.com/llms.txt
 
-# iOS Error Tracking installation - Docs
+# iOS Error Tracking installation
 
-Copy page
+Canonical URL: https://posthog.com/docs/error-tracking/installation/ios
 
-# iOS Error Tracking installation - Docs
+> **Cloud region:** This page uses US Cloud hosts. For an EU Cloud project, use `https://eu.i.posthog.com` instead of `https://us.i.posthog.com` (ingestion host), and use `https://eu.posthog.com` instead of `https://app.posthog.com` (app host for links).
+
+## On this page
+
+- [Install with the wizard](#install-with-the-wizard)
+- [Install dependency](#install-dependency)
+- [Configure PostHog](#configure-posthog)
+- [Send events](#send-events)
+- [Set up exception autocapture](#set-up-exception-autocapture)
+- [Manually capture exceptions](#manually-capture-exceptions)
+- [Configure in-app frames](#configure-in-app-frames)
+- [Verify error tracking](#verify-error-tracking)
+- [Upload dSYMs](#upload-dsyms)
+
+## Install with the wizard
+
+Run this command in your project directory to add PostHog to your iOS project. The wizard detects your framework, installs the SDK, and sets up your first events.
+
+`npx @posthog/wizard`
+
+Or set it up manually by following the rest of this guide.
 
 1.  1
 
@@ -16,8 +36,6 @@ Copy page
 
     Package.swift
 
-    PostHog AI
-
     ```swift
     dependencies: [
       .package(url: "https://github.com/PostHog/posthog-ios.git", from: "3.56.0")
@@ -27,8 +45,6 @@ Copy page
     Or add PostHog to your Podfile:
 
     Podfile
-
-    PostHog AI
 
     ```ruby
     pod "PostHog", "~> 3.56"
@@ -44,18 +60,19 @@ Copy page
 
     AppDelegate.swift
 
-    PostHog AI
-
     ```swift
     import Foundation
     import PostHog
     import UIKit
+    
     class AppDelegate: NSObject, UIApplicationDelegate {
         func application(_: UIApplication, didFinishLaunchingWithOptions _: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
             let POSTHOG_PROJECT_TOKEN = "<ph_project_token>"
             let POSTHOG_HOST = "https://us.i.posthog.com"
+    
             let config = PostHogConfig(projectToken: POSTHOG_PROJECT_TOKEN, host: POSTHOG_HOST)
             PostHogSDK.shared.setup(config)
+    
             return true
         }
     }
@@ -70,8 +87,6 @@ Copy page
     Once installed, PostHog will automatically start capturing events. You can also manually send events to test your integration:
 
     Swift
-
-    PostHog AI
 
     ```swift
     PostHogSDK.shared.capture("button_clicked", properties: ["button_name": "signup"])
@@ -97,15 +112,15 @@ Copy page
 
     Swift
 
-    PostHog AI
-
     ```swift
     import PostHog
+    
     let config = PostHogConfig(
         projectToken: "<ph_project_token>",
         host: "https://us.i.posthog.com"
     )
     config.errorTrackingConfig.autoCapture = true
+    
     PostHogSDK.shared.setup(config)
     ```
 
@@ -129,10 +144,9 @@ Copy page
 
     Swift
 
-    PostHog AI
-
     ```swift
     import PostHog
+    
     do {
         try FileManager.default.removeItem(at: badFileUrl)
     } catch {
@@ -146,10 +160,9 @@ Copy page
 
     Objective-C
 
-    PostHog AI
-
     ```objc
     @import PostHog;
+    
     @try {
         [self riskyOperation];
     } @catch (NSException *exception) {
@@ -162,8 +175,6 @@ Copy page
     You can add custom properties to help with debugging, grouping, and analysis:
 
     Swift
-
-    PostHog AI
 
     ```swift
     do {
@@ -190,26 +201,29 @@ Copy page
 
     Swift
 
-    PostHog AI
-
     ```swift
     import PostHog
+    
     let config = PostHogConfig(
         projectToken: "<ph_project_token>",
         host: "https://us.i.posthog.com"
     )
+    
     // Mark additional packages as in-app
     config.errorTrackingConfig.inAppIncludes = [
         "MySharedFramework",
         "MyUtilityLib"
     ]
+    
     // Exclude specific packages from being marked as in-app
     config.errorTrackingConfig.inAppExcludes = [
         "Alamofire",
         "SDWebImage"
     ]
+    
     // Control default behavior for unknown packages
     config.errorTrackingConfig.inAppByDefault = true // default
+    
     PostHogSDK.shared.setup(config)
     ```
 
@@ -217,9 +231,9 @@ Copy page
 
     | Option | Description |
     | --- | --- |
-    | inAppIncludes | List of package/bundle identifiers to mark as in-app (takes precedence over excludes) |
-    | inAppExcludes | List of package/bundle identifiers to exclude from in-app |
-    | inAppByDefault | Whether frames are considered in-app by default when origin cannot be determined |
+    | `inAppIncludes` | List of package/bundle identifiers to mark as in-app (takes precedence over excludes) |
+    | `inAppExcludes` | List of package/bundle identifiers to exclude from in-app |
+    | `inAppByDefault` | Whether frames are considered in-app by default when origin cannot be determined |
 
     **Default behavior:**
 
@@ -234,7 +248,7 @@ Copy page
 
     Before proceeding, let's make sure exception events are being captured and sent to PostHog. You should see events appear in the activity feed.
 
-    ![Activity feed with events](https://res.cloudinary.com/dmukukwp6/image/upload/SCR_20250729_ouxl_f788dd8cd2.png)![Activity feed with events](https://res.cloudinary.com/dmukukwp6/image/upload/SCR_20250729_owae_7c3490822c.png)
+    ![Activity feed with events](https://res.cloudinary.com/dmukukwp6/image/upload/SCR_20250729_ouxl_f788dd8cd2.png)
 
     [Check for exceptions in PostHog](https://app.posthog.com/activity/explore)
 
@@ -248,17 +262,9 @@ Copy page
 
     Let's continue to the next section.
 
-    [Upload dSYMs](/docs/error-tracking/upload-source-maps/ios.md)
+    [Upload dSYMs](https://posthog.com/docs/error-tracking/upload-source-maps/ios.md)
 
 ## Limitations:
 
 -   System symbols and frames are not symbolicated (UIKit, Foundation, etc.) ([issue](https://github.com/PostHog/posthog/issues/50614)).
 -   Swift crashes appear as `SIGTRAP` without the actual error message ([issue](https://github.com/PostHog/posthog-ios/issues/522)).
-
-### Still have questions?
-
-Ask PostHog AI
-
-### Was this page useful?
-
-HelpfulCould be better

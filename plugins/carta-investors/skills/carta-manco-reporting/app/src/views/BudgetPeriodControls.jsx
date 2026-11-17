@@ -1,10 +1,11 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { sans, INK, PAPER, LINE, BORDER_DEFAULT, MICRO, FS } from "../ui/theme.js";
 import { Btn, Tag, Bubble, Chevron, Dropdown, MenuItem, TOOLBAR_CONTROL_STYLE } from "../ui/components.jsx";
 import {
   FREQUENCIES, COLUMN_TYPES, MONTH_NAME, canHide, filterChips,
   isDefaultFilters, rangePresets, detectPreset, normalizeRange, DEFAULT_FILTERS,
 } from "./budgetPeriods.js";
+import { useOutsideClose } from "../ui/useOutsideClose.js";
 import { groupBreakouts } from "./accountBreakout.js";
 import { trackClick, trackRender } from "../analytics.js";
 
@@ -22,7 +23,7 @@ export function FilterRibbon({ children }) {
  *  up, which columns to show, and over what window. */
 export default function BudgetPeriodControls({
   filters, onFilters, range, onRange, year, asOfMonth, frequencyEnabled = true,
-  breakouts, breakoutKey, onBreakoutKey,
+  columnsPane = true, breakouts, breakoutKey, onBreakoutKey,
 }) {
   // No memo: the whole toolbar is a handful of literals, and staying a plain
   // function keeps it callable from the unit tests.
@@ -30,11 +31,6 @@ export default function BudgetPeriodControls({
   const preset = detectPreset(range, presets);
   const chips = filterChips(filters);
   const dirty = !isDefaultFilters(filters);
-
-  const setFrequency = (key) => {
-    trackClick("MancoReporting.BudgetVsActuals.PeriodChange");
-    onFilters({ ...filters, frequency: key });
-  };
 
   const dismissChip = (id) => {
     if (id === "hidden") onFilters({ ...filters, hidden: [] });
@@ -44,15 +40,12 @@ export default function BudgetPeriodControls({
   return (
     <FilterRibbon>
       {frequencyEnabled && (
-        <Dropdown
-          triggerLabel="Period"
-          options={FREQUENCIES.map((f) => ({ id: f.key, label: f.label }))}
-          value={filters.frequency}
-          onChange={setFrequency}
-        />
+        <PeriodDropdown value={filters.frequency}
+                        onChange={(key) => onFilters({ ...filters, frequency: key })} />
       )}
 
       <FiltersMenu filters={filters} onFilters={onFilters} ytdPane={frequencyEnabled}
+                   columnsPane={columnsPane}
                    breakouts={breakouts} breakoutKey={breakoutKey}
                    onBreakoutKey={onBreakoutKey} />
 
@@ -61,7 +54,8 @@ export default function BudgetPeriodControls({
       ))}
 
       {dirty && (
-        <button type="button" className="gf-reset" onClick={() => onFilters({ ...DEFAULT_FILTERS })}>
+        <button type="button" className="gf-reset"
+                onClick={() => { trackClick("MancoReporting.BudgetVsActuals.FiltersClear"); onFilters({ ...DEFAULT_FILTERS }); }}>
           Reset
         </button>
       )}
@@ -79,11 +73,28 @@ export default function BudgetPeriodControls({
   );
 }
 
+/** How often to break the year up. Every Budget vs Actuals layout that can
+ *  break it up uses this one control, so they read and report alike. */
+export function PeriodDropdown({ value, onChange, options = FREQUENCIES }) {
+  return (
+    <Dropdown
+      triggerLabel="Period"
+      options={options.map((f) => ({ id: f.key, label: f.label }))}
+      value={value}
+      onChange={(key) => {
+        trackClick("MancoReporting.BudgetVsActuals.PeriodChange");
+        onChange(key);
+      }}
+    />
+  );
+}
+
 function Chip({ label, onDismiss }) {
   return (
     <Tag tone="info" style={S.chip}>
       {label}
-      <button type="button" className="tag-close-btn" aria-label={`Clear ${label}`} onClick={onDismiss}>
+      <button type="button" className="tag-close-btn" aria-label={`Clear ${label}`}
+              onClick={() => { trackClick("MancoReporting.BudgetVsActuals.FilterChipRemove"); onDismiss(); }}>
         <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true">
           <path d="M2 2L8 8M8 2L2 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
         </svg>
@@ -98,19 +109,29 @@ export function hasFilterPanes({ filters, onFilters, breakouts, onBreakoutKey, d
   return !!(filters && onFilters) || !!(breakouts?.length && onBreakoutKey) || !!departments || !!hiddenRows;
 }
 
+// Filter pane key -> its tab event.
+const PANE_EVENTS = {
+  columns: "MancoReporting.BudgetVsActuals.FilterTabColumns",
+  ytd: "MancoReporting.BudgetVsActuals.FilterTabYtd",
+  breakouts: "MancoReporting.BudgetVsActuals.FilterTabBreakouts",
+  departments: "MancoReporting.BudgetVsActuals.FilterTabDepartments",
+  hiddenRows: "MancoReporting.BudgetVsActuals.FilterTabHiddenRows",
+};
+
 // Ported from carta-fund-modeling's `GlobalFilter` (side-nav + right pane +
 // Reset/Apply footer over a draft, committed on Apply). No
 // createPortal/boundary-flip
 // logic here: fund-modeling needs that because its toolbar sits inside a
 // clipped scrollable column; this page's toolbar has no such container.
-export function FiltersMenu({ filters, onFilters, ytdPane = true, breakouts, breakoutKey, onBreakoutKey,
-                              departments, hiddenRows }) {
+// `columnsPane` is off where the grid has no budget or variance column to hide.
+export function FiltersMenu({ filters, onFilters, ytdPane = true, columnsPane = true,
+                              breakouts, breakoutKey, onBreakoutKey, departments, hiddenRows }) {
   const hasColumns = !!(filters && onFilters);
   const hasBreakouts = !!(breakouts?.length && onBreakoutKey);
   // Which panes exist right now, independent of draft state — the source of
   // truth for whether a stale activePane still points at something real.
   const paneKeys = [
-    ...(hasColumns ? ["columns", ...(ytdPane ? ["ytd"] : [])] : []),
+    ...(hasColumns ? [...(columnsPane ? ["columns"] : []), ...(ytdPane ? ["ytd"] : [])] : []),
     ...(hasBreakouts ? ["breakouts"] : []),
     ...(departments ? ["departments"] : []),
     ...(hiddenRows ? ["hiddenRows"] : []),
@@ -143,6 +164,12 @@ export function FiltersMenu({ filters, onFilters, ytdPane = true, breakouts, bre
     });
   };
 
+  const selectPane = (key) => {
+    const id = PANE_EVENTS[key];
+    if (id) trackClick(id);
+    setActivePane(key);
+  };
+
   // Scoped per instance: three views can each mount a Filters panel.
   const uid = useId();
   const tabId = (k) => `${uid}tab-${k}`;
@@ -157,7 +184,7 @@ export function FiltersMenu({ filters, onFilters, ytdPane = true, breakouts, bre
     e.preventDefault();
     const keys = navItems.map((n) => n.key);
     const next = keys[(keys.indexOf(activePane) + step + keys.length) % keys.length];
-    setActivePane(next);
+    selectPane(next);
     document.getElementById(tabId(next))?.focus();
   };
 
@@ -177,7 +204,7 @@ export function FiltersMenu({ filters, onFilters, ytdPane = true, breakouts, bre
 
   const navItems = [
     ...(hasColumns ? [
-      { key: "columns", label: "Columns", count: draftHidden.length },
+      ...(columnsPane ? [{ key: "columns", label: "Columns", count: draftHidden.length }] : []),
       ...(ytdPane ? [{ key: "ytd", label: "Year-to-Date", count: draft.showYtd ? 1 : 0 }] : []),
     ] : []),
     ...(hasBreakouts ? [
@@ -238,7 +265,7 @@ export function FiltersMenu({ filters, onFilters, ytdPane = true, breakouts, bre
                       aria-selected={activePane === key} aria-controls={paneId(key)}
                       tabIndex={activePane === key ? 0 : -1}
                       className={`gf-navitem${activePane === key ? " gf-navitem--active" : ""}`}
-                      onClick={() => setActivePane(key)} onKeyDown={onTabKeyDown}>
+                      onClick={() => selectPane(key)} onKeyDown={onTabKeyDown}>
                 {label}
                 {count > 0 && <Bubble tone="info">{count}</Bubble>}
               </button>
@@ -256,7 +283,7 @@ export function FiltersMenu({ filters, onFilters, ytdPane = true, breakouts, bre
                       <Check key={type}
                              checked={draftHidden.includes(type)}
                              disabled={!canHide(draftHidden, type)}
-                             onChange={() => toggleDraftHidden(type)}
+                             onChange={() => { trackClick("MancoReporting.BudgetVsActuals.ToggleHideColumn"); toggleDraftHidden(type); }}
                              label={`Hide ${COLUMN_LABEL[type]} column`} />
                     ))}
                   </div>
@@ -267,7 +294,7 @@ export function FiltersMenu({ filters, onFilters, ytdPane = true, breakouts, bre
                   <h3 className="gf-view__title">Year-to-date</h3>
                   <div className="gf-check-list">
                     <Check checked={!!draft.showYtd}
-                           onChange={() => setDraft({ ...draft, showYtd: !draft.showYtd })}
+                           onChange={() => { trackClick("MancoReporting.BudgetVsActuals.ToggleShowYtd"); setDraft({ ...draft, showYtd: !draft.showYtd }); }}
                            label="Show YTD column" />
                   </div>
                 </>
@@ -380,6 +407,7 @@ function Check({ checked, disabled, onChange, label }) {
  *  month fields, just a short options list. */
 export function SimplePeriodPicker({ options, value, onChange }) {
   const [open, setOpen] = useState(false);
+  useEffect(() => { if (open) trackRender("MancoReporting.BudgetPeriodPanel.View"); }, [open]);
   const ref = useOutsideClose(open, () => setOpen(false));
   const label = options.find((o) => o.id === value)?.label || options[0]?.label;
 
@@ -436,7 +464,8 @@ function RangePicker({ range, onRange, presets, preset, year }) {
         <div style={{ ...S.popover, right: 0, left: "auto", minWidth: 300 }}
              role="dialog" aria-label="Date range">
           <label style={S.fieldLabel}>Date range</label>
-          <select style={S.select} value={preset} onChange={(e) => pick(e.target.value)}>
+          <select style={S.select} value={preset}
+                  onChange={(e) => { trackClick("MancoReporting.BudgetVsActuals.PeriodPreset"); pick(e.target.value); }}>
             {presets.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
           </select>
           <div style={S.row}>
@@ -456,7 +485,7 @@ function MonthField({ label, value, onChange }) {
     <div style={S.field}>
       <label style={S.fieldLabel}>{label}</label>
       <select style={S.select} value={value} aria-label={`${label} month`}
-              onChange={(e) => { trackClick("MancoReporting.BudgetVsActuals.PeriodChange"); onChange(Number(e.target.value)); }}>
+              onChange={(e) => { trackClick("MancoReporting.BudgetVsActuals.PeriodCustom"); onChange(Number(e.target.value)); }}>
         {MONTH_NAME.map((name, i) => (
           <option key={name} value={i + 1}>{name}</option>
         ))}
@@ -467,24 +496,6 @@ function MonthField({ label, value, onChange }) {
 
 function monthLabel(m) {
   return MONTH_NAME[m - 1]?.slice(0, 3) || "";
-}
-
-// Popovers close on an outside click or Escape, the same as the app's
-// other two. Returns the ref to hang on the wrapper.
-function useOutsideClose(open, close) {
-  const ref = useRef(null);
-  useEffect(() => {
-    if (!open) return undefined;
-    const onDoc = (e) => { if (ref.current && !ref.current.contains(e.target)) close(); };
-    const onKey = (e) => { if (e.key === "Escape") close(); };
-    document.addEventListener("mousedown", onDoc);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDoc);
-      document.removeEventListener("keydown", onKey);
-    };
-  });
-  return ref;
 }
 
 function CalendarIcon() {

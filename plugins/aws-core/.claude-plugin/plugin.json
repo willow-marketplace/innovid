@@ -1,8 +1,8 @@
 {
   "name": "aws-core",
-  "version": "1.1.0",
-  "description": "Build, deploy, and operate applications on AWS. Skills to author infrastructure-as-code (CDK, CloudFormation), use core services (Lambda, API Gateway, Step Functions, ECS/Fargate, ECR, IAM, Amazon Bedrock with Knowledge Bases and Guardrails, AWS Blocks), select and operate databases across relational, key-value, document, wide-column, graph, time-series, and in-memory engines (Aurora PostgreSQL/MySQL, Aurora DSQL, RDS, Oracle Database@AWS, DynamoDB, DocumentDB, Keyspaces, Neptune, Timestream, ElastiCache, and MemoryDB), and complete common tasks across observability (CloudWatch, X-Ray, CloudTrail, ADOT), messaging and streaming (SQS, SNS, EventBridge, Kinesis, MSK), AWS SDKs (boto3, JS v3, Swift), and cost optimization.",
-  "updatedAt": "2026-09-19T00:42:54.367Z",
+  "version": "1.2.0",
+  "description": "Build, deploy, and operate applications on AWS. Skills to author infrastructure-as-code (CDK, CloudFormation), use core services (Lambda, API Gateway, Step Functions, ECS/Fargate, ECR, IAM, Amazon Bedrock with Knowledge Bases and Guardrails, AWS Blocks), select and operate databases across relational, key-value, document, wide-column, graph, time-series, and in-memory engines (Aurora PostgreSQL/MySQL, Aurora DSQL, RDS, Oracle Database@AWS, DynamoDB, DocumentDB, Keyspaces, Neptune, Timestream, ElastiCache, and MemoryDB), and complete common tasks across observability (CloudWatch, X-Ray, CloudTrail, ADOT), messaging and streaming (SQS, SNS, EventBridge, Kinesis, MSK), AWS SDKs (boto3, JS v3, Swift), cost optimization, and Well-Architected Framework reviews across all six pillars.",
+  "updatedAt": "2026-11-17T00:01:17.836Z",
   "author": {
     "name": "Amazon Web Services"
   },
@@ -16,6 +16,7 @@
     "bedrock",
     "amazon-bedrock",
     "aws-blocks",
+    "aws-emulator",
     "billing",
     "cost-explorer",
     "cost-optimization",
@@ -110,26 +111,20 @@
     "durable-functions",
     "budgets",
     "reserved-instances",
-    "right-sizing"
+    "right-sizing",
+    "well-architected",
+    "well-architected-framework",
+    "wafr",
+    "architecture-review",
+    "workload-assessment"
   ],
   "skills": "./skills/",
-  "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/secret-safety.py\""
-          }
-        ]
-      }
-    ]
-  },
   "mcpServers": {
     "aws-mcp": {
       "args": [
-        "mcp-proxy-for-aws-cli@latest",
+        "--from",
+        "git+https://github.com/aws/mcp-proxy-for-aws@a5dd25e0ad99d0d874f2b779435b12b10932eae7",
+        "mcp-proxy-for-aws",
         "https://aws-mcp.us-east-1.api.aws/mcp",
         "--skip-auth",
         "--metadata",

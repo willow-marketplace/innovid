@@ -9,11 +9,9 @@ SparkScan is a pre-built scanning UI for high-volume single-scanning workflows. 
 - Scandit React Native packages installed:
   - `scandit-react-native-datacapture-core`
   - `scandit-react-native-datacapture-barcode`
-- After installing, run `npx pod-install` (or `cd ios && pod install`) for iOS. Android auto-links via Gradle — no manual step.
+- After installing, run `npx pod-install@1.2.1` (or `cd ios && pod install`) for iOS. Android auto-links via Gradle — no manual step.
 - React Native `>=0.70`. The New Architecture (Fabric / TurboModules) is supported — no additional setup required beyond the standard RN template.
-- A valid Scandit license key:
-  - Sign in at https://ssl.scandit.com to generate one.
-  - No account yet? Sign up at https://ssl.scandit.com/dashboard/sign-up?p=test.
+- A valid Scandit license key — see **Licence key** in this skill's `SKILL.md`.
 - Camera permissions configured by the app:
   - iOS: add `NSCameraUsageDescription` to `ios/<App>/Info.plist`.
   - Android: the manifest permission is declared by the plugin; request at runtime via `PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.CAMERA)` before rendering the scan screen.
@@ -28,9 +26,9 @@ After providing the code, show this setup checklist:
 
 **Setup checklist:**
 1. Install packages: `npm install scandit-react-native-datacapture-core scandit-react-native-datacapture-barcode`
-2. Run `npx pod-install` (iOS). Android auto-links.
+2. Run `npx pod-install@1.2.1` (iOS). Android auto-links.
 3. Add `NSCameraUsageDescription` to `ios/<App>/Info.plist`.
-4. Replace `-- ENTER YOUR SCANDIT LICENSE KEY HERE --` with your key from https://ssl.scandit.com.
+4. Replace `-- ENTER YOUR SCANDIT LICENSE KEY HERE --` with your key (see **Licence key** in `SKILL.md`).
 5. If Metro was running, restart it with `--reset-cache` so the new package is picked up.
 
 ## Step 1 — Initialize DataCaptureContext (singleton module)
@@ -203,7 +201,7 @@ return (
 );
 ```
 
-> Props `context`, `sparkScan`, and `style` are required. `sparkScanViewSettings` is optional — pass a default `new SparkScanViewSettings()` if you don't need to tweak view-level config.
+> Props `context`, `sparkScan`, `sparkScanViewSettings` and `style` are required (8.6.1 typings: `BaseSparkScanViewProps`). Pass a default `new SparkScanViewSettings()` if you don't need to tweak view-level config.
 
 ## Step 5 — SparkScanView Lifecycle and Cleanup
 
@@ -276,6 +274,41 @@ All colors use `Color.fromHex('#RRGGBB')` from `scandit-react-native-datacapture
 |----------|------|-------------|
 | `triggerButtonImage` | `string \| null` | Custom image for the trigger button. |
 | `SparkScanView.defaultBrush` | `Brush` (static) | Default highlight brush. |
+
+### Scanning mode and preview
+
+`SparkScanViewSettings.defaultScanningMode` picks target mode (aim-to-scan) and the preview behavior. `SparkScanPreviewBehavior.Persistent` keeps the camera preview visible when not scanning. Build the settings in `useMemo` (the view reads them only on mount) and pass them through the `sparkScanViewSettings` prop:
+
+```tsx
+import { useMemo } from 'react';
+import {
+  SparkScanScanningBehavior,
+  SparkScanPreviewBehavior,
+  SparkScanScanningModeTarget,
+  SparkScanView,
+  SparkScanViewSettings,
+} from 'scandit-react-native-datacapture-barcode';
+
+const viewSettings = useMemo(() => {
+  const settings = new SparkScanViewSettings();
+  settings.defaultScanningMode = new SparkScanScanningModeTarget(
+    SparkScanScanningBehavior.Single,
+    SparkScanPreviewBehavior.Persistent
+  );
+  return settings;
+}, []);
+
+<SparkScanView
+  context={context}
+  sparkScan={sparkScan}
+  sparkScanViewSettings={viewSettings}
+  style={{ flex: 1 }}
+/>
+```
+
+For the regular (non-target) mode with a persistent preview, use `new SparkScanScanningModeDefault(SparkScanScanningBehavior.Single, SparkScanPreviewBehavior.Persistent)` instead.
+
+> `SparkScanScanningModeTarget` and `SparkScanScanningModeDefault` are deprecated since 8.6 in favor of `SparkScanSettings.selectionMode` (`SelectionMode.On` for target mode, `SelectionMode.Off` for the default mode, from `scandit-react-native-datacapture-core`). At 8.6 `defaultScanningMode` is still the only way to set the preview behavior. From 8.7 the view settings expose `previewBehavior` and `scanningBehavior` directly; they are 8.7+ only, so do not use them against 8.6.x.
 
 ## Step 7 — Custom Feedback
 
@@ -352,7 +385,7 @@ Listen for user interactions with the SparkScan overlay buttons. Assign via the 
         didTapBarcodeCountButton: () => navigation.navigate('count'),
         didTapBarcodeFindButton: () => navigation.navigate('find'),
         didTapLabelCaptureButton: () => navigation.navigate('label'),
-        didChangeViewState: newState => { /* expanded/collapsed */ },
+        didChangeViewState: newState => { /* initial, idle, inactive, active, error */ },
         didChangeScanningMode: newMode => { /* single vs continuous */ },
       };
     }
@@ -556,7 +589,7 @@ const styles = StyleSheet.create({
 4. **Cleanup on unmount** — In the `useEffect` cleanup function, call `dataCaptureContext.removeMode(sparkScanMode.current)`. React unmount handles the native view tear-down automatically.
 5. **Children render under the overlay** — Everything inside `<SparkScanView>` renders below the native scanning controls. Use this to show results lists, forms, or any other content.
 6. **Imports** — Core types from `scandit-react-native-datacapture-core`; barcode types from `scandit-react-native-datacapture-barcode`.
-7. **Pod install** — Run `npx pod-install` (or `cd ios && pod install`) after installing or updating Scandit packages. Android auto-links.
+7. **Pod install** — Run `npx pod-install@1.2.1` (or `cd ios && pod install`) after installing or updating Scandit packages. Android auto-links.
 8. **Camera permissions** — iOS: `NSCameraUsageDescription` in `Info.plist`. Android: runtime request via `PermissionsAndroid` before navigating to the scan screen.
 9. **Metro cache** — If a package upgrade appears to have no effect at runtime, restart Metro with `npm start -- --reset-cache`.
 10. **Feedback delegate goes on the view** — set `sparkScanView.feedbackDelegate`, not on the SparkScan mode.

@@ -14,8 +14,8 @@
 # the agent:
 #   1. Calls the `Skill`/`skill` tool with a Shopify AI Toolkit skill
 #      name, OR
-#   2. Reads a `SKILL.md` from a recognized Shopify AI Toolkit install
-#      path.
+#   2. Reads a `SKILL.md` from this hook's own Shopify AI Toolkit install
+#      root.
 #
 # Tool calls that already self-report (the `shopify-dev-mcp` MCP tools
 # and the generated `search_docs.mjs` / `validate.mjs` scripts) are not
@@ -405,25 +405,90 @@ fi
 # self-report via packages/shopify-dev-tools/src/agent-skills/scripts/
 # instrumentation.ts.
 
-is_shopify_path() {
-  # Match common install layouts for Shopify AI Toolkit skills across
-  # supported agents. Case-insensitive on the toolkit identifier so we
-  # match `Shopify-AI-Toolkit` and `shopify-ai-toolkit` alike.
-  local p
-  p=$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | tr '\\' '/' | sed 's|//*|/|g')
-
-  case "$p" in
-    *.claude/plugins/cache/shopify-ai-toolkit/*/skills/*) return 0 ;;
-    *.claude/plugins/cache/shopify/shopify-ai-toolkit/*/skills/*) return 0 ;;
-    *.cursor/extensions/shopify.shopify-plugin*/skills/*) return 0 ;;
-    *.cursor/plugins/cache/shopify-ai-toolkit/*/skills/*) return 0 ;;
-    *.copilot/installed-plugins/shopify-ai-toolkit/*/skills/*) return 0 ;;
-    *agent-plugins/github.com/shopify/shopify-ai-toolkit/*/skills/*) return 0 ;;
-    */shopify-ai-toolkit/skills/*) return 0 ;;
-    */shopify-plugin/skills/*) return 0 ;;
-    *.agents/skills/shopify-*) return 0 ;;
+is_shopify_skill_name() {
+  case "$1" in
+    shopify|shopify-*|ucp) return 0 ;;
     *) return 1 ;;
   esac
+}
+
+# Path reads need an exact current/legacy published name. Keep this frozen list
+# in sync with DEPRECATED_SKILL_NAMES in generate-agent-skills.ts; the broader
+# matcher above remains only for host Skill-tool compatibility.
+is_shopify_path_skill_name() {
+  case "$1" in
+    shopify|ucp) return 0 ;;
+    shopify-admin|shopify-app-pricing|shopify-app-store-review|shopify-custom-data|shopify-customer|shopify-dev) return 0 ;;
+    shopify-functions|shopify-hydrogen|shopify-liquid|shopify-onboarding-dev|shopify-onboarding-merchant|shopify-partner) return 0 ;;
+    shopify-payments-apps|shopify-polaris-admin-extensions|shopify-polaris-app-home|shopify-polaris-checkout-extensions) return 0 ;;
+    shopify-polaris-customer-account-extensions|shopify-pos-ui|shopify-shopifyql|shopify-storefront-graphql|shopify-use-shopify-cli) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+# Resolve an existing, non-symlink file through its physical parent directory.
+# `cd -P` is portable across macOS, Linux, and Git Bash, unlike `realpath` or
+# `readlink -f`. Rejecting a symlink in the final component keeps an installed
+# skill from pointing its SKILL.md outside the trusted install root.
+canonical_existing_file() {
+  local p dir base physical_dir
+  # Convert Windows separators without collapsing repeated slashes: a leading
+  # `//server/share` is a valid UNC path under Git Bash/MSYS.
+  p=$(printf '%s' "$1" | tr '\\' '/')
+  [ -f "$p" ] || return 1
+  [ ! -L "$p" ] || return 1
+  dir=$(dirname "$p")
+  base=$(basename "$p")
+  physical_dir=$(cd -P "$dir" 2>/dev/null && pwd -P) || return 1
+  printf '%s/%s' "$physical_dir" "$base"
+}
+
+# Derive the trusted install root from the running hook rather than guessing it
+# from the Read event's attacker-controlled file path. Plugin copies live at
+# <root>/hooks/scripts/track-telemetry.sh; standalone skill copies live at
+# <root>/scripts/track-telemetry.sh. Every plugin manifest passes
+# --hook-source=plugin, while standalone skill frontmatter uses the default.
+hook_install_root() {
+  local script_dir
+  script_dir=$(cd -P "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd -P) || return 1
+  case "$HOOK_SOURCE" in
+    plugin) cd -P "$script_dir/../.." 2>/dev/null && pwd -P ;;
+    skill) cd -P "$script_dir/.." 2>/dev/null && pwd -P ;;
+    *) return 1 ;;
+  esac
+}
+
+# On success, sets RESOLVED_SKILL_PATH and RESOLVED_SKILL_NAME. Plugin reads
+# must be exactly <root>/skills/<known-name>/SKILL.md. Standalone reads must be
+# exactly <skill-root>/SKILL.md. This deliberately fails closed for unknown
+# layouts: a suffix such as shopify-ai-toolkit/skills/... is not provenance.
+resolve_shopify_skill_read() {
+  RESOLVED_SKILL_PATH=""
+  RESOLVED_SKILL_NAME=""
+
+  local p root leaf parent skills_root name
+  p=$(canonical_existing_file "$1") || return 1
+  root=$(hook_install_root) || return 1
+  leaf=$(basename "$p" | tr '[:upper:]' '[:lower:]')
+  [ "$leaf" = "skill.md" ] || return 1
+
+  case "$HOOK_SOURCE" in
+    plugin)
+      skills_root="$root/skills"
+      parent=$(dirname "$p")
+      [ "$(dirname "$parent")" = "$skills_root" ] || return 1
+      name=$(basename "$parent" | tr '[:upper:]' '[:lower:]')
+      ;;
+    skill)
+      [ "$(dirname "$p")" = "$root" ] || return 1
+      name=$(basename "$root" | tr '[:upper:]' '[:lower:]')
+      ;;
+    *) return 1 ;;
+  esac
+
+  is_shopify_path_skill_name "$name" || return 1
+  RESOLVED_SKILL_PATH="$p"
+  RESOLVED_SKILL_NAME="$name"
 }
 
 # Strip the agent-injected plugin prefix (e.g. "shopify-plugin:shopify-admin"
@@ -451,17 +516,6 @@ extract_skill_version_from_path() {
     | head -n1
 }
 
-# Pull the skill name out of `.../skills/<name>/SKILL.md`. Case sensitivity is
-# already handled by the `grep -qi '/skill\.md$'` filter upstream of this
-# call — by the time we get here, the path has been confirmed to end in a
-# SKILL.md (in any case). No `I` flag on the sed pattern (also GNU-only).
-extract_skill_name_from_path() {
-  printf '%s' "$1" \
-    | tr '\\' '/' \
-    | sed -En 's|.*/skills/([^/]+)/SKILL\.md$|\1|p' \
-    | head -n1
-}
-
 skill_name=""
 skill_version=""
 trigger=""
@@ -469,23 +523,19 @@ trigger=""
 case "$tool_name" in
   skill|Skill)
     candidate=$(strip_skill_prefix "$skill_arg")
-    case "$candidate" in
-      shopify-*|ucp)
-        # `ucp` is the one current toolkit skill that doesn't carry the
-        # `shopify-` prefix. Keep this case-list narrow so we never
-        # report skills from other plugins that happen to share a name.
-        skill_name="$candidate"
-        trigger="skill-tool"
-        ;;
-    esac
+    if is_shopify_skill_name "$candidate"; then
+      # The toolkit publishes one collapsed `shopify` skill; `shopify-*` and
+      # `ucp` cover the per-topic layout and older installs. Keep this
+      # allowlist narrow so we never report skills from other plugins that
+      # happen to share a name.
+      skill_name="$candidate"
+      trigger="skill-tool"
+    fi
     ;;
   Read|view|read_file)
-    norm_path=$(printf '%s' "$file_path" | tr '\\' '/' | sed 's|//*|/|g')
-    if [ -n "$norm_path" ] \
-       && is_shopify_path "$norm_path" \
-       && printf '%s' "$norm_path" | grep -qi '/skill\.md$'; then
-      skill_name=$(extract_skill_name_from_path "$norm_path")
-      skill_version=$(extract_skill_version_from_path "$norm_path")
+    if [ -n "$file_path" ] && resolve_shopify_skill_read "$file_path"; then
+      skill_name="$RESOLVED_SKILL_NAME"
+      skill_version=$(extract_skill_version_from_path "$RESOLVED_SKILL_PATH")
       trigger="skill-md-read"
     fi
     ;;
@@ -528,7 +578,7 @@ fi
 # script surface still carries the prompt). jq-gated: user_prompt only rides
 # along when jq is present to encode it safely.
 user_prompt=""
-if [ -n "$session_id" ] && [ "$_have_jq" = "1" ]; then
+if [ "$client" = "claude-code" ] && [ -n "$session_id" ] && [ "$_have_jq" = "1" ]; then
   up_key=$(printf '%s' "$session_id" | tr -c 'A-Za-z0-9._-' '_')
   up_file="$PROMPT_STASH_DIR/$up_key.prompt"
   if [ -f "$up_file" ]; then

@@ -86,6 +86,7 @@ import pytest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from pipeline.slug import session_dir_slug as _slug  # noqa: E402
+from tests._compiled_hooks import skip_if_compiled  # noqa: E402
 
 pytestmark = pytest.mark.skipif(
     sys.platform == "win32",
@@ -125,7 +126,7 @@ def _apply_sanctioned_divergence(ref_code: str, rel: str) -> str:
     - Neither is on origin/main: genuinely stale. origin/main moved again and
       this allowance needs re-deriving, not blindly (re-)applied.
 
-    A file may carry more than one allowance (#429 and #662 both touch
+    A file may carry more than one allowance (#429 and #726 both touch
     lib-memory-dir.sh); they are applied in order, each judged on its own.
     """
     for old_code, new_code in _SANCTIONED_DIVERGENCE.get(rel, ()):
@@ -140,163 +141,100 @@ def _apply_sanctioned_divergence(ref_code: str, rel: str) -> str:
     return ref_code
 
 
-# `_LAZY_PYTHON_GUARD` is the #662 line: a `declare -f` builtin check that
-# resolves $PYTHON on first use when detect-tools.sh was sourced in lazy mode
-# and is a no-op everywhere else. It adds no spawn of its own -- it sits
-# immediately before a python spawn that was already there, on branches that
-# only run when that spawn runs -- which is why it is sanctioned here rather
-# than moved off the hot path.
-_LAZY_PYTHON_GUARD = 'declare -f _remember_python >/dev/null 2>&1 && _remember_python\n'
-
-_SANCTIONED_DIVERGENCE = {
-    "scripts/lib-slug.sh": [
-        (
-            '                    local _decoded\n'
-            '                    _decoded=$("${PYTHON:-python3}" "$_py_slug" "$path" 2>/dev/null) \\\n',
-            '                    local _decoded\n'
-            '                    ' + _LAZY_PYTHON_GUARD +
-            '                    _decoded=$("${PYTHON:-python3}" "$_py_slug" "$path" 2>/dev/null) \\\n',
-        ),
-        (
-            '    if [ -f "$_slug_py" ]; then\n'
-            '        _hash=$("${PYTHON:-python3}" "$_slug_py" --hash "$_orig" 2>/dev/null) || _hash=""\n',
-            '    if [ -f "$_slug_py" ]; then\n'
-            '        ' + _LAZY_PYTHON_GUARD +
-            '        _hash=$("${PYTHON:-python3}" "$_slug_py" --hash "$_orig" 2>/dev/null) || _hash=""\n',
-        ),
-        (
-            '_remember_build_slug_sed() {\n'
-            '    local cont\n'
-            '    cont="$(printf \'\\200\')-$(printf \'\\277\')"\n'
-            '    _REMEMBER_SLUG_SED=(\n'
-            '        -e "s/$(printf \'\\360\')[$(printf \'\\220\')-$(printf \'\\277\')][$cont][$cont]/--/g"\n'
-            '        -e "s/[$(printf \'\\361\')-$(printf \'\\363\')][$cont][$cont][$cont]/--/g"\n'
-            '        -e "s/$(printf \'\\364\')[$(printf \'\\200\')-$(printf \'\\217\')][$cont][$cont]/--/g"\n'
-            '        -e "s/$(printf \'\\340\')[$(printf \'\\240\')-$(printf \'\\277\')][$cont]/-/g"\n'
-            '        -e "s/[$(printf \'\\341\')-$(printf \'\\354\')][$cont][$cont]/-/g"\n'
-            '        -e "s/$(printf \'\\355\')[$(printf \'\\200\')-$(printf \'\\237\')][$cont]/-/g"\n'
-            '        -e "s/[$(printf \'\\356\')-$(printf \'\\357\')][$cont][$cont]/-/g"\n'
-            '        -e "s/[$(printf \'\\302\')-$(printf \'\\337\')][$cont]/-/g"\n'
-            "        -e 's/[^a-zA-Z0-9]/-/g'\n"
-            '    )\n'
-            '}\n'
-            '_remember_build_slug_sed\n',
-            # #665 (part of #660): ANSI-C octal quoting instead of
-            # $(printf ...) -- byte-identical output, proved by
-            # tests/test_session_start_fork_tax_665.py::
-            # test_slug_sed_program_is_byte_identical_to_the_old_printf_builder,
-            # replacing 22 subshell forks with a lexer-level substitution
-            # that forks nothing.
-            '_remember_build_slug_sed() {\n'
-            "    local cont=$'\\200-\\277'\n"
-            "    local r220_277=$'\\220-\\277'\n"
-            "    local r361_363=$'\\361-\\363'\n"
-            "    local r200_217=$'\\200-\\217'\n"
-            "    local r240_277=$'\\240-\\277'\n"
-            "    local r341_354=$'\\341-\\354'\n"
-            "    local r200_237=$'\\200-\\237'\n"
-            "    local r356_357=$'\\356-\\357'\n"
-            "    local r302_337=$'\\302-\\337'\n"
-            '    _REMEMBER_SLUG_SED=(\n'
-            '        -e "s/"$\'\\360\'"[$r220_277][$cont][$cont]/--/g"\n'
-            '        -e "s/[$r361_363][$cont][$cont][$cont]/--/g"\n'
-            '        -e "s/"$\'\\364\'"[$r200_217][$cont][$cont]/--/g"\n'
-            '        -e "s/"$\'\\340\'"[$r240_277][$cont]/-/g"\n'
-            '        -e "s/[$r341_354][$cont][$cont]/-/g"\n'
-            '        -e "s/"$\'\\355\'"[$r200_237][$cont]/-/g"\n'
-            '        -e "s/[$r356_357][$cont][$cont]/-/g"\n'
-            '        -e "s/[$r302_337][$cont]/-/g"\n'
-            "        -e 's/[^a-zA-Z0-9]/-/g'\n"
-            '    )\n'
-            '}\n'
-            '_remember_build_slug_sed\n',
-        ),
-    ],
+# Keyed by the relative path a list of (old_code, new_code) pairs applies to.
+# Add a pair here when a PR deliberately changes executable code in one of the
+# two pinned libraries; the three-state logic above retires it on its own once
+# that PR merges, and it should then be deleted rather than left to go stale.
+#
+# Empty since #899 squash-merged as 875860c. Re-derived against that commit:
+# scripts/lib-slug.sh and scripts/lib-memory-dir.sh on this branch are
+# byte-identical to origin/main, so every allowance this table, round 19 and
+# the #898 shrink stage carried (#429, #436, #662, #665, #679, #726 and #898's
+# rounds 4-19) was either landed or -- for the pairs whose new_code a later
+# stage or round rewrote again -- matched neither side and failed the test as
+# stale. None of them is still needed. The mechanism stays, pinned in
+# isolation by tests/test_sanctioned_divergence_state_440.py.
+# #920: lib-memory-dir.sh gained a new, single-use unsafe-REMEMBER_DIR
+# predicate (the same shape log.sh's own _remember_log_dir_unsafe and
+# post-tool-hook.sh's pre-existing _remember_dir_is_unsafe already carry,
+# named distinctly per #920's own self-review so the #900 compiled-hook
+# build does not collide the two under one name). A pure addition right
+# after REMEMBER_DIR is resolved, not a replacement of existing code --
+# the anchor is the surrounding unchanged lines, substituted to include
+# the new block between them.
+_SANCTIONED_DIVERGENCE: dict = {
     "scripts/lib-memory-dir.sh": [
-        # #695: `[A-Za-z]:` in the drive-form `case` patterns below is a
-        # bracket RANGE, matched by the locale's collation rather than by
-        # byte value. `local LC_ALL=C` scopes byte semantics to the function
-        # and restores the caller's locale on return. Measured on glibc, a
-        # `case` range does not actually move with the locale (only `[[ =~ ]]`
-        # does -- see tests/test_locale_ranges_695.py for the matrix), so this
-        # is not a behaviour change on any platform; it is the same one-line
-        # rule applied uniformly so the scanner has no exception to carry.
-        # Each pair carries the line AFTER the opener as well, so that
-        # `old_code` is not a prefix of `new_code`. A prefix would leave the
-        # old text present inside the substituted result, and
-        # tests/test_sanctioned_divergence_state_440.py asserts exactly that it
-        # is gone -- the invariant every existing allowance here already meets
-        # by inserting between two lines rather than before the first.
         (
-            '_resolve_remember_dir() {\n'
-            '    local data_dir="$1"\n',
-            '_resolve_remember_dir() {\n'
-            '    local LC_ALL=C  # bracket ranges below are byte-wise, not collated (#695)\n'
-            '    local data_dir="$1"\n',
-        ),
-        (
-            '_set_store_root() {\n'
-            '    local data_dir="$1" prefix\n',
-            '_set_store_root() {\n'
-            '    local LC_ALL=C  # bracket ranges below are byte-wise, not collated (#695)\n'
-            '    local data_dir="$1" prefix\n',
-        ),
-        (
-            'elif [ "${#_cfg_sources[@]}" -gt 0 ]; then\n'
-            '    "${PYTHON:-python3}" - "$_merged_cfg" "${_cfg_sources[@]}" > /dev/null 2>&1 <<\'PYMERGE\'',
-            'elif [ "${#_cfg_sources[@]}" -gt 0 ]; then\n'
-            '    ' + _LAZY_PYTHON_GUARD +
-            '    "${PYTHON:-python3}" - "$_merged_cfg" "${_cfg_sources[@]}" > /dev/null 2>&1 <<\'PYMERGE\'',
-        ),
-        (
-        '_merged_cfg="${SYS_TMPDIR}/remember-config-$$.json"\n\n' +
-        '(umask 077; : > "$_merged_cfg") 2>/dev/null || true\n\n' +
-        '_cfg_sources=()\n' +
-        '[ -f "$_bundled_cfg"  ] && _cfg_sources+=("$_bundled_cfg")\n' +
-        '[ -f "$_user_cfg"     ] && _cfg_sources+=("$_user_cfg")\n' +
-        '[ -f "$_project_cfg"  ] && _cfg_sources+=("$_project_cfg")\n\n' +
-        'if [ "${#_cfg_sources[@]}" -gt 0 ] && command -v jq >/dev/null 2>&1; then',
-        # mktemp replaces the PID-suffixed literal path (closes the #429
-        # credential-disclosure TOCTOU), and the `if [ -z ... ]` arm closes
-        # the leaked-stderr gap the self-review of #429 found: an empty
-        # $_merged_cfg (a failed mktemp) used to fall straight into
-        # `jq ... > "$_merged_cfg"` with an empty redirect target, a
-        # shell-level error 2>/dev/null cannot suppress.
-        '_merged_cfg=$(mktemp "${SYS_TMPDIR}/remember-config-XXXXXX" 2>/dev/null) || _merged_cfg=""\n\n' +
-        '_cfg_sources=()\n' +
-        '[ -f "$_bundled_cfg"  ] && _cfg_sources+=("$_bundled_cfg")\n' +
-        '[ -f "$_user_cfg"     ] && _cfg_sources+=("$_user_cfg")\n' +
-        '[ -f "$_project_cfg"  ] && _cfg_sources+=("$_project_cfg")\n\n' +
-        'if [ -z "$_merged_cfg" ]; then\n' +
-        '    :\n' +
-        'elif [ "${#_cfg_sources[@]}" -gt 0 ] && command -v jq >/dev/null 2>&1; then',
-        ),
-        (
-            "_existing_trap=$(trap -p EXIT 2>/dev/null | sed \"s/trap -- '//;s/' EXIT//\")\n"
-            "if [ -n \"$_existing_trap\" ]; then\n"
-            "    trap \"${_existing_trap}; rm -f '${_merged_cfg}'\" EXIT\n"
-            "else\n"
-            "    trap \"rm -f '${_merged_cfg}'\" EXIT\n"
-            "fi\n"
-            "unset _existing_trap\n",
-            # #679 (part of #660): `trap -p` is a builtin -- `sed` was the
-            # only fork this line paid, stripping four characters at a
-            # fixed offset. Parameter expansion does the identical strip
-            # with no behaviour change: a prefix/suffix a string does not
-            # have is left unchanged, matching sed on empty input the same
-            # way (no existing trap -> both leave _existing_trap empty).
-            "_t=$(trap -p EXIT 2>/dev/null)\n"
-            "_existing_trap=\"${_t#trap -- \\'}\"\n"
-            "_existing_trap=\"${_existing_trap%\\' EXIT}\"\n"
-            "if [ -n \"$_existing_trap\" ]; then\n"
-            "    trap \"${_existing_trap}; rm -f '${_merged_cfg}'\" EXIT\n"
-            "else\n"
-            "    trap \"rm -f '${_merged_cfg}'\" EXIT\n"
-            "fi\n"
-            "unset _existing_trap _t\n",
+            r"""export REMEMBER_DIR
+
+_set_store_root""",
+            r"""export REMEMBER_DIR
+
+_remember_lmd_set_dir_unsafe() {
+    local LC_ALL=C
+    REMEMBER_DIR_UNSAFE=1
+    [[ "$REMEMBER_DIR" == *[$'\n\r']* ]] && return
+    [[ "$REMEMBER_DIR" == /* || "$REMEMBER_DIR" == [A-Za-z]:[/\\]* || "$REMEMBER_DIR" == [\\][\\][^\\]* ]] && REMEMBER_DIR_UNSAFE=0
+}
+_remember_lmd_set_dir_unsafe
+export REMEMBER_DIR_UNSAFE
+[ "$REMEMBER_DIR_UNSAFE" = 1 ] && echo "FATAL: unsafe REMEMBER_DIR ($REMEMBER_DIR) -- refusing to mkdir" >&2
+
+_set_store_root""",
         ),
     ],
 }
+
+# #898 round 19: every `case` statement in shipped shell became an if/elif
+# ladder of `[ ]` tests (the directory's scanner mis-parses `case`). A second
+# stage, applied AFTER _apply_sanctioned_divergence by the byte-pin compare
+# only, kept apart so the independent-pair premise
+# test_sanctioned_divergence_state_440 pins still holds. The old/new
+# equivalence of each shape is pinned in
+# tests/test_case_rewrite_equivalence_898.py. Empty since #899 squash-merged
+# as 875860c: the rewrite is on origin/main and the pinned files equal it.
+_ROUND_19_DIVERGENCE: dict = {}
+
+
+def _apply_round_19(ref_code: str, rel: str) -> str:
+    """The same three states as _apply_sanctioned_divergence, for the round-19
+    pairs: old_code present is substituted, new_code present is the landed
+    state, neither is stale."""
+    for old_code, new_code in _ROUND_19_DIVERGENCE.get(rel, ()):
+        if old_code in ref_code:
+            ref_code = ref_code.replace(old_code, new_code)
+            continue
+        assert new_code in ref_code, (
+            f"{rel}: neither the old nor the new code of a round-19 substitution "
+            "is on origin/main -- re-derive the allowance"
+        )
+    return ref_code
+
+
+# #898 hook-size lane: a third stage applied AFTER _apply_round_19, same
+# three states, same derivation (one pair per changed hunk, code lines only).
+# Empty since #899 squash-merged as 875860c: every pair it carried (the
+# shared python runner, the _lmd_warn helper, the inline trailing comments)
+# is on origin/main, so the pinned file equals origin/main's code and there
+# is nothing left to sanction. One pair had become actively wrong, not just
+# landed: its old_code (`_read_data_dir() {` plus newlines) is a substring of its own
+# new_code, so on the merged origin/main it would have inserted a second
+# _lmd_warn definition.
+_SHRINK_898_DIVERGENCE: dict = {}
+
+
+def _apply_shrink_898(ref_code: str, rel: str) -> str:
+    """Third stage, same three states as _apply_round_19."""
+    for old_code, new_code in _SHRINK_898_DIVERGENCE.get(rel, ()):
+        if old_code in ref_code:
+            ref_code = ref_code.replace(old_code, new_code)
+            continue
+        assert new_code in ref_code and (new_code or old_code not in ref_code), (
+            f"{rel}: neither the old nor the new code of a #898 shrink "
+            "substitution is on origin/main -- re-derive the allowance"
+        )
+    return ref_code
+
 
 RECORD_NAME = "case-divergence"
 NOTICE_NAME = "case-divergence-notice"
@@ -811,19 +749,26 @@ def test_the_per_tool_call_path_is_not_touched(tmp_path):
     Strip the comments from both sides — the same one-liner the arm above
     already uses — and every executable byte stays pinned exactly as before.
 
-    One EXECUTABLE line in `lib-memory-dir.sh` is allowed to differ, via
-    `_SANCTIONED_DIVERGENCE` below: #429 replaced a PID-suffixed literal tmp
-    path with `mktemp`, closing a predictable-symlink TOCTOU whose write
-    (traced and reproduced in `tests/test_predictable_tmp_429.py`) can carry
-    a live `haiku.oauth_token` to an attacker-chosen path. That is a real,
-    deliberate spawn added to Pass 2 of the config merge -- exactly the kind
-    of change this guard exists to surface, not to forbid outright -- and it
-    runs only on the resolving run (first tool call of a session, or after a
-    config edit), never on the per-tool-call fast path this guard actually
-    protects. The substitution is applied to the origin/main side before the
-    compare, so it is scoped to this one sanctioned line: anything else that
-    diverges from origin/main in either file still fails this test.
+    Some EXECUTABLE lines in `lib-slug.sh`/`lib-memory-dir.sh` are allowed to
+    differ from origin/main, via `_SANCTIONED_DIVERGENCE` below -- one entry
+    per deliberate change, each judged on its own by
+    `_apply_sanctioned_divergence`. See that dict's own per-entry comments
+    for what each one is and why (e.g. #429 replaced a PID-suffixed literal
+    tmp path with `mktemp`, closing a predictable-symlink TOCTOU whose write
+    can carry a live `haiku.oauth_token` to an attacker-chosen path; #726
+    added an untrusted-project-config classification and threaded it through
+    both the jq and Python merge paths). Each is a real, deliberate spawn or
+    behavior change added to Pass 2 of the config merge -- exactly the kind
+    of change this guard exists to surface, not to forbid outright -- and
+    none of them touch the per-tool-call fast path this guard actually
+    protects. Substitutions are applied to the origin/main side before the
+    compare, so they are scoped to exactly the sanctioned lines: anything
+    else that diverges from origin/main in either file still fails this
+    test.
     """
+    # The hook's OWN text: a compiled hook also carries its libraries'
+    # (lib-memory-dir.sh calls git, off the per-tool-call path).
+    skip_if_compiled(POST_TOOL)
     body = POST_TOOL.read_text(encoding="utf-8")
     code = "\n".join(line for line in body.splitlines()
                      if not line.lstrip().startswith("#"))
@@ -869,7 +814,8 @@ def test_the_per_tool_call_path_is_not_touched(tmp_path):
             f"{rel} on origin/main has no non-comment lines — this compare "
             "would pass against any file at all"
         )
-        ref_code = _apply_sanctioned_divergence(_code(ref.stdout), rel)
+        ref_code = _apply_shrink_898(
+            _apply_round_19(_apply_sanctioned_divergence(_code(ref.stdout), rel), rel), rel)
         assert ref_code == _code(path.read_text(encoding="utf-8")), rel
 
 

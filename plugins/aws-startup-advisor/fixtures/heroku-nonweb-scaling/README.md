@@ -18,7 +18,7 @@ both the design and the cost estimate with only a warning.
 | `seed/`                            | Post-Clarify seed (`design: pending`): `basic` web ×1, `basic` worker ×2, `eco` mailer ×2 |
 | `after-design/`                    | Golden Design output: web on EB `t3.micro`, both non-web formations on Fargate 256/512    |
 | `expected-nonweb-scaling.json`     | Assertions for the asserter, including the Fargate CPU/memory matrix                      |
-| `check_expected_nonweb_scaling.py` | Stdlib checker (run as GOLDEN by `mise run fixtures:assert`)                              |
+| `check_expected_nonweb_scaling.py` | Stdlib checker (run it directly — see "Assert a run" below)                                |
 
 ## Assert a run
 

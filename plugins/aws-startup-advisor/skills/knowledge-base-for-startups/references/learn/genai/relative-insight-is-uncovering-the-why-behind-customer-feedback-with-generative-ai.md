@@ -5,7 +5,7 @@ title: "Relative Insight is uncovering the \"why\" behind customer feedback with
 
 ## Relative Insight is uncovering the "why" behind customer feedback with generative AI
 
-_How Relative Insight turns data into decisive action_
+> _How Relative Insight turns data into decisive action_
 
 Great businesses are great listeners. Paying attention and responding to customers, target audiences, and employees is essential to making a positive—and lasting—impression on those that engage with your organization. Surveys, online conversations, and customer service interactions all contain invaluable data that can help businesses create better experiences. However, turning unstructured qualitative data into actionable insights isn't easy.
 
@@ -63,7 +63,7 @@ He continues: "AWS has really helped us with our go-to-market. It exposes us to 
 
 ---
 
-_Author: AWS Editorial Team_
+> _Author: AWS Editorial Team_
 
 The AWS Startups Content Marketing Team collaborates with startups of all sizes and across all sectors to deliver exceptional content that educates, entertains, and inspires.
 

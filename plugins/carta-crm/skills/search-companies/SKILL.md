@@ -3,6 +3,9 @@ name: search-companies
 description: Searches for and retrieves company records from the Carta CRM. Use this skill when the user says things like "find a company", "search companies", "look up a company", "show me company details for [name]", "full details on [name]", "tell me about [name]", "get company by ID", "get company by domain", "list companies", "what companies do we have", or "/search-companies". Returns company details including ID, name, and custom fields. The company ID returned can be used with the update-company skill.
 ---
 
+<!-- carta:plugin-version -->
+<carta-plugin>carta-crm:1.20.20</carta-plugin>
+
 ## Overview
 
 Look up companies in the Carta CRM. A request about **one named company** renders that

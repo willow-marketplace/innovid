@@ -2,7 +2,7 @@
 // panel. Publish/pull/delete run server-side via useShare; names/notes render as escaped text.
 import { sans, tightSans, FS } from "./theme.js";
 import { Btn } from "./components.jsx";
-import { isShared, sharedByLabel } from "../model/slices.js";
+import { isShared, isOwnShared, sharedByLabel } from "../model/slices.js";
 
 const subtle = "var(--ink-color-global-text-subtle)";
 
@@ -12,17 +12,19 @@ function fmtWhen(iso) {
   return isNaN(d) ? "" : d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
-/** Contextual share actions for the active (non-baseline) scenario, styled like the
- *  Rename/Delete tools they sit beside. */
-export function ShareControls({ slice, snapshot, userId, busy, onPublish, onFork, onRemove, onDelete }) {
+/** Contextual actions for the active (non-baseline) scenario. `onRename`, when given,
+ *  leads with a Rename button — for a scenario whose tile has no ⋯ menu (a shared one)
+ *  and in the narrow layout, which has no tiles. */
+export function ShareControls({ slice, snapshot, userId, busy, onPublish, onFork, onRemove, onDelete, onRename }) {
   if (!slice || slice.locked) return null;
   const shared = isShared(slice);
-  const owner = shared && slice.shared?.createdBy != null && slice.shared.createdBy === userId;
+  const owner = isOwnShared(slice, userId);
   const dirty = !!slice.shared?.dirty;
   const btn = { height: "auto", padding: "6px 13px", fontSize: FS.small };
 
   return (
     <span style={{ display: "inline-flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+      {onRename && <Btn onClick={onRename} style={btn}>Rename</Btn>}
       {!shared && <Btn onClick={onPublish} disabled={busy} style={btn}>Publish</Btn>}
       {shared && (
         <>

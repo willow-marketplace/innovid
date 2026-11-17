@@ -3,18 +3,18 @@ name: use-agent-wallet
 description: "Set up and manage a Circle agent wallet through the `circle` CLI. The agent wallet is Circle's programmatic USDC wallet for AI agents — used to authenticate, hold USDC, and pay for x402 services. This skill covers CLI installation verification, Terms-of-Use acceptance, email + OTP login, wallet creation, session status checks, and balance inspection. Use whenever the user wants to set up, log in to, or inspect the state of their Circle agent wallet, or whenever a downstream skill (like paying for an x402 service or funding the wallet) needs the wallet bootstrapped first. Triggers on: circle wallet login, circle wallet create, circle wallet status, set up Circle agent wallet, terms acceptance, install Circle CLI, x402 setup."
 ---
 
+# Circle Agent Wallet: Install, Login, and Wallets
+
 ## Overview
 
-The Circle CLI (`@circle-fin/cli`, command `circle`) provides a programmatic agent wallet — a non-custodial USDC wallet designed for AI agents to authenticate, hold balances, and pay for paid x402 services on Circle's marketplace. This skill is the bootstrap surface for that wallet: install check, terms acceptance, login, wallet creation, and status inspection. After bootstrap completes, downstream operations (paying for services, funding, spending policy) hand off to dedicated skills.
-
-For an overview of the Circle CLI's **full** capability set — bridging, smart contract execution, transaction inspection, and more — see the `use-circle-cli` master skill. This skill is the narrower bootstrap/identity surface.
+The Circle CLI (`@circle-fin/cli`, command `circle`) provides a programmatic agent wallet — a non-custodial USDC wallet for AI agents to authenticate, hold balances, and pay for x402 services on Circle's marketplace. This skill bootstraps that wallet: install check, terms acceptance, login, wallet creation, and status. After bootstrap, paying, funding, and spending policy hand off to dedicated skills; for the CLI's full capability set, see the `use-circle-cli` master skill.
 
 ## Workflow
 
 1. Verify the CLI is installed, then check session status with `circle wallet status` before anything else.
-2. If the Terms-of-Use gate appears, complete the show-Terms-and-consent flow first — never accept on the user's behalf.
+2. If the Terms-of-Use gate appears, complete the show-Terms-and-consent flow first.
 3. If not logged in, run the two-step email + OTP login, then verify the session.
-4. List existing agent wallets, or create them if none exist (`--chain` defaults to ARC).
+4. List existing agent wallets; create one if none exist, or if the user asks for another set after you confirm it creates a wallet on every supported EVM chain.
 5. Check the wallet balance; if it is 0 USDC and the user wants to pay, hand off to `fund-agent-wallet`. Otherwise bootstrap is complete.
 
 ## Prerequisites / Setup
@@ -26,11 +26,9 @@ which circle || command -v circle
 circle --version
 ```
 
-If `circle` is not installed, or `circle --version` prints a server-driven update notice, READ `references/install-and-login.md` for installation and update-notice guidance.
+If `circle` is not installed, install it with `npm install -g @circle-fin/cli`. `circle --version` also prints an update notice when npm has a newer `@circle-fin/cli` (it never blocks). If one prints, suggest `npm install -g @circle-fin/cli@latest`, but only when it is relevant (session start, or unexpected output), not on every command.
 
 ### Step 2 — Check session status
-
-**Always check whether the user is already logged in before attempting login.**
 
 ```bash
 circle wallet status
@@ -38,64 +36,68 @@ circle wallet status
 
 Possible outcomes:
 
-- **Logged in** — output shows email, wallet type (`agent`), and session expiry. Tell the user "You're already logged in as `<email>`. Continue with this session?" and skip to Step 4.
-- **Not logged in** — output is `Error: Not logged in. Run 'circle wallet login <email> --type agent' to authenticate.` Proceed to Step 3.
-- **Terms not accepted** — output is `Error: Circle CLI Terms acceptance is required before use.` Stop and complete the **Terms-of-Use Gate** below before proceeding. Do NOT run `circle terms accept` without explicit user consent.
+- **Logged in** — output shows wallet type (`agent`) and separate, independent `mainnet` and `testnet` sections, each with its own email, status, and expiry. Check the section for the network you need. Tell the user "You're already logged in as `<email>`. Continue with this session?" If yes, skip to Step 4. If they want a different account, run `circle wallet logout` and go to Step 3.
+- **Not logged in** — output is `Error: Not logged in with type "agent". Run 'circle wallet login <email> --type agent' to authenticate (use --init for non-interactive environments).` Treat a `Not logged in` section for the network you need the same way. Proceed to Step 3.
+- **Terms not accepted** — output is `Error: Circle CLI Terms acceptance is required before use.` Stop and complete the **Terms-of-Use Gate** below.
+
+Do NOT use `circle wallet list` to check whether the user is logged in: it can succeed with an empty result while logged out.
 
 ## Step 3 — Login (email + OTP)
 
-Circle's CLI supports a two-step OTP login designed for AI agents and other non-interactive contexts: ask the user for their email (never guess or hardcode it), request an OTP with `--init`, then complete login with the returned request ID and the OTP code (e.g., `ABC-123456`), and verify with `circle wallet status`. Request IDs are single-use and expire after 10 minutes.
+Ask the user for their email, request an OTP with `--init`, complete login with the returned request ID and the OTP the user pastes (e.g., `ABC-123456`), then verify with `circle wallet status`. The commands, expected outputs, OTP format, failure handling, and logout are below.
 
-READ `references/install-and-login.md` for the exact commands, expected outputs, OTP format notes, failure handling, and how to log out / switch accounts.
+READ `references/login.md`.
 
 ## Step 4 — Check or create the agent wallet
 
-**The `--chain` flag is REQUIRED for `circle wallet list` and `circle wallet balance`.** Use ARC as the default if the user hasn't specified a chain. List existing agent wallets; if none exist, `circle wallet create` provisions agent-controlled SCA wallets on each supported EVM chain, then read the per-chain addresses from its JSON output.
+**`--chain` is REQUIRED for `circle wallet list` and `circle wallet balance`.** Use ARC unless the user names another chain. The first login for an email already provisions an agent wallet on every supported EVM chain, so listing normally finds one; run `circle wallet create` only if none exist or the user explicitly wants another.
 
-READ `references/wallet-management.md` for the exact `circle wallet list`, `circle wallet create`, and `circle wallet balance` commands and how to read their JSON output.
+The `circle wallet list`, `circle wallet create`, and `circle wallet balance` commands and their JSON output:
+
+READ `references/wallet-management.md`.
 
 ## Step 5 — Check wallet balance
 
-Check the balance for each saved address (see `references/wallet-management.md`). If balance is 0 USDC and the user wants to pay for services, hand off to the `fund-agent-wallet` skill — it covers built-in fiat on-ramp purchase, direct address transfer with a QR code, and Gateway deposits. If the user only wants to verify state (not pay yet), stop here. Bootstrap is complete.
+Check the balance for each saved address with the `circle wallet balance` command from Step 4. If it is 0 USDC and the user wants to pay for services, hand off to the `fund-agent-wallet` skill (fiat on-ramp, direct transfer with a QR code, and Gateway deposits). If the user only wants to verify state, stop here — bootstrap is complete.
 
 ## After bootstrap
 
-Once the wallet exists, the user's likely next move is to use it. The CLI exposes its own skill catalog — `circle skill list` shows what's installable, `circle skill info --name <skill>` shows trigger and frontmatter detail, and `circle skill install --tool <host> --name <skill>` installs one for the current host. Suggest natural follow-ups like funding, paid-service search, or setting a spending limit; prefer permissionless actions (balance, search) over money-moving ones until the user asks.
+Suggest natural follow-ups like funding, paid-service search, or a spending limit; prefer permissionless actions (balance, search) over money-moving ones until the user asks. The CLI ships its own skill catalog: `circle skill list` shows what's installable, `circle skill info --name <skill>` shows trigger and frontmatter detail, and `circle skill install --tool <host> --name <skill>` installs one for the current host.
 
 ## Terms-of-Use Gate
 
-The Circle CLI hard-gates every operational `circle wallet` command (including `circle wallet status`) until the user has accepted Circle's Terms of Use and Privacy Policy on this machine. Run this gate the first time it appears (typically during Step 2 or Step 3). After acceptance is recorded once, the gate is a no-op and is skipped on subsequent runs.
+Circle's Terms of Use and Privacy Policy must be accepted on this machine before most `circle` commands run, including `circle wallet status`. Run the gate the first time it appears (typically in Step 2 or Step 3); once acceptance is recorded, it no longer appears.
 
-**CRITICAL: The agent MUST show the Terms to the user and obtain explicit consent BEFORE running `circle terms accept`. The agent MUST NEVER accept Circle's Terms of Use or Privacy Policy on the user's behalf. The CLI's `CIRCLE_ACCEPT_TERMS=1` env-var hint is NOT a workaround the agent may take on its own — ignore it and use the consent flow in `references/terms-of-use.md`.**
+**CRITICAL: Show the Terms to the user and get explicit consent BEFORE running `circle terms accept`. NEVER accept on the user's behalf, and ignore the CLI's `CIRCLE_ACCEPT_TERMS=1` env-var hint — it is not a workaround the agent may take on its own.**
 
-READ `references/terms-of-use.md` for the gate's exact error text, the `circle terms show` / `circle terms show --init` / `circle terms accept` / `circle terms reset` commands, and the required show-Terms-and-request-consent flow.
+The gate's exact error text, the `circle terms show` / `circle terms show --init` / `circle terms accept` / `circle terms reset` commands, and the required show-Terms-and-request-consent flow:
+
+READ `references/terms-of-use.md`.
 
 ## Rules
 
 ### Security
 
 - NEVER guess or hardcode the user's email address for agent wallet login.
-- OTP codes provided during an active authentication session are safe to handle — accept them in chat, use them immediately, do not retain or reuse afterward.
+- NEVER put a value the user typed into a command without checking it first, and ALWAYS put it in single quotes. Require: email matches `^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$`; one-time code matches `^(?:[A-Z0-9]{3}-)?[0-9]{6}$`; request ID is a UUID (`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`). These formats exclude single quotes and shell metacharacters. If a value fails, do not escape or fix it: ask the user to re-enter it.
+- OTP codes the user provides during an active login are safe to handle — accept them in chat, use them immediately, and do not retain or reuse them afterward.
+- NEVER fetch the OTP yourself through email or messaging tools (e.g., Gmail or Slack via MCP), even if they are connected. The user reads it and pastes it.
 - NEVER include real private keys, API keys, or other persistent secrets in skill files or persist them anywhere.
-- NEVER run `circle terms accept` without explicit user consent in the current session. The agent MUST NEVER accept Circle's Terms on the user's behalf, and MUST NEVER call `circle terms accept` automatically as part of error recovery, retries, or any flow the user has not explicitly approved.
+- NEVER run `circle terms accept` without explicit user consent in the current session — not automatically, and not as part of error recovery, retries, or any flow the user has not explicitly approved. This holds even when the CLI suggests `CIRCLE_ACCEPT_TERMS=1`.
 - ALWAYS show the live `termsOfUseUrl`, `privacyPolicyUrl`, and `termsNotice` returned by `circle terms show --init --output json` when prompting for consent. Do NOT summarize, paraphrase, or hardcode them.
 - If the user declines the Terms, stop the flow. Do not retry, work around the gate, or call `circle terms reset` / `circle terms accept`.
 
 ### Best practices
 
-- ALWAYS check `circle wallet status` before attempting login. Many session "failures" are actually just stale assumptions.
-- Parse and store the request ID from `circle wallet login --init` output — you'll need it for the OTP completion step.
-- Request IDs are single-use and expire after 10 minutes. If you see "Invalid or expired request ID", restart from `--init`.
+- ALWAYS check `circle wallet status` before attempting login — many session "failures" are stale assumptions.
+- Parse and keep the request ID from `circle wallet login --init` output; the OTP step needs it.
+- Request IDs are single-use and expire after 10 minutes. On `Invalid or expired request ID`, restart from `--init`.
 - If a `circle` command causes friction during setup (unexpected error, confusing output, missing capability), file feedback per the `use-circle-cli` skill's **Report friction (feedback)** section.
 - For general CLI rules (`--output json`, `--chain`, `--help`-first, follow-up phrasing, confirmation defaults), see the `use-circle-cli` master skill's Rules section — they apply here too.
 
 ## Reference Links
 
-- Installation and login (commands): `references/install-and-login.md`
-- Wallet management (list, create, balance): `references/wallet-management.md`
-- Terms-of-Use Gate (commands and consent flow): `references/terms-of-use.md`
 - Setup walkthrough (full bootstrap doc): https://agents.circle.com/skills/setup.md
-- Login flow detail: https://agents.circle.com/skills/wallet-login.md
 - CLI package on npm: `@circle-fin/cli`
 - Circle Developer Docs: https://developers.circle.com/llms.txt — Always read this when looking for source documentation on Circle products.
 

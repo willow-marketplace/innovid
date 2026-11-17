@@ -2,7 +2,7 @@
 """
 build_datadir.py — firm-agnostic Fund Admin -> console-schema transform.
 
-Reads the raw outputs of the SKILL's Fund-Admin queries (references/queries.md)
+Reads the raw outputs of the SKILL's Fund-Admin queries (queries.json; prose in references/queries.md)
 plus a small meta.json, and writes the scenario-planning data dir that serve.py
 serves. NO firm-specific data is embedded — every value comes from the raw query
 files; missing optional data degrades to empty / "not available" states. Reusable
@@ -41,16 +41,23 @@ lowercased name, so extra columns are harmless. Logical files (stem.md|psv|tsv|t
                              year); fund_reporting_currency drives the firm display
                              currency (never hardcoded USD)
     accrued_carry  optional  ALLOCATIONS GP side (§7): fund_uuid, accrued_carry, as_of
-    distributed_carry optional ALLOCATIONS GP side 'Carried interest earned' (§7): fund_uuid,
+    distributed_carry optional ALLOCATIONS fund-level 'Carried interest earned', else GP-entity carry distributions (§7): fund_uuid,
                              carry_distributed, as_of — realized carry paid to the GP; 0 when none
     waterfall      optional  PROFIT_ALLOCATION_WATERFALL_CONFIG: fund_id|fund_uuid,
                              config_name, carry_rate, preferred_return, gp_catchup_rate,
                              gp_catchup_limit, recommended_config_rank, is_automated
                              — keeps the rank-1 config; seeds per-fund carry/pref/catch-up
+    fund_families  optional  FUNDS (Fund Admin's fund family): fund_uuid, fund_family_id,
+                             fund_family_name — the family each fund belongs to, exactly as
+                             Fund Admin records it → snapshot.funds[].familyId / familyName;
+                             a fund Fund Admin has not placed in a family gets null
     cohort         optional  TEMPORAL_FUND_COHORT_BENCHMARKS (§8): fund_uuid,
                              vintage_year, fund_count, moic, tvpi_*/net_irr_*/dpi_*/moic_*
     deal_irr       optional  TEMPORAL_DEAL_IRR latest/issuer (§10): fund_uuid,
                              issuer_name, deal_irr
+    investment_tags optional INVESTMENT_TAGS (firm-wide, one row per company):
+                             entity_link_id, general_ledger_issuer_id, tags_json
+                             ({category: [values]}) -> company.tags
     financing      optional  FINANCING_HISTORY latest/corp (§11): investment_name,
                              round, post_money_valuation, round_date|closing_date|raised_date
     partners       optional  PARTNER_DATA per LP (§9): partner_name, partner_country,
@@ -118,7 +125,8 @@ def parse_table(path):
                     obj = json.loads(s)
                 except ValueError:
                     continue
-                rows.append({str(k).lower(): ("" if v is None else str(v)) for k, v in obj.items()})
+                rows.append({str(k).lower(): ("" if v is None else json.dumps(v) if isinstance(v, (dict, list)) else str(v))
+                             for k, v in obj.items()})
                 continue
             cells = [c.strip() for c in line.split("|")]
             if all(set(c) <= set("-: ") and c for c in cells):
@@ -213,6 +221,23 @@ def slug(s):
 
 def fid(name):
     return re.sub(r"[^A-Za-z0-9]+", "-", name).strip("-").upper()
+
+
+def fund_display_name(name, vintage):
+    # No year at all when vintage is unknown: a stand-in glyph surfaces as � in the app.
+    bare = re.sub(r",? (L\.?P\.?|LP|LLC)$", "", name)
+    return "%s (%s, %s)" % (fid(name), bare, vintage) if vintage else "%s (%s)" % (fid(name), bare)
+
+
+def cohort_standing(has_nav, lp_tvpi, net_irr, vintage):
+    if not has_nav:
+        return "No month-end NAV close booked yet — holdings from booked investments only."
+    irr = " · %.1f%% net IRR" % (net_irr * 100) if net_irr is not None else ""
+    return "%.2fx net LP TVPI%s (vintage %s)." % (lp_tvpi, irr, vintage if vintage else "—")
+
+
+def default_mark(firm_name):
+    return {"text": (firm_name[:3] or "FND").upper(), "bg": "#4F46E5", "fg": "#FFFFFF"}
 
 
 def norm_co(n):
@@ -319,6 +344,11 @@ def _cohort_covered(r):
 SCENARIO_EDIT_FIELDS = ("valuationB", "markMultiple", "futureDilution",
                         "includeInNav", "exited", "exitTimingQ", "waterfallMode",
                         "archived", "notes", "secondaries")
+# Fund Construction's public-market comparison rates. MUST match MARKET_REFS in app/src/model/slices.js.
+MARKET_REFS = {"spLongRun": 0.102, "spActualHotDecade": 0.13, "nasdaqActual": 0.17, "treasury10y": 0.044}
+# The baseline's flat assumptions. MUST match BASELINE_ASSUMPTION_DEFAULTS in app/src/model/slices.js.
+BASELINE_ASSUMPTION_DEFAULTS = {"carryRate": 0.20, "spRate": MARKET_REFS["spLongRun"],
+                                "spSensitivityRate": MARKET_REFS["spActualHotDecade"], "staleDays": 90}
 # Assumption maps keyed by fund id — pruned to the surviving funds on refresh.
 FUND_KEYED_ASSUMPTIONS = ("carryRates", "preferredReturns", "catchupRates",
                           "catchupLimits", "feeLoads", "followOnRatios",
@@ -430,13 +460,33 @@ def load_logos(rawdir):
     return out
 
 
+# MUST match investmentHistoryFrom in server/worker.js.
+def investment_history(comp_map, fund_ids):
+    # type: (dict, dict) -> dict
+    """Each fund's checks, one row per security: {fundId: [{id, name, checks: [{date, cost, asset, cls}]}]}.
+    Fund Construction benchmarks initial checks, follow-ons and pacing from it."""
+    out = collections.defaultdict(list)
+    for cid, entry in comp_map.items():
+        name = entry["names"].most_common(1)[0][0]
+        by_fund = collections.defaultdict(list)
+        for row in entry["rows"]:
+            if row["cost"] > 0 and row["date"] and row["u"] in fund_ids:
+                by_fund[fund_ids[row["u"]]].append({
+                    "date": row["date"][:10], "cost": round(row["cost"], 2),
+                    "asset": row["asset"], "cls": row.get("cls"),
+                })
+        for fund_id, checks in by_fund.items():
+            out[fund_id].append({"id": cid, "name": name, "checks": sorted(checks, key=lambda c: c["date"])})
+    return dict(out)
+
+
 def build(rawdir, out, meta):
     nav = meta.get("navAsOf") or ""
     nav_d = parse_d(nav)
     firm_name = meta["name"]
     firm_id = meta.get("firmId")      # optional integer Carta ID (may be null), for cache lookup
     firm_uuid = meta.get("firmUuid")
-    carry_default = meta.get("carryRate", 0.20)
+    carry_default = meta.get("carryRate", BASELINE_ASSUMPTION_DEFAULTS["carryRate"])
     # "production" or "nonprod" — which Carta MCP server this build's data came
     # from (Step 1). Threaded into snapshot.source so serve.py can tell the
     # browser's Snowplow tracker which collector to use. A pre-fix cache with
@@ -444,7 +494,7 @@ def build(rawdir, out, meta):
     # plugin, so an unclassified build is far more likely real production
     # usage than a staff test session — staff noise is filterable downstream.
     carta_env = meta.get("cartaEnvironment") or "production"
-    mark = meta.get("mark") or {"text": (firm_name[:3] or "FND").upper(), "bg": "#4F46E5", "fg": "#FFFFFF"}
+    mark = meta.get("mark") or default_mark(firm_name)
 
     # ---- GP commitment (REAL) — GP partners' committed capital, else GP paid-in. ----
     # Sourced entirely from the DWH: the GP partners' recorded commitment
@@ -525,8 +575,8 @@ def build(rawdir, out, meta):
         if a and (accrued_asof is None or a > accrued_asof):
             accrued_asof = a
 
-    # ---- carry DISTRIBUTED (realized, from Carta books) — ALLOCATIONS GP side,
-    #      'Carried interest earned' bucket (§7). Real realized carry paid to the
+    # ---- carry DISTRIBUTED (realized, from Carta books) — fund-level 'Carried
+    #      interest earned', else GP-entity carry distributions (§7). Real realized carry paid to the
     #      GP; 0.0 when none distributed yet -> the app shows "—". Booked as an
     #      OUTFLOW (negative, like lp distributions), so take the magnitude — the
     #      realized carry paid to the GP is a positive amount. ----
@@ -539,6 +589,13 @@ def build(rawdir, out, meta):
         a = col(r, "as_of")
         if a and (dist_carry_asof is None or a > dist_carry_asof):
             dist_carry_asof = a
+
+    # ---- Fund Admin's fund family per fund: carried as is, never inferred or edited here ----
+    family_of = {}  # fund_uuid -> (family id, family name)
+    for r in parse_table(find(rawdir, "fund_families")):
+        u, fam_id = col(r, "fund_uuid"), col(r, "fund_family_id")
+        if u and fam_id:
+            family_of[u] = (fam_id, col(r, "fund_family_name") or None)
 
     # ---- waterfall config (PROFIT_ALLOCATION_WATERFALL_CONFIG): per-fund carry,
     #      preferred return, GP catch-up. Keep the recommended (rank-1) config. ----
@@ -561,35 +618,56 @@ def build(rawdir, out, meta):
         })
     waterfall_of = {u: v[1] for u, v in waterfall_of.items()}
 
-    # ---- fund headline (MONTHLY_NAV latest) ----
+    # ---- fund universe: §0 directory census, then the nav_latest overlay ----
+    # The directory seeds every entity because a fund can hold investments before its
+    # first NAV close; such a fund keeps hasNav=False and null NAV fields downstream.
     funds = {}
+
+    def seed_fund(u, name, etype):
+        # LP funds only: a GP entity's capital is already its paired fund's gpCommit, and
+        # SPVs, management companies ("Mgt Company" in AGGREGATE_INVESTMENTS) and
+        # elimination entities aren't funds LPs commit to. A non-fund type from any
+        # source removes an earlier seed; untyped rows stay.
+        etype_l = (etype or "").strip().lower()
+        if any(t in etype_l for t in ("gp", "spv", "management", "mgt", "elimination")):
+            funds.pop(u, None)
+            return None
+        f = funds.get(u)
+        if f is None:
+            fm = fmetrics.get(u, {})
+            f = funds[u] = {
+                "uuid": u, "id": fid(name), "name": name, "type": etype or "Fund",
+                # vintage from AGGREGATE_FUND_METRICS (authoritative), else the cohort
+                # table, else None — a real year only, never a hardcoded fallback.
+                "vintage": fm.get("vintage") or vintage_of.get(u),
+                "committed": 0.0, "lpPaidIn": 0.0, "lpDistributed": 0.0,
+                "lpNav": 0.0, "gpNav": 0.0, "gpContrib": None,
+                "lpDpi": 0.0, "lpRvpi": 0.0, "lpTvpi": 0.0,
+                "moic": fund_moic.get(u),
+                "accrued": accrued_of.get(u, 0.0),
+                "carryDistributed": dist_carry_of.get(u, 0.0),
+                "mgmtFees": fm.get("mgmtFees", 0.0),
+                "opex": fm.get("opex", 0.0),
+                "dryPowder": fm.get("dryPowder", 0.0),
+                "hasNav": False,
+            }
+        return f
+
+    for r in parse_table(find(rawdir, "_enumerate")):
+        u, name = col(r, "fund_uuid"), col(r, "fund_name")
+        if u and name:
+            seed_fund(u, name, col(r, "entity_type_name"))
     for r in parse_table(find(rawdir, "nav_latest", "fund_metrics")):
-        u = col(r, "fund_uuid")
-        name = col(r, "fund_name")
+        u, name = col(r, "fund_uuid"), col(r, "fund_name")
         if not u or not name:
             continue
-        # Keep only LP funds. The entity enumeration (queries.md §0) returns Fund
-        # AND GP entities (and a stale/hand-edited fund_uuids.txt could reintroduce an
-        # SPV), so every non-fund vehicle is dropped here — it must never enter the
-        # firm/fund-level model. GP LLCs are the load-bearing case: a GP entity's
-        # capital IS the GP's commitment to its paired fund, already captured as that
-        # fund's `gpCommit` (gp_partners stem) and its GP economics. Listing the GP
-        # entity as its own "fund" double-counts that capital (its committed == the
-        # fund's gpCommit) and clutters LP-facing views — the LP-NAV-by-fund chart, the
-        # firm rollup, the navSeries trend. SPVs (single-deal), management companies and
-        # elimination entities likewise aren't funds LPs commit to. A row with no
-        # entity_type_name is kept (defensive default, matching `type` below) so the
-        # fund_metrics fallback path is never dropped.
-        etype = (col(r, "type", "entity_type_name") or "").strip().lower()
-        if any(t in etype for t in ("gp", "spv", "management", "elimination")):
+        f = seed_fund(u, name, col(r, "type", "entity_type_name"))
+        if f is None:
             continue
-        fm = fmetrics.get(u, {})
-        funds[u] = {
-            "uuid": u, "id": fid(name), "name": name,
-            "type": col(r, "type", "entity_type_name") or "Fund",
-            # vintage from AGGREGATE_FUND_METRICS (authoritative), else the cohort
-            # table, else None — a real year only, never a hardcoded fallback.
-            "vintage": fm.get("vintage") or vintage_of.get(u),
+        # The NAV row's spelling wins: the slug keys saved per-fund scenario settings,
+        # and the census picks whichever table's spelling sorts last.
+        f.update({
+            "name": name, "id": fid(name),
             "committed": num(col(r, "cumulative_commitment_amount", "committed", "fund_size")),
             "lpPaidIn": num(col(r, "cumulative_lp_contributions", "lp_paid_in")),
             "lpDistributed": abs(num(col(r, "cumulative_lp_distributions", "lp_distributed"))),
@@ -599,14 +677,15 @@ def build(rawdir, out, meta):
             "lpDpi": num(col(r, "lp_dpi")),
             "lpRvpi": num(col(r, "lp_rvpi")),
             "lpTvpi": num(col(r, "lp_tvpi")),
-            "moic": fund_moic.get(u),
-            "accrued": accrued_of.get(u, 0.0),
-            "carryDistributed": dist_carry_of.get(u, 0.0),
-            "mgmtFees": fm.get("mgmtFees", 0.0),
-            "opex": fm.get("opex", 0.0),
-            "dryPowder": fm.get("dryPowder", 0.0),
-        }
-    funds = {u: f for u, f in funds.items() if f["committed"] or f["lpNav"] or f["lpPaidIn"]}
+            "hasNav": True,
+        })
+    held = set()
+    for r in parse_table(find(rawdir, "investments")):
+        if (num(col(r, "total_cost", "cost")) or num(col(r, "remaining_value", "remaining"))
+                or num(col(r, "total_proceeds", "proceeds"))):
+            held.add(col(r, "fund_uuid"))
+    funds = {u: f for u, f in funds.items()
+             if f["committed"] or f["lpNav"] or f["lpPaidIn"] or u in held}
     SLUG = {u: f["id"] for u, f in funds.items()}
 
     # Firm display currency — the reporting currency (FUND_REPORTING_CURRENCY)
@@ -617,14 +696,6 @@ def build(rawdir, out, meta):
         fmetrics.get(u, {}).get("currency") for u in funds if fmetrics.get(u, {}).get("currency"))
     firm_currency = cur_counts.most_common(1)[0][0] if cur_counts else None
     mixed_currency = len(cur_counts) > 1
-
-    def display(f):
-        # "<id> (Bare Name, YYYY)" — but omit the ", YYYY" entirely when vintage is
-        # unknown rather than emitting a placeholder. A missing-vintage fund used to
-        # render "(Bare Name, —)"; that trailing "— " placeholder is what surfaced as
-        # a � in the app, so a fund name must never carry a stand-in glyph.
-        bare = re.sub(r",? (L\.?P\.?|LP|LLC)$", "", f["name"])
-        return "%s (%s, %s)" % (f["id"], bare, f["vintage"]) if f["vintage"] else "%s (%s)" % (f["id"], bare)
 
     # ---- per-fund monthly cashflows + firm NAV/TVPI trend ----
     flows_by_fund = collections.defaultdict(list)
@@ -676,6 +747,31 @@ def build(rawdir, out, meta):
     for r in parse_table(find(rawdir, "deal_irr")):
         irr_map[(col(r, "fund_uuid"), col(r, "issuer", "issuer_name"))] = numn(col(r, "irr", "deal_irr"))
 
+    # ---- investment tags: the firm's own tags per company, {category: [values]} ----
+    # Optional and data-only: the app does not show them; they ride on each company in portfolio.json so the
+    # MCP server can read them. Keyed like company_key — entity_link_id, else the
+    # general_ledger_issuer_id — and merged when a company has several tag rows.
+    tags_by_company = collections.defaultdict(dict)
+    for r in parse_table(find(rawdir, "investment_tags")):
+        ck = company_key(r)
+        if ck is None:
+            continue
+        try:
+            tag_json = json.loads(col(r, "tags_json") or "{}")
+        except ValueError:
+            continue
+        if not isinstance(tag_json, dict):
+            continue
+        for category, values in tag_json.items():
+            values = values if isinstance(values, list) else [values]
+            for v in values:
+                v = "" if v is None else str(v).strip()
+                if not v:
+                    continue
+                seen = tags_by_company[ck[0]].setdefault(str(category), [])
+                if v not in seen:
+                    seen.append(v)
+
     # ---- financing: latest round per company (by CORPORATION_ID -> corpUuid) ----
     # Keyed by CORPORATION_ID directly — no name/fka-dba matching. A company is
     # joined to its round via its own corpUuid (below), resolved from the
@@ -685,8 +781,9 @@ def build(rawdir, out, meta):
         cid = col(r, "corporation_id", "corp_id")
         pm = numn(col(r, "post_money_valuation"))
         if cid and pm:
-            fin_by_corp[cid] = {"round": col(r, "round"), "postMoney": round(pm, 2),
-                                 "date": col(r, "round_date", "closing_date", "raised_date")}
+            fin_by_corp[cid] = {"round": col(r, "round"), "name": col(r, "shareclass_name") or None,
+                                "postMoney": round(pm, 2),
+                                "date": col(r, "round_date", "closing_date", "raised_date")}
 
     # ---- corp bridge: entity_link_id -> CORPORATION_UUID (§16 CORPORATION_BASIC_INFO_V2) ----
     # Optional: a firm whose portcos aren't Carta cap-table customers has no rows
@@ -758,7 +855,9 @@ def build(rawdir, out, meta):
     # Curated metrics surfaced on the company card + time-series chart. Matched by
     # mnemonic (preferred) or lowercased name; ORDER drives the UI metric dropdown.
     # (key, label, unit, matcher(mnemonic_upper, name_lower)). Forecast/deferred
-    # variants are excluded — operating actuals only.
+    # variants are excluded — operating actuals only. Mirrored in the WHERE of the
+    # `financials` stem in queries.json so the fetch only pulls rows this matcher keeps, and
+    # in server/worker.js's FINANCIAL_METRICS for the hosted app — change all three together.
     METRIC_DEFS = [
         ("revenue",     "Revenue",      "Dollar", lambda mn, nm: mn == "FS_REVENUE" or nm == "revenue"),
         ("arr",         "ARR",          "Dollar", lambda mn, nm: mn in ("FS_ARR_END", "ARR") or "recurring revenue" in nm),
@@ -847,6 +946,7 @@ def build(rawdir, out, meta):
         entry["names"][issuer] += 1
         entry["rows"].append({
             "u": u, "asset": col(r, "asset_name", "asset_class_type") or "Investment",
+            "cls": col(r, "asset_class_type") or None,
             "cost": cost, "fmv": fmv, "proceeds": proceeds,
             # count_remaining_shares: the fund's holding in this security/class — the
             # join key to the company's cap-table stack for the liquidation waterfall.
@@ -854,7 +954,7 @@ def build(rawdir, out, meta):
             "active": col(r, "is_active_investment", "is_active").lower() == "true",
             "public": col(r, "is_public_asset", "is_public").lower() == "true",
             "date": col(r, "investment_date", "date"),
-            # dates that drive the Overview "Recent activity" feed's non-investment
+            # dates that drive the "Recent activity" feed's non-investment
             # lanes: fmvDate = when this position was last remarked (valuation-update
             # events); updateDate = last touched (the exit-date proxy, since Fund
             # Admin exposes no explicit realization date).
@@ -909,7 +1009,7 @@ def build(rawdir, out, meta):
         # enrichment is lost since it has no ownership/financing/cap-table either).
         corp_uuid = corp_by_el.get(cid) if entry["keyType"] == "entity_link" else None
         comp = {"id": cid, "slug": s, "name": name, "corpUuid": corp_uuid, "fundId": SLUG[primary],
-                "valuationB": None, "defaultValuationB": None, "includeInNav": False,
+                "valuationB": None, "defaultValuationB": None, "includeInNav": False, "waterfallMode": None,
                 "archived": False, "anchors": [], "sliderRange": None, "notes": "",
                 "costBasis": round(tot_cost, 2), "positions": positions}
         if realized:
@@ -921,6 +1021,8 @@ def build(rawdir, out, meta):
         lr = fin_by_corp.get(corp_uuid) if corp_uuid else None
         if lr:
             comp["lastRound"] = lr
+        if tags_by_company.get(cid):
+            comp["tags"] = tags_by_company[cid]
         logo = logos_by_corp.get(corp_uuid) if corp_uuid else None
         if logo:
             comp["logoDataUri"] = logo
@@ -994,30 +1096,32 @@ def build(rawdir, out, meta):
         # the vintage: real vintage, else the earliest cash-flow year, else nav year.
         first_flow_year = min((int(d[:4]) for d, _ in flows_by_fund.get(f["uuid"], []) if len(d) >= 4 and d[:4].isdigit()), default=None)
         calc_vint = vint or first_flow_year or (int(nav[:4]) if len(nav) >= 4 and nav[:4].isdigit() else 2020)
-        standing = "%.2fx net LP TVPI%s (vintage %s)." % (
-            f["lpTvpi"], (" · %.1f%% net IRR" % (nirr * 100)) if nirr is not None else "", vint if vint else "—")
+        # Null, not $0, for a fund with no NAV close: $0 would look like a booked figure.
+        nav_val = (lambda v, d=2: round(v, d)) if f["hasNav"] else (lambda v, d=2: None)
         snap_funds.append({
-            "id": i, "name": display(f), "type": f["type"], "vintage": vint,
-            "committed": round(f["committed"], 2), "lpPaidIn": round(f["lpPaidIn"], 2),
-            "lpDistributed": round(f["lpDistributed"], 2), "overviewLpNav": round(f["lpNav"], 2),
-            "lpDpi": round(f["lpDpi"], 4), "lpRvpi": round(f["lpRvpi"], 4), "lpTvpi": round(f["lpTvpi"], 4),
+            "id": i, "name": fund_display_name(f["name"], vint), "type": f["type"], "vintage": vint, "hasNav": f["hasNav"],
+            "committed": nav_val(f["committed"]), "lpPaidIn": nav_val(f["lpPaidIn"]),
+            "lpDistributed": nav_val(f["lpDistributed"]), "overviewLpNav": nav_val(f["lpNav"]),
+            "lpDpi": nav_val(f["lpDpi"], 4), "lpRvpi": nav_val(f["lpRvpi"], 4), "lpTvpi": nav_val(f["lpTvpi"], 4),
             "netLpIrr": round(nirr, 4) if nirr is not None else None,
-            "cohortStanding": standing, "gpCapitalNav": round(f["gpNav"], 2),
+            "cohortStanding": cohort_standing(f["hasNav"], f["lpTvpi"], nirr, vint), "gpCapitalNav": nav_val(f["gpNav"]),
             "waterfall": waterfall_of.get(f["uuid"]),
             "gpCommit": (lambda g: round(g, 2) if g is not None else None)(gp_commit_of(f["uuid"], f["gpContrib"])),
             "grossMoic": fmetrics.get(f["uuid"], {}).get("grossMoic"),
             "currency": fmetrics.get(f["uuid"], {}).get("currency"),
+            "familyId": family_of.get(f["uuid"], (None, None))[0],
+            "familyName": family_of.get(f["uuid"], (None, None))[1],
         })
         baseLpNav[i] = round(f["lpNav"], 2)
         baseAccruedCarry[i] = round(f["accrued"], 2)
         gpEconomics[i] = {"accruedCarryToday": round(f["accrued"], 2), "accruedCarryAsOf": accrued_asof,
                           "carryDistributed": round(f["carryDistributed"], 2), "carryDistributedAsOf": dist_carry_asof,
                           "gpCapitalNav": round(f["gpNav"], 2),
-                          "notes": "Accrued carry is the booked carried-interest-accrued allocation to the GP; carryDistributed is the booked realized (carried-interest-earned) carry."}
+                          "notes": "Accrued carry is the booked carried-interest-accrued allocation to the GP; carryDistributed is the booked realized carry (fund-level carried interest earned, else the GP entity's carry distributions)."}
         windDownYear[i] = calc_vint + 10
         cashflows[i] = {"flows": flows, "paidInTotal": round(f["lpPaidIn"], 2),
                         "terminalDate": "%d-12-31" % (calc_vint + 10)}
-    snap_funds.sort(key=lambda x: x["committed"], reverse=True)
+    snap_funds.sort(key=lambda x: x["committed"] or 0, reverse=True)
 
     most = []
     for c in companies:
@@ -1043,7 +1147,7 @@ def build(rawdir, out, meta):
                                   "dryPowder": round(f["dryPowder"], 2)} for f in funds.values()},
         "navSeries": nav_series, "benchmarks": benchmarks, "benchmarksMeta": benchmarks_meta,
         "reprice": {"grossCarryRate": carry_default, "marksAsOf": nav},
-        "marketRefs": {"spLongRun": 0.102, "spActualHotDecade": 0.13, "nasdaqActual": 0.17, "treasury10y": 0.044},
+        "marketRefs": MARKET_REFS,
         "cashflows": cashflows, "windDownYear": windDownYear, "mostCompelling": most,
         "readMe": ["%s — Carta Fund Admin data, as of %s." % (firm_name, nav),
                    "Net IRR is xirr of dated LP cash flows + ending NAV (estimate). Accrued carry today is the booked ALLOCATIONS figure."],
@@ -1051,7 +1155,8 @@ def build(rawdir, out, meta):
 
     # Seed per-fund waterfall assumptions from the Carta config so the baseline
     # scenario is pre-set (the sliders start there); funds without a config fall
-    # back to the flat carry_default and disabled pref/catch-up.
+    # back to the flat carry_default and disabled pref/catch-up. MUST match baselineAssumptions
+    # in server/worker.js.
     carry_rates_seed, pref_seed, cu_rate_seed, cu_limit_seed = {}, {}, {}, {}
     for f in funds.values():
         wf = waterfall_of.get(f["uuid"])
@@ -1074,22 +1179,26 @@ def build(rawdir, out, meta):
             "id": "baseline", "name": "Baseline", "locked": True, "createdAt": nav,
             "assumptions": {"carryRate": carry_default, "carryRates": carry_rates_seed,
                             "preferredReturns": pref_seed, "catchupRates": cu_rate_seed,
-                            "catchupLimits": cu_limit_seed, "spRate": 0.102,
-                            "spSensitivityRate": 0.13, "staleDays": 90, "feeLoads": {}, "followOnRatios": {}, "recyclingRatios": {}},
+                            "catchupLimits": cu_limit_seed, "spRate": BASELINE_ASSUMPTION_DEFAULTS["spRate"],
+                            "spSensitivityRate": BASELINE_ASSUMPTION_DEFAULTS["spSensitivityRate"],
+                            "staleDays": BASELINE_ASSUMPTION_DEFAULTS["staleDays"],
+                            "feeLoads": {}, "followOnRatios": {}, "recyclingRatios": {}},
             "companies": companies,
         }],
     }
 
     # ---- LP base (per-LP, aggregated firm-wide) ----
+    # MUST match lpBaseFrom in server/worker.js.
     lp_agg = collections.OrderedDict()
     for r in parse_table(find(rawdir, "partners")):
         name = col(r, "partner_name")
-        if not name:
+        # GP entities and uninvested shells share the IN-list; their members aren't fund LPs.
+        if not name or col(r, "fund_uuid") not in funds:
             continue
         a = lp_agg.setdefault(name, {"name": name, "region": region_bucket(col(r, "partner_country")),
                                      "commitment": 0.0, "contributed": 0.0, "distributed": 0.0,
                                      "nav": 0.0, "funds": set(), "partnerClasses": set(),
-                                     "partnerClassesByFund": {}})
+                                     "partnerClassesByFund": {}, "commitmentByFund": collections.defaultdict(float)})
         a["commitment"] += num(col(r, "commitment"))
         a["contributed"] += num(col(r, "contributed"))
         a["distributed"] += num(col(r, "distributed"))
@@ -1097,6 +1206,8 @@ def build(rawdir, out, meta):
         fund_uuid = col(r, "fund_uuid")
         if fund_uuid:
             a["funds"].add(fund_uuid)
+            if SLUG.get(fund_uuid):
+                a["commitmentByFund"][SLUG[fund_uuid]] += num(col(r, "commitment"))
         pc = col(r, "partner_class_name")
         if pc:
             a["partnerClasses"].add(pc)
@@ -1117,7 +1228,8 @@ def build(rawdir, out, meta):
                         "distributed": round(x["distributed"], 2), "nav": round(x["nav"], 2),
                         "dpi": round(x["distributed"] / contributed, 4) if contributed > 0 else None,
                         "funds": len(x["funds"]), "partnerClass": partner_class,
-                        "partnerClassByFund": classes_by_fund if classes_by_fund else None})
+                        "partnerClassByFund": classes_by_fund if classes_by_fund else None,
+                        "commitmentByFund": {k: round(v, 2) for k, v in x["commitmentByFund"].items() if v > 0} or None})
     byregion = collections.defaultdict(lambda: {"commitment": 0.0, "count": 0})
     for x in lps_all:
         b = byregion[x["region"]]
@@ -1126,13 +1238,28 @@ def build(rawdir, out, meta):
     by_region = sorted([{"region": k, "commitment": round(v["commitment"], 2),
                          "pct": round(v["commitment"] / total_commit, 6), "count": v["count"]}
                         for k, v in byregion.items()], key=lambda r: r["commitment"], reverse=True)
-    lp_base = {"asOf": nav, "totalCommitment": round(total_commit, 2),
+    # Over every LP, not just the listed 200, so a new fund can copy one fund's LP mix at its exact shares.
+    by_fund_lp = collections.defaultdict(lambda: {"commitment": 0.0, "count": 0})
+    for x in lps_all:
+        for k, v in x["commitmentByFund"].items():
+            if v > 0:
+                by_fund_lp[k]["commitment"] += v
+                by_fund_lp[k]["count"] += 1
+    fund_by_slug = {f["id"]: f for f in funds.values()}
+    # Each fund's commitments are in its own currency, so a reader never adds two funds' amounts together.
+    lp_funds = sorted([{"id": k, "name": fund_by_slug[k]["name"], "vintage": fund_by_slug[k].get("vintage"),
+                        "commitment": round(v["commitment"], 2), "count": v["count"],
+                        "currency": fmetrics.get(fund_by_slug[k]["uuid"], {}).get("currency")}
+                       for k, v in by_fund_lp.items() if k in fund_by_slug],
+                      key=lambda f: (-(f["vintage"] or 0), -f["count"], f["name"]))
+    lp_base = {"asOf": nav, "totalCommitment": round(total_commit, 2), "funds": lp_funds,
                "totalContributed": round(sum(x["contributed"] for x in lps_all), 2),
                "totalDistributed": round(sum(x["distributed"] for x in lps_all), 2),
                "totalNav": round(sum(x["nav"] for x in lps_all), 2),
                "byRegion": by_region, "lps": lp_rows} if lps_all else None
 
     # ---- GP base (per-GP-partner carry, keyed by fund id) → gp-base.json ----
+    # MUST match gpBaseFrom in server/worker.js.
     # Primary source: the gp_carry stem (§7b) — REAL per-partner 'Carried interest
     # accrued' allocations booked INSIDE each GP entity (ALLOCATIONS,
     # ENTITY_TYPE_NAME='GP'), joined to the LP fund via the fund-level GP allocation.
@@ -1228,12 +1355,12 @@ def build(rawdir, out, meta):
         if pct is None or pct <= 0:
             continue
         cid = corp_to_cid.get(col(r, "corporation_id", "corp_id"))
-        if not cid:
+        # Stakes of entities outside the universe would inflate Own % against the shown FV.
+        fund_slug = SLUG.get(col(r, "fund_id", "fund_uuid"))
+        if not cid or not fund_slug:
             continue
         own_pct[cid] += pct
-        fund_slug = SLUG.get(col(r, "fund_id", "fund_uuid"))
-        if fund_slug:
-            own_by_fund[cid][fund_slug] += pct
+        own_by_fund[cid][fund_slug] += pct
         a = col(r, "as_of", "as_of_date")
         if a and a > own_asof.get(cid, ""):
             own_asof[cid] = a
@@ -1339,12 +1466,24 @@ def build(rawdir, out, meta):
     w("pacing.json", pacing)
     if lp_base:
         w("lp-base.json", lp_base)
+    def w_optional(name, obj):
+        # The build writes into the live dir, so an earlier build's file would otherwise be served as current.
+        if obj:
+            w(name, obj)
+        elif os.path.exists(os.path.join(out, name)):
+            os.remove(os.path.join(out, name))
+
+    w_optional("fee-history.json", build_fee_history(parse_table(find(rawdir, "fee_schedules")), SLUG, nav))
+    w_optional("expense-history.json", build_expense_history(parse_table(find(rawdir, "expense_ledger")), SLUG, nav))
+    w_optional("ops-benchmarks.json", build_ops_benchmarks(parse_table(find(rawdir, "ops_benchmarks")), nav))
     if gp_base:
         w("gp-base.json", gp_base)
     if ownership:
         w("company-ownership.json", ownership)
+    w_optional("investment-history.json", investment_history(comp_map, SLUG))
 
     return {"funds": len(snap_funds), "companies": len(companies),
+            "fundsWithoutNav": [f["name"] for f in funds.values() if not f["hasNav"]],
             "droppedNoId": dropped_no_id,
             "dealIrr": sum(1 for c in companies if c.get("dealIrr") is not None),
             "lastRound": sum(1 for c in companies if c.get("lastRound")),
@@ -1357,6 +1496,96 @@ def build(rawdir, out, meta):
             "accruedAsOf": accrued_asof}
 
 
+# ---------- fee history + market ranges (optional; feed Fund Construction) ----------
+def build_fee_history(rows, slug_of, as_of):
+    """Each fund's management-fee periods, keyed by snapshot fund id (`end` None = open-ended). None with no rows."""
+    by_fund = collections.OrderedDict()
+    for r in rows:
+        fid = slug_of.get(col(r, "fund_uuid"))
+        if not fid:
+            continue
+        waived = col(r, "waived").lower() in ("true", "1", "t", "yes")
+        by_fund.setdefault(fid, []).append({
+            "order": int(num(col(r, "period_order"))) if col(r, "period_order") else len(by_fund.get(fid, [])),
+            "name": col(r, "period_name") or None,
+            "start": col(r, "start_date")[:10] or None,
+            "end": col(r, "end_date")[:10] or None,
+            "rate": 0.0 if waived else numn(col(r, "fee_rate")),
+            "base": col(r, "calculation_base") or None,
+            "frequency": col(r, "frequency") or None,
+            "waived": waived,
+            "minFee": numn(col(r, "minimum_fee_amount")),
+            "fixedFee": numn(col(r, "fixed_fee_amount")),
+            "currency": col(r, "fee_currency") or None,
+        })
+    for periods in by_fund.values():
+        periods.sort(key=lambda p: (p["order"], p["start"] or ""))
+    return {"asOf": as_of, "funds": by_fund} if by_fund else None
+
+
+# MUST match expenseHistoryFrom in server/worker.js.
+def build_expense_history(rows, slug_of, as_of):
+    """What each fund booked to its expense accounts, by account and calendar year, keyed by snapshot
+    fund id: { fundId: [{ name, byYear: { "2024": 58310.0 } }] }, biggest account first. None with no rows."""
+    by_fund = collections.OrderedDict()
+    for r in rows:
+        fid = slug_of.get(col(r, "fund_uuid"))
+        name = col(r, "account_name")
+        year = col(r, "year")
+        amount = numn(col(r, "amount"))
+        if not fid or not name or not year or amount is None:
+            continue
+        accounts = by_fund.setdefault(fid, collections.OrderedDict())
+        accounts.setdefault(name, {})[str(int(num(year)))] = round(accounts.get(name, {}).get(str(int(num(year))), 0.0) + amount, 2)
+    out = collections.OrderedDict()
+    for fid, accounts in by_fund.items():
+        rows_ = [{"name": n, "byYear": y} for n, y in accounts.items()]
+        rows_.sort(key=lambda a: -sum(a["byYear"].values()))
+        out[fid] = rows_
+    return {"asOf": as_of, "funds": out} if out else None
+
+
+def _band(r, prefix, points, n_col=None):
+    out = {}
+    for p in points:
+        v = numn(col(r, "%s_%dth" % (prefix, p)))
+        if v is not None:
+            out["p%d" % p] = v
+    if not out:
+        return None
+    n = numn(col(r, n_col)) if n_col else None
+    if n is not None:
+        out["n"] = int(n)
+    return out
+
+
+def build_ops_benchmarks(rows, as_of):
+    """Market ranges by fund size and vintage: lifetime-to-date fees and expenses as a share of
+    fund size (fees, opex) or of contributions (legal, software, payroll). Aggregate cohort
+    percentiles only. Returns None with no usable cohort."""
+    cohorts = []
+    for r in rows:
+        vintage = col(r, "vintage_year")
+        bucket = col(r, "fund_aum_bucket")
+        if not vintage or not bucket:
+            continue
+        fees = _band(r, "net_perc_mgmt_fees_to_fundsize", (10, 25, 50, 75, 90), "ct_companies_mgmt_fees")
+        if not fees:
+            continue
+        c = {"vintage": int(num(vintage)), "bucket": bucket, "mgmtFees": fees}
+        for key, prefix, points, n_col in (
+                ("opex", "net_perc_opex_to_fundsize", (10, 25, 50, 75, 90), "ct_companies_opex"),
+                ("legal", "net_perc_cost_legal_fees_to_contributions", (25, 50, 75), None),
+                ("tech", "net_perc_cost_tech_to_contributions", (25, 50, 75), None),
+                ("payroll", "net_perc_payroll_to_contributions", (25, 50, 75), None)):
+            b = _band(r, prefix, points, n_col)
+            if b:
+                c[key] = b
+        cohorts.append(c)
+    cohorts.sort(key=lambda c: (c["bucket"], c["vintage"]))
+    return {"asOf": as_of, "cohorts": cohorts} if cohorts else None
+
+
 # ---------- fail-loud data-contract check ----------
 # Each entry: (stem, requiredness, [load-bearing columns the builder reads]).
 # `requiredness` is three-valued and encodes how missing data gates the build:
@@ -1365,8 +1594,8 @@ def build(rawdir, out, meta):
 #   "file"  — the fetch must be *attempted*: the <stem>.ndjson file MUST exist, but
 #             may be empty. A MISSING file means the LLM never ran the query (a
 #             non-deterministic skip) and hard-fails the build; a present-but-empty
-#             file is legitimate ("Carta publishes none" / access-denied) and
-#             degrades gracefully. This makes the deterministic builder — not the
+#             file is legitimate ("Carta publishes none" / access-denied) and the
+#             build goes on with that feature empty. This makes the deterministic builder — not the
 #             LLM's memory — enforce that every DWH stem was fetched.
 #   False   — genuinely optional (external deps: other-skill/on-demand).
 # When a stem file exists but its rows lack a load-bearing column, the derived
@@ -1404,7 +1633,14 @@ STEM_CONTRACT = [
     # has none (a missing/empty file must NOT gate the build); when absent, carry falls
     # back to the flat carryRate default and pref/catch-up disable.
     ("waterfall",     False,  ["fund_id", "carry_rate"]),
-    ("financing",     "file", ["corporation_id", "post_money_valuation"]),
+    ("investment_tags", False, ["entity_link_id", "general_ledger_issuer_id", "tags_json"]),
+    # fund_families: Fund Admin's family per fund. Optional — a firm that has not set up families has none.
+    ("fund_families", False,  ["fund_uuid", "fund_family_id"]),
+    # Optional: they only feed Fund Construction's past-fund and market-range helpers, hidden without them.
+    ("fee_schedules", False,  ["fund_uuid", "fee_rate", "calculation_base"]),
+    ("expense_ledger", False, ["fund_uuid", "account_name", "year", "amount"]),
+    ("ops_benchmarks", False, ["vintage_year", "fund_aum_bucket", "net_perc_mgmt_fees_to_fundsize_50th"]),
+    ("financing",     "file", ["corporation_id", "post_money_valuation", "shareclass_name"]),
     ("ownership",     "file", ["corporation_id", "percentage"]),
     ("fund_metrics",  "file", ["fund_uuid", "fund_reporting_currency"]),
     # captable / corporations: attempt-required ("file"), like gp_partners/gp_carry/
@@ -1413,7 +1649,7 @@ STEM_CONTRACT = [
     # "Latest round" enrichment). But an ABSENT file means Wave 2 was skipped, which is
     # indistinguishable from that legitimate case unless it hard-fails: silently missing
     # `corporations` breaks the entity_link -> corporation_uuid bridge, so `lastRound`
-    # (Overview "Recent activity" cards) and captable-derived fields quietly go blank for
+    # ("Recent activity" cards) and captable-derived fields quietly go blank for
     # every company, even ones with real financing/cap-table data sitting in the DWH.
     ("captable",      "file", ["corporation_id", "security_class_name",
                                "security_class_type_detailed", "seniority", "multiplier",
@@ -1422,12 +1658,9 @@ STEM_CONTRACT = [
     ("corporations",  "file", ["entity_link_id", "corporation_uuid"]),
 ]
 
-# Firm-CONTEXT stems fetched OUTSIDE the fund/corp-filtered manifest — they ride the
-# set_context firm scope (no IN-list), so they aren't in stem_queries.STEMS. Still
-# ATTEMPT-required so a bare "rebuild" runs them EVERY time: an absent file is a
-# skipped fetch (hard-fail), a present-but-empty file is legitimate (the firm has no
-# such data / access-denied). This is why §14 company financials can no longer be
-# silently omitted. (stem, [load-bearing columns])
+# Firm-CONTEXT stems: row-scoped by set_context (manifest entries with no IN-list). ATTEMPT-required so a bare "rebuild" runs them EVERY time: an absent file
+# is a skipped fetch (hard-fail), a present-but-empty file is legitimate (the firm has
+# no such data / access-denied). (stem, [load-bearing columns])
 FIRM_SCOPED_REQUIRED = [
     ("financials", ["legal_name", "float_value", "period_end"]),
 ]

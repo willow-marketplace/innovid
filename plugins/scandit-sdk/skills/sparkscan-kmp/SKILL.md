@@ -99,7 +99,7 @@ Based on the user's request, load the appropriate reference file before respondi
   down the integration** (e.g. "add SparkScan to my KMP app", "set up barcode scanning in my
   shared module", "how do I use SparkScan with Compose Multiplatform", "reject a barcode and show
   an error", "enable continuous scanning", "hide the trigger button") → read
-  `references/integration.md` and follow the instructions there.
+  [`references/integration.md`](references/integration.md) and follow the instructions there.
 
 ## API Usage Policy
 
@@ -120,6 +120,20 @@ page:
 
 URL structures can vary (e.g. `api/ui/` subdirectory) and guessing will lead to 404s.
 
+## Licence key
+
+Scanning needs a Scandit licence key. For this skill the licence product is `native` and the licence platforms are `ios` and `android`.
+
+Work through these in order — never block the user on MCP:
+
+1. **The Scandit MCP server is connected** — call `ensure_scanner_setup` with product `native` and platforms `ios` and `android`, `app_identifier` (the app's bundle or application id; for web, its production domain, never `localhost`) and `env_var` `SCANDIT_LICENSE_KEY`. Do not run the command it returns. Then call `get_license_key` with the key's id, from that result or from `list_license_keys`; if `list_license_keys` shows the key is not a trial, ask the user before fetching it. Show at most a masked preview in chat; never print a full key.
+2. **It is not connected** — tell the user once that they can connect the remote Scandit MCP server, `https://ssl.scandit.com/mcp`, in their MCP client, then continue from step 1. Do not edit MCP client configuration yourself.
+
+   Authentication is browser-based, so it is **not supported headless or in CI**. The server provisions **trial** keys only; it never creates, revokes, or modifies production licences.
+3. **The user declines, or has no MCP client** — they generate a key themselves at <https://ssl.scandit.com> (no account yet: <https://ssl.scandit.com/dashboard/sign-up?p=test>) and paste it in.
+
+**Then put the key into the code**: write it into the licence-key call in place of the placeholder — the key `get_license_key` returned, or the one the user pastes or gives you — still showing only a masked preview in chat. Do not search the project, its files or the environment for a key.
+
 ## References
 
 Direct users to the right resource based on their question:
@@ -127,6 +141,6 @@ Direct users to the right resource based on their question:
 | Topic | Resource |
 |---|---|
 | Get Started | [Intro](https://docs.scandit.com/sdks/kmp/sparkscan/intro/) · [Get Started](https://docs.scandit.com/sdks/kmp/sparkscan/get-started/) |
-| Advanced topics (custom feedback, scanning behavior, UI customization) | `references/integration.md` |
+| Advanced topics (custom feedback, scanning behavior, UI customization) | [`references/integration.md`](references/integration.md) |
 | Compose Multiplatform | [Core Concepts](https://docs.scandit.com/sdks/kmp/core-concepts/) |
 | Core concepts (context, camera, views) | [Core Concepts](https://docs.scandit.com/sdks/kmp/core-concepts/) |

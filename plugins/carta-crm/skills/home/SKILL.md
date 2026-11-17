@@ -3,6 +3,9 @@ name: home
 description: "Renders the Carta CRM Home: a landing view with pipeline by stage, recent contacts, deals, object counts, latest notes, this week's meetings, and a directory of the prompts the plugin supports. Use this skill when the user says things like \"carta crm home\", \"show my crm home\", \"my crm dashboard\", \"what's in my pipeline today\", \"crm landing page\", or \"/home\". It is also the skill that decides whether the Home belongs in the conversation or on a published page, so start here even when the user may want a page. Read-only. Do NOT use it to look up a specific record — name the record instead and Claude picks the right search skill. For a fund firm's Carta Home use carta-investors' carta-home-build; for a company's cap table use carta-cap-table's carta-captable-home-build."
 ---
 
+<!-- carta:plugin-version -->
+<carta-plugin>carta-crm:1.20.20</carta-plugin>
+
 # Carta CRM Home
 
 The Home is one manifest tool and two places to put it. The server decides which cards this

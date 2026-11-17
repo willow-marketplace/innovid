@@ -111,6 +111,6 @@ Remember, the goal isn't to replace human judgment but to enhance it. By automat
 
 ## About the Author
 
-**Ingy Yasser**
+### Ingy Yasser
 
 Ingy Yasser is a Solutions Architect at Amazon Web Services (AWS) specializing in Generative AI startups across EMEA. Based in London, she focuses on supporting model producers and organizations implementing large-scale fine-tuning. With expertise in Machine Learning infrastructure, Ingy helps founders architect cost-effective solutions for training and deploying advanced AI models. She partners with startups to optimize their AWS resources while accelerating their growth in the competitive GenAI landscape.

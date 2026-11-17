@@ -1,25 +1,38 @@
 > AI agents: this is one page from PostHog's docs. Full index of Markdown docs for LLMs: https://posthog.com/llms.txt
 
-# Traces - Docs
+# Traces
 
-Copy page
+Canonical URL: https://posthog.com/docs/ai-observability/traces
 
-# Traces - Docs
+> **Cloud region:** This page uses US Cloud hosts. For an EU Cloud project, use `https://eu.posthog.com` instead of `https://app.posthog.com` (app host for links).
 
-Traces are a collection of [generations](/docs/ai-observability/generations.md) and [spans](/docs/ai-observability/spans.md) that capture a full interaction between a user and an LLM. The [traces tab](https://app.posthog.com/ai-observability/traces) lists them along with the properties autocaptured by PostHog like the person, total cost, total latency, and more.
+## On this page
+
+- [Sessions vs Traces](#sessions-vs-traces)
+- [Trace timeline](#trace-timeline)
+- [Conversation display options](#conversation-display-options)
+- [Tool calls](#tool-calls)
+- [Sentiment classification](#sentiment-classification)
+- [Search traces with PostHog AI](#search-traces-with-posthog-ai)
+- [AI event hierarchy](#ai-event-hierarchy)
+- [Event properties](#event-properties)
+
+Traces are a collection of [generations](https://posthog.com/docs/ai-observability/generations.md) and [spans](https://posthog.com/docs/ai-observability/spans.md) that capture a full interaction between a user and an LLM. The [traces tab](https://app.posthog.com/ai-observability/traces) lists them along with the properties autocaptured by PostHog like the person, total cost, total latency, and more.
 
 ## Sessions vs Traces
 
 -   **Trace** (`$ai_trace_id`): Groups related generations and spans together. Required for all AI Observability events.
 -   **Session** (`$ai_session_id`): Optional property that groups multiple traces together based on your chosen grouping strategy.
 
-See the [Sessions](/docs/ai-observability/sessions.md) documentation for more details on how to use `$ai_session_id`.
+See the [Sessions](https://posthog.com/docs/ai-observability/sessions.md) documentation for more details on how to use `$ai_session_id`.
+
+If you also send OpenTelemetry spans to [Distributed tracing](https://posthog.com/docs/distributed-tracing.md), you can set `$ai_trace_id` to the trace ID of the surrounding span and correlate the two products. See [Link traces to AI Observability](https://posthog.com/docs/distributed-tracing/link-ai-observability.md).
 
 ## Trace timeline
 
 Clicking on a trace opens a timeline of the interaction with all the generation and span events. The trace timeline enables you to see the entire conversation, profiling details, and the individual generations and spans.
 
-![LLM traces](https://res.cloudinary.com/dmukukwp6/image/upload/llma_traces_25e203aa50.png)![LLM traces](https://res.cloudinary.com/dmukukwp6/image/upload/llma_traces_dark_dd6ad555dc.png)
+![LLM traces](https://res.cloudinary.com/dmukukwp6/image/upload/llma_traces_25e203aa50.png)
 
 A trace presents LLM event data in a timeline, tree-structured view
 
@@ -48,15 +61,15 @@ When viewing a trace, you can control how conversation messages are displayed us
 
 ## Tool calls
 
-Traces display any [tools](/docs/ai-observability/tools.md) called by the generations within them, shown as tags in the traces list. This makes it easy to see which conversations involved tool use at a glance.
+Traces display any [tools](https://posthog.com/docs/ai-observability/tools.md) called by the generations within them, shown as tags in the traces list. This makes it easy to see which conversations involved tool use at a glance.
 
 ## Sentiment classification
 
-PostHog can classify the sentiment of user messages in a trace as negative, neutral, or positive using a local model — no data is sent to third-party services. Sentiment runs as a [sentiment analysis evaluation](/docs/ai-evals.md#sentiment-analysis-evaluations) that you configure. Each trace gets an overall sentiment label and score, with a per-generation and per-message breakdown. See [Sentiment classification](/docs/ai-observability/sentiment.md) for more details.
+PostHog can classify the sentiment of user messages in a trace as negative, neutral, or positive using a local model — no data is sent to third-party services. Sentiment runs as a [sentiment analysis evaluation](https://posthog.com/docs/ai-evals.md#sentiment-analysis-evaluations) that you configure. Each trace gets an overall sentiment label and score, with a per-generation and per-message breakdown. See [Sentiment classification](https://posthog.com/docs/ai-observability/sentiment.md) for more details.
 
 ## Search traces with PostHog AI
 
-[PostHog AI](/docs/posthog-ai.md) can search and analyze your LLM traces using natural language. When you're on an [AI Observability page](https://app.posthog.com/ai-observability), PostHog AI automatically switches to its AI Observability mode, giving it access to tools for searching traces by date range, model, cost, error status, and other properties.
+[PostHog AI](https://posthog.com/docs/posthog-ai.md) can search and analyze your LLM traces using natural language. When you're on an [AI Observability page](https://app.posthog.com/ai-observability), PostHog AI automatically switches to its AI Observability mode, giving it access to tools for searching traces by date range, model, cost, error status, and other properties.
 
 Example prompts you can try:
 
@@ -89,12 +102,14 @@ A trace is a group that contains multiple spans, generations, and embeddings. Tr
 
 | Property | Description |
 | --- | --- |
-| $ai_trace_id | The trace ID (a UUID to group related AI events together)Must contain only letters, numbers, and special characters: -, _, ~, ., @, (, ), !, ', :, \|Example: d9222e05-8708-41b8-98ea-d4a21849e761 |
-| $ai_session_id | (Optional) Groups related traces into a session, which is what the Sessions tab reads. Set it if your product has multi-turn conversations. A workload that finishes in a single trace does not need it. Send it as null to say so explicitly, which tells the instrumentation checklist the workload is complete rather than missing a session id.Must contain only letters, numbers, and special characters: -, _, ~, ., @, (, ), !, ', :, \|Example: session-abc-123, conv-user-456 |
-| $ai_latency | (Optional) The latency of the trace in seconds |
-| $ai_span_name | (Optional) The name of the traceExample: chat_completion, rag_pipeline |
-| $ai_is_error | (Optional) Boolean to indicate if the trace encountered an error |
-| $ai_error | (Optional) The error message or object if the trace failed |
+| `$ai_trace_id` | The trace ID (a UUID to group related AI events together) Must contain only letters, numbers, and special characters: `-`, `_`, `~`, `.`, `@`, `(`, `)`, `!`, `'`, `:`, `\|` Example: `d9222e05-8708-41b8-98ea-d4a21849e761` |
+| `$ai_session_id` | *(Optional)* Groups related traces into a session, which is what the Sessions tab reads. Set it if your product has multi-turn conversations. A workload that finishes in a single trace does not need it. Send it as null to say so explicitly, which tells the instrumentation checklist the workload is complete rather than missing a session id. Must contain only letters, numbers, and special characters: `-`, `_`, `~`, `.`, `@`, `(`, `)`, `!`, `'`, `:`, `\|` Example: `session-abc-123`, `conv-user-456` |
+| `$ai_input_state` | The input of the whole trace Example: ```json [ { "role": "user", "content": "What's the weather in SF?" } ] ``` or any JSON-serializable state |
+| `$ai_output_state` | The output of the whole trace Example: ```json [ { "role": "assistant", "content": "The weather in San Francisco is..." } ] ``` or any JSON-serializable state |
+| `$ai_latency` | *(Optional)* The latency of the trace in seconds |
+| `$ai_span_name` | *(Optional)* The name of the trace Example: `chat_completion`, `rag_pipeline` |
+| `$ai_is_error` | *(Optional)* Boolean to indicate if the trace encountered an error |
+| `$ai_error` | *(Optional)* The error message or object if the trace failed |
 
 ### Pseudo-trace Events
 
@@ -109,11 +124,3 @@ This means you can either:
 
 1.  Send explicit `$ai_trace` events to control the trace metadata
 2.  Let PostHog automatically create pseudo-traces from your generation/span events
-
-### Still have questions?
-
-Ask PostHog AI
-
-### Was this page useful?
-
-HelpfulCould be better

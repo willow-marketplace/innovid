@@ -1,10 +1,10 @@
 ---
 name: carta-portfolio-alerts
-description: Time-bounded and threshold-bounded risk detection across portfolio companies — finds items that are expiring soon, maturing soon, running low, or otherwise at risk. Surfaces what needs attention now, not what the data looks like in general.
+description: Flag what needs attention across your portfolio, like expiring 409As. Finds items across portfolio companies that are expiring soon, maturing soon, running low, or otherwise at risk. Surfaces what needs attention now, not what the data looks like in general.
 ---
 
 <!-- carta:plugin-version -->
-<carta-plugin>carta-cap-table:6.85.6</carta-plugin>
+<carta-plugin>carta-cap-table:6.114.20</carta-plugin>
 
 <!-- Part of the official Carta AI Agent Plugin -->
 
@@ -14,54 +14,60 @@ Scan multiple companies for red flags and compute severity classifications (crit
 
 ## Prerequisites
 
-No inputs required — this skill loops the full portfolio. Call `list_accounts` to get all `corporation_pk` accounts automatically.
+No inputs required — this skill loops the full portfolio. For a full-portfolio scan, call `list_accounts` to get all `corporation_pk` accounts automatically. If the user names one company, skip `list_accounts` and scan only that company: send its name in each read's company parameter (`corporation_id`, or `company` for the 83(b) and Rule 701 reads). On a company error, follow `${CLAUDE_PLUGIN_ROOT}/references/find-the-company.md` (the plugin's own `references/`; read it by that path, do not search for it).
 
 ## Data Retrieval
 
 ### Portfolio Enumeration
 
-Call `list_accounts` to get all portfolio companies. Filter to accounts where `id` starts with `corporation_pk:`. Extract up to 20 numeric corporation IDs. If more than 20 companies exist, ask the user to narrow scope.
+For a full-portfolio scan, call `list_accounts` to get all portfolio companies. Filter to accounts where `id` starts with `corporation_pk:`. Extract up to 20 numeric corporation IDs. If more than 20 companies exist, follow `${CLAUDE_PLUGIN_ROOT}/references/portfolio-over-20.md` (the plugin's own `references/`, not this skill's; read it by that path, do not search for it).
 
 ### Per-Company Commands
 
 For each company, these are the relevant checks:
 
-- `call_tool({"name": "cap_table__get__409a_valuations", "arguments": {"corporation_id": corporation_id}})` -- 409A expiry check
-- `call_tool({"name": "cap_table__get__cap_table_by_share_class", "arguments": {"corporation_id": corporation_id}})` -- option pool check
-- `call_tool({"name": "cap_table__get__convertible_notes", "arguments": {"corporation_id": corporation_id}})` -- note maturity check (summary includes `maturity.nearest_date`)
-- `call_tool({"name": "cap_table__list__safes", "arguments": {"corporation_id": corporation_id}})` -- SAFE exposure check
+- `read_tool({"name": "cap_table__get__409a_valuations", "arguments": {"corporation_id": corporation_id}})` -- 409A expiry check
+- `read_tool({"name": "cap_table__get__cap_table_by_share_class", "arguments": {"corporation_id": corporation_id}})` -- option pool check
+- `read_tool({"name": "cap_table__get__convertible_notes", "arguments": {"corporation_id": corporation_id}})` -- note maturity check (summary includes `maturity.nearest_date`)
+- `read_tool({"name": "cap_table__list__safes", "arguments": {"corporation_id": corporation_id}})` -- SAFE exposure check
+- `read_tool({"name": "cap_table__list__83b_elections", "arguments": {"company": corporation_id, "status": "not_filed"}})` -- 83(b) deadline check
+- `read_tool({"name": "cap_table__get__rule_701", "arguments": {"company": corporation_id}})` -- Rule 701 limit check (last 12 months)
 
-The gateway defaults to `detail=summary` for list commands. All four commands use summary mode — the convertible notes summary includes a `maturity` block with `nearest_date` and `total_outstanding_debt` for outstanding debt notes.
+The server defaults to `detail=summary` for list commands. The first four commands use summary mode — the convertible notes summary includes a `maturity` block with `nearest_date` and `total_outstanding_debt` for outstanding debt notes. The 83(b) list always returns its `summary` with the rows: `not_filed_open` and `next_deadline` count only deadlines today or later.
 
-If the user asks about a specific check only (e.g. "any expiring 409As?"), fetch only the relevant command per company.
+If the user asks about a specific check only (e.g. "any expiring 409As?"), read only the relevant command per company.
 
-> **Parallel execution**: The `fetch` tool has `readOnlyHint=true`, so Claude Code executes parallel fetch calls concurrently. Issue ALL fetch calls for ALL companies in a single response — do NOT loop company-by-company. See Workflow Step 2.
+> **Parallel execution**: The `read_tool` tool has `readOnlyHint=true`, so Claude Code executes parallel `read_tool` calls concurrently. Issue ALL `read_tool` calls for ALL companies in a single response — do NOT loop company-by-company. See Workflow Step 2.
 
 ## Key Fields
 
 From 409A: `expiration_date`, `price`, `effective_date`
 From cap table option plans: `available_ownership`, `name`
 From convertible notes (summary): `maturity.nearest_date`, `maturity.total_outstanding_debt`, `by_status`, `by_type`
+From 83(b) elections: `summary.not_filed_open`, `summary.next_deadline`; each row's `holder_name`, `label`, `type`, `deadline`
+From Rule 701: `within_limit`, `from_date`, `to_date`; each test's `type`, `result`, `limit`, `used`, `remaining`
 
 ## Workflow
 
 ### Step 1 — Get Portfolio
 
-Call `list_accounts` to get all `corporation_pk` accounts. Extract up to 20 numeric corporation IDs.
+For a full-portfolio scan, call `list_accounts` to get all `corporation_pk` accounts. Extract up to 20 numeric corporation IDs.
 
 ### Step 2 — Fetch Data for All Companies (parallel)
 
-Issue ALL fetch calls for ALL companies **in a single response** — do NOT loop company-by-company. Each fetch call is independent and will execute concurrently.
+Issue ALL `read_tool` calls for ALL companies **in a single response** — do NOT loop company-by-company. Each `read_tool` call is independent and will execute concurrently.
 
-For example, with 5 companies and all 4 checks, issue all 20 fetch calls at once:
+For example, with 5 companies and all 6 checks, issue all 30 `read_tool` calls at once:
 
 ```
-call_tool({"name": "cap_table__get__409a_valuations", "arguments": {"corporation_id": 1}})
-call_tool({"name": "cap_table__get__cap_table_by_share_class", "arguments": {"corporation_id": 1}})
-call_tool({"name": "cap_table__get__convertible_notes", "arguments": {"corporation_id": 1}})
-call_tool({"name": "cap_table__list__safes", "arguments": {"corporation_id": 1}})
-call_tool({"name": "cap_table__get__409a_valuations", "arguments": {"corporation_id": 2}})
-call_tool({"name": "cap_table__get__cap_table_by_share_class", "arguments": {"corporation_id": 2}})
+read_tool({"name": "cap_table__get__409a_valuations", "arguments": {"corporation_id": 1}})
+read_tool({"name": "cap_table__get__cap_table_by_share_class", "arguments": {"corporation_id": 1}})
+read_tool({"name": "cap_table__get__convertible_notes", "arguments": {"corporation_id": 1}})
+read_tool({"name": "cap_table__list__safes", "arguments": {"corporation_id": 1}})
+read_tool({"name": "cap_table__list__83b_elections", "arguments": {"company": 1, "status": "not_filed"}})
+read_tool({"name": "cap_table__get__rule_701", "arguments": {"company": 1}})
+read_tool({"name": "cap_table__get__409a_valuations", "arguments": {"corporation_id": 2}})
+read_tool({"name": "cap_table__get__cap_table_by_share_class", "arguments": {"corporation_id": 2}})
 ... (all companies)
 ```
 
@@ -101,6 +107,22 @@ Use `maturity.nearest_date` and `maturity.total_outstanding_debt` from the conve
 
 Sum outstanding SAFE amounts per company.
 
+#### 5. 83(b) Elections Not Filed
+
+| Check | Critical | Warning | Info | Rationale |
+|-------|----------|---------|------|-----------|
+| 83(b) deadline | A `not_filed` row with `deadline` within 7 days | A `not_filed` row with `deadline` later than 7 days | A `not_filed` row with `deadline` in the past | The IRS 30-day window cannot be extended; a past deadline is a record to confirm with the holder, not an action |
+
+The list can include holders outside the US, who do not file an 83(b). Name the holder and the security label for each finding.
+
+#### 6. Rule 701 Limit
+
+| Check | Critical | Warning | Info | Rationale |
+|-------|----------|---------|------|-----------|
+| Rule 701 | `within_limit` is false | The `disclosure` test fails, or `within_limit` is null | — | Rule 701 allows the greatest of the `amount`, `outstanding_shares` and `total_assets` limits; above $10M in 12 months the holders must get the extra disclosure before they buy |
+
+For room left, give the `remaining` of each limit test that ran: shares for `outstanding_shares`, the company currency for `amount` and `total_assets`. The company may use the test with the most room. `within_limit` null means the `total_assets` test did not run: ask the user for the total assets at the most recent balance sheet date, then call again with `total_assets`.
+
 ### Step 4 — Present Results
 
 Present a summary dashboard (see Presentation section).
@@ -109,8 +131,10 @@ Present a summary dashboard (see Presentation section).
 
 **Required inputs**: None — portfolio enumeration is automatic.
 
-**AI computation**: Yes — severity classifications (critical, warning, info) for 409A expiry, option pool health, note maturity, and SAFE exposure are AI-derived.
-Trigger the AI computation gate (see carta-interaction-reference §6.2) before outputting any severity classifications or health assessments.
+**AI computation**: Yes — severity classifications (critical, warning, info) for 409A expiry, option pool health, note maturity, SAFE exposure, 83(b) deadlines and Rule 701 limits are AI-derived.
+Before you fetch data or compute, call `AskUserQuestion` (never plain text) with: "No saved Carta model matches these terms. I can compute severity classifications using AI — this would be Claude's analysis, not Carta data. Would you like me to proceed?" If the user says no, stop: no output, no fallback. If the user says yes, start the computed output with:
+
+> ⚠️ **Claude's analysis** — computed from cap table data, not from a saved Carta model. Verify with counsel before relying on these numbers.
 
 **Subagent prohibition**: Not applicable.
 
@@ -148,10 +172,17 @@ Healthy (7): Alpha, Zeta, Eta, Theta, Iota, Kappa, Lambda
 | Beta Inc | 409A Expired | Critical | Expired Jan 14, 2025 | Order new 409A |
 | Acme Corp | 409A Expiring | Warning | Expires Apr 24, 2025 (37 days) | Schedule valuation |
 
+## Error Handling
+
+| Situation | What to do |
+|---|---|
+| A call fails for one company (403, `role_required` or any other error) | List that company as "not scanned" with the reason. Do not retry it, and carry on with the rest. |
+| 403, `role_required` or access denied on every company | Say the user's role can't see cap table data for these companies. Stop. |
+| Response too large | Do not send `detail: "full"` or `raw`. The default summary has every field this skill uses. |
+| Asked about a check this scan does not run (warrant expiry, terminations, capital calls) | Say which checks the scan runs. Do not show other data as an alert. |
+
 ## Caveats
 
 - Portfolio data reflects point-in-time API calls, not a single atomic snapshot
-- Companies with restricted permissions may have incomplete data
-- Rate limit: maximum 20 companies per invocation — ask the user to narrow scope if more than 20
-- Some companies may error (permissions, incomplete setup) — skip gracefully and note which failed
+- Rate limit: maximum 20 companies per invocation
 - Always show the scan date and count: "Scanned 12 companies on Mar 18, 2025"

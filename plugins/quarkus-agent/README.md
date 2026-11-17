@@ -63,12 +63,12 @@ Add to `.bob/mcp.json`:
 {
   "mcpServers": {
     "quarkus-agent": {
-      "command": "/home/you/.jbang/bin/jbang",
+      "command": "${env:JBANG_HOME}/bin/jbang",
       "args": [
         "quarkus-agent-mcp@quarkusio"
       ],
       "env": {
-        "JAVA_HOME": "/path/to/your/java/home"
+        "JAVA_HOME": "${env:JAVA_HOME}"
       },
       "disabled": false
     }
@@ -138,6 +138,51 @@ Alternatively, use the direct download method with an absolute path to `java`:
     }
   }
 }
+```
+
+#### SmallRye ACP client
+
+The [SmallRye ACP client](https://github.com/smallrye/smallrye-acp-client) can run ACP-compatible agents with Quarkus Agent MCP.
+
+Install the ACP CLI:
+
+```bash
+jbang app install --name acp io.smallrye.ai:acp-java-client:0.2.2:runner
+```
+
+Install an ACP agent from the registry (for example Claude Code):
+
+```bash
+acp registry install claude-acp
+```
+
+##### Using a JSON configuration file
+
+Create an `mcp-server.json` file:
+
+```json
+{
+  "type": "stdio",
+  "name": "quarkus-agent",
+  "command": "jbang",
+  "args": ["quarkus-agent-mcp@quarkusio"]
+}
+```
+
+Run an ACP-compatible agent:
+
+```bash
+acp run -a claude-acp \
+  --mcp-server-config mcp-server.json \
+  --backup no \
+  -p "Explore the tools available in my Quarkus application."
+```
+Then run the agent with Quarkus Agent MCP over stdio:
+
+```bash
+acp run -a claude-acp \
+  --mcp-server-config '{"type":"stdio","name":"quarkus-agent","command":"jbang","args":["quarkus-agent-mcp@quarkusio"]}' \
+  -p "Create a Quarkus REST app"
 ```
 
 ### Via direct download
@@ -215,7 +260,7 @@ cd quarkus-agent-mcp
 This produces the uber-jar at `target/quarkus-agent-mcp-1.0.0-SNAPSHOT-runner.jar` (version may vary).
 
 ```bash
-claude mcp add -s user quarkus-agent -- java -jar /path/to/quarkus-agent-mcp/target/quarkus-agent-mcp-1.2.8-runner.jar
+claude mcp add -s user quarkus-agent -- java -jar /path/to/quarkus-agent-mcp/target/quarkus-agent-mcp-1.2.13-runner.jar
 ```
 
 #### Verify
@@ -236,7 +281,7 @@ Ask your agent to build a Quarkus application using natural language. The agent 
 
 > **You:** Create a Quarkus REST API with a greeting endpoint and a PostgreSQL database
 >
-> **Agent:** _(uses `quarkus_create` to scaffold the project with `rest-jackson,jdbc-postgresql,hibernate-orm-panache` extensions — the app starts automatically in dev mode and a `CLAUDE.md` is generated with project-specific workflow instructions)_
+> **Agent:** _(uses `quarkus_create` to scaffold the project with `rest-jackson,jdbc-postgresql,hibernate-orm-panache` extensions — the app starts automatically in dev mode and an `AGENTS.md` is generated with project-specific workflow instructions)_
 >
 > **Agent:** _(calls `quarkus_skills` to learn the correct patterns for Panache, REST, and other extensions before writing any code)_
 >
@@ -253,7 +298,7 @@ NEW PROJECT                           EXISTING PROJECT
 
 1. quarkus_create                     1. quarkus_start
    → scaffolds + auto-starts             → starts dev mode
-   → generates CLAUDE.md
+   → generates AGENTS.md
                                       2. quarkus_skills
 2. quarkus_skills                        → learn extension patterns
    → learn extension patterns            → query 'quarkus-update' to check version
@@ -282,7 +327,7 @@ Since the process belongs to your terminal, `quarkus_stop` only detaches, and `q
 - **Skills before code** — the agent reads extension-specific skills to learn correct patterns, testing approaches, and common pitfalls before writing any code.
 - **Tests via subagents** — if your agent supports subagents, test execution can be dispatched to one so the main conversation stays responsive.
 - **The MCP server survives crashes** — if the app crashes due to a code error, the agent can use `devui-exceptions_getLastException` to get structured exception details (class, message, stack trace, user code location) and fix it. Use `quarkus_logs` for broader context.
-- **CLAUDE.md** — every new project gets a `CLAUDE.md` with Quarkus-specific workflow instructions that guide the agent.
+- **AGENTS.md** — every new project gets an `AGENTS.md` with Quarkus-specific workflow instructions that guide the agent.
 
 ### What the agent can do with a running app
 
@@ -334,13 +379,25 @@ To narrow results to a specific extension, use the `extension` parameter:
 quarkus_searchDocs query="broadcasting messages" extension="quarkus-json-rpc"
 ```
 
+#### Without Docker or Podman
+
+Where no container runtime is available (or wanted), for example when the server runs in a sandbox, point it at a doc-search database that is already running instead. The simplest one is the image the server would otherwise start itself, run as a service that publishes PostgreSQL on 5432 and the embedding server on 9222:
+
+```bash
+docker run -d -p 5432:5432 -p 9222:9222 \
+  -e POSTGRES_USER=quarkus -e POSTGRES_PASSWORD=quarkus -e POSTGRES_DB=quarkus \
+  ghcr.io/quarkusio/quarkus-agent-pgvector:pg17
+```
+
+Then start the MCP server with `AGENT_MCP_DOC_SEARCH_PG_HOST=<host>` (and `AGENT_MCP_DOC_SEARCH_EMBEDDING_URL` if the embedding server is elsewhere). No container is started and Docker is never contacted. Every Quarkus version shares that one database, and docs are loaded into it as they would be into a container. If the database is loaded ahead of time and clients should only read it, also set `AGENT_MCP_DOC_SEARCH_READ_ONLY=true`.
+
 ## MCP Tools Reference
 
 ### App Creation
 
 | Tool | Description | Parameters |
 |------|-------------|------------|
-| `quarkus_create` | Create a new Quarkus app, auto-start in dev mode, generate CLAUDE.md | `outputDir` (required), `groupId`, `artifactId`, `extensions`, `buildTool`, `quarkusVersion`, `noCode`, `noWrapper`, `createInCurrentDir` |
+| `quarkus_create` | Create a new Quarkus app, auto-start in dev mode, generate AGENTS.md | `outputDir` (required), `groupId`, `artifactId`, `extensions`, `buildTool`, `quarkusVersion`, `noCode`, `noWrapper`, `createInCurrentDir` |
 
 ### Extension Skills
 
@@ -450,6 +507,13 @@ Configuration via `application.properties`, system properties (`-D`), or environ
 | `agent-mcp.doc-search.pg-password` | `quarkus` | PostgreSQL password |
 | `agent-mcp.doc-search.pg-database` | `quarkus` | PostgreSQL database |
 | `agent-mcp.doc-search.min-score` | `0.82` | Minimum similarity score for search results |
+| `agent-mcp.doc-search.pg-host` | _(none)_ | Host of an existing doc-search database. When set, no container is started and Docker/Podman is not needed |
+| `agent-mcp.doc-search.pg-port` | `5432` | Port of the existing doc-search database |
+| `agent-mcp.doc-search.embedding-url` | `http://<pg-host>:9222` | Embedding server for the existing database |
+| `agent-mcp.doc-search.read-only` | `false` | With `pg-host`: never write to the database (no docs loading); for databases loaded ahead of time |
+| `agent-mcp.tools.browser.enabled` | `true` | Set to `false` to leave `quarkus_browser` out of the tool list, e.g. in headless or remote setups |
+| `agent-mcp.dev-mcp.request-timeout` | `PT30S` | How long `quarkus_callTool` waits for an answer from the app's Dev MCP server |
+| `agent-mcp.dev-mcp.test-request-timeout` | `PT10M` | How long `quarkus_callTool` waits for the test-runner tools (`devui-testing_run*`), which answer only once the run ends |
 | `agent-mcp.local-skills-dir` | `~/.quarkus/skills` | Directory for user-level skill customizations |
 | `agent-mcp.process.mvn-cmd` | _(auto-detect)_ | Override the Maven command used to start dev mode (e.g. `mvn` to skip wrapper detection) |
 | `agent-mcp.process.gradle-cmd` | _(auto-detect)_ | Override the Gradle command used to start dev mode (e.g. `gradle` to skip wrapper detection) |
@@ -545,6 +609,7 @@ This is a [Quarkus core issue](https://github.com/quarkusio/quarkus/issues/53739
 
 ## Related Projects
 
+- [SmallRye ACP client](https://github.com/smallrye/smallrye-acp-client) — Java client for the Agent Client Protocol (ACP)
 - [Quarkus Dev MCP](https://github.com/quarkusio/quarkus) — Built-in MCP server inside running Quarkus apps
 - [quarkus-skills](https://github.com/quarkusio/skills) — Community workflow skills for Quarkus (Agent Skills specification)
 - [code-with-quarkus-compare](https://github.com/quarkusio/code-with-quarkus-compare) — Reference projects for build file comparison

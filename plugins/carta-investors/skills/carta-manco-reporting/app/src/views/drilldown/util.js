@@ -1,6 +1,13 @@
 // Helpers for filtering the entries[] fixture by the current drill-down selection.
-import { dimensionValue, noValueLabel } from "../../ui/dimension.js";
+import { quarterLabel } from "../budgetPeriods.js";
+import { dimensionValue, noValueLabel, rowTagScope } from "../../ui/dimension.js";
 
+
+/** Whether a ledger entry falls in a budget's year. An entry without a `yr`
+ *  is kept, as is any entry when no year is given. */
+export function entryInYear(entry, periodYear) {
+  return !periodYear || entry.yr == null || Number(entry.yr) === Number(periodYear);
+}
 
 // A real fund name can carry regex metacharacters ("Fund II (Onshore), L.P.") —
 // escape it so they compare literally. Bounded by a word-char lookaround
@@ -24,7 +31,7 @@ export function selectionTitle(sel) {
   if (!sel) return "";
   if (sel.kind === "account") {
     const value = sel.childScope
-      ? (sel.childScope.value ?? noValueLabel(sel.childScope)) : null;
+      ? (sel.childScope.display ?? sel.childScope.value ?? noValueLabel(sel.childScope)) : null;
     const head = value ? `${sel.name} · ${value}` : sel.name;
     return sel.periodLabel ? `${head} — ${sel.periodLabel}` : head;
   }
@@ -42,9 +49,10 @@ export function selectionTitle(sel) {
     }
     return `${sel.account} — ${sel.tag_value}`;
   }
-  if (sel.kind === "outline-cell")   return sel.quarter && sel.quarter !== "Total"
-                                            ? `${sel.label} — ${sel.quarter}`
+  if (sel.kind === "outline-cell")   return sel.periodLabel
+                                            ? `${sel.label} — ${sel.periodLabel}`
                                             : sel.label;
+  if (sel.kind === "custom-report")  return sel.label || "";
   return "";
 }
 
@@ -103,13 +111,12 @@ export function filterFundFeeEntries(fundFeeEntries, sel) {
   // Word-boundary match so e.g. "Fund II" doesn't also catch "Fund III".
   if (sel?.kind === "outline-cell" && sel.fundMatch) {
     const rx = fundMatchRegex(sel.fundMatch);
-    const months = QUARTER_MONTHS[sel.quarter] || null;
-    const yr = sel.periodYear ? Number(sel.periodYear) : null;
+    const months = outlineMonths(sel);
     // A fee and its offset are different accounts. Naming one reports one;
     // naming none is the fund's net — the same rule the row's figure uses.
     const only = new Set(sel.glCodes || []);
     const mine = fundFeeEntries.filter((e) => {
-      if (yr && Number(e.yr) !== yr) return false;
+      if (!entryInYear(e, sel.periodYear)) return false;
       if (months && !months.has(e.mo)) return false;
       if (only.size && !only.has(e.acct_type)) return false;
       return rx.test(e.fund || "");
@@ -156,7 +163,7 @@ export function quarterlyFeeSummary(scheduleTerms, committedCapital, year) {
       t.start_date <= qStart && (!t.end_date || t.end_date >= qStart));
     if (!period || period.fee_rate == null) continue;
     rows.push({
-      quarterLabel: `Q${q + 1} ${year}`,
+      quarterLabel: quarterLabel(q + 1, year),
       periodName: period.period_name,
       startDate: qStart,
       endDate: qEnd,
@@ -168,14 +175,11 @@ export function quarterlyFeeSummary(scheduleTerms, committedCapital, year) {
   return rows;
 }
 
-// Month buckets per quarter, for outline-cell drills. "Total" maps to no
-// constraint (handled by callers as a null lookup).
-export const QUARTER_MONTHS = {
-  Q1: new Set([1, 2, 3]),
-  Q2: new Set([4, 5, 6]),
-  Q3: new Set([7, 8, 9]),
-  Q4: new Set([10, 11, 12]),
-};
+// The months an outline drill covers: the column it opened from. A Total
+// column carries none, which callers read as no month constraint.
+function outlineMonths(sel) {
+  return Array.isArray(sel?.months) ? new Set(sel.months) : null;
+}
 
 // Filter the entries[] fixture down to just the rows this selection covers.
 //
@@ -186,6 +190,9 @@ export const QUARTER_MONTHS = {
 // already have their own dedicated bars.
 export function filterEntries(entries, sel, topCategoryNames = []) {
   if (!sel || !entries) return [];
+  // A drawer opened from a budget cell lists what that cell summed, and the
+  // cell only sums entries of the budget's own year.
+  if (sel.periodYear) entries = entries.filter(e => entryInYear(e, sel.periodYear));
   if (sel.kind === "account") {
     // The cell that opened this can be narrower than the account: one
     // column of a period axis, one value of a breakout beneath the row, or
@@ -226,6 +233,11 @@ export function filterEntries(entries, sel, topCategoryNames = []) {
       e.kind === "expense" && inRange(e.date) && e.account === sel.category
     );
   }
+  if (sel.kind === "custom-report") {
+    // The custom report hands over the exact entries it already computed
+    // the clicked figure from, rather than restating a filter here.
+    return sel.entries || [];
+  }
   if (sel.kind === "outline-total") {
     // A subtotal has no accounts of its own — it means the lines beneath
     // it. Each is filtered exactly as it would be on its own click, and
@@ -256,20 +268,36 @@ export function filterEntries(entries, sel, topCategoryNames = []) {
     if (sel.fundMatch) return [];
     const typeSet = new Set(sel.glCodes || []);
     if (typeSet.size === 0) return [];
-    const months = QUARTER_MONTHS[sel.quarter] || null;   // null = Total, all months
+    const months = outlineMonths(sel);   // null = Total, all months
     const tagSet = sel.cartaTags ? new Set(sel.cartaTags) : null;
+    // The same precedence computeLineActuals uses: this line's own
+    // reporting-tag scope first, else the shared dimension the selection
+    // carries. Read straight from `sel` — the drill payload already carries
+    // the row's own `scopes` and `tag_value` — so a cell's own scope still
+    // wins even if the click that opened it only passed the workbook-wide
+    // dimension along.
+    const tagDimension = tagSet ? rowTagScope(sel, sel.dimension, true) : null;
     // A line scoped to a sub-account (or a vendor) reports that slice of
     // its accounts. Showing the account's whole spend behind it invites
     // the reader to reconcile against a figure that was never the row's.
     const scopes = (sel.scopes || []).filter(sc => sc.source !== "reporting_tag");
     const claims = sel.excludedClaims || [];
+    // Entries this line lost to a more specific line in the tie-break: the
+    // row's own figure no longer counts them, so the drawer can't either.
+    // Identified by the entry itself, not by its id: a firm's ledger can
+    // carry the same journal-line id on two different lines, which a key
+    // built from the id would silently collapse into one, and an entry with
+    // no id at all would never match an id-keyed set.
+    const excluded = sel.excludedEntries && sel.excludedEntries.length
+      ? new Set(sel.excludedEntries) : null;
     return entries.filter(e => {
       if (!typeSet.has(e.acct_type)) return false;
       if (months && !months.has(e.mo)) return false;
+      if (excluded && excluded.has(e)) return false;
       if (scopes.length
           && !scopes.every(sc => dimensionValue(e, sc) === sc.value)) return false;
       if (tagSet) {
-        const v = dimensionValue(e, sel.dimension);
+        const v = dimensionValue(e, tagDimension);
         if (v == null || !tagSet.has(v)) return false;
       } else if (claims.length
                  && claims.some(c => dimensionValue(e, c) === c.value)) {
@@ -351,7 +379,9 @@ export function tagKey(cat, val) {
 // Tag rollup is keyed by (category, value) tuples; the returned top_tags list
 // is grouped by category downstream in the UI.
 export function aggregate(entries) {
-  const monthly = [0, 0, 0, 0, 0, 0, 0];
+  // Twelve. Seeded with seven, a booking after July wrote past the end
+  // and left holes, which took the chart's whole scale with them.
+  const monthly = new Array(12).fill(0);
   const vendors = new Map();
   const tags    = new Map();  // key = tagKey(cat, val)
   const partners = new Map();

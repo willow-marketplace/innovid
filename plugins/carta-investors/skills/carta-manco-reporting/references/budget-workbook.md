@@ -22,36 +22,53 @@ order:
    what it is rather than what one firm called it, and a ref written before
    that still says the old word. Read it as the new one and carry on; the
    next write records the new spelling.
-   - Carries `path`/`sheet`/`shape` and the file still exists → reuse the
-     already-parsed `budget*.json` files silently and skip 2.75b entirely.
-     **A parsed budget is not re-parsed just because the workbook's mtime
-     changed on disk.** Only two things trigger a real re-parse:
+   - Carries `path`/`sheet`/`shape` → decide **whether a re-parse is
+     needed at all** before ever checking whether the source workbook is
+     still on disk. Only two things call for a real re-parse:
      - **An explicit ask** — the user's invocation passes
        `--budget-workbook <path>` again (case 1 above), deletes
        `.workbook-ref.json`, or says something like "refresh the budget" /
        "re-parse the workbook" / "the workbook changed" for this run.
-       Reuse `path`/`sheet`/`shape` silently (still no need to re-ask which
-       tabs) and go to 2.75b.
      - **The cached parse is broken** — a budget entry's `file` is missing
        from `<dashboard_dir>`, or fails to read as the JSON
        `build_manco_datadir.py` expects. A ref pointing at output that no
        longer exists or doesn't parse isn't a cache hit for that entry;
-       treat it as absent and re-parse it from `<WORKBOOK_PATH>`.
-     Absent either of those, go straight to 2.75c (nothing new to record)
-     / 2.75e. An edited-but-unmentioned workbook is out of scope for this
+       treat it as absent and in need of re-parsing.
+
+     **Neither applies** → reuse the already-parsed `budget*.json` files
+     silently and skip 2.75b entirely — **without checking whether the
+     source workbook at `path` still exists.** Resurfacing a dashboard is
+     served from this cache, never from the source `.xlsx` again, so a
+     workbook the operator has since moved, renamed, or deleted off their
+     machine is not a reason to take Budget vs Actuals down on a run that
+     never needed to open it. **A parsed budget is not re-parsed just
+     because the workbook's mtime changed on disk, or the file moved, or
+     it's gone entirely** — go straight to 2.75c (nothing new to record) /
+     2.75e. An edited-but-unmentioned workbook is out of scope for this
      run — the operator gets a refresh when they ask for one, not on every
      re-invocation.
-   - Carries `path` but the file is gone → go to 2.75a-0 and try to find
-     it before giving up.
-   - Carries `{"declined": true}` → the operator has already answered.
-     Skip 2.75 silently.
+
+     **Either trigger applies** → an actual re-parse is coming, so now —
+     only now — the source file's presence matters:
+     - File still at `path` → reuse `path`/`sheet`/`shape` silently (still
+       no need to re-ask which tabs) and go to 2.75b.
+     - File is gone → go to 2.75a-0 and try to find it before giving up.
+   - Carries `"declined": true` and no `deferred` key → the operator has
+     already answered. Skip 2.75 silently. `use_carta_budget` (see 2.75a-i)
+     decides whether `build_manco_datadir.py` pulls in Carta's stored
+     budget — 2.75 itself is only about the Excel workbook. A ref without
+     the key is read as **Skip for now** (actuals only); do not re-ask.
+     The operator moves to Carta's budget by deleting the ref, as below.
    - Carries `{"declined": true, "deferred": true}` → written by an
      earlier version that defaulted rather than asking, so this firm has
      never actually been asked. Treat it as unanswered: go to 2.75a-i.
-3. **Neither** → this firm has never been asked. Go to 2.75a-i and ask,
-   before the dashboard is built. The budget is what the operator came
-   for; building on a fallback they were never offered, and raising it
-   afterwards, means the first thing they see is the wrong report.
+3. **Neither** → this firm has never been asked. Silently go to 2.75a-i and
+   ask, before the dashboard is built. Do not narrate the branch that got
+   you here ("no ref exists for this firm" or similar) — the question
+   2.75a-i asks is the first visible output, not an explanation of why it's
+   coming. The budget is what the operator came for; building on a
+   fallback they were never offered, and raising it afterwards, means the
+   first thing they see is the wrong report.
 
 #### 2.75a-0 — The ref's workbook is missing
 
@@ -60,7 +77,7 @@ operator renamed or moved the file. The tabs travel with it, so look
 before declaring the budget lost.
 
 ```bash
-uv run "${CLAUDE_PLUGIN_ROOT}/skills/carta-manco-reporting/scripts/inspect_workbook.py" \
+<UV_BIN> run "${CLAUDE_PLUGIN_ROOT}/skills/carta-manco-reporting/scripts/inspect_workbook.py" \
   --find-in "<directory the ref's path pointed at>" \
   --require-sheets "<every sheet the ref names>"
 ```
@@ -110,16 +127,28 @@ not be told the report is about departments. The same rule the dashboard
 follows with `dimensionLabel` — answer in the firm's own word, or in none
 at all.
 
-Options:
+Use these three option captions verbatim in the `AskUserQuestion` (label —
+description):
+
+- **Your Excel workbook** — upload your own budgeting report from Excel.
+- **The budget in Carta** — use Carta's stored budget, broken out per
+  account.
+- **Skip for now** — actuals-only, sourced from Carta journals.
+
+What each selection does:
 - **Your Excel workbook** → collect the file per [Asking for a
   file](#asking-for-a-file) below, then continue to 2.75a-ii.
-- **The budget in Carta** → write `{"declined": true}` to
+- **The budget in Carta** → write
+  `{"declined": true, "use_carta_budget": true}` to
   `<dashboard_dir>/.workbook-ref.json` and skip the rest of Step 2.75.
   The dashboard renders a per-account Budget vs Actuals from Carta's own
   budget.
-- **Neither / skip for now** → same `{"declined": true}`. Carta's budget
-  is used if the firm has one; if not, the dashboard is actuals-only and
-  the Budget vs Actuals page does not appear.
+- **Skip for now** → write
+  `{"declined": true, "use_carta_budget": false}`. This is actuals-only,
+  full stop — Carta's stored budget is **not** pulled in as a silent
+  fallback even when one exists; that is what the option above is for. The
+  Budget vs Actuals page does not appear, and Monthly Actuals (GL account
+  rows, no budget columns) takes its place in the nav.
 
 Record the answer either way: without it every future invocation re-asks,
 and a firm that keeps its budget in Carta would be prompted forever.
@@ -166,9 +195,11 @@ one — a sheet name like `Budget vs Actuals (Dept View)` has to be typed
 exactly, and getting it wrong fails the parse:
 
 ```bash
-uv run "${CLAUDE_PLUGIN_ROOT}/skills/carta-manco-reporting/scripts/inspect_workbook.py" \
+<UV_BIN> run "${CLAUDE_PLUGIN_ROOT}/skills/carta-manco-reporting/scripts/inspect_workbook.py" \
   --workbook "<WORKBOOK_PATH>" \
-  --accounts "<raw_dir>/accounts-all.txt"
+  --accounts "<raw_dir>/accounts-all.txt" \
+  --tags-from "<dashboard_dir>/accounts.json" \
+  --vendors-from "<dashboard_dir>/accounts.json"
 ```
 
 The JSON lists every sheet, ordered so budget-looking tabs come first and
@@ -180,6 +211,12 @@ whether the shape is stated or asked about.
 
 `--accounts` points at the chart of accounts Step 2.6 fetched. **Drop the
 flag when that file does not exist** — the run stays correct without it.
+It is also what lets `coa-mapping` detection read a candidate tab's actual
+column values (see 2.75e) instead of only the older repeat-ratio guess.
+`--tags-from`/`--vendors-from` sharpen that further with the firm's real
+reporting-tag and vendor values, the same way `--carta-tags-from` sharpens
+`parse_coa_mapping.py` — **drop both on a first-ever ingest**, where
+`<dashboard_dir>/accounts.json` doesn't exist yet.
 
 With it, each sheet also carries a `row_axis`: which label column its rows
 live in, how many of them name an account Carta already holds, and a
@@ -344,7 +381,7 @@ Run once per entry in `<SHEETS>`. The first selection writes
 build script tells the primary from the rest.
 
 ```bash
-uv run "${CLAUDE_PLUGIN_ROOT}/skills/carta-manco-reporting/scripts/parse_budget_workbook.py" \
+<UV_BIN> run "${CLAUDE_PLUGIN_ROOT}/skills/carta-manco-reporting/scripts/parse_budget_workbook.py" \
   --workbook "<WORKBOOK_PATH>" \
   --sheet "<SHEET_NAME>" \
   --shape "<SHAPE_ADAPTER>" \
@@ -371,6 +408,21 @@ cost the operator the tabs that did work.
 That applies to a sheet the adapter could not read. A sheet it read and
 then **refused** is a different thing, and carrying on is the wrong
 answer — see 2.75b-iii.
+
+**Totals readout.** For a `pnl-outline` sheet whose formulas the parser
+could read, it also prints an indented readout to stderr — every root
+total down through what it sums, with a ✓/✗ against the *signed* sum of
+its own children. A child the total's own formula subtracts prints with a
+leading `-`, whether that child is a leaf line or another total with its
+own children underneath. It prints whether the gate passes or refuses —
+see 2.75b-iii for reading it alongside a `tie_out` refusal. Skim it before
+moving on: a dept total sitting under the wrong grand total, or a ✗, is
+visible here in the first minute rather than surfacing later as a
+dashboard number nobody can explain. A total with **no mark at all** (its
+amount printed as `—`, or printed as a number but still unmarked) means
+either its own stated amount isn't a number the parser could read, or its
+formula also adds a constant or a cross-sheet value alongside the rows
+shown — nothing here failed to tie, it simply can't be checked this way.
 
 #### 2.75b-i — The window actuals are summed over
 
@@ -459,9 +511,11 @@ would be silently misread.
 
 `parse_budget_workbook.py` checks its own output before writing it: that
 the line rows aren't all zero, that the workbook's own stated totals tie
-to the rows beneath them, and that it read a plausible share of the
-sheet's numeric rows. A refusal exits 5, writes nothing, and names the
-check and the figures.
+to the rows beneath them, that it read a plausible share of the sheet's
+numeric rows, and that its own figures aren't implausible in magnitude (a
+line over 1,000,000,000 in the workbook's own currency, or opex more
+than 20x income). A refusal exits 5, writes nothing, and names the check
+and the figures.
 
 **A refusal is a question, not a verdict.** The adapter read the sheet;
 what it produced doesn't hold together. Nearly always the operator knows
@@ -482,17 +536,66 @@ Read the check name in the error and work it through:
   parse to fail the same way twice. Take the operator's own description
   instead. Only a genuinely empty template justifies `--skip-validation`.
 
-- **`tie_out`, refused** — a stated total is off from the rows we summed
-  by a multiple, or against the opposite sign. When the sum is *larger*
-  than the total, the outline usually ran past the end of the budget into
-  a supporting schedule and counted it twice; ask the operator for the
-  last row of the real budget and re-run with `--stop-label "<that row>"`.
-  When the sum is *smaller*, lines the total covers weren't read as lines
-  — that's a parser limit, not a missing answer, so say so plainly rather
-  than sending them looking for a setting that doesn't exist.
+- **`tie_out`, refused** — a stated total is off from what it was compared
+  against by a multiple, or against the opposite sign. When the sum is
+  *larger* than the total, the outline usually ran past the end of the
+  budget into a supporting schedule and counted it twice; ask the operator
+  for the last row of the real budget and re-run with
+  `--stop-label "<that row>"`.
+  When the sum is *smaller*, the refusal message names what the gate
+  actually compared the total against — its own formula's children, when
+  it has one (a line or another total, each by label) — so read that list
+  before asking anything. Pair it with the totals readout above: the same
+  total appears there with a ✗, and its children are printed right beneath
+  it, so a row reading as the wrong side (filed under Income when its own
+  formula sits inside Operating Expenses, say) or carrying an unexpected
+  figure is usually visible without opening the workbook. Put what the
+  readout shows in front of the operator and ask about that, rather than
+  guessing a setting or declaring it unreadable before you've looked:
+  *"`<Total>` reads as 142.8M, but its own formula's pieces — `<child A>`:
+  `<value>`, `<child B>`: `<value>` — only add to 51.9M. Does one of these
+  belong on the other side, or under a different total?"*
+  A *total of subtotals* ties on its own: the gate ties a total
+  against the children its own formula names — `=N46+N50+…` sums two
+  subtotal cells, not a `SUM(`/`SUBTOTAL(` range over leaf lines — so a
+  grand total whose formula names several subtotals, or only its final
+  sub-block (e.g. a mgmt-fee grand total reading `<funds subtotal> +
+  <creator>`, widened against every line row the section's last total
+  visibly sits over when it has no such tree) ties on its own.
+
+  Only once you've shown the operator the readout and the mismatch, and
+  they've told you the parse is correct as it stands, re-run with
+  `--skip-validation` — ask for that confirmation in those terms ("use the
+  parse as shown"), not as though they had already reviewed the workbook
+  before you showed them anything.
 
 - **`coverage`** — far fewer rows emitted than the sheet has numbers in.
   The shape or the sheet is wrong; re-confirm both.
+
+- **`plausibility`** — a line over 1,000,000,000 in the workbook's own
+  currency, or opex more than 20x income, is flagged as possibly a units
+  or formula error rather than a real operating plan — a pay-period
+  count multiplied into a figure is a real case this caught. A workbook
+  can tie out perfectly and still fail this: tying out only says the
+  total agrees with its own parts, not that either is a sane number.
+  Neither trigger is conclusive on its own, though — both have genuine
+  cases:
+  - The line cap reads raw workbook units, not dollars. A low-unit-value
+    currency (JPY, KRW, VND, IDR) can carry a legitimately large raw
+    figure for an ordinary expense; ask the operator which currency the
+    workbook is in before assuming the number itself is wrong — don't
+    rely on `manco-currency.txt` existing yet, since this refusal is
+    typically the first thing to fire, often before Step 3 has fetched it.
+  - The opex/income ratio also fires on an ordinary pre-close or
+    first-close ManCo plan whose fee income hasn't started yet — ask the
+    operator whether income starts mid-year before treating the opex
+    figure as an error.
+  The message names the offending line(s) by label and value, or the
+  opex/income figures and ratio; put those cells in front of the
+  operator, along with what the workbook's currency is and when the firm
+  closes. Once they've confirmed the figures are real as parsed, re-run
+  with `--skip-validation` — same as `tie_out`, offer it only after
+  showing them the message, framed as "use the parse as shown".
 
 Put the figures in front of them rather than the check name: *"On `<tab>`
 the sheet's own Total Expenses says $741,000, but the lines under it add
@@ -566,12 +669,15 @@ list wholesale — so dropping a tab from the selection drops its view.
 
 **This file is what makes a parsed budget count.** `build_manco_datadir.py`
 ignores `budget*.json` in a firm's cache dir unless the ref accounts for
-them and the source workbook is still where the ref says. The ref is the
-record of intent; the JSON beside it is derived output. Without that rule
-a budget, once ingested, renders forever — outliving a decline at the
-prompt and outliving the workbook it came from. If the build script warns
-about orphaned budget files, it means parsed output is present with no ref
-to explain it, and the fix is to re-ingest rather than to trust it.
+them. The ref is the record of intent; the JSON beside it is derived
+output. Without that rule a budget, once ingested, renders forever —
+outliving a decline at the prompt. If the build script warns about
+orphaned budget files, it means parsed output is present with no ref to
+explain it, and the fix is to re-ingest rather than to trust it. **The
+build script does not check whether the source workbook is still where
+the ref says** — it never reads that file, only the parsed JSON beside it,
+so the operator moving or deleting their own workbook after ingest has no
+effect on a dashboard resurfacing from cache.
 
 #### When `<WORKBOOK_PATH>` is a locally-transformed copy, not the client's own file
 
@@ -621,110 +727,65 @@ their own way, and those labels have to be bridged to Carta's GL codes and
 `<dashboard_dir>/.coa-mapping-ref.json` already records one — go straight
 to the parse below.
 
-**Look in the workbook already in play before asking for a file.** Step
-2.75a-ii's `inspect_workbook.py` run classifies every sheet, and a client
-who maintains a Carta-GL-to-budget-category mapping usually keeps it as a
-tab in the same file — `likely_shape: "coa-mapping"`. When one is there,
-use it: parse that sheet and say so in one line, rather than asking for a
-file the operator would have to go and find inside the workbook they just
-sent. Ask only when no sheet is classified that way. Carry its name
-forward as `<COA_MAPPING_SHEET_NAME>` — the parser matches by exact sheet
-name and does not default to whichever tab was just classified.
+**Look in the workbook already in play before asking for a file — and read
+every candidate tab by what its columns actually hold, not by its name.**
+Step 2.75a-ii's `inspect_workbook.py` run (with `--accounts`/`--tags-from`/
+`--vendors-from`) already checked every non-budget sheet's columns against
+the firm's real chart of accounts, reporting tags, sub-accounts and
+vendors. A sheet carrying `likely_shape: "coa-mapping"` is a mapping
+whatever it pairs — Carta's own GL code or account name against the
+firm's own code, its own category words, a reporting tag, a sub-account or
+a vendor — and `mapping_columns` names which column plays which role.
+Use it: parse that sheet and say what pairing it found, in one line, from
+`mapping_kind` (e.g. *"Reading `<sheet>` as a mapping — Carta accounts, by
+name, to your own categories."*). **Ask for a file only when no sheet is
+detected as a mapping at all.** Carry its name forward as
+`<COA_MAPPING_SHEET_NAME>` — the parser matches by exact sheet name and
+does not default to whichever tab was just classified.
 
-This is not a small convenience. Without the mapping, a budget written in
+This is not a small convenience. Without a mapping, a budget written in
 the firm's own words resolves almost no actuals — one real workbook went
 from 5 of 92 lines carrying Carta GL codes to 38, and the Actual column
 from blank to populated, on nothing but reading a tab that was already
 in the file.
 
-**Check whether any selected sheet is `pnl-outline` first — it changes
-which options are honest to offer.** `shapes/pnl_outline.py`'s GL-code
-resolution (`_gl_codes_for`) tries a supplied mapping record's category
-first, then falls back to a Carta account number the line's own label
-states (a 4-digit code, leading 4-7 — e.g. "4100 - Client Fees"). A line
-named only in the firm's own words ("Salaries, Benefits, and Payroll
-Taxes") still needs a mapping; a line already carrying its own Carta code
-resolves with no mapping file at all. `tag-crosstab` remains stronger
-still — its GL codes come straight out of column A for every row,
-independent of a line's label text or any mapping file.
-
-Ask once, via a single `AskUserQuestion` — the wording depends on whether
-any selected sheet is `pnl-outline`:
-
-**No `pnl-outline` sheet selected** (tag-crosstab only) — the original
-three-way question, unchanged:
-
-> **Does this budget use your own category or breakout names?**
-> Line items, and whatever the budget breaks them out by, have to be
-> matched to Carta GL accounts and your own reporting-tag values before
-> actuals can be resolved against them.
-
-Options:
-- **Yes, and I have the mapping file** → collect it per [Asking for a
-  file](#asking-for-a-file), then parse it as below. This is the reliable
-  route and worth asking for.
-- **No mapping file — I'll map natively to Carta** → proceed. Say the
-  caveat below. This still only covers GL-account matching by name (Step
-  4.7 does that regardless of a mapping file); deriving department/tag
-  correspondence from the firm's own Carta data is planned, not yet
-  built.
-- **No — the tab already carries Carta GL codes** → skip, no caveat
-  needed. A tag-crosstab with GL codes in column A is the common case
-  here, and this shape genuinely resolves them without a mapping file.
-
-**At least one `pnl-outline` sheet selected** — drop the third option
-entirely, since a sheet mixing coded and named lines can't promise every
-line resolves:
-
-> **Do you have a Carta GL-to-budget-category mapping for this workbook?**
-> `<sheet name>` reads top-to-bottom like an income statement. Lines
-> already named after a Carta account (e.g. "4100 - Client Fees") resolve
-> on their own; lines named only in your own words ("Salaries,
-> Benefits, and Payroll Taxes") need a mapping file to match to a Carta
-> account.
-
-Options:
-- **Yes, I have one** → collect it per [Asking for a
-  file](#asking-for-a-file), then parse it as below.
-- **No mapping file — I'll map natively to Carta** → proceed. Say the
-  caveat below.
-
-**Say this whenever proceeding without a mapping file** (either "No
-mapping file — I'll map natively to Carta" branch above): *"I'll match
-each budget line to your Carta chart of accounts directly — anything I
-can't resolve with confidence, you'll get to confirm before the
-dashboard renders."* Name the attempt up front rather than only the
-failure mode: Step 4.7 is where that confirmation actually happens,
-matching lines by name against the firm's own Carta accounts and asking
-about the close calls — this runs whether or not a mapping file was
-supplied. It doesn't cover department/reporting-tag correspondence,
-which a mapping file resolves and this path can't yet derive on its own
-(see [errors.md](errors.md)). For any selected `pnl-outline` sheet
-specifically, the native-mapping attempt covers only the lines named in
-the firm's own words — a line already stating its own Carta account
-number resolves regardless — so say which kind you mean rather than let
-the operator assume the whole sheet is dark.
-
-Record the answer in `.coa-mapping-ref.json` (`{"declined": true}` for
-either "no mapping" branch) so this isn't asked again for this firm.
+**No sheet detected as a mapping is not, on its own, a reason to ask for
+one.** The mapping tab is one of three things this build combines —
+alongside the workbook's own formulas (a bucket line's Actual/Budget cell
+that sums other rows, or a `SUMIF`/`SUMIFS` naming a literal GL code — see
+[budget-unresolved.md](budget-unresolved.md)) and any GL code a line
+already states about itself. Proceed to 2.75b/2.75c with no mapping in
+hand; **the question of whether that combination was enough is asked once,
+after Step 4 has actually tried it — Step 4.6 in
+[budget-unresolved.md](budget-unresolved.md).** Asking here, before a
+single line has been matched, means asking about a shortfall that may not
+exist: a `tag-crosstab` budget with GL codes in column A, or an outline
+whose lines already state their own Carta account numbers, routinely needs
+no mapping file at all.
 
 **A note on what a mapping can and can't be inferred.** Line items often
 carry enough signal to match by name — a budget line "Salaries" against
-Carta's "Gross Wages and Salaries". Department names frequently do not: a
+Carta's "Gross Wages and Salaries" — which is what the workbook's own
+formulas and native codes cover. Department names frequently do not: a
 workbook column headed "Client Services" against journal entries Carta
 tags "CS" share nothing a matcher can use, because the relationship is
 institutional knowledge rather than string similarity. That is precisely
-the case the mapping file exists to carry, which is why it's worth one
-question rather than an assumption.
+the case a mapping tab or file exists to carry.
 
 ```bash
-uv run "${CLAUDE_PLUGIN_ROOT}/skills/carta-manco-reporting/scripts/parse_coa_mapping.py" \
+<UV_BIN> run "${CLAUDE_PLUGIN_ROOT}/skills/carta-manco-reporting/scripts/parse_coa_mapping.py" \
   --workbook "<COA_MAPPING_PATH>" \
   --sheet "<COA_MAPPING_SHEET_NAME>" \
   --out "<dashboard_dir>/coa-mapping.json" \
   --dept-vocabulary-from "<dashboard_dir>/budget.json" \
   --carta-tags-from "<dashboard_dir>/accounts.json"
 ```
+
+Add `--carta-accounts-from "<raw_dir>/accounts-all.txt"` whenever
+`mapping_kind` named the Carta side by account text rather than GL code
+(`mapping_columns` carries `carta_account`, not `carta_gl`) — it resolves
+each matched name back to its `gl`, and reports one that matches nothing
+in `unmatched_accounts` rather than dropping the row silently.
 
 `--carta-subs-from` does the same for a sub-account column, and defaults to
 the same file. A firm heads that column with their own word — "Office",

@@ -13,11 +13,9 @@ Label Capture (Smart Label Capture) extracts multiple fields from a single label
   - `scandit-react-native-datacapture-label`
   - `scandit-react-native-datacapture-label-text` — **optional**, required only for arbitrary/date text fields (provides the `ScanditLabelCaptureText` model). Skip it for barcode-only labels.
   - `scandit-react-native-datacapture-price-label` — **optional**, required only for price/weight text fields like `UnitPriceText` / `TotalPriceText` (provides the `ScanditPriceLabel` model).
-- After installing, run `npx pod-install` (or `cd ios && pod install`) for iOS. Android auto-links via Gradle — no manual step.
+- After installing, run `npx pod-install@1.2.1` (or `cd ios && pod install`) for iOS. Android auto-links via Gradle — no manual step.
 - React Native `>=0.70`. The New Architecture (Fabric / TurboModules) is supported — no additional setup required beyond the standard RN template.
-- A valid Scandit license key:
-  - Sign in at <https://ssl.scandit.com> to generate one.
-  - No account yet? Sign up at <https://ssl.scandit.com/dashboard/sign-up?p=test>.
+- A valid Scandit license key — see **Licence key** in this skill's `SKILL.md`.
 - Camera permissions configured by the app:
   - iOS: add `NSCameraUsageDescription` to `ios/<App>/Info.plist`.
   - Android: the manifest permission is declared by the plugin; request at runtime via `PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.CAMERA)` before rendering the scan screen.
@@ -109,9 +107,9 @@ After writing the code, show this setup checklist:
    ```bash
    npm install scandit-react-native-datacapture-core scandit-react-native-datacapture-barcode scandit-react-native-datacapture-label
    ```
-2. Run `npx pod-install` (iOS). Android auto-links.
+2. Run `npx pod-install@1.2.1` (iOS). Android auto-links.
 3. Add `NSCameraUsageDescription` to `ios/<App>/Info.plist`.
-4. Replace `-- ENTER YOUR SCANDIT LICENSE KEY HERE --` with your key from <https://ssl.scandit.com>.
+4. Replace `-- ENTER YOUR SCANDIT LICENSE KEY HERE --` with your key (see **Licence key** in `SKILL.md`).
 5. If Metro was running, restart it with `--reset-cache`.
 
 ## Step 1 — Initialize DataCaptureContext (singleton module)
@@ -523,7 +521,7 @@ When the user reports a problem, map the symptom to its cause before suggesting 
 
 - **Text / OCR fields never match or come back empty (`ExpiryDateText`, `TotalPriceText`, `CustomText`, etc.)** — the on-device text models are missing. They ship as **separate optional npm packages**, not inside `scandit-react-native-datacapture-label`: the `ScanditLabelCaptureText` module (package `scandit-react-native-datacapture-label-text`) is required for arbitrary/date text fields, and the `ScanditPriceLabel` module (package `scandit-react-native-datacapture-price-label`) for price fields (`UnitPriceText` / `TotalPriceText`). Install whichever you need alongside the label package, then re-install the iOS pods (`cd ios && pod install`). Barcode-only fields work without either model.
 
-- **A field never matches even though the text is on the label** — the field's `valueRegexes` or `anchorRegexes` is too strict. Prefer the preset field (its regexes are tuned) over a hand-written `CustomText`. If the label has no keyword near the value, clear the anchors with `field.anchorRegexes = []` and rely on the value regex alone. Keep regexes simple — lookahead/lookbehind are not supported and silently fail to match.
+- **A field never matches even though the text is on the label** — the field's `valueRegexes` or `anchorRegexes` is too strict. Prefer the preset field (its regexes are tuned) over a hand-written `CustomText`. If the label has no keyword near the value, clear the anchors with `field.anchorRegexes = []` and rely on the value regex alone. Keep each value regex bounded with explicit length limits; lookahead and lookbehind are supported.
 
 - **Handwritten or non-Latin text is never read** — expected. Label Capture reads **printed text** in the supported Latin character set only (see Recognition Limits above). Use the Validation Flow's manual-entry sheet so the user can type the value when it cannot be scanned.
 

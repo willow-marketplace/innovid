@@ -1,0 +1,17 @@
+{
+  "name": "runway-dev",
+  "owner": {
+    "name": "Runway"
+  },
+  "metadata": {
+    "description": "Runway Dev MCP and application integration skills"
+  },
+  "plugins": [
+    {
+      "name": "runway-api",
+      "source": "./claude",
+      "version": "4.0.0",
+      "description": "Get guidance for integrating video, image and audio generation with the Runway API and official SDKs. Connect to your Runway Dev account to inspect available models and task errors, manage Model Routers and existing real-time avatars, and inspect recorded routing decisions."
+    }
+  ]
+}

@@ -1,4 +1,5 @@
 import type { Plugin } from "@opencode-ai/plugin"
+import { Effect } from "effect"
 import { cpSync, existsSync, mkdirSync, readdirSync } from "fs"
 import { homedir } from "os"
 import { dirname, join, resolve } from "path"
@@ -6,6 +7,7 @@ import { fileURLToPath } from "url"
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const BUNDLED_SKILLS = resolve(__dirname, "..", "skills")
+const BUNDLED_PACKAGES = resolve(__dirname, "..", "packages")
 const BUNDLED_THEMES_DIR = resolve(__dirname, "themes")
 
 function getConfigDir(): string {
@@ -30,6 +32,15 @@ function installSkills(configDir: string): number {
   return installed
 }
 
+function installPackages(configDir: string): void {
+  // Copied next to skills/ so the skills' _bootstrap.py shim finds them.
+  if (!existsSync(BUNDLED_PACKAGES)) {
+    return
+  }
+  const targetDir = join(configDir, "opencode", "packages")
+  cpSync(BUNDLED_PACKAGES, targetDir, { recursive: true, force: true })
+}
+
 function installThemes(configDir: string): number {
   const themesDir = join(configDir, "opencode", "themes")
   mkdirSync(themesDir, { recursive: true })
@@ -41,21 +52,23 @@ function installThemes(configDir: string): number {
   return themes.length
 }
 
-export const DataRobotSkillsPlugin: Plugin = async ({ client }) => {
+function install(): string {
   const configDir = getConfigDir()
   const skillsInstalled = installSkills(configDir)
+  installPackages(configDir)
   const themesInstalled = installThemes(configDir)
-
-  if (skillsInstalled > 0 || themesInstalled > 0) {
-    await client.app.log({
-      body: {
-        service: "opencode-datarobot-skills",
-        level: "info",
-        message: `Installed ${skillsInstalled} skills${themesInstalled > 0 ? ` and ${themesInstalled} DataRobot theme(s)` : ""}`,
-      },
-    })
-  }
-
-  return {}
+  return `Installed ${skillsInstalled} skills${themesInstalled > 0 ? ` and ${themesInstalled} DataRobot theme(s)` : ""}`
 }
 
+// One default export for both OpenCode generations: 1.x reads `server`, 2.x reads `id` + `effect`
+// and ignores the rest.
+export default {
+  id: "opencode-datarobot-skills",
+  server: (async ({ client }) => {
+    await client.app.log({
+      body: { service: "opencode-datarobot-skills", level: "info", message: install() },
+    })
+    return {}
+  }) satisfies Plugin,
+  effect: () => Effect.sync(install).pipe(Effect.flatMap((message) => Effect.logInfo(message))),
+}

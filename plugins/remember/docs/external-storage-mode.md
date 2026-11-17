@@ -15,7 +15,7 @@ Create `~/.remember/config.json`:
 On next session start, the plugin:
 
 1. Resolves `REMEMBER_DIR` to `~/.remember/<slug-of-project>/`
-2. Auto-migrates any existing `<project>/.remember/` to the new location — once, leaving a `MIGRATED-TO.txt` marker in the old directory
+2. Moves nothing. Up to v0.39.0 an existing `<project>/.remember/` was migrated into the new location automatically; that migration was removed in [#898](https://github.com/Digital-Process-Tools/claude-remember/issues/898). If the old in-project directory still holds memory data (`now.md`, `recent.md`, `archive.md`, `core-memories.md` or `remember.md`) while the new location does not exist yet, session start prints one line -- `remember: <project>/.remember holds memory data but data_dir points to <new dir> -- move it by hand (see /remember:doctor)` -- and `/remember:doctor` reports a `WARN Legacy store:` line for as long as those files remain there. To carry your memory across, move the files yourself before (or instead of) the first session in external mode, for example `mv <project>/.remember ~/.remember/<slug-of-project>`. If that old directory holds a `config.json` your repository tracks in git, leave it out of the move: `${REMEMBER_DIR}/config.json` is trusted outright in external mode (see [configuration.md](configuration.md)), and a config a repository committed is untrusted input ([#757](https://github.com/Digital-Process-Tools/claude-remember/issues/757)).
 3. Skips writing `.gitignore` (the external directory is not inside a git repo)
 
 ### `{slug}` expansion
@@ -68,6 +68,15 @@ git commit -m "init: remember config"
 git push -u origin main
 ```
 
+> **Warning: this `config.json` is the store ROOT's, and this step commits and pushes it
+> deliberately.** Do not put `haiku.oauth_token` in it -- or anything else you would not want in
+> git history. (That key itself, and `REMEMBER_OAUTH_TOKEN`, were
+> [removed entirely](configuration.md) by #860 and are read for nothing on any host; there is
+> nothing to migrate either to.) A
+> *per-project* `<slug>/config.json` is different: the `after_save` hook never stages or commits
+> that one regardless of what it contains ([#719](https://github.com/Digital-Process-Tools/claude-remember/issues/719)), but this manual, one-time
+> command for the root file has no such guard, because you are the one running `git add` here.
+
 > **Where the hooks keep their own state.** Nothing is written to the store
 > root. The backup and restore hooks keep their lock, cooldown stamp, recorded
 > remote URL and failure counters inside the repository's git directory
@@ -85,23 +94,24 @@ git push -u origin main
 
 Once `~/.remember/` is a git repo, the `after_save` hook commits each project's memory subdir on its own schedule — one commit per project save, throttled by `cooldowns.git_backup_seconds` (default 15 min) — and pushes to your configured remote. No further setup is needed beyond credential availability (SSH agent or git credential helper) in the environment your coding agent launches hooks in.
 
-**What is not backed up:** each slug's `logs/` and `tmp/`. Those are per-machine — pipeline logs, lock files, cooldown markers, and the handoff delivery record — and sharing them between machines causes conflicts at best and wrong answers at worst ([#285](https://github.com/Digital-Process-Tools/claude-remember/issues/285)). The hook maintains these exclusions in your store's `.git/info/exclude`, which is per-clone and is never itself committed, so no `.gitignore` of yours is edited and nothing about your machine reaches the remote. Everything else under the slug — every memory file — is backed up.
+**What is not backed up:** each slug's `logs/`, `tmp/` and `config.json`. `logs/` and `tmp/` are per-machine — pipeline logs, lock files, cooldown markers, and the handoff delivery record — and sharing them between machines causes conflicts at best and wrong answers at worst ([#285](https://github.com/Digital-Process-Tools/claude-remember/issues/285)). `config.json` is excluded because it is a documented home for `haiku.oauth_token`, a live claude.ai OAuth credential, and this hook must never push a credential to the remote ([#719](https://github.com/Digital-Process-Tools/claude-remember/issues/719)). The hook maintains these exclusions in your store's `.git/info/exclude`, which is per-clone and is never itself committed, so no `.gitignore` of yours is edited and nothing about your machine (or a per-project credential) reaches the remote. Everything else under the slug — every memory file — is backed up.
 
 If you don't want automatic commits, leave `~/.remember/` as a plain directory and commit manually as before.
 
 #### Logs in a backup you made before this version
 
-The exclusion above is new. **0.12.3 and earlier staged each slug's whole subtree with nothing excluded**, on the assumption — written into the backup hook's own comment — that a root-level `.gitignore` covered `logs/` and `tmp/`. The plugin never created that file, and in external-store mode it deleted the only `.gitignore` it did write ([#285](https://github.com/Digital-Process-Tools/claude-remember/issues/285)). The setup snippet under [Back up your memory](#back-up-your-memory) has always told you to write one by hand; **if you did, none of this applies to you.** If you did not, this plugin's session logs were committed and pushed alongside your memory.
+The exclusions above are new, and were added at two different times. **0.12.3 and earlier staged each slug's whole subtree with nothing excluded**, on the assumption — written into the backup hook's own comment — that a root-level `.gitignore` covered `logs/` and `tmp/`. The plugin never created that file, and in external-store mode it deleted the only `.gitignore` it did write ([#285](https://github.com/Digital-Process-Tools/claude-remember/issues/285)). The setup snippet under [Back up your memory](#back-up-your-memory) has always told you to write one by hand; **if you did, none of this applies to you.** If you did not, this plugin's session logs were committed and pushed alongside your memory. Separately, **every version before the `config.json` exclusion ([#719](https://github.com/Digital-Process-Tools/claude-remember/issues/719)) staged a slug's `config.json` too** — the same "nothing excluded" gap, but for a file that can carry a live `haiku.oauth_token` OAuth credential rather than a session log.
 
-Upgrading changes what happens next and nothing about what already happened. The first backup after upgrading untracks `logs/` and `tmp/` in a commit of its own — `untracked <slug>/logs and <slug>/tmp` in the backup log — so they leave the *current* state of the remote and stop being pushed. **They remain in every commit that already carried them.** Untracking a path does not rewrite the commits that hold it, and no later fix on our side can: anyone who clones your backup gets that history and can read the logs out of it.
+Upgrading changes what happens next and nothing about what already happened. The first backup after upgrading untracks `logs/`, `tmp/` and `config.json` in a commit of its own — `untracked <slug>/logs, <slug>/tmp and <slug>/config.json` in the backup log — so they leave the *current* state of the remote and stop being pushed. **They remain in every commit that already carried them.** Untracking a path does not rewrite the commits that hold it, and no later fix on our side can: anyone who clones your backup gets that history and can read the logs — or the credential — out of it.
 
-Whether that matters depends on what your sessions logged, which we cannot see and you can. **Nobody has counted how many stores are affected** — this is here so you can check your own, not as an estimate of anyone else's:
+Whether that matters depends on what your sessions logged (for `logs/`/`tmp/`) or whether you ever set `haiku.oauth_token` in a project's `config.json` (for `config.json`), which we cannot see and you can. **Nobody has counted how many stores are affected** — this is here so you can check your own, not as an estimate of anyone else's:
 
 ```bash
-git -C ~/.remember log --oneline -- '*/logs/*'
+git -C ~/.remember log --oneline -- '*/logs/*' '*/tmp/*'
+git -C ~/.remember log --oneline -- '*/config.json'
 ```
 
-Any output lists commits carrying log files. No output means there is nothing to decide.
+Any output lists commits carrying those files. No output means there is nothing to decide. **If the `config.json` search returns anything, treat `haiku.oauth_token` as compromised and rotate it (`claude setup-token`) regardless of whether you rewrite history** — a rewrite only removes it from *future* clones, not from anyone who already has a copy of the old history.
 
 **If you want them gone, read the cost before you run anything.** Removing them means rewriting every commit that touched them and force-pushing the result. Every commit ID from the first affected one onward changes, so **every other clone of this store — your other machine, a mirror, anything that has ever fetched it — diverges permanently.** `git pull` there will refuse to fast-forward; each clone has to be replaced, and anything committed there but not yet pushed is lost with it. A rewrite is also not a guarantee of deletion: hosts keep unreachable objects for a while, and a fork, a cached view or a downstream backup of the remote may keep the old ones indefinitely. If this store lives on one machine and the remote is private and yours alone, the rewrite is cheap. If it does not, that is the trade you are making.
 
@@ -110,14 +120,14 @@ With that understood, using [`git-filter-repo`](https://github.com/newren/git-fi
 ```bash
 git clone ~/.remember /tmp/remember-purge
 cd /tmp/remember-purge
-git filter-repo --invert-paths --path-glob '*/logs/*' --path-glob '*/tmp/*' --force
+git filter-repo --invert-paths --path-glob '*/logs/*' --path-glob '*/tmp/*' --path-glob '*/config.json' --force
 git remote add origin <your backup remote>   # filter-repo drops the remote deliberately
 git push --force origin main
 ```
 
 Then **re-clone `~/.remember` on every machine that uses it** rather than pulling into it.
 
-Doing nothing is a legitimate answer — these are your own session logs in a repository you own. It should just be a decision rather than something nobody told you.
+Doing nothing is a legitimate answer for `logs/`/`tmp/` — these are your own session logs in a repository you own. It should just be a decision rather than something nobody told you. For `config.json`, doing nothing means the credential stays in history; rotating the token is the part that isn't optional.
 
 #### When a push does not go through
 

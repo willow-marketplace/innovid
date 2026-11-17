@@ -25,6 +25,7 @@ This repository packages [MCP Toolbox](https://github.com/googleapis/mcp-toolbox
 - [Installing via a compatible Agent Plugins client](#installing-via-a-compatible-agent-plugins-client)
 - [Usage Examples](#usage-examples)
 - [Available Tools](#available-tools)
+- [Included Skills](#included-skills)
 - [Generating Skills Instead](#generating-skills-instead)
 - [Additional Agent Skills](#additional-agent-skills)
 - [Troubleshooting](#troubleshooting)
@@ -79,9 +80,7 @@ To start interacting with your database, install the extension for your preferre
 
 For the latest version, check the [releases page][releases].
 
-[releases]: https://github.com/gemini-cli-extensions/alloydb/releases
-
-<!-- {x-release-please-start-version} -->
+[releases]: https://github.com/GoogleCloudPlatform/alloydb-plugin/releases
 
 <details open>
 <summary id="antigravity">Antigravity</summary>
@@ -109,7 +108,7 @@ See <a href="https://antigravity.google/docs/gcli-migration">Migrating from Gemi
 Install the plugin directly from the remote GitHub repository:
 
 ```bash
-agy plugin install https://github.com/gemini-cli-extensions/alloydb
+agy plugin install https://github.com/GoogleCloudPlatform/alloydb-plugin
 ```
 
 **2. Set env vars:**
@@ -124,7 +123,7 @@ You can install plugins directly from a remote GitHub repository.
 **1. Install the plugin:**
 
 ```bash
-agy plugin install https://github.com/gemini-cli-extensions/alloydb
+agy plugin install https://github.com/GoogleCloudPlatform/alloydb-plugin
 ```
 
 **2. Set env vars:**
@@ -159,13 +158,13 @@ _(Tip: Run `/plugin list` inside Claude Code to verify the plugin is active, or 
 **1. Install marketplace:**
 
 ```bash
-codex plugin marketplace add GoogleCloudPlatform/data-agent-kit
+codex plugin marketplace add GoogleCloudPlatform/data-cloud-plugins
 ```
 
 **2. Install the plugin:**
 
 ```bash
-codex plugin add alloydb@data-agent-kit
+codex plugin add alloydb@data-cloud-plugins
 ```
 
 **3. Set env vars:**
@@ -173,7 +172,7 @@ Enter your environment vars as described in the [configuration section](#configu
 
 **4. (Optional) Update the marketplace:**
 ```sh
-codex plugin marketplace upgrade data-agent-kit
+codex plugin marketplace upgrade data-cloud-plugins
 ```
 
 </details>
@@ -184,15 +183,13 @@ codex plugin marketplace upgrade data-agent-kit
 This repository is a valid [Agent Plugins](https://github.com/agentplugins/agent-plugins-spec) (v1) plugin. Any [Agent Plugins–compatible client](https://agent-plugins.org/compatible-clients) can install it directly using its own built-in plugin command — no extra tooling required — by pointing at this repository:
 
 ```
-https://github.com/gemini-cli-extensions/alloydb
+https://github.com/GoogleCloudPlatform/alloydb-plugin
 ```
 
 Beyond harnesses covered by the native install above, compatible clients include VS Code, Cursor, GitHub Copilot, and Kiro. See your agent's documentation for its exact install command.
 
 **Set env vars:**
 Set your environment vars as described in the [configuration section](#configuration).
-
-<!-- {x-release-please-end} -->
 
 
 ## Usage Examples
@@ -224,6 +221,18 @@ The tools come from MCP Toolbox's prebuilt `alloydb-postgres` server, grouped in
 For the full, up-to-date list, see the [`alloydb-postgres` prebuilt config](https://github.com/googleapis/mcp-toolbox/blob/main/internal/prebuiltconfigs/tools/alloydb-postgres.yaml)
 in the MCP Toolbox repository.
 
+## Included Skills
+
+This plugin ships the following agent skill in [`skills/`](./skills):
+
+- **[alloydb-agent-mode-quickstart](./skills/alloydb-agent-mode-quickstart/SKILL.md)** - Provision an AlloyDB agent pool over Private Service Connect, then deploy a data agent or a multi-agent swarm on Vertex AI Agent Engine that queries the pool over MCP, and optionally publish it to Gemini Enterprise.
+
+For example, prompt your agent:
+
+```text
+Use the alloydb-agent-mode-quickstart skill to create a new AlloyDB cluster with PostgreSQL for agents and an agent pool in my project PROJECT_ID in region REGION_NAME.
+```
+
 ## Generating Skills Instead
 
 The tool-backed skills this plugin used to ship were generated from the same prebuilt
@@ -251,7 +260,7 @@ in the MCP Toolbox repository.
 ## Additional Agent Skills
 
 Find additional skills to support your entire software development lifecycle at [github.com/gemini-cli-extensions](https://github.com/gemini-cli-extensions), including:
-* [Generic PostgreSQL extension](https://github.com/gemini-cli-extensions/postgres)
+* [Generic PostgreSQL extension](https://github.com/GoogleCloudPlatform/postgres-plugin)
 * [AlloyDB Observability extension](https://github.com/gemini-cli-extensions/alloydb-observability)
 
 ## Troubleshooting

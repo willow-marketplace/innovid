@@ -87,6 +87,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 
 from pipeline.slug import session_dir_slug as _slug
+from tests._compiled_hooks import is_compiled_text
 from tests.env_cache import EnvCacheProbe, write_config
 from tests.spawn_counting import make_shim_dir
 from tests.spawn_counting import spawns as _spawn_lines
@@ -118,7 +119,29 @@ def _patch(plugin: Path, old: str, new: str) -> None:
     hook = plugin / "scripts" / "post-tool-hook.sh"
     body = hook.read_text(encoding="utf-8")
     assert old in body, f"anchor text not found in post-tool-hook.sh: {old!r}"
+    # Exactly once, not merely present: a compiled hook (#900's compiled CI
+    # leg) also carries its libraries' text, and resolve-paths.sh's own
+    # `export CLAUDE_PLUGIN_ROOT="$PIPELINE_DIR"` contains the old one-line
+    # anchor -- `replace(..., 1)` silently patched THAT line instead.
+    assert body.count(old) == 1, (
+        f"anchor text is not unique in post-tool-hook.sh ({body.count(old)}x): {old!r}")
     hook.write_text(body.replace(old, new, 1), encoding="utf-8")
+
+
+# The hook's own two-line hand-off from path resolution to the rest of the
+# hook: on the hot path, outside every function, and unique in both the
+# source hook and its compiled form.
+_HOT_ANCHOR = 'PLUGIN_ROOT="$PIPELINE_DIR"\nPROJECT="$PROJECT_DIR"\n'
+
+
+def _inject_on_hot_path(plugin: Path, snippet: str) -> None:
+    _patch(plugin, "\n" + _HOT_ANCHOR, "\n" + snippet + _HOT_ANCHOR)
+
+
+def _hook_code_without_comments(plugin: Path) -> tuple[str, bool]:
+    body = (plugin / "scripts" / "post-tool-hook.sh").read_text(encoding="utf-8")
+    code = "\n".join(l for l in body.splitlines() if not l.lstrip().startswith("#"))
+    return code, is_compiled_text(body)
 
 
 # -- Fixture project, independent of the plugin copy ----------------------
@@ -265,8 +288,10 @@ def _read_builtin_lines(stderr: bytes) -> list[str]:
 # loop (`read -t 1`, one attempt against empty stdin), the fast path's own
 # cooldown-timestamp read (`read -r LAST_TS < last-save-ts`), and
 # lib-env-cache.sh's replay of its own 14-line cache file (14 successful
-# reads, one that hits EOF) = 17. Mostly fixed by construction --
-# lib-env-cache.sh always writes exactly those 14 lines
+# reads, one that hits EOF) = 17, PLUS #1011's own `read -r
+# _ptl_capture_current < "$_ptl_capture_marker"` (post-tool-hook.sh, the
+# capture-alive skip-when-unchanged check) = 18. Mostly fixed by construction
+# -- lib-env-cache.sh always writes exactly those 14 lines
 # (scripts/lib-env-cache.sh, the _remember_env_cache_publish printf block)
 # regardless of config content -- so most of this is not a measurement that
 # drifts with fixture data the way spawn counts can drift across platforms.
@@ -280,7 +305,7 @@ def _read_builtin_lines(stderr: bytes) -> list[str]:
 # See the docstring on test_an_extra_builtin_file_read_is_invisible_to_the_
 # spawn_pin_but_caught_by_the_read_pin for the reproduction that surfaced
 # this and why its fixture deliberately does not redirect stderr.
-READ_BUILTIN_MEASURED = 17
+READ_BUILTIN_MEASURED = 18
 READ_BUILTIN_BUDGET = READ_BUILTIN_MEASURED + 2
 
 
@@ -370,20 +395,21 @@ def test_the_warm_path_stays_inside_both_budgets(tmp_path):
 # Measured on macOS bash 3.2.57, stable across three trials, with a fixture
 # carrying both last-save.json and its #353 sidecar (position inside this
 # run's own transcript, so SIDECAR_TRUSTED is set and `pipeline.shell
-# read-position` is never spawned): the same 17 reads
-# test_the_warm_path_stays_inside_both_budgets measures on the "no save
-# yet" path, PLUS the sidecar's own `read -r _SIDECAR_LINE < "$SIDECAR"`
-# (post-tool-hook.sh:530) = 18. Confirmed against the harness itself, not
-# guessed: identical to the round-one release audit's own count for #395.
+# read-position` is never spawned): the same 18 reads (17 pre-#1011, see
+# READ_BUILTIN_MEASURED above) test_the_warm_path_stays_inside_both_budgets
+# measures on the "no save yet" path, PLUS the sidecar's own `read -r
+# _SIDECAR_LINE < "$SIDECAR"` (post-tool-hook.sh:530) = 19. Confirmed
+# against the harness itself, not guessed: identical to the round-one
+# release audit's own count for #395, plus #1011's one new read.
 #
 # No slack, unlike READ_BUILTIN_BUDGET above. #395 exists because the "no
 # save yet" pin above passed while ONE slack unit stood between this
-# branch's own 18 measured reads and a budget of 19 that never actually
+# branch's own measured reads and a budget that never actually
 # walked it -- slack absorbed a gap nothing was pinning. Setting this one
 # at the measured value means a future read added to the sidecar branch
 # has to argue for itself in its own PR, rather than fitting inside a
 # margin nobody is watching.
-SIDECAR_READ_BUILTIN_MEASURED = 18
+SIDECAR_READ_BUILTIN_MEASURED = 19
 SIDECAR_READ_BUILTIN_BUDGET = SIDECAR_READ_BUILTIN_MEASURED
 
 
@@ -452,12 +478,13 @@ def test_a_defeated_sidecar_trips_the_read_position_spawn_check(tmp_path):
     plugin = _scratch_plugin(tmp_path)
     # #403 moved this pair one level deeper (a case arm gating trust on
     # last-save.json membership, not just the CURRENT_LINES bound), so the
-    # anchor's indentation tracks that -- 24 spaces, not 16.
+    # anchor's indentation tracks that -- 16 spaces since #898 round 19
+    # flattened the nested case statements into one if/elif ladder.
     _patch(plugin,
-           '                        LAST_LINE=$((10#$_SIDECAR_LINE))\n'
-           '                        SIDECAR_TRUSTED=1\n',
-           '                        LAST_LINE=$((10#$_SIDECAR_LINE))\n'
-           '                        : # SIDECAR_TRUSTED deliberately not set (#395 regression fixture)\n')
+           '                LAST_LINE=$((10#$_SIDECAR_LINE))\n'
+           '                SIDECAR_TRUSTED=1\n',
+           '                LAST_LINE=$((10#$_SIDECAR_LINE))\n'
+           '                : # SIDECAR_TRUSTED deliberately not set (#395 regression fixture)\n')
     home, project, remember = _project_with_prior_save(tmp_path)
     env = _env(tmp_path, home, project, plugin)
     _prime(env, plugin)
@@ -496,8 +523,7 @@ def test_a_git_wrapper_on_the_hot_path_trips_the_spawn_pin(tmp_path, wrapper, la
     is not vacuous against them -- reproduced against a scratch copy rather
     than asserted about."""
     plugin = _scratch_plugin(tmp_path)
-    _patch(plugin, 'PLUGIN_ROOT="$PIPELINE_DIR"',
-           wrapper + 'PLUGIN_ROOT="$PIPELINE_DIR"')
+    _inject_on_hot_path(plugin, wrapper)
     home, project, remember = _project(tmp_path)
     env = _env(tmp_path, home, project, plugin)
     _prime(env, plugin)
@@ -506,9 +532,13 @@ def test_a_git_wrapper_on_the_hot_path_trips_the_spawn_pin(tmp_path, wrapper, la
     _result, warm_spawns = _measure(env, plugin, remember, tmp_path, label)
     _reap(remember)
 
-    body = (plugin / "scripts" / "post-tool-hook.sh").read_text(encoding="utf-8")
-    code = "\n".join(l for l in body.splitlines() if not l.lstrip().startswith("#"))
-    assert "git " not in code, (
+    # The literal test_case_divergence_298.py's substring check looks for.
+    # That check reads the SOURCE hook's own text; a compiled hook also
+    # carries its libraries' (lib-memory-dir.sh calls git off the hot path),
+    # so there the whole-file half is moot and skipped, and only the
+    # injected wrapper itself is held to it.
+    code, compiled = _hook_code_without_comments(plugin)
+    assert "git " not in wrapper and (compiled or "git " not in code), (
         "the wrapper this test installs must NOT contain the literal "
         "test_case_divergence_298.py checks for, or this proves nothing "
         "about the gap #330 reports"
@@ -547,8 +577,7 @@ def test_an_extra_builtin_file_read_is_invisible_to_the_spawn_pin_but_caught_by_
         '    _j=$(( _j + 1 ))\n'
         'done\n'
     )
-    _patch(plugin, 'PLUGIN_ROOT="$PIPELINE_DIR"',
-           extra_read + 'PLUGIN_ROOT="$PIPELINE_DIR"')
+    _inject_on_hot_path(plugin, extra_read)
     home, project, remember = _project(tmp_path)
     env = _env(tmp_path, home, project, plugin)
     _prime(env, plugin)
@@ -557,10 +586,11 @@ def test_an_extra_builtin_file_read_is_invisible_to_the_spawn_pin_but_caught_by_
     result, warm_spawns = _measure(env, plugin, remember, tmp_path, "extra-read")
     _reap(remember)
 
-    body = (plugin / "scripts" / "post-tool-hook.sh").read_text(encoding="utf-8")
-    code = "\n".join(l for l in body.splitlines() if not l.lstrip().startswith("#"))
+    code, compiled = _hook_code_without_comments(plugin)
     for literal in ("lib-case-divergence", "case_divergence", "git "):
-        assert literal not in code, (
+        # Same split as the git-wrapper test above: the whole-file half
+        # describes the source hook's own text only.
+        assert literal not in extra_read and (compiled or literal not in code), (
             f"the injected defect accidentally contains {literal!r} -- it "
             "would be caught by the substring test for the wrong reason, "
             "which is not what this test claims to demonstrate"
@@ -589,8 +619,7 @@ def test_a_pure_compute_loop_is_invisible_to_every_pin_here(tmp_path):
     whatever it does not cover."""
     plugin = _scratch_plugin(tmp_path)
     compute_loop = 'for _i in 1 2 3 4 5 6 7 8 9 10; do : $(( _i * _i )); done\n'
-    _patch(plugin, 'PLUGIN_ROOT="$PIPELINE_DIR"',
-           compute_loop + 'PLUGIN_ROOT="$PIPELINE_DIR"')
+    _inject_on_hot_path(plugin, compute_loop)
     home, project, remember = _project(tmp_path)
     env = _env(tmp_path, home, project, plugin)
     _prime(env, plugin)

@@ -115,7 +115,7 @@ In the tech community, we often expect change to happen as quickly as writing a 
 
 ## About the Author
 
-**Tiffany Johnson**
+### Tiffany Johnson
 
 As a highly esteemed Global Business Development Manager on the AWS Startups underrepresented founders (URF) business development (BD) team, Tiffany Johnson brings a wealth of experience and expertise to her role. Originally from Guyana, South America, Tiffany is a driving force behind the creation and leadership of programs that provide support for underrepresented founders. She is renowned for her invaluable contributions to the Amazon family for over six years, most notably as the mastermind behind Amazon's groundbreaking $150M Black Business Accelerator. In addition to her professional work, Tiffany dedicates her time to serve her community as a Board Member of the United Way of King County. When she's not working, she enjoys exploring the world with her family and immersing herself in different cultures.
 

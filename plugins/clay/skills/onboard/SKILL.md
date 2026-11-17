@@ -1,22 +1,22 @@
 ---
 name: onboard
-description: Clay first-run onboarding — banner, what Clay can do, and starter tasks served by the Clay API. Run this right after a sign-in that just happened — from `clay login` directly, or invoked by the setup skill after its sign-in step. It checks server-side whether this user has been onboarded and stands down if so. Assumes the CLI is already signed in; for a signed-out user, run `setup` instead — it chains into this.
+description: Clay first-run onboarding — banner, what Clay can do, and starter tasks served by the Clay API. Run this right after a sign-in that just happened — from `clay login` directly, or invoked by the CLI setup skill after its sign-in step. It checks server-side whether this user has been onboarded and stands down if so. Assumes the CLI is already signed in; for access or authentication problems, consult the clay entry skill first.
 ---
 
 # Clay onboarding
+
+Before using this skill, read the `clay` entry skill if you haven’t already this session, and follow its access guidance.
+
+Before continuing, read the `clay` entry skill and follow its access guidance.
 
 Give a brand-new user a fast first win. Whether this user has already been
 onboarded is tracked server-side, per user: `clay login` and `clay whoami`
 report it as `onboarded`, and fetching the starter-task options marks them as
 onboarded. There is nothing to record locally.
 
-**This skill runs signed-in.** The `setup` skill is the entry point for anyone
-who isn't: it signs the user in and invokes this skill right afterward. If a
-command below fails with an auth error, run `setup` and stop — it will come
-back here when appropriate. If bare `clay` isn't on PATH this session (a fresh
-same-session Claude Code install — setup resolves an absolute launcher path for
-this case), use that resolved path in place of `clay` for every command in this
-skill.
+**This skill runs signed-in.** For access or authentication problems, consult the
+`clay` entry skill before continuing. If CLI access uses an absolute executable
+path, use that path in the examples below.
 
 **The user's own request always wins.** If sign-in was just a prerequisite for
 something concrete they asked for ("get this person's work email", a table
@@ -46,14 +46,8 @@ clay whoami
   machine). Stand down: skip the rest of this skill without ceremony. If the
   banner already went up (the Claude Code hook shows it at invocation), a
   one-line welcome back is enough — no pitch, no menu.
-- **The field is absent** — an outdated CLI omits it too, so don't conclude the
-  server predates onboarding until you've ruled that out: compare
-  `clay --version` against the plugin's pinned `bin/cli-version`. If it's
-  older, run the `setup` skill with that context — it installs the plugin's
-  pinned launcher (its step 3) — then re-run `clay whoami` through that
-  launcher and read `onboarded` from there. If the versions match (or the
-  launcher's whoami still omits the field), the server predates onboarding —
-  stand down as in the `true` case.
+- **The field is absent** — do not infer onboarding status. Consult the `clay` entry
+  skill if access needs repair; otherwise stand down.
 
 ## 2. Show the banner
 
@@ -104,14 +98,8 @@ of your own ("Type something", "Other") — the tool renders its own escape
 hatch. Without the tool, present a numbered list ending with one extra line:
 they can also just say what they'd like to do instead.
 
-If the command is missing (`command not found`, or an unknown-command error
-naming `onboard`), the installed CLI predates onboarding. If the `setup` skill
-hasn't already run in this session, run it now with that context — the CLI on
-PATH is outdated, so it must install the plugin's pinned launcher (its step 3)
-even though sign-in checks pass — then retry `clay onboard options` once and
-continue normally if it works. Retry via the launcher's absolute path when bare
-`clay` still resolves to the old install (no restart needed for that). If setup
-already ran or the retry still fails, treat it like any other failure below.
+If the onboarding operation is unavailable, consult the `clay` entry skill for
+access guidance. Do not install tools as part of onboarding.
 
 For any other failure (network, server trouble), don't block and don't
 diagnose — no error-hunting, no environment debugging, no mention of what went
@@ -127,11 +115,8 @@ clay onboard select <option-id>
 ```
 
 This records the pick and returns `instructions` — follow them as if the user
-had asked for that task directly. If a CLI command isn't on PATH this session
-(setup step 3 deferred a restart so the forwarder is visible), walk
-them through that restart and tell them to ask for the task again by name once
-they're back (e.g. "set up the webhook starter") — a fresh session won't
-remember this conversation, so the task name is what carries it over.
+had asked for that task directly. If the independent CLI's directory is not on PATH in this session,
+use the verified absolute executable path from setup for the selected task too.
 
 If `select` fails, proceed anyway: treat the option's label as the user's
 request — but still get the user's explicit go-ahead before running anything

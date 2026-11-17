@@ -1,12 +1,6 @@
 {
   "mcpServers": {
     "spanner": {
-      "env": {
-        "SPANNER_DIALECT": "${user_config.spanner_dialect}",
-        "SPANNER_PROJECT": "${user_config.spanner_project}",
-        "SPANNER_DATABASE": "${user_config.spanner_database}",
-        "SPANNER_INSTANCE": "${user_config.spanner_instance}"
-      },
       "args": [
         "-y",
         "@toolbox-sdk/server@1.9.0",
@@ -14,6 +8,7 @@
         "spanner",
         "--stdio"
       ],
+      "type": "stdio",
       "command": "npx"
     }
   }

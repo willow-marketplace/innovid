@@ -1,12 +1,12 @@
 {
   "name": "@ckeditor/skills",
-  "version": "0.1.1",
+  "version": "0.3.0",
   "description": "Official Agent Skills for working with CKEditor.",
   "private": true,
   "type": "module",
   "engines": {
-    "node": ">=24.11.0",
-    "pnpm": "^11.9.0"
+    "node": ">=26.10.0",
+    "pnpm": "^12.8.2"
   },
   "repository": {
     "type": "git",
@@ -17,20 +17,22 @@
   "bugs": "https://github.com/ckeditor/skills/issues",
   "homepage": "https://github.com/ckeditor/skills#readme",
   "devDependencies": {
-    "@ckeditor/ckeditor5-dev-changelog": "^62.0.0",
-    "@ckeditor/ckeditor5-dev-ci": "^62.0.0",
-    "@ckeditor/ckeditor5-dev-release-tools": "^62.0.0",
+    "@ckeditor/ckeditor5-dev-bump-year": "^63.1.1",
+    "@ckeditor/ckeditor5-dev-changelog": "^63.1.1",
+    "@ckeditor/ckeditor5-dev-ci": "^63.1.1",
+    "@ckeditor/ckeditor5-dev-release-tools": "^63.1.1",
     "@octokit/rest": "^22.0.1",
     "js-yaml": "^5.4.1",
     "listr2": "^11.0.0",
     "upath": "^2.0.1",
-    "vitest": "^4.1.10"
+    "vitest": "^5.0.5"
   },
   "scripts": {
     "nice": "ckeditor5-dev-changelog-create-entry",
     "release:prepare-changelog": "node ./scripts/release/preparechangelog.js",
     "release:prepare-packages": "node ./scripts/release/preparepackages.js",
     "release:publish-packages": "node ./scripts/release/publishpackages.js",
+    "skills:update-docs-tracking": "node ./scripts/skills/updatedocstracking.js",
     "test": "vitest run",
     "test:watch": "vitest"
   }

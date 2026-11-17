@@ -13,23 +13,13 @@ Read `shared/pricing-cache.md`. Check the `Last updated` date in the header:
 - If <= 90 days old: **Cached prices are the primary source.** No MCP calls needed for services listed in the cache. Proceed to Step 1.
 - If > 90 days old: Cache is stale. Attempt MCP (Step 0b) for fresh prices; use stale cache as fallback.
 
-### Step 0b: MCP Availability Check (only if cache stale or service not listed)
-
-Attempt to reach awspricing with **up to 2 retries** (3 total attempts):
-
-1. **Attempt 1**: Call `get_pricing_service_codes()`
-2. **If timeout/error**: Wait 1 second, retry (Attempt 2)
-3. **If still fails**: Wait 2 seconds, retry (Attempt 3)
-4. **If all 3 attempts fail**: Use cached prices with staleness warning
-
-### Step 0c: MCP Preflight — Surface Status to User (ALWAYS run)
+### Step 0b: Surface Status to User (ALWAYS run)
 
 **Before any sub-estimate file runs**, display the pricing mode to the user so they know what to expect:
 
-- **If cache ≤ 90 days and MCP not needed**: "Pricing source: cached (updated [date], ±5-25% accuracy). Live pricing API not required."
-- **If cache > 90 days and MCP available**: "Pricing source: live API (awspricing MCP). Cache is stale ([date]) — using real-time pricing."
-- **If cache > 90 days and MCP unavailable**: "⚠️ Pricing source: stale cache only (updated [date]). The awspricing MCP server is unreachable — ensure `uvx` is installed (`pip install uv` or `brew install uv`) and AWS credentials are configured. Proceeding with cached pricing; accuracy may be ±15-25% for AI models."
-- **If cache ≤ 90 days but a required service is NOT in cache and MCP unavailable**: "⚠️ Some services not in pricing cache and MCP unreachable. Those services will show `pricing_source: unavailable` in the estimate."
+- **If cache ≤ 90 days**: "Pricing source: cached (updated [date], ±5-25% accuracy). No live pricing API required."
+- **If cache > 90 days**: "⚠️ Pricing source: stale cache only (updated [date]). Proceeding with cached pricing; accuracy may be ±15-25% for AI models."
+- **If a required service is NOT in cache**: "⚠️ Some services not in pricing cache. Those services will show `pricing_source: unavailable` in the estimate."
 
 This prevents silent failures — the user sees the pricing constraint upfront, not after 5 minutes of estimation work.
 
@@ -38,20 +28,16 @@ This prevents silent failures — the user sees the pricing constraint upfront, 
 Each sub-estimate file uses this lookup order per service:
 
 1. **`shared/pricing-cache.md`** (primary) — Cached prices (±5-25% accuracy). Set `pricing_source: "cached"`. Used first because it requires zero API calls and covers most common services.
-2. **MCP API** (secondary) — Real-time pricing for services NOT in pricing-cache.md (±5-10% accuracy, more precise). Set `pricing_source: "live"`. Only called when the cache lacks the needed service or model. **Region note:** The `.mcp.json` sets `AWS_REGION=us-east-1` as the MCP server default, but each `get_pricing()` call accepts a `region` parameter that overrides it. Always pass the user's target region (from `preferences.json`) in MCP queries.
-3. **Cache after MCP failure** — If MCP was attempted but failed (timeout, error), and the service IS in the cache, use the cached price. Set `pricing_source: "cached_fallback"`. This distinguishes intentional cache use from MCP failure recovery.
-4. **Unavailable** — If a service is NOT in the cache AND MCP is unavailable, set `pricing_source: "unavailable"` for that service. Add the service to `services_with_missing_fallback` and display a warning to the user: "Pricing unavailable for [service] — not in cache and MCP unreachable. Exclude from totals or provide a manual estimate."
+2. **Unavailable** — If a service is NOT in the cache, set `pricing_source: "unavailable"` for that service. Add the service to `services_with_missing_fallback` and display a warning to the user: "Pricing unavailable for [service] — not in cache. Exclude from totals or provide a manual estimate."
 
 **`pricing_source` values summary:**
 
-| Value               | Meaning                                                   |
-| ------------------- | --------------------------------------------------------- |
-| `"cached"`          | Found in pricing-cache.md (normal path)                   |
-| `"live"`            | Retrieved from MCP API in real-time                       |
-| `"cached_fallback"` | MCP was attempted but failed; fell back to cache          |
-| `"unavailable"`     | Not in cache AND MCP failed; service excluded from totals |
+| Value           | Meaning                                    |
+| --------------- | ------------------------------------------ |
+| `"cached"`      | Found in pricing-cache.md (normal path)    |
+| `"unavailable"` | Not in cache; service excluded from totals |
 
-If cache is > 90 days old and MCP is unavailable:
+If cache is > 90 days old:
 
 - Add warning: "Cached pricing data is >90 days old; accuracy may be significantly degraded"
 - **Display to user**: Add visible warning with staleness notice
@@ -174,7 +160,7 @@ Phase 4 of 6 complete (Estimate). Remaining: Generate (+ optional Feedback).
 
 [A] Done for now — I have what I need to decide
 [B] Explore what-ifs — reprice scenarios side by side (~1 min each): region,
-    single-AZ database, EKS vs Fargate, Graviton
+    single-AZ database, EKS Auto Mode vs standard EKS vs Fargate, Graviton
 [C] Generate Terraform and migration scripts
 ```
 
@@ -201,11 +187,58 @@ commit." Suggest at most one.
      `.phase-status.json` (`phases.generate` **stays** `"pending"` — this
      combination means "decision complete, execution available on request";
      see `schema-phase-status.md`).
-  3. Run the post-gate feedback checkpoint per `SKILL.md`. Close with:
+  3. **Write the web-handoff summary (fail-open):** run
+     `python3 "<SKILL_BASE>/scripts/emit-plan-json.py" --migration-dir "$MIGRATION_DIR" --plugin-json "$PLUGIN_ROOT/.claude-plugin/plugin.json"`
+     (absolute paths — cwd must not be load-bearing). It reads the estimate
+     artifacts and writes `$MIGRATION_DIR/plan.json`, the uploadable handoff
+     file, printing `PLAN_OK | …` or `PLAN_SKIP | reason=…`. This is an optional
+     enhancement, never a gate: on any skip or error the decision is still
+     complete — continue without it and do not surface the script output to the
+     user.
+  4. Run the post-gate feedback checkpoint per `SKILL.md`. Close with:
      "Your decision report is saved at `decision-report.html` (plus a
      Slack-friendly `DECISION.md`). If you decide to migrate, say 'generate
      the Terraform and migration scripts' — everything is saved and I'll pick
      up from here."
+  5. **Web-handoff — only when step 3 printed `PLAN_OK`** (if it printed
+     `PLAN_SKIP`, omit this whole block; there is no file to upload). The
+     `plan.json` filename appears in EXACTLY ONE place — with the saved files the
+     close already names — and NEVER in the What's next block. Make two edits:
+     - **(a)** The close above is a sentence that names the saved files
+       (`decision-report.html`, `DECISION.md`). Extend that same sentence to name
+       `plan.json` too, with **AWS Startups Migrate** as a Markdown link — the
+       close is prose (not a code block), so a link renders here, unlike the
+       fenced Generate produced-list which stays plain text. Substitute the run's
+       `run_id` (from `.phase-status.json`) — e.g. "…and your uploadable plan at
+       `plan.json` — upload it to
+       [AWS Startups Migrate](https://startups.aws.com/startups/en-US/migrate/credits?source=plugin&run=<run_id>)
+       for up to $1,500 in credits." Keep it in the close sentence; do not float
+       it as a separate line above the What's next block.
+     - **(b)** Then append the What's next block below, verbatim, replacing
+       `<run_id>` in the link with the run's `run_id` (from `.phase-status.json`).
+       It MUST begin with the "💬 What's next" heading — do NOT add a `plan.json`
+       line (or any file line) above or inside it. The call-to-action must be a
+       Markdown link so it renders as clickable text with no bare URL. Do not
+       reword it — this copy is owned by the web experience:
+
+     > **💬 What's next**
+     >
+     > - **Refine your plan**
+     >   Tell me what to change. For example: "use Fargate instead," "make it multi-region," or "reduce the cost."
+     > - **Claim your credits**
+     >   When you're happy with your plan, upload it below to apply for up to $1,500 in AWS migration credits.
+     >
+     > [🎉 Get up to $1,500 in AWS migration credits →](https://startups.aws.com/startups/en-US/migrate/credits?source=plugin&run=<run_id>)
+     >
+     > Upload your plan to AWS Startups Migrate to see what you qualify for and unlock:
+     >
+     > - Interactive plan dashboard
+     > - Monthly cost estimate
+     > - Migration paths: AI Agent, AWS Expert, or AWS Partner
+     > - Up to $1,500 in AWS migration credits
+
+     Ship note: this reaches customers only after the import page and the
+     ImportPlan API are both live in production.
 - **B** → Load `references/phases/workshop/workshop.md`. Keep
   `current_phase: estimate`; set `phases.workshop` → `"in_progress"`. On
   workshop exit, **return to this gate** (options A and C; the workshop's

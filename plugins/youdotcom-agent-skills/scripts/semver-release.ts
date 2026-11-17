@@ -20,6 +20,7 @@ type ReleasePlan = {
     plugins: Record<string, ReleaseUnit>
     npm: Record<string, ReleaseUnit>
     clawhub: Record<string, ReleaseUnit>
+    strands: Record<string, ReleaseUnit>
   }
 }
 
@@ -32,6 +33,7 @@ const pluginManifests = [
   '.cursor-plugin/plugin.json',
   '.kimi-plugin/plugin.json',
   '.grok-plugin/plugin.json',
+  'marketplace/openai/plugin.json',
 ]
 const pluginMarketplaces = [
   '.claude-plugin/marketplace.json',
@@ -40,7 +42,7 @@ const pluginMarketplaces = [
   '.github/plugin/marketplace.json',
   '.grok-plugin/marketplace.json',
 ]
-const pluginMcpConfigs = ['mcp.json', '.mcp.json']
+const pluginMcpConfigs = ['mcp.json', '.mcp.json', 'marketplace/openai/mcp.json']
 const pluginReleasePaths = [...pluginManifests, ...pluginMarketplaces, ...pluginMcpConfigs]
 const npmPackages = {
   '@youdotcom-oss/opencode': 'packages/opencode/package.json',
@@ -48,7 +50,13 @@ const npmPackages = {
   '@youdotcom-oss/openclaw': 'packages/openclaw/package.json',
   '@youdotcom-oss/dsh-plugin': 'packages/dsh-plugin/package.json',
 } as const
-const packageBuildDirectories = ['packages/opencode', 'packages/openclaw', 'packages/pi', 'packages/dsh-plugin']
+const packageBuildDirectories = [
+  'packages/opencode',
+  'packages/openclaw',
+  'packages/pi',
+  'packages/dsh-plugin',
+  'packages/strands-agents/typescript',
+]
 // 'initial' outranks semantic bumps: a brand-new package publishes its declared
 // version as-is regardless of any other changes in the same diff.
 const bumpOrder: Bump[] = ['none', 'patch', 'minor', 'major', 'initial']
@@ -114,16 +122,54 @@ export const isInitialPackage = (statuses: { status: string; path: string }[], d
   return packageChanges.length > 0 && packageChanges.every((item) => item.status.startsWith('A'))
 }
 
-const readChangedPaths = async (baseRef: string) => {
-  const names = await $`git -C ${defaultRepoRoot} diff --name-only ${baseRef}`.text()
+/** Decides the release bump for an npm package. A hand-pegged declared
+ * version (changed between base and head) is published as-is so maintainers
+ * can cut majors and other deliberate version lines the planner cannot infer. */
+export const planNpmBump = ({
+  isNew,
+  headVersion,
+  baseVersion,
+}: {
+  isNew: boolean
+  headVersion: string | undefined
+  baseVersion: string | undefined
+}): { bump: Bump; rationale: string } => {
+  if (isNew) return { bump: 'initial', rationale: 'new package: publish declared version as-is' }
+  if (headVersion !== undefined && headVersion !== baseVersion) {
+    return { bump: 'initial', rationale: 'declared version hand-pegged: publish declared version as-is' }
+  }
+  return { bump: 'patch', rationale: 'package implementation changed' }
+}
+
+const readDeclaredVersion = async (
+  repoRoot: string,
+  packageManifest: string,
+  ref?: string,
+): Promise<string | undefined> => {
+  const raw = ref
+    ? await $`git -C ${repoRoot} show ${ref}:${packageManifest}`.text().catch(() => undefined)
+    : await Bun.file(resolve(repoRoot, packageManifest))
+        .text()
+        .catch(() => undefined)
+  if (raw === undefined) return undefined
+  try {
+    const parsed: unknown = JSON.parse(raw)
+    return isRecord(parsed) && typeof parsed.version === 'string' ? parsed.version : undefined
+  } catch {
+    return undefined
+  }
+}
+
+const readChangedPaths = async (baseRef: string, repoRoot: string = defaultRepoRoot) => {
+  const names = await $`git -C ${repoRoot} diff --name-only ${baseRef}`.text()
   return names
     .split('\n')
     .map((path) => path.trim())
     .filter(Boolean)
 }
 
-const readChangedStatuses = async (baseRef: string) => {
-  const names = await $`git -C ${defaultRepoRoot} diff --name-status ${baseRef}`.text()
+const readChangedStatuses = async (baseRef: string, repoRoot: string = defaultRepoRoot) => {
+  const names = await $`git -C ${repoRoot} diff --name-status ${baseRef}`.text()
   return names
     .split('\n')
     .map((line) => line.trim().split(/\s+/))
@@ -131,7 +177,17 @@ const readChangedStatuses = async (baseRef: string) => {
     .map(([status, path]) => ({ status: status ?? '', path: path ?? '' }))
 }
 
-const changedSkillBump = async ({ baseRef, path, isAdded }: { baseRef: string; path: string; isAdded: boolean }) => {
+const changedSkillBump = async ({
+  baseRef,
+  path,
+  isAdded,
+  repoRoot = defaultRepoRoot,
+}: {
+  baseRef: string
+  path: string
+  isAdded: boolean
+  repoRoot?: string
+}) => {
   if (isAdded) {
     return { bump: 'minor' as const, rationale: 'new skill' }
   }
@@ -140,7 +196,7 @@ const changedSkillBump = async ({ baseRef, path, isAdded }: { baseRef: string; p
     return { bump: 'patch' as const, rationale: 'skill resource change' }
   }
 
-  const diff = await $`git -C ${defaultRepoRoot} diff ${baseRef} -- ${path}`.text()
+  const diff = await $`git -C ${repoRoot} diff ${baseRef} -- ${path}`.text()
   if (/^[+-](name|description):/m.test(diff) || diff.includes('mcp_servers')) {
     return { bump: 'minor' as const, rationale: 'skill activation or MCP contract changed' }
   }
@@ -148,12 +204,12 @@ const changedSkillBump = async ({ baseRef, path, isAdded }: { baseRef: string; p
   return { bump: 'patch' as const, rationale: 'skill instructions changed' }
 }
 
-const createReleasePlan = async (baseRef: string): Promise<ReleasePlan> => {
-  const changes = await readChangedPaths(baseRef)
-  const statuses = await readChangedStatuses(baseRef)
+export const createReleasePlan = async (baseRef: string, repoRoot: string = defaultRepoRoot): Promise<ReleasePlan> => {
+  const changes = await readChangedPaths(baseRef, repoRoot)
+  const statuses = await readChangedStatuses(baseRef, repoRoot)
   const addedPaths = new Set(statuses.filter((item) => item.status.startsWith('A')).map((item) => item.path))
   const deletedPaths = new Set(statuses.filter((item) => item.status.startsWith('D')).map((item) => item.path))
-  const headRef = (await $`git -C ${defaultRepoRoot} rev-parse --short HEAD`.text()).trim()
+  const headRef = (await $`git -C ${repoRoot} rev-parse --short HEAD`.text()).trim()
   const plan: ReleasePlan = {
     schemaVersion: 1,
     baseRef,
@@ -165,6 +221,7 @@ const createReleasePlan = async (baseRef: string): Promise<ReleasePlan> => {
       plugins: {},
       npm: {},
       clawhub: {},
+      strands: {},
     },
   }
 
@@ -172,11 +229,21 @@ const createReleasePlan = async (baseRef: string): Promise<ReleasePlan> => {
     const skillMatch = /^skills\/([^/]+)\//.exec(path)
     if (skillMatch?.[1]) {
       if (deletedPaths.has(path)) {
+        // Deletions do not bump the skill itself (its version no longer
+        // matters) but do propagate to the strands mirror, which ships the
+        // skill in published packages.
+        plan.units.strands.youdotcom = updateReleaseUnit(
+          plan.units.strands.youdotcom,
+          'minor',
+          path,
+          `skill ${skillMatch[1]} removed from strands mirror`,
+        )
         continue
       }
 
-      const { bump, rationale } = await changedSkillBump({ baseRef, path, isAdded: addedPaths.has(path) })
+      const { bump, rationale } = await changedSkillBump({ baseRef, path, isAdded: addedPaths.has(path), repoRoot })
       plan.units.skills[skillMatch[1]] = updateReleaseUnit(plan.units.skills[skillMatch[1]], bump, path, rationale)
+      plan.units.strands.youdotcom = updateReleaseUnit(plan.units.strands.youdotcom, bump, path, rationale)
       plan.units.plugins.you = updateReleaseUnit(plan.units.plugins.you, bump, path, `skill ${skillMatch[1]} changed`)
       plan.units.npm['@youdotcom-oss/opencode'] = updateReleaseUnit(
         plan.units.npm['@youdotcom-oss/opencode'],
@@ -211,27 +278,63 @@ const createReleasePlan = async (baseRef: string): Promise<ReleasePlan> => {
       continue
     }
 
-    if (isPluginReleasePath(path)) {
-      plan.units.plugins.you = updateReleaseUnit(plan.units.plugins.you, 'patch', path, 'plugin manifest changed')
+    if (path.startsWith('packages/strands-agents/')) {
+      // Only paths inside the two published packages ship artifacts (the
+      // Python package reads python/README.md, the npm package bundles
+      // typescript/README.md). Repo-level strands docs — e.g. the unified
+      // packages/strands-agents/README.md guide — change neither, so they
+      // must not trigger a republish.
+      if (
+        !path.startsWith('packages/strands-agents/typescript/') &&
+        !path.startsWith('packages/strands-agents/python/')
+      ) {
+        continue
+      }
+      // The strands packages share one version line, bumped by the strands
+      // unit. A freshly added package set publishes its declared version
+      // as-is instead of deriving from unrelated content changes.
+      const isInitial =
+        isInitialPackage(statuses, 'packages/strands-agents/typescript') &&
+        isInitialPackage(statuses, 'packages/strands-agents/python')
+      plan.units.strands.youdotcom = updateReleaseUnit(
+        plan.units.strands.youdotcom,
+        isInitial ? 'initial' : 'patch',
+        path,
+        isInitial ? 'new packages: publish declared version as-is' : 'strands package changed',
+      )
       continue
     }
 
-    for (const [name, packagePath] of Object.entries(npmPackages)) {
-      const directory = dirname(packagePath)
-      if (path.startsWith(directory)) {
-        const isInitial = isInitialPackage(statuses, directory)
-        plan.units.npm[name] = updateReleaseUnit(
-          plan.units.npm[name],
-          isInitial ? 'initial' : 'patch',
+    if (isPluginReleasePath(path)) {
+      plan.units.plugins.you = updateReleaseUnit(plan.units.plugins.you, 'patch', path, 'plugin manifest changed')
+      // The root mcp.json is the source of truth for the strands mirror's
+      // server set; other plugin manifests do not affect it.
+      if (path === 'mcp.json') {
+        plan.units.strands.youdotcom = updateReleaseUnit(
+          plan.units.strands.youdotcom,
+          'patch',
           path,
-          isInitial ? 'new package: publish declared version as-is' : 'package implementation changed',
+          'mcp server config changed',
         )
+      }
+      continue
+    }
+
+    for (const [name, packageManifest] of Object.entries(npmPackages)) {
+      const directory = dirname(packageManifest)
+      if (path.startsWith(directory)) {
+        const { bump, rationale } = planNpmBump({
+          isNew: isInitialPackage(statuses, directory),
+          headVersion: await readDeclaredVersion(repoRoot, packageManifest),
+          baseVersion: await readDeclaredVersion(repoRoot, packageManifest, baseRef),
+        })
+        plan.units.npm[name] = updateReleaseUnit(plan.units.npm[name], bump, path, rationale)
         if (name === '@youdotcom-oss/openclaw') {
           plan.units.clawhub.you = updateReleaseUnit(
             plan.units.clawhub.you,
-            isInitial ? 'initial' : 'patch',
+            bump,
             path,
-            isInitial ? 'new package: publish declared version as-is' : 'OpenClaw package changed',
+            bump === 'initial' ? rationale.replace('package', 'OpenClaw package') : 'OpenClaw package changed',
           )
         }
       }
@@ -280,6 +383,8 @@ const readReleasePlan = async ({ repoRoot, path }: { repoRoot: string; path: str
       plugins: validateReleaseUnitGroup(parsed.units.plugins, 'units.plugins'),
       npm: validateReleaseUnitGroup(parsed.units.npm, 'units.npm'),
       clawhub: validateReleaseUnitGroup(parsed.units.clawhub, 'units.clawhub'),
+      // Tolerate plans written before the strands unit existed.
+      strands: validateReleaseUnitGroup(parsed.units.strands ?? {}, 'units.strands'),
     },
   }
 }
@@ -344,6 +449,55 @@ const bumpSkillVersion = async ({ repoRoot, skillName, bump }: { repoRoot: strin
   return { path, content: updated }
 }
 
+const bumpPyprojectVersion = async ({ repoRoot, path, bump }: { repoRoot: string; path: string; bump: Bump }) => {
+  const content = await Bun.file(resolve(repoRoot, path)).text()
+
+  // Validate through the platform TOML parser so the stamped version is the
+  // [project] table's — a version key in some other table must not match.
+  const toml = Bun.TOML.parse(content) as { project?: { version?: unknown } }
+  const declared = toml.project?.version
+  if (typeof declared !== 'string') {
+    throw new TypeError(`${path} [project] must contain a version string`)
+  }
+
+  const version = bumpVersion(declared, bump)
+  // TOML has no serializer, so the write stays a surgical line replacement.
+  const updated = content.replace(/^version = "\d+\.\d+\.\d+"/m, `version = "${version}"`)
+  if (updated === content) {
+    throw new Error(`${path} version could not be updated`)
+  }
+
+  return { path, content: updated, version }
+}
+
+/** Stamps the version `uv.lock` records for an editable package.
+ *
+ * `uv sync --locked` compares that entry against `pyproject.toml`, so leaving
+ * it behind fails Python CI on the release commit. The lock has no parser
+ * here, so the write stays a surgical line replacement inside the package's
+ * `[[package]]` block. The caller passes the version pyproject ended at
+ * rather than an independent bump, so a lock that already drifted from an
+ * earlier release self-heals instead of staying wrong. */
+const setUvLockVersion = async ({
+  repoRoot,
+  path,
+  packageName,
+  version,
+}: {
+  repoRoot: string
+  path: string
+  packageName: string
+  version: string
+}) => {
+  const content = await Bun.file(resolve(repoRoot, path)).text()
+  const pattern = new RegExp(`(\\[\\[package\\]\\]\\nname = "${packageName}"\\nversion = )"\\d+\\.\\d+\\.\\d+"`)
+  if (!pattern.test(content)) {
+    throw new Error(`${path} must contain a ${packageName} package version`)
+  }
+
+  return { path, content: content.replace(pattern, `$1"${version}"`) }
+}
+
 const writeUpdates = async (updates: { path: string; content: string }[]) => {
   for (const update of updates) {
     await Bun.write(resolve(defaultRepoRoot, update.path), update.content)
@@ -391,6 +545,35 @@ export const createVersionUpdates = async ({ repoRoot, planPath }: { repoRoot: s
         )
       }
     }
+  }
+
+  // The strands packages (Python + TypeScript) share one version line: the
+  // strands unit stamps both. An 'initial' bump keeps the declared version.
+  const strandsUnit = plan.units.strands.youdotcom
+  if (strandsUnit?.bump && strandsUnit.bump !== 'none' && strandsUnit.bump !== 'initial') {
+    updates.push(
+      await bumpJsonVersion({
+        repoRoot,
+        path: 'packages/strands-agents/typescript/package.json',
+        bump: strandsUnit.bump,
+      }),
+    )
+    const pyproject = await bumpPyprojectVersion({
+      repoRoot,
+      path: 'packages/strands-agents/python/pyproject.toml',
+      bump: strandsUnit.bump,
+    })
+    updates.push(pyproject)
+    // Keep the lock in lockstep with pyproject so the stamped commit still
+    // satisfies `uv sync --locked` in Python CI.
+    updates.push(
+      await setUvLockVersion({
+        repoRoot,
+        path: 'packages/strands-agents/python/uv.lock',
+        packageName: 'strands-you',
+        version: pyproject.version,
+      }),
+    )
   }
 
   return updates

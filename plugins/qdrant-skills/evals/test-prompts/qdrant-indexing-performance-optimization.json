@@ -14,15 +14,11 @@
     },
     {
       "type": "must",
-      "text": "Recommends disabling HNSW during the bulk load (raise indexing_threshold_kb, restore after) to speed the initial load"
-    },
-    {
-      "type": "must",
       "text": "Flags the payload-index timing problem: create payload indexes BEFORE the HNSW build, not 'as fields become available' after - adding them after HNSW breaks/forces rebuild of the filterable vector index"
     },
     {
       "type": "bonus",
-      "text": "Suggests more shards (3-12), since each shard has an independent update worker, to parallelize server-side ingestion"
+      "text": "Suggests multiple shards (2 to 4 per machine), since each shard has an independent update worker, to parallelize server-side ingestion"
     },
     {
       "type": "bonus",

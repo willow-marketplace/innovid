@@ -10,7 +10,6 @@ Column | Type | Nullable | Description
 --- | --- | --- | ---
 `id` | String | NOT NULL | Recording row UUID.
 `session_id` | String | NOT NULL | Session identifier; matches events.$session_id.
-`team_id` | Integer | NOT NULL |
 `distinct_id` | String | NOT NULL | Distinct id of the user/device recorded.
 `duration` | Integer | NOT NULL | Total recording length in seconds (active + inactive).
 `active_seconds` | Integer | NOT NULL | Seconds of active user engagement.
@@ -27,7 +26,6 @@ Column | Type | Nullable | Description
 `deleted` | Integer | NOT NULL | 1 if the recording has been deleted, 0 otherwise.
 `created_at` | DateTime | NOT NULL | When the recording metadata row was created.
 `retention_period_days` | Integer | NOT NULL | How long the recording is retained, in days.
-`storage_version` | String | NOT NULL | Storage format version of the recording payload.
 
 ### Key Relationships
 

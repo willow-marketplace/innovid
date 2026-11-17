@@ -1,10 +1,29 @@
 > AI agents: this is one page from PostHog's docs. Full index of Markdown docs for LLMs: https://posthog.com/llms.txt
 
-# Android Feature Flags installation - Docs
+# Android Feature Flags installation
 
-Copy page
+Canonical URL: https://posthog.com/docs/feature-flags/installation/android
 
-# Android Feature Flags installation - Docs
+> **Cloud region:** This page uses US Cloud hosts. For an EU Cloud project, use `https://eu.i.posthog.com` instead of `https://us.i.posthog.com` (ingestion host).
+
+## On this page
+
+- [Install with the wizard](#install-with-the-wizard)
+- [Install the dependency](#install-the-dependency)
+- [Configure PostHog](#configure-posthog)
+- [Send events](#send-events)
+- [Evaluate boolean feature flags](#evaluate-boolean-feature-flags)
+- [Evaluate multivariate feature flags](#evaluate-multivariate-feature-flags)
+- [Running experiments](#running-experiments)
+- [Next steps](#next-steps)
+
+## Install with the wizard
+
+Run this command in your project directory to add PostHog to your Android project. The wizard detects your framework, installs the SDK, and sets up your first events.
+
+`npx @posthog/wizard`
+
+Or set it up manually by following the rest of this guide.
 
 1.  1
 
@@ -15,8 +34,6 @@ Copy page
     Add the PostHog Android SDK to your `build.gradle` dependencies:
 
     build.gradle
-
-    PostHog AI
 
     ```kotlin
     dependencies {
@@ -34,21 +51,23 @@ Copy page
 
     SampleApp.kt
 
-    PostHog AI
-
     ```kotlin
     class SampleApp : Application() {
+    
         companion object {
             const val POSTHOG_PROJECT_TOKEN = "<ph_project_token>"
             const val POSTHOG_HOST = "https://us.i.posthog.com"
         }
+    
         override fun onCreate() {
             super.onCreate()
+    
             // Create a PostHog Config with the given project token and host
             val config = PostHogAndroidConfig(
                 apiKey = POSTHOG_PROJECT_TOKEN,
                 host = POSTHOG_HOST
             )
+    
             // Setup PostHog with the given Context and Config
             PostHogAndroid.setup(this, config)
         }
@@ -65,10 +84,9 @@ Copy page
 
     Kotlin
 
-    PostHog AI
-
     ```kotlin
     import com.posthog.PostHog
+    
     PostHog.capture(
         event = "button_clicked",
         properties = mapOf(
@@ -87,14 +105,12 @@ Copy page
 
     Kotlin
 
-    PostHog AI
-
     ```kotlin
     val isMyFlagEnabled = PostHog.isFeatureEnabled("flag-key")
     if (isMyFlagEnabled) {
         // Do something differently for this user
         // Optional: fetch the payload
-        val matchedFlagPayload = PostHog.getFeatureFlagResult("flag-key")?.payload
+        val matchedFlagPayload = PostHog.getFeatureFlagResult("flag-key", sendFeatureFlagEvent = false)?.payload
     }
     ```
 
@@ -108,14 +124,12 @@ Copy page
 
     Kotlin
 
-    PostHog AI
-
     ```kotlin
     val enabledVariant = PostHog.getFeatureFlag("flag-key")
     if (enabledVariant == "variant-key") { // replace 'variant-key' with the key of your variant
         // Do something differently for this user
         // Optional: fetch the payload
-        val matchedFlagPayload = PostHog.getFeatureFlagResult("flag-key")?.payload
+        val matchedFlagPayload = PostHog.getFeatureFlagResult("flag-key", sendFeatureFlagEvent = false)?.payload
     }
     ```
 
@@ -137,16 +151,8 @@ Copy page
 
     | Resource | Description |
     | --- | --- |
-    | [Creating a feature flag](/docs/feature-flags/creating-feature-flags.md) | How to create a feature flag in PostHog |
-    | [Adding feature flag code](/docs/feature-flags/adding-feature-flag-code.md) | How to check flags in your code for all platforms |
-    | [Framework-specific guides](/docs/feature-flags/tutorials.md#framework-guides) | Setup guides for React Native, Next.js, Flutter, and other frameworks |
-    | [How to do a phased rollout](/tutorials/phased-rollout.md) | Gradually roll out features to minimize risk |
-    | [More tutorials](/docs/feature-flags/tutorials.md) | Other real-world examples and use cases |
-
-### Still have questions?
-
-Ask PostHog AI
-
-### Was this page useful?
-
-HelpfulCould be better
+    | [Creating a feature flag](https://posthog.com/docs/feature-flags/creating-feature-flags.md) | How to create a feature flag in PostHog |
+    | [Adding feature flag code](https://posthog.com/docs/feature-flags/adding-feature-flag-code.md) | How to check flags in your code for all platforms |
+    | [Framework-specific guides](https://posthog.com/docs/feature-flags/tutorials.md#framework-guides) | Setup guides for React Native, Next.js, Flutter, and other frameworks |
+    | [How to do a phased rollout](https://posthog.com/tutorials/phased-rollout.md) | Gradually roll out features to minimize risk |
+    | [More tutorials](https://posthog.com/docs/feature-flags/tutorials.md) | Other real-world examples and use cases |

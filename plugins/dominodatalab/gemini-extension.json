@@ -1,0 +1,34 @@
+{
+  "name": "dominodatalab",
+  "version": "2026.603.11",
+  "description": "Domino Data Lab skills for Workspaces, Jobs, Compute Environments, Datasets, Projects, Apps, model endpoints and monitoring, MLflow experiment tracking, GenAI tracing, Flows, Spark/Ray/Dask clusters, governance, and the Domino APIs and SDKs",
+  "contextFileName": "rules/domino.md",
+  "settings": [
+    {
+      "name": "Domino URL",
+      "description": "Only for use outside a Domino Workspace: the address you open Domino at in your browser, for example https://domino.example.com. Leave empty inside a Workspace.",
+      "envVar": "DOMINO_HOST"
+    },
+    {
+      "name": "Domino Personal Access Token",
+      "description": "Only for use outside a Domino Workspace: in Domino, Account > Account settings > Personal Access Token > Generate new Token. Kept in your system keychain. Leave empty inside a Workspace.",
+      "envVar": "DOMINO_TOKEN",
+      "sensitive": true
+    }
+  ],
+  "mcpServers": {
+    "domino_server": {
+      "command": "uv",
+      "args": [
+        "run",
+        "--frozen",
+        "--directory",
+        "${extensionPath}${/}mcp-servers${/}domino_mcp_server",
+        "domino_mcp_server.py"
+      ]
+    },
+    "domino_docs": {
+      "httpUrl": "https://docs.domino.ai/mcp"
+    }
+  }
+}

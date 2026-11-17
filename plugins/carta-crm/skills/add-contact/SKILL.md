@@ -3,6 +3,9 @@ name: add-contact
 description: Adds one or more contact records to the Carta CRM via the Carta CRM MCP Server. Use this skill when the user says things like "add a contact", "create a contact record", "add contact to CRM", "save a contact", "upload contact to Carta CRM", or "/add-contact". Collects contact information conversationally, then creates it via the MCP server. Only name is required — all other fields are optional.
 ---
 
+<!-- carta:plugin-version -->
+<carta-plugin>carta-crm:1.20.20</carta-plugin>
+
 ## Overview
 
 Help the user create one or more contact records in the Carta CRM using the

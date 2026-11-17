@@ -5,7 +5,7 @@ title: "Anthropic Claude 3: Next-gen models on Amazon Bedrock"
 
 ## Anthropic Claude 3: Next-gen models on Amazon Bedrock
 
-_Author: Swami Sivasubramanian, AWS VP Database Analytics and Machine Learning_
+> _Author: Swami Sivasubramanian, AWS VP Database Analytics and Machine Learning_
 
 You already know Amazon Bedrock is the easiest way to build generative AI solutions with foundation models, including as Anthropic's state-of-the-art model, Claude. And now, the next generation of Claude is here. I've made 3 separate videos covering the first launch so far, but I wanted to write a little companion piece with the key facts and quick links I think developers will be most interested in!
 

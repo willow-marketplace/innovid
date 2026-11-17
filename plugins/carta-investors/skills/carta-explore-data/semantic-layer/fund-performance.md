@@ -61,7 +61,7 @@ in this session, or when the query does not name a specific fund (handled by Gat
 **Gate 1 — Look up the fund in Fund Forecasting**
 
 ```
-call_tool({"name": "fund_forecasting__list__funds", "arguments": {"search": "<distinctive word(s) from fund name>"}})
+read_tool({"name": "fund_forecasting__list__funds", "arguments": {"search": "<distinctive word(s) from fund name>"}})
 ```
 
 Tips: use only distinctive words — omit "Fund", "Capital", fund numbers. For "La Garita Fund II",
@@ -92,7 +92,7 @@ Do not run any DWH query. The explore-data skill's work is done.
 
 Based on the user's answer: redirect to `carta-fund-forecasting` OR continue with DWH queries.
 
-**Limit:** one `call_tool` call maximum — do not call `list:funds` without `search=`, and do
+**Limit:** one `read_tool` call maximum — do not call `list:funds` without `search=`, and do
 not pre-fetch fund details. Once routed in a session, do not re-run this check for follow-up
 questions about the same fund.
 
@@ -116,7 +116,7 @@ questions about the same fund.
 | `ENTITY_TYPE` in `ALLOCATIONS` | `entity_type_name` | the column is `entity_type_name` (not `entity_type`); filter with `entity_type_name IN ('Fund', 'SPV')` |
 | Querying `AGGREGATE_FUND_METRICS` for a specific past date/quarter-end | Query `TEMPORAL_FUND_COHORT_BENCHMARKS` instead | `AGGREGATE_FUND_METRICS` only retains the latest monthly refresh — zero rows for a past date does not mean the data doesn't exist |
 | `ALLOCATION_AMOUNT` / `ALLOCATION_VALUE` (in `FUND_ADMIN.ALLOCATIONS`) | `ACTUAL_AMOUNT` | the numeric amount column in `ALLOCATIONS` is `ACTUAL_AMOUNT`, not `ALLOCATION_AMOUNT` or `ALLOCATION_VALUE` |
-| `LP_COUNT` / `GP_COUNT` / `COUNT_LPS` / `COUNT_GPS` / `NUM_LPS` | **not in `AGGREGATE_FUND_METRICS`** — for LP/GP counts, query `PARTNER_DATA` (count distinct `partner_id` where `IS_LIMITED_PARTNER`/`IS_GENERAL_PARTNER`) or `PARTNER_MONTHLY_NAV_CALCULATIONS` | `AGGREGATE_FUND_METRICS` has no per-partner count column |
+| `LP_COUNT` / `GP_COUNT` / `NUM_LPS` | `count_lps` / `count_gps` | the latest refresh's limited-partner and general-partner counts are `COUNT_LPS` and `COUNT_GPS` on `AGGREGATE_FUND_METRICS` (a fund's partners are their sum, as the app's fund list counts them); for counts as of a past date, count distinct `partner_id` in `PARTNER_DATA` (`IS_LIMITED_PARTNER`/`IS_GENERAL_PARTNER`) or `PARTNER_MONTHLY_NAV_CALCULATIONS` |
 | `PERFORMANCE_QUARTER_END_DATE` (in `TEMPORAL_FUND_COHORT_BENCHMARKS`) | `performance_quarter_start_date` | despite the `_start_date` suffix, this column holds the quarter-END date (e.g. `2026-06-30` for Q2); do NOT convert to the quarter's first day |
 | `PORTFOLIO_VALUATIONS` for fund performance | `AGGREGATE_FUND_METRICS` (latest) or `TEMPORAL_FUND_COHORT_BENCHMARKS` (historical) | `PORTFOLIO_VALUATIONS` is the GP-side portfolio valuation tool table, not a fund performance source; it has no `FIRM_NAME` column (filter by `FIRM_ID`) and no `STATUS` column (use `FINALIZED_AT IS NOT NULL` for finalized marks) |
 
@@ -251,7 +251,7 @@ Caveats:
   `deal_irr` and `net_lp_irr` mean the same thing as on `AGGREGATE_FUND_METRICS`.
 - For peer/percentile benchmark comparisons (not just the fund's own historical values), this
   table also has percentile columns (`dpi_5`...`dpi_95`, `net_lp_irr_5th`...`net_lp_irr_95th`,
-  etc.) — for that use case prefer `carta-investors:carta-performance-benchmarks`.
+  etc.) — for that use case prefer `carta-investors:carta-fund-performance`.
 
 ## Query 3 — Fund Performance Trend Over Time
 

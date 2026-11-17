@@ -1,0 +1,603 @@
+import { useEffect, useRef, useState } from "react";
+import { renderMarkdown } from "./markdown.jsx";
+import { Btn, CloseIcon, StopIcon } from "./components.jsx";
+import { FS, sans } from "./theme.js";
+import { trackClick } from "../analytics.js";
+import { capLabel } from "../pinpoint/capture.js";
+import { loadTranscript, saveTranscript, clearTranscript } from "./chatPersistence.js";
+import { ClaudePrompt, ClaudeSignIn } from "./claudeFix.jsx";
+import { DASHBOARD_EXPORT_ID } from "./exportIds.js";
+
+// Built-in fallback catalog, used when App's /api/models fetch hasn't
+// resolved (or failed) — keeps the model picker usable offline. This mirrors
+// chat_session.CLAUDE_MODELS on the server; that copy is the source of truth
+// (served via GET /api/models), this is only the no-network fallback.
+export const FALLBACK_MODELS = [
+  { value: "haiku", label: "Haiku — fast" },
+  { value: "sonnet", label: "Sonnet — balanced", default: true },
+  { value: "opus", label: "Opus — most capable" },
+];
+
+// ChatPanel renders alongside the rest of the shell, so the keyframes these
+// animations need are injected once, here, rather than assumed to already
+// exist in a global stylesheet.
+let chatKeyframesInjected = false;
+function injectChatKeyframes() {
+  if (chatKeyframesInjected || typeof document === "undefined") return;
+  chatKeyframesInjected = true;
+  const style = document.createElement("style");
+  style.setAttribute("data-manco-chat-keyframes", "");
+  style.textContent =
+    "@keyframes manco-dot{0%,80%,100%{opacity:.2}40%{opacity:1}}" +
+    "@keyframes manco-spin{to{transform:rotate(360deg)}}";
+  document.head.appendChild(style);
+}
+
+// Shown for the whole turn, not just the wait before the first token: with
+// streaming, dots that stop at the first token read as "finished" while text is
+// still arriving. `hasText` keeps it clear of the text it trails.
+function Thinking({ hasText }) {
+  return (
+    <span data-testid="chat-thinking" aria-label="Claude is responding"
+          style={{ display: "inline-flex", gap: 4, alignItems: "center",
+                   marginTop: hasText ? 4 : 0 }}>
+      {[0, 1, 2].map((n) => (
+        <span key={n} style={{
+          width: 6, height: 6, borderRadius: "50%",
+          background: "var(--ink-color-global-text-subtle)",
+          animation: "manco-dot 1.2s infinite",
+          animationDelay: (n * 0.16) + "s",
+        }} />
+      ))}
+    </span>
+  );
+}
+
+// terminal_reason values the CLI stamps on the `result` frame of a turn that was
+// interrupted. Such a turn also carries is_error:true, so it must be recognised
+// BEFORE the generic error branch or a user pressing Stop sees a failure and
+// loses the text they just watched stream in.
+const ABORTED_REASONS = ["aborted_streaming", "aborted_tools"];
+
+function StoppedMark({ hadText }) {
+  return (
+    <div data-testid="chat-stopped" style={{
+      fontSize: FS.small, marginTop: hadText ? 4 : 0,
+      color: "var(--ink-color-global-text-subtle)",
+    }}>
+      ⏹ Stopped{hadText ? "" : " before Claude replied"}
+    </div>
+  );
+}
+
+function ButtonSpinner() {
+  return (
+    <span aria-hidden="true" style={{
+      display: "inline-block", width: 12, height: 12, borderRadius: "50%",
+      border: "2px solid var(--ink-button-font-color-primary-base)",
+      borderTopColor: "transparent",
+      animation: "manco-spin .6s linear infinite",
+    }} />
+  );
+}
+
+// Shown in place of the transcript until the first message is sent. The chat's
+// two capabilities (read the loaded report data / edit the app's own screens)
+// are not discoverable from the composer placeholder alone, so spell them out.
+function EmptyState() {
+  const items = [
+    ["📊", "Explain the numbers", "“Why did payroll spend jump in March?”"],
+    ["🎛️", "Change the view", "“Add a prior-year column to this table.”"],
+    ["📍", "Pinpoint", "Select any chart, figure, or section on the page, and allow Claude to provide targeted insights or changes."],
+  ];
+  return (
+    <div data-testid="chat-empty-state" style={{
+      margin: "auto", padding: "0 4px", maxWidth: 300,
+      color: "var(--ink-color-global-text-subtle)", fontSize: FS.body, lineHeight: 1.5,
+    }}>
+      <div style={{ fontSize: FS.bodyLg, fontWeight: 600, marginBottom: 4,
+                    color: "var(--ink-color-global-text-default)" }}>
+        Ask Claude about this report
+      </div>
+      <p style={{ margin: "0 0 12px" }}>
+        Claude can read the report data loaded here and edit this app’s own screens.
+      </p>
+      {items.map(([icon, title, example]) => (
+        <div key={title} style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+          <span aria-hidden="true">{icon}</span>
+          <span>
+            <span style={{ fontWeight: 600, color: "var(--ink-color-global-text-default)" }}>{title}</span>
+            {" — "}{example}
+          </span>
+        </div>
+      ))}
+      <p style={{ margin: 0, opacity: 0.8 }}>
+        Claude can change how a screen looks, never the underlying figures — nothing is written back to Carta.
+      </p>
+    </div>
+  );
+}
+
+// anchor.section is capture.js's last resort: the id of the nearest ancestor
+// with one, used when a pin lands on an area with no heading, text selection
+// or datum under it (e.g. empty space in DashboardView's whole-page export
+// container). That id is an internal export/DOM hook, never meant to be
+// read, so it needs a display name here rather than showing up verbatim in
+// the pin chip.
+//
+// TODO: BudgetActualsView, MonthlyActualsView and CustomReportView wrap their
+// pages in the same kind of export-container id and hit the same fallback —
+// add each one here, keyed on its own exportIds.js constant, when one of them
+// is seen leaking into a pin chip.
+const SECTION_DISPLAY_NAMES = {
+  [DASHBOARD_EXPORT_ID]: "ManCo Microapp",
+};
+
+export function pinLabel(anchor) {
+  if (!anchor) return "";
+  if (anchor.label) return anchor.label; // display label computed at capture time
+  if (anchor.datum && anchor.datum.name) return anchor.datum.name; // precomputed clean label
+  const t = (anchor.quotedText || "").trim();
+  if (t) return capLabel(t);
+  if (anchor.datum && anchor.datum.id) return (anchor.datum.type || "item") + " " + anchor.datum.id;
+  if (anchor.section) return SECTION_DISPLAY_NAMES[anchor.section] || anchor.section;
+  const vf = anchor.source && anchor.source.viewFile;
+  return vf ? vf.split("/").pop() : "element";
+}
+
+function parseSSE(buffer) {
+  const events = [];
+  let rest = buffer;
+  let idx;
+  while ((idx = rest.indexOf("\n\n")) !== -1) {
+    const frame = rest.slice(0, idx);
+    rest = rest.slice(idx + 2);
+    const line = frame.split("\n").find((l) => l.startsWith("data:"));
+    if (line) {
+      try { events.push(JSON.parse(line.slice(5).trim())); } catch { /* ignore */ }
+    }
+  }
+  return [events, rest];
+}
+
+// The tools that change a file in the app's own source.
+const EDIT_TOOLS = ["Edit", "Write", "MultiEdit", "NotebookEdit"];
+
+// Ids of the file-editing tool calls an `assistant` frame asks for.
+function editCallIds(ev) {
+  if (ev.type !== "assistant") return [];
+  return (ev.message?.content || [])
+    .filter((b) => b.type === "tool_use" && EDIT_TOOLS.includes(b.name))
+    .map((b) => b.id);
+}
+
+// Ids of the tool calls a `user` frame reports as done without error — a
+// denied or failed edit changed nothing, so it must not count as one.
+function succeededCallIds(ev) {
+  if (ev.type !== "user") return [];
+  return (ev.message?.content || [])
+    .filter((b) => b.type === "tool_result" && !b.is_error)
+    .map((b) => b.tool_use_id);
+}
+
+// A message that never reached Claude — any non-OK /api/chat response (a
+// 503/500 claude_unavailable, a 400/409/413, anything) or a rejected fetch(),
+// before any token streamed back. serve.py re-probes claude's availability on
+// the very next attempt, so restoring one of these after a reload would only
+// show stale text and an unnecessarily locked model; an error Claude actually
+// returned mid-conversation (a stream is_error frame, or any failure once
+// res.ok was true) has none of this flag and is persisted until the operator
+// reloads on purpose.
+function isPreClaudeError(m) {
+  return !!m && m.role === "assistant" && !!m.preClaudeError;
+}
+
+// What actually gets written to sessionStorage: every pre-Claude-failed turn
+// is dropped (both the user prompt and its error), not just hidden, wherever
+// it sits in the list — a resend that fails again, or an earlier failure in
+// a conversation that later succeeded, must not come back on reload either.
+// Nothing about such a turn reflects a real exchange with Claude worth
+// restoring, and keeping the user half alone would read as a question
+// nobody answered.
+function messagesToPersist(messages) {
+  return messages.filter((m, i) =>
+    !isPreClaudeError(m) && !(m.role === "user" && isPreClaudeError(messages[i + 1])));
+}
+
+export default function ChatPanel({ sessionId, onTurnStart, onTurnEnd, anchor, onAnchorConsumed, pinMode, onTogglePinMode, models, defaultModel, onClose, onResetChat }) {
+  // What this tab saved for the session before a reload, read once on mount.
+  const [saved] = useState(() => loadTranscript(sessionId));
+  const [messages, setMessages] = useState(() => saved?.messages || []);
+  const [input, setInput] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [stopping, setStopping] = useState(false);
+  injectChatKeyframes();
+
+  const modelList = (models && models.length) ? models : FALLBACK_MODELS;
+  const initialModel = defaultModel
+    || (modelList.find((m) => m.default) || modelList[0]).value;
+  const [model, setModel] = useState(() => saved?.model || initialModel);
+  // initialModel can arrive after mount (models/defaultModel load async from
+  // App's /api/models fetch) — only adopt a late-arriving default before the
+  // first message; never override a user's pick or a locked session.
+  useEffect(() => {
+    if (messages.length === 0) setModel(initialModel);
+  }, [initialModel]);
+  // A turn that never reached Claude shouldn't lock the model picker — nothing
+  // about it committed this session to a model the way a real turn does.
+  const locked = messages.some((m) => m.role === "assistant" && !isPreClaudeError(m));
+
+  // Saved only between turns, and dropped while one is in flight: serve.py
+  // closes a session whose page goes away mid-turn, so a transcript restored
+  // then would show a conversation the next message's fresh session has never
+  // seen — an empty, unlocked chat matches it instead. When an edited turn
+  // ends, App reloads from an effect of its own, which runs after this one in
+  // the same commit, so the finished turn is saved before the page goes.
+  useEffect(() => {
+    if (busy) return clearTranscript(sessionId);
+    const toSave = messagesToPersist(messages);
+    if (toSave.length === 0) clearTranscript(sessionId);
+    else saveTranscript(sessionId, { messages: toSave, model });
+  }, [sessionId, messages, model, busy]);
+
+  // Keep the transcript pinned to the newest text. `messages` gets a new identity
+  // on every streamed chunk, so this runs per frame while a reply arrives.
+  const logRef = useRef(null);
+  // Follow the tail only while the reader is already there: yanking the view down
+  // mid-stream would fight someone scrolled up reading earlier answers.
+  const stickToBottom = useRef(true);
+
+  function onLogScroll() {
+    const el = logRef.current;
+    if (!el) return;
+    // A few px of slack so sub-pixel rounding doesn't read as "scrolled away".
+    stickToBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight <= 24;
+  }
+
+  useEffect(() => {
+    const el = logRef.current;
+    if (el && stickToBottom.current) el.scrollTop = el.scrollHeight;
+  }, [messages]);
+
+  // Ask the server to abort the turn, then keep reading: the stream is NOT
+  // aborted here. Claude answers an interrupt with a real `result` frame, and
+  // draining to it is what leaves the session reusable for the next prompt —
+  // tearing down the fetch early would strand buffered frames and get the
+  // session evicted. busy/stopping are reset by send()'s finally.
+  async function stop() {
+    if (!busy || stopping) return;
+    trackClick("MancoReporting.Chat.StopTurn");
+    setStopping(true);
+    try {
+      // The /api token is not passed per call: installApiAuth() patches
+      // window.fetch to stamp X-Dash-Token onto every /api request, so this
+      // matches send() and every other endpoint. Adding it here would fork that
+      // single source of truth.
+      await fetch("/api/chat/interrupt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId }),
+      });
+    } catch (e) {
+      // Nothing to surface: the turn's own result frame is the source of truth
+      // for how it ended, and a failed interrupt just means it ends normally.
+    }
+  }
+
+  // The most recently sent turn's prompt/anchor, kept so a sign-in success
+  // (ClaudeSignIn's onSuccess, below) can replay it without the operator
+  // retyping — serve.py's own re-probe means the exact same request now
+  // succeeds, nothing about the prompt itself needs to change.
+  const lastTurnRef = useRef(null);
+
+  async function runTurn(prompt, anchorForTurn) {
+    setBusy(true);
+    const decoder = new TextDecoder();
+    // Whether a file-editing tool call finished without error this turn —
+    // what onTurnEnd reports, so App knows a screen changed under it.
+    let edited = false;
+    const editCalls = new Set();
+    // Whether the request ever got a successful response from serve.py — any
+    // non-OK response (503/500 claude_unavailable, 400/409/413, anything) or
+    // a fetch() rejection (network failure) leaves this false, since Claude's
+    // own subprocess never saw the prompt. isPreClaudeError()/
+    // messagesToPersist() use this to treat such a failure as something not
+    // worth restoring on reload or locking the model over, unlike an error
+    // Claude itself returns mid-stream below.
+    let reachedClaude = false;
+    try {
+      onTurnStart?.(); // inside try: a throw here still hits finally, so busy resets
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt, sessionId, model, ...(anchorForTurn ? { anchor: anchorForTurn } : {}) }),
+      });
+      onAnchorConsumed?.();
+      if (!res.ok) {
+        // serve.py's claude_unavailable / session-start failures carry a
+        // readable `message`, a `code` (ClaudeSignIn's not_logged_in gate)
+        // and a copy-paste `fixPrompt`; anything else (model_mismatch,
+        // turn_in_progress, a non-JSON body) falls back to the generic text
+        // below, with no sign-in button or fixPrompt box.
+        let data = null;
+        try { data = await res.json(); } catch (e) { /* non-JSON body */ }
+        const err = new Error(data?.message
+          || ("chat request failed (" + res.status + (data?.error ? ": " + data.error : "") + ")"));
+        err.code = data?.code || null;
+        err.fixPrompt = data?.fixPrompt || null;
+        throw err;
+      }
+      reachedClaude = true;
+      const reader = res.body.getReader();
+      let buf = "";
+      // Once we've seen a partial text_delta, the CLI's terminal full-message
+      // `assistant` frame merely restates what we already streamed — ignore it.
+      // If no delta ever arrives (older CLI / unexpected shape), sawDelta stays
+      // false and we append whole `assistant` blocks directly.
+      let sawDelta = false;
+      let sawStop = false;
+      for (;;) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        let events;
+        [events, buf] = parseSSE(buf);
+        // Coalesce every appended token from this network chunk into one render.
+        let chunkText = "";
+        let errorText = null;
+        for (const ev of events) {
+          for (const id of editCallIds(ev)) editCalls.add(id);
+          if (succeededCallIds(ev).some((id) => editCalls.has(id))) edited = true;
+          if (ev.type === "stream_event"
+              && ev.event?.type === "content_block_delta"
+              && ev.event.delta?.type === "text_delta") {
+            sawDelta = true;
+            chunkText += ev.event.delta.text || "";
+          } else if (ev.type === "assistant" && !sawDelta) {
+            chunkText += (ev.message?.content || [])
+              .filter((b) => b.type === "text").map((b) => b.text).join("");
+          } else if (ev.type === "result" && ABORTED_REASONS.includes(ev.terminal_reason)) {
+            sawStop = true;   // user pressed Stop — keep the partial text as-is
+          } else if (ev.type === "result" && (ev.is_error || ev.subtype === "error")) {
+            errorText = "⚠️ " + (ev.error || "claude reported an error");
+          }
+        }
+        if (errorText !== null) {
+          setMessages((m) => {
+            const copy = m.slice();
+            copy[copy.length - 1] = { role: "assistant", text: errorText };
+            return copy;
+          });
+        } else if (chunkText) {
+          setMessages((m) => {
+            const copy = m.slice();
+            copy[copy.length - 1] = { role: "assistant", text: copy[copy.length - 1].text + chunkText };
+            return copy;
+          });
+        }
+      }
+      if (sawStop) {
+        setMessages((m) => {
+          const copy = m.slice();
+          const last = copy[copy.length - 1];
+          if (last && last.role === "assistant") copy[copy.length - 1] = { ...last, stopped: true };
+          return copy;
+        });
+      }
+    } catch (err) {
+      setMessages((m) => {
+        const copy = m.slice();
+        copy[copy.length - 1] = {
+          role: "assistant",
+          text: "⚠️ " + (err && err.message ? err.message : "error"),
+          code: (err && err.code) || null,
+          fixPrompt: (err && err.fixPrompt) || null,
+          preClaudeError: !reachedClaude,
+        };
+        return copy;
+      });
+    } finally {
+      setBusy(false);
+      setStopping(false);
+      onTurnEnd?.({ edited });
+    }
+  }
+
+  async function send() {
+    const prompt = input.trim();
+    if (!prompt || busy) return;
+    trackClick("MancoReporting.Chat.SendMessage");
+    // Submitting is an explicit "show me what happens next", so re-follow the
+    // tail even if the reader had scrolled up before sending.
+    stickToBottom.current = true;
+    const pin = anchor ? pinLabel(anchor) : null;
+    lastTurnRef.current = { prompt, anchor };
+    setMessages((m) => [...m, { role: "user", text: prompt, pin }, { role: "assistant", text: "" }]);
+    setInput("");
+    await runTurn(prompt, anchor);
+  }
+
+  // ClaudeSignIn's onSuccess for a `not_logged_in` error: the sign-in that
+  // just completed is exactly what the failed turn needed, so replay it
+  // instead of leaving the operator to retype and resend by hand.
+  function retrySignedInTurn() {
+    const last = lastTurnRef.current;
+    if (!last) return;
+    setMessages((m) => {
+      const copy = m.slice();
+      copy[copy.length - 1] = { role: "assistant", text: "" };
+      return copy;
+    });
+    runTurn(last.prompt, last.anchor);
+  }
+
+  // Shared by the header control and the inline button an error bubble shows
+  // (see isPreClaudeError below) — one place firing the event keeps the two
+  // call sites from drifting into separate ids for the same action.
+  function handleResetChat() {
+    trackClick("MancoReporting.Chat.ResetChat");
+    onResetChat?.();
+  }
+
+  return (
+    <div className="manco-chat" style={{ display: "flex", flexDirection: "column", height: "100%", fontFamily: sans.fontFamily }}>
+      <style>{".manco-chat-input input:focus{box-shadow:0 0 0 3px var(--ink-color-global-border-focus-light);border-color:var(--ink-color-global-border-focus-default)}"}</style>
+      {(onClose || onResetChat) && (
+        <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 4, flex: "none", marginBottom: 2 }}>
+          {/* Shown whenever there's anything to reset, not only once the model
+              has actually locked — a pre-Claude error (isPreClaudeError) never
+              locks the model but still leaves a stuck composer to recover
+              from. Disabled mid-turn: resetting would orphan that stream. */}
+          {onResetChat && messages.length > 0 && (
+            <Btn small onClick={handleResetChat} disabled={busy} data-testid="chat-new">
+              Reset chat
+            </Btn>
+          )}
+          {onClose && <button onClick={onClose} data-testid="chat-close"
+            title="Close chat" aria-label="Close chat"
+            style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 28, height: 28,
+              border: "none", borderRadius: 4, background: "transparent",
+              color: "var(--ink-color-global-text-subtle)", cursor: "pointer", lineHeight: 0 }}>
+            <CloseIcon size={14} />
+          </button>}
+        </div>
+      )}
+      <div className="manco-chat-log" ref={logRef} onScroll={onLogScroll}
+           style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 8, padding: "4px 10px 4px 0" }}>
+        {messages.length === 0 && <EmptyState />}
+        {messages.map((m, i) => (
+          <div key={i} className={"manco-msg manco-" + m.role}
+               style={{
+                 alignSelf: m.role === "user" ? "flex-end" : "flex-start",
+                 maxWidth: "90%", padding: "6px 10px", borderRadius: 8, fontSize: FS.bodyLg,
+                 whiteSpace: "pre-wrap", wordBreak: "break-word",
+                 color: "var(--ink-color-global-text-default)",
+                 background: m.role === "user"
+                   ? "var(--ink-color-global-surface-lightgray-default)"
+                   : "transparent",
+               }}>
+            {m.role === "user" && m.pin && (
+              <div style={{ fontSize: FS.small, opacity: 0.7 }}>📍 {m.pin}</div>
+            )}
+            {m.role === "assistant"
+              ? (
+                  <>
+                    {m.text !== "" && renderMarkdown(m.text)}
+                    {/* Sign-in button first, copy-paste prompt as fallback — only on
+                        the last message: an older, already-superseded error further
+                        up the transcript has nothing left to retry. hosted is always
+                        false here (chat is local-only, see shell/chatFeature.js). */}
+                    {i === messages.length - 1 && m.code === "not_logged_in" && (
+                      <ClaudeSignIn code={m.code} hosted={false}
+                        event="MancoReporting.Chat.SignIn" onSuccess={retrySignedInTurn} />
+                    )}
+                    {m.fixPrompt && (
+                      <ClaudePrompt text={m.fixPrompt} event="MancoReporting.Chat.CopyFixPrompt" />
+                    )}
+                    {/* A pre-Claude failure (install/sign-in/session-start, or a
+                        network error) on a session with no real exchange yet
+                        leaves the composer otherwise unusable — the model
+                        never locked, but there's nothing to send into either.
+                        Put the way out right here instead of leaving it to the
+                        header control alone, which a reader focused on two
+                        stacked error lines can easily miss. Gated on !locked:
+                        once a real exchange has happened, resetting here would
+                        discard that conversation with no confirmation — the
+                        header control still covers that case, deliberately
+                        less prominent than this one. */}
+                    {!locked && i === messages.length - 1 && isPreClaudeError(m) && onResetChat && (
+                      <div style={{ marginTop: 8 }}>
+                        <Btn small onClick={handleResetChat} data-testid="chat-reset-inline">Reset chat</Btn>
+                      </div>
+                    )}
+                    {m.stopped && <StoppedMark hadText={m.text !== ""} />}
+                    {/* Trails the partial text for the whole turn — the dots are
+                        "still going", not "waiting to start". */}
+                    {busy && i === messages.length - 1 && !m.stopped
+                      && <Thinking hasText={m.text !== ""} />}
+                  </>
+                )
+              : m.text}
+          </div>
+        ))}
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+        <select
+          data-testid="model-select"
+          value={model}
+          disabled={locked || busy}
+          title={locked ? "Model is locked for this conversation" : "Model for this conversation (locks after the first message)"}
+          onChange={(e) => { trackClick("MancoReporting.Chat.SelectModel"); setModel(e.target.value); }}
+          style={{ fontSize: FS.body, padding: "4px 6px", borderRadius: 6,
+                   border: "1px solid var(--ink-color-global-border-subtle)",
+                   background: "var(--ink-color-global-surface-background-default)",
+                   color: "var(--ink-color-global-text-default)", cursor: locked ? "default" : "pointer" }}>
+          {modelList.map((m) => (<option key={m.value} value={m.value}>{m.label}</option>))}
+        </select>
+        {onTogglePinMode && (
+          <button data-testid="pinpoint-toggle" onClick={onTogglePinMode} aria-pressed={!!pinMode}
+            style={{ fontSize: FS.body, padding: "4px 8px", borderRadius: 6, whiteSpace: "nowrap",
+                     border: "1px solid var(--ink-color-global-border-subtle)",
+                     background: pinMode ? "var(--ink-color-global-surface-lightgray-default)" : "transparent",
+                     color: "var(--ink-color-global-text-default)", cursor: "pointer" }}>
+            📍 {pinMode ? "Esc to cancel" : "Pinpoint"}
+          </button>
+        )}
+      </div>
+      {anchor && (
+        <div className="manco-chat-pin" style={{
+          display: "flex", alignItems: "center", gap: 6, fontSize: FS.body,
+          padding: "4px 8px", marginBottom: 6, borderRadius: 6,
+          background: "var(--ink-color-global-surface-lightgray-default)",
+          color: "var(--ink-color-global-text-default)",
+        }}>
+          <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            📍 Pinned: {pinLabel(anchor)}
+          </span>
+          <button onClick={() => { trackClick("MancoReporting.Chat.Unpin"); onAnchorConsumed?.(); }} aria-label="Unpin" style={{ lineHeight: 1 }}>✕</button>
+        </div>
+      )}
+      <div className="manco-chat-input" style={{ display: "flex", gap: 8 }}>
+        <input
+          placeholder="Ask about this report, or request a layout change…"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") send(); }}
+          disabled={busy}
+          style={{
+            flex: 1,
+            border: "1px solid var(--ink-color-global-border-default)",
+            borderRadius: 8,
+            padding: "8px 10px",
+            fontSize: FS.bodyLg,
+            background: "var(--ink-color-global-surface-background-default)",
+            color: "var(--ink-color-global-text-default)",
+            outline: "none",
+          }}
+        />
+        {/* One button, two jobs: while a turn is in flight it becomes Stop, so
+            the composer never shows a dead disabled Send. */}
+        <button onClick={busy ? stop : send}
+          disabled={stopping}
+          data-testid={busy ? "chat-stop" : "chat-send"}
+          title={busy ? "Stop this response" : undefined}
+          aria-label={busy ? "Stop this response" : undefined}
+          style={{
+            background: "var(--ink-button-background-color-primary-base-default)",
+            color: "var(--ink-button-font-color-primary-base)",
+            border: "none",
+            borderRadius: 8,
+            padding: "8px 14px",
+            cursor: stopping ? "default" : "pointer",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            whiteSpace: "nowrap",
+          }}>
+          {stopping ? <ButtonSpinner /> : busy ? <StopIcon /> : null}
+          {stopping ? "Stopping…" : busy ? "Stop" : "Send"}
+        </button>
+      </div>
+    </div>
+  );
+}

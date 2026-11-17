@@ -7,6 +7,8 @@ Regression test for qt_review_lint.py.
 Runs the linter against test files in two modes:
   1. Universal mode (no flags) — verifies all universal rules
   2. Framework mode (--framework) — verifies framework-only rules
+It also checks that framework rules stay silent without the flag, and
+that --diff reports only changed lines with root-relative summary paths.
 
 Usage:
     python tests/run_tests.py
@@ -16,6 +18,7 @@ from __future__ import annotations
 
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).parent.parent.parent
@@ -31,6 +34,7 @@ EXPECTED_UNIVERSAL = {
     ("test_all_rules.h", "DEP-13"): 1,
     ("test_all_rules.h", "PAT-9"): 1,
     ("test_all_rules.h", "ENM-2"): 1,
+    ("test_all_rules.h", "ENM-9"): 1,
     ("test_all_rules.h", "TMO-1"): 2,  # timeout + interval
     ("test_all_rules.h", "API-5"): 2,  # getNoteTitle + getNoteStatistics
 
@@ -55,6 +59,7 @@ EXPECTED_UNIVERSAL = {
     ("test_all_rules.cpp", "PAT-8"): 1,
     ("test_all_rules.cpp", "VAL-5"): 1,
     ("test_all_rules.cpp", "VAR-3"): 1,
+    ("test_all_rules.cpp", "ENM-9"): 1,
     ("test_all_rules.cpp", "API-5"): 1,
     ("test_all_rules.cpp", "PAT-10"): 1,
     ("test_all_rules.cpp", "PAT-11"): 1,
@@ -117,10 +122,11 @@ def parse_output(output: str) -> dict[tuple[str, str], int]:
     return counts
 
 
-def run_linter(files: list[str], extra_args: list[str] | None = None) -> str:
+def run_linter(files: list[str], extra_args: list[str] | None = None,
+               cwd: str | None = None) -> str:
     """Run the linter and return combined stdout+stderr."""
     cmd = [sys.executable, str(LINTER)] + (extra_args or []) + files
-    result = subprocess.run(cmd, capture_output=True)
+    result = subprocess.run(cmd, capture_output=True, cwd=cwd)
     return ((result.stdout or b"").decode("utf-8", errors="replace") +
             (result.stderr or b"").decode("utf-8", errors="replace"))
 
@@ -149,6 +155,37 @@ def check_expectations(
             errors.append(f"  WARN  {key[0]} {key[1]} x{count} (unexpected)")
 
     return passed, len(expected), errors
+
+
+def check_diff_mode() -> list[str]:
+    """Commit a file with one DEP-7 violation, add a second one in the
+    working tree, and expect --diff=HEAD to report only the new line."""
+    errors: list[str] = []
+    with tempfile.TemporaryDirectory() as repo:
+        def git(*args: str) -> None:
+            subprocess.run(["git", "-C", repo, "-c", "user.name=test",
+                            "-c", "user.email=test@example.com", *args],
+                           check=True, capture_output=True)
+        source = Path(repo) / "src" / "clamp.cpp"
+        source.parent.mkdir()
+        source.write_text("int a = qMin(1, 2);\n")
+        git("init", "-q")
+        git("add", "-A")
+        git("commit", "-qm", "initial")
+        source.write_text("int a = qMin(1, 2);\nint b = qMax(1, 2);\n")
+
+        actual = parse_output(run_linter([], ["--diff=HEAD"], cwd=repo))
+        if actual != {("clamp.cpp", "DEP-7"): 1}:
+            errors.append(f"  FAIL  --diff=HEAD expected one DEP-7, got {actual}")
+
+        summary = run_linter([], ["--summary", "--diff=HEAD"], cwd=repo)
+        for expected in ("1 C++ file(s), 1 added or modified line(s)",
+                         "src/clamp.cpp:2"):
+            if expected not in summary:
+                errors.append(f"  FAIL  --summary --diff=HEAD lacks {expected!r}")
+        if str(source) in summary:
+            errors.append("  FAIL  --summary printed an absolute location")
+    return errors
 
 
 def main() -> int:
@@ -222,6 +259,20 @@ def main() -> int:
         all_ok = False
     else:
         print("PASSED: No framework rules fired without flag")
+    print()
+
+    # --- Test 4: Diff mode ---
+    print("=" * 60)
+    print("Test 4: --diff reports only changed lines")
+    print("=" * 60)
+
+    errors = check_diff_mode()
+    if errors:
+        for e in errors:
+            print(e)
+        all_ok = False
+    else:
+        print("PASSED: Only the changed line was reported")
     print()
 
     # --- Summary ---

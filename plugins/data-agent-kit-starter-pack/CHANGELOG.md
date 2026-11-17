@@ -1,218 +1,265 @@
 # Changelog
 
-## [0.11.0](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/compare/0.10.1...0.11.0) (2026-09-11)
+## [1.0.0](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/compare/0.11.0...1.0.0) (2026-09-29)
 
 
 ### Features
 
-* **mcp:** Add MCP support for Antigravity (agy) CLI. ([856d2f2](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/commit/856d2f2a78cb28b8359cd038e7c71686b3b6b02a))
-* **mcp:** replace npx git dependency with relative bundle paths for our plugin MCP servers. ([e502daa](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/commit/e502daa24fcb0065f076452c4986dccc524db196))
-* Switched managed spark skills to use spark connect to execute cells by default ([fdd2b2a](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/commit/fdd2b2ab416772f37dedd4fbfca83b8fc13e8bb5))
-* Update mcp proxy and telemetry hook script as part of release ([b5484f3](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/commit/b5484f3e2da64a8e8beb6cac7d827017261ec285))
+* add DAK setup script ([6003384](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/6003384158243bba4f24f6c977216a75bab19e09))
+* Add onboarding support for Codex and Agy CLI. ([36720b7](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/36720b7a35c2f894be53a8fb4a80cc2f9b629b3c))
+* Cleanup Claude and Codex plugin configs. ([d5357d1](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/d5357d1016a7a5ccdb0df2920e0e507faf9e8d5b))
+* **dak-setup:** add DAK plugin setup skill and CLI bundle ([ca53915](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/ca53915c64b8eb2c7b6bd4fb336987ca421c5a2e))
+* Define BigFrames as the default Python library for BigQuery data ([59173ba](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/59173ba366e9e866d64c8a8e549dfdf7bfe1cded))
+* **mcp:** Add BILLING_PROJECT_ID quota header support to CLI MCP proxy ([81806f3](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/81806f3099fa15693dcd24a157a1c3884e745e11))
+* Remove plugin setup config prompts across agents ([1a7a684](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/1a7a684c4610f6c1cf35c97d976c1aa8c8e8eed9))
+* Replace `bigquery_graph` skill with `bigquery_graph_author` and `bigquery_graph_query` (graph v2) ([fa97c18](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/fa97c187923c43c27e9f28d57607643b394bef5d))
+* **skill:** Add cell execution failure handling protocol to notebook guidance ([97892b3](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/97892b34edb64185ec8ba8b2cac0e1163a3fded0))
+* **skill:** Add guidance for PySpark ML vector slicing and invalid label handling. ([2febf2c](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/2febf2c3b55b7d2c1760a92f41ca23adefd61810))
+* **skill:** guidance for batch submit command ([b53d990](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/b53d990a5769228c773ea7dfa184e05d4c432474))
+* **skill:** Make sure libraries are not downloaded during notebook generation ([59ff724](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/59ff7248e3f1aff98c8f20de1fd0a8ee43a89802))
+* **skills:** add gcp-spark-troubleshooting skill for Dataproc and Spark diagnostics ([1a044de](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/1a044def966656ea161f18d622792ed0f4a7025e))
+* **skills:** add Spark optimization guidance as gcp-spark references ([c3cb553](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/c3cb553a2282d78ed8776d7af15322f7bb3733c6))
+* **skills:** Cap data asset discovery retries and update GCS listing in gcp_spark skill ([5faa2af](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/5faa2afec708ef5c3728f2734de23cb8a10ef806))
+* **skills:** Enforce driver memory protection in gcp-spark optimizations ([bccafd5](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/bccafd5026d03c56a0ebcf7beb12940805f2d8b1))
+* **skills:** GCP Managed Spark upgrade SKILL for PySpark job type on Cluster ([6dc2c29](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/6dc2c295c9a3385a50d6f35dd7bd37b779d52143))
+* **skills:** harden gcp-spark code guidance for production logging, parameterized config, and broadcast joins ([af143c8](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/af143c8f1b30db31e0b078ec10bb98bc235cc7d0))
+* **skills:** Update gcloud Dataproc skill guidance for multi-package batch submission and Spanner connector ([4823a3c](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/4823a3c08e8bd058e6a3cd53d332496dc27c799d))
+* **skills:** Update gcp_spark skill for ManagedSparkSession with better instructions ([2e04bb5](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/2e04bb514b884cb9b19ad987766e22848fcab42a))
+* **skills:** update gcp-spark skill to forbid whole-file reads of executed notebooks ([66f0d37](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/66f0d3749f4d79707b8cdd349f5468eaa67d0800))
+* **skill:** Update Iceberg guidelines to favor session templates for notebooks ([764829f](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/764829f8640fd6f5c4854cf388ebbc5252b2910d))
 
 
 ### Bug Fixes
 
-* Add BigQuery dataset location discovery to gcp_pipeline_orchestration skill. ([43a6f04](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/commit/43a6f04741f9c5ce7f7a6625e1557f4d33cf1799))
-* **mcp:** inline cross-spawn into standalone bundle ([#316](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/issues/316)) ([22c27d5](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/commit/22c27d5ea7d2695ae042aa7605daee97bfad7237))
+* clarify SQL action guidelines for BigQuery and Dataproc engines ([c057fb5](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/c057fb5cb41fb54328963181a7e3c3dd389f63f4))
+* clarify that the environment field is optional for Python actions ([aedd28d](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/aedd28dd769c684af83928ab237d64f09e8fc7ad))
+* **dak:** restore default `npx` resolution in package.json bin ([5f4abac](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/5f4abac1389462d3703ff8b6e6bbc88c67ca788a))
+* Document serving signature requirements for Vertex AI batch prediction with BigQuery sources. ([3039bea](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/3039bea08733b06e8bdd5905f571673064e625e4))
+* **gcp-spark:** rename spark_env virtualenv to venv in gcloud_dataproc.md ([a6a3073](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/a6a307383d9a733136250389b1750bcc00f9aeab))
+* **hooks:** Make dak-setup SessionStart hook work in agy CLI ([d045730](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/d04573009b7cb5957659ccf8693a5f8ecc1543e4))
+* **skills:** Point resolving_mcp_region_configs at the Codex mcp.json that is actually loaded ([117bbd0](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/117bbd0178a6d545266d4356151417af42fa701e))
+* **skills:** Sanitize internal references in Data Agent Kit skills ([f1ef383](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/f1ef3837625d822fc350792f329a971fe1eb1861))
+* Update skill how to query Vertex AI batch prediction outputs in downstream SQL ([8ef4e4b](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/8ef4e4b35c4981793766becd1148528c51fec4cc))
+* Update SQL action guidelines for BigQuery and Dataproc engines in orchestration schema and documentation. ([c057fb5](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/c057fb5cb41fb54328963181a7e3c3dd389f63f4))
 
 
 ### Miscellaneous Chores
 
-* force release 0.11.0 ([#334](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/issues/334)) ([c05d738](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/commit/c05d738a327be2f3a517c8767f3c65596bb6bf06))
+* force release 1.0.0 ([a26cbd6](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/a26cbd6f8aa50e7b5b545ba400a083a0aba8c0a5))
 
-## [0.10.1](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/compare/0.10.0...0.10.1) (2026-09-04)
+## [0.11.0](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/compare/0.10.1...0.11.0) (2026-09-11)
 
 
 ### Features
 
-* add Bigtable basics skill and EvalBench test cases to DAK ([e06c822](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/commit/e06c822566e46f0d3ccebc969550dd75cc24f944))
-* Add resolving-mcp-region-configs skill to Data Agent Common ([0878ed8](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/commit/0878ed83ce665501651c0fd1e5283b135c3e4dd2))
-* Add Spark 4.0 BigQuery connector coordinates to gcp-spark skill ([e86233d](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/commit/e86233ddaeee10a10ffcdc564bc792a46cd85944))
-* **mcp:** route Google Cloud MCP services through bundled Node stdio proxy ([d17797d](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/commit/d17797deff4205936ad1a578934178b82e55928d))
-* Simplify claude user config by removing BigQuery location and ProjectId string. ([44d991f](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/commit/44d991fa9ced624181fd7a8b1ed3e26cadb47dfa))
-* **skills:** Update managing_python_dependencies with pre-flight environment check bundling ([ad94694](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/commit/ad94694cb96cbda89fa45e5b18b47cd722bd6645))
+* **mcp:** Add MCP support for Antigravity (agy) CLI. ([856d2f2](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/856d2f2a78cb28b8359cd038e7c71686b3b6b02a))
+* **mcp:** replace npx git dependency with relative bundle paths for our plugin MCP servers. ([e502daa](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/e502daa24fcb0065f076452c4986dccc524db196))
+* Switched managed spark skills to use spark connect to execute cells by default ([fdd2b2a](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/fdd2b2ab416772f37dedd4fbfca83b8fc13e8bb5))
+* Update mcp proxy and telemetry hook script as part of release ([b5484f3](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/b5484f3e2da64a8e8beb6cac7d827017261ec285))
 
 
 ### Bug Fixes
 
-* Update BigFrames skills to reduce agent confusions. ([deabd80](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/commit/deabd800d918d877be7dc47127f5bc2436a8e6e2))
+* Add BigQuery dataset location discovery to gcp_pipeline_orchestration skill. ([43a6f04](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/43a6f04741f9c5ce7f7a6625e1557f4d33cf1799))
+* **mcp:** inline cross-spawn into standalone bundle ([#316](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/issues/316)) ([22c27d5](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/22c27d5ea7d2695ae042aa7605daee97bfad7237))
 
 
 ### Miscellaneous Chores
 
-* force release 0.10.1 ([#309](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/issues/309)) ([6c33297](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/commit/6c3329771bdb2f118ba288cbba6c4cdb7d105b13))
+* force release 0.11.0 ([#334](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/issues/334)) ([c05d738](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/c05d738a327be2f3a517c8767f3c65596bb6bf06))
 
-## [0.10.0](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/compare/0.8.0...0.10.0) (2026-08-31)
+## [0.10.1](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/compare/0.10.0...0.10.1) (2026-09-04)
 
 
 ### Features
 
-* Add semantic schema mapping skill for ontology driven data engineering ([f015039](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/commit/f01503992d4308bcc90792b7aa2ae35a1653f3ee))
-* Add Spark Connect session lifecycle guide with DataprocSparkSession to gcp_spark skill ([b977284](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/commit/b97728471647bc2eaf38ce49022c8414caa5de5a))
-* Avoid redundant cluster creation for serverless batch jobs in gcp_spark skill ([15d9e27](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/commit/15d9e272522613e49a6b0853b5d677ae4d287376))
-* Enforce argparse parameterization for Spark scripts in gcp_spark skill ([d0cf7eb](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/commit/d0cf7eb914a204a74f8406ad51597101f7764a23))
-* Enforce Python standard logging over print() in gcp_spark skill ([29f17a0](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/commit/29f17a0843cd1858b96a989ffb4ff2fd7f898b29))
-* **orchestration:** update orchestration pipeline schema ([eb5f3e3](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/commit/eb5f3e389d8ab56510ea7bf496da96edd02438bd))
-* **orchestration:** update orchestration pipelines schema to support AI actions ([fc13f54](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/commit/fc13f5430aa6a24924b746b76409fa3393aaea74))
-* Remove hardcoded secrets from Cloud SQL examples in gcp_spark skill ([682aee5](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/commit/682aee5a0e49072a30625ec685820e1a50ec7cda))
-* **skills:** Update google-cloud-auth-verification with bundled probe and IAM handling ([a891ebc](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/commit/a891ebc5aec2812355977ef85e046bd95dc5e472))
-* Use @toolbox-sdk/server@latest and remove Windows-specific quoting ([4e51d1c](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/commit/4e51d1c03cb56e5ca09c90b2fbae6df5dd9dea91))
+* add Bigtable basics skill and EvalBench test cases to DAK ([e06c822](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/e06c822566e46f0d3ccebc969550dd75cc24f944))
+* Add resolving-mcp-region-configs skill to Data Agent Common ([0878ed8](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/0878ed83ce665501651c0fd1e5283b135c3e4dd2))
+* Add Spark 4.0 BigQuery connector coordinates to gcp-spark skill ([e86233d](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/e86233ddaeee10a10ffcdc564bc792a46cd85944))
+* **mcp:** route Google Cloud MCP services through bundled Node stdio proxy ([d17797d](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/d17797deff4205936ad1a578934178b82e55928d))
+* Simplify claude user config by removing BigQuery location and ProjectId string. ([44d991f](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/44d991fa9ced624181fd7a8b1ed3e26cadb47dfa))
+* **skills:** Update managing_python_dependencies with pre-flight environment check bundling ([ad94694](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/ad94694cb96cbda89fa45e5b18b47cd722bd6645))
 
 
 ### Bug Fixes
 
-* Preserve host attribution values when tagging gcloud commands. ([e830e87](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/commit/e830e879a1278367e5e45eace4da12b10fcb290c))
-* **skills:** Generalize GCP auth verification pre-flight hierarchy ([fd3ac55](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/commit/fd3ac5583d387b037e1862c042c70635dec6074c))
-* **skills:** Remove unsupported aliases field from google-cloud-auth-verification frontmatter ([3bc2e21](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/commit/3bc2e21d6f847ee6e537a7d44acf2ae7cf24349b))
+* Update BigFrames skills to reduce agent confusions. ([deabd80](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/deabd800d918d877be7dc47127f5bc2436a8e6e2))
 
 
 ### Miscellaneous Chores
 
-* force release 0.10.0 ([3dd3f00](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/commit/3dd3f00f21ba5209ebd9039dbdbb6c80783b0ccf))
+* force release 0.10.1 ([#309](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/issues/309)) ([6c33297](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/6c3329771bdb2f118ba288cbba6c4cdb7d105b13))
 
-## [0.8.0](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/compare/0.7.2...0.8.0) (2026-08-07)
+## [0.10.0](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/compare/0.8.0...0.10.0) (2026-08-31)
 
 
 ### Features
 
-* **plugin:** support agent plugin spec ([a9b14ea](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/commit/a9b14ea88087f59b3d65ce653c9a39a81efaff01)), refs [#198](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/issues/198)
-
-
-### Miscellaneous Chores
-
-* force release 0.8.0 ([35a2768](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/commit/35a2768d96d7bca6073ec067de92cf066c005ff3))
-
-## [0.7.2](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/compare/0.7.1...0.7.2) (2026-07-28)
-
-
-### Features
-
-* **skills:** Clarify BQ label enforcement rules for resource attribution. ([c16b546](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/commit/c16b5465d6dba54f089e8ed8ac83d38ed5cc4aae))
-* **skills:** Update bq label flag syntax in resource attribution skills. ([1ff44be](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/commit/1ff44bec65a1a7913e772892c9a2542006c584b2))
-
-
-### Miscellaneous Chores
-
-* force release 0.7.2 ([62d2f9c](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/commit/62d2f9c5504297893251a32ca92ec34c5ae2eb67))
-
-## [0.7.1](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/compare/0.7.0...0.7.1) (2026-07-27)
+* Add semantic schema mapping skill for ontology driven data engineering ([f015039](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/f01503992d4308bcc90792b7aa2ae35a1653f3ee))
+* Add Spark Connect session lifecycle guide with DataprocSparkSession to gcp_spark skill ([b977284](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/b97728471647bc2eaf38ce49022c8414caa5de5a))
+* Avoid redundant cluster creation for serverless batch jobs in gcp_spark skill ([15d9e27](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/15d9e272522613e49a6b0853b5d677ae4d287376))
+* Enforce argparse parameterization for Spark scripts in gcp_spark skill ([d0cf7eb](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/d0cf7eb914a204a74f8406ad51597101f7764a23))
+* Enforce Python standard logging over print() in gcp_spark skill ([29f17a0](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/29f17a0843cd1858b96a989ffb4ff2fd7f898b29))
+* **orchestration:** update orchestration pipeline schema ([eb5f3e3](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/eb5f3e389d8ab56510ea7bf496da96edd02438bd))
+* **orchestration:** update orchestration pipelines schema to support AI actions ([fc13f54](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/fc13f5430aa6a24924b746b76409fa3393aaea74))
+* Remove hardcoded secrets from Cloud SQL examples in gcp_spark skill ([682aee5](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/682aee5a0e49072a30625ec685820e1a50ec7cda))
+* **skills:** Update google-cloud-auth-verification with bundled probe and IAM handling ([a891ebc](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/a891ebc5aec2812355977ef85e046bd95dc5e472))
+* Use @toolbox-sdk/server@latest and remove Windows-specific quoting ([4e51d1c](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/4e51d1c03cb56e5ca09c90b2fbae6df5dd9dea91))
 
 
 ### Bug Fixes
 
-* remove default hooks ([1171475](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/commit/1171475ffa60507cf06eaa5d9a1b459db467b670))
-
-## [0.7.0](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/compare/0.6.1...0.7.0) (2026-07-24)
-
-
-### Features
-
-* Add AI.AGG function to Data Agent Kit ([9431ff2](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/commit/9431ff2d66468dcbe578499367699eba6cf03af3))
-* Bigtable MCP support ([26f175e](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/commit/26f175e8e3f29a5e4103a05a102a522a5dcd7861)), refs [#146](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/issues/146)
-* Bigtable MCP support ([c58f5e9](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/commit/c58f5e9d98d9cf94052d049712af8d27e03be5c8)), refs [#146](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/issues/146)
-* Modularize BigQuery skills in data_agent_common ([b29c63a](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/commit/b29c63acb4e3d7f44b51bc8cb68785bb4d2a170f))
-* Remove DB skills, which are just wrappers on MCP toolbox from data agent common. Will add helpful skills once we come up with them. ([a9beba2](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/commit/a9beba24337cd4d9994ece7faab4adadd7e19bdb))
-* **skills:** Add more IDE/environment values for resource attribution environment labels. ([3941694](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/commit/3941694cf37f326e81a74eeee514c2163d67c7f6))
-* Update BQ ai_function_best_practices and constraints. ([f4394e1](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/commit/f4394e1e9de1d877af3238e9d332f0f259aa7bb9))
-
-
-### Bug Fixes
-
-* Fix telemetry hook configurations for Codex, Claude Code, and Gemini CLI. ([b93ca2e](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/commit/b93ca2ea387872d2b7378b0e56671cedf3d32517))
-* Update skill references and bump version in dataform and dbt. ([879f134](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/commit/879f13499d5566ce2146050c2a8bce44abd69526))
+* Preserve host attribution values when tagging gcloud commands. ([e830e87](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/e830e879a1278367e5e45eace4da12b10fcb290c))
+* **skills:** Generalize GCP auth verification pre-flight hierarchy ([fd3ac55](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/fd3ac5583d387b037e1862c042c70635dec6074c))
+* **skills:** Remove unsupported aliases field from google-cloud-auth-verification frontmatter ([3bc2e21](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/3bc2e21d6f847ee6e537a7d44acf2ae7cf24349b))
 
 
 ### Miscellaneous Chores
 
-* force release 0.7.0 ([3e89ba0](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/commit/3e89ba0527440893bcd085aa69fd1943c9e2c576))
+* force release 0.10.0 ([3dd3f00](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/3dd3f00f21ba5209ebd9039dbdbb6c80783b0ccf))
 
-## [0.6.1](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/compare/0.4.0...0.6.1) (2026-07-10)
+## [0.8.0](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/compare/0.7.2...0.8.0) (2026-08-07)
 
 
 ### Features
 
-* Duplicate graph-schema component to bigquery skill ([b5bc330](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/commit/b5bc330f03758618e63cecd8e47c5f1ac87af2c1))
-* gcp-managed-airflow-migration - a new skill for Airflow code migration ([de2d876](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/commit/de2d876d6d3a8f555df2f833b3a2db5ef07d194e))
-* rename plugin to dak and remove toolbox from mcp server names ([#99](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/issues/99)) ([cb3a6e8](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/commit/cb3a6e85b7b0607c09479216597a92f0dcf693ce))
-* **skills:** Add AlloyDB Omni skills ([94b8582](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/commit/94b858250a5e099daa0ea9803077d0129d06cf14))
-* **skills:** Add AlloyDB skills ([fb5bd8b](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/commit/fb5bd8b96bbdc5507a32df236efa50df9b5ef638))
-* **skills:** Add Cloud SQL MySQL skills ([7f2442a](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/commit/7f2442abee545a2b75cdb3052be2482fb316cdbc))
-* **skills:** Add Cloud SQL Postgres skills ([420e3ac](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/commit/420e3ac34deab005668e43a3507db160b760fb05))
-* **skills:** Add Cloud SQL SQL Server skills ([7e887d0](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/commit/7e887d0836ab4d5e1bfc46307115b43ee2d9d7ec))
-* **skills:** Add Firestore Native skills ([f6fa0df](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/commit/f6fa0df968b45f4760185135e88e26b76f9c35ca))
-* **skills:** add github-release-skill and update Copybara reviewers ([ca05037](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/commit/ca050377cda6083ffa2be59785fb099150d6428e))
-* **skills:** Add Spanner skills ([c1dc599](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/commit/c1dc5990d698da3a9f82af390632d36b1880a2a7))
-* Update DAK Skill to support Gemini CLI, Claude Code, and Codex attribution tags ([e1922d8](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/commit/e1922d8efb1770ed54d7a9758d3a5f7863b1f5a6))
-
-
-### Bug Fixes
-
-* restore repository dotfiles and workflows deleted by sync ([#114](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/issues/114)) ([beea04b](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/commit/beea04b27a778c95f92134f8140bf5c8b6eb8ab8))
+* **plugin:** support agent plugin spec ([a9b14ea](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/a9b14ea88087f59b3d65ce653c9a39a81efaff01)), refs [#198](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/issues/198)
 
 
 ### Miscellaneous Chores
 
-* force release 0.6.1 ([e259079](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/commit/e259079e4f5a472d1c162063148da00fdf9b7599))
-* force release 0.6.1 ([dbc59f7](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/commit/dbc59f7892b94e3672a526d3eb9d5c865c218a85))
+* force release 0.8.0 ([35a2768](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/35a2768d96d7bca6073ec067de92cf066c005ff3))
 
-## [0.4.0](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/compare/0.2.0...0.4.0) (2026-06-11)
+## [0.7.2](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/compare/0.7.1...0.7.2) (2026-07-28)
+
+
+### Features
+
+* **skills:** Clarify BQ label enforcement rules for resource attribution. ([c16b546](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/c16b5465d6dba54f089e8ed8ac83d38ed5cc4aae))
+* **skills:** Update bq label flag syntax in resource attribution skills. ([1ff44be](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/1ff44bec65a1a7913e772892c9a2542006c584b2))
 
 
 ### Miscellaneous Chores
 
-* force release 0.4.0 ([#93](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/issues/93)) ([23aab90](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/commit/23aab90cf7a198e8481dce1475020e14014a7ebe))
+* force release 0.7.2 ([62d2f9c](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/62d2f9c5504297893251a32ca92ec34c5ae2eb67))
 
-## [0.2.0](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/compare/0.1.4...0.2.0) (2026-05-15)
+## [0.7.1](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/compare/0.7.0...0.7.1) (2026-07-27)
+
+
+### Bug Fixes
+
+* remove default hooks ([1171475](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/1171475ffa60507cf06eaa5d9a1b459db467b670))
+
+## [0.7.0](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/compare/0.6.1...0.7.0) (2026-07-24)
 
 
 ### Features
 
-* update skills from cloudtop ([#70](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/issues/70)) ([f094668](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/commit/f0946689ea9b5bd1f1a56225b24d5f5f4da95f87))
+* Add AI.AGG function to Data Agent Kit ([9431ff2](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/9431ff2d66468dcbe578499367699eba6cf03af3))
+* Bigtable MCP support ([26f175e](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/26f175e8e3f29a5e4103a05a102a522a5dcd7861)), refs [#146](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/issues/146)
+* Bigtable MCP support ([c58f5e9](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/c58f5e9d98d9cf94052d049712af8d27e03be5c8)), refs [#146](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/issues/146)
+* Modularize BigQuery skills in data_agent_common ([b29c63a](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/b29c63acb4e3d7f44b51bc8cb68785bb4d2a170f))
+* Remove DB skills, which are just wrappers on MCP toolbox from data agent common. Will add helpful skills once we come up with them. ([a9beba2](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/a9beba24337cd4d9994ece7faab4adadd7e19bdb))
+* **skills:** Add more IDE/environment values for resource attribution environment labels. ([3941694](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/3941694cf37f326e81a74eeee514c2163d67c7f6))
+* Update BQ ai_function_best_practices and constraints. ([f4394e1](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/f4394e1e9de1d877af3238e9d332f0f259aa7bb9))
+
+
+### Bug Fixes
+
+* Fix telemetry hook configurations for Codex, Claude Code, and Gemini CLI. ([b93ca2e](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/b93ca2ea387872d2b7378b0e56671cedf3d32517))
+* Update skill references and bump version in dataform and dbt. ([879f134](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/879f13499d5566ce2146050c2a8bce44abd69526))
 
 
 ### Miscellaneous Chores
 
-* force release 0.2.0 ([#72](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/issues/72)) ([90311ce](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/commit/90311cea40d6ebac8189fcced17e5b98d384e681))
+* force release 0.7.0 ([3e89ba0](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/3e89ba0527440893bcd085aa69fd1943c9e2c576))
 
-## [0.1.4](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/compare/0.1.3...0.1.4) (2026-05-07)
+## [0.6.1](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/compare/0.4.0...0.6.1) (2026-07-10)
 
 
 ### Features
 
-* prompt and configure GCP and BigQuery variables during installation ([#54](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/issues/54)) ([e12d327](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/commit/e12d3279b5bd97e88522427510d18dd7a43c1626))
-
-## [0.1.3](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/compare/0.1.2...0.1.3) (2026-05-06)
+* Duplicate graph-schema component to bigquery skill ([b5bc330](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/b5bc330f03758618e63cecd8e47c5f1ac87af2c1))
+* gcp-managed-airflow-migration - a new skill for Airflow code migration ([de2d876](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/de2d876d6d3a8f555df2f833b3a2db5ef07d194e))
+* rename plugin to dak and remove toolbox from mcp server names ([#99](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/issues/99)) ([cb3a6e8](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/cb3a6e85b7b0607c09479216597a92f0dcf693ce))
+* **skills:** Add AlloyDB Omni skills ([94b8582](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/94b858250a5e099daa0ea9803077d0129d06cf14))
+* **skills:** Add AlloyDB skills ([fb5bd8b](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/fb5bd8b96bbdc5507a32df236efa50df9b5ef638))
+* **skills:** Add Cloud SQL MySQL skills ([7f2442a](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/7f2442abee545a2b75cdb3052be2482fb316cdbc))
+* **skills:** Add Cloud SQL Postgres skills ([420e3ac](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/420e3ac34deab005668e43a3507db160b760fb05))
+* **skills:** Add Cloud SQL SQL Server skills ([7e887d0](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/7e887d0836ab4d5e1bfc46307115b43ee2d9d7ec))
+* **skills:** Add Firestore Native skills ([f6fa0df](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/f6fa0df968b45f4760185135e88e26b76f9c35ca))
+* **skills:** add github-release-skill and update Copybara reviewers ([ca05037](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/ca050377cda6083ffa2be59785fb099150d6428e))
+* **skills:** Add Spanner skills ([c1dc599](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/c1dc5990d698da3a9f82af390632d36b1880a2a7))
+* Update DAK Skill to support Gemini CLI, Claude Code, and Codex attribution tags ([e1922d8](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/e1922d8efb1770ed54d7a9758d3a5f7863b1f5a6))
 
 
 ### Bug Fixes
 
-* Update codex commands version ([#56](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/issues/56)) ([f78aa61](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/commit/f78aa61e586f01b45581149bd5b9a2c3f9de70fd))
+* restore repository dotfiles and workflows deleted by sync ([#114](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/issues/114)) ([beea04b](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/beea04b27a778c95f92134f8140bf5c8b6eb8ab8))
 
-## [0.1.2](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/compare/0.1.1...0.1.2) (2026-05-04)
+
+### Miscellaneous Chores
+
+* force release 0.6.1 ([e259079](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/e259079e4f5a472d1c162063148da00fdf9b7599))
+* force release 0.6.1 ([dbc59f7](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/dbc59f7892b94e3672a526d3eb9d5c865c218a85))
+
+## [0.4.0](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/compare/0.2.0...0.4.0) (2026-06-11)
+
+
+### Miscellaneous Chores
+
+* force release 0.4.0 ([#93](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/issues/93)) ([23aab90](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/23aab90cf7a198e8481dce1475020e14014a7ebe))
+
+## [0.2.0](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/compare/0.1.4...0.2.0) (2026-05-15)
 
 
 ### Features
 
-* split notebook and visualization MCP servers ([#51](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/issues/51)) ([3e4c2d1](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/commit/3e4c2d16f06c90c44b9c0df51ae8c91ef452d559))
+* update skills from cloudtop ([#70](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/issues/70)) ([f094668](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/f0946689ea9b5bd1f1a56225b24d5f5f4da95f87))
+
+
+### Miscellaneous Chores
+
+* force release 0.2.0 ([#72](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/issues/72)) ([90311ce](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/90311cea40d6ebac8189fcced17e5b98d384e681))
+
+## [0.1.4](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/compare/0.1.3...0.1.4) (2026-05-07)
+
+
+### Features
+
+* prompt and configure GCP and BigQuery variables during installation ([#54](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/issues/54)) ([e12d327](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/e12d3279b5bd97e88522427510d18dd7a43c1626))
+
+## [0.1.3](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/compare/0.1.2...0.1.3) (2026-05-06)
 
 
 ### Bug Fixes
 
-* use tags for codex installation scripts ([#52](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/issues/52)) ([6cd5114](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/commit/6cd5114531dc807c9b8894b3511bb7b399afabad))
+* Update codex commands version ([#56](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/issues/56)) ([f78aa61](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/f78aa61e586f01b45581149bd5b9a2c3f9de70fd))
 
-## [0.1.1](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/compare/0.1.0...0.1.1) (2026-04-28)
-
-
-### Features
-
-* separate MCP configurations for Claude and Codex ([#49](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/issues/49)) ([33bbdd9](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/commit/33bbdd95b59610ee503e8ee3f63a761f9f214990))
-
-## [0.1.0](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/compare/0.1.8...0.1.0) (2026-04-20)
+## [0.1.2](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/compare/0.1.1...0.1.2) (2026-05-04)
 
 
 ### Features
 
-* Feature/codex install update ([#35](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/issues/35)) ([ac4d3b2](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/commit/ac4d3b20e35c776ee0c5a5aaffb71b06772b3df5))
-* Infer IDE from process tree ([#40](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/issues/40)) ([f3ccd0d](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/commit/f3ccd0dda4e5d97504e2f90b98376096301f9b01))
-* Sync data cloud skills ([#38](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/issues/38)) ([b3f3350](https://github.com/gemini-cli-extensions/data-agent-kit-starter-pack/commit/b3f3350f112f29d0652336e8686764953239f5c4))
+* split notebook and visualization MCP servers ([#51](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/issues/51)) ([3e4c2d1](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/3e4c2d16f06c90c44b9c0df51ae8c91ef452d559))
+
+
+### Bug Fixes
+
+* use tags for codex installation scripts ([#52](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/issues/52)) ([6cd5114](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/6cd5114531dc807c9b8894b3511bb7b399afabad))
+
+## [0.1.1](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/compare/0.1.0...0.1.1) (2026-04-28)
+
+
+### Features
+
+* separate MCP configurations for Claude and Codex ([#49](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/issues/49)) ([33bbdd9](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/33bbdd95b59610ee503e8ee3f63a761f9f214990))
+
+## [0.1.0](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/compare/0.1.8...0.1.0) (2026-04-20)
+
+
+### Features
+
+* Feature/codex install update ([#35](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/issues/35)) ([ac4d3b2](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/ac4d3b20e35c776ee0c5a5aaffb71b06772b3df5))
+* Infer IDE from process tree ([#40](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/issues/40)) ([f3ccd0d](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/f3ccd0dda4e5d97504e2f90b98376096301f9b01))
+* Sync data cloud skills ([#38](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/issues/38)) ([b3f3350](https://github.com/GoogleCloudPlatform/data-agent-kit-plugin/commit/b3f3350f112f29d0652336e8686764953239f5c4))

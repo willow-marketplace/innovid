@@ -5,7 +5,7 @@ All metrics use `kind: "ExperimentMetric"`. Legacy kinds (`ExperimentTrendsQuery
 The full Pydantic schema below is rendered from `posthog/schema.py` at build
 time — if a field is missing here, fix the model. It is the `ExperimentMetric`
 discriminated union: pick the variant matching your `metric_type` (`mean`,
-`funnel`, `ratio`, `retention`) under `$defs`, and read that variant's
+`funnel`, `ratio`, `retention`, `quantile`) under `$defs`, and read that variant's
 `required` array for the mandatory fields. The shared event-source building
 blocks (`EventsNode`, `ActionsNode`, `ExperimentDataWarehouseNode`) and the
 property-filter types are defined once under `$defs` and referenced by `$ref`.
@@ -18,6 +18,7 @@ The schema is authoritative; the prose and examples below are guidance.
 - Funnel metric
 - Ratio metric
 - Retention metric
+- Quantile (percentile) metric
 - Adding metrics to an experiment
 - Property filters
 
@@ -861,6 +862,7 @@ The schema is authoritative; the prose and examples below are guidance.
         "person",
         "event",
         "event_metadata",
+        "element",
         "group",
         "session",
         "hogql",
@@ -882,6 +884,32 @@ The schema is authoritative; the prose and examples below are guidance.
     "CohortPropertyFilter": {
       "additionalProperties": false,
       "properties": {
+        "cohort_deleted": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Set by the feature flag API when the cohort is deleted or does not exist.",
+          "title": "Cohort Deleted"
+        },
+        "cohort_missing": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Set by the feature flag API when the cohort does not exist, so it cannot be restored.",
+          "title": "Cohort Missing"
+        },
         "cohort_name": {
           "anyOf": [
             {
@@ -2338,6 +2366,45 @@ The schema is authoritative; the prose and examples below are guidance.
       "title": "ExperimentDataWarehouseNode",
       "type": "object"
     },
+    "ExperimentExposureNode": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "ExperimentExposureNode",
+          "default": "ExperimentExposureNode",
+          "title": "Kind",
+          "type": "string"
+        },
+        "response": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Response"
+        },
+        "version": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "version of the node, used for schema migrations",
+          "title": "Version"
+        }
+      },
+      "title": "ExperimentExposureNode",
+      "type": "object"
+    },
     "ExperimentFunnelMetric": {
       "additionalProperties": false,
       "properties": {
@@ -2532,6 +2599,18 @@ The schema is authoritative; the prose and examples below are guidance.
           "default": null,
           "title": "Uuid"
         },
+        "value_format": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ExperimentMetricValueFormat"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "How results show the value of the metric. Metrics that report a share of users (funnel, retention, mean with a threshold) ignore it."
+        },
         "version": {
           "anyOf": [
             {
@@ -2705,7 +2784,8 @@ The schema is authoritative; the prose and examples below are guidance.
             "mapping": {
               "ActionsNode": "#/$defs/ActionsNode",
               "EventsNode": "#/$defs/EventsNode",
-              "ExperimentDataWarehouseNode": "#/$defs/ExperimentDataWarehouseNode"
+              "ExperimentDataWarehouseNode": "#/$defs/ExperimentDataWarehouseNode",
+              "ExperimentWarehouseNativeNode": "#/$defs/ExperimentWarehouseNativeNode"
             },
             "propertyName": "kind"
           },
@@ -2718,6 +2798,9 @@ The schema is authoritative; the prose and examples below are guidance.
             },
             {
               "$ref": "#/$defs/ExperimentDataWarehouseNode"
+            },
+            {
+              "$ref": "#/$defs/ExperimentWarehouseNativeNode"
             }
           ],
           "title": "Source"
@@ -2761,6 +2844,18 @@ The schema is authoritative; the prose and examples below are guidance.
           ],
           "default": null,
           "title": "Uuid"
+        },
+        "value_format": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ExperimentMetricValueFormat"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "How results show the value of the metric. Metrics that report a share of users (funnel, retention, mean with a threshold) ignore it."
         },
         "version": {
           "anyOf": [
@@ -2854,6 +2949,222 @@ The schema is authoritative; the prose and examples below are guidance.
       "title": "ExperimentMetricOutlierHandling",
       "type": "object"
     },
+    "ExperimentMetricValueFormat": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "$ref": "#/$defs/ExperimentMetricValueFormatType"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "title": "ExperimentMetricValueFormat",
+      "type": "object"
+    },
+    "ExperimentMetricValueFormatType": {
+      "enum": [
+        "currency",
+        "duration",
+        "duration_ms",
+        "percentage",
+        "percentage_scaled"
+      ],
+      "title": "ExperimentMetricValueFormatType",
+      "type": "string"
+    },
+    "ExperimentQuantileMetric": {
+      "additionalProperties": false,
+      "properties": {
+        "breakdownFilter": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BreakdownFilter"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "conversion_window": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Conversion Window"
+        },
+        "conversion_window_unit": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FunnelConversionWindowTimeUnit"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "fingerprint": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fingerprint"
+        },
+        "goal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ExperimentMetricGoal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "isSharedMetric": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Issharedmetric"
+        },
+        "kind": {
+          "const": "ExperimentMetric",
+          "default": "ExperimentMetric",
+          "title": "Kind",
+          "type": "string"
+        },
+        "metric_type": {
+          "const": "quantile",
+          "default": "quantile",
+          "title": "Metric Type",
+          "type": "string"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name"
+        },
+        "quantile": {
+          "description": "Quantile level, for example 0.9 for p90.",
+          "maximum": 0.99,
+          "minimum": 0.01,
+          "title": "Quantile",
+          "type": "number"
+        },
+        "response": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Response"
+        },
+        "sharedMetricId": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sharedmetricid"
+        },
+        "source": {
+          "description": "Must set `math_property`, the numeric property to take the quantile of. `math` is ignored.",
+          "discriminator": {
+            "mapping": {
+              "ActionsNode": "#/$defs/ActionsNode",
+              "EventsNode": "#/$defs/EventsNode"
+            },
+            "propertyName": "kind"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/EventsNode"
+            },
+            {
+              "$ref": "#/$defs/ActionsNode"
+            }
+          ],
+          "title": "Source"
+        },
+        "uuid": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Uuid"
+        },
+        "value_format": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ExperimentMetricValueFormat"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "How results show the value of the metric. Metrics that report a share of users (funnel, retention, mean with a threshold) ignore it."
+        },
+        "version": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "version of the node, used for schema migrations",
+          "title": "Version"
+        }
+      },
+      "required": [
+        "quantile",
+        "source"
+      ],
+      "title": "ExperimentQuantileMetric",
+      "type": "object"
+    },
     "ExperimentRatioMetric": {
       "additionalProperties": false,
       "properties": {
@@ -2896,7 +3207,8 @@ The schema is authoritative; the prose and examples below are guidance.
             "mapping": {
               "ActionsNode": "#/$defs/ActionsNode",
               "EventsNode": "#/$defs/EventsNode",
-              "ExperimentDataWarehouseNode": "#/$defs/ExperimentDataWarehouseNode"
+              "ExperimentDataWarehouseNode": "#/$defs/ExperimentDataWarehouseNode",
+              "ExperimentWarehouseNativeNode": "#/$defs/ExperimentWarehouseNativeNode"
             },
             "propertyName": "kind"
           },
@@ -2909,6 +3221,9 @@ The schema is authoritative; the prose and examples below are guidance.
             },
             {
               "$ref": "#/$defs/ExperimentDataWarehouseNode"
+            },
+            {
+              "$ref": "#/$defs/ExperimentWarehouseNativeNode"
             }
           ],
           "title": "Denominator"
@@ -2988,7 +3303,8 @@ The schema is authoritative; the prose and examples below are guidance.
             "mapping": {
               "ActionsNode": "#/$defs/ActionsNode",
               "EventsNode": "#/$defs/EventsNode",
-              "ExperimentDataWarehouseNode": "#/$defs/ExperimentDataWarehouseNode"
+              "ExperimentDataWarehouseNode": "#/$defs/ExperimentDataWarehouseNode",
+              "ExperimentWarehouseNativeNode": "#/$defs/ExperimentWarehouseNativeNode"
             },
             "propertyName": "kind"
           },
@@ -3001,6 +3317,9 @@ The schema is authoritative; the prose and examples below are guidance.
             },
             {
               "$ref": "#/$defs/ExperimentDataWarehouseNode"
+            },
+            {
+              "$ref": "#/$defs/ExperimentWarehouseNativeNode"
             }
           ],
           "title": "Numerator"
@@ -3052,6 +3371,18 @@ The schema is authoritative; the prose and examples below are guidance.
           ],
           "default": null,
           "title": "Uuid"
+        },
+        "value_format": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ExperimentMetricValueFormat"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "How results show the value of the metric. Metrics that report a share of users (funnel, retention, mean with a threshold) ignore it."
         },
         "version": {
           "anyOf": [
@@ -3233,7 +3564,8 @@ The schema is authoritative; the prose and examples below are guidance.
             "mapping": {
               "ActionsNode": "#/$defs/ActionsNode",
               "EventsNode": "#/$defs/EventsNode",
-              "ExperimentDataWarehouseNode": "#/$defs/ExperimentDataWarehouseNode"
+              "ExperimentDataWarehouseNode": "#/$defs/ExperimentDataWarehouseNode",
+              "ExperimentExposureNode": "#/$defs/ExperimentExposureNode"
             },
             "propertyName": "kind"
           },
@@ -3246,6 +3578,9 @@ The schema is authoritative; the prose and examples below are guidance.
             },
             {
               "$ref": "#/$defs/ExperimentDataWarehouseNode"
+            },
+            {
+              "$ref": "#/$defs/ExperimentExposureNode"
             }
           ],
           "title": "Start Event"
@@ -3264,6 +3599,18 @@ The schema is authoritative; the prose and examples below are guidance.
           ],
           "default": null,
           "title": "Uuid"
+        },
+        "value_format": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ExperimentMetricValueFormat"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "How results show the value of the metric. Metrics that report a share of users (funnel, retention, mean with a threshold) ignore it."
         },
         "version": {
           "anyOf": [
@@ -3288,6 +3635,129 @@ The schema is authoritative; the prose and examples below are guidance.
         "start_handling"
       ],
       "title": "ExperimentRetentionMetric",
+      "type": "object"
+    },
+    "ExperimentWarehouseNativeMathType": {
+      "enum": [
+        "total",
+        "sum"
+      ],
+      "title": "ExperimentWarehouseNativeMathType",
+      "type": "string"
+    },
+    "ExperimentWarehouseNativeNode": {
+      "additionalProperties": false,
+      "properties": {
+        "connection_id": {
+          "description": "The direct-query source (an ExternalDataSource id) the SQL is written for.",
+          "title": "Connection Id",
+          "type": "string"
+        },
+        "custom_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Custom Name"
+        },
+        "kind": {
+          "const": "ExperimentWarehouseNativeNode",
+          "default": "ExperimentWarehouseNativeNode",
+          "title": "Kind",
+          "type": "string"
+        },
+        "math": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ExperimentWarehouseNativeMathType"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "How to aggregate the rows per entity. Defaults to `total` (row count)."
+        },
+        "math_property": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The numeric column `math` reads. Required when `math` is `sum`. One SQL relation can serve several metrics, each reading a different column.",
+          "title": "Math Property"
+        },
+        "query": {
+          "description": "Read-only SQL in the warehouse's dialect, returning one row per outcome with `entity_id` and `timestamp` columns plus any numeric columns a metric can measure.",
+          "title": "Query",
+          "type": "string"
+        },
+        "response": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Response"
+        },
+        "unit": {
+          "$ref": "#/$defs/ExperimentWarehouseNativeUnitBinding"
+        },
+        "version": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "version of the node, used for schema migrations",
+          "title": "Version"
+        }
+      },
+      "required": [
+        "connection_id",
+        "query",
+        "unit"
+      ],
+      "title": "ExperimentWarehouseNativeNode",
+      "type": "object"
+    },
+    "ExperimentWarehouseNativeUnitBinding": {
+      "additionalProperties": false,
+      "properties": {
+        "id_namespace": {
+          "description": "Which ids represent that unit, such as `billing_customer_id`.",
+          "title": "Id Namespace",
+          "type": "string"
+        },
+        "unit_type": {
+          "description": "What was randomized, as a stable project-scoped label such as `customer` or `account`.",
+          "title": "Unit Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id_namespace",
+        "unit_type"
+      ],
+      "title": "ExperimentWarehouseNativeUnitBinding",
       "type": "object"
     },
     "FeaturePropertyFilter": {
@@ -3859,6 +4329,7 @@ The schema is authoritative; the prose and examples below are guidance.
         "person",
         "event",
         "event_metadata",
+        "element",
         "group",
         "session",
         "hogql",
@@ -4055,6 +4526,7 @@ The schema is authoritative; the prose and examples below are guidance.
         "in",
         "not_in",
         "is_cleaned_path_exact",
+        "is_cleaned_path_not_exact",
         "flag_evaluates_to",
         "semver_eq",
         "semver_neq",
@@ -4497,6 +4969,7 @@ The schema is authoritative; the prose and examples below are guidance.
     "mapping": {
       "funnel": "#/$defs/ExperimentFunnelMetric",
       "mean": "#/$defs/ExperimentMeanMetric",
+      "quantile": "#/$defs/ExperimentQuantileMetric",
       "ratio": "#/$defs/ExperimentRatioMetric",
       "retention": "#/$defs/ExperimentRetentionMetric"
     },
@@ -4514,6 +4987,9 @@ The schema is authoritative; the prose and examples below are guidance.
     },
     {
       "$ref": "#/$defs/ExperimentRetentionMetric"
+    },
+    {
+      "$ref": "#/$defs/ExperimentQuantileMetric"
     }
   ],
   "title": "ExperimentMetric"
@@ -4742,6 +5218,60 @@ counted as not retained.
 Pydantic rejects the payload with a missing-field error. Both fields are
 required on every retention metric — the schema is the source of truth.
 
+## Quantile (percentile) metric
+
+A percentile of a numeric event property, taken over all qualifying events of a
+variant and pooled across users. The UI calls it "Percentile". Use it for
+latency, load times and other durations where the slow tail matters more than
+the average. For an average per user, use a mean metric with `math: "avg"`
+instead.
+
+`source` is one `EventsNode` or `ActionsNode` with `math_property` set to the
+numeric property. `math` is ignored. `quantile` is the level, from `0.01` to
+`0.99`. Events without a numeric value for the property don't count.
+
+With breakdowns, each breakdown gets the percentile of its own events, and the
+overall result keeps the percentile of all events of the variant.
+
+Not supported: data warehouse sources, CUPED and timeseries.
+Sequential testing works, and its tuning parameter counts exposed users, not
+events, as it does for every other metric.
+
+### Right — p90 page load time
+
+```json
+{
+  "kind": "ExperimentMetric",
+  "metric_type": "quantile",
+  "name": "p90 page load time",
+  "goal": "decrease",
+  "quantile": 0.9,
+  "source": {
+    "kind": "EventsNode",
+    "event": "$pageview",
+    "math_property": "load_time_ms"
+  }
+}
+```
+
+### Wrong — percentile as a mean metric
+
+```json
+{
+  "kind": "ExperimentMetric",
+  "metric_type": "mean",
+  "source": {
+    "kind": "EventsNode",
+    "event": "$pageview",
+    "math": "hogql",
+    "math_hogql": "quantile(0.9)(properties.load_time_ms)"
+  }
+}
+```
+
+This takes each user's p90 and then averages over users, which is not the p90
+of all page loads. Use `metric_type: "quantile"`.
+
 ## Adding metrics to an experiment
 
 A metric reaches an experiment via one of two independent `experiment-update`
@@ -4789,9 +5319,15 @@ resend — sending the link `id` attaches the wrong metric or fails validation.
 `metadata` is optional and defaults to `primary`. Pass an empty array to detach
 all shared metrics.
 
-To promote a one-off inline metric into a reusable shared metric, call
-`experiment-saved-metrics-create` with the same `query` (the `ExperimentMetric`
-object), then attach it via `saved_metrics_ids` as above.
+To promote a one-off inline metric into a reusable shared metric:
+
+1. Call `experiment-saved-metrics-create` with the inline metric's `query` (the
+   `ExperimentMetric` object) and leave out `query.uuid`. The API assigns the
+   shared metric a new uuid and ignores one you send.
+2. In a single `experiment-update` call, attach the new metric through
+   `saved_metrics_ids` as above, and resend `metrics` (or `metrics_secondary`)
+   without the inline metric. If you leave the inline metric in place, the
+   experiment measures the same thing twice.
 
 ## Property filters
 

@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "vanguard-advisors": {
+      "url": "https://mcp.vanguard.com/advisors",
+      "type": "http"
+    }
+  }
+}

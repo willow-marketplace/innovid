@@ -37,7 +37,7 @@ await Purchases.configure(PurchasesConfiguration(_apiKey()));
 
 Or use Flutter flavors: each flavor compiles its own API key constant and maps to its own RevenueCat dashboard app entry.
 
-Trigger a purchase. The Test Store dialog opens with **Successful Purchase**, **Failed Purchase**, **Cancel**. Pick an outcome and verify the resulting `CustomerInfo` and dashboard transaction.
+Trigger a purchase. The Test Store dialog opens with **Test valid purchase**, **Test failed purchase**, **Cancel**. Pick an outcome and verify the resulting `CustomerInfo` and dashboard transaction.
 
 The `kReleaseMode` branch above ensures the test key string is dead code in release builds and gets eliminated.
 
@@ -46,7 +46,7 @@ The `kReleaseMode` branch above ensures the test key string is dead code in rele
 Follow the platform files directly:
 
 - iOS → `revenuecat-testing-setup/platforms/ios.md`. Prefer a real sandbox Apple ID for RevenueCat dashboard verification.
-- Android → `revenuecat-testing-setup/platforms/android.md`. License tester on the Internal Testing track is required.
+- Android → `revenuecat-testing-setup/platforms/android.md`. Test purchases need a license tester who has opted in to an internal or closed testing track.
 
 ## Build and install the right build
 
@@ -55,12 +55,12 @@ Flutter supports multiple ways to install a test build. Only the signed, correct
 ### iOS
 
 - `flutter run` on a connected iOS device with a development provisioning profile works for sandbox testing with a sandbox Apple ID.
-- `flutter build ipa` → distribute via TestFlight for TestFlight style testing. Note: TestFlight purchases land on the **production** dashboard view, not sandbox.
+- `flutter build ipa` → distribute via TestFlight for TestFlight style testing. Apps installed from TestFlight run in Apple's sandbox environment, so their purchases show in the dashboard's **sandbox** data, not production, and subscriptions renew daily.
 
 ### Android
 
-- `flutter build appbundle --release` → signed AAB → upload to Play Internal Testing → install via the tester opt-in link. This is the only supported path for sandbox purchases.
-- `flutter run` produces a debug build signed with the debug key. It **will not** be able to make sandbox purchases, because Play rejects the signature.
+- `flutter build appbundle --release` → signed AAB → upload to Play Internal Testing → testers opt in through the track link and install from Play.
+- `flutter run` produces a debug build signed with the debug key. It can make sandbox purchases only for a license tester who has opted in to the testing track. Other accounts either cannot buy from it or are charged real money.
 
 ## Multi flavor apps
 
@@ -78,18 +78,18 @@ Branch on the flavor (via `--dart-define=FLAVOR=dev` or equivalent) to pick the 
 When testing, watch the platform console, not just the Dart console:
 
 - iOS → Xcode (attached to `flutter run`) shows the native SDK logs.
-- Android → `flutter logs` or `adb logcat -s Purchases` shows the native SDK logs.
+- Android → `adb logcat | grep "\[Purchases\]"` shows the native SDK logs. The SDK logs under the tag `[Purchases] - <LEVEL>`, so `adb logcat -s Purchases` matches nothing, and `flutter logs` only keeps Flutter's own tags.
 
 The Dart `print` output does not show native SDK logs.
 
-## Hot restart does not re-configure the SDK
+## Restart fully after changing the configuration
 
-`Purchases.configure(...)` runs once per native process launch. After changing the API key, observer mode setting, or any configuration value, kill the app fully and relaunch. Hot reload and hot restart keep the old SDK state.
+Hot reload does not re-run `main`, so the SDK keeps its old configuration. Hot restart re-runs `main` and calls `Purchases.configure(...)` again: with unchanged values the native SDK ignores the call, and with changed values it replaces the configured instance and logs "Purchases instance already set". After changing the API key, observer mode setting, or any configuration value, kill the app fully and relaunch so the test starts from one cleanly configured instance.
 
 ## Verify
 
 1. `await Purchases.setLogLevel(LogLevel.debug);` before `configure`.
-2. The right build (signed AAB from Play Internal Testing on Android; development build on a sandbox device on iOS) is installed.
+2. The right build is installed: on Android, by a license tester who opted in to the testing track, either from that track or as a debug build; on iOS, a development build on a sandbox device.
 3. A test purchase succeeds. Native console shows the SDK posting the transaction.
 4. The RevenueCat dashboard Sandbox view shows the transaction on the expected `appUserID`.
 5. `await Purchases.getCustomerInfo()` shows the expected entitlement active.

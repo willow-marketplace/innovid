@@ -1,8 +1,8 @@
 {
   "id": "you",
   "name": "You.com",
-  "description": "You.com skill pack with MCP setup metadata.",
-  "version": "1.6.1",
+  "description": "You.com skill pack with MCP setup metadata and a You.com-backed web search provider.",
+  "version": "1.8.2",
   "skills": ["./skills"],
   "mcpServers": {
     "you": {
@@ -16,6 +16,10 @@
     "you-research": {
       "transport": "streamable-http",
       "url": "https://api.you.com/mcp/research"
+    },
+    "you-discover": {
+      "transport": "streamable-http",
+      "url": "https://api.you.com/mcp?profile=discover"
     }
   },
   "setup": {

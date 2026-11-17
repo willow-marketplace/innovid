@@ -10,7 +10,7 @@ The entry in `.claude-plugin/marketplace.json` would look something like:
 ```json
 {
   "name": "windsor-ai",
-  "description": "Connect Claude Code to 350+ business data sources via Windsor.ai. Query marketing, sales, CRM, ecommerce, finance, and analytics data from Google Ads, Meta, HubSpot, Salesforce, Shopify, Stripe, and hundreds more.",
+  "description": "Manage and analyze Google Ads, Meta Ads, Instagram, TikTok Ads, LinkedIn Ads and Microsoft Ads from Claude Code through Windsor.ai. Report on campaigns, keywords, search terms, quality score, impression share and cost per conversion, track Instagram post reach, saves and follower growth, and combine it all with GA4, Search Console, HubSpot, Salesforce, Shopify, Stripe and 350+ other sources. Pause or enable campaigns, change budgets, set Google Ads bids and bidding strategies, create Google Ads campaigns and responsive search ads, push negative keywords, publish Instagram posts, carousels, reels and stories, and reply to, hide or delete Instagram comments, with your confirmation before every change.",
   "author": {
     "name": "Windsor.ai",
     "email": "support@windsor.ai"

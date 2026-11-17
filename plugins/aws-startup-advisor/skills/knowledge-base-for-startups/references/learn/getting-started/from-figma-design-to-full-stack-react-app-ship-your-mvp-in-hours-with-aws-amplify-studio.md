@@ -5,7 +5,7 @@ title: "Ship your MVP in hours with AWS Amplify Studio"
 
 ## Ship your MVP in hours with AWS Amplify Studio
 
-_By AWS Editorial Team_
+> _By AWS Editorial Team_
 
 As a startup founder, you're creating something from an idea. The need to push an MVP to market quickly looms large over the early stages of the startup lifecycle and may be the most pivotal factor in your organization's success. When you're ready to build—and no matter how inspiring your idea—you have to balance choices between budget, resources, and time: every decision you make during the development process can impact long-term productivity and product functionality; likewise, any compromise in the quality of the user experience puts your success at risk.
 

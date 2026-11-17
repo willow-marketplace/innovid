@@ -1,154 +1,115 @@
 ---
 name: carta-round-history
-description: Financing round history for a company — each priced round with its date, share class issued, price per share, total cash raised, and the investors who participated. Covers what was raised and from whom across the company's funding history.
+description: "See every priced funding round a company raised: date, price, amount and investors. Lists each financing round with its date, share class issued, price per share, total cash raised, and the investors who participated. Covers what was raised and from whom across the company's funding history."
 ---
 
 <!-- carta:plugin-version -->
-<carta-plugin>carta-cap-table:6.85.6</carta-plugin>
+<carta-plugin>carta-cap-table:6.114.20</carta-plugin>
 
 <!-- Part of the official Carta AI Agent Plugin -->
 
 # Round History
 
-Fetch financing history and summarize by round, or use the cap table by share class for a quick overview.
+Fetch the company's financing history, one row per share class, and present it as a round-by-round table.
 
 ## When to Use
 
-- "Show me the funding history"
-- "What rounds has this company raised?"
-- "How much capital was raised in the Series A?"
-- "List all financing rounds"
+- "Show me the funding history" / "List all financing rounds"
+- "How much capital was raised in the Series A?" / "What was the price per share for the seed?"
 - "Who invested in each round?"
-- "What was the price per share for the seed?"
 
 ## Prerequisites
 
-You need the `corporation_id`. Get it from `list_accounts` if you don't have it.
+Do not call `list_accounts` or ask which company before the first read: Carta finds the company. Reuse the company already resolved in this conversation unless this prompt names or numbers another. Else send the numeric id the user gave, else the company name as the user said it, else no `corporation_id` (Carta uses the user's only company). On an error, and for later calls, follow `${CLAUDE_PLUGIN_ROOT}/references/find-the-company.md` (the plugin's own `references/`, not this skill's; read it by that path, do not search for it). Its reads are cap table reads: reuse `meta.company.id` on later calls.
 
 ## Data Retrieval
 
-> **Detail mode**: This command supports `detail=summary` (round count, total cash raised, by-round breakdown — fast) and `detail=full` (individual security records with per-investor data, issue dates, price per share). Choose the right mode upfront based on user intent — see Workflow.
-
-> **Ordering**: Pass `ordering` to sort server-side — e.g. `-cash_paid` for largest investments first. Fields: `issue_date`, `quantity`, `stakeholder_name`, `cash_paid`, `prefix_number`. Combine with `detail=full` for "top N investors" queries; otherwise the default (chronological) order is fine.
-
 ```
-call_tool({"name": "cap_table__get__financing_history", "arguments": {"corporation_id": corporation_id}})
+read_tool({"name": "cap_table__list__financing_history", "arguments": {"corporation_id": corporation_id}})
 ```
 
-This is the same data that powers the in-app "Financing History" tab.
-
-**Alternative**: For a quick overview without any financing history call, use the cap table by share class:
-
-```
-call_tool({"name": "cap_table__get__cap_table_by_share_class", "arguments": {"corporation_id": corporation_id}})
-```
-
-Each preferred share class represents a round. Faster but less detail: no individual investors, no issue dates, no price per share.
+This tool takes only `corporation_id` — there is no `detail`, `ordering`, or paging argument. It returns every share class in one call, already aggregated and sorted by `closing_date`, with the same totals as the in-app "Financing History" tab.
 
 ## Key Fields
 
-- `round_name`: name of the financing round (e.g. "Series A Preferred")
-- `issue_date`: date the security was issued
-- `cash_paid`: amount paid by the investor for this security
-- `quantity`: number of shares issued
-- `issue_price`: price per share
-- `stakeholder_name`: investor name
-- `label`: security label (e.g. "PB-9")
-- `is_grant`: true if this is an option grant (not a priced round)
-- `is_canceled`: true if the security was canceled — exclude from aggregates
-- `is_converted`: true if the security converted (e.g. SAFE → preferred)
+Each entry in `share_class_financings[]`:
 
-### Response Format
+- `name`: share class, i.e. the round (e.g. "Series A Preferred")
+- `closing_date`: when the round closed
+- `original_issue_price`: price per share
+- `shares_issued`: shares issued in the round
+- `cash_raised_by_currency`: `{currency: amount}` — `{}` when the class raised no cash (e.g. common stock)
+- `post_money`: post-money valuation
+- `fully_diluted`: fully diluted shares after the round
+- `currency`: the share class's currency
+- `note_block_id`: set only on a row of SAFEs or convertible notes, not a priced round
 
-```json
-{
-  "count": 120,
-  "results": [
-    {
-      "id": 666,
-      "pk_key": "certificate_pk",
-      "stakeholder_name": "Example Holder",
-      "currency": "USD",
-      "label": "PB-9",
-      "round_name": "Series B Preferred",
-      "quantity": 180000.0,
-      "issue_date": "2014-09-14",
-      "cash_paid": 219600.0,
-      "issue_price": "1.22",
-      "is_grant": false,
-      "is_canceled": false,
-      "is_converted": false
-    }
-  ]
-}
-```
+Top level: `total_cash_raised_by_currency` — the per-currency totals across all rows.
+
+Any numeric field can be `null`, meaning Carta has no value for it. `null` is not `0` — show it as "—", never as 0.
 
 ## Workflow
 
 ### Step 1 — Fetch Financing History
 
-Choose detail mode based on the user's intent — do NOT default to summary then re-fetch:
+Call `cap_table__list__financing_history` once. It answers overview, per-round cash, price per share, and post-money questions on its own.
 
-- **Overview questions** ("show me the funding history", "what rounds has this company raised?", "how much capital was raised?"): omit `detail` — summary mode returns round count, total cash raised, and a by-round breakdown instantly. Present with the table and bar chart (see Presentation section).
+### Step 2 — Investors in a Round (only when asked)
 
-  ```
-  call_tool({"name": "cap_table__get__financing_history", "arguments": {"corporation_id": corporation_id}})
-  ```
+`cap_table__list__financing_history` has no investor names. For *"who invested in the Series A?"* or *"list investors by round"*, read the share certificates and keep the ones whose `share_class_name` matches the round's `name`:
 
-- **Per-round details** ("who invested in each round?", "what was the price per share?", "list all investors by round", any request for investor names, issue dates, or price per share): use `detail=full` directly.
+```
+read_tool({"name": "cap_table__list__certificates", "arguments": {"corporation_id": corporation_id, "ordering": "-quantity", "page_size": 25, "page": 1}})
+```
 
-  ```
-  call_tool({"name": "cap_table__get__financing_history", "arguments": {"corporation_id": corporation_id, "detail": "full"}})
-  ```
-
-When in doubt, summary is usually sufficient for financing history — it already includes round names, dates, and totals.
-
-After fetching with `detail=full`, aggregate by round:
-
-1. Group results by `round_name`
-2. For each round, aggregate: total `cash_paid`, total `quantity`, count of investors, earliest `issue_date`
-3. Use `issue_price` from any non-canceled entry as the price per share
-4. Filter out entries where `is_canceled` is true
+- Each row carries `name` (holder), `quantity`, `share_class_name`, `issue_date`, and `status_explanation`. Group matching rows by holder and sum `quantity`.
+- Fetch the page in `next` (its `page` and `page_size`) until `has_next` is false, **at most 10 pages**. If the sweep is still incomplete at 10 pages, show what you have, say the list is partial, and point the user to the round's page in Carta.
+- Certificates carry no cash paid. Report each investor's shares only. Do not multiply shares by the issue price to produce a per-investor dollar amount — say that per-investor cash isn't available here.
 
 ## Gates
 
-**Required inputs**: `corporation_id`.
-If missing, call `AskUserQuestion` before proceeding (see carta-interaction-reference §4.1).
+**Required inputs**: none before the first read. The company comes from Prerequisites (omitted, a name, or `meta.company.id`).
 
-**AI computation**: No — this skill presents Carta data directly (aggregation is mechanical grouping, not modeled output).
+**AI computation**: No — this skill presents Carta data directly (grouping certificates by holder is mechanical, not modeled output).
 
 ## Presentation
 
 **Format**: Table + ASCII bar chart
 
-**BLUF lead**: Lead with the total number of rounds and total cash raised before showing the table.
+**BLUF lead**: Lead with the number of priced rounds that raised cash and the total raised, from `total_cash_raised_by_currency`.
 
-**Sort order**: By `issue_date` ascending (chronological order).
+**Sort order**: By `closing_date` ascending (the order the tool returns).
 
 **Date format**: MMM d, yyyy (e.g. "Jan 15, 2026").
 
-| Round | Close Date | Price/Share | Investors | Shares Issued | Cash Raised |
-|-------|-----------|-------------|-----------|---------------|-------------|
-| Series Seed Preferred | Jun 30, 2013 | $0.27 | 5 | 1,422,435 | $383,380 |
-| Series A Preferred | Nov 15, 2013 | $0.44 | 8 | 3,697,191 | $1,645,250 |
+**Currency**: Label every amount with its own currency. When `total_cash_raised_by_currency` has more than one key, show one total per currency — never add amounts across currencies, and never assume USD. Put the ISO code before every amount (`USD 383,380`), also when all rows are in USD. Do not use a currency symbol such as `$`.
 
-After the table, render an ASCII bar chart of cash raised per round (chronological order).
-Scale bars to max width 40 chars. Exclude rounds with zero cash raised (e.g. option grants).
+| Round | Close Date | Price/Share | Shares Issued | Cash Raised | Post-Money |
+|-------|-----------|-------------|---------------|-------------|------------|
+| Series Seed Preferred | Jun 30, 2013 | USD 0.27 | 1,602,438 | USD 383,380 | USD 4.0M |
+| Series A Preferred | Nov 15, 2013 | USD 0.44 | 3,697,191 | USD 1,645,250 | USD 12.0M |
+
+After the table, render an ASCII bar chart of cash raised per round (chronological order). Scale bars to max width 40 chars. Leave out rows whose `cash_raised_by_currency` is empty (e.g. common stock). If the company raised in more than one currency, draw one chart per currency.
 
 ```
 Cash Raised by Round
 
-Series Seed Preferred  ████                                     $383K
-Series A Preferred     ████████████████                         $1.6M
-Series B Preferred     ████████████████████████████████████████ $3.7M
+Series Seed Preferred  ████                                     USD 383K
+Series A Preferred     ████████████████                         USD 1.6M
+Series B Preferred     ████████████████████████████████████████ USD 3.7M
 ```
 
-Each bar width = (cash_raised / max_cash_raised) * 40, rounded to nearest integer.
-Format large numbers as $XM or $XK for readability.
+Each bar width = (cash_raised / max_cash_raised) * 40, rounded to nearest integer. Format large numbers as K or M after the ISO code (e.g. `USD 1.6M`).
+
+## Error Handling
+
+| Situation | What to do |
+|---|---|
+| `share_class_financings` is empty | Say the company has no financing history recorded in Carta. Do not call other tools looking for rounds. |
+| 403, `role_required` or access denied | Say the user's role can't see this company's financing history. Do not retry. |
+| Company error | Follow *Company errors* in `${CLAUDE_PLUGIN_ROOT}/references/find-the-company.md`. |
 
 ## Caveats
 
-- Entries with `is_canceled: true` must be excluded from all aggregates.
-- Converted securities (`is_converted: true`) may appear alongside their post-conversion entries — avoid double-counting when summing shares or cash.
-- Option grants (`is_grant: true`) appear in financing history but are not priced rounds — exclude from the cash-raised bar chart.
-- The quick summary (Option 2) lacks per-investor detail, issue dates, and price per share.
+- Rows are per share class. A round that issued more than one class (e.g. Series A and Series A-1) appears as separate rows — present them as Carta reports them.
+- A row with `note_block_id` is a block of SAFEs or convertible notes, not a priced round: it has no price, post-money or fully diluted, and `shares_issued` is 0. Label it as SAFEs/notes and do not count it as a round. `total_cash_raised_by_currency` includes its cash. For the instruments, prefer the matching instrument-list skill.

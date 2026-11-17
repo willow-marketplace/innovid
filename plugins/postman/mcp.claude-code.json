@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "postman": {
+      "type": "http",
+      "url": "https://mcp.postman.com/mcp",
+      "headers": {
+        "User-Agent": "postman-claude-code-plugin/2.4.2"
+      }
+    }
+  }
+}

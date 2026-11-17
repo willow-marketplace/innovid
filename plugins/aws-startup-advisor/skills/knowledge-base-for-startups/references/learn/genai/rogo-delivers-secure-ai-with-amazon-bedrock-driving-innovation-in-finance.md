@@ -61,6 +61,6 @@ Canning adds: "From a security perspective, I'm really excited about [AWS Nitro 
 
 ---
 
-_AWS Editorial Team_
+> _AWS Editorial Team_
 
 The AWS Startups Content Marketing Team collaborates with startups of all sizes and across all sectors to deliver exceptional content that educates, entertains, and inspires.

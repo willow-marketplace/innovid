@@ -6,76 +6,127 @@
 # 1. UserPromptSubmit: Detects Fusion workflow keywords -> writes a marker file
 #    + injects advisory context steering toward the workflows orchestrator skill.
 # 2. PreToolUse (all tools): Reads the marker -> injects a non-blocking advisory
-#    reminder to use the fusion workflows skill. Cleared once Skill is invoked.
+#    reminder to use the fusion workflows skill, once per detected prompt.
 #
-# The marker file bridges the two hooks since they run at different times.
+# The marker file bridges the two hooks since they run at different times. It is
+# scoped to the session and reset on every prompt, so a detection never carries
+# into a later prompt or another session. fusion-foundry-bridge.sh reads it too,
+# and Claude Code runs matching hooks in parallel, so only the next prompt removes
+# it; a sidecar file records that the reminder was already given. Harnesses that
+# send no session_id share one unscoped marker, still reset on every prompt.
 #
 # Receives JSON on stdin with hook_event_name and event-specific fields.
 # Outputs JSON with additionalContext. Always exits 0 — never blocks the user.
 
-set -euo pipefail
+# No `set -e`: an advisory hook must exit 0 even when jq is missing or the
+# input isn't the JSON we expect, so failures are guarded explicitly instead.
+set -uo pipefail
+
+HOOK_DIR="$(dirname "${BASH_SOURCE[0]}")"
+# shellcheck disable=SC1091
+source "$HOOK_DIR/host-output.sh"
+# shellcheck disable=SC1091
+source "$HOOK_DIR/state-dir.sh"
+
+command -v jq >/dev/null 2>&1 || exit 0
 
 INPUT=$(cat)
 
-HOOK_EVENT=$(echo "$INPUT" | jq -r '.hook_event_name // empty')
-MARKER="/tmp/.fusion-skill-router-active"
+HOOK_EVENT=$(printf '%s' "$INPUT" | jq -r '.hook_event_name // empty' 2>/dev/null) || exit 0
+# Cursor names these beforeSubmitPrompt and preToolUse, and sends conversation_id.
+case "$HOOK_EVENT" in
+  beforeSubmitPrompt) HOOK_EVENT=UserPromptSubmit ;;
+  preToolUse) HOOK_EVENT=PreToolUse ;;
+esac
+# Keep only filename-safe characters so the ID can't escape the marker filename.
+SESSION_ID=$(printf '%s' "$INPUT" | jq -r '.session_id // .conversation_id // empty' 2>/dev/null | tr -cd 'A-Za-z0-9_-')
+STATE_DIR=$(fusion_state_dir) || STATE_DIR=""
+MARKER="${STATE_DIR:+$STATE_DIR/.fusion-skill-router-active${SESSION_ID:+-$SESSION_ID}}"
+NUDGED="${MARKER:+$MARKER.nudged}"
 
 case "$HOOK_EVENT" in
   UserPromptSubmit)
-    USER_PROMPT=$(echo "$INPUT" | jq -r '.prompt // .user_prompt // .query // empty')
+    if [ -n "$MARKER" ]; then
+      # Each prompt is classified on its own; never carry a detection forward.
+      rm -f "$MARKER" "$NUDGED" 2>/dev/null
+      # Sessions that end mid-detection leave their markers behind; prune old ones.
+      find "$STATE_DIR" -maxdepth 1 -name '.fusion-skill-router-active-*' -mmin +1440 -delete 2>/dev/null
+    fi
+    USER_PROMPT=$(printf '%s' "$INPUT" | jq -r '.prompt // .user_prompt // .query // empty' 2>/dev/null)
     PROMPT_LOWER=$(echo "$USER_PROMPT" | tr '[:upper:]' '[:lower:]')
 
     FUSION_MATCH=false
 
-    # Direct Fusion phrases always trigger.
-    PHRASES="fusion workflow|fusion playbook|fusion soar|soar workflow|create workflow|build a workflow|build a playbook|action discovery|action_search|deploy to cid"
-    if echo "$PROMPT_LOWER" | grep -qE "(${PHRASES})"; then
+    # Direct Fusion phrases always trigger: they name the product or the SOAR
+    # concept, so they don't need a nearby verb. Generic "create workflow" and
+    # "build a workflow" are deliberately absent — they match CI/GitHub Actions
+    # workflows and other non-Fusion work.
+    # Each phrase is a whole word or phrase. Unanchored, "deploy to cid" matches
+    # "redeploy to cider" and "action_search" matches "my_action_search_helper".
+    PHRASES="fusion workflow|fusion playbook|fusion soar|soar workflow|build a playbook|action discovery|action_search|deploy to cid"
+    if echo "$PROMPT_LOWER" | grep -qE "\b(${PHRASES})\b"; then
       FUSION_MATCH=true
     fi
 
-    # Verb + Fusion noun (e.g. "automate crowdstrike actions").
-    VERBS="create|build|author|write|deploy|import|release|run|execute|automate|trigger|monitor"
-    NOUNS="fusion|playbook|soar|workflow yaml|crowdstrike action"
-    if echo "$PROMPT_LOWER" | grep -qE "\b(${VERBS})\b.*(${NOUNS})"; then
+    # Verb + Fusion noun within three words, in either order (e.g. "automate
+    # crowdstrike actions" or "crowdstrike actions we should automate"). Bare
+    # "fusion" is not a noun — it would match the repo name "fusion-skills" and
+    # "the fusion plugin" — and neither is a bare "playbook", which matches
+    # Ansible. "write"/"run" are not verbs, since they appear in almost every
+    # coding prompt. Nouns are whole words, so "soar" does not match "soaring".
+    VERBS="create|build|author|deploy|import|release|execute|automate|trigger|monitor"
+    NOUNS="soar|workflow yaml|crowdstrike actions?"
+    GAP="([[:space:]]+[^[:space:]]+){0,3}[[:space:]]+"
+    if echo "$PROMPT_LOWER" | grep -qE "\b(${VERBS})\b${GAP}(${NOUNS})\b" \
+       || echo "$PROMPT_LOWER" | grep -qE "\b(${NOUNS})\b${GAP}(${VERBS})\b"; then
       FUSION_MATCH=true
     fi
 
-    # Explicit skill request always triggers.
-    if echo "$PROMPT_LOWER" | grep -qE "(use|invoke|run) (fusion|workflows) (skill|plugin)"; then
+    # A generic "build a workflow" is Fusion work when the prompt is about
+    # security response, e.g. "create a workflow triggered by an EPP detection".
+    # Bare "alert" and "host" don't count as security context (build hosts, CI
+    # alerts), and CI/GitHub/GitLab workflows never count. A prompt that also
+    # asks for an app, UI, function, or collection is Foundry work, so it's left
+    # to the Foundry plugin.
+    WORKFLOW_NOUNS="workflows?"
+    SECURITY_CONTEXT="detections?|incidents?|contain(ment)?|crowdstrike|falcon|cid|okta|severity|iocs?|rtr|threats?|phish(ing)?|malware|endpoints?|edr|epp"
+    FOUNDRY_CAPABILITIES="apps?|ui|functions?|collections?|extensions?"
+    if echo "$PROMPT_LOWER" | grep -qE "\b(${VERBS})\b${GAP}(${WORKFLOW_NOUNS})\b" \
+       && echo "$PROMPT_LOWER" | grep -qE "\b(${SECURITY_CONTEXT})\b" \
+       && ! echo "$PROMPT_LOWER" | grep -qE "\b(ci|github|gitlab|${FOUNDRY_CAPABILITIES})\b"; then
+      FUSION_MATCH=true
+    fi
+
+    # Explicit skill request always triggers. "the" is optional. The request
+    # ends at skill or plugin, so "run fusion plugin tests" does not match.
+    if echo "$PROMPT_LOWER" | grep -qE "(^|[^[:alnum:]_])(use|invoke|run)( the)? (fusion|workflows) (skill|plugin)([[:punct:]]|$)"; then
       FUSION_MATCH=true
     fi
 
     if [ "$FUSION_MATCH" = true ]; then
-      echo "$$" > "$MARKER"
+      [ -n "$MARKER" ] && echo "$$" > "$MARKER" 2>/dev/null
 
-      jq -n '{
-        hookSpecificOutput: {
-          hookEventName: "UserPromptSubmit",
-          additionalContext: "FUSION PLUGIN DETECTED: This prompt involves Falcon Fusion workflow automation. Invoke the crowdstrike-falcon-fusion workflows orchestrator skill via the Skill tool. It routes to authoring (discover actions, write/validate YAML), deployment (import/release to CID), and execution (trigger/monitor). Do NOT hand-write workflow YAML or guess action IDs."
-        }
-      }'
+      emit_advisory "UserPromptSubmit" "FUSION PLUGIN DETECTED: This prompt involves Falcon Fusion workflow automation. Load and follow the crowdstrike-falcon-fusion workflows orchestrator skill. It routes to authoring (discover actions, write/validate YAML), deployment (import/release to CID), and execution (trigger/monitor). Do NOT hand-write workflow YAML or guess action IDs."
       exit 0
     fi
     ;;
 
   PreToolUse)
-    TOOL_NAME=$(echo "$INPUT" | jq -r '.tool_name // empty')
+    TOOL_NAME=$(printf '%s' "$INPUT" | jq -r '.tool_name // empty' 2>/dev/null)
 
-    # Only intercept when a Fusion prompt was detected this turn.
-    if [ -f "$MARKER" ]; then
-      # Allow the Skill tool through — that's the goal. Clean up the marker.
+    # Only intercept when the current prompt was detected as Fusion intent.
+    if [ -n "$MARKER" ] && [ -f "$MARKER" ]; then
+      # A Skill call is the goal: stop reminding, but leave the marker for
+      # fusion-foundry-bridge.sh, which runs alongside this hook.
       if [ "$TOOL_NAME" = "Skill" ]; then
-        rm -f "$MARKER"
+        touch "$NUDGED" 2>/dev/null
         exit 0
       fi
 
-      # Advisory nudge — never block tools, just remind the model.
-      jq -n '{
-        hookSpecificOutput: {
-          hookEventName: "PreToolUse",
-          additionalContext: "Fusion plugin reminder: Consider invoking the crowdstrike-falcon-fusion workflows skill for Fusion workflow tasks. It coordinates action discovery, YAML authoring/validation, deployment, and execution."
-        }
-      }'
+      # Advisory nudge, once per detected prompt — never block tools.
+      [ -f "$NUDGED" ] && exit 0
+      touch "$NUDGED" 2>/dev/null
+      emit_advisory "PreToolUse" "Fusion plugin reminder: Consider invoking the crowdstrike-falcon-fusion workflows skill for Fusion workflow tasks. It coordinates action discovery, YAML authoring/validation, deployment, and execution."
       exit 0
     fi
     ;;

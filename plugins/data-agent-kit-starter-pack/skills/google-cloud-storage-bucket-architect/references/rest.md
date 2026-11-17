@@ -25,7 +25,7 @@ Draft Plan Field / Setting         | REST API Resource Field / Path             
 :--------------------------------- | :-------------------------------------------------- | :-------------
 **Bucket Name**                    | `name`                                              | String in request body. Must be globally unique.
 **Project**                        | Query Parameter: `?project=[project-id]`            | Passed in the query string of the request URL.
-**Location**                       | `location`                                          | String. E.g., `us-central1`, `US`. For zonal buckets (using Rapid storage), use the region (e.g., `us-east1`) if the plan specifies a zone.
+**Location**                       | `location`                                          | String. E.g., `us-central1`, `US`. For zonal buckets (using the Rapid storage class), use the region (e.g., `us-east1`) if the plan specifies a zone.
 **Placement**                      | `customPlacementConfig.dataLocations`               | Array of strings. E.g., `["us-east1", "us-west1"]` (for custom dual-regions), or `["us-east1-a"]` (for zonal buckets).
 **Replication Speed (RPO)**        | `rpo`                                               | String. E.g., `"ASYNC_TURBO"` (for dual-region buckets).
 **Storage Class**                  | `storageClass`                                      | String. E.g., `"STANDARD"`, `"NEARLINE"`, `"COLDLINE"`, `"ARCHIVE"`.
@@ -158,7 +158,9 @@ Where:
 
 *   `body.json` contains the JSON request payload.
 *   `$(gcloud auth print-access-token)` dynamically generates a short-lived
-    access token for your currently active `gcloud` credentials.
+    access token for your currently active `gcloud` credentials. This token
+    helper does not require the `CLOUDSDK_METRICS_ENVIRONMENT` prefix because
+    attribution for REST is already recorded via the `User-Agent` header.
 
 --------------------------------------------------------------------------------
 
@@ -472,7 +474,7 @@ https://storage.googleapis.com/storage/v1/b/www.my-company-site.com/iam`
 
 --------------------------------------------------------------------------------
 
-### Example 4: AI/ML Checkpointing (Zonal Bucket / Rapid Storage)
+### Example 4: AI/ML Checkpointing (Zonal Buckets)
 
 #### Input Draft Plan
 
@@ -482,12 +484,12 @@ https://storage.googleapis.com/storage/v1/b/www.my-company-site.com/iam`
 *   **Location**: `us-east1` (Region)
 *   **Placement**: `us-east1-b` (Zone-level co-location for high performance)
 *   **Storage Class**: `RAPID` (Must be explicitly specified for zonal buckets)
-*   **UBLA**: Enabled (Required for HNS)
+*   **UBLA**: Enabled (Required for Hierarchical Namespace)
 *   **Public Access Prevention (PAP)**: Enforced
 *   **Encryption**: Google-managed key
 *   **Soft Delete**: Disabled (Not supported for zonal buckets)
 *   **Use-case specific settings**:
-    *   Hierarchical Namespace (HNS): Enabled (Required for Zonal buckets)
+    *   Hierarchical Namespace: Enabled (Required for Zonal buckets)
     *   Lifecycle: Delete checkpoint files older than 14 days
 ```
 

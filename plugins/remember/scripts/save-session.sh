@@ -43,7 +43,7 @@
 #
 # DEPENDENCIES
 #   python3, claude CLI (Haiku), git, date, mktemp
-#   Sources: log.sh (logging, safe_eval, config)
+#   Sources: log.sh (logging, assign_kv, config)
 #   Python: pipeline.shell (extract, build-prompt, parse-haiku, save-position,
 #           build-ndc-prompt)
 #
@@ -70,14 +70,53 @@
 
 set -e
 
-trap 'log "error" "FAILED at line $LINENO (exit $?)"' ERR
+# Exit code reserved for an UNEXPECTED failure (one the ERR trap below
+# catches, not one of this script's own explicit `exit` lines) that struck
+# before now.md was touched -- the one class of failure session-end-hook.sh's
+# bounded retry is safe to repeat (#1056). Every deliberate exit in this file
+# (a lock timeout, an invalid session id, a summarizer failure, a write
+# error, a cooldown skip, nothing to save) keeps its ordinary 0/1 and is
+# therefore excluded from that retry BY CONSTRUCTION, not by this value
+# inspecting what failed -- the old "retry any nonzero exit" reasoning
+# conflated "safe to repeat" with "failed", which is what let a summarizer
+# failure get retried into a second count against thresholds.max_summary_failures,
+# and let a position-write failure AFTER a successful append get retried into
+# a duplicate entry (session-end-hook.sh's own self-review findings on
+# #1056). 75 is sysexits.h's EX_TEMPFAIL -- picked for a stable, documented
+# meaning, not because the rest of this file follows that convention -- and
+# is never returned by any of this script's own explicit exit sites, so a
+# future one accidentally colliding with it would need to literally write the
+# number down.
+EXIT_RETRYABLE_BEFORE_WRITE=75
+# Set to 1 the instant now.md's rename succeeds (Step 7) -- see there for why.
+_WROTE_ENTRY=0
 
-source "$(dirname "$0")/resolve-paths.sh"
-source "$(dirname "$0")/detect-tools.sh"
-source "$(dirname "$0")/bootstrap-dirs.sh"
-source "$(dirname "$0")/log.sh"
-source "$(dirname "$0")/lib-lock.sh"
-source "$(dirname "$0")/lib-staging-lock.sh"
+trap '
+    _err_status=$?
+    log "error" "FAILED at line $LINENO (exit $_err_status)"
+    if [ "$_WROTE_ENTRY" -eq 0 ]; then
+        exit "$EXIT_RETRYABLE_BEFORE_WRITE"
+    fi
+    exit "$_err_status"
+' ERR
+
+# Parameter expansion, not six `dirname` forks (#230/#1056) -- the same
+# pattern session-start-hook.sh, session-end-hook.sh, post-tool-hook.sh and
+# user-prompt-hook.sh already use. A path with no slash in it leaves the
+# filename behind, not a directory; `dirname` answered "." and this must
+# too. This script is always executed, never sourced (confirmed: no other
+# file in this repo sources it), so BASH_SOURCE[0] and $0 agree here --
+# BASH_SOURCE[0] is used for consistency with the hooks' own copy of this
+# pattern.
+_SAVE_SCRIPT_DIR="${BASH_SOURCE[0]%/*}"
+[ "$_SAVE_SCRIPT_DIR" = "${BASH_SOURCE[0]}" ] && _SAVE_SCRIPT_DIR="$(pwd)"
+
+source "$_SAVE_SCRIPT_DIR/resolve-paths.sh"
+source "$_SAVE_SCRIPT_DIR/detect-tools.sh"
+source "$_SAVE_SCRIPT_DIR/bootstrap-dirs.sh"
+source "$_SAVE_SCRIPT_DIR/log.sh"
+source "$_SAVE_SCRIPT_DIR/lib-lock.sh"
+source "$_SAVE_SCRIPT_DIR/lib-staging-lock.sh"
 log "hook" "save-session: PROJECT_DIR=$PROJECT_DIR PIPELINE_DIR=$PIPELINE_DIR PYTHON=$PYTHON REMEMBER_DIR=$REMEMBER_DIR"
 
 LOCK_DIR="${REMEMBER_DIR}/tmp/save.lock"
@@ -139,10 +178,11 @@ ndc_read_gen() {
     fi
     local _ndc_gen
     _ndc_gen=$(cat "$NDC_GEN_FILE" 2>/dev/null)
-    case "$_ndc_gen" in
-        (''|*[!0-9]*) echo unreadable ;;
-        (*) echo "$_ndc_gen" ;;
-    esac
+    if [ -z "$_ndc_gen" ] || [[ "$_ndc_gen" == *[!0-9]* ]]; then
+        echo unreadable
+    else
+        echo "$_ndc_gen"
+    fi
 }
 # Same shape as ndc_read_gen above, generalised to any timestamp marker file:
 # echoes 0 only when the marker was never created (see the -e/-L comment
@@ -186,10 +226,11 @@ ts_marker_read() {
     fi
     local _val
     _val=$(cat "$_marker" 2>/dev/null)
-    case "$_val" in
-        (''|*[!0-9]*) echo unreadable ;;
-        (*) echo "$_val" ;;
-    esac
+    if [ -z "$_val" ] || [[ "$_val" == *[!0-9]* ]]; then
+        echo unreadable
+    else
+        echo "$_val"
+    fi
 }
 # The write-side twin of the type check every marker READ above carries
 # (#653, release gate 3 finding on v0.31.0). `{ … > "$FILE"; } 2>/dev/null
@@ -219,6 +260,14 @@ marker_write_ok() {
 NOW_DAY_FILE="${REMEMBER_DIR}/tmp/now-day"
 LAST_SAVE_FILE="${REMEMBER_DIR}/tmp/last-save.json"
 COOLDOWN_MARKER="${REMEMBER_DIR}/tmp/last-save-ts"
+# #1056 gap 1's second defence: written right before Step 7's save-position
+# call, the one write that can fail AFTER now.md's append already succeeded.
+# A caller this file's own EXIT_RETRYABLE_BEFORE_WRITE cannot gate -- a human
+# re-running `save-session.sh --force` by hand, or a later cooldown tick --
+# would otherwise re-extract and re-summarize the same unadvanced span into a
+# SECOND now.md entry. Resolved at the top of every invocation, before this
+# run touches anything of its own; see there.
+PENDING_POSITION_MARKER="${REMEMBER_DIR}/tmp/pending-position"
 TODAY_DATE=$(_remember_date +%Y-%m-%d)
 CLEANUP_FILES=()
 # The trap below REPLACES the cleanup trap lib-memory-dir.sh installed for
@@ -252,12 +301,17 @@ trap cleanup EXIT
 DRY_RUN=false
 FORCE=false
 SESSION_ID=""
+# `[ ]` tests, not a `case` with a catch-all `*)` arm inside this loop
+# (#898 round 7 -- that shape is one the plugin directory's scanner
+# holds a submission on).
 for arg in "$@"; do
-    case "$arg" in
-        --dry)   DRY_RUN=true ;;
-        --force) FORCE=true ;;
-        *)       SESSION_ID="$arg" ;;
-    esac
+    if [ "$arg" = "--dry" ]; then
+        DRY_RUN=true
+    elif [ "$arg" = "--force" ]; then
+        FORCE=true
+    else
+        SESSION_ID="$arg"
+    fi
 done
 
 # --- Lock (mkdir acquisition, rename-based stale takeover — see lib-lock.sh) ---
@@ -309,6 +363,33 @@ else
     fi
 fi
 
+# Resolve any pending-position marker left by a PREVIOUS run's half-success
+# (#1056 gap 1's second defence -- see PENDING_POSITION_MARKER's own comment
+# above) before this run touches anything of its own. Under the save.lock
+# already held above, and independent of which session THIS invocation is
+# about to process: the marker names its own session/position/envelope, and
+# resolving it here means a stuck one from session A does not wait for
+# session B to invoke this script.
+if [ -f "$PENDING_POSITION_MARKER" ]; then
+    _pend_session="" ; _pend_position="" ; _pend_envelope=""
+    IFS=$'\t' read -r _pend_session _pend_position _pend_envelope < "$PENDING_POSITION_MARKER" 2>/dev/null || true
+    if [ -n "$_pend_session" ] && [ -n "$_pend_position" ] && [ -n "$_pend_envelope" ]; then
+        log "write" "recovering an interrupted position write from a previous run (session ${_pend_session}, position ${_pend_position}) -- now.md already holds that entry; only its position record was missing"
+        if (cd "$PIPELINE_DIR" && _remember_run_python -m pipeline.shell save-position "$LAST_SAVE_FILE" "$_pend_session" "$_pend_position" "$_pend_envelope"); then
+            rm -f "$PENDING_POSITION_MARKER" 2>/dev/null
+        else
+            log "write" "WARNING: could not recover the pending position marker at $PENDING_POSITION_MARKER -- will retry on the next invocation"
+        fi
+    else
+        # Unreadable or only partially written -- cannot safely replay a
+        # garbled session id or position (it could advance the WRONG
+        # session's cursor). Drop it rather than loop on it forever; the
+        # worst case is one already-saved entry whose position lags, which
+        # is exactly the state this run started in before this block existed.
+        rm -f "$PENDING_POSITION_MARKER" 2>/dev/null
+    fi
+fi
+
 SESSION_DIR_PATH="$(claude_projects_dir)/$(session_dir_slug "$PROJECT_DIR")"
 if [ -z "$SESSION_ID" ]; then
     LATEST_JSONL=$(ls -t "$SESSION_DIR_PATH"/*.jsonl 2>/dev/null | head -1)
@@ -350,7 +431,7 @@ if [[ ( -e "$COOLDOWN_MARKER" || -L "$COOLDOWN_MARKER" ) && "$DRY_RUN" != true &
     # By this point LAST_MOD is always "0" or all-digits: ts_marker_read
     # above already intercepts anything else (a failed read, or content that
     # is not a plain timestamp) and this if/fi already converted its
-    # "unreadable" sentinel to 0. So the `case` a few lines down -- and the
+    # "unreadable" sentinel to 0. So the digits test a few lines down -- and the
     # multi-paragraph history below explaining what happens when *raw,
     # unvalidated* marker content reaches `$(( ))` -- describes a route that
     # can no longer be taken through THIS read site. It is kept as a
@@ -394,9 +475,9 @@ if [[ ( -e "$COOLDOWN_MARKER" || -L "$COOLDOWN_MARKER" ) && "$DRY_RUN" != true &
     #
     # The case also rejects a marker padded with spaces, which arithmetic would
     # have accepted. Deliberate, and the same call #258's guard makes.
-    case "$LAST_MOD" in
-        ''|*[!0-9]*) LAST_MOD=0 ;;
-    esac
+    if [ -z "$LAST_MOD" ] || [ "${LAST_MOD#*[!0-9]}" != "$LAST_MOD" ]; then
+        LAST_MOD=0
+    fi
     ELAPSED=$(( $(date +%s) - 10#$LAST_MOD ))
     SAVE_COOLDOWN=$(config ".cooldowns.save_seconds" 120)
     if [ "$ELAPSED" -lt 0 ]; then
@@ -437,11 +518,11 @@ dispatch "before_save"
 
 # --- Step 1: Extract ---
 log "extract" "session $SESSION_ID"
-safe_eval <<< "$(cd "$PIPELINE_DIR" && $PYTHON -m pipeline.shell extract "$SESSION_ID" "$PROJECT_DIR")"
+assign_kv <<< "$(cd "$PIPELINE_DIR" && _remember_run_python -m pipeline.shell extract "$SESSION_ID" "$PROJECT_DIR")"
 # #695: the bridge is load-bearing, so its failure must be said here rather
 # than discovered three layers down. `pipeline.shell extract` ALWAYS prints
 # EXTRACT_FILE; an empty one means the line did not survive the crossing --
-# the locale bug fixed in log.sh's safe_eval dropped exactly this variable
+# the locale bug fixed in log.sh's assign_kv dropped exactly this variable
 # (its name carries an "I", which tr_TR collation puts outside [A-Z]), and
 # any future reason for the same absence is no less serious.
 #
@@ -454,7 +535,7 @@ safe_eval <<< "$(cd "$PIPELINE_DIR" && $PYTHON -m pipeline.shell extract "$SESSI
 # cooldown marker is already written by the time we get here: continuing
 # past this point does not "try again later", it burns the span.
 if [ -z "${EXTRACT_FILE:-}" ]; then
-    report_error "extract" "FAILED: the extract step produced no EXTRACT_FILE. Every variable it prints crosses into this script through safe_eval, so an absent one means the bridge lost it, not that there was nothing to extract. Stopping here rather than calling build-prompt with an empty path (#695)."
+    report_error "extract" "FAILED: the extract step produced no EXTRACT_FILE. Every variable it prints crosses into this script through assign_kv, so an absent one means the bridge lost it, not that there was nothing to extract. Stopping here rather than calling build-prompt with an empty path (#695)."
     exit 1
 fi
 CLEANUP_FILES+=("$EXTRACT_FILE")
@@ -532,7 +613,7 @@ if [ "$EXCHANGE_COUNT" -eq 0 ]; then
             log "extract" "0 exchanges, skip -- position -> $POSITION"
             SAVE_ENVELOPE="$ENVELOPE"
         fi
-        cd "$PIPELINE_DIR" && $PYTHON -m pipeline.shell save-position "$LAST_SAVE_FILE" "$SESSION_ID" "$POSITION" "$SAVE_ENVELOPE" "$SKIP_LINES"
+        cd "$PIPELINE_DIR" && _remember_run_python -m pipeline.shell save-position "$LAST_SAVE_FILE" "$SESSION_ID" "$POSITION" "$SAVE_ENVELOPE" "$SKIP_LINES"
     else
         log "extract" "0 exchanges, skip (dry run -- position unchanged)"
     fi
@@ -549,8 +630,8 @@ MIN_HUMAN=$(config ".thresholds.min_human_messages" 3)
 MIN_EXCHANGES=$(config ".thresholds.min_exchanges_without_human" 30)
 # A non-numeric value in config.json would abort the script at the comparisons
 # below (set -e + ERR trap), turning a typo into "memory silently stopped".
-case "$MIN_HUMAN" in ''|*[!0-9]*) MIN_HUMAN=3 ;; esac
-case "$MIN_EXCHANGES" in ''|*[!0-9]*) MIN_EXCHANGES=30 ;; esac
+if [ -z "$MIN_HUMAN" ] || [ "${MIN_HUMAN#*[!0-9]}" != "$MIN_HUMAN" ]; then MIN_HUMAN=3; fi
+if [ -z "$MIN_EXCHANGES" ] || [ "${MIN_EXCHANGES#*[!0-9]}" != "$MIN_EXCHANGES" ]; then MIN_EXCHANGES=30; fi
 if [ "$HUMAN_COUNT" -lt "$MIN_HUMAN" ] && [ "$DRY_RUN" = false ] && [ "$FORCE" != true ]; then
     if [ "$MIN_EXCHANGES" -gt 0 ] && [ "$EXCHANGE_COUNT" -ge "$MIN_EXCHANGES" ]; then
         log "extract" "${HUMAN_COUNT} human < ${MIN_HUMAN} but ${EXCHANGE_COUNT} exchanges >= ${MIN_EXCHANGES}, saving (agentic session)"
@@ -609,7 +690,7 @@ else
     else
         LAST_LINE="${LAST_ENTRY_HEADERS##*$'\n'}"
         LAST_LINE="${LAST_LINE%%:*}"
-        case "$LAST_LINE" in ''|*[!0-9]*) LAST_LINE="" ;; esac
+        if [ -z "$LAST_LINE" ] || [ "${LAST_LINE#*[!0-9]}" != "$LAST_LINE" ]; then LAST_LINE=""; fi
         if [ -z "$LAST_LINE" ]; then
             printf '%s\n' "$NO_PREVIOUS_ENTRY" > "$TMP_LAST_ENTRY"
         elif tail -n +"$LAST_LINE" "$MEMORY_FILE" > "$TMP_LAST_ENTRY"; then
@@ -668,14 +749,11 @@ else
     BRANCH=""
     if [ -n "${REMEMBER_BRANCH_CMD:-}" ]; then
         if CMD_BRANCH=$("$REMEMBER_BRANCH_CMD" "$SESSION_ID" 2>/dev/null) && [ -n "$CMD_BRANCH" ]; then
-            case "$CMD_BRANCH" in
-                *$'\n'*|*$'\r'*)
-                    log "branch" "WARNING: REMEMBER_BRANCH_CMD ($REMEMBER_BRANCH_CMD) printed multi-line (or carriage-return-bearing) output for session $SESSION_ID -- refusing to use it unbounded, falling back to git branch lookup"
-                    ;;
-                *)
-                    BRANCH="$CMD_BRANCH"
-                    ;;
-            esac
+            if [[ "$CMD_BRANCH" == *$'\n'* ]] || [[ "$CMD_BRANCH" == *$'\r'* ]]; then
+                log "branch" "WARNING: REMEMBER_BRANCH_CMD ($REMEMBER_BRANCH_CMD) printed multi-line (or carriage-return-bearing) output for session $SESSION_ID -- refusing to use it unbounded, falling back to git branch lookup"
+            else
+                BRANCH="$CMD_BRANCH"
+            fi
         else
             log "branch" "WARNING: REMEMBER_BRANCH_CMD ($REMEMBER_BRANCH_CMD) exited non-zero or printed nothing for session $SESSION_ID -- falling back to git branch lookup"
         fi
@@ -694,13 +772,23 @@ TMP_PROMPT=$(mktemp "${TMPDIR:-/tmp}"/remember-prompt-XXXXXX)
 CLEANUP_FILES+=("$TMP_PROMPT")
 
 EXTRACT_MAX_BYTES=$(config ".thresholds.extract_max_bytes" 300000)
-cd "$PIPELINE_DIR" && $PYTHON -m pipeline.shell build-prompt "$EXTRACT_FILE" "$TMP_LAST_ENTRY" "$CURRENT_TIME" "$BRANCH" "$TMP_PROMPT" "$EXTRACT_MAX_BYTES"
+# #834: this used to substitute the default silently, so a typo'd config value
+# (e.g. "3OOOOO") looked identical to a deliberate 300000 -- nothing in the
+# daily log told an operator their override was never read. Same guard shape
+# as #816/#821's consolidate_timeout_seconds/ndc_timeout_seconds fix, except
+# 0 is never rejected here -- like consolidate_max_bytes (#360), 0 is a
+# valid, meaningful value (disables the cap), not a malformed one.
+if [ -z "$EXTRACT_MAX_BYTES" ] || [[ "$EXTRACT_MAX_BYTES" == *[!0-9]* ]]; then
+    log "prompt" "WARNING: thresholds.extract_max_bytes is not a valid non-negative integer (got '$EXTRACT_MAX_BYTES') -- using default 300000"
+    EXTRACT_MAX_BYTES=300000
+fi
+cd "$PIPELINE_DIR" && _remember_run_python -m pipeline.shell build-prompt "$EXTRACT_FILE" "$TMP_LAST_ENTRY" "$CURRENT_TIME" "$BRANCH" "$TMP_PROMPT" "$EXTRACT_MAX_BYTES"
 
 [ ! -s "$TMP_PROMPT" ] && { log "prompt" "ERROR: empty"; exit 1; }
 grep -q '{{TIME}}\|{{BRANCH}}\|{{LAST_ENTRY}}\|{{EXTRACT}}' "$TMP_PROMPT" && { log "prompt" "ERROR: unsubstituted placeholders in prompt"; exit 1; }
 
-# --- Step 4+5: Call Haiku (the claude -p invocation lives only in pipeline/haiku.py) ---
-log "haiku" "calling (branch: $BRANCH)"
+# --- Step 4+5: Call the summarizer (the claude -p invocation lives only in pipeline/summarizer.py) ---
+log "summarizer" "calling (branch: $BRANCH)"
 HAIKU_STDERR=$(mktemp "${TMPDIR:-/tmp}"/remember-haiku-err-XXXXXX)
 CLEANUP_FILES+=("$HAIKU_STDERR")
 
@@ -715,7 +803,35 @@ CLEANUP_FILES+=("$HAIKU_STDERR")
 # Set the threshold to 0 to retry forever (the old behaviour).
 FAILURE_MARKER="${REMEMBER_DIR}/tmp/last-summary-failure"
 MAX_FAILURES=$(config ".thresholds.max_summary_failures" 3)
-case "$MAX_FAILURES" in ''|*[!0-9]*) MAX_FAILURES=3 ;; esac
+if [ -z "$MAX_FAILURES" ] || [ "${MAX_FAILURES#*[!0-9]}" != "$MAX_FAILURES" ]; then MAX_FAILURES=3; fi
+
+# #1052: a reject gate (validate's "not an entry header", or the summarizer's
+# own refusal/clarification) is a SUCCESSFUL call that discards real work --
+# the counter above only ever caught a FAILED one. Until now the position
+# advanced past a rejected span immediately, so a span the model refused
+# once was gone for good, never retried. Same shape as record_summary_failure
+# above, deliberately a SEPARATE marker/threshold -- doctor.sh's own #1084
+# comment already treats "a failed call" and "a successful call that
+# discarded its own output" as different failure classes, and sharing one
+# counter would let a rejection trip the other one's threshold early, or
+# vice versa. Count consecutive rejections of the SAME (session,
+# start-of-span) pair and, past thresholds.max_rejected_retries, give up --
+# park the raw, unsummarized span text (not just the model's refusal) where
+# it can be found, and advance.
+#
+# Final-review finding: 0 used to mean "retry forever" here too (the same
+# convention as MAX_FAILURES) -- but a span the model always refuses then
+# blocks every LATER span in the session as well, forever, which is worse
+# than the #1052 bug this whole mechanism exists to fix. Disallowed below:
+# 0 is clamped to the default instead, with a log line, the same way an
+# unparsable value already is just above.
+REJECTED_MARKER="${REMEMBER_DIR}/tmp/last-rejected-span"
+MAX_REJECTIONS=$(config ".thresholds.max_rejected_retries" 3)
+if [ -z "$MAX_REJECTIONS" ] || [ "${MAX_REJECTIONS#*[!0-9]}" != "$MAX_REJECTIONS" ]; then MAX_REJECTIONS=3; fi
+if [ "$MAX_REJECTIONS" -eq 0 ]; then
+    log "config" "thresholds.max_rejected_retries is 0 ('retry forever') -- that would stall this session's saving entirely on a span the model always refuses, so using the default (3) instead"
+    MAX_REJECTIONS=3
+fi
 
 # #583: every save-position call site below this point runs only once
 # EXCHANGE_COUNT -gt 0 (the EXCHANGE_COUNT -eq 0 branch above already
@@ -738,22 +854,30 @@ case "$MAX_FAILURES" in ''|*[!0-9]*) MAX_FAILURES=3 ;; esac
 save_position_span() {
     if [ "$ENVELOPE" != "unrecognised" ] && [ "$ENVELOPE_HAS_UNMAPPED_STEP" = "1" ]; then
         log "extract" "$ENVELOPE envelope with an unmapped step type, skip -- position -> $POSITION (span quarantined from line $SKIP_LINES for a future build)"
-        cd "$PIPELINE_DIR" && $PYTHON -m pipeline.shell save-position "$LAST_SAVE_FILE" "$SESSION_ID" "$POSITION" "unrecognised" "$SKIP_LINES"
+        cd "$PIPELINE_DIR" && _remember_run_python -m pipeline.shell save-position "$LAST_SAVE_FILE" "$SESSION_ID" "$POSITION" "unrecognised" "$SKIP_LINES"
     else
-        cd "$PIPELINE_DIR" && $PYTHON -m pipeline.shell save-position "$LAST_SAVE_FILE" "$SESSION_ID" "$POSITION" "$ENVELOPE"
+        cd "$PIPELINE_DIR" && _remember_run_python -m pipeline.shell save-position "$LAST_SAVE_FILE" "$SESSION_ID" "$POSITION" "$ENVELOPE"
     fi
 }
 
 record_summary_failure() {
     [ "$MAX_FAILURES" -eq 0 ] && return 0
-    _prev_key=""
+    _prev_span_id=""
     _prev_count=0
     if [ -f "$FAILURE_MARKER" ]; then
-        read -r _prev_key _prev_count < "$FAILURE_MARKER" || true
-        case "$_prev_count" in ''|*[!0-9]*) _prev_count=0 ;; esac
+        read -r _prev_span_id _prev_count < "$FAILURE_MARKER" || true
+        if [ -z "$_prev_count" ] || [ "${_prev_count#*[!0-9]}" != "$_prev_count" ]; then _prev_count=0; fi
     fi
-    _key="${SESSION_ID}:${POSITION}"
-    if [ "$_prev_key" = "$_key" ]; then
+    # Final-review finding (adjacent to the #1052 rejection-counter fix
+    # below): keyed on $SKIP_LINES, the span's START, not $POSITION (the
+    # transcript's current END) -- in a live session $POSITION grows on
+    # every later save, so a key built from it never matches twice and this
+    # counter would never actually escalate. $SKIP_LINES is set once by the
+    # extract step and never reassigned afterwards (see the #583 comment
+    # above save_position_span), so it stays stable across every retry of
+    # the SAME span.
+    _span_id="${SESSION_ID}:${SKIP_LINES}"
+    if [ "$_prev_span_id" = "$_span_id" ]; then
         # 10# after the case (#332): a truncated marker read back as "08"
         # would abandon this branch, and the branch is what escalates.
         _count=$(( 10#$_prev_count + 1 ))
@@ -762,12 +886,90 @@ record_summary_failure() {
     fi
 
     if [ "$_count" -ge "$MAX_FAILURES" ]; then
-        log "haiku" "WARNING: ${_count} consecutive failures on this span -- dropping it unsummarized and advancing position -> $POSITION (see thresholds.max_summary_failures)"
+        log "summarizer" "WARNING: ${_count} consecutive failures on this span -- dropping it unsummarized and advancing position -> $POSITION (see thresholds.max_summary_failures)"
         save_position_span
         rm -f "$FAILURE_MARKER"
     elif marker_write_ok "$FAILURE_MARKER" summary; then
-        echo "$_key $_count" > "$FAILURE_MARKER"
-        log "haiku" "failure ${_count}/${MAX_FAILURES} on this span -- will retry next run"
+        echo "$_span_id $_count" > "$FAILURE_MARKER"
+        log "summarizer" "failure ${_count}/${MAX_FAILURES} on this span -- will retry next run"
+    fi
+}
+
+# Sibling of record_summary_failure, same shape, deliberately a separate
+# marker/threshold (see the #1052 comment above REJECTED_MARKER): that
+# function counts a FAILED call; this one counts a SUCCESSFUL call whose
+# reply was rejected (not an entry header, or the model refusing outright).
+#
+# Unlike the refusal text, which keep_rejected_text parks unconditionally on
+# every rejection, the RAW unsummarized span -- $EXTRACT_FILE -- is only
+# worth parking once retrying has given up on it: parking it on every single
+# rejection would mean re-parking the same span's extract while it is still
+# being retried.
+#
+# Final-review finding: the span-id used to be keyed on $POSITION, which is
+# the transcript's CURRENT END (extract.py's total_lines), not the span's
+# START -- in a live session every LATER save sees a longer transcript, so
+# $POSITION differs on every attempt and this counter never sees the same
+# span-id twice. The count reset to 1 every time, the span was never parked,
+# and nothing LATER from that session was ever saved while the model kept
+# refusing: worse than the original #1052 bug this mechanism exists to fix.
+# $SKIP_LINES is the span's START (extract.py's used_skip_lines, == the last
+# SAVED position for this session) and is set once by the extract step and
+# never reassigned afterwards (see the #583 comment above save_position_span)
+# -- stable across every retry of the SAME span, which is what a "same span"
+# counter actually needs.
+record_rejected_span() {
+    local _tag="$1"
+    _prev_span_id=""
+    _prev_count=0
+    if [ -f "$REJECTED_MARKER" ]; then
+        read -r _prev_span_id _prev_count < "$REJECTED_MARKER" || true
+        if [ -z "$_prev_count" ] || [ "${_prev_count#*[!0-9]}" != "$_prev_count" ]; then _prev_count=0; fi
+    fi
+    _span_id="${SESSION_ID}:${SKIP_LINES}"
+    if [ "$_prev_span_id" = "$_span_id" ]; then
+        # 10# for the same reason record_summary_failure reads its own
+        # counter this way (#332): a truncated marker read back as "08"
+        # would abandon this branch, and the branch is what escalates.
+        _count=$(( 10#$_prev_count + 1 ))
+    else
+        _count=1
+    fi
+
+    # Final-review finding: if a rejection happens on the session's LAST
+    # flush (session-end's --force recovery), no LATER save exists to retry
+    # it -- waiting for $MAX_REJECTIONS consecutive rejections before parking
+    # would simply lose the span, never park it at all. $FORCE is this
+    # invocation's own flag, set once from argv and never reassigned, so it
+    # is already known here whether a later retry can even happen.
+    if [ "$_count" -ge "$MAX_REJECTIONS" ] || [ "$FORCE" = true ]; then
+        _dropped_dir="${REMEMBER_DIR}/tmp"
+        mkdir -p "$_dropped_dir" 2>/dev/null
+        _dropped_file="${_dropped_dir}/dropped-span-$(_remember_date +%Y%m%d-%H%M%S)-$$.md"
+        if [ "$FORCE" = true ] && [ "$_count" -lt "$MAX_REJECTIONS" ]; then
+            _give_up_why="rejected on the session's final flush (--force) -- no later save exists to retry it, so giving up now at ${_count}/${MAX_REJECTIONS} rejections rather than waiting for retries that will never come"
+        else
+            _give_up_why="${_count} consecutive rejections on this span"
+        fi
+        # report_error, not log() alone (same #694 shape as the call-haiku
+        # failure above): giving up on a span is exactly the silent failure
+        # hook-errors.log exists for, and doctor.sh's own "Dropped summarizer
+        # spans" section reports against it.
+        if [ -n "${EXTRACT_FILE:-}" ] && cp "$EXTRACT_FILE" "$_dropped_file" 2>/dev/null; then
+            report_error "$_tag" "WARNING: ${_give_up_why} -- giving up, raw span text kept at $_dropped_file -- advancing position -> $POSITION (see thresholds.max_rejected_retries)"
+        else
+            report_error "$_tag" "WARNING: ${_give_up_why} -- giving up, advancing position -> $POSITION (could not park raw span text; see thresholds.max_rejected_retries)"
+        fi
+        save_position_span
+        rm -f "$REJECTED_MARKER"
+        # Keep the last 20; these are diagnostic, not memory -- same
+        # retention keep_rejected_text already applies to tmp/rejected-*.md.
+        ls -t "${_dropped_dir}"/dropped-span-*.md 2>/dev/null | tail -n +21 | while read -r _old; do
+            rm -f "$_old"
+        done
+    elif marker_write_ok "$REJECTED_MARKER" rejected; then
+        echo "$_span_id $_count" > "$REJECTED_MARKER"
+        log "$_tag" "rejected ${_count}/${MAX_REJECTIONS} on this span -- will retry next run"
     fi
 }
 
@@ -780,18 +982,18 @@ SPAWN_DECLINED_EXIT=3
 
 # `|| { ... }` (not a bare `if [ $? ]`) so a failure is handled under set -e
 # instead of tripping the ERR trap at the assignment.
-HAIKU_VARS=$(cd "$PIPELINE_DIR" && $PYTHON -m pipeline.shell call-haiku "$TMP_PROMPT" 2>"$HAIKU_STDERR") || {
+HAIKU_VARS=$(cd "$PIPELINE_DIR" && _remember_run_python -m pipeline.shell call-haiku "$TMP_PROMPT" 2>"$HAIKU_STDERR") || {
     HAIKU_EXIT=$?
     if [ "$HAIKU_EXIT" -eq "$SPAWN_DECLINED_EXIT" ]; then
         # Declined, not failed: no failure is recorded and the position stays
         # put, so this span is summarized by a later run. Logged as its own word
         # so `grep DECLINED` finds it — a cap that fires has to be visible.
-        log "haiku" "DECLINED: $(head -1 "$HAIKU_STDERR")"
+        log "summarizer" "DECLINED: $(head -1 "$HAIKU_STDERR")"
         exit 0
     fi
     # report_error, not log() alone (#694): log() only reaches the daily
     # narrative log, and the CLI's own failure detail -- already dug out of
-    # its stdout JSON by pipeline/haiku.py's _failure_detail() and printed
+    # its stdout JSON by pipeline/summarizer.py's _failure_detail() and printed
     # here by `pipeline.shell call-haiku`'s own stderr handler -- is exactly
     # the diagnosis an operator needs when saves silently stop working.
     # Without this, hook-errors.log (what /remember:doctor tails, and what a
@@ -799,18 +1001,25 @@ HAIKU_VARS=$(cd "$PIPELINE_DIR" && $PYTHON -m pipeline.shell call-haiku "$TMP_PR
     # -- an expired token, an exhausted balance, a rate limit -- sat in a
     # second log file nobody was looking at (#693: 12 occurrences over
     # several days before anyone found it).
-    report_error "haiku" "ERROR: $(head -1 "$HAIKU_STDERR")"; record_summary_failure; exit 1
+    report_error "summarizer" "ERROR: $(head -1 "$HAIKU_STDERR")"; record_summary_failure; exit 1
 }
 
-safe_eval <<< "$HAIKU_VARS"
+assign_kv <<< "$HAIKU_VARS"
 CLEANUP_FILES+=("$HAIKU_TEXT_FILE")
-log_tokens "tokens" "$TK_IN" "$TK_OUT" "$TK_CACHE" "$TK_COST"
+# Which model actually ran this call (#1055): MODEL is printed by
+# pipeline.shell's call-haiku subcommand (pipeline/summarizer.py resolves
+# it -- REMEMBER_MODEL, or the "haiku" default -- for the claude route, and
+# reports "codex default" for the codex route, which passes no model flag
+# at all). Logged once per call so a Sonnet or Codex user's log says which
+# model ran, not just a tag that used to name neither.
+log "summarizer" "model: ${MODEL:-unknown}"
+log_usage "tokens" "$TK_IN" "$TK_OUT" "$TK_CACHE" "$TK_COST"
 
 HAIKU_TEXT=$(cat "$HAIKU_TEXT_FILE")
 # report_error, not log() alone -- same #694 shape as the call-haiku
 # failure above: an empty summary is a real, reportable failure and must
 # reach hook-errors.log rather than only the daily narrative log.
-[ -z "$HAIKU_TEXT" ] && { report_error "haiku" "ERROR: empty response"; record_summary_failure; exit 1; }
+[ -z "$HAIKU_TEXT" ] && { report_error "summarizer" "ERROR: empty response"; record_summary_failure; exit 1; }
 
 # Park a discarded reply where it can be read later. Three callers now (format
 # validator, reject gate, NDC compression) — one copy each drifts, so it lives
@@ -845,7 +1054,7 @@ keep_rejected_text() {
 # normally rewritten to 24h. The #139 fallback below keeps the model's ORIGINAL
 # line when a rewrite would malform it, so an AM/PM header can reach memory that
 # consolidation then does not recognise as an entry at all (#177).
-ENTRY_HEADER_ERE=$(cd "$PIPELINE_DIR" && $PYTHON -m pipeline.entry_header --ere entry 2>/dev/null) \
+ENTRY_HEADER_ERE=$(cd "$PIPELINE_DIR" && _remember_run_python -m pipeline.entry_header --ere entry 2>/dev/null) \
     || ENTRY_HEADER_ERE=''
 # A failed lookup must not silently accept everything: fall back to the literal
 # pattern rather than to an empty regex, which grep matches against anything.
@@ -862,12 +1071,16 @@ if [ "$IS_SKIP" != "true" ]; then
         #
         # Dropped rather than kept, but never destroyed: the text goes to
         # tmp/rejected-*.md, so nothing is lost, it simply does not enter the
-        # compression chain. The position still advances, exactly as a SKIP
-        # does, or this span would be re-summarized on every run forever.
+        # compression chain. #1052: the position does NOT advance on the
+        # spot any more -- see record_rejected_span below, which retries the
+        # span up to thresholds.max_rejected_retries times before giving up.
         log "validate" "REJECTED (not an entry header): $(echo "$FIRST_LINE" | head -c 80)"
         keep_rejected_text "$HAIKU_TEXT_FILE" "validate"
-        save_position_span
-        log "validate" "position -> $POSITION"
+        # #1052: bounded retry, not an unconditional advance -- see
+        # record_rejected_span above. Its own logging covers what used to be
+        # the "position -> $POSITION" line here, since the position may not
+        # have moved at all.
+        record_rejected_span "validate"
         rm -f "$FAILURE_MARKER"
         exit 0
     else
@@ -912,21 +1125,33 @@ if [ "$IS_SKIP" = "true" ]; then
     # stops growing, and max_summary_failures never notices because that counts
     # hard errors and this call succeeded.
     if [ "${IS_REJECTED:-false}" = "true" ]; then
-        log "haiku" "REJECTED (provider: ${PROVIDER:-claude}; not a summary -- refusal or clarification): $(head -c 80 "$HAIKU_TEXT_FILE" 2>/dev/null)"
-        keep_rejected_text "$HAIKU_TEXT_FILE" "haiku"
+        log "summarizer" "REJECTED (provider: ${PROVIDER:-claude}; not a summary -- refusal or clarification): $(head -c 80 "$HAIKU_TEXT_FILE" 2>/dev/null)"
+        keep_rejected_text "$HAIKU_TEXT_FILE" "summarizer"
+        # #1052: distinct from the plain-SKIP path below -- a rejection
+        # discards real work, so it gets the bounded retry (see
+        # record_rejected_span above), not an unconditional save_position_span.
+        record_rejected_span "summarizer"
+        rm -f "$FAILURE_MARKER"
+        exit 0
     fi
     # provider is logged here (#461): a plain "SKIP" is ambiguous about which
     # route declined once more than one summarizer exists (#460) -- a bare
     # host guess from the branch name or the log's surrounding lines would be
     # reconstruction, the exact failure mode #443's envelope field exists to
     # avoid. This is the value the call itself reported using.
-    log "haiku" "SKIP (provider: ${PROVIDER:-claude}) -- position -> $POSITION"
+    log "summarizer" "SKIP (provider: ${PROVIDER:-claude}) -- position -> $POSITION"
     save_position_span
     # A SKIP is a successful summarization (the model judged the span not worth
     # recording) and it advances the position, so it must clear the failure
     # count too — otherwise a stale count survives and a later single failure
-    # trips the give-up threshold early.
-    rm -f "$FAILURE_MARKER"
+    # trips the give-up threshold early. #1052: same reasoning for the
+    # rejection counter -- a SKIP on a DIFFERENT span than the one that was
+    # previously rejected would leave REJECTED_MARKER stale otherwise (in
+    # practice the span-id comparison in record_rejected_span already
+    # protects against a stale marker misattributing itself to a later span,
+    # but clearing it explicitly here matches FAILURE_MARKER's own hygiene
+    # rather than relying on that alone).
+    rm -f "$FAILURE_MARKER" "$REJECTED_MARKER"
     exit 0
 fi
 
@@ -1014,9 +1239,29 @@ APPEND_ERR=$({ printf '\n' && cat "$HAIKU_TEXT_FILE"; } 2>&1 >> "$APPEND_TMP") \
 APPEND_ERR=$(mv "$APPEND_TMP" "$MEMORY_FILE" 2>&1) \
     || append_failed "commit failed: ${APPEND_ERR:-unknown error}"
 log "write" "appended (provider: ${PROVIDER:-claude}): $(head -1 "$HAIKU_TEXT_FILE" | cut -c1-80)"
+# Set the INSTANT the rename above succeeds, before save_position_span runs
+# (#1056 gap 1): if save_position_span itself is what hits an unexpected
+# failure -- the ERR trap's own exact scenario, fork/resource exhaustion
+# during the app-restart pile-up #1056 exists to rescue -- this flag is
+# already 1, so the trap at the top of this file exits with the ORDINARY
+# code rather than EXIT_RETRYABLE_BEFORE_WRITE. A caller retrying blindly on
+# that code would re-extract and re-summarize this SAME span, now already
+# sitting in now.md, into a second entry.
+_WROTE_ENTRY=1
+# Second, independent defence for a retry this process's own exit code
+# cannot gate (a human re-running --force by hand, a later cooldown tick):
+# record what is about to be committed BEFORE attempting it, so a crash
+# between here and the rm below leaves a trail the NEXT invocation's own
+# resolve-pending-marker block (see PENDING_POSITION_MARKER above) can
+# finish without touching now.md again.
+printf '%s\t%s\t%s\n' "$SESSION_ID" "$POSITION" "$ENVELOPE" > "$PENDING_POSITION_MARKER" 2>/dev/null || true
 save_position_span
+rm -f "$PENDING_POSITION_MARKER" 2>/dev/null
 log "write" "position -> $POSITION"
-rm -f "$FAILURE_MARKER"
+# #1052: same hygiene as FAILURE_MARKER just above -- an accepted summary
+# must not leave a primed rejection counter behind for whatever span comes
+# next.
+rm -f "$FAILURE_MARKER" "$REJECTED_MARKER"
 
 # --- Dispatch: after_save ---
 dispatch "after_save"
@@ -1054,13 +1299,13 @@ if [[ "$RUN_NDC" = true && ( -e "$NDC_MARKER" || -L "$NDC_MARKER" ) ]]; then
         NDC_MOD=0
     fi
     # As at the cooldown site above: NDC_MOD is always "0" or all-digits by
-    # this point, so the `case` below and the UNPARSEABLE-vs-OUT-OF-RANGE
+    # this point, so the digits test below and the UNPARSEABLE-vs-OUT-OF-RANGE
     # comments that follow describe a route ts_marker_read already
     # intercepts -- kept as a defensive backstop, not this path's normal
     # behaviour (#625).
-    case "$NDC_MOD" in
-        ''|*[!0-9]*) NDC_MOD=0 ;;
-    esac
+    if [ -z "$NDC_MOD" ] || [ "${NDC_MOD#*[!0-9]}" != "$NDC_MOD" ]; then
+        NDC_MOD=0
+    fi
     NDC_COOLDOWN=$(config ".cooldowns.ndc_seconds" 3600)
     NDC_ELAPSED=$(( $(date +%s) - 10#$NDC_MOD ))
     if [ "$NDC_ELAPSED" -lt 0 ]; then
@@ -1106,10 +1351,9 @@ elif [ -e "$NOW_DAY_FILE" ]; then
 else
     NDC_DAY=""
 fi
-case "$NDC_DAY" in
-    ([0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]) ;;
-    (*) NDC_DAY="$TODAY_DATE" ;;
-esac
+if [ -z "$NDC_DAY" ] || [ -n "${NDC_DAY#[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]}" ]; then
+    NDC_DAY="$TODAY_DATE"
+fi
 TODAY_FILE="${REMEMBER_DIR}/today-${NDC_DAY}.md"
 
 if [ "$RUN_NDC" = true ]; then
@@ -1134,13 +1378,41 @@ if [ "$RUN_NDC" = true ]; then
     NDC_SRC_GEN=$(ndc_read_gen)
     NDC_PROMPT=$(mktemp "${TMPDIR:-/tmp}"/remember-ndc-XXXXXX)
 
-    cd "$PIPELINE_DIR" && $PYTHON -m pipeline.shell build-ndc-prompt "$MEMORY_FILE" "$NDC_PROMPT"
+    cd "$PIPELINE_DIR" && _remember_run_python -m pipeline.shell build-ndc-prompt "$MEMORY_FILE" "$NDC_PROMPT"
 
     if [ -s "$NDC_PROMPT" ]; then
         (set +e  # don't inherit set -e -- a haiku non-zero exit must not kill the subshell
             NDC_ERR=$(mktemp "${TMPDIR:-/tmp}"/remember-ndc-err-XXXXXX)
-            # 180s (not the 120s default): NDC compresses a whole now.md.
-            NDC_VARS=$(cd "$PIPELINE_DIR" && $PYTHON -m pipeline.shell call-haiku "$NDC_PROMPT" "" 180 2>"$NDC_ERR")
+            # 180s default (not the 120s default): NDC compresses a whole
+            # now.md, and output length scales with input length. #788:
+            # this was fixed with no config key, so a now.md large enough to
+            # need more than 180s timed out on every run, left untouched
+            # (see the ERROR branch below), and kept growing -- a one-way
+            # ratchet. Configurable so an install with a larger buffer can
+            # raise it instead of being stuck.
+            NDC_TIMEOUT_SECONDS=$(config ".thresholds.ndc_timeout_seconds" 180)
+            # #816: same fix shape as run-consolidation.sh's sibling guard --
+            # a typo'd config value used to be swapped for the default with
+            # no trace of what was discarded.
+            if [ -z "$NDC_TIMEOUT_SECONDS" ] || [[ "$NDC_TIMEOUT_SECONDS" == *[!0-9]* ]]; then
+                log "ndc" "WARNING: thresholds.ndc_timeout_seconds is not a valid non-negative integer (got '$NDC_TIMEOUT_SECONDS') -- using default 180"
+                NDC_TIMEOUT_SECONDS=180
+            else
+                # #823: same fix shape as run-consolidation.sh's sibling
+                # guard -- 0 times out this call immediately every run,
+                # and 10+ digits (>= 1e9s) reaches the same OverflowError
+                # this repo reproduced inside PyTime_t at 9e9/1e10.
+                # Length-gated so the check itself never does arithmetic
+                # on an arbitrarily long digit string.
+                if [ "${#NDC_TIMEOUT_SECONDS}" -gt 9 ]; then
+                    log "ndc" "WARNING: thresholds.ndc_timeout_seconds ($NDC_TIMEOUT_SECONDS) is too large and would crash the NDC call with an OverflowError -- using default 180"
+                    NDC_TIMEOUT_SECONDS=180
+                elif [ "$NDC_TIMEOUT_SECONDS" -eq 0 ]; then
+                    log "ndc" "WARNING: thresholds.ndc_timeout_seconds is 0, which times out the NDC call immediately on every run -- using default 180"
+                    NDC_TIMEOUT_SECONDS=180
+                fi
+            fi
+            NDC_VARS=$(cd "$PIPELINE_DIR" && _remember_run_python -m pipeline.shell call-haiku "$NDC_PROMPT" "" "$NDC_TIMEOUT_SECONDS" 2>"$NDC_ERR")
             NDC_EXIT=$?
 
             if [ "$NDC_EXIT" -eq "$SPAWN_DECLINED_EXIT" ]; then
@@ -1153,16 +1425,17 @@ if [ "$RUN_NDC" = true ]; then
                 log "ndc" "ERROR: $(head -1 "$NDC_ERR" 2>/dev/null)"
             else
                 # Defensive, and not load-bearing today: Step 6 exits before
-                # this block whenever either flag is true, and safe_eval rewrites
-                # both from NDC_VARS on every successful call, so no reachable
-                # path currently carries a stale value in here. Kept so the gate
-                # below cannot quietly start reading an inherited value if either
-                # invariant changes — a reset that costs nothing, guarding a
-                # failure mode that writes into permanent memory.
+                # this block whenever either flag is true, and assign_kv
+                # rewrites both from NDC_VARS on every successful call, so no
+                # reachable path currently carries a stale value in here. Kept
+                # so the gate below cannot quietly start reading an inherited
+                # value if either invariant changes — a reset that costs
+                # nothing, guarding a failure mode that writes into permanent
+                # memory.
                 IS_SKIP=false
                 IS_REJECTED=false
                 PROVIDER=claude
-                safe_eval <<< "$NDC_VARS"
+                assign_kv <<< "$NDC_VARS"
                 NDC_TEXT=$(cat "$HAIKU_TEXT_FILE")
                 # Before the branch, not inside the success arm: the call has
                 # already gone out and already cost money by this point, and
@@ -1171,7 +1444,7 @@ if [ "$RUN_NDC" = true ]; then
                 # memory stopped growing AND reported cost fell to zero — which
                 # reads as "nothing happened" rather than "this failed
                 # repeatedly and was paid for" (#180).
-                log_tokens "ndc" "$TK_IN" "$TK_OUT" "$TK_CACHE" "$TK_COST"
+                log_usage "ndc" "$TK_IN" "$TK_OUT" "$TK_CACHE" "$TK_COST"
                 # Compression runs through the same reject gate as the summarize
                 # call, but nothing here consumed the verdict: a refusal came
                 # back non-empty, passed `[ -n ... ]`, and was appended to
@@ -1180,7 +1453,7 @@ if [ "$RUN_NDC" = true ]; then
                 # log line. now.md is left intact so the next round retries.
                 #
                 # #597: IS_REJECTED alone is not enough. DEFAULT_REJECT_PATTERN
-                # (pipeline/haiku.py) is anchored to English refusal stems, and
+                # (pipeline/summarizer.py) is anchored to English refusal stems, and
                 # #593 put the reply in the conversation's OWN language into
                 # now.md in ordinary use for the first time -- a Chinese,
                 # French, Spanish, German or Japanese refusal comes back with
@@ -1201,10 +1474,55 @@ if [ "$RUN_NDC" = true ]; then
                 # compression instead of a refusal, which is this same failure
                 # mode with the trigger swapped. The plain "## " check is the
                 # one thing every legitimate shape shares that no refusal does.
-                case "$(head -1 "$HAIKU_TEXT_FILE" 2>/dev/null)" in
-                    ('## '*) NDC_LOOKS_LIKE_HEADER=true ;;
-                    (*) NDC_LOOKS_LIKE_HEADER=false ;;
-                esac
+                # #788 (minor, fix 4): a genuine compression can arrive with a
+                # short preamble before the first real "## " header ("I'll
+                # compress the log directly...Here's the maximally compressed
+                # version:"). Checking only line 1 rejected that whole reply
+                # and let now.md keep growing for no reason. Find the first
+                # header line instead, but only within a short window (lines
+                # 2-4): a "## " that only shows up much later is far more
+                # likely a refusal that happens to mention it in passing than
+                # a short preamble, and is left to the reject branch below.
+                #
+                # Only attempted when this is not already a known SKIP/REJECT:
+                # a refusal can itself contain a line matching "## " (a model
+                # describing the expected format while declining to produce
+                # it), and this search-and-strip used to run unconditionally
+                # ahead of the branch below. When that happened, the rewrite
+                # destroyed the refusal text before the REJECTED log line and
+                # keep_rejected_text -- the exact diagnostic trail this whole
+                # mechanism exists to preserve -- ever saw it (review of
+                # 53ff4f7). Left alone entirely for an already-rejected reply.
+                if [ "$IS_SKIP" != "true" ] && [ "${IS_REJECTED:-false}" != "true" ]; then
+                    NDC_HEADER_LINE=$(grep -n -m1 '^## ' "$HAIKU_TEXT_FILE" 2>/dev/null | cut -d: -f1)
+                    if [ "$NDC_HEADER_LINE" = 1 ]; then
+                        NDC_LOOKS_LIKE_HEADER=true
+                    elif [ "$NDC_HEADER_LINE" = 2 ] || [ "$NDC_HEADER_LINE" = 3 ] || [ "$NDC_HEADER_LINE" = 4 ]; then
+                        # The strip is destructive (it overwrites
+                        # HAIKU_TEXT_FILE in place), so a failed mktemp/
+                        # tail/mv must not be reported as a successful
+                        # strip (review of 53ff4f7): that would leave the
+                        # ORIGINAL, unstripped preamble in the file while
+                        # logging "stripped" and still writing it to
+                        # today-*.md as though it had been cleaned. On
+                        # failure this falls through to the reject branch
+                        # below instead, with an explicit WARNING.
+                        NDC_STRIPPED_FILE=$(mktemp "${TMPDIR:-/tmp}"/remember-ndc-stripped-XXXXXX)
+                        if [ -n "$NDC_STRIPPED_FILE" ] \
+                            && tail -n "+$NDC_HEADER_LINE" "$HAIKU_TEXT_FILE" > "$NDC_STRIPPED_FILE" \
+                            && mv "$NDC_STRIPPED_FILE" "$HAIKU_TEXT_FILE"; then
+                            NDC_LOOKS_LIKE_HEADER=true
+                            NDC_TEXT=$(cat "$HAIKU_TEXT_FILE")
+                            log "ndc" "preamble stripped ($((NDC_HEADER_LINE - 1)) line(s) before the first '## ')"
+                        else
+                            rm -f "$NDC_STRIPPED_FILE" 2>/dev/null
+                            NDC_LOOKS_LIKE_HEADER=false
+                            report_error "ndc" "WARNING: could not strip a short preamble from the NDC reply -- treating it as rejected instead of risking a partially-written file"
+                        fi
+                    else
+                        NDC_LOOKS_LIKE_HEADER=false
+                    fi
+                fi
                 if [ "$IS_SKIP" = "true" ] || [ "${IS_REJECTED:-false}" = "true" ] || [ "$NDC_LOOKS_LIKE_HEADER" = "false" ]; then
                     if [ "$IS_SKIP" = "true" ] || [ "${IS_REJECTED:-false}" = "true" ]; then
                         log "ndc" "REJECTED (provider: ${PROVIDER:-claude}; not a summary -- refusal or clarification): $(head -c 80 "$HAIKU_TEXT_FILE" 2>/dev/null)"
@@ -1241,14 +1559,15 @@ if [ "$RUN_NDC" = true ]; then
                     fi
                     # Drop exactly the bytes that were compressed, not the whole
                     # file (#142). now.md was snapshotted before the Haiku call
-                    # above, which can take up to 180s — and by then the parent
-                    # has released the save lock and exited, so a *newer* save
-                    # may well have appended an entry. `: >` erased those
-                    # entries, and their position had already been advanced, so
-                    # they were unrecoverable and nothing was logged. Keep
-                    # everything past the snapshot offset instead.
+                    # above, which can take up to NDC_TIMEOUT_SECONDS (180s by
+                    # default, #788) — and by then the parent has released the
+                    # save lock and exited, so a *newer* save may well have
+                    # appended an entry. `: >` erased those entries, and their
+                    # position had already been advanced, so they were
+                    # unrecoverable and nothing was logged. Keep everything
+                    # past the snapshot offset instead.
                     #
-                    # The offset arithmetic closes the 180s window. It does NOT
+                    # The offset arithmetic closes that window. It does NOT
                     # close the commit itself (#223, @Jutiphan's defect (b) in
                     # #173): `tail` reads to EOF, a concurrent save appends —
                     # entitled to, since nothing was held here — and `mv` puts
@@ -1281,9 +1600,9 @@ if [ "$RUN_NDC" = true ]; then
                         # yields either nothing or a fragment cut mid-line, which the
                         # `mv` would then install over live content.
                         NDC_LIVE_BYTES=$(wc -c < "$MEMORY_FILE" 2>/dev/null | tr -d ' ')
-                        case "$NDC_LIVE_BYTES" in
-                            (''|*[!0-9]*) NDC_LIVE_BYTES=0 ;;
-                        esac
+                        if [ -z "$NDC_LIVE_BYTES" ] || [ "${NDC_LIVE_BYTES#*[!0-9]}" != "$NDC_LIVE_BYTES" ]; then
+                            NDC_LIVE_BYTES=0
+                        fi
                         # #614: size alone cannot tell a legitimate append from
                         # a REPLACEMENT that happens to still be >= this
                         # round's snapshot -- and a replacement is exactly what
@@ -1361,9 +1680,9 @@ if [ "$RUN_NDC" = true ]; then
                                 # arm and deletes the day marker — the exact damage
                                 # this whole block is being fixed for, arriving by
                                 # a different route.
-                                case "$NDC_KEPT" in
-                                    (''|*[!0-9]*) NDC_KEPT=0 ;;
-                                esac
+                                if [ -z "$NDC_KEPT" ] || [ "${NDC_KEPT#*[!0-9]}" != "$NDC_KEPT" ]; then
+                                    NDC_KEPT=0
+                                fi
                                 # The commit's result gates everything below it
                                 # (#243). It used to be unread, and under `set +e`
                                 # that meant a failed truncate still rewrote the day
@@ -1387,7 +1706,8 @@ if [ "$RUN_NDC" = true ]; then
                                 # Anything kept was appended during this compression,
                                 # so stamp it with the day it is NOW — not $TODAY_DATE,
                                 # which was computed once in the parent before a Haiku
-                                # call that can run 180s. A compression that started
+                                # call that can run NDC_TIMEOUT_SECONDS (180s by
+                                # default, #788). A compression that started
                                 # before midnight would otherwise stamp those newer
                                 # bytes with the previous day: not the day they were
                                 # appended, not their own day, but a third stale one
@@ -1473,7 +1793,8 @@ if [ "$RUN_NDC" = true ]; then
                                 # recoverable; erased entries are neither. Rolling back
                                 # the TODAY_FILE append instead was considered and
                                 # rejected — TODAY_FILE can itself receive concurrent
-                                # appends during this same 180s window (any other save's
+                                # appends during this same NDC_TIMEOUT_SECONDS window
+                                # (180s by default, #788; any other save's
                                 # own NDC round, or a future flush), and truncating it
                                 # back to a byte count captured earlier would risk
                                 # erasing exactly that concurrent write: the same #142
@@ -1528,7 +1849,7 @@ if [ "$HAVE_LOCK" = true ]; then
     HAVE_LOCK=false
 fi
 
-# --- Housekeeping: reclaim aged autonomous logs (#487, #488, #498, #502) ---
+# --- Housekeeping: reclaim aged autonomous logs (#487, #488, #498, #502, #914) ---
 #
 # Runs unconditionally, independent of RUN_NDC/features.ndc_compression
 # (#498): this directory's only retention used to live inside the
@@ -1556,21 +1877,24 @@ fi
 # an mtime of now and is nowhere near the cutoff, so neither branch below
 # can delete output a caller might still want to read.
 #
-# A portable stat-based loop, not `find -mtime "+N" -delete` /
-# `find -empty -delete` (#502): `find` is the one command on this path with
-# a real PATH-shadowing risk on Windows Git Bash (System32's find.exe
-# takes none of the flags either sweep needs and would fail silently into
-# the swallowed stderr the old `2>/dev/null` carried, degrading "reclaim"
-# into a silent always-keep with nothing surfaced) -- and, independent of
-# shadowing, `find`'s own day-rounding `-mtime` arithmetic is one more
-# place for a platform-specific off-by-one to hide where nothing would
-# report it. session-start-hook.sh already documents the identical
-# PATH-shadowing risk for its own `-mmin` sweep and takes the same
-# stat-based way around it; `stat` here uses the same
-# GNU-first-then-BSD-fallback order already used there, at doctor.sh:257
-# and at lib-lock.sh:183.
+# Not `find -mtime "+N" -delete` / `find -empty -delete` (#502): `find` is
+# the one command on this path with a real PATH-shadowing risk on Windows
+# Git Bash (System32's find.exe takes none of the flags either sweep needs
+# and would fail silently into the swallowed stderr the old `2>/dev/null`
+# carried, degrading "reclaim" into a silent always-keep with nothing
+# surfaced) -- and, independent of shadowing, `find`'s own day-rounding
+# `-mtime` arithmetic is one more place for a platform-specific off-by-one
+# to hide where nothing would report it.
+#
+# #914: on the common path below, each surviving file is now compared
+# against one shared reference file with the bash builtin `-ot` -- no
+# `stat`/`date` process per file. `stat`'s own GNU-first-then-BSD-fallback
+# order (the same order session-start-hook.sh's `-mmin` sweep uses,
+# doctor.sh:257, lib-lock.sh:183) now lives only in the per-file fallback
+# loop below, used when the clock read or the reference file cannot be
+# built.
 _AUTONOMOUS_LOG_RETENTION_DAYS=$(config ".thresholds.autonomous_log_retention_days" 7)
-case "$_AUTONOMOUS_LOG_RETENTION_DAYS" in (''|*[!0-9]*) _AUTONOMOUS_LOG_RETENTION_DAYS=7 ;; esac
+if [ -z "$_AUTONOMOUS_LOG_RETENTION_DAYS" ] || [ "${_AUTONOMOUS_LOG_RETENTION_DAYS#*[!0-9]}" != "$_AUTONOMOUS_LOG_RETENTION_DAYS" ]; then _AUTONOMOUS_LOG_RETENTION_DAYS=7; fi
 # CI (job 100831279309 and its 3.10/3.11/3.12 siblings on PR #499): every
 # windows-latest leg left both the backdated file AND this run's own fresh
 # log in place -- no deletion at any age, default retention or configured,
@@ -1619,10 +1943,66 @@ case "$_AUTONOMOUS_LOG_RETENTION_DAYS" in (''|*[!0-9]*) _AUTONOMOUS_LOG_RETENTIO
 # different, generally nonexistent path -- turning a working retention
 # sweep into a silently broken one for that one directory, on the
 # platform this fix has no business touching at all.
-case "$OSTYPE" in
-    msys|cygwin) _remember_auto_dir="${REMEMBER_DIR//\\//}" ;;
-    *) _remember_auto_dir="$REMEMBER_DIR" ;;
-esac
+if [ "$OSTYPE" = msys ] || [ "$OSTYPE" = cygwin ]; then
+    _remember_auto_dir="${REMEMBER_DIR//\\//}"
+else
+    _remember_auto_dir="$REMEMBER_DIR"
+fi
+# #914: this loop used to fork a `stat` subshell AND a `_remember_date`
+# (date) subshell for EVERY surviving file, every time it ran -- on
+# Windows Git Bash, where a fork costs 50-300ms+ (#511's own
+# measurement), a directory of ~1,200 files turned one sweep into ~4,000
+# process starts and ~140s of wall time, recurring on every flush that
+# reached this point. Read the clock ONCE, before the loop (one fork
+# total instead of one per file), and build a single reference file
+# whose mtime is exactly the retention cutoff: `[ "$f" -ot "$ref" ]` is a
+# bash builtin and forks nothing at all. If the clock read or the
+# reference file cannot be built, fall back to the original per-file
+# stat()+date() comparison below -- correctness over speed when the fast
+# path cannot be trusted.
+_remember_auto_now=$(_remember_date +%s)
+_remember_auto_ref=""
+if [ -n "$_remember_auto_now" ] && [[ "$_remember_auto_now" != *[!0-9]* ]]; then
+    # 10# on BOTH operands (self-review finding): a config value like "08"
+    # or "09" passes the digits-only sanitizer above unchanged, and bash
+    # arithmetic treats an unprefixed leading-zero literal as octal, where
+    # 8/9 are not valid octal digits -- "value too great for base" aborts
+    # this whole conditional (and silently falls through to the per-file
+    # fallback) for exactly that class of human-plausible config value.
+    #
+    # #933: cutoff is (N+1) days, not N -- the fallback loop below floors
+    # (now - mtime) / 86400 before its `-gt N` check, so it only reclaims a
+    # file once it is a FULL N+1 days old. A cutoff of exactly N days paired
+    # with a strict "older than" test would instead reclaim anything over N
+    # days by even a second, disagreeing with the fallback for any file
+    # aged between N and N+1 days -- which path a given flush happens to
+    # take (mktemp/touch -d succeeding or not) is platform-dependent, so
+    # that disagreement meant retention silently varied by platform.
+    _remember_auto_cutoff=$(( 10#$_remember_auto_now - ((10#$_AUTONOMOUS_LOG_RETENTION_DAYS) + 1) * 86400 ))
+    _remember_auto_ref=$(mktemp "${TMPDIR:-/tmp}/remember-retention-ref.XXXXXX" 2>/dev/null) || _remember_auto_ref=""
+    if [ -n "$_remember_auto_ref" ]; then
+        # Registered with the script's own cleanup() (CLEANUP_FILES, trap
+        # EXIT above) rather than relied on solely via the bare `rm -f`
+        # after the loop (self-review finding): an abrupt exit between
+        # here and that `rm -f` would otherwise leak this file into
+        # $TMPDIR forever, since mktemp's name is unique per run and
+        # nothing later would ever clean it up.
+        CLEANUP_FILES+=("$_remember_auto_ref")
+        if ! touch -d "@$_remember_auto_cutoff" "$_remember_auto_ref" 2>/dev/null; then
+            # BSD touch has no -d; derive the same instant through BSD
+            # date's own -r (GNU-first-then-BSD-fallback, same order used
+            # for the stat call this replaces, doctor.sh:257 and
+            # lib-lock.sh:183) and feed it to `touch -t`.
+            _remember_auto_cutoff_stamp=$(date -r "$_remember_auto_cutoff" +%Y%m%d%H%M.%S 2>/dev/null) || _remember_auto_cutoff_stamp=""
+            if [ -z "$_remember_auto_cutoff_stamp" ] || ! touch -t "$_remember_auto_cutoff_stamp" "$_remember_auto_ref" 2>/dev/null; then
+                rm -f "$_remember_auto_ref" 2>/dev/null
+                _remember_auto_ref=""
+            fi
+        fi
+    fi
+else
+    log "housekeeping" "WARNING: could not read the clock -- falling back to the per-file retention check"
+fi
 for _remember_auto_log in "${_remember_auto_dir}/logs/autonomous"/*.log; do
     [ -f "$_remember_auto_log" ] || continue
     if [ ! -s "$_remember_auto_log" ]; then
@@ -1630,6 +2010,23 @@ for _remember_auto_log in "${_remember_auto_dir}/logs/autonomous"/*.log; do
             || log "housekeeping" "WARNING: could not remove empty $_remember_auto_log"
         continue
     fi
+    if [ -n "$_remember_auto_ref" ]; then
+        # #933: `! -nt` (not newer than == mtime <= ref mtime), not `-ot`
+        # (strict mtime < ref mtime) -- the fallback below deletes once a
+        # file's floored age in days is "> N", which is true at EXACTLY
+        # N+1 days (floor(N+1) > N), not only strictly past it. `-ot`
+        # against the (N+1)-day-old $_remember_auto_ref would keep a file
+        # whose mtime lands exactly on that reference instant, disagreeing
+        # with the fallback for that one case; `! -nt` includes the equal
+        # instant and matches the fallback's `-gt` exactly.
+        if [ ! "$_remember_auto_log" -nt "$_remember_auto_ref" ]; then
+            rm -f "$_remember_auto_log" 2>/dev/null \
+                || log "housekeeping" "WARNING: could not remove aged $_remember_auto_log"
+        fi
+        continue
+    fi
+    # Fallback path (fast path above unavailable): the original,
+    # fork-per-file comparison -- still correct, just not fork-free.
     _remember_auto_mtime=$(stat -c %Y "$_remember_auto_log" 2>/dev/null) \
         || _remember_auto_mtime=$(stat -f %m "$_remember_auto_log" 2>/dev/null) \
         || _remember_auto_mtime=""
@@ -1637,26 +2034,23 @@ for _remember_auto_log in "${_remember_auto_dir}/logs/autonomous"/*.log; do
     # safe direction, same as session-start-hook.sh's identical guard: skip
     # this file rather than coerce garbage into a comparable age and risk
     # reclaiming something this read could not actually confirm is old.
-    case "$_remember_auto_mtime" in
-        (''|*[!0-9]*)
-            log "housekeeping" "WARNING: could not read mtime of $_remember_auto_log -- leaving it in place"
-            continue
-            ;;
-    esac
-    _remember_auto_now=$(_remember_date +%s)
-    case "$_remember_auto_now" in
-        (''|*[!0-9]*)
-            log "housekeeping" "WARNING: could not read the clock -- skipping the retention sweep for $_remember_auto_log"
-            continue
-            ;;
-    esac
-    _remember_auto_age_days=$(( (10#$_remember_auto_now - 10#$_remember_auto_mtime) / 86400 ))
+    if [ -z "$_remember_auto_mtime" ] || [[ "$_remember_auto_mtime" == *[!0-9]* ]]; then
+        log "housekeeping" "WARNING: could not read mtime of $_remember_auto_log -- leaving it in place"
+        continue
+    fi
+    _remember_auto_file_now=$(_remember_date +%s)
+    if [ -z "$_remember_auto_file_now" ] || [[ "$_remember_auto_file_now" == *[!0-9]* ]]; then
+        log "housekeeping" "WARNING: could not read the clock -- skipping the retention sweep for $_remember_auto_log"
+        continue
+    fi
+    _remember_auto_age_days=$(( (10#$_remember_auto_file_now - 10#$_remember_auto_mtime) / 86400 ))
     if [ "$_remember_auto_age_days" -gt "$_AUTONOMOUS_LOG_RETENTION_DAYS" ]; then
         rm -f "$_remember_auto_log" 2>/dev/null \
             || log "housekeeping" "WARNING: could not remove aged (${_remember_auto_age_days}d) $_remember_auto_log"
     fi
 done
-unset _remember_auto_dir _remember_auto_log _remember_auto_mtime _remember_auto_now _remember_auto_age_days
+rm -f "$_remember_auto_ref" 2>/dev/null
+unset _remember_auto_dir _remember_auto_log _remember_auto_mtime _remember_auto_now _remember_auto_age_days _remember_auto_ref _remember_auto_cutoff _remember_auto_cutoff_stamp _remember_auto_file_now
 
 # --- Pre-render the SessionStart MEMORY context cache (#668) ---
 # This script only ever runs via `nohup ... & disown` (session-end-hook.sh's
@@ -1665,7 +2059,7 @@ unset _remember_auto_dir _remember_auto_log _remember_auto_mtime _remember_auto_
 # itself documents for its OWN consolidation trigger. Refreshing the cache
 # here, right after the memory files this save may have just written/rotated
 # have landed, is what lets the NEXT SessionStart skip re-reading them.
-PLUGIN_ROOT="${PLUGIN_ROOT:-$PIPELINE_DIR}"
+[ -n "${PLUGIN_ROOT:-}" ] || PLUGIN_ROOT="$PIPELINE_DIR"
 if source "$(dirname "$0")/lib-memory-context.sh" 2>/dev/null; then
     _remember_memory_paths
     _remember_start_cache_context_publish

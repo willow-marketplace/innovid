@@ -1,21 +1,25 @@
-# Steps 1 and 2 — resolve the firm and its ManCo over MCP (BUILD path)
+# Steps 1, 1.5, and 2 — resolve the firm, confirm ManCo eligibility, and resolve its ManCo entity over MCP (BUILD path)
 
 Reached only when Step 0.2 classified a **MISS**, or `<FORCE_REFRESH>` was set.
-A warm or soft cache hit skips both of these steps entirely — see
+A warm or soft cache hit skips all three of these steps entirely — see
 [firm-resolution.md](firm-resolution.md), which owns Gate 0 and Step 0 and
 routes here.
 
 > Steps referenced here that are documented elsewhere: **Gate 0 / Step 0** → [firm-resolution.md](firm-resolution.md); **Step 2.5 / Step 2.75** → [budget-ingest.md](budget-ingest.md); **Step 3** → [data-fetch.md](data-fetch.md).
 
-## Step 1 — Resolve firm via list_contexts (SILENT — BUILD path only)
+## Step 1 — Resolve firm via list_contexts (SILENT — BUILD path, and Gate 1's hosted-firm hand-off)
 
 Reached only when Step 0.2 classified a **MISS**, or `<FORCE_REFRESH>` was
-set. A WARM HIT and a soft hit both skip this step and Step 2 entirely —
+set — or when [firm-resolution.md](firm-resolution.md)'s **Gate 1** "Hosted, firm named"
+branch borrows this step's `list_contexts` call and clean-match rule for a
+link, outside the BUILD path proper (no `AskUserQuestion` on ambiguity, no
+`set_context`; its own paragraph says exactly what it borrows). A WARM HIT
+and a soft hit both skip this step and Step 2 entirely on the BUILD path —
 each already holds the firm and the entity from a previous build, and a
 soft hit differs only in that its DATA needs refreshing.
 
 Identify the Carta MCP server by prefix — scan the tools connected in this
-session for any `mcp__<SERVER>__list_contexts` (equivalently, `call_tool` /
+session for any `mcp__<SERVER>__list_contexts` (equivalently, `read_tool` /
 `set_context` under the same prefix). Most sessions surface one of
 `claude_ai_Carta`, `carta_production`, or `carta`, but treat those three as
 examples, not the whole set — a connector can be namespaced under any name,
@@ -44,17 +48,17 @@ disruptive (e.g. no interactive turn is available to wait on). Once resolved —
 answer or by default — use that prefix as `<SERVER>` for every tool call in this step
 and after.
 
-**Meta-tools are never routed through `call_tool`.** `list_contexts`, `set_context`,
-`search_tools`, `discover`, `get_current_user`, and `welcome` are each their own
+**Meta-tools are never routed through `read_tool` or `call_tool`.** `list_contexts`, `set_context`,
+`search_tools`, `get_current_user`, and `welcome` are each their own
 top-level tool under `<SERVER>` — call them directly, e.g. `mcp__<SERVER>__list_contexts(...)`.
-Never pass one of their names into `call_tool(name="list_contexts", ...)` or
-`call_tool(name="search_tools", ...)` — the proxy's registry only holds Fund
+Never pass one of their names into `read_tool(name="list_contexts", ...)` or
+`read_tool(name="search_tools", ...)` — the proxies' registry only holds Fund
 Admin/DWH domain commands (`fa__...`, `dwh__execute__query`), so a meta-tool name
 sent through it comes back `Unknown tool`, and `search_tools` sent through it comes
 back refusing the call outright ("synthetic search tool and cannot be called via the
-call_tool proxy"). If a **direct** call to one of these meta-tools itself comes back
+read_tool proxy"). If a **direct** call to one of these meta-tools itself comes back
 `Unknown tool`, the fix is to re-check `<SERVER>` above — not to retry the same name
-through `call_tool`.
+through `read_tool` or `call_tool`.
 
 **Classify `<CARTA_ENVIRONMENT>` from `<SERVER>`'s name** — served to the
 dashboard's Snowplow tracker so nonprod usage isn't misattributed as
@@ -67,7 +71,7 @@ to Step 4's build command.
 
 ### Instrumentation — every Carta MCP call in this step carries `_instrumentation_v2`
 
-Pass it on **every** `list_contexts`, `set_context`, and `call_tool` call:
+Pass it on **every** `list_contexts`, `set_context`, `read_tool` and `call_tool` call:
 
 ```
 _instrumentation_v2={...}
@@ -127,17 +131,76 @@ Then classify the narrowed clean-match set:
 
 Then `mcp__<SERVER>__set_context(firm_id=<FIRM_UUID>, _instrumentation_v2={...})` to activate the firm.
 
+After `list_contexts` succeeds, fetch `pk` per `${CLAUDE_PLUGIN_ROOT}/references/launch-user-id.md` (Build path). Still never call `welcome`.
+
+## Step 1.5 — ManCo eligibility (HARD GATE)
+
+> **STOP. This is a hard gate.** This dashboard requires an active Carta
+> Fund Admin subscription AND an active management company. Verify here,
+> right after the firm resolves in Step 1; do not proceed to Step 2, fetch
+> any data, or launch the dashboard until eligibility is confirmed.
+
+Reached in the same cases as Step 1 (a MISS, or `<FORCE_REFRESH>`) — never on
+a WARM HIT or a soft hit, both of which already built successfully before,
+so eligibility was already confirmed on that earlier BUILD-path run.
+
+Call the eligibility pre-check, silently, right after Step 1's `set_context`:
+
+```
+mcp__<SERVER>__read_tool(name="fa__get__manco_eligibility", arguments={}, _instrumentation_v2={"skills": ["carta-investors:carta-manco-reporting"]})
+```
+
+This returns `{available, has_active_manco, has_fund_admin, fa_product_codes}` — a fast, cached pre-check against the firm `set_context` just activated.
+
+| `available` | `has_fund_admin` | `has_active_manco` | Action |
+|---|---|---|---|
+| `false` | — | — | Enrichment not yet synced or a transient DWH outage — **not** a denial. Surface the **Try again** message below and STOP. |
+| `true` | `false` | — | Surface the **No Fund Admin** message below and STOP. |
+| `true` | `true` | `false` | Set `<HAS_MANCO> = false`. Surface the **No ManCo** message below and STOP. |
+| `true` | `true` | `true` | Set `<HAS_MANCO> = true`. Proceed to Step 2. |
+| Call errors / times out | | | Do NOT auto-retry. Tell the user, plainly, that the eligibility check failed and to try again shortly, and STOP. |
+
+### Hard-gate discipline (non-negotiable)
+
+A `false` gating result is FINAL. You get **at most one**
+`fa__get__manco_eligibility` probe per invocation. After it returns a
+denial, you MUST stop. Do NOT:
+- re-run `fa__get__manco_eligibility` hoping the cached result changes within the same invocation,
+- fall back to `fa__list__entities` or a DWH query to "look for a ManCo another way,"
+- proceed to Step 2, fetch data, or launch the dashboard "to see if it works anyway,"
+- re-call `set_context` to re-authenticate — a fresh token does not grant a product the firm hasn't bought.
+
+### No ManCo message (surface verbatim, no preamble)
+
+Copy-paste the exact text below word for word — every sentence. Do not drop, reorder, or rephrase any part of it. Do not add anything before or after it.
+
+> I don't see Management Company Administration as part of your Carta plan. That's built for firm-level operations: firm-level financial position, expense allocations across entities, and managing your operating budget.
+>
+> Reach out to your account team or [request a demo →](https://carta.com/demo/fund-admin/?&utm_medium=product&utm_source=claude&utm_campaign=manco-plugin-inq-ww-q3-26) to get access. I can help you pull fund-level performance, LP reporting, or capital activity in the meantime.
+
+### No Fund Admin message (surface verbatim)
+
+> I can't find a Carta Fund Admin firm on your account, and these ManCo features run on Fund Admin data. If your firm uses Carta Fund Admin, reconnect Carta in **Settings → Connectors**; otherwise reach out to your Carta account manager to get Fund Admin set up.
+
+### Try again message (surface verbatim)
+
+> I'm still syncing your account details — this can take a moment for new or recently updated accounts. Please try again shortly.
+
+After surfacing any of these messages, this invocation ends here — do not
+proceed to Step 2, Step 3, or `serve.py`.
 
 ## Step 2 — Resolve ManCo entity (BUILD path only)
 
-**SILENT** apart from the entity question below — no narration of what is being resolved.
+**SILENT** apart from the entity question below — no narration of what is being resolved,
+and no announcement that this step is starting ("Now Step 2 — resolve the ManCo entity" is
+exactly the kind of output [SKILL.md](../SKILL.md) forbids). Reaching this step is silent;
+the entity question, when one is actually needed, is the only visible output.
 
 Reached in the same cases as Step 1 (a MISS, or `<FORCE_REFRESH>`) — never
 on a WARM HIT or a soft hit, both of which already know the entity.
 
-Call `mcp__<SERVER>__call_tool(name="fa__list__entities", arguments={"entity_types": "management_co,fund"}, _instrumentation_v2={"skills": ["carta-investors:carta-manco-reporting"]})`.
-`entity_types` takes a comma-separated string, not a list — see `carta-soi`'s and
-`carta-portfolio-analytics-routing`'s `fa__list__entities` calls for the same convention.
+Call `mcp__<SERVER>__read_tool(name="fa__list__entities", arguments={"entity_types": "management_co,fund"}, _instrumentation_v2={"skills": ["carta-investors:carta-manco-reporting"]})`.
+`entity_types` takes a comma-separated string, not a list — see `carta-soi`'s `fa__list__entities` call for the same convention.
 
 **Always pass `entity_types` — never fetch this unfiltered.** A firm with many
 `GP Entity`/`SPV`/`Elimination Entity`/`Holding` records (none of which this skill
@@ -190,22 +253,27 @@ clean match the caller is permissioned for proceeds straight here, since
 `list_contexts` matches against the caller's own permission set. Nothing
 below re-litigates the firm.
 
-This is the entity gate, and it **always runs on a build** — whether one
-entity was found or several. Step 3 is a long fetch, and this is the last
-cheap place to catch a wrong entity; a dashboard built on the wrong one is
-wrong in every figure, under this skill's own name.
+This is the entity gate. It asks whenever there's a real choice to confirm
+— several ManCos, or a GP entity standing in for a missing one — and skips
+asking when there isn't, below. Step 3 is a long fetch, and where it does
+ask, this is the last cheap place to catch a wrong entity; a dashboard
+built on the wrong one is wrong in every figure, under this skill's own
+name.
 
 It does **not** run on a warm or soft cache hit. Both reopen an entity a
 previous run already confirmed, and re-asking on every reload is the
 question that teaches a reader to stop reading questions.
 
-**Exactly one management company** → confirm it:
-
-> **Build the dashboard for `<MANCO_NAME>`?**
-> `<FIRM_NAME>` · `<entity type>`
-
-Offer *"Yes, build it"*, *"No — different entity"* (re-open the list for
-this firm) and *"No — different firm"* (back to Step 1).
+**Exactly one management company** → skip the confirmation outright; hold
+it and move straight into the build. There is nothing to disambiguate —
+Step 1 already settled which firm this is, and this is the only entity
+Carta's Fund Admin has for it. Asking "Build the dashboard for
+`<MANCO_NAME>`?" when there is no other candidate it could be is a
+question with only one honest answer, not a real check — unlike the
+several-ManCo picker below, where the ask *is* the disambiguation. This
+runs whether or not a budget workbook has been mentioned yet; the entity
+and the workbook are two independent questions, and finding only one
+ManCo already answers the first one on its own.
 
 **Several management companies** → the picker is the confirmation:
 

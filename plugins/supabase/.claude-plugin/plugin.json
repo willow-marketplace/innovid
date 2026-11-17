@@ -1,13 +1,14 @@
 {
   "name": "supabase",
   "version": "1.0.0",
-  "description": "Official Supabase plugin for Claude Code with bundled Supabase skills and MCP access for project management, database work, auth, storage, and Postgres best practices.",
-  "updatedAt": "2026-09-19T00:42:54.236Z",
+  "description": "Official Supabase plugin for Antigravity with Supabase skills and MCP access for project management, database work, auth, storage, and Postgres best practices.",
+  "updatedAt": "2026-11-17T00:02:19.048Z",
   "author": {
     "url": "https://supabase.com",
-    "name": "Supabase"
+    "name": "Supabase",
+    "email": "support@supabase.io"
   },
-  "homepage": "https://github.com/supabase-community/supabase-plugin",
+  "homepage": "https://supabase.com",
   "repository": "https://github.com/supabase-community/supabase-plugin",
   "keywords": [
     "supabase",
@@ -22,5 +23,7 @@
     "migrations",
     "rls"
   ],
+  "displayName": "Supabase",
+  "logo": "assets/logo.svg",
   "skills": "./skills/"
 }

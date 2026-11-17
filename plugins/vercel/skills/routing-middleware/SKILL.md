@@ -1,6 +1,6 @@
 ---
 name: routing-middleware
-description: Vercel Routing Middleware guidance — request interception before cache, rewrites, redirects, personalization. Works with any framework. Supports Edge, Node.js, and Bun runtimes. Use when intercepting requests at the platform level.
+description: Vercel Routing Middleware guidance — request interception before cache, rewrites, redirects, personalization. Works with any framework. Supports Edge, Node.js, Bun, and Python runtimes. Use when intercepting requests at the platform level.
 ---
 
 # Vercel Routing Middleware
@@ -11,7 +11,7 @@ You are an expert in Vercel Routing Middleware — the platform-level request in
 
 Routing Middleware runs **before the cache** on every request matching its config. It is a **Vercel platform** feature (not framework-specific) that works with Next.js, SvelteKit, Astro, Nuxt, or any deployed framework. Built on Fluid Compute.
 
-- **Preferred platform configuration**: Set `proxy.entrypoint` in `vercel.json`. The entrypoint can use any supported filename or directory and runs on Node.js. Frameworks that build their own routing middleware (Next.js, Astro) do not use the `proxy` property; use the framework's file convention instead.
+- **Preferred platform configuration**: Set `proxy.entrypoint` in `vercel.json`. The entrypoint can use any supported filename or directory and runs on Node.js for TypeScript/JavaScript, or on Python for a `module:attribute` entrypoint such as `proxy:proxy` (not a plain `proxy.py` path; packages go in the `vercel.proxy` dependency group in `pyproject.toml`). The middleware must use the same runtime as your app (Python middleware works with Python apps such as FastAPI, Flask, or Django); a mismatch fails the build with `proxy_runtime_mismatch`. Frameworks that build their own routing middleware (Next.js, Astro) do not use the `proxy` property; use the framework's file convention instead.
 - **File convention**: `middleware.ts` or `middleware.js` at the project root. This convention defaults to Edge; set `runtime: 'nodejs'` to use Node.js.
 - **Next.js 16**: Use `proxy.ts` and export `proxy`. Next.js Proxy runs on Node.js only.
 
@@ -21,11 +21,11 @@ There are THREE "middleware" concepts in the Vercel ecosystem:
 
 | Concept | File | Runtime | Scope | When to Use |
 |---------|------|---------|-------|-------------|
-| **Vercel Routing Middleware** | `proxy.entrypoint` or `middleware.ts` | Node/Edge/Bun | Any framework, platform-level | Request interception before cache: rewrites, redirects, geo, A/B |
+| **Vercel Routing Middleware** | `proxy.entrypoint` or `middleware.ts` | Node/Edge/Bun/Python | Any framework, platform-level | Request interception before cache: rewrites, redirects, geo, A/B |
 | **Next.js 16 Proxy** | `proxy.ts` (root, or `src/proxy.ts` if using `--src-dir`) | Node.js only | Next.js 16+ only | Network-boundary proxy needing full Node APIs. NOT for auth. |
 | **Vercel Functions** | Route or function file | Node/Bun/Python/Rust | General-purpose | Request handlers and backend compute, not an interception layer |
 
-**Why the rename in Next.js 16**: `middleware.ts` → `proxy.ts` clarifies it sits at the network boundary (not general-purpose middleware). Partly motivated by CVE-2025-29927 (middleware auth bypass via `x-middleware-subrequest` header). The exported function must also be renamed from `middleware` to `proxy`. Migration codemod: `npx @next/codemod@latest middleware-to-proxy`
+**Why the rename in Next.js 16** (`middleware.ts` → `proxy.ts`): "middleware" was often confused with Express.js middleware, and Next.js recommends the feature only as a last resort while it builds better APIs; "proxy" says what it is, a network boundary in front of the app. The exported function must also be renamed from `middleware` to `proxy`. Migration codemod: `npx @next/codemod@latest middleware-to-proxy .`
 
 **Deprecation**: Next.js 16 still accepts `middleware.ts` but treats it as deprecated and logs a warning. It will be removed in a future version.
 
@@ -33,7 +33,7 @@ There are THREE "middleware" concepts in the Vercel ecosystem:
 
 To run Routing Middleware (and all Vercel Functions) on Bun, add `bunVersion` to `vercel.json`:
 
-```json
+```json filename="vercel.json"
 {
   "bunVersion": "1.x"
 }
@@ -137,10 +137,10 @@ export default async function middleware(request: Request) {
 ### Background Processing
 
 ```ts
-import type { RequestContext } from '@vercel/functions';
+import { waitUntil } from '@vercel/functions';
 
-export default function middleware(request: Request, context: RequestContext) {
-  context.waitUntil(
+export default function middleware(request: Request) {
+  waitUntil(
     fetch('https://analytics.example.com/log', { method: 'POST', body: request.url })
   );
   return new Response('OK');
@@ -153,7 +153,7 @@ export default function middleware(request: Request, context: RequestContext) {
 |-------|-------|
 | Max URL length | 14 KB |
 | Max request body | 4 MB |
-| Max request headers | 64 headers / 16 KB total |
+| Max request headers | 64 headers; 32 KB per header (name included) |
 
 ## Three CDN Routing Mechanisms
 
@@ -223,5 +223,6 @@ For project-level rules that take effect without a deployment, use `vercel route
 ## References
 
 - 📖 docs: https://vercel.com/docs/routing-middleware
-- 📖 API reference: https://vercel.com/docs/routing-middleware/api
+- 📖 JS reference: https://vercel.com/docs/routing-middleware/js-reference
+- 📖 Python reference: https://vercel.com/docs/routing-middleware/python-reference
 - 📖 getting started: https://vercel.com/docs/routing-middleware/getting-started

@@ -1,8 +1,8 @@
 {
   "name": "cloudinary",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "Use Cloudinary directly in Claude. Upload, manage, optimize, and transform images and videos at scale using natural language.",
-  "updatedAt": "2026-09-19T00:42:54.183Z",
+  "updatedAt": "2026-11-17T00:01:29.311Z",
   "author": {
     "name": "Cloudinary",
     "email": "support@cloudinary.com"
@@ -19,5 +19,32 @@
     "optimization",
     "mcp"
   ],
-  "skills": "./skills/"
+  "skills": "./skills/",
+  "mcpServers": {
+    "cloudinary-smd": {
+      "url": "https://structured-metadata.mcp.cloudinary.com/mcp",
+      "type": "streamable-http"
+    },
+    "cloudinary-analysis": {
+      "url": "https://analysis.mcp.cloudinary.com/mcp",
+      "type": "streamable-http"
+    },
+    "cloudinary-asset-mgmt": {
+      "url": "https://asset-management.mcp.cloudinary.com/mcp",
+      "type": "streamable-http"
+    },
+    "cloudinary-env-config": {
+      "url": "https://environment-config.mcp.cloudinary.com/mcp",
+      "type": "streamable-http"
+    },
+    "cloudinary-mediaflows": {
+      "url": "https://mediaflows.mcp.cloudinary.com/v2/mcp",
+      "type": "streamable-http",
+      "headers": {
+        "cld-secret": "api_secret",
+        "cld-api-key": "api_key",
+        "cld-cloud-name": "cloud_name"
+      }
+    }
+  }
 }

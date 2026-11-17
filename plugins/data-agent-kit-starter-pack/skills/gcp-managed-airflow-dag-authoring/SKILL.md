@@ -13,6 +13,7 @@ Managed Service for Apache Airflow (MSAA; formerly Cloud Composer) environments.
 ## Phase 1: Context Discovery
 
 > [!IMPORTANT]
+>
 > Before writing any DAG code, you MUST understand the constraints (e.g. version
 > of Airflow) and capabilities of your target environment if user is willing to
 > provide them.
@@ -85,14 +86,15 @@ Run the following commands to discover version constraints:
 
 ### 2.2 Airflow 2 vs Airflow 3 Compatibility
 
-Reference @skill:gcp-managed-airflow-migrations to navigate adjusting the code to
-specific target Airflow version.
+Reference @skill:gcp-managed-airflow-migrations to navigate adjusting the code
+to specific target Airflow version.
 
 --------------------------------------------------------------------------------
 
 ## Phase 3: Validation Process
 
 > [!IMPORTANT]
+>
 > You MUST validate DAGs before concluding your task.
 
 ### 3.1 Local Validation (Offline/Pre-deployment)

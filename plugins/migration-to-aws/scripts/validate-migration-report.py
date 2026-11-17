@@ -24,6 +24,7 @@ import json
 import re
 import sys
 from html import unescape
+from html.parser import HTMLParser
 from pathlib import Path
 
 # Plugin root: migrate/plugins/migration-to-aws/
@@ -53,6 +54,24 @@ DECISION_REQUIRED_SECTION_IDS = [
     "exec-timeline",
     "exec-risks",
     "decision-cta",
+]
+
+# AI-only mode (migration-report.html for an app-code-only / AI-workload repo with
+# NO infrastructure track — no aws-design.json / estimation-infra.json / terraform/).
+# The report is rendered from the AI artifacts (ai-workload-profile.json,
+# aws-design-ai.json, estimation-ai.json, generation-ai.json) so it MUST NOT require
+# the infra executive/appendix sections (exec-services, exec-costs, appendix-costs,
+# appendix-services, appendix-steps) that an AI-only run cannot populate. It still
+# requires the decision core, the assumptions panel, the risk panel, and the AI
+# appendices so the customer always receives a structured report, never a stub.
+AI_ONLY_REQUIRED_SECTION_IDS = [
+    "decision-summary",
+    "exec-assumptions",
+    "exec-risks",
+    "appendix-ai",
+    "appendix-artifacts",
+    "appendix-config",
+    "appendix-glossary",
 ]
 
 OPTIONAL_SECTION_IDS = [
@@ -224,22 +243,107 @@ SECTION_OPEN = re.compile(
 FIXTURE_CANARY_ID = "0611-0606"
 MIGRATION_ID_RE = re.compile(r"\b(\d{4}-\d{4})\b")
 
-# NOTE: _section_html uses non-greedy match to first </section>. This assumes
-# sections are NOT nested. Do not nest <section> elements in migration reports.
-
-
 def plugin_script_path() -> Path:
     """Return absolute path to this validator (for agent invocation)."""
     return Path(__file__).resolve()
 
 
+class _SectionScopeParser(HTMLParser):
+    """Locate <section id="..."> ... </section> by parsed tag structure rather
+    than a literal `id="value"` regex, so that:
+      - any legal attribute-value spelling is recognized (single-quoted
+        id='exec-costs', unquoted id=exec-costs, spaces around `=`) — a regex
+        anchored to `id=\"value\"` silently misses all of these;
+      - the matching CLOSE tag is found by counting nested <section> opens and
+        closes of the same tag name, so `</section >` (whitespace before `>`)
+        or a newline before the `>` still closes the section correctly, and a
+        nested <section> (if one ever appears) does not truncate the match
+        early;
+      - when `_section_html` returns None for a section that IS present in the
+        source but in a spelling regex doesn't recognize, callers must not
+        silently skip validation that section was supposed to gate (this was
+        the direct cause of a missing-anchor bypass: a validator's
+        `if exec_costs_html is not None:` guard skipped a real, rendered
+        section entirely because the extraction, not the requirement, failed).
+    Reuses the same approach already used elsewhere in this codebase
+    (`_CostAnchorParser`, and the Heroku validator's tag-depth section finder)
+    rather than inventing a third one.
+    """
+
+    def __init__(self, target_id: str) -> None:
+        super().__init__(convert_charrefs=True)
+        self.target_id = target_id
+        self.found_html: str | None = None
+        self._depth = 0  # >0 while inside the matched <section>, counting nested <section>s
+        self._parts: list[str] = []
+        self._raw_pos_stack: list[int] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag != "section":
+            if self._depth > 0:
+                self._parts.append(self.get_starttag_text() or "")
+            return
+        if self._depth > 0:
+            self._depth += 1
+            self._parts.append(self.get_starttag_text() or "")
+            return
+        if dict(attrs).get("id") == self.target_id:
+            self._depth = 1
+            self._parts = []
+
+    def handle_startendtag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if self._depth > 0:
+            self._parts.append(self.get_starttag_text() or "")
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag != "section" or self._depth == 0:
+            if self._depth > 0:
+                self._parts.append(f"</{tag}>")
+            return
+        self._depth -= 1
+        if self._depth == 0:
+            if self.found_html is None:
+                self.found_html = "".join(self._parts)
+        else:
+            self._parts.append("</section>")
+
+    def handle_data(self, data: str) -> None:
+        if self._depth > 0:
+            # Re-escape markup-syntax characters before appending. With
+            # convert_charrefs=True (the default this parser wants — plain
+            # decoded text is what every OTHER caller of _section_html
+            # expects, e.g. matching a dollar amount written as a numeric
+            # character reference), handle_data receives ALREADY-DECODED
+            # text: an escaped code example like `&lt;span
+            # data-cost-key="x"&gt;$112&lt;/span&gt;` decodes to the literal
+            # text `<span data-cost-key="x">$112</span>` — indistinguishable,
+            # once appended into the returned string, from a REAL <span> tag
+            # that was never actually in the source. Re-escaping `<`, `>`,
+            # and `&` here (the only characters that make reparsed text look
+            # like markup) makes the returned string round-trip safely
+            # through a second HTMLParser pass (e.g. _cost_anchor_matches)
+            # while leaving every other decoded character — including
+            # decoded numeric/named character references that are NOT
+            # `<`/`>`/`&` themselves, like a literal "$" from `&#36;` — as
+            # plain, matchable text for callers that scan for prose/dollar
+            # amounts rather than reparsing HTML structure.
+            self._parts.append(
+                data.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+            )
+
+    def handle_comment(self, data: str) -> None:
+        if self._depth > 0:
+            self._parts.append(f"<!--{data}-->")
+
+
 def _section_html(html: str, section_id: str) -> str | None:
-    pattern = re.compile(
-        rf"<section\b[^>]*\bid=\"{re.escape(section_id)}\"[^>]*>(.*?)</section>",
-        re.DOTALL | re.IGNORECASE,
-    )
-    match = pattern.search(html)
-    return match.group(1) if match else None
+    """Return the inner HTML of the first <section id="section_id"> in `html`,
+    found via parsed tag structure (any legal attribute/closing-tag spelling),
+    or None if that section is genuinely absent."""
+    parser = _SectionScopeParser(section_id)
+    parser.feed(html)
+    parser.close()
+    return parser.found_html
 
 
 def _section_id_counts(html: str) -> dict[str, int]:
@@ -399,6 +503,287 @@ def _validate_readability(html: str) -> list[str]:
     for pattern, label in READABILITY_PATTERNS:
         if re.search(pattern, scope, re.IGNORECASE):
             errors.append(f"readability: {label}")
+    return errors
+
+
+# generate-artifacts-report.md rule 2 ("Currency formatting"): monthly figures
+# render as whole dollars with thousands separators ($1,415, $118); cents are
+# reserved for genuinely sub-dollar precision ($1.50, $0.40) — e.g. hourly or
+# per-unit rates, or small monthly totals under ~$2 where a cents digit is
+# still meaningful. A multi-hundred/thousand-dollar figure rendered with cents
+# (e.g. $25,684.89/mo) is the regression this check exists to catch: it read
+# as unrounded raw arithmetic output rather than an authored report figure,
+# and it is long enough to overflow a fixed-width metric card.
+CENTS_RE = re.compile(r"\$([0-9][0-9,]*)\.([0-9]{2})\b")
+
+# A cents figure immediately followed (within ~25 chars of DECODED, tag-free
+# text) by one of these is a per-unit rate, not an absolute monthly cost —
+# cents are meaningful there regardless of the whole-dollar magnitude (e.g.
+# "$21.18 (1-mo commit)" for a model-unit-hour rate, "$5.00/mo per policy").
+# Deliberately does NOT accept a BARE "month"/"mo" as itself the qualifying
+# unit: that is exactly the unit an ordinary MONTHLY total is denominated in,
+# so treating it alone as a rate suffix would exempt the very figures this
+# rule targets (the regression case itself renders as "$25,684.89/mo" —
+# trailing "/mo" alone is not evidence of a per-unit rate). "/mo per <unit>"
+# IS still accepted, since "per <unit>" is what actually marks it a rate —
+# "/mo" there is just a connector before the real per-unit qualifier, as in
+# "$5.00/mo per policy". Genuine sub-dollar-precision monthly totals are
+# instead handled by the _CENTS_MEANINGFUL_BELOW threshold below, not by
+# unit text.
+_RATE_SUFFIX_RE = re.compile(
+    r"^\s*(?:/|\(|\bper\b)?\s*(?:mo\b\s*(?:per\b\s*)?)?"
+    r"(?:hr|hour|hourly|vcpu|gb|gib|tb|image|unit|policy|1m|10k|"
+    r"[0-9]+-mo)\b",
+    re.IGNORECASE,
+)
+
+# Whole-dollar part below this is small enough that a cents digit is itself
+# meaningful precision (matches the skill rule's own examples: $1.50, $0.40).
+_CENTS_MEANINGFUL_BELOW = 2
+
+# Appendix B's documented per-service cost breakdown table
+# (generate-artifacts-report.md: "Service Category, AWS Service, Monthly Cost
+# (Balanced), Calculation/Notes") renders its arithmetic show-work in a
+# dedicated column, e.g. "1 vCPU × $0.04048 × 511 hrs" — a per-unit rate with
+# no adjacent unit suffix at all (it's followed by "× <quantity> <unit>", not
+# "/hr"). Cells under a "Calculation" or "Notes" column header ARE where rate
+# operands like this legitimately appear with cents, but the column header
+# alone is not proof every dollar figure in the cell is a rate: the same
+# cell's prose can carry ordinary whole-dollar component amounts summed
+# together ("ALB $22 + NAT $33 for VPC-attached Fargate/RDS") or the
+# calculated monthly RESULT of the shown arithmetic ("... = $12,008.50/mo")
+# — neither of those is itself a per-unit rate, and both must still be held
+# to the whole-dollar rule. Only an operand actually adjacent to a
+# multiplication marker (×, "x", or "times") — on EITHER side, since the
+# rate can be the left or right operand ("1 vCPU × $0.04048" vs.
+# "511 hrs × $23.50") — is exempt; scope the exemption to that operand
+# specifically, not the whole cell.
+#
+# The bare "x" alternative must not match a capital "X" that merely opens an
+# unrelated word like "X-Ray": a plain \b is satisfied by the letter/hyphen
+# boundary there, so the marker additionally requires either end-of-string
+# or a following separator (whitespace, "$", or a digit) that actually looks
+# like the start of the other operand, never a letter/hyphen continuing a
+# service name.
+_CALC_NOTES_HEADER_RE = re.compile(r"calculation|\bnotes\b", re.IGNORECASE)
+_CALC_RATE_OPERAND_TRAILING_RE = re.compile(
+    r"^\s*(?:×|times\b|x(?=\s|$|[$0-9]))", re.IGNORECASE
+)
+_CALC_RATE_OPERAND_LEADING_RE = re.compile(
+    r"(?:×|\btimes|(?<=[\s0-9])x)\s*$", re.IGNORECASE
+)
+
+
+class _DecodedTextRunParser(HTMLParser):
+    """Extract rendered text as the browser would present it — entities
+    decoded, comments and inert content (script/style/template) excluded —
+    while preserving amount/unit adjacency across inline markup and marking
+    which text runs fall inside a table cell under a "Calculation"/"Notes"
+    column header.
+
+    Rationale (all three are real gaps in matching raw HTML source directly):
+      - character references (`&nbsp;`, `&times;`) are never decoded before
+        pattern matching, so a rate written with an entity separator reads as
+        different text than the same rate written with a literal character;
+      - comments and <script>/<style> content are not rendered, but a plain
+        substring/regex scan over raw HTML sees them as ordinary text — a
+        commented-out raw figure must not be flagged, since the browser never
+        shows it;
+      - inline tags split adjacent tokens in the source (`<strong>$23.50</strong>/hr`
+        has `</strong>` between the amount and its unit) even though a reader
+        sees "$23.50/hr" as one continuous phrase — inline tags must not
+        introduce a gap, while block-level tags (row/cell/paragraph
+        boundaries) SHOULD still separate otherwise-unrelated text so two
+        different table cells' numbers never fuse into one token.
+    """
+
+    # A conservative set of tags that visually run text together with their
+    # siblings (the browser renders no line break) — every other tag is
+    # treated as block-level and gets a separating space.
+    _INLINE_TAGS = {
+        "a", "abbr", "b", "bdi", "bdo", "cite", "code", "data", "dfn", "em",
+        "i", "kbd", "mark", "q", "s", "samp", "small", "span", "strong",
+        "sub", "sup", "time", "u", "var", "wbr",
+    }
+    _INERT_TAGS = {"script", "style", "template"}
+
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self._parts: list[str] = []
+        self._calc_col: list[bool] = []  # per-part flag: inside a Calculation/Notes cell
+        self._inert_depth = 0
+        # Table header tracking: which <th> column index (0-based) is a
+        # Calculation/Notes column, per currently-open table (stack, for
+        # nested tables — innermost wins).
+        self._table_stack: list[dict[str, object]] = []
+        # Absolute character offsets (into text()) where a block-level
+        # boundary (a separating space from a non-inline tag) was inserted.
+        # A rate-suffix match must never read PAST one of these into
+        # unrelated content from a different cell/row/paragraph — a single
+        # space alone doesn't stop a word-based regex, since a real word
+        # like "Hourly" can legitimately start the very next cell's text
+        # (see the class docstring's third bullet).
+        self._boundaries: list[int] = []
+
+    def _current_table(self) -> dict[str, object] | None:
+        return self._table_stack[-1] if self._table_stack else None
+
+    def _emit(self, text: str, *, is_boundary: bool = False) -> None:
+        if not text:
+            return
+        if is_boundary:
+            self._boundaries.append(sum(len(p) for p in self._parts))
+        table = self._current_table()
+        in_calc = bool(table and table.get("in_calc_cell"))
+        self._parts.append(text)
+        self._calc_col.append(in_calc)
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag in self._INERT_TAGS:
+            self._inert_depth += 1
+            return
+        if self._inert_depth > 0:
+            return
+        if tag == "table":
+            self._table_stack.append(
+                {"header_row": False, "col": 0, "calc_col_index": None,
+                 "in_calc_cell": False, "cell_col": 0}
+            )
+        elif tag in ("thead", "tr"):
+            table = self._current_table()
+            if table is not None and tag == "tr":
+                table["cell_col"] = 0
+        elif tag in ("th", "td") and self._current_table() is not None:
+            table = self._current_table()
+            col_index = table["cell_col"]
+            if tag == "th":
+                table["_pending_th_col"] = col_index
+            elif tag == "td" and table.get("calc_col_index") == col_index:
+                table["in_calc_cell"] = True
+        elif tag not in self._INLINE_TAGS:
+            self._emit(" ", is_boundary=True)
+
+    def handle_startendtag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag not in self._INLINE_TAGS and tag not in self._INERT_TAGS:
+            self._emit(" ", is_boundary=True)
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag in self._INERT_TAGS:
+            if self._inert_depth > 0:
+                self._inert_depth -= 1
+            return
+        if self._inert_depth > 0:
+            return
+        table = self._current_table()
+        if tag == "th" and table is not None and "_pending_th_col" in table:
+            table["cell_col"] = table["_pending_th_col"] + 1
+        elif tag == "td" and table is not None:
+            table["in_calc_cell"] = False
+            table["cell_col"] = table["cell_col"] + 1
+        elif tag == "table" and self._table_stack:
+            self._table_stack.pop()
+        if tag not in self._INLINE_TAGS:
+            self._emit(" ", is_boundary=True)
+
+    def handle_data(self, data: str) -> None:
+        if self._inert_depth > 0:
+            return
+        table = self._current_table()
+        if table is not None and "_pending_th_col" in table:
+            if _CALC_NOTES_HEADER_RE.search(data):
+                table["calc_col_index"] = table["_pending_th_col"]
+        self._emit(data)
+
+    def text(self) -> str:
+        return "".join(self._parts)
+
+    def calc_mask(self) -> list[bool]:
+        """Per-character (matching text()) flag: True while inside a
+        Calculation/Notes column cell."""
+        mask: list[bool] = []
+        for part, in_calc in zip(self._parts, self._calc_col):
+            mask.extend([in_calc] * len(part))
+        return mask
+
+    def boundaries(self) -> list[int]:
+        """Absolute offsets (into text()) of every block-level separator —
+        the hard stops a rate-suffix match must never read past."""
+        return self._boundaries
+
+
+def _decoded_text_with_calc_mask(html: str) -> tuple[str, list[bool], list[int]]:
+    scope = _readability_scope(html)
+    parser = _DecodedTextRunParser()
+    parser.feed(scope)
+    parser.close()
+    return parser.text(), parser.calc_mask(), parser.boundaries()
+
+
+def _validate_currency_formatting(html: str) -> list[str]:
+    """Monthly cost figures must render as whole dollars (rule 2). Flag any
+    $X.YY figure whose whole-dollar part is >= $2 and that is not immediately
+    followed by a per-unit-rate suffix (/hr, per policy, etc.) — those are
+    legitimately sub-dollar-precision rates, not rounded monthly totals — and
+    that is not inside a documented Calculation/Notes column cell (Appendix B
+    per-service breakdown show-work, which legitimately renders rate
+    arithmetic like "1 vCPU × $0.04048 × 511 hrs" with no adjacent unit
+    suffix at all)."""
+    errors: list[str] = []
+    text, calc_mask, boundaries = _decoded_text_with_calc_mask(html)
+    seen: set[str] = set()
+    for match in CENTS_RE.finditer(text):
+        whole = int(match.group(1).replace(",", ""))
+        if whole < _CENTS_MEANINGFUL_BELOW:
+            continue
+        # The rate-suffix / rate-operand window must stop at the next
+        # block-level boundary (table cell/row, paragraph, etc.) even if
+        # that's before the normal 25-char lookahead — a boundary is
+        # inserted as a single space, which does not itself stop a
+        # word-based regex, so an unrelated word that happens to start the
+        # NEXT cell/block (e.g. "Hourly" opening a sibling note column) must
+        # never be readable as this figure's own rate suffix. bisect finds
+        # the first boundary offset > match.end(); a boundary exactly AT
+        # match.end() (the very next char) also cuts the window to empty,
+        # correctly blocking any suffix read across it.
+        cutoff = match.end() + 25
+        for boundary in boundaries:
+            if boundary >= match.end():
+                cutoff = min(cutoff, boundary)
+                break
+        trailing = text[match.end():cutoff]
+        if _RATE_SUFFIX_RE.match(trailing):
+            continue
+        # In a Calculation/Notes cell, ONLY a figure immediately adjacent to
+        # a multiplication marker (×, "x", "times") is a rate operand and
+        # exempt — a component amount being summed ("ALB $22 + NAT $33") or
+        # the calculated monthly result ("= $12,008.50/mo") in the SAME cell
+        # is not itself a rate and must still be held to the whole-dollar
+        # rule, even though the cell as a whole is rate context. The rate
+        # can appear as either operand of the multiplication ("$0.04048 ×
+        # 511 hrs" or "511 hrs × $23.50"), so both a trailing marker
+        # (checked above the figure) and a leading marker (checked below,
+        # from the previous boundary up to the figure) qualify.
+        if any(calc_mask[match.start():match.end()]):
+            if _CALC_RATE_OPERAND_TRAILING_RE.match(trailing):
+                continue
+            lead_start = 0
+            for boundary in reversed(boundaries):
+                if boundary <= match.start():
+                    lead_start = boundary
+                    break
+            leading = text[max(lead_start, match.start() - 25):match.start()]
+            if _CALC_RATE_OPERAND_LEADING_RE.search(leading):
+                continue
+        token = match.group(0)
+        if token in seen:
+            continue
+        seen.add(token)
+        errors.append(
+            f'currency formatting: "{token}" renders cents on a monthly-scale '
+            "figure — round to a whole dollar (generate-artifacts-report.md "
+            'rule 2: cents only for genuinely sub-dollar precision, e.g. "'
+            '$1.50", "$0.40", or a per-unit rate like "$0.018/hr")'
+        )
     return errors
 
 
@@ -871,6 +1256,271 @@ def _validate_appendix_config(html: str) -> list[str]:
     return errors
 
 
+def _canonical_money(value: float) -> str:
+    """Canonical display form for a dollar amount, matching the emitter's own
+    rule (generate-artifacts-report.md rule 19 / the currency-formatting gate):
+    monthly-scale totals (>= $2) round to the nearest whole dollar; genuinely
+    small totals (< $2) keep two-decimal cents. Both the rendered figure and the
+    JSON figure pass through this SAME function before comparison, so a correctly
+    rounded `$113` for `112.90` matches, and the small-total exception (e.g.
+    `$0.40`) is preserved instead of being truncated to `0`."""
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        raise
+    # Decide precision on the ROUNDED magnitude, not the raw one, so a value that
+    # rounds up ACROSS the $2 threshold canonicalizes consistently with how it
+    # renders. Otherwise 1.999 (raw < 2 -> "2.00") would mismatch a displayed $2
+    # (2.0 >= 2 -> "2"): both must land on "2". round() first, then classify.
+    rounded_whole = int(round(v))
+    if abs(rounded_whole) >= _CENTS_MEANINGFUL_BELOW:
+        return str(rounded_whole)  # nearest-dollar; 112.90->113, 112.4->112, 1.999->2
+    return f"{v:.2f}"  # genuinely small total: retain cents (0.40 -> "0.40")
+
+
+def _normalize_money(text: str) -> str | None:
+    """Reduce a rendered money string to its canonical display form for exact
+    comparison against the JSON figure (same normalization on both sides via
+    `_canonical_money`). '$1,415/mo' -> '1415'; '$112.90' -> '113'; '$0.40' ->
+    '0.40'. Returns None when no dollar amount is present."""
+    m = re.search(r"\$\s*([0-9][0-9,]*(?:\.[0-9]+)?)", text)
+    if not m:
+        return None
+    try:
+        return _canonical_money(float(m.group(1).replace(",", "")))
+    except (TypeError, ValueError):
+        return None
+
+
+# Which estimation-infra.json figure each data-cost-key anchor must equal. The
+# validator asserts every figure the emitter tagged with a data-cost-key anchor
+# (generate-artifacts-report.md); an untagged *illustrative* figure is never guessed
+# at. Required keys are the exception: a required figure whose JSON value exists must
+# BE anchored when exec-costs is present (see _REQUIRED_COST_KEYS) — a missing anchor
+# there is a FAIL, not a skip.
+_COST_ANCHORS = {
+    "aws_monthly_balanced": ("projected_costs", "aws_monthly_balanced"),
+    "aws_monthly_premium": ("projected_costs", "aws_monthly_premium"),
+    "aws_monthly_optimized": ("projected_costs", "aws_monthly_optimized"),
+    "current_monthly": ("current_costs", "gcp_monthly"),
+}
+
+# Keys whose figure is load-bearing: when its JSON value exists AND the report has
+# an exec-costs section, the anchor MUST be present (a missing anchor is a FAIL, not
+# a skip — otherwise an un-anchored wrong figure passes, which is the bug P1-C exists
+# to catch). Premium/optimized are optional (skip when absent).
+_REQUIRED_COST_KEYS = ("aws_monthly_balanced", "current_monthly")
+
+# Elements whose subtree the browser never renders — an anchor (or its text)
+# inside one must never stand in for the visible figure. Mirrors
+# _DecodedTextRunParser's _INERT_TAGS so the anchor collector and the currency
+# text parser agree on what "rendered" means.
+_ANCHOR_INERT_TAGS = {"script", "style", "template"}
+
+
+class _CostAnchorParser(HTMLParser):
+    """Collect the rendered text of every `data-cost-key="..."` element.
+
+    Uses the stdlib HTML parser rather than a regex so that:
+    (a) markup inside an HTML comment is never mistaken for a real anchor —
+        comments are a distinct token the parser never re-tokenizes as tags;
+    (b) nested child markup is read through the anchored element's OWN matching
+        close tag, not the first `</` encountered, by counting nested
+        opens/closes — and a NESTED `data-cost-key` element is collected as its
+        own anchor too (an outer anchor being open must not swallow a recognized
+        inner figure), tracked on a stack;
+    (c) inert subtrees (`<script>`, `<style>`, `<template>`) are skipped — their
+        content is never rendered by the browser, so an anchor or dollar token
+        placed there must not satisfy the visible-figure requirement, even when
+        the inert element itself carries `data-cost-key`;
+    (d) an element with a truthy `hidden` attribute is skipped for the same
+        reason — its subtree is not rendered.
+    Character references are decoded automatically (`convert_charrefs=True`).
+    """
+
+    # Void elements never have an end tag, so they must not be pushed onto the
+    # element stack (doing so would desync every subsequent close).
+    _VOID_TAGS = {
+        "area", "base", "br", "col", "embed", "hr", "img", "input",
+        "link", "meta", "param", "source", "track", "wbr",
+    }
+
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.results: list[tuple[str, str]] = []  # (key, inner text), document order
+        # One frame per open non-void element, innermost last. Each frame:
+        #   {"tag", "inert": bool, "hidden": bool, "anchor": {key,parts}|None}
+        # `inert`/`hidden` are STICKY down the subtree (an element inside an inert
+        # or hidden ancestor is itself skipped) — computed as ancestor-or-self.
+        self._stack: list[dict] = []
+
+    def _in_skip(self) -> bool:
+        """True when the current point is inside an inert or hidden subtree."""
+        return bool(self._stack) and (self._stack[-1]["inert"] or self._stack[-1]["hidden"])
+
+    @staticmethod
+    def _is_hidden(attrs: list[tuple[str, str | None]]) -> bool:
+        # `hidden` is a BOOLEAN attribute: its mere presence hides the subtree,
+        # regardless of value. In HTML `hidden="false"` is NOT a not-hidden value —
+        # "false" is an invalid value for a boolean attribute, whose invalid-value
+        # default is the Hidden state. So any `hidden` attribute (including
+        # `hidden=""`, `hidden="hidden"`, and `hidden="false"`) hides the element;
+        # only the attribute's ABSENCE leaves it visible.
+        return "hidden" in dict(attrs)
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        parent = self._stack[-1] if self._stack else None
+        # inert/hidden are STICKY: an element inside an inert/hidden ancestor is
+        # itself inert/hidden. Kept as clean booleans (never a truthy list).
+        inert = bool(parent and parent["inert"]) or tag in _ANCHOR_INERT_TAGS
+        hidden = bool(parent and parent["hidden"]) or self._is_hidden(attrs)
+        anchor = None
+        key = dict(attrs).get("data-cost-key")
+        # Start a new anchor only when this element is actually rendered.
+        if key and not inert and not hidden:
+            anchor = {"key": key.lower(), "parts": []}
+        frame = {"tag": tag, "inert": inert, "hidden": hidden, "anchor": anchor}
+        if tag not in self._VOID_TAGS:
+            self._stack.append(frame)
+
+    def handle_startendtag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag in _ANCHOR_INERT_TAGS or self._in_skip():
+            return
+        parent_hidden = self._stack[-1]["hidden"] if self._stack else False
+        key = dict(attrs).get("data-cost-key")
+        # A self-closed anchor has no text content; record it (empty) only if rendered.
+        if key and not parent_hidden and not self._is_hidden(attrs):
+            self.results.append((key.lower(), ""))
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag in self._VOID_TAGS:
+            return
+        # Pop to the nearest matching open tag (tolerate minor misnesting). Every
+        # frame in the popped slice that carried an anchor is emitted — including
+        # any INNER anchors implicitly closed by an outer element's end tag — so a
+        # nested `data-cost-key` is never silently dropped. Emit innermost-first,
+        # then the matched frame, all in the order they closed.
+        for i in range(len(self._stack) - 1, -1, -1):
+            if self._stack[i]["tag"] == tag:
+                popped = self._stack[i:]
+                del self._stack[i:]
+                for frame in reversed(popped):  # innermost closes first
+                    if frame["anchor"] is not None:
+                        self.results.append(
+                            (frame["anchor"]["key"], "".join(frame["anchor"]["parts"]))
+                        )
+                return
+        # Unmatched close tag: ignore.
+
+    def handle_data(self, data: str) -> None:
+        if self._in_skip():
+            return
+        # Append rendered text to every open anchor on the stack (an outer
+        # anchor's text legitimately includes its children's text).
+        for frame in self._stack:
+            if frame["anchor"] is not None:
+                frame["anchor"]["parts"].append(data)
+
+
+def _cost_anchor_matches(html: str) -> list[tuple[str, str]]:
+    """Parse `html` and return every (data-cost-key, rendered text) pair found
+    outside comments and non-rendered markup (script/style/template/hidden),
+    including nested recognized anchors."""
+    parser = _CostAnchorParser()
+    parser.feed(html)
+    parser.close()
+    return parser.results
+
+
+def _dig(d: dict, path: tuple[str, ...]):
+    cur = d
+    for key in path:
+        if not isinstance(cur, dict) or key not in cur:
+            return None
+        cur = cur[key]
+    return cur
+
+
+def _validate_cost_figures(
+    html: str, estimation_infra: dict | None, *, require_anchors: bool = True
+) -> list[str]:
+    """Assert the report's cost figures match estimation-infra.json (P1-C).
+
+    Fail direction:
+    - No estimation-infra.json / not a dict -> skip (fail open on absence).
+    - A REQUIRED key (aws_monthly_balanced, current_monthly) whose JSON value is
+      present, when exec-costs exists, MUST carry a data-cost-key anchor -> a
+      missing anchor FAILs (an un-anchored wrong figure must not pass).
+    - Anchor present + JSON value present but rendered dollars differ -> FAIL.
+    - Anchored element with a real JSON value but no $ amount rendered -> FAIL.
+    - Non-numeric / non-whole-dollar JSON value -> FAIL (named), never a crash.
+    - Unknown anchor key, or an optional key's absent JSON value -> skip.
+    """
+    if not isinstance(estimation_infra, dict):
+        return []
+    errors: list[str] = []
+
+    for key, text in _cost_anchor_matches(html):
+        key = key.lower()
+        path = _COST_ANCHORS.get(key)
+        if path is None:
+            continue  # unknown anchor key -> not ours to assert
+        expected = _dig(estimation_infra, path)
+        if expected is None:
+            continue  # the JSON does not carry this figure -> nothing to assert
+        try:
+            # Normalize the JSON figure to the SAME display precision the emitter
+            # renders at (nearest dollar for monthly-scale, cents for small
+            # totals) so a correctly rounded report matches — not a truncation.
+            expected_dollars = _canonical_money(float(expected))
+        except (TypeError, ValueError):
+            errors.append(
+                f'estimation-infra.json {".".join(path)} is not a numeric dollar '
+                f"amount: {expected!r}"
+            )
+            continue
+        rendered = _normalize_money(text)
+        if rendered is None:
+            errors.append(
+                f'data-cost-key="{key}" element renders no dollar amount '
+                f"(expected ${expected_dollars} from {'.'.join(path)})"
+            )
+            continue
+        if expected_dollars != rendered:
+            errors.append(
+                f'cost figure mismatch: data-cost-key="{key}" renders '
+                f'"${rendered}" but estimation-infra.json {".".join(path)} = '
+                f"${expected_dollars}"
+            )
+
+    # Required figures must be anchored INSIDE <section id="exec-costs"> when their
+    # JSON value exists and that section is rendered — per generate-artifacts-report.md
+    # rule 21 ("Wrap ... in exec-costs with a data-cost-key attribute"). A redundant
+    # anchor elsewhere (e.g. a decision-summary hero metric) is still cross-checked by
+    # the mismatch loop above, but does not satisfy this requirement: exec-costs is the
+    # section customers read as the authoritative cost comparison, and its own dollar
+    # cells must be the ones a validator can hold to the estimate. Gated on
+    # require_anchors so deliberately minimal unit fixtures (run with --no-require-toc)
+    # are not forced to anchor; the mismatch / no-$ / non-numeric checks above always run.
+    if require_anchors:
+        exec_costs_html = _section_html(html, "exec-costs")
+        if exec_costs_html is not None:
+            exec_costs_keys = {k.lower() for k, _ in _cost_anchor_matches(exec_costs_html)}
+            for key in _REQUIRED_COST_KEYS:
+                path = _COST_ANCHORS[key]
+                if _dig(estimation_infra, path) is None:
+                    continue  # JSON does not carry it -> nothing to require
+                if key not in exec_costs_keys:
+                    errors.append(
+                        f'missing data-cost-key="{key}" anchor inside '
+                        f'<section id="exec-costs">; cannot confirm the rendered figure '
+                        f"matches estimation-infra.json {'.'.join(path)} (wrap that "
+                        f'figure in <span data-cost-key="{key}">...</span> inside '
+                        f"exec-costs)"
+                    )
+    return errors
+
+
 def _validate_verdict(html: str, estimation_infra: dict | None) -> list[str]:
     """When a recommendation block exists, the decision summary must state a
     one-sentence verdict in a visually distinct class="verdict" callout."""
@@ -1009,7 +1659,12 @@ def validate_report(
 ) -> list[str]:
     errors: list[str] = []
 
-    required_ids = DECISION_REQUIRED_SECTION_IDS if mode == "decision" else REQUIRED_SECTION_IDS
+    if mode == "ai_only":
+        required_ids = AI_ONLY_REQUIRED_SECTION_IDS
+    elif mode == "decision":
+        required_ids = DECISION_REQUIRED_SECTION_IDS
+    else:
+        required_ids = REQUIRED_SECTION_IDS
     errors.extend(_validate_required_sections(html, required_ids))
 
     if mode == "decision":
@@ -1034,6 +1689,7 @@ def validate_report(
 
     if check_readability:
         errors.extend(_validate_readability(html))
+        errors.extend(_validate_currency_formatting(html))
         errors.extend(_validate_exec_vocabulary(html))
         errors.extend(_validate_decision_language(html, estimation_infra))
         # Normal generated reports require a TOC. Use the same signal to
@@ -1091,10 +1747,13 @@ def validate_report(
 
     # Decision summary must state a one-sentence verdict when a recommendation exists.
     errors.extend(_validate_verdict(html, estimation_infra))
+    errors.extend(
+        _validate_cost_figures(html, estimation_infra, require_anchors=require_toc)
+    )
     errors.extend(_validate_activate_link(html))
     if require_toc:
         errors.extend(_validate_share_section(html, estimation_infra, estimation_ai))
-    if mode == "full" and require_toc:
+    if mode in ("full", "ai_only") and require_toc:
         errors.extend(_validate_glossary_table(html))
 
     # Ordered action lists and configuration provenance (when sections present).
@@ -1169,7 +1828,7 @@ def main() -> int:
     )
     parser.add_argument(
         "--mode",
-        choices=["full", "decision"],
+        choices=["full", "decision", "ai_only"],
         default="full",
         help="full = migration-report.html (default); decision = decision-report.html "
         "written at the post-Estimate Decision gate (exec sections + CTA, no appendices)",
@@ -1213,7 +1872,11 @@ def main() -> int:
     counts = _section_id_counts(html)
     optional_present = [sid for sid in OPTIONAL_SECTION_IDS if counts.get(sid, 0) >= 1]
     required_count = len(
-        DECISION_REQUIRED_SECTION_IDS if args.mode == "decision" else REQUIRED_SECTION_IDS
+        AI_ONLY_REQUIRED_SECTION_IDS
+        if args.mode == "ai_only"
+        else DECISION_REQUIRED_SECTION_IDS
+        if args.mode == "decision"
+        else REQUIRED_SECTION_IDS
     )
     mode_tag = "" if args.mode == "full" else f"mode={args.mode} | "
     print(

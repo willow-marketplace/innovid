@@ -6,11 +6,23 @@ import { ExaError } from "exa-js";
 
 type ToolErrorResult = { content: Array<{ type: "text"; text: string }>; isError: true };
 
+/**
+ * `_meta` key marking a tool result that reports a free-tier rate limit.
+ * These results are also flagged `isError` so clients can retry or fail over.
+ */
+export const RATE_LIMITED_META_KEY = "ai.exa/rateLimited";
+
+type RateLimitNoticeResult = {
+  content: Array<{ type: "text"; text: string }>;
+  isError: true;
+  _meta: { [RATE_LIMITED_META_KEY]: true };
+};
+
 export const TRANSIENT_STATUS_CODES = new Set([500, 502, 503, 504]);
 
 export const EXA_API_KEYS_URL = "https://dashboard.exa.ai/api-keys";
 
-export const FREE_MCP_RATE_LIMIT_MESSAGE = `You've hit Exa's free MCP rate limit. To continue using without limits, create your own Exa API key.
+export const FREE_MCP_RATE_LIMIT_MESSAGE = `You've hit Exa's free MCP rate limit. Create a free Exa account to get your own usage allowance and rate limits. No payment method required.
 
 Fix: Create API key at ${EXA_API_KEYS_URL} , and then update Exa MCP URL to this https://mcp.exa.ai/mcp?exaApiKey=YOUR_EXA_API_KEY`;
 
@@ -77,7 +89,7 @@ export function handleRateLimitError(
   error: unknown,
   userProvidedApiKey: boolean | undefined,
   toolName: string,
-): ToolErrorResult | null {
+): RateLimitNoticeResult | null {
   if (!(error instanceof ExaError)) {
     return null;
   }
@@ -88,7 +100,8 @@ export function handleRateLimitError(
   if (isRateLimited && isUsingFreeMcp) {
     return {
       content: [{ type: "text" as const, text: FREE_MCP_RATE_LIMIT_MESSAGE }],
-      isError: true,
+      isError: true as const,
+      _meta: { [RATE_LIMITED_META_KEY]: true as const },
     };
   }
 
@@ -103,7 +116,7 @@ export function formatToolError(
   error: unknown,
   toolName: string,
   userProvidedApiKey?: boolean,
-): ToolErrorResult {
+): ToolErrorResult | RateLimitNoticeResult {
   const rateLimitResult = handleRateLimitError(error, userProvidedApiKey, toolName);
   if (rateLimitResult) return rateLimitResult;
 

@@ -29,7 +29,14 @@ Model IDs in this file are illustrative. Provider model names change often — c
 | OpenRouter | `instructor.from_openai(OpenAI(base_url=..., api_key=...))` | `Mode.TOOLS` | `"assistant"` | OpenAI-compatible |
 | MiniMax | `instructor.from_openai(OpenAI(base_url=..., api_key=...), mode=Mode.JSON)` | `Mode.JSON` | `"assistant"` | OpenAI-compatible |
 
-The `mode` value is passed to `AgentConfig(mode=...)` **and** sometimes to the Instructor factory itself. Match them.
+The `mode` value is passed to `AgentConfig(mode=...)` **and** sometimes to the Instructor factory itself. These are two different knobs:
+
+- The **factory** mode (e.g. `instructor.from_openai(..., mode=Mode.JSON)`) decides the API call format.
+- `AgentConfig(mode=...)` decides how the output schema is accounted for when counting tokens: modes that transmit the schema as a tool definition count it as a tool, the rest append it to the system message. It defaults to following the client.
+
+They must use the same mode family. `AgentConfig(mode=...)` is optional — omit it and the client's mode is used, so setting the factory mode alone is enough. Setting it explicitly to a mode from a different family than the client's logs a warning.
+
+This matters most for OpenAI-compatible hosts that do not speak the tools protocol: the factory needs `Mode.JSON`, and the accounting follows once `AgentConfig.mode` is left at its default or set to the same mode.
 
 ## OpenAI
 
@@ -39,7 +46,7 @@ from openai import OpenAI
 from instructor import Mode
 
 client = instructor.from_openai(OpenAI(api_key=os.environ["OPENAI_API_KEY"]))
-model = "gpt-5-mini"   # also: "gpt-5", "gpt-5-nano", and reasoning variants
+model = "gpt-5.6-terra"   # also: "gpt-5", "gpt-5-nano", and reasoning variants
 api_params = {"reasoning_effort": "low", "max_tokens": 2048}
 ```
 
@@ -135,13 +142,13 @@ client = instructor.from_openai(
     OpenAI(base_url="https://api.minimax.io/v1", api_key=os.environ["MINIMAX_API_KEY"]),
     mode=Mode.JSON,
 )
-model = "MiniMax-M3"   # current default; "MiniMax-M2.7" remains available as a legacy option
+model = "MiniMax-M3.1-Flash"   # default; "MiniMax-M3" is the alternative text model
 api_params = {"max_tokens": 2048}
 ```
 
 ## Picking a model
 
-- **Drafting / simple chat** — `gpt-5-mini`, `claude-haiku-4-5`, or a Groq Llama for cost.
+- **Drafting / simple chat** — `gpt-5.6-terra`, `claude-haiku-4-5`, or a Groq Llama for cost.
 - **Tool use, multi-agent routing** — `gpt-5` or `claude-sonnet-4-6`.
 - **Hardest reasoning** — `claude-opus-4-6` or reasoning-tier OpenAI models.
 - **Local / offline** — Ollama with `llama3.1` or a code-specialized variant.

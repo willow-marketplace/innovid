@@ -1,14 +1,23 @@
 {
   "name": "clay",
-  "version": "2.25.0",
+  "version": "2.39.0",
   "description": "Build with Clay in Claude Code",
-  "updatedAt": "2026-09-19T00:42:54.390Z",
+  "updatedAt": "2026-11-17T00:02:03.781Z",
   "author": {
     "name": "Clay"
   },
   "skills": "./skills/",
   "hooks": {
     "PreToolUse": [
+      {
+        "matcher": "Skill",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/approve-skills.sh claude"
+          }
+        ]
+      },
       {
         "matcher": "Bash",
         "hooks": [
@@ -17,13 +26,14 @@
             "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/approve-cli.sh claude"
           }
         ]
-      },
+      }
+    ],
+    "SessionStart": [
       {
-        "matcher": "Skill",
         "hooks": [
           {
             "type": "command",
-            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/approve-skills.sh claude"
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/check-cli.sh\" claude"
           }
         ]
       }

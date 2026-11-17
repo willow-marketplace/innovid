@@ -68,6 +68,17 @@ If `.env.example` is absent, use `.env.sample` or `.env.template`.
 ### 2. Provision Postgres
 
 <!-- Sourced from bootstrap skill: Resource Setup: Postgres -->
+### Prisma ORM projects
+
+If the repo has `prisma/schema.prisma`, provision Prisma Postgres with these steps instead of the preferred path below:
+
+```bash
+vercel integration guide prisma
+vercel integration add prisma --scope <team>
+```
+
+It sets `DATABASE_URL` to the direct connection string and `DATABASE_URL_POOLED` to the pooled one. Then verify and pull env vars as in step 3 of the preferred path below. For production traffic from Vercel Functions, read `DATABASE_URL_POOLED` and fall back to `DATABASE_URL`. Keep `DATABASE_URL` for Prisma CLI commands such as migrations, the Prisma Postgres serverless driver (`@prisma/adapter-ppg` or `@prisma/ppg`), session-dependent work such as `LISTEN`/`NOTIFY`, and queries that run longer than 10 minutes. If the project has no `DATABASE_URL_POOLED`, its database was created before October 29, 2026: add the variable as described in the `vercel-storage` skill.
+
 ### Preferred path (Vercel-managed Neon)
 
 1. Read integration setup guidance:
@@ -105,8 +116,8 @@ Generate a high-entropy secret without printing it, then store it in Vercel and 
 
 ```bash
 AUTH_SECRET="$(node -e "console.log(require('node:crypto').randomBytes(32).toString('base64url'))")"
-printf "%s" "$AUTH_SECRET" | vercel env add AUTH_SECRET preview production
-printf "%s" "$AUTH_SECRET" | vercel env add AUTH_SECRET development  # development cannot share a command with preview/production
+printf "%s" "$AUTH_SECRET" | vercel env add AUTH_SECRET production,preview
+printf "%s" "$AUTH_SECRET" | vercel env add AUTH_SECRET development  # separate command: development-only adds default to Config
 unset AUTH_SECRET
 vercel env pull .env.local --yes
 ```
@@ -170,7 +181,7 @@ Return a final bootstrap summary in this format:
 ```md
 ## Bootstrap Result
 - **Linked Project**: <team>/<project>
-- **Resource Path**: vercel-integration-neon | dashboard-neon | neon-cli
+- **Resource Path**: vercel-integration-prisma | vercel-integration-neon | dashboard-neon | neon-cli
 - **Env Keys**: <count> required, <count> present, <count> missing
 - **Secrets**: AUTH_SECRET set in Vercel (value never shown)
 - **Migration Status**: not-run | success | failed (<step>)

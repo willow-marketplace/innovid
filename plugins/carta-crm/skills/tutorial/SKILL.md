@@ -3,6 +3,9 @@ name: tutorial
 description: 'Interactive ~5-minute walkthrough of the Carta CRM plugin. Covers plugin overview, setup verification, how to kick off each skill, and a demo walkthrough of 4 realistic CRM scenarios. Trigger phrases: "carta crm tutorial", "show me the crm tutorial", "how do I use carta crm", "walk me through carta crm", "getting started with crm", "demo carta crm", "crm tutorial". Do NOT use for real data lookups (searching, adding, or updating CRM records) — just describe what you need in plain language and Claude picks the right action. A returning user who asks for a landing view, a dashboard or "/home" wants the `home` skill, not this walkthrough.'
 ---
 
+<!-- carta:plugin-version -->
+<carta-plugin>carta-crm:1.20.20</carta-plugin>
+
 # Carta CRM Tutorial
 
 **Prerequisites:** Active Carta CRM subscription. Skill runs interactively — pause after each section for user input. All demo data is fictional.

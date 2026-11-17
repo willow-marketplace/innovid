@@ -8,6 +8,12 @@ the JSON the skill wrote to a data dir, plus an editable scenarios document
 (GET with ETag / PUT with If-Match).
 Python stdlib only — no third-party deps — so it runs for non-developers at runtime.
 
+Also fetches a Benchmarks location on demand: POST /api/location runs the one
+read-only export for a location the build didn't sweep, through headless `claude`
+sessions on the user's own Carta MCP connection (see location_fetch.py). The page
+names only a location from the build's catalog and a peer group the build
+offers; the command and every other argument are fixed server-side.
+
 Also hosts the ask box: POST /api/ask streams a `claude` subprocess's stream-json
 output back as SSE so the user can modify the console from inside it ("add an
 interpolated P60") without leaving for their Claude session. See chat_session.py —
@@ -26,9 +32,11 @@ Stable URL: the port and token are remembered in the corp's data dir (.port /
 .token) and reused on relaunch, so relaunching the same corp reopens the same
 http://127.0.0.1:<port>/?t=<token>. An explicit --port / PORT env still wins.
 
-The browser NEVER calls the Carta MCP — it only reads JSON the skill produced.
-This app is READ-ONLY with respect to Carta: the sole write path is the local
-scenarios save (PUT /api/scenarios), which never leaves this machine.
+The browser never calls the Carta MCP itself. It reads JSON the skill produced,
+and can ask this server for a location's benchmarks, which it fetches with one
+fixed read-only command. This app is READ-ONLY with respect to Carta: the sole
+write path is the local scenarios save (PUT /api/scenarios), which never leaves
+this machine.
 
 Ported from carta-fund-modeling/scripts/serve.py, minus its chat/SSE layer.
 
@@ -45,6 +53,7 @@ import json
 import os
 import re
 import secrets
+import shutil
 import socketserver
 import threading
 import time
@@ -54,18 +63,98 @@ from urllib.parse import urlparse, parse_qs
 
 import chat_session
 import desktop_handoff
+import location_fetch
 import predicate_session
+import preflight_claude
 
 DATA_DIR = None
 WEB_DIR = None
 SRC_DIR = None
 TOKEN = None
+CLAUDE_BIN = None
+
+# Whether the ask box and cohort filter can run. "checking" until the startup
+# probe finishes; the browser treats only "unavailable" as a reason to disable
+# them. Specific causes go to CHAT_LOG, never to the page.
+_CLAUDE_STATUS = {"state": "checking", "reason": None}
+_claude_lock = threading.Lock()
+CHAT_LOG = "chat-errors.log"
+CHAT_UNAVAILABLE = "claude_unavailable"
 IDLE_TIMEOUT_DEFAULT = 28800  # 8h backstop; should never fire during active use
 # Watchdog cadence, and the slack above it that distinguishes a real suspend
 # (laptop sleep) from ordinary scheduling jitter — a gap beyond the sum is sleep.
 WATCHDOG_INTERVAL = 10
 SUSPEND_GAP_SLACK = 55
 _last_heartbeat = time.time()
+
+SRC_FINGERPRINT_FILE = ".ctc-src-fingerprint"
+SRC_BACKUPS_KEPT = 3
+
+
+def _tree_fingerprint(root):
+    # type: (Path) -> str
+    """SHA-256 over every file's relative path and bytes, ignoring our own stamp."""
+    h = hashlib.sha256()
+    for p in sorted(root.rglob("*")):
+        if not p.is_file() or p.name in (SRC_FINGERPRINT_FILE, ".DS_Store"):
+            continue
+        h.update(p.relative_to(root).as_posix().encode())
+        h.update(b"\0")
+        h.update(p.read_bytes())
+        h.update(b"\0")
+    return h.hexdigest()
+
+
+def _backup_working_src(copy):
+    # type: (Path) -> Path
+    backup = copy.with_name("%s.bak-%s" % (copy.name, time.strftime("%Y%m%d-%H%M%S")))
+    copy.rename(backup)
+    olds = sorted(copy.parent.glob(copy.name + ".bak-*"))
+    for old in olds[:-SRC_BACKUPS_KEPT]:
+        shutil.rmtree(str(old), ignore_errors=True)
+    return backup
+
+
+def _prepare_working_src(canonical, data_dir):
+    # type: (Path, Path) -> Path
+    """The source tree the ask box edits: a per-corp copy beside the data dir.
+
+    The installed plugin is not editable in place: under Claude Code it lives in
+    ~/.claude/, which headless `claude -p` may not write, and an update wipes edits
+    anyway. The copy refreshes when the plugin's source changes; one holding Claude's
+    edits is moved to a .bak-* first. Any failure falls back to the install.
+    """
+    copy = data_dir.parent / (data_dir.name + ".app-src")
+    if not canonical.is_dir():
+        return canonical
+    try:
+        want = _tree_fingerprint(canonical)
+        stamp = copy / SRC_FINGERPRINT_FILE
+        if copy.is_dir() and stamp.is_file():
+            base = stamp.read_text().strip()
+            if base == want:
+                return copy
+            if _tree_fingerprint(copy) != base:
+                print("[serve] app source updated; earlier edits kept in %s"
+                      % _backup_working_src(copy), flush=True)
+            else:
+                shutil.rmtree(str(copy))
+        elif copy.exists():
+            print("[serve] unrecognised %s moved to %s" % (copy, _backup_working_src(copy)),
+                  flush=True)
+        tmp = copy.with_name(copy.name + ".tmp")
+        if tmp.exists():
+            shutil.rmtree(str(tmp))
+        shutil.copytree(str(canonical), str(tmp))
+        (tmp / SRC_FINGERPRINT_FILE).write_text(want)
+        tmp.rename(copy)
+        return copy
+    except OSError as e:
+        print("[serve] could not prepare an editable copy of the app (%s); the ask box "
+              "will edit the installed plugin" % e, flush=True)
+        return canonical
+
+
 _hb_lock = threading.Lock()
 _scenarios_lock = threading.Lock()
 
@@ -75,6 +164,10 @@ _scenarios_lock = threading.Lock()
 # the turn it is trying to stop.
 _CHAT_SESSIONS = {}
 _SESSIONS_LOCK = threading.Lock()
+
+# One location sweep at a time: each is 4 `claude` sessions. A second request
+# waits, then usually finds the first one's result in the cache.
+_LOCATION_LOCK = threading.Lock()
 
 _CONTENT_TYPES = {
     ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8",
@@ -116,6 +209,76 @@ def _close_all_sessions():
             s.close()
         except Exception:
             pass
+
+
+def _log_chat_problem(reason, detail=""):
+    """Record why a Claude feature failed. The page only ever shows one generic
+    message, so this file is where the actual cause can be found later. Never log
+    the user's prompt: it can name employees."""
+    line = "%s %s%s" % (time.strftime("%Y-%m-%dT%H:%M:%S"), reason,
+                        ": " + detail if detail else "")
+    print("[serve] claude chat problem — %s" % line, flush=True)
+    if DATA_DIR is None:
+        return
+    try:
+        with open(DATA_DIR / CHAT_LOG, "a", encoding="utf-8") as fh:
+            fh.write(line + "\n")
+    except OSError:
+        pass
+
+
+def _set_claude_state(state, reason):
+    with _claude_lock:
+        _CLAUDE_STATUS.update(state=state, reason=reason)
+
+
+def _claude_unavailable():
+    with _claude_lock:
+        return _CLAUDE_STATUS["state"] == "unavailable"
+
+
+def _refresh_claude_status():
+    """Re-find the claude binary and check its login. True when usable.
+
+    Runs at startup, again whenever a feature is asked for while marked
+    unavailable (the user may have installed or logged in since), and after a
+    failure that might mean they logged out.
+    """
+    global CLAUDE_BIN
+    result = preflight_claude.probe(CLAUDE_BIN)
+    ok = result["reason"] == preflight_claude.REASON_OK
+    with _claude_lock:
+        if result["bin"]:
+            CLAUDE_BIN = result["bin"]
+        _CLAUDE_STATUS.update(state="available" if ok else "unavailable",
+                              reason=result["reason"])
+    if not ok:
+        _log_chat_problem(result["reason"])
+    return ok
+
+
+def _refresh_claude_status_later():
+    threading.Thread(target=_refresh_claude_status, daemon=True).start()
+
+
+def _start_session(**kwargs):
+    """Start a ChatSession, or None if claude cannot be started.
+
+    Retries once after re-finding the binary: a long-lived server can outlive the
+    path it was given, because a Claude Code auto-update deletes old versions.
+    """
+    for attempt in (0, 1):
+        sess = chat_session.ChatSession(claude_bin=CLAUDE_BIN, **kwargs)
+        try:
+            sess.start()
+            return sess
+        except (OSError, ValueError) as exc:
+            if attempt == 0 and _refresh_claude_status():
+                continue
+            _log_chat_problem("start_failed", str(exc))
+            _set_claude_state("unavailable", "start_failed")
+            return None
+    return None
 
 
 def _watchdog(httpd, timeout):
@@ -236,6 +399,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
         _touch_heartbeat()
         if path == "/api/heartbeat":
             return self._send(200, {"ok": True})
+        if path == "/api/claude-status":
+            with _claude_lock:
+                state, reason = _CLAUDE_STATUS["state"], _CLAUDE_STATUS["reason"]
+            return self._send(200, {"available": state != "unavailable",
+                                    "state": state, "reason": reason})
         if path == "/api/scenarios":
             return self._get_scenarios()
         if path in _FILE_ROUTES:
@@ -301,21 +469,23 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if not prompt:
             return self._send(400, {"error": "empty_prompt"})
         sid = body.get("sessionId") or "default"
+        page = body.get("page")
 
-        # Guarded get-or-create. A failed start() is evicted and reported as clean
-        # JSON *before* any SSE headers go out — a 500 after headers would corrupt
-        # the stream and the box would show a parse error instead of the reason.
+        # Known-broken setup: answer before spawning anything. Re-probe first, in
+        # case the user installed or logged in since the page loaded.
+        if _claude_unavailable() and not _refresh_claude_status():
+            return self._send(503, {"error": CHAT_UNAVAILABLE})
+
+        # Guarded get-or-create. A failed start() is reported as clean JSON
+        # *before* any SSE headers go out — a 500 after headers would corrupt the
+        # stream and the box would show a parse error instead of the message.
         with _SESSIONS_LOCK:
             entry = _CHAT_SESSIONS.get(sid)
             if entry is None:
-                sess = chat_session.ChatSession(
-                    cwd=str(SRC_DIR), add_dirs=[str(SRC_DIR), str(DATA_DIR)])
-                try:
-                    sess.start()
-                except (OSError, ValueError):
-                    # Overwhelmingly: `claude` is not on PATH. Say which, because
-                    # "ask failed" sends people looking at the dashboard instead.
-                    return self._send(503, {"error": "claude_unavailable"})
+                sess = _start_session(cwd=str(SRC_DIR),
+                                      add_dirs=[str(SRC_DIR), str(DATA_DIR)])
+                if sess is None:
+                    return self._send(503, {"error": CHAT_UNAVAILABLE})
                 entry = {"session": sess, "lock": threading.Lock()}
                 _CHAT_SESSIONS[sid] = entry
 
@@ -324,11 +494,14 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self._send(409, {"error": "turn_in_progress"})
         saw_result = False
         edited = False
+        client_gone = False
+        problem = "no_result"
         try:
             sess = entry["session"]
             self._sse_headers()
             try:
-                sess.send(prompt)
+                hint = chat_session.page_hint_for(page)
+                sess.send(hint + "\n\n" + prompt if hint else prompt)
                 for ev in sess.events(timeout=120):
                     # The browser reloads only after a turn that changed source, so
                     # the flag rides on the terminal frame rather than making the
@@ -338,11 +511,30 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     if chat_session.is_turn_end(ev):
                         saw_result = True
                         ev = dict(ev, ctcReload=edited)
+                        if ev.get("is_error"):
+                            # e.g. "Not logged in". The page shows its generic
+                            # message; the cause is kept here, and the status is
+                            # re-checked so the next page load can say so up front.
+                            _log_chat_problem("turn_error", str(ev.get("result") or "")[:300])
+                            _refresh_claude_status_later()
                     self.wfile.write(("data: " + json.dumps(ev) + "\n\n").encode())
                     self.wfile.flush()
-            except Exception:
-                # Poisoned session, or a client that vanished mid-stream.
+            except (BrokenPipeError, ConnectionResetError):
+                client_gone = True
+            except Exception as exc:  # noqa: BLE001 — reported to the page below
+                # A poisoned session: the subprocess died before or during the turn.
                 saw_result = False
+                problem = "turn_failed: %s" % exc
+            if not saw_result and not client_gone:
+                # Crash, timeout, or EOF without a result frame. Without this the
+                # stream just ends and the box would wait on "Working…" forever.
+                _log_chat_problem(problem)
+                try:
+                    self.wfile.write(("data: " + json.dumps(
+                        {"type": "ctc_error", "error": CHAT_UNAVAILABLE}) + "\n\n").encode())
+                    self.wfile.flush()
+                except OSError:
+                    pass
         finally:
             entry["lock"].release()
             if not saw_result:
@@ -365,7 +557,65 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self._handoff(u)
         if u.path == "/api/filter":
             return self._filter(u)
+        if u.path == "/api/location":
+            return self._location(u)
         return self._send(404, {"error": "not_found"})
+
+    def _location(self, u):
+        """One location's benchmarks: from the cache, or fetched from Carta now.
+
+        Every failure is a 200 with {"error": <reason>}, like /api/filter: the page
+        says the location couldn't be fetched and keeps showing what it had.
+        """
+        if not self._token_ok(parse_qs(u.query)):
+            return self._send(401, {"error": "unauthorized"})
+        _touch_heartbeat()
+        body = self._read_json_body()
+        if not isinstance(body, dict) or not isinstance(body.get("location"), str):
+            return self._send(400, {"error": "bad_json"})
+        try:
+            config = json.loads((DATA_DIR / "location_fetch.json").read_text("utf-8"))
+            bench = json.loads((DATA_DIR / "benchmarks.json").read_text("utf-8"))
+        except (OSError, ValueError):
+            return self._send(200, {"error": "not_supported"})
+
+        # Only what the build offered: a catalog location and a known peer group.
+        entry = next((c for c in bench.get("locationCatalog") or []
+                      if c.get("location") == body["location"]), None)
+        if entry is None:
+            return self._send(400, {"error": "unknown_location"})
+        own = config.get("ownPeerGroup")
+        peer = body.get("peerGroup") or own
+        bucket_param = (config.get("peerGroups") or {}).get(peer)
+        if not bucket_param:
+            return self._send(400, {"error": "unknown_peer_group"})
+        # A US location has nothing to convert; one cache entry serves both.
+        local = bool(body.get("localCurrency")) and bool(entry.get("international"))
+        key = location_fetch.cache_key(entry["location"], local)
+        if peer != own:
+            key += "--" + location_fetch.cache_key(peer, False)
+
+        hit = location_fetch.cached(DATA_DIR, key)
+        if hit is not None:
+            return self._send(200, hit)
+        if _claude_unavailable() and not _refresh_claude_status():
+            return self._send(200, {"error": CHAT_UNAVAILABLE})
+        with _LOCATION_LOCK:
+            hit = location_fetch.cached(DATA_DIR, key)
+            if hit is not None:
+                return self._send(200, hit)
+            fetch_config = dict(config, bucketParam=bucket_param, bucketCode=peer)
+            try:
+                result = location_fetch.fetch(DATA_DIR, CLAUDE_BIN, fetch_config, entry,
+                                              local, key=key)
+            except location_fetch.FetchError as exc:
+                if exc.reason == "start_failed":
+                    _refresh_claude_status_later()
+                return self._send(200, {"error": exc.reason})
+            except Exception as exc:  # noqa: BLE001 — reported to the page as a failure
+                location_fetch.log(DATA_DIR, "failed %s: %s" % (entry["location"], exc))
+                return self._send(200, {"error": "fetch_failed"})
+        return self._send(200, result)
 
     def _filter(self, u):
         """Ask Claude for a cohort predicate. Returns JSON, never a stream.
@@ -395,28 +645,46 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if not isinstance(vocabulary, dict):
             vocabulary = {}
 
-        session = chat_session.ChatSession(
+        # Every failure below is a 200 with {"error": CHAT_UNAVAILABLE}, not a 500:
+        # the browser's job on any failure is to say nothing was filtered, and it
+        # owns the wording. A refusal is different — Claude answered, but could
+        # not express the phrase — and keeps its own message.
+        if _claude_unavailable() and not _refresh_claude_status():
+            return self._send(200, {"error": CHAT_UNAVAILABLE})
+        session = _start_session(
             cwd=str(DATA_DIR),
             add_dirs=[],
             # An empty tool set, not the app-editing one.
             allowed_tools="",
             system_prompt=predicate_session.system_prompt(),
         )
+        if session is None:
+            return self._send(200, {"error": CHAT_UNAVAILABLE})
         try:
-            session.start()
             session.send(predicate_session.build_request(phrase, vocabulary))
             text = []
+            ended = failed = False
             for event in session.events(timeout=90):
                 chunk = chat_session.event_text(event)
                 if chunk:
                     text.append(chunk)
                 if chat_session.is_turn_end(event):
+                    ended = True
+                    failed = bool(event.get("is_error"))
                     break
+            if failed:
+                # e.g. "Not logged in" — its text arrives as an ordinary assistant
+                # message, so parsing it as a predicate would misreport the cause.
+                _log_chat_problem("filter_turn_error", str(event.get("result") or "")[:300])
+                _refresh_claude_status_later()
+                return self._send(200, {"error": CHAT_UNAVAILABLE})
+            if not ended:
+                _log_chat_problem("filter_no_result")
+                return self._send(200, {"error": CHAT_UNAVAILABLE})
             return self._send(200, predicate_session.parse_reply("".join(text)))
-        except Exception as exc:  # noqa: BLE001 — a refusal is the useful failure
-            # Not a 500: the browser's job on any failure is to say nothing was
-            # filtered, and a refusal says exactly that in the shape it expects.
-            return self._send(200, {"refusal": "Could not reach Claude (%s)." % exc})
+        except Exception as exc:  # noqa: BLE001 — reported to the page as unavailable
+            _log_chat_problem("filter_failed", str(exc))
+            return self._send(200, {"error": CHAT_UNAVAILABLE})
         finally:
             session.close()
 
@@ -582,7 +850,7 @@ def _detach_or_warn():
 
 
 def main():
-    global DATA_DIR, WEB_DIR, SRC_DIR, TOKEN
+    global DATA_DIR, WEB_DIR, SRC_DIR, TOKEN, CLAUDE_BIN
     ap = argparse.ArgumentParser()
     ap.add_argument("--data-dir", required=True)
     ap.add_argument("--web-dir", default=str(Path(__file__).resolve().parent.parent / "webapp"))
@@ -600,11 +868,18 @@ def main():
         default=int(os.environ.get("IDLE_TIMEOUT", str(IDLE_TIMEOUT_DEFAULT))),
         help="seconds of API inactivity before the server self-terminates (0 = never)",
     )
+    ap.add_argument(
+        "--claude-bin", default=None,
+        help="absolute path to the claude CLI binary for the ask box (default: found "
+             "the same way as preflight_claude.py, including the launching Claude "
+             "Code session's own binary)",
+    )
     args = ap.parse_args()
 
     DATA_DIR = Path(args.data_dir).resolve()
     WEB_DIR = Path(args.web_dir).resolve()
-    SRC_DIR = Path(args.src_dir).resolve() if args.src_dir else (WEB_DIR.parent / "app" / "src")
+    canonical_src = WEB_DIR.parent / "app" / "src"
+    CLAUDE_BIN = args.claude_bin
     DATA_DIR.mkdir(parents=True, exist_ok=True)
 
     port_file = DATA_DIR / ".port"
@@ -624,6 +899,10 @@ def main():
             _open_link_in_browser(url)
         return
 
+    # After the reuse check: refreshing the copy under a live daemon could swap files
+    # while its ask box is mid-edit.
+    SRC_DIR = (Path(args.src_dir).resolve() if args.src_dir
+               else _prepare_working_src(canonical_src, DATA_DIR))
     httpd = _bind(preferred_port)
     port = httpd.server_address[1]
     # Record the actual port even on fallback, so the reuse probe finds this daemon next launch.
@@ -657,6 +936,9 @@ def main():
     atexit.register(_close_all_sessions)
 
     threading.Thread(target=_watchdog, args=(httpd, idle_timeout), daemon=True).start()
+    # Also after the fork, for the same reason as the watchdog. In the background
+    # so the page loads at once; it reads "checking" until this lands.
+    _refresh_claude_status_later()
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:

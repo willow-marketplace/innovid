@@ -11,19 +11,30 @@ Covers: services, backends, domains, VCL snippets, cache purging, Compute/WASM d
 
 # Fastly CLI Overview
 
+## Prerequisites
+
+Requires the `fastly` CLI; API operations also need network access to Fastly.
+For installation, see <https://www.fastly.com/documentation/reference/cli/>.
+JSON examples also need `jq`; origin checks use `curl` and `openssl`.
+Compute builds need the project's language toolchain and dependencies.
+
+Use credentials already configured in the user's local CLI or environment.
+If authentication is missing, have the user complete `fastly auth login --sso` locally or configure `FASTLY_API_TOKEN` outside chat.
+Never ask for an API key in chat, print a token, or enable shell tracing on authenticated commands.
+
 ## References
 
-| Topic          | File                                            | Use when...                                                                              |
-| -------------- | ----------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| Authentication | [auth.md](references/auth.md)                   | Login, stored tokens, service auth, CI/CD auth setup                                     |
-| Compute        | [compute.md](references/compute.md)             | Building/deploying edge applications, local dev server                                   |
-| Services       | [services.md](references/services.md)           | Service CRUD, backends, domains, ACLs, dictionaries, VCL, purging, rate limiting         |
-| Logging        | [logging.md](references/logging.md)             | Log streaming to S3, GCS, Datadog, Splunk, Kafka, 25+ providers                          |
-| NGWAF          | [ngwaf.md](references/ngwaf.md)                 | Next-Gen WAF workspaces, IP/country lists, rules, signals, thresholds, alerts            |
-| Notifications  | [notifications.md](references/notifications.md) | Slack/PagerDuty/webhook integrations, audit log event mappings                            |
-| Stats          | [stats.md](references/stats.md)                 | Which `fastly stats` subcommand takes which flag, and where the two flag sets diverge    |
-| Stores         | [stores.md](references/stores.md)               | KV Stores, Config Stores, Secret Stores, resource links                                  |
-| TLS            | [tls.md](references/tls.md)                     | Platform TLS, Let's Encrypt subscriptions, custom certs, mutual TLS                      |
+| Topic          | File                                            | Use when...                                                                           |
+| -------------- | ----------------------------------------------- | ------------------------------------------------------------------------------------- |
+| Authentication | [auth.md](references/auth.md)                   | Login, stored tokens, service auth, CI/CD auth setup                                  |
+| Compute        | [compute.md](references/compute.md)             | Building/deploying edge applications, local dev server                                |
+| Services       | [services.md](references/services.md)           | Service CRUD, backends, domains, ACLs, dictionaries, VCL, purging, rate limiting      |
+| Logging        | [logging.md](references/logging.md)             | Log streaming to S3, GCS, Datadog, Splunk, Kafka, 25+ providers                       |
+| NGWAF          | [ngwaf.md](references/ngwaf.md)                 | Next-Gen WAF workspaces, IP/country lists, rules, signals, thresholds, alerts         |
+| Notifications  | [notifications.md](references/notifications.md) | Slack/PagerDuty/webhook integrations, audit log event mappings                        |
+| Stats          | [stats.md](references/stats.md)                 | Which `fastly stats` subcommand takes which flag, and where the two flag sets diverge |
+| Stores         | [stores.md](references/stores.md)               | KV Stores, Config Stores, Secret Stores, resource links                               |
+| TLS            | [tls.md](references/tls.md)                     | Platform TLS, Let's Encrypt subscriptions, custom certs, mutual TLS                   |
 
 For endpoint choice, unit and window conventions and worked queries, use the **fastly-stats** skill.
 
@@ -35,17 +46,19 @@ fastly <command> <subcommand> [flags]
 
 ### Top-Level Commands
 
-| Category     | Commands                                                                                |
-| ------------ | --------------------------------------------------------------------------------------- |
-| **Compute**  | `compute` - Build and deploy edge applications                                          |
-| **Services** | `service` - Manage CDN services, logging, backends, VCL, ACLs, purging                  |
-| **Security** | `ngwaf` - Web application firewall                                                      |
-| **TLS**      | `tls-subscription`, `tls-custom`, `tls-platform`, `tls-config` - Certificate management |
-| **Storage**  | `kv-store`, `config-store`, `secret-store` - Edge data stores                           |
-| **Auth**     | `auth` - Login, stored tokens, active token output, revocation; `auth-token` (deprecated) |
-| **Info**     | `stats`, `ip-list`, `pops`, `whoami` - Information queries                              |
-| **Notify**   | `integration` - Notification destinations; `audit-log event-mapping` - Event triggers   |
-| **Other**    | `dashboard`, `domain`, `dns`, `apisecurity`, `products`, `object-storage`, `tools`      |
+| Category     | Commands                                                                                        |
+| ------------ | ----------------------------------------------------------------------------------------------- |
+| **Compute**  | `compute` - Build and deploy edge applications                                                  |
+| **Services** | `service` - Manage CDN services, logging, backends, VCL, ACLs, purging                          |
+| **Security** | `ngwaf` - Web application firewall                                                              |
+| **TLS**      | `tls-subscription`, `tls-custom`, `tls-platform`, `tls-config` - Certificate management         |
+| **Storage**  | `kv-store`, `config-store`, `secret-store` - Edge data stores                                   |
+| **Auth**     | `auth` - Login, stored tokens, active token output, revocation; `auth-token` (deprecated)       |
+| **Info**     | `stats`, `ip-list`, `pops`, `whoami` - Information queries                                      |
+| **Notify**   | `integration` - Notification destinations; `audit-log event-mapping` - Event triggers           |
+| **Other**    | `dashboard`, `domain`, `dns`, `apisecurity`, `products`, `object-storage`, `tools`              |
+| **Routing**  | `routing-config` - Route URL paths to services; attach with `domain update --routing-config-id` |
+| **AI**       | `ai-runtime-control` - Virtual keys, provider connections, sessions, usage metrics              |
 
 ## Global Flags
 
@@ -83,13 +96,13 @@ Available on most commands:
 - Version targeting: `--version active`, `--version latest`, `--version staged`, or `--version N`
 - Use `--autoclone` to auto-clone locked versions
 - Use `--json` for scripted output, `--non-interactive --accept-defaults` for CI/CD
-- **JSON output uses PascalCase fields** (`.Name`, `.ServiceID`, `.ActiveVersion`), not lowercase
+- JSON field names vary by command; inspect output before writing `jq` selectors.
 - `ActiveVersion` shape varies; prefer `--version active`, or parse with `jq -r '.ActiveVersion.Number // .ActiveVersion'`
 - CLI version is `fastly version` (not `fastly --version`)
 - POP/shield lookup is `fastly pops`; it has no `list` subcommand and no `--json`; use the `SHIELD` column value (not POP `CODE`) for `--shield`
 - Auth: `fastly auth login --sso` to login, or set `FASTLY_API_TOKEN` env var
-- For shell substitutions or pipes that need the active API token, prefer `fastly auth token`; it prints the token only to non-terminal stdout and refuses to write it directly to a terminal
-- In AI contexts, never run `fastly auth show --reveal` bare. If you specifically need a stored token by name rather than the currently active token, use `fastly auth show TOKEN_NAME --reveal --quiet | awk '/^Token:/ {print $2}'` only inside a shell substitution
+- For commands that need the active API token, use `$(fastly auth token)`; select a specific stored token with `$(fastly auth token --token TOKEN_NAME)`
+- `auth token` refuses terminal output, but agent-captured stdout may be non-terminal; never run it standalone or echo its result
 - Logging is under `service logging` (e.g. `fastly service logging s3 create`)
 - Config: use `fastly config --location` to find the platform-specific CLI config file; `fastly.toml` is the project manifest
 
@@ -97,7 +110,7 @@ Available on most commands:
 
 These are the flags that cause the most confusion. Copy-paste these patterns directly.
 
-### Autocloning (use this every time you modify a service)
+### Autocloning (existing service versions)
 
 ```bash
 # --autoclone automatically clones a locked version before making changes.
@@ -109,7 +122,8 @@ fastly service domain create --service-id $SID --version active --autoclone \
   --name cdn.example.com
 ```
 
-Always pass `--autoclone` when creating, updating, or deleting backends, domains, snippets, VCL, conditions, headers, or any other version-scoped resource. It is safe to use even on unlocked versions (it simply does nothing if the version is already editable).
+Pass `--autoclone` when creating, updating, or deleting backends, domains, snippets, VCL, conditions, headers, or other version-scoped resources on an existing service.
+For a brand new service, configure the unlocked `--version 1` without `--autoclone`, then validate and activate once, as shown in the new-service workflow below.
 
 ### Boolean flags (--use-ssl, --use-ssl is NOT --use-ssl true)
 

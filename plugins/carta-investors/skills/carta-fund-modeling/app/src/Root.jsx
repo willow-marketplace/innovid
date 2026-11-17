@@ -8,99 +8,136 @@ import App from "./App.jsx";
 import FundChooser from "./FundChooser.jsx";
 import { FirmDataContext } from "./state/FirmData.jsx";
 import { FS, sans } from "./ui/theme.js";
-import { parseRoute, navigate, subscribeNav } from "./route.js";
+import LoadingScreen from "./ui/LoadingScreen.jsx";
+import { parseRoute, navigate, subscribeNav, isFirmId, firmQuery } from "./route.js";
+import { postToOuter } from "./bridge-client.js";
+import { FirmAccess } from "./firm-access.js";
+import { runFirmLoad, stepProgress, CONNECTING_STEP } from "./state/firmLoad.js";
+import { asksToSignInAgain, signInAgain } from "./sign-out.js";
 
-export default function Root() {
+export default function Root({ features }) {
   // The URL path is the source of truth for the selected firm.
   const firm = useSyncExternalStore(subscribeNav, () => parseRoute().firm, () => null);
-  const [extras, setExtras] = useState(null); // { slug, pacing, ownership, lpBase } for `firm`
+  const [extras, setExtras] = useState(null); // { slug, pacing, ownership, lpBase, gpBase, feeHistory, expenseHistory, opsBenchmarks } for `firm`
   const [error, setError] = useState(null);
+  const [signInNeeded, setSignInNeeded] = useState(false);
+  const [loadingStep, setLoadingStep] = useState(null); // SSE step from /api/load-firm
+  const [autoOpen, setAutoOpen] = useState(true); // false once the user leaves a firm, so the chooser doesn't reopen it
+  const [canSwitchFirm, setCanSwitchFirm] = useState(false);
+  const [shownFirm, setShownFirm] = useState(firm);
+
+  // Reset during render, not in the load effect: one render with the new firm and the old extras
+  // mounts App, whose portfolio load would start a second firm load beside Root's.
+  if (firm !== shownFirm) {
+    setShownFirm(firm);
+    setExtras(null);
+    setError(null);
+    setSignInNeeded(false);
+    setLoadingStep(null);
+  }
+
+  // If the access check fails, offer Switch firm: the chooser still lists what the user can open.
+  useEffect(() => {
+    if (!features.switchFirm) return;
+    FirmAccess.load().then((access) => setCanSwitchFirm(!access.pinnedFirm)).catch(() => setCanSwitchFirm(true));
+  }, [features]);
 
   // Pick / clear the firm by navigating the path; also remember it for next launch.
   const choose = useCallback((slug) => {
     if (slug) localStorage.setItem("firm", slug);
-    else localStorage.removeItem("firm");
+    else {
+      localStorage.removeItem("firm");
+      setAutoOpen(false);
+    }
     navigate({ firm: slug, tab: slug ? "overview" : null }, { replace: true });
   }, []);
 
-  // This server's firm registry — single-server-scoped, so exactly one entry
-  // once a firm is launched. Shared by the auto-select and self-heal effects
-  // below; resolves to null on any fetch/parse failure.
-  const fetchFirms = useCallback(() => fetch("/api/firms").then((r) => r.json()).catch(() => null), []);
-
-  // No firm in the URL: restore the last-used firm from storage, else auto-select
-  // when exactly one firm exists (the skill launches one firm per session — skip
-  // the chooser in that case).
+  // No firm in the URL: reopen the last-used firm from storage, else show the chooser.
+  // A firm is never picked for the user from /api/firms: for Carta staff that list holds
+  // only their active context, so auto-selecting it would open the same firm every time.
   useEffect(() => {
     if (firm) return;
     const stored = localStorage.getItem("firm");
-    if (stored) { navigate({ firm: stored, tab: "overview" }, { replace: true }); return; }
-    let live = true;
-    fetchFirms().then((list) => {
-      if (live && Array.isArray(list) && list.length === 1 && list[0]?.slug) choose(list[0].slug);
-    });
-    return () => { live = false; };
-  }, [firm, choose, fetchFirms]);
+    // A remembered name slug names no hosted firm, so opening it would only answer 403.
+    if (stored && features.firmsById && !isFirmId(stored)) localStorage.removeItem("firm");
+    else if (stored) navigate({ firm: stored, tab: "overview" }, { replace: true });
+  }, [firm, features]);
 
-  // Self-heal a stale/mismatched URL: the server is single-firm-per-launch and
-  // ignores the `firm` query param entirely (serve.py always serves its own
-  // data dir), so the URL's firm slug can drift from what this server actually
-  // serves — e.g. a tab left over from browsing a different firm. Confirm the
-  // slug against /api/firms (the registry for *this* server) and correct the
-  // URL rather than silently rendering the real firm's data under the wrong name.
+  // Load the firm's extras whenever the firm changes. If snapshot data isn't
+  // ready yet (fresh OAuth session), trigger /api/load-firm to fetch from MCP.
   useEffect(() => {
     if (!firm) return;
     let live = true;
-    fetchFirms().then((list) => {
-      if (!live) return;
-      const real = Array.isArray(list) && list[0]?.slug;
-      if (real && real !== firm) {
-        localStorage.setItem("firm", real);
-        navigate({ firm: real, tab: parseRoute().tab }, { replace: true });
+    const q = firmQuery(firm);
+
+    async function loadExtras() {
+      // Check if snapshot data exists for this session
+      const snapRes = await fetch(`/api/snapshot${q}`);
+      const snap = await snapRes.json();
+      if (asksToSignInAgain(snapRes.status, snap)) {
+        if (live) setSignInNeeded(true);
+        return;
       }
-    });
-    return () => { live = false; };
-  }, [firm, fetchFirms]);
+      if (snap?.error === "not_ready") {
+        // No data yet — fetch from MCP via SSE stream
+        setLoadingStep(CONNECTING_STEP);
+        try {
+          await runFirmLoad(firm, (step) => { if (live) setLoadingStep(step); });
+        } catch (e) {
+          if (live) {
+            setLoadingStep(null);
+            if (e.signInAgain) setSignInNeeded(true);
+            else setError(e.message);
+          }
+          return;
+        }
+        if (!live) return;
+        setLoadingStep(null);
+      }
 
-  // load the firm's extras whenever the firm changes
-  useEffect(() => {
-    if (!firm) return;
-    let live = true;
-    setExtras(null); // drop a previous firm's extras (e.g. back/forward between firms)
-    setError(null);
-    const q = `?firm=${encodeURIComponent(firm)}`;
-    // company-ownership is optional (only present once the skill has written it);
-    // tolerate a 404 / not_ready so the firm still loads without it
-    const ownership = fetch(`/api/report/company-ownership.json${q}`)
-      .then((r) => r.json()).then((d) => (d && !d.error ? d : {})).catch(() => ({}));
-    // LP base is optional (firm-wide PARTNER_DATA); tolerate its absence. Shown on LP Returns.
-    const lpBase = fetch(`/api/report/lp-base.json${q}`)
-      .then((r) => r.json()).then((d) => (d && !d.error ? d : null)).catch(() => null);
-    // GP base is optional: only written when the gp_carry stem was fetched (the skill
-    // gates it behind an explicit opt-in), so absence is the normal case. Feeds the
-    // GP Economics "GP partner carry" table.
-    const gpBase = fetch(`/api/report/gp-base.json${q}`)
-      .then((r) => r.json()).then((d) => (d && !d.error ? d : null)).catch(() => null);
-    Promise.all([
-      fetch(`/api/pacing${q}`).then((r) => r.json()),
-      ownership,
-      lpBase,
-      gpBase,
-    ])
-      .then(([pacing, ownership, lpBase, gpBase]) => { if (live) setExtras({ slug: firm, pacing, ownership, lpBase, gpBase }); })
-      .catch((e) => { if (live) setError(String(e)); });
+      // Now load extras (snapshot is ready)
+      // A report the build didn't write comes back as an error body, not a 404.
+      const report = (name, missing = null) => fetch(`/api/report/${name}.json${q}`)
+        .then((r) => r.json()).then((d) => (d && !d.error ? d : missing)).catch(() => missing);
+      const [pacing, own, lp, gp, fees, expenses, ops] = await Promise.all([
+        fetch(`/api/pacing${q}`).then((r) => r.json()),
+        report("company-ownership", {}), report("lp-base"), report("gp-base"),
+        report("fee-history"), report("expense-history"), report("ops-benchmarks"),
+      ]);
+      if (live) setExtras({ slug: firm, pacing, ownership: own, lpBase: lp, gpBase: gp, feeHistory: fees, expenseHistory: expenses, opsBenchmarks: ops });
+    }
+
+    loadExtras().catch((e) => { if (live) setError(String(e)); });
     return () => { live = false; };
   }, [firm]);
 
+  // On the chooser, clear the firm from the outer shell's browser bar and tab title too, so a
+  // reload stays on the chooser.
   useEffect(() => {
-    if (!firm) document.title = "Carta Fund Modeling";
+    if (firm) return;
+    document.title = "Carta Fund Modeling";
+    postToOuter("route", {});
+    postToOuter("title", {});
   }, [firm]);
 
-  if (!firm) return <FundChooser onPick={choose} />;
+  if (!firm) return <FundChooser onPick={choose} autoOpen={autoOpen} />;
+
+  const messageScreen = { ...sans, minHeight: "100vh", background: "var(--ink-color-global-surface-background-default)", color: "var(--ink-color-global-text-subtle)", display: "grid", placeItems: "center" };
+  // A button, never a redirect: a lookup that keeps failing would otherwise loop through sign-in.
+  if (signInNeeded && !error) {
+    return (
+      <div style={messageScreen}>
+        <div style={{ textAlign: "center" }}>
+          <div style={{ fontSize: FS.bodyLg }}>Sign in again to keep working.</div>
+          <button onClick={() => signInAgain().catch((e) => setError(e.message))} style={{ ...sans, marginTop: 12, cursor: "pointer" }}>Sign in again</button>
+        </div>
+      </div>
+    );
+  }
 
   if (error) {
     return (
-      <div style={{ ...sans, minHeight: "100vh", background: "var(--ink-color-global-surface-background-default)", color: "var(--ink-color-global-text-subtle)", display: "grid", placeItems: "center" }}>
+      <div style={messageScreen}>
         <div style={{ textAlign: "center" }}>
           <div style={{ fontSize: FS.bodyLg }}>Couldn’t load “{firm}”: {error}</div>
           <button onClick={() => choose(null)} style={{ ...sans, marginTop: 12, cursor: "pointer" }}>← Back to firms</button>
@@ -110,16 +147,12 @@ export default function Root() {
   }
 
   if (!extras) {
-    return (
-      <div style={{ ...sans, minHeight: "100vh", background: "var(--ink-color-global-surface-background-default)", color: "var(--ink-color-global-text-subtle)", display: "grid", placeItems: "center" }}>
-        <div style={{ fontSize: FS.bodyLg }}>Loading {firm}…</div>
-      </div>
-    );
+    return <LoadingScreen label={loadingStep || `Loading ${firm}…`} progress={stepProgress(loadingStep)} />;
   }
 
   return (
     <FirmDataContext.Provider value={extras}>
-      <App key={firm} firm={firm} onChooseFirm={() => choose(null)} />
+      <App key={firm} firm={firm} features={features} canSwitchFirm={canSwitchFirm} onChooseFirm={() => choose(null)} />
     </FirmDataContext.Provider>
   );
 }

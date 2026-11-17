@@ -1,16 +1,18 @@
 {
   "name": "pigment",
-  "version": "2.0.0",
+  "version": "2.0.10",
   "description": "Analyze business data and build planning models in your Pigment workspace",
-  "updatedAt": "2026-09-19T00:42:54.324Z",
+  "updatedAt": "2026-11-17T00:02:03.633Z",
   "author": {
     "name": "Pigment"
   },
-  "homepage": "https://www.pigment.com",
+  "homepage": "https://github.com/gopigment/ai-plugins",
+  "repository": "https://github.com/gopigment/ai-plugins",
+  "displayName": "Pigment",
   "skills": "./skills/",
   "mcpServers": {
     "pigment": {
-      "url": "https://pigment.app/api/mcp/public/{your-mcp-id}",
+      "url": "",
       "type": "http"
     }
   }

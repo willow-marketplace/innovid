@@ -24,8 +24,8 @@ Follow these steps when fulfilling dbt-related requests:
 
 ### Step 0: Environment Verification
 
-1.  Ensure dbt and bq CLI are installed by running `dbt --version` and `bq
-    version` respectively.
+1.  Ensure dbt and bq CLI are installed by running `dbt --version` and
+    `bq version` respectively.
 2.  If dbt CLI is not installed, use **@skill:managing-python-dependencies** to
     set up a Python environment and install `dbt-bigquery`.
 3.  If bq CLI is not installed, ask the user to install the gcloud CLI, as this
@@ -52,14 +52,13 @@ Follow these steps when fulfilling dbt-related requests:
     -   **List Graphs**: ``bq query --use_legacy_sql=false "SELECT * FROM
         `<PROJECT_ID>.<DATASET_ID>.INFORMATION_SCHEMA.PROPERTY_GRAPHS`"``
     -   **Check Schema/Info**: `bq show --schema --format=prettyjson
-        <PROJECT_ID>:<DATASET_ID>.<TABLE_ID>` or `bq show --format=prettyjson
-        <PROJECT_ID>:<DATASET_ID>.<TABLE_ID>`
-    -   **Preview Data**: `bq head --format=prettyjson
-        <PROJECT_ID>:<DATASET_ID>.<TABLE_ID>`
+        <PROJECT_ID>:<DATASET_ID>.<TABLE_ID>` or
+        `bq show --format=prettyjson <PROJECT_ID>:<DATASET_ID>.<TABLE_ID>`
+    -   **Preview Data**:
+        `bq head --format=prettyjson <PROJECT_ID>:<DATASET_ID>.<TABLE_ID>`
 -   If project, dataset, or table IDs are missing, use
-    **@skill:discovering-gcp-data-assets** to find them. **Ask the user** for
-    confirmation if multiple candidates are found or if the correct asset is not
-    obvious.
+    **@skill:discover-assets** to find them. **Ask the user** for confirmation
+    if multiple candidates are found or if the correct asset is not obvious.
 -   Review resolved SQL from the DAG to understand data context.
 
 ### 3. Apply Automatic Data Cleaning and SQL Optimizations
@@ -76,7 +75,8 @@ Follow these steps when fulfilling dbt-related requests:
     -   If cleaning is not applied, provide **strong evidence** in the response.
     -   Include an **"Automatic Cleaning Summary"** section in every response.
 -   **SQL Optimizations:**
-    -   Follow the optimization protocol in **@skill:bigquery-sql** strictly.
+    -   Follow the [SQL Optimization Rules](#sql-optimization-rules) protocol
+        strictly.
     -   Include an **"Optimization Summary"** section when applied.
 
 ### 4. Implement Changes
@@ -107,17 +107,17 @@ Follow these steps when fulfilling dbt-related requests:
         environment:
         -   Instruct and help the user to create a virtual environment (venv)
             using @skill:managing-python-dependencies skill.
-        -   Instruct and help the user to install dbt (e.g., `pip install
-            dbt-bigquery`).
+        -   Instruct and help the user to install dbt (e.g.,
+            `pip install dbt-bigquery`).
         -   Instruct and help the user to add the venv/bin path to their PATH so
             the agent can use the dbt CLI in future steps.
 -   **Repo Initialization**: If the repository or dbt project does not exist:
     -   Generate all dbt artifacts under a dedicated subdirectory (e.g., `dbt/`)
         rather than the root.
-    -   **Silent & Scaffolded Initialization**: Initialize silently. Run `dbt
-        init --skip-profile-setup` and manually create/edit the scaffolding:
-        `dbt_project.yml`, `profiles.yml`, and other directories for `models/`
-        and `tests/` as needed (i.e: if dbt init fails).
+    -   **Silent & Scaffolded Initialization**: Initialize silently. Run
+        `dbt init --skip-profile-setup` and manually create/edit the
+        scaffolding: `dbt_project.yml`, `profiles.yml`, and other directories
+        for `models/` and `tests/` as needed (i.e: if dbt init fails).
 -   **Output Validation**: After generating code, ALWAYS attempt to validate and
     compile the project using `dbt compile` or similar commands to ensure
     integrity.
@@ -147,25 +147,38 @@ Follow these steps when fulfilling dbt-related requests:
 
 > [!TIP]
 >
-> Always include a **"Summary of Optimizations"** section listing only the
+> Always include an **"Optimization Summary"** section listing only the
 > optimizations applied.
+
+### Always Apply (Automatic)
+
+-   **Column Pruning**: Remove unnecessary columns from all query stages.
+-   **Common Subexpression Reuse**: Factor out identical expressions to avoid
+    redundant computation.
+-   **Predicate Pushdown**: Apply `WHERE` filters as early as possible.
+-   **Early Aggregation**: Perform `GROUP BY` before joins when possible.
+-   **Intermediate Materialization**: Choose `VIEW` vs `TABLE` for intermediate
+    nodes based on efficiency.
+
+#### Intermediate Node Strategy
+
+-   **`VIEW`**: Small datasets or simple transformations.
+-   **`TABLE`**: Large datasets, expensive computations, or nodes reused
+    multiple times.
 
 ### Always Rewrite (Mandatory)
 
-Pattern                           | Replace With
---------------------------------- | ----------------------------------
-`WHERE <col> IN (SELECT ...)`     | `WHERE EXISTS (SELECT 1 FROM ...)`
-`WHERE (SELECT COUNT(*) ...) > 0` | `WHERE EXISTS (SELECT 1 FROM ...)`
+-   **`WHERE <col> IN (SELECT ...)`**: Replace With
+    `WHERE EXISTS (SELECT 1 FROM ...)`
+-   **`WHERE (SELECT COUNT(*) ...) > 0`**: Replace With
+    `WHERE EXISTS (SELECT 1 FROM ...)`
 
 ### Propose with Confirmation (Conditional)
 
-These require **explicit user confirmation** before applying: - **`UNION` →
-`UNION ALL`** - *Tradeoff:* Faster (skips deduplication), but permits duplicate
-rows. - *Prompt:* "Replace `UNION` with `UNION ALL`? Faster but keeps duplicates
-— confirm if acceptable." - **`COUNT(DISTINCT)` → `APPROX_COUNT_DISTINCT`** -
-*Tradeoff:* Faster and lower memory, but returns an approximate count. -
-*Prompt:* "Use `APPROX_COUNT_DISTINCT`? Faster but approximate — confirm if
-acceptable."
+-   **`UNION` → `UNION ALL`**: Faster (skips deduplication), but permits
+    duplicate rows.
+-   **`COUNT(DISTINCT)` → `APPROX_COUNT_DISTINCT`**: Faster and lower memory,
+    but approximate.
 
 ## Coding Standards
 
@@ -196,13 +209,10 @@ Every new dbt model **must** include a `config` block e.g.:
 
 ### References & Sources
 
-| Context              | Syntax                    | Notes                    |
-| -------------------- | ------------------------- | ------------------------ |
-| Referencing a model  | `{{ ref('model_name') }}` | **Never** hardcode table |
-:                      :                           : names.                   :
-| Referencing a source | `{{ source('source_name', | `source_name` must match |
-:                      : 'table_name') }}`         : `sources.yml`            :
-:                      :                           : (`sources\: - name\:`)   :
+-   **Referencing a model**: `{{ ref('model_name') }}` — **Never** hardcode
+    table names.
+-   **Referencing a source**: `{{ source('source_name', 'table_name') }}` —
+    `source_name` must match `sources.yml` (`sources: - name:`).
 
 ## BigLake Iceberg Support (4-Part Naming)
 

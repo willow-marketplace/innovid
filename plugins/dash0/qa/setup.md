@@ -5,7 +5,21 @@ config_file: qa/config.local.json
 # The last day every check of every runtime ran. 2026-09-01 added and ran the
 # cursor arm and the shared checks, but did not re-run the claude-only, codex-only
 # or copilot-only ones, so it is not a full pass. 2026-08-28 did the same for the
-# copilot arm.
+# copilot arm. 2026-10-05 added and ran the opencode arm and the shared checks
+# it depends on, and is not a full pass either.
+# 2026-10-06 added and ran the copilot-app arm and the six shared checks it
+# uses, the same way.
+# 2026-09-15 added the amp arm, ran all fourteen of its checks against real
+# sessions, fixed the two product defects they found, and re-ran them: thirteen
+# green, and one still failing (server-side tool visibility), which is a
+# documented Amp limitation rather than a bug to fix. No other arm was re-run
+# that day, so it is not a full pass either. That matters more than usual: the
+# skill fix touched shared internal/pipeline code.
+# 2026-11-03 re-ran the whole amp arm — every blocking check plus all eleven
+# specs — after the plugin directory was renamed to dash0-agent-plugin. Two
+# checks were repaired that day (they assumed the old path and a system
+# install); everything passed except the one spec documented as failing. No
+# other arm was re-run, so it is not a full pass.
 last_full_pass: 2026-08-25
 ---
 
@@ -29,26 +43,120 @@ spec, learning, finding, and report.
 
 ## Runtimes
 
-All four supported agents are covered here, **one spec tree per runtime**:
-`qa/specs/claude/`, `qa/specs/codex/`, `qa/specs/copilot/` and
-`qa/specs/cursor/`, each split by topic underneath. Each spec also names its
+All supported agents are covered here, **one spec tree per runtime**:
+`qa/specs/claude/`, `qa/specs/codex/`, `qa/specs/copilot/`,
+`qa/specs/cursor/`, `qa/specs/opencode-v2/`, `qa/specs/copilot-app/` and
+`qa/specs/amp/`, each split by topic underneath. Each spec also names its
 runtime in frontmatter, so the area and the field cannot drift apart. The split
 is by runtime rather than by topic because a run is one driver, one credential
 and one cost profile — `/qa-run codex` is a coherent thing to execute, while a
-topic area spanning all four would need four drivers mid-run. A spec written for
+topic area spanning runtimes would need different drivers mid-run. A spec written for
 one runtime says nothing about the others. They share the Go pipeline and
 therefore share most invariants, but they differ in what a run can prove:
 
-| | claude | codex | copilot | cursor |
-| --- | --- | --- | --- | --- |
-| Driver | `qa/tools/qa-session.sh` | `qa/tools/qa-session-codex.sh` | `qa/tools/qa-session-copilot.sh` | `qa/tools/qa-session-cursor.sh`, through a pty |
-| What is under test | the plugin **as this machine has it installed** | the shipped install path, **provisioned into a throwaway home** | the shipped marketplace install, **provisioned into a throwaway home** | the machine's own registration, which must be the **shipped wrapper** |
-| Who configures it | the managed install; QA cannot | QA, from `qa/config.local.json` | QA, from `qa/config.local.json` | QA, from `qa/config.local.json`, through `CURSOR_PLUGIN_OPTION_*` |
-| Second channel | the transcript, via `claude-code-usage-audit.py` | the rollout, via `qa/tools/qa-rollout.py` (usage only) | the native-OTel file, via `qa/tools/qa-otel.py` (usage **and** tool spans) | the transcript, via `qa/tools/qa-transcript-cursor.py` (turns only; **no usage**) |
-| Harness's own figures | `claude -p --output-format json`, including cost | `codex exec --json`; Codex reports no cost | `copilot --output-format json`; output tokens and AI credits, no input tokens | none. The TUI has no machine-readable output |
-| Sees what was sent | no | yes, through the plugin's debug log | yes, through the plugin's debug log | yes, through the plugin's debug log |
-| Session id | pinned with `--session-id` | discovered from the recording | pinned with `--session-id` | discovered from the recording |
-| Touches the machine | yes: the binary cache, under `QA_SWAP_BINARY=1` | no | no | no. `DASH0_PLUGIN_DATA` moves the cache into the run |
+| | claude | codex | copilot | cursor | opencode | copilot-app | amp |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Driver | `qa/tools/qa-session.sh` | `qa/tools/qa-session-codex.sh` | `qa/tools/qa-session-copilot.sh` | `qa/tools/qa-session-cursor.sh`, through a pty | `qa/tools/qa-session-opencode-v2.sh`, against a private `opencode serve` | a runner: an agent session in the app, using `create_session` and `send_session_message`; `qa/tools/qa-app-run.py` prepares and collects | `qa/tools/qa-session-amp.sh` |
+| What is under test | the plugin **as this machine has it installed** | the shipped install path, **provisioned into a throwaway home** | the shipped marketplace install, **provisioned into a throwaway home** | the machine's own registration, which must be the **shipped wrapper** | this checkout's `opencode-v2/` package and working-tree exporter, **loaded from a throwaway config** | the **machine's own** user-level extension and the bootstrap's binary cache, both checked to be the working tree's | the plugin **as this machine has it installed**, built from source; there is no shipped install path yet |
+| Who configures it | the managed install; QA cannot | QA, from `qa/config.local.json` | QA, from `qa/config.local.json` | QA, from `qa/config.local.json`, through `CURSOR_PLUGIN_OPTION_*` | QA, from `qa/config.local.json`, as plugin options in a generated `opencode.json` | QA, through a project config `qa-app-run.py` writes into the session's worktree | the machine's `~/.amp/dash0-agent-plugin.local.md`, **except the dataset**, which QA redirects with `AMP_PLUGIN_OPTION_DATASET` |
+| Second channel | the transcript, via `claude-code-usage-audit.py` | the rollout, via `qa/tools/qa-rollout.py` (usage only) | the native-OTel file, via `qa/tools/qa-otel.py` (usage **and** tool spans) | the transcript, via `qa/tools/qa-transcript-cursor.py` (turns only; **no usage**) | `opencode session export`, via `qa/tools/qa-compare-opencode-v2.py` (turns, tools **and** per-step usage) | `events.jsonl`, the app's own session log (structure only; **no usage**) | `--stream-json` stdout. **Not** `amp threads export`: the plugin reads that itself |
+| Harness's own figures | `claude -p --output-format json`, including cost | `codex exec --json`; Codex reports no cost | `copilot --output-format json`; output tokens and AI credits, no input tokens | none. The TUI has no machine-readable output | `opencode run --format json`, kept but not compared | none | `--stream-json` events, and `amp threads usage <id>` |
+| Sees what was sent | no | yes, through the plugin's debug log | yes, through the plugin's debug log | yes, through the plugin's debug log | yes, through the plugin's debug log | yes, through the plugin's debug log | yes, through the plugin's debug log |
+| Session id | pinned with `--session-id` | discovered from the recording | pinned with `--session-id` | discovered from the recording | discovered from `opencode run --format json` | from `get_session`, passed to `collect --session-id` | the thread id, discovered from the run; amp has no `--session-id` |
+| Touches the machine | yes: the binary cache, under `QA_SWAP_BINARY=1` | no | no | no. `DASH0_PLUGIN_DATA` moves the cache into the run | only OpenCode's session database: QA sessions show up in `opencode session list` | yes: the binary cache, the extension folder, and the worktree the app created | no, on the local arm. The orb arm installs into the orb |
+
+The `amp` arm is **runnable** for the local executor: driver, recorder,
+comparison tool, [checks](#amp-toolchain-present) and [specs](specs/amp/).
+The initial checks and specs were exercised against real sessions on
+2026-09-15, including a five-turn conversation, MCP with two servers, and a
+skill. For current coverage and its limits, see [specs/amp](specs/amp/README.md),
+including subagents, which Amp has no tool for — see
+[specs/amp/subagents](specs/amp/subagents/README.md).
+
+Two findings are **fixed and verified**. Two remain open because of Amp's
+plugin API limitations:
+
+- [amp-answering-model-call-is-never-attributed](findings/amp-answering-model-call-is-never-attributed.md)
+  — **fixed.** `threads export` returns the thread empty for seconds after a
+  turn and then materializes it whole, so the old single 1.5 s re-read always
+  missed. The helper now polls, and the bridge hands off so the poll is never
+  latency. Five turns of five now match, with tokens reconciling exactly.
+- [amp-skill-invocation-is-not-attributed](findings/amp-skill-invocation-is-not-attributed.md)
+  — **fixed.** Amp's skill tool names its argument `name`; `ExtractSkillName`
+  read only `skill`. It now falls back. **Shared code — see the caveat under
+  `amp-skill-invocation-is-named`.**
+- [amp-server-side-tools-produce-no-span](findings/amp-server-side-tools-produce-no-span.md)
+  — **open, and staying open.** Server-executed tools fire no plugin events, so
+  they reach no span. Nothing to fix in the bridge; it is documented in
+  `amp/README.md` and `FEATURE_MATRIX.md` and pinned by a failing check.
+- [amp-mcp-calls-run-inside-code-exec](findings/amp-mcp-calls-run-inside-code-exec.md)
+  — **open, and staying open.** MCP wrappers fire no plugin events and reach no
+  span. The stream names the wrappers while spans name the inner calls, so
+  exact MCP tool counts cannot be verified independently.
+
+The orb arm is `QA_AMP_EXECUTOR=orb` on the same driver — it adds `--executor`
+to the `amp` call — and it is **not runnable from this repository**, because
+nothing here installs the plugin into the orb. `amp-orb-install-path-exists` is
+what proves an orb has one; it was verified through another project's setup
+script, which is also the route `amp/README.md` recommends for orbs.
+
+**The fix changed when spans arrive.** The helper is detached and polls for up
+to twenty seconds, so a turn's spans can land after `amp` itself has exited.
+Every amp check and spec settles for 30 s, not 10 s, whenever usage export is
+on. A read taken too early reports `partial`, or no spans at all, for a
+perfectly healthy run.
+
+### Amp reads its own dataset key
+
+Every other runtime's arm reads `dataset`. The `amp` arm reads **`ampDataset`**
+instead, so QA sessions can be pointed at a dataset of their own rather than at
+the shared `default` alongside real work. Every `<ampDataset>` below means that
+value from `qa/config.local.json`.
+
+**On this machine the two are both `default` today.** Measured 2026-10-12: the
+QA token reads `default` and answers 403 for every other dataset name,
+including one that does not exist, so it is scoped to that one dataset and the
+separation the mechanism allows is not in effect here. Nothing about a run's
+correctness depends on it — every read filters by `gen_ai.conversation.id`, so
+a run never counts another session's spans — but a QA session's spans do land
+next to real work, and they cannot be deleted afterwards. Point `ampDataset`
+somewhere else as soon as a token that can read it exists.
+
+That is possible without provisioning anything, because the harness prefix
+outranks the config file. Measured 2026-09-15 against a local listener capturing
+the `Dash0-Dataset` header, with the machine's own file saying `default`:
+
+| Environment | `Dash0-Dataset` sent |
+| --- | --- |
+| nothing set | `default` |
+| `AMP_PLUGIN_OPTION_DATASET=qa-probe-dataset` | `qa-probe-dataset` |
+| `DASH0_DATASET=qa-probe-dataset` | `default` — the file still wins |
+
+So the driver exports `AMP_PLUGIN_OPTION_DATASET` from `ampDataset` and reads
+back with the same value. The machine's `~/.amp/dash0-agent-plugin.local.md` is
+never edited, and a normal Amp session outside QA keeps going to `default`.
+`DASH0_DATASET` is not a substitute and must not be used here: the third row is
+why, and it fails as a healthy run with zero spans found.
+
+The other four arms were deliberately **not** moved. `claude` structurally
+cannot: its dataset comes from a managed `remote-settings.json` that QA cannot
+change, which is the whole reason
+`qa-reads-the-environment-the-plugin-writes-to` exists. Moving `codex`,
+`copilot` and `cursor` is possible, since QA provisions those, but it is a
+separate change with its own re-verification and is not done here.
+
+Amp takes the machine's install for the same reason `claude` does, but not for
+the same cause: the personal plugin directory *does* follow `XDG_CONFIG_HOME`
+(measured 2026-09-15 — `XDG_CONFIG_HOME=/tmp/… amp plugins list` drops `dash0`
+and keeps the workspace plugins), so a throwaway home is available and was
+deliberately not taken. Testing the real install is the point here, since the
+install is a hand-built directory copy rather than a marketplace artifact.
+
+The orb arm is a flag on the same driver, `QA_AMP_EXECUTOR=orb`, but a local
+install is not copied to an orb, so the orb needs its own install and this
+repository has no `.amp/` setup script to do it. That is what makes the arm
+unrunnable here rather than merely untested. See `amp-orb-install-path-exists`
+below for what an orb has to have before the arm is worth running.
 
 The asymmetry is not a preference, it is what each host allows. Claude Code's
 options arrive from a managed `remote-settings.json` that beats every override,
@@ -110,9 +218,36 @@ otherwise, and the same for `copilot` and `cursor`.
 this runtime: the installer's own behaviour, the uninstaller's, and the bytes on
 the wire.
 
+**The Copilot app's driver is an agent inside the app, and that changes what a
+run is.** The app is a desktop GUI with no headless mode, so no script outside it
+can launch a session or send a prompt. A **runner**, an agent session in the app
+executing `/qa-run`, does both with the app's own session tools
+(`create_session`, `send_session_message`), and runs `qa/tools/qa-app-run.py`
+and `qa/tools/qa-fake-model.py` with its shell tool. A person starts the runner
+and nothing else. Three consequences:
+
+- **No spec may need a person.** No tool an agent has can press Stop or quit the
+  app, so a stopped turn and a reopened session are not specs; the extension
+  tests cover them.
+- **The second channel is structure only.** `events.jsonl` is the app's own
+  persisted log and is not the plugin's input — the extension reads the live
+  stream — so tool calls, sub-agents, parents and models are a real cross-check.
+  It carries no `assistant.usage` at all (measured 2026-10-06 on
+  `qa/runs/copilot-app-first-turn-rerun2-20261006`: 63 events, none of them
+  usage), so a token count exists only in the plugin's debug log, which is the
+  plugin's own output. A `copilot-app` run can say where tokens were put and never
+  whether they are right.
+- **What is under test is this machine's install.** The extension the app loads
+  is the user-level `~/.copilot/extensions/copilot-app`, and the binary is the one
+  in the bootstrap's cache. QA checks both against the working tree before every
+  run rather than provisioning a hermetic copy, because the app reads extensions
+  from only those two places. `test/e2e/copilot_app_e2e_test.go` owns what a
+  session cannot reach: the exact bytes, and failure shapes the app will not
+  produce on demand.
+
 ## Layout
 
-- specs:     qa/specs/<runtime>/<topic>/   (`claude/session`, `codex/subagents`, `copilot/turns`, `cursor/mcp`, ...)
+- specs:     qa/specs/<runtime>/<topic>/   (`claude/session`, `codex/subagents`, `copilot/turns`, `cursor/mcp`, `opencode-v2/turns`, ...)
 - learnings: qa/learnings/
 - findings:  qa/findings/        (open spec failures only; a fixed one is deleted)
 - runs:      qa/runs/            (gitignored)
@@ -137,8 +272,17 @@ chmod 600 qa/config.local.json
 | `appUrl` | UI base for a session link | Only used to build a human link. `internal/sessionurl/sessionurl.go` derives the same value from the ingress host, so a mismatch here means a report links somewhere the spans are not. |
 | `ingestUrl` | Where the plugin is expected to write | For `claude`, nothing is sent here: it exists so a check can prove QA reads the environment the plugin writes to. For `codex`, `copilot` and `cursor`, this is where the install actually exports. |
 | `authToken` | Reads spans back, and for `codex`, `copilot` and `cursor` also ingests them | A live token, and it must do **both**. The `claude` runtime only reads, so a read-scoped token is enough there. The other two provision the install and hand this same token to the plugin, and a token that cannot ingest 401s on every export — a run that looks perfectly healthy and reports zero spans. `ingest-token-reaches-the-ingress` proves it before a session is paid for. The two permissions really are separate, so reading is no guarantee of ingesting: measured 2026-08-26, an ingest-scoped token answers a query with `403 ... *:read permission is required`, and measured 2026-08-28, an access token copied out of the `dash0` CLI's own profile gets `401` from the ingress. Ask the team for the QA token rather than improvising one from a CLI profile. |
-| `dataset` | The dataset to read, and for `codex`, `copilot` and `cursor` to write | Must be the installed plugin's `DATASET`, which is `default`, not `qa`. Reading a *different readable* dataset returns an empty result that looks exactly like the plugin having sent nothing. |
+| `dataset` | The dataset to read, and for `codex`, `copilot` and `cursor` to write. **Not used by the `amp` arm** | Must be the installed plugin's `DATASET`, which is `default`, not `qa`. Reading a *different readable* dataset returns an empty result that looks exactly like the plugin having sent nothing. |
+| `ampDataset` | The dataset the `amp` arm writes to and reads back, via `AMP_PLUGIN_OPTION_DATASET` | A dataset of your own, deliberately not `default`, so QA sessions stay out of the shared dataset. The override only works through the harness prefix; `DASH0_DATASET` loses to the machine's config file and silently leaves spans in `default`. |
 | `org` | Organization slug | Informational. |
+
+> [!IMPORTANT]
+> **This machine's QA token is scoped to the amp dataset only.** That is what
+> the `amp` arm needs and all it needs. The consequence is that the `claude`,
+> `codex`, `copilot` and `cursor` arms cannot run here: they read and write
+> `default`, and `token-reads-the-dataset` fails for them with a 403. Getting a
+> `default`-capable token back is what unblocks them; nothing about their checks
+> changed.
 
 The `dash0` CLI's own active profile is deliberately not used. It carries its own
 dataset, which on this machine resolves to one the token cannot read, and every
@@ -474,6 +618,173 @@ Authoritative shapes: `cursor/hooks.json` for the event list,
 events are dropped, `cursor/README.md` for the design, and `DEVELOPMENT.md` for
 the attribute contract.
 
+### OpenCode
+
+**There is no hook and no recorder.** The plugin subscribes to the OpenCode V2
+server's event stream and pipes it to the Go exporter, so there is no per-event
+payload to capture the way the other runtimes do. The independent record is
+OpenCode's own session store, read after the run with `opencode session export`.
+So the `hooks` column the other runtimes print does not exist here, and a span
+that is missing because its event never reached the plugin looks the same as one
+the pipeline dropped. `plugin-debug.log` still splits "never built" from "built
+and lost".
+
+**QA provisions the configuration, not an install.** `qa/tools/qa-session-opencode-v2.sh`
+writes an `opencode.json` into a `mktemp -d` directory and points
+`XDG_CONFIG_HOME` at it. That file loads this checkout's `opencode-v2/` package with
+the working-tree exporter as its `executable` option. There is no OpenCode release
+asset yet, so the working tree is always what is under test. The developer's own
+`~/.config/opencode/opencode.json`, their installed plugin and their background
+service are not used. The provider login and the session database in
+`~/.local/share/opencode` are the machine's, which is what lets a run authenticate
+without a key.
+
+> [!CAUTION]
+> **Every plugin option must be set explicitly.** Options beat the user file
+> `~/.opencode-v2/dash0-agent-plugin.local.md` key by key, and any key left out is read
+> from it. On a developer machine that file holds a real endpoint and token, so a
+> missing `otlp_url` sends QA spans to the developer's target. The driver sets all
+> of them and `team_name: dash0-qa`, which is how
+> `opencode-driver-isolates-the-config` proves no key leaked. Two things the
+> file can still do: `enabled: false` turns the run off, and a project-level
+> `.opencode-v2/dash0-agent-plugin.local.md` would replace the user file. The driver's
+> scratch project has neither.
+
+**The driver uses a long-lived `opencode serve`**, on a free port with a one-time
+password, and runs each turn with `opencode run --server`. A resumed turn and the
+session export need the server the turns ran on. `opencode run --standalone`
+is covered by `TestE2EOpenCodeV2SurvivesShutdownSignal` in `test/e2e/` instead:
+its server signals its process group with SIGTERM before the plugin delivers
+`session.execution.succeeded`, which is why `cmd/opencode-v2-on-event` ignores those
+signals and ends on stdin EOF. Measured 2026-10-05, a live standalone run exported
+both spans with tokens equal to the export.
+
+> [!WARNING]
+> **The first run after the OpenCode config changes can hang** before the server
+> opens its database, with nothing logged after `cli starting`. Seen four times on
+> 2026-10-05 with OpenCode 2.0.15; the same command run again finished in seconds.
+> The cause is not known. `QA_TURN_TIMEOUT` (default 300 seconds) turns the hang
+> into a failed run instead of a stuck one; re-run it.
+
+**Prerequisite.** `opencode-v2/node_modules` must exist: `(cd opencode-v2 && npm ci)`.
+
+**Knobs.** `QA_MODEL` (default `opencode/muse-spark-1.3-contributor-free`, a
+free model; any `provider/model` this machine is logged in to works),
+`QA_OPENCODE_V2_RESUME="<second prompt>"` (a second turn in the same session, through
+`opencode run -s`), `QA_OMIT_IO=false` (export prompts and tool IO; the default is
+the product's own, `true`), and `QA_KEEP_SCRATCH=1` (keep the scratch config,
+which holds the ingest token).
+
+Authoritative shapes: `opencode-v2/index.js` for which V2 events cross into the
+exporter and which fields survive, `internal/source/opencodev2/opencodev2.go` for how
+they become spans, `opencode-v2/README.md` for the design, and `DEVELOPMENT.md` for
+the attribute contract.
+
+### GitHub Copilot app
+
+**QA uses this machine's install and points one session at the QA target.** The
+app loads an extension from exactly two places, the user-level
+`~/.copilot/extensions/` and a repository's committed `.github/extensions/`, and
+it starts the extension inside the app's own process tree, so there is no
+throwaway home to provision. Instead `qa/tools/qa-app-run.py prepare` makes the
+machine's install the thing under test and confines the QA configuration to the
+session:
+
+- It fails unless `~/.copilot/extensions/copilot-app` is byte-identical to
+  `copilot-app/`. Installing is the person's job, once, and is reversible by
+  moving the folder back. Only `swap-in`, below, writes into `~/.copilot`.
+- It fails if the session's directory also has a `.github/extensions/`. Two
+  copies of the extension join one session and every span arrives twice.
+- It builds `cmd/copilot-app-on-event` into the bootstrap's cache with
+  `-buildvcs=false`, so the binary is a function of the code alone and
+  `copilot-app-binary-is-the-working-tree` can compare bytes. The bootstrap uses a
+  cached binary instead of downloading, which is also how a run tests code no
+  release has shipped yet.
+- It refuses a directory whose repository does not gitignore
+  `.copilot/dash0-agent-plugin.local.md`, because that file holds the QA token.
+  The QA project's `.gitignore` covers `.copilot/`. This repository's does not, so
+  a session on `dash0-agent-plugin` is never a QA session.
+- It writes `.copilot/dash0-agent-plugin.local.md` **into the session's working
+  directory**, from `qa/config.local.json`, mode `0600`, with `debug_file`
+  pointing into the run directory and `omit_io` from `--omit-io`.
+
+> [!CAUTION]
+> **The app runs every session in a git worktree it creates** — on this machine
+> under `~/Developer/dash0/copilot-worktrees/<repo>/<name>` — so the session's working
+> directory is not the project you opened. An untracked config never reaches that
+> worktree, and the session silently falls back to the user's own
+> `~/.copilot/dash0-agent-plugin.local.md`: their target, their dataset and their
+> `omit_io`. So `prepare` takes the **session's** directory and runs after the app
+> has created it and before the first prompt. The binary reads the config on every
+> call, so nothing earlier is needed. `collect` fails when the run's debug log is
+> empty, which is how a session that read the wrong config shows up.
+
+This is the opposite of the `copilot` CLI's rule, and deliberately: there the
+driver provisions a home and a project config would retarget it, while here the
+project config is the only lever QA has that does not touch the user's own
+configuration.
+
+**Auth.** The app's own GitHub login. Nothing to configure, and nothing QA can
+check before a session.
+
+**What stays on the machine after a run.** The binary in the cache, which the
+user's own sessions then use. The bootstrap runs any executable file of the
+right name without checking it, so that binary stays in use until it is deleted;
+the bootstrap then downloads the release, which for the app means 0.1.29 or
+later. Before that release, deleting it leaves the app extension silent. The
+config in the session's worktree, which holds the QA token: delete the worktree
+from the app when the run is collected. The app's model picker: it offers the
+last model a session used to the next one, so after a fake-model run, pick a real
+model again.
+
+**The fake model makes the model a property of the run.** The app accepts a
+custom, OpenAI-compatible model provider, and `qa/tools/qa-fake-model.py` is one,
+on `127.0.0.1`. A session that selects its model, `qa-fake`, sends its model calls
+there and nowhere else. The rest of the machine and the network are unaffected,
+which is the point: a failure scenario must never cut the connection the driver
+itself runs on. Set it up once, by hand, in the app's model settings: an
+OpenAI-compatible provider using chat completions, base URL
+`http://127.0.0.1:8765/v1`, no API key, model `qa-fake`. Measured 2026-10-06: the
+app streams (`stream: true`) and sends its 80 tools on every call, and the
+session's `assistant.message` carries `model: "qa-fake"`.
+
+**A fake-model target gets its model from a `create_session` kickoff, and its
+first turn its config from a swap.** The app keeps each session's model in its
+own database and ignores `.github/copilot/settings.local.json` (measured
+2026-10-06 on `ca-failed-first-r2`: the file was written before the first prompt
+and the session ran on the default model). The model can only be set at creation,
+by `kickoff: {prompt, model, mode: "interactive"}`, and a kickoff sends its prompt
+at once, before `prepare` can write the worktree's config. So the run goes:
+
+1. `qa-app-run.py swap-in <run-id> [--omit-io]` moves the user's
+   `~/.copilot/dash0-agent-plugin.local.md` to `….qa-saved` (or leaves
+   `….qa-none` when there was none), writes the run's config in its place, and
+   prints the `<provider-id>/qa-fake` id read from the app's database. It refuses
+   while an earlier swap is still waiting.
+2. `create_session` with the kickoff on that model.
+3. `prepare <run-id> <worktree>` writes the worktree's own config and puts the
+   user's back.
+
+Between 1 and 3 every session on the machine reports to the QA target. Keep that
+window to the seconds it takes, and run fake-model specs one at a time.
+`qa-app-run.py restore` puts the user's config back by hand, after a run that never
+reached `prepare`; `copilot-app-user-config-is-restored` checks it.
+
+The server's modes give a run what the real model will not do on demand: `error`
+(a chosen status and message every time), `fail-once` (then healthy), `context`
+(a context-length error), `hang` (a stream that never finishes) and `ok` (a fixed
+reply with a fixed `prompt_tokens` and `completion_tokens`). Its log,
+`fake-model.jsonl` in the run directory, has one line per model call with the
+usage it reported. **That log is the one record of tokens outside the plugin**, so
+a spec using `ok` mode can assert a token count exactly: a turn's input tokens are
+the number of its calls times `--prompt-tokens`.
+
+Authoritative shapes: `copilot-app/extension.mjs` for what is forwarded and when,
+`internal/source/copilotapp/copilotapp.go` for how a turn is built,
+`copilot-app/README.md` for the app behaviour that shaped the design, and the
+SDK's own `session-events.d.ts` inside `/Applications/GitHub Copilot.app` for the
+event schema.
+
 ## Stimulate
 
 ### Claude Code
@@ -714,6 +1025,95 @@ all now denied in `attrSkipKeys`. There is no Cursor-only documented key: an MCP
 call's server rides on the standard `dash0.gen_ai.tool.mcp_server`, with the
 literal placeholder `cursor` as its value.
 
+### OpenCode
+
+```sh
+qa/tools/qa-session-opencode-v2.sh "<prompt>" [run-id]
+qa/tools/qa-compare.py qa/runs/<run-id>    # hands off to qa-compare-opencode-v2.py
+qa/tools/qa-attrs.py qa/runs/<run-id>
+```
+
+| Artifact | Holds | Read it as |
+| --- | --- | --- |
+| `session-export.json` | `opencode session export`: every message, tool part and per-step token count | the independent record |
+| `opencode-events.jsonl` | OpenCode's own `run --format json` stream | the harness's own figures |
+| `plugin-debug.log` | every span the plugin emitted, as it emitted it | the product's output |
+| `serve.log` | the private server's log, password line removed | where a plugin load error shows up |
+
+`qa-compare-opencode-v2.py` computes the expectation from the export. A turn starts
+at each `user` message. Each turn implies one `chat` span; each `tool` part in its
+assistant messages implies one `execute_tool`; its input tokens are the sum of
+`input + cache.read + cache.write` over its steps and its output tokens the sum of
+`output + reasoning`. Turns are matched as a multiset of token pairs, because the
+query returns no start times. Tool calls are matched by call ID; an MCP call is
+`<server>_<tool>` in the export and `<tool>` plus `dash0.gen_ai.tool.mcp_server` on
+the span. It also fails a `chat` span in Dash0 with no `gen_ai.input.messages` or
+`gen_ai.output.messages`: the conversation view separates turns on those, and
+their absence once merged every tool of a session into one block. Whether they
+were redacted is judged on `plugin-debug.log`, because Dash0 masks them at
+ingest: under `omit_io` every sent chat span's messages must be exactly the
+redacted structure. The debug log's span counts are held to the export too.
+
+Sub-agents are child sessions with their own exports
+(`session-export-<id>.json`). Each child turn implies one `invoke_agent` span, and
+its tool parts count towards `execute_tool`; their spans carry the parent's
+conversation id, so they come back from the same query.
+
+A run whose `opencode run` or export failed, or whose export has a different
+number of turns than the driver ran, exits 2: it measured nothing.
+
+### GitHub Copilot app
+
+The runner's procedure is in [specs/copilot-app/README.md](specs/copilot-app/README.md):
+optionally start the fake model, `create_session` (worktree), `get_session` for
+the worktree, `qa-app-run.py prepare` in it, `send_session_message`, wait for
+idle and settling, then `qa-app-run.py collect --session-id` and `qa-attrs.py`.
+A fake-model run instead starts with `swap-in` and a kickoff, as under
+`### GitHub Copilot app` in Configure. Always pass `--session-id`: targets share
+this repository's git directory, so without it `collect` can pick another one.
+
+`collect` copies the session's `events.jsonl`, writes `manifest.json`, and saves
+Dash0's spans as `dash0-spans.json`. There is no `qa-compare.py` support: the app
+has no hook recording to derive an expectation from, so each spec computes its
+expectation from `events.jsonl` and, for a fake-model run, `fake-model.jsonl`.
+
+What each session tool was measured to do, 2026-10-06:
+
+| Tool | Does | Measured |
+| --- | --- | --- |
+| `create_session` with `workspace_type: "worktree"` | creates the target and its worktree at once, before any message | `get_session` returns the worktree path; `prepare` ran in it before the first prompt on every run |
+| `send_session_message`, `delivery_mode: "immediate"` | into a busy session: joins the running turn | arrives as `user.message` with `delivery: "steering"` |
+| `send_session_message`, `delivery_mode: "enqueue"` | into a busy session: waits for its own run | arrives with `delivery: "queued"` |
+| none | stop a turn, quit or restart the app, set a session's model | `set_session_model` exists only as the app's internal UI call |
+
+**A session made by hand cannot be prepared.** The app gives it a worktree only
+at its first message, and a new worktree holds only committed files, so the
+untracked config never reaches it in time and the session uses the person's own
+configuration. Always let the runner create the target.
+
+**The model of a fake-model run comes from the kickoff.** See
+`### GitHub Copilot app` under Configure. A spec using it checks
+`fake-model.jsonl` for a call before asserting anything, because a kickoff that
+did not take leaves the session on a real model.
+
+Four artifacts are specific to this runtime:
+
+| Artifact | Holds | Read it as |
+| --- | --- | --- |
+| `events.jsonl` | the app's persisted session log | the independent record of structure, never of tokens |
+| `plugin-debug.log` | every span the plugin emitted, as it emitted it | the product's output, and the only place a token count or a span's input can be read |
+| `dash0-spans.json` | what Dash0 holds for the session | channel one |
+| `session-cwd` | the worktree `prepare` configured | provenance, and how `collect` finds the session |
+
+`events.jsonl` persists more than the live stream needs and less than it has.
+Measured 2026-10-06: `abort` (with `reason`) and `session.error` (with
+`errorType` and `statusCode`) are written to it, so a failed or stopped turn has
+an independent record. `session.idle` and `assistant.usage` are not, so neither
+the turn boundary the extension uses nor any token count can be read from it.
+`hook.start` and `hook.end` entries are the app logging every hook it runs; the
+extension's own `onSessionEnd` is one of them, and the rest are not the
+plugin's.
+
 ## Observe
 
 1. **Dash0** — `dash0 spans query` with the endpoint, token, and dataset from
@@ -872,6 +1272,23 @@ Known divergences to check before reporting anything:
   that starts a turn — but a spec carried over from either of those runtimes will
   look for it in the wrong place.
 
+- **`copilot-app`: Dash0 returns message content as `<REDACTED>`.** The API
+  keeps the shape of `gen_ai.input.messages` and `gen_ai.output.messages` and
+  replaces every part's `content`, whatever the plugin sent, so a query proves the
+  key and its roles exist and nothing about the text.
+  An `omit_io` spec, or one about a steered turn's input, reads content from
+  `plugin-debug.log` and uses Dash0 only for presence and absence of keys.
+
+- **`copilot-app`: a turn with no model round is named `chat ` with no model.**
+  Measured 2026-10-06 on `qa/runs/setup-probe-copilot-app`: a turn whose events
+  carry no `assistant.usage` produces a span named `chat ` and no
+  `gen_ai.request.model`. A turn stopped or failed before the first model reply
+  looks like this. It is the product's current shape, not a broken query.
+
+- **`copilot-app`: the first turn of a worktree session has an extra tool.** The
+  app adds `rename_branch` on its own. Assert that every tool call in
+  `events.jsonl` is in Dash0, never a tool count.
+
 ## Settling
 
 Ingest lag only. **Allow 25 seconds, not 8.** Measured 2026-08-28 on
@@ -882,6 +1299,12 @@ all four. `qa-compare.py` widens the query window by 60 seconds before the run's
 start and 120 seconds after its end, so re-running the comparison is always
 enough — the window is not the problem, the wait is. A comparison that reports
 too few spans immediately after a session should be re-run before it is believed.
+
+**The Copilot app's runs saw far more: up to about five minutes.** Measured
+2026-10-06 on `ca-failed-first-r3`: Dash0 held no span for more than two minutes,
+and the debug log had sent it at once. For a copilot-app run, read the debug log
+first. When Dash0 is short of it, re-query for up to five minutes before calling
+a span missing.
 
 **One thing a Copilot run changes outside its own directory.** On `sessionStart`
 the plugin sweeps two places under its data directory: native-OTel files left by
@@ -931,13 +1354,31 @@ check would have caught. The harness ones are fixed: the transcript reader count
 as a reused run id. The product gap is open —
 [findings/cursor-subagent-work-produces-no-span.md](findings/cursor-subagent-work-produces-no-span.md).
 
-Checks with no prefix apply to every runtime. A `codex-`, `copilot-` or `cursor-`
-prefix means the check belongs to that runtime alone; skip it when a run targets
+The `opencode` checks were added and first run 2026-10-05 against the working
+tree at 0.1.28 and OpenCode 2.0.15. Every one ran green, including `qa-attrs.py`
+on the first probe, at 38 observed keys.
+
+Checks with no prefix apply to every runtime. A `codex-`, `copilot-`, `cursor-`,
+`opencode-` or `amp-` prefix means the check belongs to that runtime alone; skip it when a run targets
 another one, and skip the `claude`-only ones the same way. The runtime-specific
 blocking checks are `probe-session-agrees-with-what-it-was-fed` for `claude`,
 `codex-probe-session-agrees-with-what-it-was-fed` for `codex`,
-`copilot-probe-session-agrees-with-what-it-was-fed` for `copilot`, and
-`cursor-probe-session-agrees-with-what-it-was-fed` for `cursor`.
+`copilot-probe-session-agrees-with-what-it-was-fed` for `copilot`,
+`cursor-probe-session-agrees-with-what-it-was-fed` for `cursor`,
+`opencode-probe-session-agrees-with-what-it-was-fed` for `opencode`, and
+`copilot-app-bootstrap-exports-to-the-target` for `copilot-app`. `amp` has no
+equivalent yet; see the `amp-` checks at the end.
+
+One shared check does not transfer to `amp` as written. `toolchain-present`
+names `claude`, which an `amp` run does not need, so the `amp` arm carries its
+own `amp-toolchain-present` and skips that one.
+
+A `copilot-app` run needs only six of the shared checks: `qa-runs-is-untracked`,
+`config-is-complete`, `config-is-untracked`, `token-reads-the-dataset`,
+`ingest-token-reaches-the-ingress` and `run-dir-carries-no-real-credential`. The
+rest are about Claude Code's managed install, which the app never reads. Its own
+checks were added and first run 2026-10-06 against the working tree at 0.1.28 and
+the GitHub Copilot app installed that day.
 
 ### toolchain-present
 
@@ -982,7 +1423,11 @@ for p in qa/tools/qa-session.sh qa/tools/qa-compare.py qa/tools/qa-attrs.py \
          qa/tools/qa-codex-hooks/main.go \
          qa/tools/qa-session-copilot.sh qa/tools/qa-otel.py \
          qa/tools/qa-session-cursor.sh qa/tools/qa-cursor-drive.py \
-         qa/tools/qa-transcript-cursor.py; do
+         qa/tools/qa-transcript-cursor.py \
+         qa/tools/qa-session-opencode-v2.sh qa/tools/qa-compare-opencode-v2.py \
+         qa/tools/qa-app-run.py qa/tools/qa-amp-dataset-header.py \
+         qa/tools/qa-session-amp.sh qa/tools/qa-amp-compare.py \
+         qa/recorder/amp/index.ts; do
   git check-ignore -q "$p" && echo "IGNORED: $p" || echo "tracked: $p"
 done
 ```
@@ -1014,6 +1459,26 @@ missing = [k for k in ('apiUrl','appUrl','ingestUrl','authToken','dataset') if n
 if missing: sys.exit('missing: ' + ', '.join(missing))
 if any('REPLACE_ME' in str(v) for v in c.values()): sys.exit('placeholder left in the config')
 print('config ok')
+"
+```
+
+### amp-config-has-dataset
+
+- **proves.** Amp has its separate dataset configured. Other runtimes use
+  `dataset` and do not need `ampDataset`.
+- **after.** config-is-complete
+- **blocking.** true
+- **pass.** `amp dataset ok`.
+- **fail.** `missing: ampDataset` means add the Amp QA dataset to
+  `qa/config.local.json` before running an Amp spec.
+- **verified.** 2026-10-20, signals: pass+fail with synthetic configs.
+
+```sh
+python3 -c "
+import json, sys
+c = json.load(open('qa/config.local.json'))
+if not c.get('ampDataset'): sys.exit('missing: ampDataset')
+print('amp dataset ok')
 "
 ```
 
@@ -2001,4 +2466,787 @@ QA_CURSOR_RESUME='Now run the shell command: echo qa-second. Then reply with exa
 sleep 25
 qa/tools/qa-compare.py qa/runs/setup-probe-cursor-turns
 qa/tools/qa-transcript-cursor.py qa/runs/setup-probe-cursor-turns
+```
+
+### opencode-toolchain-present
+
+- **proves.** An `opencode` run needs `opencode`, `go`, `python3`, `git`, `node`
+  and the plugin's `node_modules` on top of what the shared checks cover. Without
+  `node_modules` the server loads the plugin, logs `Cannot find package
+  '@opencode/plugin'` and carries on, so the session runs and nothing exports.
+- **after.** none
+- **blocking.** true
+- **pass.** No output.
+- **fail.** `MISSING: <tool>`. `opencode` comes from `opencode upgrade` or the
+  install script on opencode.ai. `MISSING: opencode-v2/node_modules` means
+  `(cd opencode-v2 && npm ci)`.
+- **verified.** 2026-10-05, signals: pass+fail. The fail half is the
+  `node_modules` one, observed while setting up a local install: the server log
+  read `failed to load plugin ... Cannot find package '@opencode/plugin'`.
+
+```sh
+for t in opencode go python3 git node; do command -v "$t" >/dev/null || echo "MISSING: $t"; done
+[ -d opencode-v2/node_modules/@opencode/plugin ] || echo "MISSING: opencode-v2/node_modules"
+```
+
+### opencode-driver-isolates-the-config
+
+- **proves.** No plugin option came from the developer's
+  `~/.opencode-v2/dash0-agent-plugin.local.md`. The driver sets `team_name` to
+  `dash0-qa`, so a span carrying any other team name read at least one key from
+  that file, and the endpoint and token could have come from there too.
+- **after.** opencode-probe-session-agrees-with-what-it-was-fed
+- **blocking.** true
+- **pass.** `isolated`.
+- **fail.** `LEAKED: team <name>`. A key is missing from the options the driver
+  writes into `opencode.json`. Add it there, then re-run the probe.
+- **verified.** 2026-10-05, signals: pass+fail. Pass on
+  `qa/runs/probe-opencode-two-turns`. The fail half was observed before the driver
+  set every key: a probe with only `executable`, `debug` and `debug_file` set picked
+  up the developer's endpoint, token and `omit_io` from that file.
+
+```sh
+python3 - <<'PY'
+import importlib.util, json
+spec = importlib.util.spec_from_file_location("q", "qa/tools/qa-compare.py")
+q = importlib.util.module_from_spec(spec); spec.loader.exec_module(q)
+c, _ = q.load_config(".")
+m = json.load(open("qa/runs/probe-opencode-two-turns/manifest.json"))
+spans, err = q.query_dash0(c, m["session_id"], c["dataset"], q.widen(m["started_at"], -60),
+                           q.widen(m["ended_at"], 120), 100)
+teams = {s["attrs"].get("dash0.team.name") for s in spans or []}
+print(err or ("isolated" if teams == {"dash0-qa"} else f"LEAKED: team {teams}"))
+PY
+```
+
+### opencode-probe-session-agrees-with-what-it-was-fed
+
+- **proves.** The whole method on a two-turn OpenCode session: the private server
+  loaded the plugin, the exporter emitted one `chat` per turn, Dash0 stored them,
+  and the turn count, tool counts and per-turn token counts agree with
+  OpenCode's own session export. Two turns rather than one, because a per-turn
+  scoping bug is invisible when the turn and the session are the same number.
+- **after.** opencode-toolchain-present, ingest-token-reaches-the-ingress,
+  token-reads-the-dataset
+- **blocking.** true
+- **pass.** `OK    everything reconciles` and exit `0` from `qa-compare.py`, then
+  `Every attribute is in the documented contract.` and exit `0` from `qa-attrs.py`.
+- **fail.** Exit `1` prints each `DIFF`. A `chat` count of zero in Dash0 **and** in
+  the `debug` column means the turn never closed: read `serve.log` and OpenCode's
+  own log for an exporter that exited early. Zero in Dash0 with a non-zero `debug`
+  column means the spans were built and lost in transport or ingest. Exit `2`
+  means the run was not measured. A count short by one right after the session is
+  ingest lag; re-run after 25 seconds.
+- **verified.** 2026-10-05, signals: pass+fail. Pass on
+  `qa/runs/probe-opencode-two-turns`: 2 `chat` and 2 `execute_tool` in all three
+  columns, per-turn tokens (22283, 271) and (23018, 241) in both Dash0 and the
+  export. The fail half was provoked on a copy of that run with one step's output
+  tokens raised by 1 in `session-export.json`: `DIFF  per-turn token counts
+  differ`, exit `1`.
+
+```sh
+QA_OPENCODE_V2_RESUME='Now count the lines of README.md with a shell command.' \
+  qa/tools/qa-session-opencode-v2.sh \
+  'Read README.md and summarise it in one sentence.' \
+  probe-opencode-two-turns
+sleep 25
+qa/tools/qa-compare.py qa/runs/probe-opencode-two-turns
+qa/tools/qa-attrs.py qa/runs/probe-opencode-two-turns
+```
+
+### copilot-app-toolchain-present
+
+- **proves.** A `copilot-app` run needs the app itself, `go` to build the binary,
+  `python3` and `dash0` for `qa-app-run.py`, and `uuidgen` for the probe.
+- **after.** none
+- **blocking.** true
+- **pass.** `app present` and nothing else.
+- **fail.** `MISSING: <tool>`. The app comes from GitHub; `dash0` from
+  `brew install dash0`.
+- **verified.** 2026-10-06, signals: pass+fail. The fail half was provoked with a
+  nonexistent tool name in the list.
+
+```sh
+for t in go python3 dash0 uuidgen; do command -v "$t" >/dev/null || echo "MISSING: $t"; done
+[ -d "/Applications/GitHub Copilot.app" ] && echo "app present" || echo "MISSING: GitHub Copilot.app"
+```
+
+### copilot-app-extension-is-the-working-tree
+
+- **proves.** The extension the app loads is the one under test. The app loads
+  `~/.copilot/extensions/copilot-app`, not this repository, so an install left
+  over from an earlier branch runs a different `extension.mjs` and the run tests
+  that instead — with nothing in the spans to say so.
+- **after.** copilot-app-toolchain-present
+- **blocking.** true
+- **pass.** `extension is the working tree`.
+- **fail.** `EXTENSION DIFFERS`, or a missing folder. Move the installed folder
+  aside as a backup and copy `copilot-app/` in its place; the app picks it up in
+  the next **new** session, never in a running one. QA does not do this itself,
+  because it replaces the person's own install.
+- **verified.** 2026-10-06, signals: pass+fail. The fail half compared a copy of
+  `copilot-app/` with one line appended to `extension.mjs`.
+
+```sh
+diff -rq copilot-app ~/.copilot/extensions/copilot-app >/dev/null \
+  && echo "extension is the working tree" || echo "EXTENSION DIFFERS"
+```
+
+### copilot-app-binary-is-the-working-tree
+
+- **proves.** The bootstrap runs whatever executable sits in its cache under the
+  pinned name, without checking it. A binary from another branch, or a release,
+  produces spans from other code.
+- **after.** copilot-app-toolchain-present
+- **blocking.** true
+- **pass.** `binary is the working tree`.
+- **fail.** `BINARY DIFFERS`. Run `qa-app-run.py prepare`, which rebuilds it. A
+  difference right after `prepare` means the tree changed in between.
+- **verified.** 2026-10-06, signals: pass+fail. The fail half compared the cache
+  against a build of `cmd/copilot-on-event`. Without `-buildvcs=false` on both
+  sides this check fails on every commit, code or not: Go stamps the revision into
+  the binary, and the first attempt reported a difference between two builds of
+  identical code two documentation commits apart.
+
+```sh
+B=$(python3 -c "import importlib.util as u;s=u.spec_from_file_location('a','qa/tools/qa-app-run.py');m=u.module_from_spec(s);s.loader.exec_module(m);print(m.binary_path())")
+mkdir -p qa/runs/setup-probe-copilot-app/build
+go build -buildvcs=false -o qa/runs/setup-probe-copilot-app/build/b ./cmd/copilot-app-on-event &&
+  { cmp -s qa/runs/setup-probe-copilot-app/build/b "$B" && echo "binary is the working tree" || echo "BINARY DIFFERS"; }
+```
+
+### copilot-app-bootstrap-exports-to-the-target
+
+- **proves.** The whole path below the extension, without paying for a session:
+  the installed bootstrap finds the cached binary, the binary reads the project
+  config `prepare` wrote, exports with the QA token, and Dash0 stores it where QA
+  reads. It runs the four calls the extension makes, for a turn with no events.
+  It cannot prove that the extension makes them; only a real session does.
+- **after.** copilot-app-extension-is-the-working-tree, copilot-app-binary-is-the-working-tree, ingest-token-reaches-the-ingress
+- **blocking.** true
+- **pass.** `configured token: ['chat ']` and `bogus token: []`. The trailing
+  space is real: a turn with no model round has no model for the span name.
+- **fail.** `configured token: []` means the export did not land: re-run
+  `prepare`, then re-query once before believing it, since an empty result is
+  usually ingest lag. `bogus token` returning a span means the control proved
+  nothing: the env option did not outrank the file, which is itself a product
+  defect.
+- **verified.** 2026-10-06, signals: pass+fail. The fail half is the second
+  session, given a bogus `COPILOT_APP_PLUGIN_OPTION_AUTH_TOKEN`, which outranks
+  the file; the ingress answered `401` and Dash0 held nothing for it.
+
+```sh
+P=${QA_APP_PROJECT:-$HOME/Developer/dash0/copilot-app-qa}
+qa/tools/qa-app-run.py prepare setup-probe-copilot-app "$P" >/dev/null
+probe() {
+  id=qa-probe-$(uuidgen | tr 'A-Z' 'a-z')
+  for call in sessionStart userPromptSubmitted turnEnd sessionEnd; do
+    printf '{"sessionId":"%s","cwd":"%s","prompt":"qa probe","reason":"user_exit","events":[]}' "$id" "$P" |
+      (cd "$P" && env "$@" bash ~/.copilot/extensions/copilot-app/copilot-app-on-event.sh "$call") 2>/dev/null
+  done
+  echo "$id"
+}
+good=$(probe) bad=$(probe COPILOT_APP_PLUGIN_OPTION_AUTH_TOKEN=auth_definitely_not_a_real_token_00000)
+sleep 25
+python3 - "$good" "$bad" <<'PY'
+import importlib.util, sys, datetime
+spec = importlib.util.spec_from_file_location("c", "qa/tools/qa-compare.py")
+c = importlib.util.module_from_spec(spec); spec.loader.exec_module(c)
+cfg, _ = c.load_config(".")
+now = datetime.datetime.now(datetime.timezone.utc)
+for label, sid in zip(("configured token", "bogus token"), sys.argv[1:]):
+    spans, err = c.query_dash0(cfg, sid, cfg["dataset"], (now - datetime.timedelta(minutes=10)).isoformat(),
+                               (now + datetime.timedelta(minutes=2)).isoformat(), 10)
+    print(f"{label}: {err or [s['name'] for s in spans]}")
+PY
+```
+
+### copilot-app-fake-model-answers
+
+- **proves.** The fake model is reachable where the app's provider points, and
+  behaves as its modes say. A session whose provider cannot be reached ends on a
+  connection error that reads exactly like the error a spec provoked on purpose.
+- **after.** copilot-app-toolchain-present
+- **blocking.** false. Only the specs that select `qa-fake` need it.
+- **pass.** `self-test ok`, then a model list naming `qa-fake`.
+- **fail.** An assertion from the self-test means the server is broken; fix it
+  before trusting any run that used it. `FAILED: curl 000` means no server is
+  listening on 8765: start one with
+  `qa/tools/qa-fake-model.py serve --port 8765 --log qa/runs/<run-id>/fake-model.jsonl --mode <mode>`.
+- **verified.** 2026-10-06, signals: pass+fail. The fail half was the same query
+  against an idle port. End to end, the same day: a session on `qa-fake` sent one
+  streaming call and got `done` back.
+
+```sh
+qa/tools/qa-fake-model.py self-test
+curl -sf http://127.0.0.1:8765/v1/models || echo "FAILED: curl 000"
+```
+
+### copilot-app-user-config-is-restored
+
+- **proves.** `swap-in` left the machine as it found it. Until `prepare` runs,
+  the user's own `~/.copilot/dash0-agent-plugin.local.md` is the QA config, so
+  every session on the machine reports to the QA target with a debug file in a
+  run directory.
+- **after.** none
+- **blocking.** true
+- **pass.** `RESTORED`.
+- **fail.** `NOT RESTORED` — run `qa/tools/qa-app-run.py restore`, which moves
+  `….qa-saved` back, or removes the run's config when `….qa-none` says there was
+  none.
+- **verified.** 2026-10-06, signals: pass+fail, in a throwaway `HOME`: after
+  `swap-in` this printed `NOT RESTORED`, a second `swap-in` refused, and
+  `restore` brought back the original byte for byte, both with and without one.
+
+```sh
+ls "$HOME"/.copilot/dash0-agent-plugin.local.md.qa-* >/dev/null 2>&1 && echo "NOT RESTORED" || echo RESTORED
+```
+
+### amp-toolchain-present
+
+- **proves.** An `amp` run needs `go`, `python3`, `dash0`, `uuidgen`, `amp` and
+  `bun`, and a missing one surfaces halfway through a paid session rather than
+  before it. `bun` is here and not in the shared check because Amp runs the
+  bridge with it, and because `make test-amp` cannot run without it either.
+  `claude` is deliberately absent: an `amp` run never invokes it.
+- **after.** none
+- **blocking.** true
+- **pass.** No output.
+- **fail.** `MISSING: <tool>`. `amp` comes from
+  https://ampcode.com/docs/install, `bun` from `brew install oven-sh/bun/bun`,
+  `dash0` from `brew install dash0`.
+- **verified.** 2026-09-15, signals: pass+fail. The fail half was provoked by
+  adding a name that cannot exist to the loop.
+
+```sh
+for t in go python3 dash0 uuidgen amp bun; do command -v "$t" >/dev/null || echo "MISSING: $t"; done
+```
+
+### amp-plugin-is-loaded
+
+- **proves.** Amp has actually loaded the dash0 plugin and bound all four of its
+  lifecycle events. A plugin directory that exists but did not load produces a
+  session that runs perfectly and exports nothing, which reads as total telemetry
+  loss rather than as an install problem.
+- **after.** none
+- **blocking.** true
+- **pass.** A line naming `dash0-agent-plugin` as `active`, and a following line
+  naming `agent.start`, `tool.call`, `tool.result` and `agent.end`.
+- **fail.** No `dash0` line at all means the plugin is not installed for this
+  user, or `XDG_CONFIG_HOME` points somewhere without it. Reinstall with the
+  build-and-copy steps in `amp/README.md`. A `dash0` line with fewer than four
+  events means `index.ts` loaded but did not register; check it against the tree
+  with `amp-installed-plugin-matches-the-tree`.
+- **verified.** 2026-11-03, signals: pass + not-loaded + cannot-tell. All three
+  branches were observed, the two failing ones by feeding the `case` a captured
+  line rather than by hiding the real install: every non-mutating way to do
+  that also stops `amp plugins list` working, and removing the install is the
+  mutation this check exists to avoid. So absence is proven against Amp's
+  output *format*, not against a genuinely absent plugin.
+
+  Matched on the name, not on a path: `amp plugins list` prints a path only for
+  a directory install, and prints `dash0-agent-plugin (User Plugins)` for the
+  plugin-repository route that `amp/README.md` now leads with. Keying on the
+  path reported a healthy install as absent, which is what prompted this repair.
+
+  The third branch is why this is not a one-line grep. `HOME=/tmp/… amp plugins
+  list` fails with `failed to load global plugins. Unable to connect`, and a
+  bare grep turns that into `NOT LOADED` — sending someone to reinstall a plugin
+  that was never the problem. The same shape appears offline or logged out.
+
+  The `\b` anchors are load-bearing: `inactive` ends in `active`, so a loose
+  `.*active` reports a disabled plugin as loaded, and the session that follows
+  exports nothing while this check says the install is fine. `inactive` is a
+  real string in the `amp` binary, not a hypothetical one.
+
+```sh
+OUT=$(amp plugins list 2>&1 || true)
+case "$OUT" in
+  *Error*|*"failed to load"*)
+    echo "CANNOT TELL: amp plugins list failed: $(printf '%s' "$OUT" | head -1)" ;;
+  *dash0-agent-plugin*)
+    # \bactive\b, not .*active: "inactive" ends in "active", so the loose
+    # pattern passes a disabled plugin and the session then exports nothing.
+    printf '%s\n' "$OUT" | grep -A1 -E 'dash0-agent-plugin.*\bactive\b' \
+      || echo "NOT LOADED: dash0-agent-plugin is listed but not active" ;;
+  *)
+    echo "NOT LOADED: dash0 plugin absent from amp plugins list" ;;
+esac
+```
+
+### amp-installed-plugin-matches-the-tree
+
+- **proves.** The plugin this machine will run is the one in this working tree.
+  Amp loads `index.ts` from `~/.config/amp/plugins/dash0-agent-plugin/`, and the helper next to
+  it is a compiled copy, so neither follows a `git checkout`. A run against a
+  stale copy reports defects that were already fixed, or misses ones that were
+  just introduced, and nothing in the run output says which build it used.
+- **after.** amp-plugin-is-loaded
+- **blocking.** true
+- **pass.** `index.ts current` and `helper current`.
+- **fail.** `index.ts STALE` or `helper STALE`. Reinstall before running
+  anything, with **`-buildvcs=false`**, which is what makes this check work at
+  all (see below):
+
+  Into the directory the check printed as `comparing …`, **not** a fixed path.
+  Writing to `~/.config/amp/plugins/` when the machine's install came from a
+  plugin repository creates a second copy that outranks and permanently shadows
+  the first, and the next run of this check then passes against a tree Amp is
+  not the one loading.
+
+  ```sh
+  D=<the directory the check printed>
+  go build -buildvcs=false -o "$D/amp-on-event" ./cmd/amp-on-event   # or
+  go build -buildvcs=false -o "$D/amp-on-event-$HOST" ./cmd/amp-on-event
+  cp amp/index.ts "$D/index.ts"
+  ```
+
+  Use whichever of the two helper names is already in that directory: a plugin
+  repository carries the per-platform one, a directory install the plain one.
+
+  Then restart Amp. A running session keeps the `index.ts` it loaded, so copying
+  the file is not enough on its own.
+
+  A helper installed by the plain `amp/README.md` command reports `STALE` here
+  the first time even when its source is identical. Reinstall once with the
+  command above and it stays quiet after that.
+- **verified.** 2026-11-03, signals: pass+fail. Both halves observed that day:
+  the resolved directory was genuinely stale and the check said so, and it
+  passed after a rebuild. The resolver replaced a hardcoded
+  `~/.config/amp/plugins/…`, which found nothing on a machine installed from a
+  plugin repository and reported a healthy install as missing.
+  2026-09-15, signals: pass+fail. The `index.ts` half had both
+  halves observed that day: the installed copy was genuinely stale before a
+  reinstall and the check said so. The helper half was first written as a plain
+  `cmp` against a fresh build and **that version was wrong** — it reported
+  `STALE` against a byte-identical source, because Go stamps `vcs.revision` and
+  `vcs.time` into the binary, so the same source built at two different commits
+  differs. Measured: the installed helper carried
+  `vcs.revision=72a8417…` and a fresh build `vcs.revision=a1cc0ed…` from
+  unchanged source. `-buildvcs=false` on both sides was then measured
+  reproducible across two consecutive builds. An mtime comparison was tried
+  first and rejected for the same class of reason: `git reset` and `git stash
+  apply` rewrite working-tree mtimes, so every Go file looks newer than the
+  binary after any history operation.
+
+```sh
+# Amp has several plugin roots and loads only the highest-precedence copy, so
+# the directory has to be resolved rather than assumed. Two copies is reported
+# rather than silently resolved: the stale check would otherwise pass against a
+# tree Amp is not the one running.
+HOST="$(uname -s | tr '[:upper:]' '[:lower:]')-$(uname -m | sed 's/x86_64/amd64/; s/aarch64/arm64/')"
+# A glob loop, not `ls -d`: an interactive shell often aliases ls to a listing
+# with a header row, and the count then says two installs where there is one.
+DIRS=""; N=0
+for d in "$PWD/.amp/plugins/dash0-agent-plugin" \
+         "$HOME/.config/amp/plugins/dash0-agent-plugin" \
+         "$HOME"/.cache/amp/repositories/*/dash0-agent-plugin; do
+  [ -d "$d" ] || continue
+  DIRS="${DIRS}${d}
+"
+  N=$((N + 1))
+done
+if [ "$N" -eq 0 ]; then
+  echo "NO INSTALL: no dash0-agent-plugin directory in any Amp plugin root"
+elif [ "$N" -gt 1 ]; then
+  echo "AMBIGUOUS: more than one install; Amp loads one and the rest are dead:"
+  printf '%s\n' "$DIRS"
+else
+  D=$(printf '%s' "$DIRS" | tr -d '\n')
+  echo "comparing $D"
+  diff -q "$D/index.ts" amp/index.ts >/dev/null && echo "index.ts current" || echo "index.ts STALE"
+  # A plugin repository holds the helper under its per-platform name, because
+  # one directory serves every executor; a directory install uses the plain one.
+  H="$D/amp-on-event"
+  [ -f "$H" ] || H="$D/amp-on-event-$HOST"
+  # -buildvcs=false on both sides. Without it Go stamps the commit into the
+  # binary and a byte comparison reports STALE on identical source.
+  go build -buildvcs=false -o /tmp/amp-on-event.qa ./cmd/amp-on-event \
+    && { cmp -s /tmp/amp-on-event.qa "$H" && echo "helper current" || echo "helper STALE"; }
+fi
+```
+
+### amp-no-project-config-overrides-the-install
+
+- **proves.** No config file in the session's reach can hand the installed plugin
+  a different endpoint, dataset or token than the one QA is reading from. This is
+  the same failure `no-project-config-overrides-the-install` guards for `claude`,
+  and it is worth its own check because Amp resolves a *workspace* file —
+  `.amp/dash0-agent-plugin.local.md` — that outranks `DASH0_*` and is easy to
+  leave behind after manual testing.
+- **after.** none
+- **blocking.** true
+- **pass.** `clean`.
+- **fail.** A path means this repository has a workspace-level config and a
+  session run from here would use it instead of `~/.amp/`. Move it to `~/.amp/`.
+  Note `.gitignore` already carries `.amp/*.local.md`, so such a file is
+  untracked and invisible to a `git status` skim.
+- **verified.** 2026-09-15, signals: pass+fail. The fail half was provoked in a
+  temporary directory rather than by writing into the repository.
+
+```sh
+ls .amp/dash0-agent-plugin.local.md 2>/dev/null || echo clean
+```
+
+### amp-dataset-override-reaches-the-header
+
+- **proves.** The one mechanism the whole `amp` arm rests on: that
+  `AMP_PLUGIN_OPTION_DATASET` actually changes the `Dash0-Dataset` header the
+  helper sends, so QA spans land in `ampDataset` and not in the shared
+  `default` dataset. If this silently stopped working, a run would export into
+  `default` and then read `ampDataset`, which returns nothing and looks exactly
+  like the plugin having sent nothing at all.
+- **after.** amp-installed-plugin-matches-the-tree
+- **blocking.** true
+- **pass.** `default`, then the probe's dataset, then `default`.
+- **fail.** A second value of `default` means the harness prefix stopped
+  outranking the config file, and the arm cannot isolate its dataset any more;
+  stop and fix that before running a session. A third value of the probe's
+  dataset means `DASH0_DATASET` started winning over the file, which would make the
+  override order in `internal/harness` different from what this arm assumes.
+- **verified.** 2026-09-15, signals: pass+fail. All three rows were observed.
+  The second row is the pass the arm depends on; the first and third are the
+  failures it must not have, and both were produced by the same run rather than
+  by breaking anything. No Dash0 credential is used — the listener is local and
+  the token is a fixed dummy string.
+
+```sh
+python3 qa/tools/qa-amp-dataset-header.py
+```
+
+### amp-probe-session-agrees-with-what-it-was-fed
+
+- **proves.** The whole method on a session small enough to reason about: the
+  recorder saw every plugin event, the installed bridge exported, Dash0 stored
+  it in the amp dataset, and the span count and tool names agree with Amp's own
+  `--stream-json`, which the plugin never sees. This is the `amp` equivalent of
+  the same check on the other four runtimes, and it is the blocking one.
+- **after.** config-is-complete, amp-installed-plugin-matches-the-tree,
+  amp-dataset-override-reaches-the-header
+- **blocking.** true
+- **pass.** `qa-amp-compare.py` exits `0` and prints `AGREEMENT`: one `chat`
+  span for one `amp -x`, one `execute_tool` span, matching tool names.
+- **fail.** `no spans for T-… in <ampDataset>` means the export never happened
+  or went elsewhere; the most likely cause is `--plugin-ready-timeout` having been
+  dropped from the driver, which lets Amp start the turn before the bridge has
+  loaded and skip `agent.start`/`agent.end` entirely. A tool-count mismatch is
+  a real defect. A turn where the model declined to call the tool is a failed
+  run rather than a failing check; re-run it.
+- **verified.** 2026-10-12, signals: pass-only. Re-measured on
+  `qa/runs/setup-probe-amp`: 1 chat root, 1 zero-duration usage child, 1
+  `execute_tool shell_command`, `usage status: matched`, output tokens
+  reconciling exactly (68 on both channels), `AGREEMENT`, exit `0`. The
+  2026-09-15 run was the same except that usage was opt-in then. Provoking the
+  failure would mean breaking the export on purpose, which this check exists to
+  notice.
+
+  **The turn row counts roots, not `chat` spans.** A turn's root and its usage
+  children are all named `chat`, so the old count read 2 for a one-turn run and
+  reported `MISMATCH` the moment usage became the default. `qa-amp-compare.py`
+  now separates them on `dash0.amp.timing=observation` and prints the children
+  as their own line.
+
+```sh
+qa/tools/qa-session-amp.sh \
+  'Run the shell command: echo qa-amp-first. Then reply with exactly the word done.' \
+  setup-probe-amp
+sleep 10
+qa/tools/qa-amp-compare.py qa/runs/setup-probe-amp
+```
+
+### amp-resumed-turn-is-scoped-to-itself
+
+- **proves.** A second turn on the same thread produces its own root and its own
+  tool span, rather than re-reporting the first turn's. This defect class was
+  real on both `copilot` and `cursor`, so it is the highest-value second probe
+  rather than a speculative one.
+- **after.** amp-probe-session-agrees-with-what-it-was-fed
+- **blocking.** false. Without it an `amp` run says nothing about per-turn
+  scoping, and a spec that needs it ships single-channel.
+- **pass.** Exit `0`, 2 `chat` spans and 2 `execute_tool` spans for two turns.
+- **fail.** 1 chat span for 2 turns means the resumed turn was not recorded. 3
+  `execute_tool` spans for 2 tool calls is the double-reporting the other
+  runtimes had.
+- **verified.** 2026-09-15, signals: pass-only. Measured on
+  `qa/runs/setup-probe-amp-turns`: 2 turns, 2 chat spans, 2 tool spans,
+  `AGREEMENT`. Scoping is correct on `amp`. Note that run also had usage
+  enabled and both turns returned `status=partial` — see the finding named in
+  `amp-usage-attributes-the-answering-call` below. That is a different defect
+  and does not affect this check.
+
+```sh
+QA_AMP_RESUME='Now run the shell command: echo qa-amp-second. Then reply with exactly the word done.' \
+  qa/tools/qa-session-amp.sh \
+  'Run the shell command: echo qa-amp-first. Then reply with exactly the word done.' \
+  setup-probe-amp-turns
+sleep 12
+qa/tools/qa-amp-compare.py qa/runs/setup-probe-amp-turns
+```
+
+### amp-usage-attributes-the-answering-call
+
+- **proves.** That opting into usage export actually attributes the model call
+  which answered the turn. It is a check rather than only a spec because a run
+  that silently attributes nothing looks identical to one where the model used
+  no tokens.
+- **after.** amp-probe-session-agrees-with-what-it-was-fed
+- **blocking.** false.
+- **pass.** `usage status: matched`, `gen_ai.request.model` present on the turn
+  root, and `output tokens stream=N dash0=N` agreeing. That last line is the
+  strong one: `qa-amp-compare.py` asserts the identity only when every turn
+  matched, and it holds the exporter's per-call attribution against Amp's own
+  stream, which the plugin never reads.
+- **fail.** `usage status: partial` with no model on the root. Before assuming a
+  regression, check the *settle time*: the helper now polls the export for up
+  to twenty seconds after the turn ends and the bridge hands off after two, so
+  a read at 10 s can report `partial`, or no spans at all, for a perfectly
+  healthy run. If 30 s still gives `partial`, it is a real regression of
+  [findings/amp-answering-model-call-is-never-attributed.md](findings/amp-answering-model-call-is-never-attributed.md).
+- **verified.** 2026-09-15, signals: **both**, which is new. This check was
+  written `fail-only` against an open defect and has since been used as that
+  defect's acceptance test.
+
+  *Failing half*, before the fix, on `qa/runs/setup-probe-amp-ids` and
+  `qa/runs/conv-amp-5turn-b`: `partial`, the root named by the tool-calling
+  round rather than the answering one, and only one turn in five ever matching.
+
+  *Passing half*, after it, on `qa/runs/fix-conv-5turn`: five turns of five
+  `matched`, five roots of five carrying a model, and output tokens reconciling
+  exactly — 222 against 222.
+
+  The cause was not the duration of the old 1.5 s re-read but its shape.
+  `amp threads export` returns the thread with *no messages at all* for the
+  first seconds after a turn and then materializes it whole, so a single
+  re-read landed in the empty window every time.
+
+```sh
+QA_AMP_USAGE=1 qa/tools/qa-session-amp.sh \
+  'Run the shell command: echo qa-amp-usage. Then reply with exactly the word done.' \
+  setup-probe-amp-usage
+# 30s, not 10s: with usage export on the helper is detached and polls
+# `amp threads export` for up to twenty seconds, so spans land after `amp` exits.
+sleep 30
+qa/tools/qa-amp-compare.py qa/runs/setup-probe-amp-usage
+```
+
+### amp-orb-install-path-exists
+
+- **proves.** An orb has a way to get the plugin before the orb arm is worth
+  running. A local install is not copied to an orb, so an `-ox` run against an
+  orb with no install produces a healthy session and zero spans — the same
+  symptom as a broken plugin.
+- **after.** none
+- **blocking.** true for the orb arm only. Skip it for a local `amp` run.
+- **pass.** `~/.config/amp/plugins/dash0-agent-plugin/index.ts` and `amp-on-event` both exist
+  in the orb, and `amp-on-event --version` runs there.
+- **fail.** either file missing, or the helper does not execute — the orb's
+  architecture does not match the installed asset.
+- **verified.** 2026-10-19, through the orb's project setup script. The setup
+  script runs `install-amp.sh` with `DASH0_OTLP_URL`, `DASH0_AUTH_TOKEN`,
+  `DASH0_DATASET` and `DASH0_TEAM_NAME` from the project's **Secrets & Env
+  Vars**, which is what makes the orb arm runnable at all: the plugin loaded
+  and exported from an orb this way for weeks before release.
+
+  This is also the route `amp/README.md` recommends for orbs. The alternative,
+  one **workspace plugin** added in Amp's settings, holds a helper for a single
+  OS and architecture, so it cannot serve a workspace whose laptops and orbs
+  differ — see `### Orbs` there.
+
+### amp-conversation-keeps-one-thread-across-turns
+
+- **proves.** That a real conversation — five turns, tool calls, and a fact
+  carried from turn one to turn five — produces five scoped roots on one
+  thread. `amp-resumed-turn-is-scoped-to-itself` proves two turns do not
+  collide; this proves the bridge survives a session long enough for its
+  per-turn state map, its turn ids and its `usage:<turn>:<n>` span ids to be
+  wrong, and that the turns really are one conversation rather than five
+  threads that happen to share an id in the manifest.
+- **after.** amp-probe-session-agrees-with-what-it-was-fed
+- **blocking.** false. Without it, nothing here speaks for a session longer
+  than two turns.
+- **pass.** `AGREEMENT`; five `chat` roots, four `execute_tool` spans, five
+  distinct `dash0.amp.turn.id` values, and the model answers turn five with the
+  codeword given only in turn one.
+- **fail.** A repeated `dash0.amp.turn.id` is the state-map-keyed-by-thread
+  bug. A tool span carrying the previous turn's id is the span-id collision
+  one. The model not recalling the codeword means `amp threads continue`
+  started fresh threads, and every span assertion above would still pass — so
+  check the codeword first.
+- **verified.** 2026-09-15, signals: pass-only. Measured on
+  `qa/runs/conv-amp-5turn-b`: 5 turns, 10 spans, `AGREEMENT`, and turn five
+  answered `ZEPHYR-41`. One turn of five reached `usage status: matched`; the
+  other four were `partial`, which is the known usage defect and not this
+  check's concern.
+
+  The first attempt at this check failed with an empty `stream.jsonl` and
+  `Error: Timeout while reading from stdin`. `amp -x [message]` falls back to
+  reading the prompt from stdin, so an inherited stdin that never closes hangs
+  it. The driver now pins `< /dev/null` on both `amp` invocations. If this
+  check ever reports "could not find a thread id", check that first.
+
+```sh
+cat > /tmp/qa-amp-turns.txt << 'EOF'
+Run the shell command: echo qa-turn-two. Then reply with exactly the word done.
+Run the shell command: qa-this-command-does-not-exist. Do not try an alternative and do not fix it. Then reply with exactly the word done.
+Run the shell command: echo qa-turn-four. Then reply with exactly the word done.
+Without running any command, reply with exactly the codeword I gave you in my first message, and nothing else.
+EOF
+
+QA_AMP_USAGE=1 QA_AMP_TURNS=/tmp/qa-amp-turns.txt qa/tools/qa-session-amp.sh \
+  'Remember the codeword: ZEPHYR-41. Run the shell command: echo qa-turn-one. Then reply with exactly the word done.' \
+  setup-probe-amp-conversation
+# 30s, not 10s: with usage export on the helper is detached and polls
+# `amp threads export` for up to twenty seconds, so spans land after `amp` exits.
+sleep 30
+qa/tools/qa-amp-compare.py qa/runs/setup-probe-amp-conversation
+```
+
+### amp-mcp-call-is-named-and-a-failure-is-reported
+
+- **proves.** MCP works end to end on `amp`: the `mcp__<server>__` prefix is
+  stripped, each call is tagged with the server that served it, the two servers
+  are not conflated, and a failing MCP call sets the span status to `ERROR`.
+  That last one is why this check is worth its own run — an MCP tool is the
+  **only** thing on `amp` that is both client-side and able to fail on demand,
+  so this is the one check that exercises the `tool.Status != "done"` branch in
+  `internal/source/amp/amp.go` against a real session.
+- **after.** amp-probe-session-agrees-with-what-it-was-fed
+- **blocking.** false.
+- **pass.** `AGREEMENT`, span names `execute_tool echo_text` and
+  `execute_tool always_fails`, `dash0.gen_ai.tool.mcp_server` of
+  `qa_fixture_alpha` and `qa_fixture_beta` respectively, and status `ERROR` on
+  the second only.
+- **fail.** `mcp__` surviving in a span name is a prefix-stripping regression.
+  One server value on both spans means the two were conflated. Status `UNSET`
+  on `always_fails` means the bridge stopped copying Amp's own classification.
+- **verified.** 2026-09-15, signals: **both**. Measured on
+  `qa/runs/amp-mcp-b`, all four assertions holding. The failure signal is
+  genuinely exercised by `always_fails` rather than provoked artificially.
+
+  Two shape traps cost a run each, both now handled by the driver: Amp's
+  `--mcp-config` takes the server map **flat** — not Claude Code's
+  `{"mcpServers": {...}}` and not Amp's own `"amp.mcpServers"` settings key,
+  both of which are rejected with `Invalid MCP server configuration` — and Amp
+  has no `--strict-mcp-config`, so `--mcp-config` merges into the settings file
+  and isolation comes from `--settings-file` with an empty `amp.mcpServers`
+  instead. Without that, a QA prompt can reach the developer's real connectors.
+
+```sh
+QA_AMP_MCP=1 QA_AMP_USAGE=1 qa/tools/qa-session-amp.sh \
+  'Call the tool mcp__qa_fixture_alpha__echo_text once with the text QA-MCP-ALPHA. Then call the tool mcp__qa_fixture_beta__always_fails once; it will fail, which is expected, so do not retry it and do not try an alternative. Then reply with exactly the word done.' \
+  setup-probe-amp-mcp
+# 30s, not 10s: with usage export on the helper is detached and polls
+# `amp threads export` for up to twenty seconds, so spans land after `amp` exits.
+sleep 30
+qa/tools/qa-amp-compare.py qa/runs/setup-probe-amp-mcp
+```
+
+### amp-skill-invocation-is-named
+
+- **proves.** That a skill the model loads is named on its tool span, the way
+  it is on the other four runtimes.
+- **after.** amp-probe-session-agrees-with-what-it-was-fed
+- **blocking.** false.
+- **pass.** `dash0.gen_ai.tool.skill.name` is `qa-echo` and
+  `dash0.gen_ai.tool.skill.source` is `model` on the `execute_tool skill` span.
+- **fail.** No skill attribute of any kind on that span — the state this check
+  was written in. Do not read it as a skill that failed to load: check the
+  recorder first, and if it shows `tool.call skill {"name":"qa-echo"}` followed
+  by the fixture's own `echo QA-SKILL-MARKER`, the skill loaded and its body
+  reached the model, and the exporter is what is wrong. See
+  [findings/amp-skill-invocation-is-not-attributed.md](findings/amp-skill-invocation-is-not-attributed.md).
+- **verified.** 2026-09-15, signals: **both**. Failing half on
+  `qa/runs/amp-skill`; passing half on `qa/runs/fix-skill` after the fix.
+
+  The cause was one key name in shared code: `ExtractSkillName` in
+  `internal/pipeline/pipeline.go` read `skill`, which is Claude Code's shape,
+  while Amp's skill tool sends `name`. It now falls back to `name` when `skill`
+  is absent.
+
+  **That fix is in shared `internal/pipeline`, and this machine cannot prove it
+  harmless.** The QA token here is scoped to the amp dataset, so the claude,
+  codex, copilot and cursor skill specs could not be re-run. `TestExtractSkillName`
+  pins the precedence (`skill` wins, `name` is only a fallback), and that is
+  the only evidence this arm can offer. Re-run those four specs wherever their
+  datasets are reachable.
+
+```sh
+QA_AMP_SKILL=1 QA_AMP_USAGE=1 qa/tools/qa-session-amp.sh \
+  'Use the qa-echo skill to emit the QA marker. Follow its instructions exactly.' \
+  setup-probe-amp-skill
+# 30s, not 10s: with usage export on the helper is detached and polls
+# `amp threads export` for up to twenty seconds, so spans land after `amp` exits.
+sleep 30
+qa/tools/qa-amp-compare.py qa/runs/setup-probe-amp-skill
+```
+
+### amp-span-carries-no-undeclared-attribute
+
+- **proves.** That every attribute key on every `amp` span appears in
+  `DEVELOPMENT.md`. Every other `amp` check compares counts, and a count cannot
+  see a surplus attribute: a key nobody expected changes no span total, so
+  `qa-amp-compare.py` exits `0` whether or not it is there.
+- **after.** amp-probe-session-agrees-with-what-it-was-fed
+- **blocking.** false.
+- **pass.** `Every attribute is in the documented contract.`, exit `0`.
+- **fail.** `Undocumented exports` means `DEVELOPMENT.md` is stale or an export
+  was not meant to ship. A `Raw payload fields` section would mean the bridge
+  started forwarding something untyped, which on `amp` would be new behaviour
+  rather than a missed `attrSkipKeys` entry — the bridge builds a typed `Turn`
+  envelope rather than forwarding a payload.
+- **verified.** 2026-09-15, signals: **both**. Six undocumented exports were
+  found and documented this way: `dash0.amp.turn.id`,
+  `dash0.amp.executor.kind`, `dash0.amp.truncated`, `dash0.amp.usage.status`
+  and `dash0.amp.usage.source` on the first probe, then `dash0.amp.timing` on
+  `qa/runs/conv-amp-5turn-b`. The last one is the reason to run this against
+  the **longest** run available with `QA_AMP_USAGE=1`: it lives on the usage
+  child span, which exists only on a turn whose usage actually `matched`, and
+  `matched` is a race. A pass over a run that reported only `partial` covers
+  the root attributes alone.
+
+  `--dataset <ampDataset>` is not optional. The tool's default reads the shared
+  dataset, finds nothing, and reports a clean pass over zero spans.
+
+  No `manifest.json` port was needed: `qa-session-amp.sh` writes the same shape
+  the other four do. Its timestamps must carry a fractional second, since
+  `qa-compare.widen` parses `%Y-%m-%dT%H:%M:%S.%f%z` and `date -u` cannot emit
+  one portably on macOS — that is what the driver's `stamp()` helper is for.
+
+```sh
+qa/tools/qa-attrs.py qa/runs/conv-amp-5turn-b --dataset <ampDataset>
+```
+
+### amp-server-side-tools-are-still-invisible
+
+- **proves.** That the known gap has not silently changed shape. Amp runs some
+  built-in tools server-side, and those fire no plugin events at all, so they
+  reach neither the bridge nor a span. This check is here so that an Amp
+  release which closes the gap is noticed rather than assumed, and so that a
+  missing tool span is not mistaken for a bridge defect.
+- **after.** amp-probe-session-agrees-with-what-it-was-fed
+- **blocking.** false. It fails today by design.
+- **pass.** Two `tool_use` blocks in the stream, two `execute_tool` spans,
+  `AGREEMENT`.
+- **fail.** `stream={'shell_command': 1, 'web_search': 1}` against
+  `dash0={'shell_command': 1}`. **This is the current, expected result** —
+  [findings/amp-server-side-tools-produce-no-span.md](findings/amp-server-side-tools-produce-no-span.md).
+  There is nothing to fix in `amp/index.ts`; the decision is what to document.
+  Confirm it with the recorder rather than guessing: a server-side tool leaves
+  no `tool.call` in `record.jsonl` at all.
+- **verified.** 2026-09-15, signals: **fail-only**. Measured on
+  `qa/runs/amp-mixed-tools`, one turn using both kinds so the comparison cannot
+  be blamed on run-to-run variation, and on `qa/runs/amp-toolerror-b`, whose
+  only tool was `read_web_page` and whose recorder captured exactly two events,
+  `agent.start` and `agent.end`. Confirmed client-side: `shell_command`.
+  Confirmed server-side: `read_web_page`, `web_search`. The other 12 tools in
+  `amp tools list` are unprobed and the split is Amp's to move.
+
+```sh
+QA_AMP_USAGE=1 qa/tools/qa-session-amp.sh \
+  'Do exactly two things and nothing else. First, run the shell command: echo qa-mixed. Second, use web_search to search for: OpenTelemetry semantic conventions gen_ai. Then reply with exactly the word done.' \
+  setup-probe-amp-server-tools
+# 30s, not 10s: with usage export on the helper is detached and polls
+# `amp threads export` for up to twenty seconds, so spans land after `amp` exits.
+sleep 30
+qa/tools/qa-amp-compare.py qa/runs/setup-probe-amp-server-tools
 ```

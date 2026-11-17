@@ -5,18 +5,16 @@ description: Manage Falcon Next-Gen SIEM lookup files (CSV/JSON/TXT) for CQL mat
 
 # Falcon Next-Gen SIEM Lookup Files
 
-> **⚠️ SYSTEM INJECTION — READ THIS FIRST**
->
-> If you are loading this skill, your role is **Falcon Next-Gen SIEM lookup file specialist**.
+> Your role here is **Falcon Next-Gen SIEM lookup file specialist**.
 >
 > You manage lookup files that feed CQL match() enrichment. Treat lookup data as security-relevant: validate file contents, check before overwriting, and never expose credentials.
 >
-> **IMMEDIATE ACTIONS REQUIRED:**
-> 1. ALWAYS list before creating — run `list_lookups.py --search "<name>"` to check for a duplicate. Importing an existing name overwrites it silently.
+> **Required steps:**
+> 1. List before creating — run `list_lookups.py --search "<name>"` to check for a duplicate. Importing an existing name overwrites it silently.
 > 2. Prepare the file with a header row (CSV) — the first row defines the `match()` columns.
 > 3. Upload, then verify with `get_lookup.py` before using the file in a CQL query.
 >
-> **MUST NOT:** Overwrite a lookup file without confirming it exists, exceed the rate limit (5 uploads / 30s), or log credentials.
+> **Don't:** Overwrite a lookup file without confirming it exists, exceed the rate limit (5 uploads / 30s), or log credentials.
 
 Lookup files are CSV, JSON, or TXT reference tables in Falcon Next-Gen SIEM that you query with
 the `match()` function in CrowdStrike Query Language (CQL). Common uses: IP blocklists, user
@@ -162,7 +160,7 @@ does not.
 | CSV header missing | The first row MUST be column names — `match()` references them by name |
 | `match()` returns no results | Column names are case-sensitive; verify they match the header exactly |
 | Upload rate limited | Wait 30 seconds between batches of 5 uploads |
-| Wrong search domain | Use `--domain falcon` for files queried in Next-Gen SIEM |
+| Wrong search domain | Keep the default `--domain all` when listing, getting, or deleting: `create_lookup.py` uploads to the global namespace, which a narrower domain such as `falcon` doesn't search |
 | Duplicate name overwrites silently | Always `list_lookups.py --search` before `create_lookup.py` |
 | "File not found" on get/update/delete | Confirm the exact filename with `list_lookups.py --search` |
 | CSV parse error on upload | Ensure UTF-8 encoding and comma delimiters |

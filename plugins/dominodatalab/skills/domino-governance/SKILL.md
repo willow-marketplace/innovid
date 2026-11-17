@@ -1,208 +1,72 @@
 ---
 name: domino-governance
-description: Manage model risk governance in Domino using policies, bundles, and evidence. Covers creating governance bundles, attaching model artifacts and MLflow results as evidence, progressing through policy stages, and documenting findings. Use when the user mentions governance, compliance, bundles, policies, model risk management, SR 11-7, NIST AI RMF, or audit trails.
+description: Manage model risk governance in Domino using policies, bundles, evidence, findings and approvals through the Governance API (/api/governance/v1). Covers creating bundles, attaching evidence (registered model versions, project files and reports, dataset snapshot files, endpoints, NetApp Volume snapshot files, Flow artifacts), answering policy evidence questions, progressing through policy stages, approvals, findings, audit export and policy lifecycle. Use when the user mentions governance, compliance, bundles, policies, model risk management, SR 11-7, NIST AI RMF, approvals, findings, or audit trails.
 ---
 
 # Domino Governance Skill
 
-This skill provides knowledge for managing model risk governance in Domino Data Lab using the Governance API.
+Applies to Domino 6.3 and Domino Cloud.
 
 ## Configuration
 
-```bash
-TOKEN=$(curl -s http://localhost:8899/access-token)
-# Governance is NOT routed through $DOMINO_API_HOST (internal Kubernetes).
-# Derive the external cluster URL from the JWT iss claim — works in any workspace type.
-CLUSTER_URL=$(echo $TOKEN | cut -d'.' -f2 | python3 -c "
-import sys, base64, json, re
-p = sys.stdin.read().strip()
-p += '=' * (-len(p) % 4)
-print(re.sub(r'/auth/realms/.*', '', json.loads(base64.b64decode(p))['iss']))
-")
-BASE="$CLUSTER_URL/api/governance/v1"
-```
+Auth: [domino-api-intro](../domino-api-intro/SKILL.md#authentication). In a run use `DOMINO_API_PROXY` (no header) or a bearer from `http://localhost:8899/access-token`; outside a run a Personal Access Token or service account token as `Authorization: Bearer`. Legacy user API keys (`X-Domino-Api-Key`, `DOMINO_USER_API_KEY`) are deprecated; never use them.
+
+Governance REST lives at `/api/governance/v1/*`. Pick the base where `GET $BASE/policy-overviews` returns **HTTP 200** (try the table rows in order):
+
+| Context | Base | Authorization |
+|---------|------|----------------|
+| In-run, `DOMINO_API_PROXY` set (JWT credential propagation) | `$DOMINO_API_PROXY/api/governance/v1` | None (proxy adds starting-user JWT) |
+| In-run, no proxy, governance on platform API gateway | `$DOMINO_USER_HOST` or `$DOMINO_API_HOST` + `/api/governance/v1` | Bearer from `GET http://localhost:8899/access-token` |
+| In-run but proxy or sidecar returns **404** on `/api/governance/v1/*` (the in-run base does not route governance) | public deployment URL + `/api/governance/v1` | Bearer PAT or service account token |
+| Outside any run | public deployment URL + `/api/governance/v1` | Bearer PAT or service account token |
+
+Do **not** scrape the JWT `iss` claim to derive the cluster URL. Prefer `DOMINO_API_PROXY` in-run when step 1 succeeds; otherwise step 2 or 3.
+
+Shell setup for the rows: [API-GOVERNANCE.md](./API-GOVERNANCE.md#base-url-discovery).
+
+**Examples in the reference files:** send `Authorization: Bearer $TOKEN` only when `TOKEN` is set (rows 2 to 4); on the proxy path leave it unset. The curl blocks use a shell conditional for that.
 
 ## Key Concepts
 
-### Policy (Template)
-A **policy** is a reusable governance template that defines the stages, evidence requirements, and approval gates a model must pass through. Examples: SR 11-7, NIST AI RMF, internal model risk frameworks. Policies are created by administrators in the Domino UI.
+Definitions of policy (template), bundle (living document), evidence (proof) and finding (issue): [STANDARD-WORKFLOW.md](./STANDARD-WORKFLOW.md#key-concepts).
 
-### Bundle (Living Document)
-A **bundle** is the compliance document for a *specific model* in a *specific project*. It follows a policy and accumulates evidence as the model progresses through development, validation, and approval. One project can have multiple bundles (e.g., one per model version).
+## Reference files
 
-### Evidence (Proof)
-Evidence comes in two forms:
-1. **Attachments** — Files, model versions, and reports attached to the bundle (visible in the "Attachments" tab)
-2. **EvidenceSet answers** — Responses to policy-defined form questions (visible in the "Evidence" tab for each stage)
+When automating a specific flow, open the matching workflow file first instead of re-deriving from the 8-step section below.
 
-### Finding (Issue)
-A **finding** documents a problem, risk, or concern discovered during review. Findings have severity levels and are tracked as part of the audit trail.
-
-## Related Documentation
-
+- [STANDARD-WORKFLOW.md](./STANDARD-WORKFLOW.md) - Full request bodies for the 8-step workflow, and where bundles appear in the Domino UI
+- [API-GOVERNANCE.md](./API-GOVERNANCE.md) - Endpoint table, bundle fields, base-URL shell setup, compute-policy polling
 - [BUNDLE-LIFECYCLE.md](./BUNDLE-LIFECYCLE.md) - Stage sequences, creating bundles, progressing stages
 - [EVIDENCE-WORKFLOW.md](./EVIDENCE-WORKFLOW.md) - Attachment types, evidence submission, findings
-
-## Governance API Reference
-
-All endpoints are under `$BASE` (`/api/governance/v1`). Authenticate with `Authorization: Bearer $TOKEN`.
-
-| Endpoint | Method | Purpose |
-|----------|--------|---------|
-| `/policy-overviews` | GET | List available policy templates |
-| `/bundles` | POST | Create a new governance bundle |
-| `/bundles/{bundleId}` | GET | Inspect bundle: stages, attachments, status |
-| `/bundles` | GET | List all bundles (filter by `projectId`) |
-| `/bundles/{bundleId}/attachments` | POST | Attach evidence (model versions, reports) |
-| `/rpc/submit-result-to-policy` | POST | Answer policy evidence questions |
-| `/bundles/{bundleId}/stages/{stageId}` | PATCH | Update stage status (In Progress, Complete) |
-| `/policies/{policyId}` | GET | Get full policy with evidenceSet IDs |
-| `/findings` | POST | Create a finding (issue) during review |
+- [ONBOARD-MODEL.md](./ONBOARD-MODEL.md) - Onboard a model into governance
+- [EVIDENCE-ROUND-TRIP.md](./EVIDENCE-ROUND-TRIP.md) - Evidence round-trip with findings
+- [APPROVAL-GATE.md](./APPROVAL-GATE.md) - Approval gate automation
+- [MONITORING-REREVIEW.md](./MONITORING-REREVIEW.md) - Monitoring-driven re-review
+- [RECERTIFICATION-BULK.md](./RECERTIFICATION-BULK.md) - Periodic recertification (bulk)
+- [AUDIT-EXPORT.md](./AUDIT-EXPORT.md) - Regulatory audit export
+- [POLICY-LIFECYCLE.md](./POLICY-LIFECYCLE.md) - Policy lifecycle and rollout
+- [MODEL-RETIREMENT.md](./MODEL-RETIREMENT.md) - Model retirement
+- [WAIVER-EXCEPTION.md](./WAIVER-EXCEPTION.md) - Exception or waiver
+- [READ-CONTEXT.md](./READ-CONTEXT.md) - Read governance context for downstream use
 
 ## Standard 8-Step Governance Workflow
 
-Follow these steps when setting up governance for a model:
+All endpoints are under `$BASE` (`/api/governance/v1`); endpoint table and bundle field semantics: [API-GOVERNANCE.md](./API-GOVERNANCE.md#endpoints). Full request bodies for each step: [STANDARD-WORKFLOW.md](./STANDARD-WORKFLOW.md).
 
-### Step 1: Discover Policies
-```bash
-curl -s "$BASE/policy-overviews" \
-  -H "Authorization: Bearer $TOKEN"
-```
-Review available templates. Note the `id` of the policy you want to use.
-
-### Step 2: Get the Project ID
-The project ID is needed to create a bundle. Use the `DOMINO_PROJECT_ID` environment variable (available inside Domino) or look it up via the gateway API.
-
-### Step 3: Create a Bundle
-```bash
-curl -X POST "$BASE/bundles" \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "projectId": "your-project-id",
-    "name": "My Model v1.0",
-    "description": "Description of the model being governed",
-    "policyId": "policy-uuid"
-  }'
-```
-Save the returned `id` as your `BUNDLE_ID`.
-
-### Step 4: Inspect the Bundle
-```bash
-curl -s "$BASE/bundles/$BUNDLE_ID" \
-  -H "Authorization: Bearer $TOKEN"
-```
-This reveals the policy's stage structure, attachments, and approval status. **Note**: This does NOT return evidenceSet IDs — see Step 6 for how to discover those.
-
-### Step 5: Attach Evidence
-See [EVIDENCE-WORKFLOW.md](./EVIDENCE-WORKFLOW.md) for full details. Two attachment types are supported:
-
-```bash
-# Attach a registered model version
-curl -X POST "$BASE/bundles/$BUNDLE_ID/attachments" \
-  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  -d '{"type":"ModelVersion","identifier":{"name":"model-name","version":5},"name":"Display Name"}'
-
-# Attach a project file (notebook, report, etc.)
-curl -X POST "$BASE/bundles/$BUNDLE_ID/attachments" \
-  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  -d '{"type":"Report","identifier":{"branch":"main","commit":"abc...","source":"git","filename":"path/to/file"},"name":"Display Name"}'
-```
-
-### Step 6: Answer Evidence Questions (EvidenceSet)
-
-Evidence questions are the interactive forms shown in the Domino UI under each stage's "Evidence" tab. They are defined in the policy YAML as `evidenceSet` items.
-
-#### 6a. Discover EvidenceSet IDs
-
-EvidenceSet IDs are NOT in the bundle response. Fetch them from the **policy** endpoint:
-
-```bash
-curl -s "$BASE/policies/$POLICY_ID" \
-  -H "Authorization: Bearer $TOKEN"
-```
-
-The response contains `stages[]` → `evidenceSet[]` → `artifacts[]` with full UUIDs for each evidence item and artifact.
-
-#### 6b. Submit Answers
-
-```bash
-curl -X POST "$BASE/rpc/submit-result-to-policy" \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "bundleId": "bundle-uuid",
-    "policyId": "policy-uuid",
-    "evidenceId": "evidence-uuid",
-    "content": {
-      "artifact-uuid": "value"
-    }
-  }'
-```
-
-**Key details**:
-- Use `policyId` (NOT `policyVersionId`)
-- `evidenceId` is the evidence set item UUID (from policy response)
-- `content` is a map of `{artifactId: value}`
-- For **radio/textinput/textarea/select**: value is a string
-- For **checkbox/multiSelect**: value is an array of strings
-- Submit one artifact at a time per call, or multiple artifacts in the same evidence item together
-
-### Step 7: Progress Stages
-As evidence is collected and approvals obtained:
-```bash
-curl -X PATCH "$BASE/bundles/$BUNDLE_ID/stages/$STAGE_ID" \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"status": "Complete"}'
-```
-
-### Step 8: Document Findings (if any)
-```bash
-curl -X POST "$BASE/findings" \
-  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  -d '{
-    "bundleId": "bundle-uuid",
-    "policyVersionId": "policy-version-uuid",
-    "name": "Finding title",
-    "title": "Finding title",
-    "description": "Detailed description...",
-    "severity": "High",
-    "approver": {"id": "org-uuid", "name": "model-gov-org"},
-    "assignee": {"id": "user-uuid", "name": "username"}
-  }'
-```
-Get the `policyVersionId` and user/org IDs from the bundle response (Step 4).
-
-## Viewing in Domino UI
-
-After creating a bundle and attaching evidence, the bundle is visible in the Domino UI:
-**Project** > **Govern** > **Bundles** > click the bundle name
-
-The UI shows:
-- **Overview** — Stage progression and classification
-- **Evidence** tab (per stage) — Interactive forms for evidenceSet questions
-- **Attachments** tab — Files, model versions, and reports
-- **Findings** tab — Documented issues with severity
+1. **Discover policies** — `GET $BASE/policy-overviews`; note the `id` of the policy you want to use.
+2. **Get the project ID** — `DOMINO_PROJECT_ID` inside Domino, or look it up through the Projects API.
+3. **Create a bundle** — `POST $BASE/bundles` with `projectId`, `name`, `policyId` (attachments may be inline). Save the returned `id` as `BUNDLE_ID`.
+4. **Inspect the bundle** — `GET $BASE/bundles/$BUNDLE_ID` for stages, attachments and approval status.
+5. **Attach evidence** — `POST $BASE/bundles/$BUNDLE_ID/attachments` with `type` one of `ModelVersion`, `Report`, `DatasetSnapshotFile`, `Endpoint`, `NetAppVolumeSnapshotFile`, `FlowArtifact`, `FlowArtifactFile` and a type-specific `identifier` object (shapes in [EVIDENCE-WORKFLOW.md](./EVIDENCE-WORKFLOW.md#attachment-types)). MLflow runs are not an attachment type: attach the registered model version or a report file instead.
+6. **Answer evidence questions** — evidenceSet and artifact UUIDs come from `GET $BASE/policies/$POLICY_ID`; submit with `POST $BASE/rpc/submit-result-to-policy` using `policyId` (NOT `policyVersionId`) and `content` as `{artifactId: value}`. Only results with `isLatest: true` count as submitted evidence; drafts do not.
+7. **Progress stages** — `POST $BASE/rpc/publish-approval-event`, then `PATCH $BASE/bundles/$BUNDLE_ID` with `{"stage": ...}` when the policy requires it. `PATCH .../stages/{stageId}` updates **assignee** only. Re-fetch and verify `stage` or `currentStageInfo.status` changed. Do not advance while findings on the stage are open.
+8. **Document findings** — `POST $BASE/findings`; close with **PUT** `/findings/{id}` and `"status": "Done"` after the new evidence is submitted and recomputed ([API-GOVERNANCE.md](./API-GOVERNANCE.md#after-compute-policy-polling)).
 
 ## Documentation Reference
 
-Before writing or verifying any API call, use the cluster swagger to confirm current endpoint paths and field names. Use public docs for workflow context and field explanations.
+OpenAPI and route discovery: [API-SPECS.md](../domino-api-intro/API-SPECS.md) (public routes section). Published specs: `https://docs.domino.ai/api-specs/6.3/public-api.json` and `https://docs.domino.ai/api-specs/cloud/public-api.json`.
 
-**Governance API base:** External cluster URL only — `$DOMINO_API_HOST` (internal Kubernetes) does not route to this service. Derive the URL from the JWT `iss` claim (works in any workspace type).
-
-Fetch the governance swagger spec (requires bearer token):
-```bash
-TOKEN=$(curl -s http://localhost:8899/access-token)
-CLUSTER_URL=$(echo $TOKEN | cut -d'.' -f2 | python3 -c "
-import sys, base64, json, re
-p = sys.stdin.read().strip()
-p += '=' * (-len(p) % 4)
-print(re.sub(r'/auth/realms/.*', '', json.loads(base64.b64decode(p))['iss']))
-")
-curl -H "Authorization: Bearer $TOKEN" "$CLUSTER_URL/api/governance/swagger/doc.json"
-# Browser UI (must be logged in): $CLUSTER_URL/api/governance/swagger/index.html
-```
-
-**Public docs (workflow context and field explanations):**
-- [API Guide](https://docs.dominodatalab.com/en/latest/api_guide/f35c19/api-guide/)
+**Product docs:**
+- Governance overview: https://docs.domino.ai/cloud/platform-capabilities/features/governance (6.3: replace `cloud` with `6.3`)
+- Attachments: https://docs.domino.ai/cloud/platform-capabilities/features/governance/work-with-bundles/attachments
+- Governance API: https://docs.domino.ai/cloud/reference/api/governance-api

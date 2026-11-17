@@ -4,13 +4,15 @@ The nested ``claude -p`` was kept out of the plugin by two signals, and both can
 fail to arrive:
 
 * ``--setting-sources ''`` (#202) registers none of the user's hooks in the
-  child. An older CLI rejects the flag, and ``haiku.call_haiku`` then fails OPEN
+  child. An older CLI rejects the flag, and ``summarizer.call_haiku`` then fails OPEN
   — deliberately, because the alternative is no saves ever again — so the retry
   runs with the user's hooks live.
 * ``REMEMBER_NESTED_SUMMARIZER`` (#205) makes this plugin's own hooks no-op in
   the child. It is an environment variable, and a host that redacts env into
   spawned hook subprocesses erases it. This repo has precedent: #131 was
-  ``CLAUDE_CODE_OAUTH_TOKEN`` going missing exactly that way.
+  ``CLAUDE_CODE_OAUTH_TOKEN``, the host's own OAuth credential, going missing
+  exactly that way (``pipeline.summarizer`` never lists it in the parent-session
+  strip, ``_without_session_env``, so the child inherits it).
 
 When both fail there is nothing left. @ehutchinsonSFDC reported the result on
 0.9.0: ~19 live ``claude`` processes, four of them summarizers, +7 new
@@ -66,7 +68,7 @@ from pathlib import Path
 #: result) and 1 (a failure) so bash can act on the difference.
 EXIT_SPAWN_DECLINED = 3
 
-RUNTIME_DIR_ENV = "REMEMBER_RUNTIME_DIR"
+
 MAX_CONCURRENT_ENV = "REMEMBER_MAX_CONCURRENT_SUMMARIZERS"
 MAX_PER_MINUTE_ENV = "REMEMBER_MAX_SUMMARIZERS_PER_MIN"
 
@@ -102,13 +104,15 @@ def record_dir() -> Path:
     lifted simply by resolving a different project, which is the shape of the
     bug.
     """
-    base = os.environ.get(RUNTIME_DIR_ENV, "").strip()
+    base = os.environ.get("REMEMBER_RUNTIME_DIR", "").strip()
     root = Path(base) if base else Path.home() / ".remember" / "run"
     return root / "summarizers"
 
 
-def _positive_int(name: str, default: int) -> int:
-    raw = os.environ.get(name, "").strip()
+def _positive_int(value: str, default: int) -> int:
+    """The VALUE of a cap knob as a positive int, else ``default``. Each
+    caller reads its variable by literal name (#898 round 10)."""
+    raw = value.strip()
     if raw.isdigit() and int(raw) >= 1:
         return int(raw)
     return default
@@ -150,8 +154,8 @@ def _pid_alive(pid: int) -> bool:
 def _parse(path: Path) -> dict[str, str]:
     fields: dict[str, str] = {}
     for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
-        key, _, value = line.partition("=")
-        fields[key.strip()] = value.strip()
+        name, _, value = line.partition("=")
+        fields[name.strip()] = value.strip()
     return fields
 
 
@@ -218,8 +222,10 @@ def claim(timeout: float = 120.0) -> _Slot:
             nothing was billed; the caller must report this and leave the span
             alone rather than treat it as a failed summary.
     """
-    max_concurrent = _positive_int(MAX_CONCURRENT_ENV, DEFAULT_MAX_CONCURRENT)
-    max_per_minute = _positive_int(MAX_PER_MINUTE_ENV, DEFAULT_MAX_PER_MINUTE)
+    max_concurrent = _positive_int(
+        os.environ.get("REMEMBER_MAX_CONCURRENT_SUMMARIZERS", ""), DEFAULT_MAX_CONCURRENT)
+    max_per_minute = _positive_int(
+        os.environ.get("REMEMBER_MAX_SUMMARIZERS_PER_MIN", ""), DEFAULT_MAX_PER_MINUTE)
     stale_after = timeout + STALE_GRACE_SECONDS
 
     directory = record_dir()

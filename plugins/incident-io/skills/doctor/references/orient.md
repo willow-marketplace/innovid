@@ -53,8 +53,8 @@ These rules keep it honest:
   wrapping is outside the report's control. Move overflow into a finding.
 - Every line is sourced from a tool this pass actually called, or reads
   `unknown — <how to find out>`.
-- Glyphs come from the rollup's own judgments (attention reasons, reconnection
-  needed, low success rate), never recomputed here — orientation summarizes, the
+- Glyphs come from the rollup's own judgments (each source's status and its
+  outstanding callouts), never recomputed here — orientation summarizes, the
   review verifies.
 - A connection with no queries in the stats window is "never queried", not healthy
   and not unhealthy — the same correction telemetry.md applies.
@@ -77,8 +77,10 @@ orientation found, never a fixed list — each with an honest cost signal:
   their anchors and clustered into briefs. Between the two.
 - **Everything** — all applicable legs, the full report.
 
-Then stop: the block plus the menu is the reply, and the user's pick starts the
-review. Don't start gathering while they decide.
+Mark one as recommended — whichever the rollup flagged; the local plugin's deep review
+where nothing did — and end with `**Next step:** pick a review — <recommended> is
+what I'd run`. Then stop: the block plus the menu is the reply, and the user's pick
+starts the review. Don't start gathering while they decide.
 
 ## When to skip the offer
 

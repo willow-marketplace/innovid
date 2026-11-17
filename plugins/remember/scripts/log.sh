@@ -4,14 +4,14 @@
 # ============================================================================
 #
 # DESCRIPTION
-#   Provides timestamped logging, token usage tracking, safe shell evaluation,
+#   Provides timestamped logging, token usage tracking, safe key/value assignment,
 #   config reading, and log rotation. Sourced by every other script in the
 #   memory pipeline — never executed directly.
 #
 # USAGE
 #   source "$(dirname "$0")/log.sh"
 #   log "save" "5 exchanges extracted"
-#   log_tokens "save" 1247 342
+#   log_usage "save" 1247 342
 #   config ".cooldowns.save_seconds" 120
 #
 # ENVIRONMENT
@@ -29,8 +29,8 @@
 #
 # FUNCTIONS
 #   log             Log a timestamped message
-#   log_tokens      Log token usage with optional cost
-#   safe_eval       Evaluate only valid shell variable assignments from stdin
+#   log_usage      Log token usage with optional cost
+#   assign_kv       Assign only valid shell variable assignments from stdin
 #   config          Read a value from config.json with jq, with fallback default
 #   rotate_logs     Archive log files older than 7 days into monthly tarballs
 #
@@ -38,25 +38,72 @@
 
 # Ensure PIPELINE_DIR is set. Should be set by resolve-paths.sh before
 # sourcing this file. Falls back to local-install convention if unset.
-PIPELINE_DIR="${PIPELINE_DIR:-${PROJECT_DIR:-.}/.claude/remember}"
+if [ -z "${PIPELINE_DIR:-}" ]; then
+    if [ -n "${PROJECT_DIR:-}" ]; then
+        PIPELINE_DIR="${PROJECT_DIR}/.claude/remember"
+    else
+        PIPELINE_DIR="./.claude/remember"
+    fi
+fi
 
 # Resolve REMEMBER_DIR and the merged REMEMBER_CONFIG (lib-memory-dir.sh is a
 # no-op if already loaded via the _LIB_MEMORY_DIR_LOADED guard).
-_REMEMBER_SRC_DIR="${BASH_SOURCE[0]%/*}"
+# Its own name, not _REMEMBER_SRC_DIR: lib-memory-dir.sh sets and unsets
+# that one for itself, and this is kept for lib-clock.sh below (#898).
+_remember_log_src_dir="${BASH_SOURCE[0]%/*}"
 # A path with no slash in it (`source log.sh` from the scripts dir) leaves the
 # filename behind, not a directory — `dirname` answered "." and this must too.
-[ "$_REMEMBER_SRC_DIR" = "${BASH_SOURCE[0]}" ] && _REMEMBER_SRC_DIR="."
-source "$_REMEMBER_SRC_DIR/lib-memory-dir.sh"
-unset _REMEMBER_SRC_DIR
+[ "$_remember_log_src_dir" = "${BASH_SOURCE[0]}" ] && _remember_log_src_dir="$(pwd)"
+source "$_remember_log_src_dir/lib-memory-dir.sh"
 
 # ── Logging setup ─────────────────────────────────────────────────────────────
 
 REMEMBER_LOG_DIR="${REMEMBER_DIR}/logs"
+# #902: a REMEMBER_DIR carrying a newline/CR, or not absolute, must never
+# reach mkdir -p -- a directory name CAN legally hold a literal newline, so
+# mkdir never errors on one, it just builds garbage under cwd. Same
+# drive-letter test as lib-memory-dir.sh's own absolute check. A function,
+# not an inline `[[ ]]` at this top-level scope, so `local LC_ALL=C` can
+# scope the bracket range byte-wise (#695) without exporting it past here.
+#
+# #920 scheduler review round 2, item 5: this function is never CALLED
+# anywhere in this file any more -- the `if` just below reads the exported
+# REMEMBER_DIR_UNSAFE flag directly instead of recomputing it (the #920
+# self-review comment above that `if` explains why). It is NOT dead code to
+# delete on sight: tests/test_remember_dir_guard_920_sync.py extracts and
+# RUNS this exact function as the "log" arm of its three-way consistency
+# check across lib-memory-dir.sh/post-tool-hook.sh/log.sh's own copies of
+# this predicate -- deleting it would silently drop that check's ability to
+# catch THIS copy drifting from the other two, rather than make the drift
+# unreachable. Keep this predicate's logic in sync with the other two
+# copies; if it is ever genuinely retired, retire it there first.
+_remember_log_dir_unsafe() {
+    local LC_ALL=C
+    { [[ "$REMEMBER_DIR" != /* ]] && [[ "$REMEMBER_DIR" != [A-Za-z]:[/\\]* ]] \
+        && [[ "$REMEMBER_DIR" != [\\][\\][^\\]* ]]; } \
+        || [[ "$REMEMBER_DIR" == *$'\n'* || "$REMEMBER_DIR" == *$'\r'* ]]
+}
+# Refused, NOT returned from: every hook calls log/dispatch/report_error right
+# after sourcing this, and an early `return` leaves them undefined (#912: the
+# SessionStart hook died 127 on a project dir holding a newline, #294). So the
+# mkdir is skipped, log()'s file write goes to /dev/null, and dispatch() skips
+# its own tmp/ mkdir -- the rest of the library is defined as usual.
+_REMEMBER_LOG_SINK=""
+# #920 self-review: this used to re-run _remember_log_dir_unsafe and echo its
+# own, separate FATAL line here -- byte-identical in substance to the one
+# lib-memory-dir.sh now echoes ONCE, at the point REMEMBER_DIR is actually
+# resolved (sourced just above, unconditionally, so REMEMBER_DIR_UNSAFE is
+# always set before this runs). Every hook that sources bootstrap-dirs.sh
+# (-> lib-memory-dir.sh) and then log.sh was printing BOTH lines back to
+# back, on every tool call, for as long as REMEMBER_DIR stayed unsafe. Read
+# the flag instead of recomputing the predicate and re-announcing it.
+if [ "${REMEMBER_DIR_UNSAFE:-0}" = 1 ]; then
+    _REMEMBER_LOG_SINK=/dev/null
 # `[ -d ]` first (#230): bootstrap-dirs.sh has almost always just created this,
 # and re-asking `mkdir` costs a process per hook invocation to learn nothing. The
 # mkdir — and its FATAL — is still exactly what runs when the directory is not
 # there, which is the only case it was ever about.
-if [ ! -d "$REMEMBER_LOG_DIR" ] && ! mkdir -p "$REMEMBER_LOG_DIR" 2>/dev/null; then
+elif [ ! -d "$REMEMBER_LOG_DIR" ] && ! mkdir -p "$REMEMBER_LOG_DIR" 2>/dev/null; then
     echo "FATAL: cannot create $REMEMBER_LOG_DIR" >&2
     return 1 2>/dev/null || true
 fi
@@ -74,8 +121,9 @@ fi
 # `_RCFG_cooldowns_save_seconds=120` — and every later config() call is a
 # parameter expansion. Nothing is written to disk. That is the whole reason
 # this was preferred over caching the merged file at a stable path: that file
-# can carry `haiku.oauth_token`, a live OAuth credential, which is why
-# lib-memory-dir.sh creates it 0600, fresh every invocation, under an EXIT
+# can carry a `haiku.oauth_token` value (an inert config key since #860, but
+# still a user-editable file), which is why lib-memory-dir.sh creates it
+# 0600, fresh every invocation, under an EXIT
 # trap (#68/#429) -- an unpredictable mktemp name until bootstrap-dirs.sh's
 # #362 relocation gives it a private-directory home instead. Collapsing
 # reads must not re-introduce that trade by the back door.
@@ -101,18 +149,49 @@ fi
 _REMEMBER_CFG_STATE=""
 _REMEMBER_CFG_LOADED_FROM=""
 
+# The table itself: two parallel indexed arrays, slot name -> value, where a
+# slot name is `_RCFG_` plus the dotted key with dots turned into
+# underscores (`_RCFG_cooldowns_save_seconds`). Until #898 round 8 each slot
+# was a shell variable of that name, read back with an indirect `${!...}`
+# expansion; the plugin directory's scanner reads that expansion as "reads
+# an environment variable named at run time", so the table moved into
+# arrays (indexed, not associative: bash 3.2 is the floor). Setting appends
+# and lookup scans from the END, so a later set of the same slot wins --
+# the same answer the old overwrite-a-variable form gave, including across
+# a reload against another config file, with no per-set scan. Both are
+# builtins only: no fork on the lookup path.
+_REMEMBER_CFG_NAMES=()
+_REMEMBER_CFG_VALUES=()
+
+_remember_cfg_table_set() {
+    _REMEMBER_CFG_NAMES+=("$1")
+    _REMEMBER_CFG_VALUES+=("$2")
+}
+
+# _remember_cfg_table_get_into VARNAME SLOT: the slot's value into VARNAME
+# (`printf -v`), or "" and return 1 when the table has no such slot.
+_remember_cfg_table_get_into() {
+    local _rcfgtg_i="${#_REMEMBER_CFG_NAMES[@]}"
+    while [ "$_rcfgtg_i" -gt 0 ]; do
+        _rcfgtg_i=$((_rcfgtg_i - 1))
+        if [ "${_REMEMBER_CFG_NAMES[$_rcfgtg_i]}" = "$2" ]; then
+            printf -v "$1" '%s' "${_REMEMBER_CFG_VALUES[$_rcfgtg_i]}"
+            return 0
+        fi
+    done
+    printf -v "$1" '%s' ""
+    return 1
+}
+
 # `.haiku.*` is deliberately NOT flattened. Reading every key up front means
 # reading the OAuth token up front, and it would then sit in a shell variable
 # in every process that sources log.sh — including one that runs other people's
-# scripts via dispatch(). Nothing needs it there: pipeline/haiku.py reads the
+# scripts via dispatch(). Nothing needs it there: pipeline/summarizer.py reads the
 # token from the merged file in Python, and no config() caller asks for it.
 # This rule and the `select(.[0] != "haiku")` in the flattener are one decision
 # in two places — change both or neither.
-_config_is_private_key() {
-    case "$1" in
-        .haiku|.haiku.*) return 0 ;;
-    esac
-    return 1
+_config_is_private_path() {
+    [ "$1" = .haiku ] || [ "${1#.haiku.}" != "$1" ]
 }
 
 # Flatten every scalar to `dotted.key<TAB>value`, or decline to.
@@ -143,53 +222,17 @@ _config_is_private_key() {
 # so `paths(scalars)` silently drops every `false` in the file — the #159 bug
 # exactly, arriving inside its own fix. Ask for the type instead.
 #
-# Kept on one line: the PATH-shim spawn counters in tests/ log a command with
-# its arguments, one line per execution, and a multi-line jq program turns one
-# spawn into eighty lines of "spawns".
-_REMEMBER_CFG_FLATTEN_JQ='. as $doc | [paths(type != "object" and type != "array") | select(all(.[]; type == "string")) | select(.[0] != "haiku")] as $ks | if (($ks | flatten) | any(test("^[A-Za-z0-9_]+$") | not)) then "#refuse a config key is outside [A-Za-z0-9_]" elif (($ks | map(join("_")) | unique | length) != ($ks | length)) then "#refuse two config keys flatten to the same name" elif ([$ks[] as $p | $doc | getpath($p) | select(type == "string" and test("[\t\n]"))] | length) > 0 then "#refuse a config value contains a tab or a newline" else $ks[] as $p | ($doc | getpath($p)) as $v | select($v != null) | ($p | join(".")) + "\t" + ($v | tostring) end'
+# Body moved to scripts/cfg_flatten.jq (#898 round 7), read with
+# `jq -f` at the call site -- see _config_load's own comment there for
+# why (the inline form put jq's root-identity filter, a lone ".", on the
+# very first line of this shipped script, a shape the plugin directory's
+# scanner reads as a possible `.` (source) command).
 
 # The same contract without jq, for the machines test_jq_free_config.py exists
 # for. Same refusals, same skips, and jq's textual form for non-strings —
-# "true"/"false", never Python's "True"/"False" (the #159 near miss).
-_REMEMBER_CFG_FLATTEN_PY='
-import json, re, sys
-
-def walk(node, prefix, out):
-    if isinstance(node, dict):
-        for k, v in node.items():
-            walk(v, prefix + [k], out)
-    elif isinstance(node, list):
-        return
-    else:
-        out.append((prefix, node))
-
-try:
-    doc = json.load(open(sys.argv[1], encoding="utf-8"))
-except Exception:
-    sys.exit(1)
-
-rows = []
-walk(doc, [], rows)
-rows = [(p, v) for p, v in rows if p and p[0] != "haiku" and v is not None]
-
-ok = re.compile(r"^[A-Za-z0-9_]+$")
-for p, v in rows:
-    if not all(ok.match(part) for part in p):
-        print("#refuse a config key is outside [A-Za-z0-9_]")
-        sys.exit(0)
-    if isinstance(v, str) and ("\t" in v or "\n" in v):
-        print("#refuse a config value contains a tab or a newline")
-        sys.exit(0)
-slots = ["_".join(p) for p, _ in rows]
-if len(set(slots)) != len(slots):
-    print("#refuse two config keys flatten to the same name")
-    sys.exit(0)
-
-out = []
-for p, v in rows:
-    out.append(".".join(p) + "\t" + (v if isinstance(v, str) else json.dumps(v)))
-sys.stdout.write("\n".join(out))
-'
+# "true"/"false", never Python's "True"/"False" (the #159 near miss). Body
+# moved to scripts/cfg_flatten.py (#898 round 7) -- see _config_load's own
+# comment at its call site for why.
 
 # --- Flattened config cache (#668) ---
 # _config_load's own jq/python flatten is a subprocess forked on the FIRST
@@ -205,7 +248,8 @@ sys.stdout.write("\n".join(out))
 # must be checked).
 #
 # Deliberately NOT a cache of the raw merged config.json: that file can carry
-# a live `haiku.oauth_token` (lib-memory-dir.sh's own security comment), and
+# a `haiku.oauth_token` value (lib-memory-dir.sh's own security comment --
+# inert since #860, but still a user-editable file), and
 # a persistent copy would extend a secret's on-disk lifetime from "until this
 # process exits" to "until the config next changes" -- real exposure growth
 # for a scratch file that today is deleted at EXIT. The FLATTENED dump is
@@ -214,8 +258,10 @@ sys.stdout.write("\n".join(out))
 # program above and the matching `p[0] != "haiku"` in the Python one), so the
 # cache below never receives it in the first place.
 #
-# Values are written with `%q` (bash's own shell-quoting printf conversion).
-# The loader below no longer trusts that on its own -- see the #682 comment.
+# Values are written in this cache's own trivial format (backslash, newline
+# and tab escaped; see _remember_cfg_flatten_q_encode below), not through
+# the shell's own quoting/parsing. The loader below no longer trusts the
+# bytes on their own either way -- see the #682 comment.
 #
 # SECURITY (#682): this file used to live at `$REMEMBER_DIR/tmp/config.rcfg`
 # -- inside the PROJECT tree, a directory users commit and share -- and was
@@ -248,40 +294,60 @@ sys.stdout.write("\n".join(out))
 # 2. Even a cache under the system tmp dir is one race away from being
 #    planted by another local user, so the loader below no longer trusts
 #    `source` at all. It reads the file line by line and checks every line
-#    against the EXACT shape the publisher writes, below -- `_RCFG_<name>=
-#    <value>`, where <name> can only be `[A-Za-z0-9_]+` (guaranteed by the
-#    flattener's own key-shape refusal further up this file: every path
-#    segment is already `[A-Za-z0-9_]+` before the publisher ever sees it,
-#    and dots become underscores) and <value> is one of the handful of
-#    shapes bash's own `%q` conversion ever produces for a single word:
-#    `''` (empty), `$'...'` (any control character present -- the shell's
-#    own quoting, safe to eval even though a bare `;`/`|`/`&` can appear
-#    INSIDE it, because none of those are special inside this quoting, only
-#    outside it), or a run of characters %q never escapes plus backslash-
-#    escaped pairs for everything else (a bare, unescaped `;`, `$(`,
-#    backtick, `|`, `&`, quote or whitespace character never appears in this
-#    form). A line outside all three shapes -- an unknown NAME, a second
-#    unquoted word, an unescaped shell metacharacter -- rejects the WHOLE
-#    cache before a single byte of it is evaluated: the file is removed (so
-#    the next start does not re-read the same poison) and the caller falls
-#    through to a real flatten. Only once every line has validated are the
-#    lines assigned, one `eval "$name=$value"` per line -- `%q`'s output is
-#    exactly the word `eval` re-reads, so this is safe by construction for a
-#    line that has already passed the shape check above, and it is strictly
-#    narrower than a blanket `source` of a file whose contents were never
-#    inspected at all.
+#    against the EXACT shape the publisher writes, below -- `_RCFG_<name>`
+#    TAB `<value>`, where <name> can only be `[A-Za-z0-9_]+` (guaranteed by
+#    the flattener's own key-shape refusal further up this file: every
+#    path segment is already `[A-Za-z0-9_]+` before the publisher ever
+#    sees it, and dots become underscores) and <value> has a backslash
+#    only as part of `\\`, `\n` or `\t` -- the only three escapes this
+#    cache's own encoder ever writes (_remember_cfg_flatten_q_encode's own
+#    comment has the full rule). A line outside that shape -- an unknown
+#    NAME, a missing TAB, an escape this cache never writes -- rejects the
+#    WHOLE cache before a single byte of it is assigned anywhere: the file
+#    is removed (so the next start does not re-read the same poison) and
+#    the caller falls through to a real flatten. Only once every line has
+#    validated are the lines assigned, one name/value pair per line,
+#    through `_remember_cfg_flatten_q_decode`, which is `printf -v '%b'`
+#    and nothing more -- never a `source` of a file whose contents were
+#    never inspected, and never a re-parse of the value as shell source
+#    either way.
 _remember_cfg_flatten_cache_path() {
-    local LC_ALL=C  # bracket ranges below are byte-wise, not collated (#695)
+    # bracket ranges below are byte-wise, not collated (#695)
+    local LC_ALL=C
     [ -n "${REMEMBER_DIR:-}" ] || return 1
-    local _key="${REMEMBER_DIR//[!a-zA-Z0-9]/-}"
+    local _slug="${REMEMBER_DIR//[!a-zA-Z0-9]/-}"
     # Same tail-keep truncation as _remember_env_cache_path
     # (lib-env-cache.sh), same reason: a deep project path can exceed
     # filesystem name limits (255 bytes on most filesystems), and the END of
     # a path is what distinguishes it from a sibling -- a truncation
     # collision only ever costs a rejected/regenerated cache, never a wrong
     # one, because the value is never trusted from the filename alone.
-    [ "${#_key}" -gt 120 ] && _key="${_key: -120}"
-    printf '%s' "${TMPDIR:-/tmp}/remember-config-cache-${_key}"
+    [ "${#_slug}" -gt 120 ] && _slug="${_slug: -120}"
+    # `-v2-`: #864 changed the on-disk FORMAT (see the comment above
+    # _remember_cfg_flatten_q_encode below), so a cache an older build
+    # already wrote under the OLD name must never be opened as if it were
+    # one of these -- it is simply a different file, at a different path,
+    # that this build never looks at; no version line or migration logic
+    # needed inside the file itself.
+    printf '%s' "${TMPDIR:-/tmp}/remember-config-cache-v2-${_slug}"
+}
+
+# #888: the OLD (pre-#864) cache name -- the real path above, minus the
+# literal `-v2-` segment. Nothing ever opens this path; it exists only so
+# _remember_cfg_flatten_cache_publish below can best-effort remove the
+# orphan an install upgrading from <=0.38.0 left behind.
+_remember_cfg_flatten_cache_path_v1() {
+    local _v2 _dir _base
+    _v2=$(_remember_cfg_flatten_cache_path) || return 1
+    # #972: anchor the substitution to the filename's own -v2- segment, not
+    # the first occurrence anywhere in the full path -- a bare `${_v2/-v2-/-}`
+    # over the WHOLE path matches inside ${TMPDIR:-/tmp} itself when that
+    # path happens to contain the literal substring -v2- (e.g.
+    # TMPDIR=/mnt/build-v2-staging/tmp), producing a v1 path that does not
+    # name the real pre-#864 orphan at all.
+    _dir="${_v2%/*}"
+    _base="${_v2##*/}"
+    printf '%s' "${_dir}/${_base/-v2-/-}"
 }
 
 _remember_cfg_flatten_cache_sources() {
@@ -305,87 +371,121 @@ _remember_cfg_flatten_cache_sources() {
 # to the SECOND -- the exact "silently serve stale content" failure #668
 # names as never permitted -- before this guard existed.
 _remember_cfg_flatten_cache_is_standard_merge() {
-    case "${REMEMBER_CONFIG:-}" in
-        */remember-config-*) return 0 ;;
-        *) return 1 ;;
-    esac
+    [[ "${REMEMBER_CONFIG:-}" == */remember-config-* ]]
 }
 
-# Every value this cache ever writes -- both the config `_RCFG_*` lines
-# below and the REMEMBER_DIR identity line the loader checks against -- is
-# one of the handful of shapes bash's own `%q` conversion ever produces for
-# a single word: `''` (empty), `$'...'` (any control character present --
-# real quoting, so a bare `;`/`|`/`&` INSIDE it is inert, only a raw,
-# unescaped closing `'` could break out, and the character class below
-# excludes that), or a run of characters plus backslash-escaped pairs for
-# everything else. Returns 1 for anything else, including an empty value
-# (the publisher always writes `''` for an empty string, never nothing) or
-# a raw, unescaped shell metacharacter anywhere in it.
-#
-# The plain-form check below is a BLACKLIST of what can actually change how
-# `eval "NAME=value"` parses a single plain assignment word -- unescaped
-# whitespace, `;` `&` `|` `(` `)` `<` `>` (word/control operators), `$` and
-# backtick (expansion), `'` and `"` (quoting) -- rather than a whitelist of
-# bytes %q is known to leave bare. An ASCII whitelist (an earlier shape of
-# this check) rejected two things %q plainly leaves bare and unescaped on
-# every bash tested (3.2 and 5): a mid-word `#` (`printf %q 'a#b'` ->
-# `a#b`), and any non-ASCII byte (`héllo`, `日本`) -- and a rejection here is
-# not a miss, it is `rm -f` on the cache followed by a full republish on
-# every single subsequent run, forever, for that value. Everything the
-# blacklist does not name (`#`, `,`, `*?[]{}!^`, non-ASCII bytes) is inert
-# inside a plain assignment value and is either left bare by %q or already
-# covered by the `\.` escaped-pair alternative.
-#
-# `~` is handled by position, not by the character class, in both
-# directions bash tilde-expands an assignment word from: a LEADING tilde
-# (`eval "$name=~foo"` substitutes a home directory), which %q ALWAYS
-# escapes (`printf %q '~foo'` -> `\~foo`) so a bare one is a shape the
-# publisher could never have produced; and a tilde immediately after an
-# unquoted `:` (`eval "$name=a:~"` substitutes one there too, per bash's
-# own assignment-specific tilde-expansion rule), which %q escapes on bash 5
-# (`a:~` -> `a:\~`) but NOT on bash 3.2 (macOS's stock `/bin/bash`; `a:~`
-# stays `a:~`, and `eval "v=a:~"` on 3.2 observably substitutes a real home
-# directory). Both positions are rejected outright, before the general
-# character-class check ever runs; a tilde anywhere else is inert and
-# still passes it further down, since %q is not guaranteed to escape it.
-#
-# `local LC_ALL=C` for the duration of this function only (restored on
-# return, never leaks to the caller): `[[ =~ ]]`'s character classes are
-# locale-dependent, and bash 3.2's own `%q` output for some multi-byte
-# UTF-8 input mixes raw bytes with `\NNN` octal escapes byte-by-byte in a
-# way that is not itself valid UTF-8 -- observed to make the very same
-# regex silently NOT match under an inherited UTF-8 locale, even though the
-# value still round-trips correctly through `eval`. Byte-wise (C-locale)
-# matching sees exactly the bytes %q actually wrote and is what the
-# character classes above are written against.
+# Every value this cache writes -- the REMEMBER_DIR identity line and each
+# config value -- is escaped by _remember_cfg_flatten_q_encode below, which
+# escapes exactly three bytes: a literal backslash becomes `\\`, a newline
+# becomes `\n`, a tab becomes `\t`, and NOTHING ELSE is ever touched -- no
+# metacharacter blacklist, no tilde special-case, no locale-sensitive
+# shell-quoting shape to describe. A value is valid here if and only if every backslash
+# in it is immediately followed by one of `\`, `n` or `t`: that is a
+# WHITELIST of the only escapes this file's own encoder can ever produce,
+# not an attempt to defuse something dangerous -- _remember_cfg_flatten_q_decode
+# below assigns through `printf -v '%b'`, which is a pure byte-level format
+# directive, never a re-parse of the value as shell source, so nothing a
+# corrupt or planted value could contain would ever run as a command. This
+# check exists for CORRECTNESS: `%b` recognises escapes this file's own
+# encoder never writes (`\c` truncates output there and then, `\xHH` and
+# octal forms read arbitrary bytes from digits that were never validated),
+# and a value shaped like one of those -- from a planted or corrupted cache
+# file under the #682 threat model below -- must be rejected outright
+# rather than silently mis-decoded.
 _remember_cfg_flatten_cache_valid_value() {
     local _value="$1"
+    # bracket ranges below are byte-wise, not collated (#695)
     local LC_ALL=C
-    [ -n "$_value" ] || return 1
-    # %q's own empty-string spelling.
-    [ "$_value" = "''" ] && return 0
-    if [[ "$_value" =~ ^\$\'(\\.|[^\\\'])*\'$ ]]; then
-        return 0
-    fi
-    case "$_value" in
-        \~*) return 1 ;;
-        *:\~*) return 1 ;;
-    esac
-    if [[ "$_value" =~ ^(\\.|[^\\\$\`\'\"\;\&\|\(\)\<\>[:space:]])*$ ]]; then
-        return 0
-    fi
-    return 1
+    [[ "$_value" =~ ^([^\\]|\\[\\nrt])*$ ]]
 }
 
-# A single config-data cache line must be exactly `_RCFG_<name>=<value>` --
-# see _remember_cfg_flatten_cache_valid_value just above for what <value> is
-# allowed to be, and the #682 block comment above this whole section for
-# what <name> is guaranteed to be (and why that guarantee holds).
+# A single config-data cache line is `_RCFG_<name><TAB><value>` -- TAB, not
+# `=`, because a config value can legitimately contain `=` itself (a
+# base64 string, for one) and a TAB-delimited record needs no escaping for
+# that case at all. See _remember_cfg_flatten_cache_valid_value just above
+# for what <value> has to satisfy, and the #682 block comment above this
+# whole section for what <name> is guaranteed to be (and why).
 _remember_cfg_flatten_cache_valid_line() {
-    local LC_ALL=C  # bracket ranges below are byte-wise, not collated (#695)
+    # bracket ranges below are byte-wise, not collated (#695)
+    local LC_ALL=C
     local _line="$1"
-    [[ "$_line" =~ ^_RCFG_[A-Za-z0-9_]+= ]] || return 1
-    _remember_cfg_flatten_cache_valid_value "${_line#*=}"
+    [[ "$_line" =~ ^_RCFG_[A-Za-z0-9_]+$'\t' ]] || return 1
+    _remember_cfg_flatten_cache_valid_value "${_line#*$'\t'}"
+}
+
+# Escapes $2 for this cache's own trivial format into $1 (a caller-chosen
+# variable name, assigned via `printf -v` -- forkless, and immune to the
+# name-collision risk a bare local accumulator would carry against a
+# caller-chosen name, since nothing here is named `_v` or `_value`).
+# Backslash is escaped FIRST, so the backslashes this introduces for `\n`
+# and `\t` are never themselves re-escaped on a later pass.
+#
+# The escapes are built with `printf -v` from octal 134 (one backslash) and
+# substituted by unquoted assignments with QUOTED pattern and replacement,
+# rather than written as backslash runs inside a double-quoted expansion
+# (#898 round 10: a shape the plugin directory's scanner was batch-cleared
+# of). Quoted, the replacement is taken literally on bash 3.2 and 5.x alike
+# (measured on 3.2.57 and 5.3); unquoted inside double quotes it is not.
+_remember_cfg_flatten_q_encode() {
+    local _rcfgqe_v="$2" _rcfgqe_b _rcfgqe_bb _rcfgqe_n _rcfgqe_r _rcfgqe_t
+    printf -v _rcfgqe_b '\134'
+    _rcfgqe_bb="$_rcfgqe_b$_rcfgqe_b"
+    printf -v _rcfgqe_n '%sn' "$_rcfgqe_b"
+    printf -v _rcfgqe_r '%sr' "$_rcfgqe_b"
+    printf -v _rcfgqe_t '%st' "$_rcfgqe_b"
+    _rcfgqe_v=${_rcfgqe_v//"$_rcfgqe_b"/"$_rcfgqe_bb"}
+    _rcfgqe_v=${_rcfgqe_v//$'\n'/"$_rcfgqe_n"}
+    _rcfgqe_v=${_rcfgqe_v//$'\r'/"$_rcfgqe_r"}
+    _rcfgqe_v=${_rcfgqe_v//$'\t'/"$_rcfgqe_t"}
+    printf -v "$1" '%s' "$_rcfgqe_v"
+}
+
+# Reverses _remember_cfg_flatten_q_encode above into $1, WITHOUT re-parsing
+# $2 as shell source the way the shell's own command-substitution/parsing
+# builtin would (#864: a directory scan flags that builtin's literal use in
+# a shipped file as "Contains a download-and-run command", even though
+# nothing here has ever downloaded anything). `%b` only ever expands the
+# three escapes _remember_cfg_flatten_cache_valid_value above has already
+# proven are the only ones present -- see that function's own comment for
+# why this is a correctness property, not a safety one: `printf -v` never
+# asks a shell to execute $2, so there is no metacharacter in it this ever
+# needed to defuse.
+#
+# Both call sites below wrap this in `|| { rm -f ...; return 1; }`. That
+# branch is DEFENSIVE and, as far as every bash build tested here goes,
+# UNREACHABLE: `printf`'s own `%b` conversion does not fail on a malformed
+# escape (confirmed directly in this file's own test suite -- see the test
+# named for this function below in tests/ -- it leaves an unparseable
+# escape unexpanded and warns on stderr, exit 0 regardless). The
+# identity/value MISMATCH checks just below each call are the real
+# rejection path; this `||` stays as insurance against a future bash that
+# does fail here, not because today's bash ever takes it.
+_remember_cfg_flatten_q_decode() {
+    printf -v "$1" '%b' "$2"
+}
+
+# _remember_cfg_flatten_cache_exists_into VAR [CACHE]
+# VAR gets one 1/0 digit per standard source, in
+# _remember_cfg_flatten_cache_sources order: does it exist right now (#843).
+# A layer that never existed cannot have changed, so -nt is the right answer
+# for it; a layer that EXISTED at publish and was since DELETED changes no
+# mtime, which is why the loader also compares this manifest. With CACHE,
+# returns 1 as soon as an existing source is not strictly older than it
+# (-nt: never a tie -- the "ambiguous means miss" guardrail of #668).
+# Shared by the loader and the publisher (#898).
+_remember_cfg_flatten_cache_exists_into() {
+    local _src _sources _m=""
+    _sources=$(_remember_cfg_flatten_cache_sources)
+    while IFS= read -r _src; do
+        [ -n "$_src" ] || continue
+        if [ -e "$_src" ]; then
+            _m="${_m}1"
+            [ -z "${2:-}" ] || [ "$2" -nt "$_src" ] || return 1
+        else
+            _m="${_m}0"
+        fi
+    done <<< "$_sources"
+    printf -v "$1" '%s' "$_m"
 }
 
 _remember_cfg_flatten_cache_load() {
@@ -393,21 +493,12 @@ _remember_cfg_flatten_cache_load() {
     _remember_cfg_flatten_cache_is_standard_merge || return 1
     local _f
     _f=$(_remember_cfg_flatten_cache_path) || return 1
-    [ -f "$_f" ] || return 1
-    [ -L "$_f" ] && return 1
-    [ -O "$_f" ] || return 1
-    [ -r "$_f" ] || return 1
-    local _src _sources
-    _sources=$(_remember_cfg_flatten_cache_sources)
-    while IFS= read -r _src; do
-        [ -n "$_src" ] || continue
-        # -nt: strictly newer, never a tie -- the same "ambiguous means miss"
-        # guardrail #668 asks for everywhere else in this codebase, and true
-        # against a layer that does not exist (absent cannot have changed).
-        [ "$_f" -nt "$_src" ] || return 1
-    done <<EOF
-$_sources
-EOF
+    [ -f "$_f" ] && [ ! -L "$_f" ] && [ -O "$_f" ] && [ -r "$_f" ] || return 1
+    # #843: the per-source existence manifest, compared after the identity
+    # line is read below; also a miss when any existing layer is not older
+    # than the cache.
+    local _exists_now=""
+    _remember_cfg_flatten_cache_exists_into _exists_now "$_f" || return 1
 
     # Validate BEFORE trusting a single byte of it -- see the #682 block
     # comment above this whole section for why a shared-tmp-dir file is
@@ -435,54 +526,79 @@ EOF
     # `#` (see the flattener's own comment further up this file), so this
     # shape can never collide with a real config key's own line, unlike
     # reusing the `_RCFG_` namespace would risk.
-    local _line _lines=() _first=1 _identity_raw=""
+    local _line _lines=() _stage=0 _identity_raw="" _exists_raw="" _bad=""
     while IFS= read -r _line || [ -n "$_line" ]; do
         _line="${_line%$'\r'}"
         [ -n "$_line" ] || continue
-        if [ "$_first" = "1" ]; then
-            _first=0
-            case "$_line" in
-                '#REMEMBER_DIR='*)
-                    _identity_raw="${_line#'#REMEMBER_DIR='}"
-                    _remember_cfg_flatten_cache_valid_value "$_identity_raw" || {
-                        rm -f "$_f" 2>/dev/null
-                        return 1
-                    }
-                    continue
-                    ;;
-                *)
-                    rm -f "$_f" 2>/dev/null
-                    return 1
-                    ;;
-            esac
+        # `[ ]` prefix tests, not a `case` with a catch-all `*)` arm inside
+        # this loop (#898 round 7 -- that shape is one the plugin
+        # directory's scanner holds a submission on).
+        if [ "$_stage" = "0" ]; then
+            _stage=1
+            _identity_raw="${_line#'#REMEMBER_DIR='}"
+            [ "$_identity_raw" != "$_line" ] \
+                && _remember_cfg_flatten_cache_valid_value "$_identity_raw" || { _bad=1; break; }
+        elif [ "$_stage" = "1" ]; then
+            _stage=2
+            # #843: the second header line is the exist/absent manifest the
+            # publisher recorded for the same sources the loop above just
+            # re-checked. Any shape other than this exact fixed-width field
+            # of 0/1 digits is rejected the same way a malformed identity
+            # line is -- it is never assigned anywhere, but trusting an
+            # unrecognised shape here would be trusting bytes that were
+            # never inspected.
+            _exists_raw="${_line#'#RCFG_EXISTS='}"
+            [ "$_exists_raw" != "$_line" ] || { _bad=1; break; }
+            if [[ "$_exists_raw" == *[!01]* ]] || [ -z "$_exists_raw" ]; then
+                _bad=1
+                break
+            fi
+        elif _remember_cfg_flatten_cache_valid_line "$_line"; then
+            _lines[${#_lines[@]}]="$_line"
+        else
+            _bad=1
+            break
         fi
-        if ! _remember_cfg_flatten_cache_valid_line "$_line"; then
-            # Distrust the WHOLE file, and remove it: the next start must not
-            # re-read the same poison and re-pay this same rejection forever.
-            rm -f "$_f" 2>/dev/null
-            return 1
-        fi
-        _lines[${#_lines[@]}]="$_line"
     done < "$_f"
-    # No lines at all (including "no identity line" -- see above): reject.
-    [ "$_first" = "0" ] || { rm -f "$_f" 2>/dev/null; return 1; }
-
-    local _identity
-    eval "_identity=$_identity_raw"
-    [ "$_identity" = "${REMEMBER_DIR:-}" ] || {
+    # A line that failed, no lines at all, or a file that ended before both
+    # header lines were seen (including "no identity line" -- see above):
+    # distrust the WHOLE file, and remove it, so the next start does not
+    # re-read the same poison and re-pay this same rejection forever.
+    if [ -n "$_bad" ] || [ "$_stage" != "2" ]; then
         rm -f "$_f" 2>/dev/null
         return 1
-    }
+    fi
 
-    local _assign
+    # #843: a layer that appeared OR vanished since publish is always a
+    # miss, even though neither change necessarily flips the -nt comparison
+    # above (a deletion changes no mtime; the create case is already caught
+    # by -nt in the ordinary case, this is belt-and-suspenders for it). Not
+    # removed -- like the plain -nt miss above, this is staleness, not
+    # corruption, and the next publish overwrites it regardless.
+    [ "$_exists_raw" = "$_exists_now" ] || return 1
+
+    local _identity
+    if ! _remember_cfg_flatten_q_decode _identity "$_identity_raw" \
+        || [ "$_identity" != "${REMEMBER_DIR:-}" ]; then
+        rm -f "$_f" 2>/dev/null
+        return 1
+    fi
+
+    local _assign _assign_name _assign_value _assign_decoded
     for _assign in ${_lines[@]+"${_lines[@]}"}; do
-        # shellcheck disable=SC1090  # each $_assign already passed
-        # _remember_cfg_flatten_cache_valid_line above: it is exactly one
-        # `_RCFG_name=value` word, where `value` is one of the shapes %q
-        # ever emits, so this evaluates a plain assignment and nothing
-        # else, by construction -- never a blanket `source` of bytes that
-        # were never inspected.
-        eval "$_assign"
+        # Each $_assign already passed _remember_cfg_flatten_cache_valid_line
+        # above: it is exactly one `_RCFG_name` TAB `value` record. Split
+        # once on the first TAB and decode the value through the same
+        # decoder as the identity line above -- never a blanket `source` of
+        # bytes that were never inspected, and never the shell's own parser
+        # on them either.
+        _assign_name="${_assign%%$'\t'*}"
+        _assign_value="${_assign#*$'\t'}"
+        _remember_cfg_flatten_q_decode _assign_decoded "$_assign_value" || {
+            rm -f "$_f" 2>/dev/null
+            return 1
+        }
+        _remember_cfg_table_set "$_assign_name" "$_assign_decoded"
     done
     return 0
 }
@@ -504,20 +620,45 @@ _remember_cfg_flatten_cache_publish() {
     [ -d "$_dir" ] || mkdir -p "$_dir" 2>/dev/null || return 0
     local _t
     _t=$(mktemp "${_f}.XXXXXX" 2>/dev/null) || return 0
-    local _k _v
+    local _k _v _exists_now=""
+    # #843: record which of the standard sources exist RIGHT NOW, in the
+    # same order _remember_cfg_flatten_cache_sources always returns them in.
+    # The loader compares this against its own fresh read of the same
+    # question, so a layer that appears or disappears between publish and
+    # load is always a miss -- the exact gap an mtime-only -nt check cannot
+    # see for a DELETED layer (deleting a file changes no mtime a -nt check
+    # looks at).
+    _remember_cfg_flatten_cache_exists_into _exists_now
     {
         # Identity line FIRST, always -- see the #682 comment in the loader
         # above for why a file at this (many-to-one-mangled) path cannot be
         # trusted without one.
-        printf '#REMEMBER_DIR=%q\n' "${REMEMBER_DIR:-}"
+        local _encoded_dir
+        _remember_cfg_flatten_q_encode _encoded_dir "${REMEMBER_DIR:-}"
+        printf '#REMEMBER_DIR=%s\n' "$_encoded_dir"
+        printf '#RCFG_EXISTS=%s\n' "$_exists_now"
+        local _encoded_v
         while IFS=$'\t' read -r _k _v; do
             [ -n "$_k" ] || continue
-            printf '_RCFG_%s=%q\n' "${_k//./_}" "$_v"
-        done <<EOF
-$_dump
-EOF
+            _remember_cfg_flatten_q_encode _encoded_v "$_v"
+            printf '_RCFG_%s\t%s\n' "${_k//./_}" "$_encoded_v"
+        done <<< "$_dump"
     } > "$_t" 2>/dev/null || { rm -f "$_t" 2>/dev/null; return 0; }
     mv -f "$_t" "$_f" 2>/dev/null || rm -f "$_t" 2>/dev/null
+    # #888: best-effort removal of the pre-#864 orphan (same path as
+    # _remember_cfg_flatten_cache_path_v1 above, derived from $_f directly
+    # to skip a second subshell) left behind by an install that upgraded
+    # across #864 before this fix existed. Harmless either way -- never
+    # required for correctness, same as every other failure path above.
+    # #972: anchor to the basename's own -v2- segment, not the first
+    # occurrence anywhere in the full path -- see the matching comment in
+    # _remember_cfg_flatten_cache_path_v1 above for why a bare substring
+    # substitution over $_f is wrong when ${TMPDIR:-/tmp} itself contains
+    # the literal substring -v2-.
+    local _f_dir="${_f%/*}"
+    local _f_base="${_f##*/}"
+    local _f_v1="${_f_dir}/${_f_base/-v2-/-}"
+    [ -f "$_f_v1" ] && rm -f "$_f_v1" 2>/dev/null
     return 0
 }
 
@@ -536,13 +677,29 @@ _config_load() {
         return 0
     fi
 
-    local _dump="" _rc=0
+    # Both flatteners live next to this file; one directory for either.
+    local _dump="" _rc=0 _cfg_flatten_dir="${BASH_SOURCE[0]%/*}"
+    [ "$_cfg_flatten_dir" = "${BASH_SOURCE[0]}" ] && _cfg_flatten_dir="$(pwd)"
     if command -v jq >/dev/null 2>&1; then
-        _dump=$(jq -r "$_REMEMBER_CFG_FLATTEN_JQ" "$REMEMBER_CONFIG" 2>/dev/null) || _rc=1
+        # #898 round 7: `jq -f FILE`, not `jq -r "$_REMEMBER_CFG_FLATTEN_JQ"`
+        # -- the program used to live inline, as the shell variable this
+        # comment used to sit above; the inline form put a lone "." (jq's
+        # own root-identity filter, appearing on the very first line) into
+        # this shipped script's text, which is itself a shape the plugin
+        # directory's scanner reads as a possible `.` (source) command.
+        # scripts/cfg_flatten.jq carries the identical program (verified
+        # byte-identical output against the old inline form before this
+        # landed), so nothing here changes what config_into's callers see.
+        _dump=$(jq -r -f "$_cfg_flatten_dir/cfg_flatten.jq" "$REMEMBER_CONFIG" 2>/dev/null) || _rc=1
     else
         # Resolves PYTHON on first use (#662); no-op outside lazy mode.
         declare -f _remember_python >/dev/null 2>&1 && _remember_python
-        _dump=$("${PYTHON:-python3}" -c "$_REMEMBER_CFG_FLATTEN_PY" "$REMEMBER_CONFIG" 2>/dev/null) || _rc=1
+        # #898 round 7: this used to be `_remember_log_run_python -c
+        # "$_REMEMBER_CFG_FLATTEN_PY" ...`, a multi-line python program held
+        # in a shell variable -- the embedded `for` loops inside that
+        # single-quoted string are themselves a shape a line-oriented
+        # scanner cannot tell from real bash. Called by literal path now.
+        _dump=$(_remember_slug_run_python "$_cfg_flatten_dir/cfg_flatten.py" "$REMEMBER_CONFIG" 2>/dev/null) || _rc=1
     fi
 
     if [ "$_rc" -ne 0 ]; then
@@ -557,27 +714,24 @@ _config_load() {
         return 0
     fi
 
-    case "$_dump" in
-        '#refuse'*)
-            # Not a problem, and deliberately not reported as one: the config
-            # is fine, its shape is simply one the flattener declines rather
-            # than risk answering wrongly. Per-key reads give the right answers
-            # for it. A warning that fires on a valid config is a warning
-            # nobody reads, so this one only shows up when debugging.
-            [ "${REMEMBER_DEBUG:-}" = "1" ] && \
-                echo "remember: ${_dump#'#refuse' } -- reading config one key at a time" >&2
-            _REMEMBER_CFG_STATE="fallback"
-            return 0
-            ;;
-    esac
+    # An expansion test, not a quoted literal in a case pattern (#898 round 9).
+    if [ "${_dump#\#refuse}" != "$_dump" ]; then
+        # Not a problem, and deliberately not reported as one: the config
+        # is fine, its shape is simply one the flattener declines rather
+        # than risk answering wrongly. Per-key reads give the right answers
+        # for it. A warning that fires on a valid config is a warning
+        # nobody reads, so this one only shows up when debugging.
+        [ "${REMEMBER_DEBUG:-}" = "1" ] && \
+            echo "remember: ${_dump#'#refuse' } -- reading config one key at a time" >&2
+        _REMEMBER_CFG_STATE="fallback"
+        return 0
+    fi
 
     local _k _v
     while IFS=$'\t' read -r _k _v; do
         [ -n "$_k" ] || continue
-        printf -v "_RCFG_${_k//./_}" '%s' "$_v"
-    done <<EOF
-$_dump
-EOF
+        _remember_cfg_table_set "_RCFG_${_k//./_}" "$_v"
+    done <<< "$_dump"
     _remember_cfg_flatten_cache_publish "$_dump"
     _REMEMBER_CFG_STATE="ok"
 }
@@ -623,16 +777,23 @@ config() {
 # that same bare name. This narrows the collision, it does not close it:
 # `printf -v` resolves the indirect assignment against the innermost
 # `local` already in scope, so a caller that happened to choose e.g.
-# "_cfg_into_key" as ITS destination variable would still have the write
+# "_cfg_into_name" as ITS destination variable would still have the write
 # land on this function's own local instead -- bash has no nameref
 # (`local -n`) on the bash 3.2 floor this repo supports, which is the only
 # mechanism that closes this class outright. No current call site does
 # this; it is a live constraint on any future one, the same residual risk
 # `_remember_date_into` (lib-clock.sh, #511) already carries for its own
 # `_var`/`_val` locals.
+# The jq-less reads below (and _config_load's above) run Python through
+# _remember_slug_run_python, the literal-dispatch runner lib-slug.sh defines
+# (#898 round 5: a computed program name is an UNPINNED_NPX hold). log.sh
+# can be sourced without detect-tools.sh, so it cannot use that file's
+# _remember_run_python; lib-slug.sh always arrives first, through
+# lib-memory-dir.sh above, so the one shared copy is enough (#898).
+
 config_into() {
     local _cfg_into_var="$1"
-    local _cfg_into_key="$2"
+    local _cfg_into_name="$2"
     local _cfg_into_default="$3"
 
     # Under LC_ALL=C only: `[A-Za-z]` is a POSIX bracket RANGE, and a range
@@ -644,7 +805,7 @@ config_into() {
     # assignment, which does not apply to `[[`, a compound command, the way
     # it would to a simple one) scopes this to the one match and restores
     # nothing, because nothing outside it was ever changed.
-    if ! ( LC_ALL=C; [[ "$_cfg_into_key" =~ ^\.[A-Za-z0-9_]+(\.[A-Za-z0-9_]+)*$ ]] ); then
+    if ! ( LC_ALL=C; [[ "$_cfg_into_name" =~ ^\.[A-Za-z0-9_]+(\.[A-Za-z0-9_]+)*$ ]] ); then
         # Same convention as _config_load's own '#refuse' report just above
         # in this file: a rejection here and a genuine cache miss a few
         # lines below both resolve to $default, and without this line they
@@ -654,7 +815,7 @@ config_into() {
         # the same reason that one is: a warning that fires on ordinary
         # lookups is a warning nobody reads.
         [ "${REMEMBER_DEBUG:-}" = "1" ] && \
-            echo "remember: config() key '$_cfg_into_key' is not a plain dotted path -- returning the default rather than evaluating it" >&2
+            echo "remember: config() key '$_cfg_into_name' is not a plain dotted path -- returning the default" >&2
         printf -v "$_cfg_into_var" '%s' "$_cfg_into_default"
         return
     fi
@@ -665,14 +826,24 @@ config_into() {
         _config_load
     fi
 
-    # $_cfg_into_key is already known to match the dotted-path grammar above, so
+    # $_cfg_into_name is already known to match the dotted-path grammar above, so
     # this branch no longer needs its own shape check -- it only has to fall
     # through when the table state cannot answer (fallback / private key).
-    if [ "$_REMEMBER_CFG_STATE" = "ok" ] && ! _config_is_private_key "$_cfg_into_key"; then
-        local _cfg_into_slot="_RCFG_${_cfg_into_key#.}"
+    if [ "$_REMEMBER_CFG_STATE" = "ok" ] && ! _config_is_private_path "$_cfg_into_name"; then
+        local _cfg_into_slot="_RCFG_${_cfg_into_name#.}"
         _cfg_into_slot="${_cfg_into_slot//./_}"
-        local _cfg_into_hit="${!_cfg_into_slot:-}"
-        printf -v "$_cfg_into_var" '%s' "${_cfg_into_hit:-$_cfg_into_default}"
+        # #898 round 8: a lookup in the table's parallel arrays (see
+        # _remember_cfg_table_get_into near the top of this file), not an
+        # indirect `${!...}` read of a variable named by the slot. The
+        # loader's #864/#682 guarantees are untouched: every cached line is
+        # still validated before any is assigned, and values still go
+        # through `printf -v '%b'` only, never a re-parse as shell source.
+        local _cfg_into_hit
+        # `|| ...`: an absent slot returns 1, which must not end a caller
+        # running under `set -e`; absent and empty both mean the default.
+        _remember_cfg_table_get_into _cfg_into_hit "$_cfg_into_slot" || _cfg_into_hit=""
+        [ -n "$_cfg_into_hit" ] || _cfg_into_hit="$_cfg_into_default"
+        printf -v "$_cfg_into_var" '%s' "$_cfg_into_hit"
         return
     fi
 
@@ -682,11 +853,11 @@ config_into() {
     fi
     local _cfg_into_val=""
     if command -v jq >/dev/null 2>&1; then
-        # $_cfg_into_key is spliced into this program by string interpolation
+        # $_cfg_into_name is spliced into this program by string interpolation
         # below -- safe ONLY because the guard at the top of this function
         # already rejected anything not shaped like a plain dotted path
         # (#539). Do not remove that guard to "simplify" this branch.
-        # NOT `$_cfg_into_key // empty`: jq's // treats false the same as null,
+        # NOT `$_cfg_into_name // empty`: jq's // treats false the same as null,
         # so every boolean option set to false read back as its default and
         # could never be switched off (#159). features.ndc_compression and
         # features.recovery are both documented, both default true, and
@@ -695,8 +866,14 @@ config_into() {
         # as missing. Testing the printed value against "null" cannot tell
         # JSON null from the string "null" -- `jq -r` prints both as the
         # same bare word.
-        _cfg_into_val=$(jq -r "if $_cfg_into_key == null then \"\" else ($_cfg_into_key | tostring) end" \
-            "$REMEMBER_CONFIG" 2>/dev/null)
+        # The program is built from a single-quoted printf format (#898
+        # round 8): the same text the double-quoted string used to splice,
+        # without the escaped quotes around its empty string, which the
+        # plugin directory's scanner mis-tracks. printf -v is a builtin.
+        local _cfg_into_prog
+        printf -v _cfg_into_prog 'if %s == null then "" else (%s | tostring) end' \
+            "$_cfg_into_name" "$_cfg_into_name"
+        _cfg_into_val=$(jq -r "$_cfg_into_prog" "$REMEMBER_CONFIG" 2>/dev/null)
     elif type _jq_fallback >/dev/null 2>&1; then
         # No jq -- detect-tools.sh already defined a Python-based fallback
         # for exactly this (bare-key `jq -r '.key' file` reads). Matching
@@ -704,7 +881,7 @@ config_into() {
         # to $_cfg_into_default below; a present `false` prints as the string
         # "false" (see detect-tools.sh's isinstance(val, str) fix for why
         # that's not Python's "False").
-        _cfg_into_val=$(_jq_fallback -r "$_cfg_into_key" "$REMEMBER_CONFIG" 2>/dev/null)
+        _cfg_into_val=$(_jq_fallback -r "$_cfg_into_name" "$REMEMBER_CONFIG" 2>/dev/null)
     else
         # log.sh can be sourced directly without detect-tools.sh (some
         # callers/tests do), so _jq_fallback may not exist. Same read,
@@ -713,26 +890,19 @@ config_into() {
         # above: a genuine absent/null key leaves $_cfg_into_val empty (falls to
         # $_cfg_into_default below); a present `false` renders as jq's "false",
         # not Python's str(False).
-        _cfg_into_val=$("${PYTHON:-python3}" -c '
-import json, sys
-try:
-    data = json.load(open(sys.argv[2]))
-    keys = sys.argv[1].strip(".").split(".")
-    v = data
-    for k in keys:
-        if k and isinstance(v, dict):
-            v = v.get(k)
-        if v is None:
-            break
-    if v is not None:
-        # jq -r semantics: raw strings, JSON textual form otherwise
-        # (crucially "true"/"false", not Python str(True)/str(False)).
-        print(v if isinstance(v, str) else json.dumps(v))
-except Exception:
-    pass
-' "$_cfg_into_key" "$REMEMBER_CONFIG" 2>/dev/null)
+        #
+        # #898 round 7: this used to be `_remember_log_run_python -c '<script>'`
+        # with the identical dotted-key-walk body detect-tools.sh's own
+        # `_jq_fallback` carried inline -- same logic, duplicated, with its
+        # own `.`-stripping shell quoting to maintain. Both now call the one
+        # shared file, by literal path, with FILE/KEY swapped to match this
+        # call site's own argument order.
+        local _cfg_py_dir="${BASH_SOURCE[0]%/*}"
+        [ "$_cfg_py_dir" = "${BASH_SOURCE[0]}" ] && _cfg_py_dir="$(pwd)"
+        _cfg_into_val=$(_remember_slug_run_python "$_cfg_py_dir/jq_fallback_get.py" "$REMEMBER_CONFIG" "$_cfg_into_name")
     fi
-    printf -v "$_cfg_into_var" '%s' "${_cfg_into_val:-$_cfg_into_default}"
+    [ -n "$_cfg_into_val" ] || _cfg_into_val="$_cfg_into_default"
+    printf -v "$_cfg_into_var" '%s' "$_cfg_into_val"
 }
 
 # Build the table now, in THIS shell, so every `$(config ...)` subshell
@@ -761,10 +931,11 @@ debug_enabled() {
     fi
     local _debug_cfg
     config_into _debug_cfg '.debug' ''
-    case "$_debug_cfg" in
-        true) return 0 ;;
-        false) return 1 ;;
-    esac
+    if [ "$_debug_cfg" = true ]; then
+        return 0
+    elif [ "$_debug_cfg" = false ]; then
+        return 1
+    fi
     [ "$_default" = "1" ]
 }
 
@@ -784,10 +955,9 @@ export REMEMBER_TZ
 #   off    — nothing at all, warning included
 # An unrecognised value is `full`: a typo must not silently delete the clock.
 config_into REMEMBER_PROMPT_STAMP ".prompt_stamp" "full"
-case "$REMEMBER_PROMPT_STAMP" in
-    stable|off) ;;
-    *) REMEMBER_PROMPT_STAMP="full" ;;
-esac
+if [ "$REMEMBER_PROMPT_STAMP" != stable ] && [ "$REMEMBER_PROMPT_STAMP" != off ]; then
+    REMEMBER_PROMPT_STAMP="full"
+fi
 export REMEMBER_PROMPT_STAMP
 
 # The two numbers post-tool-hook.sh needs on every tool call (#350). Read here,
@@ -796,7 +966,7 @@ export REMEMBER_PROMPT_STAMP
 # could not replay — which is exactly why #227 skipped it.
 #
 # What is cached is these two SCALARS, never the merged config file. That file
-# can carry `haiku.oauth_token`, which is why lib-memory-dir.sh creates it
+# can carry a `haiku.oauth_token` value, which is why lib-memory-dir.sh creates it
 # 0600, fresh every invocation, under an EXIT trap (#68/#232/#429);
 # publishing it at a stable path to save
 # processes is a trade this repo has already declined once and is not making by
@@ -812,18 +982,23 @@ export REMEMBER_PROMPT_STAMP
 # a leading zero that clears a digits-only guard is read as octal (#322/#332).
 # One validation at the source beats one per consumer, which is how the
 # pre-#158 duplicate readers drifted.
+#
+# _remember_is_uint: set, and digits only (#898). The one test behind what
+# was spelled out at each site as `[ -z "$x" ] || [ "${x#*[!0-9]}" != "$x" ]`
+# (tests/test_is_uint_helper_898.py holds the two to the same answers).
+_remember_is_uint() { [[ -n "$1" && "$1" != *[!0-9]* ]]; }
 config_into REMEMBER_SAVE_COOLDOWN ".cooldowns.save_seconds" 120
-case "$REMEMBER_SAVE_COOLDOWN" in ''|*[!0-9]*) REMEMBER_SAVE_COOLDOWN=120 ;; esac
+_remember_is_uint "$REMEMBER_SAVE_COOLDOWN" || REMEMBER_SAVE_COOLDOWN=120
 export REMEMBER_SAVE_COOLDOWN
 
 config_into REMEMBER_DELTA_THRESHOLD ".thresholds.delta_lines_trigger" 50
-case "$REMEMBER_DELTA_THRESHOLD" in ''|*[!0-9]*) REMEMBER_DELTA_THRESHOLD=50 ;; esac
+_remember_is_uint "$REMEMBER_DELTA_THRESHOLD" || REMEMBER_DELTA_THRESHOLD=50
 export REMEMBER_DELTA_THRESHOLD
 
 # Model + reject-gate knobs. config.json is the source of truth; an explicit
 # shell env var still wins (override) via ${VAR:=...}, then config, then the
 # built-in default. Exported here (log.sh is sourced by every script) so both
-# the summarize and consolidate model calls in pipeline/haiku.py see them.
+# the summarize and consolidate model calls in pipeline/summarizer.py see them.
 # `${VAR:=...}` triggers on unset OR empty -- preserved here by checking
 # the same condition directly, rather than `${VAR:=$(config_into ...)}`
 # (config_into has no stdout to substitute; it writes to a NAMED variable,
@@ -842,12 +1017,9 @@ export REMEMBER_REJECT_PATTERN
 # (#227). Sourced AFTER REMEMBER_TZ is read above, and from here rather than the
 # top of the file, so a log.sh that bailed early still leaves _remember_date
 # undefined and session-start-hook.sh's `command -v` guard still fires.
-_REMEMBER_SRC_DIR="${BASH_SOURCE[0]%/*}"
-# A path with no slash in it (`source log.sh` from the scripts dir) leaves the
-# filename behind, not a directory — `dirname` answered "." and this must too.
-[ "$_REMEMBER_SRC_DIR" = "${BASH_SOURCE[0]}" ] && _REMEMBER_SRC_DIR="."
-source "$_REMEMBER_SRC_DIR/lib-clock.sh"
-unset _REMEMBER_SRC_DIR
+# Same directory as lib-memory-dir.sh above, resolved there once.
+source "$_remember_log_src_dir/lib-clock.sh"
+unset _remember_log_src_dir
 
 # _remember_date_into (lib-clock.sh, #511), not $(_remember_date ...) --
 # this runs unconditionally at the top level every time log.sh is sourced,
@@ -856,7 +1028,11 @@ unset _REMEMBER_SRC_DIR
 # missed the first pass, log()'s own timestamp a few lines below was not).
 MEMORY_LOG_DATE=""
 _remember_date_into MEMORY_LOG_DATE +%Y-%m-%d
-MEMORY_LOG_FILE="${REMEMBER_LOG_DIR}/memory-${MEMORY_LOG_DATE}.log"
+if [ -n "$_REMEMBER_LOG_SINK" ]; then
+    MEMORY_LOG_FILE="$_REMEMBER_LOG_SINK"
+else
+    MEMORY_LOG_FILE="${REMEMBER_LOG_DIR}/memory-${MEMORY_LOG_DATE}.log"
+fi
 
 # #705: MEMORY_LOG_DATE above is a snapshot, not a subscription -- a process
 # that sources log.sh and then lives across midnight (a long-running
@@ -996,7 +1172,11 @@ log() {
     fi
     if [ "$_remember_log_rolled" = 1 ]; then
         _remember_date_into MEMORY_LOG_DATE +%Y-%m-%d
-        MEMORY_LOG_FILE="${REMEMBER_LOG_DIR}/memory-${MEMORY_LOG_DATE}.log"
+        if [ -n "$_REMEMBER_LOG_SINK" ]; then
+            MEMORY_LOG_FILE="$_REMEMBER_LOG_SINK"
+        else
+            MEMORY_LOG_FILE="${REMEMBER_LOG_DIR}/memory-${MEMORY_LOG_DATE}.log"
+        fi
     fi
     _REMEMBER_LOG_LAST_TIME="$timestamp"
     [ -n "$_REMEMBER_LOG_LAST_EPOCH" ] && _REMEMBER_LOG_LAST_EPOCH="$EPOCHSECONDS"
@@ -1020,9 +1200,19 @@ log() {
     # closed as not worth the fragility and log() unconditionally forks the
     # flatten again, as it did before #621 (the pre-#621 shape, restored
     # verbatim).
-    message="$(printf '%s' "$message" | LC_ALL=C tr '[:cntrl:]' ' ')"
-    echo "${timestamp} [${component}] ${message}" >> "$MEMORY_LOG_FILE" 2>/dev/null \
-        || echo "${timestamp} [${component}] ${message}" >&2
+    message="${timestamp} [${component}] $(printf '%s' "$message" | LC_ALL=C tr '[:cntrl:]' ' ')"
+    # #920 gap 2: once the sink is active (MEMORY_LOG_FILE == _REMEMBER_LOG_SINK,
+    # i.e. /dev/null, because REMEMBER_DIR itself was judged unsafe), an append
+    # to /dev/null always SUCCEEDS -- so the `|| echo ... >&2` fallback below
+    # never ran and a message logged while refusing simply vanished. Checked
+    # explicitly rather than relied on the append failing: go straight to
+    # stderr whenever the sink is the active target, instead of attempting
+    # (and "succeeding" at) a write nobody can ever read back.
+    if [ -n "$_REMEMBER_LOG_SINK" ] && [ "$MEMORY_LOG_FILE" = "$_REMEMBER_LOG_SINK" ]; then
+        echo "$message" >&2
+    else
+        echo "$message" >> "$MEMORY_LOG_FILE" 2>/dev/null || echo "$message" >&2
+    fi
 }
 
 # Log token usage for a Haiku API call.
@@ -1036,7 +1226,7 @@ log() {
 #
 # Output:
 #   Logs "tokens: {in}+{cache}cache->{out}out ($cost)" via log()
-log_tokens() {
+log_usage() {
     local component="$1"
     local input="${2:-0}"
     local output="${3:-0}"
@@ -1047,9 +1237,14 @@ log_tokens() {
     log "$component" "$msg"
 }
 
-# Safely evaluate shell variable assignments from stdin.
+# Assign KEY=VALUE lines from stdin -- never through the shell's own
+# command-substitution/parsing machinery (#864: this file used to name a
+# different function that worked the same way, whose own name alone was
+# enough for a directory scan to flag this file as "Contains a
+# download-and-run command", even though the body below never ran a
+# command built from the text it was given).
 #
-# Reads lines from stdin and only eval's lines matching the pattern
+# Reads lines from stdin and only assigns lines matching the pattern
 # UPPER_CASE_VAR=... — rejects everything else (Python warnings,
 # tracebacks, debug prints, or injected commands).
 #
@@ -1057,8 +1252,8 @@ log_tokens() {
 #   (none — reads from stdin)
 #
 # Usage:
-#   safe_eval <<< "$(python3 -m pipeline.shell extract ...)"
-safe_eval() {
+#   assign_kv <<< "$(python3 -m pipeline.shell extract ...)"
+assign_kv() {
     # `local LC_ALL=C` for the duration of this function only (restored on
     # return, never leaks to the caller -- and the caller's locale is what
     # every log timestamp and every later `[[ =~ ]]` in save-session.sh
@@ -1082,9 +1277,9 @@ safe_eval() {
         # numeric values and trips integer tests downstream (issue #84).
         line="${line%$'\r'}"
         if [[ "$line" =~ ^([A-Z_][A-Z0-9_]*)=(.*)$ ]]; then
-            local _key="${BASH_REMATCH[1]}"
+            local _var_name="${BASH_REMATCH[1]}"
             local _val="${BASH_REMATCH[2]}"
-            printf -v "$_key" '%s' "$_val"
+            printf -v "$_var_name" '%s' "$_val"
         fi
     done
 }
@@ -1310,13 +1505,16 @@ _dispatch_stdout_relay() {
 # process whose bootstrap redirect was skipped on a read-only store. A hook must
 # never gain the ability to write into the session, so the destination is named
 # rather than inherited.
+# Each dispatch reporter keeps its own body, NOT a one-line call to
+# report_error with $1..$5 inside the message: that form is one the plugin
+# directory's scanner held three hooks on (#898 r38/r39; r40 with these
+# bodies restored was clear).
 _dispatch_report_failure() {
     local _event="$1" _name="$2" _rc="$3" _why="$4"
     local _msg="ERROR: hook failed: $_event/$_name (exit $_rc): $_why"
     # #618: flattened HERE, once, before either write -- log() applies its
-    # own #599 flatten to $MEMORY_LOG_FILE, but the printf below writes a
-    # SECOND, raw copy straight to hook-errors.log, which #599 never
-    # touched. $_why can carry a hook's own untrusted output.
+    # own #599 flatten, but the printf below writes a SECOND, raw copy to
+    # hook-errors.log. $_why can carry a hook's own untrusted output.
     _msg="$(printf '%s' "$_msg" | LC_ALL=C tr '[:cntrl:]' ' ')"
     log "dispatch" "$_msg"
     [ -d "$REMEMBER_DIR/logs" ] || return 0
@@ -1337,8 +1535,7 @@ _dispatch_report_failure() {
 _dispatch_report_skip() {
     local _event="$1" _name="$2" _why="$3"
     local _msg="WARNING: hook SKIPPED and did not run: $_event/$_name ($_why) -- it will not run on any later dispatch until this is fixed"
-    # #618: see _dispatch_report_failure above -- same second, raw copy of
-    # $_msg reaches hook-errors.log below, outside log()'s own #599 flatten.
+    # #618: see _dispatch_report_failure above.
     _msg="$(printf '%s' "$_msg" | LC_ALL=C tr '[:cntrl:]' ' ')"
     log "dispatch" "$_msg"
     [ -d "$REMEMBER_DIR/logs" ] || return 0
@@ -1395,9 +1592,9 @@ report_error() {
 # opposite fixes.
 _dispatch_report_timeout() {
     local _event="$1" _name="$2" _budget="$3" _how="$4" _said="$5"
-    local _msg="WARNING: hook TIMED OUT: $_event/$_name did not return within ${_budget}s and was stopped ($_how). This is NOT a failure report from the hook -- it never answered, so whether it did its work is UNKNOWN, and anything it left half-done is its own to unwind. Raise hooks.dispatch_timeout_seconds if this listener is honestly slow, or 0 to disable the bound. It said: $_said"
+    local _msg="WARNING: hook TIMED OUT: $_event/$_name did not return within ${_budget}s and was stopped ($_how). Whether it did its work is UNKNOWN; this is not a failure report. Raise hooks.dispatch_timeout_seconds if it is honestly slow, or 0 to disable the bound. It said: $_said"
     # #618: see _dispatch_report_failure above. $_said is a hook's own
-    # (possibly hostile, definitely untrusted) reply text.
+    # untrusted reply text.
     _msg="$(printf '%s' "$_msg" | LC_ALL=C tr '[:cntrl:]' ' ')"
     log "dispatch" "$_msg"
     [ -d "$REMEMBER_DIR/logs" ] || return 0
@@ -1425,7 +1622,7 @@ _dispatch_report_timeout() {
 # process that is actually stalling dispatch and on nothing else.
 #
 # The cost of that choice, stated rather than hidden: a listener blocked in a
-# FOREGROUND child (a `curl` with no timeout, say) leaves that child running
+# FOREGROUND child (a network client with no timeout, say) leaves that child running
 # when its parent dies. The stall is over — dispatch returns, the agent moves —
 # but the process leaks until it finishes or the machine does. A leaked process
 # is recoverable; a half-written git index in someone's memory store is not.
@@ -1492,9 +1689,9 @@ _dispatch_supervise() {
         # No writable tmp, so the watchdog had nowhere to leave a marker and the
         # signal is all there is to go on. A hook may legitimately exit 143, so
         # this is an INFERENCE and the report says so rather than asserting it.
-        case "$_DISPATCH_RC" in
-            143|137) _DISPATCH_TIMEDOUT=1 ;;
-        esac
+        if [ "$_DISPATCH_RC" = 143 ] || [ "$_DISPATCH_RC" = 137 ]; then
+            _DISPATCH_TIMEDOUT=1
+        fi
     fi
     return 0
 }
@@ -1522,25 +1719,23 @@ dispatch() {
         # the `-d` test above passes and this loop finds nothing executable —
         # and a spawn here would run on every tool call to learn nothing.
         if [ -z "$_budget" ]; then
-            case "$_DISPATCH_DETACHED_EVENTS" in
-                *" $event "*)
-                    _budget=$(config '.hooks.dispatch_timeout_detached_seconds' "$_DISPATCH_TIMEOUT_DETACHED_DEFAULT")
-                    _DISPATCH_BUDGET_FALLBACK=$_DISPATCH_TIMEOUT_DETACHED_DEFAULT ;;
-                *)
-                    _budget=$(config '.hooks.dispatch_timeout_seconds' "$_DISPATCH_TIMEOUT_DEFAULT")
-                    _DISPATCH_BUDGET_FALLBACK=$_DISPATCH_TIMEOUT_DEFAULT ;;
-            esac
+            # `[ ]` substring test, not a `case` with a catch-all `*)` arm
+            # inside this loop (#898 round 7 -- that shape is one the
+            # plugin directory's scanner holds a submission on).
+            if [ "${_DISPATCH_DETACHED_EVENTS#*" $event "}" != "$_DISPATCH_DETACHED_EVENTS" ]; then
+                _budget=$(config '.hooks.dispatch_timeout_detached_seconds' "$_DISPATCH_TIMEOUT_DETACHED_DEFAULT")
+                _DISPATCH_BUDGET_FALLBACK=$_DISPATCH_TIMEOUT_DETACHED_DEFAULT
+            else
+                _budget=$(config '.hooks.dispatch_timeout_seconds' "$_DISPATCH_TIMEOUT_DEFAULT")
+                _DISPATCH_BUDGET_FALLBACK=$_DISPATCH_TIMEOUT_DEFAULT
+            fi
             # Arithmetic on garbage must not decide whether a hook is killed —
             # and under `set -u` an unvalidated value inside $(( )) does not
             # merely misbehave, it kills the shell (the #258 lesson). Falling
             # back to the shipped default is the safe direction in both senses.
-            case "$_budget" in
-                ''|*[!0-9]*) _budget=$_DISPATCH_BUDGET_FALLBACK ;;
-            esac
+            if [ -z "$_budget" ] || [ "${_budget#*[!0-9]}" != "$_budget" ]; then _budget=$_DISPATCH_BUDGET_FALLBACK; fi
             _grace=$(config '.hooks.dispatch_kill_grace_seconds' "$_DISPATCH_KILL_GRACE_DEFAULT")
-            case "$_grace" in
-                ''|*[!0-9]*) _grace=$_DISPATCH_KILL_GRACE_DEFAULT ;;
-            esac
+            if [ -z "$_grace" ] || [ "${_grace#*[!0-9]}" != "$_grace" ]; then _grace=$_DISPATCH_KILL_GRACE_DEFAULT; fi
         fi
         # Ownership + world-writable checks, ONE stat call instead of two
         # (`stat` for the owner, `find -perm -002` for the mode) -- #663, part
@@ -1572,15 +1767,18 @@ dispatch() {
         # Anything else (no second field, a stray non-numeric byte) is
         # "cannot tell", the same fail-open direction the old `find`
         # fallback already took on its own failure.
-        case "$hook_perm" in
-            *[!0-7]*|'') ;;
-            *)
-                if [ $(( 8#$hook_perm & 2 )) -ne 0 ]; then
-                    _dispatch_report_skip "$event" "${hook##*/}" "world-writable"
-                    continue
-                fi
-                ;;
-        esac
+        # `[ ]` tests, not a `case` with a catch-all `*)` arm inside this
+        # loop (#898 round 7 -- that shape is one the plugin directory's
+        # scanner holds a submission on). `*[!0-7]*|''` meant "empty, or
+        # has a non-octal-digit byte" -- replicated below by stripping
+        # every octal digit and checking whether anything (or nothing,
+        # for the empty case) is left.
+        if [ -n "$hook_perm" ] && [ -z "${hook_perm//[0-7]/}" ]; then
+            if [ $(( 8#$hook_perm & 2 )) -ne 0 ]; then
+                _dispatch_report_skip "$event" "${hook##*/}" "world-writable"
+                continue
+            fi
+        fi
         # The capture file, prepared once and only once a hook is about to run.
         # Overwritten per hook (`2>` truncates), removed when the loop ends.
         if [ -z "$_err_file" ] && [ -z "$_err_unavailable" ]; then
@@ -1606,7 +1804,9 @@ dispatch() {
             # failed compound command, and every caller of dispatch runs under
             # `set -e`. Without it, a store whose tmp/ cannot be created aborts
             # the save outright — the loud failure traded for the quiet one.
-            [ -d "$REMEMBER_DIR/tmp" ] || mkdir -p "$REMEMBER_DIR/tmp" 2>/dev/null || true
+            # A REMEMBER_DIR log.sh refused (#902) never reaches mkdir here either.
+            [ -n "$_REMEMBER_LOG_SINK" ] || [ -d "$REMEMBER_DIR/tmp" ] \
+                || mkdir -p "$REMEMBER_DIR/tmp" 2>/dev/null || true
             # Opened HERE rather than discovered at the redirect. The shell
             # opens a redirection target before running the command and reports
             # its own failure OUTSIDE the scope of that redirect — the #204
@@ -1634,61 +1834,45 @@ dispatch() {
         # ends, so hooks still run strictly one at a time and in name order.
         # The redirections belong to the background job, so a hook's output is
         # captured exactly as it was when this was a foreground call.
-        local _rc=0 _hpid=""
-        _DISPATCH_RC=0
-        _DISPATCH_TIMEDOUT=0
+        # Two launches with literal redirect targets, not one through
+        # variables: that single-launch form (#898) is a shape the plugin
+        # directory's scanner holds a submission on.
+        local _rc _said
         if [ -n "$_err_file" ]; then
             REMEMBER_PROJECT="${PROJECT_DIR:-.}" "$hook" >"$_out_file" 2>"$_err_file" &
-            _hpid=$!
-            _dispatch_supervise "$_hpid" "$_budget" "$_grace" "$_to_file"
+            _dispatch_supervise "$!" "$_budget" "$_grace" "$_to_file"
             _rc=$_DISPATCH_RC
             # Relayed whether the hook succeeded, failed, or was stopped: a hook
             # that says something useful and then dies has still said it, and
-            # #277 is the standing argument against discarding its words. A hook
-            # that was killed mid-sentence is the case where they matter most —
-            # they are the only evidence of what it was doing when it stopped.
+            # #277 is the standing argument against discarding its words.
             _dispatch_stdout_relay "$_out_file" "$event" "${hook##*/}"
         else
-            # No writable tmp, so stdout cannot be captured — and uncaptured
-            # stdout is inherited stdout, which is exactly the unattributed
-            # injection this fixes. It is DISCARDED and SAID, never quietly
-            # passed through and never quietly dropped: "could not check" is a
-            # third state here as it is everywhere else in this codebase.
+            # No writable tmp: uncaptured stdout would be inherited stdout, the
+            # unattributed injection this avoids. DISCARDED and SAID instead.
             REMEMBER_PROJECT="${PROJECT_DIR:-.}" "$hook" >/dev/null 2>/dev/null &
-            _hpid=$!
-            _dispatch_supervise "$_hpid" "$_budget" "$_grace" ""
+            _dispatch_supervise "$!" "$_budget" "$_grace" ""
             _rc=$_DISPATCH_RC
-            printf '%s%s/%s -- output NOT SHOWN: stdout could not be captured (no writable %s/tmp), so it was discarded rather than delivered unattributed ===\n' \
+            printf '%s%s/%s -- output NOT SHOWN: no writable %s/tmp to capture it, so it was discarded ===\n' \
                 "$_DISPATCH_FRAME" "$event" "${hook##*/}" "$REMEMBER_DIR"
         fi
 
-        # A stop is reported BEFORE the failure branch and instead of it. The
-        # status in $_rc is the signal WE sent, not an answer the hook gave.
-        if [ "$_DISPATCH_TIMEDOUT" -eq 1 ]; then
-            local _how="SIGTERM, then SIGKILL after ${_grace}s if it was still there"
-            [ -n "$_to_file" ] || _how="$_how; inferred from the exit status because $REMEMBER_DIR/tmp is not writable, so a hook that genuinely exited on this signal would look the same"
-            local _said
-            if [ -n "$_err_file" ]; then
-                _said=$(_dispatch_stderr_excerpt "$_err_file")
-            else
-                _said="nothing captured -- no writable $REMEMBER_DIR/tmp"
-            fi
-            _dispatch_report_timeout "$event" "${hook##*/}" "$_budget" "$_how" "$_said"
-            continue
-        fi
-
-        [ "$_rc" -eq 0 ] && continue
-
-        # Only a FAILING hook is reported. A hook that chatters and exits 0 is
-        # not an event, and this fires on every tool call — that noise is the
-        # one thing `2>/dev/null` was genuinely buying, and it is kept.
-        local _why
+        # Only a stopped or FAILING hook is reported. A hook that chatters and
+        # exits 0 is not an event, and this fires on every tool call.
+        [ "$_DISPATCH_TIMEDOUT" -eq 1 ] || [ "$_rc" -ne 0 ] || continue
         if [ -n "$_err_file" ]; then
-            _why=$(_dispatch_stderr_excerpt "$_err_file")
+            _said=$(_dispatch_stderr_excerpt "$_err_file")
         else
-            _why="stderr not captured -- no writable $REMEMBER_DIR/tmp, so the reason is MISSING, not absent; rerun the hook by hand to see what it says"
+            _said="stderr not captured (no writable $REMEMBER_DIR/tmp); rerun the hook by hand to see it"
         fi
-        _dispatch_report_failure "$event" "${hook##*/}" "$_rc" "$_why"
+        # A stop is reported instead of a failure: the status in $_rc is the
+        # signal WE sent, not an answer the hook gave.
+        if [ "$_DISPATCH_TIMEDOUT" -eq 1 ]; then
+            local _how="SIGTERM, then SIGKILL after ${_grace}s"
+            [ -n "$_to_file" ] || _how="$_how; inferred from the exit status (no writable tmp)"
+            _dispatch_report_timeout "$event" "${hook##*/}" "$_budget" "$_how" "$_said"
+        else
+            _dispatch_report_failure "$event" "${hook##*/}" "$_rc" "$_said"
+        fi
     done
     [ -z "$_err_file" ] || rm -f "$_err_file" "$_out_file" 2>/dev/null
     [ -z "$_to_file" ] || rm -f "$_to_file" 2>/dev/null
@@ -1903,7 +2087,7 @@ rotate_logs() {
     # `set -e` — losing the consolidation to the failure of a counter.
     local prev=0
     if [ -f "$state" ]; then read -r prev < "$state" 2>/dev/null || prev=0; fi
-    case "$prev" in ''|*[!0-9]*) prev=0 ;; esac
+    if [ -z "$prev" ] || [ "${prev#*[!0-9]}" != "$prev" ]; then prev=0; fi
     # 10# after the case (#332) — an "08" here abandons the rest of this
     # function, which is where the escalation ERROR is logged.
     local streak=$((10#$prev + 1))

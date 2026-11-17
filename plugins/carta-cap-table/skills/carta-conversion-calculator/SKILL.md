@@ -1,10 +1,10 @@
 ---
 name: carta-conversion-calculator
-description: Calculate SAFE and convertible note conversion into equity at a financing close. Use when asked about SAFE conversion, note conversion, conversion shares, conversion math, how instruments convert in a priced round, or what happens to outstanding SAFEs and notes when a new round closes. Do NOT use for exit/sale/acquisition payouts at a sale price — those are waterfall scenarios, prefer a waterfall-scenarios skill.
+description: Calculate how SAFEs and convertible notes convert into shares in a new round. Use when asked about SAFE conversion, note conversion, conversion shares, conversion math, how instruments convert in a priced round, or what happens to outstanding SAFEs and notes when a new round closes. Do NOT use for exit/sale/acquisition payouts at a sale price.
 ---
 
 <!-- carta:plugin-version -->
-<carta-plugin>carta-cap-table:6.85.6</carta-plugin>
+<carta-plugin>carta-cap-table:6.114.20</carta-plugin>
 
 <!-- Part of the official Carta AI Agent Plugin -->
 
@@ -22,16 +22,16 @@ Calculate how SAFEs and convertible notes convert into equity at a given round p
 ## Prerequisites
 
 You need:
-1. `corporation_id` — get from `list_accounts`
+1. The company. Do not call `list_accounts` or ask which company before the first read: Carta finds the company. Reuse the company already resolved in this conversation unless this prompt names or numbers another. Else send the numeric id the user gave, else the company name as the user said it, else no `corporation_id` (Carta uses the user's only company). On an error, and for later calls, follow `${CLAUDE_PLUGIN_ROOT}/references/find-the-company.md` (the plugin's own `references/`, not this skill's; read it by that path, do not search for it). Its reads are cap table reads: reuse `meta.company.id` on later calls.
 2. Round terms — user must provide at least a **pre-money valuation** or **price per share**
 
 ## Data Retrieval
 
-> The gateway defaults to `detail=summary` for list commands. This skill needs individual records, so `"detail": "full"` is passed explicitly.
+> The server defaults to `detail=summary` for list commands. This skill needs individual records, so `"detail": "full"` is passed explicitly.
 
-- `call_tool({"name": "cap_table__get__convertible_notes", "arguments": {"corporation_id": corporation_id, "detail": "full"}})` — SAFEs + convertible notes
-- `call_tool({"name": "cap_table__get__cap_table_by_share_class", "arguments": {"corporation_id": corporation_id}})` — current fully diluted count
-- `call_tool({"name": "cap_table__get__409a_valuations", "arguments": {"corporation_id": corporation_id}})` — current FMV (for reference)
+- `read_tool({"name": "cap_table__get__convertible_notes", "arguments": {"corporation_id": corporation_id, "detail": "full"}})` — SAFEs + convertible notes
+- `read_tool({"name": "cap_table__get__cap_table_by_share_class", "arguments": {"corporation_id": corporation_id}})` — current fully diluted count
+- `read_tool({"name": "cap_table__get__409a_valuations", "arguments": {"corporation_id": corporation_id}})` — current FMV (for reference)
 
 ## Key Fields
 
@@ -52,12 +52,16 @@ From convertible instruments:
 Fetch all three data sources **in a single turn** (parallel tool calls) — do NOT fetch them sequentially:
 
 ```
-call_tool({"name": "cap_table__get__convertible_notes", "arguments": {"corporation_id": corporation_id, "detail": "full"}})
-call_tool({"name": "cap_table__get__cap_table_by_share_class", "arguments": {"corporation_id": corporation_id}})
-call_tool({"name": "cap_table__get__409a_valuations", "arguments": {"corporation_id": corporation_id}})
+read_tool({"name": "cap_table__get__convertible_notes", "arguments": {"corporation_id": corporation_id, "detail": "full"}})
+read_tool({"name": "cap_table__get__cap_table_by_share_class", "arguments": {"corporation_id": corporation_id}})
+read_tool({"name": "cap_table__get__409a_valuations", "arguments": {"corporation_id": corporation_id}})
 ```
 
-- Convertible notes: SAFEs + notes (filter to `status_explanation: "Outstanding"`)
+- Convertible notes: SAFEs + notes (filter to `status_explanation: "Outstanding"`). The response holds one page of rows. While `has_next` is `true`, call again with the `page` and `page_size` from `next`, and add the `instruments` of each page:
+  ```
+  read_tool({"name": "cap_table__get__convertible_notes", "arguments": {"corporation_id": corporation_id, "detail": "full", "page": <next.page>, "page_size": <next.page_size>}})
+  ```
+  `count`, `active_count`, `total_invested`, `by_status` and `by_type` cover only one page. Calculate totals from the rows of all pages.
 - Cap table by share class: get current fully diluted share count from `totals.total_fully_diluted`
 - 409A valuations: current FMV for context
 
@@ -97,15 +101,14 @@ Same as SAFE but:
 
 ## Gates
 
-**Required inputs**: `corporation_id`, pre-money valuation or price per share.
-If missing, call `AskUserQuestion` before proceeding (see carta-interaction-reference §4.1).
+**Required inputs**: pre-money valuation or price per share. If missing, call `AskUserQuestion` before proceeding. The company is not an input to ask for: it comes from Prerequisites (omitted, a name, or `meta.company.id`).
 
 AskUserQuestion("What pre-money valuation or price per share should I use for the conversion calculation?")
 
 **AI computation**: Yes — converts SAFE and note investment amounts into equity shares using cap/discount math.
-Trigger the AI computation gate (see carta-interaction-reference §6.2) before outputting any computed shares, prices, percentages, or ownership figures.
+Before you fetch data or compute, call `AskUserQuestion` (never plain text) with: "No saved Carta model matches these terms. I can compute SAFE and note conversion shares using AI — this would be Claude's analysis, not Carta data. Would you like me to proceed?" If the user says no, stop: no output, no fallback. If the user says yes, label the output as **Output label** below says.
 
-**Subagent prohibition**: Do NOT delegate this skill to a background agent if required inputs are missing. A subagent cannot call `AskUserQuestion`. If inputs are absent, stop and ask the user directly first.
+**Subagent prohibition**: Do NOT delegate this skill to a background agent if the round terms are missing, or before the company is resolved. A subagent cannot call `AskUserQuestion`. If the round terms are absent, stop and ask the user directly first.
 
 ## Presentation
 
@@ -142,6 +145,15 @@ Post-conversion fully diluted: 11,986,747
 ```
 
 > ⚠️ **Claude's analysis** — computed from cap table data, not from a saved Carta model. Verify with counsel before relying on these numbers.
+
+## Error Handling
+
+| Situation | What to do |
+|---|---|
+| No SAFE or note matches a label (`not_found`) | Match the label in the Step 1 rows. If no row matches, ask the user with `AskUserQuestion` which instrument they mean. |
+| Response too large on another read (for example pro forma models) | Use only the three reads in Step 1. Page the convertible notes with `next`. |
+| 403, `role_required` or access denied | Say the user's role can't see this company's SAFEs and notes. Do not retry. |
+| Company error | Follow *Company errors* in `${CLAUDE_PLUGIN_ROOT}/references/find-the-company.md`. |
 
 ## Caveats
 

@@ -25,7 +25,7 @@ For CI or a one-off override, set environment variables instead:
 ```bash
 export FALCON_CLIENT_ID=your_client_id_here
 export FALCON_CLIENT_SECRET=your_client_secret_here
-# export FALCON_BASE_URL=https://api.crowdstrike.com  # US-1 (default)
+# export FALCON_BASE_URL=https://api.us-3.crowdstrike.com  # needed outside US-1, US-2, and EU-1 (for example US-3 or GovCloud), which FalconPy discovers
 ```
 
 Verify credentials:
@@ -46,7 +46,7 @@ skills/
   setup/          SKILL.md — interactive credential setup
 common/scripts/   auth.py — shared API auth (single source of truth)
 use-cases/        Pattern-matchable workflow scenarios (frontmatter + markdown)
-hooks/            Claude Code hooks (intent routing, cross-plugin advisory)
+hooks/            Plugin hooks (intent routing, cross-plugin advisory)
 ```
 
 Each skill's `SKILL.md` is plain markdown with YAML frontmatter — read it directly for the workflow, script reference, and pitfalls. Reference docs live under each skill's `references/` directory.
@@ -68,9 +68,9 @@ The skills are markdown instructions plus Python scripts — no plugin runtime i
 1. **Read the SKILL.md** for the task you are doing (e.g., `skills/authoring/SKILL.md` to write a workflow).
 2. **Run the scripts directly** with `python <skill>/scripts/<script>.py --help` to see flags. Any absolute or `~/.agents/skills/...` symlink path works — each script resolves its own location and bootstraps its managed Python venv, so `${CLAUDE_PLUGIN_ROOT}` (set only by Claude Code) is not required.
 3. **Follow the discipline rules**, which are not optional:
-   - Always discover real action IDs with `action_search.py` — never guess. IDs are opaque catalog identifiers.
+   - Resolve real action IDs from the Common Action IDs table in `skills/authoring/SKILL.md` first, then `action_search.py --search` for anything the table doesn't list — never guess. IDs are opaque catalog identifiers.
    - Never write `PLACEHOLDER_*` values. Resolve every ID before authoring.
-   - Every action needs a `version_constraint`: `~<major>` of its `semantic_version` (`~0` when it declares none).
+   - Give every new action a `version_constraint`: `~<major>` of its `semantic_version` (`~0` when it declares none). It's required on class-based actions; on others it's recommended but changes the action's output paths, so when you add one to an existing workflow, shorten that action's `${data['...']}` references in the same edit.
    - Validate after authoring (`validate.py`) and again as a deploy pre-flight.
    - A workflow must be released before it can execute.
 4. **Check `use-cases/`** for a matching pattern before starting — each file documents the trigger, key actions, and steps for a common scenario.
@@ -118,23 +118,26 @@ python skills/deployment/scripts/release_workflow.py --id <definition_id>
 python skills/execution/scripts/trigger_workflow.py --id <definition_id> --params '{"device_id":"abc123"}' --wait
 ```
 
-Pick the trigger type with `skills/authoring/scripts/trigger_search.py --list` (valid types: On demand, Signal, Scheduled, SubModel).
+Pick the trigger type with `skills/authoring/scripts/trigger_search.py --list`. `trigger.type` accepts five values: On demand, Signal, Scheduled, SubModel, and Inbound webhook — an unrecognized one is rejected at import. Inbound webhook is the structural odd one out: no `event:` field, a `webhook_config` block (payload schema, authentication, optional caller-IP allowlist), and a URL that Fusion generates server-side and that isn't part of the exported definition.
 
 ### Working with an Existing Workflow
 
-There is **no export script** — the Workflows API (via FalconPy) exposes no workflow-download endpoint. Treat the local YAML as the source of truth:
+Export a deployed definition back to YAML with `skills/deployment/scripts/export_workflow.py <definition_id>` (by default the platform strips authoring metadata such as the author's email; values you typed into action properties, like recipients or `config_id`s, stay in the export, so review it before committing). Treat your local YAML as the source of truth for edits — a re-import creates a new definition rather than updating one in place:
 
 ```bash
 # Find the deployed definition and confirm its state
 python skills/deployment/scripts/query_workflows.py --search "contain"
 python skills/deployment/scripts/query_workflows.py --check-name "Contain Host on Detection"
 
+# Export a deployed definition back to YAML (e.g. to recover one authored in the console)
+python skills/deployment/scripts/export_workflow.py <definition_id> -o workflow.yaml
+
 # Edit the local YAML, re-validate, and re-import
 python skills/authoring/scripts/validate.py workflow.yaml
 python skills/deployment/scripts/import_workflows.py workflow.yaml
 ```
 
-Re-importing a name that already exists is flagged by the duplicate check; rename in the YAML or delete the existing definition in the console first. A re-imported definition is disabled until you release it again. To stop a running execution, use `skills/execution/scripts/monitor_execution.py` and `get_execution_results.py` to inspect status.
+Re-importing a name that already exists is flagged by the duplicate check; keep the name, since renaming leaves the old definition orphaned in the CID, and re-import with `import_workflows.py --replace` (deletes the same-name definition, then imports), or delete the existing definition first with `skills/deployment/scripts/delete_workflow.py`. A re-imported definition is disabled until you release it again. Use `skills/execution/scripts/monitor_execution.py` and `get_execution_results.py` to inspect a running execution; neither can stop one, so cancel it in the Falcon console.
 
 ### Common Scenarios
 
@@ -147,8 +150,8 @@ Re-importing a name that already exists is flagged by the duplicate check; renam
 Quality matters more than speed. Specifically:
 
 - **Validate everything.** Run `validate.py` after authoring and rely on the import pre-flight; do not push unvalidated YAML to the API.
-- **No placeholders.** Every action `id` must be a real value resolved via `action_search.py`. A `PLACEHOLDER_*` string in output YAML means a step was skipped — go back and resolve it.
-- **Test before declaring done.** A returned `definition_id` means imported, not working. Release it, trigger it with real parameters, and confirm the execution reached a terminal `Succeeded` state with `monitor_execution.py` before calling the task complete.
+- **No placeholders.** Every action `id` must be a real value, from the Common Action IDs table or `action_search.py`. A `PLACEHOLDER_*` string in output YAML means a step was skipped — go back and resolve it.
+- **Test before declaring done.** A returned `definition_id` means imported, not working. Release it, trigger it with real parameters, and confirm the execution reached a terminal success state (`Succeeded` or `Completed`) with `monitor_execution.py` before calling the task complete.
 - **Read each skill's Common Pitfalls section** before working in that phase.
 
 ## Security Considerations
@@ -156,7 +159,7 @@ Quality matters more than speed. Specifically:
 - **Never log credentials.** Credentials load from environment variables or the TOML profile (see Prerequisites) — never hardcode them, echo them, or commit them. The setup script reads the secret with masked input and writes a `600`-permission file.
 - **The console-credential boundary.** A workflow can be authored outside the console, but any `config_id` / `definition_id` / `config_name` it references must already exist in the target CID (created in the Falcon console). Discover existing config IDs; do not invent them. Document the dependency when the config does not yet exist.
 - **Input validation.** Workflows that trigger response actions (contain host, disable account) act on real assets. Validate trigger parameters and guard against empty/missing required params, which are a top cause of failed or misdirected executions.
-- **`version_constraint` discipline.** Every action needs a `version_constraint`: the tilde range for the major component of its `semantic_version` (`~1` for `1.x.y`, `~0` for `0.x.y` or when no version is declared, `~2` for `2.x.y`). Confirm with `action_search.py --details` rather than assuming `~1` — many actions sit at major version 0.
+- **`version_constraint` discipline.** Give every new action a `version_constraint` (required on class-based actions): the tilde range for the major component of its `semantic_version` (`~1` for `1.x.y`, `~0` for `0.x.y` or when no version is declared, `~2` for `2.x.y`). Confirm with `action_search.py --details` rather than assuming `~1` — many actions sit at major version 0. Pinning shortens an action's output paths (see `skills/authoring/references/yaml-schema.md`), which is why some bundled console exports leave it off.
 
 ## Cross-Plugin Boundary
 

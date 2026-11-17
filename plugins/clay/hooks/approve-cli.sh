@@ -34,8 +34,8 @@ agent="${1:-claude}"
 # rest of this list).
 allowed_helpers="jq cat head tail wc grep sort uniq column tr echo printf"
 
-# Credential/egress `clay` subcommands that never auto-approve
-gated_subcommands="feedback login logout api-keys webhooks"
+# Credential/egress and self-update `clay` subcommands that never auto-approve
+gated_subcommands="feedback login logout api-keys webhooks update"
 
 # Multi-word `clay` prefixes that never auto-approve. Entries are comma-separated;
 # words within an entry are space-separated (e.g. "credits top-up,routines start").
@@ -105,9 +105,18 @@ esac
 #   - any segment that leads with a `VAR=value` env-var assignment is rejected
 #     outright -- we never vet the variable, so a prefix like `LD_PRELOAD=`,
 #     `CLAY_API_URL=`, or `CLAY_CONFIG_HOME=` must not ride in as a plain call;
-#   - at least one segment across all clauses must be `clay` (its own path/URL
-#     args are left alone), so the pipeline/chain stays anchored to a clay call
-#     wherever it sits;
+#   - at least one segment across all clauses must be `clay`, so the
+#     pipeline/chain stays anchored to a clay call wherever it sits. `--output`
+#     writes a file and must name a plain `.csv` file in cwd. No other clay
+#     argument (positional, or a `--flag=value` value) may name a path outside
+#     cwd -- one that starts with `/` or `~`, or has a `..` component -- because
+#     file flags such as `--file`, `--inputs`, and `--input` read that path and
+#     upload it to Clay. Quotes are removed first, so `"/etc/passwd"` is caught;
+#     inline JSON and `-` (stdin) still auto-approve. A cwd-relative word can
+#     still be a symlink to a file outside cwd, so the awk pass also prints
+#     every word of the clay and file-reading helper segments, and the shell
+#     check after it refuses if any of them, or any directory on its path, is
+#     a symlink in the event's cwd;
 #   - the `clay` segment's first non-flag word is refused if it is a
 #     credential/egress subcommand (feedback, login, logout, api-keys,
 #     webhooks) or if its leading non-flag words match any gated prefix
@@ -142,7 +151,11 @@ esac
 #     data -- JSON, a URL -- not a file read) but not from the unquoted
 #     shell-metachar guard. The `$`-reject guard above is what keeps remaining
 #     args literal -- otherwise `printf "$SECRET"` would expand an env var
-#     into clay's stdin under the echo/printf exemption.
+#     into clay's stdin under the echo/printf exemption;
+#   - a jq segment must not use the `env` builtin or load code the command
+#     text does not show (`import`, `include`, `--from-file`): jq reads the
+#     whole process environment through `env` with no `$`. Quotes are
+#     removed before this check, so `e''nv` cannot hide the word.
 # Residual, knowingly accepted for `|` only: bare cwd-relative names (e.g.
 # `cat .env | clay`) aren't caught; since no allowlisted helper can reach the
 # network or redirect, such a read stays in the agent's context and still can't
@@ -174,6 +187,7 @@ verdict="$(printf '%s' "$cmd_stripped" | awk -v helpers="$allowed_helpers" -v ga
       if (Plen[nPfx] > max_pfx_len) max_pfx_len = Plen[nPfx]
     }
     sq = sprintf("%c", 39)
+    cand = ""
   }
   # Strip matching surrounding quotes, then remove any remaining quote chars.
   function dequote_word(w,    q, last) {
@@ -209,6 +223,58 @@ verdict="$(printf '%s' "$cmd_stripped" | awk -v helpers="$allowed_helpers" -v ga
     }
     return 0
   }
+  # Accepts only a plain cwd file name, optionally wrapped in one pair of quotes,
+  # so `--output` cannot replace a dot file or a file outside cwd.
+  function is_cwd_csv(v,    q) {
+    q = substr(v, 1, 1)
+    if ((q == "\"" || q == sq) && length(v) >= 2 && substr(v, length(v), 1) == q) {
+      v = substr(v, 2, length(v) - 2)
+    }
+    return v ~ /^[A-Za-z0-9_][A-Za-z0-9._-]*\.csv$/
+  }
+  function has_unsafe_output(w, m,    j, f) {
+    for (j = 1; j <= m; j++) {
+      f = dequote_word(w[j])
+      if (f == "--output") {
+        if (j == m || !is_cwd_csv(w[j + 1])) return 1
+        j++
+      } else if (substr(f, 1, 9) == "--output=") {
+        if (!is_cwd_csv(substr(w[j], index(w[j], "=") + 1))) return 1
+      }
+    }
+    return 0
+  }
+  function names_path_outside_cwd(w, m,    j, v) {
+    for (j = 1; j <= m; j++) {
+      v = dequote_word(w[j])
+      if (substr(v, 1, 1) == "-" && index(v, "=") > 0) v = substr(v, index(v, "=") + 1)
+      if (v ~ /^[\/~]/ || v ~ /(^|\/)\.\.(\/|$)/) return 1
+    }
+    return 0
+  }
+  # Collect each shell word of t (quote-aware, quotes removed) plus the value of
+  # a `--flag=value` or `-fvalue` word, one per line, for the symlink check.
+  function add_candidate(v) {
+    cand = cand "\n" v
+    if (substr(v, 1, 1) != "-") return
+    if (index(v, "=") > 0) cand = cand "\n" substr(v, index(v, "=") + 1)
+    else if (substr(v, 2, 1) != "-" && length(v) > 2) cand = cand "\n" substr(v, 3)
+  }
+  function collect_words(t,    i, c, inq, cur, have) {
+    inq = ""; cur = ""; have = 0
+    for (i = 1; i <= length(t); i++) {
+      c = substr(t, i, 1)
+      if (inq != "") { if (c == inq) inq = ""; else cur = cur c; continue }
+      if (c == sq || c == "\"") { inq = c; have = 1; continue }
+      if (c == " " || c == "\t") {
+        if (have || cur != "") add_candidate(cur)
+        cur = ""; have = 0
+        continue
+      }
+      cur = cur c
+    }
+    if (have || cur != "") add_candidate(cur)
+  }
   # Dequote each token before option classification and prefix/subcommand gates.
   function check_clay(t,    rest, m, w, j, sc, words, nw, e, pfx_match) {
     # Same policy as helpers: unquoted shell metachars (* ? [ ] ~ { } ( ), or
@@ -219,6 +285,8 @@ verdict="$(printf '%s' "$cmd_stripped" | awk -v helpers="$allowed_helpers" -v ga
     rest = t
     sub(/^clay([ \t]+|$)/, "", rest)
     m = split(rest, w, /[ \t]+/)
+    if (has_unsafe_output(w, m)) return 0
+    if (names_path_outside_cwd(w, m)) return 0
     sc = ""
     nw = 0
     for (j = 1; j <= m; j++) {
@@ -242,6 +310,14 @@ verdict="$(printf '%s' "$cmd_stripped" | awk -v helpers="$allowed_helpers" -v ga
     if (sc in D) return 0
     return 1
   }
+  function jq_reaches_env(t,    u) {
+    u = t
+    gsub(/"/, "", u)
+    gsub(sq, "", u)
+    if (u ~ /(^|[^A-Za-z0-9_.])(env|import|include)([^A-Za-z0-9_]|$)/) return 1
+    if (u ~ /(^|[ \t])--from-file([ \t]|=|$)/) return 1
+    return 0
+  }
   function check_helper(t, tok, pipe_ok,    allow) {
     if (pipe_ok) {
       if (!(tok in H)) return 0
@@ -255,6 +331,7 @@ verdict="$(printf '%s' "$cmd_stripped" | awk -v helpers="$allowed_helpers" -v ga
     # into a cwd listing under auto-approve; mid-word = and bare @ are
     # allowed.
     if (allow && has_unquoted_shell_metachar(t)) return 0
+    if (allow && tok == "jq" && jq_reaches_env(t)) return 0
     if (allow && tok != "echo" && tok != "printf") {
       if (index(t, "/") > 0) return 0
       if (index(t, "~") > 0) return 0
@@ -310,13 +387,42 @@ verdict="$(printf '%s' "$cmd_stripped" | awk -v helpers="$allowed_helpers" -v ga
         } else if (!check_helper(t, tok, cl_clay)) {
           exit
         }
+        if (tok != "echo" && tok != "printf") collect_words(t)
       }
     }
-    if (saw_clay) print "allow"
+    if (saw_clay) printf "allow%s\n", cand
   }
 ')"
 
-[ "$verdict" = "allow" ] || exit 0
+[ "$(printf '%s\n' "$verdict" | sed -n 1p)" = "allow" ] || exit 0
+
+# True if $1, or any directory on its cwd-relative path, is a symlink.
+names_symlink() {
+  _prefix=""
+  _ifs="$IFS"
+  IFS=/
+  for _part in $1; do
+    _prefix="${_prefix:+$_prefix/}$_part"
+    if [ -n "$_part" ] && [ -L "$_prefix" ]; then
+      IFS="$_ifs"
+      return 0
+    fi
+  done
+  IFS="$_ifs"
+  return 1
+}
+
+event_cwd="$(printf '%s' "$input" | jq -r '.cwd // empty' 2> /dev/null)"
+if [ -n "$event_cwd" ]; then
+  cd "$event_cwd" 2> /dev/null || exit 0
+fi
+printf '%s\n' "$verdict" | sed 1d | {
+  while IFS= read -r word; do
+    [ -n "$word" ] || continue
+    if names_symlink "$word"; then exit 1; fi
+  done
+  exit 0
+} || exit 0
 
 case "$agent" in
   cursor)

@@ -81,7 +81,7 @@ competes.
 
 Context the user supplies often contains facts about what a system *is* — where it
 runs, what it depends on, its real names. Those belong in the team's architecture
-docs, not buried in the skill: write them through the `architecture` skill's write job
+docs, not buried in the skill: write them through the `architecture-author` skill
 in the same change, and let the skill lean on the docs.
 
 ## 2. Check it doesn't already exist
@@ -153,6 +153,11 @@ picture. The rules that matter most for a new skill:
   with X"), add the two or three signals from step 1 that only this skill matches, and
   keep it to a few sentences — activation comes from the subject, not from enumerating
   phrasings.
+- Stamp the frontmatter with this plugin's version under `metadata`, per the provenance
+  stamp section of [format.md](format.md): read the version from the plugin manifest
+  (or write `"mcp"` when you loaded this skill through the MCP server's skill tools),
+  quote it, never type it from memory. This is how incident.io knows the skill came
+  through this flow.
 - Name connections and bare tools, arguments as data — never an invocation syntax;
   telemetry names its datasource, never the tool that runs the query.
 - Write the abstention path: what the skill says when the tools come back empty or the
@@ -171,9 +176,9 @@ draft before anything lands. How you point it at the tree depends on what exists
   (`changes: [{path, content}]`, plugin-root-relative — new files included; they are
   overlaid on the synced version in memory, so nothing ships).
 - **A plugin's first skill, or no plugin at all.** There is no synced version to overlay
-  onto, so send the tree itself: `extension_upload_url` returns a URL, upload the plugin
-  as a `.tar.gz`, then call `extension_verify` with the `mount_name` you uploaded to and
-  no changes. The uploaded tree is what gets checked. Mount it under the name you intend
+  onto, so send the tree itself: `extension_upload_url` returns a URL and headers, PUT
+  the plugin to it as a `.tar.gz` with those headers, then call `extension_verify` with
+  the `mount_name` you uploaded to and no changes. The uploaded tree is what gets checked. Mount it under the name you intend
   to register the plugin as, or paths inside your skills resolve differently here than
   they will in production.
 - **The content is on a branch.** Give the repository, the ref and a `mount_name`, and
@@ -217,15 +222,17 @@ to the user to try in a new session, and ship after their run rather than before
 
 In the same change: add the skill's row to the plugin README's skills table, and a
 connections-table row for any new connection it calls, per the registration rules in
-[format.md](format.md). This step is not optional polish.
+[format.md](format.md). This step is not optional polish. Before proposing the change,
+check the provenance stamp is present and carries the version you read from the
+manifest — a road test that rewrote the frontmatter can drop it.
 
 ## 7. Ship it and confirm it arrived
 
 How the skill reaches agents depends on the session:
 
 - **Working in the plugin's repository** (the common case): commit on a branch and
-  propose a pull request per the team's flow. The plugin syncs from the repository, so
-  the skill goes live when the change lands on the synced branch. Where the checkout
+  propose a pull request per the team's flow. The plugin syncs from the repository's
+  default branch, so the skill goes live when the change lands there. Where the checkout
   can't be committed from this session, edit in place and tell the user exactly what
   to land and how.
 - **The session has the incident.io connection's extension tools**: after the change
@@ -239,11 +246,31 @@ If the plugin uses a skill allowlist rather than automatic selection (a setting 
 plugin's page in the incident.io dashboard), a new skill also needs enabling there —
 say so rather than assuming automatic pickup.
 
+### Hand over for review
+
+When you hand over the pull request, say in a few lines what to check — in the voice
+the `talking-to-the-user` skill sets:
+
+- **Facts, not wording.** Give them step 3's claims list to tick off — every name,
+  tool, data source, number and owner the skill states, and how each was checked. Edit a
+  sentence only when it reads two ways or is false; the reader is an agent.
+- **The description, as the trigger it is.** Would they want this skill used in the
+  situations it names, and only those?
+- **The procedure, as if on call.** A step that makes them ask "which one?" or "how?"
+  is where the agent will guess — fix the line.
+
+Once they've checked those, they merge. For a first skill, the plugin is added to
+incident.io after the merge — the `extensions` skill's job, and it says why the order
+matters.
+
 ## 8. Say how you'll know it worked
 
-End by telling the user what evidence to expect: the skill loading on matching requests,
-and — once loads have been assessed — feedback appearing against it. Point them at the
-[improve](improve.md) job for the follow-up, once the skill has seen real use.
+End by telling the user what happens after the merge, in their words: the skill's page
+in the incident.io dashboard (and the plugin's, across all its skills) shows each time
+an incident used it, whether it helped, and what went wrong — empty until a matching
+incident happens, which is normal in the first days. To fix a problem, they bring it
+back to a session with the incident.io skills loaded; the [improve](improve.md) job
+edits the skill from that evidence.
 
 Say too what you couldn't verify: any surface this session couldn't reach, and the claim
 resting on it. That makes the gap a decision the team takes rather than an assumption
@@ -252,3 +279,8 @@ buried in the skill.
 It is important to note which connector tool calls were overridden or simulated during
 verification so that the user understands which parts have been fully exercised and 
 which parts are not yet confirmed to be working.
+
+When you tell the user how the tests went, pass or fail, add a one-line footnote: some
+calls can't be made for real during a test, so there are limits to how much certainty it can offer, and
+<https://docs.incident.io/nexus/extensions/incident-skills-plugin#limits-of-verification>
+explains them.

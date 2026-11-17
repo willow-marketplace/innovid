@@ -28,7 +28,7 @@ After deploying a function, use these commands to execute, inspect results, and 
 
 ### Execute a Function
 
-> **Resolve WHICH function and WHICH handler before running.** An app can have multiple function artifacts, and each artifact can expose multiple handlers — so `exec` needs both a function (`--function`, omittable only when the app has exactly one) and a `--handler`. Read `manifest.yml` (the `functions:` list; each entry has a `id`, `name`, and a `handlers:` list) to see what's available, then close the gap between what you already know and what's still ambiguous:
+> **Resolve WHICH function and WHICH handler before running.** An app can have multiple function artifacts, and each artifact can expose multiple handlers — so `exec` needs both a function and a `--handler`. Always pass `--function` when the app has more than one: without it the CLI silently uses the *first* function in `manifest.yml`, which may not be the one you mean. Read `manifest.yml` (the `functions:` list; each entry has a `id`, `name`, and a `handlers:` list) to see what's available, then close the gap between what you already know and what's still ambiguous:
 > - **Function already known** (e.g. the user has a file under `functions/<name>/` open, named it in the prompt, or the app has only one) → don't re-ask it. Only resolve the handler.
 > - **Handler ambiguous** → if that function exposes exactly one handler in the manifest, use it. If it exposes several, list them and ask which one (don't guess).
 > - **Function ambiguous** (multi-function app, no context) → list the functions from the manifest and ask which one, then resolve its handler the same way.
@@ -73,6 +73,15 @@ foundry functions exec --handler my_handler --ignore-deploy-warning '{"key": "va
 
 The response shows: status code, exec ID, artifact info, and the function's response body. For async functions (202), the CLI automatically polls until the function completes and shows the actual result.
 
+**Exec IDs embed the CID.** An exec ID is base64 for `fn-id=<id>/version=<n>/cid=<cid>/req-id=<id>`. Don't paste raw exec IDs into public PRs, issues, or blog posts; use a placeholder such as `<exec_id>`.
+
+#### Things `exec` does not tell you
+
+- **`403 app is not installed` from a Falcon platform API call inside the handler.** Deploying is enough for `exec` to reach the function, but any FalconPy / gofalcon call the handler makes against the Falcon platform is authorized against an *installed* app. Until the app has been released (`foundry apps release`) **and** installed from the App Catalog, those calls return `403` with `app is not installed`. That reads like a missing scope but is not one — check install state before touching `auth.scopes`. One install is enough: after it, later deploys (including code changes) authenticate under `exec` and `test` without another release.
+- **`undeployed local changes detected` fires on any file in the function directory.** The comparison covers every file under `functions/<name>/`, including files the deployed handler never imports (a new `tests.yml`, a scratch script, an edited README). It also fires right after a successful deploy when `manifest.yml` `ignored:` excludes something that still exists locally, such as `tests/`: the deployed copy never has it, so the directories never match. Hidden directories inside the function directory count too: a `.venv` or `.pytest_cache` under `functions/<name>/` triggers the warning right after a clean deploy, because the deploy never packages hidden paths but the comparison still sees them (`foundry apps deploy` reports "no changes detected" at the same moment). If the handler itself is unchanged and the user wants the deployed version, `--ignore-deploy-warning` is the right answer; otherwise deploy.
+- **There are two status codes, and only one is the handler's.** After polling, the CLI prints `Status Code: 200` when the platform ran the function, even if the handler rejected the request. The handler's own result is `payload.status_code` in the response body (a `400` with `errors` for a validation failure). Read that one when reporting or debugging; it is also what `tests.yml` `expect.status` asserts.
+- **`exec` can hang after the function has already returned.** Observed with CLI 2.1.1: when the handler returned quickly with a non-2xx `status_code` in its payload, the CLI kept polling for many minutes while a UI calling the same handler got the result in seconds. Wrap the command (`timeout 120 foundry functions exec ...`) and fall back to `foundry functions exec status <exec_id>` using the ID printed in the first lines of output.
+
 #### Supplying request values beyond the body
 
 The positional argument (inline JSON, a file path, `@filename`, or stdin) is the request **body**. A handler can also read headers, query parameters, and a request context object — supply those with flags or a bundled file. **The HTTP method and path always come from the handler's manifest definition — they are NOT set here.** The platform passes these values to the handler without filtering (header names are canonicalized; query and context values are delivered verbatim), so shape them exactly as the handler code reads them.
@@ -100,7 +109,7 @@ The positional argument (inline JSON, a file path, `@filename`, or stdin) is the
 
 - **Interactively** (no body and no request flags given), `exec` asks a single yes/no: whether to provide a bundled request file, then prompts for its path. It does not prompt for headers/query/context individually — use the flags or `--request-file` for those.
 
-> **Execute ≠ fetch logs. When asked to run a handler, execute it and return the response body — then stop.** Do NOT automatically fetch logs (no `--logs`, no follow-up `foundry functions logs`) unless the user explicitly asked for them (e.g. "run it and show me the logs"). Logs arrive via Firehose ~5 minutes later, so auto-fetching adds a long, usually unwanted delay.
+> **Execute ≠ fetch logs. When asked to run a handler, execute it and return the response body — then stop.** Do NOT automatically fetch logs (no `--logs`, no follow-up `foundry functions logs`) unless the user explicitly asked for them (e.g. "run it and show me the logs"). Logs arrive via Firehose 5-10 minutes later, so auto-fetching adds a long, usually unwanted delay.
 >
 > **If the handler returns an error** (non-2xx status, error in the response body, or a stack trace): report the response to the user first, then *offer* to investigate — e.g. "The handler returned a 500. Would you like me to fetch the logs to see what went wrong?" Only run `foundry functions logs <exec_id>` after the user says yes. The exception is when the user's original request already asked you to debug or "figure out why it fails" — that is standing consent to pull logs without re-asking.
 
@@ -110,17 +119,17 @@ The positional argument (inline JSON, a file path, `@filename`, or stdin) is the
 
 ```bash
 # Poll until an async execution completes
-foundry functions exec status <exec_id>
+foundry functions exec status <exec_id> --no-prompt
 
 # Single check without polling
-foundry functions exec status <exec_id> --no-poll
+foundry functions exec status <exec_id> --no-poll --no-prompt
 ```
 
 ### List Recent Executions
 
 ```bash
-# List recent executions (interactive function selection)
-foundry functions exec list
+# List recent executions (single-function app: the function is auto-selected)
+foundry functions exec list --no-prompt
 
 # List for a specific function
 foundry functions exec list --function my-fn --no-prompt
@@ -130,22 +139,22 @@ foundry functions exec list --function my-fn --no-prompt
 
 ```bash
 # Retrieve logs for a specific execution
-foundry functions logs <exec_id>
+foundry functions logs <exec_id> --no-prompt
 
 # Resume polling a previous log query job
-foundry functions logs <exec_id> --job-id <job_id>
+foundry functions logs <exec_id> --job-id <job_id> --no-prompt
 
 # Force a fresh log query (if logs are still arriving)
-foundry functions logs <exec_id> --refresh
+foundry functions logs <exec_id> --refresh --no-prompt
 ```
 
-Logs are delivered via the Firehose pipeline and typically arrive ~5 minutes after execution. The CLI shows a spinner during the query and a countdown between poll attempts.
+Logs are delivered via the Firehose pipeline and typically arrive 5-10 minutes after execution. The CLI shows a spinner during the query and a countdown between poll attempts.
 
 ### Debugging Workflow (AI-Assisted)
 
 When a function execution fails or returns unexpected results, use this workflow:
 
-1. **Execute and observe**: `foundry functions exec --handler <handler> --logs '<payload>'`
+1. **Execute and observe**: `foundry functions exec --handler <handler> --logs '<payload>' --no-prompt`
 2. **Review logs**: If logs show the failure, correlate timestamps against the function source code
 3. **Read source**: The function source is at the path specified in `manifest.yml` → `functions[].path`
 4. **Identify root cause**: Compare log error messages, status codes, and stack traces against the handler logic
@@ -159,7 +168,7 @@ When using Claude Code, ask "debug my last function execution" or "why did this 
 
 ### Run Function Test Cases (Integration Tests)
 
-> **Not to be confused with unit tests.** Unit tests (`pytest`, Go `httptest`) run locally against mocked dependencies — see [testing-patterns.md](testing-patterns.md). Function test cases are **integration tests** that execute against the real deployed Lambda with real API calls, real collections, and real credentials.
+> **Not to be confused with unit tests.** Unit tests (`pytest`, Go `fdktest`) run locally against mocked dependencies — see [testing-patterns.md](testing-patterns.md). Function test cases are **integration tests** that execute against the real deployed Lambda with real API calls, real collections, and real credentials.
 
 Define test cases in a `tests.yml` file inside each function's directory and run them against the deployed function:
 
@@ -223,7 +232,7 @@ tests:
 |-------|------|-------------------|
 | `status` | int | Exact match on the handler's response status code. Omit (or `0`) to skip the status check. |
 | `body` | any JSON | **Object → subset match:** each field you list must be present in the response with an equal value; the actual body may contain additional fields. **Scalar/array → exact match.** |
-| `errors` | list of strings | Set comparison against the handler's returned error messages. A mismatch reports both missing-expected and unexpected errors (order-independent). |
+| `errors` | list of strings | Set comparison against the `message` of each `APIError` in the handler's `Response(errors=[...])` (not a field in `body`). A mismatch reports both missing-expected and unexpected errors (order-independent). |
 
 > **`method` no longer exists in `input`.** Earlier the schema was a flat `tests:` list where each case carried its own `handler:` and an `input.method:`. Now the handler comes from the enclosing group and the method/path come from the manifest — do NOT add a `method:` field, it is silently ignored.
 
@@ -255,13 +264,13 @@ foundry functions test --ignore-deploy-warning --no-prompt
 
 For async (202) handlers, the test command automatically polls for the actual result before asserting — in both modes.
 
-> **Resolve WHICH function to test the same way as `exec`** (see [Execute a Function](#execute-a-function)). `test` runs the `tests.yml` in a function's directory, so it needs to know which function artifact you mean: pass `--function <name>` unless the app has exactly one, or the function is already known from an open file / the prompt. Consult `manifest.yml` for the available functions. Handlers are selected by the `handler:` field on each **group** in `tests.yml` (each group's handler must exist on the target function in the manifest); narrow a run to a single handler group with `--handler <name>`.
+> **Resolve WHICH function to test the same way as `exec`** (see [Execute a Function](#execute-a-function)). `test` runs the `tests.yml` in a function's directory, so it needs to know which function artifact you mean: pass `--function <name>` unless the app has exactly one (without it the CLI uses the first function in the manifest), or the function is already known from an open file / the prompt. Consult `manifest.yml` for the available functions. Handlers are selected by the `handler:` field on each **group** in `tests.yml` (each group's handler must exist on the target function in the manifest); narrow a run to a single handler group with `--handler <name>`.
 
 ### Writing Integration Test Cases
 
 When a user asks to "write tests for my function" or "add test cases", **first clarify which type of test they want:**
 
-- **Unit tests** — run locally with mocked dependencies (`pytest`/`httptest`). Fast, no deployment needed. See [testing-patterns.md](testing-patterns.md).
+- **Unit tests** — run locally with mocked dependencies (`pytest`/Go `fdktest`). Fast, no deployment needed. See [testing-patterns.md](testing-patterns.md).
 - **Integration tests** — run against the real deployed Lambda via `foundry functions test`. Tests the full execution path including real API calls, collections, and credentials.
 
 Ask: "Would you like unit tests (local, with mocks) or integration tests (against the deployed function)?"
@@ -299,9 +308,9 @@ Given this handler (from `manifest.yml`: handler `on_post`, method `POST`, path 
 def on_post(request: Request, config, logger: Logger) -> Response:
     hostname = request.body.get("hostname")
     if not hostname:
-        return Response(body={"error": "hostname is required"}, code=400)
+        return Response(code=400, errors=[APIError(code=400, message="hostname is required")])
     if not isinstance(hostname, str) or len(hostname) > 253:
-        return Response(body={"error": "invalid hostname"}, code=400)
+        return Response(code=400, errors=[APIError(code=400, message="invalid hostname")])
     # ... lookup logic
     return Response(body={"result": data}, code=200)
 ```
@@ -323,6 +332,8 @@ tests:
           body: {}
         expect:
           status: 400
+          errors:
+            - "hostname is required"
 
       - name: hostname_too_long
         input:

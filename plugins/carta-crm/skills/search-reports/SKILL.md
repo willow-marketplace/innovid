@@ -3,6 +3,9 @@ name: search-reports
 description: Runs a saved report in the Carta CRM and renders its rows as a table, using the columns the report saved. Use this skill when the user says things like "run my report", "run the [name] report", "show me the [name] report", "open the [name] report", "what reports do we have", "list reports", or "/search-reports".
 ---
 
+<!-- carta:plugin-version -->
+<carta-plugin>carta-crm:1.20.20</carta-plugin>
+
 ## Overview
 
 A saved report is a stored filter plus a stored column set over one entity: deals, contacts,

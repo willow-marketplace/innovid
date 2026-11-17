@@ -84,6 +84,6 @@ does not fire here — the fixture models the post-decline / per-service outcome
 ## Regenerating / extending
 
 Captures follow the exact projections in `discover-live.md` Step 2 (same
-filenames). If you add a capture type: whitelist row first, then fixture, then
+filenames). If you add a capture type: allowlist row first, then fixture, then
 extend `expected-drift.json`. All project IDs, names, emails, and account
 numbers are synthetic.

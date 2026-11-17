@@ -169,6 +169,6 @@ The world's top startups build on AWS. So, what are you waiting for?
 
 ## About the Author
 
-**Saubia Khan**
+### Saubia Khan
 
 Saubia resides in Dubai and is a Startup Solutions Architect at AWS working with emerging startups in the MENA & Turkey region. Her role involves onboarding and accelerating startups, with a particular emphasis on AI. Over the course of her career, Saubia has concentrated on creating inventive accessibility solutions and collaborated with AI startups, guiding them through the dynamic landscape of technology.

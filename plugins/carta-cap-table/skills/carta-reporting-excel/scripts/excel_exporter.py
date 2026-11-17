@@ -5,17 +5,10 @@
 """
 excel_exporter.py — write a Carta-branded .xlsx from report_processor.py output.
 
-Usage (pipe from report_processor.py):
-    uv run report_processor.py <<'EOF' | \\
-        uv run excel_exporter.py \\
-            --title "Securities Ledger Report" \\
-            --as-of-date 2024-01-15 \\
-            --generated-by "Jane Doe" \\
-            --output /tmp/securities_ledger.xlsx
-    {"download_url": "...", "columns": [...]}
-    EOF
+Usage (after report_processor.py --out <result.json>):
+    uv run excel_exporter.py --input <result.json> --title "Securities Ledger Report" --as-of-date 2024-01-15 --generated-by "Jane Doe" --output /tmp/securities_ledger.xlsx
 
-Reads processed report JSON from stdin (output of report_processor.py):
+Reads report_processor.py's result JSON from --input:
     {
       "data":  {sheet_name: {"columns": [...], "rows": [...]}},
       "stats": {sheet_name: {...}}
@@ -30,6 +23,15 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+# The plugin's shared lib/ sits above the skill; walk up so this runs standalone under `uv run`.
+for _root in Path(__file__).resolve().parents:
+    if (_root / "lib" / "report_rows.py").is_file() and (_root / "lib" / "report_numbers.py").is_file():
+        sys.path.insert(0, str(_root / "lib"))
+        break
+from report_display import excel_sheet_name  # noqa: E402
+from report_numbers import is_percent_text, parse_fraction, parse_number  # noqa: E402
+from report_rows import is_section_list  # noqa: E402
+
 from openpyxl import Workbook
 from openpyxl.drawing.image import Image as XLImage
 from openpyxl.styles import Alignment, Font, PatternFill
@@ -40,24 +42,29 @@ HEADER_FG  = "2F3943"
 SUMMARY_BG = "E8F5E9"
 LOGO_PATH  = Path(__file__).parent.parent / "assets" / "Carta_Logo.png"
 
+_MONEY_DIGITS = "#,##0.00####"
+
+
+def _money_format(symbol: str) -> str:
+    """Excel number format for the given currency symbol; "" (no currency in the data) gives the
+    plain format with no symbol. artifact_engine.html moneyFormat mirrors this; change them together."""
+    if not symbol:
+        return _MONEY_DIGITS
+    return f'"{symbol}"{_MONEY_DIGITS}'
+
+
+# The digit patterns match artifact_engine.html (moneyFormat and the integer/decimal styles in
+# excelXml), which writes the same workbook formats from the report page; change them together.
 FORMAT_MAP = {
-    "money":      "$#,##0.00",  # overridden per-cell when currency differs
+    "money":      _money_format(""),  # the money style with no currency symbol
     "percentage": "0.00%",
     "integer":    "#,##0",
     "date":       "mmm d, yyyy",
-    "decimal":    "#,##0.0000",
+    "decimal":    "#,##0.0#####",  # a required decimal digit, so a whole value never shows "1."
 }
 
-# Excel forbids [ ] \ / ? * : in sheet tab names.
-_EXCEL_INVALID = str.maketrans("", "", "[]\\/?*:")
-
-
-def _sanitize_sheet_name(name: str) -> str:
-    sanitized = name.translate(_EXCEL_INVALID).strip()
-    return (sanitized or "Sheet")[:31]
-
 # Date columns arrive from api-reporting-service JSON as ISO-8601 strings — every
-# date-styled column serializes via LocalDate.toString() (audited under CAR-7203).
+# date-styled column serializes via LocalDate.toString().
 # The exporter is the presentation layer, so it converts them to real datetimes —
 # see _parse_date.
 #
@@ -87,11 +94,6 @@ def _parse_date(val):
     return None
 
 
-def _money_format(symbol: str) -> str:
-    """Return an Excel number format string for the given currency symbol."""
-    if symbol == "$":
-        return "$#,##0.00"
-    return f'"{symbol}"#,##0.00'
 NUMBER_TYPES = {"money", "integer", "percentage", "decimal"}
 
 EXCEL_AGG_FN = {
@@ -110,10 +112,40 @@ def _summary_formula(op, col_letter, start_row, end_row):
     return f"={fn}({col_letter}{start_row}:{col_letter}{end_row})"
 
 
+def _prepare_sheet(sheet):
+    """Normalize a processed sheet for writing.
+
+    A row's kind is decided here, once, from the row as it arrived: one-element string lists
+    become `{"_s": text}` section rows, so dropping columns can never turn a data row into one.
+    Columns report_processor.py tagged `hidden` (technical identifiers the artifact hides by
+    default) are dropped, except the first, which is always kept so the sheet keeps its leading
+    column. The summary "Total" label is not tied to it: report_processor.py puts it in a visible column.
+    Rows, totals and per-cell currencies stay aligned."""
+    columns = sheet["columns"]
+    n_cols = len(columns)  # before the pick: a one-column sheet has no section headings
+    keep = [i for i, col in enumerate(columns) if i == 0 or not col.get("hidden")]
+
+    def pick(cells):
+        return [cells[i] for i in keep if i < len(cells)]
+
+    rows = []
+    for row in sheet["rows"]:
+        if isinstance(row, dict):
+            row = {**row, "_t": pick(row["_t"])} if isinstance(row.get("_t"), list) else row
+        elif is_section_list(row, n_cols):
+            row = {"_s": row[0]}
+        else:
+            row = pick(row)
+        rows.append(row)
+    row_currencies = [pick(rc) if isinstance(rc, list) else rc
+                      for rc in sheet.get("row_currencies") or []]
+    return {**sheet, "columns": [columns[i] for i in keep],
+            "rows": rows, "row_currencies": row_currencies}
+
+
 def _write_sheet(ws, columns, rows, title, as_of_date, generated_by, summary_meta=None,
                  currency=None, row_currencies=None):
-    base_symbol    = (currency or {}).get("symbol", "$")
-    base_money_fmt = _money_format(base_symbol)
+    base_symbol    = (currency or {}).get("symbol", "")
     row_currencies = row_currencies or []
 
     last_col = get_column_letter(len(columns))
@@ -183,6 +215,8 @@ def _write_sheet(ws, columns, rows, title, as_of_date, generated_by, summary_met
 
     for row_idx, row in enumerate(rows, start=DATA_START):
         row_data_idx = row_idx - DATA_START  # 0-based position in rows list
+        # Every totals row is styled as one, wherever it sits; only the trailing summary rows get formulas.
+        is_total = False
 
         if isinstance(row, dict):
             if "_s" in row:
@@ -192,14 +226,9 @@ def _write_sheet(ws, columns, rows, title, as_of_date, generated_by, summary_met
                 continue
             elif "_t" in row and isinstance(row["_t"], list):
                 row = row["_t"]
+                is_total = True
             else:
                 continue
-        elif isinstance(row, list) and len(row) == 1 and isinstance(row[0], str):
-            # Plain single-element string arrays are section headers from the API
-            cell = ws.cell(row=row_idx, column=1, value=row[0])
-            cell.font = section_font
-            cell.fill = section_fill
-            continue
 
         is_summary = summary_count > 0 and (row_idx - DATA_START) >= data_row_count
 
@@ -207,38 +236,28 @@ def _write_sheet(ws, columns, rows, title, as_of_date, generated_by, summary_met
         row_curr = row_currencies[row_data_idx] if row_data_idx < len(row_currencies) else None
 
         for col_idx, (col, val) in enumerate(zip(columns, row), start=1):
+            percent_cell = False
             if is_summary:
                 col_letter = get_column_letter(col_idx)
                 op = agg_ops.get(col["name"])
-                if col_idx == 1:
-                    cell = ws.cell(row=row_idx, column=col_idx, value=val)
-                elif op:
+                if op:
                     formula = _summary_formula(op, col_letter, DATA_START, last_data_row)
                     cell = ws.cell(row=row_idx, column=col_idx, value=formula)
                 else:
-                    cell = ws.cell(row=row_idx, column=col_idx, value=None)
-                cell.fill = summary_fill
-                cell.font = summary_font
+                    # The "Total" label sits in a visible column without an op (report_processor.py picked it); the rest are blank.
+                    cell = ws.cell(row=row_idx, column=col_idx, value=val)
             else:
-                if col["type"] == "integer" and val is not None:
-                    try:
-                        val = int(val)
-                    except (ValueError, TypeError):
-                        pass
-                elif col["type"] == "money" and val is not None:
-                    try:
-                        val = float(val)
-                    except (ValueError, TypeError):
-                        pass
-                elif col["type"] in ("percentage", "decimal") and val is not None:
-                    try:
-                        # API may return percentages as "46.81%" strings or decimal strings
-                        if isinstance(val, str) and val.endswith('%'):
-                            val = float(val.rstrip('%')) / 100
+                if col["type"] in ("integer", "money", "percentage", "decimal") and val is not None:
+                    number = parse_fraction(val)
+                    if number is not None:
+                        if is_percent_text(val):
+                            # A percentage, also in a count column (a cap table's ownership rows).
+                            val = number
+                            percent_cell = True
+                        elif col["type"] == "integer":
+                            val = int(number) if number == int(number) else number
                         else:
-                            val = float(val)
-                    except (ValueError, TypeError):
-                        pass
+                            val = float(number)
                 elif col["type"] == "date" and isinstance(val, str) and val.strip():
                     # Coerce interchange date strings to real datetimes so FORMAT_MAP["date"]
                     # ("mmm d, yyyy") renders. Unparseable strings fall through unchanged.
@@ -246,20 +265,23 @@ def _write_sheet(ws, columns, rows, title, as_of_date, generated_by, summary_met
                     if parsed is not None:
                         val = parsed
                 cell = ws.cell(row=row_idx, column=col_idx, value=val)
+            if is_total or is_summary:
+                cell.fill = summary_fill
+                cell.font = summary_font
 
-            if col["type"] == "money":
-                if is_summary:
-                    cell.number_format = base_money_fmt
+            if percent_cell:
+                cell.number_format = FORMAT_MAP["percentage"]
+            elif col["type"] == "money":
+                # A totals row carries the currency its amounts were added up in, like any row.
+                zero_idx = col_idx - 1
+                if isinstance(row_curr, list):
+                    cell_curr = row_curr[zero_idx] if zero_idx < len(row_curr) else None
+                    sym = cell_curr["symbol"] if cell_curr else base_symbol
+                elif row_curr:
+                    sym = row_curr["symbol"]
                 else:
-                    zero_idx = col_idx - 1
-                    if isinstance(row_curr, list):
-                        cell_curr = row_curr[zero_idx] if zero_idx < len(row_curr) else None
-                        sym = cell_curr["symbol"] if cell_curr else base_symbol
-                    elif row_curr:
-                        sym = row_curr["symbol"]
-                    else:
-                        sym = base_symbol
-                    cell.number_format = _money_format(sym)
+                    sym = base_symbol
+                cell.number_format = _money_format(sym)
             elif col["type"] in FORMAT_MAP:
                 cell.number_format = FORMAT_MAP[col["type"]]
 
@@ -274,16 +296,19 @@ def main():
     parser.add_argument("--as-of-date",   required=True,  help="As-of date in YYYY-MM-DD format (output renders as MMM D, YYYY per Carta standard)")
     parser.add_argument("--generated-by", required=True,  help="User name for the subtitle line")
     parser.add_argument("--output",       required=True,  help="Output .xlsx file path")
+    parser.add_argument("--input",        required=True,  help="report_processor.py result JSON (its --out file)")
     args = parser.parse_args()
 
-    payload = json.load(sys.stdin)
+    with open(args.input) as f:
+        payload = json.load(f)
     data    = payload.get("data", payload)  # accept both full payload and bare data dict
 
     wb = Workbook()
     wb.remove(wb.active)  # remove default empty sheet
 
     for sheet_name, sheet in data.items():
-        ws = wb.create_sheet(title=_sanitize_sheet_name(sheet_name))
+        sheet = _prepare_sheet(sheet)
+        ws = wb.create_sheet(title=excel_sheet_name(sheet_name))
         _write_sheet(
             ws,
             columns=sheet["columns"],
@@ -296,7 +321,7 @@ def main():
             row_currencies=sheet.get("row_currencies"),
         )
 
-    out_path = Path(args.output)
+    out_path = Path(args.output).resolve()
     wb.save(out_path)
     print(out_path)
 

@@ -1,10 +1,31 @@
 > AI agents: this is one page from PostHog's docs. Full index of Markdown docs for LLMs: https://posthog.com/llms.txt
 
-# Ruby Feature Flags installation - Docs
+# Ruby Feature Flags installation
 
-Copy page
+Canonical URL: https://posthog.com/docs/feature-flags/installation/ruby
 
-# Ruby Feature Flags installation - Docs
+> **Cloud region:** This page uses US Cloud hosts. For an EU Cloud project, use `https://eu.i.posthog.com` instead of `https://us.i.posthog.com` (ingestion host).
+
+## On this page
+
+- [Install with the wizard](#install-with-the-wizard)
+- [Install the gem](#install-the-gem)
+- [Configure PostHog](#configure-posthog)
+- [Send events](#send-events)
+- [Evaluate boolean feature flags](#evaluate-boolean-feature-flags)
+- [Evaluate multivariate feature flags](#evaluate-multivariate-feature-flags)
+- [Include feature flag information in events](#include-feature-flag-information-in-events)
+- [Override server properties](#override-server-properties)
+- [Running experiments](#running-experiments)
+- [Next steps](#next-steps)
+
+## Install with the wizard
+
+Run this command in your project directory to add PostHog to your Ruby project. The wizard detects your framework, installs the SDK, and sets up your first events.
+
+`npx @posthog/wizard`
+
+Or set it up manually by following the rest of this guide.
 
 1.  1
 
@@ -16,10 +37,8 @@ Copy page
 
     Gemfile
 
-    PostHog AI
-
     ```ruby
-    gem "posthog-ruby"
+    gem "posthog-ruby", "~> 3.0"
     ```
 
 2.  2
@@ -32,10 +51,9 @@ Copy page
 
     Ruby
 
-    PostHog AI
-
     ```ruby
     require 'posthog'
+    
     posthog = PostHog::Client.new({
         api_key: "<ph_project_token>",
         host: "https://us.i.posthog.com",
@@ -52,8 +70,6 @@ Copy page
     Once installed, you can manually send events to test your integration:
 
     Ruby
-
-    PostHog AI
 
     ```ruby
     posthog.capture({
@@ -115,8 +131,6 @@ Copy page
 
     Ruby
 
-    PostHog AI
-
     ```ruby
     posthog.capture({
         distinct_id: 'distinct_id_of_your_user',
@@ -130,8 +144,6 @@ Copy page
     Include the `$feature/feature_flag_name` property in your event properties:
 
     Ruby
-
-    PostHog AI
 
     ```ruby
     posthog.capture({
@@ -191,16 +203,8 @@ Copy page
 
     | Resource | Description |
     | --- | --- |
-    | [Creating a feature flag](/docs/feature-flags/creating-feature-flags.md) | How to create a feature flag in PostHog |
-    | [Adding feature flag code](/docs/feature-flags/adding-feature-flag-code.md) | How to check flags in your code for all platforms |
-    | [Framework-specific guides](/docs/feature-flags/tutorials.md#framework-guides) | Setup guides for React Native, Next.js, Flutter, and other frameworks |
-    | [How to do a phased rollout](/tutorials/phased-rollout.md) | Gradually roll out features to minimize risk |
-    | [More tutorials](/docs/feature-flags/tutorials.md) | Other real-world examples and use cases |
-
-### Still have questions?
-
-Ask PostHog AI
-
-### Was this page useful?
-
-HelpfulCould be better
+    | [Creating a feature flag](https://posthog.com/docs/feature-flags/creating-feature-flags.md) | How to create a feature flag in PostHog |
+    | [Adding feature flag code](https://posthog.com/docs/feature-flags/adding-feature-flag-code.md) | How to check flags in your code for all platforms |
+    | [Framework-specific guides](https://posthog.com/docs/feature-flags/tutorials.md#framework-guides) | Setup guides for React Native, Next.js, Flutter, and other frameworks |
+    | [How to do a phased rollout](https://posthog.com/tutorials/phased-rollout.md) | Gradually roll out features to minimize risk |
+    | [More tutorials](https://posthog.com/docs/feature-flags/tutorials.md) | Other real-world examples and use cases |

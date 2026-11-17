@@ -14,17 +14,17 @@ Your training data may not contain the Scandit Kotlin Multiplatform (KMP) SDK at
 KMP-specific gotchas worth flagging:
 
 - `BarcodeFind` is constructed via the companion factory `BarcodeFind.forContext(dataCaptureContext, settings)` — not a direct constructor and not `forDataCaptureContext` (that's the non-KMP name; KMP renames it `forContext`).
-- `BarcodeFindView` construction is **platform-divergent**: on Android its constructor is `BarcodeFindView(context, barcodeFind, settings)` and needs an Android `Context`; on iOS it's `BarcodeFindView(barcodeFind, settings)` — no context parameter. Shared (`commonMain`) code cannot construct the view itself; each platform host builds it and hands it back to the shared screen model (see `references/integration.md`).
+- `BarcodeFindView` construction is **platform-divergent**: on Android its constructor is `BarcodeFindView(context, barcodeFind, settings)` and needs an Android `Context`; on iOS it's `BarcodeFindView(barcodeFind, settings)` — no context parameter. Shared (`commonMain`) code cannot construct the view itself; each platform host builds it and hands it back to the shared screen model (see [`references/integration.md`](references/integration.md)).
 - `BarcodeFindView.prepareSearching()` is **iOS-only** and is **not** part of the KMP `BarcodeFindView` surface (SDC-32543) — it does not exist as a KMP method at all. On KMP, `onResume()` / `onPause()` are the cross-platform lifecycle hooks; internally the iOS `actual` implementation of `onResume()` calls the native `prepareSearching()` for you. Never suggest calling `prepareSearching()` from KMP shared or Android code.
 - `BarcodeFindView.cameraStateOnStop` and `BarcodeFindView.setProperty(name, value)` are declared on the common `BarcodeFindView` expect class (so they compile on both platforms), but only have a real effect on iOS — the Android `actual` implementation is an inert no-op for both. Don't rely on them to change Android behavior.
 - Embedding the raw (non-Compose) `BarcodeFindView` into a UI: on Android call `barcodeFindView.toAndroidView()` (extension function, returns the underlying `android.view.View`); on iOS call `barcodeFindView.toUIView()` (a member function on `BarcodeFindView` itself). These are two different call shapes — don't mix them up.
 - `BarcodeFind.setItemList(items: Set<BarcodeFindItem>)` and the whole item-search flow only ever deal in `BarcodeFindItem` / `BarcodeFindItemSearchOptions` / `BarcodeFindItemContent` — never invent a "BarcodeFindItemList" collection type.
 - `BarcodeFindListener` has a default (empty) implementation for `onSessionUpdated(session)`, but `onSearchPaused`, `onSearchStarted`, and `onSearchStopped` have no default and must be implemented.
-- MatrixScan Find is commonly paired with SparkScan (scan a list first with SparkScan, then locate those items with BarcodeFind) — see the "SparkScan hand-off" note in `references/integration.md`. If the user's question is purely about SparkScan (scanning, not finding), route them to the `sparkscan-kmp` skill instead.
+- MatrixScan Find is commonly paired with SparkScan (scan a list first with SparkScan, then locate those items with BarcodeFind) — see the "SparkScan hand-off" note in [`references/integration.md`](references/integration.md). If the user's question is purely about SparkScan (scanning, not finding), route them to the `sparkscan-kmp` skill instead.
 
 ## Intent Routing
 
-Based on the user's request, read `references/integration.md` and follow the instructions there for:
+Based on the user's request, read [`references/integration.md`](references/integration.md) and follow the instructions there for:
 
 - **Integrating MatrixScan Find from scratch** (e.g. "add MatrixScan Find to my KMP app", "set up BarcodeFind", "how do I search for items with BarcodeFind")
 - **Building the item list to search for** (e.g. "how do I set the list of barcodes to find", "add info/image to a found item", "highlight items with a custom color")
@@ -46,6 +46,20 @@ Only use APIs that are explicitly documented in the Scandit references below. Do
 2. If no direct link was found, fetch the Get Started / Advanced page (see the table below), extract the actual link from it, and follow that.
 
 URL structures can vary and guessing will lead to 404s. The KMP SDK is new; some topic-specific get-started pages referenced below may not exist yet for the `kmp` platform — if a link 404s, fall back to the general docs index at https://docs.scandit.com/ and tell the user the page may not be published yet.
+
+## Licence key
+
+Scanning needs a Scandit licence key. For this skill the licence product is `native` and the licence platforms are `ios` and `android`.
+
+Work through these in order — never block the user on MCP:
+
+1. **The Scandit MCP server is connected** — call `ensure_scanner_setup` with product `native` and platforms `ios` and `android`, `app_identifier` (the app's bundle or application id; for web, its production domain, never `localhost`) and `env_var` `SCANDIT_LICENSE_KEY`. Do not run the command it returns. Then call `get_license_key` with the key's id, from that result or from `list_license_keys`; if `list_license_keys` shows the key is not a trial, ask the user before fetching it. Show at most a masked preview in chat; never print a full key.
+2. **It is not connected** — tell the user once that they can connect the remote Scandit MCP server, `https://ssl.scandit.com/mcp`, in their MCP client, then continue from step 1. Do not edit MCP client configuration yourself.
+
+   Authentication is browser-based, so it is **not supported headless or in CI**. The server provisions **trial** keys only; it never creates, revokes, or modifies production licences.
+3. **The user declines, or has no MCP client** — they generate a key themselves at <https://ssl.scandit.com> (no account yet: <https://ssl.scandit.com/dashboard/sign-up?p=test>) and paste it in.
+
+**Then put the key into the code**: write it into the licence-key call in place of the placeholder — the key `get_license_key` returned, or the one the user pastes or gives you — still showing only a masked preview in chat. Do not search the project, its files or the environment for a key.
 
 ## References
 

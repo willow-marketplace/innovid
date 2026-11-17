@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef, forwardRef } from "react";
+import { useState, useEffect, useLayoutEffect, useRef, forwardRef } from "react";
 import { createPortal } from "react-dom";
-import { FS, SANS, serif, tightSans, sans, inkNum, MICRO, NOTICE, NOTICE_TINT, EASE, GRAD_DARK, EYEBROW_TRACKING } from "./theme.js";
+import { FS, SANS, serif, tightSans, sans, inkNum, MICRO, NOTICE, NOTICE_TINT, EASE, GRAD_DARK, EYEBROW_TRACKING, SMALL_1 } from "./theme.js";
 
 // SVG/text fontFamily attributes need a plain string (not a style object) —
 // reuse theme.js's own SANS constant rather than hand-duplicating it.
@@ -28,7 +28,7 @@ export function useDismissable(open, setOpen, refs) {
 }
 
 /** Hairline SF-style icons — consistent stroke, no emoji anywhere. */
-const icon = (paths) => ({ size = 14, strokeWidth = 1.8, style }) => (
+export const icon = (paths) => ({ size = 14, strokeWidth = 1.8, style }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
     strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" style={{ flex: "none", display: "block", ...style }}>
     {paths.map((d, i) => <path key={i} d={d} />)}
@@ -50,7 +50,33 @@ export function Mark({ branding, size = 30, style }) {
     </svg>
   );
 }
+// Carta wordmark, boxed — the app's brand mark, the same for every client. The
+// single path draws the outline box and the letters, themed to the default text
+// colour so it reads near-black in light and inverts cleanly in dark. The viewBox
+// is cropped to the artwork's own bounds (the source SVG pads it inside a larger
+// canvas), so the drawn box's edges sit flush with the element — its left edge can
+// then line up with the nav icons. `size` is the height; width follows the cropped
+// artwork's 301.09×131.28 aspect ratio.
+const CARTA_LOGO_VB = "44.32 46.99 301.09 131.28";
+const CARTA_LOGO_AR = 301.09 / 131.28;
+const CARTA_LOGO_PATH = "M44.32,46.99v131.28h301.09V46.99H44.32z M337.41,170.27H52.32V54.99h285.09V170.27z M87.87,115.91c0-14.85,12.47-23.57,23.66-23.57c8.01,0,15.48,3.02,19.48,9.98l-7.48,4.36c-1.29-1.96-3.05-3.56-5.12-4.66c-2.07-1.1-4.38-1.67-6.73-1.65c-6.58,0-14.41,5.16-14.41,15.39c0,9.98,7.48,15.48,15.03,15.48c5.25,0,9.61-2.94,12.19-7.48l7.65,3.55c-4.33,7.83-12.07,12-21.05,12C99.79,139.3,87.87,130.57,87.87,115.91z M158.86,139.3c6.22,0,12.09-2.76,15.12-6.76v5.51h9.24V93.49h-9.24v5.52c-2.88-4.04-8.89-6.67-15.12-6.67c-13.61,0-23.13,9.96-23.13,23.48C135.73,129.07,145.34,139.3,158.86,139.3z M159.75,100.79c8.54,0,14.4,6.4,14.4,15.03c0,8.63-5.87,15.03-14.4,15.03c-8.72,0-14.59-6.49-14.59-15.21C145.16,107.11,151.21,100.79,159.75,100.79z M229.91,102.1h-7.11v-8.9h7.2V80.04h9.52v13.16h9.87v8.9h-9.87v35.93h-9.61V102.1z M275.73,139.3c6.23,0,12.1-2.76,15.13-6.76v5.51h9.25V93.49h-9.25v5.52c-2.88-4.04-8.89-6.67-15.13-6.67c-13.6,0-23.12,9.96-23.12,23.48C252.61,129.07,262.21,139.3,275.73,139.3z M276.63,100.79c8.53,0,14.41,6.4,14.41,15.03c0,8.63-5.88,15.03-14.41,15.03c-8.72,0-14.59-6.49-14.59-15.21C262.04,107.11,268.09,100.79,276.63,100.79z M202.36,137.99h-9.61V93.43h8.8v7.74c1.82-5.03,5.67-8.45,10.77-8.45c1.1-0.02,2.21,0.1,3.29,0.35v8.62c-7.18-0.84-13.25,4.18-13.25,15.66V137.99z";
+export function CartaLogo({ size = 30, style }) {
+  return (
+    <svg height={size} width={size * CARTA_LOGO_AR} viewBox={CARTA_LOGO_VB}
+      role="img" aria-label="Carta" style={{ display: "block", ...style }}>
+      <path d={CARTA_LOGO_PATH} style={{ fill: "var(--ink-color-global-text-default)" }} />
+    </svg>
+  );
+}
 export const LockIcon = icon(["M5.5 11h13a1 1 0 011 1v8a1 1 0 01-1 1h-13a1 1 0 01-1-1v-8a1 1 0 011-1z", "M8 11V7.5a4 4 0 018 0V11"]);
+/** A scenario's marker: Baseline's lock, or the scenario's colour dot (a small dot in
+ *  the text colour when it has none). Callers wrap it for width, margin and colour. */
+export function ScenarioMarker({ slice }) {
+  return slice.locked
+    ? <LockIcon size={12} strokeWidth={2} />
+    : <span style={{ width: slice.color ? 8 : 5, height: slice.color ? 8 : 5, borderRadius: "50%",
+        background: slice.color || "currentColor", alignSelf: "center", flex: "none" }} />;
+}
 export const ChevronIcon = icon(["M9 6l6 6-6 6"]);
 // Ink's Dropdown.Trigger caret — a real chevron-down (not the right-chevron
 // rotated 90°), static since this app's popovers always open downward. Ink
@@ -64,10 +90,39 @@ export const AlertCircleIcon = icon(["M12 21a9 9 0 100-18 9 9 0 000 18z", "M12 8
 export const PrintIcon = icon(["M6 9V3h12v6", "M6 17H4a2 2 0 01-2-2v-4a2 2 0 012-2h16a2 2 0 012 2v4a2 2 0 01-2 2h-2", "M6 13h12v8H6z"]);
 export const SunIcon = icon(["M12 17a5 5 0 100-10 5 5 0 000 10z", "M12 1v2", "M12 21v2", "M4.2 4.2l1.4 1.4", "M18.4 18.4l1.4 1.4", "M1 12h2", "M21 12h2", "M4.2 19.8l1.4-1.4", "M18.4 5.6l1.4-1.4"]);
 export const MoonIcon = icon(["M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"]);
+export const SignOutIcon = icon(["M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4", "M16 17l5-5-5-5", "M21 12H9"]);
 export const SwitchIcon = icon(["M16 3l4 4-4 4", "M20 7H8a4 4 0 00-4 4v1", "M8 21l-4-4 4-4", "M4 17h12a4 4 0 004-4v-1"]);
 // Chat rail toggle — a single-stroke speech bubble with a tail, matching the
 // stroked-outline weight of the other topbar glyphs (no fill, no emoji).
 export const ChatIcon = icon(["M21 11.5a8.5 8.5 0 01-8.5 8.5H8l-4 3v-4.6A8.5 8.5 0 1121 11.5z"]);
+
+/** An icon that turns while `spin` is on (a refresh in flight). */
+export function SpinningIcon({ icon: Icon, spin, size = 16, strokeWidth }) {
+  return (
+    <span style={spin ? { animation: "fm-spin 1s linear infinite", lineHeight: 0 } : { lineHeight: 0 }}>
+      <Icon size={size} strokeWidth={strokeWidth} />
+    </span>
+  );
+}
+
+// Full-bleed rows matching Ink's SideNav item (8px/20px padding, 24px line, 40px tall).
+// Weight and the active background/stripe come from .navitem in theme.js.
+const navItemStyle = { ...sans, display: "flex", alignItems: "center", gap: 12, width: "100%", textAlign: "left",
+  fontSize: FS.value, lineHeight: "24px", padding: "8px 20px", border: "none",
+  cursor: "pointer", color: "var(--ink-color-global-text-default)" };
+
+/** A sidebar row: a tab when `active` marks the open one, or an action. The icon sits
+ *  in a 22px tile; `color` tints it and `spin` turns it. */
+export function SideNavButton({ icon, label, active, color, spin, ...props }) {
+  return (
+    <button className={`navitem${active ? " active" : ""}`} style={navItemStyle} {...props}>
+      <span className="navitem-icon" style={{ color }}>
+        <SpinningIcon icon={icon} spin={spin} strokeWidth={1.6} />
+      </span>
+      {label}
+    </button>
+  );
+}
 export const CloseIcon = icon(["M18 6L6 18", "M6 6l12 12"]);
 // Stop affordance in the chat composer. Filled rather than stroked like the
 // icons above — at 11px an outlined square reads as an empty checkbox.
@@ -78,8 +133,7 @@ export const StopIcon = ({ size = 11, style }) => (
   </svg>
 );
 
-// Ink's real Modal width tiers (carta-frontend-platform: libs/ink/ink-containers/
-// library/Modal/Modal.tsx MODAL_MAX_WIDTH) — a 1280px/11-gutter grid, 68px per
+// Ink's real Modal width tiers — a 1280px/11-gutter grid, 68px per
 // column + 32px gutters: mini = 4 cols, small = 6, medium = 8 (Ink's own default
 // for the classic, non-`enableNewStyles` Modal this app's chrome matches), large = 10.
 // `large` is the biggest NAMED tier Ink's real Modal ships (its `width` prop docs
@@ -89,8 +143,7 @@ export const StopIcon = ({ size = 11, style }) => (
 export const MODAL_WIDTH = { mini: 432, small: 632, medium: 832, large: 1032, xlarge: 1232 };
 
 /** Generic content modal, matching Ink's real Modal/Dialog/Modal.Header recipe
- *  (carta-frontend-platform: libs/ink/ink-containers/library/Modal, ink-foundations'
- *  Dialog, and ink-tokens' Modal/tokens.ts) rather than this app's older hand-rolled
+ *  (Ink's Modal, Dialog and Modal tokens) rather than this app's older hand-rolled
  *  ConfirmDialog/ScenarioDialog chrome — backdrop is Ink's real
  *  `surface-background-overlay` token (no blur; Ink's own Dialog has none), the card
  *  is Ink's exact container recipe (8px radius, shadow-large, 24/32/32/32 desktop
@@ -137,13 +190,26 @@ export function Modal({ title, subtitle, onClose, width = "medium", maxWidth, ch
     </div>, document.body);
 }
 // Solid delta-direction triangle — the plain Unicode glyph, matching the
-// design spec's delta caret exactly, same as Overview.jsx's own fund
-// table/NAV-chart delta carets. Centralized so every vs-baseline/vs-prior
-// delta (sidebar, Firm metrics, Companies rows, Overview) shares one glyph
-// instead of drifting into separate one-off shapes.
+// design spec's delta caret exactly, same as Overview.jsx's fund-table delta
+// carets. Centralized so every vs-baseline/vs-prior delta (sidebar, company
+// map, Companies rows) shares one glyph instead of drifting into separate
+// one-off shapes.
 export const DeltaCaret = ({ up }) => (
   <span aria-hidden="true" style={{ fontSize: FS.micro, lineHeight: 1 }}>{up ? "▲" : "▼"}</span>
 );
+/** A firm metric's move vs Baseline — caret + amount, green up / red down.
+ *  Renders nothing when the move is within `eps`. `{fmt, eps}` comes from
+ *  DELTA_MONEY / DELTA_MULTIPLE (format.js). */
+export function VsBaseline({ delta, fmt, eps, suffix, style }) {
+  if (delta == null || !(Math.abs(delta) > eps)) return null;
+  const up = delta >= 0;
+  return (
+    <span style={{ ...SMALL_1, display: "inline-flex", alignItems: "center", gap: 4, fontVariantNumeric: "tabular-nums",
+      color: up ? "var(--ink-color-global-feedback-positive-strong)" : "var(--ink-color-global-feedback-negative-strong)", ...style }}>
+      <DeltaCaret up={up} />{fmt(Math.abs(delta))}{suffix}
+    </span>
+  );
+}
 // Info/help glyph — needs a circle + dot the shared `icon()` factory (paths-only)
 // can't express, so it's hand-rolled like `Mark` above rather than forced through it.
 export const HelpCircleIcon = ({ size = 14, strokeWidth = 1.8, style }) => (
@@ -163,9 +229,9 @@ export const Eyebrow = ({ children, color = "var(--ink-color-global-text-subtle)
 
 /** Real top-of-page title — one per view (Firm Overview, Companies, GP Economics,
  *  etc.), matching Ink's actual `heading-1` convention: confirmed against Ink's
- *  live `Page.Header`/`Heading variant="heading-1"` component, real fund-admin's
- *  frontend (128 page-level uses of `heading-1`, vs. `heading-2` reserved for
- *  in-page sub-sections), and this marketplace's own `carta-home-build` welcome
+ *  `Page.Header`/`Heading variant="heading-1"` component, Carta's own app
+ *  (`heading-1` for page titles, `heading-2` reserved for in-page sub-sections),
+ *  and this marketplace's own `carta-home-build` welcome
  *  artifact's `.page-title` (SangBleu, 28px/48px, weight 400). Renders the real
  *  `serif` stack (theme.js) — SangBleu Versailles, falling back to Georgia since
  *  this app never loads the webfont — not the tight-tracked-sans `tightSans`
@@ -193,8 +259,8 @@ export const H1 = ({ children, right, actions, id }) => (
  *  (in-page section header with a `right`/`actions` slot, e.g. "GP returns"
  *  inside the GP Economics page) render this exact style; they differ only in
  *  layout, not typography, so a correction to one spec updates both. `H2` is
- *  ONE LEVEL BELOW the real page title — see `H1` above — matching real
- *  fund-admin's own heading-2 usage for in-page/sub-flow headings rather than
+ *  ONE LEVEL BELOW the real page title — see `H1` above — matching Carta's
+ *  own app, which uses heading-2 for in-page/sub-flow headings rather than
  *  top-of-route titles. */
 const HEADING2_STYLE = { ...sans, fontSize: FS.h2, lineHeight: "36px", fontWeight: 500, color: "var(--ink-color-global-text-default)" };
 
@@ -245,11 +311,27 @@ export const SourceNote = ({ children, style }) => (
   </p>
 );
 
-/** Sticky in-page section nav — chips that scroll to each section and highlight
- *  the one in view. `sections` is an array of `[id, label]`; each target block
- *  should be `<section id="…" style={{ scrollMarginTop: 64 }}>`. Shared across
- *  every multi-section tab. */
-export function SectionChips({ sections }) {
+/** Why a firm-wide figure is missing for a mixed-currency firm, for any card to show in its place. */
+export const MixedCurrencyText = () => (
+  <div style={{ ...sans, fontSize: FS.body, color: "var(--ink-color-global-text-subtle)" }}>
+    Not shown — this firm's funds report in multiple currencies, which can't be summed into a firm-wide total.
+  </div>
+);
+
+// Firm-wide aggregations can't be summed across currencies — a mixed-currency
+// firm gets this notice instead of a meaningless combined total.
+export const MixedCurrencyNote = ({ title }) => (
+  <div className="card" style={{ padding: "18px 22px", marginTop: 18 }}>
+    <H3 as="div" style={{ marginBottom: 6 }}>{title}</H3>
+    <MixedCurrencyText />
+  </div>
+);
+
+/** Which of `sections` (`[id, label]` pairs) is in view, plus `go(id)` to scroll to
+ *  one. Each id names a target block (`<section id="…">`); a jump lands that block's
+ *  scroll-margin below the pane's top. JumpLinks sets that margin on click; a page
+ *  using SectionChips sets it on each section. Drives both in-page navs below. */
+function useSectionNav(sections) {
   const [active, setActive] = useState(sections[0]?.[0]);
   const ids = sections.map((s) => s[0]).join(",");
   useEffect(() => {
@@ -263,6 +345,14 @@ export function SectionChips({ sections }) {
     return () => obs.disconnect();
   }, [ids]); // eslint-disable-line react-hooks/exhaustive-deps
   const go = (id) => { const el = document.getElementById(id); if (el) el.scrollIntoView({ behavior: "smooth", block: "start" }); };
+  return { active, go };
+}
+
+/** Sticky in-page section nav — chips that scroll to each section and highlight
+ *  the one in view. `sections` is an array of `[id, label]`. Shared across every
+ *  multi-section tab. */
+export function SectionChips({ sections }) {
+  const { active, go } = useSectionNav(sections);
   return (
     <div style={{ position: "sticky", top: 0, zIndex: 5, background: "var(--ink-color-global-surface-background-default)", padding: "2px 0 0", marginBottom: 18,
       display: "flex", gap: 22, flexWrap: "wrap", borderBottom: `1px solid var(--ink-color-global-border-subtle)` }}>
@@ -278,6 +368,71 @@ export function SectionChips({ sections }) {
         );
       })}
     </div>
+  );
+}
+
+const ArrowDownIcon = icon(["M12 5v14", "m19 12-7 7-7-7"]);
+
+export const APP_TOPBAR = '[data-testid="app-topbar"]';
+
+/** Summed live height of the pinned bars named by `selectors` (the app's sticky top
+ *  bar by default), so a bar that pins inside the content pane can pin just below
+ *  them rather than under them. */
+export function usePinnedHeight(selectors = [APP_TOPBAR]) {
+  const [h, setH] = useState(0);
+  const key = selectors.join("|");
+  useEffect(() => {
+    const els = selectors.map((q) => document.querySelector(q)).filter(Boolean);
+    const measure = () => setH(els.reduce((sum, el) => sum + el.getBoundingClientRect().height, 0));
+    measure();
+    if (typeof ResizeObserver === "undefined") return undefined;
+    const ro = new ResizeObserver(measure);
+    els.forEach((el) => ro.observe(el));
+    return () => ro.disconnect();
+  }, [key]); // eslint-disable-line react-hooks/exhaustive-deps -- `key` stands in for `selectors`
+  return h;
+}
+
+// gap left between the pinned jump links and a section's heading after a jump
+export const JUMP_GAP = 16;
+export const JUMP_NAV_LABEL = "Jump to section";
+export const JUMP_NAV = `nav[aria-label="${JUMP_NAV_LABEL}"]`;
+const PINNED_BARS = `${APP_TOPBAR}, ${JUMP_NAV}`;
+
+/** Sets `el`'s scroll margin so a scroll to it lands just below the app's top bar and the page's jump links. */
+export function landBelowPinnedBars(el) {
+  const pinned = [...document.querySelectorAll(PINNED_BARS)].reduce((h, bar) => h + bar.getBoundingClientRect().height, 0);
+  el.style.scrollMarginTop = `${pinned + JUMP_GAP}px`;
+}
+
+/** Sticky "Jump to:" links for a long page of themed sections — grey pills with a
+ *  down arrow (so they read as scrolling the page, not as tabs that swap it), the
+ *  section in view shown solid. Same `sections` and scroll tracking as SectionChips;
+ *  `onJump(id)` is called on a click. It pins below the app's top bar, and on a click
+ *  lands the target section below both bars with landBelowPinnedBars, so its heading
+ *  sits just below them even when either bar wraps.
+ *  `actions` (a page-wide control, e.g. a fund picker) sits at the bar's right end. */
+export function JumpLinks({ sections, onJump, actions }) {
+  const { active, go } = useSectionNav(sections);
+  const top = usePinnedHeight();
+  const jump = (id) => {
+    onJump?.(id);
+    const el = document.getElementById(id);
+    if (el) landBelowPinnedBars(el);
+    go(id);
+  };
+  return (
+    <nav aria-label={JUMP_NAV_LABEL} data-pinned-bar style={{ position: "sticky", top, zIndex: 5, background: "var(--ink-color-global-surface-background-default)",
+      display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", padding: "10px 0", marginBottom: 22, borderBottom: `1px solid var(--ink-color-global-border-subtle)` }}>
+      <span style={{ ...sans, fontSize: FS.body, fontWeight: 600, color: "var(--ink-color-global-text-subtle)", marginRight: 2 }}>Jump to:</span>
+      {sections.map(([id, label]) => (
+        <button key={id} className={`jumpchip${active === id ? " active" : ""}`} aria-current={active === id ? "location" : undefined}
+          onClick={() => jump(id)} style={{ ...sans, fontSize: FS.body, fontWeight: 500, lineHeight: "20px" }}>
+          <ArrowDownIcon size={14} strokeWidth={1.8} />{label}
+        </button>
+      ))}
+      {actions && <div style={{ marginLeft: "auto" }}>{actions}</div>}
+    </nav>
   );
 }
 
@@ -312,6 +467,10 @@ export const Num = ({ value, fmt, style }) => {
   return <span style={{ fontVariantNumeric: "tabular-nums", ...style }}>{fmt(v)}</span>;
 };
 
+const CHECKBOX_MARK = (
+  <svg viewBox="0 0 12 12" fill="none"><path d="M2 6.2l2.6 2.6L10 3.4" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" /></svg>
+);
+
 /** Ink's real NewCheckbox (see the `.ink-chk` rules in theme.js's GLOBAL_CSS for
  *  the exact recipe: 20px/4px-radius box, white in both themes, Gray-90 check
  *  glyph, 8px gap to the label). `locked` mirrors Toggle's convention — the
@@ -325,12 +484,17 @@ export function Checkbox({ checked, onChange, label, disabled, locked, title }) 
       onClick={(e) => e.stopPropagation()}>
       <input type="checkbox" checked={checked} disabled={disabled}
         onChange={() => { if (!disabled) onChange(!checked); }} />
-      <span className="box">
-        <svg viewBox="0 0 12 12" fill="none"><path d="M2 6.2l2.6 2.6L10 3.4" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" /></svg>
-      </span>
+      <span className="box">{CHECKBOX_MARK}</span>
       {label}
     </label>
   );
+}
+
+/** A radio drawn as Carta's shadcn RadioGroupItem (see `.radio-item` in theme.js's
+ *  GLOBAL_CSS), for one choice of a set whose whole row or card is the button: no
+ *  input of its own, so `checked` drives the fill and dot. */
+export function RadioGlyph({ checked, style }) {
+  return <span className={`radio-item${checked ? " is-checked" : ""}`} aria-hidden style={style} />;
 }
 
 /** iOS-style switch. `disabled` is truly inert; `locked` keeps the control
@@ -445,16 +609,18 @@ export function Segmented({ options, value, onChange, small, disabled, locked })
       {options.map((o) => {
         const opt = typeof o === "string" ? { id: o, label: o } : o;
         const on = value === opt.id;
+        const off = disabled || opt.disabled;
         return (
           <button
             key={opt.id}
             type="button"
+            data-testid={opt.testId}
             className={`seg-btn${on ? " is-selected" : ""}`}
-            onClick={() => { if (!disabled) onChange(opt.id); }}
-            disabled={disabled}
+            onClick={() => { if (!off) onChange(opt.id); }}
+            disabled={off}
             aria-pressed={on}
-            title={muted ? "Locked — duplicate into a scenario to edit" : undefined}
-            style={{ ...sans, cursor: locked ? "not-allowed" : disabled ? "default" : "pointer" }}
+            title={muted ? "Locked — duplicate into a scenario to edit" : opt.title}
+            style={{ ...sans, cursor: locked || opt.disabled ? "not-allowed" : disabled ? "default" : "pointer", opacity: opt.disabled && !disabled ? 0.5 : undefined }}
           >
             {opt.label}
           </button>
@@ -464,35 +630,15 @@ export function Segmented({ options, value, onChange, small, disabled, locked })
   );
 }
 
-/** Fund scope dropdown — "All Funds" plus one entry per fund (names, not ids).
- *  Replaces the overflowing per-view segmented strips. `value` is "ALL" or a
- *  fund id; options come from snapshot.funds. Custom menu (not native select)
+/** Fund scope dropdown — "All funds", one entry per Fund Admin family, then one entry per fund
+ *  (names, not ids). Replaces the overflowing per-view segmented strips. `value` is a fund scope
+ *  (see model/funds.js): ALL_FUNDS, a family scope or a fund id; options come from snapshot.funds. Custom menu (not native select)
  *  so 18 long fund names render cleanly and theme in dark mode. */
-export const ALL_FUNDS = "ALL";
+import { ALL_FUNDS, familyScope, fundFamilies } from "../model/funds.js";
+export { ALL_FUNDS };
 
-/** The fund display name embeds an ALL-CAPS slug prefix for dense tables
- *  ("KRAKATOA-VENTURES-FUND-IV-L-P (Krakatoa Ventures Fund IV, 2021)"). The
- *  picker only needs the readable, already-title-cased part — strip the slug
- *  and surface "Krakatoa Ventures Fund IV (2021)". Falls back to the raw label
- *  (e.g. "All Funds") when there's no parenthetical. */
-export function fundLabel(s) {
-  if (!s) return s;
-  const m = s.match(/\(([^)]+)\)\s*$/);
-  if (!m) return s;
-  const inner = m[1];
-  const i = inner.lastIndexOf(", ");
-  if (i === -1) return inner;
-  const name = inner.slice(0, i), vintage = inner.slice(i + 2);
-  return /^\d{4}$/.test(vintage) ? `${name} (${vintage})` : name;
-}
-
-/** fundLabel() with the trailing "(vintage)" stripped too — for views that
- *  already show vintage in its own column/line (Overview's Vintage column,
- *  CohortStanding's "2022 · 41 funds in cohort" line) and would otherwise
- *  show it twice. */
-export function fundNameOnly(s) {
-  return fundLabel(s)?.replace(/\s*\(\d{4}\)$/, "");
-}
+import { fundLabel, fundNameOnly } from "./format.js";
+export { fundLabel, fundNameOnly };
 
 /** A single row inside a dropdown/menu popover — Ink's Dropdown.Button /
  *  Dropdown.Checkbox recipe (single-select: 14px/20px Inter, 8px/12px padding;
@@ -521,14 +667,16 @@ export function fundNameOnly(s) {
  *  the real Ink primitives — Ink's raw Text-type Dropdown.Item has no
  *  built-in "this is the selected one" state of its own).
  *  `leading` renders before the label (a checkbox/color swatch). */
-export function MenuItem({ children, onClick, selected, tint = selected, checkmark, dense, leading, style, role = "option" }) {
+export function MenuItem({ children, onClick, selected, tint = selected, checkmark, dense, leading, style, role = "option", disabled, testId }) {
   return (
-    <button role={role} aria-selected={role === "option" ? selected : undefined} onClick={onClick} className="menu-item"
+    <button type="button" role={role} aria-selected={role === "option" ? selected : undefined} onClick={onClick} className="menu-item"
+      disabled={disabled} data-testid={testId}
       style={{ ...sans, display: "flex", alignItems: "center", gap: 10, width: "100%", textAlign: "left", whiteSpace: "nowrap",
         padding: dense ? "6px 12px" : "8px 12px", minHeight: dense ? undefined : 36, border: "none", borderRadius: 4, cursor: "pointer",
         boxSizing: "border-box", fontSize: 14, lineHeight: dense ? "24px" : "20px", fontWeight: 400,
-        color: "var(--ink-color-global-text-default)",
+        color: disabled ? "var(--ink-color-global-text-disabled)" : "var(--ink-color-global-text-default)",
         background: tint ? "var(--ink-color-global-surface-lightgray-hover)" : "transparent",
+        ...(disabled ? { cursor: "default" } : null),
         ...style }}>
       {leading}
       <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>{children}</span>
@@ -541,6 +689,36 @@ export function MenuItem({ children, onClick, selected, tint = selected, checkma
   );
 }
 
+/** A trigger that opens a small menu of actions — the one home for every
+ *  "click, pick an action" menu's popover chrome and behaviour. `trigger`
+ *  renders the opener from the props it is handed (spread them onto a button).
+ *  `items` are `{ label, onSelect, danger, disabled, testId }`: choosing one
+ *  closes the menu, then runs `onSelect`; a disabled one does nothing. `style`
+ *  places the wrapper (it anchors the popover, which opens below it, aligned right). */
+export function ActionMenu({ trigger, items, minWidth = 190, style }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useDismissable(open, setOpen, ref);
+  return (
+    <span ref={ref} style={{ position: "relative", display: "inline-block", ...style }}>
+      {trigger({ onClick: () => setOpen((o) => !o), "aria-haspopup": "menu", "aria-expanded": open })}
+      {open && (
+        <div role="menu" className="popin" style={{ position: "absolute", top: "calc(100% + 4px)", right: 0, zIndex: 50, minWidth, padding: "4px 0",
+          background: "var(--ink-color-global-surface-background-default)", border: "1px solid var(--ink-color-global-border-subtle)",
+          borderRadius: 6, boxShadow: POPOVER_SHADOW, transformOrigin: "top right" }}>
+          {items.map((it) => (
+            <MenuItem key={it.label} role="menuitem" tint={false} testId={it.testId} disabled={it.disabled}
+              onClick={() => { setOpen(false); it.onSelect(); }}
+              style={it.danger ? { color: "var(--ink-color-global-feedback-negative-strong)" } : undefined}>
+              {it.label}
+            </MenuItem>
+          ))}
+        </div>
+      )}
+    </span>
+  );
+}
+
 /** Shared Ink Dropdown.Trigger chrome (36px, border-default, hover/open-focus
  *  glow via the `.dd-trigger` class) — single source for both the generic
  *  single-select `Dropdown` and `MultiFundPicker` below, so the two triggers
@@ -549,7 +727,7 @@ export function MenuItem({ children, onClick, selected, tint = selected, checkma
  *  to Btn) for height/padding/font — the same object Btn's `size="toolbar"`
  *  reads, so a Dropdown and a Btn sitting in the same ribbon can't drift.
  *  `extra` merges in per-caller sizing (e.g. Dropdown's minWidth/maxWidth). */
-const ddTriggerStyle = (extra) => ({
+export const ddTriggerStyle = (extra) => ({
   ...sans, display: "inline-flex", alignItems: "center", justifyContent: "space-between", gap: 8,
   ...TOOLBAR_CONTROL_STYLE, boxSizing: "border-box", border: `1px solid var(--ink-color-global-border-default)`,
   borderRadius: 4, background: "var(--ink-color-global-surface-background-default)",
@@ -573,17 +751,36 @@ export const POPOVER_SHADOW = "0 8px 24px rgba(20,24,24,.12), 0 2px 6px rgba(20,
  *  `triggerLabel` prefixes the trigger text as "{triggerLabel}: {value}" (a
  *  self-labeling trigger, per Carta's dropdown convention, instead of a
  *  separate uppercase label row above the control) — the popover's own
- *  option rows are unaffected. `nullLabel` renders in place of an option
- *  label when `value` is `null`/doesn't match any option (a "Mixed" state
- *  across a scope with no single current value) instead of silently
+ *  option rows are unaffected. When a visible label row sits above the
+ *  control instead, pass `ariaLabel` so the trigger's accessible name is
+ *  still "{ariaLabel}: {value}" without changing its visible text.
+ *  `nullLabel` renders in place of an option label when `value` is
+ *  `null`/doesn't match any option (a "Mixed" state across a
+ *  scope with no single current value) instead of silently
  *  falling back to the first option. `locked` matches the app's other
  *  controls (Segmented, Btn): clickable-but-dimmed with a "duplicate into a
  *  scenario to edit" tooltip — it's a visual cue only, since the actual
  *  write-guard lives in the `onChange` callback's own `updateSlice`. */
-export function Dropdown({ options, value, onChange, minWidth = 260, maxWidth = 460, testId, triggerLabel, nullLabel, locked }) {
+export function Dropdown({ options, value, onChange, minWidth = 260, maxWidth = 460, testId, triggerLabel, ariaLabel, nullLabel, locked }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
+  const listRef = useRef(null);
   useDismissable(open, setOpen, ref);
+  // The menu opens rightward from the trigger's left edge. When that would run
+  // past the right edge of whatever clips it (the scrolling page column, else
+  // the window) and opening leftward from the trigger's right edge fits inside
+  // it, it opens leftward instead. A menu that fits neither way keeps the
+  // rightward default, whose overflow can still be scrolled to. Measured before paint.
+  const [opensLeft, setOpensLeft] = useState(false);
+  useLayoutEffect(() => {
+    if (!open || !listRef.current) { setOpensLeft(false); return; }
+    let clip = { left: 0, right: window.innerWidth };
+    for (let el = ref.current?.parentElement; el && el !== document.body; el = el.parentElement) {
+      if (["auto", "scroll", "hidden", "clip"].includes(getComputedStyle(el).overflowX)) { clip = el.getBoundingClientRect(); break; }
+    }
+    const menu = listRef.current.getBoundingClientRect();
+    setOpensLeft(menu.right > clip.right && ref.current.getBoundingClientRect().right - menu.width >= clip.left);
+  }, [open]);
 
   const current = value != null ? options.find((o) => o.id === value) : undefined;
   const label = current ? current.label : (nullLabel ?? options[0]?.label);
@@ -591,6 +788,7 @@ export function Dropdown({ options, value, onChange, minWidth = 260, maxWidth = 
   return (
     <div ref={ref} style={{ position: "relative", display: "inline-block", opacity: locked ? 0.45 : 1 }}>
       <button onClick={() => setOpen((o) => !o)} aria-haspopup="listbox" aria-expanded={open} data-testid={testId}
+        aria-label={ariaLabel ? `${ariaLabel}: ${label}` : undefined}
         className={`dd-trigger${open ? " is-open" : ""}`}
         title={locked ? "Locked — duplicate into a scenario to edit" : undefined}
         style={{ ...ddTriggerStyle({ minWidth, maxWidth }), cursor: locked ? "not-allowed" : "pointer" }}>
@@ -598,9 +796,9 @@ export function Dropdown({ options, value, onChange, minWidth = 260, maxWidth = 
         <ChevronDownIcon size={16} strokeWidth={1.5} style={{ flex: "none" }} />
       </button>
       {open && (
-        <div className="popin" role="listbox" style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, minWidth: "100%",
+        <div ref={listRef} className="popin" role="listbox" style={{ position: "absolute", top: "calc(100% + 4px)", ...(opensLeft ? { right: 0 } : { left: 0 }), minWidth: "100%",
           maxHeight: 340, overflowY: "auto", background: "var(--ink-color-global-surface-background-default)", border: `1px solid var(--ink-color-global-border-subtle)`, borderRadius: 6,
-          boxShadow: POPOVER_SHADOW, zIndex: 50, padding: "4px 0", transformOrigin: "top left" }}>
+          boxShadow: POPOVER_SHADOW, zIndex: 50, padding: "4px 0", transformOrigin: opensLeft ? "top right" : "top left" }}>
           {options.map((o) => {
             const on = o.id === value;
             return (
@@ -617,15 +815,20 @@ export function Dropdown({ options, value, onChange, minWidth = 260, maxWidth = 
   );
 }
 
-/** Fund-scope single-select — "All Funds" plus one entry per fund (names, not
+/** Fund-scope single-select — "All funds" plus one entry per fund (names, not
  *  ids). A thin fund-domain wrapper around the generic `Dropdown` above:
- *  builds the option list (with the "All Funds" divider) and hands it off. */
-export function FundPicker({ funds, value, onChange, allLabel = "All Funds", includeAll = true }) {
+ *  builds the option list (with the "All funds" divider) and hands it off.
+ *  `triggerLabel` passes through, for a self-labeling "Fund: …" trigger. */
+export function FundPicker({ funds, value, onChange, includeAll = true, triggerLabel }) {
+  // A family Fund Admin records is a scope of its own, listed between "All funds" and the funds;
+  // only a scope picker offers it, since a picker without "All funds" selects one fund.
+  const families = includeAll ? fundFamilies(funds) : [];
   const opts = [
-    ...(includeAll ? [{ id: ALL_FUNDS, label: allLabel }] : []),
+    ...(includeAll ? [{ id: ALL_FUNDS, label: "All funds" }] : []),
+    ...families.map((fam, i) => ({ id: familyScope(fam.id), label: fam.name, separatorBefore: i === 0 })),
     ...funds.map((f, i) => ({ id: f.id, label: fundLabel(f.name || f.id), separatorBefore: includeAll && i === 0 })),
   ];
-  return <Dropdown options={opts} value={value} onChange={onChange} testId="fund-picker" />;
+  return <Dropdown options={opts} value={value} onChange={onChange} testId="fund-picker" triggerLabel={triggerLabel} />;
 }
 
 /** Multi-select fund dropdown — a checkbox list with a select-all/clear row, used
@@ -636,7 +839,7 @@ export function FundPicker({ funds, value, onChange, allLabel = "All Funds", inc
 /** Ink's real 22×22 checkbox glyph for Dropdown.Checkbox rows: a white box
  *  that never fills, border-default border, 4px radius; checked/indeterminate
  *  draw a glyph on top. Ink's real `NewCheckbox` React component isn't
- *  importable here (micro-apps can't pull in `@carta/ink`), so this
+ *  importable here (micro-apps can't pull in Ink's component library), so this
  *  reproduces its visual spec directly. */
 function MultiCheckbox({ checked, indeterminate }) {
   return (
@@ -767,9 +970,8 @@ export function Slider({ label, value, min, max, step, onChange, fmt, accent, va
 }
 
 /** Big-figure stat tile — a label, a large value, and an optional sub/delta line.
- *  The single source for the app's ~7 hand-rolled tiles (App's MetricBar,
- *  Overview's SupportStat, Reserves' Big, Glidepath's Tile, LpReturns' scorecard,
- *  GpEconomics' carry/waterfall figures, CohortStanding's StatStrip). Chrome-less
+ *  The single source for the app's stat tiles (Overview's widget stats, GpEconomics'
+ *  figures, CohortStanding's stat strip, and every StatBar). Chrome-less
  *  by design — the caller supplies the surrounding card/divider layout; this owns
  *  only the label+value+sub block so the type ramp lives in one place.
  *
@@ -782,13 +984,13 @@ export function Slider({ label, value, min, max, step, onChange, fmt, accent, va
  *  "eyebrow" (uppercase micro, default for top) | "strong" (600-weight default-text)
  *  | "muted" (micro subtle) | "plain" (12px/400 sentence-case, Ink's real Tile
  *  label style — text-subtle, which is Ink's gray-80 in this app's palette),
- *  align, style. */
+ *  align, weight (value font weight; 700 by default), style. */
 export function StatTile({ label, value, sub, color = "var(--ink-color-global-text-default)",
-  labelPos = "top", size = "display", serif: useSerif, labelTone, align = "left", style }) {
+  labelPos = "top", size = "display", serif: useSerif, labelTone, align = "left", weight = 700, style }) {
   const tone = labelTone ?? (labelPos === "top" ? "eyebrow" : "strong");
   const valStyle = useSerif
-    ? { ...tightSans, fontSize: size === "h3" ? FS.h3 : FS.display, fontWeight: 700, color, letterSpacing: "0", lineHeight: 1.1, fontVariantNumeric: "tabular-nums" }
-    : { ...inkNum, fontSize: size === "h3" ? FS.h3 : FS.display, fontWeight: 700, color, letterSpacing: "0", lineHeight: 1.05 };
+    ? { ...tightSans, fontSize: FS[size] ?? FS.display, fontWeight: weight, color, letterSpacing: "0", lineHeight: 1.1, fontVariantNumeric: "tabular-nums" }
+    : { ...inkNum, fontSize: FS[size] ?? FS.display, fontWeight: weight, color, letterSpacing: "0", lineHeight: 1.05 };
   const labelEl = tone === "eyebrow"
     ? <Eyebrow color={MICRO} style={{ whiteSpace: "nowrap" }}>{label}</Eyebrow>
     : <div style={tone === "muted"
@@ -807,10 +1009,10 @@ export function StatTile({ label, value, sub, color = "var(--ink-color-global-te
   );
 }
 
-/** Bordered "Summary" stat row — the single source for the app's ~5 hand-rolled
- *  headline stat bars (App's MetricBar, Reserves' rv-summary, LpReturns'
- *  lp-scorecard, Glidepath's current-multiples row, GpEconomics' waterfall
- *  preset row), matching Ink's real Tile/Summary pattern (ink.carta.com/
+/** Bordered "Summary" stat row — the single source for the app's headline stat
+ *  bars (Reserves' rv-summary, LpReturns' lp-scorecard, Glidepath's
+ *  current-multiples row, GpEconomics' waterfall preset row, Fund Construction's
+ *  allocations and results steps), matching Ink's real Tile/Summary pattern (ink.carta.com/
  *  components/Tile): one bordered card, equal-width key-value pairs on a
  *  plain gap (no divider hairlines between them — the design spec has none),
  *  each a big value over its label.
@@ -887,6 +1089,91 @@ const BADGE_TONE = {
   muted:    { fg: MICRO, border: "var(--ink-color-global-border-subtle)", bg: "var(--ink-color-global-surface-lightgray-default)" },
 };
 
+// Ink dark hover tooltip. Pass `trigger` + `portal` when the trigger sits inside an
+// overflow-clipped ancestor such as a table row, which would cut an in-flow tooltip off.
+// A portal tooltip points at the trigger's edge, or at its centre with
+// `anchor="center"` (for a large trigger, whose edge can sit far away or off screen).
+// Near a window edge the bubble slides to stay on screen while its caret stays on
+// the point it marks, and it flips to the other side when there's no room above
+// (or below) that point.
+// `style` adds to the wrapper, e.g. to position it absolutely around its trigger.
+// The look of a text label that opens an InfoTip on hover or focus.
+export const TIP_TRIGGER_STYLE = { borderBottom: "1px dotted currentColor", cursor: "help" };
+
+export function InfoTip({ label, children, width = 300, trigger, portal = false, placement = "bottom", anchor = "edge", style }) {
+  const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false); // stays true after first show so opacity can transition back to 0 on hide
+  const [pos, setPos] = useState(null);
+  const [flipped, setFlipped] = useState(false); // portal only: no room on `placement`'s side
+  const triggerRef = useRef(null);
+  const tipRef = useRef(null);
+  const show = () => {
+    setMounted(true);
+    setOpen(true);
+    if (portal) {
+      const r = triggerRef.current?.getBoundingClientRect();
+      if (r) {
+        const w = Math.min(width, window.innerWidth - 24);
+        const x = r.left + r.width / 2; // the point the caret marks
+        const left = Math.max(w / 2 + 12, Math.min(x, window.innerWidth - w / 2 - 12));
+        // the y each side points at: above the trigger, and below it
+        const ys = anchor === "center"
+          ? { top: r.top + r.height / 2 - 8, bottom: r.top + r.height / 2 + 8 }
+          : { top: r.top - 8, bottom: r.bottom + 8 };
+        // caret offset from the bubble's middle, kept clear of its rounded corners
+        const caretX = Math.max(-(w / 2 - 14), Math.min(x - left, w / 2 - 14));
+        setFlipped(false);
+        setPos({ left, ys, width: w, caretX });
+      }
+    }
+  };
+  const hide = () => setOpen(false);
+  // the side the bubble opens on: `placement`, unless measuring showed it runs
+  // off the window there
+  const side = flipped ? (placement === "top" ? "bottom" : "top") : placement;
+  useLayoutEffect(() => {
+    if (!portal || !pos || flipped || !tipRef.current) return;
+    const t = tipRef.current.getBoundingClientRect();
+    if (placement === "top" ? t.top < 8 : t.bottom > window.innerHeight - 8) setFlipped(true);
+  }, [portal, pos, flipped, placement]);
+
+  const triggerEl = trigger ?? (
+    <button type="button" aria-label={label} style={{ display: "flex", background: "none", border: "none", padding: 0, cursor: "default", color: "var(--ink-color-global-feedback-info-strong)" }}>
+      <HelpCircleIcon size={16} strokeWidth={1.6} />
+    </button>
+  );
+
+  const caret = (
+    <span style={{ position: "absolute", left: portal && pos ? `calc(50% + ${pos.caretX}px)` : "50%", transform: "translateX(-50%)",
+      ...(side === "top"
+        ? { top: "100%", borderLeft: "6px solid transparent", borderRight: "6px solid transparent", borderTop: "6px solid var(--ink-color-global-brand-black)" }
+        : { bottom: "100%", borderLeft: "6px solid transparent", borderRight: "6px solid transparent", borderBottom: "6px solid var(--ink-color-global-brand-black)" }) }} />
+  );
+
+  // Line height and corner radius are Ink's Tooltip values, not the body-text defaults.
+  const tooltipBody = (
+    <div role="tooltip" ref={tipRef}
+      style={{ ...sans, background: "var(--ink-color-global-brand-black)", color: "var(--ink-color-global-brand-white)",
+        fontSize: FS.body, lineHeight: "16px", padding: "10px 14px", borderRadius: "var(--ink-size-global-radius-subtle)",
+        boxShadow: "var(--shadow-hover)", zIndex: portal ? 200 : 60, textAlign: "left",
+        opacity: open ? 1 : 0, transition: "opacity 0.1s", pointerEvents: "none",
+        ...(portal
+          ? { position: "fixed", left: pos?.left, top: pos?.ys[side], width: pos?.width, transform: `translate(-50%, ${side === "top" ? "-100%" : "0"})` }
+          : { position: "absolute", [placement === "top" ? "bottom" : "top"]: "calc(100% + 8px)", left: "50%", transform: "translateX(-50%)", width }) }}>
+      {children}
+      {caret}
+    </div>
+  );
+
+  return (
+    <span ref={triggerRef} style={{ position: portal ? undefined : "relative", display: "inline-flex", alignItems: "center", ...style }}
+      onMouseEnter={show} onMouseLeave={hide} onFocus={show} onBlur={hide}>
+      {triggerEl}
+      {mounted && (portal ? (pos && createPortal(tooltipBody, document.body)) : tooltipBody)}
+    </span>
+  );
+}
+
 /** Small semantic pill — the single source for the app's status/annotation tags
  *  (SPV, PROJ, RESERVE-LIGHT, EXITED, MANAGING, "scenario mark", activity lanes,
  *  etc.), built as Ink's real Tag component at `size="mini"`: 20px height,
@@ -945,9 +1232,8 @@ export function Bubble({ children, variant = "positive", style }) {
 }
 
 /** Ink's real Avatar — "Shows thumbnails for people and company logos."
- *  Mirrors carta-frontend-platform's libs/ink/ink-foundations/library/Avatar
- *  (Avatar.tsx + styles.ts) exactly, not just visually: the load-bearing detail
- *  is that `variant="company"` is NOT a circular crop — it's a fixed
+ *  Mirrors Ink's Avatar exactly, not just visually: in particular,
+ *  `variant="company"` is NOT a circular crop — it's a fixed
  *  80px-wide, border-radius:0 rectangle sized to the real company-logo artwork's
  *  native aspect ratio (Ink's own default company glyph is an 80x38 viewBox).
  *  Cropping a company logo into a circle (this app's first attempt) looks wrong
@@ -1198,6 +1484,23 @@ export const TextInput = forwardRef(({ style, className, ...props }, ref) => (
   />
 ));
 
+/** A multi-line text field in the `TextInput` style that grows with its text, up to `maxRows`. */
+export function TextArea({ value, onChange, minRows = 4, maxRows = 24, style, ...props }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const line = parseFloat(getComputedStyle(el).lineHeight) || 20;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(Math.max(el.scrollHeight, line * minRows + 16), line * maxRows + 16)}px`;
+  }, [value, minRows, maxRows]);
+  return (
+    <textarea ref={ref} className="ink-input" value={value} onChange={onChange} rows={minRows}
+      style={{ ...sans, fontSize: 14, lineHeight: "20px", padding: "8px 10px", width: "100%", boxSizing: "border-box", resize: "vertical",
+        background: "var(--ink-color-global-surface-background-default)", color: "var(--ink-color-global-text-default)", ...style }} {...props} />
+  );
+}
+
 /** Search field — `TextInput` with a leading magnifying-glass icon, matching
  *  Ink's own GlobalFilter search field (same 36px input, icon inset at 10px,
  *  text padded to clear it) rather than a bare placeholder with no icon. Native
@@ -1236,9 +1539,8 @@ export function SearchInput({ placeholder, value, onChange, style, ...props }) {
 }
 
 // Ink's real Vignette/EmptyState components aren't importable here (micro-apps
-// can't pull in @carta/ink) — this reproduces the two illustrations this app
-// actually uses ("setup", "pending") from Ink's own SVG source (ink-foundations
-// Vignette/components/{Setup,Pending}Md.tsx), at the "md" (80px) size IconWithText
+// can't pull in Ink's component library) — this reproduces the two illustrations this app
+// actually uses ("setup", "pending") from Ink's own SVG source, at the "md" (80px) size IconWithText
 // maps EmptyState's "block" type to. Only those two — add more paths here if a
 // future empty state needs a different vignette. Colors follow Ink's own
 // light/dark token split (vignette.json5 / vignette.dark.json5): fill and stroke

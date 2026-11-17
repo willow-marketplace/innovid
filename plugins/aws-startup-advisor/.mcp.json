@@ -1,49 +1,16 @@
 {
   "mcpServers": {
-    "awspricing": {
-      "env": {
-        "AWS_REGION": "us-east-1",
-        "FASTMCP_LOG_LEVEL": "ERROR"
-      },
+    "aws-mcp": {
       "args": [
-        "awslabs.aws-pricing-mcp-server@latest"
+        "--from",
+        "git+https://github.com/aws/mcp-proxy-for-aws@a5dd25e0ad99d0d874f2b779435b12b10932eae7",
+        "mcp-proxy-for-aws",
+        "https://aws-mcp.us-east-1.api.aws/mcp",
+        "--skip-auth",
+        "--metadata",
+        "INSTALL_SOURCE=agent-toolkit-startup-advisor"
       ],
-      "type": "stdio",
-      "command": "uvx",
-      "timeout": 120000,
-      "autoApprove": [
-        "get_pricing_service_codes",
-        "get_pricing_service_attributes",
-        "get_pricing_attribute_values",
-        "get_pricing"
-      ]
-    },
-    "awsknowledge": {
-      "url": "https://knowledge-mcp.global.api.aws",
-      "type": "http"
-    },
-    "temporal-docs": {
-      "url": "https://temporal.mcp.kapa.ai",
-      "type": "http"
-    },
-    "aws-pricing-calculator": {
-      "args": [
-        "-y",
-        "sample-aws-pricing-calculator-mcp@1.2.8"
-      ],
-      "type": "stdio",
-      "command": "npx",
-      "timeout": 120000,
-      "autoApprove": [
-        "get_server_info",
-        "search_services",
-        "get_service_fields",
-        "create_estimate",
-        "add_service",
-        "validate_estimate",
-        "build_estimate",
-        "export_estimate"
-      ]
+      "command": "uvx"
     }
   }
 }

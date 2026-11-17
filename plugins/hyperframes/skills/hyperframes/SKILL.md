@@ -1,6 +1,6 @@
 ---
 name: hyperframes
-description: ">"
+description: hyperframes
 ---
 
 # HyperFrames — read this first

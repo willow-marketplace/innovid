@@ -44,7 +44,7 @@ Call `get_icps` (free, no credits).
 
 ### Check 3 — Visitors are being tracked
 
-Call `get_web_visits_companies` for the last 7 days (do **not** pass `include=company` — keep it lean).
+Call `get_web_visits_companies` for the last 7 days (do **not** pass `include=company` — keep it lean). It doesn't say which companies match an ICP, so then call `get_company_icp_matches` (free, no credits) with the returned company IDs as `ids`.
 
 - **Visitor companies returned, and at least some match a configured ICP → ✅ pass.** Note the rough count and that ICP matches exist.
 - **Visitor companies returned, but none match any configured ICP → ⚠️ warn.** Traffic is flowing and the tracker works, but the ICP criteria may be too narrow for the actual audience. Tell the user their brief will be thin and suggest widening the ICP (or reviewing whether the ICP reflects their real buyers). You may still run a sample brief — it will just be short.
@@ -62,9 +62,9 @@ Call `get_web_visits_companies` for the last 7 days (do **not** pass `include=co
 
   Stop here — a brief with no data teaches nothing.
 
-### Check 4 — Sample brief (only if Checks 1–3 pass)
+### Check 4 — Sample brief (only if Checks 1–3 pass or Check 3 only warns)
 
-If the account is resolved, at least one ICP exists, and ICP-matched visitors were found in the last 7 days, invoke the `daily-visitor-brief` skill for the last 7 days so the user sees a real, ranked brief immediately. Introduce it in one line ("Here's a sample brief from your last 7 days so you can see what you'll get each morning:") and let that skill produce its normal output (including its copy-paste follow-ups).
+If the account is resolved, at least one ICP exists, and visitor companies were found in the last 7 days (ICP-matched or not — Check 3's warn case gets a short brief), invoke the `daily-visitor-brief` skill for the last 7 days so the user sees a real, ranked brief immediately. Introduce it in one line ("Here's a sample brief from your last 7 days so you can see what you'll get each morning:") and let that skill produce its normal output (including its copy-paste follow-ups).
 
 If any check failed, do **not** run the sample brief. End on the readiness report and the specific fix.
 

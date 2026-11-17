@@ -8,9 +8,9 @@
 #   Every hook script sources this after resolve-paths.sh and detect-tools.sh
 #   to guarantee the directory tree exists before any file I/O.
 #
-#   When REMEMBER_DIR points outside the project (external mode), the legacy
-#   ${PROJECT_DIR}/.remember/ is migrated automatically on first run and a
-#   MIGRATED-TO.txt marker is left behind.
+#   When REMEMBER_DIR points outside the project (external mode) and the
+#   legacy ${PROJECT_DIR}/.remember/ still holds memory data, one stderr line
+#   says so; nothing is moved (#898).
 #
 # USAGE
 #   source "$(dirname "$0")/resolve-paths.sh"
@@ -32,61 +32,65 @@
 _REMEMBER_SRC_DIR="${BASH_SOURCE[0]%/*}"
 # A path with no slash in it (`source log.sh` from the scripts dir) leaves the
 # filename behind, not a directory — `dirname` answered "." and this must too.
-[ "$_REMEMBER_SRC_DIR" = "${BASH_SOURCE[0]}" ] && _REMEMBER_SRC_DIR="."
+[ "$_REMEMBER_SRC_DIR" = "${BASH_SOURCE[0]}" ] && _REMEMBER_SRC_DIR="$(pwd)"
 source "$_REMEMBER_SRC_DIR/lib-memory-dir.sh"
 unset _REMEMBER_SRC_DIR
 
 # --- System temp directory (portable: macOS, Linux, Windows/Git Bash) ---
+# shellcheck disable=SC2034  # read by the hooks that source this file
 SYS_TMPDIR="${TMPDIR:-/tmp}"
 
-# --- One-shot migration: legacy .remember → external REMEMBER_DIR ---
-# Keyed to MEMORY_PROJECT_DIR (the main checkout when in a worktree) so the
-# legacy dir we migrate/gitignore matches where REMEMBER_DIR now resolves.
-_mem_proj="${MEMORY_PROJECT_DIR:-$PROJECT_DIR}"
+# --- Legacy in-project store notice (#898) ---
+# Up to v0.39.0 this moved ${MEMORY_PROJECT_DIR}/.remember into an external
+# REMEMBER_DIR on first run. That migration is gone: nothing is moved or
+# deleted here. When the old in-project store still holds memory data while
+# data_dir points elsewhere, and that new store does not exist yet, one line
+# says so and the operator moves it by hand. Keyed to MEMORY_PROJECT_DIR (the
+# main checkout when in a worktree), like the .gitignore gate below.
+# Silent when REMEMBER_DIR sits inside the legacy directory: a session opened
+# in $HOME, where ~/.remember is the user-global config home (#132).
+_mem_proj="${MEMORY_PROJECT_DIR:-}"
+[ -n "$_mem_proj" ] || _mem_proj="$PROJECT_DIR"
 _legacy_dir="${_mem_proj}/.remember"
-if [ "$REMEMBER_DIR" != "$_legacy_dir" ] && [ -d "$_legacy_dir" ] && [ ! -e "$REMEMBER_DIR" ]; then
-    # Never migrate ~/.remember. It is not a legacy project store — it is the
-    # user-global config home that lib-memory-dir.sh reads to resolve
-    # REMEMBER_DIR in the first place. Open a session with cwd = $HOME and the
-    # three conditions above all hold, so the whole directory (config.json
-    # included) was moved into the external store: the config that directs the
-    # migration was consumed by it. Every later session in every project then
-    # found no user config, fell back to data_dir=".remember", and leaked
-    # memory into working trees while the central store went stale — and the
-    # now-existing home-slug dir meant it never re-fired to reveal itself
-    # (issue #132). Only external-mode users could hit it, which is to say
-    # exactly the users the config exists to serve.
-    #
-    # Compared canonically as well as textually: $HOME and PROJECT_DIR can name
-    # the same directory by different paths (a symlinked home, /tmp vs
-    # /private/tmp on macOS), and a textual miss here costs the user their
-    # config. The subshells only run when a migration would otherwise happen,
-    # which is once per project at most.
-    _migrating_user_config_home=false
-    if [ -n "$HOME" ]; then
-        if [ "${_mem_proj%/}" = "${HOME%/}" ]; then
-            _migrating_user_config_home=true
-        else
-            _mem_proj_real=$(cd "$_mem_proj" 2>/dev/null && pwd -P)
-            _home_real=$(cd "$HOME" 2>/dev/null && pwd -P)
-            if [ -n "$_mem_proj_real" ] && [ "$_mem_proj_real" = "$_home_real" ]; then
-                _migrating_user_config_home=true
-            fi
-            unset _mem_proj_real _home_real
-        fi
-    fi
-
-    if [ "$_migrating_user_config_home" = false ]; then
-        mkdir -p "$(dirname "$REMEMBER_DIR")" 2>/dev/null
-        if mv "$_legacy_dir" "$REMEMBER_DIR" 2>/dev/null; then
-            mkdir -p "$_legacy_dir"
-            printf 'Memory data migrated to:\n  %s\nThis directory is now empty; you may delete it.\n' \
-                "$REMEMBER_DIR" > "$_legacy_dir/MIGRATED-TO.txt"
-        fi
-    fi
-    unset _migrating_user_config_home
+# #907: both sides forward-slashed before the comparison -- same fix as
+# doctor.sh's matching WARN check (#899/#517). Without it, msys/cygwin
+# hands REMEMBER_DIR and _legacy_dir different separator styles (one
+# backslash, one forward-slash) for the SAME directory, the "store already
+# lives inside the legacy dir" (#132) prefix check misses, and a spurious
+# notice prints for a session opened in $HOME.
+#
+# Normalized INLINE here, not via the shared `_remember_forward_slash_into`
+# (resolve-paths.sh) directly -- same reasoning as the #519 fix just below
+# this block (self-review/CI finding, job 112342749034, ubuntu/macos/
+# windows-latest, every Python version): this file's own USAGE header says
+# every caller sources resolve-paths.sh first, but that is not true of
+# every REAL caller -- several tests source only detect-tools.sh and
+# bootstrap-dirs.sh, same as the #519 block's own callers. There,
+# `_remember_forward_slash_into` is undefined and the whole script aborts
+# under `set -e` with "command not found" (exit 127) rather than silently
+# misbehaving -- CI caught this immediately, on every leg.
+# _legacy_dir is normalized IN PLACE (mirrors doctor.sh's _legacy_store),
+# so the -d/-f checks and the printed notice text that follow all read the
+# forward-slashed form too -- forward slashes resolve fine on msys/cygwin.
+# Only REMEMBER_DIR itself stays raw throughout (its own -e check and the
+# printf's other %s).
+_legacy_rd="$REMEMBER_DIR"
+if [ "$OSTYPE" = msys ] || [ "$OSTYPE" = cygwin ]; then
+    _legacy_dir="${_legacy_dir//\\//}"
+    _legacy_rd="${_legacy_rd//\\//}"
 fi
-unset _legacy_dir
+if [ "$_legacy_rd" != "$_legacy_dir" ] && [ "${_legacy_rd#"$_legacy_dir"/}" = "$_legacy_rd" ] \
+    && [ ! -e "$REMEMBER_DIR" ] && [ -d "$_legacy_dir" ]; then
+    for _legacy_f in now.md recent.md archive.md core-memories.md remember.md; do
+        if [ -f "$_legacy_dir/$_legacy_f" ]; then
+            printf 'remember: %s holds memory data but data_dir points to %s -- move it by hand (see /remember:doctor)\n' \
+                "$_legacy_dir" "$REMEMBER_DIR" >&2
+            break
+        fi
+    done
+    unset _legacy_f
+fi
+unset _legacy_dir _legacy_rd
 
 # --- Create directory structure ---
 # Gated on the tree already existing (#230). `mkdir -p` over three directories
@@ -94,7 +98,12 @@ unset _legacy_dir
 # pays it — PostToolUse on every single tool call. The deepest path implies its
 # parents, so two tests settle all three, and a partially-removed tree still
 # falls through to the unchanged mkdir.
-if [ ! -d "$REMEMBER_DIR/logs/autonomous" ] || [ ! -d "$REMEMBER_DIR/tmp" ]; then
+# #920 gap 1: REMEMBER_DIR_UNSAFE is exported by lib-memory-dir.sh (sourced
+# above), the single chokepoint every one of this script's callers resolves
+# REMEMBER_DIR through -- refuse the whole tree rather than mkdir -p'ing a
+# value #902's own guard would have refused one line later.
+if [ "${REMEMBER_DIR_UNSAFE:-0}" != 1 ] \
+    && { [ ! -d "$REMEMBER_DIR/logs/autonomous" ] || [ ! -d "$REMEMBER_DIR/tmp" ]; }; then
     mkdir -p \
         "$REMEMBER_DIR/tmp" \
         "$REMEMBER_DIR/logs" \
@@ -119,12 +128,9 @@ fi
 # and add cost to the per-tool-call path -- so it cannot change at all, not
 # even to add a builtin-only check. Second, REMEMBER_DIR does not exist on
 # disk yet at the point lib-memory-dir.sh runs; creating it there (to hold
-# the relocated file) would short-circuit the migration guard above
-# (`[ ! -e "$REMEMBER_DIR" ]`), which depends on REMEMBER_DIR being absent
-# until migration has had its chance to run -- confirmed by
-# tests/test_migration.py and tests/test_home_dir_migration.py both failing
-# "not migrated" against an earlier version of this fix that created
-# REMEMBER_DIR from inside lib-memory-dir.sh.
+# the relocated file) would silence the legacy-store notice above
+# (`[ ! -e "$REMEMBER_DIR" ]`), which reads REMEMBER_DIR's absence as "this
+# store has not been set up yet" (#898, tests/test_migration.py).
 #
 # $REMEMBER_DIR/tmp -- just created above -- is a directory this plugin
 # already owns and already uses for its own per-invocation scratch files
@@ -144,22 +150,17 @@ if [ -d "$REMEMBER_DIR/tmp" ]; then
     # Gated on there being any candidate at all (#666): `find` ran
     # unconditionally on EVERY hook invocation before this, even on a store
     # where the EXIT trap has never once failed to fire and the glob below
-    # matches nothing. A glob array costs no fork; `find` still does the
-    # real mtime filtering once something is actually there to check.
-    # `shopt -p nullglob` exits 1 (even though it prints correctly) whenever
-    # the option is currently OFF -- which it is by default -- so capturing
-    # it via `var=$(...)` would abort any caller running under `set -e`.
-    # `shopt -q` in a plain `&&` conditional never has that problem.
-    _remember_stale_cfg_was_nullglob=0
-    shopt -q nullglob && _remember_stale_cfg_was_nullglob=1
-    shopt -s nullglob
-    _remember_stale_cfg_candidates=("$REMEMBER_DIR/tmp"/remember-config-*.json)
-    [ "$_remember_stale_cfg_was_nullglob" = 1 ] || shopt -u nullglob
-    if [ "${#_remember_stale_cfg_candidates[@]}" -gt 0 ]; then
+    # matches nothing. The glob costs no fork; `find` still does the real
+    # mtime filtering once something is actually there to check. `[ -e ] ||
+    # [ -L ]` drops the unmatched literal pattern, so no nullglob
+    # save/restore is needed (#898).
+    for _remember_stale_cfg in "$REMEMBER_DIR/tmp"/remember-config-*.json; do
+        [ -e "$_remember_stale_cfg" ] || [ -L "$_remember_stale_cfg" ] || continue
         find "$REMEMBER_DIR/tmp" -maxdepth 1 -name 'remember-config-*.json' \
             -mmin +30 -exec rm -f {} + 2>/dev/null || true
-    fi
-    unset _remember_stale_cfg_candidates _remember_stale_cfg_was_nullglob
+        break
+    done
+    unset _remember_stale_cfg
 
     # Move THIS invocation's file in, and repoint REMEMBER_CONFIG and the EXIT
     # trap at its new home. Best-effort: a failed mv (cross-device, the
@@ -280,7 +281,7 @@ fi
 # doctor.sh already renders as the honest answer for a fresh install.
 if [ -d "$REMEMBER_DIR" ]; then
     [ -f "$REMEMBER_DIR/.install-marker" ] \
-        || { echo 'This file marks when remember was first bootstrapped here. Read only by scripts/doctor.sh (#401); do not delete it.' \
+        || { echo 'This file marks when remember was first bootstrapped here. Read only by /remember:doctor (#401); do not delete it.' \
             > "$REMEMBER_DIR/.install-marker"; } 2>/dev/null
 fi
 
@@ -308,7 +309,7 @@ if [ -d "$REMEMBER_DIR" ]; then
     # #519: both sides forward-slashed before the case-glob match --
     # REMEMBER_DIR and _mem_proj both arrive backslash-separated on
     # msys/cygwin (resolve-paths.sh's own _remember_normalize_win_path),
-    # and a bash `case` pattern only ever recognises '/' as a path
+    # and a bash glob pattern only ever recognises '/' as a path
     # separator, so an in-project store's REMEMBER_DIR silently never
     # matched "$_mem_proj"/* there -- no .gitignore was ever written. This
     # is NOT the #401 doctor.sh baseline (that reads .install-marker,
@@ -341,17 +342,13 @@ if [ -d "$REMEMBER_DIR" ]; then
     # documents for the identical reason.
     _mem_bd_glob_dir="$REMEMBER_DIR"
     _mem_bd_glob_proj="$_mem_proj"
-    case "$OSTYPE" in
-        msys|cygwin)
-            _mem_bd_glob_dir="${_mem_bd_glob_dir//\\//}"
-            _mem_bd_glob_proj="${_mem_bd_glob_proj//\\//}"
-            ;;
-    esac
-    case "$_mem_bd_glob_dir" in
-        "$_mem_bd_glob_proj"/*)
-            [ -f "$REMEMBER_DIR/.gitignore" ] || { echo '*' > "$REMEMBER_DIR/.gitignore"; } 2>/dev/null
-            ;;
-    esac
+    if [ "$OSTYPE" = msys ] || [ "$OSTYPE" = cygwin ]; then
+        _mem_bd_glob_dir="${_mem_bd_glob_dir//\\//}"
+        _mem_bd_glob_proj="${_mem_bd_glob_proj//\\//}"
+    fi
+    if [ "${_mem_bd_glob_dir#"$_mem_bd_glob_proj"/}" != "$_mem_bd_glob_dir" ]; then
+        [ -f "$REMEMBER_DIR/.gitignore" ] || { echo '*' > "$REMEMBER_DIR/.gitignore"; } 2>/dev/null
+    fi
 fi
 unset _mem_proj _mem_bd_glob_dir _mem_bd_glob_proj
 
@@ -389,24 +386,17 @@ unset _mem_proj _mem_bd_glob_dir _mem_bd_glob_proj
 # elsewhere, and redirects fd 2 into hook-errors.log anyway -- while the
 # trace, which never left fd 2, goes with it. Checked directly against
 # BASH_VERSINFO, the same version test lib-clock.sh and lib-lock.sh already
-# run before relying on a bash-4+ feature, rather than assumed.
-_remember_bd_has_xtracefd=0
-if [ "${BASH_VERSINFO[0]:-0}" -gt 4 ] 2>/dev/null; then
-    _remember_bd_has_xtracefd=1
-elif [ "${BASH_VERSINFO[0]:-0}" -eq 4 ] 2>/dev/null && [ "${BASH_VERSINFO[1]:-0}" -ge 1 ] 2>/dev/null; then
-    _remember_bd_has_xtracefd=1
-fi
+# run before relying on a bash-4+ feature, rather than assumed. Asked only
+# when an xtrace is actually on, the one case that reads the answer.
 if [ -d "$REMEMBER_DIR/logs" ]; then
     _remember_bd_keep_fd2=""
-    case "$-" in
-        (*x*)
-            if [ "$_remember_bd_has_xtracefd" = "0" ]; then
-                _remember_bd_keep_fd2="an xtrace is running (this bash predates BASH_XTRACEFD, added in 4.1, so xtrace stays on fd 2 regardless of the variable)"
-            elif [ "${BASH_XTRACEFD:-2}" = "2" ]; then
-                _remember_bd_keep_fd2="an xtrace is running on fd 2"
-            fi
-            ;;
-    esac
+    if [[ "$-" == *x* ]]; then
+        if ! { [ "${BASH_VERSINFO[0]:-0}" -gt 4 ] || { [ "${BASH_VERSINFO[0]:-0}" -eq 4 ] && [ "${BASH_VERSINFO[1]:-0}" -ge 1 ]; }; } 2>/dev/null; then
+            _remember_bd_keep_fd2="an xtrace is running and this bash (< 4.1) has no BASH_XTRACEFD, so it stays on fd 2"
+        elif [ "${BASH_XTRACEFD:-2}" = "2" ]; then
+            _remember_bd_keep_fd2="an xtrace is running on fd 2"
+        fi
+    fi
     [ "${REMEMBER_TRACE:-}" = "1" ] && _remember_bd_keep_fd2="REMEMBER_TRACE=1"
     if [ -n "$_remember_bd_keep_fd2" ]; then
         # Said out loud, on the stream being kept: this hook's stderr is now in
@@ -420,4 +410,3 @@ if [ -d "$REMEMBER_DIR/logs" ]; then
     fi
     unset _remember_bd_keep_fd2
 fi
-unset _remember_bd_has_xtracefd

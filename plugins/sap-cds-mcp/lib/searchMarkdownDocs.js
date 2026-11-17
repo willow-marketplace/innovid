@@ -1,12 +1,40 @@
 import { createRequire } from 'node:module'
-import { loadChunks, searchEmbeddings } from './embeddings.js'
-import { UNKNOWN_CDS_VERSION, DEFAULT_DIR, DEFAULT_EMBEDDINGS_URL, toDirName, getActiveModel, getActiveModelFolder } from './calculateEmbeddings.js'
+import { loadChunks, hybridSearch } from './embeddings.js'
+import { rerank, getReranker, RERANK_ENABLED } from './rerank.js'
+import {
+  UNKNOWN_CDS_VERSION,
+  DEFAULT_DIR,
+  DEFAULT_EMBEDDINGS_URL,
+  toDirName,
+  getActiveModel,
+  getActiveModelFolder
+} from './calculateEmbeddings.js'
+import { configuredBoolean, configuredNonEmptyString, configuredPositiveInteger } from './utils.js'
 import fs from 'fs/promises'
 import { readFileSync } from 'fs'
 import path from 'path'
 
+const MAX_TIMEOUT_MILLISECONDS = 2_147_483_647
+
+export const fetchTimeouts = {
+  manifest: configuredPositiveInteger('CDS_MCP_MANIFEST_TIMEOUT', 15_000, {
+    maximum: MAX_TIMEOUT_MILLISECONDS,
+    unit: 'milliseconds'
+  }),
+  bundle: configuredPositiveInteger('CDS_MCP_DOWNLOAD_TIMEOUT', 30_000, {
+    maximum: MAX_TIMEOUT_MILLISECONDS,
+    unit: 'milliseconds'
+  })
+}
+
 function etagPathFor(cdsVersion, modelFolder = getActiveModelFolder()) {
-  return path.join(DEFAULT_DIR, modelFolder, 'etags', cdsVersion || UNKNOWN_CDS_VERSION, 'manifest.etag')
+  return path.join(
+    DEFAULT_DIR,
+    modelFolder,
+    'etags',
+    cdsVersion || UNKNOWN_CDS_VERSION,
+    'manifest.etag'
+  )
 }
 
 function parseJavaCdsVersion(text) {
@@ -28,7 +56,9 @@ export function detectRuntime(cwd = process.cwd()) {
     if (runtime === 'nodejs') {
       return { runtime: 'node', cdsVersion: projectCds.version }
     }
-  } catch { /* not a cds node project */ }
+  } catch {
+    /* not a cds node project */
+  }
 
   // 2. Java — check cwd + srv/ first, then walk up.
   const BUILD_FILES = ['pom.xml', 'srv/pom.xml', 'build.gradle', 'build.gradle.kts']
@@ -36,8 +66,11 @@ export function detectRuntime(cwd = process.cwd()) {
   while (true) {
     for (const name of BUILD_FILES) {
       let text
-      try { text = readFileSync(path.join(dir, name), 'utf8') }
-      catch { continue }
+      try {
+        text = readFileSync(path.join(dir, name), 'utf8')
+      } catch {
+        continue
+      }
       if (!/com\.sap\.cds/.test(text)) continue
       return { runtime: 'java', cdsVersion: parseJavaCdsVersion(text) }
     }
@@ -49,7 +82,6 @@ export function detectRuntime(cwd = process.cwd()) {
   return { runtime: undefined, cdsVersion: undefined }
 }
 
-
 function getBundleUrl(runtime, cdsVersion) {
   const params = new URLSearchParams({ model: getActiveModelFolder() })
   if (runtime) params.set('runtime', runtime)
@@ -59,8 +91,14 @@ function getBundleUrl(runtime, cdsVersion) {
 
 async function checkFilesExist(jsonPath, binPath) {
   const [j, b] = await Promise.all([
-    fs.access(jsonPath).then(() => true).catch(() => false),
-    fs.access(binPath).then(() => true).catch(() => false)
+    fs
+      .access(jsonPath)
+      .then(() => true)
+      .catch(() => false),
+    fs
+      .access(binPath)
+      .then(() => true)
+      .catch(() => false)
   ])
   return j && b
 }
@@ -86,10 +124,16 @@ export async function resolveLocalVersion() {
   const modelEtagsRoot = path.join(modelDir, 'etags')
   const { cdsVersion } = detectRuntime()
   const etagPath = etagPathFor(cdsVersion, activeModelFolder)
-  const cached = await fs.readFile(etagPath, 'utf-8').then(JSON.parse).catch(() => null)
+  const cached = await fs
+    .readFile(etagPath, 'utf-8')
+    .then(JSON.parse)
+    .catch(() => null)
   if (cached?.commitId) {
     const localDir = path.join(modelDir, cached.commitId)
-    const ok = await checkFilesExist(path.join(localDir, 'code-chunks.json'), path.join(localDir, 'code-chunks.bin'))
+    const ok = await checkFilesExist(
+      path.join(localDir, 'code-chunks.json'),
+      path.join(localDir, 'code-chunks.bin')
+    )
     if (ok) {
       // stderr, never stdout: stdout is the MCP JSON-RPC transport.
       /* eslint-disable no-console */
@@ -117,11 +161,21 @@ export async function resolveLocalVersion() {
         const c = JSON.parse(await fs.readFile(ep, 'utf-8'))
         if (!c?.commitId) continue
         const localDir = path.join(modelDir, c.commitId)
-        const ok = await checkFilesExist(path.join(localDir, 'code-chunks.json'), path.join(localDir, 'code-chunks.bin'))
-        if (ok) { best = { commitId: c.commitId, localDir }; bestCds = coerced }
-      } catch { /* etag file missing or invalid — skip */ }
+        const ok = await checkFilesExist(
+          path.join(localDir, 'code-chunks.json'),
+          path.join(localDir, 'code-chunks.bin')
+        )
+        if (ok) {
+          best = { commitId: c.commitId, localDir }
+          bestCds = coerced
+        }
+      } catch {
+        /* etag file missing or invalid — skip */
+      }
     }
-  } catch { /* per-model etag dir absent — skip */ }
+  } catch {
+    /* per-model etag dir absent — skip */
+  }
   if (best) {
     /* eslint-disable no-console */
     console.error(`Using: ${best.localDir}`)
@@ -138,17 +192,26 @@ export async function resolveLocalVersion() {
       if (!m.isDirectory()) continue
       const modelPath = path.join(DEFAULT_DIR, m.name)
       let commitDirs
-      try { commitDirs = await fs.readdir(modelPath, { withFileTypes: true }) }
-      catch { continue }
+      try {
+        commitDirs = await fs.readdir(modelPath, { withFileTypes: true })
+      } catch {
+        continue
+      }
       for (const d of commitDirs) {
         if (!d.isDirectory() || d.name === 'etags') continue
         const localDir = path.join(modelPath, d.name)
-        const ok = await checkFilesExist(path.join(localDir, 'code-chunks.json'), path.join(localDir, 'code-chunks.bin'))
+        const ok = await checkFilesExist(
+          path.join(localDir, 'code-chunks.json'),
+          path.join(localDir, 'code-chunks.bin')
+        )
         if (!ok) continue
         const stat = await fs.stat(localDir).catch(() => null)
         if (!stat) continue
         const t = stat.mtimeMs
-        if (t > newestTime) { newestTime = t; newestResult = { commitId: d.name, localDir } }
+        if (t > newestTime) {
+          newestTime = t
+          newestResult = { commitId: d.name, localDir }
+        }
       }
     }
     if (newestResult) {
@@ -156,38 +219,104 @@ export async function resolveLocalVersion() {
       console.error(`Using: ${newestResult.localDir}`)
       return newestResult
     }
-  } catch { /* embeddings dir unreadable — fall through */ }
+  } catch {
+    /* embeddings dir unreadable — fall through */
+  }
   return null
 }
 
 async function listAvailableModels() {
   try {
-    const resp = await fetch(`${DEFAULT_EMBEDDINGS_URL}/manifest.json`)
+    const resp = await fetch(`${DEFAULT_EMBEDDINGS_URL}/manifest.json`, {
+      signal: AbortSignal.timeout(fetchTimeouts.manifest)
+    })
     if (!resp.ok) return null
     const manifest = await resp.json()
     return Object.entries(manifest).map(([_key, entry]) => entry[0].model)
-  } catch { return null }
+  } catch {
+    return null
+  }
 }
 
 async function _downloadEmbeddings() {
   const activeModel = getActiveModel()
   const { runtime, cdsVersion } = detectRuntime()
   const etagPath = etagPathFor(cdsVersion)
-  const cached = await fs.readFile(etagPath, 'utf-8').then(JSON.parse).catch(() => null)
+  const cached = await fs
+    .readFile(etagPath, 'utf-8')
+    .then(JSON.parse)
+    .catch(() => null)
+
+  const ONE_DAY_MS = 86_400_000
+  if (
+    cached?.lastChecked &&
+    cached?.commitId &&
+    cached.runtime === runtime &&
+    Date.now() - cached.lastChecked < ONE_DAY_MS
+  ) {
+    const localDir = path.join(
+      path.join(DEFAULT_DIR, toDirName(cached.model ?? activeModel)),
+      cached.commitId
+    )
+    const ok = await checkFilesExist(
+      path.join(localDir, 'code-chunks.json'),
+      path.join(localDir, 'code-chunks.bin')
+    )
+    if (ok) return { updated: false, commitId: cached.commitId, localDir }
+  }
+
   // Blank Cache-Control/Pragma: undici's fetch auto-adds `no-cache`, which
   // trips Express `req.fresh` server-side and forces a 200 even when ETag matches.
   const headers = cached?.etag
     ? { 'If-None-Match': cached.etag.trim(), 'Cache-Control': '', Pragma: '' }
     : {}
-  const resp = await fetch(getBundleUrl(runtime, cdsVersion), { headers })
+
+  const fallbackToLocalVersion = async (networkError) => {
+    console.error(
+      `Embeddings server not available (${networkError.message})\nFalling back to local version`
+    )
+    const local = await resolveLocalVersion()
+    if (local) return { updated: false, commitId: local.commitId, localDir: local.localDir }
+    throw new Error('Offline mode: no local embeddings version found under ' + DEFAULT_DIR, {
+      cause: networkError
+    })
+  }
+
+  const controller = new AbortController()
+  const timeout = setTimeout(() => {
+    const error = new Error('The operation was aborted due to timeout')
+    error.name = 'TimeoutError'
+    controller.abort(error)
+  }, fetchTimeouts.bundle)
+  timeout.unref?.()
+  let resp
+  try {
+    resp = await fetch(getBundleUrl(runtime, cdsVersion), { headers, signal: controller.signal })
+  } catch (networkError) {
+    return fallbackToLocalVersion(networkError)
+  } finally {
+    // fetch() resolved: response headers arrived, so do not abort the body download.
+    clearTimeout(timeout)
+  }
 
   const isNonOk = resp.status !== 304 && !resp.ok
-  let model = (resp.status === 304 ? cached.model : resp.headers.get('x-embeddings-model')) ?? activeModel
+  let model =
+    (resp.status === 304 ? cached.model : resp.headers.get('x-embeddings-model')) ?? activeModel
 
   if (isNonOk || model !== activeModel) {
     const available = await listAvailableModels()
     const suffix = available?.length ? `\nAvailable models:\n  ${available.join('\n  ')}` : ''
-    if (isNonOk) throw new Error(`Failed to fetch bundle: ${resp.status} ${resp.statusText}${suffix}`)
+    if (isNonOk) {
+      let detail = ''
+      try {
+        detail = (await resp.json()).detail ?? ''
+      } catch {
+        /* body unreadable — ignore */
+      }
+      throw new Error(
+        `Failed to fetch bundle: ${resp.status}${detail ? ` – ${detail}` : ` ${resp.statusText}`}${suffix}`
+      )
+    }
     throw new Error(`Requested model "${activeModel}" not found.${suffix}`)
   }
 
@@ -199,10 +328,21 @@ async function _downloadEmbeddings() {
     // resolve for these query params. Newest-local can differ on cds
     // downgrade or when multiple cds versions share the cache.
     const commitId = cached?.commitId
-    if (!commitId) throw new Error(`Bundle 304 but no commitId in ${etagPath}; delete to force refetch`)
+    if (!commitId)
+      throw new Error(`Bundle 304 but no commitId in ${etagPath}; delete to force refetch`)
     const localDir = path.join(embeddingsDir, commitId)
-    const ok = await checkFilesExist(path.join(localDir, 'code-chunks.json'), path.join(localDir, 'code-chunks.bin'))
-    if (!ok) throw new Error(`Bundle 304 but local dir ${localDir} missing files; delete ${etagPath} to force refetch`)
+    const ok = await checkFilesExist(
+      path.join(localDir, 'code-chunks.json'),
+      path.join(localDir, 'code-chunks.bin')
+    )
+    if (!ok)
+      throw new Error(
+        `Bundle 304 but local dir ${localDir} missing files; delete ${etagPath} to force refetch`
+      )
+    await fs.mkdir(path.dirname(etagPath), { recursive: true })
+    await fs
+      .writeFile(etagPath, JSON.stringify({ ...cached, runtime, lastChecked: Date.now() }))
+      .catch(() => {})
     return { updated: false, commitId, localDir }
   }
 
@@ -211,7 +351,12 @@ async function _downloadEmbeddings() {
   const newEtag = resp.headers.get('etag')
 
   // Binary frame: [4-byte BE meta length][meta JSON bytes][bin bytes].
-  const buf = Buffer.from(await resp.arrayBuffer())
+  let buf
+  try {
+    buf = Buffer.from(await resp.arrayBuffer())
+  } catch (networkError) {
+    return fallbackToLocalVersion(networkError)
+  }
   if (buf.length < 4) throw new Error('Bundle response too short')
   const metaLen = buf.readUInt32BE(0)
   if (metaLen > buf.length - 4) throw new Error('Bundle framing: metaLen exceeds available bytes')
@@ -239,7 +384,12 @@ async function _downloadEmbeddings() {
 
   if (newEtag) {
     await fs.mkdir(path.dirname(etagPath), { recursive: true })
-    await fs.writeFile(etagPath, JSON.stringify({ etag: newEtag, commitId, model })).catch(() => {})
+    await fs
+      .writeFile(
+        etagPath,
+        JSON.stringify({ etag: newEtag, commitId, model, runtime, lastChecked: Date.now() })
+      )
+      .catch(() => {})
   }
 
   return { updated: true, commitId, localDir }
@@ -248,24 +398,55 @@ async function _downloadEmbeddings() {
 let inFlightDownload = null
 export function downloadEmbeddings() {
   if (inFlightDownload) return inFlightDownload
-  inFlightDownload = _downloadEmbeddings().finally(() => { inFlightDownload = null })
+  inFlightDownload = _downloadEmbeddings().finally(() => {
+    inFlightDownload = null
+  })
   return inFlightDownload
 }
 
-const offline = process.argv.includes('--offline') || process.env.CDS_MCP_OFFLINE === 'true'
+const offline = process.argv.includes('--offline') || configuredBoolean('CDS_MCP_OFFLINE')
+const RERANK_OVER_RETRIEVE = 5
 
+let offlineResolved = null
 async function offlineSetup() {
+  const overrideDir = configuredNonEmptyString('CDS_MCP_OFFLINE_DIR')
+  if (overrideDir)
+    return { updated: false, offline: true, localDir: overrideDir, preserveFiles: true }
+  if (offlineResolved) return offlineResolved
   const local = await resolveLocalVersion()
-  if (!local) throw new Error('Offline mode: no local embeddings version found under ' + DEFAULT_DIR)
-  return { updated: false, commitId: local.commitId, offline: true, localDir: local.localDir }
+  if (!local)
+    throw new Error('Offline mode: no local embeddings version found under ' + DEFAULT_DIR)
+  offlineResolved = {
+    updated: false,
+    commitId: local.commitId,
+    offline: true,
+    localDir: local.localDir
+  }
+  return offlineResolved
 }
 
-let downloadPromise = offline ? offlineSetup() : downloadEmbeddings()
-downloadPromise.catch(() => {})   // still fails when awaited by callers; only silences the module-load noise
+let downloadPromise = null
+if (!offline) {
+  downloadPromise = downloadEmbeddings()
+  downloadPromise.catch(() => {}) // still fails when awaited by callers; only silences the module-load noise
+  if (RERANK_ENABLED) getReranker().catch(() => {})
+}
+
+export function dedupByContent(ranked, limit) {
+  const seen = new Set()
+  const result = []
+  for (const r of ranked) {
+    if (seen.has(r.content)) continue
+    seen.add(r.content)
+    result.push(r)
+    if (result.length >= limit) break
+  }
+  return result
+}
 
 export function formatResult(r) {
-  if (!r.meta) return r.content
-  const header = Object.entries(r.meta)
+  const meta = { ...r.meta }
+  const header = Object.entries(meta)
     .filter(([, v]) => v !== undefined && v !== null && v !== '')
     .map(([k, v]) => `${k}: ${v}`)
     .join('\n')
@@ -273,13 +454,27 @@ export function formatResult(r) {
 }
 
 export default async function searchMarkdownDocs(query, maxResults = 5) {
+  const cap = configuredPositiveInteger('CDS_MCP_MAX_RESULTS', undefined)
+  if (cap !== undefined) maxResults = Math.min(maxResults, cap)
+
   let respDownload
-  if (downloadPromise) respDownload = await downloadPromise
+  if (offline) respDownload = await offlineSetup()
+  else if (downloadPromise) respDownload = await downloadPromise
+
+  // Filter the chunks by the project runtime (node/java) by default. Set
+  // CDS_MCP_GENERIC_EMBEDDINGS=true to skip the filter and keep all runtimes.
+  const genericEmbeddings = configuredBoolean('CDS_MCP_GENERIC_EMBEDDINGS')
+  const runtime = genericEmbeddings ? undefined : detectRuntime().runtime
 
   async function searchWithRetry(versionDir, retryCount = 0) {
     try {
-      const chunks = await loadChunks('code-chunks', versionDir)
-      const results = (await searchEmbeddings(query, chunks)).slice(0, maxResults)
+      const chunks = await loadChunks('code-chunks', versionDir, {
+        deleteCorrupted: !respDownload.preserveFiles
+      })
+      const allRanked = await hybridSearch(query, chunks, { runtime })
+      const maxCand = RERANK_ENABLED ? maxResults * RERANK_OVER_RETRIEVE : maxResults
+      const ranked = dedupByContent(allRanked, maxCand)
+      const results = RERANK_ENABLED ? await rerank(query, ranked, maxResults) : ranked
       return results.map(formatResult).join('\n---\n')
     } catch (error) {
       if (error.code === 'EMBEDDINGS_CORRUPTED' && retryCount < 2) {

@@ -43,7 +43,7 @@ Each step happens asynchronously, triggered by events that are sent and via Kine
 
 Kinesis is particularly critical to Crate's tech stack because it enables the asynchronous processing of data in a robust and decoupled manner, allowing them to add or remove steps easily. Additionally, the Crate team shares that SageMaker is also useful for deploying smaller models in a hassle-free, robust way that saves their small team much time.
 
-> "What's beautiful about the AWS platform is that everything is already built and we don't have to spend time on the heavy lifting," says Anna. "AWS understands how systems come together—no matter what our need, AWS has something to meet it."
+> What Anna finds beautiful about building on AWS is that "everything is already built and we don't have to spend time on the heavy lifting." She adds: "AWS understands how systems come together—no matter what our need, AWS has something to meet it."
 
 ### Leveraging AWS programs
 
@@ -63,6 +63,6 @@ Anna believes that the potential for AI to revolutionize how we live and work is
 
 ---
 
-_Author: Megan Crowley_
+> _Author: Megan Crowley_
 
 Megan Crowley is a Senior Technical Writer on the Startup Content Team at AWS. With an earlier career as a high school English teacher, she is driven by a relentless enthusiasm for contributing to content that is equal parts educational and inspirational. Sharing startups' stories with the world is the most rewarding part of her role at AWS. In her spare time, Megan can be found woodworking, in the garden, and at antique markets.

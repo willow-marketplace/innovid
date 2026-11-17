@@ -54,14 +54,15 @@ container starts. You then do not need a post-init `CREATE LOGIN` or
 Replace the placeholders and the host path to your `.pfx`:
 
 ```bash
+MSSQL_SA_PASSWORD="${MSSQL_SA_PASSWORD:-Aa1%$(openssl rand -hex 16)}"
 docker run -d --name sqldb \
   -e "ACCEPT_EULA=Y" \
-  -e "MSSQL_SA_PASSWORD=YourStr0ng_Passw0rd" \
+  -e "MSSQL_SA_PASSWORD=${MSSQL_SA_PASSWORD:?Set MSSQL_SA_PASSWORD}" \
   -e "MSSQL_AAD_CLIENT_ID=<client-id>" \
   -e "MSSQL_AAD_PRIMARY_TENANT=<tenant-id>" \
   -e "MSSQL_AAD_CERTIFICATE_FILE_PATH=/var/opt/mssql/mssql-entra-id.pfx" \
   -v /path/to/mssql-entra-id.pfx:/var/opt/mssql/mssql-entra-id.pfx:ro \
-  -p "1433:1433" \
+  -p "127.0.0.1:1433:1433" \
   sqldbpreview-dpgaeqhmgphzd4bk.azurecr.io/azure-sql/db-dev:latest
 ```
 
@@ -107,10 +108,17 @@ docker logs sqldb 2>&1 | grep -i "authentication manager initialization failed"
 Expect no matches.
 
 2. Functional check: on a **master** connection as `sa`, run
-`CREATE LOGIN [some-principal] FROM EXTERNAL PROVIDER;`. Entra is configured when
-you get **Msg 33134** (principal could not be resolved) rather than **Msg 37525**
-(AAD not configured for this instance). Use a real UPN or object name when you
-intend to create the login.
+`CREATE LOGIN [some-principal] FROM EXTERNAL PROVIDER;` and **read the message text,
+not only the number**. On a container with no `MSSQL_AAD_*` configuration at all, this
+build answers **Msg 33134** with the detail `'Unable to query Azure AD certificate from
+local cert store.'`, which names the missing certificate. Once Entra is configured, the
+same statement resolves the principal or fails naming the principal rather than the
+cert store. Measured 2026-09-19 on image tag `18.0.226_4_147`, `EngineEdition` 5,
+Edition `SQL Azure`, build `12.0.2000.8`, on a container started with zero `MSSQL_AAD_*`
+variables. This page previously said the unconfigured state answers **Msg 37525** and
+that 33134 therefore means configured; on this build that is wrong, and the number alone
+does not tell the two states apart. Use a real UPN or object name when you intend to
+create the login.
 
 ## Do not
 

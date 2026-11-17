@@ -20,7 +20,7 @@ AWS Cost Explorer helps you understand general spending trends quickly. As your 
 - _Where should I start my cost optimization efforts?_ The default view will show the top five services contributing to monthly spend, which is helpful if you're wondering which service you should start cost-optimizing and looking to make the biggest impact on spend.
 - _Am I spending a significant amount on a service that doesn't fit normal patterns?_ Your answer may be workload-dependent, but, for example, storage costs are typically lower than compute costs, so you may not expect EBS volume spend to be significantly higher than your spend on Amazon Elastic Compute Cloud (Amazon EC2).
 
-**Set a Budget**
+### Set a Budget
 
 Even if you don't have a fixed budget for your infrastructure spend, we still recommend implementing AWS Budgets to track costs and get alerts when you've reached certain spend thresholds. Accidental misconfigurations could result in a painful bill, and alerts can help you catch and remedy mistakes before they snowball. If you don't have any budgeting alerts set up, take a few minutes to follow along with [this tutorial](https://aws.amazon.com/blogs/startups/how-to-set-aws-budget-when-paying-with-aws-credits/) to set one up.
 
@@ -28,7 +28,7 @@ Even if you don't have a fixed budget for your infrastructure spend, we still re
 
 Once you understand your costs, you'll want to consider streamlining your architecture to be more cost-efficient. The changes we've highlighted below could yield the largest savings for the smallest amount of effort, so you can quickly get back to building your product.
 
-**Turn Off Resources When Not in Use**
+### Turn Off Resources When Not in Use
 
 This advice may sound obvious, but the easiest, fastest, and most impactful way to achieve cost savings is to turn off resources when they're not being used. In an average workweek, 70% of the hours are non-working hours. Imagine how much you could save by turning off non-production resources during that time! Tips to help you identify what to turn off:
 
@@ -38,7 +38,7 @@ This advice may sound obvious, but the easiest, fastest, and most impactful way 
 
 Even if you know what needs to be turned off, that won't yield savings unless you actually turn them off. If you struggle with this, automate the process by leveraging solutions like the [AWS Instance Scheduler](https://aws.amazon.com/solutions/implementations/instance-scheduler/) to configure start and stop schedules for Amazon EC2 and Amazon RDS.
 
-**Use the Newest Offerings**
+### Use the Newest Offerings
 
 A simple way to reduce costs while maintaining performance is by using the latest and greatest of what AWS has to offer, including:
 

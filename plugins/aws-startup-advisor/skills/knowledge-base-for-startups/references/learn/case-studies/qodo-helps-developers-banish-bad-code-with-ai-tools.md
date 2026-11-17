@@ -55,7 +55,7 @@ Going forward, Qodo is continuing to develop new ways to support developers with
 
 AWS and NVIDIA will continue to help Qodo innovate and grow through a combination of cutting-edge technology and deep expertise. The company recently announced Qodo-Embed-1, a new state-of-the-art model for code embedding. Embed-1 is available in the [Amazon Bedrock Marketplace](https://aws.amazon.com/bedrock/marketplace/) and includes deep integration with [NVIDIA NIM microservices](https://www.nvidia.com/en-gb/ai/). "NVIDIA and AWS are great partners with great programs, like [NVIDIA Inception](https://www.nvidia.com/en-gb/startups/) and the Generative AI Accelerator," says Friedman. "They open opportunities for us. They understand our needs, what we're trying to achieve right now, and they help us be a better startup."
 
-If you want access to funding, expertise, and cutting-edge technology that can help your startup grow, consider applying for the Generative AI Accelerator. You can find the full details [here](https://aws.amazon.com/startups/programs/generative-ai).
+If you want access to funding, expertise, and cutting-edge technology that can help your startup grow, consider applying for the Generative AI Accelerator. You can find the full details [on the AWS Generative AI Accelerator program page](https://aws.amazon.com/startups/programs/generative-ai).
 
 ---
 

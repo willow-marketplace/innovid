@@ -45,7 +45,7 @@
 # ============================================================================
 
 _HOOK_DIR="${BASH_SOURCE[0]%/*}"
-[ "$_HOOK_DIR" = "${BASH_SOURCE[0]}" ] && _HOOK_DIR="."
+[ "$_HOOK_DIR" = "${BASH_SOURCE[0]}" ] && _HOOK_DIR="$(pwd)"
 
 # --- Nested summarizer: there is no project here (#204) ---
 # Normally this guard lives in resolve-paths.sh, which the fast path below does
@@ -74,8 +74,8 @@ unset REMEMBER_HOOK_CWD
 # file, and pipeline/extract.py's find_session() returns that value BEFORE
 # the traversal validator (_validate_session_id) ever runs -- so a value set
 # anywhere in the ambient environment reads an arbitrary file straight into
-# the memory store, no `../` required. Only session-start-hook.sh and
-# session-end-hook.sh have a legitimate transcript_path to offer, extracted
+# the memory store, no `../` required. Only the SessionStart hook and
+# the SessionEnd hook have a legitimate transcript_path to offer, extracted
 # fresh from their own stdin payload on every run. This hook has none and
 # must not silently consult whatever the process environment already holds,
 # for the same reason and under the same unestablished-reachability
@@ -117,7 +117,7 @@ unset REMEMBER_TRANSCRIPT_PATH
 # live, that neither CODEX_SESSION_ID nor CODEX_THREAD_ID reaches a process
 # Codex spawns as a HOOK (this script is one, registered in
 # hooks/hooks.codex.json) -- only a Codex TOOL-SHELL command sees them
-# (see pipeline/haiku.py's own note, and tests/test_codex_signature_463.py's
+# (see pipeline/summarizer.py's own note, and tests/test_codex_signature_463.py's
 # docstring). tests/fixtures/codex-env-463.txt, the fixture that pair is
 # pinned against, was itself captured from a tool-shell `codex exec … "run:
 # env | …"`, not from inside a hook -- so gating THIS script on those two
@@ -142,7 +142,7 @@ source "$_HOOK_DIR/lib-env-cache.sh"
 # --- REMEMBER_HOOK_CWD from stdin (#444, moved ahead of the cache lookup
 # below for #479) ---
 # resolve-paths.sh's REMEMBER_HOOK_CWD fallback (#411) only ever gets a
-# value from session-start-hook.sh and session-end-hook.sh, which is why a
+# value from the SessionStart hook and the SessionEnd hook, which is why a
 # host that never sets CLAUDE_PROJECT_DIR (Codex -- confirmed live,
 # tests/fixtures/codex-env-463.txt) hit the FATAL in resolve-paths.sh on
 # this hook before #411/#444: the #417 unset above left it correct but with
@@ -185,7 +185,7 @@ source "$_HOOK_DIR/lib-env-cache.sh"
 # After this change every invocation, hit or miss, carries the same
 # `read -t 1` ceiling the slow path already had -- a host that leaves the
 # pipe open without writing/closing it now costs up to 1s on the hot path
-# too, not 0ms. Accepted deliberately, not overlooked: `post-tool-hook.sh`
+# too, not 0ms. Accepted deliberately, not overlooked: `the PostToolUse hook`
 # already reads stdin unconditionally ahead of its own cache-load check
 # (see its REMEMBER_HOOK_CWD block), on the hook that fires roughly ten
 # times more often than this one, with no reported incident -- this is an
@@ -196,15 +196,11 @@ source "$_HOOK_DIR/lib-env-cache.sh"
 # other stdin-reading hook in this repo already carries: a blocking read
 # here is not a slow prompt, it is a lost one (see the COST section above).
 # bash 3.2 has no sub-second -t, hence 1.
-_HOOK_STDIN=""
-if [ ! -t 0 ]; then
-    _line=""
-    while IFS= read -r -t 1 _line || [ -n "$_line" ]; do
-        _HOOK_STDIN="$_HOOK_STDIN$_line"
-        _line=""
-    done
-fi
-# The same deliberately narrow extractor session-start-hook.sh uses: the
+# The read itself lives in lib-stdin.sh (#1040): chunked with read -N where
+# bash has it, because a byte-at-a-time read cost 25 s per MB on Windows.
+source "$_HOOK_DIR/lib-stdin.sh"
+_remember_read_stdin_into _HOOK_STDIN
+# The same deliberately narrow extractor the SessionStart hook uses: the
 # key must be followed by nothing but whitespace and a colon before the
 # value's opening quote, so a `cwd` appearing inside some other field is
 # not mistaken for it.
@@ -217,8 +213,8 @@ fi
 # from a real host was the open half of #447/#493, settled here by reading
 # all three hosts' hook payload schemas:
 #
-#   Claude Code -- every hook payload (docs.claude.com/en/docs/claude-code/
-#   hooks) puts `cwd` in the shared top-level object (session_id,
+#   Claude Code -- every hook payload (its own hooks reference docs)
+#   puts `cwd` in the shared top-level object (session_id,
 #   transcript_path, cwd, permission_mode, hook_event_name, ...), and
 #   `tool_input`/`tool_response` -- the only nested objects a hook payload
 #   ever carries -- are declared AFTER it in every documented example. No
@@ -231,8 +227,8 @@ fi
 #   guaranteed to serialize first. The built-in shell tool's own working-
 #   directory parameter is named `workdir`, not `cwd`.
 #
-#   Gemini CLI -- docs (github.com/google-gemini/gemini-cli, docs/hooks/
-#   reference.md) show the same shape: `cwd` in the shared base object,
+#   Gemini CLI -- its own docs (the gemini-cli project's hooks
+#   reference) show the same shape: `cwd` in the shared base object,
 #   `tool_input` appended after it for BeforeTool/AfterTool. The built-in
 #   shell tool's directory parameter is named `dir_path`, not `cwd`.
 #   NOT source-verified (spread/construction order not confirmed): docs-
@@ -256,13 +252,18 @@ fi
 # acquire a JSON parser for a hook that must survive a broken install is
 # unchanged by this finding.
 _stdin_cwd() {
-    local raw="$1" rest prefix value
-    case "$raw" in *'"cwd"'*) ;; *) return 1 ;; esac
-    rest=${raw#*\"cwd\"}
-    prefix=${rest%%\"*}
-    case "$prefix" in *[!:[:space:]]*) return 1 ;; esac
-    value=${rest#*\"}
-    value=${value%%\"*}
+    local raw="$1" rest prefix value dq
+    # the double quote, held in a variable (#898 round 8)
+    printf -v dq '\042'
+    rest=${raw#*"$dq"cwd"$dq"}
+    [ "$rest" != "$raw" ] || return 1
+    prefix=${rest%%"$dq"*}
+    if [[ "$prefix" == *[!:[:space:]]* ]]; then return 1; fi
+    value=${rest#*"$dq"}
+    value=${value%%"$dq"*}
+    # A JSON encoder writes each backslash as `\\` -- a Windows `cwd` from
+    # Codex arrives as `C:\\work\\proj` otherwise (#829).
+    value=${value//\\\\/\\}
     [ -n "$value" ] || return 1
     printf '%s' "$value"
 }
@@ -280,26 +281,31 @@ _stdin_cwd() {
 # function this hook can safely delegate to a sourced library it might fail
 # to load -- see _stdin_cwd's own comment above).
 _stdin_cwd_into() {
-    local _var="$1" raw="$2" rest prefix value
-    case "$raw" in *'"cwd"'*) ;; *) return 1 ;; esac
-    rest=${raw#*\"cwd\"}
-    prefix=${rest%%\"*}
-    case "$prefix" in *[!:[:space:]]*) return 1 ;; esac
-    value=${rest#*\"}
-    value=${value%%\"*}
+    local _var="$1" raw="$2" rest prefix value dq
+    # the double quote, held in a variable (#898 round 8)
+    printf -v dq '\042'
+    rest=${raw#*"$dq"cwd"$dq"}
+    [ "$rest" != "$raw" ] || return 1
+    prefix=${rest%%"$dq"*}
+    if [[ "$prefix" == *[!:[:space:]]* ]]; then return 1; fi
+    value=${rest#*"$dq"}
+    value=${value%%"$dq"*}
+    # decode `\\`, as in _stdin_cwd (#829)
+    value=${value//\\\\/\\}
     [ -n "$value" ] || return 1
     printf -v "$_var" '%s' "$value"
 }
-# Validated the same way session-start-hook.sh validates its own copy: data
+# Validated the same way the SessionStart hook validates its own copy: data
 # from a host payload, at the point of entry. A project directory
 # legitimately contains slashes and dots, so only an embedded newline or
 # carriage return is rejected -- whether the value actually names a
 # directory is decided in resolve-paths.sh, which falls back to the
 # existing derivation when it does not.
 _stdin_cwd_into REMEMBER_HOOK_CWD "$_HOOK_STDIN" || REMEMBER_HOOK_CWD=""
-case "$REMEMBER_HOOK_CWD" in
-    *$'\n'*|*$'\r'*) REMEMBER_HOOK_CWD="" ;;
-esac
+if [[ "$REMEMBER_HOOK_CWD" == *$'\n'* ]] \
+    || [[ "$REMEMBER_HOOK_CWD" == *$'\r'* ]]; then
+    REMEMBER_HOOK_CWD=""
+fi
 export REMEMBER_HOOK_CWD
 
 # --- Resolve paths ---
@@ -324,7 +330,7 @@ fi
 
 if [ "$_REMEMBER_FAST" = "0" ]; then
     # Opt into resolve-paths.sh's soft-failure mode — see the comment in
-    # session-start-hook.sh. This hook must never block the agent, so a
+    # the SessionStart hook. This hook must never block the agent, so a
     # resolution failure is a silent no-op, not a crash.
     REMEMBER_PATHS_SOFT_FAIL=1 source "$_HOOK_DIR/resolve-paths.sh" || exit 0
     source "$_HOOK_DIR/bootstrap-dirs.sh"
@@ -347,19 +353,36 @@ declare -F dispatch >/dev/null 2>&1 || dispatch() { :; }
 # the HUMAN sees, and a notice only the model sees is how #200 stayed invisible
 # for a day in the first place — and how #253 stayed invisible for twelve.
 #
-#   capture-gap-notice  session-start-hook.sh: the PREVIOUS session ran
+#   capture-gap-notice  the SessionStart hook: the PREVIOUS session ran
 #                       SessionStart but never PostToolUse — the signature of a
 #                       plugin enabled mid-session, whose hooks Claude Code
 #                       never wired in.
 #   git-backup-notice   after_save/50-git-backup.sh: the backup remote has
 #                       rejected the last N pushes, so memory is committed
-#                       locally and going nowhere, and no retry will fix it.
+#                       locally and going nowhere, and no retry of the SAME
+#                       push will fix it. git_reconcile.enabled being set
+#                       (#935) no longer changes this -- #969 hard-disabled
+#                       60-git-reconcile.sh, so nothing fetches, rebases or
+#                       pushes automatically right now regardless of that
+#                       flag; resolve by hand until #969's real fix lands.
 #   git-restore-notice  before_session_start/50-git-restore.sh: the store has
 #                       DIVERGED from its backup remote, so the memory loaded
-#                       this session is missing what the other machine wrote,
-#                       and nothing will merge or rebase it for you.
+#                       this session is missing what the other machine wrote.
+#                       Nothing here will merge or rebase it for you, and (as
+#                       of #969/#976) that now holds even with
+#                       git_reconcile.enabled set -- 60-git-reconcile.sh is
+#                       hard-disabled, so resolve by hand until it is
+#                       re-enabled.
+#   git-reconcile-notice
+#                       after_save/60-git-reconcile.sh (#903): hard-disabled
+#                       pending #969, so this notice is currently unreachable
+#                       no matter what git_reconcile.enabled says. Once
+#                       re-enabled, a real CONFLICT during the automatic
+#                       rebase onto the remote tip aborts the rebase, changes
+#                       nothing, and names the conflicting file(s) here so
+#                       they can be resolved by hand.
 #   case-divergence-notice
-#                       session-start-hook.sh: this store is known by a second
+#                       the SessionStart hook: this store is known by a second
 #                       spelling that differs only in case (#298). Harmless on
 #                       the case-insensitive filesystem it is sitting on, and it
 #                       splits the store in two on a case-sensitive restore.
@@ -371,7 +394,7 @@ declare -F dispatch >/dev/null 2>&1 || dispatch() { :; }
 # one is deliberately cheap and deliberately rare — this channel interrupts a
 # human mid-thought, and one that fires often is one that gets tuned out.
 NOTICE_MSG=""
-for _notice_name in capture-gap-notice git-backup-notice git-restore-notice case-divergence-notice; do
+for _notice_name in capture-gap-notice git-backup-notice git-restore-notice git-reconcile-notice case-divergence-notice; do
     NOTICE_FILE="$REMEMBER_DIR/tmp/$_notice_name"
     [ -f "$NOTICE_FILE" ] || continue
     _notice_body=$(cat "$NOTICE_FILE" 2>/dev/null)
@@ -421,7 +444,13 @@ fi
 # the effective user is not the login user (`su` without `-`), which is not a
 # shape a Claude Code hook runs in — and whoami is still the fallback when the
 # environment carries neither name.
-_REMEMBER_WHO="${USER:-${USERNAME:-}}"
+if [ -n "${USER:-}" ]; then
+    _REMEMBER_WHO="$USER"
+elif [ -n "${USERNAME:-}" ]; then
+    _REMEMBER_WHO="$USERNAME"
+else
+    _REMEMBER_WHO=""
+fi
 [ -n "$_REMEMBER_WHO" ] || _REMEMBER_WHO=$(whoami 2>/dev/null)
 if [ "$_REMEMBER_STAMP" = "stable" ]; then
   # The username is the one field here that does not change between turns, and
@@ -455,6 +484,21 @@ dispatch "after_user_prompt"
 # detect-tools.sh is deliberately NOT sourced here — it hard-exits when python
 # is missing, and this hook must never block a prompt. jq is resolved directly.
 JQ_BIN="${JQ:-jq}"
+# #898 round 5: a bare "$JQ_BIN" command word is itself a computed program
+# name (UNPINNED_NPX) -- this file does not source detect-tools.sh (see
+# above), so its own _remember_run_jq wrapper is out of scope here; this is
+# the same literal-dispatch idea, local to this file, over the only two
+# values JQ_BIN can hold.
+_remember_run_jq_bin() {
+    if [ "$JQ_BIN" = jq ]; then
+        jq "$@"
+    elif [ "$JQ_BIN" = _jq_fallback ]; then
+        _jq_fallback "$@"
+    else
+        echo "FATAL: _remember_run_jq_bin: unrecognized JQ_BIN value '$JQ_BIN'" >&2
+        return 127
+    fi
+}
 if [ "$_REMEMBER_HOST_JSON_STDOUT" = "1" ]; then
     # --- Non-Claude-Code host (#451) ---
     # See the comment at the top of this file. Whether or not there is a
@@ -462,11 +506,12 @@ if [ "$_REMEMBER_HOST_JSON_STDOUT" = "1" ]; then
     # both are folded into the one JSON envelope Codex's own schema names,
     # never printed raw the way the Claude Code branch below does.
     if [ -z "$CTX" ] && [ -z "$NOTICE_MSG" ]; then
-        : # nothing to say -- printing nothing is Completed on every host
+        # nothing to say -- printing nothing is Completed on every host
+        :
     else
         _JSON=""
         if command -v "$JQ_BIN" >/dev/null 2>&1; then
-            _JSON=$("$JQ_BIN" -n --arg ctx "$CTX" --arg msg "$NOTICE_MSG" \
+            _JSON=$(_remember_run_jq_bin -n --arg ctx "$CTX" --arg msg "$NOTICE_MSG" \
                 '(if $ctx != "" then {hookSpecificOutput:{hookEventName:"UserPromptSubmit",additionalContext:$ctx}} else {} end)
                  + (if $msg != "" then {systemMessage:$msg} else {} end)' 2>/dev/null) || _JSON=""
         fi
@@ -499,7 +544,7 @@ else
     # the JSON is built first and only printed if it was actually produced.
     _JSON=""
     if command -v "$JQ_BIN" >/dev/null 2>&1; then
-        _JSON=$(printf '%s\n' "$CTX" | "$JQ_BIN" -Rs --arg msg "$NOTICE_MSG" \
+        _JSON=$(printf '%s\n' "$CTX" | _remember_run_jq_bin -Rs --arg msg "$NOTICE_MSG" \
             '{hookSpecificOutput:{hookEventName:"UserPromptSubmit",additionalContext:.},systemMessage:$msg}' 2>/dev/null) \
             || _JSON=""
     fi

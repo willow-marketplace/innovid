@@ -1,10 +1,16 @@
 > AI agents: this is one page from PostHog's docs. Full index of Markdown docs for LLMs: https://posthog.com/llms.txt
 
-# Calculating LLM costs - Docs
+# Calculating LLM costs
 
-Copy page
+Canonical URL: https://posthog.com/docs/ai-observability/calculating-costs
 
-# Calculating LLM costs - Docs
+> **Cloud region:** This page uses US Cloud hosts. For an EU Cloud project, use `https://eu.i.posthog.com` instead of `https://us.i.posthog.com` (ingestion host).
+
+## On this page
+
+- [How are LLM costs calculated?](#how-are-llm-costs-calculated)
+- [Setting custom pricing](#setting-custom-pricing)
+- [Cost calculation metadata](#cost-calculation-metadata)
 
 ## How are LLM costs calculated?
 
@@ -57,7 +63,7 @@ You can override PostHog's automatic cost calculation by providing custom pricin
 
 ### Option 1: Custom price per token
 
-If you know your pricing per token, you can set the following [custom properties](/docs/ai-observability/custom-properties.md) when calling your LLM:
+If you know your pricing per token, you can set the following [custom properties](https://posthog.com/docs/ai-observability/custom-properties.md) when calling your LLM:
 
 -   `$ai_input_token_price` (required): Price per input/prompt token
 -   `$ai_output_token_price` (required): Price per output/completion token
@@ -68,21 +74,22 @@ If you know your pricing per token, you can set the following [custom properties
 
 **Important:** Token prices should be per individual token, not per million tokens. For example, if your provider charges $0.03 per 1M tokens, you would set `$ai_input_token_price: 0.00000003` (0.03 / 1,000,000).
 
-PostHog AI
-
 ### JavaScript
 
 ```javascript
 import { OpenAI } from '@posthog/ai'
 import { PostHog } from 'posthog-node'
+
 const phClient = new PostHog(
   '<ph_project_token>',
   { host: 'https://us.i.posthog.com' }
 )
+
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
   posthog: phClient
 })
+
 const response = await openai.responses.create({
   model: 'my-custom-model',
   messages: [{ role: 'user', content: 'Hello' }],
@@ -101,14 +108,17 @@ const response = await openai.responses.create({
 ```python
 from posthog.ai.openai import OpenAI
 from posthog import Posthog
+
 posthog = Posthog(
     "<ph_project_token>",
     host="https://us.i.posthog.com"
 )
+
 client = OpenAI(
     api_key="sk-...",
     posthog_client=posthog
 )
+
 response = client.responses.create(
     model="my-custom-model",
     messages=[{"role": "user", "content": "Hello"}],
@@ -126,14 +136,12 @@ Both `$ai_input_token_price` and `$ai_output_token_price` must be provided for c
 
 ### Option 2: Pre-calculated costs
 
-If you're [manually capturing](/docs/ai-observability/installation/manual-capture.md) LLM events and have already calculated the total costs yourself, you can send them directly:
+If you're [manually capturing](https://posthog.com/docs/ai-observability/installation/manual-capture.md) LLM events and have already calculated the total costs yourself, you can send them directly:
 
 -   `$ai_input_cost_usd`: Total cost for input/prompt tokens in USD
 -   `$ai_output_cost_usd`: Total cost for output/completion tokens in USD
 -   `$ai_request_cost_usd`: Total cost for requests in USD
 -   `$ai_web_search_cost_usd`: Total cost for web searches in USD
-
-PostHog AI
 
 ### JavaScript
 
@@ -186,18 +194,10 @@ When PostHog calculates costs automatically, it sets the following metadata prop
 
 | Property | Description | Examples |
 | --- | --- | --- |
-| $ai_model_cost_used | The model identifier used for cost calculation. May differ from the requested model when a variant or alias is resolved. | openai/gpt-4o-mini |
-| $ai_cost_model_source | Where the cost data for this model was sourced from. | openrouter, manual, custom, passthrough |
-| $ai_cost_model_provider | The provider used to look up the cost for this model. | openai, anthropic, custom |
+| `$ai_model_cost_used` | The model identifier used for cost calculation. May differ from the requested model when a variant or alias is resolved. | `openai/gpt-4o-mini` |
+| `$ai_cost_model_source` | Where the cost data for this model was sourced from. | `openrouter`, `manual`, `custom`, `passthrough` |
+| `$ai_cost_model_provider` | The provider used to look up the cost for this model. | `openai`, `anthropic`, `custom` |
 
 These properties are useful for debugging cost discrepancies or understanding which pricing was applied when using model aliases or custom configurations.
 
 You can find the code for this on [GitHub](https://github.com/PostHog/posthog/tree/master/nodejs/src/ingestion/pipelines/ai/costs).
-
-### Still have questions?
-
-Ask PostHog AI
-
-### Was this page useful?
-
-HelpfulCould be better

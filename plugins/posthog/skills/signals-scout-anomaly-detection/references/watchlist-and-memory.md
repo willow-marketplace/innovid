@@ -8,10 +8,11 @@ design for that ledger and the memory conventions around it.
 
 ## The scratchpad is your only persistence
 
-The scratchpad is durable, per-team prose keyed by string. No tags, no TTLs — **the category
-is the key prefix**, so a future run finds an entry with one `text=` search. Re-using a key
-rewrites the entry in place (the idempotent refresh — use it to update a baseline or a
-`last_checked` timestamp without creating duplicates).
+The scratchpad is durable, per-team prose keyed by string. No tags — **the category
+is the key prefix**, so a future run finds an entry with one `text=` search. Entries are
+durable by default, with `expires_at` as the opt-in TTL for the ones that are only true
+for a while. Re-using a key rewrites the entry in place (the idempotent refresh — use it
+to update a baseline or a `last_checked` timestamp without creating duplicates).
 
 ### Key vocabulary
 
@@ -22,6 +23,8 @@ rewrites the entry in place (the idempotent refresh — use it to update a basel
 | `watchlist:anomaly_detection:importance-refresh`        | Memo: when the watchlist's importance ranking was last reconciled + what changed.                                                                                                                                                                                                                          |
 | `baseline:anomaly_detection:insight:<short_id>`         | The learned normal: median + MAD per seasonal bucket, so scoring is cheap.                                                                                                                                                                                                                                 |
 | `report:anomaly_detection:insight:<short_id>`           | Pointer to the inbox report you authored for this anomaly: `report_id` + re-escalation condition. Add a `:<series-or-direction>` suffix when one insight carries genuinely distinct concurrent anomalies (multi-series / breakdown, or an opposite-direction move) so they don't collapse onto one report. |
+| `baseline:anomaly_detection:sources`                    | The source-liveness probe's state: last probe date, the `<source>` expression, and each live source's `source_id` and daily baseline (see `source-liveness.md`).                                                                                                                                           |
+| `report:anomaly_detection:source:<source_id>`           | Pointer to the source-health report for a source that stopped sending, so the next run edits it instead of filing a duplicate.                                                                                                                                                                             |
 | `retired:anomaly_detection:<suffix of the retired row>` | Tombstone for a watchlist item you stopped scoring: why, and what would bring it back. One line.                                                                                                                                                                                                           |
 | `reviewer:anomaly_detection:<area>`                     | A cached owner: the bare lowercase GitHub login for a dashboard / metric area.                                                                                                                                                                                                                             |
 | `noise:anomaly_detection:<topic>`                       | A pattern to ignore (a chronically erratic insight, a seasonal quirk).                                                                                                                                                                                                                                     |

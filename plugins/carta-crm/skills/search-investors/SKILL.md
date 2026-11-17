@@ -3,6 +3,9 @@ name: search-investors
 description: Searches for and retrieves investor records from the Carta CRM. Use this skill when the user says things like "find an investor", "search investors", "look up an investor", "show me investor details for [name]", "full details on [name]", "tell me about [name]", "get investor by ID", "list investors", "what investors do we have", or "/search-investors". Returns investor details including ID, name, and custom fields. The investor ID returned can be used with the update-investor skill.
 ---
 
+<!-- carta:plugin-version -->
+<carta-plugin>carta-crm:1.20.20</carta-plugin>
+
 ## Overview
 
 Look up investors in the Carta CRM. A request about **one named investor** renders that

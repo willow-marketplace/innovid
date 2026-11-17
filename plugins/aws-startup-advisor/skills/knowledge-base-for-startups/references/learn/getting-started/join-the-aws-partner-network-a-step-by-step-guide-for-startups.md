@@ -29,11 +29,11 @@ Does your startup have:
 
 ## Step Two: Register for the AWS Partner Network
 
-**Required Time Commitment: 1 Hour**
+### Required Time Commitment: 1 Hour
 
 Start by [registering with the AWS Partner Network](https://partnercentral.awspartner.com/partnercentral2/s/SelfRegister). You can either create a new AWS account or sign in using your existing AWS account credentials.
 
-Next, as an Independent Software Vendor (ISV), enroll in the AWS Partner Software Path, which offers a range of tools and resources designed to help you get more from your collaboration with AWS. This includes tools to help you sell with AWS, with programs and expertise to make your offerings stand out. You can find out about the different Partnership Paths available [here](https://aws.amazon.com/partners/paths/).
+Next, as an Independent Software Vendor (ISV), enroll in the AWS Partner Software Path, which offers a range of tools and resources designed to help you get more from your collaboration with AWS. This includes tools to help you sell with AWS, with programs and expertise to make your offerings stand out. You can find out about the different Partnership Paths available [on the AWS Partner Paths page](https://aws.amazon.com/partners/paths/).
 
 Finally, pay your annual AWS Partner Network membership fee to confirm your participation. This includes $3,500 USD AWS Promotional Credits which can be used with AWS services to help your startup explore and implement cloud solutions cost-effectively.
 
@@ -41,7 +41,7 @@ Finally, pay your annual AWS Partner Network membership fee to confirm your part
 
 ## Step Three: Develop Your AWS Value Proposition and Create Your Better Together Story
 
-**Required Time Commitment: 5 Weeks**
+### Required Time Commitment: 5 Weeks
 
 Your AWS Value Proposition is critical in conveying your message and unique selling proposition to your customers, helping them understand how your solution solves their challenges and enables relevant use cases. The Better Together Story showcases how your customers will benefit from your combined offering with AWS. It defines the 'whitespace' your partnership with AWS fills in your customer's cloud infrastructure stack, solving pain points that neither party could address as well independently. It should also include technical and business value propositions and identify the core strengths of both your startup and AWS.
 
@@ -61,7 +61,7 @@ Make sure to include the following:
 
 ## Step Four: Complete the Foundational Technical Review
 
-**Required Time Commitment: 2 Weeks**
+### Required Time Commitment: 2 Weeks
 
 Completing the Foundational Technical Review (FTR) will ensure your solution is built with AWS best practices and security standards. It allows you to review and address any risks, and once the FTR is approved, you'll get a listing for your software in the AWS Partner Solutions Finder. This is a centralized library that customers can use to search, discover, and connect with AWS Partners.
 
@@ -73,21 +73,21 @@ Check out [this video](https://www.youtube.com/watch?v=OSbi-PNOP9E) for further 
 
 ## Step Five: List Your Solution on AWS Marketplace
 
-**Required Time Commitment: 2.5 Weeks**
+### Required Time Commitment: 2.5 Weeks
 
 Now you have the tools in place ready to co-sell, it's time to get your solution listed on [AWS Marketplace](https://aws.amazon.com/marketplace). Being visible on this comprehensive digital catalog will help expand your reach and simplify the procurement process.
 
 To list your solution, first you need to check the seller requirements. There is a [set of requirements for free products](https://docs.aws.amazon.com/marketplace/latest/userguide/user-guide-for-sellers.html#seller-requirements-for-publishing-free-products) and [another for paid products](https://docs.aws.amazon.com/marketplace/latest/userguide/user-guide-for-sellers.html#additional-seller-requirements-for-paid-products), so review the list of conditions relevant to your solution and ensure that you've provided any additional information. After you've checked the requirements, complete the seller registration process, [which is outlined here](https://docs.aws.amazon.com/marketplace/latest/userguide/seller-registration-process.html). This includes setting up your public profile, setting your disbursement preferences, and verifying your bank account information.
 
-Then, submit your product for publication on AWS Marketplace through the Products tab (for less complex products) or the Assets tab (for products that require more definition) of the AWS Marketplace Management Portal. You can plan your product submission in more detail [here](https://docs.aws.amazon.com/marketplace/latest/userguide/product-submission.html). For additional support with listing your solution, please contact saas-marketplace@amazon.com.
+Then, submit your product for publication on AWS Marketplace through the Products tab (for less complex products) or the Assets tab (for products that require more definition) of the AWS Marketplace Management Portal. You can plan your product submission in more detail [with the AWS Marketplace product submission guide](https://docs.aws.amazon.com/marketplace/latest/userguide/product-submission.html). For additional support with listing your solution, please contact saas-marketplace@amazon.com.
 
-Finally, link your AWS account, AWS Marketplace account, and your AWS Partner Central account. This confirms your AWS Partner Network membership and helps streamline billing, solutions management, and opportunity tracking. See more advantages of account linking [here](https://docs.aws.amazon.com/partner-central/latest/getting-started/account-linking.html).
+Finally, link your AWS account, AWS Marketplace account, and your AWS Partner Central account. This confirms your AWS Partner Network membership and helps streamline billing, solutions management, and opportunity tracking. See more advantages of account linking [in the AWS Partner Central account linking guide](https://docs.aws.amazon.com/partner-central/latest/getting-started/account-linking.html).
 
 ---
 
 ## Step Six: Start Co-Selling
 
-**Required Time Commitment: 2 Hours**
+### Required Time Commitment: 2 Hours
 
 Once you've received your FTR approval you're ready to start selling with AWS! To increase discoverability, drive successful engagements with customers, and grow your business, we suggest one additional step: The AWS Partner Network [Customer Engagements Program (ACE)](https://aws.amazon.com/partners/programs/ace/).
 

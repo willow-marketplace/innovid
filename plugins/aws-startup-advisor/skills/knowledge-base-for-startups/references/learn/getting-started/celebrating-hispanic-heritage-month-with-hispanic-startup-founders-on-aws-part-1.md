@@ -35,7 +35,7 @@ If you're wondering what's next for Factored, Israel says he hopes to become one
 
 He advises others looking to follow in his footsteps to prioritize execution, be extremely selective on who you bring in to share your dream, practice sustainable growth, and—most importantly—be authentic and transparent about your culture and objectives because it, "sets the tone that aligns employees, investors, and customers around your mission."
 
-_Special thanks to Aaron Melgar, Startup AI/ML BDM and Tarryn Heath, Partner Development Representative_
+> _Special thanks to Aaron Melgar, Startup AI/ML BDM and Tarryn Heath, Partner Development Representative_
 
 ## Other posts in this series
 

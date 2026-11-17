@@ -3,6 +3,8 @@ name: infra-clickhouse
 description: Sets up and manages ClickHouse using the clickhousectl CLI — installs and runs a local ClickHouse server for development, and creates managed ClickHouse Cloud services for production (authentication, service creation, schema migration, application connection). Use when the user wants to build an application with ClickHouse, set up a local ClickHouse dev environment, create tables and start querying, deploy ClickHouse to production or ClickHouse Cloud, or migrate from a local setup to the cloud.
 ---
 
+Last updated 2026-10-30 for clickhousectl 0.5.0. (update the CLI with `clickhousectl update`, update skills with `clickhousectl skills`)
+
 # ClickHouse with clickhousectl
 
 `clickhousectl` manages ClickHouse in two environments:
@@ -39,7 +41,7 @@ curl -fsSL https://clickhouse.com/cli | sh
 
 This installs to `~/.local/bin/clickhousectl` (with a `chctl` alias). If the command is still not found, suggest `export PATH="$HOME/.local/bin:$PATH"` or a new terminal.
 
-All commands accept `--json` for machine-readable output. Exit codes follow `gh` conventions: 0 success, 1 error, 2 cancelled, 4 auth required.
+All commands accept `--json` for machine-readable output, and switch to JSON automatically when run by a coding agent. SQL output from `local client` and `local postgres client` stays in psql or clickhouse-client's native format. Exit codes: 0 success, 1 error, 2 usage error, 3 cancelled, 4 auth required.
 
 ## Related
 

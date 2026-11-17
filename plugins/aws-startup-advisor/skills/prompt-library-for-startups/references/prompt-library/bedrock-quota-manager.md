@@ -766,7 +766,7 @@ aws cloudwatch get-metric-statistics \
 
 ### Use case examples
 
-**Example 1: Startup Building Customer Support Chatbot with Claude 4.5 Sonnet**
+#### Example 1: Startup Building Customer Support Chatbot with Claude 4.5 Sonnet
 
 **Context**: SaaS company launching AI-powered support chatbot expecting 1,000 customer conversations/day, average 50 messages per conversation, 200 tokens/message.
 

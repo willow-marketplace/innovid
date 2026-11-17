@@ -73,6 +73,6 @@ As the next steps in their startup journey, AarogyaAI plans to deploy their prod
 
 ## About the Author
 
-**Megan Crowley**
+### Megan Crowley
 
 Megan Crowley is a Senior Technical Writer on the Startup Content Team at AWS. With an earlier career as a high school English teacher, she is driven by a relentless enthusiasm for contributing to content that is equal parts educational and inspirational. Sharing startups' stories with the world is the most rewarding part of her role at AWS. In her spare time, Megan can be found woodworking, in the garden, and at antique markets.

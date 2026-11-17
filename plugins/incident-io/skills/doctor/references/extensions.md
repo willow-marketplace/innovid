@@ -77,8 +77,7 @@ Issues arrive most-actionable-first, but doctor's job is triage, not transcripti
   they were. Neither supports the "previously declined" label.
 - Verify each issue's anchor (`target_file`, `target_quote`) against the plugin's
   current tree before reporting it — apply the "Read the feedback with these
-  corrections" section of skill-authoring's
-  [improve reference](../../skill-authoring/references/improve.md), including its
+  corrections" section of the `skill-authoring` skill's improve reference, including its
   distrust of `likely_resolved` (the rest of that file is edit-mode material; doctor
   stops at the brief). An issue that verifies becomes one line in a brief; an issue
   that doesn't is noted as probably stale, not escalated. If either anchor is absent,
@@ -106,8 +105,8 @@ record, and a caution against repeating it casually.
 
 ## 5. Convention drift
 
-Spot-check each plugin's tree against skill-authoring's
-[format reference](../../skill-authoring/references/format.md) — this is a sample for
+Spot-check each plugin's tree against the `skill-authoring` skill's format reference —
+this is a sample for
 the report, not a full audit:
 
 - Every skill directory registered in the plugin README's skills table; connections
@@ -116,6 +115,15 @@ the report, not a full audit:
 - No client-prefixed tool names or single-environment invocation syntax in skill
   bodies — these break the skill in environments the feedback may not cover.
 - References that nothing links to.
+- Skills with no provenance stamp (`metadata.incident-io-plugin-version` in the
+  frontmatter), or stamped with a version well behind this plugin's own (skip this
+  comparison when this plugin's version can't be read). A stamp of `"mcp"` counts as
+  stamped and has no version to compare: never flag it as either. Plugin list
+  entries report each skill's `authoring_plugin_version`, so this needs no tree read.
+  An unstamped skill was written by hand or by another tool; a stale stamp means the
+  authoring guidance has moved on since it was last touched. Neither is a defect on
+  its own — route it as a brief for the improve job, which refreshes the stamp as it
+  goes, and rank it below anything the feedback says is actually going wrong.
 
 Drift becomes part of the per-skill brief where one exists, or a small standalone
 brief where the skill is otherwise healthy.

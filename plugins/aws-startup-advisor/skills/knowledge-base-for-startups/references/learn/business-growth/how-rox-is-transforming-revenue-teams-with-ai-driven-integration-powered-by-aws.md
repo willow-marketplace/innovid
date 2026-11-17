@@ -103,7 +103,7 @@ Contact an [AWS Representative](https://aws.amazon.com/contact-us/) for more inf
 - Visit the AWS Startups [Learn](/startups/learn) page, featuring informational articles, technical guidance, and blogs showcasing other AWS-powered startups that are changing the game.
 - Have the next best startup idea? Check out how [AWS Startups](/startups/build) can help you build it.
 - Join [AWS Activate](/startups), our flagship startup program home to over 280,000 startups. Get personalized AWS expertise, access exclusive programs and discounts, and utilize a robust set of tech tools meant to power your innovation.
-- Rox AI just secured $50M in funding from 40+ angel investors – learn more [here](https://www.rox.com/launch).
+- Rox AI just secured $50M in funding from 40+ angel investors – learn more [about the Rox AI launch](https://www.rox.com/launch).
 
 ---
 

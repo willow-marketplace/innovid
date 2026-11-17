@@ -45,40 +45,23 @@ always read — see save_benchmark_result.py's "columnar bulk-export reconstruct
 section for how a columnar page is reshaped back into that per-row contract. This
 builder's row-collection path is unchanged by the export.
 
-GEO SCALARS — KNOWN GAP, do not build around it. `_row()` below carries
-`geoSalaryScalar` / `geoEquityScalar` when the API returned them, but there is
-currently NO command that returns a bulk per-location scalar table: `geo_adjustment`
-(and its `salary_scalar`/`equity_scalar`) is hoisted PER RESPONSE, for the single
-`location` param that request passed (national/no-location fetches carry no
-scalars at all — see compensation:export:benchmarks' own help text). Building an
-offline location dropdown that recomputes geo-adjusted figures client-side would
-need a scalar keyed by location across ~400 locations, which would mean either a
-~400x fetch multiplier (one export sweep per location) or a new compensation-service
-endpoint that does not exist today. Do not paper over this with client-side
-interpolation or a hardcoded scalar table — surface the gap instead. If a location
-WAS fetched (the raw file's rows carry `geo_adjustment`), applying that one
-location's scalars client-side must still follow the order below.
+LOCATIONS — every figure is fetched, none is computed. The default sweep (the flat
+benchmark_*.json files) is the plan's default location, San Francisco, scalar 1.0.
+Each other location the Benchmarks tab offers is a full sweep of its own in
+geo_<slug>/, fetched with the same `location` value the CTC product sends (see
+ctc_locations.py), so the server has already applied that location's scalar, the
+threshold clamp, bands and rounding. `geo_adjustment` (label and scalars) is
+hoisted per response, for the one `location` that request passed.
 
-CLIENT-SIDE GEO -> BANDS -> ROUNDING ORDER (when a location's scalars are
-available). This is a correctness requirement, not a nice-to-have: the server
-applies the geo scalar to the UNROUNDED national base, THEN derives low/mid/high
-bands from the geo-adjusted mid, THEN rounds (equity at 4 decimal places, cash at
-a corp-configured precision). Any client-side recomputation MUST replicate that
-order:
-    1. geo-adjust: `national_base * salary_scalar` (or `* equity_scalar` for
-       equity), on the full-precision unrounded value.
-    2. derive bands from the geo-adjusted (not the national) mid.
-    3. round last — equity to 4 decimal places, cash to the corp's cash
-       precision (not hardcoded; comes from plan/payband config this builder
-       does not currently read).
-Reversing the order (rounding the national percentiles first, THEN multiplying by
-the scalar, e.g. by reusing the already-rounded percentiles this builder emits)
-will drift from the product UI, and the error compounds because bands derive from
-the geo-adjusted mid, not the national one. This builder does not currently
-implement step 1-3 itself: it has no location-keyed scalar table to drive it (see
-above), and the values it emits (`salary.p50` etc.) are the NATIONAL percentiles
-already at API precision — safe to display as-is, but NOT a valid input to
-re-derive a different location's bands from.
+The full list of supported locations comes from `compensation:get:benchmark_locations`
+(location_catalog.json, read by ctc_locations.catalog) and is emitted as
+`locationCatalog`. A location without a sweep here is fetched on demand by serve.py
+(location_fetch.py) when the user picks it, using location_fetch.json, which this
+builder writes. Never derive a location by multiplying another location's figures
+by a scalar: the server applies the scalar to the UNROUNDED national base, clamps
+it to the plan threshold, derives bands from the adjusted mid and only then
+rounds, so scaling the rounded figures this builder emits drifts from the
+product, and the bands drift further.
 """
 import argparse
 import json
@@ -86,6 +69,8 @@ import pathlib
 import re
 import sys
 import time
+
+import ctc_locations
 
 SCHEMA_VERSION = 1
 
@@ -124,6 +109,69 @@ ALL_JOB_AREAS = [
     "ENGINEER", "FINANCE", "HR", "IT", "LEGAL", "MANUFACTURING", "MARKETING", "OPERATIONS",
     "PRODUCT", "PROJECT_MANAGEMENT", "RESEARCH", "SALES", "STRATEGY", "SUPPORT", "OTHER",
 ]
+
+
+def _filter_options(rawdir, plan_version_id):
+    p = rawdir / "filter_options.json"
+    if not p.exists():
+        return None
+    fo = _read_json(p)
+    if not isinstance(fo, dict) or not isinstance(fo.get("params"), dict):
+        return None
+    got = (fo.get("benchmark_version") or {}).get("id")
+    if plan_version_id is not None and got is not None and got != plan_version_id:
+        sys.exit("[build_datadir] filter_options.json is for benchmark version id %s but "
+                 "plan.json pins id %s — re-fetch compensation:get:filter_options with the "
+                 "plan's benchmark_version_id" % (got, plan_version_id))
+    return fo
+
+
+def _params(fo, key):
+    v = ((fo or {}).get("params") or {}).get(key)
+    return v if isinstance(v, list) else []
+
+
+def _job_areas(fo):
+    jobs = [j["value"] for j in _params(fo, "job") if isinstance(j, dict) and j.get("value")]
+    return jobs or list(ALL_JOB_AREAS)
+
+
+def _expected_jobs(fo):
+    cov = [c["job"] for c in ((fo or {}).get("coverage") or [])
+           if isinstance(c, dict) and c.get("job") and c.get("industries") != []]
+    return cov or _job_areas(fo)
+
+
+_BUCKET_PARAMS = (("post_money", "post_money_bucket"), ("headcount", "headcount_bucket"),
+                  ("capital_raised", "capital_raised_bucket"))
+
+
+def _peer_labels(fo):
+    out = {}
+    for dim, key in _BUCKET_PARAMS:
+        for b in _params(fo, key):
+            if isinstance(b, dict) and b.get("value"):
+                out[b["value"]] = (dim, b.get("label") or b["value"])
+    return out or _PEER_LABELS
+
+
+def _taxonomy_from_filter_options(fo, levels_by_ladder):
+    params = fo["params"]
+    return {
+        "schemaVersion": SCHEMA_VERSION,
+        "source": "filter_options",
+        "jobs": [{"value": j["value"], "label": j.get("label"), "levels": j.get("levels") or []}
+                 for j in _params(fo, "job") if isinstance(j, dict) and j.get("value")],
+        "levels": [{"value": l["value"], "rank": l.get("rank"),
+                    "icLabel": l.get("ic_label"), "managerLabel": l.get("manager_label"),
+                    "executive": bool(l.get("executive"))}
+                   for l in _params(fo, "level") if isinstance(l, dict) and l.get("value")],
+        "postMoneyBuckets": _params(fo, "post_money_bucket"),
+        "headcountBuckets": _params(fo, "headcount_bucket"),
+        "capitalRaisedBuckets": _params(fo, "capital_raised_bucket"),
+        "coverage": fo.get("coverage") or [],
+        "levelsByLadder": levels_by_ladder,
+    }
 
 
 def _num(x):
@@ -228,12 +276,8 @@ def _row(entry):
         "ladder": entry.get("ladder"),
         "currency": currency,
         "geo": geo.get("label"),
-        # salary_scalar / equity_scalar are ONLY present when the fetch that
-        # produced this row passed a `location` param — geo is applied
-        # per-request, not per-row, and is null for a national (no-location)
-        # fetch. See build()'s docstring / SKILL.md for why there is currently
-        # no bulk per-location table to build an offline dropdown from; this
-        # just avoids discarding the scalar when a location WAS fetched.
+        # The scalars the server already applied to this row, for display only
+        # ("Pay adjustment 70%"). Never multiply them into a figure.
         "geoSalaryScalar": _num(geo.get("salary_scalar")),
         "geoEquityScalar": _num(geo.get("equity_scalar")),
         "salary": _pcts_flat(salary),
@@ -278,6 +322,9 @@ def build(rawdir, out, meta):
     version_mismatch = _export_version_mismatch(rawdir, bver.get("id"))
     if version_mismatch:
         sys.exit("[build_datadir] refusing to build — %s." % version_mismatch)
+
+    fo = _filter_options(rawdir, bver.get("id"))
+    peer_labels = _peer_labels(fo)
 
     # Create the output dir only AFTER every refusal gate above has passed, so a
     # refused build leaves no empty dashboard dir behind for the next run (or a
@@ -338,23 +385,21 @@ def build(rawdir, out, meta):
                  "build an empty dashboard." % rawdir)
 
     # ---- taxonomy snapshot ----
-    # There is NO compensation:list:job_types command (verified: the skills
-    # explicitly warn it returns "Unknown tool"), so the taxonomy cannot be
-    # enumerated from the API. Snapshotting what the benchmark responses actually
-    # returned keeps the UI's dropdowns in sync with real data instead of a
-    # hand-maintained browser-side constant that silently drifts.
     levels_by_ladder = {}
     for r in rows:
         levels_by_ladder.setdefault(r["ladder"] or "IC", [])
         if r["level"] not in levels_by_ladder[r["ladder"] or "IC"]:
             levels_by_ladder[r["ladder"] or "IC"].append(r["level"])
 
-    taxonomy = {
-        "schemaVersion": SCHEMA_VERSION,
-        "jobs": sorted(jobs_seen),
-        "levelsByLadder": levels_by_ladder,
-        "source": "observed",  # derived from returned rows, not an API enum listing
-    }
+    if fo is not None:
+        taxonomy = _taxonomy_from_filter_options(fo, levels_by_ladder)
+    else:
+        taxonomy = {
+            "schemaVersion": SCHEMA_VERSION,
+            "jobs": sorted(jobs_seen),
+            "levelsByLadder": levels_by_ladder,
+            "source": "observed",  # derived from returned rows, not an API enum listing
+        }
 
     currencies = sorted({r["currency"] for r in rows if r["currency"]})
     benchmarks = {
@@ -396,7 +441,7 @@ def build(rawdir, out, meta):
     # would show $50M-$100M above $1M-$10M.
     alternates = {}
     found = _peer_group_dirs(rawdir)
-    ordered = [c for c in _PEER_LABELS if c in found] + [c for c in found if c not in _PEER_LABELS]
+    ordered = [c for c in peer_labels if c in found] + [c for c in found if c not in peer_labels]
     for code in ordered:
         dirpath = found[code]
         alt_rows, _alt_jobs, _alt_empty, _alt_stems = _collect_rows(dirpath)
@@ -410,7 +455,7 @@ def build(rawdir, out, meta):
         # Each bucket carries its OWN dimension, not the plan's. A headcount bucket
         # describes a different peer SET than a post-money one, so citing it with the
         # plan's phrase ("post money valuations between >500") would be nonsense.
-        alt_dim, label = _PEER_LABELS.get(code, (dimension, code))
+        alt_dim, label = peer_labels.get(code, (dimension, code))
         alternates[code] = {
             "code": code,
             "label": label,
@@ -434,10 +479,10 @@ def build(rawdir, out, meta):
         # list of 18 would make those look like the same kind of act.
         own_code = peer.get("code")
         by_dim = {}
-        for code in list(_PEER_LABELS) + [c for c in alternates if c not in _PEER_LABELS]:
+        for code in list(peer_labels) + [c for c in alternates if c not in peer_labels]:
             if code not in alternates and code != own_code:
                 continue
-            dim = (_PEER_LABELS.get(code) or (dimension, code))[0]
+            dim = (peer_labels.get(code) or (dimension, code))[0]
             by_dim.setdefault(dim, [])
             if code not in by_dim[dim]:
                 by_dim[dim].append(code)
@@ -450,6 +495,21 @@ def build(rawdir, out, meta):
             for d in dims
         ]
 
+    # ---- locations (optional) ----
+    locations = _build_locations(rawdir, rows, bver.get("id"))
+    if locations:
+        benchmarks["locations"] = locations
+    catalog = ctc_locations.catalog(rawdir)
+    fetch_config = None
+    if catalog:
+        benchmarks["locationCatalog"] = catalog
+        benchmarks["defaultLocation"] = _default_location_param(plan, rows)
+        fetch_config = _location_fetch_config(
+            meta, bver, peer, alternates, len(_job_areas(fo)) if fo is not None else None)
+        # The page only needs to know a pick CAN be fetched; the arguments stay
+        # server-side, in location_fetch.json.
+        benchmarks["locationFetch"] = fetch_config is not None
+
     # Built before the snapshot so its counts can be recorded there — the snapshot is
     # what the UI reads to decide whether the Scorecard tab exists at all, and it is
     # written last as the marker of a complete build.
@@ -457,6 +517,8 @@ def build(rawdir, out, meta):
     planner = _build_planner(rawdir)
 
     counts = {"benchmarkRows": len(rows), "jobs": len(jobs_seen)}
+    if locations:
+        counts["locations"] = len(locations)
     if roster is not None:
         counts["rosterEmployees"] = roster["reconciliation"]["rosterTotal"]
     if planner is not None:
@@ -507,6 +569,8 @@ def build(rawdir, out, meta):
     if planner is not None:
         w("planner.json", planner)
 
+    if fetch_config is not None:
+        w("location_fetch.json", fetch_config)
     w("benchmarks.json", benchmarks)
     w("taxonomy.json", taxonomy)
     w("snapshot.json", snapshot)  # written last: its presence marks a complete build
@@ -540,13 +604,14 @@ def build(rawdir, out, meta):
     # A partial sweep builds fine — but say so. A dashboard showing 4 of 22 job
     # areas looks complete to someone who doesn't know what's missing, and that
     # is a worse failure than refusing to build.
-    absent = [j for j in ALL_JOB_AREAS if j not in stems_fetched]
+    expected = _expected_jobs(fo)
+    absent = [j for j in expected if j not in stems_fetched]
     if absent:
         summary["partial_sweep"] = {"missing_count": len(absent), "missing": absent}
     print("[build_datadir] " + json.dumps(summary))
     if absent:
         print("[build_datadir] WARNING: %d of %d job areas were never fetched — this dashboard is "
-              "PARTIAL. Missing: %s" % (len(absent), len(ALL_JOB_AREAS), " ".join(absent)))
+              "PARTIAL. Missing: %s" % (len(absent), len(expected), " ".join(absent)))
 
     # A regenerating scorecard is the difference between "this employee has no equity"
     # and "the scorecard we were served predates their equity" — indistinguishable in the
@@ -640,6 +705,112 @@ def _peer_group_dirs(rawdir):
         if p.is_dir():
             out[p.name[len("peer_"):]] = p
     return out
+
+
+def _location_dirs(rawdir):
+    """[(path, location.json contents)] for each location fetched into geo_<slug>/."""
+    out = []
+    for p in sorted(pathlib.Path(rawdir).glob("geo_*")):
+        meta_path = p / "location.json"
+        if p.is_dir() and meta_path.exists():
+            try:
+                out.append((p, json.loads(meta_path.read_text(encoding="utf-8"))))
+            except (OSError, ValueError):
+                print("[build_datadir] WARNING: %s is unreadable — omitting that "
+                      "location." % meta_path)
+    return out
+
+
+def _location_entry(key, label, param, loc_rows, employees, default=False):
+    first = next((r for r in loc_rows if r.get("geo")), loc_rows[0] if loc_rows else {})
+    return {
+        "key": key,
+        # The server's own label for what it applied, e.g. "Tulsa, OK" or "GBR".
+        "label": first.get("geo") or label,
+        "location": param,
+        "international": ctc_locations.is_international(first.get("geo") or label or ""),
+        "salaryScalar": first.get("geoSalaryScalar"),
+        "equityScalar": first.get("geoEquityScalar"),
+        "currencies": sorted({r["currency"] for r in loc_rows if r.get("currency")}),
+        "employees": employees,
+        "default": default,
+    }
+
+
+def _default_location_param(plan, default_rows):
+    """The `location` value of the default sweep: the plan's default location.
+
+    The default sweep is fetched WITHOUT a location, so the server used the plan's
+    default_location. carta-mcp exposes it as geo_adjustment_config.default_location;
+    an older plan response lacks it, and the default sweep's own geo label is parsed
+    instead.
+    """
+    cfg = (plan.get("geo_adjustment_config") or {}).get("default_location") or {}
+    if cfg.get("location"):
+        return cfg["location"]
+    label = next((r["geo"] for r in default_rows if r.get("geo")), None)
+    return ctc_locations.location_param(label or "")
+
+
+def _location_fetch_config(meta, bver, peer, alternates, job_count=None):
+    """What serve.py needs to fetch a picked location, or None when it can't.
+
+    Needs the Carta MCP server the build used (meta.json `mcpServer`, recorded by
+    the skill), since the on-demand fetch goes through the same connection. Lists
+    every peer group the page can show, so a location can be fetched for an
+    alternate group too; the browser sends only a code, mapped back to its bucket
+    parameter here.
+    """
+    server = meta.get("mcpServer")
+    if not server or not meta.get("corporationId") or bver.get("id") is None:
+        return None
+    groups = {peer.get("code"): "%s_bucket" % peer.get("dimension")}
+    for code, g in (alternates or {}).items():
+        groups[code] = "%s_bucket" % g.get("dimension")
+    config = {
+        "corporationId": meta.get("corporationId"),
+        "benchmarkVersionId": bver.get("id"),
+        "mcpServer": server,
+        "ownPeerGroup": peer.get("code"),
+        "peerGroups": groups,
+    }
+    if job_count:
+        config["jobCount"] = job_count
+    return config
+
+
+def _build_locations(rawdir, default_rows, plan_version_id):
+    """The Benchmarks tab's location list, or [] when only the default was fetched.
+
+    Each entry but the default carries its own `rows`. The default's rows are the
+    top-level `rows`, not repeated. A location whose sweep is incomplete, from
+    another release, or empty is omitted with a warning, never padded out: a
+    location in the list must have every job area the default has.
+    """
+    fetched = _location_dirs(rawdir)
+    if not fetched:
+        return []
+    employees = ctc_locations.roster_locations(rawdir)
+    default_label = next((r["geo"] for r in default_rows if r.get("geo")), None)
+    entries = [_location_entry(
+        "default", default_label, ctc_locations.location_param(default_label or ""),
+        default_rows, employees.get(default_label, 0), default=True)]
+    for dirpath, meta in fetched:
+        problem = (_export_sweep_incomplete(dirpath)
+                   or _export_version_mismatch(dirpath, plan_version_id))
+        loc_rows = _collect_rows(dirpath)[0] if not problem else []
+        if problem or not loc_rows:
+            print("[build_datadir] WARNING: location %s %s — omitting it from the "
+                  "dropdown." % (meta.get("label"), problem or "has no rows"))
+            continue
+        entry = _location_entry(dirpath.name[len("geo_"):], meta.get("label"),
+                                meta.get("location"), loc_rows,
+                                meta.get("employees", employees.get(meta.get("label"), 0)))
+        entry["rows"] = loc_rows
+        entries.append(entry)
+    if len(entries) == 1:
+        return []
+    return sorted(entries, key=lambda e: ctc_locations.order_key(e["label"] or ""))
 
 
 def _collect_rows(dirpath):
@@ -902,20 +1073,36 @@ def _build_planner(rawdir):
     if isinstance(policy, dict) and policy.get("results"):
         policy = policy["results"][0]
 
-    # The equity pool the planned draw is measured against. Absent unless the
-    # insights capture ran AND returned a usable figure — see save_report_insights
-    # for why a zero is treated as absent rather than as an empty pool.
+    # Prefer the carta-web capture (matches the product UI); fall back to the
+    # older reports-insights capture for microapps built before this shift.
+    util_path = pathlib.Path(rawdir) / "equity_pool_utilization.json"
     insights_path = pathlib.Path(rawdir) / "report_insights.json"
     pool_available = None
     pool_reserved = None
-    pool_outstanding = None
-    if insights_path.exists():
+    pool_used = None
+    pool_fully_diluted = None
+    if util_path.exists():
+        util = _read_json(util_path) or {}
+        raw_available = util.get("poolAvailableShares")
+        if isinstance(raw_available, int) and raw_available > 0:
+            pool_available = raw_available
+        pool_reserved = util.get("poolReservedShares")
+        pool_used = util.get("poolUsedShares")
+        pool_fully_diluted = util.get("poolFullyDilutedShares")
+    elif insights_path.exists():
         insights = _read_json(insights_path) or {}
         raw_pool = insights.get("poolAvailableShares")
         if isinstance(raw_pool, int) and raw_pool > 0:
             pool_available = raw_pool
         pool_reserved = insights.get("poolReservedShares")
-        pool_outstanding = insights.get("poolOutstandingShares")
+        # Derive used from reserved - available when both present.
+        if (
+            isinstance(pool_reserved, int)
+            and pool_reserved > 0
+            and pool_available is not None
+        ):
+            diff = pool_reserved - pool_available
+            pool_used = diff if diff > 0 else None
     availability["pool"] = pool_available is not None
 
     # The inputs for CTC's three equity units. Absent when the capture never ran,
@@ -938,7 +1125,8 @@ def _build_planner(rawdir):
         # The whole pool and what is already spent. Absent on a capture that
         # predates them; the bar then shows two segments rather than three.
         "poolReservedShares": pool_reserved,
-        "poolOutstandingShares": pool_outstanding,
+        "poolUsedShares": pool_used,
+        "poolFullyDilutedShares": pool_fully_diluted,
         "equityUnits": equity_units,
         "availability": availability,
         "reconciliation": {
@@ -1038,8 +1226,11 @@ def cmd_check(rawdir):
     for the whole picture.
     """
     rawdir = pathlib.Path(rawdir)
+    fo = _filter_options(rawdir, None)
+    job_areas = _job_areas(fo)
+    expected = _expected_jobs(fo)
     have, empty, corrupt = [], [], []
-    for job in ALL_JOB_AREAS:
+    for job in job_areas:
         p = rawdir / ("benchmark_%s.json" % job)
         if not p.exists():
             continue
@@ -1061,8 +1252,12 @@ def cmd_check(rawdir):
             empty.append(job)
         else:
             corrupt.append(job)
-    missing = [j for j in ALL_JOB_AREAS if j not in have and j not in empty and j not in corrupt]
-    print("captured : %d/%d  %s" % (len(have), len(ALL_JOB_AREAS), " ".join(have) or "-"))
+    missing = [j for j in expected if j not in have and j not in empty and j not in corrupt]
+    print("captured : %d/%d  %s" % (len(have), len(expected), " ".join(have) or "-"))
+    no_data = [j for j in job_areas if j not in expected and j not in have
+               and j not in empty and j not in corrupt]
+    if no_data:
+        print("no data expected: %d  %s" % (len(no_data), " ".join(no_data)))
     if empty:
         print("empty    : %d  %s" % (len(empty), " ".join(empty)))
     if corrupt:

@@ -1,5 +1,7 @@
 import asyncio
+import contextvars
 import logging
+import re
 import xml.etree.ElementTree as ET
 from concurrent.futures import ThreadPoolExecutor
 from typing import List, Literal, Optional
@@ -109,7 +111,10 @@ class ArxivSearchTool(BaseTool[ArxivSearchToolInputSchema, ArxivSearchToolOutput
         else:
             base = f"all:{query}"
         if category:
-            base = f"{base} AND cat:{category}"
+            # Group the query: arXiv binds `all:` to the first word only and gives AND
+            # precedence, so "all:diffusion model AND cat:cs.CV" also matches any paper
+            # mentioning "diffusion" in another category.
+            base = f"({base}) AND cat:{category}"
         return base
 
     @staticmethod
@@ -117,7 +122,7 @@ class ArxivSearchTool(BaseTool[ArxivSearchToolInputSchema, ArxivSearchToolOutput
         """Strip the version suffix and the URL prefix from an arXiv entry id."""
         # entry id looks like: http://arxiv.org/abs/2401.12345v2
         tail = entry_id.rsplit("/abs/", 1)[-1]
-        return tail.split("v")[0] if "v" in tail else tail
+        return re.sub(r"v[0-9]+$", "", tail)
 
     @classmethod
     def _parse_entry(cls, entry: ET.Element, query: str) -> ArxivPaper:
@@ -226,7 +231,7 @@ class ArxivSearchTool(BaseTool[ArxivSearchToolInputSchema, ArxivSearchToolOutput
 
     def run(self, params: ArxivSearchToolInputSchema) -> ArxivSearchToolOutputSchema:
         with ThreadPoolExecutor() as executor:
-            return executor.submit(asyncio.run, self.run_async(params)).result()
+            return executor.submit(contextvars.copy_context().run, asyncio.run, self.run_async(params)).result()
 
 
 #################

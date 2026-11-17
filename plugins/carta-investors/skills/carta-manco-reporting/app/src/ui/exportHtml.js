@@ -38,9 +38,34 @@ export function slugify(s) {
   return String(s || "export").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "export";
 }
 
-function cloneWithoutExcluded(el) {
+/** One page's ExportButton props. `slug` names the page in the file name
+ *  ("<firm>-<slug>"); `eventPage` is the page segment of its three events —
+ *  MancoReporting.<eventPage>.ExportHtml{,Succeeded,Failed}, catalogued in
+ *  references/analytics.md under "Composed ids". */
+export function exportPropsFor(snapshot, { targetId, pageLabel, slug, eventPage }) {
+  const event = `MancoReporting.${eventPage}.ExportHtml`;
+  // Named before slugify sees it: slugify's own fallback is "export", and the
+  // file must read "manco-<page>" when the snapshot names no firm.
+  const entityName = snapshot?.firmName || "ManCo";
+  return {
+    targetId,
+    entityName,
+    pageLabel,
+    asOf: snapshot?.asOf,
+    filenameBase: `${slugify(entityName)}-${slug}`,
+    events: { click: event, succeeded: `${event}Succeeded`, failed: `${event}Failed` },
+  };
+}
+
+export function cloneWithoutExcluded(el) {
   const clone = el.cloneNode(true);
   clone.querySelectorAll("[data-export-exclude]").forEach((n) => n.remove());
+  // data-source (webapp/jsx-runtime-shim.js) stamps every host element with
+  // its own file's app-relative path, for pinpoint's anchor resolution — an
+  // internal detail of this app's build, not part of the report a reader
+  // downloads. Strip it from both the root and every descendant.
+  clone.removeAttribute("data-source");
+  clone.querySelectorAll("[data-source]").forEach((n) => n.removeAttribute("data-source"));
   return clone;
 }
 

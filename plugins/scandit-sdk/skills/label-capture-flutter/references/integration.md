@@ -9,9 +9,7 @@ Label Capture (Smart Label Capture) extracts multiple fields from a single label
   - `scandit_flutter_datacapture_barcode`
   - `scandit_flutter_datacapture_label`
 - Flutter `>=3.10`, Dart `>=3.0`. iOS deployment target `>=15.0`. Android `minSdkVersion >=24`.
-- A valid Scandit license key:
-  - Sign in at <https://ssl.scandit.com> to generate one.
-  - No account yet? Sign up at <https://ssl.scandit.com/dashboard/sign-up?p=test>.
+- A valid Scandit license key — see **Licence key** in this skill's `SKILL.md`.
 - Camera permissions configured by the app:
   - iOS: add `NSCameraUsageDescription` to `ios/Runner/Info.plist`.
   - Android: the manifest permission is declared by the plugin; request it at runtime with `permission_handler` (or equivalent) before pushing the scan screen.
@@ -92,7 +90,7 @@ After writing the code, show this setup checklist:
 1. Add the Scandit packages to `pubspec.yaml` and run `flutter pub get`.
 2. iOS: open `ios/Runner.xcworkspace`, set deployment target to 15.0+, add `NSCameraUsageDescription` to `Info.plist`. Then `cd ios && pod install`.
 3. Android: confirm `minSdkVersion 24` (or higher) in `android/app/build.gradle`. The `CAMERA` permission is declared automatically; runtime request via `permission_handler` is your responsibility.
-4. Replace `'-- ENTER YOUR SCANDIT LICENSE KEY HERE --'` with your key from <https://ssl.scandit.com>.
+4. Replace `'-- ENTER YOUR SCANDIT LICENSE KEY HERE --'` with your key (see **Licence key** in `SKILL.md`).
 
 ## Step 1 — Initialize the plugins and the DataCaptureContext
 
@@ -159,7 +157,7 @@ final labelDefinition = LabelDefinitionBuilder()
 
 Two distinct regex roles control text-field recognition:
 
-- **`valueRegexes`** — match the actual field **value** (the date, price, lot code, …). Set with `.setValueRegexes(['<pattern>', ...])` (list form; there is no singular `setValueRegex` String setter on Flutter). Required for `CustomText`; preset fields ship with sensible defaults that calling this **overrides**. Keep these patterns standard — the SDK regex engine does **not** support lookahead/lookbehind (`(?=…)`, `(?<=…)`) or backreferences (see the note below).
+- **`valueRegexes`** — match the actual field **value** (the date, price, lot code, …). Set with `.setValueRegexes(['<pattern>', ...])` (list form; there is no singular `setValueRegex` String setter on Flutter). Required for `CustomText`; preset fields ship with sensible defaults that calling this **overrides**. Keep these patterns bounded — see the note below.
 - **`anchorRegexes`** — match the **contextual keyword** printed near the value (e.g. `EXP`, `BBE`, `Best before`, `LOT`). They disambiguate when several fields share the same value format (e.g. an expiry date and a packaging date both `dd/mm/yyyy`). Set with `.setAnchorRegexes(['<keyword>', ...])` (list of strings) or `.setAnchorRegex(Regex('<pattern>'))` (single Dart `Regex`).
 
 When the customer's label has **no keyword** next to the value, clear the preset's default anchors with `.resetAnchorRegexes()` and let the value regex do the work:
@@ -190,7 +188,7 @@ final lot = CustomTextBuilder()
     .build('Lot Number');
 ```
 
-> **Regex engine limits.** The SDK's regex engine supports standard character classes, quantifiers, alternation, and groups only. It does **not** support lookahead/lookbehind assertions (`(?=…)`, `(?<=…)`), backreferences, or Unicode property escapes. Keep patterns simple.
+> **Keep regexes bounded.** The SDK regex engine is PCRE2. Lookahead and lookbehind (`(?=…)`, `(?!…)`, `(?<=…)`, `(?<!…)`) are supported in value and anchor regexes; a negative lookahead or lookbehind keeps a value regex from matching inside a longer number (for example card-number digits read as an expiry date). Give every value regex explicit length limits (`\d{2}`, `{4,6}`) rather than open-ended `+`/`*`.
 
 ## Step 3 — Build LabelCaptureSettings
 
@@ -486,7 +484,7 @@ When the user reports a problem, map the symptom to its cause before suggesting 
 
 - **Text / OCR fields never match (expiry date, total price, custom text, etc.) but the barcode reads fine** — the barcode reading correctly is the tell: **barcode-only fields (e.g. `CustomBarcode`, `SerialNumberBarcode`) do NOT need the on-device text models**, so a working barcode plus empty text fields points squarely at a missing text-models module. Text, price, and date/semantic *text* fields **do** require them: `ScanditLabelCaptureText` is needed for arbitrary text/date fields and `ScanditPriceLabel` for price fields (unit price / total price). Both ship with the `scandit_flutter_datacapture_label` package, so confirm it is in `pubspec.yaml` and `flutter pub get` was re-run, and that `await ScanditFlutterDataCaptureLabel.initialize();` ran before `DataCaptureContext.initialize(licenseKey)`.
 
-- **A field never matches even though the text is on the label** — the value regex or anchor regex is too strict. Prefer the preset builder field (its regexes are tuned) over a hand-written custom-text field. If the label has no keyword near the value, clear the anchors (pass an empty anchor-regex list) and rely on the value regex alone. Keep regexes simple — lookahead/lookbehind are not supported and silently fail to match.
+- **A field never matches even though the text is on the label** — the value regex or anchor regex is too strict. Prefer the preset builder field (its regexes are tuned) over a hand-written custom-text field. If the label has no keyword near the value, clear the anchors (pass an empty anchor-regex list) and rely on the value regex alone. Keep each value regex bounded with explicit length limits; lookahead and lookbehind are supported.
 
 - **Handwritten or non-Latin text is never read** — expected. Label Capture reads **printed text** in the supported Latin character set only (see Recognition Limits above). Use the Validation Flow's manual-entry sheet so the user can type the value when it cannot be scanned.
 

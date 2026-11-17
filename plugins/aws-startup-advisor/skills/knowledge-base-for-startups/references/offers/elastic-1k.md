@@ -7,7 +7,7 @@ title: "$1,000 Credit in Elastic Cloud for Self Founded Startups"
 
 ### Estimated offer value: $1,000.00
 
-**$1,000 Elastic Cloud Credit for the First 3 Months**
+### $1,000 Elastic Cloud Credit for the First 3 Months
 
 Get started on Elastic Cloud with $1,000 in credits — fully managed, production-ready, and built for scale.
 

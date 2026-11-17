@@ -1,21 +1,24 @@
 #!/usr/bin/env node
 
 import { reportSkillUsage } from '../cli.mjs';
-import { PER_TOOL_FEEDBACK_SAMPLE_RATE } from '../constants.mjs';
 import {
   AGENT_FEEDBACK_MESSAGE,
-  completedAgentWorkMentionsStripe,
   getStripeSkillName,
 } from '../feedback.mjs';
+import { shouldSampleFeedback } from '../feedbackSampling.mjs';
 import {
   emitSoftContext,
   getHookArguments,
+  isTelemetryDisabled,
   readHookEvent,
   runHook,
-  sample,
 } from '../hookHelpers.mjs';
 
 await runHook(async () => {
+  if (isTelemetryDisabled()) {
+    return;
+  }
+
   const event = await readHookEvent();
   const argumentsValue = getHookArguments(event);
   const skillName = getStripeSkillName(
@@ -27,10 +30,7 @@ await runHook(async () => {
     reportSkillUsage(skillName);
   }
 
-  if (
-    completedAgentWorkMentionsStripe(event) &&
-    sample(PER_TOOL_FEEDBACK_SAMPLE_RATE)
-  ) {
+  if (shouldSampleFeedback('PostToolUse', event)) {
     emitSoftContext('PostToolUse', AGENT_FEEDBACK_MESSAGE);
   }
 });

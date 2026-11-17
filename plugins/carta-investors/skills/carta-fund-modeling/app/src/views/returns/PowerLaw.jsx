@@ -1,14 +1,15 @@
 import { useMemo } from "react";
 import { FS, sans, inkNum, MICRO } from "../../ui/theme.js";
-import { fmtM, fmtX } from "../../ui/format.js";
-import { H1, H3, MethodNote, SourceNote, FundPicker, Slider, Segmented, MultiFundPicker, fundLabel, SectionChips } from "../../ui/components.jsx";
+import { fmtM, fmtX, shortCompany } from "../../ui/format.js";
+import { H3, MethodNote, SourceNote, Slider, Segmented, MultiFundPicker, EmptyState, fundLabel } from "../../ui/components.jsx";
 import { TableHead, useTableSort, TableScroll } from "../../ui/table.jsx";
+import { ownFundHeldAs, scopeName } from "../../model/funds.js";
 import { exitValueImpact, fundCompanyReturns } from "../../model/sensitivity.js";
-import { returnTheFundSolutions } from "../../model/returnthefund.js";
+import { returnTheFundSolutions, rtfTargetBand, rtfSearch } from "../../model/returnthefund.js";
 import { useScenarioModel } from "./useScenarioModel.js";
 import PowerLawChart from "./PowerLawChart.jsx";
+import { EXIT_IMPACT_TITLE } from "./chartTitles.js";
 
-const shortCo = (n) => n.replace(/\s*\(.*\)/, "").replace(/,? (Inc|Corp|Co|LLC|Ltd)\.?,?( dba .*)?$/i, "");
 const TOP_N = 15;
 
 /** Diverging bar from a baseline center: red = downside half, green = upside.
@@ -17,14 +18,14 @@ function SwingBar({ lowVal, highVal, baseVal, pct }) {
   const dLo = Math.min(lowVal, highVal), dHi = Math.max(lowVal, highVal);
   const redTo = Math.min(dHi, baseVal), greenFrom = Math.max(dLo, baseVal);
   return (
-    <div style={{ position: "relative", flex: 1, height: 22 }}>
-      <span style={{ position: "absolute", left: pct(baseVal), top: -2, bottom: -2, width: 1.5, background: "var(--ink-color-global-text-default)", opacity: 0.55 }} />
+    <div style={{ position: "relative", height: 24, minWidth: 160 }}>
+      <span style={{ position: "absolute", left: pct(baseVal), top: 0, bottom: 0, width: 1, background: "var(--ink-color-global-text-default)", opacity: 0.55 }} />
       {redTo > dLo && (
-        <span style={{ position: "absolute", top: 4, height: 14, borderRadius: 3, background: "rgba(229,36,49,.45)",
+        <span data-testid="swing-bar-down" style={{ position: "absolute", top: 5, height: 14, background: "var(--local-data-viz-negative-2)",
           left: pct(dLo), width: `calc(${pct(redTo)} - ${pct(dLo)})` }} />
       )}
       {dHi > greenFrom && (
-        <span style={{ position: "absolute", top: 4, height: 14, borderRadius: 3, background: "rgba(45,158,144,.5)",
+        <span data-testid="swing-bar-up" style={{ position: "absolute", top: 5, height: 14, background: "var(--local-data-viz-positive-2)",
           left: pct(greenFrom), width: `calc(${pct(dHi)} - ${pct(greenFrom)})` }} />
       )}
     </div>
@@ -35,10 +36,12 @@ function SwingBar({ lowVal, highVal, baseVal, pct }) {
  *  Built bottoms-up: each company's realizable value is scaled ±exitDelta and
  *  flowed through the LP make-whole waterfall, so Net TVPI (net LP total value
  *  over paid-in, net of carry) is an OUTPUT. Ranked by the size of that swing. */
-function ExitImpactCard({ snapshot, portfolio, fs }) {
-  const t = useMemo(() => exitValueImpact(snapshot, portfolio, fs), [snapshot, portfolio, fs]);
+function ExitImpactCard({ pooledFunds, portfolio, states, allMode, familyMode, poolLabel }) {
+  const t = useMemo(() => exitValueImpact(portfolio, states), [portfolio, states]);
   if (t.baseMultiple == null) return null;
-  const rows = t.companies.filter((c) => c.swing != null).slice(0, TOP_N);
+  // Under a pooled scope, leave out holdings that are one of the pooled funds: pooling would list that capital a second time beside the companies the other fund holds directly. A fund outside the pool is a real holding.
+  const listed = allMode ? t.companies.filter((c) => !ownFundHeldAs(pooledFunds, c)) : t.companies;
+  const rows = listed.filter((c) => c.swing != null).slice(0, TOP_N);
   if (!rows.length) return null;
   // shared multiple scale across every endpoint + the baseline, with padding
   const vals = [t.baseMultiple, ...rows.flatMap((c) => [c.lowMultiple, c.highMultiple])];
@@ -46,42 +49,44 @@ function ExitImpactCard({ snapshot, portfolio, fs }) {
   const pad = Math.max(0.01, (hi - lo) * 0.08);
   lo -= pad; hi += pad;
   const pct = (v) => `${((v - lo) / (hi - lo)) * 100}%`;
+  const pctLabel = `${(t.exitDelta * 100).toFixed(0)}%`;
+  const cols = [
+    { label: "Holding", align: "left" },
+    { label: `−${pctLabel}` },
+    { label: "Net TVPI", align: "left", labelAt: pct(t.baseMultiple) },
+    { label: `+${pctLabel}`, align: "left" },
+    { label: "± impact" },
+  ];
   return (
-    <div className="card" style={{ padding: "18px 22px 14px", marginBottom: 16 }}>
-      <div style={{ display: "flex", alignItems: "baseline", gap: 12, flexWrap: "wrap", marginBottom: 4 }}>
-        <H3>Top holdings by Net TVPI impact</H3>
-        <span style={{ ...sans, fontSize: FS.small, color: "var(--ink-color-global-text-subtle)" }}>
-          Net TVPI around {fmtX(t.baseMultiple)} · top {Math.min(TOP_N, t.count)} of {t.count} holdings
-        </span>
+    <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: 4 }}>
+        <H3>{EXIT_IMPACT_TITLE}</H3>
       </div>
       <MethodNote>
-        Each holding's value is scaled ±{(t.exitDelta * 100).toFixed(0)}% and run through the LP make-whole waterfall; the bars rank where the fund's Net TVPI is most exposed.
+        Each holding's value is scaled ±{pctLabel}, one at a time, and run through the LP make-whole waterfall; the bars rank where {allMode ? (familyMode ? `the Net TVPI across ${poolLabel}` : "the firm's Net TVPI across all funds") : "the fund's Net TVPI"} is most exposed, and the impacts aren't additive.
       </MethodNote>
-      <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "4px 0 6px", ...sans, fontSize: FS.micro, fontWeight: 600,
-        color: MICRO }}>
-        <span style={{ width: 150, flex: "none" }}>Holding</span>
-        <span style={{ width: 54, textAlign: "right", flex: "none" }}>−{(t.exitDelta * 100).toFixed(0)}%</span>
-        <span style={{ flex: 1, textAlign: "center" }}>Net TVPI</span>
-        <span style={{ width: 54, textAlign: "left", flex: "none" }}>+{(t.exitDelta * 100).toFixed(0)}%</span>
-        <span style={{ width: 64, textAlign: "right", flex: "none" }}>± impact</span>
-      </div>
-      {rows.map((c, i) => (
-        <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 0",
-          borderTop: `1px solid var(--ink-color-global-border-subtle)` }}>
-          <span style={{ ...sans, fontSize: FS.body, fontWeight: 500, color: "var(--ink-color-global-text-default)", width: 150, flex: "none",
-            whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={`${c.name} · ${fmtM(c.fv)}`}>
-            <span style={{ ...inkNum, color: MICRO, marginRight: 7 }}>{i + 1}</span>{shortCo(c.name)}
-          </span>
-          <span style={{ ...inkNum, fontSize: FS.small, color: "var(--ink-color-global-text-subtle)", width: 54, textAlign: "right", flex: "none" }}>{fmtX(Math.min(c.lowMultiple, c.highMultiple))}</span>
-          <SwingBar lowVal={c.lowMultiple} highVal={c.highMultiple} baseVal={t.baseMultiple} pct={pct} />
-          <span style={{ ...inkNum, fontSize: FS.small, color: "var(--ink-color-global-text-subtle)", width: 54, textAlign: "left", flex: "none" }}>{fmtX(Math.max(c.lowMultiple, c.highMultiple))}</span>
-          <span style={{ ...inkNum, fontSize: FS.body, fontWeight: 700, color: "var(--ink-color-global-text-default)", width: 64, textAlign: "right", flex: "none" }}
-            title="Net TVPI swing across this holding's ± range">±{fmtX(c.swing / 2)}</span>
-        </div>
-      ))}
-      <SourceNote>
-        Source: Carta Fund Admin. Each holding is scaled ±{(t.exitDelta * 100).toFixed(0)}% and flowed through the make-whole waterfall, one at a time — so the impacts rank exposure and aren't additive.
-      </SourceNote>
+      <TableScroll>
+        <table className="ledger sheet">
+          <TableHead cols={cols} />
+          <tbody>
+            {rows.map((c) => (
+              <tr key={c.id}>
+                <td style={{ ...sans, fontSize: FS.value, color: "var(--ink-color-global-text-default)", whiteSpace: "nowrap" }} title={`${c.name} · ${fmtM(c.fv)}`}>
+                  {shortCompany(c.name)}
+                </td>
+                <td style={{ ...inkNum, textAlign: "right", fontSize: FS.value }}>{fmtX(Math.min(c.lowMultiple, c.highMultiple))}</td>
+                {/* greedy column: soaks up the table's slack so the bar gets the width */}
+                <td style={{ width: "100%" }}>
+                  <SwingBar lowVal={c.lowMultiple} highVal={c.highMultiple} baseVal={t.baseMultiple} pct={pct} />
+                </td>
+                <td style={{ ...inkNum, textAlign: "left", fontSize: FS.value }}>{fmtX(Math.max(c.lowMultiple, c.highMultiple))}</td>
+                <td style={{ ...inkNum, textAlign: "right", fontSize: FS.value, fontWeight: 700 }}
+                  title="Net TVPI swing across this holding's ± range">±{fmtX(c.swing / 2)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </TableScroll>
     </div>
   );
 }
@@ -97,83 +102,81 @@ const RTF_COLS = [
   { label: "Combined value", get: (s) => s.companies.reduce((t, c) => t + c.neededValue, 0) },
 ];
 
-const RTF_STEP = 0.25, RTF_HEADROOM = 10; // slider ceiling rides this many × above current
+const RtfHeading = () => (
+  <>
+    <H3>“Return the fund” analysis</H3>
+    <p style={{ ...sans, fontSize: FS.small, lineHeight: "20px", color: "var(--ink-color-global-text-subtle)", margin: "0 0 12px" }}>
+      Sets of live holdings whose exits would lift the fund to your target gross MOIC, lowest exit multiple first.
+    </p>
+  </>
+);
+
+/** Return the fund under All funds: it backsolves one fund's target, so it has no
+ *  all-funds form; its heading stays over a boxed prompt to pick a fund. */
+const ReturnTheFundAllFunds = () => (
+  <div style={{ marginBottom: 16 }}>
+    <RtfHeading />
+    <div className="card empty-card">
+      <EmptyState icon="pending" text="Select a fund to see an analysis of how your investments would need to perform to return the fund." />
+    </div>
+  </div>
+);
 
 function ReturnTheFund({ portfolio, fundId, readOnly, target, setTarget, config, setConfig }) {
   // totals (currentMoic etc.) are target-independent — used to seed & floor the slider
   // and to list the eligible movers for the company picker.
   const totals = useMemo(() => returnTheFundSolutions(portfolio, fundId, 1), [portfolio, fundId]);
-  const curMoic = totals.currentMoic || 1;
   // RTF config (per fund, per scenario): which holdings may move + max combo size.
-  const cfg = config || {};
-  const mode = cfg.mode === "custom" ? "custom" : "auto";
-  const maxSet = cfg.maxSet ?? 3;
   const movers = totals.eligible || []; // every eligible holding — the picker's universe
-  const autoPoolIds = [...movers].sort((a, b) => b.cost - a.cost).slice(0, 12).map((e) => e.id);
-  const flexIds = cfg.flexIds ?? autoPoolIds; // seed custom from today's auto pool, then prune
-  const candidateIds = mode === "custom" ? flexIds : null;
-  // The slider is a fixed band that rides above the fund's current gross MOIC: the
-  // floor is the nearest clean 0.25 step ABOVE current (e.g. 1.75× for a 1.51× fund),
-  // and the ceiling is RTF_HEADROOM (10×) above that floor. Anchoring to current means
-  // the target is always > current — so there are always solutions and the table never
-  // blanks — and it keeps working no matter how high current is (a company repriced
-  // enough to push the fund past 10× still gets a usable band above it).
-  const sliderMin = Math.max(1, Math.floor(curMoic / RTF_STEP) * RTF_STEP + RTF_STEP);
-  const sliderMax = sliderMin + RTF_HEADROOM;
-  // `target` comes from the scenario's saved assumptions (via the parent); until this
-  // scenario's slider has been dragged it's undefined → fall back to a seed just above
-  // current. Clamp into the band either way.
-  const t = Math.min(sliderMax, Math.max(sliderMin, target ?? Math.max(2, Math.ceil(curMoic))));
+  const { mode, maxSet, flexIds, candidateIds } = rtfSearch(config, movers);
+  // `target` comes from the scenario's saved assumptions (via the parent), clamped
+  // into the band that rides above the fund's current gross MOIC.
+  const { min: sliderMin, max: sliderMax, step, target: t } = rtfTargetBand(totals.currentMoic, target);
   const res = useMemo(() => returnTheFundSolutions(portfolio, fundId, t, { maxSet, candidateIds }),
-    [portfolio, fundId, t, maxSet, mode, cfg.flexIds]); // candidateIds is derived from mode + flexIds
+    [portfolio, fundId, t, maxSet, mode, config?.flexIds]); // candidateIds is derived from mode + flexIds
   const { currentMoic, gap, alreadyThere, solutions } = res;
   const { sorted: rtfRows, sort: rtfSort, onSort: onRtfSort } = useTableSort(solutions, RTF_COLS);
-  const fill = (t - sliderMin) / RTF_HEADROOM;
+  const fill = (t - sliderMin) / (sliderMax - sliderMin);
   return (
     <div style={{ marginBottom: 16 }}>
-      <div style={{ display: "flex", alignItems: "baseline", gap: 12, flexWrap: "wrap", marginBottom: 4 }}>
-        <H3>Return the fund</H3>
-        <span style={{ ...sans, fontSize: FS.small, color: "var(--ink-color-global-text-subtle)" }}>which holdings, at what exit, lift the fund to a target gross MOIC</span>
-      </div>
-      <MethodNote>
-        Gross terms (value ÷ invested cost, before fees and carry). Set a target fund gross MOIC; each row is a set of live
-        holdings (up to your “Max companies” setting) that, if each exits at the same multiple on invested cost, together get the
-        fund there — ranked by the lowest multiple needed. By default the search flexes the fund's largest holdings; switch to
-        Custom to choose exactly which holdings may move. Other holdings stay at current marks; realized / written-off holdings can't move.
-      </MethodNote>
-      <div style={{ maxWidth: 440, margin: "4px 0 14px" }}>
-        <Slider label="Target fund gross MOIC" value={t} min={sliderMin} max={sliderMax} step={RTF_STEP}
-          onChange={setTarget} fmt={(v) => fmtX(v)} fill={fill} locked={readOnly}
-          valueSize={FS.bodyLg} labelKind="strong" />
-        <div style={{ ...sans, fontSize: FS.small, color: "var(--ink-color-global-text-subtle)", marginTop: 4 }}>
-          Current gross MOIC {fmtX(currentMoic)}
-          {alreadyThere ? ` — already clears ${fmtX(t)}.` : ` · needs ${fmtM(gap)} more exit value to reach ${fmtX(t)}.`}
+      <RtfHeading />
+      {/* The slider sits left; the solution-space controls sit right-aligned on the
+          same row, wrapping below it on narrow widths. */}
+      <div style={{ display: "flex", gap: 24, flexWrap: "wrap", alignItems: "flex-start", margin: "4px 0 14px" }}>
+        <div style={{ flex: "1 1 320px", maxWidth: 440 }}>
+          <Slider label="Target fund gross MOIC" value={t} min={sliderMin} max={sliderMax} step={step}
+            onChange={setTarget} fmt={(v) => fmtX(v)} fill={fill} locked={readOnly}
+            valueSize={FS.bodyLg} labelKind="strong" />
+          <div style={{ ...sans, fontSize: FS.small, color: "var(--ink-color-global-text-subtle)", marginTop: 4 }}>
+            Current gross MOIC {fmtX(currentMoic)}
+            {alreadyThere ? ` — already clears ${fmtX(t)}.` : ` · needs ${fmtM(gap)} more exit value to reach ${fmtX(t)}.`}
+          </div>
         </div>
-      </div>
-      {/* Degrees of freedom on the solution space: which holdings may move, and how
-          many can share one solution. Both persist per fund/scenario like the target. */}
-      {!alreadyThere && (
-        <div style={{ display: "flex", gap: 24, flexWrap: "wrap", alignItems: "flex-start", margin: "0 0 14px" }}>
-          <div>
-            <div style={{ ...sans, fontSize: FS.small, color: "var(--ink-color-global-text-subtle)", marginBottom: 5 }}>Companies that can flex</div>
-            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-              <Segmented small locked={readOnly} value={mode}
-                options={[{ id: "auto", label: "Auto · top holdings" }, { id: "custom", label: "Custom" }]}
-                onChange={(md) => setConfig(md === "custom" ? { mode: "custom", flexIds } : { mode: "auto" })} />
-              {mode === "custom" && (
-                <MultiFundPicker label="companies" funds={movers} selected={new Set(flexIds)}
-                  onChange={(set) => setConfig({ mode: "custom", flexIds: [...set] })} />
-              )}
+        {/* Degrees of freedom on the solution space: which holdings may move, and how
+            many can share one solution. Both persist per fund/scenario like the target. */}
+        {!alreadyThere && (
+          <div data-testid="rtf-controls" style={{ display: "flex", gap: 24, flexWrap: "wrap", alignItems: "flex-start", marginLeft: "auto" }}>
+            <div>
+              <div style={{ ...sans, fontSize: FS.small, color: "var(--ink-color-global-text-subtle)", marginBottom: 5 }}>Companies that can flex</div>
+              <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                <Segmented small locked={readOnly} value={mode}
+                  options={[{ id: "auto", label: "Auto · top holdings" }, { id: "custom", label: "Custom" }]}
+                  onChange={(md) => setConfig(md === "custom" ? { mode: "custom", flexIds } : { mode: "auto" })} />
+                {mode === "custom" && (
+                  <MultiFundPicker label="companies" funds={movers} selected={new Set(flexIds)}
+                    onChange={(set) => setConfig({ mode: "custom", flexIds: [...set] })} />
+                )}
+              </div>
+            </div>
+            <div>
+              <div style={{ ...sans, fontSize: FS.small, color: "var(--ink-color-global-text-subtle)", marginBottom: 5 }}>Max companies per solution</div>
+              <Segmented small locked={readOnly} value={maxSet}
+                options={[1, 2, 3, 4, 5].map((n) => ({ id: n, label: String(n) }))}
+                onChange={(n) => setConfig({ maxSet: n })} />
             </div>
           </div>
-          <div>
-            <div style={{ ...sans, fontSize: FS.small, color: "var(--ink-color-global-text-subtle)", marginBottom: 5 }}>Max companies per solution</div>
-            <Segmented small locked={readOnly} value={maxSet}
-              options={[1, 2, 3, 4, 5].map((n) => ({ id: n, label: String(n) }))}
-              onChange={(n) => setConfig({ maxSet: n })} />
-          </div>
-        </div>
-      )}
+        )}
+      </div>
       {res.poolTruncated && (
         <div style={{ ...sans, fontSize: FS.micro, color: MICRO, margin: "-6px 0 12px" }}>
           Search limited to the 14 largest-cost of your selected holdings.
@@ -198,10 +201,10 @@ function ReturnTheFund({ portfolio, fundId, readOnly, target, setTarget, config,
                     slack, so the #/multiple/value columns size to their (constant)
                     content instead of a shifting slack share — otherwise every
                     column reflowed as the target slider changed the values. */}
-                <td style={{ ...sans, fontSize: FS.value, color: "var(--ink-color-global-text-default)", width: "100%" }}>{s.companies.map((c) => shortCo(c.name)).join(" + ")}</td>
+                <td style={{ ...sans, fontSize: FS.value, color: "var(--ink-color-global-text-default)", width: "100%" }}>{s.companies.map((c) => shortCompany(c.name)).join(" + ")}</td>
                 <td style={{ ...inkNum, textAlign: "right", fontSize: FS.value, fontWeight: 700 }}>{fmtX(s.m)}</td>
                 <td style={{ ...inkNum, textAlign: "right", fontSize: FS.value }}
-                  title={s.companies.map((c) => `${shortCo(c.name)} → ${fmtM(c.neededValue)}`).join(" · ")}>
+                  title={s.companies.map((c) => `${shortCompany(c.name)} → ${fmtM(c.neededValue)}`).join(" · ")}>
                   {fmtM(s.companies.reduce((t, c) => t + c.neededValue, 0))}
                 </td>
               </tr>
@@ -210,19 +213,24 @@ function ReturnTheFund({ portfolio, fundId, readOnly, target, setTarget, config,
         </table>
         </TableScroll>
       )}
-      <SourceNote>
-        Source: Carta Fund Admin holdings (invested cost + value at current marks, incl. realized proceeds). Each combo assumes its
-        companies exit at the same gross multiple — one illustrative path, not the only one. Company names confidential.
-      </SourceNote>
     </div>
   );
 }
 
-/** Power Law tab — portfolio sensitivity: which holdings drive the fund's Net TVPI. */
-export default function PowerLaw(props) {
-  const { snapshot, portfolio, setFundScope, readOnly, setAssumption } = props;
+/** Power Law — one of the fund's power-law charts; the Reports page's fund picker,
+ *  in the jump-link bar, picks the fund. `section` picks the chart: "curve" (returns
+ *  by rank), "return-the-fund" (the backsolve) or "sensitivity" (Net TVPI exposure
+ *  by holding). */
+export default function PowerLaw({ section, ...props }) {
+  const { snapshot, portfolio, readOnly, setAssumption } = props;
   const m = useScenarioModel(props);
-  const returns = useMemo(() => fundCompanyReturns(portfolio, m.fundId), [portfolio, m.fundId]);
+  // Under a pooled scope a record that is one of the pooled funds (a feeder investing through a
+  // parallel fund in the pool) drops out: pooling would count that capital twice. A record for a
+  // fund outside the pool stays: it is the pool's only exposure to that capital.
+  const returns = useMemo(() => {
+    if (!m.allMode) return fundCompanyReturns(portfolio, [m.fundId]);
+    return fundCompanyReturns(portfolio, m.scopeIds).filter((c) => !ownFundHeldAs(m.scopeFunds, c));
+  }, [portfolio, m.allMode, m.fundId, m.scopeIds, m.scopeFunds]);
   // The Return-the-fund target lives in the scenario's assumptions (per fund), so each
   // scenario keeps its own and it persists like every other scenario setting — through
   // reloads and server restarts, not just this session.
@@ -235,25 +243,18 @@ export default function PowerLaw(props) {
     ...(portfolio.assumptions?.rtfConfig || {}),
     [m.fundId]: { ...(portfolio.assumptions?.rtfConfig?.[m.fundId] || {}), ...patch },
   });
+  // the Net TVPI sensitivity pools the funds in scope (all funds, or a family)
+  const states = useMemo(() => (m.allMode ? props.fundStates.filter((f) => m.scopeIds.includes(f.id)) : [m.fs]), [m.allMode, props.fundStates, m.fs, m.scopeIds]);
   return (
     <div>
-      <H1 actions={<FundPicker funds={snapshot.funds} value={m.fundId} onChange={setFundScope} includeAll={false} />}>Power Law</H1>
-      <p style={{ ...sans, fontSize: FS.small, color: "var(--ink-color-global-text-subtle)", margin: "0 0 16px" }}>
-        At Carta marks: {fmtX(m.cartaNet)} Net TVPI on total incl. future calls
-      </p>
-      <SectionChips sections={[["pl-chart", "Power law"], ["pl-return", "Return the fund"], ["pl-sensitivity", "Sensitivity"]]} />
-      <section id="pl-chart" style={{ scrollMarginTop: 64 }}>
-        <PowerLawChart companies={returns} fundName={fundLabel(m.fs.name)} />
-      </section>
-      <section id="pl-return" style={{ scrollMarginTop: 64 }}>
-        {/* target is stored per fund in the scenario's assumptions, so each scenario
-            keeps its own and it persists like the other scenario settings. */}
+      {section === "curve" && <PowerLawChart companies={returns} fundName={m.allMode ? scopeName(snapshot.funds, props.fundScope) : fundLabel(m.fs.name)} allFunds={m.allMode} poolLabel={m.poolLabel} />}
+      {/* target is stored per fund in the scenario's assumptions, so each scenario
+          keeps its own and it persists like the other scenario settings. */}
+      {section === "return-the-fund" && (m.allMode ? <ReturnTheFundAllFunds /> : (
         <ReturnTheFund portfolio={portfolio} fundId={m.fundId} readOnly={readOnly}
           target={rtfTarget} setTarget={setRtfTarget} config={rtfConfig} setConfig={setRtfConfig} />
-      </section>
-      <section id="pl-sensitivity" style={{ scrollMarginTop: 64 }}>
-        <ExitImpactCard snapshot={snapshot} portfolio={portfolio} fs={m.fs} />
-      </section>
+      ))}
+      {section === "sensitivity" && <ExitImpactCard pooledFunds={m.scopeFunds} portfolio={portfolio} states={states} allMode={m.allMode} familyMode={m.familyMode} poolLabel={m.poolLabel} />}
     </div>
   );
 }

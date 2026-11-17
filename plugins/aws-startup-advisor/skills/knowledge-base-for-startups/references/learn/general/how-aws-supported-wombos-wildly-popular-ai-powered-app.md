@@ -26,7 +26,7 @@ For most startups, scaling quickly and becoming extremely popular is a desirable
 
 ![Ryan Khurana, Chief of Staff, WOMBO](https://d22k7geae6sy8h.cloudfront.net/files/64abe930fed3720008967834/8ljwrtgsb-Ryan-Khurana-chief-of-staff-WOMBO.png)
 
-_Ryan Khurana, Chief of Staff, WOMBO_
+> _Ryan Khurana, Chief of Staff, WOMBO_
 
 Success didn't have to come at a price though. AWS recognized the situation and stepped in to help the company lower its costs, manage its payments, and develop a better understanding of the AWS infrastructure. That allowed the company to continue to improve the quality of its algorithms and operate in the cloud, a central part of WOMBO's vision.
 

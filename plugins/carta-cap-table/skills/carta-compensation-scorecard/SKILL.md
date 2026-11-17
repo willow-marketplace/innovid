@@ -1,10 +1,10 @@
 ---
 name: carta-compensation-scorecard
-description: "Carta Total Compensation scorecard — shows how a corporation's employees compare to market. Two lenses: corporation-level rollup (band distribution — what % of employees are below / at / above market) and per-employee scorecard (each employee's compa-ratio + percentile + market band). Triggered by queries like: \"scorecard\", \"how is our comp positioned\", \"who's below market\", \"which employees are below P50\", \"show me the roster\", \"are we paying market\", \"comp posture\", \"employee compa-ratios\", \"is [employee] underpaid\", \"pay adjustment analysis\", \"our internal pay bands vs benchmarks\", \"score these employees\". Operates on the corporation's already-ingested CTC roster (HRIS-synced employees). Do NOT use for market-rate lookups for a role (use carta-compensation-benchmarks). Do NOT use for job classification (use carta-compensation-rolematcher). Do NOT use for fund performance scorecards or portfolio-level metrics."
+description: "See how your employees' pay compares to market: the Carta Total Compensation scorecard, as a company rollup (what % of employees are below, at or above market) or a per-employee table (compa-ratio, percentile, market band). Use when the user compares their own employees' pay or equity to market or Carta benchmarks, e.g. \"scorecard\", \"how is our comp positioned\", \"are we paying market\", \"who's below market\", \"which employees are below P50\", \"is [employee] underpaid\", \"compare our employees' pay to benchmarks\", \"our salaries vs Carta benchmarks by level\", \"gap to p50\", \"pressure-test our pay bands\", \"our internal pay bands vs benchmarks\", \"pay adjustment analysis\". Outside Claude Code, also use it for a dashboard of employee pay vs market. Do NOT use for a role's market rate (use carta-compensation-benchmarks), job classification (use carta-compensation-rolematcher), or fund performance scorecards."
 ---
 
 <!-- carta:plugin-version -->
-<carta-plugin>carta-cap-table:6.85.6</carta-plugin>
+<carta-plugin>carta-cap-table:6.114.20</carta-plugin>
 
 # CTC Scorecard
 
@@ -18,38 +18,42 @@ This skill calls compensation-service's scorecard endpoints (the same endpoints 
 >
 > | Field | Use in user-facing text | Never |
 > |---|---|---|
-> | Job area | `Engineering`, `Sales`, `Customer Success`, `Project Management`, `Human Resources` | `ENGINEER`, `SALES`, `CUSTOMER_SUCCESS`, `PROJECT_MANAGEMENT`, `HR` |
-> | Focus | `DevOps and Site Reliability`, `Account Executive`, `FP&A` | `devops and site reliability`, `account executive`, `fp&a` |
-> | Level | `Entry`, `Mid 1`, `Senior 1`, `Staff 2`, `VP 1`, `C-Level`, `CEO`, `Unknown` | `ENTRY`, `MID1`, `SENIOR1`, `STAFF2`, `VP1`, `C_LEVEL`, `UNKNOWN` |
+> | Job area | the job's `label` from `compensation:get:filter_options` | the job's `value` |
+> | Focus | `DevOps and Site Reliability`, `Account Executive`, `Financial Planning and Analysis` — the exact API focus value, the same in text and in the API call | `devops and site reliability`, `ACCOUNT_EXECUTIVE`, `fp&a` — wrong in text and in the API call |
+> | Level | Title Case of the level's `value` (`Mid 1`, `Senior 1`, `VP 1`, `C-Level`) | the level's `value` from `compensation:get:filter_options` |
 > | Track | `IC`, `Manager`, `Executive`, `Unknown` | `ic`, `manager`, `executive`, `UNKNOWN` |
 > | Band | `Low`, `Mid`, `High` | `low`, `mid`, `high` |
 >
-> The UPPER_SNAKE_CASE enums are **only** for machine handoff to MCP commands (the `job_filters`, `leader` parameters). Switch to Title Case before any value reaches the user.
+> The `value` forms (UPPER_SNAKE_CASE) are **only** for machine handoff to MCP commands (the `job_filters` parameter). Switch to the labels before any value reaches the user. The `leader` parameter is a boolean.
 >
-> **Band enum — the API uses `LOW` / `MID` / `HIGH`, NOT `BELOW_MARKET` / `AT_MARKET` / `ABOVE_MARKET`.** This is the single source of truth:
+> **Bands — a response `score` is `LOW`, `MID` or `HIGH`.** A band says where an employee's compa-ratio sits against the market range for their role: `LOW` is below the range, `MID` is within it, `HIGH` is above it. It is not a percentile, so a percentile-specific ask ("below P50", "above P75") is not a band ask — see *Percentile asks* in Step 4b.
 >
-> | API value (filter + response) | Display | Maps to user phrasing |
+> | Response value | Display | Maps to user phrasing |
 > |---|---|---|
-> | `LOW` | `Low` | "below market", "below P50" |
+> | `LOW` | `Low` | "below market" |
 > | `MID` | `Mid` | "at market" |
-> | `HIGH` | `High` | "above market", "above P50" |
+> | `HIGH` | `High` | "above market" |
 >
-> Pass `LOW` / `MID` / `HIGH` (not `BELOW_MARKET`) as the `score` filter value, and parse `LOW` / `MID` / `HIGH` from response `score` fields. **Display the actual band value (`Low` / `Mid` / `High`) in tables** — do not relabel it to "Below market". When the user *asked* for a band by market phrasing (e.g. "show me below-market employees"), echo their phrasing in the surrounding prose AND map it to the real enum, e.g. *"Here are your below-market (Low) employees:"* — but the per-row Band column still shows `Low`.
->
-> See `carta-compensation-rolematcher` → "Display → API enum tables" for the full mapping.
+> Parse `LOW` / `MID` / `HIGH` from response `score` fields. The values to *send* as the `score` filter come from `params.score[].value` in Step 2b. **Display the actual band (`Low` / `Mid` / `High`) in tables** — do not relabel it to "Below market". When the user *asked* for a band by market phrasing (e.g. "show me below-market employees"), echo their phrasing in the surrounding prose AND map it through `params.score`, e.g. *"Here are your below-market (Low) employees:"* — but the per-row Band column still shows `Low`.
 
 > **Use MCP, not CLI.** Every API call in this skill goes through the carta MCP. Do not shell out to the `carta` CLI — that bypasses the formatters, the 403 handler, and the attribution requirement.
 >
-> **⚠️ Two different invocation paths in this skill — do not conflate them.**
+> **⚠️ Every compensation command goes through `read_tool` — copy the tool names exactly.**
 >
-> | Command | Invoke with | Why |
+> Examples below use the shorthand `read_tool({...})` — read it as `mcp__carta__read_tool({"name": ..., "arguments": {...}})`.
+>
+> The tool name is the command name with **colons turned into `__`. Hyphens and underscores inside a segment stay as they are.** The names are irregular, so never guess one:
+>
+> | Command | Tool name (pass as `name`) | ✗ Not a real tool |
 > |---|---|---|
-> | `subscription_status`, `plan` | `mcp__carta__call_tool({"name": "compensation__get__…", "arguments": {…}})` | Registered as flat `call_tool` tools (the plugin-wide convention, same as the benchmarks skill). |
-> | `employee-scorecard`, `corporation-scorecard` | `mcp__carta__fetch({"command": "compensation:get:…", "params": {…}})` | Registered only as MCP *commands*. They are **NOT** flat `call_tool` tools — `call_tool({"name": "compensation__get__employee_scorecard"})` returns *"Unknown tool"* and silently wastes calls. |
+> | `compensation:get:subscription_status` | `compensation__get__subscription_status` | — |
+> | `compensation:get:filter_options` | `compensation__get__filter_options` | — |
+> | `compensation:get:plan` | `compensation__get__plan` | — |
+> | `compensation:get:employee-scorecard` | `compensation__get__employee-scorecard` (**hyphen**) | `compensation__get__employee_scorecard` → *"Unknown tool"* |
+> | `compensation:get:corporation-scorecard` | `compensation__get__corporation-scorecard` (**hyphen**) | `compensation__get__corporation_scorecard` → *"Unknown tool"* |
+> | `context_tools:get:profile` | `context_tools__get__profile` | — |
 >
-> The scorecard commands are the trap: an LLM carrying `call_tool` muscle memory from the benchmarks skill will call the wrong tool. **In this skill, the `call_tool(...)` shorthand is used ONLY for `subscription_status` and `plan`.** Every `employee-scorecard` / `corporation-scorecard` example below is written out in full as `mcp__carta__fetch(...)` — invoke it exactly as written, do not "translate" it back to `call_tool`.
->
-> For the `fetch` commands, note the shapes that trip agents up: the command name is **hyphenated/colon** (`compensation:get:employee-scorecard`), the argument key is **`params`** (not `arguments`), and `page_size` is **snake_case**.
+> Arguments go in **`arguments`** (not `params`), and `page_size` is **snake_case**.
 
 > **Showing employee names is correct.**
 >
@@ -69,12 +73,17 @@ The corp-level band distribution is derived from the employee endpoint (matching
 
 ### Per-employee scorecard (use `compensation:get:employee-scorecard`)
 
-- *"Show me which employees are below P50"*
+- *"Show me which employees are below P50"* (a percentile ask — see *Percentile asks* in Step 4b)
 - *"Who's below market?"*
 - *"Show me the roster scorecard"*
 - *"Which engineers are below market?"* (job-filtered roster)
 - *"Show me the compa-ratios for our managers"* (leader-filtered)
 - *"List employees at market"* (band-filtered)
+- *"Compare our employees' salaries to Carta benchmarks by level"* (the word "benchmarks" does not send it to `carta-compensation-benchmarks`: the user's own employees are the subject)
+
+### Dashboard asks outside Claude Code
+
+A request for an interactive pay dashboard of the user's employees comes here when the host is not Claude Code. Give the rollup and the per-employee table in chat. Say once that the live, filterable console (`carta-compensation-app`) needs Claude Code.
 
 ### Ambiguous
 
@@ -84,40 +93,19 @@ If the question is just *"show me our scorecard"* with no further qualifier, **d
 
 ## Prerequisites
 
-1. A corporation — resolved automatically from your accounts (see Step 1).
+1. A corporation — Carta finds it on the Step 2 subscription call. Never call `list_accounts` for it (see Step 1).
 2. An active CTC subscription with HRIS-synced employees. If the corp has no subscription, the skill stops with a plain-English message (see Subscription gating).
 
 ## Workflow
 
-### Step 1 — Resolve corporation (REQUIRED before anything else)
+### Step 1 — The company (no lookup call)
 
-> **Do this ONCE, upfront, before calling any compensation endpoint.** Do not start fetching subscription status or plan data until you have a confirmed `corporation_id`.
+> **Do not call `list_accounts`.** The Step 2 subscription check resolves the company: follow *Resolve the company on this call* in `${CLAUDE_PLUGIN_ROOT}/references/gate-ctc-subscription.md` (the plugin's own `references/`, not this skill's; read it by that path, do not search for it). Reuse the company already resolved in this conversation unless this prompt names or numbers another. Else send the numeric id the user gave, else the company name as the user said it, else no `corporation_id` (Carta uses the user's only company). Make no other compensation call until you have a confirmed `corporation_id`.
 
-Resolve in this priority order — stop as soon as one path succeeds:
-
-**Path 1 — Explicit numeric ID in the prompt (highest priority, no API call needed)**
-
-If the user mentioned a numeric corporation ID anywhere (e.g. *"corp 7"*, *"corp id 7"*, *"corporation_id=7"*, *"for company 728"*), use that exact integer. Do not call `list_accounts`. Do not search for it. Do not substitute a similar-looking ID.
-
-> Anti-patterns:
-> - ❌ User says "corp 7" → agent calls `list_accounts(search="7")` — `list_accounts` searches by name substring, not ID.
-> - ❌ User says "corp 7" → agent picks a corp from a previous turn. Each prompt's corp ID overrides any prior context.
-
-**Path 2 — Company name in prompt**
-
-If the user named a company (e.g. *"scorecard for Acme"*), call `list_accounts(search="Acme")`. Filter results to entries where `id` starts with `corporation_pk:`. If exactly one match, use it. If multiple, proceed to Path 4.
-
-**Path 3 — Single account (auto-select, no question needed)**
-
-If the user gave no corp hint at all, call `list_accounts()` with no search. Filter to `corporation_pk:` entries. If exactly **one** corporation is returned, use it automatically — do not ask the user to confirm something they have no choice about.
-
-**Path 4 — Multiple accounts (ask once, cleanly)**
-
-If multiple corporations are found, use `AskUserQuestion` immediately:
-- Question: *"Which company's scorecard should I show?"*
-- Options: corporation names from the list (cap at 10; offer "Other" if more)
-
-Do **not** show the user a raw JSON dump of accounts. Do **not** attempt any compensation call before they answer.
+This skill's parts:
+- Question when several companies match: *"Which company's scorecard should I show?"* Do **not** show the user a raw JSON dump.
+- For `[Company Name]` in the output, use the `label` of the pick, else the name the user gave, else "your company".
+- No company at all: send the "your firm" message in *Subscription gating* below (the one for an empty `corporations[]`).
 
 > **HARD STOP — user dismissed the question:**
 >
@@ -125,26 +113,37 @@ Do **not** show the user a raw JSON dump of accounts. Do **not** attempt any com
 >
 > > *"No problem — let me know which corporation's scorecard to look up (name or numeric ID) when you're ready. If there's something else I can help with in the meantime, just ask."*
 
-**Path 5 — No corporations at all (Fund-Admin-only user — STOP, do not ask)**
-
-If Paths 2/3/4 returned **zero** `corporation_pk:` entries, the user may have no cap table access at all — a Fund Admin user whose access is fund accounting only. Confirm before doing anything else:
-
-1. `call_tool({"name": "context_tools__get__profile", "arguments": {}})` — returns `corporations[]`, the corporations the user holds a cap-table role on (it excludes `NO_ACCESS` roles, and returns `[]` for a user with no corporation roles).
-2. If `corporations[]` is **empty** → the user has no cap table. Send the **no-cap-table CTC message** from *Subscription gating* below (the "your firm" variant) and **STOP**. Do **not** ask them to name a corporation — they don't have one. Do **not** call any compensation endpoint.
-3. If `corporations[]` is **non-empty** → the user does have cap tables; the name search just missed. Do **not** send an upsell. Ask them to confirm the exact company name or numeric corp ID and re-resolve.
-
-> Why `profile` and not `list_accounts` for this check: `list_accounts` groups corporations *and funds* under the same `corporation_pk:` prefix, so a Fund Admin user's funds can read as cap table access. `context_tools:get:profile` returns corporations only.
-
-Extract the numeric `corporation_pk` (the integer after `corporation_pk:`) for all subsequent calls.
-
 ### Step 2 — Verify CTC subscription (REQUIRED)
 
 ```
-call_tool({"name": "compensation__get__subscription_status",
+read_tool({"name": "compensation__get__subscription_status",
            "arguments": {"corporation_id": <corporation_pk>}})
 ```
 
-If `is_subscribed` is False, stop here and surface the subscription message (see **Subscription gating** below). Do not call any scorecard endpoint — they will return empty data and waste a round-trip.
+`corporation_id` is the id, the name or left out, as Step 1 says. It returns `{corporation_id, has_ctc_access, is_subscribed}`:
+- `has_ctc_access: false` → the caller holds no CTC role on this corp. Stop and send the no-access message (see **Subscription gating** below). `is_subscribed` is `null` here, so don't infer the corp's subscription state.
+- `has_ctc_access: true`, `is_subscribed: false` → stop and surface the subscription message (see **Subscription gating** below). Do not call any scorecard endpoint — they will return empty data and waste a round-trip.
+- `has_ctc_access: true`, `is_subscribed: true` → continue.
+
+### Step 2b — Load the filter options (REQUIRED — HARD GATE)
+
+> **Call this once, right after `is_subscribed: true`, before any scorecard call that takes a filter.** It returns the exact values `compensation:get:employee-scorecard` accepts, read from compensation-service. This skill does not list them, so there is nothing else to read them from.
+
+```
+read_tool({"name": "compensation__get__filter_options",
+           "arguments": {"corporation_id": <corporation_pk>}})
+```
+
+Keep the response for the rest of the conversation. It returns:
+- `params` — per filter param (`job`, `level`, `score`, `sort_field`), the values it accepts. `job` and `level` entries carry a `value` to send and the names to show. Each `job` lists the `levels` it supports; each `level` carries its `rank` (low to high, for ordering only), its role codes (`ic_label` such as `IC 4`, `manager_label` such as `MGR 4`) and an `executive` flag. `score` entries carry a `value` and a `label`; `sort_field` is a list of accepted values.
+- `coverage` — per job area in the corp's benchmark version, the industries it has data for and its focuses.
+- `benchmark_version` — the version these options describe: the corp's active plan version.
+
+Rules — every scorecard call in this skill follows them:
+1. **Every filter value you send is a `value` copied verbatim from this response.** Never type one from memory, from an example in this file, or from a display label.
+2. **Map the user's wording to a value through the names**: job `label`; for a level, the Title Case of its `value` (`Senior 1` ↔ `SENIOR1`, `C-Level` ↔ `C_LEVEL`), or its `ic_label` / `manager_label` when the user gives a role code (`IC 4`, `MGR 4`); score `label`. If the wording matches no entry, ask with `AskUserQuestion` offering those names — do not pick the nearest-looking value.
+3. **A different benchmark version needs its own options**: when you query a version other than the active plan's (the draft-plan comparison in Step 4a), call this again with `"benchmark_version_id": <that id>`.
+4. **If this call fails, stop.** HTTP 403 → follow *Subscription gating*. HTTP 404 → the corp has no active CTC plan; say so. `Unknown tool` → the connected Carta MCP is too old for this skill; tell the user and stop. In every case, do NOT fall back to typed values and do NOT call a scorecard command with a filter.
 
 ### Step 3 — Decide which lens to query
 
@@ -165,7 +164,7 @@ Both lenses read from the employee endpoint; the difference is whether you prese
 First fetch the active plan (for the data citation footer), then pick a derivation path based on what the user actually asked for:
 
 ```
-call_tool({"name": "compensation__get__plan",
+read_tool({"name": "compensation__get__plan",
            "arguments": {"corporation_id": <corporation_pk>}})
 ```
 
@@ -175,15 +174,15 @@ Capture `plan.id` and `benchmark_version` metadata (for the citation later).
 
 #### Path 1 — Counts only (the user wants the distribution / positioning)
 
-For *"how are we positioned"*, *"what's the band distribution"*, *"are we paying market"* — where the user wants **counts, not a per-person table** — get the overall-band counts directly with three filtered calls. Read only `total_results` from each (you don't need the rows):
+For *"how are we positioned"*, *"what's the band distribution"*, *"are we paying market"* — where the user wants **counts, not a per-person table** — get the overall-band counts directly with three filtered calls, one per entry in Step 2b's `params.score`. Read only `total_results` from each (you don't need the rows):
 
 ```
-mcp__carta__fetch({"command": "compensation:get:employee-scorecard",
-                   "params": {"corporation_id": <corporation_pk>, "score": "LOW",  "page_size": 1}})   → total_results = Low count
-mcp__carta__fetch({"command": "compensation:get:employee-scorecard",
-                   "params": {"corporation_id": <corporation_pk>, "score": "MID",  "page_size": 1}})   → total_results = Mid count
-mcp__carta__fetch({"command": "compensation:get:employee-scorecard",
-                   "params": {"corporation_id": <corporation_pk>, "score": "HIGH", "page_size": 1}})   → total_results = High count
+read_tool({"name": "compensation__get__employee-scorecard",
+           "arguments": {"corporation_id": <corporation_pk>, "score": <the LOW value>,  "page_size": 1}})   → total_results = Low count
+read_tool({"name": "compensation__get__employee-scorecard",
+           "arguments": {"corporation_id": <corporation_pk>, "score": <the MID value>,  "page_size": 1}})   → total_results = Mid count
+read_tool({"name": "compensation__get__employee-scorecard",
+           "arguments": {"corporation_id": <corporation_pk>, "score": <the HIGH value>, "page_size": 1}})   → total_results = High count
 ```
 
 Plus one unfiltered call (`page_size: 1`) to read the roster `total_results`, for reconciliation.
@@ -200,8 +199,8 @@ This path is cheap (4 calls, no paging) and exact for the overall band. Continue
 For *"give me the salary / equity / total-cash breakdown"*, or whenever you also need the per-person rows, sweep the roster at the safe page size and count each metric's own band:
 
 ```
-mcp__carta__fetch({"command": "compensation:get:employee-scorecard",
-                   "params": {"corporation_id": <corporation_pk>, "page_size": 10, "page": 1}})
+read_tool({"name": "compensation__get__employee-scorecard",
+           "arguments": {"corporation_id": <corporation_pk>, "page_size": 10, "page": 1}})
 # fetch successive pages 2,3,… until you have collected total_results unique rows
 ```
 
@@ -223,62 +222,70 @@ You are **reading** the band the API already returns per row — never recompute
 > A single page that errors (oversize / transport) counts as one attempt against the cap — retry that page at most **once**, then if it still fails, STOP and surface the failure with the partial count collected so far; do not keep hammering it.
 
 **Optional filters (either path)** — pass through verbatim if the user specified them:
-- `job_filters`: narrow by job area and/or level — a list of comma-delimited strings `"JobArea,Level,LimitingLevel"` (e.g. `["ENGINEER"]`, `["ENGINEER,SENIOR1"]`). See the `job_filters` format box in Step 4b for the exact encoding — it's the #1 thing agents get wrong.
+- `job_filters`: narrow by job area and/or level — a list of comma-delimited strings `"JobArea,Level,LimitingLevel"`, built from Step 2b's values. See the `job_filters` format box in Step 4b for the exact encoding — it's the #1 thing agents get wrong.
 - `leader`: `true` for managers/executives only, `false` for ICs only
-- There is **no** `location` or top-level `level` filter (level only via `job_filters`). For location, filter the fetched rows client-side and say so.
+- Only the params in **Accepted params** (Step 4b) exist.
 
 > **When to use `corporation-scorecard` instead.** Only when the user is comparing a **draft / in-flight plan** against the active plan ("how would our positioning change under the new plan?"). It requires the **draft** plan's `plan_id` (a non-active plan), never the active plan's id:
 >
 > ```
-> mcp__carta__fetch({"command": "compensation:get:corporation-scorecard",
->                    "params": {"corporation_id": <corporation_pk>,
->                               "plan_id":        <DRAFT_plan.id>}})
+> read_tool({"name": "compensation__get__corporation-scorecard",
+>            "arguments": {"corporation_id": <corporation_pk>,
+>                          "plan_id":        <DRAFT_plan.id>}})
 > ```
+>
+> The draft plan can sit on a different benchmark version, so first call `compensation__get__filter_options` again with `"benchmark_version_id": <the draft plan's benchmark_version_id>` (Step 2b, rule 3); the comparison call itself takes no filters.
 >
 > It returns `{active_plan_counts_per_band, current_plan_counts_per_band}` for the side-by-side comparison in Step 5a. If you only have the active plan (no draft is being modeled), this endpoint is the wrong tool — use the employee-derived rollup above. If you pass the active id and get *"Cannot compare active plan to itself"*, do not surface that error — fall back to Path 1.
 
 ### Step 4b — Per-employee scorecard
 
 ```
-mcp__carta__fetch({"command": "compensation:get:employee-scorecard",
-                   "params": {"corporation_id": <corporation_pk>,
-                              "page_size": 10}})
+read_tool({"name": "compensation__get__employee-scorecard",
+           "arguments": {"corporation_id": <corporation_pk>,
+                         "page_size": 10}})
 ```
 
 > The param is `page_size` (snake_case) — camelCase `pageSize` is silently dropped by the tool layer, leaving you on the default page size. And keep `page_size` small (~10): the endpoint returns *"response too large"* at `page_size` ≥ ~25 on larger rosters.
 
-Optional filters (pass through verbatim — translate user phrasing to enums):
+> **Accepted params — nothing else.** Besides `corporation_id`, the command takes only `score`, `job_filters`, `leader`, `current`, `sort_field`, `page` and `page_size`. Any other param fails the whole call with `unknown_param` (*"does not accept …"*). In particular there is:
+> - **no `reverse_sort`** (or any other sort-direction param) and **no `name` / `employee_id`** — sort direction and person lookups are handled on the collected rows (see **Sorting a list** and **Single-employee lookup** below);
+> - **no top-level `level`** — level is reachable only through the `job_filters` CSV;
+> - **no `location`** — location cannot be filtered server-side. If the user asks to filter by location (e.g. "show me below-market employees in Austin"), fetch the roster, filter client-side on `location.home_location` / `location.work_location`, and tell the user you filtered locally.
+> - **no `focus`** — focus cannot be filtered server-side, and `job_filters` (`"JobArea,Level,LimitingLevel"`) has no slot for it. If a focus is given, narrow `job_filters` to its job area, sweep per **Path 2** (Path 1's `score` counts cannot be narrowed by focus), keep only rows whose `title.role.focus` equals it exactly, and tell the user you filtered locally. Dedupe and the render gate still apply to the full sweep, before the focus filter.
+
+Optional filters (pass through verbatim — translate user phrasing to the values in Step 2b):
 
 | User phrasing | Param | Value |
 |---|---|---|
-| "below market" (overall) | `score` | `LOW` |
-| "at market" (overall) | `score` | `MID` |
-| "above market" (overall) | `score` | `HIGH` |
-| "engineers", "engineering team" | `job_filters` | `["ENGINEER"]` |
-| "senior 1 engineers" (job + level) | `job_filters` | `["ENGINEER,SENIOR1"]` |
-| "everyone at senior 1" (level only) | `job_filters` | `[",SENIOR1,"]` |
+| "below market" (overall) | `score` | the `params.score` entry for the Low band |
+| "at market" (overall) | `score` | the `params.score` entry for the Mid band |
+| "above market" (overall) | `score` | the `params.score` entry for the High band |
+| a job area ("engineers", "the sales team") | `job_filters` | `["<job value>"]` |
+| a job area at one level | `job_filters` | `["<job value>,<level value>"]` |
+| one level across every job | `job_filters` | `[",<level value>,"]` |
 | "managers", "leaders", "people managers" | `leader` | `true` |
 | "ICs", "individual contributors" | `leader` | `false` |
-| a specific person by name ("show me Ada Lovelace's scorecard") | `name` | `"Ada Lovelace"` |
-| a specific person by employee UUID | `employee_id` | `<uuid>` |
 
-Use Title Case in narration even when passing the raw enum to the API. Example: *"Pulling the Engineering roster scorecard for Acme — filtering to Below market employees."*
+Use the labels in narration even when passing the raw value to the API. Example: *"Pulling the Engineering roster scorecard for Acme — filtering to Below market employees."*
 
 > **`job_filters` format — read this; it's the #1 thing agents get wrong.** Each element is a **comma-delimited STRING** `"JobArea,Level,LimitingLevel"`, NOT an object and NOT colon-delimited. The whole param is a **list of such strings**.
 >
 > | Intent | Pass | ✗ Do not pass |
 > |---|---|---|
-> | Engineers (any level) | `["ENGINEER"]` | ❌ `[{"job":"ENGINEER"}]` ❌ `"ENGINEER"` (bare, unwrapped) |
-> | Engineers at exactly Senior 1 | `["ENGINEER,SENIOR1"]` | ❌ `["ENGINEER:SENIOR1"]` ❌ `[{"job":...,"level":...}]` |
-> | Anyone at exactly Senior 1 | `[",SENIOR1,"]` | — |
-> | Anyone at level ≤ VP 2 (3rd slot = limiting level) | `[",,VP2"]` | — |
-> | Multiple job areas | `["ENGINEER", "SALES"]` | — |
+> | A job area (any level) | `["<job value>"]` | ❌ `[{"job":"<job value>"}]` ❌ `"<job value>"` (bare, unwrapped) |
+> | A job area at exactly one level | `["<job value>,<level value>"]` | ❌ `["<job value>:<level value>"]` ❌ `[{"job":...,"level":...}]` |
+> | Anyone at exactly one level | `[",<level value>,"]` | — |
+> | Anyone at or below a level (3rd slot = limiting level) | `[",,<level value>"]` | — |
+> | Multiple job areas | `["<job value>", "<other job value>"]` | — |
 >
-> The 2nd CSV slot is exact level; the 3rd is a "≤ this level" cap. `JobArea` is a `JobType` enum (`ENGINEER`, `SALES`, …); `Level`/`LimitingLevel` are `LevelCode` enums (`ENTRY`, `MID1`, `SENIOR1`, … `C_LEVEL`, `CEO`). Passing an object or `job:level` with a colon returns HTTP 400 *"… is not a valid selection for type JobType"*.
+> The 2nd CSV slot is the exact level; the 3rd is a "≤ this level" cap. `<job value>` is a `params.job[].value`; `<level value>` is a `params.level[].value` that appears in that job's `levels`. Passing an object or `job:level` with a colon returns HTTP 400.
 >
-> **Use the enum NAME, and don't guess it.** Pass `ENGINEER`, not `"Engineering"`; `CUSTOMER_SUCCESS`, not `"Customer Success"`/`"Customer Support"`; `SENIOR1`, not `"Senior 1"` — the Title-Case forms are user-facing only and 400 as API values. If you're unsure of a valid `JobType`/`LevelCode` name, read the full list from `search_tools({"query": "compensation get benchmark"})` (its help enumerates every job area and level). **There is no `compensation:list:job_types` / `list:jobs` / `list:levels` command — do not invent one; it returns `Unknown tool`.**
+> **Mapping a level the user named.** Match their wording to the Title Case of a level's `value` (`Senior 1` ↔ `SENIOR1`), or to its `ic_label` / `manager_label` when they give a role code (`IC 4`, `MGR 4`). For "up to VP 2" or "below Staff", take the `rank` of the named level and use the cap slot, or list the levels of that job with a lower `rank`. Use `executive` to recognise executive levels — never a hardcoded rank cutoff. If the named level is not in the chosen job's `levels`, tell the user that job has no such level and ask.
 >
-> **There is NO top-level `level` filter and NO `location` filter on this endpoint** — `level` is only reachable through the `job_filters` CSV (above), and a top-level `level` param is silently ignored. Location cannot be filtered server-side at all. If the user asks to filter by location (e.g. "show me below-market employees in Austin"), fetch the roster and filter client-side on `location.home_location` / `location.work_location`, and tell the user you filtered locally.
+> **Send the `value`, never the label or a free-text role** (`"Engineering"`, `"Senior 1"`, `"Software Engineer"` are not API values and 400 in `job_filters`). **There is no `compensation:list:job_types` / `list:jobs` / `list:levels` command — do not invent one; it returns `Unknown tool`.** The only source of filter values is `compensation:get:filter_options` (Step 2b).
+>
+> **On HTTP 400** (its fix text points to `compensation:get:filter_options`): compare every value you sent with Step 2b's `params` and resend the listed `value`. Retry at most once; if it 400s again, stop and report the error.
 
 > **CRITICAL — the `score` filter keys on the OVERALL band only, and it is nullable.**
 >
@@ -289,32 +296,30 @@ Use Title Case in narration even when passing the raw enum to the API. Example: 
 >
 > **To answer a metric-specific band question:** do **not** pass the `score` filter. Sweep the roster using the **capped procedure in Step 4a → Path 2** (page at `page_size` ≈ 10, dedupe by `ids.external_id`, **hard cap of 25 page fetches**, then STOP and offer to narrow), and read the relevant per-metric band client-side — `salary_rating.score` for salary, `ntm_equity_rating.score` for equity, `total_cash_rating.score` for total cash. You are *reading a field that is already in each response* — you are **not** recomputing the ratio. The compa-ratio and band are returned by the API; never recompute them from salary ÷ target.
 
-**Sorting a list.** When the user asks for an *ordered* roster ("worst compa-ratios first", "sort by name"), pass `sort_field` (e.g. `SCORE`, `NAME`, `LEVEL`, `EQUITY_COMPARATIO`) plus `reverse_sort` (`true`/`false`). Sorting orders a list the user wants to see — it is never a substitute for filtering to a specific person (see Single-employee lookup).
+**Percentile asks.** A band is not a percentile: `Low` means below the market range, not below P50. When the user asks for a specific percentile ("below P50", "above P75"), do not map it to a band filter. Sweep the roster per Step 4a → Path 2 and read each row's `percentile` from the rating they asked about (`salary_rating.percentile`, `total_cash_rating.percentile`, `ntm_equity_rating.percentile`), then keep the rows on the requested side of that percentile and say you filtered locally. If they only said "below market", use the band.
+
+**Sorting a list.** When the user asks for an *ordered* roster ("worst compa-ratios first", "sort by name"), pass `sort_field` with a value from Step 2b's `params.sort_field`. The endpoint always sorts that field **ascending** (A→Z, lowest first) and has no direction param (see **Accepted params** in Step 4b). For a **descending** ask ("highest paid first", "best compa-ratio first", "Z→A"), or when no `sort_field` value fits, sweep the roster per Step 4a → Path 2 (capped), sort the deduped rows locally in the order asked — rows with no value for that field go last in either direction — and say you sorted locally. Sorting orders a list the user wants to see — it is never a substitute for finding a specific person (see Single-employee lookup).
 
 #### Single-employee lookup
 
-There is **no single-employee scorecard endpoint** — an individual's compa-ratio and percentile only exist as a row inside the corporation's batch-computed scorecard, scored relative to the whole roster. To answer *"show me [person]'s scorecard"*, query the same `employee_scorecard` endpoint **filtered to that one person**:
+There is **no single-employee scorecard endpoint**, and the scorecard command has no `name` or `employee_id` filter (see **Accepted params** in Step 4b). An individual's compa-ratio and percentile only exist as a row inside the corporation's batch-computed scorecard, scored relative to the whole roster. To answer *"show me [person]'s scorecard"*, find that person's row in the roster:
 
-- If you have their employee UUID, pass `employee_id` (exact match — returns at most one row).
-- Otherwise pass `name` (substring match against full / first / last name — may return more than one person).
-
-```
-mcp__carta__fetch({"command": "compensation:get:employee-scorecard",
-                   "params": {"corporation_id": <corporation_pk>,
-                              "name": "Ada Lovelace"}})
-```
+1. If the user gave the person's job area or level, narrow with `job_filters` (Step 2b values) to cut the pages; otherwise use no filter.
+2. Sweep per Step 4a → Path 2 — same `page_size` ≈ 10, dedupe by `ids.external_id`, same **25-page hard cap**.
+3. Match locally: a name the user gave against `personal_info.full_name` / `first_name` / `last_name` (case-insensitive substring), or an employee id against the values in `ids`.
 
 Then:
 - **Exactly one match** → render that single row (you can use the per-employee table with one row, or narrate the fields inline).
 - **Multiple matches** (common with a partial/common name) → list the matches and ask which one with `AskUserQuestion`; do not assume the first.
-- **Zero matches** → *"No employee named '[name]' is in this corporation's scorecard. Check the spelling, or ask for the full roster."*
+- **Zero matches after a complete sweep** (`unique_rows == total_results`) → *"No employee named '[name]' is in this corporation's scorecard. Check the spelling, or ask for the full roster."* — **only when no filter narrowed the search**. If any did — a server param (`job_filters`, `score`, `leader`) or a local filter (focus, location) — name the filters that applied, say the person isn't among the employees they keep, and offer to search the whole roster. A row a filter dropped is still on the roster. `score` is the trap: it also hides every employee with a null overall band.
+- **Zero matches, sweep stopped at the 25-page cap** → do not say the person is absent; follow the **HARD PAGE CAP** rule in Step 4a → Path 2 (say the roster was too large to search in full, offer to narrow, and wait).
 
-> **Anti-pattern — never sort-and-pick to answer an individual question.** Do NOT pull the unfiltered roster, sort by `NAME`, and read off the top row — that returns whoever sorts first alphabetically (e.g. "A Robot"), not the person asked about. Always filter by `name` or `employee_id`. `sort_field` is for ordering a *list* the user asked to see, not for locating one person.
+> **Anti-pattern — never sort-and-pick to answer an individual question.** Do NOT pull one page sorted by `NAME` and read off the top row — that returns whoever sorts first alphabetically (e.g. "A Robot"), not the person asked about. Always match the person's name or id against every collected row. `sort_field` is for ordering a *list* the user asked to see, not for locating one person.
 
 Also fetch the active plan once (for the citation footer):
 
 ```
-call_tool({"name": "compensation__get__plan",
+read_tool({"name": "compensation__get__plan",
            "arguments": {"corporation_id": <corporation_pk>}})
 ```
 
@@ -339,7 +344,7 @@ Overall band (combined salary + equity):
 Want the salary / equity / total-cash breakdown, or the per-person table? Just ask.
 
 ---
-*Data source: Companies with post money valuations between [peer_group_label]. Benchmarks released [Month YYYY].*
+*Data source: Companies with [peer_group_dimension_phrase] [peer_group_label]. Benchmarks released [Month YYYY].*
 ```
 
 Percentages on this path are a share of the **scored** population (Low+Mid+High), not the full roster — say so. Never imply the three counts cover everyone.
@@ -360,7 +365,7 @@ Percentages on this path are a share of the **scored** population (Low+Mid+High)
 Ask me to "show employees below market" if you want the per-person table.
 
 ---
-*Data source: Companies with post money valuations between [peer_group_label]. Benchmarks released [Month YYYY].*
+*Data source: Companies with [peer_group_dimension_phrase] [peer_group_label]. Benchmarks released [Month YYYY].*
 ```
 
 The per-metric total is the number of rows with a non-null band for that metric — it can differ slightly per metric. Compute each percentage as `count / total * 100` rounded to the nearest integer; if `total == 0`, render `—` instead of `0%`.
@@ -431,7 +436,7 @@ Response shape per employee:
 >
 > Each rating has its own `score` (band), `compa_ratio`, and `percentile`. **`benchmark.score` (overall) is NOT the same as `salary_rating.score`** — an employee can be `salary_rating.score: HIGH` while `benchmark.score` is `null` or a different band. Never treat one as a proxy for the other. Always tell the user *which* source a number came from (e.g. "Market Salary ratio" vs "Payband Salary ratio" vs "overall score").
 
-**Classification.** Read the saved classification from `title.role.{level, job, focus, leader}`, and the human-readable title from `title.official_title`. Render the level/job in Title Case per the casing rule (e.g. `MID2` → `Mid 2`, `ENGINEER` → `Engineering`).
+**Classification.** Read the saved classification from `title.role.{level, job, focus, leader}`, and the human-readable title from `title.official_title`. Render the job with its `label` from Step 2b, and the level in Title Case per the casing rule (`MID2` → `Mid 2`). Never show the raw `value`.
 
 **Table format** — six columns, per Carta UX rules:
 
@@ -447,7 +452,7 @@ Response shape per employee:
 **50** employees checked. **12** Low, **28** Mid, **10** High.
 
 ---
-*Data source: Companies with post money valuations between [peer_group_label]. Benchmarks released [Month YYYY].*
+*Data source: Companies with [peer_group_dimension_phrase] [peer_group_label]. Benchmarks released [Month YYYY].*
 ```
 
 **Which band to show for a bare "who's below/above market?" (no metric named).** Prefer the **overall `score`** when it's available — it's the combined equity+salary quick-glance band. Label it explicitly as the overall score, and offer a follow-up to drill into a specific ratio:
@@ -506,9 +511,13 @@ Every response that includes scorecard data MUST end with the citation footer in
 
 ```
 ---
-*Data source: Companies with post money valuations between [peer_group_label]. Benchmarks released [Month YYYY].*
+*Data source: Companies with [peer_group_dimension_phrase] [peer_group_label]. Benchmarks released [Month YYYY].*
 ```
 
+- `peer_group_dimension_phrase`: from `compensation:get:plan` → `peer_group.dimension`. Three exact phrasings — do **NOT** hardcode `post money valuations between` regardless of the corp:
+  - `post_money` → *"post money valuations between"*
+  - `capital_raised` → *"capital raised between"*
+  - `headcount` → *"headcount of"*
 - `peer_group_label`: from `compensation:get:plan` → `peer_group.label` (e.g. `"$50M-$100M"`).
 - `Month YYYY`: derived from `benchmark_version.created` ISO timestamp (e.g. `"2026-05-06T..."` → `"May 2026"`). Not a version number.
 
@@ -516,9 +525,13 @@ This is the same citation contract as carta-compensation-benchmarks — keep it 
 
 ## Subscription gating
 
-If `compensation:get:subscription_status` returns `is_subscribed: false`, OR a scorecard call returns HTTP 403, OR `compensation:get:plan` returns 403, stop and reply with one of the two messages below.
+If `compensation:get:subscription_status` returns `has_ctc_access: false`, OR a scorecard call returns HTTP 403, OR `compensation:get:plan` returns 403, the caller lacks a CTC role on this corp. Stop and reply with the no-access message, verbatim — no demo link, since the user needs a role grant, not a sales conversation:
 
-Choose between them by whether the user has cap table access: `call_tool({"name": "context_tools__get__profile", "arguments": {}})` and check whether `corporations[]` is non-empty. Treat a **non-empty** list as "has cap table access" — the endpoint already excludes `NO_ACCESS` roles, so presence is the signal. Do **not** match on the `role` label: those strings are raw and unnormalized (`'Admin'` and `'Administrator'` both occur), so an allowlist would misclassify real admins. Do **not** test whether *this specific corp* is in the list — the list is capped server-side, so a large-portfolio admin can be a false negative.
+> *"Your account doesn't have a CTC role for this corporation, contact a company admin for access"*
+
+If `compensation:get:subscription_status` returns `has_ctc_access: true` and `is_subscribed: false`, stop and reply with one of the two subscription messages below, verbatim. Keep "your company" or "your firm": do not put the corporation name or id in its place.
+
+Choose between them by whether the user has cap table access: `read_tool({"name": "context_tools__get__profile", "arguments": {}})` and check whether `corporations[]` is non-empty. Treat a **non-empty** list as "has cap table access" — the endpoint already excludes `NO_ACCESS` roles, so presence is the signal. Do **not** match on the `role` label: those strings are raw and unnormalized (`'Admin'` and `'Administrator'` both occur), so an allowlist would misclassify real admins. Do **not** test whether *this specific corp* is in the list — the list is capped server-side, so a large-portfolio admin can be a false negative.
 
 This call runs only on this failure path, after the gate has already decided to stop — it costs nothing on the happy path. If it errors or returns an unreadable response, use the **"your firm"** variant (it promises nothing you can't deliver) and do not retry.
 
@@ -528,7 +541,7 @@ If `corporations[]` is **non-empty**:
 >
 > *I can pull cap table data — grants, vesting, round history — in the meantime."*
 
-If `corporations[]` is **empty** — a Fund-Admin-only user, or the corp came from a hand-typed numeric ID (Path 1) that they hold no cap-table role on:
+If `corporations[]` is **empty** — a Fund-Admin-only user, or the corp came from a hand-typed numeric ID that they hold no cap-table role on:
 
 > *"That's a Carta Total Compensation (CTC) question — CTC runs on Carta's private market salary and equity data. The data can be segmented by level, function, stage, and geography, directly in Claude. It's not active for your firm yet. Reach out to your account team or [request a demo](https://carta.com/demo/total-comp/?&utm_medium=product&utm_source=carta-web&utm_campaign=ctc-plugin-inq-amer-q2-26) to unlock it."*
 
@@ -541,7 +554,11 @@ Do not retry. Do not surface the raw HTTP status, stack trace, or error body. Do
 | `compensation:get:plan` returns no active plan | *"No active CTC plan for this corporation. The scorecard needs an active plan to compute against — ask the corp's CTC admin to activate one in the product UI."* |
 | `corporation-scorecard` errors with *"Cannot compare active plan to itself"* | You passed the **active** plan id to a comparison-only endpoint. Expected — don't surface it to the user. Fall back to the employee-derived rollup (Step 4a, Path 1). Only use `corporation-scorecard` with a **draft** plan id. |
 | Scorecard regeneration is in flight (response carries `task_status.state: PENDING` / `RUNNING`) | Surface the partial data if present, append: *"The scorecard is currently regenerating in the background. Numbers may shift in the next few minutes."* |
-| Unknown band value (anything other than LOW / MID / HIGH) | Render verbatim in chat; don't substitute. The API enum may have grown. |
+| Unknown band value (not in `params.score`) | Render verbatim in chat; don't substitute. The set of bands may have grown. |
+| `unknown_param` (*"does not accept …"*) or `invalid_argument` on `employee-scorecard` | You sent a param outside **Accepted params** (Step 4b). Drop it, or rename it to a param the error's `allowed_params` / `did_you_mean` lists, resend once, and do what **Accepted params** says for that param instead. Never resend the same call, and do not guess other variants of the param. |
+| HTTP 400 on a `job_filters`, `score` or `sort_field` value | Compare the values you sent with Step 2b's `params`, resend the listed `value` once, then stop and report. Do not guess a variation. |
+| `compensation:get:filter_options` fails | Stop (Step 2b, rule 4): 403 → no-access message, 404 → no active CTC plan, `Unknown tool` → the connected Carta MCP is too old. Do not fall back to typed values. |
+| *"Unknown tool"* or *"No such tool available"* on a compensation call | The tool name is wrong. Scorecard tool names keep their hyphen: `compensation__get__employee-scorecard`, not `…employee_scorecard`. Use the exact name from the tool-name table at the top of this skill, through `read_tool`, and retry once. Do not guess name variations. |
 | Network/transport error | One retry. If it fails again, surface: *"Couldn't reach compensation-service. Try again in a moment — if this keeps happening, contact Carta support."* |
 | Response too large (*"response too large (limit 40000 chars)"*) | Drop `page_size` to ~10 and page through. Never estimate a distribution from a partial sweep — complete it or tell the user it couldn't be completed. |
 

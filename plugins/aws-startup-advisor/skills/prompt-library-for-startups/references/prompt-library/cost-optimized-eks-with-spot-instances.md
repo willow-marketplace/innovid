@@ -36,7 +36,7 @@ Deploy across multiple availability zones to maximize Spot availability
 Implementation:
 
 Use Terraform with the official EKS module to provision the EKS cluster infrastructure
-Use MCP (Model Context Protocol) to connect to the Kubernetes API for deployment and configuration
+Use kubectl to connect to the Kubernetes API for deployment and configuration (or a Kubernetes MCP server, if you already have one configured — this plugin does not ship one)
 Provide all necessary Terraform configurations for EKS cluster setup
 Provide all necessary Kubernetes manifests, Karpenter NodePool/EC2NodeClass configurations, and KEDA ScaledObject definitions
 Include any required IAM roles, policies, and service account configurations
@@ -44,7 +44,7 @@ Please create a complete, production-ready setup with all configuration files ne
 
 Error Management:
 
-Use MCP to connect to the Kubernetes API and verify if the EKS cluster exists
+Use kubectl to connect to the Kubernetes API and verify if the EKS cluster exists
 If the cluster doesn't exist, ask me if I want to create it and provide the creation steps using Terraform
 Check the Kubernetes cluster version and verify compatibility with Karpenter
 Recommend the appropriate Karpenter version based on the cluster version

@@ -1,34 +1,52 @@
 > AI agents: this is one page from PostHog's docs. Full index of Markdown docs for LLMs: https://posthog.com/llms.txt
 
-# Ruby on Rails - Docs
+# Ruby on Rails
 
-Copy page
+Canonical URL: https://posthog.com/docs/libraries/ruby-on-rails
 
-# Ruby on Rails - Docs
+> **Cloud region:** This page uses US Cloud hosts. For an EU Cloud project, use `https://eu.i.posthog.com` instead of `https://us.i.posthog.com` (ingestion host), and use `https://eu.posthog.com` instead of `https://us.posthog.com` (app host for links).
+
+## On this page
+
+- [Install with the wizard](#install-with-the-wizard)
+- [Features](#features)
+- [Installation](#installation)
+- [Identifying users](#identifying-users)
+- [Configuration](#configuration)
+- [Capturing events](#capturing-events)
+- [Request context](#request-context)
+- [Trace context](#trace-context)
+- [Logs](#logs)
+- [Error tracking](#error-tracking)
+- [Feature flags](#feature-flags)
+- [Transactional emails](#transactional-emails)
+- [Testing](#testing)
+- [Configuration reference](#configuration-reference)
+- [Troubleshooting](#troubleshooting)
+- [Next steps](#next-steps)
 
 PostHog makes it easy to get data about traffic and usage of your Ruby on Rails app. Integrating PostHog enables analytics, custom event capture, feature flags, and automatic exception tracking.
 
 This guide walks you through integrating PostHog into your Rails app using the [posthog-rails gem](https://github.com/PostHog/posthog-ruby/tree/main/posthog-rails).
 
-## Beta: integration via LLM
+## Install with the wizard
 
-Install PostHog for Rails in seconds with our wizard by running this prompt with [LLM coding agents](/blog/envoy-wizard-llm-agent.md) like Cursor and Bolt, or by running it in your terminal.
+Run this command in your project directory to add PostHog to your Rails project. The wizard detects your framework, installs the SDK, and sets up your first events.
 
 `npx @posthog/wizard`
 
-[Learn more](/wizard.md)
-
-Or, to integrate manually, continue with the rest of this guide.
+Or set it up manually by following the rest of this guide.
 
 ## Features
 
--   **Automatic exception tracking** – Captures unhandled and rescued exceptions
--   **ActiveJob instrumentation** – Tracks background job exceptions
+-   **Automatic exception tracking** – Captures web request, streaming, Action Cable, and Rails runner failures
+-   **Active Job instrumentation** – Tracks background job exceptions, optionally reports retry failures, and carries session and person IDs into queued jobs
 -   **User context** – Automatically associates exceptions with the current user
 -   **Smart filtering** – Excludes common Rails exceptions (404s, etc.) by default
 -   **Request context** – Adds request metadata and optional PostHog tracing header identity/session context to captured events
 -   **Rails 7.0+ error reporter** – Integrates with Rails' built-in error reporting
--   **Log forwarding** – Optionally forwards `Rails.logger` output to [PostHog Logs](/docs/logs.md) over OpenTelemetry, automatically correlated with request context (Ruby 3.3+)
+-   **Log forwarding** – Forwards `Rails.logger` output and optional structured Rails notification logs to [PostHog Logs](https://posthog.com/docs/logs.md), correlated with request context (Ruby 3.3+)
+-   **Transactional emails** – Sends emails from PostHog templates or content rendered by your app
 
 ## Installation
 
@@ -36,18 +54,12 @@ Add both gems to your Gemfile:
 
 Gemfile
 
-PostHog AI
-
 ```ruby
-gem 'posthog-ruby', require: 'posthog'
-gem 'posthog-rails'
+gem 'posthog-ruby', '~> 3.0', require: 'posthog'
+gem 'posthog-rails', '~> 3.0'
 ```
 
 Then run:
-
-Terminal
-
-PostHog AI
 
 ```bash
 bundle install
@@ -55,17 +67,13 @@ bundle install
 
 ## Identifying users
 
-> **Identifying users is required.** Backend events need a `distinct_id` that matches the ID your frontend uses when calling `posthog.identify()`. Without this, backend events are orphaned — they can't be linked to frontend event captures, [session replays](/docs/session-replay.md), [LLM traces](/docs/ai-engineering.md), or [error tracking](/docs/error-tracking.md).
+> **Identifying users is required.** Backend events need a `distinct_id` that matches the ID your frontend uses when calling `posthog.identify()`. Without this, backend events are orphaned — they can't be linked to frontend event captures, [session replays](https://posthog.com/docs/session-replay.md), [LLM traces](https://posthog.com/docs/ai-engineering.md), or [error tracking](https://posthog.com/docs/error-tracking.md).
 >
-> See our guide on [identifying users](/docs/getting-started/identify-users.md) for how to set this up.
+> See our guide on [identifying users](https://posthog.com/docs/getting-started/identify-users.md) for how to set this up.
 
 ### Generate the initializer
 
 Run the install generator to create the PostHog initializer:
-
-Terminal
-
-PostHog AI
 
 ```bash
 rails generate posthog:install
@@ -81,8 +89,6 @@ The generated initializer includes the most common options:
 
 config/initializers/posthog.rb
 
-PostHog AI
-
 ```ruby
 # Rails-specific configuration
 PostHog::Rails.configure do |config|
@@ -93,36 +99,47 @@ PostHog::Rails.configure do |config|
   config.capture_user_context = true              # Include authenticated user info in exceptions (default: true)
   config.current_user_method = :current_user      # Method to get current user (default: :current_user)
   config.user_id_method = nil                     # Method to get ID from user object (default: auto-detect)
+
   # Add additional exceptions to ignore
   config.excluded_exceptions = ['MyCustomError']
 end
+
 # Core PostHog client initialization
 PostHog.init do |config|
   # Required: Your PostHog project API key
   config.api_key = '<ph_project_token>'
+
   # Optional: Your PostHog instance URL
   config.host = 'https://us.i.posthog.com'
-  # Optional: Personal API key for feature flags
-  config.personal_api_key = 'phx_xxxxxxxxx'
+
+  # Optional: Secret key for local feature flag evaluation and remote config
+  config.secret_key = ENV["POSTHOG_SECRET_KEY"]
+
   # Maximum number of events to queue before dropping (default: 10000)
   config.max_queue_size = 10_000
+
   # Send events synchronously on the calling thread (default: false)
   config.sync_mode = false
+
   # Feature flags polling interval in seconds (default: 30)
   config.feature_flags_polling_interval = 30
+
   # Feature flag request timeout in seconds (default: 3)
   config.feature_flag_request_timeout_seconds = 3
+
   # Error callback to detect misconfiguration
   config.on_error = proc { |status, msg|
     Rails.logger.error("PostHog error: #{msg}")
   }
+
   # Before-send callback to modify or drop events
   config.before_send = proc { |event|
     event[:properties] ||= {}
     event[:properties]['environment'] = Rails.env
     event
   }
-  # Disable network calls in test mode
+
+  # Keep analytics events queued in test mode
   config.test_mode = true if Rails.env.test?
 end
 ```
@@ -131,42 +148,30 @@ You can find your project token and instance address in [your project settings](
 
 > **Tip:** Use [`Rails.application.credentials`](https://guides.rubyonrails.org/security.html#custom-credentials) to avoid hardcoding API keys. First, add your keys and then reference them in your initializer:
 >
-> Terminal
->
-> PostHog AI
->
 > ```bash
 > rails credentials:edit
 > ```
 >
 > config/credentials.yml.enc
 >
-> PostHog AI
->
 > ```yaml
 > posthog:
 >   api_key: <ph_project_token>
 >   host: https://us.i.posthog.com
->   personal_api_key: phx_xxxxxxxxx
+>   secret_key: phs_xxxxxxxxx
 > ```
 >
 > config/initializers/posthog.rb
 >
-> PostHog AI
->
 > ```ruby
 > config.api_key = Rails.application.credentials.posthog[:api_key]
 > config.host = Rails.application.credentials.posthog[:host]
-> config.personal_api_key = Rails.application.credentials.posthog[:personal_api_key]
+> config.secret_key = Rails.application.credentials.posthog[:secret_key]
 > ```
 
 ## Capturing events
 
 Track custom events anywhere in your Rails app:
-
-Ruby
-
-PostHog AI
 
 ```ruby
 PostHog.capture({
@@ -177,10 +182,6 @@ PostHog.capture({
 ```
 
 Identify a user and set their person properties:
-
-Ruby
-
-PostHog AI
 
 ```ruby
 PostHog.identify({
@@ -200,250 +201,49 @@ PostHog Rails automatically applies request-scoped context to events captured du
 
 When `use_tracing_headers` is enabled, PostHog tracing headers (`X-PostHog-Distinct-Id` and `X-PostHog-Session-Id`) are also used as default `distinct_id` and `$session_id` values. Explicit `distinct_id` and properties passed to `PostHog.capture` always take precedence.
 
-If you're using [PostHog JS](/docs/libraries/js.md) on the frontend, configure [`tracing_headers`](/docs/libraries/js/config.md#tracing-headers) for your Rails backend hostname so browser requests include the session and distinct ID headers.
+If you're using [PostHog JS](https://posthog.com/docs/libraries/js.md) on the frontend, configure [`tracing_headers`](https://posthog.com/docs/libraries/js/config.md#tracing-headers) for your Rails backend hostname so browser requests include the session and distinct ID headers.
 
 Tracing headers are client-controlled analytics context, not authentication or authorization. Pass an authenticated `distinct_id` explicitly for security-sensitive server-side decisions.
 
 Disable tracing header identity/session capture if you do not want client-supplied tracing headers used for server-side events. Request metadata is still captured:
 
-Ruby
-
-PostHog AI
-
 ```ruby
 PostHog::Rails.config.use_tracing_headers = false
 ```
 
+## Trace context
+
+PostHog Rails adds missing `sessionId` and `posthogDistinctId` attributes to an active OpenTelemetry SDK request span after it reads the request context. To also add these attributes to child spans, register the optional processor on your existing OpenTelemetry provider before requests start:
+
+```ruby
+require 'posthog/otel/context_span_processor'
+
+OpenTelemetry.tracer_provider.add_span_processor(
+  PostHog::ContextSpanProcessor.new
+)
+```
+
+This integration supports OpenTelemetry SDK 1.0.0 or later. Keep your existing provider, exporter, sampler, and processors. Put the OpenTelemetry request middleware outside the PostHog request middleware so the request span is active when PostHog reads the context. To send spans to PostHog, configure your existing OTLP exporter with the [PostHog trace endpoint](https://posthog.com/docs/distributed-tracing/installation.md).
+
+Existing `sessionId` and `posthogDistinctId` span attributes take precedence. Set authenticated application identity with `posthogDistinctId`. Missing IDs stay absent. Spans that already started keep their attributes after the request ends. Separate threads and fibers need explicit context transfer. With `config.auto_instrument_active_job = true`, Active Job copies the session and distinct IDs into queued jobs, so job spans get them too. The processor does not create a session, recording, trace provider, or exporter.
+
 ## Logs
 
-To set up [PostHog Logs](/docs/logs.md) in your Rails app, follow the [Ruby on Rails logs installation guide](/docs/logs/installation/ruby-on-rails.md). The integration forwards `Rails.logger` output to PostHog Logs over OpenTelemetry, automatically correlated with each request's distinct ID and session ID. Requires Ruby 3.3+.
+To set up [PostHog Logs](https://posthog.com/docs/logs.md) in your Rails app, follow the [Ruby on Rails logs installation guide](https://posthog.com/docs/logs/installation/ruby-on-rails.md). The integration forwards `Rails.logger` output and optional structured controller, SQL, job, and mailer notification logs, correlated with PostHog identity and active OpenTelemetry traces. Requires Ruby 3.3+.
 
 ## Error tracking
 
-For full details on setting up error tracking with Rails, see our [Rails error tracking installation guide](/docs/error-tracking/installation/ruby-on-rails.md).
-
-### Automatic exception tracking
-
-When `auto_capture_exceptions` is enabled, exceptions are automatically captured:
-
-Ruby
-
-PostHog AI
-
-```ruby
-class PostsController < ApplicationController
-  def show
-    @post = Post.find(params[:id])
-    # Any exception here is automatically captured
-  end
-end
-```
-
-`report_rescued_exceptions` controls whether exceptions Rails rescues (for example, exceptions rendered by Rails error pages) are captured. Enable it along with `auto_capture_exceptions` for complete error visibility, or leave it disabled to capture only unhandled exceptions.
-
-### Manual exception capture
-
-You can also manually capture exceptions:
-
-Ruby
-
-PostHog AI
-
-```ruby
-PostHog.capture_exception(
-  exception,
-  current_user.id,
-  { custom_property: 'value' }
-)
-```
-
-If you evaluated feature flags for the request, pass the same snapshot to include matching flag properties on the exception event:
-
-Ruby
-
-PostHog AI
-
-```ruby
-flags = PostHog.evaluate_flags(current_user.id)
-PostHog.capture_exception(
-  exception,
-  current_user.id,
-  { custom_property: 'value' },
-  flags: flags
-)
-```
-
-### Background job exceptions
-
-When `auto_instrument_active_job` is enabled, ActiveJob exceptions are automatically captured with job context:
-
-Ruby
-
-PostHog AI
-
-```ruby
-class EmailJob < ApplicationJob
-  def perform(user_id)
-    user = User.find(user_id)
-    UserMailer.welcome(user).deliver_now
-    # Exceptions are automatically captured
-  end
-end
-```
-
-#### Associating jobs with users
-
-By default, PostHog extracts a `distinct_id` from job arguments by looking for a `user_id` key in hash arguments:
-
-Ruby
-
-PostHog AI
-
-```ruby
-# PostHog will automatically use options[:user_id] as the distinct_id
-ProcessOrderJob.perform_later(order.id, user_id: current_user.id)
-```
-
-For more control, use the `posthog_distinct_id` class method. The proc or block receives the same arguments as `perform`:
-
-Ruby
-
-PostHog AI
-
-```ruby
-class SendWelcomeEmailJob < ApplicationJob
-  posthog_distinct_id ->(user, _options) { user.id }
-  def perform(user, options = {})
-    UserMailer.welcome(user).deliver_now
-  end
-end
-```
-
-You can also use a block:
-
-Ruby
-
-PostHog AI
-
-```ruby
-class ProcessOrderJob < ApplicationJob
-  posthog_distinct_id do |_order, notify_user_id|
-    notify_user_id
-  end
-  def perform(order, notify_user_id)
-    # Process the order...
-  end
-end
-```
-
-### Rails 7.0+ error reporter
-
-PostHog integrates with Rails' built-in error reporting:
-
-Ruby
-
-PostHog AI
-
-```ruby
-# These errors are automatically sent to PostHog
-Rails.error.handle do
-  # Code that might raise an error
-end
-Rails.error.record(exception, context: { user_id: current_user.id })
-```
-
-PostHog automatically extracts the user's distinct ID from `user_id` or `distinct_id` in the context hash. Other context keys are included as properties on the exception event.
-
-### User context
-
-PostHog Rails automatically captures authenticated user information from your controllers for exceptions. Authenticated Rails user context takes precedence over client-supplied tracing headers for exception identity.
-
-If your user method has a different name, configure it:
-
-Ruby
-
-PostHog AI
-
-```ruby
-PostHog::Rails.config.current_user_method = :logged_in_user
-```
-
-#### User ID extraction
-
-By default, PostHog Rails auto-detects the user's distinct ID by trying these methods in order:
-
-1.  `posthog_distinct_id` – Define this on your User model for full control
-2.  `distinct_id` – Common analytics convention
-3.  `id` – Standard ActiveRecord primary key
-4.  `pk` – Primary key alias
-5.  `uuid` – For UUID-based primary keys
-
-It also checks hash-like users for `id`, `pk`, and `uuid` keys.
-
-You can configure a specific method:
-
-Ruby
-
-PostHog AI
-
-```ruby
-PostHog::Rails.config.user_id_method = :email
-```
-
-Or define a method on your User model:
-
-Ruby
-
-PostHog AI
-
-```ruby
-class User < ApplicationRecord
-  def posthog_distinct_id
-    "user_#{id}"  # or external_id, or any unique identifier
-  end
-end
-```
-
-### Excluded exceptions
-
-The following exceptions are not reported by default (common 4xx errors):
-
--   `AbstractController::ActionNotFound`
--   `ActionController::BadRequest`
--   `ActionController::InvalidAuthenticityToken`
--   `ActionController::InvalidCrossOriginRequest`
--   `ActionController::MethodNotAllowed`
--   `ActionController::NotImplemented`
--   `ActionController::ParameterMissing`
--   `ActionController::RoutingError`
--   `ActionController::UnknownFormat`
--   `ActionController::UnknownHttpMethod`
--   `ActionDispatch::Http::Parameters::ParseError`
--   `ActiveRecord::RecordNotFound`
--   `ActiveRecord::RecordNotUnique`
-
-Add more with:
-
-Ruby
-
-PostHog AI
-
-```ruby
-PostHog::Rails.config.excluded_exceptions = ['MyException']
-```
+The integration supports controller reports, Active Job failures and retries, Action Cable, streaming responses, and Rails runner failures. See the [Rails error tracking guide](https://posthog.com/docs/error-tracking/installation/ruby-on-rails.md) for setup, identity resolution, filtering, and examples.
 
 ## Feature flags
 
 Evaluate flags once for the current user, then read values from the returned snapshot:
 
-Ruby
-
-PostHog AI
-
 ```ruby
 class PostsController < ApplicationController
   def show
     flags = PostHog.evaluate_flags(current_user.id)
+
     if flags.enabled?('new-post-design')
       render 'posts/show_new'
     else
@@ -455,13 +255,10 @@ end
 
 For multivariate flags and experiments, use `get_flag`:
 
-Ruby
-
-PostHog AI
-
 ```ruby
 flags = PostHog.evaluate_flags(current_user.id)
 variant = flags.get_flag('checkout-experiment')
+
 if variant == 'test'
   # Do something differently
 end
@@ -469,12 +266,9 @@ end
 
 When capturing an event after branching on a flag, pass the same `flags` snapshot so the event includes the exact flag values used by your code:
 
-Ruby
-
-PostHog AI
-
 ```ruby
 flags = PostHog.evaluate_flags(current_user.id)
+
 PostHog.capture({
   distinct_id: current_user.id,
   event: 'checkout_started',
@@ -482,27 +276,19 @@ PostHog.capture({
 })
 ```
 
-For local evaluation, ensure you've set `personal_api_key`:
+For local evaluation, configure `secret_key` in your initializer. See [Ruby local evaluation](https://posthog.com/docs/libraries/ruby.md#local-evaluation) for credentials, caching, and Puma/Unicorn setup.
 
-Ruby
+Older single-flag methods are deprecated. See the [migration reference](https://posthog.com/docs/libraries/ruby.md#legacy-single-flag-methods).
 
-PostHog AI
+## Transactional emails
 
-```ruby
-config.personal_api_key = Rails.application.credentials.posthog[:personal_api_key]
-```
-
-See our [Ruby SDK docs](/docs/libraries/ruby.md#local-evaluation) for details on local evaluation with Puma and Unicorn servers.
-
-> **Note:** `PostHog.is_feature_enabled`, `PostHog.get_feature_flag`, `PostHog.get_feature_flag_result`, `PostHog.get_feature_flag_payload`, and `PostHog.capture({ ..., send_feature_flags: true })` still work during the migration period, but they're deprecated. Prefer `PostHog.evaluate_flags` for new code.
+See [send transactional emails with Ruby](https://posthog.com/docs/workflows/transactional-emails/ruby.md#use-in-rails) for Rails setup and examples using `PostHog.emails`.
 
 ## Testing
 
-In your test environment, disable network calls with test mode:
+In your test environment, keep analytics events queued with test mode:
 
 config/environments/test.rb
-
-PostHog AI
 
 ```ruby
 PostHog.init do |config|
@@ -511,11 +297,11 @@ PostHog.init do |config|
 end
 ```
 
-Or in your specs:
+Stub feature flag definition fetches separately. For transactional emails, follow the [email testing guide](https://posthog.com/docs/workflows/transactional-emails/ruby.md#test-without-sending-email).
+
+Or stub event capture in your specs:
 
 spec/rails\_helper.rb
-
-PostHog AI
 
 ```ruby
 RSpec.configure do |config|
@@ -529,20 +315,19 @@ end
 
 ### Core PostHog options
 
-| Option | Type | Default | Description |
-| --- | --- | --- | --- |
-| api_key | String | required | Your PostHog project token. |
-| host | String | https://us.i.posthog.com | Fully qualified PostHog API host. |
-| personal_api_key | String | nil | Personal API key for local feature flag evaluation and remote config payloads. |
-| max_queue_size | Integer | 10000 | Maximum number of events to keep in the async queue before dropping new events. |
-| test_mode | Boolean | false | Keep events queued and do not send them. Useful for tests. |
-| sync_mode | Boolean | false | Send events synchronously on the calling thread. |
-| on_error | Proc | no-op | Callback called as on_error.call(status, error). |
-| feature_flags_polling_interval | Integer | 30 | Seconds between local feature flag definition polls. |
-| feature_flag_request_timeout_seconds | Integer | 3 | Timeout, in seconds, for feature flag requests. |
-| before_send | Proc | nil | Callback that receives the event hash before it is queued or sent. Return a modified event hash, or nil to drop the event. |
+`PostHog.init` accepts [Ruby SDK options](https://posthog.com/docs/libraries/ruby.md#configuration) as a hash. Use this form for options not supported by the initializer block:
 
-The `PostHog.init` block supports the options above. Less common core options like `batch_size`, `disable_singleton_warning`, `skip_ssl_verification`, and `flag_definition_cache_provider` can be passed as an options hash to `PostHog.init(...)`; see the [Ruby SDK docs](/docs/libraries/ruby.md#configuration) for details.
+```ruby
+PostHog.init(
+  api_key: "<ph_project_token>",
+  host: "https://us.i.posthog.com",
+  secret_key: ENV.fetch("POSTHOG_SECRET_KEY"),
+  flush_interval_seconds: 2,
+  feature_flags_async_load: true
+)
+```
+
+See [asynchronous flag loading](https://posthog.com/docs/libraries/ruby.md#load-definitions-asynchronously) for startup behavior and [flush/shutdown](https://posthog.com/docs/libraries/ruby.md#flushing-and-shutting-down) for timeout options.
 
 ### Rails-specific options
 
@@ -550,24 +335,22 @@ Configure these via `PostHog::Rails.configure` or `PostHog::Rails.config`:
 
 | Option | Type | Default | Description |
 | --- | --- | --- | --- |
-| auto_capture_exceptions | Boolean | false | Automatically capture exceptions. |
-| report_rescued_exceptions | Boolean | false | Report exceptions Rails rescues. |
-| auto_instrument_active_job | Boolean | false | Capture ActiveJob exceptions with job context. |
-| excluded_exceptions | Array | [] | Additional exception class names to ignore. |
-| use_tracing_headers | Boolean | true | Use X-PostHog-Distinct-Id and X-PostHog-Session-Id as request-scoped defaults. |
-| capture_user_context | Boolean | true | Include authenticated user info in exceptions. |
-| current_user_method | Symbol | :current_user | Controller method used to fetch the current user. |
-| user_id_method | Symbol | nil | Method used to extract the distinct ID from the user object. Auto-detects when nil. |
+| `auto_capture_exceptions` | Boolean | `false` | Automatically capture exceptions. |
+| `report_rescued_exceptions` | Boolean | `false` | Report exceptions Rails rescues. |
+| `auto_instrument_active_job` | Boolean | `false` | Capture Active Job exceptions and propagate session and distinct IDs into queued jobs. |
+| `report_active_job_retries` | Boolean | `false` | Report Active Job retry failures. Requires `auto_instrument_active_job`. See [retry reporting](https://posthog.com/docs/error-tracking/installation/ruby-on-rails.md#report-retry-failures). |
+| `excluded_exceptions` | Array | `[]` | Additional exception class names to ignore. |
+| `use_tracing_headers` | Boolean | `true` | Use `X-PostHog-Distinct-Id` and `X-PostHog-Session-Id` as request-scoped defaults. |
+| `capture_user_context` | Boolean | `true` | Include authenticated user info in exceptions. |
+| `current_user_method` | Symbol | `:current_user` | Controller or Action Cable connection method used to fetch the current user. |
+| `current_user_resolver` | Proc | `nil` | Resolve the current user for controller exception reports. Takes precedence over `current_user_method`. See [user context](https://posthog.com/docs/error-tracking/installation/ruby-on-rails.md#user-context). |
+| `user_id_method` | Symbol | `nil` | Method used to extract the distinct ID from the user object. Auto-detects when nil. |
 
 ## Troubleshooting
 
 ### Exceptions not being captured
 
 1.  Verify PostHog is initialized:
-
-    Ruby
-
-    PostHog AI
 
     ```ruby
     Rails.console
@@ -579,10 +362,6 @@ Configure these via `PostHog::Rails.configure` or `PostHog::Rails.config`:
 
 3.  Verify middleware is installed:
 
-    Ruby
-
-    PostHog AI
-
     ```ruby
     Rails.application.middleware
     ```
@@ -590,21 +369,13 @@ Configure these via `PostHog::Rails.configure` or `PostHog::Rails.config`:
 ### User context not working
 
 1.  Verify `current_user_method` matches your controller method.
-2.  Check that the user object responds to `posthog_distinct_id`, `distinct_id`, `id`, `pk`, or `uuid`.
+2.  Check that the user object responds to `posthog_distinct_id`, `distinct_id`, `id`, `pk`, or `uuid`. See [user context](https://posthog.com/docs/error-tracking/installation/ruby-on-rails.md#user-context) to use a custom resolver.
 3.  If using a custom identifier, set `PostHog::Rails.config.user_id_method = :your_method`.
 
 ### Feature flags not working
 
-Ensure you've set `personal_api_key` in your configuration.
+Check your [local evaluation configuration](https://posthog.com/docs/libraries/ruby.md#local-evaluation). With asynchronous loading, check `PostHog.feature_flags_loaded?` before expecting local results.
 
 ## Next steps
 
-For any technical questions for how to integrate specific PostHog features into Rails (such as analytics, feature flags, A/B testing, etc.), have a look at our [Ruby SDK docs](/docs/libraries/ruby.md).
-
-### Still have questions?
-
-Ask PostHog AI
-
-### Was this page useful?
-
-HelpfulCould be better
+For any technical questions for how to integrate specific PostHog features into Rails (such as analytics, feature flags, A/B testing, etc.), have a look at our [Ruby SDK docs](https://posthog.com/docs/libraries/ruby.md).

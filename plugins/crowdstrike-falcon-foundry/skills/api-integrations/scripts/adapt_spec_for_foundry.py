@@ -3,11 +3,12 @@
 """
 adapt_spec_for_foundry.py — Transform OpenAPI specs for Falcon Foundry
 
-Applies deterministic transformations derived from 12 production Foundry sample apps:
+Applies deterministic transformations derived from 12 Foundry sample apps:
   1. Swagger 2.0 conversion: Convert to OpenAPI 3.0 via swagger2openapi (npx)
   2. Server URLs: Strip https:// from variable-based URLs, remove default from variables
   3. Auth: Infer API key prefix via bearerFormat, remove oauth2 authorizationCode
-  4. Parameters: Remove operation-level params that duplicate path-level params
+  4. Parameters: Remove operation-level params that duplicate path-level params,
+     and push path-level params down into operations when one overrides them
 
 Does NOT add x-cs-operation-config — which operations to expose to workflows is a
 prompt-driven decision the agent makes based on user requirements.
@@ -38,29 +39,23 @@ def convert_swagger_to_openapi(path):
     Returns (converted_path, True) if conversion happened, (original_path, False) otherwise.
     CrowdStrike's own Falcon API spec requires this conversion for Foundry compatibility.
     """
-    text = Path(path).read_text(encoding='utf-8', errors='replace')
-
-    # Detect Swagger 2.0
-    is_swagger = False
-    if '"swagger"' in text[:500] or "'swagger'" in text[:500]:
-        is_swagger = True
-    elif text.lstrip().startswith('swagger:'):
-        is_swagger = True
-
-    if not is_swagger:
+    # Read the version from the parsed document, not the first 500 bytes:
+    # vendor specs may put a long info block ahead of the Swagger field.
+    document, _ = load_spec(path)
+    if not isinstance(document, dict) or str(document.get('swagger')) != '2.0':
         return path, False
 
     # Determine output format based on input
     if path.endswith(('.yaml', '.yml')):
         out_path = path.rsplit('.', 1)[0] + '.openapi3.yaml'
         cmd = [
-            'npx', '-y', '-p', 'swagger2openapi', 'swagger2openapi',
+            'npx', '-y', '-p', 'swagger2openapi@7.0.8', 'swagger2openapi',
             '--', path, '-o', out_path, '--yaml',
         ]
     else:
         out_path = path.rsplit('.', 1)[0] + '.openapi3.json'
         cmd = [
-            'npx', '-y', '-p', 'swagger2openapi', 'swagger2openapi',
+            'npx', '-y', '-p', 'swagger2openapi@7.0.8', 'swagger2openapi',
             '--', path, '-o', out_path,
         ]
 
@@ -232,9 +227,10 @@ def fix_auth(spec):
             f" (was missing — Foundry requires this for credential prompt)"
         )
 
-    # Remove per-operation 'security: []' overrides that disable auth.
-    # These are left behind when vendor specs define per-operation security
-    # and the original schemes get removed/replaced.
+    # Remove per-operation 'security: []' overrides. Foundry ignores them and
+    # sends the integration's credentials to every operation (verified on a live
+    # install), so dropping them makes the spec match what Foundry does. They
+    # also appear when the scheme an operation referenced gets removed above.
     if remaining_schemes:
         empty_count = 0
         for path_item in spec.get('paths', {}).values():
@@ -245,7 +241,7 @@ def fix_auth(spec):
         if empty_count:
             changes.append(
                 f"  Removed {empty_count} empty per-operation security overrides"
-                f" (were disabling auth)"
+                f" (Foundry ignores them)"
             )
 
     return changes
@@ -311,12 +307,23 @@ def _resolve_param_sig(param, components):
     return None
 
 
-def dedup_parameters(spec):  # pylint: disable=too-many-branches
+def _resolve_param(param, components):
+    """Resolve a #/components/parameters/X $ref to its definition."""
+    if isinstance(param, dict) and param.get('$ref', '').startswith('#/components/parameters/'):
+        return components.get('parameters', {}).get(param['$ref'].split('/')[-1], param)
+    return param
+
+
+def dedup_parameters(spec):  # pylint: disable=too-many-branches,too-many-locals
     """Remove operation-level parameters that duplicate path-level parameters.
 
     Some vendor specs (e.g., Okta) define the same parameter at both the path
     and operation level — sometimes as $ref, sometimes inline. Foundry's validator
     rejects this as duplicate required items. Resolves $refs before comparing.
+
+    An identical copy is dropped from the operation. A differing one is a valid
+    OpenAPI override, so the operation keeps it and the path-level parameter
+    moves down into the path's other operations instead.
     """
     changes = []
     components = spec.get('components', {})
@@ -329,19 +336,23 @@ def dedup_parameters(spec):  # pylint: disable=too-many-branches
             continue
 
         # Resolve path-level params to (name, in) signatures
-        path_sigs = set()
+        path_by_sig = {}
         for p in path_params:
             sig = _resolve_param_sig(p, components)
             if sig:
-                path_sigs.add(sig)
+                path_by_sig[sig] = p
 
-        if not path_sigs:
+        if not path_by_sig:
             continue
 
+        ops = []
         for method in ('get', 'post', 'put', 'patch', 'delete', 'options', 'head'):
             op = path_item.get(method)
-            if not isinstance(op, dict):
-                continue
+            if isinstance(op, dict):
+                ops.append((method, op))
+
+        overridden = set()
+        for method, op in ops:
             op_params = op.get('parameters', [])
             if not op_params:
                 continue
@@ -349,11 +360,14 @@ def dedup_parameters(spec):  # pylint: disable=too-many-branches
             deduped = []
             for p in op_params:
                 sig = _resolve_param_sig(p, components)
-                if sig and sig in path_sigs:
-                    op_id = op.get('operationId', f'{method} {path}')
-                    label = p.get('$ref', p.get('name', '?'))
-                    changes.append(f"  Removed duplicate param '{label}' from {op_id}")
-                    continue
+                if sig in path_by_sig:
+                    if (_resolve_param(p, components)
+                            == _resolve_param(path_by_sig[sig], components)):
+                        op_id = op.get('operationId', f'{method} {path}')
+                        label = p.get('$ref', p.get('name', '?'))
+                        changes.append(f"  Removed duplicate param '{label}' from {op_id}")
+                        continue
+                    overridden.add(sig)
                 deduped.append(p)
 
             if len(deduped) != len(op_params):
@@ -362,15 +376,43 @@ def dedup_parameters(spec):  # pylint: disable=too-many-branches
                 else:
                     del op['parameters']
 
+        for sig in overridden:
+            for _, op in ops:
+                op_sigs = {_resolve_param_sig(p, components) for p in op.get('parameters', [])}
+                if sig not in op_sigs:
+                    op.setdefault('parameters', []).append(path_by_sig[sig])
+            changes.append(
+                f"  Moved path param '{sig[0]}' into the operations of {path}"
+                f" (an operation overrides it)"
+            )
+
+        if overridden:
+            kept = [p for p in path_params
+                    if _resolve_param_sig(p, components) not in overridden]
+            if kept:
+                path_item['parameters'] = kept
+            else:
+                del path_item['parameters']
+
     return changes
 
 
 def validate_operation_config(spec):
-    """Validate x-cs-operation-config structure (expose_to_workflow must be under workflow: key).
+    """Validate x-cs-operation-config structure.
 
-    Does not fix — this requires prompt-driven decisions about operation names and descriptions.
-    Returns warnings for the agent to act on.
+    Both exposure flags must be nested: expose_to_workflow under a 'workflow'
+    key, expose_to_agent under an 'agent_tools' key. A flat flag is silently
+    ignored by the platform.
+
+    Does not fix — this requires prompt-driven decisions about operation names
+    and descriptions. Returns warnings for the agent to act on.
     """
+    misplaced = (
+        ('expose_to_workflow', 'workflow',
+         "the endpoint won't appear in Falcon Fusion SOAR"),
+        ('expose_to_agent', 'agent_tools',
+         "AI agents won't be able to call the operation"),
+    )
     warnings = []
     for path, path_item in spec.get('paths', {}).items():
         if not isinstance(path_item, dict):
@@ -382,13 +424,14 @@ def validate_operation_config(spec):
             cfg = op.get('x-cs-operation-config')
             if not isinstance(cfg, dict):
                 continue
-            if cfg.get('expose_to_workflow') is True and 'workflow' not in cfg:
-                op_id = op.get('operationId', f'{method} {path}')
-                warnings.append(
-                    f"  {op_id}: expose_to_workflow is directly under "
-                    f"x-cs-operation-config. Must be nested under a 'workflow' "
-                    f"key or the endpoint won't appear in Falcon Fusion SOAR."
-                )
+            for flag, parent, consequence in misplaced:
+                if cfg.get(flag) is True and parent not in cfg:
+                    op_id = op.get('operationId', f'{method} {path}')
+                    warnings.append(
+                        f"  {op_id}: {flag} is directly under "
+                        f"x-cs-operation-config. Must be nested under a "
+                        f"'{parent}' key or {consequence}."
+                    )
     return warnings
 
 

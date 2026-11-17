@@ -5,7 +5,7 @@ title: "Qbiq: Using AWS Lambda container images & distributed ML to optimize con
 
 ## Qbiq: Using AWS Lambda container images & distributed ML to optimize construction
 
-_Guest post by Qbiq Team and Hilal Habashi, Startup Solutions Architect, AWS_
+> _Guest post by Qbiq Team and Hilal Habashi, Startup Solutions Architect, AWS_
 
 Real estate software startup Qbiq system delivers an artificial intelligence (AI)-driven space planning design engine that generates large volumes of customized floor plans, compares alternatives, and optimizes the results. It instantly provides suggestions for the best layout design within the constraints of space utilization, costs, build time, efficiency, and a multitude of other factors. These non-trivial compute intensive calculations are done behind the scenes in a distributed manner by dividing each job request into multiple parts. More specifically, each plan received is broken down into sub plans, and each of these sub plans are processed using machine learning (ML) and nonlinear programming. First, we use ML models to recognize and analyze the different layout alternatives, and then we optimize the results using quadratic equations.
 
@@ -15,15 +15,15 @@ In order to support our business model, we needed to provide our clients with a 
 
 ## Challenges
 
-**Developing distributed ML algorithms**
+### Developing distributed ML algorithms
 
 We started out as a cloud-native SaaS solution running on [Amazon EC2](https://aws.amazon.com/ec2/) instances. In order to perform a large number of computations in a limited run time (sub 5 minute), we had to divide our workload into tiny segments and run subtasks in a distributed manner. As we started to horizontally scale our compute on AWS, we also had to rework our algorithms, use a shared storage to store the different models we need to run, and build a queue of jobs received over time. Thanks to [Amazon EFS](https://aws.amazon.com/efs), and [Amazon SQS](https://aws.amazon.com/sqs), we were able to quickly implement and maintain the supporting infrastructure for our distributed compute needs with little to no effort of our small team. EFS enabled us to share a storage between our [AWS Lambda](https://aws.amazon.com/lambda/) containers and use the drive as a shared mounted storage for our subprocesses.
 
-**Deploying and maintaining our algorithms**
+### Deploying and maintaining our algorithms
 
 It was important for us to deploy our algorithms in a container-based approach without using proprietary tooling or having to write our own deployment scripts from scratch. We wanted a solution that would work with the traditional Git-ops approach and abstract out the environment that our containers ran on. We wanted to quickly scale out the compute power available based on demand and without worrying about provisioning or managing any container clusters. We chose to use Lambda containers with EFS over solutions based on [AWS Fargate](https://aws.amazon.com/fargate) or EC2, with [Amazon EBS](https://aws.amazon.com/ebs/) since we wanted a highly flexible and scalable solution with a pay-as-you-go model that didn't require us to perform container orchestration and management tasks.
 
-**Testing our algorithms at load**
+### Testing our algorithms at load
 
 We had to write end-to-end tests in order to verify that our calculations performed correctly across our cluster of distributed tasks regardless of its size whether running it locally or on the cloud. In reality, when we ran and orchestrated our workload on EC2, we noticed that the more instances of distributed software we added, the harder it became to maintain the configurations and test our stack as a whole. Our high-level goal was to improve our cloud fidelity and avoid maintaining two sets of setup scripts with a mutual codebase. In addition, we wanted to be able to test our product at high load scenarios, without extensive configurations.
 
@@ -39,7 +39,7 @@ We've built 3 Lambda functions using Amazon Elastic Container Registry (Amazon E
 
 This architecture allows us to achieve similar result and overall time to deployments over EC2 cluster while reducing costs by paying for only the time that the algorithms are running. For example, we are able to produce a batch of 50 results in 2 minutes by invoking 5,000 Lambda functions with maximum concurrent execution of 500, which results in an average cost of $1 per batch. On the other hand, running it on EC2 cluster with 500 parallel cores would have cost about twice as much and will necessitate provisioning the cluster. Finally, our ML engineers and data scientists can operate within the container-based environments they are familiar with while using one set of tests instead of writing a unique set for a non-containerized environment running on the cloud as they did before.
 
-**Managing our workload**
+### Managing our workload
 
 In order to manage our distributed ML workload reliably, we implemented our own graph-based workflow manager. Each job request sent by a user starts out with a file being uploaded and its name being recorded as a Topic Name. We then create a sub-graph for each Topic Name that can contain multiple nodes under it – one node for each computational task to be processed. Each node in the job's sub-graph contains an internal state representation. The edges in the subgraphs are a function of the input and the next task to be executed.
 
@@ -69,6 +69,6 @@ We provide our customers with the best construction alternatives considering uti
 
 ---
 
-_Author: AWS Editorial Team_
+> _Author: AWS Editorial Team_
 
 The AWS Startups Content Marketing Team collaborates with startups of all sizes and across all sectors to deliver exceptional content that educates, entertains, and inspires.

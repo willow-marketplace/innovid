@@ -48,7 +48,7 @@ truncate beyond that.
 
 | Type | What it does | Examples in this repo |
 |---|---|---|
-| **Review** | Structured audit. Deterministic linters paired with parallel deep-analysis agents. Read-only, never modifies code. | `qt-cpp-review`, `qt-qml-review` |
+| **Review** | Structured audit. Deterministic linters paired with deep-analysis agents (inline for small scopes, parallel shards for large ones). Read-only, never modifies code. | `qt-cpp-review`, `qt-qml-review` |
 | **Process** | A workflow or decision framework — generating docs, scaffolding, structured outputs. | `qt-cpp-docs`, `qt-qml-docs` |
 | **Conceptual** | Mental-model corrections for areas LLMs systematically get wrong (declarative QML, C++/QML boundary). Applies *while* you write code, not after. | `qt-qml` |
 | **Tool** | Wraps a Qt CLI tool. The agent runs the tool, parses its output, and reasons about it against your source. | `qt-qml-profiler` |

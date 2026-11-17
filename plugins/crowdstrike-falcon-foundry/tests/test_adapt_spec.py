@@ -36,6 +36,24 @@ def make_spec(**overrides):
     return base
 
 
+def test_swagger_version_after_long_info_is_detected(tmp_path, monkeypatch):
+    path = tmp_path / "swagger.json"
+    path.write_text(json.dumps({
+        "info": {"description": "x" * 600},
+        "swagger": "2.0",
+        "paths": {},
+    }))
+    calls = []
+
+    def fake_run(command, **_kwargs):
+        calls.append(command)
+        return type("Result", (), {"returncode": 1, "stderr": "conversion unavailable"})()
+
+    monkeypatch.setattr(spec.subprocess, "run", fake_run)
+    assert spec.convert_swagger_to_openapi(str(path)) == (str(path), False)
+    assert calls and "swagger2openapi" in calls[0]
+
+
 # ── Server URL transformations ───────────────────────────────────────────────
 
 
@@ -463,6 +481,74 @@ def test_dedup_drops_parameters_key_when_all_removed():
     assert "parameters" not in s["paths"]["/users/{id}"]["get"]
 
 
+def test_dedup_removes_ref_duplicating_inline_path_param():
+    s = make_spec(
+        components={"parameters": {"Id": {"name": "id", "in": "path", "required": True}}},
+        paths={
+            "/users/{id}": {
+                "parameters": [{"name": "id", "in": "path", "required": True}],
+                "get": {
+                    "operationId": "getUser",
+                    "parameters": [{"$ref": "#/components/parameters/Id"}],
+                    "responses": {"200": {"description": "OK"}},
+                },
+            }
+        },
+    )
+    spec.dedup_parameters(s)
+    assert "parameters" not in s["paths"]["/users/{id}"]["get"]
+    assert s["paths"]["/users/{id}"]["parameters"] == [
+        {"name": "id", "in": "path", "required": True}
+    ]
+
+
+def test_dedup_keeps_operation_override_and_moves_path_param_down():
+    path_limit = {"name": "limit", "in": "query", "schema": {"type": "integer", "default": 10}}
+    op_limit = {"name": "limit", "in": "query", "schema": {"type": "integer", "default": 100}}
+    s = make_spec(
+        paths={
+            "/users": {
+                "parameters": [path_limit, {"name": "q", "in": "query"}],
+                "get": {
+                    "operationId": "listUsers",
+                    "parameters": [op_limit],
+                    "responses": {"200": {"description": "OK"}},
+                },
+                "post": {
+                    "operationId": "createUser",
+                    "responses": {"200": {"description": "OK"}},
+                },
+            }
+        }
+    )
+    changes = spec.dedup_parameters(s)
+    users = s["paths"]["/users"]
+    assert users["get"]["parameters"] == [op_limit]
+    assert users["post"]["parameters"] == [path_limit]
+    assert users["parameters"] == [{"name": "q", "in": "query"}]
+    assert any("Moved path param 'limit'" in c for c in changes)
+
+
+def test_dedup_drops_path_parameters_key_when_all_moved():
+    s = make_spec(
+        paths={
+            "/users": {
+                "parameters": [{"name": "limit", "in": "query", "description": "path"}],
+                "get": {
+                    "operationId": "listUsers",
+                    "parameters": [{"name": "limit", "in": "query", "description": "op"}],
+                    "responses": {"200": {"description": "OK"}},
+                },
+            }
+        }
+    )
+    spec.dedup_parameters(s)
+    assert "parameters" not in s["paths"]["/users"]
+    assert s["paths"]["/users"]["get"]["parameters"] == [
+        {"name": "limit", "in": "query", "description": "op"}
+    ]
+
+
 def test_dedup_noop_without_path_params():
     s = make_spec()  # no path-level parameters
     assert spec.dedup_parameters(s) == []
@@ -505,6 +591,88 @@ def test_validate_ok_when_nested_under_workflow():
     assert spec.validate_operation_config(s) == []
 
 
+def test_validate_flags_misplaced_expose_to_agent():
+    """expose_to_agent must be nested under agent_tools, mirroring workflow."""
+    s = make_spec(
+        paths={
+            "/files/{id}": {
+                "get": {
+                    "operationId": "getFileReport",
+                    "x-cs-operation-config": {"expose_to_agent": True},
+                    "responses": {"200": {"description": "OK"}},
+                }
+            }
+        }
+    )
+    warnings = spec.validate_operation_config(s)
+    assert len(warnings) == 1
+    assert "expose_to_agent" in warnings[0]
+    assert "agent_tools" in warnings[0]
+
+
+def test_validate_ok_when_nested_under_agent_tools():
+    s = make_spec(
+        paths={
+            "/files/{id}": {
+                "get": {
+                    "operationId": "getFileReport",
+                    "x-cs-operation-config": {
+                        "agent_tools": {
+                            "name": "Get_a_file_report",
+                            "expose_to_agent": True,
+                        }
+                    },
+                    "responses": {"200": {"description": "OK"}},
+                }
+            }
+        }
+    )
+    assert spec.validate_operation_config(s) == []
+
+
+def test_validate_flags_both_misplaced_flags_independently():
+    """One operation can be wrong on both counts and must warn twice."""
+    s = make_spec(
+        paths={
+            "/users": {
+                "get": {
+                    "operationId": "listUsers",
+                    "x-cs-operation-config": {
+                        "expose_to_workflow": True,
+                        "expose_to_agent": True,
+                    },
+                    "responses": {"200": {"description": "OK"}},
+                }
+            }
+        }
+    )
+    warnings = spec.validate_operation_config(s)
+    assert len(warnings) == 2
+    joined = " ".join(warnings)
+    assert "expose_to_workflow" in joined and "expose_to_agent" in joined
+
+
+def test_validate_agent_and_workflow_exposure_are_independent():
+    """agent_tools nested correctly must not mask a flat expose_to_workflow."""
+    s = make_spec(
+        paths={
+            "/users": {
+                "get": {
+                    "operationId": "listUsers",
+                    "x-cs-operation-config": {
+                        "agent_tools": {"name": "listUsers", "expose_to_agent": True},
+                        "expose_to_workflow": True,
+                    },
+                    "responses": {"200": {"description": "OK"}},
+                }
+            }
+        }
+    )
+    warnings = spec.validate_operation_config(s)
+    assert len(warnings) == 1
+    assert "expose_to_workflow" in warnings[0]
+
+
 # ── convert_swagger_to_openapi ───────────────────────────────────────────────
 
 
@@ -534,7 +702,8 @@ def test_convert_success(tmp_path, monkeypatch):
     p.write_text(json.dumps({"swagger": "2.0", "paths": {}}), encoding="utf-8")
     out_expected = str(p).rsplit(".", 1)[0] + ".openapi3.json"
 
-    def _fake_run(*_a, **_k):
+    def _fake_run(cmd, **_k):
+        assert "swagger2openapi@7.0.8" in cmd
         # Simulate swagger2openapi writing the converted file.
         with open(out_expected, "w", encoding="utf-8") as fh:
             json.dump({"openapi": "3.0.0", "paths": {}}, fh)

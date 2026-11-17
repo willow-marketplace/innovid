@@ -25,7 +25,7 @@ AWS Activate accepts applications from venture capital firms and accelerator pro
 
 ### How can my firm apply to become an AWS Activate Provider?
 
-AWS Activate is accepting applications from venture capital firms, seed investors, and accelerator programs that are actively investing. By becoming an Activate Provider, you can offer Activate Credits and specialized resources to your portfolio companies, helping them build and scale on AWS. To apply, first create your Builder ID and fill out your AWS Activate profile. Next, you will be prompted to complete the application and provide information about your institution and investment portfolio. Get started [here](http://aws.amazon.com/startups/lp/aws-activate-provider). Once the application has been submitted, it will be reviewed within 7-10 business days.
+AWS Activate is accepting applications from venture capital firms, seed investors, and accelerator programs that are actively investing. By becoming an Activate Provider, you can offer Activate Credits and specialized resources to your portfolio companies, helping them build and scale on AWS. To apply, first create your Builder ID and fill out your AWS Activate profile. Next, you will be prompted to complete the application and provide information about your institution and investment portfolio. Get started [on the AWS Activate Provider page](http://aws.amazon.com/startups/lp/aws-activate-provider). Once the application has been submitted, it will be reviewed within 7-10 business days.
 
 ### What benefits do AWS Activate Providers receive?
 
@@ -33,11 +33,11 @@ AWS Activate Providers receive credit packages to distribute to eligible startup
 
 ### What is AWS Activate Provider Central?
 
-AWS Activate Provider Central is where venture capitalists, accelerators, and other startup enabling organizations who are Activate Providers can manage their portfolio companies. It enables you to view and share your Organization ID, invite startups through one-time, pre-validated referral links for faster applications processing and approvals, track portfolio companies' credit applications for the past 24 months, and access resources to help share the Activate program with startups. It can be accessed [here](https://aws.amazon.com/startups/providers).
+AWS Activate Provider Central is where venture capitalists, accelerators, and other startup enabling organizations who are Activate Providers can manage their portfolio companies. It enables you to view and share your Organization ID, invite startups through one-time, pre-validated referral links for faster applications processing and approvals, track portfolio companies' credit applications for the past 24 months, and access resources to help share the Activate program with startups. It can be accessed [on the AWS Activate Providers page](https://aws.amazon.com/startups/providers).
 
 ### How do I join Provider Central?
 
-Existing Activate Providers will receive an email invitation from the AWS Activate team with an invite link to join Provider Central. Click the link in your invitation email and follow the setup instructions to open your account. Your existing organization ID and portfolio data will be automatically populated in the centralized hub. If you are interested in becoming an Activate Provider, please apply [here](https://aws.amazon.com/startups/providers). Newly approved providers will receive a unique invitation link to access Provider Central in their acceptance email.
+Existing Activate Providers will receive an email invitation from the AWS Activate team with an invite link to join Provider Central. Click the link in your invitation email and follow the setup instructions to open your account. Your existing organization ID and portfolio data will be automatically populated in the centralized hub. If you are interested in becoming an Activate Provider, please apply [on the AWS Activate Providers page](https://aws.amazon.com/startups/providers). Newly approved providers will receive a unique invitation link to access Provider Central in their acceptance email.
 
 ### Will my existing Organization ID (Org ID) change?
 

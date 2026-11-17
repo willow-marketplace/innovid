@@ -23,7 +23,7 @@ Vercel Queues (public beta) gives you durable, append-only topics. Producers pub
 |------|-----|-----|
 | Fire-and-forget background job, fan-out, buffering | **Queues** | Direct publish/consume, independent consumer groups |
 | Multi-step logic with sleep, hooks, or human approval | **Workflows** (`⤳ skill: workflow`) | Durable steps and replay built on top of Queues |
-| Scheduled invocation on a cron | Cron Jobs (`⤳ skill: vercel-functions`) | Time-based trigger, not message-based |
+| Scheduled invocation on a cron or once at a set time | Vercel Schedules (`⤳ skill: vercel-schedules`); a schedule can publish to a queue topic | Time-based trigger, not message-based; beta, replaces legacy Cron Jobs |
 
 ## Quickstart (Next.js App Router)
 
@@ -60,7 +60,7 @@ export const POST = handleCallback(async (message, metadata) => {
 
 Register the consumer in `vercel.json` (or `vercel.ts`) so Vercel routes the topic to that function:
 
-```json
+```json filename="vercel.json"
 {
   "functions": {
     "app/api/queues/process-order/route.ts": {
@@ -79,7 +79,7 @@ await send('orders', payload, {
   region: 'sfo1',            // target a specific region
   retentionSeconds: 3600,    // message TTL; min 60, max 604800 (7 days); default 24 hours
   delaySeconds: 60,          // delay first delivery; max 7 days, capped at the TTL
-  idempotencyKey: 'order-123', // duplicates within the retention window are dropped
+  idempotencyKey: 'order-123', // duplicates within min(retention, 24 hours) are dropped
   headers: { 'x-trace-id': 'abc-123' },
 });
 ```
@@ -101,7 +101,7 @@ export const { send, handleCallback } = queue;
 | Option | Default | Notes |
 |--------|---------|-------|
 | `visibilityTimeoutSeconds` | 300 | How long a message stays in flight; the SDK re-extends the lease while the handler runs |
-| `retry` | built-in backoff | `(error, metadata) => { afterSeconds } \| { acknowledge: true } \| undefined` |
+| `retry` | trigger `retryAfterSeconds` (60s) | `(error, metadata) => { afterSeconds } \| { acknowledge: true } \| undefined` |
 
 Handle poison messages by acknowledging after a delivery-count threshold:
 
@@ -122,20 +122,20 @@ For Express, Connect, or Next.js Pages Router handlers use `queue.handleNodeCall
 
 - **Python**: `vercel-queue` publishes and consumes with the same topic model, and FastAPI, Flask, and Django apps can use it; Celery and Dramatiq integrations are documented under the Python backend frameworks.
 - **Nitro / Nuxt**: declare `vercel.queues.triggers` in `nitro.config.ts` and handle messages with the `vercel:queue` runtime hook; `send` from `@vercel/queue` works in any server route.
-- **Poll mode**: pull messages from your own workers in any environment when push delivery to a Vercel Function does not fit.
+- **Poll mode**: pull messages from your own workers in any environment when push delivery to a Vercel Function does not fit. On Vercel, run an always-on poll-mode consumer as a daemon (`⤳ skill: daemons`).
 - **Payloads**: JSON by default; use `BufferTransport` for binary or `StreamTransport` for large bodies when constructing a `QueueClient`.
 
 ## Errors
 
-`@vercel/queue` exports typed errors: `UnauthorizedError`, `BadRequestError`, `DuplicateMessageError` (idempotency-key collision), `MessageNotFoundError`, and `QueueEmptyError`.
+`@vercel/queue` exports typed errors: `UnauthorizedError`, `BadRequestError`, and `MessageNotFoundError`. `QueueEmptyError` is exported but never thrown; an empty poll-mode `receive` returns `{ ok: false, reason: 'empty' }`. Duplicate idempotency keys do not throw; the duplicate is silently dropped.
 
 ## Common Pitfalls
 
 1. **Missing trigger**: a `handleCallback` route with no `experimentalTriggers` entry never receives messages. Register every consumer in `vercel.json`/`vercel.ts`.
 2. **Non-idempotent handlers**: delivery is at-least-once. Key side effects on `metadata.messageId` or your own `idempotencyKey`.
-3. **Retrying forever**: without a `retry` policy that acknowledges poison messages, a permanently failing message is redelivered until it expires.
+3. **Retrying forever**: without a `retry` policy that acknowledges poison messages or a trigger `maxDeliveries` cap, a permanently failing message is redelivered until it expires.
 4. **Using Queues for multi-step logic**: if you need sleep, hooks, or approvals between steps, use Workflows instead of chaining topics by hand.
-5. **Local dev without credentials**: run `vercel link` and `vercel env pull` first; otherwise `send()` fails with `UnauthorizedError`.
+5. **Local dev without credentials**: run `vercel link` and `vercel env pull` first; otherwise `send()` throws `Failed to get OIDC token for local development`.
 
 ## References
 

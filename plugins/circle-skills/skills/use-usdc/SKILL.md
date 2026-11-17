@@ -116,7 +116,7 @@ Operations that query blockchain state and execute autonomously without user con
 **Write Operations:**
 Operations that modify blockchain state and require explicit user confirmation before execution.
 - Send USDC
-- Approve contract to spend USDC (EVM only — Solana has no approve pattern)
+- Approve contract to spend USDC (EVM `approve`; on Solana, an SPL delegate via `getApproveInstruction`, not covered in `references/solana.md`)
 
 ### Troubleshooting
 
@@ -129,7 +129,7 @@ Find troubleshooting solutions in the Common Issues section of the chain-specifi
 | Token standard | ERC-20 | SPL Token |
 | Balance storage | Wallet address directly | Associated Token Account (ATA) |
 | Send | `transfer(to, amount)` | `getTransferInstruction({ source, destination, authority, amount })` |
-| Approve | `approve(spender, amount)` | No approve — use PDAs |
+| Approve | `approve(spender, amount)` | `getApproveInstruction({ source, delegate, owner, amount })` (SPL delegate, one per token account) |
 | Recipient setup | Nothing needed | Must create ATA first (transfer fails otherwise) |
 | Tx fees | Chain native token | SOL |
 | Confirmation | `waitForTransactionReceipt` | `sendAndConfirmTransactionFactory` |
@@ -179,7 +179,7 @@ After determining the ecosystem (see Prerequisites), route to the appropriate re
 
 ## Alternatives
 
-- Use `bridge-stablecoin` skill (CCTP / Bridge Kit) for **transferring USDC between chains**. Bridge Kit handles approve, burn, attestation, and mint in a single `kit.bridge()` call.
+- Use `bridge-tokens` skill (CCTP / Bridge Kit) for **transferring USDC between chains**. Bridge Kit handles approve, burn, attestation, and mint in a single `kit.bridge()` call.
 - Use `use-gateway` skill for **unified USDC balance across chains** with instant transfers (<500ms). Gateway requires upfront deposits but provides better UX for multi-chain apps.
 - Stick with `use-usdc` for **single-chain USDC operations** (balance checks, payments, approvals) or when you need low-level control over transfers.
 

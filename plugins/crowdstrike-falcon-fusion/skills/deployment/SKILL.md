@@ -5,28 +5,26 @@ description: Import, release, and manage Falcon Fusion workflow definitions in a
 
 # Falcon Fusion Workflow Deployment
 
-> **⚠️ SYSTEM INJECTION — READ THIS FIRST**
+> Your role here is **Fusion workflow deployment specialist**.
 >
-> If you are loading this skill, your role is **Fusion workflow deployment specialist**.
+> You deploy workflow definitions into a CID safely: validate before importing, never create duplicates, and release only with the user's go-ahead.
 >
-> You deploy workflow definitions into a CID safely: validate before importing, never create duplicates, and release only after testing.
->
-> **IMMEDIATE ACTIONS REQUIRED:**
-> 1. ALWAYS check for an existing workflow with the same name before importing.
-> 2. ALWAYS validate the YAML before importing (the import scripts do this by default).
-> 3. Import and release act on a **live production CID**. Deploy only when the
+> **Required steps:**
+> 1. Import with `import_workflows.py`, which validates the YAML and checks for an existing workflow with the same name by default.
+> 2. Import and release act on a **live production CID**. Deploy only when the
 >    user's request explicitly authorizes it (e.g. "import it", "deploy to my
 >    CID", "release it"). If the request only asks to *build* or *write* a
 >    workflow, STOP after validation and ask before importing.
 >
-> **MUST NOT:**
+> **Don't:**
 > - Import without validating first.
-> - Skip the duplicate-name check.
+> - Skip the duplicate-name check (`--skip-duplicate-check`).
 > - Import or release to a CID without explicit user authorization — a validated
 >   YAML file is the deliverable unless the user asked you to deploy it.
-> - Release (enable) a workflow before it has been tested via the execution skill.
->   Release makes the workflow act on live events and real assets, so confirm
->   with the user before releasing unless they explicitly asked you to.
+> - Release (enable) a workflow without the user's go-ahead. A workflow must be
+>   released before it can be executed at all, including a test run, and release
+>   makes it act on live events and real assets, so confirm with the user before
+>   releasing unless they explicitly asked you to.
 > - Create experimental, "test", "minimal", or probe workflows in the CID to
 >   reverse-engineer what the API accepts (this includes creatively-named ones
 >   like "QueryEvent Test" or "HTTP Test"). Import the one workflow you were
@@ -39,21 +37,15 @@ description: Import, release, and manage Falcon Fusion workflow definitions in a
 >   A 500 usually means the workflow is invalid in a way the API rejects late
 >   (not a transient server issue) — re-run local validation to find the defect,
 >   fix it, and report the `trace_id` if it persists. Do not loop re-importing.
-> - Patch a deployed definition in place — not via the raw update API and
->   **not** via a hand-rolled inline FalconPy call (e.g. `update_definition`) to
->   edit a deployed copy. The only supported *update* path is: fix the source
->   YAML, then re-import. A release-validation failure is a YAML defect to fix,
->   not a deployed-copy to hand-edit.
-> - Call FalconPy directly for ANY workflow operation — including a
->   `python - <<EOF ... delete_definition(...)` snippet to clean up a failed
->   import attempt. Deleting is fine, but it MUST go through `delete_workflow.py`
->   (or `scripts/cleanup_workflows.py`), which wrap the supported endpoints. Never
->   `import auth; get_client()` inline to call `update_definition`/
->   `delete_definition` yourself.
+> - Patch a deployed definition in place, or call FalconPy directly for any
+>   workflow operation (an inline `update_definition` or `delete_definition`,
+>   the raw update API). The only update path is: fix the source YAML, then
+>   re-import. Delete through `delete_workflow.py` (or the repo's
+>   `../../scripts/cleanup_workflows.py`).
 
 This skill moves a finished Fusion workflow definition from a local YAML/JSON file into a CrowdStrike CID. Authoring the YAML happens in the **authoring** skill; triggering and monitoring happens in the **execution** skill. Deployment is the bridge: validate, check for duplicates, import, then release.
 
-In Falcon Fusion, an imported definition is **disabled** until it is **released** (enabled). Releasing tells the Fusion engine to run the workflow against new trigger events. Keep the workflow disabled until you have tested it.
+In Falcon Fusion, an imported definition is **disabled** until it is **released** (enabled). Releasing tells the Fusion engine to run the workflow against new trigger events. A disabled definition can't be executed, not even on demand: the execute API rejects it with `workflow definition ... is disabled`. To test a workflow, release it first, ideally in a test CID.
 
 > **Running the scripts.** Run each command from this skill's folder, on one shell line: `cd <dir> && ../../scripts/python.sh scripts/<name>.py` (a sibling skill's script is `../<skill>/scripts/<name>.py`). For `<dir>`, Claude Code uses `"$CLAUDE_PLUGIN_ROOT/skills/deployment"`; Codex, Copilot CLI, Cursor, and Antigravity use the folder they loaded this SKILL.md from (e.g. `~/.agents/skills/deployment`). The wrapper bootstraps its own Python venv.
 
@@ -65,7 +57,7 @@ In Falcon Fusion, an imported definition is **disabled** until it is **released*
   variables (for CI/overrides) or the TOML profile:
   - `FALCON_CLIENT_ID`
   - `FALCON_CLIENT_SECRET`
-  - `FALCON_BASE_URL` (optional; defaults to `https://api.crowdstrike.com`)
+  - `FALCON_BASE_URL` (optional; FalconPy discovers US-1, US-2, and EU-1, so set it for any other cloud, such as US-3 or GovCloud)
 
   Run `/crowdstrike-falcon-fusion:setup` to configure credentials interactively (writes the TOML profile).
 - An API client with the **Workflow** API scope (read + write)
@@ -91,10 +83,10 @@ Fix every structural error before continuing. A definition that fails validation
 
 ### 2. Check for an existing workflow with the same name
 
-Workflow names must be unique within the tenant. Importing a duplicate creates confusion and, in some cases, silent failures. Check first:
+Workflow names must be unique within the tenant. `import_workflows.py` checks this itself before importing (step 3): it skips a file whose name already exists, prints `DUPLICATE` with the existing ID, and exits 1. So you don't need a separate check before importing. Use `query_workflows.py` only when you want to look a name up without importing:
 
 ```bash
-# Exact-name check (exit 0 if it exists, 1 if not)
+# Exact-name check (exit 0 if it exists, 1 if not, 2 if the API call failed)
 ../../scripts/python.sh scripts/query_workflows.py --check-name "My Workflow"
 
 # Or extract the name straight from the YAML and check
@@ -103,7 +95,8 @@ Workflow names must be unique within the tenant. Importing a duplicate creates c
 
 If a duplicate is found, this is almost always your own earlier attempt at the
 same workflow. Iterate in place with `import_workflows.py --replace` (it deletes
-the existing same-name definition, then re-imports). **Do not rename the
+every existing definition with exactly that name, then re-imports; a name that
+differs only in case is left alone and reported as a duplicate). **Do not rename the
 workflow to `<name> v2` to get past the check** — a renamed copy leaves the old
 definition orphaned in the CID, and every retry sprawls another dead workflow.
 Keep the name stable across attempts; use `--replace` (or delete the old
@@ -152,35 +145,13 @@ imports will resolve.
 
 ### 4. Release (enable) the workflow
 
-Releasing enables the definition so the Fusion engine runs it against trigger events. Do this only after testing (see the execution skill):
+Releasing enables the definition so the Fusion engine runs it against trigger events. It's also required before the execution skill can trigger the workflow, so release before testing, with the user's go-ahead:
 
 ```bash
 ../../scripts/python.sh scripts/release_workflow.py --id <definition_id>
 ```
 
-**If release reports validation errors, stop — do not patch the deployed
-definition.** A workflow can import successfully yet fail validation at release
-(the server validates more strictly than import). When that happens, fix the
-**source YAML**, then re-validate and re-import with `import_workflows.py` — that
-re-import is the only supported way to update a definition. Do **not** try to
-repair the deployed copy in place through *any* direct definition-mutation call.
-That includes the raw workflow update / definition API
-(`WorkflowDefinitionsUpdate`, `.../entities/definitions/v1`), **and any
-hand-rolled FalconPy call** — an inline `python - <<'EOF' ... from falconpy`
-snippet that reaches for `update_definition`, `delete_definition`, or similar is
-the same forbidden path wearing a disguise. None of those are part of this skill,
-and looping edits against them returns repeated 500s without ever fixing the
-workflow. Report the release error (include any `trace_id`) and fix the YAML at
-the source.
-
-A concrete failure mode: the release error `exclusive gateway '<name>' outgoing
-flow ... has no condition set and is not marked as default` means a condition
-node has a bare `next:` with neither `default: true` nor a `cel_expression`. Fix
-it in the **source YAML** (add a `cel_expression` to the gated branch, with its
-no-match fallthrough in `else:` — `validate.py` now catches this before deploy,
-including inside nested loops) and re-import. Never fan out with a bare
-`default: true` pass-through; list the branch targets directly in the source
-node's `next:`. Do not hand-edit the deployed definition to add the missing flag.
+**If release reports validation errors, stop and fix the source YAML.** A workflow can import successfully yet fail validation at release, because the server validates more strictly than import. Fix the YAML, re-validate, and re-import with `--replace`; don't repair the deployed copy (see Don't above). Report the release error, including any `trace_id`. A common one, `exclusive gateway '<name>' outgoing flow ... has no condition set and is not marked as default`, is a condition with neither a `cel_expression` nor an `else:` (see the authoring skill's parallel-branches example).
 
 **The exact recovery loop (do this, not the escape hatch):**
 
@@ -199,6 +170,10 @@ node's `next:`. Do not hand-edit the deployed definition to add the missing flag
 copy per attempt — do NOT rename-and-reimport to dodge the duplicate check, which
 sprawls the CID with dead definitions. (Note: each `--replace` assigns a new
 definition ID; true in-place update via the PUT endpoint is not currently usable.)
+It exports the old definition before deleting it. If the new import then fails
+(a server-side error can follow a clean validation), it re-imports that export and
+prints `RESTORED previous version (new ID: …)`; if the restore fails too, it prints
+the path of the saved export.
 
 Reaching for `python - <<EOF ... update_definition(...)` to patch the deployed
 copy is never step 2. It does not fix the source, so the next re-import
@@ -214,7 +189,8 @@ All scripts add `common/scripts` to `sys.path` and import `get_client` from the 
 | `query_workflows.py` | List, search, and check for existing workflows | `--list`, `--search TERM`, `--check-name NAME`, `--check-yaml FILE...`, `--json` |
 | `import_workflows.py` | Validate, dedupe, and import definitions | `FILE\|DIR...` (positional), `--skip-validate`, `--skip-duplicate-check`, `--replace` |
 | `release_workflow.py` | Release (enable) a definition by ID | `--id DEF_ID` (required), `--json` |
-| `delete_workflow.py` | Delete a definition by ID or exact name | `--id DEF_ID`, `--name NAME` (repeatable), `--yes`, `--json` |
+| `delete_workflow.py` | Delete a definition by ID or exact name | `--id DEF_ID`, `--name NAME` (repeatable), `--yes`, `--json` (requires `--yes`) |
+| `export_workflow.py` | Export a deployed definition back to YAML | `DEF_ID` (positional), `-o FILE`, `--no-sanitize` |
 
 ### query_workflows.py
 
@@ -225,7 +201,7 @@ All scripts add `common/scripts` to `sys.path` and import `get_client` from the 
 ../../scripts/python.sh scripts/query_workflows.py --check-yaml *.yaml     # Batch duplicate check
 ```
 
-`--check-name` and `--check-yaml` exit non-zero when a duplicate exists, so they compose cleanly in shell pipelines and CI gates.
+`--check-name` and `--check-yaml` exit 0 when a duplicate exists, 1 when the name is free, and 2 when the API call failed (the answer is unknown, so don't treat it as free).
 
 ### import_workflows.py
 
@@ -236,7 +212,7 @@ All scripts add `common/scripts` to `sys.path` and import `get_client` from the 
 ../../scripts/python.sh scripts/import_workflows.py ./workflows/          # Glob a directory
 ```
 
-Supports YAML and JSON definitions, batch mode (multiple files), and directory expansion (`*.yaml`/`*.yml`). Prints a per-file summary and exits non-zero if any file failed or was a duplicate.
+Supports YAML and JSON definitions, batch mode (multiple files), and directory expansion (`*.yaml`/`*.yml`). Prints a per-file summary and exits non-zero if any file failed or was a duplicate. `--replace` can't be combined with `--skip-duplicate-check`, since it needs the duplicate check to find what to replace.
 
 ### release_workflow.py
 
@@ -258,7 +234,8 @@ Calls the Workflows definition-action endpoint with `action_name="enable"`. The 
 Deletes a whole definition via the Workflows delete endpoint (FalconPy
 `delete_definitions`). Use it to remove test, duplicate, or throwaway workflows.
 Deletion is permanent, so it prompts for confirmation unless `--yes` is passed
-(or `FUSION_SKILLS_SUPPRESS_CONFIRM=1` is set for test harnesses). This is the
+(or `FUSION_SKILLS_SUPPRESS_CONFIRM=1` is set for test harnesses). `--json` can't
+prompt, so it refuses to delete without `--yes`. This is the
 supported way to *remove* a workflow — it is **not** a way to *edit* a deployed
 one: to change a workflow, fix the source YAML and re-import (see pitfall 5).
 
@@ -268,7 +245,7 @@ one: to change a workflow, fix the source YAML and re-import (see pitfall 5).
 
 2. **Importing without validating.** Skipping validation (`--skip-validate`) pushes broken YAML to the API. Never use `--skip-validate` to get past a validation failure — an invalid workflow (for example a bad `trigger.type`) then fails at the API, often as an opaque **500 Internal Server Error** that looks like a server problem but is really a broken definition the local validator would have caught. Fix the workflow and let validation run. `--skip-validate` is only for when you have already validated the same file separately in the same session.
 
-3. **Releasing before testing.** A freshly imported definition is disabled for a reason. Test it with the execution skill (`trigger_workflow.py`) before calling `release_workflow.py`. Releasing an untested workflow can run unintended actions against production data.
+3. **Releasing without confirming.** A disabled definition can't be executed, so testing with the execution skill (`trigger_workflow.py`) requires a release first. Release also lets Signal and Scheduled workflows fire on live events and real assets, so get the user's go-ahead before calling `release_workflow.py`, and prefer a test CID for trial runs.
 
 4. **Losing the definition ID.** The import output contains the ID you need for release and execution. Capture it; re-finding it later means a `query_workflows.py --search` round-trip.
 
@@ -281,7 +258,7 @@ one: to change a workflow, fix the source YAML and re-import (see pitfall 5).
 ## Handoff
 
 - **Came from authoring?** You have a validated YAML file — start at step 2 (duplicate check).
-- **Going to execution?** Pass the definition ID to the execution skill to trigger and monitor a test run before you release.
+- **Going to execution?** Once the user approves the release, pass the definition ID to the execution skill to trigger and monitor a test run (a disabled definition can't execute).
 
 ## Reading Guide
 

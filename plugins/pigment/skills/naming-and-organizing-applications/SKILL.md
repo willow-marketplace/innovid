@@ -143,5 +143,5 @@ Headcount_Summary
 2. **Correct case pattern**: PascalCase for dimensions; Snake_Case with prefix for metrics, transaction lists, properties, tables.
 3. **Explicit folder**: block is placed in a numbered folder, not "No Folder". Use `tool:move_blocks`.
 4. **Prefix reflects role**: metric prefix matches usage (input vs calc vs output vs load).
-5. **Display Name set**: if end users need a friendlier label, use `tool:update_metric` or `tool:update_list` to set Display Name without changing the Technical Name.
+5. **Display Name set**: if end users need a friendlier label, use `tool:bulk_update_metrics` or `tool:bulk_update_lists` to set Display Name without changing the Technical Name.
 6. **Consistent with Application**: if existing blocks use a different convention, follow the established pattern.

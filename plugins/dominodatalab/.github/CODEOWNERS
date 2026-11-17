@@ -1,0 +1,98 @@
+# Code owners for domino-ai-plugin.
+#
+# Every skill directory has its own line, so each skill has named owners. A new or renamed
+# skill must add or update its line in the same PR; `scripts/check-codeowners.py` fails CI
+# otherwise, and also fails on a line that points at a directory that no longer exists.
+#
+# Owners are mapped from cerebrotech/documentation/.github/CODEOWNERS (product-area owners per
+# docs section). The docs team (@cerebrotech/cx-docs) lives in a different GitHub org and cannot
+# be referenced here, so the docs maintainer is listed by handle. MAINTAINERS.md says who is
+# accountable for the repository as a whole.
+#
+# GitHub semantics: the LAST matching line wins and REPLACES the owner list, so every line
+# carries its complete set of owners. An owner without write access is ignored by GitHub and
+# shows as an error under the repository's CODEOWNERS view; owners listed here are expected to
+# have write access. Branch protection requires a code-owner review, so a PR needs approval from
+# someone on the matching line other than its author.
+
+# Default and repository mechanics (release scheme, CI, templates, contribution standards)
+*                                       @DDL-Theo-Linnemann
+/.github/                               @DDL-Theo-Linnemann
+/scripts/                               @DDL-Theo-Linnemann
+/.claude-plugin/                        @DDL-Theo-Linnemann
+/.cursor-plugin/                        @DDL-Theo-Linnemann
+/.mcp.json                              @DDL-Theo-Linnemann
+/mcp_config.json                         @DDL-Theo-Linnemann
+/rules/                                 @DDL-Theo-Linnemann
+/evals/                                 @DDL-Theo-Linnemann
+/AGENTS.md                              @DDL-Theo-Linnemann
+/CONTRIBUTING.md                        @DDL-Theo-Linnemann
+/MAINTAINERS.md                         @DDL-Theo-Linnemann
+/README.md                              @DDL-Theo-Linnemann
+/SECURITY.md                            @DDL-Theo-Linnemann
+
+# OpenAI (ChatGPT and Codex) distribution: portable manifest, listing assets, package build
+/plugin.json                            @DDL-Theo-Linnemann @ddl-aj-rossman
+/mcp.json                               @DDL-Theo-Linnemann @ddl-aj-rossman
+/assets/                                @DDL-Theo-Linnemann @ddl-aj-rossman
+/scripts/build-openai.sh                @DDL-Theo-Linnemann @ddl-aj-rossman
+/scripts/sync-manifests.py              @DDL-Theo-Linnemann @ddl-aj-rossman
+
+# ---------------------------------------------------------------------------------------------
+# Skills: one line per skill directory, grouped by product area
+# ---------------------------------------------------------------------------------------------
+
+# Agents, coding assistants, LLMs  (docs: features/agents, features/coding-assistants, features/llms)
+/skills/domino-llm-access/                     @DDL-Theo-Linnemann @etanlightstone-domino @ddl-subir-m
+/skills/domino-llm-gateway/                    @DDL-Theo-Linnemann @etanlightstone-domino @ddl-subir-m
+/skills/domino-genai-tracing/                  @DDL-Theo-Linnemann @etanlightstone-domino @ddl-subir-m
+/skills/domino-trace-setup/             @DDL-Theo-Linnemann @etanlightstone-domino @ddl-subir-m
+/skills/domino-modeling-assistant/             @DDL-Theo-Linnemann @etanlightstone-domino @ddl-subir-m
+/agents/                                @DDL-Theo-Linnemann @etanlightstone-domino @ddl-subir-m
+
+# Apps, extensions, launchers  (docs: features/apps, features/extensions, features/launchers)
+/skills/domino-apps/                           @DDL-Theo-Linnemann @ddl-matthew-bonyak @ddl-ryan-connor
+/skills/domino-app-init/                @DDL-Theo-Linnemann @ddl-matthew-bonyak @ddl-ryan-connor
+/skills/domino-rust-apps/               @DDL-Theo-Linnemann @ddl-matthew-bonyak @ddl-ryan-connor
+/skills/domino-debug-proxy/             @DDL-Theo-Linnemann @ddl-matthew-bonyak @ddl-ryan-connor
+/skills/domino-ui-bootstrap/            @DDL-Theo-Linnemann @ddl-matthew-bonyak @ddl-ryan-connor
+/skills/domino-extensions/              @DDL-Theo-Linnemann @ddl-matthew-bonyak @ddl-ryan-connor @ddl-bira-ignacio
+/skills/domino-launchers/                      @DDL-Theo-Linnemann @ddl-matthew-bonyak @ddl-ryan-connor
+
+# Compute: environments, jobs, clusters and HPC  (docs: core-concepts/compute-environments, core-concepts/jobs, features/compute-clusters-hpc)
+/skills/domino-environments/                   @DDL-Theo-Linnemann @ddl-matthew-bonyak @ddl-s-rodriguez
+/skills/domino-jobs/                           @DDL-Theo-Linnemann @ddl-matthew-bonyak @ddl-s-rodriguez
+/skills/domino-distributed-computing/          @DDL-Theo-Linnemann @ddl-matthew-bonyak @ddl-s-rodriguez
+/skills/domino-hpc-slurm/                      @DDL-Theo-Linnemann @ddl-matthew-bonyak @ddl-s-rodriguez
+/skills/domino-airflow-kubeflow/        @DDL-Theo-Linnemann @ddl-matthew-bonyak @ddl-s-rodriguez
+
+# Data  (docs: core-concepts/data, admin/data-administration)
+/skills/domino-datasets/                       @DDL-Theo-Linnemann @ddl-giuliocapolino
+/skills/domino-data-connectivity/              @DDL-Theo-Linnemann @ddl-giuliocapolino
+/skills/domino-data-sdk/                @DDL-Theo-Linnemann @ddl-giuliocapolino
+/skills/netapp-volumes/                 @DDL-Theo-Linnemann @ddl-giuliocapolino
+
+# Knowledge management: tags and properties  (docs: core-concepts/knowledge-management)
+/skills/tags-and-properties/            @DDL-Theo-Linnemann @ddl-giuliocapolino
+
+# Projects, workspaces, flows, experiments, model deployment and monitoring
+# (docs: core-concepts/projects, core-concepts/workspaces, features/flows, features/development,
+#  features/models, features/model-deployment, features/monitoring)
+/skills/domino-projects/                       @DDL-Theo-Linnemann @ddl-matthew-bonyak @ddl-rodrigo-fernandez
+/skills/domino-workspaces/                     @DDL-Theo-Linnemann @ddl-matthew-bonyak @ddl-rodrigo-fernandez
+/skills/domino-flows/                          @DDL-Theo-Linnemann @ddl-matthew-bonyak @ddl-rodrigo-fernandez
+/skills/domino-experiment-tracking/            @DDL-Theo-Linnemann @ddl-matthew-bonyak @ddl-rodrigo-fernandez
+/skills/domino-experiment-setup/        @DDL-Theo-Linnemann @ddl-matthew-bonyak @ddl-rodrigo-fernandez
+/skills/domino-model-endpoints/                @DDL-Theo-Linnemann @ddl-matthew-bonyak @ddl-rodrigo-fernandez
+/skills/domino-model-serving/           @DDL-Theo-Linnemann @ddl-matthew-bonyak @ddl-rodrigo-fernandez @ddl-bira-ignacio
+/skills/domino-model-monitoring/               @DDL-Theo-Linnemann @ddl-matthew-bonyak @ddl-rodrigo-fernandez
+/skills/domino-model-delivery/          @DDL-Theo-Linnemann @ddl-matthew-bonyak @ddl-rodrigo-fernandez
+
+# Governance  (docs: features/governance)
+/skills/domino-governance/              @DDL-Theo-Linnemann @ddl-dkelkhoff @ddl-giuliocapolino @ddl-bira-ignacio
+
+# API, SDK, CLI and MCP server  (docs: reference/api, reference/python-sdk, reference/cli, reference/r-package)
+/skills/domino-api-intro/               @DDL-Theo-Linnemann @ddl-ebrown @ddl-bira-ignacio
+/skills/domino-python-sdk/                     @DDL-Theo-Linnemann @ddl-ebrown @ddl-bira-ignacio
+/skills/domino-cli/                     @DDL-Theo-Linnemann @ddl-ebrown @ddl-bira-ignacio
+/mcp-servers/                           @DDL-Theo-Linnemann @ddl-ebrown @ddl-bira-ignacio

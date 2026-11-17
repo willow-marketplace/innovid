@@ -2,10 +2,16 @@
   "name": "noibu",
   "version": "1.0.0",
   "description": "Connects Claude to the Noibu MCP server",
-  "updatedAt": "2026-09-19T00:42:54.380Z",
+  "updatedAt": "2026-11-17T00:01:59.699Z",
   "author": {
     "url": "https://noibu.com",
     "name": "Noibu"
   },
-  "skills": "./skills/"
+  "skills": "./skills/",
+  "mcpServers": {
+    "noibu": {
+      "url": "https://mcp.noibu.com/mcp",
+      "type": "http"
+    }
+  }
 }

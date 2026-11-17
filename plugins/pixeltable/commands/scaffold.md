@@ -1,6 +1,6 @@
 ---
 name: scaffold
-description: Start a Pixeltable project with pxt init and a CLI example file.
+description: "Start a Pixeltable project with pxt init and a CLI example file: multimodal RAG, video or image search, agent memory, or embeddings stored with your data."
 ---
 
 Start a Pixeltable project with the CLI. Then edit `app.py`.

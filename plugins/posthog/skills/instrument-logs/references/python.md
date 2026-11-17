@@ -1,20 +1,25 @@
 > AI agents: this is one page from PostHog's docs. Full index of Markdown docs for LLMs: https://posthog.com/llms.txt
 
-# Python Logs installation - Docs
+# Python Logs installation
 
-Copy page
+Canonical URL: https://posthog.com/docs/logs/installation/python
 
-# Python Logs installation - Docs
+> **Cloud region:** This page uses US Cloud hosts. For an EU Cloud project, use `https://eu.i.posthog.com` instead of `https://us.i.posthog.com` (ingestion host), and use `https://eu.posthog.com` instead of `https://app.posthog.com` (app host for links).
+
+## On this page
+
+- [Install OpenTelemetry packages](#install-opentelemetry-packages)
+- [Get your project token](#get-your-project-token)
+- [Configure the SDK](#configure-the-sdk)
+- [Use OpenTelemetry logging](#use-opentelemetry-logging)
+- [Test your setup](#test-your-setup)
+- [Next steps](#next-steps)
 
 1.  1
 
     ## Install OpenTelemetry packages
 
     Required
-
-    Terminal
-
-    PostHog AI
 
     ```bash
     pip install opentelemetry-api opentelemetry-sdk opentelemetry-exporter-otlp
@@ -42,37 +47,36 @@ Copy page
 
     > **Note:** The logs API is still experimental in `opentelemetry-python`, so it's only exposed under the private `_logs` import path (e.g. `opentelemetry._logs`). Use these imports rather than `opentelemetry.logs`, which doesn't exist yet.
 
-    Python
-
-    PostHog AI
-
     ```python
     import logging
     from opentelemetry._logs import set_logger_provider
     from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
     from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
     from opentelemetry.exporter.otlp.proto.http._log_exporter import OTLPLogExporter
+    
     # Configure the logger provider
     logger_provider = LoggerProvider()
     set_logger_provider(logger_provider)
+    
     # Create OTLP exporter with API key in header
     otlp_exporter = OTLPLogExporter(
         endpoint="https://us.i.posthog.com/i/v1/logs",
         headers={"Authorization": "Bearer <ph_project_token>"}
     )
+    
     # Add processor
     logger_provider.add_log_record_processor(
         BatchLogRecordProcessor(otlp_exporter)
     )
+    
     # Attach the OpenTelemetry handler to the root logger
     logging.getLogger().addHandler(LoggingHandler(logger_provider=logger_provider))
+    
+    # Let INFO logs through (Python's root logger defaults to WARNING)
+    logging.getLogger().setLevel(logging.INFO)
     ```
 
     Alternatively, you can pass the API key as a query parameter:
-
-    Python
-
-    PostHog AI
 
     ```python
     otlp_exporter = OTLPLogExporter(
@@ -88,13 +92,9 @@ Copy page
 
     With the handler attached in the previous step, you can start logging with standard Python logging and the records flow to PostHog:
 
-    Python
-
-    PostHog AI
-
     ```python
     import logging
-    logging.basicConfig(level=logging.INFO)
+    
     # Use standard Python logging
     logger = logging.getLogger("my-app")
     logger.info("User action", extra={"userId": "123", "action": "login"})
@@ -124,19 +124,11 @@ Copy page
 
     | Action | Description |
     | --- | --- |
-    | [Why you need logs](/docs/logs/basics.md) | What logs show you that nothing else does |
-    | [Search logs](/docs/logs/search.md) | Use the search interface to find specific log entries |
-    | Filter by level | Filter by INFO, WARN, ERROR, etc. |
-    | [Link session replay](/docs/logs/link-session-replay.md) | Connect logs to users and session replays by passing posthogDistinctId and sessionId |
-    | [Link logs to a person](/docs/logs/link-person.md) | Surface every log emitted on behalf of a user on their PostHog person profile |
-    | [Logging best practices](/docs/logs/best-practices.md) | Learn what to log, how to structure logs, and patterns that make logs useful in production |
+    | **[Why you need logs](https://posthog.com/docs/logs/basics.md)** | What logs show you that nothing else does |
+    | **[Search logs](https://posthog.com/docs/logs/search.md)** | Use the search interface to find specific log entries |
+    | **Filter by level** | Filter by `INFO`, `WARN`, `ERROR`, etc. |
+    | **[Link session replay](https://posthog.com/docs/logs/link-session-replay.md)** | Connect logs to users and session replays by passing `posthogDistinctId` and `sessionId` |
+    | **[Link logs to a person](https://posthog.com/docs/logs/link-person.md)** | Surface every log emitted on behalf of a user on their PostHog person profile |
+    | **[Logging best practices](https://posthog.com/docs/logs/best-practices.md)** | Learn what to log, how to structure logs, and patterns that make logs useful in production |
 
-    [Troubleshoot common issues](/docs/logs/troubleshooting.md)
-
-### Still have questions?
-
-Ask PostHog AI
-
-### Was this page useful?
-
-HelpfulCould be better
+    [Troubleshoot common issues](https://posthog.com/docs/logs/troubleshooting.md)

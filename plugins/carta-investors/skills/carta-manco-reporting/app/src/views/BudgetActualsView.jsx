@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
-import { sans, INK, PAPER, LINE, FAINT, MICRO, SHADE, microCaption, FS, RED } from "../ui/theme.js";
+import { sans, INK, PAPER, LINE, FAINT, MICRO, SHADE, microCaption, FS, RED, subheadRow, SUBHEAD_ICON_BTN } from "../ui/theme.js";
 import { H1, NoteIcon } from "../ui/components.jsx";
-import BudgetActualsAccounts, { hasMonthlyDetail } from "./BudgetActualsAccounts.jsx";
-import { glNameMap, glTooltip } from "../ui/glNames.js";
+import BudgetActualsAccounts, { hasMonthlyDetail, budgetYear } from "./BudgetActualsAccounts.jsx";
+import { glNameMap, glTooltip, childDisplayLabel, subAccountsByAccount, subCodeMap, subsOfAccounts } from "../ui/glNames.js";
+import { entryInYear } from "./drilldown/util.js";
+import { NEST_STEP } from "../ui/nesting.js";
 import { dimensionOf, dimensionValue, dimensionValuesAvailable,
-         dimensionLabel, dimensionLabelPlural, noValueLabel } from "../ui/dimension.js";
+         dimensionLabel, dimensionLabelPlural, rowTagScope } from "../ui/dimension.js";
 import { LEDGER_LABEL, LEDGER_NUM, LEDGER_ROW, LEDGER_TOTAL, LEDGER_SECTION } from "../ui/ledger.js";
-import { TableScroll, LEDGER_BASE, TOTAL_ROW_BG, GroupedTableHead, useStickyHeader, StickyClone } from "../ui/table.jsx";
+import { TableScroll, LEDGER_BASE, TOTAL_ROW_BG, GroupedTableHead, useStickyHeader, StickyClone, drillCellProps } from "../ui/table.jsx";
 import { Capped } from "../shell/AppShell.jsx";
 import { fmtCurrencyWhole } from "../charts/chartTheme.js";
 import { varianceColor, fmtVarianceWhole } from "../ui/variance.js";
@@ -14,12 +16,19 @@ import BudgetActualsOutline from "./BudgetActualsOutline.jsx";
 import BudgetSourceLine from "./BudgetSourceLine.jsx";
 import HoverTip from "../ui/HoverTip.jsx";
 import { FiltersMenu, FilterRibbon, SimplePeriodPicker, S as periodControlsStyles } from "./BudgetPeriodControls.jsx";
-import { MONTH_NAME, trueAsOfMonth, formatPeriodLabel } from "./budgetPeriods.js";
+import { MONTH_NAME, trueAsOfMonth, formatPeriodLabel, cutoffDate } from "./budgetPeriods.js";
 import { rowBreakouts, defaultBreakout, worthBreakingOut, UNLABELLED } from "./accountBreakout.js";
+import { prefsKeyFor } from "./budgetPrefs.js";
+import useViewToolbar from "./useViewToolbar.js";
 import ExportButton from "../ui/ExportButton.jsx";
+import ReportActions, { hasSharePanel } from "../reports/ReportActions.jsx";
+import { reportFor } from "../shell/reportNav.js";
+import ReportNotice from "../reports/ReportNotice.jsx";
 import ThemeToggleButton from "../ui/ThemeToggleButton.jsx";
-import { slugify } from "../ui/exportHtml.js";
-import { trackClick } from "../analytics.js";
+import AskClaudeButton from "../ui/AskClaudeButton.jsx";
+import { exportPropsFor } from "../ui/exportHtml.js";
+import { displayFirmName } from "../ui/firmName.js";
+import { trackClick, trackRender } from "../analytics.js";
 
 const BVA_EXPORT_ID = "manco-export-budget-vs-actuals";
 
@@ -49,6 +58,14 @@ const TOP_VALUE_DEFAULT_N = 3;             // + Firm Total = 4 columns by defaul
 // The only axes this page renders. Matching against this fixed list, not
 // "isn't X or Y so it must be Z", stops an unrecognized axis from falling
 // through to the department crosstab and joining actuals on the wrong tag.
+// Layout -> the render it reports, so a budget switch that swaps renderers is
+// visible. Keyed on the classified kind, never on the budget's own id.
+const LAYOUT_EVENTS = {
+  "by-account": "MancoReporting.BudgetVsActuals.LayoutAccounts",
+  "by-line-item": "MancoReporting.BudgetVsActuals.LayoutOutline",
+  "by-tag-crosstab": "MancoReporting.BudgetVsActuals.LayoutCrosstab",
+};
+
 export function classifyBudgetView(viewKinds) {
   const kinds = viewKinds || [];
   if (kinds.includes("by-account")) return "by-account";
@@ -67,7 +84,7 @@ export function ownsPeriodControl(viewKind, budget) {
   return viewKind === "by-account" && hasMonthlyDetail(budget);
 }
 
-export default function BudgetActualsView({ snapshot, accountsData, drilldown, budgetId, dark, onToggleTheme }) {
+export default function BudgetActualsView({ snapshot, accountsData, drilldown, budgetId, dark, onToggleTheme, chatOpen, onToggleChat, reportsApi, hosted, onOpenReport, onShareDone, onCreateCustomReport }) {
   // The build writes the dimension beside the entries it scopes, in
   // accounts.json. Snapshot is the fallback for a cache written earlier.
   const dimension = dimensionOf(accountsData) || dimensionOf(snapshot);
@@ -79,10 +96,30 @@ export default function BudgetActualsView({ snapshot, accountsData, drilldown, b
   const budgetsList = Array.isArray(snapshot?.budget?.budgets) ? snapshot.budget.budgets : [];
   const selected = budgetsList.find(b => b.id === budgetId) || budgetsList[0];
   const budget = selected || snapshot?.budget;
+  const report = reportFor(budget, reportsApi);
   const byTagValue = budget?.by_tag_value || [];
   const viewKinds = budget?.view_kinds || ["by-tag-crosstab"];
-  const [showAll, setShowAll] = useState(false);
-  const [showHidden, setShowHidden] = useState(false);
+  // What a row can be opened up by. Same control, same rules and the same
+  // ordering as the other two layouts — a reader who learns it on one
+  // report should not have to learn it again here.
+  const breakouts = useMemo(() => rowBreakouts(accountsData, budget),
+                            [accountsData, budget]);
+  // The crosstab's toolbar, kept across reloads and in the URL — only while the crosstab is
+  // the layout showing: the other two keep their own toolbar under the same budget's key.
+  // Outline budgets mirror the client's own budget tab (sections, their
+  // line items, their subtotals, their order) rather than a dept
+  // crosstab — see BudgetActualsOutline. The dept crosstab machinery
+  // below is inert for these.
+  const viewKind = classifyBudgetView(viewKinds);
+  const isOutline = viewKind === "by-line-item";
+  const isAccounts = viewKind === "by-account";
+  const isTagCrosstab = viewKind === "by-tag-crosstab";
+  const isRecognizedView = viewKind != null;
+  const {
+    showAll, setShowAll, showHidden, setShowHidden, throughToday, setThroughToday, breakoutKey, setBreakoutKey,
+  } = useViewToolbar({
+    prefsKey: isTagCrosstab ? prefsKeyFor(accountsData, budget?.id) : null, breakouts, sharedView: budget?.view,
+  });
   // A callback-ref, not useRef: a stable ref's identity never re-attaches
   // if the view first mounts on a non-crosstab budget. See useStickyHeader.
   const [theadEl, setTheadEl] = useState(null);
@@ -122,23 +159,32 @@ export default function BudgetActualsView({ snapshot, accountsData, drilldown, b
   // Per-dept actuals map: {dept: {account_type: actual_ytd}}.
   // Computed once from accountsData.entries and reused across all row cells.
   const glNames = useMemo(() => glNameMap(accountsData?.entries), [accountsData]);
+  const subCodes = useMemo(() => subCodeMap(accountsData?.entries), [accountsData]);
+  const subsByAccount = useMemo(() => subAccountsByAccount(accountsData?.entries), [accountsData]);
 
   // Column budgets are one total, not a monthly split (shapes/tag_crosstab.py) —
   // widening actuals can't widen the budget figure alongside it, so it's opt-in.
-  const asOfMonth = trueAsOfMonth(snapshot?.asOf);
+  const asOfMonth = trueAsOfMonth(cutoffDate(snapshot));
   const statedLastMonth = budget?.period?.last_month ?? 12;
   const canExtendToToday = asOfMonth > statedLastMonth;
-  const [throughToday, setThroughToday] = useState(false);
   const effectivePeriod = useMemo(() => {
     if (!throughToday || !canExtendToToday) return budget?.period;
     return { ...budget?.period, last_month: asOfMonth };
   }, [throughToday, canExtendToToday, asOfMonth, budget]);
 
   const tagValuesAvailable = dimensionValuesAvailable(accountsData);
+  // The budget's year, decided once for every view. Only entries of that
+  // year count: a 2027 budget read against the ledger's 2026 entries would
+  // show 2026 spend as 2027 actuals.
+  const periodYear = budgetYear(budget, cutoffDate(snapshot));
+  const yearEntries = useMemo(
+    () => (accountsData?.entries || []).filter(e => entryInYear(e, periodYear)),
+    [accountsData, periodYear]
+  );
   const actualsByTagValue = useMemo(
-    () => computeActualsByTagValue(accountsData?.entries || [], byTagValue, effectivePeriod,
+    () => computeActualsByTagValue(yearEntries, byTagValue, effectivePeriod,
                                tagValuesAvailable, dimension),
-    [accountsData, byTagValue, effectivePeriod, tagValuesAvailable, dimension]
+    [yearEntries, byTagValue, effectivePeriod, tagValuesAvailable, dimension]
   );
 
   // {row key: {dept: actual}}. Leaf lines resolve from Carta by GL code;
@@ -157,40 +203,34 @@ export default function BudgetActualsView({ snapshot, accountsData, drilldown, b
     return m;
   }, [allRows]);
 
-  // What a row can be opened up by. Same control, same rules and the same
-  // ordering as the other two layouts — a reader who learns it on one
-  // report should not have to learn it again here.
-  const breakouts = useMemo(() => rowBreakouts(accountsData, budget),
-                            [accountsData, budget]);
-  const [breakoutKey, setBreakoutKey] = useState(null);
   const breakout = useMemo(() => {
     if (breakoutKey === "none") return null;
     if (breakoutKey) return breakouts.find(b => b.key === breakoutKey) || null;
     return defaultBreakout(accountsData, breakouts, budget);
   }, [breakoutKey, breakouts, accountsData, budget]);
   const breakoutActuals = useMemo(
-    () => computeBreakoutActuals(accountsData?.entries || [], byTagValue, effectivePeriod,
+    () => computeBreakoutActuals(yearEntries, byTagValue, effectivePeriod,
                                  tagValuesAvailable, dimension, breakout),
-    [accountsData, byTagValue, effectivePeriod, tagValuesAvailable, dimension, breakout]
+    [yearEntries, byTagValue, effectivePeriod, tagValuesAvailable, dimension, breakout]
   );
   const [openRows, setOpenRows] = useState(() => new Set());
-  const toggleRow = (key) => setOpenRows(prev => {
-    const next = new Set(prev);
-    if (next.has(key)) next.delete(key); else next.add(key);
-    return next;
-  });
+  const toggleRow = (key) => {
+    trackClick("MancoReporting.BudgetVsActuals.CrosstabExpandRow");
+    setOpenRows(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  };
 
   const meta = budget?.workbook_meta;
 
-  // Outline budgets mirror the client's own budget tab (sections, their
-  // line items, their subtotals, their order) rather than a dept
-  // crosstab — see BudgetActualsOutline. The dept crosstab machinery
-  // above is inert for these.
-  const viewKind = classifyBudgetView(viewKinds);
-  const isOutline = viewKind === "by-line-item";
-  const isAccounts = viewKind === "by-account";
-  const isTagCrosstab = viewKind === "by-tag-crosstab";
-  const isRecognizedView = viewKind != null;
+  // The page's .View fires once from App.jsx; this says which renderer it got,
+  // and fires again when a sidebar budget switch changes it.
+  useEffect(() => {
+    if (!budget) return;
+    trackRender(LAYOUT_EVENTS[viewKind] || "MancoReporting.BudgetVsActuals.UnsupportedView");
+  }, [viewKind, budget?.id]);
   // The firm's own word for what its columns are. "By Department" was one
   // client's category leaking into every client's heading.
   const columnLabel = dimensionLabel(dimension);
@@ -205,6 +245,10 @@ export default function BudgetActualsView({ snapshot, accountsData, drilldown, b
                    : isOutline ? "Budget by line item"
                    : isTagCrosstab ? `Budget by ${columnLabel.toLowerCase()}`
                    : "Budget — unsupported view";
+  const exportProps = exportPropsFor(snapshot, {
+    targetId: BVA_EXPORT_ID, pageLabel: `Budget vs Actuals — ${headingText}`,
+    slug: "budget-vs-actuals", eventPage: "BudgetVsActuals",
+  });
 
   return (
     <div id={BVA_EXPORT_ID}>
@@ -212,24 +256,47 @@ export default function BudgetActualsView({ snapshot, accountsData, drilldown, b
           — see AppShell's Capped. The heading is uncapped with them, so
           Export right-aligns with the table rather than with the prose. */}
       <H1
-        subhead="Budget vs actuals"
+        subhead={
+          <span style={subheadRow}>
+            Budget vs actuals
+            {onCreateCustomReport && (
+              <button
+                type="button"
+                data-export-exclude
+                onClick={() => onCreateCustomReport(budgetId)}
+                title="Create a custom report"
+                aria-label="Create a custom report"
+                style={styles.addReportBtn}
+              >
+                +
+              </button>
+            )}
+          </span>
+        }
         actions={
           <div data-export-exclude style={{ display: "flex", gap: 8 }}>
             {onToggleTheme && <ThemeToggleButton dark={dark} onToggle={onToggleTheme} />}
-            <ExportButton
-              targetId={BVA_EXPORT_ID}
-              entityName={snapshot?.firmName || "ManCo"}
-              pageLabel={`Budget vs Actuals — ${headingText}`}
-              asOf={snapshot?.asOf}
-              filenameBase={`${slugify(snapshot?.firmName) || "manco"}-budget-vs-actuals`}
-              events={{ click: "MancoReporting.BudgetVsActuals.ExportHtml",
-                       succeeded: "MancoReporting.BudgetVsActuals.ExportHtmlSucceeded",
-                       failed: "MancoReporting.BudgetVsActuals.ExportHtmlFailed" }}
-            />
+            {onToggleChat && <AskClaudeButton open={chatOpen} onToggle={onToggleChat} />}
+            {reportsApi?.available && report && (
+              <ReportActions
+                report={report}
+                reportsApi={reportsApi}
+                firmName={displayFirmName(snapshot?.firmName)}
+                exportProps={exportProps}
+                accountsData={accountsData}
+                hosted={hosted}
+                onOpenReport={onOpenReport}
+                onShareDone={onShareDone}
+              />
+            )}
+            {/* A report carries Export inside its Share panel. */}
+            {!(reportsApi?.available && hasSharePanel(report)) && <ExportButton {...exportProps} />}
           </div>
         }
       >{titleText}</H1>
       <Capped>
+      <ReportNotice report={report} asOf={snapshot?.asOf} firmName={displayFirmName(snapshot?.firmName)} reportsApi={reportsApi}
+        accountsData={accountsData} onOpenReport={onOpenReport} onShareDone={onShareDone} />
       <div style={styles.metaRow}>
         {!isTagCrosstab && !isOutline && !ownsPeriodControl(viewKind, budget) && (
           <span style={styles.metaChip}>
@@ -245,10 +312,11 @@ export default function BudgetActualsView({ snapshot, accountsData, drilldown, b
       {isAccounts && (
         <BudgetActualsAccounts
           budget={budget}
-          entries={accountsData?.entries || []}
+          entries={yearEntries}
           drilldown={accountsData ? drilldown : null}
           accountsData={accountsData}
-          asOf={snapshot?.asOf}
+          asOf={cutoffDate(snapshot)}
+          periodYear={periodYear}
         />
       )}
 
@@ -263,7 +331,8 @@ export default function BudgetActualsView({ snapshot, accountsData, drilldown, b
           dimension={dimension}
           budget={budget}
           accountsData={accountsData}
-          periodYear={budget?.period_year}
+          periodYear={periodYear}
+          yearEntries={yearEntries}
           drilldown={accountsData ? drilldown : null}
           asOf={snapshot?.asOf}
         />
@@ -339,7 +408,10 @@ export default function BudgetActualsView({ snapshot, accountsData, drilldown, b
                   actualsByKey={actualsByKey}
                   labelByKey={labelByKey}
                   glNames={glNames}
+                  subCodes={subCodes}
+                  subsByAccount={subsByAccount}
                   onDrill={drilldown?.openTagValueAccount}
+                  periodYear={periodYear}
                   period={effectivePeriod}
                   tagValuesAvailable={tagValuesAvailable}
                   dimension={dimension}
@@ -390,10 +462,10 @@ export const DEPT_SUB_COLS = [
   { label: "Var $" },
 ];
 
-export function BudgetRow({ row, columns, actualsByTagValue, actualsByKey, labelByKey, onDrill, period, glNames,
+export function BudgetRow({ row, columns, actualsByTagValue, actualsByKey, labelByKey, onDrill, period, glNames, subCodes, subsByAccount,
                     tagValuesAvailable = true, breakout = null, breakoutActuals = null,
                     openRows = null, onToggleRow = null, dimension = null,
-                    hoverCell = null, onHoverCell = null, heldCell = null }) {
+                    hoverCell = null, onHoverCell = null, heldCell = null, periodYear = null }) {
   const kind = row.row_kind || "line";
   const label = row.label ?? row.account_name;
 
@@ -519,7 +591,11 @@ export function BudgetRow({ row, columns, actualsByTagValue, actualsByKey, label
         {/* The accounts behind a line live on its own tooltip — see the
             outline's label cell for why the codes left this column. */}
         <HoverTip text={row.account_type != null
-                        ? glTooltip(row.account_type_all || [row.account_type], glNames)
+                        ? (() => {
+                            const codes = row.account_type_all || [row.account_type];
+                            return glTooltip(codes, glNames, null, subCodes,
+                                             subsOfAccounts(codes, subsByAccount));
+                          })()
                         : null}>
           {label}
         </HoverTip>
@@ -568,7 +644,7 @@ export function BudgetRow({ row, columns, actualsByTagValue, actualsByKey, label
           ? () => onDrill(col.tag_value, label, row.account_type,
                           row.account_type_all, comment, cartaTags,
                           { budget, actual, polarity, unmapped }, period,
-                          null, null, dimension, null, cellKey)
+                          null, null, dimension, null, cellKey, periodYear)
           : undefined;
         const cellKey = `${row.key || label}::${col.tag_value}`;
         return (
@@ -591,9 +667,9 @@ export function BudgetRow({ row, columns, actualsByTagValue, actualsByKey, label
     </tr>
     {isOpen && children.map(child => (
       <tr key={`${rowKey}::${child.label}`}>
-        <td style={{ ...styles.tdLabel, ...LEDGER_ROW, paddingLeft: indent + 16 }}>
+        <td style={{ ...styles.tdLabel, ...LEDGER_ROW, paddingLeft: indent + 16 + (child.nested ? NEST_STEP : 0) }}>
           <span style={child.unlabelled ? styles.childMuted : null}>
-            {child.unlabelled ? noValueLabel(breakout) : child.label}
+            {childDisplayLabel(child, breakout)}
           </span>
         </td>
         {columns.map(col => (
@@ -661,15 +737,7 @@ function BudgetCell({ actual, budget, unmapped, polarity, onClick, rowStyle,
   const cellStyle = { ...styles.tdNum, ...rowStyle };
   if (onClick) cellStyle.cursor = "pointer";
   const firstCellStyle = { ...cellStyle, ...styles.tdNumFirst };
-  // Same hover wash as the other budget tables (theme.js .cellopen).
-  // The four cells of one column are one figure, and the panel reports all
-  // four, so they light together. A CSS :hover cannot reach siblings.
-  const handler = onClick ? {
-    onClick,
-    className: `cellopen${held ? " held" : hovered ? " washed" : ""}`,
-    onMouseEnter: onHover ? () => onHover(true) : undefined,
-    onMouseLeave: onHover ? () => onHover(false) : undefined,
-  } : {};
+  const handler = drillCellProps({ onClick, hovered, held, onHover });
   if (unmapped) {
     return (
       <>
@@ -859,8 +927,14 @@ export function computeActualsByTagValue(entries, byTagValue, period, tagValuesA
   //
   // Precompute reverse index tag_value → [workbook_dept, ...] so we walk
   // entries once instead of scanning every dept's carta_tags per entry.
+  // Grouped by which dimension actually resolves a column's own tag values —
+  // a column's own reporting-tag scope first, else the shared dimension —
+  // so a column naming its own scope isn't read against the wrong field
+  // just because the workbook-wide dimension is unresolved or different.
+  // Every column shares one axis today, so this is one group in practice;
+  // the grouping keeps that true if a column ever carries its own scope.
   const out = {};
-  const tagToDepts = new Map(); // carta tag → [workbook_dept, ...]
+  const groups = new Map(); // "source:category" → { scope, tagToDepts }
   const firmTotalDepts = []; // depts with carta_tags: [] (Firm Total)
   for (const col of byTagValue) {
     out[col.tag_value] = {};
@@ -869,11 +943,15 @@ export function computeActualsByTagValue(entries, byTagValue, period, tagValuesA
     // every dept as Firm-Total-shaped instead (firm-wide fallback).
     if (tags.length === 0 || !tagValuesAvailable) {
       firmTotalDepts.push(col.tag_value);
-    } else {
-      for (const t of tags) {
-        if (!tagToDepts.has(t)) tagToDepts.set(t, []);
-        tagToDepts.get(t).push(col.tag_value);
-      }
+      continue;
+    }
+    const scope = rowTagScope(col, dimension, tagValuesAvailable);
+    const groupKey = scope ? `${scope.source || "reporting_tag"}:${scope.category || ""}` : "";
+    if (!groups.has(groupKey)) groups.set(groupKey, { scope, tagToDepts: new Map() });
+    const { tagToDepts } = groups.get(groupKey);
+    for (const t of tags) {
+      if (!tagToDepts.has(t)) tagToDepts.set(t, []);
+      tagToDepts.get(t).push(col.tag_value);
     }
   }
   for (const e of entries) {
@@ -884,15 +962,17 @@ export function computeActualsByTagValue(entries, byTagValue, period, tagValuesA
     for (const dept of firmTotalDepts) {
       out[dept][t] = (out[dept][t] || 0) + (e.amount || 0);
     }
-    // Value-matching columns: read the entry's value for this firm's
-    // dimension and hit every column whose carta_tags include it.
-    const v = dimensionValue(e, dimension);
-    const deptTag = v != null ? { value: v } : null;
-    if (!deptTag) continue;
-    const depts = tagToDepts.get(deptTag.value);
-    if (!depts) continue;
-    for (const dept of depts) {
-      out[dept][t] = (out[dept][t] || 0) + (e.amount || 0);
+    // Value-matching columns: read the entry's value for each group's own
+    // resolved dimension and hit every column in that group whose
+    // carta_tags include it.
+    for (const { scope, tagToDepts } of groups.values()) {
+      const v = dimensionValue(e, scope);
+      if (v == null) continue;
+      const depts = tagToDepts.get(v);
+      if (!depts) continue;
+      for (const dept of depts) {
+        out[dept][t] = (out[dept][t] || 0) + (e.amount || 0);
+      }
     }
   }
   return out;
@@ -954,6 +1034,7 @@ export function breakoutChildren(row, columns, breakoutActuals) {
 }
 
 export const styles = {
+  addReportBtn: { ...SUBHEAD_ICON_BTN, fontSize: 16, lineHeight: 1, fontWeight: 500 },
   // Row under H1 holding the account-view period chip, when applicable.
   metaRow: {
     ...sans,

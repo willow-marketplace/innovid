@@ -1,6 +1,6 @@
 ---
 name: general-video
-description: ">"
+description: general-video
 ---
 
 # general-video — general composition authoring

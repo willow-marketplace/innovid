@@ -12,19 +12,33 @@ export const EDIT_FIELDS = ["valuationB", "markMultiple", "futureDilution",
   "includeInNav", "exited", "exitTimingQ", "waterfallMode", "archived", "notes",
   "secondaries"];
 
+// Fund Construction's public-market comparison rates. MUST match MARKET_REFS in scripts/build_datadir.py.
+export const MARKET_REFS = { spLongRun: 0.102, spActualHotDecade: 0.13, nasdaqActual: 0.17, treasury10y: 0.044 };
+// The baseline's flat assumptions. MUST match BASELINE_ASSUMPTION_DEFAULTS in
+// scripts/build_datadir.py, so the hosted and local baselines model the same carry and benchmark.
+export const BASELINE_ASSUMPTION_DEFAULTS = {
+  carryRate: 0.2, spRate: MARKET_REFS.spLongRun, spSensitivityRate: MARKET_REFS.spActualHotDecade, staleDays: 90,
+};
+// A fund with entries in these maps is modelled with its own waterfall instead of the flat carryRate.
+export const FUND_WATERFALL_KEYS = ["carryRates", "preferredReturns", "catchupRates", "catchupLimits"];
+
+/** One company back to its Carta mark: parked (`includeInNav` off), whole stake held (no partial
+ *  sales), and valuation mode unchosen so it reopens in its default mode. */
+export function resetCompanyToCarta(c) {
+  c.valuationB = c.defaultValuationB ?? null;
+  c.markMultiple = 1;
+  c.includeInNav = false;
+  c.exited = false;
+  c.futureDilution = 0;
+  c.waterfallMode = null;
+  c.secondaries = [];
+}
+
 /** Reset every editable input in a slice body to its default. */
 export function normalizeToDefaults(body) {
   const doc = structuredClone(body);
   doc.assumptions = { ...doc.assumptions, carryRate: 0.2, carryRates: {}, spRate: 0.102, feeLoads: {}, followOnRatios: {}, recyclingRatios: {} };
-  for (const c of doc.companies) {
-    c.valuationB = c.defaultValuationB ?? null;
-    c.markMultiple = 1;
-    c.includeInNav = false; // baseline holds EVERY company at Carta marks
-    c.exited = false;
-    c.futureDilution = 0;
-    c.waterfallMode = false; // baseline uses the flat reprice, not the preference waterfall
-    c.secondaries = []; // baseline holds the whole stake — no modeled partial sales
-  }
+  for (const c of doc.companies) resetCompanyToCarta(c); // baseline holds EVERY company at Carta marks
   return doc;
 }
 
@@ -44,6 +58,19 @@ export function makeSlice({ id, name, from, locked = false, createdAt, color = n
 // on this; a published local scenario gains `shared`, a fork drops it.
 export function isShared(s) {
   return !!(s && s.shared && s.shared.uuid);
+}
+
+/** Scenarios in tile order: the locked Baseline first, then the user's own as
+ *  listed, then shared ones. Shared scenarios the user hid are left out. */
+export function scenariosInTileOrder(slices) {
+  const own = slices.filter((s) => !isShared(s));
+  const shared = slices.filter((s) => isShared(s) && !isHidden(s));
+  return [...own.filter((s) => s.locked), ...own.filter((s) => !s.locked), ...shared];
+}
+
+// A shared scenario the current user published themselves. Unknown until userId loads.
+export function isOwnShared(s, userId) {
+  return isShared(s) && s.shared.createdBy != null && s.shared.createdBy === userId;
 }
 
 // A shared scenario the user hid from their list — stays on disk so a pull keeps it hidden
@@ -139,22 +166,23 @@ export function dehydrateDoc(doc) {
   return { ...doc, version: 3, slices: doc.slices.map((s) => dehydrateSlice(s, base)) };
 }
 
-/** Companies holding positions in a fund (live ones only). Defunct companies
- *  are individually uneditable (UI lock) but fund-level zero/reset DO include
- *  them — a written-off fund zeroes its dead companies' stale Carta marks too. */
-export function companiesInFund(body, fundId) {
-  return body.companies.filter((c) => !c.archived && c.positions.some((p) => p.fundId === fundId));
+/** Companies holding positions in a fund, or in any fund of a list (live ones only).
+ *  Defunct companies are individually uneditable (UI lock) but fund-level zero/reset DO
+ *  include them — a written-off fund zeroes its dead companies' stale Carta marks too. */
+export function companiesInFund(body, fundIds) {
+  const ids = [].concat(fundIds);
+  return body.companies.filter((c) => !c.archived && c.positions.some((p) => ids.includes(p.fundId)));
 }
 
 /**
- * Write off every company in a fund: tapes to zero, connected to NAV.
+ * Write off every company in a fund (or in each fund of a list): tapes to zero, connected to NAV.
  * Repriced FV, position tables, and fund NAV all read zero — then write up
  * only the survivors by dragging their tapes back. Companies that also hold
  * positions in OTHER funds get zeroed everywhere (the tape is company-level);
  * surface those via crossFundCompanies() before calling.
  */
-export function zeroOutFund(body, fundId) {
-  for (const c of companiesInFund(body, fundId)) {
+export function zeroOutFund(body, fundIds) {
+  for (const c of companiesInFund(body, fundIds)) {
     c.includeInNav = true;
     // zero BOTH modes — a mixed company (some positions with a basis, some
     // without) reprices per-position, so one input alone wouldn't zero it
@@ -165,23 +193,16 @@ export function zeroOutFund(body, fundId) {
   return body;
 }
 
-/** Undo: every company in the fund back to Carta marks (parked, disconnected). */
-export function resetFundToCarta(body, fundId) {
-  for (const c of companiesInFund(body, fundId)) {
-    c.valuationB = c.defaultValuationB ?? null;
-    c.markMultiple = 1;
-    c.includeInNav = false;
-    c.exited = false;
-    c.futureDilution = 0;
-    c.waterfallMode = false;
-    c.secondaries = [];
-  }
+/** Undo: every company in the fund (or list of funds) back to Carta marks (parked, disconnected). */
+export function resetFundToCarta(body, fundIds) {
+  for (const c of companiesInFund(body, fundIds)) resetCompanyToCarta(c);
   return body;
 }
 
-/** Companies a fund-level zero would also affect elsewhere. */
-export function crossFundCompanies(body, fundId) {
-  return companiesInFund(body, fundId).filter((c) => c.positions.some((p) => p.fundId !== fundId));
+/** Companies a fund-level zero would also affect outside the fund (or list of funds). */
+export function crossFundCompanies(body, fundIds) {
+  const ids = [].concat(fundIds);
+  return companiesInFund(body, ids).filter((c) => c.positions.some((p) => !ids.includes(p.fundId)));
 }
 
 /** Firm-wide write-off: every non-archived company across every fund, tapes to zero. */
@@ -197,15 +218,7 @@ export function zeroOutAll(body) {
 
 /** Firm-wide undo: every non-archived company back to Carta marks. */
 export function resetAllToCarta(body) {
-  for (const c of body.companies.filter((c) => !c.archived)) {
-    c.valuationB = c.defaultValuationB ?? null;
-    c.markMultiple = 1;
-    c.includeInNav = false;
-    c.exited = false;
-    c.futureDilution = 0;
-    c.waterfallMode = false;
-    c.secondaries = [];
-  }
+  for (const c of body.companies.filter((c) => !c.archived)) resetCompanyToCarta(c);
   return body;
 }
 
@@ -217,12 +230,13 @@ export function resetAllToCarta(body) {
  * marks it live in NAV (dilution only bites once includeInNav is true — same as
  * the per-company dilution slider). Skips realized/defunct; preserves any
  * existing valuationB/markMultiple reprice (dilution stacks on top).
- * `fundId === "all"` applies firm-wide; otherwise scoped to that fund.
+ * `fundIds === "all"` applies firm-wide; otherwise scoped to that fund, or to each
+ * fund of a list.
  */
-export function applyReserveDilution(body, fundId, dilution) {
-  const targets = fundId === "all"
+export function applyReserveDilution(body, fundIds, dilution) {
+  const targets = fundIds === "all"
     ? body.companies.filter((c) => !c.archived)
-    : companiesInFund(body, fundId);
+    : companiesInFund(body, fundIds);
   for (const c of targets) {
     if (c.realized || c.defunct) continue;
     c.futureDilution = dilution;
@@ -231,11 +245,13 @@ export function applyReserveDilution(body, fundId, dilution) {
   return body;
 }
 
+/** The readable part of a scenario id: its name, lowercased, with runs of other characters as "-". */
+export function sliceSlug(name) {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+}
+
 export function sliceId(name) {
-  return (
-    name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") +
-    "-" + Math.random().toString(36).slice(2, 6)
-  );
+  return sliceSlug(name) + "-" + Math.random().toString(36).slice(2, 6);
 }
 
 /** True if a slice's inputs differ from another's (valuations, toggles, assumptions). */

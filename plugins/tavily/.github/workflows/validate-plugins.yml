@@ -1,0 +1,99 @@
+name: Validate plugins
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Claude Code plugin
+        run: npx -y @anthropic-ai/claude-code@2.1.319 plugin validate .
+
+      # Schema pinned to the last cursor/plugins commit that changed it.
+      - name: Cursor plugin
+        run: |
+          curl -fsSL -o /tmp/cursor-plugin.schema.json \
+            https://raw.githubusercontent.com/cursor/plugins/5229aad76c37451561c5b81a9b5072ae1c549a5b/schemas/plugin.schema.json
+          npm install --no-save --silent ajv@8 ajv-formats@3
+          node -e '
+            const Ajv = require("ajv");
+            const ajv = new Ajv({ strict: false, allErrors: true });
+            require("ajv-formats")(ajv);
+            const validate = ajv.compile(require("/tmp/cursor-plugin.schema.json"));
+            const manifest = require("./.cursor-plugin/plugin.json");
+            if (!validate(manifest)) {
+              console.error(JSON.stringify(validate.errors, null, 2));
+              process.exit(1);
+            }
+            console.log("Cursor manifest is valid");
+          '
+
+      # OpenAI rejects packages with hooks or app references, and Codex
+      # package validation requires both icons.
+      - name: Codex plugin
+        run: |
+          manifest=.codex-plugin/plugin.json
+          if jq -e '.hooks or .apps' "$manifest" > /dev/null; then
+            echo "$manifest declares hooks or apps"
+            exit 1
+          fi
+          for icon in $(jq -r '.interface.logo, .interface.composerIcon' "$manifest"); do
+            test -f "$icon" || { echo "Missing icon: $icon"; exit 1; }
+          done
+          echo "Codex manifest is valid"
+
+      - name: Install Grok CLI
+        run: |
+          curl -fsSL https://x.ai/cli/install.sh | GROK_BIN_DIR="$RUNNER_TEMP/grok" bash
+          echo "$RUNNER_TEMP/grok" >> "$GITHUB_PATH"
+
+      # xAI's catalog index only finds skills listed one folder per entry,
+      # so the Grok manifest names each skill and must list all of them.
+      - name: Grok plugin
+        run: |
+          grok plugin validate .
+          diff <(find skills -name SKILL.md -mindepth 3 -maxdepth 3 -exec dirname {} \; | sort) \
+               <(jq -r '.skills[]' .grok-plugin/plugin.json | sed 's#^\./##; s#/$##' | sort) \
+            || { echo "Every skill folder must be listed in .grok-plugin/plugin.json"; exit 1; }
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: OpenCode plugin
+        working-directory: .opencode-plugin
+        run: |
+          bun install --frozen-lockfile
+          ./build.sh
+          bun run check
+          bun test
+
+      # Antigravity and Gemini have no validator that runs in CI, so check the
+      # manifests parse and the files they point to exist.
+      - name: Antigravity and Gemini manifests
+        run: |
+          manifest=.antigravity-plugin/plugin.json
+          for dir in $(jq -r '.skills[]' "$manifest"); do
+            test -d "$dir" || { echo "Missing skill folder: $dir"; exit 1; }
+          done
+          test -f "$(jq -r .logo "$manifest")" || { echo "Missing logo"; exit 1; }
+          jq -e '.mcpServers.tavily.serverUrl' mcp_config.json > /dev/null
+          jq -e '.mcpServers.tavily.httpUrl' gemini-extension.json > /dev/null
+          echo "Antigravity and Gemini manifests are valid"
+
+      - name: Versions match
+        run: |
+          versions=$(jq -r '.version' .claude-plugin/plugin.json .cursor-plugin/plugin.json .codex-plugin/plugin.json .grok-plugin/plugin.json .opencode-plugin/package.json .antigravity-plugin/plugin.json gemini-extension.json
+                     jq -r '.plugins[].version' .claude-plugin/marketplace.json)
+          echo "$versions"
+          if [ "$(echo "$versions" | sort -u | wc -l)" -ne 1 ]; then
+            echo "Plugin manifests have different versions"
+            exit 1
+          fi

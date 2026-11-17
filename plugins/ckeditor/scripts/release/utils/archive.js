@@ -1,15 +1,15 @@
 /**
- * @license Copyright (c) 2026, CKSource Holding sp. z o.o. All rights reserved.
+ * @license Copyright (c) 2026-2026, CKSource Holding sp. z o.o. All rights reserved.
  * For licensing, see LICENSE.md.
  */
 
 import { isDeepStrictEqual } from 'node:util';
 import fs from 'node:fs/promises';
 import upath from 'upath';
+import { SKILL_FILE } from '../../constants.js';
 import { assert, quote } from './assert.js';
 import { runCommand } from './command.js';
 import { listGitFiles } from './git.js';
-import { SKILL_FILE } from './skills.js';
 
 /**
  * Creates a `.tar.gz` archive with the git-tracked files of the skill directory at the archive root, as the

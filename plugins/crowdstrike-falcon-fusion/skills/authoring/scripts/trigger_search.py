@@ -5,7 +5,7 @@ Queries the API for trigger activities and supplements with a built-in
 catalog of trigger type YAML structures.
 
 Usage:
-    python trigger_search.py --list                  # Show the 4 trigger types
+    python trigger_search.py --list                  # Show the built-in trigger types
     python trigger_search.py --type "On demand"      # YAML structure for a type
     python trigger_search.py --events                # All Signal event values (API)
     python trigger_search.py --events detection      # Filter event values by text
@@ -109,6 +109,36 @@ trigger:
         type: object
     type: SubModel""",
     },
+    "Inbound webhook": {
+        "description": (
+            "Fires when an external system POSTs JSON to a URL that Fusion "
+            "generates for the workflow. Use it to drive a workflow from a SIEM, "
+            "ticketing system, or threat feed outside Falcon. It has no 'event' "
+            "field; instead it carries a 'webhook_config' block (payload schema, "
+            "authentication, optional caller-IP allowlist). The URL is generated "
+            "server-side and is not part of the exported definition, so create "
+            "and manage this trigger in the console."
+        ),
+        "yaml_example": """\
+trigger:
+    next:
+        - FirstActionName
+    name: Inbound webhook
+    type: Inbound webhook
+    version_constraint: 0.0.2
+    webhook_config:
+        name: My Webhook
+        webhook_schema:
+            $schema: https://json-schema.org/draft-07/schema
+            type: object
+        auth_config:
+            auth_type: basic_auth        # basic_auth | hmac | api_key
+            basic_auth_config:
+                username: <username>
+        response_config:
+            status_code: 200
+        ip_mask: {}                      # optional allowed-caller CIDR ranges""",
+    },
 }
 
 
@@ -172,12 +202,16 @@ def _field_is_array(field):
     entirely, so for trigger fields there is no API signal and we fall back to a
     name heuristic: a leaf whose name is plural (ends in a plain ``s``, not the
     scalar-looking ``ss``/``us``/``is`` endings such as Status/Address/Analysis)
-    is treated as a list. ``certain`` is False for the heuristic, so callers can
-    label it as inferred. Threading ``multiple`` through means the annotation
-    becomes exact automatically if the trigger endpoint ever exposes the flag.
+    is treated as a list. A ``bool`` field is never inferred as a list, so
+    ``HasNewlyDetectedCredentials`` stays a scalar. ``certain`` is False for the
+    heuristic, so callers can label it as inferred. Threading ``multiple``
+    through means the annotation becomes exact automatically if the trigger
+    endpoint ever exposes the flag.
     """
     if "multiple" in field:
         return bool(field["multiple"]), True
+    if field.get("type") == "bool":
+        return False, False
     name = field.get("name", "")
     leaf = name.rsplit(".", 1)[-1]
     if len(leaf) > 1 and leaf.endswith("s") and not leaf.endswith(_SCALAR_PLURAL_SUFFIXES):
@@ -238,12 +272,26 @@ def search_trigger_fields(category):
 
 # Fields the trigger API advertises but the release validator rejects as an
 # unknown variable (confirmed live). Keyed by category. validate.py carries the
-# matching guard (NGSIEM_REJECTED_MITRE_FIELDS) that flags a workflow using them.
+# matching guards (NGSIEM_REJECTED_TRIGGER_FIELDS, NGSIEM_REJECTED_MITRE_FIELDS,
+# RECON_REJECTED_EDR_FIELDS) that flag a workflow using them.
 RELEASE_REJECTED_FIELDS = {
     "Investigatable/NGSIEM": frozenset({
+        "Trigger.Detection.Description",
         "Trigger.Detection.MitreAttack.Tactic",
         "Trigger.Detection.MitreAttack.Technique",
     }),
+    "ReconNotification": frozenset({
+        "Trigger.ReconNotification.EDRs.Email",
+        "Trigger.ReconNotification.EDRs.HostName",
+    }),
+}
+
+# Where to get a rejected field's data instead, per category.
+RELEASE_REJECTED_HINTS = {
+    "Investigatable/NGSIEM": "Hydrate this from the detection instead.",
+    "ReconNotification": (
+        "Use the Get exposed data records from a Recon notification action instead."
+    ),
 }
 
 
@@ -268,6 +316,7 @@ def _print_fields(category, as_json):
         "  the trigger API omits an explicit array flag.\n"
     )
     rejected = RELEASE_REJECTED_FIELDS.get(category, frozenset())
+    hint = RELEASE_REJECTED_HINTS.get(category, "")
     for field in fields:
         print(f"  ${{data['{field['path']}']}}")
         array_note = {
@@ -281,13 +330,13 @@ def _print_fields(category, as_json):
         if field["path"] in rejected:
             print(
                 "      NOT release-valid: advertised here but release rejects it "
-                "as an unknown variable. Hydrate this from the detection instead."
+                f"as an unknown variable. {hint}".rstrip()
             )
     print()
 
 
 def list_all_triggers():
-    """Return the built-in catalog of the four trigger types."""
+    """Return the built-in catalog of trigger types."""
     return {name: info.copy() for name, info in TRIGGER_CATALOG.items()}
 
 

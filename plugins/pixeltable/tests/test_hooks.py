@@ -3,6 +3,7 @@
 Pure stdlib (unittest); no third-party deps, mirroring the repo's no-Node policy.
 """
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -108,6 +109,25 @@ class ValidateAntiPatterns(unittest.TestCase):
     def test_flags_pxt_required(self):
         self.assertIn("Required", context(self.write("x: pxt.Required[pxt.String]\n")))
 
+    def test_flags_add_query_route_one_row(self):
+        self.assertIn("one_row", context(self.write(
+            "import pixeltable as pxt\ningest.add_query_route(path='/x', query=q, one_row=True)\n"
+        )))
+
+    def test_flags_query_return_scalar(self):
+        self.assertIn("return_scalar", context(self.write(
+            "import pixeltable as pxt\n@pxt.query(return_scalar=True)\ndef q():\n    return t.select(t.n)\n"
+        )))
+
+    def test_silent_on_query_route_without_removed_kwargs(self):
+        self.assertEqual("", self.write(
+            "import pixeltable as pxt\n"
+            "@pxt.query\n"
+            "def q():\n"
+            "    return t.select(t.n).limit(1)\n"
+            "ingest.add_query_route(path='/x', query=q)\n"
+        ))
+
     def test_flags_any_deprecated_iterators_import(self):
         self.assertIn("deprecated shim", context(self.write(
             "from pixeltable.iterators import DocumentSplitter\n")))
@@ -150,6 +170,53 @@ class ValidateAntiPatterns(unittest.TestCase):
 
     def test_silent_on_non_edit_tool(self):
         self.assertEqual("", run(VALIDATE, {"tool_name": "Read", "tool_input": {"file_path": "a.py"}}))
+
+
+class HooksJsonCommand(unittest.TestCase):
+    """The command in hooks.json must find an interpreter and pass stdin through.
+
+    Windows installs from python.org ship python.exe and the py launcher, not python3
+    (issue #23), so the command tries python, python3, then py -3."""
+
+    def command(self, event):
+        spec = json.loads((ROOT / "hooks" / "hooks.json").read_text(encoding="utf-8"))
+        return spec["hooks"][event][0]["hooks"][0]["command"]
+
+    def run_command(self, event, payload, path=None):
+        env = {**os.environ, "CLAUDE_PLUGIN_ROOT": str(ROOT)}
+        if path is not None:
+            env["PATH"] = path
+        p = subprocess.run(
+            ["sh", "-c", self.command(event)], input=json.dumps(payload),
+            capture_output=True, text=True, check=False, env=env,
+        )
+        self.assertEqual(p.returncode, 0, p.stderr)
+        return p.stdout.strip()
+
+    def test_post_tool_use_flags_through_the_finder(self):
+        out = self.run_command("PostToolUse", {
+            "tool_name": "Write", "tool_input": {"file_path": "app.py", "content": "x: pxt.Required[pxt.String]\n"},
+        })
+        self.assertIn("Required", context(out))
+
+    def test_session_start_runs_through_the_finder(self):
+        with tempfile.TemporaryDirectory() as d:
+            (Path(d) / "pixeltable.toml").write_text("[pixeltable]\n")
+            self.assertIn("Pixeltable", context(self.run_command("SessionStart", {"cwd": d})))
+
+    def test_falls_back_when_python_is_missing(self):
+        """A PATH holding only a python3 (the macOS default) still runs the hook."""
+        with tempfile.TemporaryDirectory() as d:
+            os.symlink(sys.executable, Path(d) / "python3")
+            path = d + os.pathsep + "/usr/bin:/bin"
+            out = self.run_command("PostToolUse", {
+                "tool_name": "Write", "tool_input": {"file_path": "app.py", "content": "x: pxt.Required[pxt.String]\n"},
+            }, path=path)
+            self.assertIn("Required", context(out))
+
+    def test_silent_exit_when_no_interpreter(self):
+        with tempfile.TemporaryDirectory() as d:
+            self.assertEqual("", self.run_command("PostToolUse", {"tool_name": "Write"}, path=d + os.pathsep + "/usr/bin:/bin"))
 
 
 class SessionOrientation(unittest.TestCase):

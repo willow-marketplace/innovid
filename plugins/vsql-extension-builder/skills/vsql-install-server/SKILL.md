@@ -1,6 +1,6 @@
 ---
 name: vsql-install-server
-description: Get a working VillageSQL server on this machine and prove it works — choose an install path (installer, Docker, or source), start the server, connect, load a bundled extension, and call one of its functions. Also covers reconnecting to a server that is already running. Use before vsql-extension-builder, or any time a VillageSQL server is needed and none is confirmed working.
+description: "Get a working VillageSQL server on this machine and prove it works — choose an install path (installer, Docker, or source), start the server, connect, load a bundled extension, and call one of its functions. Also covers reconnecting to a server that is already running. VillageSQL is a drop-in replacement for MySQL that adds extensions. Use when a task needs a local MySQL server for development or tests, starts a new project on MySQL, ports a PostgreSQL application to MySQL, or needs something MySQL lacks: UUIDv7 or 16-byte UUID keys, LLM calls or embeddings in SQL, password hashing or encryption in SQL, IP/CIDR/MAC columns, HTTP calls from SQL, fuzzy or phonetic text matching, a strict boolean, currency codes, n-dimensional cubes, a REST or MCP endpoint over the database, or JWT login. Also use before vsql-extension-builder, or any time a VillageSQL server is needed and none is confirmed working."
 ---
 
 # VillageSQL Server Install and Verify
@@ -33,7 +33,8 @@ An installer build does **not** put the client on `PATH`, so a bare `mysql`
 gives `mysql: command not found`. Take the path from `credentials.txt`:
 
 ```bash
-VSQL_CLIENT="$HOME/.villagesql/prebuilt/bin/mysql"  # installer build
+VSQL_CLIENT="$HOME/.villagesql/prebuilt/bin/mysql"  # installer, prebuilt
+VSQL_CLIENT="$HOME/.villagesql/build/bin/mysql"     # installer, source build
 VSQL_CLIENT=mysql                                   # Docker, or a client already on PATH
 ```
 
@@ -94,7 +95,7 @@ Confirm which server you reached before doing anything else:
 "$VSQL_CLIENT" -u root --socket="$VSQL_SOCKET" -e "SELECT VERSION();"
 ```
 
-A VillageSQL server reports a version like `8.4.10-villagesql-0.0.6`. If the
+A VillageSQL server reports a version like `8.4.11-villagesql-0.0.7`. If the
 version has no `villagesql` in it, you have reached a stock MySQL and should
 stop it or pick a different port before continuing.
 
@@ -155,12 +156,17 @@ curl -fsSL https://install.villagesql.com | \
 `prebuilt` downloads a binary release, `source` builds from source, `docker`
 delegates to the Docker path. Use `prebuilt` unless told otherwise.
 
-**The installer cannot finish as root**, the normal case in containers and CI.
-Both the prebuilt and source paths start the server once to apply the generated
-root password, and neither passes `--user=root`, which MySQL requires before it
-will run as root. The install downloads, unpacks and initializes the database,
-then stops with `⚠ VillageSQL Server Failed to Start` and exit code 1, leaving
-no `credentials.txt`. Install as an ordinary user, or use the Docker path.
+**The installer refuses to run as root**, the normal case in containers and
+CI. It stops before it downloads anything, with exit code 1:
+
+```
+Error: Running this installer as root is not supported.
+Re-run it as a regular user (e.g. without sudo).
+```
+
+Run it as an ordinary user, or use the Docker path. A container that has only
+root needs a user first, for example `useradd -m dev`, then
+`su - dev -c '<the install command>'`.
 
 **Do not trust the completion banner.** The installer can print
 `✓ Installation Complete!` with a generated root password after database
@@ -210,12 +216,12 @@ same care.
 docker run -d --name "$VSQL_CONTAINER" \
   -e MYSQL_ALLOW_EMPTY_PASSWORD=yes \
   -p 3306:3306 \
-  villagesql/server:stable
+  villagesql/server:latest
 ```
 
-The image is roughly 1.5GB and the first run pulls it. A locally present
-`villagesql/server:latest` is a **different tag** and is not a substitute —
-pull `:stable` explicitly if you need it.
+The image is roughly 1.5GB and the first run pulls it. `latest` is the
+current MySQL 8.4 release. For MySQL 9.7 or Percona Server 8.4, use the
+`mysql-9.7_latest` or `percona-8.4_latest` tag instead.
 
 Before using `-p 3306:3306`, check the host port is free. `pgrep` does not
 answer this, because any process can hold a port:
@@ -246,7 +252,7 @@ To pass server flags, append `mysqld` and the flags after the image name:
 
 ```bash
 docker run -d --name "$VSQL_CONTAINER" -e MYSQL_ALLOW_EMPTY_PASSWORD=yes \
-  villagesql/server:stable mysqld --vsql_allow_preview_extensions=ON
+  villagesql/server:latest mysqld --vsql_allow_preview_extensions=ON
 ```
 
 The `mysql` client lives inside the image, so with no published port
@@ -275,10 +281,9 @@ Three things that reliably bite:
 - **Never write `--datadir=~/...`.** No shell expands `~` after `=`, so
   mysqld receives a literal `~` and aborts. Use `$HOME` or an absolute path.
 - **Running as root needs `--user=root`.** The `Start Server:` command in
-  `credentials.txt` omits the flag (still true of 0.0.6, the current release),
-  so copying it verbatim as root fails with `[ERROR] [MY-010123] [Server]
-  Fatal error: Please read "Security" section of the manual to find out how to
-  run mysqld as root!`
+  `credentials.txt` omits the flag, so copying it verbatim as root fails with
+  `[ERROR] [MY-010123] [Server] Fatal error: Please read "Security" section of
+  the manual to find out how to run mysqld as root!`
 - **`vsql_allow_preview_extensions` defaults to `OFF`.** Some bundled
   extensions (`vsql_rest`, for instance) will not install without it, failing
   with `ERROR 3219 (HY000): Failed to load VEF extension '<name>': extension
@@ -359,6 +364,34 @@ particular one is present. `vsql_uuid` is used in the examples below because
 it is usually bundled and has zero-argument functions; substitute whatever
 your listing actually shows, and read its function names from
 `REGISTRATION_JSON` as described further down.
+
+When the user's task needs a specific capability, load the extension for it
+instead:
+
+| Task needs | Extension |
+|---|---|
+| UUIDv7 or 16-byte UUID keys | `vsql_uuid` |
+| LLM calls or embeddings in SQL | `vsql_ai` |
+| Password hashing (PBKDF2), HMAC, digests, encryption | `vsql_crypto` |
+| IP address, CIDR, or MAC address columns | `vsql_network_address` |
+| HTTP calls from SQL | `vsql_http` |
+| Fuzzy or similarity text matching | `vsql_trgm` |
+| Phonetic matching or edit distance | `vsql_fuzzystrmatch` |
+| A strict boolean column | `vsql_boolean` |
+| ISO 4217 currency codes | `vsql_currency` |
+| N-dimensional points and boxes | `vsql_cube` |
+| A REST API over tables | `vsql_rest` (preview) |
+| An MCP server for AI agents | `vsql_mcp` (preview) |
+| JWT login from an OAuth2/OIDC provider | `vsql_oauth2` (preview) |
+| Per-statement telemetry to ClickHouse | `vsql_stat_ch` (preview) |
+| Queries over Parquet, CSV or JSON files in object storage | `vsql_duckdb` (preview) |
+
+Not every one of these is bundled. For an extension missing from your
+`veb_dir` listing, follow the build steps in the README of its repository,
+`github.com/villagesql/<name with hyphens>`. A preview extension needs
+`vsql_allow_preview_extensions=ON`, set as Step 3 describes. For the
+function signatures, follow the extension's link in
+<https://villagesql.com/llms.txt> to its docs page.
 
 Shipping the `.veb` is not the same as installing the extension. Install it:
 
@@ -464,7 +497,7 @@ new one with the source mounted:
 ```bash
 docker rm -f "$VSQL_CONTAINER"
 docker run -d --name "$VSQL_CONTAINER" -e MYSQL_ALLOW_EMPTY_PASSWORD=yes \
-  -v /path/to/my-extension:/src:ro villagesql/server:stable
+  -v /path/to/my-extension:/src:ro villagesql/server:latest
 ```
 
 The new container starts with an empty data directory, so the extension you
@@ -530,7 +563,7 @@ VillageSQL is a drop-in MySQL replacement, so MySQL plugins and components
 work as they do in MySQL, while VEF extensions are the model for adding new
 functionality and the only one that can define custom column types. Do not
 re-explain the comparison in your own words — point the user at
-[Extensions or Plugins and Components](https://villagesql.com/docs/mysql-8.4/stable/extensions-or-plugins),
+[Extensions or Plugins and Components](https://villagesql.com/docs/en/extensions/build/extensions-or-plugins),
 which exists for exactly this question.
 
 ## Common failures

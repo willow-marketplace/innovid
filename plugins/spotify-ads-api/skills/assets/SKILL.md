@@ -5,7 +5,7 @@ description: Upload, list, and manage Spotify Ads API creative assets — audio,
 
 # Spotify Ads API — Asset Management
 
-Upload, list, retrieve, and archive creative assets (audio, video, images) for use in ads.
+Upload, list, and retrieve creative assets (audio, video, images) for use in ads.
 
 ## Setup
 
@@ -18,6 +18,8 @@ api() { "$PLUGIN_ROOT/scripts/api-request.sh" assets "$@"; }
 
 Before the first Ads API v3 call, read and follow `$PLUGIN_ROOT/skills/api-reference/references/live-openapi.md`.
 
+Before sending any output to a human user, read and follow `$PLUGIN_ROOT/skills/api-reference/references/language-standards.md`.
+
 To retrieve settings values (TOKEN, AD_ACCOUNT_ID, AUTO_EXECUTE, BASE_URL, SDK_HEADER, SKILL_HEADER, PLUGIN_VERSION) for use outside API calls, run `api --env`. The output is eval-safe, so `eval $(api --env)` assigns them all.
 
 ## Parsing Arguments
@@ -26,8 +28,6 @@ The argument format is: `<operation> [arg]`
 - `upload <file_path>` — Upload a new asset
 - `list [audio|video|image]` — List assets, optionally filtered by type
 - `get <asset_id>` — Get details of a specific asset
-- `archive <asset_id>` — Archive an asset
-- `unarchive <asset_id>` — Unarchive an asset
 - If no argument, ask which operation.
 
 ---
@@ -68,8 +68,7 @@ Extract `id` from the response.
 First, check the file size:
 
 ```bash
-stat -f%z "/path/to/file"  # macOS
-# or: stat --printf="%s" "/path/to/file"  # Linux
+FILE_SIZE=$(stat -f%z "/path/to/file" 2>/dev/null || stat --printf="%s" "/path/to/file" 2>/dev/null || wc -c < "/path/to/file")
 ```
 
 **If file is <= 20MB** — Simple upload:
@@ -97,7 +96,8 @@ Extract `upload_session_id` and `max_chunk_size_mb` from the response.
 
 2. Split the file into chunks:
 ```bash
-split -b ${MAX_CHUNK_SIZE_MB}m /path/to/file /tmp/chunk_
+CHUNK_DIR=$(mktemp -d)
+split -b ${MAX_CHUNK_SIZE_MB}m /path/to/file "$CHUNK_DIR/chunk_"
 ```
 
 3. Upload each chunk (numbered starting from 1):
@@ -105,7 +105,7 @@ split -b ${MAX_CHUNK_SIZE_MB}m /path/to/file /tmp/chunk_
 curl -s -X POST -H "Authorization: Bearer $TOKEN" \
   -H "$SDK_HEADER" \
   -H "$SKILL_HEADER" \
-  -F "media=@/tmp/chunk_aa" \
+  -F "media=@$CHUNK_DIR/chunk_aa" \
   -F "upload_section=1" \
   "$BASE_URL/ad_accounts/$AD_ACCOUNT_ID/assets/$ASSET_ID/chunked_upload/transfer"
 ```
@@ -122,7 +122,7 @@ curl -s -X POST -H "Authorization: Bearer $TOKEN" \
 
 5. Clean up temp chunks:
 ```bash
-rm /tmp/chunk_*
+rm -rf "$CHUNK_DIR"
 ```
 
 #### Step 5: Poll for processing status
@@ -187,21 +187,6 @@ Display all fields in readable format:
 - For **audio**: show name, type, status, duration, URL
 - For **video**: show name, type, status, duration, aspect ratio, dimensions, has_audio, URL
 - For **image**: show name, type, status, dimensions, aspect ratio, URL
-
----
-
-### `archive <asset_id>` / `unarchive <asset_id>`
-
-Archive or unarchive an asset using the bulk action endpoint.
-
-```bash
-api PATCH "ad_accounts/{ad_account_id}/assets" \
-  '{"action":"ARCHIVE","ids":["<asset_id>"]}'
-```
-
-For unarchive, use `"action":"UNARCHIVE"`.
-
-Confirm the action completed by displaying the updated asset status.
 
 ---
 

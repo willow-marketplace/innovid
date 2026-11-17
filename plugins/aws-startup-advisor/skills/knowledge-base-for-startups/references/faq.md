@@ -131,7 +131,7 @@ BuilderID and AWS account:
 
 ### I chose a wrong AWS Account while submitting my Activate Credits application or entered the wrong information in my application e.g. wrong email address. Can I change my application now?
 
-Unfortunately, applications cannot be edited once submitted. [Contact us](https://aws.amazon.com/activate/contact-us/) to cancel your application. You must return to the AWS Startups website > profile section to unlink this Account ID from your Builder ID before you submit a new application. After that, you can complete a new application with the correct information [here](https://aws.amazon.com/startups/credits).
+Unfortunately, applications cannot be edited once submitted. [Contact us](https://aws.amazon.com/activate/contact-us/) to cancel your application. You must return to the AWS Startups website > profile section to unlink this Account ID from your Builder ID before you submit a new application. After that, you can complete a new application with the correct information [on the AWS Activate credits page](https://aws.amazon.com/startups/credits).
 
 ### How long does it take to process Activate Credit applications?
 
@@ -161,7 +161,7 @@ Signing in with your AWS Activate account allows you to start and stop your appl
 
 Activate Providers can invite their portfolio companies to apply for AWS Activate Credits via email. The link is personalized and speeds up the application process by pre-validating your relationship with the provider.****
 
-**Important:** You must apply using the same email address that received the invitation from your Provider. For example, if the invite was sent to [john@appleseed.com](mailto:john@appleseed.com), you must submit your application using [john@appleseed.com](mailto:john@appleseed.com) for the pre-validation to work correctly.
+**Important:** You must apply using the same email address that received the invitation from your Provider. For example, if the invite was sent to [john@example.com](mailto:john@example.com), you must submit your application using [john@example.com](mailto:john@example.com) for the pre-validation to work correctly.
 
 ### What happens if I don't use my email invite?
 
@@ -243,7 +243,7 @@ Yes, AWS Activate Credits have expiration dates. To view your AWS Activate Credi
 
 ### Why do I need to upgrade to a Paid Tier Plan? How do I do it?
 
-Free account plans are not eligible for Activate promotional credits. Find instructions on how to upgrade your account plan [here](https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/free-tier-plans.html).
+Free account plans are not eligible for Activate promotional credits. Find instructions on how to upgrade your account plan [in the AWS Billing free tier plans documentation](https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/free-tier-plans.html).
 
 ### Where can I find details about my AWS Activate Credits including credit usage and their expiration date?
 
@@ -311,7 +311,7 @@ AWS Activate accepts applications from venture capital firms and accelerator pro
 
 ### How can my firm apply to become an AWS Activate Provider?
 
-AWS Activate is accepting applications from venture capital firms, seed investors, and accelerator programs that are actively investing. By becoming an Activate Provider, you can offer Activate Credits and specialized resources to your portfolio companies, helping them build and scale on AWS. To apply, first create your Builder ID and fill out your AWS Activate profile. Next, you will be prompted to complete the application and provide information about your institution and investment portfolio. Get started [here](http://aws.amazon.com/startups/lp/aws-activate-provider). Once the application has been submitted, it will be reviewed within 7-10 business days.
+AWS Activate is accepting applications from venture capital firms, seed investors, and accelerator programs that are actively investing. By becoming an Activate Provider, you can offer Activate Credits and specialized resources to your portfolio companies, helping them build and scale on AWS. To apply, first create your Builder ID and fill out your AWS Activate profile. Next, you will be prompted to complete the application and provide information about your institution and investment portfolio. Get started [on the AWS Activate Provider page](http://aws.amazon.com/startups/lp/aws-activate-provider). Once the application has been submitted, it will be reviewed within 7-10 business days.
 
 ### Can our firm request additional Activate Credits?
 
@@ -335,11 +335,11 @@ Please request an update through [Contact Us](https://aws.amazon.com/startups/co
 
 ### What is AWS Activate Provider Central?
 
-AWS Activate Provider Central is where venture capitalists, accelerators, and other startup enabling organizations who are Activate Providers can manage their portfolio companies. It enables you to view and share your Organization ID, invite startups through one-time, pre-validated referral links for faster applications processing and approvals, track portfolio companies' credit applications for the past 24 months, and access resources to help share the Activate program with startups. It can be accessed [here](https://aws.amazon.com/startups/providers).
+AWS Activate Provider Central is where venture capitalists, accelerators, and other startup enabling organizations who are Activate Providers can manage their portfolio companies. It enables you to view and share your Organization ID, invite startups through one-time, pre-validated referral links for faster applications processing and approvals, track portfolio companies' credit applications for the past 24 months, and access resources to help share the Activate program with startups. It can be accessed [on the AWS Activate Providers page](https://aws.amazon.com/startups/providers).
 
 ### How do I join Provider Central?
 
-Existing Activate Providers will receive an email invitation from the AWS Activate team with an invite link to join Provider Central. Click the link in your invitation email and follow the setup instructions to open your account. Your existing organization ID and portfolio data will be automatically populated in the centralized hub. If you are interested in becoming an Activate Provider, please apply [here](https://aws.amazon.com/startups/providers). Newly approved providers will receive a unique invitation link to access Provider Central in their acceptance email.
+Existing Activate Providers will receive an email invitation from the AWS Activate team with an invite link to join Provider Central. Click the link in your invitation email and follow the setup instructions to open your account. Your existing organization ID and portfolio data will be automatically populated in the centralized hub. If you are interested in becoming an Activate Provider, please apply [on the AWS Activate Providers page](https://aws.amazon.com/startups/providers). Newly approved providers will receive a unique invitation link to access Provider Central in their acceptance email.
 
 ### Will my existing Organization ID (Org ID) change?
 
@@ -453,7 +453,7 @@ There is no charge to use AWS Startup Advisor itself. Generating recommendations
 
 ### Where can I access AWS Startup Advisor?
 
-On the web at startups.aws, as an IDE extension for Kiro, VS Code, and Cursor, and as a terminal plugin for Claude Code via github.com/awslabs/startups. All three options deliver curated skills and recommendations. Use whichever fits your workflow.
+On the web at startups.aws, as an IDE extension for Kiro, VS Code, and Cursor, and as the `aws-startup-advisor` plugin in the [Agent Toolkit for AWS](https://github.com/aws/agent-toolkit-for-aws). In Claude Code, add that repository as a marketplace with `/plugin marketplace add aws/agent-toolkit-for-aws` and then install with `/plugin install aws-startup-advisor@agent-toolkit-for-aws`; Codex and Cursor install it from the same repository's plugin marketplace. All options deliver curated skills and recommendations. Use whichever fits your workflow.
 
 ### Do I need an AWS Account to use AWS Startup Advisor?
 
@@ -600,11 +600,51 @@ If you are already enrolled into one of the AWS Support Plans (Developer or Busi
 
 ### Can I use my AWS Activate Credits to cover AWS Enterprise or Reseller support plans or AWS Service bills?
 
-No. AWS Activate Credits only cover AWS Developer, AWS Business Support Plans, or AWS Business Support+ when enrolled. To learn more on AWS Support Plans, [click here](https://aws.amazon.com/premiumsupport/?nc=sn&loc=0).
+No. AWS Activate Credits only cover AWS Developer, AWS Business Support Plans, or AWS Business Support+ when enrolled. To learn more on AWS Support Plans, [visit the AWS Support plans page](https://aws.amazon.com/premiumsupport/?nc=sn&loc=0).
 
 ### Can I get more AWS Activate Credits to use for support?
 
 The AWS Activate team is unable to apply more AWS Activate Credits to your account for support. See AWS Activate Credits FAQ section for more information on AWS Activate Credits.
+
+### I received an email to verify my identity. Is this really from AWS?
+
+AWS will only ask you to verify your identity when you request access to certain products, features, or programs. AWS will never ask you to email or reply with your ID or selfie — verification always happens through a secure Trulioo-hosted link. If you are unsure whether a request is legitimate, contact [AWS Support](https://support.console.aws.amazon.com/support/home?region=us-east-1#/case/create?issueType=customer-service&serviceCode=account-management&categoryCode=account-verification) to confirm and reference the case ID in the email.
+
+### How does verifying my identity protect me?
+
+Verifying your identity reduces the risk that someone impersonating you can gain access, request resources, or make changes in your name.
+
+### How do I know if I need to verify my identity?
+
+After you make a request that requires identity verification, you'll be notified by email from startups.aws.
+
+### Am I required to verify my identity?
+
+You are not required to verify your identity. If you prefer not to verify, your application will be rejected and you will need to apply again. If you have questions, please contact [AWS Support](https://support.console.aws.amazon.com/support/home?region=us-east-1#/case/create?issueType=customer-service&serviceCode=account-management&categoryCode=account-verification).
+
+### What are you doing with the identity verification data?
+
+We use the data to verify your identity. AWS handles your personal information as described in the [AWS Privacy Notice](https://aws.amazon.com/privacy/).
+
+### How long does verification take?
+
+Once you upload the required materials, verification takes less than 1 minute.
+
+### What happens if my verification link expires?
+
+If your verification link expires, you won't be able to complete verification through that link. Submit a new application to receive a new link. If you have questions, contact [AWS Support](https://support.console.aws.amazon.com/support/home?region=us-east-1#/case/create?issueType=customer-service&serviceCode=account-management&categoryCode=account-verification) and reference the case ID.
+
+### What happens if my verification is successful?
+
+Once your identity is verified, your request will move forward for review by the respective program teams. You will receive a confirmation email, and will be notified when a final decision on your credit application has been made. No further action or support ticket is required from you. If you'd prefer not to verify your identity at this time, we won't be able to move your application forward, but you're welcome to apply again whenever you're ready.
+
+### What happens if my verification doesn't pass?
+
+Verification can fail to pass for a few reasons: image quality issues, an expired or unsupported ID, a mismatch between the information you provided and your ID, or a technical problem during submission. If the link has expired or the verification does not complete successfully, please resubmit a new application.
+
+### Is verification available in my country and language?
+
+Identity verification is currently supported across a broad set of countries and languages via our identity verification provider. If you encounter language or geographic coverage issues that prevent you from verifying, please contact [AWS Support](https://support.console.aws.amazon.com/support/home?region=us-east-1#/case/create?issueType=customer-service&serviceCode=account-management&categoryCode=account-verification).
 
 ## AWS Activate Offers
 
@@ -717,7 +757,7 @@ Yes!
 During or after the event, the event team will share the survey link. Your
 feedback helps us improve future AWS Startup events and ensures a top-notch
 experience for all participants. If you have feedback on the registration
-process, please submit your feedback [here](https://amazonmr.au1.qualtrics.com/jfe/form/SV_cBJrrRl6io0FSGa).
+process, please submit your feedback [using our feedback survey](https://amazonmr.au1.qualtrics.com/jfe/form/SV_cBJrrRl6io0FSGa).
 
 ## Showcase
 
@@ -731,7 +771,7 @@ investors and partners.
 
 ### How can I create a profile?
 
-To create your Showcase profile, you should be approved for AWS Activate Credits. You will have access to create a Showcase profile within 7 days of the receipt of your credits approval email. Go to [https://aws.amazon.com/startups/showcase/promote-your-startup](https://aws.amazon.com/startups/showcase/promote-your-startup) to follow the instructions to create your profile page. If you are still experiencing issues, please submit a query [here](https://aws.amazon.com/activate/contact-us/).
+To create your Showcase profile, you should be approved for AWS Activate Credits. You will have access to create a Showcase profile within 7 days of the receipt of your credits approval email. Go to [https://aws.amazon.com/startups/showcase/promote-your-startup](https://aws.amazon.com/startups/showcase/promote-your-startup) to follow the instructions to create your profile page. If you are still experiencing issues, please submit a query [through the AWS Activate contact form](https://aws.amazon.com/activate/contact-us/).
 
 The
 AWS Startup Showcase is open to startups who have applied for and received AWS

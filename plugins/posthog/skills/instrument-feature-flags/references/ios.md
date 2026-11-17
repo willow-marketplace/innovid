@@ -1,10 +1,29 @@
 > AI agents: this is one page from PostHog's docs. Full index of Markdown docs for LLMs: https://posthog.com/llms.txt
 
-# iOS Feature Flags installation - Docs
+# iOS Feature Flags installation
 
-Copy page
+Canonical URL: https://posthog.com/docs/feature-flags/installation/ios
 
-# iOS Feature Flags installation - Docs
+> **Cloud region:** This page uses US Cloud hosts. For an EU Cloud project, use `https://eu.i.posthog.com` instead of `https://us.i.posthog.com` (ingestion host).
+
+## On this page
+
+- [Install with the wizard](#install-with-the-wizard)
+- [Install dependency](#install-dependency)
+- [Configure PostHog](#configure-posthog)
+- [Send events](#send-events)
+- [Evaluate boolean feature flags](#evaluate-boolean-feature-flags)
+- [Evaluate multivariate feature flags](#evaluate-multivariate-feature-flags)
+- [Running experiments](#running-experiments)
+- [Next steps](#next-steps)
+
+## Install with the wizard
+
+Run this command in your project directory to add PostHog to your iOS project. The wizard detects your framework, installs the SDK, and sets up your first events.
+
+`npx @posthog/wizard`
+
+Or set it up manually by following the rest of this guide.
 
 1.  1
 
@@ -16,8 +35,6 @@ Copy page
 
     Package.swift
 
-    PostHog AI
-
     ```swift
     dependencies: [
       .package(url: "https://github.com/PostHog/posthog-ios.git", from: "3.56.0")
@@ -27,8 +44,6 @@ Copy page
     Or add PostHog to your Podfile:
 
     Podfile
-
-    PostHog AI
 
     ```ruby
     pod "PostHog", "~> 3.56"
@@ -44,18 +59,19 @@ Copy page
 
     AppDelegate.swift
 
-    PostHog AI
-
     ```swift
     import Foundation
     import PostHog
     import UIKit
+    
     class AppDelegate: NSObject, UIApplicationDelegate {
         func application(_: UIApplication, didFinishLaunchingWithOptions _: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
             let POSTHOG_PROJECT_TOKEN = "<ph_project_token>"
             let POSTHOG_HOST = "https://us.i.posthog.com"
+    
             let config = PostHogConfig(projectToken: POSTHOG_PROJECT_TOKEN, host: POSTHOG_HOST)
             PostHogSDK.shared.setup(config)
+    
             return true
         }
     }
@@ -71,8 +87,6 @@ Copy page
 
     Swift
 
-    PostHog AI
-
     ```swift
     PostHogSDK.shared.capture("button_clicked", properties: ["button_name": "signup"])
     ```
@@ -86,8 +100,6 @@ Copy page
     Check if a feature flag is enabled:
 
     Swift
-
-    PostHog AI
 
     ```swift
     let isMyFlagEnabled = PostHogSDK.shared.isFeatureEnabled("flag-key")
@@ -107,8 +119,6 @@ Copy page
     For multivariate flags, check which variant the user has been assigned:
 
     Swift
-
-    PostHog AI
 
     ```swift
     let enabledVariant = PostHogSDK.shared.getFeatureFlag("flag-key")
@@ -137,16 +147,8 @@ Copy page
 
     | Resource | Description |
     | --- | --- |
-    | [Creating a feature flag](/docs/feature-flags/creating-feature-flags.md) | How to create a feature flag in PostHog |
-    | [Adding feature flag code](/docs/feature-flags/adding-feature-flag-code.md) | How to check flags in your code for all platforms |
-    | [Framework-specific guides](/docs/feature-flags/tutorials.md#framework-guides) | Setup guides for React Native, Next.js, Flutter, and other frameworks |
-    | [How to do a phased rollout](/tutorials/phased-rollout.md) | Gradually roll out features to minimize risk |
-    | [More tutorials](/docs/feature-flags/tutorials.md) | Other real-world examples and use cases |
-
-### Still have questions?
-
-Ask PostHog AI
-
-### Was this page useful?
-
-HelpfulCould be better
+    | [Creating a feature flag](https://posthog.com/docs/feature-flags/creating-feature-flags.md) | How to create a feature flag in PostHog |
+    | [Adding feature flag code](https://posthog.com/docs/feature-flags/adding-feature-flag-code.md) | How to check flags in your code for all platforms |
+    | [Framework-specific guides](https://posthog.com/docs/feature-flags/tutorials.md#framework-guides) | Setup guides for React Native, Next.js, Flutter, and other frameworks |
+    | [How to do a phased rollout](https://posthog.com/tutorials/phased-rollout.md) | Gradually roll out features to minimize risk |
+    | [More tutorials](https://posthog.com/docs/feature-flags/tutorials.md) | Other real-world examples and use cases |

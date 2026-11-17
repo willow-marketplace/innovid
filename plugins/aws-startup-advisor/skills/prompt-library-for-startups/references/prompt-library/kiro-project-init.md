@@ -18,7 +18,7 @@ One-command project setup with AI-powered specs, automated testing, and AWS inte
 
 ---
 
-You are setting up a specification-driven development environment with steering files, agent hooks, and MCP servers.
+You are setting up a specification-driven development environment with steering files, agent hooks, and the unified AWS MCP Server.
 
 ## PROJECT CONTEXT
 
@@ -105,10 +105,7 @@ inclusion: always
 
 ## MCP Servers Configured
 
-- **awslabs.aws-api-mcp-server**: AWS service management
-- **awslabs.cdk-mcp-server**: CDK best practices
-- **awslabs.cloudwatch-mcp-server**: Monitoring
-- [Add others based on needs]
+- **aws-mcp** (unified AWS MCP Server): AWS service management, AWS documentation search and reads, regional availability, and AWS skills — one server covering all AWS access for this project
 
 ## Development Tools
 
@@ -200,7 +197,7 @@ fileMatchPattern: "**/{api,routes,endpoints,controllers}/**/*.{ts,js,py}"
 ## Documentation
 
 - OpenAPI 3.0 specs in `api-specs/`
-- Use AWS Documentation MCP for AWS patterns
+- Use `aws___search_documentation` / `aws___read_documentation` for AWS patterns
 
 ````
 ### .kiro/steering/testing-standards.md
@@ -235,7 +232,7 @@ describe('[ComponentName]', () => {
 
 - SDK mocks for unit tests
 - LocalStack for integration
-- Document MCP usage
+- Document which `aws-mcp` tools each test path relies on
 
 ````
 ### .kiro/steering/security-policies.md
@@ -261,9 +258,9 @@ inclusion: always
 ## Compliance
 [HIPAA, GDPR, SOC 2, PCI DSS]
 ## Security Scanning
-- CDK MCP for CDK Nag
-- Terraform MCP for Checkov
-- Well-Architected MCP for reviews
+- cdk-nag for CDK stacks
+- Checkov for Terraform
+- Well-Architected Framework review guidance via `aws___search_documentation` / `aws___read_documentation`
 ## Incident Response
 [Procedures]
 ````
@@ -301,7 +298,7 @@ inclusion: always
   },
   "then": {
     "type": "askAgent",
-    "prompt": "API file modified:\n1. Analyze endpoint/parameter/response changes\n2. Update OpenAPI spec in api-specs/\n3. Use AWS Documentation MCP for AWS patterns\n4. Update README API section\n5. Update JSDoc/docstrings\n6. Verify api-standards.md compliance\n\nRef: #[[file:.kiro/steering/api-standards.md]]"
+    "prompt": "API file modified:\n1. Analyze endpoint/parameter/response changes\n2. Update OpenAPI spec in api-specs/\n3. Use aws___search_documentation / aws___read_documentation for AWS patterns\n4. Update README API section\n5. Update JSDoc/docstrings\n6. Verify api-standards.md compliance\n\nRef: #[[file:.kiro/steering/api-standards.md]]"
   }
 }
 ```
@@ -316,7 +313,7 @@ inclusion: always
   "when": { "type": "manual" },
   "then": {
     "type": "askAgent",
-    "prompt": "Security scan:\n1. Scan for: credentials, API keys, console.log with sensitive data, SQL injection, unsafe eval()\n2. Infrastructure: CDK Nag (CDK MCP), Checkov (Terraform MCP)\n3. Verify security-policies.md: input validation, auth checks, encryption\n4. Report: issues by severity (CRITICAL/HIGH/MEDIUM/LOW), locations, fixes, pass/fail\n\nRef: #[[file:.kiro/steering/security-policies.md]]"
+    "prompt": "Security scan:\n1. Scan for: credentials, API keys, console.log with sensitive data, SQL injection, unsafe eval()\n2. Infrastructure: run cdk-nag against CDK stacks and Checkov against Terraform\n3. Verify security-policies.md: input validation, auth checks, encryption\n4. Report: issues by severity (CRITICAL/HIGH/MEDIUM/LOW), locations, fixes, pass/fail\n\nRef: #[[file:.kiro/steering/security-policies.md]]"
   }
 }
 ```
@@ -334,7 +331,7 @@ inclusion: always
   },
   "then": {
     "type": "askAgent",
-    "prompt": "Infrastructure modified:\n1. Identify added/modified/removed resources\n2. Use AWS Pricing MCP: costs per resource, region pricing, data transfer, compare previous\n3. Report: monthly estimate, delta, optimizations, unexpected costs\n4. Append to infrastructure/cost-estimates.md\n5. Flag if increase > $[THRESHOLD, e.g., 500]\n\nMCP: AWS Pricing"
+    "prompt": "Infrastructure modified:\n1. Identify added/modified/removed resources\n2. Price each resource with the AWS Price List Query API (`aws pricing get-products`, via aws___call_aws) or the AWS Pricing Calculator: costs per resource, region pricing, data transfer, compare previous\n3. Report: monthly estimate, delta, optimizations, unexpected costs\n4. Append to infrastructure/cost-estimates.md\n5. Flag if increase > $[THRESHOLD, e.g., 500]\n\nNote: cost figures are estimates — state assumptions explicitly"
   }
 }
 ```
@@ -343,91 +340,23 @@ inclusion: always
 
 ### Both .vscode/mcp.json and .cursor/mcp.json (identical)
 
+Declare exactly one MCP server — the unified AWS MCP Server. It covers AWS API calls, AWS
+documentation, and regional availability, so no per-service AWS MCP servers are needed.
+
 ```json
 {
   "mcpServers": {
-    "awslabs.aws-api-mcp-server": {
+    "aws-mcp": {
       "command": "uvx",
-      "args": ["awslabs.aws-api-mcp-server@latest"],
+      "args": [
+        "mcp-proxy-for-aws-cli@latest",
+        "https://aws-mcp.us-east-1.api.aws/mcp",
+        "--skip-auth"
+      ],
       "env": {
         "AWS_REGION": "[us-east-1]",
-        "AWS_PROFILE": "[profile-name]",
-        "READ_OPERATIONS_ONLY": "false",
-        "FASTMCP_LOG_LEVEL": "ERROR"
-      },
-      "disabled": false,
-      "autoApprove": []
-    },
-    "awslabs.aws-knowledge-mcp-server": {
-      "url": "https://knowledge-mcp.global.api.aws",
-      "type": "http",
-      "disabled": false
-    },
-    "awslabs.cdk-mcp-server": {
-      "command": "uvx",
-      "args": ["awslabs.cdk-mcp-server@latest"],
-      "env": {
-        "AWS_PROFILE": "[profile-name]",
-        "AWS_REGION": "[region]",
-        "FASTMCP_LOG_LEVEL": "ERROR"
-      },
-      "disabled": false,
-      "autoApprove": []
-    },
-    "awslabs.terraform-mcp-server": {
-      "command": "uvx",
-      "args": ["awslabs.terraform-mcp-server@latest"],
-      "env": { "FASTMCP_LOG_LEVEL": "ERROR" },
-      "disabled": true,
-      "comment": "Enable if using Terraform"
-    },
-    "awslabs.postgres-mcp-server": {
-      "command": "uvx",
-      "args": ["awslabs.postgres-mcp-server", "--resource_arn", "[ARN]", "--secret_arn", "[ARN]"],
-      "env": { "AWS_PROFILE": "[profile]", "AWS_REGION": "[region]" },
-      "disabled": true,
-      "comment": "Enable for Aurora PostgreSQL"
-    },
-    "awslabs.dynamodb-mcp-server": {
-      "command": "uvx",
-      "args": ["awslabs.dynamodb-mcp-server@latest"],
-      "env": { "AWS_PROFILE": "[profile]", "AWS_REGION": "[region]", "FASTMCP_LOG_LEVEL": "ERROR" },
-      "disabled": true,
-      "comment": "Enable for DynamoDB"
-    },
-    "awslabs.cloudwatch-mcp-server": {
-      "command": "uvx",
-      "args": ["awslabs.cloudwatch-mcp-server@latest"],
-      "env": { "AWS_PROFILE": "[profile]", "FASTMCP_LOG_LEVEL": "ERROR" },
-      "disabled": false,
-      "autoApprove": ["describe_log_groups", "describe_log_streams"]
-    },
-    "awslabs.cloudtrail-mcp-server": {
-      "command": "uvx",
-      "args": ["awslabs.cloudtrail-mcp-server@latest"],
-      "env": { "AWS_PROFILE": "[profile]", "FASTMCP_LOG_LEVEL": "ERROR" },
-      "disabled": false
-    },
-    "awslabs.aws-pricing-mcp-server": {
-      "command": "uvx",
-      "args": ["awslabs.aws-pricing-mcp-server@latest"],
-      "env": { "AWS_PROFILE": "[profile]", "FASTMCP_LOG_LEVEL": "ERROR" },
-      "disabled": false,
-      "autoApprove": ["get_products"]
-    },
-    "awslabs.bedrock-kb-retrieval-mcp-server": {
-      "command": "uvx",
-      "args": ["awslabs.bedrock-kb-retrieval-mcp-server@latest"],
-      "env": { "AWS_PROFILE": "[profile]", "AWS_REGION": "[region]" },
-      "disabled": true,
-      "comment": "Enable for Bedrock Knowledge Bases"
-    },
-    "awslabs.nova-canvas-mcp-server": {
-      "command": "uvx",
-      "args": ["awslabs.nova-canvas-mcp-server@latest"],
-      "env": { "AWS_PROFILE": "[profile]", "AWS_REGION": "[region]", "FASTMCP_LOG_LEVEL": "ERROR" },
-      "disabled": true,
-      "comment": "Enable for AI image generation"
+        "AWS_PROFILE": "[profile-name]"
+      }
     }
   }
 }
@@ -466,8 +395,6 @@ AWS_PROFILE=your-profile
 DATABASE_CLUSTER_ARN=arn:aws:rds:...
 DATABASE_SECRET_ARN=arn:aws:secretsmanager:...
 # API_KEY=your-key
-FASTMCP_LOG_LEVEL=ERROR
-READ_OPERATIONS_ONLY=false
 COST_ALERT_THRESHOLD=500
 ```
 
@@ -509,8 +436,8 @@ export AWS_REGION=[REGION]
 ## Configure
 cp .env.example .env
 ## Edit .env
-## Verify MCPs
-timeout 15s uvx awslabs.aws-api-mcp-server@latest 2>&1 || echo "OK"
+## Verify MCP
+timeout 15s uvx mcp-proxy-for-aws-cli@latest https://aws-mcp.us-east-1.api.aws/mcp --skip-auth 2>&1 || echo "OK"
 ```
 
 ## Workflow
@@ -532,20 +459,18 @@ timeout 15s uvx awslabs.aws-api-mcp-server@latest 2>&1 || echo "OK"
 ### MCP Usage
 
 ```
-"Use CloudWatch MCP to check error logs from last hour"
-"Use Pricing MCP to estimate costs for 3 Lambda functions"
+"Use aws-mcp to read CloudWatch error logs from the last hour"
+"Use aws-mcp to query the AWS Price List API and estimate costs for 3 Lambda functions"
 ```
 
 ## MCP Servers
 
-### Enabled
+One server: **aws-mcp**, the unified AWS MCP Server. Tools it exposes:
 
-- aws-api, aws-knowledge, cdk, cloudwatch, cloudtrail, aws-pricing
-
-### Available (Disabled)
-
-- terraform, postgres, dynamodb, bedrock-kb-retrieval, nova-canvas
-  Enable by setting `"disabled": false` in mcp.json
+- `aws___call_aws`, `aws___run_script` - AWS API calls and scripted AWS CLI workflows
+- `aws___search_documentation`, `aws___read_documentation`, `aws___recommend` - AWS documentation
+- `aws___list_regions`, `aws___get_regional_availability` - region and service availability data
+- `aws___retrieve_skill`, `aws___get_tasks`, `aws___get_presigned_url` - AWS skills and task helpers
 
 ## Troubleshooting
 
@@ -556,9 +481,9 @@ timeout 15s uvx awslabs.aws-api-mcp-server@latest 2>&1 || echo "OK"
 tail -f ~/Library/Logs/Claude/mcp*.log  # Mac
 tail -f %APPDATA%/Claude/mcp*.log       # Windows
 ## Clear cache
-uv cache clean awslabs.server-name
+uv cache clean mcp-proxy-for-aws-cli
 ## Test
-timeout 15s uvx awslabs.aws-api-mcp-server@latest 2>&1
+timeout 15s uvx mcp-proxy-for-aws-cli@latest https://aws-mcp.us-east-1.api.aws/mcp --skip-auth 2>&1
 ```
 
 ### Auth Errors
@@ -570,7 +495,6 @@ aws sts get-caller-identity --profile [PROFILE]
 ## Resources
 
 - [MCP Docs](https://modelcontextprotocol.io)
-- [AWS MCPs](https://github.com/awslabs/mcp)
 - [Kiro](https://kiro.dev)
 
 ````
@@ -1062,14 +986,14 @@ Deploy to production with safeguards
 - [ ] Directory structure (.kiro/, .vscode/, .cursor/)
 - [ ] 6 steering files
 - [ ] 4 hooks
-- [ ] 2 MCP configs (identical)
+- [ ] 2 MCP configs (identical, single `aws-mcp` server)
 - [ ] .gitignore, .env.example, README.md
 - [ ] Replace all [PLACEHOLDER] values
 - [ ] Initial spec: requirements.md, design.md, tasks.md
 
 ## POST-SETUP
 
-1. Enable/disable MCPs in mcp.json
+1. Set region and profile for the `aws-mcp` server in mcp.json
 2. Add custom steering files
 3. Customize hook prompts
 4. Review/refine generated spec

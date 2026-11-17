@@ -3,7 +3,7 @@
 # SumUp Skills
 
 [![Documentation][docs-badge]](https://developer.sumup.com)
-[![License](https://img.shields.io/github/license/sumup/sumup-go)](./LICENSE)
+[![License](https://img.shields.io/github/license/sumup/sumup-skills)](./LICENSE)
 
 </div>
 
@@ -13,18 +13,27 @@ A collection of [Agent Skills](https://agentskills.io/home) for building SumUp p
 
 These skills work with agents that support the Agent Skills standard, including Claude Code, Cursor, Gemini CLI, OpenCode, OpenAI Codex, and Pi.
 
+The packaged integrations include skills and hosted MCP configuration. Sign in with SumUp through your assistant to use account tools. Skills can be used without connecting an account. For the complete client setup guide, see [Plugins](https://developer.sumup.com/tools/llms/setup/) and [MCP Server](https://developer.sumup.com/tools/llms/mcp-server/).
+
 ### Claude Code
 
-Install using the plugin marketplace:
+Run in your terminal:
 
 ```bash
-/plugin marketplace add sumup/sumup-skills
-/plugin install sumup@sumup
+claude plugin marketplace add sumup/sumup-skills
+claude plugin install sumup@sumup
+claude plugin list
 ```
+
+Inside Claude Code, you can also use `/plugin marketplace add sumup/sumup-skills` and `/plugin install sumup@sumup`. Follow the install summary's reload instructions, then open `/mcp` to authorize the SumUp server in your browser.
 
 ### Cursor
 
-Install from the Cursor Marketplace or add manually via **Settings > Rules > Add Rule > Remote Rule (Github)** with `sumup/sumup-skills`.
+For teams, import `https://github.com/sumup/sumup-skills` from **Dashboard > Plugins & MCPs > Team Marketplaces > Add Marketplace > Import from Repo**, then add and install the SumUp plugin. See [Cursor plugins](https://cursor.com/docs/plugins).
+
+Once the marketplace is available, open **Customize** in Cursor's sidebar, find SumUp, and select **Install** with project or user scope. Authorize the bundled SumUp MCP connection when prompted. To receive updates, refresh the marketplace in the dashboard or enable **Auto Refresh** for a GitHub import, then start a new agent.
+
+For an individual setup, install the skills with `npx skills add https://github.com/sumup/sumup-skills` and configure the [hosted MCP connection](https://developer.sumup.com/tools/llms/mcp-server/).
 
 ### Gemini CLI
 
@@ -32,7 +41,12 @@ Install the extension from GitHub:
 
 ```bash
 gemini extensions install https://github.com/sumup/sumup-skills --ref=main
+gemini extensions list
 ```
+
+Start a new Gemini CLI session and run `/mcp auth sumup` to authorize the hosted server.
+
+Update with `gemini extensions update sumup`, or add `--auto-update` to the install command to enable automatic updates.
 
 ### OpenAI Codex
 
@@ -40,13 +54,31 @@ Install using the Codex plugin marketplace:
 
 ```bash
 codex plugin marketplace add sumup/sumup-skills
+codex plugin add sumup@sumup
+codex plugin list
 ```
+
+Start a new Codex session to load the plugin and complete SumUp authorization when prompted. Plugins work in the Codex CLI and Codex in the ChatGPT desktop app. For the Codex IDE extension, install standalone skills and configure MCP directly.
+
+To pull plugin updates, run `codex plugin marketplace upgrade sumup`, then start a new session.
+
+In Codex in the ChatGPT desktop app, open the Plugins Directory, choose **Add plugin marketplace**, and enter `sumup/sumup-skills`. Install SumUp from that marketplace and start a new chat.
 
 ### Kiro
 
 Import this repository as a custom power from Kiro: **Powers > Add Custom Power > Import power from GitHub**.
 
-For local testing, use **Import power from a folder** and select this repository root.
+Activate the power and authorize its SumUp MCP connection when prompted. For local testing, use **Import power from a folder** and select this repository root.
+
+The power uses the [Agent Plugins format](https://kiro.dev/docs/powers/create/) with `plugin.json`, `mcp.json`, and `skills/`.
+
+### VS Code / GitHub Copilot
+
+Enable `chat.plugins.enabled`, run **Chat: Install Plugin from Source** from the Command Palette, and enter `https://github.com/sumup/sumup-skills`. Choose user or workspace scope, authorize SumUp when prompted, and start a fresh chat. See [VS Code agent plugins](https://code.visualstudio.com/docs/agent-customization/agent-plugins) for supported harnesses and marketplace configuration.
+
+### Other Agent Plugins clients
+
+For clients supporting the [Agent Plugins standard](https://agent-plugins.org/), use Git URL `https://github.com/sumup/sumup-skills` and the repository root as the plugin directory. The package includes all six skills and the hosted SumUp MCP server. Installation and OAuth authorization steps depend on the client.
 
 ### Agent Skills Discovery
 
@@ -58,15 +90,15 @@ Use this URL in clients that accept a discovery index or start from `https://dev
 
 ### Clone / Copy
 
-Clone this repo and copy the skill folders into the appropriate directory for your agent:
+For a skills-only installation, clone this repo and copy the folders under `skills/` into the appropriate directory for your agent. This does not configure MCP:
 
 | Agent | Skill Directory | Docs |
 |-------|-----------------|------|
 | Claude Code | `~/.claude/skills/` | [docs](https://code.claude.com/docs/en/skills) |
-| Cursor | `~/.cursor/skills/` | [docs](https://cursor.com/docs/context/skills) |
-| Gemini CLI | `~/.gemini/extensions/` | [docs](https://geminicli.com/docs/extensions/) |
+| Cursor | `~/.cursor/skills/` | [docs](https://cursor.com/docs/skills) |
+| Gemini CLI | `~/.gemini/skills/` | [docs](https://geminicli.com/docs/cli/skills/) |
 | OpenCode | `~/.config/opencode/skills/` | [docs](https://opencode.ai/docs/skills/) |
-| OpenAI Codex | `~/.codex/skills/` | [docs](https://developers.openai.com/codex/skills/) |
+| OpenAI Codex | `~/.agents/skills/` | [docs](https://developers.openai.com/codex/skills/) |
 | Pi | `~/.pi/agent/skills/` | [docs](https://github.com/badlogic/pi-mono/tree/main/packages/coding-agent#skills) |
 
 ## Skills
@@ -77,6 +109,8 @@ Install using the `npx skills` CLI:
 npx skills add https://github.com/sumup/sumup-skills
 ```
 
+Standalone skills do not configure MCP or update automatically. Run `npx skills update` to pull skill updates.
+
 Skills are contextual and auto-loaded based on your conversation. When a request matches a skill's triggers, the agent loads and applies that skill.
 
 | Skill | Useful for |
@@ -84,9 +118,17 @@ Skills are contextual and auto-loaded based on your conversation. When a request
 | [sumup](./skills/sumup/) | Implementing SumUp checkout flows end-to-end across Checkouts API, Card Widget, Hosted Checkout, recurring tokenization, and terminal/cloud reader checkouts |
 | [sumup-best-practices](./skills/sumup-best-practices/) | Choosing the right integration path and security posture across Hosted Checkout, Card Widget, Checkouts API, mobile SDKs, terminal SDKs, and Cloud API |
 | [upgrade-sumup](./skills/upgrade-sumup/) | Planning and executing SumUp API/SDK upgrades and migrations across server and mobile SDK surfaces |
-| [sumup-debug](./skills/sumup-debug/) | Diagnosing and fixing common integration failures such as webhook signature mismatches, scope issues, session expiry, widget mount failures, and duplicate references |
+| [sumup-debug](./skills/sumup-debug/) | Diagnosing and fixing common integration failures such as callback verification failures, scope issues, session expiry, widget mount failures, and duplicate references |
 | [sumup-mcp](./skills/sumup-mcp/) | Configuring and using the SumUp MCP server (`https://mcp.sumup.com/mcp`) from MCP-capable clients |
 | [sumup-testing](./skills/sumup-testing/) | Setting up sandbox test merchants, running success/failure scenarios (including `amount = 11`), and validating end-to-end checkout behavior |
+
+## Verify the Setup
+
+Ask your assistant: "Use the SumUp skills to explain how to build a Hosted Checkout integration."
+
+After authorizing MCP, try a read-only request: "Use the SumUp MCP tools to show my merchant profile."
+
+MCP supports account queries; taking payments through MCP is not supported. Use a [sandbox merchant account](https://developer.sumup.com/online-payments/#getting-a-sandbox-merchant-account) when testing payment integrations built with the skills. If tools are missing or authorization fails, see [MCP troubleshooting](https://developer.sumup.com/tools/llms/mcp-server/#troubleshooting).
 
 ## Resources
 

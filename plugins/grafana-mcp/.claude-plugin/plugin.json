@@ -1,8 +1,8 @@
 {
   "name": "grafana-mcp",
   "version": "1.0.0",
-  "description": "MCP server for AI-assisted Grafana dashboard, datasource, alerting, and incident management.",
-  "updatedAt": "2026-09-19T00:42:54.307Z",
+  "description": "For self-hosted Grafana, or any Grafana with a service-account token: dashboards, Prometheus, Loki, alerting, incidents, and OnCall via the Grafana MCP server, run locally in Docker.",
+  "updatedAt": "2026-11-17T00:01:42.480Z",
   "author": {
     "name": "Grafana Labs",
     "email": "grafana-assistant@grafana.com"
@@ -17,6 +17,7 @@
     "prometheus",
     "loki"
   ],
+  "displayName": "Grafana (self-hosted)",
   "skills": "./skills/",
   "mcpServers": {
     "grafana": {

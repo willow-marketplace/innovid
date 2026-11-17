@@ -91,6 +91,10 @@
   --ink-color-global-feedback-neutral-subtle:  light-dark(#F1F1F1, #202020);
   --ink-color-global-feedback-neutral-strong:  light-dark(#1A1A1A, #9C9F9F);
 
+  /* === Highlight === */
+  --ink-color-global-highlight-subtle: light-dark(#FFF7F5, #1A1A1A);
+  --ink-color-global-highlight-strong: light-dark(#FF7D55, #FFC4B2);
+
   /* === Surfaces === */
   --ink-color-global-surface-background-default:  light-dark(#FFFFFF, rgb(18 18 18));
   --ink-color-global-surface-background-underlay: light-dark(#F1F1F1, #2D2D2D);
@@ -151,9 +155,7 @@
   --ink-spacing-global-horizontal-large:   24px;
   --ink-spacing-global-horizontal-xlarge:  32px;
 
-  /* === Typography (re-synced from theme-with-ink/tokens.css — the pinned Ink
-     snapshot theme.js's FS scale is documented as aligning to; this block had
-     been dropped from this app's local snapshot at some point) === */
+  /* === Typography (Ink's type scale, which theme.js's FS scale aligns to) === */
   --ink-font-global-size-small-1:            12px;
   --ink-font-global-size-small-2:            12px;
   --ink-font-global-size-heading-3:         16px;
@@ -192,10 +194,10 @@
   --ink-button-background-color-danger-base-hover:      #A82020;
   --ink-button-font-color-danger-base:                  #FFFFFF;
 
-  /* === Avatar (component tokens — synced from ink-tokens/library/tokens/components/Avatar).
+  /* === Avatar (Ink's Avatar component tokens).
      Ink's own initials-primary/secondary/tertiary enum is intentionally not included here —
      this app colors initials avatars from its own categorical data-viz palette instead
-     (see PALETTE in Overview.jsx), passed directly as Avatar's `initialsColor` prop. === */
+     (see PALETTE in ui/theme.js), passed directly as Avatar's `initialsColor` prop. === */
   --ink-avatar-background-color-base:               light-dark(#FFFFFF, #5A473F);
   --ink-avatar-background-color-initials-default:   light-dark(#EFEAE8, #7B6056);
   --ink-avatar-icon-background-color-base:          light-dark(#EFEAE8, #332824);

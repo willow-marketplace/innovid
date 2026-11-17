@@ -1,10 +1,32 @@
 > AI agents: this is one page from PostHog's docs. Full index of Markdown docs for LLMs: https://posthog.com/llms.txt
 
-# React Native Error Tracking installation - Docs
+# React Native Error Tracking installation
 
-Copy page
+Canonical URL: https://posthog.com/docs/error-tracking/installation/react-native
 
-# React Native Error Tracking installation - Docs
+> **Cloud region:** This page uses US Cloud hosts. For an EU Cloud project, use `https://eu.i.posthog.com` instead of `https://us.i.posthog.com` (ingestion host), and use `https://eu.posthog.com` instead of `https://app.posthog.com` (app host for links).
+
+## On this page
+
+- [Install with the wizard](#install-with-the-wizard)
+- [Install the package](#install-the-package)
+- [Configure PostHog](#configure-posthog)
+- [Send events](#send-events)
+- [Set up exception autocapture](#set-up-exception-autocapture)
+- [Set up error boundaries](#set-up-error-boundaries)
+- [Manually capture exceptions](#manually-capture-exceptions)
+- [Future features](#future-features)
+- [Verify error tracking](#verify-error-tracking)
+- [Upload source maps & native symbols](#upload-source-maps--native-symbols)
+- [iOS dependency resolution for native crash capture](#ios-dependency-resolution-for-native-crash-capture)
+
+## Install with the wizard
+
+Run this command in your project directory to add PostHog to your React Native project. The wizard detects your framework, installs the SDK, and sets up your first events.
+
+`npx @posthog/wizard`
+
+Or set it up manually by following the rest of this guide.
 
 1.  1
 
@@ -13,8 +35,6 @@ Copy page
     Required
 
     Install the PostHog React Native library and its dependencies:
-
-    PostHog AI
 
     ### Expo
 
@@ -26,6 +46,7 @@ Copy page
 
     ```bash
     yarn add posthog-react-native @react-native-async-storage/async-storage react-native-device-info react-native-localize
+    
     # for iOS
     cd ios && pod install
     ```
@@ -34,6 +55,7 @@ Copy page
 
     ```bash
     npm i -s posthog-react-native @react-native-async-storage/async-storage react-native-device-info react-native-localize
+    
     # for iOS
     cd ios && pod install
     ```
@@ -48,10 +70,9 @@ Copy page
 
     App.tsx
 
-    PostHog AI
-
     ```jsx
     import { PostHogProvider } from 'posthog-react-native'
+    
     export function MyApp() {
         return (
             <PostHogProvider
@@ -76,17 +97,18 @@ Copy page
 
     Component.tsx
 
-    PostHog AI
-
     ```jsx
     import { usePostHog } from 'posthog-react-native'
+    
     function MyComponent() {
         const posthog = usePostHog()
+    
         const handlePress = () => {
             posthog.capture('button_pressed', {
                 button_name: 'signup'
             })
         }
+    
         return <Button onPress={handlePress} title="Sign Up" />
     }
     ```
@@ -105,8 +127,6 @@ Copy page
 
     React Native
 
-    PostHog AI
-
     ```jsx
     export const posthog = new PostHog('<ph_project_token>', {
       errorTracking: {
@@ -124,18 +144,18 @@ Copy page
 
     | Option | Description |
     | --- | --- |
-    | uncaughtExceptions | Captures Uncaught exceptions (ReactNativeGlobal.ErrorUtils.setGlobalHandler) |
-    | unhandledRejections | Captures Unhandled rejections (ReactNativeGlobal.onunhandledrejection) |
-    | console | Captures console logs as errors according to the reported LogLevel |
-    | nativeCrashes | Captures native iOS/Android crashes. Requires @posthog/react-native-plugin and uploaded native symbols (see below) |
+    | `uncaughtExceptions` | Captures Uncaught exceptions (`ReactNativeGlobal.ErrorUtils.setGlobalHandler`) |
+    | `unhandledRejections` | Captures Unhandled rejections (`ReactNativeGlobal.onunhandledrejection`) |
+    | `console` | Captures console logs as errors according to the reported `LogLevel` |
+    | `nativeCrashes` | Captures native iOS/Android crashes. Requires `@posthog/react-native-plugin` and uploaded native symbols (see below) |
 
     **Capturing native crashes**
 
     `nativeCrashes` captures native iOS and Android crashes that the JavaScript layer can't see. Beyond the config above, it needs:
 
-    1.  The optional native plugin installed — `npx expo install @posthog/react-native-plugin` (Expo) or `npm i @posthog/react-native-plugin` (bare React Native). If it's missing, native capture is a no-op and your JS-level autocapture is unaffected.
+    1.  The optional native plugin installed — `npx expo install @posthog/react-native-plugin@2` (Expo) or `npm i @posthog/react-native-plugin@2` (bare React Native). If it's missing, native capture is a no-op and your JS-level autocapture is unaffected.
     2.  Your project's **Enable exception autocapture** setting enabled in [error tracking settings](https://app.posthog.com/settings/project-error-tracking#exception-autocapture) — the same server-side setting that gates JavaScript autocapture.
-    3.  Native debug symbols uploaded at build time, so crash stack traces are readable. See [native crash symbolication](/docs/error-tracking/upload-source-maps/react-native.md#native-crash-symbolication).
+    3.  Native debug symbols uploaded at build time, so crash stack traces are readable. See [native crash symbolication](https://posthog.com/docs/error-tracking/upload-source-maps/react-native.md#native-crash-symbolication).
 
 5.  5
 
@@ -147,11 +167,10 @@ Copy page
 
     React Native
 
-    PostHog AI
-
     ```jsx
     import { PostHogProvider, PostHogErrorBoundary } from 'posthog-react-native'
     import { View, Text } from 'react-native'
+    
     const App = () => {
       return (
         <PostHogProvider apiKey="<ph_project_token>">
@@ -164,6 +183,7 @@ Copy page
         </PostHogProvider>
       )
     }
+    
     const YourFallbackComponent = ({ error, componentStack }) => {
       return (
         <View>
@@ -191,8 +211,6 @@ Copy page
     You can manually capture exceptions using the `captureException` method:
 
     React Native
-
-    PostHog AI
 
     ```jsx
     try {
@@ -225,7 +243,7 @@ Copy page
 
     Before proceeding, let's make sure exception events are being captured and sent to PostHog. You should see events appear in the activity feed.
 
-    ![Activity feed with events](https://res.cloudinary.com/dmukukwp6/image/upload/SCR_20250729_ouxl_f788dd8cd2.png)![Activity feed with events](https://res.cloudinary.com/dmukukwp6/image/upload/SCR_20250729_owae_7c3490822c.png)
+    ![Activity feed with events](https://res.cloudinary.com/dmukukwp6/image/upload/SCR_20250729_ouxl_f788dd8cd2.png)
 
     [Check for exceptions in PostHog](https://app.posthog.com/activity/explore)
 
@@ -239,18 +257,19 @@ Copy page
 
     Let's continue to the next section.
 
-    [Upload source maps & native symbols](/docs/error-tracking/upload-source-maps/react-native.md)
+    [Upload source maps & native symbols](https://posthog.com/docs/error-tracking/upload-source-maps/react-native.md)
 
 ## iOS dependency resolution for native crash capture
 
+> **CocoaPods is becoming read-only.** [CocoaPods has announced](https://blog.cocoapods.org/CocoaPods-Specs-Repo/) the following schedule for its public specs repository:
+>
+> -   November 2–6, 2026: A read-only dry run will prevent us from publishing new PostHog iOS SDK versions to CocoaPods.
+> -   December 2, 2026 onward: The repository will be permanently read-only. New PostHog iOS SDK versions will only be available through Swift Package Manager (SPM).
+>
+> Existing iOS SDK versions will remain available through CocoaPods. To keep receiving iOS SDK updates, migrate the native plugin's `posthog-ios` dependency to SPM using the [hybrid CocoaPods and SPM setup](https://posthog.com/docs/libraries/react-native.md#cocoapods-with-posthog-ios-through-swift-package-manager), or use [full SPM integration](https://posthog.com/docs/libraries/react-native.md#full-swift-package-manager) if your app supports it. The hybrid path keeps CocoaPods for the plugin and other React Native dependencies.
+>
+> This change does not affect `@posthog/react-native-plugin` releases on npm or Android.
+
 The `@posthog/react-native-plugin` package supports CocoaPods, the hybrid CocoaPods and Swift Package Manager path, and React Native's full Swift Package Manager integration. PostHog verifies the full path with an iOS-only React Native 0.87.1 app and React Native Community CLI 20.2.0. This path requires `@posthog/react-native-plugin` 2.4.0 or later, Xcode 16 or later, and an iOS 15.1 or later app deployment target.
 
-See [iOS dependency paths for the React Native native plugin](/docs/libraries/react-native.md#choose-an-ios-dependency-path-for-the-native-plugin) for the requirements and setup steps. This verification does not cover Expo or other React Native versions. Use CocoaPods or the hybrid path unless you validate full Swift Package Manager for your configuration.
-
-### Still have questions?
-
-Ask PostHog AI
-
-### Was this page useful?
-
-HelpfulCould be better
+See [iOS dependency paths for the React Native native plugin](https://posthog.com/docs/libraries/react-native.md#choose-an-ios-dependency-path-for-the-native-plugin) for the requirements and setup steps. This verification does not cover Expo or other React Native versions. Use CocoaPods or the hybrid path unless you validate full Swift Package Manager for your configuration.

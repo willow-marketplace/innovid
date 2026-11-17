@@ -48,7 +48,10 @@ query_ngsiem_logs:
             end: now                     # NOT "time_range"
             repo_or_view: search-all      # NOT "repo"
             search_name: Hydrate detection
-            search_query: "#repo=xdr_indicatorsrepo Ngsiem.alert.id=?detection_id"
+            # The filter drops the correlation-rule meta-event, so results[0] is a
+            # real event for every detection type (as the shipped
+            # ngsiem-detection-ti-enrichment.yaml does).
+            search_query: "#repo=xdr_indicatorsrepo Ngsiem.alert.id=?detection_id | xdr_type != correlation-rule-detection | report_name != *"
             search_query_args:
                 detection_id: '*'         # placeholder default; real value bound above
             start: 24h                    # NOT "time_range"
@@ -85,6 +88,22 @@ query_ngsiem_logs:
   `${data['<ActionLabel>.results'].size()}`, or filter with CEL list ops (the
   shipped `close-duplicate-detections.yaml` uses
   `data['...results'].filter(e, e.alerted_before == true)[0].previous_alert_id`).
+- **Results cap at 200 rows by default.** The Event Query action returns at most
+  200 rows unless the query asks for more. The general fix is to end the query
+  with `| tail(x)` or `| head(x)` where 200 < x <= 10000; this works for filter-only
+  and `select()` queries, which have no `limit` parameter. A query that ends in
+  `table(...)` has its own 200-row default, so raise it there with
+  `table(fields=[...], limit=max)` or a specific number (the console query builder
+  warns _"Output capped at 200 elements by default."_). Either way, 10,000 rows is
+  the ceiling a workflow can retrieve per search, so a query that matches more
+  still stops at 10,000. See the Event query
+  [Limitations](https://docs.crowdstrike.com/access?ft:originId=k84dad72) in the
+  Falcon Fusion SOAR docs. If a workflow that accumulates query results into a
+  `WorkflowCustomVariable` (e.g. before a lookup-file write) looks stuck at 200
+  rows, check the query cap first. Downstream payload limits (such as the 10 MB
+  response payload) are real too, and large results can fail the workflow; the
+  action's **Only return results as files** option helps there, at the cost of
+  the per-row result fields.
 - **Read results directly — do NOT route them through an inline Python
   extractor.** It is tempting to add an `Inline.Python` step that JSON-parses the
   query results and re-emits indicators, then read them back with

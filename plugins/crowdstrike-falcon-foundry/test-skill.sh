@@ -116,17 +116,53 @@ rm -rf "$BASE_DIR"
 mkdir -p "$BASE_DIR"
 
 # Extract token counts from a stream-json log file
-# Returns "input_tokens output_tokens" on stdout
+# Returns "input_tokens output_tokens" on stdout. Input includes cache reads and
+# cache writes.
+#
+# The session's final "result" event carries the true totals. Per-message usage
+# is NOT safe to sum: a message with several content blocks is streamed as
+# several assistant events that repeat the same usage, and their output_tokens
+# is a partial count taken at message start. Without a result event (a killed
+# or timed-out run), fall back to one usage per message ID.
 get_tokens() {
   local log_file="$1"
-  local input output
-  input=$(grep '"type":"assistant"' "$log_file" 2>/dev/null | \
-    jq -r '[.message.usage.input_tokens // 0, .message.usage.cache_creation_input_tokens // 0, .message.usage.cache_read_input_tokens // 0] | add' 2>/dev/null | \
-    awk '{s+=$1} END {printf "%d", s+0}' || echo "0")
-  output=$(grep '"type":"assistant"' "$log_file" 2>/dev/null | \
-    jq -r '.message.usage.output_tokens // 0' 2>/dev/null | \
-    awk '{s+=$1} END {printf "%d", s+0}' || echo "0")
-  echo "$input $output"
+  [ -f "$log_file" ] || { echo "0 0"; return; }
+  jq -rRs '
+    [split("\n")[] | fromjson? | objects] as $events
+    | def total(u): [u.input_tokens, u.cache_creation_input_tokens, u.cache_read_input_tokens]
+        | map(. // 0) | add;
+    ($events | map(select(.type=="result" and .usage)) | last) as $r
+    | if $r then "\(total($r.usage)) \($r.usage.output_tokens // 0)"
+      else ($events | map(select(.type=="assistant" and .message.usage))
+            | group_by(.message.id) | map(last.message.usage)) as $u
+        | "\($u | map(total(.)) | add // 0) \($u | map(.output_tokens // 0) | add // 0)"
+      end
+  ' "$log_file" 2>/dev/null || echo "0 0"
+}
+
+# Total session cost in USD from the result event, or "null" when the run never
+# produced one
+get_cost() {
+  local log_file="$1"
+  [ -f "$log_file" ] || { echo "null"; return; }
+  jq -rRs '[split("\n")[] | fromjson? | objects | select(.type=="result")] | last | .total_cost_usd // null' \
+    "$log_file" 2>/dev/null || echo "null"
+}
+
+# List the reference docs a run read, one name per line, each listed once. The
+# agent reads them with the Read tool or with cat/sed/grep in Bash, so count
+# both: Read paths under references/, references/<name>.md paths in Bash
+# commands, and bare <name>.md in a Bash command that cd's into references/.
+list_reference_docs() {
+  local log_file="$1" tools_file="$2"
+  {
+    grep -o '{"type":"assistant".*' "$log_file" 2>/dev/null | \
+      jq -r 'select(.type=="assistant") | .message.content[]? | select(.type=="tool_use" and .name=="Read") | .input.file_path' 2>/dev/null | \
+      grep '/references/' | sed 's|.*/||'
+    grep -oE 'references/[A-Za-z0-9_.-]+\.md' "$tools_file" 2>/dev/null | sed 's|.*/||'
+    grep -E 'cd [^;&|]*references' "$tools_file" 2>/dev/null | \
+      grep -oE '[A-Za-z0-9_.-]+\.md\b' | grep -vE '^(SKILL|README|CHANGELOG|AGENTS|CLAUDE)\.md$'
+  } | awk 'NF && !seen[$0]++'
 }
 
 # Find the app directory (containing manifest.yml) under a run directory
@@ -141,7 +177,7 @@ find_app_dir() {
 # API health check: send a minimal request to verify connectivity before burning tokens
 check_api_health() {
   # Use claude with a trivial prompt — just check if it exits successfully
-  env -u CLAUDECODE claude -p "Reply with OK" \
+  env -u CLAUDECODE claude --no-session-persistence -p "Reply with OK" \
     --model haiku > /dev/null 2>&1
   return $?
 }
@@ -191,7 +227,7 @@ for i in $(seq 1 $RUNS); do
   # Use stream-json to capture tool calls for anti-pattern analysis
   cd "$RUN_DIR"
   RUN_START=$(date +%s)
-  FOUNDRY_SKIP_NAME_CONFIRM=1 env -u CLAUDECODE claude -p "$RUN_PROMPT" \
+  FOUNDRY_SKIP_NAME_CONFIRM=1 env -u CLAUDECODE claude --no-session-persistence -p "$RUN_PROMPT" \
     ${PLUGIN_DIR_FLAGS[@]+"${PLUGIN_DIR_FLAGS[@]}"} \
     --dangerously-skip-permissions \
     --model "${EVAL_MODEL:-opus}" \
@@ -291,11 +327,9 @@ for i in $(seq 1 $RUNS); do
   grep -o '{"type":"assistant".*' "$LOG_FILE" 2>/dev/null | \
     jq -r 'select(.type=="assistant") | .message.content[]? | select(.type=="tool_use" and .name=="Skill") | .input.skill' 2>/dev/null > "$SKILLS_FILE" || true
 
-  # Extract reference file reads (Read tool calls to references/*.md)
+  # Extract the reference docs read, one name per line, each listed once
   REFS_FILE="$BASE_DIR/run-$i.refs"
-  grep -o '{"type":"assistant".*' "$LOG_FILE" 2>/dev/null | \
-    jq -r 'select(.type=="assistant") | .message.content[]? | select(.type=="tool_use" and .name=="Read") | .input.file_path' 2>/dev/null | \
-    grep '/references/' > "$REFS_FILE" || true
+  list_reference_docs "$LOG_FILE" "$TOOLS_FILE" > "$REFS_FILE" || true
 
   # Extract LSP tool calls (operation + file:line)
   LSP_FILE="$BASE_DIR/run-$i.lsp"
@@ -391,13 +425,15 @@ for m in re.finditer(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*(?:\[[^\[\]]*(?:\[[^\[\]]*\]
     echo "  ✅ Did not replace server variable defaults"
   fi
 
-  # Check if the OpenAPI spec was Read into context (token waste)
+  # Check if the OpenAPI spec was Read into context (token waste). Only count
+  # paths inside this run's app; skills/api-integrations/SKILL.md also matches
+  # a bare 'api-integrations/' and is a normal skill load, not a spec read.
   SPEC_READS=0
   SPEC_READ_FILES=""
   if [ -s "$BASE_DIR/run-$i.log" ]; then
     SPEC_READ_FILES=$(grep '"type":"assistant"' "$BASE_DIR/run-$i.log" 2>/dev/null | \
       jq -r '.message.content[]? | select(.type=="tool_use" and .name=="Read") | .input.file_path' 2>/dev/null | \
-      grep -E 'api-integrations/' || true)
+      grep -E "/run-${i}/.*/api-integrations/" || true)
     if [ -n "$SPEC_READ_FILES" ]; then
       SPEC_READS=$(echo "$SPEC_READ_FILES" | wc -l | tr -d ' ')
     fi
@@ -438,7 +474,7 @@ for m in re.finditer(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*(?:\[[^\[\]]*(?:\[[^\[\]]*\]
   # Check for manual mkdir of app structure
   MANUAL_MKDIR=false
   if [ -s "$TOOLS_FILE" ]; then
-    if grep -qE 'mkdir.*(api-integrations|workflows|functions|collections|ui/)' "$TOOLS_FILE" 2>/dev/null; then
+    if grep -qE 'mkdir[^;&|]*(api-integrations|workflows|functions|collections|ui/)' "$TOOLS_FILE" 2>/dev/null; then
       echo "  ❌ Used mkdir for app structure (should use Foundry CLI)"
       MANUAL_MKDIR=true
     fi
@@ -661,8 +697,10 @@ for i in $(seq 1 $RUNS); do
   LOG_FILE="$BASE_DIR/run-$i.log"
   read -r INPUT_TOKENS OUTPUT_TOKENS <<< "$(get_tokens "$LOG_FILE")"
   TOTAL_TOKENS=$((INPUT_TOKENS + OUTPUT_TOKENS))
-  printf "  Run %d: %7s input, %7s output, %7s total\n" \
-    "$i" "${INPUT_TOKENS:-0}" "${OUTPUT_TOKENS:-0}" "$TOTAL_TOKENS"
+  COST=$(get_cost "$LOG_FILE")
+  [ "$COST" = "null" ] && COST_FMT="?" || COST_FMT=$(printf '$%.2f' "$COST")
+  printf "  Run %d: %7s input, %7s output, %7s total, %s\n" \
+    "$i" "${INPUT_TOKENS:-0}" "${OUTPUT_TOKENS:-0}" "$TOTAL_TOKENS" "$COST_FMT"
 done
 echo ""
 echo "Full logs: $BASE_DIR/run-*.log"
@@ -684,8 +722,9 @@ for i in $(seq 1 $RUNS); do
 
   IT=0; OT=0
   read -r IT OT <<< "$(get_tokens "$LOG_FILE")"
+  COST=$(get_cost "$LOG_FILE")
   SEP=""; [ "$i" -lt "$RUNS" ] && SEP=","
-  TOKENS_JSON="${TOKENS_JSON}    {\"run\": $i, \"input\": ${IT}, \"output\": ${OT}, \"total\": $(( IT + OT ))}${SEP}
+  TOKENS_JSON="${TOKENS_JSON}    {\"run\": $i, \"input\": ${IT}, \"output\": ${OT}, \"total\": $(( IT + OT )), \"cost_usd\": ${COST}}${SEP}
 "
 
   # Elapsed time per run
@@ -728,13 +767,13 @@ for i in $(seq 1 $RUNS); do
     grep -qi "foundry apps init" "$TEXT_FILE" "$TOOLS_FILE" 2>/dev/null && AP_COUNT=$((AP_COUNT + 1))
     grep -qi "switching.*oauth\|changed.*auth\|switch.*clientCredentials" "$TEXT_FILE" 2>/dev/null && AP_COUNT=$((AP_COUNT + 1))
     grep -qi "replace.*subdomain\|replace.*your-org\|replace.*okta\.com.*with" "$TEXT_FILE" 2>/dev/null && AP_COUNT=$((AP_COUNT + 1))
-    grep -qE 'mkdir.*(api-integrations|workflows|functions|collections|ui/)' "$TOOLS_FILE" 2>/dev/null && AP_COUNT=$((AP_COUNT + 1))
+    grep -qE 'mkdir[^;&|]*(api-integrations|workflows|functions|collections|ui/)' "$TOOLS_FILE" 2>/dev/null && AP_COUNT=$((AP_COUNT + 1))
     grep -qE 'touch manifest\.yml|echo.*>.*manifest\.yml|cat.*>.*manifest\.yml' "$TOOLS_FILE" 2>/dev/null && AP_COUNT=$((AP_COUNT + 1))
   fi
   # Count spec file reads as anti-pattern (token waste)
   SPEC_READ_COUNT=$(grep '"type":"assistant"' "$LOG_FILE" 2>/dev/null | \
     jq -r '.message.content[]? | select(.type=="tool_use" and .name=="Read") | .input.file_path' 2>/dev/null | \
-    grep -c 'api-integrations/' 2>/dev/null || echo "0")
+    grep -cE "/run-${i}/.*/api-integrations/" 2>/dev/null || true)
   if [ "$SPEC_READ_COUNT" -gt 0 ] 2>/dev/null; then
     AP_COUNT=$((AP_COUNT + SPEC_READ_COUNT))
   fi
@@ -756,8 +795,9 @@ done
 RESULTS_JSON=$(cat <<ENDJSON
 {
   "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-  "git_branch": "$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")",
-  "git_commit": "$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")",
+  "git_branch": "$(git -C "$SCRIPT_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")",
+  "git_commit": "$(git -C "$SCRIPT_DIR" rev-parse --short HEAD 2>/dev/null || echo "unknown")",
+  "token_source": "result_event",
   "runs": $RUNS,
   "deploys": $PASS,
   "deploy_rate": "$(echo "scale=0; $PASS * 100 / $TOTAL" | bc)%",
@@ -804,6 +844,10 @@ if [ -n "$BASELINE_FILE" ]; then
   B_REF_RUNS=$(jq -r '[.reference_reads | to_entries[] | select(.value | length > 0)] | length' "$BASELINE_FILE" 2>/dev/null || echo "?")
   B_AVG_ELAPSED=$(jq -r 'if .elapsed then [.elapsed[].seconds] | add / length | floor else "?" end' "$BASELINE_FILE" 2>/dev/null || echo "?")
 
+  B_AVG_COST=$(jq -r '[.tokens[].cost_usd | select(. != null)] | if length > 0 then add / length * 100 | round / 100 else "?" end' "$BASELINE_FILE" 2>/dev/null || echo "?")
+  C_AVG_COST=$(echo "$RESULTS_JSON" | jq -r '[.tokens[].cost_usd | select(. != null)] | if length > 0 then add / length * 100 | round / 100 else "?" end' 2>/dev/null || echo "?")
+  B_TOKEN_SOURCE=$(jq -r '.token_source // "per_message"' "$BASELINE_FILE" 2>/dev/null || echo "per_message")
+
   C_TOTAL_TOKENS=$(echo "$RESULTS_JSON" | jq -r '[.tokens[].total] | add' 2>/dev/null || echo "?")
   C_AVG_TOKENS=$(echo "$RESULTS_JSON" | jq -r '[.tokens[].total] | add / length | floor' 2>/dev/null || echo "?")
   C_AVG_AP=$(echo "$RESULTS_JSON" | jq -r '[.anti_pattern_counts[]] | add / length' 2>/dev/null || echo "?")
@@ -817,6 +861,10 @@ if [ -n "$BASELINE_FILE" ]; then
   printf "  %-24s %-15s %-15s\n" "Deploys" "$B_DEPLOYS/$B_RUNS" "$PASS/$TOTAL"
   printf "  %-24s %-15s %-15s\n" "Total tokens" "$B_TOTAL_TOKENS" "$C_TOTAL_TOKENS"
   printf "  %-24s %-15s %-15s\n" "Avg tokens/run" "$B_AVG_TOKENS" "$C_AVG_TOKENS"
+  B_COST_FMT="?"; C_COST_FMT="?"
+  [ "$B_AVG_COST" != "?" ] && B_COST_FMT="\$$B_AVG_COST"
+  [ "$C_AVG_COST" != "?" ] && C_COST_FMT="\$$C_AVG_COST"
+  printf "  %-24s %-15s %-15s\n" "Avg cost/run" "$B_COST_FMT" "$C_COST_FMT"
   # Format elapsed as m:ss
   B_ELAPSED_FMT="?"
   C_ELAPSED_FMT="?"
@@ -831,8 +879,14 @@ if [ -n "$BASELINE_FILE" ]; then
   printf "  %-24s %-15s %-15s\n" "Avg spec quality/run" "$B_AVG_SQ" "$C_AVG_SQ"
   printf "  %-24s %-15s %-15s\n" "Runs w/ ref reads" "$B_REF_RUNS" "$C_REF_RUNS"
 
+  # A baseline saved before tokens came from the result event summed
+  # per-message usage, which double-counts, so its tokens can't be compared.
+  if [ "$B_TOKEN_SOURCE" != "result_event" ]; then
+    echo ""
+    echo "  Token change: not comparable. The baseline counted tokens per streamed"
+    echo "  message, which double-counts. Re-run the baseline with --fresh."
   # Calculate token delta
-  if [ "$B_AVG_TOKENS" != "?" ] && [ "$C_AVG_TOKENS" != "?" ]; then
+  elif [ "$B_AVG_TOKENS" != "?" ] && [ "$C_AVG_TOKENS" != "?" ]; then
     DELTA=$((C_AVG_TOKENS - B_AVG_TOKENS))
     if [ "$DELTA" -lt 0 ]; then
       PCT=$(echo "scale=1; $DELTA * 100 / $B_AVG_TOKENS" | bc)

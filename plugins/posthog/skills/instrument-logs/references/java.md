@@ -1,10 +1,19 @@
 > AI agents: this is one page from PostHog's docs. Full index of Markdown docs for LLMs: https://posthog.com/llms.txt
 
-# Java Logs installation - Docs
+# Java Logs installation
 
-Copy page
+Canonical URL: https://posthog.com/docs/logs/installation/java
 
-# Java Logs installation - Docs
+> **Cloud region:** This page uses US Cloud hosts. For an EU Cloud project, use `https://eu.i.posthog.com` instead of `https://us.i.posthog.com` (ingestion host), and use `https://eu.posthog.com` instead of `https://app.posthog.com` (app host for links).
+
+## On this page
+
+- [Install OpenTelemetry packages](#install-opentelemetry-packages)
+- [Get your project token](#get-your-project-token)
+- [Configure the SDK](#configure-the-sdk)
+- [Use OpenTelemetry logging](#use-opentelemetry-logging)
+- [Test your setup](#test-your-setup)
+- [Next steps](#next-steps)
 
 1.  1
 
@@ -13,10 +22,6 @@ Copy page
     Required
 
     Add the following dependencies to your `pom.xml`:
-
-    XML
-
-    PostHog AI
 
     ```xml
     <dependency>
@@ -56,15 +61,12 @@ Copy page
 
     Set up the OpenTelemetry SDK to send logs to PostHog.
 
-    Java
-
-    PostHog AI
-
     ```java
     import io.opentelemetry.api.logs.GlobalLoggerProvider;
     import io.opentelemetry.sdk.logs.SdkLoggerProvider;
     import io.opentelemetry.sdk.logs.export.BatchLogRecordProcessor;
     import io.opentelemetry.exporter.otlp.logs.OtlpHttpLogRecordExporter;
+    
     SdkLoggerProvider loggerProvider = SdkLoggerProvider.builder()
         .addLogRecordProcessor(
             BatchLogRecordProcessor.builder(
@@ -75,14 +77,11 @@ Copy page
             ).build()
         )
         .build();
+    
     GlobalLoggerProvider.set(loggerProvider);
     ```
 
     Alternatively, you can pass the API key as a query parameter:
-
-    Java
-
-    PostHog AI
 
     ```java
     OtlpHttpLogRecordExporter.builder()
@@ -98,13 +97,11 @@ Copy page
 
     Now you can start logging with OpenTelemetry:
 
-    Java
-
-    PostHog AI
-
     ```java
     import io.opentelemetry.api.logs.Logger;
+    
     Logger logger = GlobalLoggerProvider.get().get("my-app");
+    
     logger.logRecordBuilder()
         .setBody("User action")
         .setAttributes(Attributes.of(
@@ -136,19 +133,11 @@ Copy page
 
     | Action | Description |
     | --- | --- |
-    | [Why you need logs](/docs/logs/basics.md) | What logs show you that nothing else does |
-    | [Search logs](/docs/logs/search.md) | Use the search interface to find specific log entries |
-    | Filter by level | Filter by INFO, WARN, ERROR, etc. |
-    | [Link session replay](/docs/logs/link-session-replay.md) | Connect logs to users and session replays by passing posthogDistinctId and sessionId |
-    | [Link logs to a person](/docs/logs/link-person.md) | Surface every log emitted on behalf of a user on their PostHog person profile |
-    | [Logging best practices](/docs/logs/best-practices.md) | Learn what to log, how to structure logs, and patterns that make logs useful in production |
+    | **[Why you need logs](https://posthog.com/docs/logs/basics.md)** | What logs show you that nothing else does |
+    | **[Search logs](https://posthog.com/docs/logs/search.md)** | Use the search interface to find specific log entries |
+    | **Filter by level** | Filter by `INFO`, `WARN`, `ERROR`, etc. |
+    | **[Link session replay](https://posthog.com/docs/logs/link-session-replay.md)** | Connect logs to users and session replays by passing `posthogDistinctId` and `sessionId` |
+    | **[Link logs to a person](https://posthog.com/docs/logs/link-person.md)** | Surface every log emitted on behalf of a user on their PostHog person profile |
+    | **[Logging best practices](https://posthog.com/docs/logs/best-practices.md)** | Learn what to log, how to structure logs, and patterns that make logs useful in production |
 
-    [Troubleshoot common issues](/docs/logs/troubleshooting.md)
-
-### Still have questions?
-
-Ask PostHog AI
-
-### Was this page useful?
-
-HelpfulCould be better
+    [Troubleshoot common issues](https://posthog.com/docs/logs/troubleshooting.md)

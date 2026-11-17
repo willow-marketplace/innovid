@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "villagesql-docs": {
+      "url": "https://villagesql.com/docs/mcp",
+      "type": "http"
+    }
+  }
+}

@@ -60,15 +60,16 @@ Prefer ad rotation when only the message differs:
 ## Budgets, Bidding, and Forecasting
 
 - Convert amounts to micro-amounts (in the ad account's billing currency) for budgets and bids.
-- Use `MAX_BID` with `bid_micro_amount` unless the user requests automated bidding. Use `AUTOBID` when the user wants automatic bid optimization (no `bid_micro_amount` required). Use `COST_PER_RESULT` only with the CLICKS objective.
-- Run `POST /estimates/bid` when recommending a bid cap.
+- For `AUCTION`, use `MAX_BID` with `bid_micro_amount` unless the user requests automated bidding. Use `AUTOBID` when the user wants automatic bid optimization (no `bid_micro_amount` required). Use `COST_PER_RESULT` only with the CLICKS objective.
+- For `CONTENT` or `FPMNG`, use the Reserved Pricing and Forecasting flow in `skills/api-reference/references/api-behaviors.md`. Fetch the fixed rate before forecasting; use its `cost_micro` as `bid_micro_amount` and resolve the remaining product-specific fields from the current OpenAPI contract and live catalog. Keep the fixed rate distinct from the estimated CPM and bid suggestion.
+- Run `POST /estimates/bid` when recommending an auction bid cap.
 - Run `POST /estimates/audience` for every recommended ad set before presenting the final executable structure when credentials are available.
 - For reach, use `PACING_EVEN` and a frequency cap such as 2 impressions per user per week unless the user needs urgency.
 - If the forecast says the ad set is too small or unlikely to deliver, broaden in this order: geo, age, platforms, placements, then remove optional interest/genre filters.
 
 **Estimate endpoints are top-level** — use `POST /estimates/audience` and `POST /estimates/bid`, NOT `/ad_accounts/{id}/estimates/...`. The `ad_account_id` goes in the request body.
 
-`POST /estimates/audience` required body:
+`POST /estimates/audience` example body:
 ```json
 {
   "ad_account_id": "<from settings>",
@@ -90,9 +91,9 @@ Prefer ad rotation when only the message differs:
 }
 ```
 
-All 8 fields (`ad_account_id`, `start_date`, `asset_format`, `objective`, `bid_strategy`, `bid_micro_amount`, `budget`, `targets`) are required. The `budget` object requires `currency` (e.g. "USD") in addition to `micro_amount` and `type`.
+The `budget` object requires `currency` (e.g. "USD") in addition to `micro_amount` and `type`.
 
-`POST /estimates/bid` required body:
+`POST /estimates/bid` example body:
 ```json
 {
   "asset_format": "AUDIO",
@@ -102,8 +103,6 @@ All 8 fields (`ad_account_id`, `start_date`, `asset_format`, `objective`, `bid_s
   "targets": { "...same Targets as ad set..." }
 }
 ```
-
-All 5 fields (`asset_format`, `objective`, `bid_strategy`, `currency`, `targets`) are required.
 
 ## Creative and Asset Guidance
 

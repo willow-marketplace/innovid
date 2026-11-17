@@ -31,7 +31,7 @@ an after-state from `seed/` by following the phase specs only (no fixture peek):
 3. Run `python3 check_expected_workshop.py <scratch_dir> seed` — must **PASS**.
 
 The committed `after-arm64-reprice/` is the reference snapshot for that path.
-Record in the PR that the replay was run (agent transcript or CI note). Manual
+Record in the PR that the replay was run (attach the agent transcript). Manual
 demo alone is not enough for the house bar.
 
 ## SA demo script (manual)
@@ -50,5 +50,4 @@ demo alone is not enough for the house bar.
 
 Partner one-liner: _SAs can run a what-if workshop after Estimate: change region,
 HA, compute target, or Graviton preference and compare up to 5 priced scenarios
-without re-discovery. (Region dollar deltas need awspricing MCP; otherwise rates
-stay us-east-1-cache-based.)_
+without re-discovery. (Rates are cache-based; regional deltas noted qualitatively.)_

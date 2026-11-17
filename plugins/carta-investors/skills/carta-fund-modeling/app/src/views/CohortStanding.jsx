@@ -8,13 +8,25 @@
 // empty row.
 import { FS, sans, inkNum, MICRO } from "../ui/theme.js";
 import { fmtM, fmtX, fmtPct } from "../ui/format.js";
-import { H1, H3, MethodNote, SourceNote, fundNameOnly, Eyebrow, StatTile } from "../ui/components.jsx";
-import { cohortPercentile } from "../model/benchmarks.js";
+import { H3, SourceNote, fundNameOnly, Eyebrow, StatTile } from "../ui/components.jsx";
+import { cohortPercentile, hasCohortSpread, isBenchmarkable } from "../model/benchmarks.js";
+
+// How the cohort benchmarks are built. The empty state draws no bars, so its note leaves out
+// the sentence about them.
+const COHORT_NOTE = "Funds are grouped into a cohort of anonymized funds on Carta, based on their vintage and size.";
+const BAR_NOTE = "Each bar interpolates the fund's percentile between them so funds can be compared across cohorts.";
+const COVERAGE_NOTE = "Some cohorts aren't large enough to show meaningful data.";
 
 const TICKS = [50, 75, 90, 95];
 const METRICS = [{ id: "tvpi", label: "TVPI" }, { id: "dpi", label: "DPI" }, { id: "moic", label: "Gross MOIC" }];
 
 const RAIL_H = 52;
+// A compact rail states the fund's standing on its header line rather than above the
+// marker, so its marker, track and ticks move up by COMPACT_DY and one line of values
+// sits under the ticks.
+const COMPACT_DY = -14, COMPACT_RAIL_H = 28;
+// The fund's standing and the cohort's percentile keys.
+const MARK_TYPE = { ...sans, fontSize: FS.micro, fontWeight: 700 };
 
 /** One metric's compact percentile bar — a flat meter, not a slider: quiet
  *  track, hairline cohort ticks, a filled bar to the fund's percentile, and a
@@ -23,8 +35,10 @@ const RAIL_H = 52;
  *  standing right above it. Each cohort mark's percentile key prints ABOVE
  *  its value, larger and darker, since the percentile is the point of the
  *  bar and the raw multiple is supporting detail. Fill and marker are green
- *  above the p50 median, red below it. */
-function Rail({ pctl, val, cohortMarks, estimated, below, belowP, noValueLabel }) {
+ *  above the p50 median, red below it. Overview's Peer benchmarks widget draws it
+ *  `compact`: a header line with the fund's `name` on the left and its standing on the
+ *  right in place of the label above the marker, and no percentile keys under the ticks. */
+export function Rail({ pctl, val, cohortMarks, estimated, below, belowP, noValueLabel, compact, name }) {
   // cohortMarks carries p5/p10/p25/p50/p75/p90/p95 (whatever Carta published),
   // so pctl is a real interpolated rank for almost every fund, plotted at its
   // actual position on the 0-100 scale below just like above. Only a fund
@@ -59,12 +73,15 @@ function Rail({ pctl, val, cohortMarks, estimated, below, belowP, noValueLabel }
   const fill = below || atZero
     ? "var(--ink-color-global-feedback-negative-strong)"
     : pctl >= 50 ? "var(--ink-color-global-feedback-positive-strong)" : "var(--ink-color-global-feedback-negative-strong)";
-  return (
-    <div style={{ position: "relative", height: RAIL_H }}>
-      {val != null ? (
+  const standing = val == null ? null
+    : `${val.toFixed(2)}× ${below ? `(below p${belowP})` : atZero ? `(≤p${Math.round(pctl)})` : `(p${Math.round(pctl)})`}`;
+  const dy = compact ? COMPACT_DY : 0;
+  const bar = (
+    <div style={{ position: "relative", height: compact ? COMPACT_RAIL_H : RAIL_H }}>
+      {compact ? null : standing != null ? (
         <div style={{ position: "absolute", top: 0, ...labelPos,
-          ...sans, fontSize: FS.micro, fontWeight: 700, color: fill, whiteSpace: "nowrap" }}>
-          {val.toFixed(2)}× {below ? `(below p${belowP})` : atZero ? `(≤p${Math.round(pctl)})` : `(p${Math.round(pctl)})`}
+          ...MARK_TYPE, color: fill, whiteSpace: "nowrap" }}>
+          {standing}
         </div>
       ) : noValueLabel ? (
         // The fund's own value isn't recorded, but Carta HAS published a real
@@ -76,17 +93,17 @@ function Rail({ pctl, val, cohortMarks, estimated, below, belowP, noValueLabel }
           {noValueLabel}
         </div>
       ) : null}
-      <div style={{ position: "absolute", top: 20, left: 0, right: 0, height: 3, borderRadius: 2, background: "var(--ink-color-global-border-subtle)" }} />
+      <div style={{ position: "absolute", top: 20 + dy, left: 0, right: 0, height: 3, borderRadius: 2, background: "var(--ink-color-global-border-subtle)" }} />
       {TICKS.map((t) => (
-        <div key={t} style={{ position: "absolute", top: 16, left: `${t}%`, width: 1, height: 8, background: MICRO }} />
+        <div key={t} style={{ position: "absolute", top: 16 + dy, left: `${t}%`, width: 1, height: 8, background: MICRO }} />
       ))}
       {val != null && (
         <>
-          <div data-testid="fill-bar" style={{ position: "absolute", top: 20, left: 0, width: `${x}%`, height: 3, borderRadius: 2, transition: "width .25s ease, background .15s ease",
+          <div data-testid="fill-bar" style={{ position: "absolute", top: 20 + dy, left: 0, width: `${x}%`, height: 3, borderRadius: 2, transition: "width .25s ease, background .15s ease",
             background: estimated
               ? `repeating-linear-gradient(90deg, ${fill} 0 7px, transparent 7px 12px)`
               : fill }} />
-          <div style={{ position: "absolute", top: 14.5, left: `${x}%`, transform: markerTransform, transition: "left .25s ease, background .15s ease",
+          <div style={{ position: "absolute", top: 14.5 + dy, left: `${x}%`, transform: markerTransform, transition: "left .25s ease, background .15s ease",
             width: 3, height: 13, borderRadius: 1, background: fill }} />
         </>
       )}
@@ -98,12 +115,22 @@ function Rail({ pctl, val, cohortMarks, estimated, below, belowP, noValueLabel }
         const v = cohortMarks?.[`p${t}`];
         if (v == null) return null;
         return (
-          <div key={t} style={{ position: "absolute", top: 28, left: `${t}%`, transform: "translateX(-50%)", textAlign: "center" }}>
-            <div style={{ ...sans, fontSize: FS.micro, fontWeight: 700, color: "var(--ink-color-global-text-default)", whiteSpace: "nowrap" }}>p{t}</div>
-            <div style={{ ...inkNum, fontSize: FS.micro, color: MICRO, whiteSpace: "nowrap" }}>{v.toFixed(2)}×</div>
+          <div key={t} style={{ position: "absolute", top: 28 + dy, left: `${t}%`, transform: "translateX(-50%)", textAlign: "center" }}>
+            {!compact && <div style={{ ...MARK_TYPE, color: "var(--ink-color-global-text-default)", whiteSpace: "nowrap" }}>p{t}</div>}
+            <div style={{ ...inkNum, fontSize: FS.micro, fontWeight: 400, color: compact ? "var(--ink-color-global-text-subtle)" : MICRO, whiteSpace: "nowrap" }}>{v.toFixed(2)}×</div>
           </div>
         );
       })}
+    </div>
+  );
+  if (!compact) return bar;
+  return (
+    <div>
+      <div data-testid="rail-header" style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 8, marginBottom: 4 }}>
+        <span style={{ ...sans, fontSize: FS.micro, color: "var(--ink-color-global-text-default)", minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{name}</span>
+        {standing != null && <span style={{ ...MARK_TYPE, color: fill, whiteSpace: "nowrap" }}>{standing}</span>}
+      </div>
+      {bar}
     </div>
   );
 }
@@ -170,17 +197,11 @@ export default function CohortStanding({ snapshot, fundStates }) {
   // Each fund evaluates ALL THREE metrics independently — a fund can be
   // benchmarked on TVPI but uncohorted on DPI, so this is a map, not one value.
   const rows = fundStates.map((f) => {
-    if (f.lpPaidIn === 0) return { f, kind: "deploying", metrics: null };
+    if (!isBenchmarkable(f)) return { f, kind: "deploying", metrics: null };
     const metrics = {};
     for (const m of METRICS) {
       const cohortMarks = snapshot.benchmarks[f.id]?.[m.id];
-      // A cohort is usable as soon as ANY published mark is nonzero — even if
-      // the median (p50) is 0 (common for DPI mid-J-curve, where the bottom
-      // half of the cohort hasn't distributed yet), a nonzero p75/p90/p95
-      // still gives a real spread to place this fund against. Only a cohort
-      // where EVERY published mark is 0/absent is truly degenerate (no spread
-      // to compare against at all).
-      const hasMarks = cohortMarks && ["p5", "p10", "p25", "p50", "p75", "p90", "p95"].some((k) => (cohortMarks[k] ?? 0) > 0);
+      const hasMarks = hasCohortSpread(cohortMarks);
       const val = metricVal(f, m.id);
       if (!hasMarks) {
         metrics[m.id] = { kind: "uncohorted", val, cohortMarks: null, reason: "degenerate_cohort" };
@@ -222,10 +243,9 @@ export default function CohortStanding({ snapshot, fundStates }) {
     const emptyBody =
       snapshot.benchmarksMeta?.reason === "no_cohort_file"
         ? `Cohort benchmarks weren't loaded for ${firm}. This is usually a data-access limitation — the fund's role may not have read access to TEMPORAL_FUND_COHORT_BENCHMARKS. It is not a firm-context narrowing issue (the cohort table is pre-aggregated across firms).`
-        : `Carta has not published peer cohort benchmarks for ${firm}'s funds (no vintage / AUM / entity-type cohort in TEMPORAL_FUND_COHORT_BENCHMARKS across their recent quarters). When cohort data becomes available it will appear here automatically.`;
+        : `Carta has not published peer cohort benchmarks for ${firm}'s funds. When cohort data becomes available it will appear here automatically.`;
     return (
       <div>
-        <H1>Benchmarks</H1>
         <div className="card" style={{ padding: "52px 24px", textAlign: "center" }}>
           <H3 as="div" style={{ marginBottom: 8 }}>
             Benchmarking is not available currently.
@@ -235,8 +255,7 @@ export default function CohortStanding({ snapshot, fundStates }) {
           </div>
         </div>
         <SourceNote style={{ fontSize: FS.small, marginTop: 14 }}>
-          Source: Carta TEMPORAL_FUND_COHORT_BENCHMARKS — bars render only when a fund's vintage/size
-          cohort has published marks.
+          {`${COHORT_NOTE} ${COVERAGE_NOTE}`}
         </SourceNote>
       </div>
     );
@@ -250,23 +269,13 @@ export default function CohortStanding({ snapshot, fundStates }) {
 
   return (
     <div>
-      <H1>Benchmarks</H1>
-      <MethodNote>
-        Every fund shows TVPI, DPI, and Gross MOIC on its own compact percentile bar against Carta's same-vintage
-        venture cohorts — the only scale that compares across vintages. Net TVPI and Net IRR are shown under each fund name.
-      </MethodNote>
       <div>
-        <div style={{ ...sans, fontSize: FS.body, color: "var(--ink-color-global-text-subtle)", marginBottom: 10 }}>
-          {(() => {
-            const bench = rows.filter((r) => r.kind === "benchmarked" && r.metrics.tvpi.kind === "benchmarked");
-            if (!bench.length)
-              return "Carta has not published peer cohorts for these vintages and fund sizes on TVPI — showing each fund's multiples and IRR without a percentile bar.";
-            const aboveMedian = bench.filter((r) => r.metrics.tvpi.pctl >= 50).length;
-            return aboveMedian === bench.length
-              ? "Every benchmarked fund sits above its cohort median on TVPI."
-              : `${aboveMedian} of ${bench.length} benchmarked funds sit above their cohort median on TVPI.`;
-          })()}
-        </div>
+        {/* No fund has a TVPI cohort: say why the TVPI bars are empty. */}
+        {!rows.some((r) => r.kind === "benchmarked" && r.metrics.tvpi.kind === "benchmarked") && (
+          <div style={{ ...sans, fontSize: FS.body, color: "var(--ink-color-global-text-subtle)", marginBottom: 10 }}>
+            Carta has not published peer cohorts for these vintages and fund sizes on TVPI — showing each fund's multiples and IRR without a percentile bar.
+          </div>
+        )}
 
         {visibleRows.map(({ f, kind, metrics }, i) => {
           return (
@@ -280,7 +289,9 @@ export default function CohortStanding({ snapshot, fundStates }) {
                   </span>
                   <span style={{ ...sans, fontSize: FS.small, color: "var(--ink-color-global-text-subtle)", marginLeft: 8 }}>
                     {kind === "deploying"
-                      ? `${f.vintage ?? "—"} · deploying · committed ${fmtM(f.committed)} · winds down ${snapshot.windDownYear[f.id]}`
+                      ? f.hasNav === false
+                        ? `${f.vintage ?? "—"} · no NAV close yet · winds down ${snapshot.windDownYear[f.id]}`
+                        : `${f.vintage ?? "—"} · deploying · committed ${fmtM(f.committed)} · winds down ${snapshot.windDownYear[f.id]}`
                       : `${f.vintage ?? "—"} · ${f.cohortSize ?? "—"} funds in cohort`}
                   </span>
                 </div>
@@ -290,7 +301,9 @@ export default function CohortStanding({ snapshot, fundStates }) {
                 <div style={{ position: "relative", height: RAIL_H }}>
                   <div style={{ position: "absolute", top: 20, left: 0, right: 0, height: 3, borderRadius: 2, background: "var(--ink-color-global-border-subtle)" }} />
                   <span style={{ position: "absolute", top: 26, left: 0, ...sans, fontSize: FS.small, color: "var(--ink-color-global-text-subtle)" }}>
-                    capital not yet called — standing begins with deployment
+                    {f.hasNav === false
+                      ? "no month-end NAV close booked yet — standing begins with the first close"
+                      : "capital not yet called — standing begins with deployment"}
                   </span>
                 </div>
               ) : (
@@ -310,10 +323,7 @@ export default function CohortStanding({ snapshot, fundStates }) {
         </div>
       )}
       <SourceNote style={{ fontSize: FS.small, marginTop: 14 }}>
-        Source: Carta TEMPORAL_FUND_COHORT_BENCHMARKS. When a fund's vintage/size cohort has published marks, each bar
-        interpolates the fund's percentile between them so positions compare across vintages — the value and percentile
-        key are printed under each tick. Carta has not published peer cohorts for every fund, so some bars show "no
-        cohort"; Net TVPI and Net IRR under the fund name are always shown regardless of cohort coverage.
+        {`${COHORT_NOTE} ${BAR_NOTE} ${COVERAGE_NOTE}`}
       </SourceNote>
     </div>
   );

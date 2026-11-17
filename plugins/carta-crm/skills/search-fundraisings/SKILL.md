@@ -3,6 +3,9 @@ name: search-fundraisings
 description: Searches for and retrieves fundraising records from the Carta CRM. Use this skill when the user says things like "find a fundraising", "search fundraisings", "look up a fundraising round", "show fundraising details for [name]", "full details on [name]", "get fundraising by ID", "list fundraisings", "what fundraisings do we have", or "/search-fundraisings". Returns fundraising details including ID, name, stage, and custom fields. The fundraising ID returned can be used with the update-fundraising skill.
 ---
 
+<!-- carta:plugin-version -->
+<carta-plugin>carta-crm:1.20.20</carta-plugin>
+
 ## Overview
 
 Look up fundraisings in the Carta CRM. A request about **one named round** renders that

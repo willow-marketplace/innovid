@@ -13,7 +13,7 @@ When the [superpowers](https://github.com/obra/superpowers) plugin is installed,
 
 ## Safety Net: PreToolUse Hook
 
-A `PreToolUse` hook (`hooks/superpowers-foundry-bridge.sh`) fires whenever a superpowers planning skill is invoked in a Foundry project directory. It injects CLI scaffolding requirements into the planning skill's context. A separate `PreToolUse` hook in `hooks/foundry-skill-router.sh` injects a non-blocking advisory reminder when Foundry development intent is detected.
+A `PreToolUse` hook (`hooks/superpowers-foundry-bridge.sh`) fires whenever a superpowers planning skill is invoked. It has no project-directory check, so the CLI scaffolding requirements it injects are worded to apply only when the task involves Falcon Foundry. A separate `PreToolUse` hook in `hooks/foundry-skill-router.sh` injects a non-blocking advisory reminder when Foundry development intent is detected.
 
 ## What superpowers:writing-plans MUST Do Differently for Foundry
 
@@ -28,20 +28,20 @@ cd app-name
 **Task pattern for API integrations:**
 ```bash
 # Delegate ALL OpenAPI spec work to the api-integrations sub-skill.
-foundry api-integrations create --name "MyApi" --description "desc" --spec /tmp/MyApi.yaml
+foundry api-integrations create --name "MyApi" --description "desc" --spec /tmp/MyApi.yaml --no-prompt
 ```
 
 **Task pattern for UI pages:**
 ```bash
 foundry ui pages create --name "my-page" --description "Page description" --from-template React --homepage --no-prompt
-foundry ui navigation add --name "My Page" --path / --ref pages.my-page
+foundry ui navigation add --name "My Page" --path / --ref pages.my-page --no-prompt
 # Edit the generated source files in ui/pages/my-page/src/ with app-specific UI logic
 ```
 
 **Task pattern for workflows:**
 ```bash
 # Write workflow YAML to /tmp/My_workflow.yml — NOT inside the project directory
-foundry workflows create --name "My Workflow" --spec /tmp/My_workflow.yml
+foundry workflows create --name "My Workflow" --spec /tmp/My_workflow.yml --no-prompt
 # Edit the project copy at workflows/My_workflow.yml if needed
 ```
 

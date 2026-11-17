@@ -1,6 +1,6 @@
 ---
 name: matrixscan-batch-capacitor
-description: Capacitor MatrixScan Batch (scandit-capacitor-datacapture-barcode) — MatrixScan, BarcodeBatch, legacy BarcodeTracking — tracking and scanning multiple barcodes at once with basic/advanced AR overlays in Capacitor iOS/Android apps (not the plain-web sibling). Use for integration, settings and symbologies, per-barcode brushes, TrackedBarcodeView annotations, lifecycle, SDK version migration, or troubleshooting.
+description: Capacitor MatrixScan Batch (scandit-capacitor-datacapture-barcode) — MatrixScan, BarcodeBatch, legacy BarcodeTracking — tracking and scanning multiple barcodes at once with basic/advanced AR overlays in Capacitor iOS/Android apps (not the plain-web sibling). Use for integration, settings and symbologies, per-barcode brushes, TrackedBarcodeView annotations, lifecycle, SDK version migration, replacing a third-party scanner (@capacitor-mlkit/barcode-scanning), or troubleshooting.
 ---
 
 # MatrixScan Batch Capacitor Skill
@@ -28,7 +28,8 @@ Capacitor-specific gotchas worth flagging:
 Based on the user's request, load the appropriate reference file before responding:
 
 - **Integrating MatrixScan Batch from scratch** (e.g. "add MatrixScan to my app", "set up BarcodeBatch", "track multiple barcodes simultaneously", "show AR overlays", "per-barcode brushes", "tap handling", "overlay style (frame/dot)", "feedback / beep / vibration on scan", "lifecycle or cleanup", "camera permissions") → read [references/integration.md](references/integration.md) and follow the instructions there.
-- **Upgrading the Scandit SDK version** (e.g. "migrate from v6/v7 to v8", "BarcodeTracking is gone", "rename BarcodeTracking to BarcodeBatch", "DataCaptureContext.forLicenseKey not found") **or replacing a third-party scanner** (e.g. "switch from @capacitor-mlkit/barcode-scanning / ML Kit to MatrixScan Batch") → read [references/migration.md](references/migration.md) and follow the instructions there.
+- **Upgrading the Scandit SDK version** (e.g. "migrate from v6/v7 to v8", "BarcodeTracking is gone", "rename BarcodeTracking to BarcodeBatch", "DataCaptureContext.forLicenseKey not found") → read [references/migration.md](references/migration.md) and follow the instructions there.
+- **Replacing a third-party multi-barcode scanner** (e.g. "switch from @capacitor-mlkit/barcode-scanning / ML Kit to MatrixScan Batch", "replace BarcodeScanner.startScan and barcodesScanned with Scandit") → read [references/third-party-migration.md](references/third-party-migration.md) and follow the instructions there.
 
 ## API Usage Policy
 
@@ -43,6 +44,20 @@ URL structures vary across SDK versions and package paths and guessing will lead
 ## Framework variant policy
 
 Capacitor is a WebView-based framework. Examples in this skill use **plain JavaScript (ES modules)**. TypeScript projects can use the same imports and APIs verbatim — just add types — but this skill does not assume a TypeScript project by default. If the target project is clearly TypeScript (`.ts` files, `tsconfig.json`), adapt the final output to TypeScript syntax; otherwise stay in plain JS.
+
+## Licence key
+
+Scanning needs a Scandit licence key. For this skill the licence product is `native` and the licence platforms are `ios` and `android`.
+
+Work through these in order — never block the user on MCP:
+
+1. **The Scandit MCP server is connected** — call `ensure_scanner_setup` with product `native` and platforms `ios` and `android`, `app_identifier` (the app's bundle or application id; for web, its production domain, never `localhost`) and `env_var` `SCANDIT_LICENSE_KEY`. Do not run the command it returns. Then call `get_license_key` with the key's id, from that result or from `list_license_keys`; if `list_license_keys` shows the key is not a trial, ask the user before fetching it. Show at most a masked preview in chat; never print a full key.
+2. **It is not connected** — tell the user once that they can connect the remote Scandit MCP server, `https://ssl.scandit.com/mcp`, in their MCP client, then continue from step 1. Do not edit MCP client configuration yourself.
+
+   Authentication is browser-based, so it is **not supported headless or in CI**. The server provisions **trial** keys only; it never creates, revokes, or modifies production licences.
+3. **The user declines, or has no MCP client** — they generate a key themselves at <https://ssl.scandit.com> (no account yet: <https://ssl.scandit.com/dashboard/sign-up?p=test>) and paste it in.
+
+**Then put the key into the code**: write it into the licence-key call in place of the placeholder — the key `get_license_key` returned, or the one the user pastes or gives you — still showing only a masked preview in chat. Do not search the project, its files or the environment for a key.
 
 ## References
 

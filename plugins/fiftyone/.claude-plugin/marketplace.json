@@ -86,7 +86,7 @@
       "skills": "./",
       "emoji": "🎨",
       "category": "Development",
-      "description": "Build FiftyOne UIs using VOODO (@voxel51/voodo), the official React component library. Use when building plugin panels, creating interactive UIs, styling FiftyOne applications, or needing React components with proper design tokens. Fetches complete component API reference dynamically."
+      "description": "Build FiftyOne UIs using VOODO (@voxel51/voodo), the official React component library. Use when building plugin panels, creating interactive UIs, styling FiftyOne applications, or needing React components with proper design tokens. Looks up the installed version's components and token values with `npx @voxel51/voodo`."
     },
     {
       "name": "fiftyone-issue-triage",
@@ -119,6 +119,14 @@
       "emoji": "🔌",
       "category": "Development",
       "description": "Generate a Data Lens connector from an external database schema. Use when users want to connect an external data source (PostgreSQL, BigQuery, Databricks, MySQL, SQLite, etc.) to FiftyOne Data Lens, create a DataLensOperator from a CREATE TABLE statement or column list, or build a plugin that lets users browse and import data from their database through the FiftyOne App."
+    },
+    {
+      "name": "voxel51-agent-setup",
+      "source": "./skills/voxel51-agent-setup",
+      "skills": "./",
+      "emoji": "🔗",
+      "category": "Development",
+      "description": "Connect a local AI agent (Claude Code, Cursor, or any MCP client) or the fiftyone CLI directly to a Voxel51 deployment, authenticating as yourself with your own account permissions. Use when a user wants to link their coding agent to a Voxel51 deployment, run FiftyOne operators from outside the App, pair a device with fiftyone agent login, or asks about remote/API access to a Voxel51 deployment."
     },
     {
       "name": "fiftyone-eval-plugin",

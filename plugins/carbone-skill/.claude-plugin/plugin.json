@@ -1,12 +1,34 @@
 {
   "name": "carbone-skill",
-  "version": "1.6.1",
-  "description": "Official Carbone skill — complete templating language reference covering tags, loops, conditions, formatters, aggregators, PDF form filling (AcroForm), format support and conversion, and all template formats (DOCX, XLSX, PPTX, ODT, HTML, Markdown, PDF, CSV, TXT, SVG, IDML)",
-  "updatedAt": "2026-09-19T00:42:54.374Z",
+  "version": "2.3.0",
+  "description": "Design Carbone templates in Word, Excel, PowerPoint, HTML or Markdown and generate documents from JSON data without leaving your editor, from a single PDF to large batches. One universal templating language with loops, conditions, charts and barcodes, a high-performance engine built for production, and 100+ formats. Bundles the Carbone skill and the hosted Carbone MCP server.",
+  "updatedAt": "2026-11-17T00:01:21.136Z",
   "author": {
+    "url": "https://carbone.io",
     "name": "Carbone",
     "email": "support@carbone.io"
   },
-  "homepage": "https://carbone.io",
-  "repository": "https://github.com/carboneio/carbone-skill"
+  "homepage": "https://carbone.io/documentation/developer/ai/mcp.html",
+  "repository": "https://github.com/carboneio/carbone-agent-plugin",
+  "keywords": [
+    "carbone",
+    "pdf-generation",
+    "document-generation",
+    "docx-template",
+    "json-to-pdf",
+    "html-to-pdf",
+    "markdown-to-pdf",
+    "docx",
+    "xlsx",
+    "pptx"
+  ],
+  "displayName": "Carbone",
+  "logo": "assets/icon.svg",
+  "skills": "./skills/",
+  "mcpServers": {
+    "carbone": {
+      "url": "https://mcp.carbone.io",
+      "type": "http"
+    }
+  }
 }

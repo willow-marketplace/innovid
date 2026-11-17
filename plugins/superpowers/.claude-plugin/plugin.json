@@ -1,8 +1,8 @@
 {
   "name": "superpowers",
-  "version": "6.4.1",
-  "description": "Core skills library for Claude Code: TDD, debugging, collaboration patterns, and proven techniques",
-  "updatedAt": "2026-09-19T12:00:08.721Z",
+  "version": "7.0.2",
+  "description": "Make your coding agent a better engineer",
+  "updatedAt": "2026-11-17T00:02:20.305Z",
   "author": {
     "name": "Jesse Vincent",
     "email": "jesse@fsck.com"
@@ -17,6 +17,7 @@
     "best-practices",
     "workflows"
   ],
+  "displayName": "Superpowers",
   "skills": "./skills/",
   "hooks": {
     "SessionStart": [

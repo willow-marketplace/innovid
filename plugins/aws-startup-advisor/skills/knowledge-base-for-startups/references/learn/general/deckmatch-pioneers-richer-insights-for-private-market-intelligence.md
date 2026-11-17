@@ -55,4 +55,4 @@ Equipped with the tools and expertise to enable rapid and cost-effective growth,
 
 ---
 
-_Category: Featured Startups_
+> _Category: Featured Startups_

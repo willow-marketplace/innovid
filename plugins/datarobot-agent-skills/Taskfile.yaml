@@ -2,13 +2,6 @@
 version: '3'
 
 tasks:
-  setup:
-    desc: Install local git hooks (pre-commit runs skill e2e tests on changed skills)
-    cmds:
-      - git config core.hooksPath .githooks
-      - echo "Git hooks installed. Pre-commit will evaluate skills touched by each commit and update tests/e2e/skill_hashes.json
-        automatically."
-
   test:integration:
     desc: Validate all DataRobot skills (naming, structure, frontmatter)
     cmds:
@@ -32,7 +25,17 @@ tasks:
   shellcheck:
     desc: Run shellcheck on all shell scripts
     cmds:
-      - shellcheck skills/datarobot-app-framework-cicd/scripts/*.sh
+      - find skills scripts -name '*.sh' -exec shellcheck {} +
+
+  actionlint:
+    desc: Lint GitHub Actions workflows
+    cmds:
+      - actionlint
+
+  zizmor:
+    desc: Audit GitHub Actions workflows for security issues
+    cmds:
+      - uv run --group dev zizmor --offline --min-severity medium .github
 
   yamlfmt:
     desc: Format all YAML files with yamlfmt
@@ -66,14 +69,21 @@ tasks:
     cmds:
       - uv run scripts/version_bump.py {{.CLI_ARGS}}
 
+  package:codex:
+    desc: Build the public-upload DataRobot Codex plugin ZIP in dist/
+    cmds:
+      - uv run scripts/package_codex_plugin.py {{.CLI_ARGS}}
+
   lint:
-    desc: Run all linting checks (validate skills + ruff + mypy + shellcheck + yamlfmt + license)
+    desc: Run all linting checks (validate skills + ruff + mypy + shellcheck + actionlint + zizmor + yamlfmt + license)
     deps:
       - test:integration
       - ruff:check
       - ruff:format:check
       - mypy
       - shellcheck
+      - actionlint
+      - zizmor
       - yamlfmt:check
       - license:check
 
@@ -82,16 +92,6 @@ tasks:
     cmds:
       - task: ruff:format
       - task: yamlfmt
-
-  test:e2e:
-    desc: Run skill quality e2e tests (LLM judge, hash-cached)
-    cmds:
-      - uv run --group e2e pytest tests/e2e/ -v --tb=short
-
-  test:e2e:force:
-    desc: Re-evaluate every skill regardless of hash cache
-    cmds:
-      - SKILLS_E2E_FORCE_ALL=1 uv run --group e2e pytest tests/e2e/ -v --tb=short
 
   default:
     desc: List all available tasks

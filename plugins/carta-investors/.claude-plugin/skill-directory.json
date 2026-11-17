@@ -1,0 +1,282 @@
+{
+  "carta-agm-deck-builder": {
+    "category": "lp-reporting",
+    "name": "AGM deck builder",
+    "order": 20,
+    "whatsNew": false,
+    "prompts": [
+      "Produce an **annual general meeting deck** to show our investors"
+    ]
+  },
+  "carta-brand-extraction": {
+    "category": "lp-reporting",
+    "name": "Firm brand",
+    "order": 30,
+    "prompts": [
+      "Get **our brand** (colors, fonts, logo) from {{FIRM}}'s website or a deck"
+    ],
+    "whatsNewCopy": {
+      "headline": "Get your firm's brand once, use it on any artifact",
+      "body": "Pulls your firm's colors, fonts and logo from your website or a deck, and saves them to Carta for decks, PDFs, dashboards and emails."
+    }
+  },
+  "carta-form-adv": {
+    "category": "compliance",
+    "name": "Form ADV",
+    "order": 10,
+    "prompts": [
+      "Prepare our **Form ADV**: Regulatory AUM and Schedule D by fund"
+    ],
+    "whatsNewCopy": {
+      "headline": "Prepare Form ADV regulatory AUM and Schedule D",
+      "body": "Turns Carta fund and investor data into an interactive filing guide and Excel file, counting each LP once and flagging what you enter by hand."
+    }
+  },
+  "carta-partner-rollforward": null,
+  "carta-consolidating-financial-reports": {
+    "category": "fund-accounting",
+    "name": "Consolidated financial reports",
+    "order": 10,
+    "prompts": [
+      "Show me my firm's **balance sheet** as of this month",
+      "Show me my firm's **P&L** as of this month"
+    ],
+    "whatsNewCopy": {
+      "headline": "Build a firm-wide P&L, balance sheet and trial balance",
+      "body": "Reads live Carta Fund Admin data into Excel, with the entities you pick side by side and an optional P&L by department or tag."
+    }
+  },
+  "carta-cap-table-access": {
+    "category": "portfolio",
+    "name": "Cap table access",
+    "order": 40,
+    "prompts": [
+      "Show me which of {{FIRM}}'s portfolio companies we have cap table access to",
+      "Request cap table access for the companies where {{FIRM}} has none",
+      "Remind companies that haven't answered our cap table access request"
+    ]
+  },
+  "carta-co-investors": {
+    "category": "portfolio",
+    "name": "Co-investor lookup",
+    "order": 30,
+    "prompts": [
+      "Build a **co-investor report** showing who has co-invested in my portfolio companies"
+    ],
+    "whatsNewCopy": {
+      "headline": "See who invests alongside you across your portfolio",
+      "body": "Ranks your most frequent co-investors from stock purchase agreements in Carta, in an interactive report where any company opens its round-by-round investors."
+    }
+  },
+  "carta-data-collection": {
+    "category": "portfolio",
+    "name": "Portfolio data collection",
+    "order": 70,
+    "prompts": [
+      "**Set up data collection** for {{FIRM}}'s portfolio companies",
+      "Which portfolio companies **have not sent their numbers** this quarter?"
+    ],
+    "whatsNewCopy": {
+      "headline": "Collect financials and KPIs from every portfolio company",
+      "body": "Opens a prefilled request form from your Carta portfolio roster, sends one-off or recurring requests, and shows who is overdue so you can chase them."
+    }
+  },
+  "carta-explore-data": {
+    "category": "fund-accounting",
+    "name": "Ask about your fund data",
+    "order": 20,
+    "prompts": [
+      "What is the **NAV** of each of my funds as of the latest quarter?"
+    ],
+    "whatsNewCopy": {
+      "headline": "Ask about NAV, IRR or ownership in plain English",
+      "body": "Queries the Carta data warehouse and answers in chat with a clean table, adding any CRM or portfolio data your firm loads alongside it."
+    }
+  },
+  "carta-fund-admin-requests": {
+    "category": "fund-admin",
+    "name": "Fund admin requests",
+    "order": 10,
+    "prompts": [
+      "**Ask my fund admin team** to [describe the task]",
+      "What **requests do I have open** with Carta?"
+    ],
+    "whatsNewCopy": {
+      "headline": "Hand any task to your Carta Fund Admin team",
+      "body": "Drafts a detailed request naming the fund, period and amounts, sends it only after you approve, then tracks your Carta team's replies in chat."
+    }
+  },
+  "carta-fund-forecasting": {
+    "category": "fund-modeling",
+    "name": "Fund forecasting",
+    "order": 10,
+    "requires": "tactyc",
+    "prompts": [
+      "What is my funds' **TVPI projected** at fund close?"
+    ],
+    "whatsNewCopy": {
+      "headline": "Check projected TVPI and IRR at fund close",
+      "body": "Reads your Carta Fund Forecasting models and answers in chat, showing today's numbers next to the planned and current forecasts at fund close."
+    }
+  },
+  "carta-fund-modeling": {
+    "category": "fund-modeling",
+    "name": "Fund modeling",
+    "order": 20,
+    "tag": "App",
+    "prompts": [
+      "Spin up the **fund modeling app** for {{FIRM}}"
+    ]
+  },
+  "carta-fund-performance": null,
+
+  "carta-gp-cash-reconciliation": {
+    "category": "fund-admin",
+    "name": "Answer cash reconciliation questions",
+    "order": 15,
+    "prompts": [
+      "What **transactions** does Carta need me to explain?",
+      "Draft answers for my **uncategorized cash transactions**"
+    ],
+    "whatsNewCopy": {
+      "headline": "Draft answers for every unreconciled bank transaction",
+      "body": "Works out each transaction from your Carta vendors, partners and past answers, shows every draft beside the chat, and sends nothing until you approve."
+    }
+  },
+  "carta-home-build": null,
+  "carta-lpa-audit": {
+    "category": "fund-accounting",
+    "name": "LPA and side letter terms",
+    "order": 30,
+    "prompts": [
+      "Show me all of {{FIRM}}'s LPAs and side letters",
+      "Compare management fees and carry across my funds",
+      "Which of my funds are missing an LPA?"
+    ]
+  },
+  "carta-loan-dashboard": null,
+  "carta-lp-dashboard": null,
+  "carta-lp-summary": null,
+  "carta-manco": {
+    "category": "manco",
+    "name": "Budgeting & actuals",
+    "order": 10,
+    "prompts": [
+      "Compare YTD **actuals against the budget**",
+      "Build **what-if scenarios** over our budget",
+      "Build a fund/ManCo **budget in Excel** from Carta prior-year actuals"
+    ],
+    "whatsNewCopy": {
+      "headline": "Plan next year's ManCo budget from last year's actuals",
+      "body": "Pulls Carta Fund Admin actuals into an Excel budget workbook, then tracks pacing against plan and models what-ifs like new hires or fund raises."
+    }
+  },
+  "carta-manco-reporting": {
+    "category": "manco",
+    "name": "ManCo reporting dashboard",
+    "order": 20,
+    "tag": "App",
+    "prompts": [
+      "Spin up the **ManCo dashboard** for {{FIRM}}"
+    ]
+  },
+  "carta-portfolio-analytics-app": {
+    "category": "portfolio",
+    "name": "Portfolio analytics",
+    "order": 50,
+    "tag": "App",
+    "prompts": [
+      "Spin up the **portfolio analytics app** for {{FIRM}}"
+    ]
+  },
+  "carta-portfolio-ownership": {
+    "category": "portfolio",
+    "name": "Ownership by company and fund",
+    "order": 35,
+    "prompts": [
+      "How much does {{FIRM}} own of [company]?",
+      "Show our fully diluted ownership by company and by fund",
+      "Build an ownership table for the whole portfolio"
+    ]
+  },
+  "carta-portfolio-valuations": {
+    "category": "portfolio",
+    "name": "Portfolio valuations",
+    "order": 20,
+    "prompts": [
+      "Update **portfolio valuations** for this quarter",
+      "Which of {{FIRM}}'s portfolio companies **need new valuations**?"
+    ],
+    "whatsNewCopy": {
+      "headline": "Start this quarter's valuations across many companies at once",
+      "body": "Opens your Carta portfolio valuations dashboard, shows which companies need a new valuation, and creates drafts for one company or many in a single pass."
+    }
+  },
+  "carta-soi": null,
+  "carta-spa-audit": {
+    "category": "portfolio",
+    "name": "SPA coverage audit",
+    "order": 60,
+    "prompts": [
+      "Build an **SPA coverage audit report** showing which of our investments are missing an executed SPA"
+    ],
+    "whatsNewCopy": {
+      "headline": "Find investments missing a signed stock purchase agreement",
+      "body": "Sorts every equity investment in Carta into missing, unsigned, signed or not needed, ranked by cost basis in an interactive report you can drill into."
+    }
+  },
+  "carta-nda-dashboard": {
+    "category": "portfolio",
+    "name": "NDA insights dashboard",
+    "order": 65,
+    "prompts": [
+      "Build an **NDA insights dashboard** for {{FIRM}}",
+      "Which counterparties **can't we solicit or contact** right now, and when do those restrictions end?",
+      "Which of our **NDAs expire** in the next two years?"
+    ],
+    "whatsNewCopy": {
+      "headline": "See every NDA's restrictions, expiries and counterparties",
+      "body": "Reads the NDAs Carta has on file for your firm into a dashboard of active non-solicits, upcoming expiries, governing law and counterparties you can filter."
+    }
+  },
+  "carta-waterfall-modeling": {
+    "category": "portfolio",
+    "name": "Waterfall modeling",
+    "order": 80,
+    "prompts": [
+      "Who gets paid, and how much, if **[portfolio company]** exits at **$[amount]**?"
+    ],
+    "whatsNewCopy": {
+      "headline": "Model who gets paid, and how much, at exit",
+      "body": "Runs a waterfall on a portfolio company's Carta cap table, shows each holder's payout in chat or Excel, and can update your holding values."
+    }
+  },
+  "carta-workhub-build": null,
+  "carta-upload-firm-document": {
+    "category": "fund-admin",
+    "name": "Upload a firm document",
+    "order": 20,
+    "prompts": [
+      "**Upload** [file path] to {{FIRM}}'s Documents page",
+      "Add this **side letter** to our firm documents in Carta"
+    ],
+    "whatsNewCopy": {
+      "headline": "Upload files straight to your firm's Carta Documents page",
+      "body": "Sends one or many files from your computer to your firm's Documents page in Carta, which then classifies each document for you automatically."
+    }
+  },
+  "carta-download-firm-document": {
+    "category": "fund-admin",
+    "name": "Download a firm document",
+    "order": 21,
+    "prompts": [
+      "Get me the **LPA** from {{FIRM}}'s Documents page",
+      "Download our **audit engagement letter** from Carta"
+    ],
+    "whatsNewCopy": {
+      "headline": "Fetch any LPA, side letter or notice from Carta",
+      "body": "Searches your firm's Carta Documents page by title, type or fund, then saves the file to your Downloads folder or hands you a link."
+    }
+  },
+  "financial-package-companion": null
+}

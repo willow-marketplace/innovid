@@ -1,25 +1,21 @@
-# Environment
-.env
-.env.local
+skills/.quarantine/
 
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-venv/
-ENV/
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Local settings
+# Personal Claude Code settings - machine-local, never shared.
 .claude/settings.local.json
+
+# Agent worktrees. These are real git worktrees, so `git add .claude/` would
+# otherwise stage one as an embedded repository and commit a broken pointer.
+.claude/worktrees/
+
+opencode/dist/
+opencode/node_modules/
+
+installer/dist/
+installer/node_modules/
+# Staged from the repo root by installer/scripts/pack-repo-files.js for `npm pack` only.
+installer/README.md
+installer/LICENSE
+installer/skills/
+installer/hooks/
+installer/mcp.pi.json
+

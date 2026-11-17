@@ -5,6 +5,8 @@ description: Clay workflows — reduce a workflow's credit and LLM cost via the 
 
 # Reducing workflow credit & LLM cost
 
+Before using this skill, read the `clay` entry skill if you haven’t already this session, and follow its access guidance.
+
 Analyze the current workflow and suggest changes to reduce credit consumption and LLM costs without sacrificing quality.
 
 ## Process
@@ -52,16 +54,14 @@ Different models have different cost/capability profiles.
   - Creative writing, nuanced decisions → use the most capable model
 - **Downgrade where safe:** Review each regular node's prompt. If the task is straightforward, try a cheaper model
 
-### Map Node Efficiency
+### Repeat Node Efficiency
 
-Map nodes multiply costs by the number of items processed.
+Nodes in Repeat mode (`listMode: true`) multiply costs by the number of items processed.
 
 **Optimizations:**
 
-- **Code mode over agent mode:** If map processing is deterministic, use code mode (zero LLM cost per item)
-- **Filter before mapping:** Add a code node before the map to filter out items that don't need processing
-- **Reduce chunk size:** Smaller chunks mean less wasted work if a chunk fails
-- **Use reduce to aggregate:** Instead of processing all items individually and collecting, use reduce to aggregate by key — fewer downstream processing steps
+- **Code over agent:** If the per-item processing is deterministic, use a code node (zero LLM cost per item)
+- **Filter before repeating:** Add a code node before the Repeat node to filter out items that don't need processing
 
 ### Conditional Routing
 

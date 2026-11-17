@@ -1,5 +1,11 @@
 # Third-Party Multi-Barcode Scanner → MatrixScan Batch Migration (iOS)
 
+## Migration principles
+
+- **Authority.** When this guide and the API reference disagree, trust the API reference — and a runtime check in the user's project — over this guide. Say which source you followed and why in the summary.
+- **Behaviour changes.** Never present a visual or behaviour change (new default, different overlay look, changed feedback, changed scan timing) as a 1:1 rename. List each one in the summary as a judgment call the user must confirm.
+- **Compatibility layer.** When the scanning code sits behind a shared scanner library or wrapper that other code calls, keep that library's public API frozen (same types, method names, callbacks) and replace only the third-party scanner calls underneath with Scandit ones.
+
 This guide covers replacing a custom multi-barcode scanner — most commonly **AVFoundation** (`AVCaptureMetadataOutput`) or Apple's **VisionKit** `DataScannerViewController` — with Scandit MatrixScan Batch (`BarcodeBatch`). BarcodeBatch is the right Scandit mode here because it tracks **every visible barcode simultaneously** on each frame, which matches what these multi-barcode APIs do (a single-scan use case should use BarcodeCapture or SparkScan instead).
 
 ## Before Anything Else
@@ -24,19 +30,23 @@ Follow `references/integration.md` for the full integration. The MatrixScan-Batc
 
 - **Map the symbologies.** Translate the old type list into `BarcodeBatchSettings`. Scandit names differ from Apple's — verify each against the [BarcodeBatch API reference](https://docs.scandit.com/data-capture-sdk/ios/barcode-capture/api.html) rather than guessing. Common AVFoundation mappings:
 
+  <!-- BEGIN GENERATED symbology-table sources=avfoundation-swift style=swift -->
   | AVFoundation `AVMetadataObject.ObjectType` | Scandit `Symbology` |
   |---|---|
+  | `.qr` | `.qr` |
   | `.ean13` | `.ean13UPCA` |
   | `.ean8` | `.ean8` |
-  | `.code128` | `.code128` |
+  | `.upce` | `.upce` |
   | `.code39` | `.code39` |
   | `.code93` | `.code93` |
-  | `.qr` | `.qr` |
-  | `.pdf417` | `.pdf417` |
+  | `.code128` | `.code128` |
+  | `.itf14` | `.interleavedTwoOfFive` (no ITF-14 symbology; ITF-14 is a 14-digit Interleaved 2 of 5) |
   | `.dataMatrix` | `.dataMatrix` |
   | `.aztec` | `.aztec` |
-  | `.upce` | `.upce` |
-  | `.itf14` | `.interleavedTwoOfFive` |
+  | `.pdf417` | `.pdf417` |
+
+  **Recommended default set** when the source scanned every format and nothing in the app narrows it: `.qr`, `.ean13UPCA`, `.ean8`, `.upce`, `.code39`, `.code93`, `.code128`, `.interleavedTwoOfFive`, `.codabar`, `.dataMatrix`, `.aztec`, `.pdf417`.
+  <!-- END GENERATED symbology-table -->
 
   Note that AVFoundation's `.ean13` maps to Scandit `.ean13UPCA` (EAN-13 and UPC-A share an encoding in Scandit).
 

@@ -1,5 +1,5 @@
 /**
- * @license Copyright (c) 2026, CKSource Holding sp. z o.o. All rights reserved.
+ * @license Copyright (c) 2026-2026, CKSource Holding sp. z o.o. All rights reserved.
  * For licensing, see LICENSE.md.
  */
 
@@ -7,13 +7,10 @@ import { createHash } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
 import fs from 'node:fs/promises';
 import upath from 'upath';
+import { RELEASE_DIRECTORY } from '../../constants.js';
 import { assert, quote } from './assert.js';
 import { createArchive } from './archive.js';
 import { findSkills } from './skills.js';
-
-// Wiped and rebuilt on every run, so it must not hold anything else. Its contents are uploaded as-is into
-// `ckeditor.com/.well-known/agent-skills/`.
-export const RELEASE_DIRECTORY = 'release';
 
 export const INDEX_FILE = 'index.json';
 

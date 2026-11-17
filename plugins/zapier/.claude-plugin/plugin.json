@@ -1,13 +1,14 @@
 {
   "name": "zapier",
   "version": "1.0.0",
-  "description": "Connect 9,000+ apps to your AI workflow. Discover, enable, and execute Zapier actions directly from your client.",
-  "updatedAt": "2026-09-19T00:42:54.236Z",
+  "description": "Connect 9,000+ apps to your AI workflow. Discover, enable, and execute Zapier actions and workflows directly from your client.",
+  "updatedAt": "2026-11-17T00:02:40.458Z",
   "author": {
+    "url": "https://zapier.com",
     "name": "Zapier",
     "email": "support@zapier.com"
   },
-  "homepage": "https://github.com/zapier/zapier-mcp",
+  "homepage": "https://docs.zapier.com/mcp/home",
   "repository": "https://github.com/zapier/zapier-mcp",
   "keywords": [
     "zapier",
@@ -22,6 +23,8 @@
     "ai-tools",
     "productivity"
   ],
+  "displayName": "Zapier",
+  "logo": "assets/logo.svg",
   "skills": "./skills/",
   "agents": [
     "./agents/zapier-mcp.agent.md"

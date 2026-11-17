@@ -1,8 +1,8 @@
 {
   "name": "redis-development",
-  "version": "1.4.0",
-  "description": "Redis development best practices — data structures, query engine, vector search, caching, and performance optimization",
-  "updatedAt": "2026-09-19T00:42:54.266Z",
+  "version": "1.7.0",
+  "description": "Redis development best practices — data structures, query engine, vector search, caching, and performance optimization, plus live lookup of the official redis.io documentation",
+  "updatedAt": "2026-11-17T00:02:08.711Z",
   "author": {
     "url": "https://redis.io",
     "name": "Redis"
@@ -15,7 +15,14 @@
     "caching",
     "vector-search",
     "performance",
-    "best-practices"
+    "best-practices",
+    "documentation"
   ],
-  "skills": "./skills/"
+  "skills": "./skills/",
+  "mcpServers": {
+    "redis-docs": {
+      "url": "https://redis.io/mcp",
+      "type": "http"
+    }
+  }
 }

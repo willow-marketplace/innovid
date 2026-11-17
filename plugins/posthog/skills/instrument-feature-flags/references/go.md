@@ -1,10 +1,31 @@
 > AI agents: this is one page from PostHog's docs. Full index of Markdown docs for LLMs: https://posthog.com/llms.txt
 
-# Go Feature Flags installation - Docs
+# Go Feature Flags installation
 
-Copy page
+Canonical URL: https://posthog.com/docs/feature-flags/installation/go
 
-# Go Feature Flags installation - Docs
+> **Cloud region:** This page uses US Cloud hosts. For an EU Cloud project, use `https://eu.i.posthog.com` instead of `https://us.i.posthog.com` (ingestion host).
+
+## On this page
+
+- [Install with the wizard](#install-with-the-wizard)
+- [Install the package](#install-the-package)
+- [Configure PostHog](#configure-posthog)
+- [Send events](#send-events)
+- [Evaluate boolean feature flags](#evaluate-boolean-feature-flags)
+- [Evaluate multivariate feature flags](#evaluate-multivariate-feature-flags)
+- [Include feature flag information in events](#include-feature-flag-information-in-events)
+- [Override server properties](#override-server-properties)
+- [Running experiments](#running-experiments)
+- [Next steps](#next-steps)
+
+## Install with the wizard
+
+Run this command in your project directory to add PostHog to your Go project. The wizard detects your framework, installs the SDK, and sets up your first events.
+
+`npx @posthog/wizard`
+
+Or set it up manually by following the rest of this guide.
 
 1.  1
 
@@ -15,8 +36,6 @@ Copy page
     Install the PostHog Go library:
 
     Terminal
-
-    PostHog AI
 
     ```bash
     go get "github.com/posthog/posthog-go"
@@ -32,13 +51,13 @@ Copy page
 
     main.go
 
-    PostHog AI
-
     ```go
     package main
+    
     import (
         "github.com/posthog/posthog-go"
     )
+    
     func main() {
         client, _ := posthog.NewWithConfig("<ph_project_token>", posthog.Config{Endpoint: "https://us.i.posthog.com"})
         defer client.Close()
@@ -54,8 +73,6 @@ Copy page
     Once installed, you can manually send events to test your integration:
 
     Go
-
-    PostHog AI
 
     ```go
     client.Enqueue(posthog.Capture{
@@ -124,8 +141,6 @@ Copy page
 
     Go
 
-    PostHog AI
-
     ```go
     client.Enqueue(posthog.Capture{
         DistinctId: "distinct_id_of_your_user",
@@ -139,8 +154,6 @@ Copy page
     Include the `$feature/feature_flag_name` property in your event properties:
 
     Go
-
-    PostHog AI
 
     ```go
     client.Enqueue(posthog.Capture{
@@ -199,16 +212,8 @@ Copy page
 
     | Resource | Description |
     | --- | --- |
-    | [Creating a feature flag](/docs/feature-flags/creating-feature-flags.md) | How to create a feature flag in PostHog |
-    | [Adding feature flag code](/docs/feature-flags/adding-feature-flag-code.md) | How to check flags in your code for all platforms |
-    | [Framework-specific guides](/docs/feature-flags/tutorials.md#framework-guides) | Setup guides for React Native, Next.js, Flutter, and other frameworks |
-    | [How to do a phased rollout](/tutorials/phased-rollout.md) | Gradually roll out features to minimize risk |
-    | [More tutorials](/docs/feature-flags/tutorials.md) | Other real-world examples and use cases |
-
-### Still have questions?
-
-Ask PostHog AI
-
-### Was this page useful?
-
-HelpfulCould be better
+    | [Creating a feature flag](https://posthog.com/docs/feature-flags/creating-feature-flags.md) | How to create a feature flag in PostHog |
+    | [Adding feature flag code](https://posthog.com/docs/feature-flags/adding-feature-flag-code.md) | How to check flags in your code for all platforms |
+    | [Framework-specific guides](https://posthog.com/docs/feature-flags/tutorials.md#framework-guides) | Setup guides for React Native, Next.js, Flutter, and other frameworks |
+    | [How to do a phased rollout](https://posthog.com/tutorials/phased-rollout.md) | Gradually roll out features to minimize risk |
+    | [More tutorials](https://posthog.com/docs/feature-flags/tutorials.md) | Other real-world examples and use cases |

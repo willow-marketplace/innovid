@@ -66,6 +66,23 @@ export const BANNER_TEXT = "var(--banner-text)"; // banner body copy — gray-90
 // thumb's own width.
 export const TAPE_THUMB = 14;
 
+// Icon-only 40x40 header button (ThemeToggleButton, AskClaudeButton) — a page's H1
+// actions row. One recipe so a restyle of one can't drift from the other.
+export const HEADER_ICON_BTN = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  width: 40,
+  height: 40,
+  padding: 0,
+  background: PAPER,
+  border: `1px solid ${LINE}`,
+  borderRadius: 4,
+  color: FAINT,
+  cursor: "pointer",
+  lineHeight: 0,
+};
+
 // Aligned with the Ink theme contract's real-font approach. Inter is
 // loaded from the same rsms.me CDN that contract uses for one-shot artifacts (see the
 // <link> in index.html) — never name a face here without a matching loader; if that
@@ -83,6 +100,12 @@ export const TAPE_THUMB = 14;
 // NOT what Ink does, even though it looks like standard practice from other design systems.
 const SANS = "Inter,'Open Sans','Helvetica Neue',Helvetica,Arial,sans-serif";
 export const sans = { fontFamily: SANS };
+
+// Covers the whole viewport instead of sitting inside the normal sidebar/content layout —
+// for a screen shown before there is a firm (or its data) to put a sidebar around, such as
+// LoadingScreen's own `fullPage` or FirmChooser. Spread this first, then add whatever layout
+// (display, placeItems, overflow) the screen needs on top.
+export const FULL_PAGE_COVER = { ...sans, minHeight: "100vh", position: "fixed", inset: 0, background: PAPER, color: INK };
 // Family-prominent chain (Ink's h1/display heading font) — reserved for H1 only, never
 // for body text or h2-h4. Georgia is a real, always-available system serif, kept as the
 // fallback for the rare case the self-hosted woff2 fails to load. Georgia only ships
@@ -140,6 +163,12 @@ export const microCaption = {
 // `.ink-num` recipe (Ink's tokens.css), which this mirrors — never
 // switch to an actual monospace font for numeric alignment.
 export const inkNum = { fontFamily: SANS, fontVariantNumeric: "tabular-nums", letterSpacing: "0" };
+
+// A page subhead with a small control beside it, in one row.
+export const subheadRow = { display: "inline-flex", alignItems: "center", gap: 8 };
+
+// HEADER_ICON_BTN sized down to sit in a subheadRow at the subhead's own line height.
+export const SUBHEAD_ICON_BTN = { ...HEADER_ICON_BTN, width: 22, height: 22, marginBottom: -2, lineHeight: "inherit" };
 
 export const GLOBAL_CSS = `
   /* Self-hosted — the woff2 lives at webapp/fonts/ and is served directly by
@@ -253,6 +282,11 @@ export const GLOBAL_CSS = `
   @keyframes pagein { from { opacity: 0; } to { opacity: 1; } }
   .pagein { animation: pagein .12s ${EASE_OUT} backwards; }
   @keyframes popin { from { opacity: 0; transform: translateY(2px); } to { opacity: 1; transform: none; } }
+  @keyframes skeleton { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .skeleton { background: ${SHADE}; border-radius: 3px; animation: skeleton 1.2s ease-in-out infinite; }
+  .spinner { animation: spin .8s linear infinite; }
+  @media (prefers-reduced-motion: reduce) { .skeleton, .spinner { animation: none; } }
   .popin { animation: popin .1s ${EASE_OUT}; transform-origin: top left; }
 
   .actrow { transition: background .1s ${EASE}; }
@@ -399,6 +433,12 @@ export const GLOBAL_CSS = `
   .card:hover { box-shadow: var(--shadow-hover); }
   .panel { background: ${SIDE}; border: 1px solid ${LINE}; border-radius: ${RADIUS}px; box-shadow: none; }
   .panel:hover { box-shadow: var(--shadow-hover); }
+
+  /* FirmChooser's pick-a-firm cards — a transform/border-color hover beyond plain
+     .card's shadow-only treatment, matching carta-fund-modeling's own FundChooser
+     cards. Needs real :hover (can't be done inline), so it lives here next to .card. */
+  .firm-card { background: ${PAPER}; border: 1px solid ${LINE}; border-radius: ${RADIUS}px; transition: border-color .15s, transform .15s, box-shadow .15s; }
+  .firm-card:hover { border-color: ${BLUE}; transform: translateY(-2px); box-shadow: ${SHADOW_HOVER}; }
 
   /* Floating slot for the sticky-header clone (BudgetActualsOutline.jsx's
      useStickyHeader, ported from carta-fund-modeling's ui/table.jsx). The

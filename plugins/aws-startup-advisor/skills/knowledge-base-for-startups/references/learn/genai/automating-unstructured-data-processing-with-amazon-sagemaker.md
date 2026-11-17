@@ -5,7 +5,7 @@ title: "Automating Unstructured Data Processing with Amazon SageMaker"
 
 ## Automating Unstructured Data Processing with Amazon SageMaker
 
-_by Nikhil Dinesh, Head of Startup Business Development, DACH Region, AWS, and Sayon Saha, Machine Learning Specialist Solutions Architect, AWS_
+> _by Nikhil Dinesh, Head of Startup Business Development, DACH Region, AWS, and Sayon Saha, Machine Learning Specialist Solutions Architect, AWS_
 
 Unstructured data such as images, video, and text that appear on E-commerce product listings have a significant impact on conversion rate. A study by eBay research found that super-sized images can increase conversion by 15.3%, with other factors such as photo count and item condition playing a significant role. Marketplaces and sellers must optimize conversion based on an open-ended set of factors determined by marketing teams. The use of data science and machine learning (ML) to address this problem is not new: AWS has created several services to help with the undifferentiated aspects of ML, such as [Amazon Rekognition](https://aws.amazon.com/rekognition/) (for images and video), [Amazon Comprehend](https://aws.amazon.com/comprehend/) (for text), [Amazon SageMaker](https://aws.amazon.com/sagemaker/) (for model development and deployment), and [Amazon SageMaker GroundTruth](https://aws.amazon.com/sagemaker/groundtruth/) (for data annotation).
 

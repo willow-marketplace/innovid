@@ -31,6 +31,14 @@ copilot plugin install atlassian-twg-cli@atlassian-twg-cli
 gemini extensions install https://github.com/atlassian-labs/twg-plugins
 ```
 
+### Antigravity
+
+Install `Atlassian Teamwork Graph CLI` from the Antigravity Marketplace in **Customizations → Plugins**, or with the Antigravity CLI:
+
+```bash
+agy plugin install https://github.com/atlassian-labs/twg-plugins
+```
+
 ### Devin CLI
 
 ```bash

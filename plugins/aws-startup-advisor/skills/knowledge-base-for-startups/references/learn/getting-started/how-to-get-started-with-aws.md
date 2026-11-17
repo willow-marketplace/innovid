@@ -112,7 +112,7 @@ Additional programs and resources to empower startup success:
 
 ## Getting Started with AWS Documentation, User Guides & Code Samples
 
-**The broadest and deepest set of technology tools to invent and build**
+> **The broadest and deepest set of technology tools to invent and build**
 
 No matter what you want to do, with AWS, founders can leverage the latest cloud technologies to experiment and innovate faster. Launch, build, and scale with the broadest and deepest set of services on the most secure cloud, enabling startups to accelerate time to market.
 

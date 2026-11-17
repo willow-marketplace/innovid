@@ -19,10 +19,3 @@ Before merge: from `seed/`, enter workshop → set CPU architecture to `graviton
 asserter PASS. The committed `after-graviton-reprice/` was produced by that
 mechanical path (inventory bytes frozen; worker remains `X86_64`;
 `workshop.graviton_note` set). Prefer also a fresh-agent transcript on the PR.
-
-## Merge coordination
-
-Land **#149** (GCP live discovery) before or rebase this branch onto it — both
-touch `discover.md`. Workshop PRs (#152 Heroku, #153 Vercel, #154 GCP) all edit
-`fixtures/README.md`; expect small registry conflicts — last merger wins by
-keeping all three bullets.

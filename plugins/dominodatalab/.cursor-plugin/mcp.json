@@ -1,0 +1,21 @@
+{
+  "mcpServers": {
+    "domino_server": {
+      "command": "uv",
+      "args": [
+        "run",
+        "--frozen",
+        "--directory",
+        "${CURSOR_PLUGIN_ROOT}/mcp-servers/domino_mcp_server",
+        "domino_mcp_server.py"
+      ],
+      "env": {
+        "DOMINO_HOST": "${env:DOMINO_HOST}",
+        "DOMINO_TOKEN": "${env:DOMINO_TOKEN}"
+      }
+    },
+    "domino_docs": {
+      "url": "https://docs.domino.ai/mcp"
+    }
+  }
+}

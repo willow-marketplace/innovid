@@ -1,11 +1,13 @@
 {
   "name": "aws-startup-advisor",
-  "version": "2.0.1",
-  "description": "Personalized AWS guidance built on patterns from 350,000+ startups—architecture, cost, security, and migration, from day-one account setup to production-ready infrastructure. Migrate to AWS from GCP or Heroku—including your entire AI stack: OpenAI/Gemini/Anthropic SDK rewrites to Amazon Bedrock, agentic systems (LangChain, CrewAI, AutoGen) to AWS-native runtimes, and Temporal workers. Includes AWS Activate credits eligibility and 60+ exclusive startup offers. Built by AWS Startup Solutions Architects, with multi-account, multi-region support.",
-  "updatedAt": "2026-09-19T00:42:54.365Z",
+  "version": "2.0.3",
+  "description": "AWS Startup Advisor puts an AWS Startups Solutions Architect in your coding assistant. It recommends the smallest architecture that fits your stage, credits, and team, then can scaffold it, migrate you from Azure, Google Cloud, Heroku, or Render, move your model calls to Amazon Bedrock, and investigate production incidents. It also answers your AWS Activate credits eligibility questions and finds startup offers you can use.",
+  "updatedAt": "2026-11-17T00:02:00.342Z",
   "author": {
     "name": "Amazon Web Services"
   },
+  "homepage": "https://github.com/aws/agent-toolkit-for-aws",
+  "repository": "https://github.com/aws/agent-toolkit-for-aws",
   "keywords": [
     "aws",
     "startups",
@@ -70,77 +72,47 @@
     "bedrock-migration",
     "rewrite-sdk-calls",
     "deploy-ai-agent",
-    "choose-agent-runtime"
+    "choose-agent-runtime",
+    "azure",
+    "azure-to-aws",
+    "aks",
+    "app-service",
+    "azure-sql",
+    "cosmos-db",
+    "azure-openai",
+    "entra-id",
+    "blob-storage",
+    "devops-agent",
+    "incident-response",
+    "root-cause-analysis",
+    "release-readiness",
+    "on-call",
+    "render",
+    "render-to-aws"
   ],
-  "displayName": "AWS Startup Advisor",
   "skills": "./skills/",
+  "commands": "./commands/",
   "agents": [
     "./agents/generic-phase-worker-rw.md",
     "./agents/llm2bedrock-code-analyzer.md",
     "./agents/llm2bedrock-code-rewriter.md",
     "./agents/llm2bedrock-log-ingestor.md",
-    "./agents/llm2bedrock-prompt-evaluator.md",
+    "./agents/generic-phase-worker-rwx.md",
     "./agents/llm2bedrock-report-generator.md",
-    "./agents/generic-phase-worker-rwx.md"
+    "./agents/llm2bedrock-prompt-evaluator.md"
   ],
-  "hooks": {
-    "SessionStart": [
-      {
-        "matcher": "*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "cat ${CLAUDE_PLUGIN_ROOT}/scripts/startup-context.txt"
-          }
-        ]
-      }
-    ]
-  },
   "mcpServers": {
-    "awspricing": {
-      "env": {
-        "AWS_REGION": "us-east-1",
-        "FASTMCP_LOG_LEVEL": "ERROR"
-      },
+    "aws-mcp": {
       "args": [
-        "awslabs.aws-pricing-mcp-server@latest"
+        "--from",
+        "git+https://github.com/aws/mcp-proxy-for-aws@a5dd25e0ad99d0d874f2b779435b12b10932eae7",
+        "mcp-proxy-for-aws",
+        "https://aws-mcp.us-east-1.api.aws/mcp",
+        "--skip-auth",
+        "--metadata",
+        "INSTALL_SOURCE=agent-toolkit-startup-advisor"
       ],
-      "type": "stdio",
-      "command": "uvx",
-      "timeout": 120000,
-      "autoApprove": [
-        "get_pricing_service_codes",
-        "get_pricing_service_attributes",
-        "get_pricing_attribute_values",
-        "get_pricing"
-      ]
-    },
-    "awsknowledge": {
-      "url": "https://knowledge-mcp.global.api.aws",
-      "type": "http"
-    },
-    "temporal-docs": {
-      "url": "https://temporal.mcp.kapa.ai",
-      "type": "http"
-    },
-    "aws-pricing-calculator": {
-      "args": [
-        "-y",
-        "sample-aws-pricing-calculator-mcp@1.2.8"
-      ],
-      "type": "stdio",
-      "command": "npx",
-      "timeout": 120000,
-      "autoApprove": [
-        "get_server_info",
-        "search_services",
-        "get_service_fields",
-        "create_estimate",
-        "add_service",
-        "validate_estimate",
-        "build_estimate",
-        "export_estimate"
-      ]
+      "command": "uvx"
     }
   }
 }

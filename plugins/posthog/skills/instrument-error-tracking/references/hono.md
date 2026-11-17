@@ -1,10 +1,19 @@
 > AI agents: this is one page from PostHog's docs. Full index of Markdown docs for LLMs: https://posthog.com/llms.txt
 
-# Hono Error Tracking installation - Docs
+# Hono Error Tracking installation
 
-Copy page
+Canonical URL: https://posthog.com/docs/error-tracking/installation/hono
 
-# Hono Error Tracking installation - Docs
+> **Cloud region:** This page uses US Cloud hosts. For an EU Cloud project, use `https://eu.i.posthog.com` instead of `https://us.i.posthog.com` (ingestion host), and use `https://eu.posthog.com` instead of `https://app.posthog.com` (app host for links).
+
+## On this page
+
+- [Install the package](#install-the-package)
+- [Initialize PostHog](#initialize-posthog)
+- [Send an event](#send-an-event)
+- [Exception handling example](#exception-handling-example)
+- [Verify error tracking](#verify-error-tracking)
+- [Upload source maps](#upload-source-maps)
 
 1.  1
 
@@ -14,30 +23,28 @@ Copy page
 
     Install the PostHog Node.js library using your package manager:
 
-    PostHog AI
-
     ### npm
 
     ```bash
-    npm install posthog-node
+    npm install posthog-node@5
     ```
 
     ### yarn
 
     ```bash
-    yarn add posthog-node
+    yarn add posthog-node@5
     ```
 
     ### pnpm
 
     ```bash
-    pnpm add posthog-node
+    pnpm add posthog-node@5
     ```
 
     ### bun
 
     ```bash
-    bun add posthog-node
+    bun add posthog-node@5
     ```
 
 2.  2
@@ -50,10 +57,9 @@ Copy page
 
     Node.js
 
-    PostHog AI
-
     ```javascript
     import { PostHog } from 'posthog-node'
+    
     const client = new PostHog(
         '<ph_project_token>',
         {
@@ -72,8 +78,6 @@ Copy page
 
     Node.js
 
-    PostHog AI
-
     ```javascript
     client.capture({
         distinctId: 'distinct_id_of_the_user',
@@ -83,6 +87,11 @@ Copy page
             property2: 'value',
         },
     })
+    
+    // The client sends events in batches. Call shutdown() before the process
+    // exits so that queued events are sent. In a long-running server, call it
+    // once when the server stops.
+    await client.shutdown()
     ```
 
 4.  4
@@ -96,8 +105,6 @@ Copy page
     Remember to **export** your [project token](https://app.posthog.com/settings/project#variables) as an environment variable.
 
     index.ts
-
-    PostHog AI
 
     ```typescript
     import { PostHog } from 'posthog-node'
@@ -124,7 +131,7 @@ Copy page
 
     Before proceeding, let's make sure exception events are being captured and sent to PostHog. You should see events appear in the activity feed.
 
-    ![Activity feed with events](https://res.cloudinary.com/dmukukwp6/image/upload/SCR_20250729_ouxl_f788dd8cd2.png)![Activity feed with events](https://res.cloudinary.com/dmukukwp6/image/upload/SCR_20250729_owae_7c3490822c.png)
+    ![Activity feed with events](https://res.cloudinary.com/dmukukwp6/image/upload/SCR_20250729_ouxl_f788dd8cd2.png)
 
     [Check for exceptions in PostHog](https://app.posthog.com/activity/explore)
 
@@ -138,12 +145,4 @@ Copy page
 
     Let's continue to the next section.
 
-    [Upload source maps](/docs/error-tracking/upload-source-maps.md)
-
-### Still have questions?
-
-Ask PostHog AI
-
-### Was this page useful?
-
-HelpfulCould be better
+    [Upload source maps](https://posthog.com/docs/error-tracking/upload-source-maps.md)

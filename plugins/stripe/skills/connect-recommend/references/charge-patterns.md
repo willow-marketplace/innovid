@@ -14,13 +14,13 @@ Connect offers three ways to create charges involving connected accounts. The ch
 | **Platform fee** | `application_fee_amount` | `application_fee_amount` or calculate using `transfer_data.amount` | Manual calculation |
 | **Refund source** | Connected account’s balance | Platform’s balance | Platform’s balance |
 | **Multi-seller split** | No (one seller per charge) | No (one destination per charge) | Yes (multiple transfers) |
-| **Account requirements** | Most v2 configs — see BLOCKED combinations in the controller compatibility note below; the only charge type safe with `losses_collector: 'stripe'` | Requires `losses_collector: 'application'` | Requires `losses_collector: 'application'` |
+| **Account requirements** | Most v2 configs — see BLOCKED combinations in the controller compatibility note below; the only charge type with supported `losses_collector: 'stripe'` configurations for the full Dashboard and Express (public preview) | Requires `losses_collector: 'application'` | Requires `losses_collector: 'application'` |
 | **Complexity** | Low | Low | High |
 | **Best for** | SaaS, seller-owned transactions | Marketplaces, on-demand | Multi-seller carts, complex splits |
 
 ### Direct Charges
 
-> **Controller Property Compatibility:** Works with most controller configurations, but NOT all. BLOCKED combinations for direct charges include: `fees_collector: 'stripe' + losses_collector: 'application'` (full or none dashboard), and Express dashboard configs other than `application/application`. This is the **only** charge type safe with `losses_collector: 'stripe'`. If the platform wants Stripe to own losses, direct charges are the only option.
+> **Controller Property Compatibility:** Works with most controller configurations, but NOT all. BLOCKED combinations for direct charges include: `fees_collector: 'stripe' + losses_collector: 'application'` (full or none dashboard), and `express/stripe/application`. Express dashboard now also supports two public-preview direct-charge combinations for self-serve SaaS platforms: `express/stripe/stripe` (Stripe-managed pricing) and `express/application/stripe` (platform-managed pricing), in addition to the standard `express/application/application`. This is the **only** charge type that works with `losses_collector: 'stripe'`. If the platform wants Stripe to own losses, direct charges are the only option — with `dashboard: "full"` or, for self-serve SaaS platforms, `dashboard: "express"` (Stripe-managed pricing or platform-managed pricing, public preview).
 
 #### How it works
 
@@ -180,7 +180,7 @@ const refund = await stripe.refunds.create({
 - When the platform handles disputes
 - **NOT for hold-and-release or delivery-gated payouts** — funds transfer automatically to the connected account upon payment success. Use separate charges and transfers for delivery-gated payouts or any scenario requiring the platform to hold funds before releasing.
 
-#### Destination Charges with `on_behalf_of`
+#### Destination Charges with on_behalf_of
 
 > **Not covered by this guide.** `on_behalf_of` is an advanced variant that changes the merchant of record to the connected account while the charge lives on the platform. It has narrow use cases and significant complexity.
 > 
@@ -211,7 +211,7 @@ const paymentIntent = await stripe.paymentIntents.create({
 // Step 2: After payment_intent.succeeded webhook fires — latest_charge is null
 // at creation time and only populated on the confirmed PaymentIntent from the event
 // IMPORTANT: Always verify the webhook signature before processing event data.
-// See https://stripe.com/docs/webhooks/signatures for verification steps.
+// See https://stripe.com/docs/events/manage-webhook-endpoints#signature-errors for verification steps.
 const confirmedIntent = event.data.object; // payment_intent.succeeded payload
 const transfer = await stripe.transfers.create({
   amount: 8500, // $85.00 to connected account
@@ -235,7 +235,7 @@ await stripe.paymentIntents.create({
 
 // After payment_intent.succeeded webhook fires — latest_charge is null at creation time.
 // IMPORTANT: Always verify the webhook signature before processing event data.
-// See https://stripe.com/docs/webhooks/signatures for verification steps.
+// See https://stripe.com/docs/events/manage-webhook-endpoints#signature-errors for verification steps.
 const confirmedIntent = event.data.object; // payment_intent.succeeded payload
 const chargeId = confirmedIntent.latest_charge;
 

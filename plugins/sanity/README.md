@@ -12,7 +12,7 @@ Collection of resources to help AI agents build better with [Sanity](https://www
 ## Features
 
 - **MCP server:** Direct access to your Sanity projects (content, datasets, releases, schemas) and agent rules.
-- **Agent skills:** Comprehensive best practices skills for Sanity development, content modeling, SEO/AEO, and experimentation. Includes 21 integration/topic guides and 26 focused best-practice rules.
+- **Agent skills:** Comprehensive best practices skills for Sanity development, content modeling, SEO/AEO, and experimentation. Includes 25 integration/topic guides and 26 focused best-practice rules.
 - **Agent Plugin:** `plugin.json`, `skills/`, and `mcp.json` components for any Agent Plugins-compatible client.
 - **Claude Code plugin:** MCP server, agent skills, and slash commands for Claude Code users. Available on the [official Anthropic plugin marketplace](https://claude.com/plugins/sanity).
 - **Cursor plugin:** MCP server, agent skills, and commands on the [Cursor Marketplace](https://cursor.com/marketplace/sanity).
@@ -304,6 +304,8 @@ Best practices skills that agents like Claude Code, Cursor, GitHub Copilot, etc.
 | **content-modeling-best-practices** | Structured content principles: separation of concerns, references vs embedding, content reuse |
 | **seo-aeo-best-practices** | SEO/AEO with EEAT principles, structured data (JSON-LD), technical SEO patterns |
 | **content-experimentation-best-practices** | A/B testing methodology, statistical foundations, experiment design |
+| **sanity-singletons** | First-class singleton documents via `document.singletons`, Structure helpers, and migrating from userland or plugin-based singletons |
+| **sanity-form-component-suspense** | Fix custom Studio form components (inputs, fields, array items) that suspend without their own `Suspense` boundary, causing layout shift or blocking new documents |
 
 ### Getting started flow
 
@@ -360,7 +362,7 @@ sanity-io/agent-toolkit/
 └── skills/                        # Agent skills (agentskills.io format)
     ├── sanity-best-practices/     # Comprehensive Sanity skill
     │   ├── SKILL.md               # Skill definition and quick reference
-    │   └── references/            # Canonical content (22 guides)
+    │   └── references/            # Canonical content (25 guides)
     │       ├── get-started.md     # Onboarding guide
     │       ├── nextjs.md          # Next.js integration
     │       ├── groq.md            # GROQ patterns & performance
@@ -368,7 +370,9 @@ sanity-io/agent-toolkit/
     │       └── ...                # See SKILL.md for full index
     ├── content-modeling-best-practices/      # Modeling guidance + topic references
     ├── seo-aeo-best-practices/               # SEO/AEO guidance + topic references
-    └── content-experimentation-best-practices/ # Experiment design + stats references
+    ├── content-experimentation-best-practices/ # Experiment design + stats references
+    ├── sanity-singletons/                    # First-class singleton documents (Studio 6.17+)
+    └── sanity-form-component-suspense/       # Suspense boundaries for custom form components
 ```
 
 All skills use `references/` for detailed content loaded on demand. The `sanity-best-practices` references are also the canonical source for the MCP server's Sanity rules.

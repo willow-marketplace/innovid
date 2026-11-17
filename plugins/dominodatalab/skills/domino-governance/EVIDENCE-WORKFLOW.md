@@ -1,17 +1,30 @@
 # Evidence Workflow
 
-This document explains how to attach evidence, answer policy questions, and create findings in governance bundles.
+Base URL, auth and the `TOKEN` conditional in the curl examples: [SKILL.md Configuration](./SKILL.md#configuration).
 
-## Setup
-
-```bash
-TOKEN=$(curl -s http://localhost:8899/access-token)
-BASE="${DOMINO_GOVERNANCE_HOST:-$DOMINO_API_HOST}/api/governance/v1"
-```
+Attachments may be inline on `POST /bundles` or added via `POST /bundles/{bundleId}/attachments`. Use the attachment endpoint when adding evidence after create.
 
 ## Attachment Types
 
-The attachments API endpoint is `POST /bundles/{bundleId}/attachments`. It supports **two attachment types**:
+The attachments API endpoint is `POST /bundles/{bundleId}/attachments` with body `{"type": ..., "identifier": {...}, "source": "MANUAL"}` (`source` optional: `AUTO` or `MANUAL`). There are seven attachment types:
+
+| `type` | What it links | `identifier` object |
+|--------|---------------|---------------------|
+| `ModelVersion` | A registered model version | `{"name": "<registered model name>", "version": <int>}` (example below) |
+| `Report` | A file in the project repository (git or DFS) | `{"branch", "commit", "source": "git" or "DFS", "filename"}` (example below) |
+| `DatasetSnapshotFile` | A file in a Domino Dataset snapshot | `{"datasetId", "snapshotId", "filename"}` (the UI also adds `datasetName`, `snapshotVersion`, `snapshotCreationTime`) |
+| `Endpoint` | A model endpoint (model API) | Not documented in the spec; see below |
+| `NetAppVolumeSnapshotFile` | A file in a NetApp Volume snapshot | Not documented in the spec; see below |
+| `FlowArtifact` | A Domino Flow artifact | Not documented in the spec; see below |
+| `FlowArtifactFile` | A file inside a Flow artifact | Not documented in the spec; see below |
+
+The spec types `identifier` as an opaque object, so the shapes above are the ones Domino itself writes. The spec's `GET /attachment-overviews` filter parameters name the identifier keys it knows: `identifier.name`, `identifier.version` (model versions); `identifier.branch`, `identifier.commit`, `identifier.source`, `identifier.filename` (reports); `identifier.datasetId`, `identifier.snapshotId` (dataset snapshot files); `identifier.volumeId` (NetApp Volume snapshot files); `identifier.artifactId`, `identifier.executionName`, `identifier.executionWorkflowName`, `identifier.executionWorkflowVersion` (Flow artifacts). For a type whose full shape is not listed above, attach one example through the Domino UI (bundle > **Attachments**), read it back with `GET /bundles/{bundleId}` (the `attachments[]` array carries `type` and `identifier`), and reuse that shape. Do not guess field names.
+
+`POST /bundles/{id}/register-endpoint` ("Set monitored model as governed": required `approver`, `assignee`, `artifactID`, `evidenceID`, `endpointVersionID`, `isGoverned`) and `PUT /bundles/{id}/update-endpoint/{endpointID}` ("Update monitored model entry") record a monitored model endpoint as governed evidence under an approval; they are not an alternative way to add an `Endpoint` attachment.
+
+Other useful routes: `DELETE /bundles/{bundleId}/attachments/{attachmentID}` removes an attachment; `POST /rpc/bulk-add-attachments` adds attachments to several bundles in one call (`{"attachments": [...], "bundleId": ...}` per entry); `GET /attachment-overviews` lists attachments across bundles with their bundle context.
+
+MLflow experiment runs are not an attachment type. To put MLflow results in a bundle, attach the registered model version (register the run's model first) or export the metrics to a file in the project and attach it as a `Report`.
 
 ### ModelVersion
 
@@ -21,7 +34,7 @@ Attaches a registered model version from the Domino Model Registry.
 
 ```bash
 curl -X POST "$BASE/bundles/$BUNDLE_ID/attachments" \
-  -H "Authorization: Bearer $TOKEN" \
+  ${TOKEN:+-H "Authorization: Bearer $TOKEN"} \
   -H "Content-Type: application/json" \
   -d '{
     "type": "ModelVersion",
@@ -30,8 +43,6 @@ curl -X POST "$BASE/bundles/$BUNDLE_ID/attachments" \
     "description": "Model description and metrics."
   }'
 ```
-
-**When to use**: When the model is registered in Domino's Model Registry. Use the model name and version number (integer).
 
 ### Report
 
@@ -42,7 +53,7 @@ Attaches a file from the project repository (git or DFS).
 ```bash
 # For git-based projects:
 curl -X POST "$BASE/bundles/$BUNDLE_ID/attachments" \
-  -H "Authorization: Bearer $TOKEN" \
+  ${TOKEN:+-H "Authorization: Bearer $TOKEN"} \
   -H "Content-Type: application/json" \
   -d '{
     "type": "Report",
@@ -64,11 +75,10 @@ curl -X POST "$BASE/bundles/$BUNDLE_ID/attachments" \
 
 ### Important Notes on Attachment Types
 
-The only valid types are:
-- `ModelVersion` — with `identifier: {"name": "...", "version": N}`
-- `Report` — with `identifier: {"branch": "...", "commit": "...", "source": "git"|"DFS", "filename": "..."}`
-
-The `identifier` field must be a **JSON object**, not a flat string. Types like "File" or "ExternalLink" are not supported by the API.
+- `type` must be one of the seven enum values in the table above; values such as `File` or `ExternalLink` are rejected. An uploaded document (PDF, validation report) is attached through the bundle UI, not through this API.
+- The `identifier` field must be a **JSON object**, not a flat string.
+- **`ModelVersion` identifier:** `name` is the **MLflow registered model name**, not a Domino UUID or model API id. `version` is an integer.
+- **`Report` identifier:** `source` is `git` for Git-based projects and `DFS` for DFS projects; `commit` is the commit hash the file is read at.
 
 ---
 
@@ -78,11 +88,11 @@ Policies define evidence questions via `evidenceSet` items in the YAML. These ap
 
 ### Discovering EvidenceSet IDs
 
-**IMPORTANT**: The bundle response (`GET /bundles/{bundleId}`) does NOT contain evidenceSet IDs. You must fetch them from the **policy** endpoint:
+The bundle response (`GET /bundles/{bundleId}`) does not contain evidenceSet IDs; fetch them from the policy:
 
 ```bash
 curl -s "$BASE/policies/$POLICY_ID" \
-  -H "Authorization: Bearer $TOKEN"
+  ${TOKEN:+-H "Authorization: Bearer $TOKEN"}
 ```
 
 The response structure is:
@@ -103,7 +113,7 @@ Use the `submit-result-to-policy` RPC endpoint:
 
 ```bash
 curl -X POST "$BASE/rpc/submit-result-to-policy" \
-  -H "Authorization: Bearer $TOKEN" \
+  ${TOKEN:+-H "Authorization: Bearer $TOKEN"} \
   -H "Content-Type: application/json" \
   -d '{
     "bundleId": "bundle-uuid",
@@ -142,7 +152,7 @@ curl -X POST "$BASE/rpc/submit-result-to-policy" \
 - You can submit one artifact at a time or multiple artifacts for the same evidenceId in one call
 - Each successful submission returns the full bundle JSON
 - If a policy has `classification` rules tied to an artifact, the bundle's `classificationValue` updates automatically
-- The `policyId` field is the policy UUID, NOT the `policyVersionId` — this is a common gotcha
+- The `policyId` field is the policy UUID, NOT the `policyVersionId`
 
 ---
 
@@ -154,19 +164,22 @@ Findings document issues discovered during review.
 
 ```bash
 curl -X POST "$BASE/findings" \
-  -H "Authorization: Bearer $TOKEN" \
+  ${TOKEN:+-H "Authorization: Bearer $TOKEN"} \
   -H "Content-Type: application/json" \
   -d '{
     "bundleId": "bundle-uuid",
     "policyVersionId": "policy-version-uuid",
     "name": "Finding title",
-    "title": "Finding title",
     "description": "Detailed description of the issue...",
     "severity": "High",
     "approver": {"id": "org-or-user-uuid", "name": "org-name"},
     "assignee": {"id": "user-uuid", "name": "username"}
   }'
 ```
+
+Required on create: `approver`, `assignee`, `bundleId`, `name`, `policyVersionId`, `severity`. Optional: `description`, `dueDate`, `evidenceId`, `artifactId`.
+
+Update (including close) with **PUT** `/findings/{id}` and `"status": "Done"` or `"WontDo"`.
 
 Get the `policyVersionId` from the bundle response (`GET /bundles/{bundleId}`). Get user/org IDs from the `stageApprovals` section of the bundle response.
 
@@ -185,8 +198,7 @@ Get the `policyVersionId` from the bundle response (`GET /bundles/{bundleId}`). 
 
 ```bash
 # Attach multiple project files in one go
-TOKEN=$(curl -s http://localhost:8899/access-token)
-BASE="${DOMINO_GOVERNANCE_HOST:-$DOMINO_API_HOST}/api/governance/v1"
+# Set BASE and TOKEN per SKILL.md Configuration (steps 1–3)
 BUNDLE="your-bundle-id"
 COMMIT=$(git rev-parse HEAD)
 BRANCH=$(git rev-parse --abbrev-ref HEAD)
@@ -194,7 +206,7 @@ BRANCH=$(git rev-parse --abbrev-ref HEAD)
 for file in "notebooks/01_eda.ipynb" "notebooks/02_train.ipynb" "notebooks/03_validate.ipynb"; do
   name=$(basename "$file")
   curl -s -X POST "$BASE/bundles/$BUNDLE/attachments" \
-    -H "Authorization: Bearer $TOKEN" \
+    ${TOKEN:+-H "Authorization: Bearer $TOKEN"} \
     -H "Content-Type: application/json" \
     -d "{
       \"type\": \"Report\",

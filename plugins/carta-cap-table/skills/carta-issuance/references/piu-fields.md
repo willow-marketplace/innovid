@@ -24,7 +24,7 @@ holds a value before review, and a `None` or empty is a skill bug.
     "stakeholder_kind":        <stakeholder.kind | "INDIVIDUAL">, # always
     "issue_date_relationship": <stakeholder.event_relationship>,  # always
     "prefix":                  <unit_class.prefix>,               # always — NOT share_class
-    "quantity":                <user>,                            # always
+    "quantity":                <user>,                            # a percentage on a PERCENT class; omitted on INVESTED_CAPITAL (payload-reference.md § PBO quantity)
     "currency":                <corp currency, e.g. "USD">,       # always
     "threshold_value":         <user>,                            # always — never defaulted
     "threshold_value_type":    "Unit" | "Overall",                # always — never guessed
@@ -69,7 +69,8 @@ Stamp these onto every resolved row for the review surfaces to render:
 Use the `certificate_share_classes` section from the Phase 0.5 `issuance_init` payload.
 **Read it as the unit classes** — a PIU uses the same share-class endpoint and the same
 response shape as a certificate, so the section keeps that name (and with it its
-`cap_table:get:certificate_share_classes` per-section fallback).
+`cap_table:get:certificate_share_classes` — wire
+`cap_table__get__certificate_share_classes` — per-section fallback).
 
 Match a user-supplied class name case-insensitively; capture the **`prefix`**, which is
 what the payload carries. The unmatched-name and ambiguous-match handling is identical to
@@ -84,7 +85,10 @@ differences:
 The default rule is the same one, and deliberately so: a sole class is pre-selected, two or
 more leave the control **required and unselected** with `missingFields()` holding **Review**
 on `a unit class`. An explicitly named class is still honoured, row-level or via
-`knowns.share_class_prefix`; pass that key **only when the prompt actually named one.**
+the prefix the prompt named, except where a percentage meets a class or plan class that is
+not `PERCENT` ([chat-surface.md § 4](chat-surface.md#4-computable-defaults--apply-and-show-never-ask));
+carry one in **only when the prompt actually named one.**
+A defaulted class still leaves the plan empty.
 
 ### Equity-plan reconciliation — per row, optional, prefix-matched
 
@@ -99,11 +103,12 @@ The one helper with no analogue anywhere else in this skill. Three rules, each l
    the unit class moves real numbers on a real cap table, and nothing downstream catches
    it. The default is **no plan**; the surface offers the list.
 3. **The plan's unit class must match the row's.** `DraftOptionPlanFieldValidator` rejects
-   a mismatch with *"Equity plan share class must match the selected share class"*. Filter
-   the picker to plans whose share class matches the selected unit class **only if** the
-   `option_plans` payload carries a share-class prefix; if it does not, do not
-   pre-validate (SKILL.md hard rule 4) — show the plan's own class next to the unit class in the
-   review, and surface the server's message verbatim on rejection.
+   a mismatch with *"Equity plan share class must match the selected share class"*. Follow
+   the Drafts grid: a chosen plan sets the unit class to its `common_share_class_prefix`
+   and locks it; a chosen class with no plan narrows the picker to that class's plans.
+   A plan row with no prefix falls back to a `common_share_class_name` only one class
+   carries; with neither, do not pre-validate (SKILL.md hard rule 4) and surface the
+   server's message verbatim on rejection.
 
 `option_plan` carries the plan's **primary key as a string**, not its name, even though
 the underlying field is a `CharField`. Skip expired plans (`is_expired: true`) and never
@@ -183,17 +188,16 @@ server-side rule is that a vesting start date with no schedule fails. Warn on ne
 Offered **only** when the resolved unit class carries a truthy
 `has_corresponding_interest`. The skill never reads a feature flag; it reads this field.
 
-**An absent key means UNKNOWN, not "no".** `ShareClassView` gates the serializer field on
-the `CORRESPONDING_INTEREST_ADMIN_ISSUANCE` flag, evaluated per corporation, and pops it
-when the flag is off — so *"this class has no link"* and *"this read could not see links
-at all"* arrive as the same missing key. The read cannot tell them apart, and neither can
-you. Absence must never raise, and must never be reported as fact.
+**An absent key means UNKNOWN, not "no".** A trimmed or partial share-class read drops
+the field, so *"this class has no link"* and *"this read could not see links at all"*
+arrive as the same missing key. The read cannot tell them apart, and neither can you.
+Absence must never raise, and must never be reported as fact.
 
 | What you see | What it means | What to say |
 |---|---|---|
 | `true` | The class carries the link | Offer the row |
 | `false` | The class has no link | No row; say so only if asked |
-| **key absent** | **Unknown — flag off, or a trimmed/partial read** | **Never assert "no link is configured"** |
+| **key absent** | **Unknown — a trimmed/partial read** | **Never assert "no link is configured"** |
 
 **Never state a configuration fact you inferred from an absent key.** Saying *"Carta shows
 no corresponding-interest link for this unit class"* on the strength of a missing field is
@@ -204,11 +208,12 @@ whose manage-share-classes page showed the link plainly.
 use to pre-select one (`default_share_class_prefix`), in order:
 
 1. the row's own `share_class_prefix`,
-2. `knowns.share_class_prefix`,
-3. the sole class, when the corp has exactly one,
+2. a prefix the prompt named,
+3. the sole class that can hold the quantity (for a percentage, the sole `PERCENT` class),
+   when there is exactly one,
 4. otherwise nothing — several classes and none named leaves the field unselected.
 
-Step 3 is load-bearing: the skill omits `knowns.share_class_prefix` unless the prompt named
+Step 3 is load-bearing: the skill carries no prefix in unless the prompt named
 a unit class, so for the ordinary request (*"issue a PIU to X for 112 units"*) the first two
 are empty. Reading only a named prefix is what kept this row from ever rendering.
 

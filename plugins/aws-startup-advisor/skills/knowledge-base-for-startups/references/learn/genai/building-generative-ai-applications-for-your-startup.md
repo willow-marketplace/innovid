@@ -39,7 +39,7 @@ In each case, the model starts with a seed vector derived from a "prompt": Promp
 
 The simplest approach for building a generative AI application is to use an instruction-tuned foundation model, and provide a meaningful prompt ("prompt engineering") using zero-shot learning or few-shot learning. An instruction-tuned model (such as FLAN T5 XXL, Open-Llama, or Falcon 40B Instruct) uses its understanding of related tasks or concepts to generate predictions to prompts. Here are some prompt examples:
 
-**Zero-shot learning**
+### Zero-shot learning
 
 ```
 Title: "University has new facility coming up"\n Given the above title of an imaginary article, imagine the article.
@@ -47,7 +47,7 @@ Title: "University has new facility coming up"\n Given the above title of an ima
 RESPONSE: <a 500-word article>
 ```
 
-**Few-shot learning**
+### Few-shot learning
 
 ```
 This is awesome! // Positive
@@ -133,7 +133,7 @@ The [benchmark testing](https://aws.amazon.com/blogs/aws/amazon-ec2-inf2-instanc
 
 Zero-shot or few-shot learning is the simplest approach for building a generative AI application. To build applications based on this approach, all you need are the services for the four common components (foundation model, its interface, ML platform, and compute), your custom code to generate prompts, and a front-end web/mobile app.
 
-To learn more about selecting a foundation model through Amazon Bedrock or Amazon SageMaker JumpStart, refer to the model selection guidelines [here](https://aws.amazon.com/blogs/startups/selecting-the-right-foundation-model-for-your-startup/).
+To learn more about selecting a foundation model through Amazon Bedrock or Amazon SageMaker JumpStart, refer to the model selection guidelines [in Selecting the right foundation model for your startup](https://aws.amazon.com/blogs/startups/selecting-the-right-foundation-model-for-your-startup/).
 
 The custom code can leverage developer tools like [LangChain](https://python.langchain.com/docs/get_started/introduction.html) for prompt templates and generation. The LangChain community has already added [support](https://python.langchain.com/docs/modules/model_io/models/llms/#integrations) for Amazon Bedrock, Amazon API Gateway, and SageMaker endpoints. You may also like to leverage [AWS Amazon CodeWhisperer](https://aws.amazon.com/codewhisperer/), a coding companion tool, to help improve developers' efficiency.
 

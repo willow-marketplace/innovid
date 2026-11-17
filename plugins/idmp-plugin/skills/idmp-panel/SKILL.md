@@ -55,6 +55,8 @@ description: IDMP panel skill for listing panels, reading details, creating and 
 
 ## Product behavior to preserve
 
+- Text/manual panels can legitimately have no generated SQL; skip query and SQL validation for those types and verify saved content/type instead.
+
 - Read `list` first, then `get`, before changing a panel.
 - For natural-language creation asks, prefer the AI draft endpoint first and keep structured DTO creation as the fallback.
 - Use `new-name` with a candidate `name` before creating a panel.

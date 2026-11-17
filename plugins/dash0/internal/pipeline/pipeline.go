@@ -134,17 +134,16 @@ func Process(event map[string]any, cfg otlp.Config, dataDir string, now time.Tim
 			// Merge, don't overwrite. Most runtimes deliver SessionStart first, so
 			// there is no context yet and this builds a fresh one. But an agent may
 			// deliver UserPromptSubmit before SessionStart (e.g. Copilot's
-			// nondeterministic startup ordering), which has already established this
-			// turn's TraceID/SpanID — preserve them rather than blanking the context.
-			ctx, _ := otlp.LoadTraceContext(sessionDir)
-			if ctx == nil {
-				ctx = &otlp.TraceContext{}
-			}
-			ctx.SessionID = sessionID
-			if model, _ := event["model"].(string); model != "" {
-				ctx.Model = model
-			}
-			if err := otlp.SaveTraceContext(*ctx, sessionDir); err != nil {
+			// nondeterministic startup ordering), or fire the two concurrently —
+			// either way the turn's TraceID/SpanID must survive.
+			model, _ := event["model"].(string)
+			err := otlp.UpdateTraceContext(sessionDir, func(ctx *otlp.TraceContext) {
+				ctx.SessionID = sessionID
+				if model != "" {
+					ctx.Model = model
+				}
+			})
+			if err != nil {
 				return res, err
 			}
 			_ = os.WriteFile(startedFile, nil, 0o644)
@@ -162,19 +161,15 @@ func Process(event map[string]any, cfg otlp.Config, dataDir string, now time.Tim
 		}
 		event["chat_span_id"] = chatSpanID
 
-		model := ""
+		// A new turn owns new IDs; the session's model carries forward.
 		previousTraceID := ""
-		if ctx, err := otlp.LoadTraceContext(sessionDir); err == nil && ctx != nil {
-			model = ctx.Model
+		err = otlp.UpdateTraceContext(sessionDir, func(ctx *otlp.TraceContext) {
 			previousTraceID = ctx.TraceID
-		}
-
-		if err := otlp.SaveTraceContext(otlp.TraceContext{
-			TraceID:   traceID,
-			SpanID:    chatSpanID,
-			SessionID: sessionID,
-			Model:     model,
-		}, sessionDir); err != nil {
+			ctx.TraceID = traceID
+			ctx.SpanID = chatSpanID
+			ctx.SessionID = sessionID
+		})
+		if err != nil {
 			return res, err
 		}
 		if previousTraceID != "" {
@@ -488,8 +483,14 @@ func EnrichToolEvent(event map[string]any) {
 		}
 	}
 	if strings.EqualFold(toolName, "Skill") {
-		if skill := ExtractSkillName(toolInput); skill != "" {
-			event["skill_name"] = skill
+		// Only when the source has not already named it: OpenCode V2 takes the
+		// name from the event's metadata before calling this, and reading the
+		// tool input as a second opinion would let a disagreeing argument
+		// rename a skill that was already resolved correctly.
+		if _, has := event["skill_name"]; !has {
+			if skill := ExtractSkillName(toolInput); skill != "" {
+				event["skill_name"] = skill
+			}
 		}
 		// The name can also arrive pre-set: Copilot ships no arguments for the
 		// skill tool and names the skill in a vendor attribute instead, so its
@@ -502,8 +503,10 @@ func EnrichToolEvent(event map[string]any) {
 			event["skill_source"] = skillSourceModel
 		}
 	}
-	if server := ExtractMCPServer(toolName); server != "" {
+	if server := resolveMCPServer(toolName, event["mcp_server"]); server != "" {
 		event["mcp_server"] = server
+	} else {
+		delete(event, "mcp_server")
 	}
 	if normalized := NormalizeMCPToolName(toolName); normalized != toolName {
 		event["tool_name"] = normalized
@@ -654,7 +657,7 @@ func injectTurnUsage(event map[string]any, usage *transcript.Usage) {
 	event["dash0.gen_ai.usage.cache_creation.ephemeral_5m.input_tokens"] = usage.CacheCreation5mInputTokens
 	event["dash0.gen_ai.usage.cache_creation.ephemeral_1h.input_tokens"] = usage.CacheCreation1hInputTokens
 	// Emitted only when the turn did some thinking, matching Copilot's
-	// emission of the same key (cmd/copilot-on-event/main.go). The two
+	// emission of the same key (internal/source/copilot/emit.go). The two
 	// runtimes share the key so one query spans both, and a key that is
 	// always present in one and conditional in the other would defeat
 	// that. Unlike the counts above, a zero here carries no information:
@@ -928,8 +931,20 @@ func ExtractBashCommandFamily(v any) string {
 	return ""
 }
 
+// A skill tool's argument is spelled "skill" or "name" depending on the
+// runtime, the same way tool names themselves are spelled differently and are
+// matched case-insensitively above. "skill" wins when both are present, so
+// adding the alternative cannot change an answer that already resolved.
+func skillNameFrom(m map[string]any) string {
+	if name, _ := m["skill"].(string); name != "" {
+		return name
+	}
+	name, _ := m["name"].(string)
+	return name
+}
+
 // ExtractSkillName parses the skill name from a Skill tool's input.
-// Input may be a JSON string or an already-decoded map with a "skill" field.
+// Input may be a JSON string or an already-decoded map.
 func ExtractSkillName(v any) string {
 	switch val := v.(type) {
 	case string:
@@ -940,11 +955,9 @@ func ExtractSkillName(v any) string {
 		if err := json.Unmarshal([]byte(val), &m); err != nil {
 			return ""
 		}
-		name, _ := m["skill"].(string)
-		return name
+		return skillNameFrom(m)
 	case map[string]any:
-		name, _ := val["skill"].(string)
-		return name
+		return skillNameFrom(val)
 	default:
 		return ""
 	}
@@ -964,6 +977,11 @@ func NormalizeMCPToolName(toolName string) string {
 	return parts[2]
 }
 
+// unnamedConnectorServer stands in for a server Claude Code's hook names only
+// by a UUID: Claude Desktop passes each claude.ai connector in under its
+// connector ID, and no display name reaches the hook.
+const unnamedConnectorServer = "claude.ai connector"
+
 // ExtractMCPServer parses the server name from an MCP tool name
 // (format: mcp__<server>__<tool>). Returns empty string for non-MCP tools
 // and for UUIDs (which are not meaningful server names).
@@ -979,6 +997,27 @@ func ExtractMCPServer(toolName string) string {
 		return ""
 	}
 	return parts[1]
+}
+
+// resolveMCPServer prefers the tool name, falling back to what the event
+// already holds: a string a source set before enrichment, or the object
+// Claude Code puts on hook inputs, {"name": ..., "source": ...}, which must
+// never be exported as is.
+func resolveMCPServer(toolName string, reported any) string {
+	if server := ExtractMCPServer(toolName); server != "" {
+		return server
+	}
+	switch v := reported.(type) {
+	case string:
+		return v
+	case map[string]any:
+		name, _ := v["name"].(string)
+		if isUUID(name) {
+			return unnamedConnectorServer
+		}
+		return name
+	}
+	return ""
 }
 
 var uuidPattern = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)

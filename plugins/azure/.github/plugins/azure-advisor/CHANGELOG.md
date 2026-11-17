@@ -1,0 +1,57 @@
+# Changelog
+
+## 1.0.13
+
+- fix: pass packaged allowlists to telemetry reporter ([#3505](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3505))
+
+## 1.0.12
+
+- fix: improve telemetry hook host identification ([#3497](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3497))
+
+## 1.0.11
+
+- feat: add Advisor Cost optimization skills using existing tools ([#3444](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3444))
+
+## 1.0.10
+
+- chore: refresh Azure MCP allowlists to 4.0.0-beta.6 ([#3494](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3494))
+
+## 1.0.9
+
+- feat: automate Azure MCP tool allowlist refresh ([#3484](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3484))
+
+## 1.0.8
+
+- feat: align Azure Advisor skill routing with MCP summary and list tools ([#3474](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3474))
+
+## 1.0.7
+
+- fix: pin plugin npx package versions ([#3471](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3471))
+
+## 1.0.6
+
+- feat: adopt Agent Plugins 1.0 package format ([#3469](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3469))
+
+## 1.0.5
+
+- fix: remove runtime JSON parsing from Bash telemetry hook ([#3459](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3459))
+
+## 1.0.4
+
+- fix: update hook telemetry reporter to 0.1.16 ([#3443](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3443))
+
+## 1.0.3
+
+- fix: run Cursor hooks with bash ([#3425](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3425))
+
+## 1.0.2
+
+- feature: support per plugin hook ([#3370](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3370))
+
+## 1.0.1
+
+- fix: enable standalone telemetry reporter by default ([#3383](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3383))
+
+## 1.0.0
+
+- feat: add Azure Advisor skills plugin ([#3310](https://github.com/microsoft/GitHub-Copilot-for-Azure/pull/3310))

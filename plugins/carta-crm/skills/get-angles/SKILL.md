@@ -3,6 +3,9 @@ name: get-angles
 description: "Finds the best warm introduction path into a target company through the user's network, and then sets the introduction up. Use this skill when the user says things like \"find intro angles into [company]\", \"how can I get introduced to [company]\", \"who do I know at [company]\", \"warm intro to [company]\", \"find connections at [company]\", \"how do I reach [company]\", or \"/get-angles\". Input: a company name or domain. Output: a ranked route map, a drafted intro request, and the follow-through actions."
 ---
 
+<!-- carta:plugin-version -->
+<carta-plugin>carta-crm:1.20.20</carta-plugin>
+
 ## Overview
 
 The user wants into a company they have no relationship with. Answer the question they
@@ -127,6 +130,13 @@ One confident match proceeds. **Several plausible matches go to `AskUserQuestion
 silently take the first result, which is how a `.co.uk` company or a similarly-named portfolio
 company becomes the wrong target.
 
+Each match carries a `source`. Prefer a match with `source: "crm"`. A match with
+`source: "external"` is a company that nobody saved in the CRM, but the route graph can still
+know it: the CRM keeps a company profile for every company someone opened. So run the fetch plan
+on an external match with its domain, the same as on a `crm` match. Offer to add the company
+only when that call returns `domain_not_found`: see "When the company is not in the CRM" below.
+An external match with routes is a normal answer: show the routes and never offer to add it.
+
 **At most 2 resolution attempts.** After the second, stop and ask the user for the domain.
 Do **not**:
 
@@ -165,14 +175,81 @@ treat it as domain-level coverage rather than inferring from a name.
 
 ## Step 3 — Rank by route quality
 
-Order the headline answer this way:
+Order the headline answer this way, whatever the response shape:
 
 0. **The user is already a connector.** A path with `pathType: "direct"` means the acting user
    personally worked at the shared employer. The route is `You -> Target` with that employer as
    the hop, and the ask is a direct reach-out, not an intro request. It fills `recommended`
    differently — see **A direct route** under Step 5.
 1. A colleague of ours with live, target-matched history (Step 2).
-2. Warm routes, tiered below.
+2. Warm routes: the ranked shape or the classic shape below.
+
+Pick the shape once. When the response has `bestWayIn`, or any contact carries `tier`, it has
+the ranked shape. Otherwise it has the classic shape.
+
+### Ranked shape
+
+The server has already ranked these routes. Each contact and path carries `tier`, `band`,
+`confidence`, `reason`, `yourRelationship`, `insideTarget`, `employerIndustry` and
+`employerLocation`. A contact can also carry `knownTo`, an array of the names of the colleagues
+who know them. **Use its order. Do not re-rank with the classic tiers.**
+
+**No strong route:** after cases 0 and 1 above, when `bestWayIn` is absent, or its introducer's
+`band` is `low`, say in two lines that there is no strong warm route, and stop. Do not fill `recommended` with
+that route.
+
+Otherwise, after cases 0 and 1 above, lead the warm-route answer with `bestWayIn`, in plain
+words, before the map:
+
+The server ranks people at the target by their value for a deal conversation with a PE
+investor or buyer: the CEO or founder first, then the CFO, then corporate development or M&A,
+then the board, then other C-level people. Then it picks the best route to that person, with a
+teammate route first among the routes to that person.
+
+`bestWayIn` has one of two forms, and `bestWayIn.next` has the same two forms:
+
+- **Route answer:** `reaches` is present. The introducer is a contact who can introduce the
+  user to `reaches`, a person at the target.
+- **Talk-to answer:** `reaches` is absent. The introducer is a person at the target, and is the
+  person to talk to. `why` starts with "Talk to <name>, <title> at <company>." There is no
+  second person, so never ask the introducer for an introduction and never invent a `reaches`.
+
+1. **Who to ask:** for a route answer, `bestWayIn.introducer.name`, and who they reach:
+   `bestWayIn.reaches.name` and `reaches.title`. When `reach` is more than 1, say how many
+   people at the target they reach. For a talk-to answer, write "Talk to <name>, <title>"
+   with the introducer's name and their title from `insideTarget.title`, else the matching
+   `targetEmployees[].title`, else leave the title out. Then say whose contact they are from
+   `knownTo`, and leave that out when `knownTo` is absent or empty. Then add the relationship
+   line from point 3.
+2. **Why:** quote `bestWayIn.why`. Add the introducer's role inside the target when
+   `insideTarget` is set (`board`: "sits on the board", `investor`: "is an investor",
+   `employee`: "works there"; `presence: "past"` makes it past tense). Add the shared
+   company and the overlap years from the path when they exist.
+3. **How strong:** the introducer's `band` as a word (`high`: "strong", `medium`: "good"),
+   and `yourRelationship`: "you have N interactions with them", or "you have no recorded
+   interactions with them" when `band` is `none`.
+4. **Next best:** `bestWayIn.next.introducer.name` and who they reach, in one line. When
+   `next` has no `reaches`, write "talk to <name>, <title>" instead. Omit it when `next` is
+   absent.
+
+Then give a short ranked list, at most 4 people, grouped by tier in this order: 1 "Your
+teammates", 2 "People you know", 5 "Known by your colleagues", 3 "CRM contacts", 4 "Other
+contacts". Each line names the person, who they reach and the band word (`low`: "weak").
+
+Three rules:
+
+- **Never show a raw number.** No `confidence`, `score`, `bestPathScore`, `strength`, `weight`
+  or tier number reaches the user. The interaction count from `yourRelationship` is the only
+  number the answer states.
+- **Never offer a `hidden` route**, and never offer a `low` route as the recommendation.
+- `bestWayIn` fills `recommended` on the map (Step 5): the introducer is the connector and
+  `reaches` is the target. A talk-to answer fills it as **A direct route** (Step 5), with the
+  introducer as the target and the target company as the hop. The alternates follow the
+  server's order.
+
+### Classic shape
+
+Rank the warm routes with these rules, exactly as written.
 
 **Tiers — a route you can walk beats a grander one you cannot:**
 
@@ -202,8 +279,52 @@ connects to three targets, they are one ask, so say that once instead of offerin
 options that are all the same conversation. Show at most **4 routes total** — one recommended
 plus 3 alternates.
 
-**If every route is Tier C, or `paths` is empty:** say so in two lines and stop. Do not pad
+**If every route is Tier C:** say so in two lines and stop. If `paths` is empty, see "Why the
+graph came back empty" below. Do not pad
 the map with strangers who happen to share an employer.
+
+### Why the graph came back empty
+
+An empty `paths` carries `emptyReason`. Tell the user the reason in one plain sentence. Never
+call it a network, graph, domain or server problem: each reason below is a normal answer.
+
+| `emptyReason` | Say | Then |
+|---|---|---|
+| `domain_not_found` | "<domain> is not linked to a company in your CRM." | Only when Step 1 confirmed a `source: "external"` match, go to "When the company is not in the CRM" instead of saying this. Otherwise stop. |
+| `company_not_loaded` | "<Company> is saved in your CRM but has not been opened yet. Open it once in the CRM, then ask again." | Stop. Do not add the company again: it is already saved. |
+| `company_not_found` | "The CRM could not load the record for <Company>." | Stop. Ask the user to check the company in the CRM. |
+| `contact_pool_above_threshold` | "Your contact network is too large for this search to run in full." | Stop. Do not retry: the same call stops at the same point. |
+| `no_shared_employers` | "Nobody in your CRM has worked at the same company as anyone at <Company>." | Stop. |
+| `only_unreachable_paths` | "There are shared employers, but each route goes through someone not saved in your CRM." | Stop. |
+
+**Call `get_company_angles` at most twice per company:** once, and once more only after you
+add the company below. Do not retry with `www.`, a different suffix or a guessed domain.
+
+### When the company is not in the CRM
+
+This section runs only when the fetch plan returned `domain_not_found` for a `source: "external"`
+match the user confirmed in Step 1. A domain
+the user typed, or a `source: "crm"` match, never leads here: there is no name to take, or the
+record already exists.
+
+Show what's about to happen and ask once:
+> **Add <Company> to your CRM?** <company name> (<domain>), from the company search.
+> The whole team will see this record. Then I'll search for routes.
+
+Use `AskUserQuestion` with options `"Add company"` / `"Cancel"`. Continue only on
+`"Add company"`. Anything else: stop and tell the user nothing was changed.
+
+```
+crm_call_tool({
+  "name": "crm:create_company",
+  "arguments": { "name": "<company name>", "fields": { "website": "https://<domain>" } }
+})
+```
+
+Take the name and the domain from the `find_company` match the user confirmed. Then run the
+fetch plan once. If this second call returns `domain_not_found`, say "<Company> is saved, but
+its routes are not ready yet. Try again later." and stop: never add it again. Any other empty
+result: report its `emptyReason` from the table above and stop.
 
 ## Step 4 — Draft the ask
 
@@ -218,6 +339,13 @@ Keep it short enough to read on a phone. Two guards:
 
 For a direct reach-out (Step 3, case 0) the message goes to the target instead, and it opens
 on the shared employer rather than on an ask for an introduction.
+
+For a talk-to answer (a `bestWayIn` with no `reaches`, Step 3) the message is a direct outreach
+to the introducer. It opens on the relationship (whose contact they are from `knownTo`, only when `knownTo` is present and not empty, and the last
+interaction with them from Step 2, only when Step 2 matched one to this person; otherwise leave
+the date out), says what we want to talk about, and gives an easy out. It never asks them for an
+introduction. It is a draft only, like every other draft here: nothing is sent without the
+user's yes.
 
 ## Step 5 — Render the route map
 
@@ -272,7 +400,7 @@ The `DATA` shape is documented by the example in the file. Rules for filling it:
   - `relationStrength` — `"HIGH"` / `"MEDIUM"` / `"LOW"` from the matching row in the
     `get_company_relations` response (the row whose `contact.email` matches the connector).
     This is already fetched in wave 3; copy the `strength` field from that row. Null if wave
-    3 did not run. Shown in the "Ask for intro" gutter as "Strong link" / "Medium link" /
+    3 did not run. Shown under the "Ask for intro" arrow, after "Knows <target first name>", as "Strong link" / "Medium link" /
     "Light link" so the user can judge the quality of the route at a glance.
   - `addedBy` — the `createdBy` or `addedBy` display name from the `fetch_contact_by_id`
     record, if the CRM exposes it. Null otherwise. Answers "who saved this contact?" —
@@ -295,6 +423,10 @@ you, the shared employer, the target — and the middle hop reads `Reach out dir
 
 **Never invent a connector to fill the five-column shape.** A direct route has none, and the
 board draws without one.
+
+A talk-to answer (Step 3) draws on the same board: `target` is the introducer, the hop is the
+target company, and `sender` is the acting user. The top-up wave fetches the introducer with
+`fetch_contact_by_id`, for the photo, the title and the email address.
 
 **Pictures: pass every URL through verbatim.** `contacts[].photoUrl`,
 `targetEmployees[].photoUrl` and a company's `image` are usually populated; the example DATA
@@ -343,7 +475,7 @@ no MCP tool exposes them today:
   or team under our colleague's name — not from a signature, not from an email address, not
   inferred from the deal. Their card carries the name and the flag, nothing else.
 - **Shared employment between our person and the connector.** The angles graph only computes
-  the connector-to-target edge. The left-hand hop is `Ask for intro` and nothing more.
+  the connector-to-target edge. The left-hand hop carries only `Ask for intro`, the target's name and the relation strength.
 - **A company-wide interaction rollup.** You can resolve the last interaction with a *person*,
   so the banner names that person ("emailed Tom Reid 12 days ago"), never the company.
 
@@ -447,6 +579,9 @@ numbered list with one marked `<- recommended`, via `AskUserQuestion`. Never fir
    `DATA.draft.to` is a display name rather than an address — take the address from the
    connector's `email_detail.email` on their `fetch_contact_by_id` record, or `contact.email`
    on the relation row.
+
+   **On a talk-to answer the recipient is the introducer** (Step 4), and the address comes from
+   their `fetch_contact_by_id` record, as for a connector.
 
    **On a direct route the recipient is the target, not the connector** (Step 4). Their address
    is `targetEmployees[].email` where the CRM holds one, and often it holds none — that is the

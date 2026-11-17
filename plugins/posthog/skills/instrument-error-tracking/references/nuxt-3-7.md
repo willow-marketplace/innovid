@@ -1,10 +1,27 @@
 > AI agents: this is one page from PostHog's docs. Full index of Markdown docs for LLMs: https://posthog.com/llms.txt
 
-# Nuxt Error Tracking installation (v3.7 and above) - Docs
+# Nuxt Error Tracking installation (v3.7 and above)
 
-Copy page
+Canonical URL: https://posthog.com/docs/error-tracking/installation/nuxt-3-7
 
-# Nuxt Error Tracking installation (v3.7 and above) - Docs
+> **Cloud region:** This page uses US Cloud hosts. For an EU Cloud project, use `https://eu.posthog.com` instead of `https://app.posthog.com` (app host for links).
+
+## On this page
+
+- [Install with the wizard](#install-with-the-wizard)
+- [Install the PostHog Nuxt module](#install-the-posthog-nuxt-module)
+- [Manually capturing exceptions](#manually-capturing-exceptions)
+- [Build your project for production](#build-your-project-for-production)
+- [Verify error tracking](#verify-error-tracking)
+- [Upload source maps](#upload-source-maps)
+
+## Install with the wizard
+
+Run this command in your project directory to add PostHog to your Nuxt project. The wizard detects your framework, installs the SDK, and sets up your first events.
+
+`npx @posthog/wizard`
+
+Or set it up manually by following the rest of this guide.
 
 1.  1
 
@@ -14,37 +31,33 @@ Copy page
 
     Install the PostHog Nuxt module using your package manager:
 
-    PostHog AI
-
     ### npm
 
     ```bash
-    npm install @posthog/nuxt
+    npm install @posthog/nuxt@1
     ```
 
     ### yarn
 
     ```bash
-    yarn add @posthog/nuxt
+    yarn add @posthog/nuxt@1
     ```
 
     ### pnpm
 
     ```bash
-    pnpm add @posthog/nuxt
+    pnpm add @posthog/nuxt@1
     ```
 
     ### bun
 
     ```bash
-    bun add @posthog/nuxt
+    bun add @posthog/nuxt@1
     ```
 
     Add the module to your `nuxt.config.ts` file:
 
     nuxt.config.ts
-
-    PostHog AI
 
     ```typescript
     export default defineNuxtConfig({
@@ -72,7 +85,7 @@ Copy page
         sourcemaps: {
           enabled: true,
           projectId: '<ph_project_id>', // Your project ID, found in your environment settings: https://app.posthog.com/settings/environment#variables
-          personalApiKey: '<ph_personal_api_key>', // Your personal API key from PostHog settings https://app.posthog.com/settings/user-api-keys (requires organization:read and error_tracking:write scopes)
+          personalApiKey: '<ph_personal_api_key>', // Your personal API key from PostHog settings https://app.posthog.com/settings/user-api-keys (requires the error_tracking:write scope)
           releaseName: 'my-application', // Optional: defaults to git repository name
           releaseVersion: '1.0.0', // Optional: defaults to current git commit
         },
@@ -82,7 +95,7 @@ Copy page
 
     **Personal API key**
 
-    Your personal API key will require `organization:read` and `error_tracking:write` scopes.
+    Your personal API key needs the `error_tracking:write` scope. You can limit the key to this project.
 
     The module will automatically:
 
@@ -102,8 +115,6 @@ Copy page
 
     Vue
 
-    PostHog AI
-
     ```html
     <script>
       const { $posthog } = useNuxtApp()
@@ -117,8 +128,6 @@ Copy page
     On the server side instantiate PostHog using:
 
     server/api/example.js
-
-    PostHog AI
 
     ```javascript
     const runtimeConfig = useRuntimeConfig()
@@ -146,8 +155,6 @@ Copy page
 
     Terminal
 
-    PostHog AI
-
     ```bash
     nuxt build
     ```
@@ -162,7 +169,7 @@ Copy page
 
     Before proceeding, let's make sure exception events are being captured and sent to PostHog. You should see events appear in the activity feed.
 
-    ![Activity feed with events](https://res.cloudinary.com/dmukukwp6/image/upload/SCR_20250729_ouxl_f788dd8cd2.png)![Activity feed with events](https://res.cloudinary.com/dmukukwp6/image/upload/SCR_20250729_owae_7c3490822c.png)
+    ![Activity feed with events](https://res.cloudinary.com/dmukukwp6/image/upload/SCR_20250729_ouxl_f788dd8cd2.png)
 
     [Check for exceptions in PostHog](https://app.posthog.com/activity/explore)
 
@@ -176,12 +183,4 @@ Copy page
 
     Let's continue to the next section.
 
-    [Upload source maps](/docs/error-tracking/upload-source-maps/nuxt.md)
-
-### Still have questions?
-
-Ask PostHog AI
-
-### Was this page useful?
-
-HelpfulCould be better
+    [Upload source maps](https://posthog.com/docs/error-tracking/upload-source-maps/nuxt.md)

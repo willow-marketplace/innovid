@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "noibu": {
+      "url": "https://mcp.noibu.com/mcp",
+      "type": "http"
+    }
+  }
+}

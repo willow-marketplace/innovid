@@ -6,17 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash"
-          }
-        ]
-      }
-    ],
-    "SessionEnd": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash"
+            "command": "exec bash \"${CLAUDE_PLUGIN_ROOT}/viz/hooks/forward.sh\""
           }
         ]
       }

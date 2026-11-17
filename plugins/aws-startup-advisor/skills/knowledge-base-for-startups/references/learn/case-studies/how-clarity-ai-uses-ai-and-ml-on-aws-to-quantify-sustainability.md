@@ -79,4 +79,4 @@ And it's not just investors who are focusing on ESG issues; regulatory agencies 
 
 ---
 
-_Author: Megan Crowley, Senior Technical Writer on the Startup Content Team at AWS_
+> _Author: Megan Crowley, Senior Technical Writer on the Startup Content Team at AWS_

@@ -102,8 +102,15 @@ build_bundle() {
     [[ -z "$ref" ]] && { printf "${RED}✗${RESET} No tags found. Pass a ref: ./release.sh --bundle v1.1.0\n" >&2; return 1; }
     printf "${YELLOW}⚠${RESET} No ref given, using latest tag: %s\n" "$ref"
   fi
-  git -C "$SCRIPT_DIR" rev-parse --verify --quiet "$ref" >/dev/null \
-    || { printf "${RED}✗${RESET} Ref not found: %s\n" "$ref" >&2; return 1; }
+  # Publishing a GitHub release creates its tag on GitHub only, so fetch tags once
+  # before giving up on a ref this clone doesn't have yet.
+  if ! git -C "$SCRIPT_DIR" rev-parse --verify --quiet "$ref" >/dev/null; then
+    local remote
+    remote=$(git -C "$SCRIPT_DIR" remote -v | awk '/CrowdStrike\/fusion-skills/ {print $1; exit}')
+    [[ -n "$remote" ]] && git -C "$SCRIPT_DIR" fetch --quiet --tags "$remote" 2>/dev/null
+    git -C "$SCRIPT_DIR" rev-parse --verify --quiet "$ref" >/dev/null \
+      || { printf "${RED}✗${RESET} Ref not found: %s\n" "$ref" >&2; return 1; }
+  fi
 
   local version="${ref#v}"
   local zip="$SCRIPT_DIR/crowdstrike-falcon-fusion-${version}.zip"
@@ -174,6 +181,16 @@ PY
     fi
     printf "${GREEN}✓${RESET} interface.%s resolves to %s inside the archive\n" "$icon_field" "$icon_path"
   done
+
+  # The upload form also requires a support URL, which it reads from the manifest.
+  # Without one the portal rejects the upload with "support URL is required".
+  local support_url
+  support_url=$(jq -r ".interface.supportURL // empty" "$manifest" 2>/dev/null)
+  if [[ "$support_url" != https://* ]]; then
+    printf "${RED}✗${RESET} interface.supportURL missing from .codex-plugin/plugin.json; the portal rejects the upload\n"; fail=1
+  else
+    printf "${GREEN}✓${RESET} interface.supportURL is %s\n" "$support_url"
+  fi
 
   # At least one skill.
   local skills
@@ -344,12 +361,14 @@ main() {
   printf "${GREEN}✓${RESET} Updated to v${NEXT_VERSION}\n"
 
   printf "\n${BLUE}Step 1c: Update Agent Plugins manifests${RESET}\n"
-  # The root plugin.json (Agent Plugins spec) and .codex-plugin/plugin.json are
-  # separate manifests for the non-Claude assistants; CI enforces that all four
-  # manifests share one version. Bump them alongside .claude-plugin/.
+  # The root plugin.json (Agent Plugins spec), .codex-plugin/plugin.json, and
+  # .cursor-plugin/plugin.json are separate manifests for the non-Claude
+  # assistants; CI enforces that they share one version. Bump them alongside
+  # .claude-plugin/.
   ROOT_PLUGIN_JSON="$SCRIPT_DIR/plugin.json"
   CODEX_PLUGIN_JSON="$SCRIPT_DIR/.codex-plugin/plugin.json"
-  for manifest in "$ROOT_PLUGIN_JSON" "$CODEX_PLUGIN_JSON"; do
+  CURSOR_PLUGIN_JSON="$SCRIPT_DIR/.cursor-plugin/plugin.json"
+  for manifest in "$ROOT_PLUGIN_JSON" "$CODEX_PLUGIN_JSON" "$CURSOR_PLUGIN_JSON"; do
     if [[ -f "$manifest" ]]; then
       jq --arg v "$NEXT_VERSION" '.version = $v' "$manifest" > /tmp/agent-plugin.json.tmp
       mv /tmp/agent-plugin.json.tmp "$manifest"
@@ -398,7 +417,7 @@ main() {
   printf "\n${BLUE}Step 5: Commit and create PR${RESET}\n"
   local release_branch="release/v${NEXT_VERSION}"
   git checkout -b "$release_branch"
-  git add "$PLUGIN_JSON" "$MARKETPLACE_JSON" "$ROOT_PLUGIN_JSON" "$CODEX_PLUGIN_JSON" "$AGENTS_MARKETPLACE_JSON" "$SCRIPT_DIR/README.md" "$SCRIPT_DIR/skills"/*/SKILL.md "$SCRIPT_DIR/CHANGELOG.md" "$SCRIPT_DIR/release.sh"
+  git add "$PLUGIN_JSON" "$MARKETPLACE_JSON" "$ROOT_PLUGIN_JSON" "$CODEX_PLUGIN_JSON" "$CURSOR_PLUGIN_JSON" "$AGENTS_MARKETPLACE_JSON" "$SCRIPT_DIR/README.md" "$SCRIPT_DIR/skills"/*/SKILL.md "$SCRIPT_DIR/CHANGELOG.md" "$SCRIPT_DIR/release.sh"
   git commit -m "Release v${NEXT_VERSION}"
   printf "${GREEN}✓${RESET} Committed v${NEXT_VERSION}\n"
 
@@ -422,14 +441,7 @@ main() {
   printf "Review and edit the notes at https://github.com/CrowdStrike/fusion-skills/releases,\n"
   printf "then click Publish when ready.\n\n"
 
-  printf "${BLUE}Step 8: Update Anthropic Plugin Marketplace${RESET}\n"
-  printf "\nAfter publishing the GitHub release, notify Anthropic of the new tag and SHA:\n"
-  printf "  Tag: v${NEXT_VERSION}\n"
-  printf "  SHA: \$(git rev-parse v${NEXT_VERSION})\n\n"
-  printf "Anthropic handles the marketplace pin bump internally. Do not open PRs to\n"
-  printf "anthropics/claude-plugins-official or re-submit through the plugin submission form.\n\n"
-
-  printf "${BLUE}Step 9: Update OpenAI Plugins Directory${RESET}\n"
+  printf "${BLUE}Step 8: Update OpenAI Plugins Directory${RESET}\n"
   printf "\nAfter publishing the GitHub release, build and verify the skills-only bundle:\n"
   printf "  ./release.sh --bundle v${NEXT_VERSION}\n\n"
   printf "That archives only what the skills need, checks it against the portal's\n"
@@ -438,6 +450,21 @@ main() {
   printf "  https://platform.openai.com/plugins\n\n"
   printf "Submit the new version for review, then publish it after approval. The public\n"
   printf "Plugins Directory uses reviewed snapshots rather than the repository marketplace ref.\n\n"
+
+  printf "${BLUE}Step 9: Update Cursor Marketplace${RESET}\n"
+  printf "\nCursor manually reviews verified plugins before re-indexing, so a new release\n"
+  printf "isn't picked up on its own. Email marketplace-publishing@cursor.com with the\n"
+  printf "release link and ask them to re-index crowdstrike-falcon-fusion:\n"
+  printf "  https://github.com/CrowdStrike/fusion-skills/releases/tag/v${NEXT_VERSION}\n\n"
+
+  printf "${BLUE}Step 10: Update awesome-copilot${RESET}\n"
+  printf "\nThe awesome-copilot listing pins a version and commit SHA. Open a PR to\n"
+  printf "github/awesome-copilot that updates the crowdstrike-falcon-fusion entry in both\n"
+  printf "plugins/external.json and .github/plugin/marketplace.json:\n"
+  printf "  version: ${NEXT_VERSION}\n"
+  printf "  ref:     v${NEXT_VERSION}\n"
+  printf "  sha:     \$(git rev-parse v${NEXT_VERSION}^{commit})\n\n"
+  printf "See \"Updating listed external plugins via PR\" in their CONTRIBUTING.md.\n\n"
   printf "${GREEN}Done.${RESET}\n"
 }
 

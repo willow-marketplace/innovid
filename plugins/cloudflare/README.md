@@ -19,7 +19,7 @@ Start a new Codex session after installation.
 
 ### Claude Code
 
-Install using the [plugin marketplace](https://code.claude.com/docs/en/discover-plugins#add-from-github):
+Install using the [plugin marketplace](https://code.claude.com/docs/en/plugins/install#add-a-marketplace):
 
 ```
 /plugin marketplace add cloudflare/skills
@@ -58,7 +58,7 @@ Clone this repo and copy the skill folders into the appropriate directory for yo
 | Cursor | `~/.cursor/skills/` | [docs](https://cursor.com/docs/context/skills) |
 | OpenCode | `~/.config/opencode/skills/` | [docs](https://opencode.ai/docs/skills/) |
 | OpenAI Codex | `~/.codex/skills/` | [docs](https://developers.openai.com/codex/skills/) |
-| Pi | `~/.pi/agent/skills/` | [docs](https://github.com/badlogic/pi-mono/tree/main/packages/coding-agent#skills) |
+| Pi | `~/.pi/agent/skills/` | [docs](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/skills.md) |
 
 ## Skills
 
@@ -67,19 +67,27 @@ Skills are contextual and auto-loaded based on your conversation. When a request
 | Skill | Useful for |
 |-------|------------|
 | cloudflare | Helps agents discover which Cloudflare products fit their needs, then find the right skills and docs |
+| basin | Building analytics workflows with Basin Pipelines, Basin Catalog, and Basin SQL; includes the Data Platform rebrand |
+| k2 | Building durable K2 Streams with HTTP or Worker producers and subscription consumers |
+| frameworks-on-cloudflare | Astro, SvelteKit, React Router, TanStack Start, Nuxt, Hono, and SPAs on Workers; routes to each framework's Workers guide and agent guidance |
 | nextjs-on-cloudflare | Next.js on Workers with vinext; routes to vinext's upstream skills and docs |
 | agents-sdk | Building stateful AI agents with state, scheduling, RPC, MCP servers, email, and streaming chat |
 | durable-objects | Stateful coordination (chat rooms, games, booking), RPC, SQLite, alarms, WebSockets |
 | sandbox-next | Sandbox on `@cloudflare/sandbox@next` (1.0 preview); recommended for new projects |
 | sandbox-stable | Sandbox on the current stable `@cloudflare/sandbox` package |
 | sandbox-migrate-to-next | Port a stable Sandbox app to `@cloudflare/sandbox@next` |
+| cf-cli | Finding and running Cloudflare CLI (`cf`) commands, and choosing between `cf` and Wrangler |
 | wrangler | Deploying and managing Workers, KV, R2, D1, Vectorize, Queues, Workflows |
+| cloudflare-app-bootstrap | Getting a new or checked-out app to a working local request: bindings, secrets, initial data, and verification |
 | workers-best-practices | Writing, reviewing, or configuring production Workers |
+| workers-development | Local development and debugging with Local Explorer: binding data, traces, and logs; routes deployed-Worker debugging to observability |
+| workers-profiling | Profiling CPU usage and allocation hotspots in deployed Workers and Durable Objects |
 | cloudflare-email-service | Implementing or troubleshooting Email Sending, Email Routing, and delivery configuration |
 | turnstile-spin | Setting up, repairing, or migrating Turnstile bot verification, including server-side Siteverify |
 | web-perf | Auditing Core Web Vitals (FCP, LCP, TBT, CLS), render-blocking resources, network chains |
-| cloudflare-one | Designing, configuring, troubleshooting, or reviewing [Cloudflare One](https://developers.cloudflare.com/cloudflare-one/) deployments across Access, Gateway, WARP, Tunnel, Magic WAN, DLP, CASB, posture, and identity |
+| cloudflare-one | Designing, configuring, troubleshooting, or reviewing [Cloudflare One](https://developers.cloudflare.com/cloudflare-one/) deployments across Access, Gateway, WARP, Tunnel, Magic WAN, DLP, CASB, posture, and identity, including service-token access for agents and other non-browser clients |
 | cloudflare-one-migrations | Migration assessments, policy mapping, rollout plans, and gap analysis for Zscaler, Palo Alto, legacy VPN/SWG, and SASE migrations to Cloudflare One |
+| gateway-workers | Writing and reviewing Workers invoked by the Forward action in Gateway HTTP policies |
 
 ## MCP Servers
 

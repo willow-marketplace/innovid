@@ -1,10 +1,30 @@
 > AI agents: this is one page from PostHog's docs. Full index of Markdown docs for LLMs: https://posthog.com/llms.txt
 
-# SvelteKit Error Tracking installation - Docs
+# SvelteKit Error Tracking installation
 
-Copy page
+Canonical URL: https://posthog.com/docs/error-tracking/installation/svelte
 
-# SvelteKit Error Tracking installation - Docs
+> **Cloud region:** This page uses US Cloud hosts. For an EU Cloud project, use `https://eu.i.posthog.com` instead of `https://us.i.posthog.com` (ingestion host), and use `https://eu.posthog.com` instead of `https://app.posthog.com` (app host for links).
+
+## On this page
+
+- [Install with the wizard](#install-with-the-wizard)
+- [Install the package](#install-the-package)
+- [Initialize PostHog](#initialize-posthog)
+- [Server-side setup](#server-side-setup)
+- [Send events](#send-events)
+- [Set up client-side exception capture](#set-up-client-side-exception-capture)
+- [Set up server-side exception capture](#set-up-server-side-exception-capture)
+- [Verify error tracking](#verify-error-tracking)
+- [Upload source maps](#upload-source-maps)
+
+## Install with the wizard
+
+Run this command in your project directory to add PostHog to your SvelteKit project. The wizard detects your framework, installs the SDK, and sets up your first events.
+
+`npx @posthog/wizard`
+
+Or set it up manually by following the rest of this guide.
 
 1.  1
 
@@ -14,30 +34,28 @@ Copy page
 
     Install the PostHog JavaScript library using your package manager:
 
-    PostHog AI
-
     ### npm
 
     ```bash
-    npm install posthog-js
+    npm install posthog-js@1
     ```
 
     ### yarn
 
     ```bash
-    yarn add posthog-js
+    yarn add posthog-js@1
     ```
 
     ### pnpm
 
     ```bash
-    pnpm add posthog-js
+    pnpm add posthog-js@1
     ```
 
     ### bun
 
     ```bash
-    bun add posthog-js
+    bun add posthog-js@1
     ```
 
 2.  2
@@ -50,22 +68,22 @@ Copy page
 
     src/routes/+layout.js
 
-    PostHog AI
-
     ```javascript
     import posthog from 'posthog-js'
     import { browser } from '$app/environment';
     import { onMount } from 'svelte';
+    
     export const load = async () => {
       if (browser) {
         posthog.init(
           '<ph_project_token>',
           {
             api_host: 'https://us.i.posthog.com',
-            defaults: '2026-05-30'
+            defaults: '2026-08-30'
           }
         )
       }
+    
       return
     };
     ```
@@ -82,46 +100,45 @@ Copy page
 
     Install `posthog-node` using your package manager:
 
-    PostHog AI
-
     ### npm
 
     ```bash
-    npm install posthog-node --save
+    npm install posthog-node@5 --save
     ```
 
     ### yarn
 
     ```bash
-    yarn add posthog-node
+    yarn add posthog-node@5
     ```
 
     ### pnpm
 
     ```bash
-    pnpm add posthog-node
+    pnpm add posthog-node@5
     ```
 
     ### bun
 
     ```bash
-    bun add posthog-node
+    bun add posthog-node@5
     ```
 
     Then, initialize the PostHog Node client where you'd like to use it on the server side. For example, in a load function:
 
     routes/+page.server.js
 
-    PostHog AI
-
     ```javascript
     import { PostHog } from 'posthog-node';
+    
     export async function load() {
       const posthog = new PostHog('<ph_project_token>', { host: 'https://us.i.posthog.com' });
+    
       posthog.capture({
         distinctId: 'distinct_id_of_the_user',
         event: 'event_name',
       })
+    
       await posthog.shutdown()
     }
     ```
@@ -140,8 +157,6 @@ Copy page
 
     JavaScript
 
-    PostHog AI
-
     ```javascript
     posthog.capture('my_custom_event', { property: 'value' })
     ```
@@ -157,8 +172,6 @@ Copy page
     Capture exceptions in the `handleError` callback in your client-side hooks file:
 
     src/hooks.client.js
-
-    PostHog AI
 
     ```javascript
     import posthog from 'posthog-js';
@@ -180,8 +193,6 @@ Copy page
     To capture exceptions on the server-side, you will also need to implement the `handleError` callback:
 
     src/hooks.server.ts
-
-    PostHog AI
 
     ```javascript
     import type { HandleServerError } from '@sveltejs/kit';
@@ -206,7 +217,7 @@ Copy page
 
     Before proceeding, let's make sure exception events are being captured and sent to PostHog. You should see events appear in the activity feed.
 
-    ![Activity feed with events](https://res.cloudinary.com/dmukukwp6/image/upload/SCR_20250729_ouxl_f788dd8cd2.png)![Activity feed with events](https://res.cloudinary.com/dmukukwp6/image/upload/SCR_20250729_owae_7c3490822c.png)
+    ![Activity feed with events](https://res.cloudinary.com/dmukukwp6/image/upload/SCR_20250729_ouxl_f788dd8cd2.png)
 
     [Check for exceptions in PostHog](https://app.posthog.com/activity/explore)
 
@@ -220,12 +231,4 @@ Copy page
 
     Let's continue to the next section.
 
-    [Upload source maps](/docs/error-tracking/upload-source-maps/web.md)
-
-### Still have questions?
-
-Ask PostHog AI
-
-### Was this page useful?
-
-HelpfulCould be better
+    [Upload source maps](https://posthog.com/docs/error-tracking/upload-source-maps/web.md)

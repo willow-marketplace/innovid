@@ -5,7 +5,7 @@ title: "Fresh ideas and new connections at the AWS Founders Retreat"
 
 ## Fresh ideas and new connections at the AWS Founders Retreat
 
-**AWS Impact Bootcamp**
+> **AWS Impact Bootcamp**
 
 For founders, access to the right networks is an invaluable resource. Busy startups rarely have the time and space to pause, build their community, and test their thinking with investors and peers.
 

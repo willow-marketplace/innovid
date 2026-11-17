@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Carta Workhub</title>
   <!-- Tools this artifact calls, declared up front so Cowork does not prompt per
-       call. mutate is the send; without it every Send shows a permission dialog. -->
+       call. call_tool is the send; without it every Send shows a permission dialog. -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap">
@@ -29,7 +29,7 @@
 
   <!-- Page header -->
   <h1 class="page-title">Carta Workhub<span class="far-beta">Beta</span></h1>
-  <p class="page-subtitle">Start work with your Carta team, and track it here. This list covers requests sent through Claude only — tasks created in email, phone, or in the Carta app will not appear here yet.<span id="far-firm" class="far-firm"></span></p>
+  <p class="page-subtitle">Start work with your Carta team, and track it here.<span id="far-firm" class="far-firm"></span></p>
 
   <!-- Update banner — rendered by version-check.js when a newer build is published -->
   <div id="update-banner-slot"></div>
@@ -40,44 +40,36 @@
       <button class="far-btn-primary" id="far-compose-open" onclick="openFarCompose()"><span class="far-compose-icon" aria-hidden="true">&#9998;</span> Compose</button>
     </div>
 
-    <div class="far-sort-wrap" id="far-sort-wrap" style="display:none">
-      <label class="far-sort-label" for="far-sort">Sort by</label>
-      <select class="far-sort" id="far-sort" onchange="farSetSort(this.value)">
-        <option value="newest">Newest first</option>
-        <option value="oldest">Oldest first</option>
-      </select>
-      <button class="far-view-btn" id="far-view-btn" onclick="farToggleView()" aria-label="Switch to list view"></button>
+    <div class="far-toolbar">
+      <nav class="far-tabs" id="far-tabs" aria-label="Work status"></nav>
+      <div class="far-sort-wrap" id="far-sort-wrap">
+        <label class="far-sort-label" for="far-sort">Sort by</label>
+        <select class="far-sort" id="far-sort" onchange="farSetSort(this.value)">
+          <option value="newest">Newest first</option>
+          <option value="oldest">Oldest first</option>
+        </select>
+        <button class="far-view-btn" id="far-view-btn" onclick="farToggleView()" aria-label="Switch to list view"></button>
+      </div>
     </div>
 
-    <div id="far-list-view" style="display:none"></div>
-
-    <div class="far-group" id="far-group-planned" style="display:none">
-      <p class="far-group-label">Planned &middot; <span class="far-group-count">0</span><span
-          class="far-tip"><button type="button" class="far-tip-btn" id="far-plan-tip-btn"
-          aria-describedby="far-plan-tip" aria-label="How planned requests are stored">?</button><span
-          class="far-tip-body" id="far-plan-tip" role="tooltip"></span></span></p>
-      <div class="far-cards" id="far-cards-planned"></div>
+    <div class="far-desc-row">
+      <p class="far-tab-desc" id="far-tab-desc"></p>
+      <div class="far-refresh" id="far-refresh" style="display:none">
+        <span class="far-refresh-status" id="far-refresh-status" role="status" aria-live="polite"></span>
+        <button type="button" class="far-refresh-btn" id="far-refresh-btn" onclick="farRefreshClick()" aria-label="Refresh" title="Refresh">
+          <svg class="far-refresh-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v5h-5"/></svg>
+        </button>
+      </div>
     </div>
-
-    <div class="far-group" id="far-group-todo" style="display:none">
-      <p class="far-group-label">Tasks to complete &middot; <span class="far-group-count">0</span></p>
-      <div class="far-cards" id="far-cards-todo"></div>
+    <div class="far-chips" id="far-chips" style="display:none"></div>
+    <div class="far-load-error" id="far-load-error" role="alert" style="display:none"></div>
+    <div class="far-loading" id="far-loading" role="status" aria-live="polite">
+      <span class="far-spinner" aria-hidden="true"></span>Loading your tasks…
     </div>
-
-    <div class="far-group" id="far-group-progress" style="display:none">
-      <p class="far-group-label">In progress &middot; <span class="far-group-count">0</span></p>
-      <div class="far-cards" id="far-cards-progress"></div>
-    </div>
-
-    <div class="far-group" id="far-group-done" style="display:none">
-      <p class="far-group-label far-group-label-toggle" onclick="toggleFarDone()">
-        <span id="far-done-toggle">&#9656;</span> Completed &middot; <span class="far-group-count">0</span>
-      </p>
-      <div class="far-done-list" id="far-cards-done" style="display:none"></div>
-    </div>
+    <div class="far-groups" id="far-groups"></div>
 
     <p class="far-empty" id="far-empty" style="display:none">
-      Nothing open right now. Use Compose to send your Carta team something.
+      Nothing here right now. Use Compose to send your Carta team something.
     </p>
 
     <p class="far-partial-note" id="far-partial-note" style="display:none">

@@ -25,7 +25,7 @@ AWS supports three types of MFA devices: virtual MFA devices, U2F security keys,
 
 You can also consult the AWS Identity and Access Management [user guide](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_mfa.html) for more information on using MFA.
 
-Since MFA is so important, AWS will also provide an MFA device at no cost to qualified account holders. You will be able to use MFA devices to safely access multiple AWS accounts, as well as other token-enabled applications. You can read more about our security initiatives [here](https://aws.amazon.com/security/amazon-security-initiatives/).
+Since MFA is so important, AWS will also provide an MFA device at no cost to qualified account holders. You will be able to use MFA devices to safely access multiple AWS accounts, as well as other token-enabled applications. You can read more about our security initiatives [on the Amazon security initiatives page](https://aws.amazon.com/security/amazon-security-initiatives/).
 
 ## Try it yourself
 

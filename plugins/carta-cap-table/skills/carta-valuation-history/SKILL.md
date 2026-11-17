@@ -1,10 +1,10 @@
 ---
 name: carta-valuation-history
-description: Fetch a company's valuation history and current fair market value (FMV) — 409A, EMI, CSOP or share price. Use for questions about valuations, FMV, exercise prices, or expiry. Not for cross-portfolio comparisons — prefer a portfolio-benchmarks skill.
+description: "See a company's 409A and other valuations, and when the current one expires. Covers valuation history and current fair market value (FMV): 409A, EMI, CSOP or share price. Use for questions about valuations, FMV, exercise prices, or expiry. Not for cross-portfolio comparisons — prefer a portfolio-benchmarks skill."
 ---
 
 <!-- carta:plugin-version -->
-<carta-plugin>carta-cap-table:6.85.6</carta-plugin>
+<carta-plugin>carta-cap-table:6.114.20</carta-plugin>
 
 <!-- Part of the official Carta AI Agent Plugin -->
 
@@ -12,122 +12,65 @@ description: Fetch a company's valuation history and current fair market value (
 
 Fetch a company's fair market value (FMV) history.
 
-**FMV is not always a 409A.** A 409A is the US instrument; a UK company is valued under an
-**EMI** or **CSOP** agreement with HMRC, and other companies use a **share-price** report.
-Read whichever the company actually has, and never tell a company with a valid EMI valuation
-that it has none.
+**FMV is not always a 409A.** A 409A is the US instrument; a UK company is valued under an **EMI** or **CSOP** agreement with HMRC, and other companies use a **share-price** report. Read whichever the company actually has, and never tell a company with a valid EMI valuation that it has none.
 
 ## When to Use
 
 - "What's our current valuation?" / "What's the current 409A?"
-- "Show me the FMV history"
-- "When does the valuation expire?"
+- "Show me the FMV history" / "Has the FMV changed recently?"
+- "When does the valuation expire?" / "Is the valuation still valid?"
 - "What's the exercise price for common stock?"
-- "Has the FMV changed recently?"
-- "Is the valuation still valid?"
 
 ## Prerequisites
 
-You need the `corporation_id`. Get it from `list_accounts` if you don't have it.
+Do not call `list_accounts` or ask which company before the first read: Carta finds the company. Reuse the company already resolved in this conversation unless this prompt names or numbers another. Else send the numeric id the user gave, else the company name as the user said it, else no `corporation_id` (Carta uses the user's only company). On an error, and for later calls, follow `${CLAUDE_PLUGIN_ROOT}/references/find-the-company.md` (the plugin's own `references/`, not this skill's; read it by that path, do not search for it). Its reads are cap table reads: reuse `meta.company.id` on later calls.
 
 ## Data Retrieval
 
 ```
-call_tool({"name": "cap_table__get__valuations", "arguments": {"corporation_id": corporation_id}})
+read_tool({"name": "cap_table__get__valuations", "arguments": {"corporation_id": corporation_id}})
 ```
 
-Optional `valuation_source` filters to one or more of `EMI`, `CSOP`, `409A`, `SHARE_PRICE`.
-Omit it — the point of this command is that it covers every source at once.
-
-### Response Format
-
-```json
-{
-  "count": 2,
-  "active": [
-    {
-      "price": "0.500000000000",
-      "currency": "GBP",
-      "valuation_type": "AMV",
-      "support_reference_type": "EMI_VALUATION_REPORT",
-      "effective_date": "2026-01-15",
-      "expiration_date": "2027-01-14",
-      "share_class_name": "Ordinary",
-      "status": "ACTIVE"
-    }
-  ],
-  "history": []
-}
-```
-
-`history` holds every row including expired ones; `active` is the subset the server considers
-live.
+Optional `valuation_source` filters to one or more of `EMI`, `CSOP`, `409A`, `SHARE_PRICE`. Omit it — the point of this command is that it covers every source at once.
 
 ## Key Fields
 
-- `price`: FMV per share, a high-precision decimal string (e.g. `"0.500000000000"`)
+The response is `{count, active: [...], history: [...]}`. `history` holds every row including expired ones; `active` is the subset the server considers live. Each row has:
+
+- `price`: FMV per share, a high-precision decimal string (e.g. `"0.500000000000"`) — parse it and trim trailing zeros before display
 - `currency`: ISO code for **this row** — read it per row, never assume
 - `valuation_type`: `AMV`, `UMV`, `FMV`, or `SHARE_PRICE`
 - `support_reference_type`: which instrument the row came from (409A / EMI / CSOP / share price)
 - `effective_date` / `expiration_date`: ISO `YYYY-MM-DD`
 - `status`: `ACTIVE` or `EXPIRED`, computed server-side
 - `share_class_name`: e.g. "Common", "Ordinary"
+- `share_class_type`: `COMMON` or `PREFERRED`. An option's exercise (strike) price comes from a `COMMON` row
 
-### AMV and UMV
-
-A single HMRC valuation produces **two** prices, both live at once:
-
-- **AMV** — actual market value, discounted for restrictions on the shares
-- **UMV** — unrestricted market value
-
-They are not duplicates and one is not "the real one". Show both, labelled. If asked which
-applies to a specific grant, say that depends on the grant's terms and point the user to their
-equity advisor — the data does not record it, and the two carry different tax outcomes.
-
-## Fallback
-
-If `cap_table__get__valuations` is unavailable for the company, fall back to
-`cap_table__get__409a_valuations`, which returns `{count, current_409a, history}` for US 409A
-data only. That response has **no currency field** — present its prices unlabelled rather than
-assuming a symbol, and check `current_409a.is_expired` before calling it current.
+**AMV and UMV.** A single HMRC valuation produces **two** prices, both live at once: **AMV** (actual market value, discounted for restrictions on the shares) and **UMV** (unrestricted market value). They are not duplicates and one is not "the real one". Show both, labelled. If asked which applies to a specific grant, say that depends on the grant's terms and point the user to their equity advisor — the data does not record it, and the two carry different tax outcomes.
 
 ## Workflow
 
 ### Step 1 — Fetch Valuations
 
-```
-call_tool({"name": "cap_table__get__valuations", "arguments": {"corporation_id": corporation_id}})
-```
+Call `cap_table__get__valuations` once, as in Data Retrieval.
 
 ### Step 2 — Identify the Current Valuation
 
-Use `active`. Do **not** re-derive live-vs-expired from dates: the server applies per-source
-rules (a share-price report has its own state; a null expiration means open-ended) that a date
-comparison gets wrong.
+Use `active`. Do **not** re-derive live-vs-expired from dates: the server applies per-source rules (a share-price report has its own state; a null expiration means open-ended) that a date comparison gets wrong. Where you do sort, sort on **parsed dates**, never raw strings.
 
-Where you do sort, sort on **parsed dates**, never raw strings. These are ISO so they happen to
-sort correctly, but the 409A fallback returns `MM/DD/YYYY`, where a string sort is month-major
-and ranks `12/01/2023` above `04/25/2025`.
-
-If `active` holds more than one row, they are all current — an AMV/UMV pair, or several share
-classes. Present them all rather than picking one.
+If `active` holds more than one row, they are all current — an AMV/UMV pair, or several share classes. Present them all rather than picking one. If `active` is empty, say there is no current valuation, and lead with the latest expired row, flagged as expired.
 
 ### Step 3 — Check Expiration
 
-- Within 90 days of today — **flag as a time-sensitive action item**, not just a data point:
-  bold it, give the exact days remaining, and recommend starting renewal now (especially if a
-  financing round is in progress, since closing will likely push past the expiry date).
-- Already past — flag as expired.
+- Within 90 days of today — **flag as a time-sensitive action item**, not just a data point: bold it, give the exact days remaining, and recommend starting renewal now (especially if a financing round is in progress, since closing will likely push past the expiry date).
+- Already past — flag as expired, and say it must not be used to price new grants.
 - No `expiration_date` — say it does not expire on a fixed date rather than inferring one.
 
-### Step 4 — Present Results
-
-Show the history table and trend summary (see Presentation section).
+Then present the results as in Presentation.
 
 ## Gates
 
-**Required inputs**: `corporation_id`.
-If missing, call `AskUserQuestion` before proceeding (see carta-interaction-reference §4.1).
+**Required inputs**: none before the first read. The company comes from Prerequisites (omitted, a name, or `meta.company.id`).
 
 **AI computation**: No — this skill presents Carta data directly.
 
@@ -135,16 +78,13 @@ If missing, call `AskUserQuestion` before proceeding (see carta-interaction-refe
 
 **Format**: Table + trend summary
 
-**BLUF lead**: Lead with the current FMV per share — with its currency and source — and its
-effective/expiration dates, before showing the history table.
+**BLUF lead**: Lead with the current FMV per share — with its currency and source — and its effective/expiration dates, before showing the history table.
 
 **Sort order**: By `effective_date` descending (most recent first).
 
 **Date format**: MMM d, yyyy (e.g. "Jan 15, 2026").
 
-**Currency**: format `price` with **the row's own `currency`**, trimming trailing zeros. Never
-hardcode a `$`, and never default to USD — a GBP valuation shown as dollars is a reporting
-error, not a cosmetic one.
+**Currency**: format `price` with **the row's own `currency`**. Never default to USD — a GBP valuation shown as dollars is a reporting error, not a cosmetic one. Put the ISO code before every amount (`USD 23.71`), in the table and in the prose, also when all rows are in USD. Do not use a currency symbol such as `$` or `£`.
 
 | Effective | Expires | FMV/Share | Type | Source | Share Class | Status |
 |-----------|---------|-----------|------|--------|-------------|--------|
@@ -152,29 +92,23 @@ error, not a cosmetic one.
 | Jan 15, 2026 | Jan 14, 2027 | GBP 0.75 | UMV | EMI | Ordinary | Current |
 | Apr 25, 2024 | Apr 24, 2025 | USD 12.61 | FMV | 409A | Common | Expired |
 
-Drop the Type and Source columns when every row shares the same values (a US-only company gets
-back its familiar 409A table).
+Drop the Type and Source columns when every row shares the same values (a US-only company gets back its familiar 409A table). If multiple share classes exist, group by share class name.
 
-Do not render a bar chart for FMV history — values in mature companies cluster near the
-maximum, making bars uninformative (all bars look the same width). The table is sufficient.
-Instead, after the table, add a one-line trend summary:
+Do not make a chart, also when the user asks for one: no text bars, no script and no file. FMV values in mature companies cluster near the maximum, so every bar looks the same. When the user asks for a chart, show the table and say in one sentence that this skill shows FMV history as a table. After the table, add a one-line trend summary:
 > FMV has grown **Nx since YYYY**, with [acceleration/steady growth] since [year].
 
-**Only compare like with like.** A growth multiple across two different currencies is
-meaningless, and so is one that mixes an AMV with a UMV. Compute the trend within a single
-currency *and* a single `valuation_type`; if the series spans more than one, give a separate
-line for each or omit the trend entirely.
+**Only compare like with like.** A growth multiple across two currencies, or one that mixes an AMV with a UMV, is meaningless. Compute the trend within a single currency *and* a single `valuation_type`; if the series spans more than one, give a line for each or omit the trend.
 
-If multiple share classes exist, group by share class name in the table.
+## Error Handling
+
+| Situation | What to do |
+|---|---|
+| 403, `role_required` or access denied | Say the user's role can't see this company's valuations. Do not retry, and do not call the 409A-only fallback. |
+| `Unknown tool` or a server error for `cap_table__get__valuations` | Read `${CLAUDE_PLUGIN_ROOT}/skills/carta-valuation-history/references/409a-fallback.md` (this skill's own `references/`; read it by that path, do not search for it) and follow it. |
+| Response too large on a grants, notes or data warehouse read | This skill needs only the valuations command. For a list of grants or notes, use carta-reporting. |
+| Company error | Follow *Company errors* in `${CLAUDE_PLUGIN_ROOT}/references/find-the-company.md`. |
 
 ## Caveats
 
-- The `price` field is a string with many trailing zeros — always parse and format before
-  displaying.
-- A valuation with a past `expiration_date` should never be used for new grant pricing. Flag it
-  prominently.
-- Valuations are point-in-time snapshots — a material event (e.g. a new financing round) can
-  invalidate a current valuation before its expiration date.
-- This skill reads valuations; it cannot create or update one. Route those requests to the
-  Carta app — for a non-US company that is the international valuations dashboard, not the 409A
-  ledger.
+- Valuations are point-in-time snapshots — a material event (e.g. a new financing round) can invalidate a current valuation before its expiration date.
+- This skill reads valuations; it cannot create or update one. Route those requests to the Carta app — for a non-US company that is the international valuations dashboard, not the 409A ledger.

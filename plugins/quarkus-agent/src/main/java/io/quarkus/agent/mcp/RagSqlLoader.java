@@ -25,6 +25,7 @@ import java.sql.Statement;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.HexFormat;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -57,6 +58,16 @@ public class RagSqlLoader {
 
     private static final Logger LOG = Logger.getLogger(RagSqlLoader.class);
 
+    /**
+     * Database system identifier -&gt; (source -&gt; fingerprint this server loaded into it). The
+     * database's own {@code rag_sources} table is what decides whether something is loaded; this
+     * only stops servers sharing a container from repeatedly overwriting each other's content.
+     */
+    private final Map<String, Map<String, String>> loadedHere = new ConcurrentHashMap<>();
+
+    /** How long to wait for another server's load before giving up; below the 5-minute warm-up watchdog. */
+    Duration loadLockTimeout = Duration.ofMinutes(4);
+
     @Inject
     WebClient webClient;
 
@@ -78,6 +89,8 @@ public class RagSqlLoader {
     private static final String CORE_GROUP_ID = "io.quarkus";
     private static final String RAG_DOCUMENTS_TABLE = "rag_documents";
     private static final String RAG_SOURCES_TABLE = "rag_sources";
+    /** Advisory lock key serializing RAG loads across MCP servers sharing a container. */
+    private static final long LOAD_LOCK_KEY = 0x71_6167_6e74_4d43L;
 
     private static final String CREATE_EXTENSION_DDL = "CREATE EXTENSION IF NOT EXISTS vector";
     private static final String CREATE_TABLE_DDL = """
@@ -108,7 +121,8 @@ public class RagSqlLoader {
             "metadata\\s*->>\\s*'source'\\s*=\\s*'([^']+)'");
     /**
      * A row's source: {@code source} must be the metadata object's first key, as the generator
-     * emits it and as {@link #EXTENSION_FROM_SOURCE_PATTERN} already assumes. Matching a bare
+     * emits it, as {@link #EXTENSION_FROM_SOURCE_PATTERN} already assumes, and as
+     * {@link #appendSourceAndExtension} keeps it when rewriting a row. Matching a bare
      * {@code "source": "..."} anywhere would also hit JSON quoted inside a guide's own text -
      * the core docs artifact contains a platform-descriptor example that does exactly that -
      * and every source matched here is one a reload deletes rows for first, so a phantom that
@@ -117,6 +131,7 @@ public class RagSqlLoader {
     private static final Pattern ROW_SOURCE_PATTERN = Pattern.compile("\\{\"source\"\\s*:\\s*\"([^\"]+)\"");
     private static final Pattern EXTENSION_FROM_SOURCE_PATTERN = Pattern.compile(
             "'\\{\"source\":\"([^\"]+)\"");
+    private static final Pattern EXTENSIONS_KEY_PATTERN = Pattern.compile("\"extensions\":\"([^\"]*)\"");
     private static final String VERSION_KEY = ",\"version\":";
     private static final String QUARKUS_VERSION_KEY = ",\"quarkus_version\":";
 
@@ -141,15 +156,15 @@ public class RagSqlLoader {
         return entry != null ? entry : jar.getJarEntry(RAG_SQL_PATH);
     }
 
-    /** versionKey -&gt; (source -&gt; fingerprint of the fragment currently loaded for it). */
-    private final Map<String, Map<String, String>> loadedFingerprints = new ConcurrentHashMap<>();
-
     /**
      * Ensures RAG data is loaded for the given Quarkus version.
      * Discovers SQL fragments from core and non-core extension JARs, and loads
      * those that are new or whose content has changed since they were last loaded.
-     * On first call for a version with a reused container, seeds tracking
-     * from the database to avoid redundant loading.
+     * <p>
+     * What is loaded is always read from the database's {@code rag_sources} table, never kept in
+     * memory: the container can be shared with other MCP servers or replaced underneath this one,
+     * and only the database knows what it actually holds. Schema creation and loading run under
+     * one advisory lock, so servers sharing a container take turns instead of deadlocking.
      */
     public void ensureLoaded(String quarkusVersion, String projectDir,
             String host, int port, String database, String user, String password) {
@@ -157,35 +172,41 @@ public class RagSqlLoader {
         String jdbcUrl = "jdbc:postgresql://" + host + ":" + port + "/" + database;
         LOG.infof("RAG ensureLoaded: starting for version=%s, projectDir=%s", versionKey, projectDir);
 
-        ensureSchema(jdbcUrl, user, password);
-
+        // Discovery reads jars and may resolve Maven artifacts, so it runs before taking the lock
         String resolvedVersion = quarkusVersion != null ? quarkusVersion : detectLatestInstalledVersion();
+        List<RagFragment> allFragments = List.of();
         if (resolvedVersion == null) {
             LOG.warn("Could not determine Quarkus version for RAG loading — no SQL fragments will be loaded");
-            return;
+        } else {
+            long discoverStart = System.currentTimeMillis();
+            allFragments = discoverSqlFragments(resolvedVersion, projectDir);
+            LOG.infof("RAG ensureLoaded: discovered %d fragment(s) for %s in %d ms", allFragments.size(),
+                    resolvedVersion, System.currentTimeMillis() - discoverStart);
+            if (allFragments.isEmpty()) {
+                LOG.infof("No RAG SQL fragments found for Quarkus %s", resolvedVersion);
+            }
         }
 
-        long discoverStart = System.currentTimeMillis();
-        List<RagFragment> allFragments = discoverSqlFragments(resolvedVersion, projectDir);
-        LOG.infof("RAG ensureLoaded: discovered %d fragment(s) for %s in %d ms", allFragments.size(),
-                resolvedVersion, System.currentTimeMillis() - discoverStart);
-        if (allFragments.isEmpty()) {
-            LOG.infof("No RAG SQL fragments found for Quarkus %s", resolvedVersion);
-            return;
-        }
+        List<RagFragment> fragments = allFragments;
+        withLoadLock(jdbcUrl, user, password, () -> {
+            ensureSchema(jdbcUrl, user, password);
+            if (!fragments.isEmpty()) {
+                loadStaleFragments(versionKey, resolvedVersion, fragments, jdbcUrl, user, password);
+            }
+        });
+    }
 
-        Map<String, String> loaded = loadedFingerprints.computeIfAbsent(versionKey,
+    void loadStaleFragments(String versionKey, String resolvedVersion, List<RagFragment> allFragments,
+            String jdbcUrl, String user, String password) {
+        Map<String, String> inDatabase = queryLoadedFingerprints(jdbcUrl, user, password);
+        Map<String, String> loadedByUs = loadedHere.computeIfAbsent(databaseId(jdbcUrl, user, password),
                 k -> new ConcurrentHashMap<>());
-
-        // On first call for this version, seed from the database (handles container reuse)
-        if (loaded.isEmpty()) {
-            loaded.putAll(queryLoadedFingerprints(jdbcUrl, user, password));
-        }
 
         List<StaleFragment> staleFragments = new ArrayList<>();
         for (RagFragment fragment : allFragments) {
             String fingerprint = fingerprint(resolvedVersion, fragment);
-            if (fingerprint != null && !fingerprint.equals(loaded.get(fragment.source()))) {
+            if (fingerprint != null && needsLoading(fingerprint, inDatabase.get(fragment.source()),
+                    loadedByUs.get(fragment.source()))) {
                 staleFragments.add(new StaleFragment(fragment, fingerprint));
             }
         }
@@ -198,9 +219,42 @@ public class RagSqlLoader {
 
         if (loadSql(jdbcUrl, user, password, staleFragments, resolvedVersion)) {
             for (StaleFragment stale : staleFragments) {
-                loaded.put(stale.fragment().source(), stale.fingerprint());
+                loadedByUs.put(stale.fragment().source(), stale.fingerprint());
             }
         }
+    }
+
+    /**
+     * Whether to load a fragment, given what the database holds for its source and what this
+     * server last loaded into this same database. Missing sources are always loaded, as is content
+     * that differs from what is there. The exception: servers sharing a container can want
+     * different content for the same source (different versions of an extension in their
+     * projects), and once this server has loaded its content it does not overwrite another
+     * server's again, or the two would keep replacing each other's rows.
+     */
+    static boolean needsLoading(String wanted, String inDatabase, String loadedByUs) {
+        if (inDatabase == null) {
+            return true;
+        }
+        return !wanted.equals(inDatabase) && !wanted.equals(loadedByUs);
+    }
+
+    /**
+     * Identifies the database itself rather than its address: Postgres's system identifier is
+     * generated when the data directory is created, so a replaced container gets a new one even if
+     * it ends up on the same host port. Falls back to the address if it cannot be read.
+     */
+    private static String databaseId(String jdbcUrl, String user, String password) {
+        try (Connection conn = DriverManager.getConnection(jdbcUrl, user, password);
+                Statement stmt = conn.createStatement();
+                ResultSet rs = stmt.executeQuery("SELECT system_identifier FROM pg_control_system()")) {
+            if (rs.next()) {
+                return rs.getString(1);
+            }
+        } catch (SQLException e) {
+            LOG.debugf("Could not read the database's system identifier: %s", e.getMessage());
+        }
+        return jdbcUrl;
     }
 
     /** A fragment that needs (re)loading, and the fingerprint to record once it is loaded. */
@@ -362,13 +416,32 @@ public class RagSqlLoader {
         return fragments;
     }
 
-    private List<RagFragment> scanNonCoreExtensionJars(Path m2Repo, String projectDir, String quarkusVersion) {
+    /**
+     * Resolves the dependencies the non-core scan walks.
+     *
+     * <p>Unlike the skills subsystem, which exposes the same choice as
+     * {@code agent-mcp.skills.include-transitive} and defaults it to {@code false}, doc discovery
+     * always resolves transitively. The two paths have different shapes: {@code quarkus_skills} is
+     * read on every skills call in the agent loop, whereas this scan runs behind a pgvector
+     * container start and a 60s throttle, so the one-off {@code mvn dependency:list} fork is noise
+     * next to work already being done. Making it opt-in would also leave the common case broken,
+     * because an extension family that ships its RAG artifact pointer in a single module is only
+     * ever reachable transitively from an application that declares a sibling module.
+     *
+     * <p>Package-private, and taking the flag explicitly, so a test can drive the scan without
+     * forking Maven and still fail if the call site stops asking for transitive resolution.
+     */
+    List<DependencyResolver.Dependency> resolveDependencies(String projectDir, boolean includeTransitive) {
+        return DependencyResolver.resolve(projectDir, includeTransitive);
+    }
+
+    List<RagFragment> scanNonCoreExtensionJars(Path m2Repo, String projectDir, String quarkusVersion) {
         if (projectDir == null) {
             return List.of();
         }
 
         long resolveStart = System.currentTimeMillis();
-        List<DependencyResolver.Dependency> deps = DependencyResolver.resolve(projectDir);
+        List<DependencyResolver.Dependency> deps = resolveDependencies(projectDir, true);
         LOG.infof("RAG scan: resolved %d dependencies for %s in %d ms", deps.size(), projectDir,
                 System.currentTimeMillis() - resolveStart);
         if (deps.isEmpty()) {
@@ -383,6 +456,11 @@ public class RagSqlLoader {
         long scanStart = System.currentTimeMillis();
 
         List<RagFragment> fragments = new ArrayList<>();
+        // Several modules of one extension family can carry a pointer to the same RAG artifact.
+        // Resolving it once per pointing module would load the same corpus repeatedly, under a
+        // different extension name each time. Transitive resolution makes that likely enough to
+        // guard against: a family's modules are now all in `deps`, not just the declared one.
+        Set<String> seenPointers = new HashSet<>();
         int index = 0;
         int skippedDueToBudget = 0;
         for (DependencyResolver.Dependency dep : deps) {
@@ -417,33 +495,43 @@ public class RagSqlLoader {
                             pointer.groupId(), pointer.artifactId(), nonCoreScanBudgetMillis, elapsedSoFar);
                     continue;
                 }
-                long depStart = System.currentTimeMillis();
-                LOG.infof("RAG scan [%d/%d] %s:%s — resolving external RAG artifact %s:%s:%s...",
-                        index, deps.size(), dep.groupId(), dep.artifactId(),
-                        pointer.groupId(), pointer.artifactId(), dep.version());
-                RagFragment fragment = resolveExternalRagArtifact(
-                        pointer, dep.version(), m2Repo, projectDir);
-                long depElapsed = System.currentTimeMillis() - depStart;
-                if (fragment != null) {
-                    String guideUrl = readGuideUrl(m2Repo, dep);
-                    fragments.add(injectExtensionMetadata(fragment, dep.artifactId(), quarkusVersion, guideUrl));
-                    LOG.infof("RAG scan [%d/%d] %s:%s — found RAG SQL via external artifact %s:%s:%s (%d ms)",
+                String pointerKey = pointer.groupId() + ":" + pointer.artifactId();
+                if (!seenPointers.add(pointerKey)) {
+                    // Guard the external lookup only, then fall through: this module may still
+                    // ship RAG SQL of its own, and that is a different corpus to the shared
+                    // artifact an earlier module already brought in.
+                    LOG.debugf("RAG scan [%d/%d] %s:%s — RAG artifact %s already resolved via an "
+                            + "earlier dependency, not resolving it again",
+                            index, deps.size(), dep.groupId(), dep.artifactId(), pointerKey);
+                } else {
+                    long depStart = System.currentTimeMillis();
+                    LOG.infof("RAG scan [%d/%d] %s:%s — resolving external RAG artifact %s:%s:%s...",
+                            index, deps.size(), dep.groupId(), dep.artifactId(),
+                            pointer.groupId(), pointer.artifactId(), dep.version());
+                    RagFragment fragment = resolveExternalRagArtifact(
+                            pointer, dep.version(), m2Repo, projectDir);
+                    long depElapsed = System.currentTimeMillis() - depStart;
+                    if (fragment != null) {
+                        String guideUrl = readGuideUrl(m2Repo, dep);
+                        fragments.add(injectExtensionMetadata(fragment, dep.groupId(), dep.artifactId(), quarkusVersion, guideUrl));
+                        LOG.infof("RAG scan [%d/%d] %s:%s — found RAG SQL via external artifact %s:%s:%s (%d ms)",
+                                index, deps.size(), dep.groupId(), dep.artifactId(),
+                                pointer.groupId(), pointer.artifactId(), dep.version(), depElapsed);
+                        continue;
+                    }
+                    LOG.infof(
+                            "RAG scan [%d/%d] %s:%s — external RAG artifact %s:%s:%s unavailable (%d ms), "
+                                    + "falling back to deployment jar contents",
                             index, deps.size(), dep.groupId(), dep.artifactId(),
                             pointer.groupId(), pointer.artifactId(), dep.version(), depElapsed);
-                    continue;
                 }
-                LOG.infof(
-                        "RAG scan [%d/%d] %s:%s — external RAG artifact %s:%s:%s unavailable (%d ms), "
-                                + "falling back to deployment jar contents",
-                        index, deps.size(), dep.groupId(), dep.artifactId(),
-                        pointer.groupId(), pointer.artifactId(), dep.version(), depElapsed);
             }
 
             // Fallback: read RAG SQL directly from the deployment JAR
             RagFragment fragment = readFragmentFromJar(deploymentJar, dep.artifactId());
             if (fragment != null) {
                 String guideUrl = readGuideUrl(m2Repo, dep);
-                fragments.add(injectExtensionMetadata(fragment, dep.artifactId(), quarkusVersion, guideUrl));
+                fragments.add(injectExtensionMetadata(fragment, dep.groupId(), dep.artifactId(), quarkusVersion, guideUrl));
                 LOG.debugf("Found RAG SQL in non-core extension %s", dep.artifactId());
             }
         }
@@ -570,13 +658,15 @@ public class RagSqlLoader {
      * Fixes metadata in non-core extension SQL fragments. The upstream plugin generates
      * metadata assuming core Quarkus conventions; this method corrects it at load time:
      * <ul>
-     *   <li>{@code source} — replaced with the correct runtime artifact ID</li>
+     *   <li>{@code source} — replaced with the correct runtime artifact ID, unless the row comes
+     *       from a guide that declares its own extension (see {@link #declaresOwnSource})</li>
      *   <li>{@code quarkus_version} — renamed to {@code extension_version}; actual Quarkus version injected</li>
-     *   <li>{@code url} — replaced with the guide URL from {@code quarkus-extension.yaml}, or removed if wrong</li>
-     *   <li>{@code extension} — added (existing behavior)</li>
+     *   <li>{@code url} — the plugin's default quarkus.io URL replaced with the guide URL from
+     *       {@code quarkus-extension.yaml}, or removed when there is none</li>
+     *   <li>{@code extension} — added, matching the row's source</li>
      * </ul>
      */
-    static RagFragment injectExtensionMetadata(RagFragment fragment, String extensionName,
+    static RagFragment injectExtensionMetadata(RagFragment fragment, String groupId, String extensionName,
             String quarkusVersion, String guideUrl) {
         String sql = fragment.sql();
 
@@ -584,13 +674,7 @@ public class RagSqlLoader {
         sql = SOURCE_PATTERN.matcher(sql).replaceAll(
                 Matcher.quoteReplacement("metadata->>'source' = '" + extensionName + "'"));
 
-        // Fix source value in JSON metadata (source is always the first field)
-        sql = sql.replaceAll("'\\{\"source\":\"[^\"]+\"",
-                Matcher.quoteReplacement("'{\"source\":\"" + extensionName + "\""));
-
-        // Add extension field before source
-        sql = sql.replace("'{\"source\":",
-                "'{\"extension\":\"" + extensionName + "\",\"source\":");
+        sql = fixRowSources(sql, groupId, extensionName);
 
         // Rename version key to extension_version and inject correct quarkus_version.
         // Handles both old plugin format ("quarkus_version":) and new format (,"version":).
@@ -601,15 +685,69 @@ public class RagSqlLoader {
                     "\"quarkus_version\":\"" + quarkusVersion + "\",\"extension_version\":");
         }
 
-        // Fix URL: use guide URL from extension metadata, or remove wrong quarkus.io URLs
+        // Fix URL: replace wrong quarkus.io URLs with the guide URL from extension metadata, or remove them
         if (guideUrl != null) {
-            sql = sql.replaceAll("\"url\":\"[^\"]*\"",
+            sql = sql.replaceAll("\"url\":\"https://quarkus\\.io/guides/[^\"]*\"",
                     Matcher.quoteReplacement("\"url\":\"" + guideUrl + "\""));
         } else {
             sql = sql.replaceAll(",\"url\":\"https://quarkus\\.io/guides/[^\"]*\"", "");
         }
 
         return new RagFragment(extensionName, sql);
+    }
+
+    /**
+     * Sets each row's {@code source}, and the {@code extension} key placed after it, to
+     * {@code extensionName}, except for rows that {@linkplain #declaresOwnSource declare their own}.
+     * {@code source} has to stay the metadata object's first key so that {@link #ROW_SOURCE_PATTERN}
+     * still finds it: a row keeping its own source is only deleted on reload if the pattern sees it.
+     */
+    private static String fixRowSources(String sql, String groupId, String extensionName) {
+        Matcher matcher = EXTENSION_FROM_SOURCE_PATTERN.matcher(sql);
+        StringBuilder result = new StringBuilder(sql.length() + 64);
+        int lastEnd = 0;
+        while (matcher.find()) {
+            String rowSource = matcher.group(1);
+            String source = declaresOwnSource(sql, matcher.end(), groupId, rowSource) ? rowSource : extensionName;
+            result.append(sql, lastEnd, matcher.start());
+            appendSourceAndExtension(result, source);
+            lastEnd = matcher.end();
+        }
+        result.append(sql, lastEnd, sql.length());
+        return result.toString();
+    }
+
+    /**
+     * Opens a row's metadata object with {@code source} followed by the {@code extension} key the
+     * search filter matches on. {@code source} comes first because {@link #ROW_SOURCE_PATTERN} is
+     * anchored on the opening brace, and the sources it finds are the ones a reload deletes before
+     * re-running the fragment's INSERTs - a row whose source is not found keeps its old copy, and
+     * the INSERT then collides on the baked-in {@code embedding_id} primary key.
+     */
+    private static void appendSourceAndExtension(StringBuilder result, String source) {
+        result.append("'{\"source\":\"").append(source)
+                .append("\",\"extension\":\"").append(source).append('"');
+    }
+
+    /**
+     * Whether the row starting at {@code from} was generated from a guide whose {@code :extensions:}
+     * header names, first, {@code rowSource} within {@code groupId}. The plugin only writes the
+     * {@code extensions} key for such guides, so the source is the guide's own rather than a
+     * fallback guessed from its file name. The group must match because every source a fragment
+     * carries is deleted before it is reloaded: a guide naming another group's extension, such as
+     * a core one, would otherwise wipe that extension's rows.
+     */
+    private static boolean declaresOwnSource(String sql, int from, String groupId, String rowSource) {
+        int end = sql.indexOf("}'::jsonb", from);
+        if (groupId == null || end < 0) {
+            return false;
+        }
+        Matcher matcher = EXTENSIONS_KEY_PATTERN.matcher(sql).region(from, end);
+        if (!matcher.find()) {
+            return false;
+        }
+        String firstExtension = matcher.group(1).split(",")[0].trim();
+        return firstExtension.equals(groupId + ":" + rowSource);
     }
 
     private String readGuideUrl(Path m2Repo, DependencyResolver.Dependency dep) {
@@ -645,8 +783,7 @@ public class RagSqlLoader {
         int lastEnd = 0;
         while (matcher.find()) {
             appendWithVersionKeyFix(result, sql, lastEnd, matcher.start());
-            String source = matcher.group(1);
-            result.append("'{\"extension\":\"").append(source).append("\",\"source\":\"").append(source).append('"');
+            appendSourceAndExtension(result, matcher.group(1));
             lastEnd = matcher.end();
         }
         appendWithVersionKeyFix(result, sql, lastEnd, sql.length());
@@ -896,8 +1033,7 @@ public class RagSqlLoader {
             matcher.reset();
             while (matcher.find()) {
                 sb.append(statement, lastEnd, matcher.start());
-                String source = matcher.group(1);
-                sb.append("'{\"extension\":\"").append(source).append("\",\"source\":\"").append(source).append('"');
+                appendSourceAndExtension(sb, matcher.group(1));
                 lastEnd = matcher.end();
             }
             sb.append(statement, lastEnd, statement.length());
@@ -974,6 +1110,45 @@ public class RagSqlLoader {
         String remaining = current.toString().trim();
         if (!remaining.isEmpty()) {
             sink.accept(remaining);
+        }
+    }
+
+    /**
+     * Runs {@code action} while holding a Postgres advisory lock. Several MCP servers can share
+     * one doc-search container, and two of them loading fragments at the same time deadlock
+     * over the same rows; under the lock the second one waits, then finds the first one's
+     * fingerprints and has nothing left to load. The lock is session-scoped, so it is released
+     * when the connection closes, even if the server holding it dies mid-load.
+     * <p>
+     * The lock is polled rather than awaited in {@code pg_advisory_lock}, so a server stuck
+     * mid-load cannot hang the others forever. Giving up fails the load instead of running it
+     * unlocked, which would bring the deadlock back; the caller retries later.
+     *
+     * @throws IllegalStateException if the lock cannot be taken within {@link #loadLockTimeout}
+     */
+    void withLoadLock(String jdbcUrl, String user, String password, Runnable action) {
+        try (Connection lockConn = DriverManager.getConnection(jdbcUrl, user, password);
+                Statement stmt = lockConn.createStatement()) {
+            long deadline = System.nanoTime() + loadLockTimeout.toNanos();
+            while (!tryLock(stmt)) {
+                if (System.nanoTime() > deadline) {
+                    throw new IllegalStateException("Another MCP server has been loading documentation into this "
+                            + "container for over " + loadLockTimeout.toMinutes() + " minutes; try again later");
+                }
+                Thread.sleep(500);
+            }
+            action.run();
+        } catch (SQLException e) {
+            throw new IllegalStateException("Could not reach the documentation database: " + e.getMessage(), e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Interrupted while waiting for the RAG load lock", e);
+        }
+    }
+
+    private static boolean tryLock(Statement stmt) throws SQLException {
+        try (ResultSet rs = stmt.executeQuery("SELECT pg_try_advisory_lock(" + LOAD_LOCK_KEY + ")")) {
+            return rs.next() && rs.getBoolean(1);
         }
     }
 

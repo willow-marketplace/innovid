@@ -2,9 +2,25 @@
 
 Prints resolved paths, detected tools, storage mode, whether the session directory Claude Code actually created matches the slug the plugin computes, when the last successful save happened, whether `PostToolUse` has ever fired for this project, and whether `SessionEnd` -- the last-chance flush -- has ever fired ([#370](https://github.com/Digital-Process-Tools/claude-remember/issues/370)). Each line is prefixed `OK` / `WARN` / `FAIL`, ending in a one-line verdict.
 
+In external storage mode it also warns (`WARN Legacy store:`) when the project's old in-project `.remember/` still holds memory files (`now.md`, `recent.md`, `archive.md`, `core-memories.md`, `remember.md`). Since [#898](https://github.com/Digital-Process-Tools/claude-remember/issues/898) nothing moves those into the external store automatically; session start prints one `remember: ... move it by hand (see /remember:doctor)` line the first time, and this warning stays until you move the files yourself (see [external-storage-mode.md](external-storage-mode.md)).
+
 The `SessionEnd` check only counts a quiet transcript as evidence once it is newer than `.remember/.install-marker`'s own mtime -- written exactly once, the first time any hook bootstraps the store, and never rewritten by ordinary hook activity -- since a transcript quiet since before that moment cannot be proof `SessionEnd` failed to fire: the hook was never registered for it. Installing into (or upgrading in) a project with pre-existing Claude Code history therefore reads correctly as "nothing has had the chance to prove or disprove this yet", not as a false `problem`. This baseline is unavailable, and the check can only `WARN`, never `FAIL`, when the marker itself is missing or unreadable -- which should now only happen in the brief window before a store's first hook invocation writes it; an earlier version of this baseline (`.remember/.gitignore`'s mtime) was deleted, by design, the first time a legacy-to-external migration was backed up with git, permanently degrading the check for that store ([#401](https://github.com/Digital-Process-Tools/claude-remember/issues/401)) -- `.install-marker` is written unconditionally of storage mode and nothing else in this codebase has any reason to touch it again.
 
 The VERDICT line's own ranking of `SessionEnd`'s silence against a `PostToolUse` cause already named above it changed as well ([#404](https://github.com/Digital-Process-Tools/claude-remember/issues/404)): "PostToolUse is wired and running, but has not serviced a session -- it is exiting early" now outranks "SessionEnd has never fired" when both are true on an aged store, since the exiting-early diagnosis already explains SessionEnd's own silence and is the more specific, actionable cause. SessionEnd's own priority over a healthy-looking "capture is working" line, and over "PostToolUse has never fired at all", is unchanged.
+
+"Last successful save" is the mtime of the cursor file `save-position` rewrites on every
+attempt -- a quarantined span, a `SKIP`, or an ordinary append, not only a real one -- so it
+cannot by itself tell a healthy install from one where the summarizer has failed every single
+attempt for days ([#870](https://github.com/Digital-Process-Tools/claude-remember/issues/870)).
+A new "Summarizer failures" section reads `tmp/last-summary-failure` -- written on every failed
+attempt and removed only on a successful append, a `SKIP`, or the give-up threshold -- and, when
+present, `FAIL`s with the latest `call-haiku error` line from the daily log, pointing at
+`REMEMBER_OAUTH_TOKEN` (`claude setup-token`) when that detail matches an authentication marker.
+(Since [#898](https://github.com/Digital-Process-Tools/claude-remember/issues/898) round 15 that
+line names no credential command: it says to log in again with your coding agent's own CLI.)
+The VERDICT line now reads "the summarizer's last attempt failed" instead of "capture is
+working" whenever that marker is present, ranked below the SessionEnd/no-Python/oversized-store
+arms (still the more structural causes) but above the plain success verdict.
 
 Available on plugin installs, which auto-discover `commands/`. If you set the plugin up manually into `<project>/.claude/remember/`, that discovery does not apply — copy `commands/doctor.md` into `.claude/commands/`, or just run the script directly: `bash .claude/remember/scripts/doctor.sh`.
 
@@ -53,6 +69,29 @@ In the second shape the hook prints one line saying it is **not** redirecting st
 **`BASH_XTRACEFD` needs bash 4.1 or newer.** Stock macOS ships bash 3.2 as `/bin/bash`, which silently ignores the variable -- xtrace stays on fd 2 no matter what it names. The redirect knows this and stands down on that floor too, exactly as it does for a bare fd-2 trace, so a profile taken with the "best" shape above still survives on an old bash; it just lands on fd 2 like the plain case rather than in its own file.
 
 Its "Recent errors" section tails **`<your memory store>/logs/hook-errors.log`**. That file is where a hook's own stderr goes: `bootstrap-dirs.sh` points every coding agent hook's stderr at it, and a hook that exits non-zero is reported there with its exit status and its own first lines ([#277](https://github.com/Digital-Process-Tools/claude-remember/issues/277)). It is the single most useful thing to attach to a bug report — most of what makes a plugin failure hard to diagnose from the outside is already written in it, and a report that includes it usually skips a whole round of questions.
+
+## A save that stalls every time: `unsubstituted placeholders in prompt`
+
+`hook-errors.log` repeating `prompt` `ERROR: unsubstituted placeholders in prompt` on every save
+for one project, never clearing on its own, is `save-session.sh`'s placeholder guard aborting
+before the read cursor advances ([#722](https://github.com/Digital-Process-Tools/claude-remember/issues/722)).
+Since the guard's own exit path runs before `save-position` is called, every later save re-extracts
+the same span and hits the same guard, so memory capture for that session stops for good until
+something clears it.
+
+Before #722 this could be forced by a literal `{{TIME}}`/`{{BRANCH}}`/`{{LAST_ENTRY}}`/`{{EXTRACT}}`
+token surviving unescaped into the assembled prompt from transcript content the summarizer inlines
+verbatim (a pasted snippet, a file the agent read, a tool result) rather than from a genuinely
+broken template; substituted values are now escaped so a literal token like that can no longer
+trigger the guard, but the recovery path below still applies to any occurrence, past or future,
+including a real template bug the guard is there to catch.
+
+**Recovery**: clear the recorded position for the affected session so the next save starts fresh
+rather than re-reading the poisoned span. `last-save.json` lives at `<store>/tmp/last-save.json`
+(`session_dir_slug`/`/remember:doctor` names `<store>`); removing that file, or deleting just the
+entry for the stuck session ID, is enough -- nothing else needs to change. The trade-off is that any
+unsummarized content in the span since the last successful save before the stall is not recaptured;
+if that matters, save it manually before clearing the position.
 
 ## SessionStart duration ([#706](https://github.com/Digital-Process-Tools/claude-remember/issues/706))
 

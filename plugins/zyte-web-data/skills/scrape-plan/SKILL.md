@@ -3,7 +3,7 @@ name: scrape-plan
 description: Plan a web scrape and author a validated extraction spec — explore a detail page, discover fields, confirm the schema, then validate it with more pages, HTML-variant comparison, extracted values, and an optional browser review, and present the plan for approval.
 ---
 
-This file is 541 lines long; read all of them.
+This file is 543 lines long; read all of them.
 
 You are planning a web scrape. Download 1 detail page, discover fields, confirm
 the schema in the terminal, then validate the spec by downloading more pages,
@@ -414,7 +414,7 @@ This writes fresh extractions from the analyzed detail-page sample.
 
 #### Navigation
 
-Write `{site_path}/navigation/spec.json` with the fixed navigation schema from `${CLAUDE_SKILL_DIR}/../scrape/references/extraction-spec.md`, using the site URL and `nav_html_variant` (reported by the exploration).
+Write `{site_path}/navigation/spec.json` with the fixed navigation schema from `${CLAUDE_SKILL_DIR}/../scrape/references/extraction-spec.md`, using the site URL, `nav_html_variant` (reported by the exploration), the URLs the crawl starts at, and a plain-English `scope` of what it must cover — the sections the user asked for, or the whole site when they asked for no limit.
 
 Navigation values were already copied from the exploration output.
 
@@ -506,6 +506,7 @@ Ask the user whether they approve this plan or want to change anything presented
 
 On approval, continue to the report. On any redirect, apply it and re-present:
 - **Schema change** (drop/keep/rename/edit) → update `{site_path}/{data_type}/spec.json`
+- **Scope change** (a different section, added filtering, different start URLs) → update `scope`/`start_urls` in `{site_path}/navigation/spec.json`
 - **Skip the spider** → drop the "Generate the spider" step and set spider_create = no
 - **Settings** (project dir/name, Zyte, variant) → update the corresponding line
 
@@ -531,6 +532,7 @@ Details:
 - Project name: {project_name}
 - Create the spider: {yes | no}
 - Start URLs: {comma-separated list}
+- Scope: {scope}
 - Using Zyte API: {yes | no}
 ```
 

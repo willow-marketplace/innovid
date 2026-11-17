@@ -1,6 +1,6 @@
 {
   "mcpServers": {
-    "Adobe for creativity": {
+    "Adobe": {
       "url": "https://adobe-creativity.adobe.io/mcp",
       "type": "http"
     }

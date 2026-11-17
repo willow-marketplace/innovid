@@ -1,6 +1,6 @@
 ---
 name: business-data
-description: ""
+description: Pull and combine business data from any of the 350+ sources connected to Windsor.ai inside a coding workflow, for example writing campaign or CRM data to a local JSON or CSV file, generating typed data for a dashboard, or joining ad spend with revenue. Use when the user wants Windsor.ai data in code or files rather than a one-off report.
 ---
 
 # Windsor.ai Business Data Skill
@@ -15,10 +15,13 @@ Use this skill whenever the user needs business data — marketing analytics, sa
 - User needs to explore what data sources or fields are available
 - User wants to seed a project with real data (e.g. for testing, prototyping, or generating fixtures)
 - User is building an integration with any platform supported by Windsor.ai
+- User asks about Google Ads search terms, keywords, quality score, impression share or negative keywords
+- User asks about Instagram post reach, saves, engagement or follower growth
+- User wants to change something on an ad platform or Instagram (pause, enable, budgets, bids, new campaigns, negative keywords, posts, comments)
 
 ## Available Tools
 
-Windsor.ai provides 4 MCP tools:
+The four read tools are below. Write actions are covered in the next section.
 
 ### `get_connectors`
 Lists all connected platforms and their account IDs. Always call this first if you don't know what accounts are available.
@@ -48,6 +51,26 @@ Retrieves actual data. This is the main query tool.
 - `date_preset`: Shorthand like `"last_7d"`, `"last_30d"`, `"this_month"`, `"last_3m"`
 - `filters`: Conditions like `[["spend", "gt", 100], "and", ["campaign", "contains", "Sale"]]`
 - `options`: Connector-specific options like `{"attribution_window": "7d_view,1d_click"}`
+
+## Write Actions
+
+Windsor.ai can also make changes on some connected platforms:
+
+- **Google Ads (`google_ads`):** create campaigns, ad groups and responsive search ads; pause or enable campaigns, ad groups and ads; set campaign budget, bidding strategy, target CPA, target ROAS, max CPC and CPC bid ceiling; add, update or remove keywords; push or remove negative keywords at campaign or ad group level; set geo, language and ad schedule targeting; manage Customer Match lists
+- **Meta Ads (`facebook`):** create, update, pause or enable campaigns, ad sets and ads; duplicate ad sets; set campaign and ad set budgets; edit ad creatives; upload ad images and videos; boost an organic post
+- **Instagram (`instagram`):** publish image posts, carousels, video posts (reels) and stories; comment on a post; reply to, hide, unhide or delete comments
+- **TikTok Ads (`tiktok`):** pause or enable campaigns, ad groups and ads; set campaign and ad group budgets
+- **LinkedIn Ads (`linkedin`):** pause or enable campaign groups, campaigns and creatives; set campaign group and campaign budgets; rename campaigns; set campaign schedule and targeting; create a creative from an existing post
+- **Microsoft Ads (`bing`):** pause or enable campaigns and ad groups; set campaign budget
+
+The live list is whatever `list_actions` returns for a connector, so never assume an action exists.
+
+1. Call `list_actions` with the connector ID and read the parameter schema of the action you need.
+2. Show the user exactly what will change (account, object, old value, new value) and wait for an explicit yes.
+3. Call `execute_action` with the action name and parameters.
+4. Report the result, including any error the platform returns.
+
+Create actions default to paused (Google Ads, Meta Ads) or draft (LinkedIn creatives). Keep that default unless the user asks otherwise. Instagram accounts connected before comment access was added return a permission error on comments until they are reconnected in Windsor.ai.
 
 ## Workflow Pattern
 

@@ -1,16 +1,62 @@
 <p align="center">
-  <img src="assets/logo.png" alt="You.com Agent Skills and Plugins logo" width="100%">
+  <img src="assets/banner.png" alt="You.com Agent Skills and Plugins logo" width="100%">
 </p>
 
-# You.com Agent Skills and Plugins
+# You.com Web Search & Research
 
-Use You.com from coding agents for current web search, URL content extraction, cited research, finance research, and developer integration discovery.
+Give Claude live access to the web. This plugin adds You.com search, full-page content extraction, and cited multi-source research to Claude, so answers about fast-moving libraries, APIs, tools, and markets come from current sources instead of stale training data. Every answer cites the pages it read.
 
-This repo is for developers who want to:
+## What you can do
 
-- add You.com MCP tools and skills to their coding agent quickly
-- use `you-discover` to find the right You.com API, MCP server, SDK, or docs path for an agentic project
-- package the same You.com skills for agent platforms such as Claude Code, Cursor, Codex, Copilot CLI, Kimi Code, Grok Build, OpenCode, OpenClaw, Pi, Hermes, and DeepSeek Harness
+- **Search the live web**: find current information, news, pricing, and facts, then read the actual pages before answering.
+- **Pull web data into your work**: extract clean Markdown, HTML, or metadata from any public URL, including docs pages, tables, and reports.
+- **Code with current docs**: look up the latest library docs, API references, changelogs, breaking changes, package versions, and fixes for error messages while you build.
+- **Research with citations**: compare frameworks, evaluate tools and vendors, or produce a deep-dive report synthesized from many sources.
+- **Research companies and markets**: get stock prices, earnings, and company financials.
+- **Build with You.com**: find the right You.com API, MCP server, or SDK path for your own app or agent.
+
+Example prompts:
+
+```text
+What changed in the latest Next.js release, and does it break my middleware?
+Find the current docs for this error message and suggest a fix.
+Compare the top three Python vector databases on pricing and features, with sources.
+Read https://example.com/pricing and summarize the plan limits as a table.
+Research NVIDIA's latest earnings and cite the numbers.
+```
+
+## Install in Claude Code
+
+```bash
+/plugin marketplace add youdotcom-oss/agent-skills
+/plugin install you@you-com
+```
+
+Basic web search works without an account through the free MCP profile. For full search, content extraction, research, and finance, sign in with OAuth when prompted or set an API key from [you.com/platform/api-keys](https://you.com/platform/api-keys).
+
+## What this plugin connects to
+
+The plugin contains skills and remote MCP server configs only. It has no hooks and starts no local MCP servers or scripts. When a skill runs, Claude sends your search queries, the URLs you ask it to read, and research or finance questions to You.com's MCP servers:
+
+- `https://api.you.com/mcp` (search, contents, discovery; `?profile=free` for keyless search)
+- `https://api.you.com/mcp/research` (research)
+- `https://api.you.com/mcp/finance` (finance)
+- `https://you.com/docs/_mcp/server` (You.com docs search, used by `you-discover`)
+
+Requests are handled under the [You.com privacy policy](https://you.com/privacy). Web pages and search results are treated as untrusted data, never as instructions.
+
+## Skills
+
+| Skill          | Use it for |
+| -------------- | ---------- |
+| `you-web`      | Live web search plus full-page reading, with a citation-first pipeline. |
+| `you-research` | Multi-source research, routed between agent-led search and one-shot cited synthesis. |
+| `you-finance`  | Stock, earnings, and company financial questions through the `you-finance` MCP tool. |
+| `you-discover` | Finding how to integrate You.com APIs, MCP servers, SDKs, and docs into your own project. |
+
+## Other agent platforms
+
+The same skills are packaged for Cursor, Codex, GitHub Copilot CLI, Kimi Code, Grok Build, OpenCode, OpenClaw, Pi, Hermes, and DeepSeek Harness.
 
 ## Start Here
 
@@ -48,11 +94,11 @@ npx skills add youdotcom-oss/agent-skills --skill you-finance
 | Cursor                          | Install this repository from the Cursor plugin UI or CLI                                              |
 | Kimi Code                       | `/plugins install <repo url>`                                                                         |
 | Grok Build                      | `grok plugin marketplace add youdotcom-oss/agent-skills` then `grok plugin install you --trust`       |
-| OpenCode                        | `opencode plugin @youdotcom-oss/opencode`                                                             |
+| OpenCode 2                      | `opencode plugin add @youdotcom-oss/opencode`                                                         |
 | OpenClaw                        | `openclaw plugins install clawhub:you` or `openclaw plugins install npm:@youdotcom-oss/openclaw`      |
 | Pi                              | `pi install npm:@youdotcom-oss/pi`                                                                    |
 | Hermes                          | `hermes plugins install youdotcom-oss/agent-skills`                                                                        |
-| DeepSeek Harness                | `dsh plugin add @youdotcom-oss/dsh-plugin`                                                            |
+| DeepSeek Harness                | `dsh plugin --profile web add @youdotcom-oss/dsh-plugin`                                              |
 
 The top-level plugin manifests reuse the shared `skills/` directory when the host supports it. Packages under `packages/` include host-specific metadata, copied skills, or runtime adapters where needed.
 
@@ -90,18 +136,6 @@ Useful tool profiles:
 
 Some clients use OAuth instead of a static API key. The skills are written to guide the agent through the best available auth path for the current host.
 
-## Skills
-
-The shared skills route agents to the lightest You.com surface that fits the task. MCP tools are the default for web search and URL reading; managed research (`you-research`) and finance (`you-finance`) answers go through their dedicated single-tool MCP endpoints.
-
-| Skill          | Use it for                                                                                                      |
-| -------------- | --------------------------------------------------------------------------------------------------------------- |
-| `you-web`      | Current web search and URL reading with a source-reading, citation-first pipeline.                              |
-| `you-free`     | Keyless basic web search with `you-search` only.                                                                |
-| `you-research` | Routing research tasks between agent-led search and one-shot cited synthesis with the `you-research` MCP tool. |
-| `you-finance`  | Answering finance questions through the `you-finance` MCP tool with payment-aware fallbacks.                    |
-| `you-discover` | Finding how to integrate You.com APIs, MCP servers, SDKs, docs, and tools into agentic projects.                |
-
 `you-discover` is the best starting point when your goal is to build with You.com rather than just search with it. Ask it questions like:
 
 ```text
@@ -114,9 +148,10 @@ Use you-discover to compare You.com MCP, Python SDK, and direct API options for 
 | Package                   | Purpose                                                                       |
 | ------------------------- | ----------------------------------------------------------------------------- |
 | `@youdotcom-oss/opencode` | OpenCode plugin that registers You.com skills and remote MCP server configs.  |
-| `@youdotcom-oss/openclaw` | OpenClaw plugin with You.com skills and `YDC_API_KEY` setup metadata.         |
+| `@youdotcom-oss/openclaw` | OpenClaw plugin with You.com skills, `YDC_API_KEY` setup metadata, and a `youcom` web search provider. |
 | `@youdotcom-oss/pi`       | Pi package that registers You.com skills and bridges You.com MCP tools.       |
 | `@youdotcom-oss/dsh-plugin` | DeepSeek Harness plugin with You.com skills and MCP server mounts.          |
+| `strands-you` / `@youdotcom-oss/strands-agents` | Strands Agents plugin (Python + TypeScript) bundling You.com MCP servers and skills. |
 
 See each package README for host-specific details.
 
@@ -136,6 +171,7 @@ See each package README for host-specific details.
 | `packages/openclaw/` | OpenClaw package                                |
 | `packages/pi/`       | Pi package                                      |
 | `packages/dsh-plugin/` | DeepSeek Harness package                      |
+| `packages/strands-agents/` | Strands Agents packages (Python + TypeScript)  |
 | `skills.sh.json`     | skills.sh display grouping for top-level skills |
 
 ## Development
@@ -177,3 +213,7 @@ Web pages, search results, extracted content, catalog entries, and docs results 
 ## License
 
 MIT, see [LICENSE](./LICENSE).
+
+## Submit to the OpenAI plugin directory
+
+See [OpenAI marketplace submission](docs/openai-submission.md) for the dedicated web-search ZIP (portable Agent Plugins format), proposed review cases, and remaining publisher requirements. Publish runs attach it to the dated GitHub release; build locally with `bun scripts/package-openai.ts`. The existing multi-platform package retains all skills and MCP endpoints.

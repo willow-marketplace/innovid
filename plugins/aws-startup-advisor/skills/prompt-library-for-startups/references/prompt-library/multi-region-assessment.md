@@ -12,6 +12,8 @@ Automate comprehensive security assessments across all 33+ AWS regions using AI-
 
 ## Optimized AWS Security Assessment Prompt - All Regions
 
+Prerequisite: this prompt is built on the AWS Well-Architected Security Assessment Tool MCP server and its `ExploreAwsResources` tool. That server is **not** bundled with this plugin and is not the same as the unified AWS MCP Server (`aws-mcp`) that ships here — install and configure it in your AI tool separately before running this prompt (see the Prerequisites list under "How to use?").
+
 Conduct a comprehensive multi-region AWS security assessment using the Well-Architected Security MCP server. Generate detailed markdown reports following this workflow:
 
 ## Phase 1: Discovery & Comprehensive Region Scanning
@@ -1063,7 +1065,7 @@ Prerequisites:
 - Active AWS account
 - AWS CLI configured with credentials
 - Kiro-CLI - https://kiro.dev/docs/cli/
-- AWS Well-Architected Security Assessment Tool MCP Server - https://github.com/awslabs/mcp/tree/main/src/well-architected-security-mcp-server
+- AWS Well-Architected Security Assessment Tool MCP Server (install separately; not bundled with this plugin) - https://github.com/awslabs/mcp/tree/main/src/well-architected-security-mcp-server
 
 Use case examples:
 
@@ -1268,5 +1270,5 @@ Do not skip, consolidate, or summarize any active regions.
 - Active AWS account
 - AWS CLI configured with credentials
 - Kiro-CLI - [https://kiro.dev/docs/cli/](https://kiro.dev/docs/cli/)
-- AWS Well-Architected Security Assessment Tool MCP Server - [https://github.com/awslabs/mcp/tree/main/src/well-architected-security-mcp-server](https://github.com/awslabs/mcp/tree/main/src/well-architected-security-mcp-server)
+- AWS Well-Architected Security Assessment Tool MCP Server (install separately; not bundled with this plugin) - [https://github.com/awslabs/mcp/tree/main/src/well-architected-security-mcp-server](https://github.com/awslabs/mcp/tree/main/src/well-architected-security-mcp-server)
 ```

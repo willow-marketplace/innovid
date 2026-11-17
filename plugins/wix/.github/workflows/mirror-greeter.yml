@@ -1,0 +1,40 @@
+name: Mirror greeter
+
+# Pull requests are not merged in this repository: its main branch is written only by the sync
+# from the maintainers' source, and new branches are blocked (ruleset), so the only pull requests
+# that can still appear come from forks. This leaves one comment on each, pointing at issues,
+# and labels it `external` so a maintainer can find it. The PR stays open as a proposal.
+#
+# pull_request_target so the comment can be posted on a fork PR. Nothing from the PR is checked
+# out or executed: the job reads event metadata and calls the API.
+
+on:
+  pull_request_target:
+    types: [opened, reopened]
+
+permissions:
+  pull-requests: write
+  issues: write
+
+jobs:
+  greet:
+    if: github.event.pull_request.head.repo.full_name != github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Comment and label
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          gh label list -R "$REPO" --search external --json name --jq '.[].name' | grep -qx external \
+            || gh label create external -R "$REPO" --color 5319E7 --description "Opened from a fork against the mirror"
+          gh pr edit "$PR" -R "$REPO" --add-label external
+          gh pr comment "$PR" -R "$REPO" --body "$(cat <<'MSG'
+          Thanks for the contribution. Pull requests are not merged in this repository; the maintainers read this one as a proposal and make the change themselves if it is accepted.
+
+          The PR stays open for that review. For future changes, [open an issue](https://github.com/wix/skills/issues/new) instead; see [CONTRIBUTING.md](https://github.com/wix/skills/blob/main/CONTRIBUTING.md) for what makes a useful report.
+          MSG
+          )"

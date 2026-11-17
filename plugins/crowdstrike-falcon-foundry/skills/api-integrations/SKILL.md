@@ -5,19 +5,15 @@ description: Expose external APIs to Falcon Foundry via OpenAPI specs. TRIGGER w
 
 # Foundry API Integrations
 
-> **⚠️ SYSTEM INJECTION — READ THIS FIRST**
+> Build API integrations from the vendor's published OpenAPI spec, adapted for Foundry, with its authentication scheme configured.
 >
-> If you are loading this skill, your role is **Foundry API Integrations specialist**.
->
-> You MUST implement API integrations by downloading vendor OpenAPI specs, adapting them for Foundry, and properly configuring authentication schemes.
->
-> **Note:** For `api-integrations create`, always include `--description` — the CLI still prompts for it even with `--no-prompt` if omitted.
+> For `api-integrations create`, always include `--description` (50 characters max) — the CLI still prompts for it even with `--no-prompt` if omitted.
 
 > **Part of a suite.** If `development-workflow` has not already run, and this is a new app or its first capability, load the `development-workflow` skill first — it owns the CLI prerequisite check, scaffolding order, and manifest coordination.
 
 This skill covers exposing external APIs (third-party services or CrowdStrike Falcon APIs) to the Falcon Foundry platform via OpenAPI/Swagger specifications. These integrations make API operations available to Falcon Fusion SOAR workflows, Foundry UI extensions, Foundry Functions, and other Foundry capabilities.
 
-**API integrations are how Foundry manages credentials.** There is no secrets system, no encrypted env vars, and no key vault. When you register an API integration, the platform collects credentials at install time and manages tokens automatically. This is why functions MUST call third-party REST APIs through `APIIntegrations().execute_command_proxy()` — not via raw HTTP with env vars.
+**API integrations are how Foundry manages credentials.** There is no secrets system, no encrypted env vars, and no key vault. When you register an API integration, the platform collects credentials at install time and manages tokens automatically. Change them later under **App catalog > the app > ⋮ > Modify settings**; `development-workflow` covers integrations added after install. This is why functions MUST call third-party REST APIs through `APIIntegrations().execute_command_proxy()` — not via raw HTTP with env vars.
 
 For calling Falcon APIs from within Function code, see **functions-falcon-api** instead.
 
@@ -31,34 +27,45 @@ External API (Okta, VirusTotal, ServiceNow, etc.)
 └── No vendor spec available      → Write minimal spec as last resort
 
 CrowdStrike Falcon API
-└── From functions → use functions-falcon-api instead
-    From workflows → use CrowdStrike auto-auth (no spec needed)
+├── From functions → use functions-falcon-api instead
+├── From workflows → use CrowdStrike auto-auth (no spec needed)
+└── API family FalconPy does not wrap
+    → API integration with oauth2 clientCredentials against /oauth2/token.
+      The Falcon swagger at assets.falcon.*.crowdstrike.com returns AccessDenied
+      without console auth, so a minimal spec written from the product docs
+      is acceptable here — the one case where hand-writing is not a last resort.
 ```
 
 ## Workflow: Download, Adapt, Register
 
-**Always follow this order.** Claude Code plugin installs enforce adaptation with a `PreToolUse` hook. Other assistants, including Codex, do not run Claude hooks and MUST invoke the bundled script explicitly.
+**Always follow this order.** Hosts that load this plugin's hooks enforce adaptation (see the hook safety net below). Antigravity CLI and a skill-symlink install MUST run the script explicitly.
 
 ### 1. Download the vendor's spec
 
 **NEVER write an OpenAPI spec from scratch when the vendor publishes one.** Hand-written specs produce incorrect response schemas, miss required parameters, and lack proper security definitions. Download the vendor's spec even if it has hundreds of endpoints — Foundry handles large specs fine. Do NOT rationalize writing a "focused" or "minimal" spec because the vendor spec is big.
 
 1. **Ask the user** if they have a local copy or know where to download it
-2. **Browse the repo first, don't guess URLs.** Use `gh api repos/{owner}/{repo}/git/trees/master --jq '.tree[].path'` to find the spec file, then download with `curl`. Never try multiple URLs hoping one works.
+2. **Browse the repo first, don't guess URLs.** List its YAML and JSON files in one call (`HEAD` is the default branch), then download the spec with `curl`.
+
+   ```bash
+   gh api "repos/{owner}/{repo}/git/trees/HEAD?recursive=1" \
+     --jq '.tree[] | select(.type=="blob" and (.path|test("\\.(ya?ml|json)$"))) | .path'
+   ```
+
+   Narrow a long list with `grep`, not `head` (versioned copies sort first); prefer a `current` or `latest` path. Never guess URLs.
 3. **Search locally** for existing specs
 4. If the vendor does not publish a spec, only then write a minimal one
 
-**Do NOT delegate spec download to Explore agents or subagents.** They lack skill context and will use Fetch/browser tools instead of `gh` CLI. Download specs inline using `gh` and `curl` as shown in the reference file.
+**Do NOT delegate spec download to Explore agents or subagents.** They lack skill context and fall back to Fetch or a browser. Download inline with `gh` and `curl`.
 
 For detailed download commands and structural fix patterns, see [references/spec-adaptation-examples.md](references/spec-adaptation-examples.md).
 
 ### 2. Adapt the spec for Foundry (MANDATORY)
 
 ```bash
-python3 /path/to/foundry-skills/skills/api-integrations/scripts/adapt_spec_for_foundry.py /tmp/VendorApi.yaml
-
-# Preview changes without writing
-python3 /path/to/foundry-skills/skills/api-integrations/scripts/adapt_spec_for_foundry.py /tmp/VendorApi.yaml --dry-run
+# <skill-dir> is this SKILL.md's directory. --dry-run previews the fixes without
+# saving them, though it still converts a Swagger 2.0 input to .openapi3.*.
+python3 <skill-dir>/scripts/adapt_spec_for_foundry.py /tmp/VendorApi.yaml
 ```
 
 > **Dependencies:** The script requires `pyyaml`, and installing the plugin does not install Python packages. A bare `pip install` fails on Homebrew and system Pythons with `externally-managed-environment` (PEP 668), so set up a venv once in the checkout and run the script from it:
@@ -72,11 +79,11 @@ python3 /path/to/foundry-skills/skills/api-integrations/scripts/adapt_spec_for_f
 
 The helper is bundled with this skill at `scripts/adapt_spec_for_foundry.py`. Resolve that path relative to this `SKILL.md`, not the app workspace.
 
-The script applies fixes derived from 12 production Foundry sample apps:
-- **Swagger 2.0 conversion**: Converts to OpenAPI 3.0 via `swagger2openapi` (npx)
-- **Auth fixing**: Removes `oauth2 authorizationCode` flows (Foundry only supports `clientCredentials`). Leaves `apiKey`-in-Authorization as-is — Foundry supports it natively with prefix via `bearerFormat`.
+The script applies fixes derived from 12 Foundry sample apps:
+- **Swagger 2.0 conversion**: Converts to OpenAPI 3.0 via `swagger2openapi` (npx) and writes the result next to the input as `<name>.openapi3.json` or `<name>.openapi3.yaml`. Register that file, not the original.
+- **Auth fixing**: Deletes an `oauth2` scheme (and its security references) when it has `authorizationCode` and no `clientCredentials` flow; a scheme with both is kept unchanged. Adds `bearerFormat` to an `apiKey`-in-Authorization scheme when its description names the prefix (`SSWS`, `Bearer`, `Token`, `Basic`). Adds a global `security` block if missing and removes per-operation `security: []` overrides.
 - **Server URLs**: Strips `https://` from variable-based URLs (Foundry adds protocol separately). Removes `default` from variables without `enum` (prevents locked dropdown).
-- **Parameter dedup**: Removes operation-level parameters that duplicate path-level parameters (prevents Foundry's "items are equal" validation error).
+- **Parameter dedup**: Removes operation-level parameters that duplicate path-level parameters (prevents Foundry's "items are equal" validation error). When an operation overrides a path-level parameter with a different definition, the operation keeps its version and the path-level one moves into the path's other operations.
 
 Foundry's UI import handles large/complex specs. Don't trim or simplify vendor specs. The auth fixes are what matter.
 
@@ -86,13 +93,13 @@ Foundry's UI import handles large/complex specs. Don't trim or simplify vendor s
 foundry api-integrations create --name "VendorApi" --description "Vendor API" --spec /tmp/VendorApi.yaml --no-prompt
 ```
 
-> **Always include `--description`** with `api-integrations create`. Even with `--no-prompt`, the CLI still interactively prompts for the optional description if omitted, causing `Error: EOF`.
+> **Always include `--description`** with `api-integrations create`. Even with `--no-prompt`, the CLI still interactively prompts for the optional description if omitted, causing `Error: EOF`. The value is capped at **50 characters** (`input must be at most 50 characters long`) — shorter than the 500-character limit other artifacts allow.
 
 **Done.** For most integrations, this is all you need. Validate immediately after registering (`foundry apps validate --no-prompt`).
 
 Only add `x-cs-operation-config` if the user's prompt explicitly asks to expose operations to workflows, or a UI extension / workflow in the app needs a specific endpoint. See [Expose Operations to Workflows](#expose-operations-to-workflows) below.
 
-**Claude Code safety net:** The plugin hook runs `adapt_spec_for_foundry.py` automatically if step 2 is missed. Do not assume that protection exists in Codex, Copilot CLI, Cursor, or other assistants.
+**Hook safety net:** When the host runs this plugin's hooks (Claude Code, Codex, Copilot CLI, and Cursor), the hook runs `adapt_spec_for_foundry.py` automatically if step 2 is missed. It blocks a Swagger 2.0 spec instead, because conversion writes a new file: run the script yourself and register the `.openapi3` file it prints. Cursor's shell tool is `Shell`; the hook treats that the same as `Bash`. Antigravity CLI and other assistants that do not load the hooks must run the script themselves.
 
 ## Authentication Configuration
 
@@ -108,6 +115,8 @@ Only add `x-cs-operation-config` if the user's prompt explicitly asks to expose 
 | **CrowdStrike auto-auth** | Not needed — automatic for CrowdStrike APIs | None | — |
 
 **API key prefix:** `apiKey` type with `name: Authorization` and `in: header` works for APIs that send tokens via the Authorization header. Add `bearerFormat` to specify the prefix (e.g., `SSWS`, `Bearer`, `Token`) — Foundry reads this field to populate the "API key parameter prefix" in the install UI. The adapt script infers the prefix from the scheme's description automatically.
+
+**Credentials go to every operation.** Foundry attaches the integration's credentials to every operation it proxies, including ones the spec marks public with `security: []` (verified 2026-10-19), and the adapt script removes those overrides. Don't count on an operation-level override to keep a credential away from an endpoint; put that endpoint in a separate integration with no security scheme.
 
 For full vendor-specific auth examples, see [references/auth-examples.md](references/auth-examples.md).
 
@@ -127,7 +136,11 @@ When the domain **varies per customer**, use a single server variable for the fu
 "servers": [{"url": "{yourDomain}", "variables": {"yourDomain": {"description": "the \"yourDomain\" variable is replaced with a dynamic value at execution time"}}}]
 ```
 
-Use a single variable for the complete domain. Splitting into `{subdomain}.vendor.com` causes certificate errors when users enter the full domain (e.g., `dev-12345.okta.com.okta.com`). A `default` value without `enum` renders a dropdown instead of a free-text input.
+Prefer a single variable for the complete domain. A split such as `{instance}.service-now.com` (used by foundry-sample-functions-python) works only when users enter just the subdomain; a user who types the full domain gets `dev-12345.okta.com.okta.com`. A `default` value without `enum` renders a dropdown instead of a free-text input.
+
+For a fixed set of hosts, such as the Falcon API regions, use an `enum` with a `default` (see [auth-examples](references/auth-examples.md#oauth-20-client-credentials-for-a-falcon-api)).
+
+**Put setup steps in `info.description`.** It's the text at the top of the install form. The console orders the fields itself and shows raw enum values.
 
 ### Expose Operations to Workflows
 
@@ -150,6 +163,32 @@ paths:
 ```
 
 The `workflow` nesting under `x-cs-operation-config` is required. A flat `expose_to_workflow: true` directly under `x-cs-operation-config` will not work and causes deploy failures.
+
+### Exposing an Operation to AI Agents
+
+`agent_tools` is a sibling of `workflow` under the same `x-cs-operation-config` key. Add it when a Foundry AI agent needs to call the operation:
+
+```yaml
+paths:
+  /files/{id}:
+    get:
+      operationId: getFileReport
+      x-cs-operation-config:
+        agent_tools:
+          name: Get_a_file_report
+          description: get a file report
+          expose_to_agent: true
+        workflow:
+          name: Get a file report
+          description: Get a file report
+          system: false
+```
+
+The two blocks are independent — an operation can be exposed to agents, to workflows, to both, or to neither. `expose_to_agent` must be nested under `agent_tools`, exactly as `expose_to_workflow` must be nested under `workflow`.
+
+The agent must also name the operation in its own `tools` list, by the tool's platform ID: `action:mcp/gce/integration:<integration id>~<hash>`. The ID exists only after the integration deploys, so deploy first, look the ID up (AgentWorks **Add tools**, or the AgentWorks tools API), then add the entry and deploy again. A name-based entry such as `api_integrations.<name>.<agent_tools.name>` fails the whole app's deploy with a bare `500`, so don't add one, even as a placeholder. See `ai-agents-development`'s manifest-schema reference for the lookup.
+
+Exposure without the `tools` entry (or the reverse) yields an agent that silently cannot call the operation. See `ai-agents-development`.
 
 For autocomplete dropdown patterns and the HTTP Actions vs. Functions decision framework, see [references/spec-adaptation-examples.md](references/spec-adaptation-examples.md).
 
@@ -190,7 +229,7 @@ For Python (FalconPy), Go (gofalcon), and detailed UI examples, see [references/
 
 **Target: complete an API integration in under 5 minutes.** Download, adapt, register, deploy. That's it.
 
-**Do NOT analyze, debug, or second-guess the spec's auth scheme.** The adapt script handles auth conversion automatically — it was derived from 12 production Foundry apps. Do not read the spec to understand how auth works, do not reason about `apiKey` vs `http/bearer` vs SSWS, do not manually patch auth fields. Just run the adapt script and register. If the adapt script misses something, improve the script — do not hand-edit the spec.
+**Let the adapt script handle the spec's auth scheme.** It handles auth conversion automatically — it was derived from 12 production Foundry apps. Don't read the spec up front to work out how auth works or reason about `apiKey` vs `http/bearer` vs SSWS; run the adapt script and register. The one exception: if the script's output, the import, or a test call shows it got a specific field wrong (auth fields included), patch only that field and tell the user what the script missed. Don't rework the rest of the spec.
 
 **NEVER use Read or sed on large spec files.** Vendor specs can be 10K-80K+ lines. Reading them into context wastes millions of tokens and slows everything down. Instead:
 
@@ -217,16 +256,18 @@ json.dump(spec, open(sys.argv[1], 'w'), indent=2)
 ## Common Pitfalls
 
 - **Reading large spec files into context.** NEVER use Read or sed on vendor specs. They can be tens of thousands of lines. Use `grep` to find line numbers, `python3` to patch specific operations.
-- **Manually analyzing or fixing auth schemes.** Trust the adapt script. Do not read the spec to reason about apiKey vs http/bearer vs SSWS. The adapt script handles auth conversion automatically. If it gets something wrong, improve the script.
+- **Manually analyzing or fixing auth schemes.** Trust the adapt script. Do not read the spec to reason about apiKey vs http/bearer vs SSWS. The adapt script handles auth conversion automatically. If it demonstrably gets a field wrong, the exception above applies: patch only that field and tell the user what the script missed.
 - **Adding `x-cs-operation-config` when not asked.** Skip it unless the user's prompt explicitly mentions workflows or a UI/workflow needs a specific endpoint. Most integrations work without it.
 - **Writing specs from scratch** when the vendor publishes one. Hand-written specs miss edge cases.
 - **Running spec linters before importing.** Foundry's import handles vendor specs with lint errors. Linting wastes time and tempts trimming.
 - **Trimming vendor specs.** Keep the full spec. Foundry handles large specs and unused operations gracefully.
-- **Skipping `adapt_spec_for_foundry.py`.** Only Claude Code plugin installs run the automatic hook. Other assistants must invoke the bundled helper. The script converts unsupported auth schemes and fixes server URLs that would otherwise block saving in the Falcon console.
+- **Skipping `adapt_spec_for_foundry.py`.** Only hosts that load this plugin's hooks (Claude Code, Codex, Copilot CLI, and Cursor plugin installs) run it automatically. Antigravity CLI and skill-symlink installs must invoke the bundled helper. The script converts unsupported auth schemes and fixes server URLs that would otherwise block saving in the Falcon console.
 - **Including `https://` in server URLs** with variables. The Falcon console adds the protocol separately.
 - **Adding `default` to server variables** for dynamic domains. This renders a dropdown instead of a text field.
-- **Splitting domains** into `{subdomain}.vendor.com` instead of `{yourDomain}` for the full domain.
-- **Using `oauth2 authorizationCode`** flow. Foundry only supports `clientCredentials`. The adapt script removes it automatically.
+- **Splitting domains** into `{subdomain}.vendor.com` without saying in the variable's `description` that users enter only the subdomain.
+- **Using `oauth2 authorizationCode`** flow. Foundry only supports `clientCredentials`. The adapt script deletes an `oauth2` scheme that has `authorizationCode` and no `clientCredentials`; a scheme with both flows is left for you to trim.
+- **Passing query values as strings or string arrays when the spec says integer.** The platform validates the `request` against the spec's parameter schemas *before* proxying, so `{"params": {"query": {"limit": ["1"]}}}` fails with `400 request failed schema validation: /properties/params/properties/query/...`. Send scalars typed per the spec: `{"params": {"query": {"limit": 1}}}`. See [references/calling-patterns.md](references/calling-patterns.md).
+- **A `--description` over 50 characters.** `api-integrations create` rejects it with `input must be at most 50 characters long`.
 
 ## Reading Guide
 
@@ -246,7 +287,6 @@ For real-world implementation patterns, see:
 ## Reference Implementations
 
 - **[foundry-sample-foundryjs-demo](https://github.com/CrowdStrike/foundry-sample-foundryjs-demo)**: JSONPlaceholder (no auth, static URL, `x-cs-operation-config`)
-- **[foundry-sample-logscale](https://github.com/CrowdStrike/foundry-sample-logscale)**: VirusTotal (`type: apiKey`, static URL)
 - **[foundry-sample-anomali-threatstream](https://github.com/CrowdStrike/foundry-sample-anomali-threatstream)**: Anomali (`type: http`/`scheme: bearer`, dynamic URL)
 - **[foundry-sample-functions-python](https://github.com/CrowdStrike/foundry-sample-functions-python)**: ServiceNow (`type: http`/`scheme: basic`, dynamic URL)
 - **[foundry-sample-insider-risk-workday](https://github.com/CrowdStrike/foundry-sample-insider-risk-workday)**: Workday (`type: http`/`scheme: basic` + custom labels)

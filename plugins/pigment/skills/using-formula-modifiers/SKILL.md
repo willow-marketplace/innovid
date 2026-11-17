@@ -33,6 +33,7 @@ Roll up from a finer dimension to a coarser one via a mapping property:
 ```pigment
 'Employee Headcount'[BY SUM: 'Employee'.'Department']
 'Warehouse Capacity'[BY AVG: 'Month'.'Quarter']
+'Product'.'Supplier'[BY COUNTBLANK: 'Product'.'Warehouse']   // products with no supplier assigned, per warehouse
 ```
 
 `[BY: dim.prop]` removes `dim` and adds `prop`'s dimension — no separate REMOVE needed. Multi-level hierarchies chain BY: `'Revenue'[BY SUM: 'Month'.'Quarter'][BY SUM: 'Quarter'.'Year']`.
@@ -55,7 +56,7 @@ Use arrow (`->`) when the mapping lives in a dimension-typed metric or you need 
 
 - **Left of `->` (replace)** — dimensions removed and replaced by the mapping's target dimension.
 - **Right of `->` (mapping/add)** — mapping metrics/properties defining new dimensions, plus extra grouping dims.
-- **Empty left** (`BY CONSTANT: -> 'Map'`) — adds a dimension without replacing any.
+- **Empty left** (`BY SUM: -> 'Map'`) — adds a dimension without replacing any.
 - **Unlisted source dims** — silently aggregated using the BY method. Typical "at risk" dims: Version, Time, Scenario, Currency.
   Use **arrow** when the mapping is a dimension-typed metric or multiple dims/properties in one BY. Use **plain property** (`'Country'.'Region'`) for simple hierarchy lookups.
 
@@ -132,10 +133,11 @@ SELECT filters then removes the filtered dimension(s). **Methods**: SUM (default
 | **Filter & remove** | `Metric[SELECT: Dim = item]` | Filters to matching rows, removes the dimension |
 | **1:1 mapping lookup** | `Metric[SELECT: DimA.TargetItem]` | Reads value at the mapped target item |
 | **Aggregate & allocate** | `Revenue[SELECT: Month.Quarter]` | Aggregates up then replicates to each source item |
-| **Offset** | `Metric[SELECT: Month - 12]` | Shifts dimension value; **keeps** the dimension |
+| **Offset** | `Metric[SELECT: Month - N]` / `Metric[SELECT: Month + N]` | Each item reads the value N items earlier (`- N`, lag) or N items later (`+ N`, lead); **keeps** the dimension |
 
 ```pigment
 'Revenue'[SELECT: Month - 12]              // Same month last year (keeps Month)
+'Revenue'[SELECT: Month + 2]               // January shows March's value (keeps Month)
 'Revenue'[SELECT: 'Month'.'Quarter']       // Quarterly total replicated to each month
 ```
 
@@ -233,7 +235,7 @@ Two equivalent syntaxes: `Block[mod1][mod2]` or `Block[mod1; mod2]` (semicolon).
 3. **BY before ADD** — when a mapping exists, use BY (sparse); use ADD only for full dense cardinality.
 4. **Match target dimensions** — the final expression dimensions must equal the target metric's dimensions.
 5. **Default methods** — SUM for aggregation, CONSTANT for allocation. Specify explicitly for AVG, MIN, MAX, COUNT, SPLIT.
-6. **Arrow syntax: account for all dimensions** — any source dimension not before `->` and not added after `->` is silently aggregated away.
+6. **Arrow syntax: account for all dimensions** — any dimensions before `->` are aggregated away. If nothing is before the `->`, source dimensions are kept
 7. **EXCLUDE over FILTER NOT** — prefer EXCLUDE for exclusions to avoid densifying blanks.
 8. **SELECT offset keeps the dimension** — unlike other SELECT modes that remove the filtered dimension.
 9. **Identifier quoting** — use single-quoted names: `'Country'.'Region'`, `'My Subset'`.

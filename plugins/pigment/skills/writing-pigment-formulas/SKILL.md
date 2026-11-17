@@ -1,6 +1,6 @@
 ---
 name: writing-pigment-formulas
-description: Execution skill. Use when writing, editing, or debugging Pigment metric formulas — quoting, references, data types, BLANK, and comments.
+description: Execution skill. Load it before the first `validate_formula`, or before any `create_metric`, `bulk_update_metrics`, `create_list_property` or `update_list_property` call that sets a formula; never write a formula without loading it first. Use when writing, editing, or debugging Pigment metric or list property formulas — quoting, references, data types, BLANK, comments, and replacing hard-coded items, dates and thresholds with input metrics.
 ---
 
 # Write Pigment Formulas
@@ -18,7 +18,7 @@ Before writing any formula:
 1. **Confirm the target metric** — name, dimensions, type (Number / Date / Text / Dimension / Boolean). The formula result type must match.
 2. **Confirm source blocks** — metrics, lists, properties referenced in the formula. Use `tool:search_metrics_and_lists` (or `tool:semantic_search` when names are unclear) to find exact names and spot duplicates.
 3. **Map dimensions** — compare source dimensions vs target dimensions. If they differ, you will need modifiers (Stage 2.4).
-4. **Check for circular dependencies** — if the formula references its own metric or forms a cycle, you need PREVIOUS / PREVIOUSOF with a declared cycle.
+4. **Check for circular dependencies** — if the formula references its own metric or forms a cycle, you need PREVIOUS / PREVIOUSOF (with a declared cycle for PREVIOUSOF()).
 
 ---
 
@@ -53,12 +53,13 @@ Guidance on commenting:
 
 Full item path: `'List'.'Property'."Item"` — default property can be omitted: `Status."Active"`.
 
-**⛔ Never hard-code dimension items or dates in formulas.**
-`Month."Jun 24"`, `Version."Actual"`, `Country."France"` are all forbidden.
+**⛔ Never hard-code dimension items, dates or thresholds in formulas.**
+`Month."Jun 24"`, `Version."Actual"`, `Country."France"`, `DATE(2024, 1, 1)`, `'Revenue' > 50000` are all forbidden.
 
 - For a specific member → create a Dimension-typed input metric and reference that.
 - For "last actual month" → use `[SELECT LASTNONBLANK: 'Is Actual']` or equivalent flag metric.
 - For a fixed date → create a Date-typed input metric.
+- For a target, threshold or limit → create a Number-typed input metric.
   The only exceptions are stable structural items (e.g. `Version."Actual"` in a Version-aware
   application where that item is guaranteed to always exist and never be renamed).
 
@@ -116,9 +117,9 @@ Full reference with syntax → `skill:using-formula-functions`. Key categories:
 | Aggregation | `SUMOF`, `AVGOF`, `COUNTOF`, `MINOF`, `MAXOF` | Aggregate a list property without BY |
 | Text | `LEFT`, `RIGHT`, `MID`, `FIND`, `SUBSTITUTE`, `TEXT`, `VALUE`, `&`, `CONTAINS` | String manipulation; type conversion; `CONTAINS(substring, haystack)` — substring first |
 | Date / Time | `DATE`, `YEAR`, `MONTH`, `DAY`, `NETWORKDAYS`, `DAYSINPERIOD`, `PRORATA` | Date arithmetic; period coverage |
-| Numeric | `ROUND`, `ABS`, `MIN`, `MAX`, `RANK`, `MOVINGSUM`, `CUMULATE` | Rounding; ranking; rolling windows |
+| Numeric | `ROUND`, `ROUNDUP`, `ROUNDDOWN`, `ABS`, `MIN`, `MAX`, `RANK`, `MOVINGSUM`, `CUMULATE` | Rounding; ranking; rolling windows |
 | Lookup | `MATCH`, `ITEM` | Find items in lists; convert text to dimension |
-| Iterative | `PREVIOUS`, `PREVIOUSOF`, `FILLFORWARD` | Time-series accumulation; gap filling (require cycles); see below |
+| Iterative | `PREVIOUS`, `PREVIOUSOF` | Time-series accumulation (`PREVIOUSOF` requires cycles); see below |
 | Utility | `TIMEDIM`, `ISDEFINED`, `IN`, `SHIFT` | Date→dim conversion; existence check; set membership; dimension offset |
 | Finance | `NPV`, `IRR`, `XNPV`, `XIRR` | Discounted cash flow; internal rate of return |
 | Forecasting | `FORECAST_ETS`, `FORECAST_LINEAR` | Statistical forecasting |
@@ -127,9 +128,9 @@ Full reference with syntax → `skill:using-formula-functions`. Key categories:
 
 **Iterative patterns:**
 
-- **PREVIOUS** — each period builds on prior (requires a declared cycle): `IFDEFINED(PREVIOUS(Month), PREVIOUS(Month) * (1 + 'Growth Rate'), 'Seed Value')`
+- **PREVIOUS** — each period builds on prior: `IFDEFINED(PREVIOUS(Month), PREVIOUS(Month) * (1 + 'Growth Rate'), 'Seed Value')`
 - **FILLFORWARD** — fill gaps in time series (use a separate cleaning metric): `FILLFORWARD('FX Rate Input', Month)`
-- **PREVIOUSOF** — cross-metric cycles (beginning/ending balance, inventory roll-forwards); create the cycle before writing the formulas
+- **PREVIOUSOF** — cross-metric iterative calcs, which require a declared cycle (beginning/ending balance, inventory roll-forwards) → `skill:iterating-with-previous-and-cycles`
 
 ### 2.6 Handle BLANK correctly
 
@@ -153,14 +154,14 @@ Sparsity preference rules (IFDEFINED vs ISBLANK), performance anti-patterns: `sk
 
 ## Stage 3 — Validate Before Applying
 
-**You MUST call `tool:validate_formula` before passing a formula to `tool:create_metric`, `tool:update_metric`, `tool:create_list_property`, or `tool:update_list_property`.** The only exception is PREVIOUS/PREVIOUSOF formulas without a target metric — those cannot be validated standalone; pass `target.metric_id` for an existing metric to validate them normally. Applying an unvalidated formula puts the metric or property into an error state.
+**You MUST call `tool:validate_formula` before passing a formula to `tool:create_metric`, `tool:bulk_update_metrics`, `tool:create_list_property`, or `tool:update_list_property`.** The only exception is PREVIOUS/PREVIOUSOF formulas without a target metric — those cannot be validated standalone; pass `target.metric_id` for an existing metric to validate them normally. Applying an unvalidated formula puts the metric or property into an error state.
 
 Run through this checklist first:
 
 1. [ ] Single quotes on all identifiers; double quotes on items and strings
 2. [ ] BLANK (not 0/FALSE) where no value should exist
 3. [ ] No ISBLANK / ISNOTBLANK; use IFDEFINED / IFBLANK / ISDEFINED
-4. [ ] No hard-coded dimension items or dates
+4. [ ] No hard-coded dimension items, dates or thresholds
 5. [ ] Transaction list: single BY with all dim mappings; never chain BY
 6. [ ] Allocation: BY (not ADD) when a mapping exists; SPLIT explicitly requested where the ask is "split"/"distribute"/"divide equally"/"spread" — not left on the CONSTANT default
 7. [ ] Formula result type matches target metric type
@@ -192,3 +193,4 @@ This applies once per changed metric in the chain, not once for the whole change
 - `skill:using-formula-functions` — all function signatures and examples
 - `skill:writing-performant-formulas` — sparsity rules, anti-patterns, pre-delivery checklist
 - `skill:choosing-formula-patterns` — business requirement → pattern mapping
+- `skill:iterating-with-previous-and-cycles` — PREVIOUS/PREVIOUSOF cycles

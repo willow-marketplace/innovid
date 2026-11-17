@@ -69,13 +69,13 @@ Horowitz has carried that attitude with him in his subsequent endeavors: The pri
 
 "What do I need to step up and do?" Horowitz said. "What am I capable of doing that's going to make a difference?"
 
-_See the full interview [here](https://www.youtube.com/watch?v=o2KHvKoogLo)._
+_See the full interview [on YouTube](https://www.youtube.com/watch?v=o2KHvKoogLo)._
 
 ---
 
 ## About the Author
 
-**Megan Dubinsky**
+### Megan Dubinsky
 
 Megan Dubinsky is a Senior Field Marketing Manager working with Startup customers at AWS. Megan is passionate about helping Startup customers learn, grow, and connect with the right resources. Prior to joining AWS, Megan worked in healthcare and health-tech, in marketing and product management roles. She lives in Chicago strictly for its summers, and enjoys running just as much as chocolate chip cookies.
 

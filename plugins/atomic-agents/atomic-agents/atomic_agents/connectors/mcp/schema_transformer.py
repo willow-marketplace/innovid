@@ -1,14 +1,37 @@
 """Module for transforming JSON schemas to Pydantic models."""
 
 import logging
-from typing import Any, Dict, List, Optional, Type, Tuple, Literal, Union, cast
+from typing import Any, Dict, List, Optional, Type, Tuple, Literal, Union, Annotated, cast
 
 from atomic_agents.connectors.mcp.mcp_definition_service import MCPAttributeType
-from pydantic import Field, create_model
+from jsonschema import Draft202012Validator, validators
+from pydantic import BeforeValidator, Field, TypeAdapter, WithJsonSchema, create_model
+from pydantic_core import SchemaError
+from referencing import Registry, Resource
+from referencing.exceptions import Unresolvable
+from referencing.jsonschema import DRAFT202012
 
 from atomic_agents.base.base_io_schema import BaseIOSchema
 
 logger = logging.getLogger(__name__)
+
+
+def _reject_false_schema(value: Any) -> Any:
+    raise ValueError("Value is forbidden by a false JSON Schema")
+
+
+_FalseSchemaValue = Annotated[Any, BeforeValidator(_reject_false_schema), WithJsonSchema({"not": {}})]
+
+
+def _validate_ref(validator: Any, reference: str, value: Any, schema: Any) -> Any:
+    try:
+        yield from Draft202012Validator.VALIDATORS["$ref"](validator, reference, value, schema)
+    except Unresolvable:
+        # Match the transformer's Any fallback only for the unresolved reference.
+        return
+
+
+_ScalarChoiceValidator = validators.extend(Draft202012Validator, {"$ref": _validate_ref})
 
 # JSON type mapping
 JSON_TYPE_MAP = {
@@ -18,35 +41,114 @@ JSON_TYPE_MAP = {
     "boolean": bool,
     "array": list,
     "object": dict,
+    "null": type(None),
 }
+
+
+_NUMERIC_CONSTRAINTS = {
+    "minimum": "ge",
+    "maximum": "le",
+    "exclusiveMinimum": "gt",
+    "exclusiveMaximum": "lt",
+    "multipleOf": "multiple_of",
+}
+_STRING_CONSTRAINTS = {"minLength": "min_length", "maxLength": "max_length"}
+_ARRAY_CONSTRAINTS = {"minItems": "min_length", "maxItems": "max_length"}
+
+
+def _constrained_value_type(python_type: Type, json_type: str, prop_schema: Dict[str, Any]) -> Type:
+    """Attach supported constraints without changing the regex engine or accepting boolean bounds."""
+    constraints = {}
+    if json_type in {"integer", "number"}:
+        for source, target in _NUMERIC_CONSTRAINTS.items():
+            value = prop_schema.get(source)
+            # Draft-04 boolean exclusive bounds are not numeric bounds.
+            if isinstance(value, (int, float)) and not isinstance(value, bool):
+                constraints[target] = value
+    else:
+        keywords = _STRING_CONSTRAINTS if json_type == "string" else _ARRAY_CONSTRAINTS if json_type == "array" else {}
+        constraints.update({target: prop_schema[source] for source, target in keywords.items() if source in prop_schema})
+    if json_type == "string" and isinstance(prop_schema.get("pattern"), str):
+        pattern = prop_schema["pattern"]
+        try:
+            TypeAdapter(Annotated[str, Field(pattern=pattern)])
+        except SchemaError:
+            logger.warning("Unsupported JSON Schema pattern %r; skipping local pattern validation", pattern)
+        else:
+            constraints["pattern"] = pattern
+    if constraints:
+        # Recursive callers retain the value type but discard returned Field metadata.
+        return Annotated[python_type, Field(**constraints)]
+    return python_type
 
 
 class SchemaTransformer:
     """Class for transforming JSON schemas to Pydantic models."""
 
     @staticmethod
+    def _matches_scalar_type(value: Any, json_types: List[str]) -> bool:
+        """Match JSON scalar types without treating Python bools as numbers."""
+        if isinstance(value, bool):
+            return "boolean" in json_types
+        if isinstance(value, (int, float)):
+            return "number" in json_types or ("integer" in json_types and (isinstance(value, int) or value.is_integer()))
+        return (value is None and "null" in json_types) or (isinstance(value, str) and "string" in json_types)
+
+    @staticmethod
+    def _scalar_choice_type(prop_schema: Dict[str, Any], choices: List[Any], root_schema: Dict[str, Any]) -> Type:
+        """Keep only choices satisfying all advertised constraints, including compositions."""
+        declared_type = prop_schema.get("type")
+        json_types = declared_type if isinstance(declared_type, list) else [declared_type]
+        # The finite set can be intersected once, without coercing values through union types.
+        # Bind local references to the original root, and never retrieve remote schemas.
+        validator = _ScalarChoiceValidator(root_schema, registry=Registry()).evolve(schema=prop_schema)
+        choices = [value for value in choices if validator.is_valid(value)]
+        if not choices:
+            raise ValueError("Scalar choices do not match the declared JSON Schema constraints")
+
+        def validate_choice(value: Any) -> Any:
+            if declared_type is not None and not SchemaTransformer._matches_scalar_type(value, json_types):
+                raise ValueError("Value does not match the declared JSON Schema type")
+            for choice in choices:
+                if isinstance(value, bool) == isinstance(choice, bool) and value == choice:
+                    # Give Literal the matching choice so 1.0 cannot resolve to True.
+                    return choice
+            raise ValueError("Value does not match the JSON Schema choices")
+
+        choice_type = Annotated[Literal[tuple(choices)], BeforeValidator(validate_choice)]
+        if declared_type is not None:
+            # Keep type metadata inside the choice branch when Optional wraps it.
+            choice_type = Annotated[choice_type, Field(json_schema_extra={"type": declared_type})]
+        return choice_type
+
+    @staticmethod
     def _resolve_ref(ref_path: str, root_schema: Dict[str, Any], model_cache: Dict[str, Type]) -> Type:
-        """Resolve a $ref to a Pydantic model."""
-        # Extract ref name from path like "#/$defs/MyObject" or "#/definitions/ANode"
-        ref_name = ref_path.split("/")[-1]
+        """Resolve a $ref to its Pydantic-compatible value type."""
+        if ref_path in model_cache:
+            return model_cache[ref_path]
 
-        if ref_name in model_cache:
-            return model_cache[ref_name]
+        # Resolve the complete local pointer, including escaped tokens and array
+        # indices. An empty registry never retrieves remote schemas.
+        resource = Resource.from_contents(root_schema, default_specification=DRAFT202012)
+        try:
+            ref_schema = Registry().resolver_with_root(resource).lookup(ref_path).contents
+        except Unresolvable:
+            logger.warning(f"Could not resolve $ref: {ref_path}")
+            return Any
 
-        # Look for the referenced schema in $defs or definitions
-        defs = root_schema.get("$defs", root_schema.get("definitions", {}))
-        if ref_name in defs:
-            ref_schema = defs[ref_name]
-            # Create model for the referenced schema
+        # Avoid infinite recursion by adding a placeholder before conversion.
+        model_cache[ref_path] = Any
+        if isinstance(ref_schema, dict) and (
+            ref_schema.get("properties")
+            or (ref_schema.get("type") == "object" and ref_schema.get("additionalProperties") is False)
+        ):
+            ref_name = ref_path.split("/")[-1].replace("~1", "/").replace("~0", "~")
             model_name = ref_schema.get("title", ref_name)
-            # Avoid infinite recursion by adding placeholder first
-            model_cache[ref_name] = Any
             model = SchemaTransformer._create_nested_model(ref_schema, model_name, root_schema, model_cache)
-            model_cache[ref_name] = model
-            return model
-
-        logger.warning(f"Could not resolve $ref: {ref_path}")
-        return Any
+        else:
+            model, _ = SchemaTransformer.json_to_pydantic_field(ref_schema, True, root_schema, model_cache)
+        model_cache[ref_path] = model
+        return model
 
     @staticmethod
     def _create_nested_model(
@@ -65,7 +167,7 @@ class SchemaTransformer:
 
     @staticmethod
     def json_to_pydantic_field(
-        prop_schema: Dict[str, Any],
+        prop_schema: Union[Dict[str, Any], bool],
         required: bool,
         root_schema: Optional[Dict[str, Any]] = None,
         model_cache: Optional[Dict[str, Type]] = None,
@@ -82,6 +184,10 @@ class SchemaTransformer:
         Returns:
             Tuple of (type, Field)
         """
+        if isinstance(prop_schema, bool):
+            value_type = Any if prop_schema else _FalseSchemaValue
+            return value_type, Field(default=... if required else None)
+
         if root_schema is None:
             root_schema = {}
         if model_cache is None:
@@ -94,23 +200,33 @@ class SchemaTransformer:
         # Handle $ref
         if "$ref" in prop_schema:
             python_type = SchemaTransformer._resolve_ref(prop_schema["$ref"], root_schema, model_cache)
+        # Scalar value constraints must also appear in the model-facing schema.
+        elif "const" in prop_schema and isinstance(prop_schema["const"], (str, int, float, bool, type(None))):
+            python_type = SchemaTransformer._scalar_choice_type(prop_schema, [prop_schema["const"]], root_schema)
+        elif prop_schema.get("enum") and all(
+            isinstance(value, (str, int, float, bool, type(None))) for value in prop_schema["enum"]
+        ):
+            python_type = SchemaTransformer._scalar_choice_type(prop_schema, prop_schema["enum"], root_schema)
         # Handle oneOf/anyOf (unions)
         elif "oneOf" in prop_schema or "anyOf" in prop_schema:
             union_schemas = prop_schema.get("oneOf", prop_schema.get("anyOf", []))
             if union_schemas:
                 union_types = []
                 for union_schema in union_schemas:
-                    if "$ref" in union_schema:
-                        union_types.append(SchemaTransformer._resolve_ref(union_schema["$ref"], root_schema, model_cache))
-                    else:
-                        # Recursively resolve the union member
-                        member_type, _ = SchemaTransformer.json_to_pydantic_field(union_schema, True, root_schema, model_cache)
-                        union_types.append(member_type)
+                    member_type, _ = SchemaTransformer.json_to_pydantic_field(union_schema, True, root_schema, model_cache)
+                    union_types.append(member_type)
 
                 if len(union_types) == 1:
                     python_type = union_types[0]
                 else:
                     python_type = Union[tuple(union_types)]
+        # A JSON Schema type array is a union of its listed types.
+        elif isinstance(prop_schema.get("type"), list):
+            union_types = [
+                SchemaTransformer.json_to_pydantic_field({**prop_schema, "type": json_type}, True, root_schema, model_cache)[0]
+                for json_type in prop_schema["type"]
+            ]
+            python_type = Union[tuple(union_types)]
         # Handle regular types
         else:
             json_type = prop_schema.get("type")
@@ -119,19 +235,17 @@ class SchemaTransformer:
 
                 if json_type == "array":
                     items_schema = prop_schema.get("items", {})
-                    if "$ref" in items_schema:
-                        item_type = SchemaTransformer._resolve_ref(items_schema["$ref"], root_schema, model_cache)
-                    elif "oneOf" in items_schema or "anyOf" in items_schema:
-                        # Handle arrays of unions
-                        item_type, _ = SchemaTransformer.json_to_pydantic_field(items_schema, True, root_schema, model_cache)
-                    elif items_schema.get("type") in JSON_TYPE_MAP:
-                        item_type = JSON_TYPE_MAP[items_schema["type"]]
-                    else:
-                        item_type = Any
+                    item_type, _ = SchemaTransformer.json_to_pydantic_field(items_schema, True, root_schema, model_cache)
                     python_type = List[item_type]
 
                 elif json_type == "object":
                     python_type = Dict[str, Any]
+                    value_schema = prop_schema.get("additionalProperties", {})
+                    if isinstance(value_schema, dict):
+                        value_type, _ = SchemaTransformer.json_to_pydantic_field(value_schema, True, root_schema, model_cache)
+                        python_type = Dict[str, value_type]
+
+                python_type = _constrained_value_type(python_type, json_type, prop_schema)
 
         field_kwargs = {"description": description}
         if required:
@@ -139,7 +253,8 @@ class SchemaTransformer:
         elif default is not None:
             field_kwargs["default"] = default
         else:
-            python_type = Optional[python_type]
+            if python_type is not _FalseSchemaValue:
+                python_type = Optional[python_type]
             field_kwargs["default"] = None
 
         return (python_type, Field(**field_kwargs))

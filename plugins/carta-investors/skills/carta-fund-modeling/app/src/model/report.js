@@ -4,11 +4,32 @@
 // Every input is a self-contained slice body ({assumptions, companies}), so this
 // computes ANY scenario without touching the active one — the whole doc.slices[]
 // array is in memory. Reuses the same pure engines the tabs render from, so the
-// report ties out to the Overview MetricBar / Reserves header for that scenario.
+// report ties out to the Overview firm scorecard / Reserves header for that scenario.
 
-import { computeFundStates, firmRollup, firmBaseRollup } from "./funds.js";
-import { computeReserves, newDealCount } from "./reserves.js";
+import { computeFundStates, firmRollup, firmBaseRollup, gpCarryOf } from "./funds.js";
+import { computeReserves, newDealCount, reserveOptsOf } from "./reserves.js";
 import { secondarySales } from "./reprice.js";
+
+/**
+ * A scenario's firm-level figures, each with its move vs Baseline, from its fund
+ * states. The one place these figures and their moves are assembled: the scenario
+ * tiles, the Companies sidebar's Firm impact and the scenario summary all read them from here.
+ */
+export function scenarioFirmFigures(fs) {
+  const agg = firmRollup(fs);
+  const base = firmBaseRollup(fs);
+  return {
+    currency: agg.currency,
+    mixedCurrency: agg.mixedCurrency,
+    invested: agg.invested,
+    fv: agg.fv, fvDelta: agg.fv - base.fv,
+    lpNav: agg.lpNav, lpNavDelta: agg.lpNavDelta,
+    gpCarry: agg.gpCarry, gpCarryDelta: agg.gpCarry - base.gpCarry,
+    lpDistributed: agg.lpDistributed, lpDistributedDelta: agg.lpDistributed - base.lpDistributed,
+    tvpi: agg.tvpi, tvpiDelta: agg.tvpi - base.tvpi,
+    dpi: agg.dpi, dpiDelta: agg.dpi - base.dpi,
+  };
+}
 
 /**
  * Top-line output metrics for one scenario, each with its vs-Baseline delta. The
@@ -18,34 +39,18 @@ import { secondarySales } from "./reprice.js";
  */
 export function scenarioSummary(snapshot, slice) {
   const fs = computeFundStates(snapshot, slice);
-  const agg = firmRollup(fs);
-  const base = firmBaseRollup(fs);
-  const gpCarry = agg.accruedCarry + agg.carryBanked;
   const a = slice.assumptions || {};
-  const res = computeReserves(snapshot, slice, {
-    feeLoads: a.feeLoads || {},
-    followOnRatios: a.followOnRatios || {},
-    recyclingRatios: a.recyclingRatios || {},
-  });
+  const res = computeReserves(snapshot, slice, reserveOptsOf(a));
   const newDeals = newDealCount(res, a.avgChecks || {});
-  // firm LP-NAV move vs Carta base marks (matches App.jsx firmLpDelta)
-  const lpNavDelta = fs.reduce((s, f) => s + (f.lpNav - f.baseLpNav), 0);
   return {
     id: slice.id,
     name: slice.name,
     color: slice.color ?? null,
     locked: !!slice.locked,
-    currency: agg.currency,
-    mixedCurrency: agg.mixedCurrency,
-    // currency figures (+ deltas vs Baseline)
-    lpNav: agg.lpNav, lpNavDelta,
-    gpCarry, gpCarryDelta: gpCarry - base.gpCarry,
-    lpDistributed: agg.lpDistributed, lpDistributedDelta: agg.lpDistributed - base.lpDistributed,
+    // firm figures, each with its delta vs Baseline (currency, mixedCurrency, lpNav, tvpi, …)
+    ...scenarioFirmFigures(fs),
     dryPowder: res.totals.reserves,
     newDealCapacity: res.totals.newDeal,
-    // currency-neutral
-    tvpi: agg.tvpi, tvpiDelta: agg.tvpi - base.tvpi,
-    dpi: agg.dpi, dpiDelta: agg.dpi - base.dpi,
     newDeals,
     // per-fund breakdown (funds that carry capital). Carries every metric the
     // report's by-entity picker can surface — LP NAV, MOIC, TVPI, DPI, Net IRR,
@@ -57,8 +62,7 @@ export function scenarioSummary(snapshot, slice) {
         lpNav: f.lpNav, tvpi: f.tvpi, dpi: f.dpi, rvpi: f.rvpi,
         grossMoic: f.grossMoic, netLpIrr: f.netLpIrr,
         committed: f.committed, lpDistributed: f.lpDistributed,
-        // per-fund GP carry mirrors the firm rollup: accrued + banked-from-exits
-        gpCarry: f.accruedCarry + f.carryBanked,
+        gpCarry: gpCarryOf(f),
       })),
   };
 }

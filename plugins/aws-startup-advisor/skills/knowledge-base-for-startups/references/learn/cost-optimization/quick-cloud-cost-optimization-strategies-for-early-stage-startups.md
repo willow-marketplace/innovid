@@ -133,6 +133,6 @@ By understanding your spending using [AWS Cost Explorer](https://aws.amazon.com/
 
 ## About the Author
 
-**Victor Jansson**
+### Victor Jansson
 
 Victor Jansson is a Solution Architect Manager for Startups at Amazon Web Services (AWS) in London, UK. With hands-on experience as a CTO in leading European startups, he now helps technical companies break through growth barriers. Victor combines the practical power of generative AI, machine learning, and strong data foundations to help teams realize their full potential in the cloud.

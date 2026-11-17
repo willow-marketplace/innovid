@@ -1,10 +1,20 @@
 > AI agents: this is one page from PostHog's docs. Full index of Markdown docs for LLMs: https://posthog.com/llms.txt
 
-# Google AI Observability installation - Docs
+# Google AI Observability installation
 
-Copy page
+Canonical URL: https://posthog.com/docs/ai-observability/installation/google
 
-# Google AI Observability installation - Docs
+> **Cloud region:** This page uses US Cloud hosts. For an EU Cloud project, use `https://eu.i.posthog.com` instead of `https://us.i.posthog.com` (ingestion host), and use `https://eu.posthog.com` instead of `https://app.posthog.com` (app host for links).
+
+## On this page
+
+- [Install dependencies](#install-dependencies)
+- [Configure PostHog](#configure-posthog)
+- [Call Google Gen AI LLMs](#call-google-gen-ai-llms)
+- [Capture tool calls as spans](#capture-tool-calls-as-spans)
+- [Capture embeddings](#capture-embeddings)
+- [Verify traces and generations](#verify-traces-and-generations)
+- [Next steps](#next-steps)
 
 ![](https://res.cloudinary.com/dmukukwp6/image/upload/texture_tan_9608fcca70)
 
@@ -15,8 +25,6 @@ Let AI instrument your LLM calls for you
 Skip the manual setup — run this in your project and the wizard installs the SDK and wires up AI Observability for you.
 
 `npx @posthog/wizard ai-observability`
-
-[Learn more](/wizard.md)
 
 ![PostHog Wizard hedgehog](https://res.cloudinary.com/dmukukwp6/image/upload/wizard_3f8bb7a240.png)
 
@@ -34,18 +42,16 @@ Skip the manual setup — run this in your project and the wizard installs the S
 
     Install the PostHog SDK and the Google Gen AI SDK.
 
-    PostHog AI
-
     ### Python
 
     ```bash
-    pip install posthog google-genai
+    pip install "posthog<8" google-genai
     ```
 
     ### Node
 
     ```bash
-    npm install @posthog/ai posthog-node @google/genai
+    npm install @posthog/ai@8 posthog-node@5 @google/genai
     ```
 
     ### Go
@@ -62,8 +68,6 @@ Skip the manual setup — run this in your project and the wizard installs the S
 
     Create a PostHog client, then swap in PostHog's Google Gen AI wrapper.
 
-    PostHog AI
-
     ### Python
 
     ```python
@@ -71,7 +75,9 @@ Skip the manual setup — run this in your project and the wizard installs the S
     from posthog.ai.gemini import Client
     import time, uuid
     from google.genai import types
+    
     posthog = Posthog("<ph_project_token>", host="https://us.i.posthog.com")
+    
     client = Client(
         api_key="your_gemini_api_key",
         posthog_client=posthog,
@@ -83,9 +89,35 @@ Skip the manual setup — run this in your project and the wizard installs the S
     ```typescript
     import { GoogleGenAI } from '@posthog/ai/gemini'
     import { PostHog } from 'posthog-node'
+    
     const posthog = new PostHog('<ph_project_token>', { host: 'https://us.i.posthog.com' })
+    
     const client = new GoogleGenAI({
       apiKey: 'your_gemini_api_key',
+      posthog,
+    })
+    ```
+
+    To call Gemini through Vertex AI, pass your Google Cloud project and location instead of an API key. The Google Gen AI client then authenticates with your Google Cloud credentials.
+
+    ### Python
+
+    ```python
+    client = Client(
+        vertexai=True,
+        project="your_gcp_project_id",
+        location="us-central1",
+        posthog_client=posthog,
+    )
+    ```
+
+    ### Node
+
+    ```typescript
+    const client = new GoogleGenAI({
+      vertexai: true,
+      project: 'your_gcp_project_id',
+      location: 'us-central1',
       posthog,
     })
     ```
@@ -98,12 +130,13 @@ Skip the manual setup — run this in your project and the wizard installs the S
 
     When you use the wrapped client to call Gemini, PostHog automatically captures an `$ai_generation` event.
 
-    PostHog AI
+    Audio output usage is captured separately from text output when Gemini reports the modality breakdown. Dedicated standard Gemini Developer API audio pricing is available for `gemini-2.5-pro-preview-tts` and `gemini-3.1-flash-tts-preview`. Other audio models, including newer TTS and Live models, need their own catalog rates or custom pricing; capturing their usage alone does not establish accurate audio pricing. Unlisted providers use the catalog's default estimate, rather than a verified provider-specific rate.
 
     ### Python
 
     ```python
     trace_id = str(uuid.uuid4())
+    
     response = client.models.generate_content(
         model="gemini-2.5-flash",
         contents=[{"role": "user", "parts": [{"text": "What's the weather in Paris?"}]}],
@@ -120,6 +153,7 @@ Skip the manual setup — run this in your project and the wizard installs the S
 
     ```typescript
     const traceId = crypto.randomUUID()
+    
     const response = await client.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: "What's the weather in Paris?",
@@ -132,22 +166,24 @@ Skip the manual setup — run this in your project and the wizard installs the S
     })
     ```
 
-    > **Note:** If you want to capture LLM events anonymously, omit `posthog_distinct_id` from the call. See our docs on [anonymous vs identified events](/docs/data/anonymous-vs-identified-events.md) to learn more.
+    Calls that share a `posthog_trace_id` (`posthogTraceId` in Node) appear as one trace. If you omit it, the wrapper creates a new trace ID for each call, so each call appears as its own trace. To see a multi-step task as one trace, create one trace ID for the task and pass it to every call in that task.
+
+    > **Note:** If you want to capture LLM events anonymously, omit `posthog_distinct_id` from the call. See our docs on [anonymous vs identified events](https://posthog.com/docs/data/anonymous-vs-identified-events.md) to learn more.
 
     You can expect captured `$ai_generation` events to have the following properties:
 
     | Property | Description |
     | --- | --- |
-    | $ai_model | The specific model, like gpt-5-mini or claude-4-sonnet |
-    | $ai_latency | The latency of the LLM call in seconds |
-    | $ai_time_to_first_token | Time to first token in seconds (streaming only) |
-    | $ai_tools | Tools and functions available to the LLM |
-    | $ai_input | List of messages sent to the LLM |
-    | $ai_input_tokens | The number of tokens in the input (often found in response.usage) |
-    | $ai_output_choices | List of response choices from the LLM |
-    | $ai_output_tokens | The number of tokens in the output (often found in response.usage) |
-    | $ai_total_cost_usd | The total cost in USD (input + output) |
-    | [[...]](/docs/ai-observability/generations.md#event-properties) | See [full list](/docs/ai-observability/generations.md#event-properties) of properties |
+    | `$ai_model` | The specific model, like `gpt-5-mini` or `claude-4-sonnet` |
+    | `$ai_latency` | The latency of the LLM call in seconds |
+    | `$ai_time_to_first_token` | Time to first token in seconds (streaming only) |
+    | `$ai_tools` | Tools and functions available to the LLM |
+    | `$ai_input` | List of messages sent to the LLM |
+    | `$ai_input_tokens` | The number of tokens in the input (often found in response.usage) |
+    | `$ai_output_choices` | List of response choices from the LLM |
+    | `$ai_output_tokens` | The number of tokens in the output (often found in `response.usage`) |
+    | `$ai_total_cost_usd` | The total cost in USD (input + output) |
+    | [\[...\]](https://posthog.com/docs/ai-observability/generations.md#event-properties) | See [full list](https://posthog.com/docs/ai-observability/generations.md#event-properties) of properties |
 
 4.  4
 
@@ -157,14 +193,13 @@ Skip the manual setup — run this in your project and the wizard installs the S
 
     For standard responses, the posthog client captures it as a generation. For all tool calls, you must manually capture them as `$ai_span` events.
 
-    PostHog AI
-
     ### Python
 
     ```python
     for call in response.function_calls or []:
         start = time.time()
         result = run_tool(call.name, call.args)
+    
         posthog.capture(
             distinct_id="user_123",
             event="$ai_span",
@@ -186,6 +221,7 @@ Skip the manual setup — run this in your project and the wizard installs the S
     for (const call of response.functionCalls ?? []) {
       const start = Date.now()
       const result = await runTool(call.name, call.args)
+    
       posthog.capture({
         distinctId: 'user_123',
         event: '$ai_span',
@@ -202,7 +238,7 @@ Skip the manual setup — run this in your project and the wizard installs the S
     }
     ```
 
-    See [spans](/docs/ai-observability/spans.md) for the full list of span properties.
+    See [spans](https://posthog.com/docs/ai-observability/spans.md) for the full list of span properties.
 
 5.  5
 
@@ -211,8 +247,6 @@ Skip the manual setup — run this in your project and the wizard installs the S
     Optional
 
     PostHog can also capture embedding generations as `$ai_embedding` events. The wrapped client captures these automatically when you use the `embed_content` API:
-
-    PostHog AI
 
     ### Python
 
@@ -240,7 +274,7 @@ Skip the manual setup — run this in your project and the wizard installs the S
 
     Let's make sure LLM events are being captured and sent to PostHog. Under **AI Observability**, you should see rows of data appear in the **Traces** and **Generations** tabs.
 
-    ![LLM generations in PostHog](https://res.cloudinary.com/dmukukwp6/image/upload/SCR_20250807_syne_ecd0801880.png)![LLM generations in PostHog](https://res.cloudinary.com/dmukukwp6/image/upload/SCR_20250807_syjm_5baab36590.png)
+    ![LLM generations in PostHog](https://res.cloudinary.com/dmukukwp6/image/upload/SCR_20250807_syne_ecd0801880.png)
 
     [Check for LLM events in PostHog](https://app.posthog.com/ai-observability/generations)
 
@@ -254,16 +288,8 @@ Skip the manual setup — run this in your project and the wizard installs the S
 
     | Resource | Description |
     | --- | --- |
-    | [Basics](/docs/ai-observability/basics.md) | Learn the basics of how LLM calls become events in PostHog. |
-    | [Generations](/docs/ai-observability/generations.md) | Read about the $ai_generation event and its properties. |
-    | [Traces](/docs/ai-observability/traces.md) | Explore the trace hierarchy and how to use it to debug LLM calls. |
-    | [Spans](/docs/ai-observability/spans.md) | Review spans and their role in representing individual operations. |
-    | [Anaylze LLM performance](/docs/ai-observability/dashboard.md) | Learn how to create dashboards to analyze LLM performance. |
-
-### Still have questions?
-
-Ask PostHog AI
-
-### Was this page useful?
-
-HelpfulCould be better
+    | [Basics](https://posthog.com/docs/ai-observability/basics.md) | Learn the basics of how LLM calls become events in PostHog. |
+    | [Generations](https://posthog.com/docs/ai-observability/generations.md) | Read about the `$ai_generation` event and its properties. |
+    | [Traces](https://posthog.com/docs/ai-observability/traces.md) | Explore the trace hierarchy and how to use it to debug LLM calls. |
+    | [Spans](https://posthog.com/docs/ai-observability/spans.md) | Review spans and their role in representing individual operations. |
+    | [Anaylze LLM performance](https://posthog.com/docs/ai-observability/dashboard.md) | Learn how to create dashboards to analyze LLM performance. |

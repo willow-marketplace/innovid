@@ -13,8 +13,10 @@ The active version is returned by `compensation:get:plan` as `benchmark_version`
 ## Listing all available versions
 
 ```
-call_tool({"name": "compensation__list__benchmark_versions", "arguments": {}})
+read_tool({"name": "compensation__list__benchmark_versions", "arguments": {}})
 ```
+
+It takes **no arguments**. Unlike every other compensation command, do not pass `corporation_id` — the list is the same for every corporation, and the extra parameter returns `unknown_param`.
 
 ## Presenting versions to the user
 
@@ -37,6 +39,6 @@ Mark the current version with **bold** and a ← indicator.
 
 ## Using a different version
 
-If the user selects a version, pass that version's `id` as `benchmark_version_id` to `compensation:get:benchmark` in Step 4.
+If the user selects a version, call `compensation:get:filter_options` with that version's `id` as `benchmark_version_id` first (Step 2b), then pass the same `id` as `benchmark_version_id` to `compensation:get:benchmark` in Step 4, using values from that version's options.
 
 If only one version is available, confirm it without a table.

@@ -14,7 +14,11 @@ set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROUTER="$SCRIPT_DIR/hooks/fusion-skill-router.sh"
 BRIDGE="$SCRIPT_DIR/hooks/fusion-foundry-bridge.sh"
-MARKER="/tmp/.fusion-skill-router-active"
+# Isolate marker state from any real session's markers.
+FUSION_HOOK_STATE_DIR=$(mktemp -d)
+export FUSION_HOOK_STATE_DIR
+trap 'rm -rf "$FUSION_HOOK_STATE_DIR"' EXIT
+MARKER="$FUSION_HOOK_STATE_DIR/.fusion-skill-router-active"
 
 # Colors (fall back to plain if not a TTY)
 if [ -t 1 ]; then
@@ -54,10 +58,38 @@ rm -f "$MARKER"
 OUT=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"automate crowdstrike actions on detection"}' | bash "$ROUTER")
 assert_contains "verb+noun intent detected" "$OUT" "FUSION PLUGIN DETECTED"
 
+# Reverse order uses the same noun, including the plural.
+rm -f "$MARKER"
+OUT=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"crowdstrike actions we should automate"}' | bash "$ROUTER")
+assert_contains "reverse-order plural noun detected" "$OUT" "FUSION PLUGIN DETECTED"
+
+# An explicit skill request may include "the", and it ends at the skill or plugin name.
+rm -f "$MARKER"
+OUT=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"run the fusion skill"}' | bash "$ROUTER")
+assert_contains "explicit skill request detected" "$OUT" "FUSION PLUGIN DETECTED"
+
 # 3. "build a playbook" phrase -> detected
 rm -f "$MARKER"
 OUT=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"build a playbook for ransomware"}' | bash "$ROUTER")
 assert_contains "playbook phrase detected" "$OUT" "FUSION PLUGIN DETECTED"
+
+# Codex adds turn_id and permission_mode to the shared hook shape. Keep the
+# routing instruction host-neutral instead of naming Claude's Skill tool.
+rm -f "$MARKER-codex-session"
+OUT=$(echo '{"hook_event_name":"UserPromptSubmit","session_id":"codex-session","turn_id":"codex-turn","permission_mode":"default","prompt":"create a fusion workflow"}' |
+  PLUGIN_ROOT="$SCRIPT_DIR" CLAUDE_PLUGIN_ROOT="$SCRIPT_DIR" bash "$ROUTER")
+assert_contains "Codex event uses host-neutral skill routing" "$OUT" "Load and follow the crowdstrike-falcon-fusion workflows orchestrator skill"
+if echo "$OUT" | grep -qF "Skill tool"; then fail "Codex event avoids Claude-only Skill tool wording"; else pass "Codex event avoids Claude-only Skill tool wording"; fi
+rm -f "$MARKER-codex-session" "$MARKER-codex-session.nudged"
+
+# Cursor names the prompt hook beforeSubmitPrompt and only injects additional_context.
+rm -f "$MARKER-cursor-conv"
+OUT=$(echo '{"hook_event_name":"beforeSubmitPrompt","conversation_id":"cursor-conv","prompt":"create a fusion workflow"}' |
+  CURSOR_PLUGIN_ROOT="$SCRIPT_DIR" bash "$ROUTER")
+assert_contains "Cursor event uses additional_context" "$OUT" "\"additional_context\""
+if echo "$OUT" | grep -qF "hookSpecificOutput"; then fail "Cursor event avoids Claude hookSpecificOutput"; else pass "Cursor event avoids Claude hookSpecificOutput"; fi
+assert_contains "Cursor event routes to the workflows skill" "$OUT" "Load and follow the crowdstrike-falcon-fusion workflows orchestrator skill"
+rm -f "$MARKER-cursor-conv" "$MARKER-cursor-conv.nudged"
 
 # 4. Non-fusion prompt -> no output, no marker
 rm -f "$MARKER"
@@ -65,21 +97,155 @@ OUT=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"what is the capital 
 assert_empty "non-fusion prompt emits no context" "$OUT"
 if [ ! -f "$MARKER" ]; then pass "non-fusion prompt writes no marker"; else fail "non-fusion prompt writes no marker"; fi
 
+# 4b. A generic "workflow" request with security context is Fusion work, even
+# without the product name.
+while IFS= read -r tp; do
+  [ -z "$tp" ] && continue
+  rm -f "$MARKER"
+  OUT=$(jq -n --arg p "$tp" '{hook_event_name:"UserPromptSubmit",prompt:$p}' | bash "$ROUTER")
+  assert_contains "security workflow detected: ${tp:0:45}" "$OUT" "FUSION PLUGIN DETECTED"
+done <<'SECWORKFLOW'
+Build a workflow that takes a list of user email addresses, checks each one against Okta to see if their account is active, and revokes sessions for any active accounts.
+Create a workflow triggered by an EPP detection alert. If the detection severity is Critical or High, contain the host immediately and send a Slack notification.
+build a workflow to contain a host when a detection fires
+SECWORKFLOW
+
+# 4a. Loose-match false positives must NOT trigger: the repo name "fusion-skills",
+# the plugin name, common verbs (write/run), and a generic "workflow" that isn't
+# Fusion work. A verb + a Fusion noun must be near each other, and bare "fusion"
+# and generic "create workflow" no longer match.
+while IFS= read -r fp; do
+  [ -z "$fp" ] && continue
+  rm -f "$MARKER"
+  OUT=$(jq -n --arg p "$fp" '{hook_event_name:"UserPromptSubmit",prompt:$p}' | bash "$ROUTER")
+  assert_empty "no false positive: ${fp:0:45}" "$OUT"
+  if [ ! -f "$MARKER" ]; then pass "no marker: ${fp:0:45}"; else fail "no marker: ${fp:0:45}"; fi
+done <<'FALSEPOS'
+write a file to my desktop describing the issue and I'll tell the agent that works on fusion-skills to fix it
+run the tests for the fusion-skills repo
+write a changelog entry about the fusion plugin
+create workflow docs for the onboarding wiki
+monitor soaring cloud costs
+the release soared last quarter
+notaplaybook deploy today
+redeploy to cider
+see my_action_search_helper
+create an ansible playbook
+run fusion plugin tests
+create a workflow that alerts me when the build host runs out of disk
+create a github actions workflow that scans for vulnerabilities
+create a ci workflow for the falcon dashboard repo
+we need an incident response app with a collection and a UI page, and build workflows that auto-escalate based on severity
+FALSEPOS
+
 # 5. PreToolUse with marker present + non-Skill tool -> advisory nudge
+rm -f "$MARKER.nudged"
 echo "$$" > "$MARKER"
 OUT=$(echo '{"hook_event_name":"PreToolUse","tool_name":"Bash"}' | bash "$ROUTER")
 assert_contains "PreToolUse nudges when marker active" "$OUT" "Fusion plugin reminder"
 
-# 6. PreToolUse with Skill tool -> marker cleared, no nudge
+# 6. PreToolUse with Skill tool -> no nudge, marker kept for the bridge
+rm -f "$MARKER.nudged"
 echo "$$" > "$MARKER"
 OUT=$(echo '{"hook_event_name":"PreToolUse","tool_name":"Skill"}' | bash "$ROUTER")
 assert_empty "Skill invocation emits no nudge" "$OUT"
-if [ ! -f "$MARKER" ]; then pass "Skill invocation clears marker"; else fail "Skill invocation clears marker"; fi
+if [ -f "$MARKER" ]; then pass "Skill invocation keeps marker for the bridge"; else fail "Skill invocation keeps marker for the bridge"; fi
+OUT=$(echo '{"hook_event_name":"PreToolUse","tool_name":"Bash"}' | bash "$ROUTER")
+assert_empty "no reminder after the Skill call" "$OUT"
+rm -f "$MARKER" "$MARKER.nudged"
 
 # 7. PreToolUse without marker -> no output
 rm -f "$MARKER"
 OUT=$(echo '{"hook_event_name":"PreToolUse","tool_name":"Bash"}' | bash "$ROUTER")
 assert_empty "PreToolUse silent without marker" "$OUT"
+
+# 7a. Reminder fires once per detected prompt, not on every tool call
+rm -f "$MARKER" "$MARKER.nudged"
+echo "$$" > "$MARKER"
+echo '{"hook_event_name":"PreToolUse","tool_name":"Bash"}' | bash "$ROUTER" >/dev/null
+OUT=$(echo '{"hook_event_name":"PreToolUse","tool_name":"Read"}' | bash "$ROUTER")
+assert_empty "second tool call gets no repeated reminder" "$OUT"
+if [ -f "$MARKER" ]; then pass "marker survives the reminder for the bridge"; else fail "marker survives the reminder for the bridge"; fi
+
+# 7b. A new prompt that doesn't match clears the leftover marker
+OUT=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"what is the capital of France"}' | bash "$ROUTER")
+if [ ! -f "$MARKER" ] && [ ! -f "$MARKER.nudged" ]; then pass "non-fusion prompt clears leftover marker"; else fail "non-fusion prompt clears leftover marker"; fi
+
+# 7c. Another session's marker doesn't leak into this one
+echo "$$" > "$MARKER"
+OUT=$(echo '{"hook_event_name":"PreToolUse","session_id":"other-session","tool_name":"Bash"}' | bash "$ROUTER")
+assert_empty "marker from another session emits no reminder" "$OUT"
+rm -f "$MARKER" "$MARKER-other-session" "$MARKER-other-session.nudged"
+
+# 7d. Session-scoped marker round-trips from UserPromptSubmit to PreToolUse
+SA="$MARKER-sess-a"; SB="$MARKER-sess-b"
+rm -f "$SA" "$SA.nudged" "$SB" "$SB.nudged"
+echo '{"hook_event_name":"UserPromptSubmit","session_id":"sess-a","prompt":"create a fusion workflow"}' | bash "$ROUTER" >/dev/null
+if [ -f "$SA" ]; then pass "prompt with session_id writes the scoped marker"; else fail "prompt with session_id writes the scoped marker"; fi
+OUT=$(echo '{"hook_event_name":"PreToolUse","session_id":"sess-a","tool_name":"Bash"}' | bash "$ROUTER")
+assert_contains "same session gets the reminder" "$OUT" "Fusion plugin reminder"
+
+# 7e. A second session sees nothing from the first
+OUT=$(echo '{"hook_event_name":"PreToolUse","session_id":"sess-b","tool_name":"Bash"}' | bash "$ROUTER")
+assert_empty "other session gets no reminder" "$OUT"
+OUT=$(echo '{"session_id":"sess-b","tool_input":{"skill":"crowdstrike-falcon-foundry:development-workflow"}}' | bash "$BRIDGE")
+assert_empty "other session gets no bridge advisory" "$OUT"
+
+# 7f. The bridge reads the same scoped marker after the router sees the Skill call
+echo '{"hook_event_name":"PreToolUse","session_id":"sess-a","tool_name":"Skill"}' | bash "$ROUTER" >/dev/null
+OUT=$(echo '{"session_id":"sess-a","tool_input":{"skill":"crowdstrike-falcon-foundry:development-workflow"}}' | bash "$BRIDGE")
+assert_contains "bridge sees the scoped marker after a Skill call" "$OUT" "STANDALONE Fusion workflow"
+
+# 7g. Unsafe characters in session_id can't escape the marker filename
+rm -f "$MARKER-evil"
+echo '{"hook_event_name":"UserPromptSubmit","session_id":"../ev/il","prompt":"create a fusion workflow"}' | bash "$ROUTER" >/dev/null
+if [ -f "$MARKER-evil" ]; then pass "session_id is sanitized into the marker name"; else fail "session_id is sanitized into the marker name"; fi
+rm -f "$SA" "$SA.nudged" "$SB" "$SB.nudged" "$MARKER-evil" "$MARKER-evil.nudged"
+
+# 7h. Markers older than a day are pruned on the next prompt
+STALE="$MARKER-stale-test"
+touch -t 202001010000 "$STALE"
+echo '{"hook_event_name":"UserPromptSubmit","prompt":"what is the capital of France"}' | bash "$ROUTER" >/dev/null
+if [ ! -f "$STALE" ]; then pass "stale session marker is pruned"; else fail "stale session marker is pruned"; fi
+rm -f "$STALE"
+
+# 7i. Advisory hooks exit 0 on input they can't parse, and without jq.
+echo 'not json' | bash "$ROUTER" >/dev/null 2>&1
+RC=$?; if [ "$RC" -eq 0 ]; then pass "router exits 0 on non-JSON input"; else fail "router exits 0 on non-JSON input (got $RC)"; fi
+echo 'not json' | bash "$BRIDGE" >/dev/null 2>&1
+RC=$?; if [ "$RC" -eq 0 ]; then pass "bridge exits 0 on non-JSON input"; else fail "bridge exits 0 on non-JSON input (got $RC)"; fi
+OUT=$(echo '{"tool_input":"x"}' | bash "$BRIDGE" 2>&1)
+RC=$?; if [ "$RC" -eq 0 ] && [ -z "$OUT" ]; then pass "bridge ignores a non-object tool_input"; else fail "bridge ignores a non-object tool_input (rc=$RC out=$OUT)"; fi
+NOJQ_BIN=$(mktemp -d)
+for tool in bash cat dirname id mkdir tr find rm touch grep; do
+  p=$(command -v "$tool") && ln -s "$p" "$NOJQ_BIN/$tool"
+done
+OUT=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"create a fusion workflow"}' | PATH="$NOJQ_BIN" "$NOJQ_BIN/bash" "$ROUTER" 2>&1)
+RC=$?; if [ "$RC" -eq 0 ]; then pass "router exits 0 when jq is missing"; else fail "router exits 0 when jq is missing (got $RC: $OUT)"; fi
+OUT=$(echo '{"tool_input":{"skill":"workflows"}}' | PATH="$NOJQ_BIN" "$NOJQ_BIN/bash" "$BRIDGE" 2>&1)
+RC=$?; if [ "$RC" -eq 0 ]; then pass "bridge exits 0 when jq is missing"; else fail "bridge exits 0 when jq is missing (got $RC: $OUT)"; fi
+rm -rf "$NOJQ_BIN"
+
+# 7j. An untrusted state dir (a symlink planted by someone else) is never used,
+# but the prompt advisory still fires.
+EVIL_TARGET=$(mktemp -d)
+EVIL_DIR="$(mktemp -d)/state"
+ln -s "$EVIL_TARGET" "$EVIL_DIR"
+OUT=$(echo '{"hook_event_name":"UserPromptSubmit","prompt":"create a fusion workflow"}' | FUSION_HOOK_STATE_DIR="$EVIL_DIR" bash "$ROUTER")
+RC=$?
+assert_contains "advisory still fires with an untrusted state dir" "$OUT" "FUSION PLUGIN DETECTED"
+if [ "$RC" -eq 0 ] && [ -z "$(ls -A "$EVIL_TARGET")" ]; then pass "no marker written through a symlinked state dir"; else fail "no marker written through a symlinked state dir"; fi
+rm -rf "$EVIL_TARGET" "$(dirname "$EVIL_DIR")"
+
+# 7k. The default state dir is private to the user.
+DEFAULT_PARENT=$(mktemp -d)
+echo '{"hook_event_name":"UserPromptSubmit","prompt":"create a fusion workflow"}' |
+  env -u FUSION_HOOK_STATE_DIR -u XDG_RUNTIME_DIR TMPDIR="$DEFAULT_PARENT" bash "$ROUTER" >/dev/null
+DEFAULT_DIR="$DEFAULT_PARENT/fusion-skills-$(id -u)"
+# GNU first: GNU `stat -f` means filesystem status and succeeds with the wrong output.
+PERMS=$(stat -c '%a' "$DEFAULT_DIR" 2>/dev/null || stat -f '%Lp' "$DEFAULT_DIR" 2>/dev/null)
+if [ "$PERMS" = "700" ] && [ -f "$DEFAULT_DIR/.fusion-skill-router-active" ]; then pass "default state dir is 0700 and holds the marker"; else fail "default state dir is 0700 and holds the marker (perms=$PERMS)"; fi
+rm -rf "$DEFAULT_PARENT"
 
 echo ""
 echo "Testing fusion-foundry-bridge.sh"
@@ -95,6 +261,67 @@ rm -f "$MARKER"
 OUT=$(echo '{"tool_input":{"skill":"workflows"}}' | bash "$BRIDGE")
 assert_contains "fusion skill emits foundry advisory" "$OUT" "Foundry app wrapper"
 
+# 9a. Claude Code passes plugin skills namespaced.
+OUT=$(echo '{"tool_input":{"skill":"crowdstrike-falcon-fusion:workflows"}}' | bash "$BRIDGE")
+assert_contains "namespaced fusion skill emits foundry advisory" "$OUT" "Foundry app wrapper"
+
+# Codex stores enabled plugins in config.toml. The bridge should recognize the
+# sibling there instead of telling the user to install it again.
+CODEX_HOME=$(mktemp -d)
+mkdir -p "$CODEX_HOME/.codex"
+cat > "$CODEX_HOME/.codex/config.toml" <<'EOF'
+[plugins."crowdstrike-falcon-foundry@openai-api-curated"]
+enabled = true
+EOF
+OUT=$(echo '{"tool_input":{"skill":"workflows"}}' | HOME="$CODEX_HOME" bash "$BRIDGE")
+assert_contains "Codex config recognizes installed Foundry plugin" "$OUT" "foundry-skills plugin is installed"
+rm -rf "$CODEX_HOME"
+
+# A Codex turn must not inherit Claude's registry. turn_id is Codex-only; when
+# Codex has the sibling disabled, Claude's installed_plugins.json does not count.
+BOTH_HOME=$(mktemp -d)
+mkdir -p "$BOTH_HOME/.claude/plugins" "$BOTH_HOME/.codex"
+cat > "$BOTH_HOME/.claude/plugins/installed_plugins.json" <<'EOF'
+{"plugins":{"crowdstrike-falcon-foundry@claude-plugins-official":[{"scope":"user"}]}}
+EOF
+cat > "$BOTH_HOME/.codex/config.toml" <<'EOF'
+[plugins."crowdstrike-falcon-foundry@openai-api-curated"]
+enabled = false
+EOF
+OUT=$(echo '{"turn_id":"codex-turn","tool_input":{"skill":"workflows"}}' | HOME="$BOTH_HOME" bash "$BRIDGE")
+if echo "$OUT" | grep -qF "foundry-skills plugin is installed"; then
+  fail "Codex disabled sibling ignores Claude registry"
+else
+  pass "Codex disabled sibling ignores Claude registry"
+fi
+assert_contains "Codex disabled sibling still names the install command" "$OUT" "/plugins in Codex"
+rm -rf "$BOTH_HOME"
+
+# A nested table under a disabled plugin is not the plugin's own enabled flag.
+NESTED_HOME=$(mktemp -d)
+mkdir -p "$NESTED_HOME/.codex"
+cat > "$NESTED_HOME/.codex/config.toml" <<'EOF'
+[plugins."crowdstrike-falcon-foundry@openai-api-curated"]
+enabled = false
+
+[plugins."crowdstrike-falcon-foundry@openai-api-curated".mcp_servers.example]
+enabled = true
+EOF
+OUT=$(echo '{"turn_id":"codex-turn","tool_input":{"skill":"workflows"}}' | HOME="$NESTED_HOME" bash "$BRIDGE")
+if echo "$OUT" | grep -qF "foundry-skills plugin is installed"; then
+  fail "Codex nested enabled table is not the plugin"
+else
+  pass "Codex nested enabled table is not the plugin"
+fi
+rm -rf "$NESTED_HOME"
+
+# Cursor marketplace installs live in the plugin cache.
+CURSOR_HOME=$(mktemp -d)
+mkdir -p "$CURSOR_HOME/.cursor/plugins/cache/cursor-public/crowdstrike-falcon-foundry"
+OUT=$(echo '{"tool_input":{"skill":"workflows"}}' | HOME="$CURSOR_HOME" bash "$BRIDGE")
+assert_contains "Cursor plugin cache recognizes installed Foundry plugin" "$OUT" "foundry-skills plugin is installed"
+rm -rf "$CURSOR_HOME"
+
 # 10. lookup-files skill invoked -> advisory emitted
 OUT=$(echo '{"tool_input":{"skill":"lookup-files"}}' | bash "$BRIDGE")
 assert_contains "lookup-files skill emits advisory" "$OUT" "Cross-plugin note"
@@ -104,7 +331,7 @@ OUT=$(echo '{"tool_input":{"skill":"some-other-skill"}}' | bash "$BRIDGE")
 assert_empty "unrelated skill emits no advisory" "$OUT"
 
 # Cleanup
-rm -f "$MARKER"
+rm -f "$MARKER" "$MARKER.nudged"
 
 echo ""
 echo "──────────────────────────────"

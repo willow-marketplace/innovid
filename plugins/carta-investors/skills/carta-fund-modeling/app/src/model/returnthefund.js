@@ -8,6 +8,43 @@
 // required `m`, and we rank all subsets by it (lowest = most achievable).
 import { positionTotalValue } from "./reprice.js";
 
+const RTF_STEP = 0.25, RTF_HEADROOM = 10; // target band ceiling rides this many × above its floor
+const RTF_AUTO_POOL = 12; // auto mode searches this many largest-cost movers
+const RTF_MAX_SET = 3; // default max companies per solution combo
+
+/**
+ * The target band a fund's Return-the-fund search runs in: a fixed band riding above
+ * the fund's current gross MOIC. The floor is the nearest clean 0.25 step ABOVE
+ * current (e.g. 1.75× for a 1.51× fund) and the ceiling is RTF_HEADROOM above that
+ * floor. Anchoring to current means the target is always > current — so there are
+ * always solutions — and it keeps working however high current is. `saved` is the
+ * scenario's stored target (undefined until the slider is dragged → a seed just above
+ * current); it is clamped into the band either way.
+ * @returns {{ min, max, step, target }}
+ */
+export function rtfTargetBand(currentMoic, saved) {
+  const cur = currentMoic || 1;
+  const min = Math.max(1, Math.floor(cur / RTF_STEP) * RTF_STEP + RTF_STEP);
+  const max = min + RTF_HEADROOM;
+  const target = Math.min(max, Math.max(min, saved ?? Math.max(2, Math.ceil(cur))));
+  return { min, max, step: RTF_STEP, target };
+}
+
+/**
+ * Search options from a fund's saved Return-the-fund config. `eligible` is the
+ * mover universe (`returnTheFundSolutions(...).eligible`). Auto mode searches the
+ * RTF_AUTO_POOL largest-cost movers; custom mode searches the user's `flexIds`,
+ * seeded from today's auto pool until the user prunes it.
+ * @returns {{ mode, maxSet, flexIds, candidateIds }}
+ */
+export function rtfSearch(config, eligible) {
+  const cfg = config || {};
+  const mode = cfg.mode === "custom" ? "custom" : "auto";
+  const autoPoolIds = [...eligible].sort((a, b) => b.cost - a.cost).slice(0, RTF_AUTO_POOL).map((e) => e.id);
+  const flexIds = cfg.flexIds ?? autoPoolIds;
+  return { mode, maxSet: cfg.maxSet ?? RTF_MAX_SET, flexIds, candidateIds: mode === "custom" ? flexIds : null };
+}
+
 /** All combinations of `arr` of sizes 1..maxSize (order-independent). */
 function combinations(arr, maxSize) {
   const out = [];
@@ -26,8 +63,8 @@ function combinations(arr, maxSize) {
 
 /**
  * @param {object} [opts]
- *   maxSet       — max companies per solution combo (default 3)
- *   poolSize     — auto mode: how many top-cost movers to search (default 12)
+ *   maxSet       — max companies per solution combo (default RTF_MAX_SET)
+ *   poolSize     — auto mode: how many top-cost movers to search (default RTF_AUTO_POOL)
  *   topN         — cap on returned solutions (default 15)
  *   candidateIds — null → auto (top-`poolSize` movers by cost); an array of company
  *                  ids → only those may move (a user whitelist; bypasses the cost cap)
@@ -39,13 +76,13 @@ function combinations(arr, maxSize) {
  * }}
  * `m` is the uniform exit MOIC (on invested cost) every company in the combo must
  * reach for the FUND to hit `targetMoic`; `neededValue = m × cost`. Solutions are
- * sorted by `m` ascending. Realized / defunct / archived holdings are held flat
+ * sorted by `m` ascending. Realized / defunct / archived / written-off (0x) holdings are held flat
  * (their value still counts toward the fund total) and never appear as movers.
  * Config (`candidateIds`, `maxSet`) only steers the mover search — never the fund
  * totals or `alreadyThere`.
  */
 export function returnTheFundSolutions(slice, fundId, targetMoic, opts = {}) {
-  const { maxSet = 3, poolSize = 12, topN = 15, candidateIds = null } = opts;
+  const { maxSet = RTF_MAX_SET, poolSize = RTF_AUTO_POOL, topN = 15, candidateIds = null } = opts;
   let investedCost = 0, grossValue = 0;
   const eligible = [];
   for (const c of slice.companies || []) {
@@ -59,7 +96,9 @@ export function returnTheFundSolutions(slice, fundId, targetMoic, opts = {}) {
     if (cost <= 0) continue;
     investedCost += cost;
     grossValue += value;
-    if (!c.realized && !c.defunct) {
+    // A written-off holding (current MOIC 0x) is a dead position, not a candidate
+    // to re-rate: its cost and (zero) value still count toward the fund totals.
+    if (!c.realized && !c.defunct && value > 0) {
       eligible.push({ id: c.id, name: c.name, cost, value, curMoic: value / cost });
     }
   }

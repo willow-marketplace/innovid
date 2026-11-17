@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.1.17](https://github.com/supabase-community/supabase-plugin/compare/v0.1.16...v0.1.17) (2026-10-16)
+
+
+### Features
+
+* add Antigravity plugin support ([dbaecb0](https://github.com/supabase-community/supabase-plugin/commit/dbaecb0aea6ef8f2d2e81ec2196b61061a30ef72))
+* add Antigravity plugin support ([947cf53](https://github.com/supabase-community/supabase-plugin/commit/947cf53083aa327e0a5ddfa0808547dadf925d8d))
+
+
+### Bug Fixes
+
+* load Antigravity MCP config from plugin root ([c317f5e](https://github.com/supabase-community/supabase-plugin/commit/c317f5e8b361d9aa05e427276744b6a7cbd4497d))
+
+## [0.1.16](https://github.com/supabase-community/supabase-plugin/compare/v0.1.15...v0.1.16) (2026-09-28)
+
+
+### Features
+
+* sync skills from supabase/agent-skills v0.1.9 ([#65](https://github.com/supabase-community/supabase-plugin/issues/65)) ([e913166](https://github.com/supabase-community/supabase-plugin/commit/e9131667b9daf316626563e6ad45985ef8371ff8))
+
+
+### Bug Fixes
+
+* **plugin:** make brand colours accessible across themes ([f3f332e](https://github.com/supabase-community/supabase-plugin/commit/f3f332e0164c34a8392772811737fda0cb972d06))
+
 ## [0.1.15](https://github.com/supabase-community/supabase-plugin/compare/v0.1.14...v0.1.15) (2026-08-18)
 
 

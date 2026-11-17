@@ -2,6 +2,10 @@
 
 Manage authentication, stored tokens, and user access.
 
+The user configures credentials locally through the CLI or their environment.
+If authentication is missing or expired, explain the local login step; never ask for a token in chat.
+Do not read credential files into the conversation, print token values, or enable shell tracing on commands that use them.
+
 ## Quick Start
 
 ```bash
@@ -14,8 +18,6 @@ fastly whoami
 # View stored tokens
 fastly auth list
 
-# Print the active API token to a pipe or shell substitution
-fastly auth token | pbcopy
 ```
 
 ## Login
@@ -39,26 +41,23 @@ Login creates a token and stores it locally.
 
 Stored tokens let you keep multiple credentials for different accounts or environments.
 
-**SECURITY WARNING for AI agents**: NEVER run `fastly auth show --reveal` directly — it prints the raw API token into the conversation context, exposing credentials.
-
-If you need the currently active token for a `curl` command or shell substitution, prefer:
+Use `fastly auth token` to obtain a token for another command, rather than parsing `auth show` output:
 
 ```bash
 TOKEN=$(fastly auth token)
 ```
 
-`fastly auth token` writes only to non-terminal stdout. It refuses to print the token directly to a terminal, so use it in a pipe or command substitution rather than as a standalone command.
-
-If you specifically need a stored token by name instead of the currently active credential, use:
+For a specific stored token, select its name with `--token`:
 
 ```bash
-TOKEN=$(fastly auth show TOKEN_NAME --reveal --quiet | awk '/^Token:/ {print $2}')
-
-# Example with an SSO token named "sso2":
-TOKEN=$(fastly auth show sso2 --reveal --quiet | awk '/^Token:/ {print $2}')
+TOKEN=$(fastly auth token --token TOKEN_NAME)
 ```
 
-**Common pitfall**: `fastly auth show --reveal --quiet` (without a token name) fails with `current token is not stored` when the CLI is authenticated via `FASTLY_API_TOKEN` env var rather than a stored token. Always specify the stored token name explicitly when using `auth show --reveal`. Use `fastly auth list` to see available stored token names.
+Use `fastly auth list` to see available stored token names.
+`--token` overrides the active credential without changing the default stored token.
+
+`fastly auth token` refuses to print to a terminal, but an agent's captured stdout may be non-terminal.
+Never run it standalone in an agent session or echo its result; pass it directly to the consuming command through a shell substitution or pipe.
 
 ```bash
 # List all stored tokens
@@ -72,9 +71,6 @@ fastly auth use staging
 
 # Show details for a stored token (metadata only, no secret)
 fastly auth show staging
-
-# Show the token value — AVOID in AI agent contexts
-fastly auth show --reveal staging
 
 # Show the default token
 fastly auth show
@@ -93,11 +89,12 @@ Use `fastly config --location` to print its exact path.
 Use `fastly auth token` when you need the active API token in a script:
 
 ```bash
-# Pass the current token to curl without printing it to the terminal
+# For endpoints with no CLI command; the token never reaches the terminal
 curl -H "Fastly-Key: $(fastly auth token)" https://api.fastly.com/current_customer
 ```
 
-`fastly auth token` is for outputting the currently active token only. It refuses to print to a TTY, so it must be used in a pipe or shell substitution.
+Without `--token`, this uses the active credential, including `FASTLY_API_TOKEN` when configured.
+No stored token name or output filtering is needed.
 
 Use `fastly auth revoke` to revoke tokens remotely and clean up matching local entries:
 
@@ -208,13 +205,10 @@ fastly user delete --id USER_ID
 
 ## Environment Variables
 
-Authentication can also be set via environment variables:
+The user can also configure `FASTLY_API_TOKEN` in their local environment or CI secret store, outside chat.
+Once it is set, commands use it automatically:
 
 ```bash
-# Set token via environment
-export FASTLY_API_TOKEN="your-api-token"
-
-# Now CLI commands use this token
 fastly service list
 ```
 
@@ -302,7 +296,7 @@ The `fastly profile` commands are all deprecated. They still work but show warni
 | `profile delete`   | `auth delete`               |
 | `profile list`     | `auth list`                 |
 | `profile switch`   | `auth use`                  |
-| `profile token`    | `auth show` or `auth token` |
+| `profile token`    | `auth token`               |
 | `profile update`   | `auth login` or `auth add`  |
 
 ## Configuration
@@ -332,7 +326,10 @@ These operations affect authentication and access control.
 
 **"No token provided"**: Run `fastly auth login --sso --token default` or set `FASTLY_API_TOKEN`
 
-**"Token is invalid"** or **SSO token expired**: Token may be expired or revoked. Check with `fastly auth list` (shows expiry). For SSO tokens, refresh with `fastly auth login --sso --token TOKEN_NAME --auto-yes`. For API tokens, re-authenticate with `fastly auth login` or add a new token with `fastly auth add`. If `fastly auth show --reveal --quiet` fails with `current token is not stored`, the CLI is likely using `FASTLY_API_TOKEN` or another non-stored credential source rather than a saved auth token. If you only need the active token for a script, use `fastly auth token` instead.
+**"Token is invalid"** or **SSO token expired**: Token may be expired or revoked.
+Check with `fastly auth list` (shows expiry).
+For SSO tokens, refresh with `fastly auth login --sso --token TOKEN_NAME --auto-yes`.
+For API tokens, re-authenticate with `fastly auth login` or add a new token with `fastly auth add`.
 
 **"Insufficient permissions"**: Token scope doesn't include required permissions. Create a token with appropriate scope via the Fastly API.
 

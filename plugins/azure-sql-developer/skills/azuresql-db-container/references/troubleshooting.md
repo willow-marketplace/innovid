@@ -7,7 +7,7 @@ Common failures and their fixes. Symptoms first.
 - Container won't start / exits immediately
 - Password policy rejection (the container stays "Up" but nothing connects)
 - Port already in use
-- "no matching manifest" on a non-x64 host
+- "no matching manifest" for a supported image architecture
 - Msg 40508 on USE
 - Cannot open database / database does not exist
 - Connecting too early (Msg 913 and friends)
@@ -29,8 +29,9 @@ just because `docker ps` says it is running. Fix the env vars and recreate:
 
 ```bash
 docker rm -f sqldb 2>/dev/null
-docker run -d --name sqldb -e "ACCEPT_EULA=Y" -e "MSSQL_SA_PASSWORD=YourStr0ng_Passw0rd" \
-  -p "1433:1433" sqldbpreview-dpgaeqhmgphzd4bk.azurecr.io/azure-sql/db-dev:latest
+MSSQL_SA_PASSWORD="${MSSQL_SA_PASSWORD:-Aa1%$(openssl rand -hex 16)}"
+docker run -d --name sqldb -e "ACCEPT_EULA=Y" -e "MSSQL_SA_PASSWORD=$MSSQL_SA_PASSWORD" \
+  -p "127.0.0.1:1433:1433" sqldbpreview-dpgaeqhmgphzd4bk.azurecr.io/azure-sql/db-dev:latest
 ```
 
 ## Password policy rejection (the container stays "Up" but nothing connects)
@@ -57,23 +58,26 @@ container has no effect.
 
 ```bash
 HOST_PORT=1433; while lsof -nP -iTCP:"$HOST_PORT" -sTCP:LISTEN >/dev/null 2>&1; do HOST_PORT=$((HOST_PORT+1)); done
+MSSQL_SA_PASSWORD="${MSSQL_SA_PASSWORD:-Aa1%$(openssl rand -hex 16)}"
 echo "using $HOST_PORT"
 ```
 
-Then run with `-p "$HOST_PORT:1433"` and connect to `localhost,$HOST_PORT`.
+Then run with `-p "127.0.0.1:$HOST_PORT:1433"` and connect to `localhost,$HOST_PORT`.
 
-## "no matching manifest" on a non-x64 host
+## "no matching manifest" for a supported image architecture
 
-The image is x64 only. On a non-x64 host the daemon cannot find a native
-manifest. Add the platform flag to run under emulation:
+The image supports `linux/amd64` and `linux/arm64`, and the runtime normally
+selects the matching image. If the daemon cannot find a matching manifest, check
+that the image tag and container runtime are current. To explicitly test x64
+emulation on an ARM64 host, add the platform override:
 
 ```bash
 docker run -d --name sqldb --platform linux/amd64 -e "ACCEPT_EULA=Y" \
-  -e "MSSQL_SA_PASSWORD=YourStr0ng_Passw0rd" -p "1433:1433" \
+  -e "MSSQL_SA_PASSWORD=$MSSQL_SA_PASSWORD" -p "127.0.0.1:1433:1433" \
   sqldbpreview-dpgaeqhmgphzd4bk.azurecr.io/azure-sql/db-dev:latest
 ```
 
-This is emulation, not native support. On an x64 host, omit `--platform`.
+This runs the x64 image under emulation. Omit `--platform` for native runs.
 
 ## Msg 40508 on USE
 
@@ -92,7 +96,7 @@ fails because the database does not exist, provision it on a `master`
 connection first:
 
 ```bash
-docker exec sqldb /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "YourStr0ng_Passw0rd" -C -b \
+docker exec sqldb /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "$MSSQL_SA_PASSWORD" -C -b \
   -Q "IF DB_ID('appdb') IS NULL CREATE DATABASE appdb;"
 ```
 
@@ -110,15 +114,15 @@ If `SELECT SERVERPROPERTY('EngineEdition')` does not return `5`, or
 
 ```bash
 docker rm -f sqldb 2>/dev/null
-docker run -d --name sqldb -e "ACCEPT_EULA=Y" -e "MSSQL_SA_PASSWORD=YourStr0ng_Passw0rd" \
-  -p "1433:1433" sqldbpreview-dpgaeqhmgphzd4bk.azurecr.io/azure-sql/db-dev:latest
+docker run -d --name sqldb -e "ACCEPT_EULA=Y" -e "MSSQL_SA_PASSWORD=$MSSQL_SA_PASSWORD" \
+  -p "127.0.0.1:1433:1433" sqldbpreview-dpgaeqhmgphzd4bk.azurecr.io/azure-sql/db-dev:latest
 ```
 
 ## Stale image (missing a recent fix)
 
-The engine behaves like an older build, or a fix you expected is not present. `:latest` is a moving tag and
-the Private Preview image is rebuilt almost daily, but `docker run` reuses the `:latest` already on disk
-(Docker's default pull policy is `missing`) and never re-checks the registry. Refresh and recreate:
+The engine behaves like an older build, or a fix you expected is not present. `:latest` is a moving tag, but
+`docker run` reuses the `:latest` already on disk (Docker's default pull policy is `missing`) and never
+re-checks the registry. Pull to check for a newer build, then recreate:
 
 ```bash
 docker pull sqldbpreview-dpgaeqhmgphzd4bk.azurecr.io/azure-sql/db-dev:latest

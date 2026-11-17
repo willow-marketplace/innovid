@@ -3,6 +3,9 @@ name: update-deal
 description: Updates an existing deal record in the Carta CRM. Use this skill when the user says things like "update a deal", "move deal to [stage]", "change deal stage", "edit deal", "update deal fields", "add a tag to deal", "assign deal lead", "update company info on deal", "link contacts to deal", or "/update-deal". Accepts a deal ID or company name (will search if no ID provided). Only the fields explicitly provided are changed — all other fields are left untouched.
 ---
 
+<!-- carta:plugin-version -->
+<carta-plugin>carta-crm:1.20.20</carta-plugin>
+
 ## Overview
 
 Partially update an existing deal. Only fields provided are modified — this is

@@ -83,7 +83,7 @@ AWS technology, programs, and expertise have enabled the Krikey AI team to not o
 
 ---
 
-_Author: AWS Editorial Team_
+> _Author: AWS Editorial Team_
 
 _The AWS Startups Content Marketing Team collaborates with startups of all sizes and across all sectors to deliver exceptional content that educates, entertains, and inspires._
 

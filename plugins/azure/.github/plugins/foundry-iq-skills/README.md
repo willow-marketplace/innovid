@@ -4,6 +4,14 @@ Build grounded knowledge experiences with [Azure AI Search (Foundry IQ)](https:/
 
 This plugin helps GitHub Copilot CLI create and use Foundry IQ knowledge bases, using your existing Azure resources when possible.
 
+## Telemetry
+
+The `track-telemetry` hook installs a pinned native `ghcfa-telem` release asset
+when needed, verifies its platform-specific SHA-256 digest before extraction,
+and caches the executable for reuse. To opt out of telemetry collection, set
+`AZURE_MCP_COLLECT_TELEMETRY=false` in the environment of the process running
+the agent.
+
 ## Skill
 
 - **foundry-iq**: Build, connect, query, and troubleshoot Foundry IQ knowledge experiences using supported Azure resources.

@@ -25,11 +25,21 @@ export function formatPeriodLabel(budget, asOfIso) {
 export const MONTH_NAME = ["January", "February", "March", "April", "May", "June",
                            "July", "August", "September", "October", "November", "December"];
 
+export const QUARTERS = ["Q1", "Q2", "Q3", "Q4"];
+
+/** A period's heading, as Budget vs Actuals words it: "January 2026", "Q1 2026". `m` is the
+ *  month 1-12, `q` the quarter 1-4. */
+export const monthLabel = (m, year) => `${MONTH_NAME[m - 1]} ${year}`;
+export const quarterLabel = (q, year) => `${QUARTERS[q - 1]} ${year}`;
+
 export const FREQUENCIES = [
   { key: "monthly", label: "Monthly" },
   { key: "quarterly", label: "Quarterly" },
   { key: "annually", label: "Annually" },
 ];
+
+/** Whether a saved or linked value names one of the Periods above. */
+export const isFrequency = (key) => FREQUENCIES.some((f) => f.key === key);
 
 // The three sub-columns the Filters menu can hide, in the order they render.
 export const COLUMN_TYPES = ["actual", "budget", "variance"];
@@ -47,10 +57,18 @@ function clamp(n, lo, hi) {
   return Math.max(lo, Math.min(hi, n));
 }
 
-/** The calendar month the dashboard's own as-of date falls in, 1-12 — the
- *  true cutoff for what Carta actually has data for, independent of what
- *  any one budget claims to cover. Falls back to December when `asOf` is
- *  absent so a snapshot without one still renders a full year. */
+/** The date every budget/actuals cutoff in the app reads instead of a
+ *  snapshot's own `asOf` — the ledger's own last posted entry
+ *  (`lastPostedDate`) when the build or worker wrote one, `asOf` (the fetch
+ *  date) otherwise. A snapshot without `lastPostedDate` reads `asOf`. The
+ *  worker bundle can't import this (`server/worker.js`'s `withSharedInBudgets`
+ *  holds its own copy of the same fallback — keep the two in step). */
+export const cutoffDate = (snapshot) => snapshot?.lastPostedDate || snapshot?.asOf;
+
+/** The calendar month `cutoffDate` falls in, 1-12 — the true cutoff for
+ *  what Carta actually has data for, independent of what any one budget
+ *  claims to cover. Falls back to December when the date is absent so a
+ *  snapshot without one still renders a full year. */
 export function trueAsOfMonth(asOf) {
   return Number(String(asOf || "").slice(5, 7)) || 12;
 }
@@ -75,7 +93,7 @@ export function rangeOfPeriod(period) {
 
 function rangeLabel(range, year) {
   const { first, last } = range;
-  if (first === last) return `${MONTH_NAME[first - 1]} ${year}`;
+  if (first === last) return monthLabel(first, year);
   if (first === 1 && last === 12) return String(year);
   return `${MONTH_ABBR[first - 1]} – ${MONTH_ABBR[last - 1]} ${year}`;
 }
@@ -101,13 +119,13 @@ export function periodColumns(frequency, range, year, asOfMonth) {
     for (let q = 0; q < 4; q += 1) {
       const months = monthsBetween(q * 3 + 1, q * 3 + 3)
         .filter((m) => m >= win.first && m <= win.last);
-      if (months.length) out.push(mark({ key: `q${q + 1}`, label: `Q${q + 1} ${year}`, months }));
+      if (months.length) out.push(mark({ key: `q${q + 1}`, label: quarterLabel(q + 1, year), months }));
     }
     return out;
   }
 
   return monthsBetween(win.first, win.last).map((m) =>
-    mark({ key: `m${m}`, label: `${MONTH_NAME[m - 1]} ${year}`, months: [m] }));
+    mark({ key: `m${m}`, label: monthLabel(m, year), months: [m] }));
 }
 
 /** January through the end of the window, never past the last month with
@@ -121,6 +139,21 @@ export function ytdColumn(range, year, asOfMonth, columns) {
   const months = monthsBetween(1, last);
   if (columns?.length === 1 && sameMonths(columns[0].months, months)) return null;
   return { key: "ytd", label: "YTD", months, ytd: true, future: false };
+}
+
+/** The columns a row's label cell stands for, and the months they cover.
+ *
+ *  Year to date when that column is on, else every period on screen — never
+ *  both: YTD already holds the periods' months, so adding it to them counts
+ *  each month twice. Monthly Actuals' label cells stand for this; Budget vs
+ *  Actuals' stand for the window instead, so a page passes ChildRow the
+ *  `label` its own rows use. A label drill passes exactly these months, so
+ *  the entries it lists add up to the figure it reports.
+ */
+export function labelWindow(columns) {
+  const ytd = columns.find((c) => c.ytd);
+  const cols = ytd ? [ytd] : columns;
+  return { cols, months: cols.flatMap((c) => c.months) };
 }
 
 function sameMonths(a, b) {

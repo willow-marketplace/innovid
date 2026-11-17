@@ -1,5 +1,28 @@
 # Changelog
 
+## [1.10.0] - 2026-11-10
+
+### Changed
+- **The ten use-case skills run once and offer more afterwards.** The flow is now: interview, connect Nimble, run the template at medium effort (or the effort the user asks for), show the result, offer next steps (a high-effort run, another request, a recurring setup). The quick-look step and the medium and high runs started together are gone. The skill announces the run with its expected time for that effort ("Expected to take 1-3 minutes"), and writes one line if the run passes the top of that range. Only transient errors are retried; an empty result is shown with the sources it checked.
+- **The interview uses the host's question UI.** The skill opens by acknowledging its role (for example "Sure, I'll use Nimble to be your deal sourcing assistant"), asks the key question first, then the optional ones together (`AskUserQuestion` in Claude Code, ChatGPT's interactive question form). Questions are single-select. Open-ended ones get example options, and every question allows a typed answer: the skill adds an "Other" choice where the host has no free-text choice of its own. A skipped question uses a named default, through the host's own Skip control where it has one (Claude) and otherwise a Skip option labelled with the default. Answers from earlier conversations are not reused, except a stable fact about the user offered as "(from before)".
+- **Nimble must be connected before any research is shown.** The skills ask to connect after the interview. They check the connection through the MCP tool and the CLI, and only connect when neither succeeds. They show the host's card to connect or install Nimble (the Connect card in Claude, the install card in ChatGPT), then the authorization link a check returned, then the agent onboarding steps where commands can be run (the API key fallback when only the CLI is available and it has no key), and otherwise tell the user where to click. The onboarding page, which is written for the agent, is never linked to the user. The connection is confirmed with an "I've connected Nimble" option, and nothing from the host's own search or from memory is shown first. The CLI equivalents, tagged with `--client-source nimble-agent-skills`, are listed for the connection check and the agent calls. `WebSearch` and `nimble_search` are removed from the skills' `allowed-tools`.
+- **Results are written out in the chat:** a one-line headline, a table or sections in the shape that fits, a source link beside each claim, and a closing line on what a deeper run may find.
+- **Inputs follow the templates.** `account-discovery` asks for geography and size separately and adds best-fit examples; `deal-sourcing` asks for sector, geography and ownership separately; `account-brief` adds a meeting goal; `decision-maker-identification` adds a region or business unit; `credit-risk` adds the country of registration; `kyc-screening` adds the website; `portfolio-monitoring` asks for a ticker or domain with each holding.
+- **One account, company, holding or entity per run.** The list handling (parallel runs, slices, merging) is removed, and `account-enrichment` no longer asks for a CRM record ID or a CSV.
+- **Cleanup.** The descriptions drop the process sentence and the landing-page reference, and the "Using Nimble well" links and the `$ARGUMENTS` line are removed from the ten skills.
+
+## [1.9.0] - 2026-10-26
+
+### Changed
+- **The ten use-case skills show results in three steps instead of one long wait.** Step 1 of 3 shows quick search results (not agent runs) in about a minute. The skill starts the template at medium and high effort together as soon as Nimble is connected; step 2 of 3 shows the medium result and step 3 of 3 the high result, each as it arrives, with a progress line at the start of each step. If the high run finishes first, the skill goes straight to step 3.
+- **Effort is the user's choice.** The skills no longer leave effort to the template. By default they run medium and high; if the user asks for a specific effort, they run only that one.
+- **`nimble_search` added to the skills' `allowed-tools`** for the quick results step.
+
+## [1.8.0] - 2026-10-26
+
+### Added
+- **Ten use-case skills, one per Nimble gallery agent template:** `account-discovery`, `account-enrichment`, `decision-maker-identification`, `account-brief`, `account-signals` (go-to-market) and `due-diligence`, `portfolio-monitoring`, `credit-risk`, `kyc-screening`, `deal-sourcing` (finance research). Each skill connects Nimble first without blocking, interviews the user for the template's required and optional inputs, gives a quick first pass from the host's own search, then runs the template of the same name. The agent's instructions, sources and schema live in the template, not in the skill. These skills are the targets of the use-case landing-page prompts and are also served at `docs.nimbleway.com/skills/<name>/SKILL.md`.
+
 ## [1.7.0] - 2026-08-24
 
 ### Changed

@@ -1,5 +1,6 @@
 // ── Update banner: is this artifact behind the published build? ──
-// Depends on core.js (carta-home.app.js): _mcp(), escHtml(), showToast(), trackHome().
+// Depends on core.js (carta-home.app.js): _mcp(), escHtml(), showToast(), trackHome(), trackPrompt(), PROMPT_SOURCE,
+// ARTIFACT_VERSION.
 //
 // A live artifact is a frozen copy of its source — once built into a user's workspace
 // nothing can update it in place, and the sandbox sets connect-src 'none' so it cannot
@@ -12,10 +13,15 @@ const PLUGIN = "carta-investors";
 // by plugin. The plugin's own version moves several times a day for reasons a Carta Home
 // user never sees, so keying the banner to it would raise one almost daily, forever.
 const SKILL = "carta-home-build";
-const ARTIFACT_VERSION = "{{ARTIFACT_VERSION}}";
-const UPDATE_PROMPT = "Rebuild my Carta Home artifact";
+const BUILT_AT = "{{BUILT_AT}}";
+// A fresh build is already the newest the user can get. Matches carta-mcp's week-old
+// release pick, so after this window the banner names only a release a rebuild reaches.
+const QUIET_AFTER_BUILD_DAYS = 7;
+// "Update", not "rebuild": a rebuild sounds like starting over, and the update carries the
+// user's own changes forward on its own (SKILL.md Step 2c).
+const UPDATE_PROMPT = "Update my Carta Home";
 const UPDATE_INSTRUCTION =
-  "To get the latest version, tell Claude to update the Carta Home artifact.";
+  "Your customizations come with you automatically. Tell Claude to update Carta Home, or say \"start fresh\" for a clean version.";
 const DISMISS_KEY = "cartaHome.dismissedUpdateVersion";
 
 // Parse "1.2.3" into [major, minor]. Patch is deliberately dropped: a patch ships a
@@ -24,6 +30,13 @@ const DISMISS_KEY = "cartaHome.dismissedUpdateVersion";
 function parseMajorMinor(v) {
   const m = /^(\d+)\.(\d+)\.\d+$/.exec(String(v || ""));
   return m ? [Number(m[1]), Number(m[2])] : null;
+}
+
+// An unparseable stamp counts as fresh: better to miss a banner than to raise a wrong one.
+function isFreshBuild(builtAt, now) {
+  const built = Date.parse(builtAt);
+  if (Number.isNaN(built)) return true;
+  return now - built < QUIET_AFTER_BUILD_DAYS * 24 * 60 * 60 * 1000;
 }
 
 function isUpdateAvailable(current, latest) {
@@ -60,14 +73,14 @@ function dismissUpdateBanner(version) {
   if (slot) slot.innerHTML = "";
 }
 
-// Same affordance as the capabilities cards: icon + "Copy this prompt", swapping to
+// Icon + "Copy this prompt", swapping to
 // "✓ Copied" for a beat so the click is acknowledged in place rather than by a toast.
 const COPY_ICON =
   '<svg width="11" height="11" viewBox="0 0 16 16" fill="none" style="margin-right:5px;vertical-align:middle;"><rect x="5" y="5" width="9" height="9" rx="1" stroke="currentColor" stroke-width="1.4"/><path d="M11 5V3a1 1 0 0 0-1-1H3a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>';
 const COPY_LABEL = COPY_ICON + "Copy this prompt";
 
 function copyUpdatePrompt(btn) {
-  trackHome("click", "CartaHome.UpdateBanner.Copy");
+  trackPrompt("CartaHome.UpdateBanner.Copy", UPDATE_PROMPT, PROMPT_SOURCE.OTHER);
   const done = () => {
     btn.textContent = "✓ Copied";
     setTimeout(() => { btn.innerHTML = COPY_LABEL; }, 2000);
@@ -128,10 +141,11 @@ function extractVersionPayload(res) {
 // Silent on every failure path — an artifact that can't reach the manifest shows no
 // banner, which is strictly better than showing one the user can't act on.
 async function checkForUpdate() {
+  if (isFreshBuild(BUILT_AT, Date.now())) return;
   try {
-    const res = await _mcp("fetch", {
-      command: "plugin:get:version",
-      params: { plugin: PLUGIN, skill: SKILL },
+    const res = await _mcp("read_tool", {
+      name: "plugin__get__version",
+      arguments: { plugin: PLUGIN, skill: SKILL },
     });
     // `version` is this skill's. The response also carries `plugin_version`; do not
     // compare against it — it moves for changes that never touch this artifact.

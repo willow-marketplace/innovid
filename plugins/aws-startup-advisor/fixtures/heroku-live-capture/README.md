@@ -66,7 +66,7 @@ designed-for behavior:
 
 ## Regenerating / extending
 
-Captures follow the exact command whitelist in `discover-live-capture.md` Step 3
+Captures follow the exact command allowlist in `discover-live-capture.md` Step 3
 (same filenames, `.out` extension for text captures). If you add a capture type,
-add its row to the whitelist first, then the fixture, then extend
+add its row to the allowlist first, then the fixture, then extend
 `expected-drift.json`. All IDs, names, and emails are synthetic.

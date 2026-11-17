@@ -3,6 +3,9 @@ name: add-company
 description: Adds one or more company records to the Carta CRM via the Carta CRM MCP Server. Use this skill when the user says things like "add a company", "create company record", "add company to CRM", "add company to Carta CRM", or "/add-company". Collects company information conversationally, then creates it via the MCP server.
 ---
 
+<!-- carta:plugin-version -->
+<carta-plugin>carta-crm:1.20.20</carta-plugin>
+
 ## Overview
 
 Help the user create one or more company records in the Carta CRM using the

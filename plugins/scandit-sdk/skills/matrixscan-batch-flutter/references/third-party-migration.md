@@ -1,5 +1,11 @@
 # Migrating from a Third-Party Scanner to MatrixScan Batch (Flutter)
 
+## Migration principles
+
+- **Authority.** When this guide and the API reference disagree, trust the API reference — and a runtime check in the user's project — over this guide. Say which source you followed and why in the summary.
+- **Behaviour changes.** Never present a visual or behaviour change (new default, different overlay look, changed feedback, changed scan timing) as a 1:1 rename. List each one in the summary as a judgment call the user must confirm.
+- **Compatibility layer.** When the scanning code sits behind a shared scanner library or wrapper that other code calls, keep that library's public API frozen (same types, method names, callbacks) and replace only the third-party scanner calls underneath with Scandit ones.
+
 This guide covers replacing a third-party multi-barcode scanner — most commonly the **`mobile_scanner`** plugin (Google ML Kit) — with Scandit **MatrixScan Batch (`BarcodeBatch`)** in a Flutter app. Use it when the project already scans (and ideally tracks) several barcodes at once and wants Scandit's tracking, AR overlays, and accuracy.
 
 For the full BarcodeBatch API and integration steps, also read `references/integration.md`. This guide focuses on the *delta* from the third-party plugin.
@@ -19,26 +25,36 @@ Search the project for the plugin import and its types:
 1. Delete the third-party dependency from `pubspec.yaml` (e.g. `mobile_scanner:`) once the migration is complete.
 2. Remove its import and all of its types from the screen (`MobileScannerController`, `MobileScanner`, `onDetect`, `BarcodeCapture`, `Barcode`, `BarcodeFormat`).
 3. Add the Scandit dependency: `scandit_flutter_datacapture_barcode` (pulls in `scandit_flutter_datacapture_core` transitively) and `permission_handler`. Run `flutter pub get`.
+4. Import all three Scandit libraries in the screen. `BarcodeBatch`, its settings, listener, session and overlays live only in the `_barcode_batch.dart` library:
+   ```dart
+   import 'package:scandit_flutter_datacapture_barcode/scandit_flutter_datacapture_barcode.dart';
+   import 'package:scandit_flutter_datacapture_barcode/scandit_flutter_datacapture_barcode_batch.dart';
+   import 'package:scandit_flutter_datacapture_core/scandit_flutter_datacapture_core.dart';
+   ```
 
 ## Step 3: Map the scanned formats to Scandit symbologies
 
 mobile_scanner / ML Kit use a `BarcodeFormat` enum. Scandit uses `Symbology` (lowerCamelCase in Dart). Map only the formats the app actually scanned — enabling fewer symbologies improves performance and accuracy.
 
-| mobile_scanner `BarcodeFormat` | Scandit `Symbology` |
+<!-- BEGIN GENERATED symbology-table sources=mobile_scanner style=dart -->
+| mobile_scanner / ML Kit `BarcodeFormat` | Scandit `Symbology` |
 |---|---|
+| `qrCode` | `Symbology.qr` (**not** `qrCode`) |
 | `ean13` | `Symbology.ean13Upca` |
 | `ean8` | `Symbology.ean8` |
-| `upcA` | `Symbology.ean13Upca` (UPC-A is reported under EAN-13/UPC-A) |
+| `upcA` | `Symbology.ean13Upca` (UPC-A is read by the EAN-13/UPC-A symbology) |
 | `upcE` | `Symbology.upce` |
 | `code39` | `Symbology.code39` |
 | `code93` | `Symbology.code93` |
 | `code128` | `Symbology.code128` |
-| `itf` | `Symbology.interleavedTwoOfFive` |
+| `itf` | `Symbology.interleavedTwoOfFive` (no ITF-14 symbology; ITF-14 is a 14-digit Interleaved 2 of 5) |
 | `codabar` | `Symbology.codabar` |
-| `qrCode` | `Symbology.qr` (note: **`qr`**, not `qrCode`) |
 | `dataMatrix` | `Symbology.dataMatrix` |
 | `aztec` | `Symbology.aztec` |
 | `pdf417` | `Symbology.pdf417` |
+
+**Recommended default set** when the source scanned every format and nothing in the app narrows it: `Symbology.qr`, `Symbology.ean13Upca`, `Symbology.ean8`, `Symbology.upce`, `Symbology.code39`, `Symbology.code93`, `Symbology.code128`, `Symbology.interleavedTwoOfFive`, `Symbology.codabar`, `Symbology.dataMatrix`, `Symbology.aztec`, `Symbology.pdf417`.
+<!-- END GENERATED symbology-table -->
 
 > **Gotcha**: the Scandit QR symbology is `Symbology.qr` — there is no `Symbology.qrCode`. UPC-A barcodes are delivered under `Symbology.ean13Upca`.
 
@@ -116,7 +132,7 @@ After rewriting the file, show the user:
 **Setup checklist:**
 1. Remove `mobile_scanner` from `pubspec.yaml`; add `scandit_flutter_datacapture_barcode` and `permission_handler`, then run `flutter pub get`.
 2. Add `NSCameraUsageDescription` to `ios/Runner/Info.plist` (iOS). On Android the plugin declares the manifest permission; request it at runtime with `permission_handler`.
-3. Replace `'-- ENTER YOUR SCANDIT LICENSE KEY HERE --'` with a key from https://ssl.scandit.com.
+3. Replace `'-- ENTER YOUR SCANDIT LICENSE KEY HERE --'` with your key (see **Licence key** in `SKILL.md`).
 4. Ensure `main()` calls `WidgetsFlutterBinding.ensureInitialized()` then `await ScanditFlutterDataCaptureBarcode.initialize()` before `runApp(...)`.
 
 **Summary**: list what was removed (the `mobile_scanner` controller, widget, and `onDetect`) and what was added (the BarcodeBatch mode, listener, DataCaptureView + overlay, camera ownership), plus the format→symbology mapping you applied. Do not list code that was already correct.
