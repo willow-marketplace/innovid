@@ -36,8 +36,15 @@ that tool's prefix:
 1. **Claude's browser**: a tool the first search returned (`mcp__Claude_Browser__` in the Code
    tab, `mcp__remote-devices__Claude_Browser__` in a regular conversation).
 2. **Claude in Chrome**: `mcp__Claude_in_Chrome__` or `mcp__claude-in-chrome__`.
-3. **None**: the link is the page for the rest of the conversation. Don't tell the admin you
-   looked for a browser.
+3. **None**: the link is the page for the rest of the conversation. Open nothing and call no
+   `mcp__ccd_view__show_pane`. Don't tell the admin you looked for a browser.
+
+A Carta result can lead with a `next_step` that asks for this same open, with its own
+`ToolSearch` `select:` of Claude's browser tools, `mcp__ccd_view__show_pane` and the enable tool.
+It is this procedure, not a second open: open the page once. When you ran that search, it is the
+first search here: send the Claude in Chrome search only when it found no Claude's browser
+`navigate` tool, and load a tool this file calls that it did not load, such as `tabs_create`,
+with one `select:` when you need it.
 
 Don't search again later in the conversation. The Claude in Chrome tool names, this order, and
 the new-tab first open and its one attempt in Chrome follow `carta-investors`'s

@@ -131,7 +131,10 @@ Iterate fetches with `Object.values(result.clientFetches)`, not array indexing.
 
 ## Completion policy
 
-The server keeps streaming `updateResult` indefinitely as more events arrive. Clients decide when to stop. The `demo-fiddle-ci` pattern is:
+Stream closure or `timeout` does not imply completion.
+Inspect results; retry the same fiddle within a bounded total wait if incomplete.
+For single requests, use `fastly vcl run` to handle streaming/retries.
+The `demo-fiddle-ci` completion pattern is:
 
 1. Start a `minWait` timer (e.g. 2000ms) — earliest finalize.
 2. Start a `maxWait` timer (e.g. 60000ms) — hard deadline.

@@ -8,7 +8,7 @@ import { BRANCH, REPO } from '../dist/source.js';
 import { run as install } from '../dist/run.js';
 import { createSystem } from '../dist/system.js';
 import { JsonRpcError } from '../dist/json-rpc.js';
-import { assertSkillsListed, runAgent, startStandIn, workspace } from '../../scripts/lib/harness.js';
+import { assertSkillsListed, runAgent, startStandIn, workspace } from '../../test/lib/harness.js';
 
 const PLUGIN_ID = 'postman@postman';
 
@@ -155,7 +155,7 @@ export async function checkCodexInstall () {
 
         assert.ok(!fs.existsSync(path.join(codexHome, 'config.toml')));
         await runInstall();
-        assert.doesNotMatch(logs.join('\n'), /<EXTREMELY_IMPORTANT>|session-start-context\.md/);
+        assert.doesNotMatch(logs.join('\n'), /You have (the )?Postman plugin|session-start-[a-z-]+\.md/);
 
         const installedPath = cachePath,
             before = snapshot(installedPath),
@@ -206,7 +206,7 @@ export async function checkCodexInstall () {
 
         // No hook runs, untrusted or absent, so the model gets the skills and no mandate.
         assertSkillsListed('Codex installer', text, (skill) => new RegExp(`^- postman:${skill}: `, 'm'));
-        assert.doesNotMatch(text, /<EXTREMELY_IMPORTANT>/, 'Codex ran a Postman hook, but nothing trusted it');
+        assert.doesNotMatch(text, /You have (the )?Postman plugin/, 'Codex ran a Postman hook, but nothing trusted it');
 
         assert.deepEqual(snapshot(installedPath), before, 'a later Codex session changed cached contents');
         await assertNoneTrusted();

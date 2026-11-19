@@ -4,7 +4,7 @@ description: "Internal step of carta-reporting: walks you through shaping a repo
 ---
 
 <!-- carta:plugin-version -->
-<carta-plugin>carta-cap-table:6.114.20</carta-plugin>
+<carta-plugin>carta-cap-table:6.115.2</carta-plugin>
 
 # Transform Configuration
 
@@ -59,7 +59,7 @@ Grouping heuristics (apply in order; unmatched → "Other"):
 
 ## Customization Checkpoint
 
-One `AskUserQuestion` covering columns, filters, sort, and format. Content adapts based on what the original prompt already specified. Always ask it before the output preview or an Excel export, also when the prompt asks to download or export the report. Ask it with the `AskUserQuestion` tool, not as a plain-text question: never end the turn with a question in text, such as "Reply **Export to Excel**". The row count, the rows with no values and the data warnings go in the question, not in text before it: the host shows text between tool calls only as a one-line summary.
+One `AskUserQuestion` covering columns, filters, sort, and format. Content adapts based on what the original prompt already specified. Always ask it before the output preview or an Excel export, also when the prompt asks to download or export the report. Ask it with the `AskUserQuestion` tool, not as a plain-text question: never end the turn with a question in text, such as "Reply **Export to Excel**". The row count, the rows with no values and the data warnings go in the question, not in text before it: the host shows text between tool calls only as a one-line summary. Start the question with this sentence word for word: "The report has {R} rows." ({R} is the sum of `kept_row_count` across sheets.)
 
 **When the prompt specified details:**
 

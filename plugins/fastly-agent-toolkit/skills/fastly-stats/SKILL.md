@@ -30,8 +30,10 @@ Keep tokens out of output and avoid shell tracing for authenticated commands.
 5. `ts/h` on `rt.fastly.com` covers the last 120 seconds, not an hour, and returns only the seconds
    that carried traffic. Divide a rate by 120 there, or by the window you bounded when sampling
    with the CLI; never by the sample count or the `recorded` span. Print the window beside the rate.
-6. `fastly stats ... --json` emits NDJSON, one object per line, no array. Slurp with `jq -s`
-   before aggregating. The raw HTTP API returns a normal array in `data`.
+6. With `--json`, `historical`, `aggregate`, and `realtime` emit individual records (NDJSON);
+   slurp with `jq -s` before aggregating.
+   The inspectors emit one `{status, meta, data}` response: use `.data[]` and `.meta.next_cursor` without slurping.
+   `usage` emits one region-keyed object, nested by service ID when `--by-service` is set.
 7. Stats responses omit services with zero traffic in the window. Enumerate from
    `fastly service list --json` and default sums with `add // 0`.
 8. Do not read the newest bucket. Historical aggregation keeps growing for a few minutes after
@@ -59,8 +61,8 @@ Keep tokens out of output and avoid shell tracing for authenticated commands.
 | Per-domain metrics                   | `fastly stats domain-inspector -s ID --downsample hour --group-by domain`  |
 | Live per-second data                 | `fastly stats realtime -s ID --json`                                       |
 
-`historical`, `aggregate` and `usage` take `--by minute|hour|day` and `--field`. The two
-inspectors take `--downsample` and `--metric` (repeatable) instead, plus `--group-by`,
+`historical`, `aggregate` and `usage` take `--by minute|hour|day`; only `historical` takes `--field`.
+The two inspectors take `--downsample` and `--metric` (repeatable) instead, plus `--group-by`,
 `--datacenter`, `--limit`, `--cursor`, and `--domain` or `--host`. Mixing the two vocabularies
 fails with a usage error. `historical` has no `--datacenter`; `realtime` takes no filters at all,
 and `regions` takes no flags whatsoever, not even `--json`. The documented `--metric` cap of 10 is
@@ -127,10 +129,11 @@ SECS=20
 OUT=$(mktemp)
 fastly stats realtime -s "$SID" --json > "$OUT" & P=$!
 sleep "$SECS"; kill "$P" 2>/dev/null; wait "$P" 2>/dev/null
-jq -s --argjson w "$SECS" \
+# Poll errors are printed to stdout too; keep only the JSON records
+grep '^{' "$OUT" | jq -s --argjson w "$SECS" \
   '{samples: length, window_s: $w,
     requests: (map((.aggregated.requests // 0) + (.aggregated.compute_requests // 0))|add // 0)}
-   | . + {rps: (.requests / $w)}' "$OUT"
+   | . + {rps: (.requests / $w)}'
 rm -f "$OUT"
 ```
 

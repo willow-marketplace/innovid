@@ -4,7 +4,7 @@ description: Check how much of a UK company's EMI and CSOP allowance is left. Re
 ---
 
 <!-- carta:plugin-version -->
-<carta-plugin>carta-cap-table:6.114.20</carta-plugin>
+<carta-plugin>carta-cap-table:6.115.2</carta-plugin>
 
 <!-- Part of the official Carta AI Agent Plugin -->
 

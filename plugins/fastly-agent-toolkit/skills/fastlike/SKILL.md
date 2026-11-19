@@ -69,13 +69,13 @@ On macOS, avoid binding to port 5000 — the AirTunes/AirPlay Receiver listens t
 
 ## Fastlike vs Viceroy
 
-| Feature        | Fastlike                     | Viceroy                                   |
-| -------------- | ---------------------------- | ----------------------------------------- |
-| Language       | Go                           | Rust                                      |
-| Geolocation    | Custom JSON file (`-geo`)    | Built-in defaults                         |
-| Hot reload     | SIGHUP (`-reload`)           | Restart required                          |
-| Install        | `go install` or `make build` | `cargo install` or `fastly compute serve` |
-| Local backends | `-backend name=host:port`    | `[local_server.backends]` in fastly.toml  |
+| Feature        | Fastlike                     | Viceroy                                              |
+| -------------- | ---------------------------- | ---------------------------------------------------- |
+| Language       | Go                           | Rust                                                 |
+| Geolocation    | Custom JSON file (`-geo`)    | Built-in defaults                                    |
+| Hot reload     | SIGHUP (`-reload`)           | `fastly compute serve --watch` rebuilds and restarts |
+| Install        | `go install` or `make build` | `cargo install` or `fastly compute serve`            |
+| Local backends | `-backend name=host:port`    | `[local_server.backends]` in fastly.toml             |
 
 **When to use Fastlike**: Non-Rust Compute apps, want custom geo data, need hot reload, debugging.
 **When to use Viceroy**: Rust Compute apps with cargo-nextest, Component Model projects, using `fastly compute serve`.

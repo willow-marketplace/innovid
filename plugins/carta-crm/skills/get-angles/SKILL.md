@@ -4,7 +4,7 @@ description: "Finds the best warm introduction path into a target company throug
 ---
 
 <!-- carta:plugin-version -->
-<carta-plugin>carta-crm:1.20.20</carta-plugin>
+<carta-plugin>carta-crm:1.20.21</carta-plugin>
 
 ## Overview
 

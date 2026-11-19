@@ -1,6 +1,6 @@
 ---
 name: platform-workflows
-description: "Base44 workflows: trigger-driven automated processes defined as CNCF Serverless Workflow files under base44/workflows/ (scheduled, entity, connector, in-app agent, auth, publish and payment triggers; call, wait and switch steps; jq expressions), with the full authoring guide, plus the legacy automations pipeline for apps that predate workflows. Use for any 'when X happens, do Y' or 'every N hours, do Y'."
+description: "Base44 workflows: trigger-driven automated processes defined as CNCF Serverless Workflow files under base44/workflows/ (scheduled, entity, connector, in-app agent, auth, publish and payment triggers; call, wait and switch steps; jq expressions), with the full authoring guide. Use for any 'when X happens, do Y' or 'every N hours, do Y'."
 ---
 
 <!-- GENERATED FILE. DO NOT EDIT. Compiled from the Base44 builder's prompt sources; the
@@ -8,7 +8,7 @@ description: "Base44 workflows: trigger-driven automated processes defined as CN
      the next sync; change the source instead. -->
 # Base44 workflows
 
-Workflows is the default pipeline: a `.jsonc` envelope under `base44/workflows/` is live once written. An app whose profile says `automation_pipeline: legacy_automations` uses the automations reference instead.
+Workflows is the pipeline for trigger-driven work: a `.jsonc` envelope under `base44/workflows/` is live once written.
 
 > **Requires the Builder plan or above.** The workspace's entitlement is reported by the agent-profile endpoint; on a lower plan the platform rejects the operation.
 
@@ -22,6 +22,6 @@ native mobile (Expo) app; otherwise it is a Vite SPA.
 
 | Profile | Read |
 |---|---|
-| Web app, Vite SPA (the default web template) | [Workflows (Vite SPA and mobile: steps call backend functions)](references/backend-functions.md), [Legacy automations (apps that predate workflows)](references/automations-legacy.md) |
+| Web app, Vite SPA (the default web template) | [Workflows (Vite SPA and mobile: steps call backend functions)](references/backend-functions.md) |
 | Web app, TanStack Start | [Workflows (TanStack Start: steps call server routes)](references/web-tanstack.md) |
-| Native mobile app (Expo, React Native) | [Workflows (Vite SPA and mobile: steps call backend functions)](references/backend-functions.md), [Legacy automations (mobile apps that predate workflows)](references/mobile-automations.md) |
+| Native mobile app (Expo, React Native) | [Workflows (Vite SPA and mobile: steps call backend functions)](references/backend-functions.md) |

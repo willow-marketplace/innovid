@@ -1,8 +1,8 @@
 {
   "name": "tavily",
-  "version": "2.4.0",
+  "version": "2.4.1",
   "description": "Web search, content extraction, website crawling, URL discovery, and deep research for Antigravity via Tavily's hosted MCP server and skills.",
-  "updatedAt": "2026-11-17T14:42:13.868Z",
+  "updatedAt": "2026-11-19T00:02:02.075Z",
   "author": {
     "url": "https://www.tavily.com/",
     "name": "Tavily",

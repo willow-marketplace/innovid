@@ -56,19 +56,21 @@ land here rather than in the empty-data list above:
 
 ## `--json` output will not parse as one document
 
-The CLI emits NDJSON, one object per line, no surrounding array. Slurp first:
+Historical, aggregate, and real-time stats emit successive JSON objects without a surrounding array.
+Slurp these outputs before aggregating:
 
 ```bash
 fastly stats historical -s "$SID" --by day --json | jq -s '.'
 ```
 
-This is a CLI artifact. The raw HTTP API returns a normal JSON array in `data`.
+Inspector output is instead one `{status, meta, data}` object; use `.data[]` and `.meta.next_cursor` without slurping.
+Usage output is one region-keyed object, with service IDs nested under each region when using `--by-service`.
 
 ## Inspector rejects `--by` or `--field`
 
 Inspector uses `--downsample` / `downsample=` for granularity and `--metric` / `metric=`
-(repeatable) for fields. Classic stats uses `--by` and `--field`. `historical` has no
-`--datacenter`; the inspectors do. Mixing the vocabularies fails with a usage error.
+(repeatable) for fields. Historical stats uses `--by` and `--field`; aggregate and usage have `--by` but no `--field`.
+`historical` has no `--datacenter`; the inspectors do. Mixing the vocabularies fails with a usage error.
 `fastly stats regions` takes no flags at all, not even `--json`. The documented `--metric` cap of 10
 is not enforced; 20 names in one call go through, so do not split a request to stay under it.
 
@@ -98,7 +100,7 @@ never reaches its count and the pipeline deadlocks. Bound it by wall clock:
 OUT=$(mktemp)
 fastly stats realtime -s "$SID" --json > "$OUT" & P=$!
 sleep 20; kill "$P" 2>/dev/null; wait "$P" 2>/dev/null
-jq -s 'length' "$OUT"     # 0 is a legitimate answer
+grep '^{' "$OUT" | jq -s 'length'     # 0 is a legitimate answer; grep drops poll errors
 ```
 
 One-shot alternative that returns immediately: `GET rt.fastly.com/v1/channel/{id}/ts/h`. If a

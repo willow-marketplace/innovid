@@ -158,10 +158,10 @@ echo "== What a release must contain =="
 # which had already gone stale once: Windows took the build from 16 artifacts to
 # 24 and "expected 16" was not updated with it.
 art=$("$REPO/scripts/expected-artifacts.sh")
-if [ "$(printf '%s\n' "$art" | wc -l | tr -d ' ')" = "42" ]; then
-  echo "  ok   42 binaries: seven agents, three platforms, two architectures"
+if [ "$(printf '%s\n' "$art" | wc -l | tr -d ' ')" = "48" ]; then
+  echo "  ok   48 binaries: eight agents, three platforms, two architectures"
 else
-  echo "  FAIL expected 42 artifact names, got $(printf '%s\n' "$art" | wc -l | tr -d ' ')"; fail=1
+  echo "  FAIL expected 48 artifact names, got $(printf '%s\n' "$art" | wc -l | tr -d ' ')"; fail=1
 fi
 # Named, not counted — the point of the list. .exe only on Windows, because that
 # is what GoReleaser appends and what every bootstrap asks for.
@@ -169,7 +169,8 @@ for want in claude-on-event-linux-amd64 cursor-on-event-darwin-arm64 \
             codex-on-event-windows-amd64.exe copilot-on-event-windows-arm64.exe \
             opencode-v2-on-event-linux-arm64 opencode-v2-on-event-windows-amd64.exe \
             copilot-app-on-event-linux-arm64 \
-            amp-on-event-linux-amd64 amp-on-event-windows-arm64.exe; do
+            amp-on-event-linux-amd64 amp-on-event-windows-arm64.exe \
+            pi-on-event-linux-amd64 pi-on-event-windows-arm64.exe; do
   printf '%s\n' "$art" | grep -qx "$want" \
     || { echo "  FAIL $want is not in the expected list"; fail=1; }
 done
@@ -177,7 +178,7 @@ printf '%s\n' "$art" | grep -q 'linux.*\.exe' \
   && { echo "  FAIL a non-Windows name carries .exe"; fail=1; }
 
 # Derived, not transcribed: dropping a platform from .goreleaser.yaml must drop
-# its fourteen binaries. A transcribed list would keep reporting all 42 and the
+# its sixteen binaries. A transcribed list would keep reporting all 48 and the
 # workflow would then diff dist/ against binaries nobody asked it to build.
 # One trap for the whole script. `trap … EXIT` is not additive: a second one
 # silently replaces this, and this one already replaces lib.sh's _cleanup, which
@@ -190,10 +191,10 @@ mkdir -p "$gr/scripts"
 cp "$REPO/scripts/expected-artifacts.sh" "$gr/scripts/"
 grep -v '^      - darwin$' "$REPO/.goreleaser.yaml" >"$gr/.goreleaser.yaml"
 n=$("$gr/scripts/expected-artifacts.sh" | wc -l | tr -d ' ')
-if [ "$n" = "28" ]; then
+if [ "$n" = "32" ]; then
   echo "  ok   the list follows .goreleaser.yaml"
 else
-  echo "  FAIL dropping darwin left $n names, expected 28"; fail=1
+  echo "  FAIL dropping darwin left $n names, expected 32"; fail=1
 fi
 
 echo "== What a bump actually writes =="
@@ -209,17 +210,18 @@ echo "== What a bump actually writes =="
 ( cd "$REPO" && tar cf - scripts/version.sh \
     .claude-plugin/plugin.json .cursor-plugin/plugin.json .codex-plugin/plugin.json \
     copilot/plugin.json .github/plugin/marketplace.json \
-    opencode-v2/package.json opencode-v2/package-lock.json \
+    opencode-v2/package.json opencode-v2/package-lock.json pi/package.json \
     claude/claude-on-event.sh cursor/cursor-on-event.sh \
     codex/codex-on-event.sh copilot/copilot-on-event.sh \
     copilot-app/copilot-app-on-event.sh \
     cursor/cursor-on-event.ps1 codex/codex-on-event.ps1 \
     copilot/copilot-on-event.ps1 opencode-v2/opencode-v2-on-event.sh \
-    opencode-v2/opencode-v2-on-event.ps1 copilot-app/copilot-app-on-event.ps1 ) | tar xf - -C "$sandbox"
+    opencode-v2/opencode-v2-on-event.ps1 copilot-app/copilot-app-on-event.ps1 \
+    pi/pi-on-event.sh pi/pi-on-event.ps1 ) | tar xf - -C "$sandbox"
 
 if out=$("$sandbox/scripts/version.sh" set 9.9.9 2>&1); then
   case "$out" in
-    *"all 20 pins agree on 9.9.9"*) echo "  ok   a bump rewrites every pin" ;;
+    *"all 23 pins agree on 9.9.9"*) echo "  ok   a bump rewrites every pin" ;;
     *) echo "  FAIL a bump rewrites every pin"; printf '    %s\n' "$out"; fail=1 ;;
   esac
   # Named individually, because `check` compares the pins to each other: were a
@@ -227,14 +229,14 @@ if out=$("$sandbox/scripts/version.sh" set 9.9.9 2>&1); then
   # the old version — and check would pass.
   for f in claude/claude-on-event.sh cursor/cursor-on-event.sh \
            codex/codex-on-event.sh copilot/copilot-on-event.sh opencode-v2/opencode-v2-on-event.sh \
-           copilot-app/copilot-app-on-event.sh; do
+           copilot-app/copilot-app-on-event.sh pi/pi-on-event.sh; do
     grep -q '^VERSION="9.9.9"$' "$sandbox/$f" \
       || { echo "  FAIL $f still pins $(grep -m1 '^VERSION=' "$sandbox/$f")"; fail=1; }
   done
   # PowerShell pins the same version in its own syntax, so its rewrite is a
   # separate sed that can drift on its own.
   for f in cursor/cursor-on-event.ps1 codex/codex-on-event.ps1 copilot/copilot-on-event.ps1 opencode-v2/opencode-v2-on-event.ps1 \
-           copilot-app/copilot-app-on-event.ps1; do
+           copilot-app/copilot-app-on-event.ps1 pi/pi-on-event.ps1; do
     grep -q "^\$Version = '9.9.9'$" "$sandbox/$f" \
       || { echo "  FAIL $f did not get the new version"; fail=1; }
   done
@@ -242,6 +244,8 @@ if out=$("$sandbox/scripts/version.sh" set 9.9.9 2>&1); then
     || { echo "  FAIL marketplace.json metadata.version was not rewritten"; fail=1; }
   [ "$(jq -r '.packages[""].version' "$sandbox/opencode-v2/package-lock.json")" = "9.9.9" ] \
     || { echo "  FAIL package-lock.json root package version was not rewritten"; fail=1; }
+  [ "$(jq -r .version "$sandbox/pi/package.json")" = "9.9.9" ] \
+    || { echo "  FAIL pi/package.json was not rewritten"; fail=1; }
   # The refusal, now that every pin in the sandbox reads 9.9.9.
   refuse "a bump to the version already pinned" "nothing to prepare" -- \
     "$sandbox/scripts/version.sh" set 9.9.9

@@ -213,6 +213,284 @@ export type PlanImpactView = {
   more: number
 }
 
+// ---------------------------------------------------------------------------------------------------
+// Runs (/runs): the dbt commands Claude ran and their results.
+// Filled in by that feature alone (hooks/features/); the other features never read or write it.
+// ---------------------------------------------------------------------------------------------------
+export type RunRow = {
+  uniqueId: string
+  name: string
+  status: string
+  executionTimeSec: number | null
+  /** Cut to a few hundred characters. */
+  message: string | null
+}
+
+export type RunRecord = {
+  /** The artifact's invocation id; when the artifact has none, the project folder plus its completion time. */
+  id: string
+  /** The dbt project folder the run was read from. */
+  project: string
+  /** The command as Claude ran it, with the folder it ran in and a secret's value left out; what Re-run fills in. */
+  commandLine: string
+  /** `dbt retry` with the launcher, environment and folder flags the command had; what Re-run failed fills in. */
+  retryLine: string
+  /** The folder run_results.json was read from, as the command named it; absent in a run stored before it was kept. */
+  folder?: string
+  /** The dbt subcommand the artifact names (`build`, `run`…). */
+  command: string
+  elapsedSec: number | null
+  completedAt: string
+  /** Every node dbt reported. */
+  total: number
+  /** Nodes that succeeded, passed or warned. */
+  passed: number
+  /** Nodes that errored or failed. */
+  failed: number
+  /** Nodes dbt skipped. */
+  skipped: number
+  /** The rows kept: failures first, then the rest, at most as many as the plugin holds. */
+  rows: RunRow[]
+}
+
+export interface RunsState {
+  /** The session folder the runs below were recorded for. */
+  root: string
+  /** Newest first, at most 50 of each project: a session folder that covers several dbt projects holds up to 50 per project. */
+  runs: RunRecord[]
+  /** The run the pane shows in full; null for the list. */
+  open: string | null
+}
+
+// ---------------------------------------------------------------------------------------------------
+// Defer and target: the target and defer state dbt commands run with.
+// Filled in by that feature alone (hooks/features/); the other features never read or write it.
+// ---------------------------------------------------------------------------------------------------
+export interface DeferState {
+  /** The dbt project the session works in; null when there is none (nothing is rewritten). */
+  projectDir: string | null
+  /** The project's Power User setting turns defer on and gives a usable state directory. */
+  enabled: boolean
+  favorState: boolean
+  mode: 'local' | 'remote' | 'none'
+  /** The directory passed as `--state`; null when there is none to use. */
+  stateDir: string | null
+  /** Why defer is configured but cannot be applied. */
+  reason: string | null
+  /** /defer on or off for this session; null follows the project's setting. */
+  override: boolean | null
+  /** The profile's default target and its output names. */
+  defaultTarget: string | null
+  targets: string[]
+  /** /target for this session; null leaves the command's own or the profile's default. */
+  target: string | null
+  /** When reading the setting failed (engine clock, ms); null when it was read. */
+  failedAt: number | null
+}
+
+// ---------------------------------------------------------------------------------------------------
+// Raw SQL to model: the SQL being turned into a dbt model.
+// Filled in by that feature alone (hooks/features/); the other features never read or write it.
+// ---------------------------------------------------------------------------------------------------
+/** How a table of the SQL matched a model or source: every part the same, the same but for case, fewer parts written, or none. */
+export type RelationMatch = 'exact' | 'case_insensitive' | 'partial' | 'none'
+
+export interface ToModelState {
+  /** The model to write. */
+  name: string
+  /** Where the SQL came from: a file path, or "selection". */
+  source: string
+  /** The dialect the tool read the SQL with; null when it did not say. */
+  dialect: string | null
+  /** The folder the project keeps its models in, relative to the session's root, or whole when the project lies outside it; unset when neither the SQL's folder nor the session's root is in a dbt project. */
+  modelsDir?: string
+  /** One row per table, unmatched and partial first. */
+  rows: {
+    raw: string
+    replaceWith: string
+    match: RelationMatch
+    candidates: { replaceWith: string; kind: string; name: string; relationName: string; match: RelationMatch }[]
+  }[]
+  /** The SQL, kept so the prompt can quote it. */
+  sql: string
+}
+
+// ---------------------------------------------------------------------------------------------------
+// Team comments: the shared docs' comments on the project's models.
+// Filled in by that feature alone (hooks/features/); the other features never read or write it.
+// ---------------------------------------------------------------------------------------------------
+/** One open comment thread on a shared docs page, as the docs_share_comments tool lists it. */
+export interface CommentsThread {
+  shareId: number
+  shareName: string
+  groupId: number
+  /** The model file, relative to the dbt project folder. */
+  filePath?: string
+  uniqueId?: string
+  column?: string
+  field?: string
+  /** The text the comment was made on. */
+  highlight?: string
+  /** 0-based lines the comment was made on, when the page stored a range. */
+  range?: { start: { line: number }; end: { line: number } }
+  messages: { id: number; author: string; text: string }[]
+}
+
+export interface CommentsState {
+  /** The dbt project folder the threads belong to. */
+  root: string | null
+  project: string | null
+  threads: CommentsThread[]
+  loadedAt: number | null
+  loading: boolean
+  /** Set when the installed altimate-code has no docs_share_comments tool: what to tell the person. */
+  needs: string | null
+  /** Why the last load failed. */
+  error: string | null
+  /** Set when the last list was only part of the threads: what to tell the person. */
+  partial: string | null
+  /** The outcome of the last post. */
+  note: string | null
+  /** Reply text typed so far, by `shareId:groupId`. */
+  drafts: Record<string, string>
+  /** `shareId:groupId` of the thread being posted to. */
+  posting: string | null
+}
+
+// ---------------------------------------------------------------------------------------------------
+// Cost check: the last scan estimate and any scan allowed once.
+// Filled in by that feature alone (hooks/features/); the other features never read or write it.
+// ---------------------------------------------------------------------------------------------------
+export interface CostState {
+  /** The warehouse that has no dry run (any but BigQuery), once the tool said so: nothing is estimated after that. */
+  unsupportedAdapter: string | null
+  /** The newest estimate: what was estimated, in bytes, as the dry run wrote it. */
+  lastEstimate: { target: string; bytes: number; display: string } | null
+  /** The command held for being over the limit, until it is allowed or a later dbt command is estimated under the limit; `bytes` is its scan's upper bound. */
+  held: { command: string; target: string; bytes: number; display: string } | null
+  /** /allow-scan was given for the held command: that same command runs once. */
+  allowOnce: boolean
+}
+
+// ---------------------------------------------------------------------------------------------------
+// Project health: the health check issues on the changed models.
+// Filled in by that feature alone (hooks/features/); the other features never read or write it.
+// ---------------------------------------------------------------------------------------------------
+/** One DataPilot insight on a model, as altimate-code's dbt_health returns it. */
+export interface HealthInsight {
+  uniqueId: string
+  path: string
+  name: string
+  severity: string
+  message: string
+  recommendation: string
+  /** The model's SQL file and its properties file, absolute; empty when the model is not the project's own. */
+  file: string
+  properties: string
+}
+
+export interface HealthState {
+  /** `uniqueId\u0000insight name` of every insight the project had at session start; null until that run lands. */
+  baseline: string[] | null
+  /** Model files changed since the last check. */
+  pending: string[]
+  /** Every model file changed this session. */
+  touched: string[]
+  /** What the last check found that the baseline lacked, on the touched models. */
+  issues: HealthInsight[]
+  /** Why the check can't run, shown once per distinct reason. */
+  problem: string | null
+  running: boolean
+}
+
+// ---------------------------------------------------------------------------------------------------
+// SQL graph: the edited model's SQL graph.
+// Filled in by that feature alone (hooks/features/); the other features never read or write it.
+// ---------------------------------------------------------------------------------------------------
+export interface SqlGraphState {
+  /** The model Claude last read or edited, which /sql-graph shows when it is given no name. */
+  lastModel: string | null
+  /** The model the pane shows, with its graph once the tool answered; `request` is the ask that owns it, so an older ask's answer is dropped. */
+  shown: { model: string; request: number; graph: SqlGraphView | null; loading: boolean; message: string | null; selected: string | null } | null
+}
+
+/** What `dbt_sql_graph` returns: one node per CTE, relation or select, and the edges between them (input id, then consumer id). A node's `id` is unique; its `name` is only what is shown and can repeat. */
+export interface SqlGraphView {
+  nodes: { id: string; name: string; type: string; nodeId?: string; sql: string; columns: { name: string; datatype?: string; expression?: string }[] }[]
+  edges: [string, string][]
+}
+
+// ---------------------------------------------------------------------------------------------------
+// Docs coverage and propagation: what the project documents.
+// Filled in by that feature alone (hooks/features/); the other features never read or write it.
+// ---------------------------------------------------------------------------------------------------
+/** A downstream column that can take a description: the traced column reaches it unchanged (Original) or only renamed (Alias). */
+export interface DocsCandidate {
+  model: string
+  /** The model's unique_id: names repeat across packages and versions. */
+  id?: string
+  column: string
+  lens: 'Original' | 'Alias'
+}
+
+/** A description Claude wrote, and the downstream columns that can take it. */
+export interface DocsGroup {
+  model: string
+  column: string
+  description: string
+  manifest: string
+  /** The YAML file the description was written in. */
+  file: string
+  candidates: DocsCandidate[]
+}
+
+/** The documentation coverage of the model whose SQL Claude last edited. */
+export interface DocsCoverageView {
+  model: string
+  percent: number
+  documented: number
+  total: number
+  /** Output columns without a description. */
+  missing: string[]
+  hasDescription: boolean
+}
+
+export interface DocsState {
+  /** Written descriptions with candidates, oldest first. */
+  groups: DocsGroup[]
+  /** Candidates the person unticked in the pane, keyed `manifest|model.column>unique_id.column`. */
+  skipped: string[]
+  coverage: DocsCoverageView | null
+}
+
+// ---------------------------------------------------------------------------------------------------
+// Profile CTEs: each CTE's row count and timing.
+// Filled in by that feature alone (hooks/features/); the other features never read or write it.
+// ---------------------------------------------------------------------------------------------------
+export type CteTier = 'hot' | 'warm' | 'cool'
+
+export interface CteRow {
+  name: string
+  line: number
+  /** Offset of the WITH keyword the CTE belongs to: CTEs of one WITH clause build on each other. */
+  clause: number
+  status: 'pending' | 'running' | 'done' | 'failed'
+  /** Wall time of the count query, which holds every earlier CTE of its clause (a warehouse may skip those the CTE does not use). */
+  queryMs?: number
+  rows?: number
+  /** Time this CTE adds over the one before it. */
+  marginalMs?: number
+  tier?: CteTier
+  error?: string
+}
+
+export interface CteProfileState {
+  model: string
+  status: 'listing' | 'running' | 'stopping' | 'done' | 'stopped' | 'failed'
+  rows: CteRow[]
+  message?: string
+}
+
 declare module 'claude-code' {
   interface PluginState {
     'altimate-code': {
@@ -256,6 +534,26 @@ declare module 'claude-code' {
       lineageTaskSummary: Shaped<TaskSummaryView | null>
       lineagePlanImpact: Shaped<PlanImpactView | null>
       isLineageSummaryHidden: boolean
+      /** The status line's parts by owner, `integrations` and each feature's id (hooks/status-line.ts). */
+      statusParts: Record<string, string>
+      /** hooks/features/: RunsState. */
+      runs: Shaped<RunsState | null>
+      /** hooks/features/: DeferState. */
+      defer: DeferState | null
+      /** hooks/features/: ToModelState. */
+      toModel: ToModelState | null
+      /** hooks/features/: CommentsState. */
+      comments: Shaped<CommentsState | null>
+      /** hooks/features/: CostState. */
+      cost: CostState | null
+      /** hooks/features/: HealthState. */
+      health: HealthState | null
+      /** hooks/features/: SqlGraphState. */
+      sqlGraph: Shaped<SqlGraphState | null>
+      /** hooks/features/: DocsState. */
+      docs: DocsState | null
+      /** hooks/features/: CteProfileState. */
+      cteProfile: CteProfileState | null
     }
   }
 }

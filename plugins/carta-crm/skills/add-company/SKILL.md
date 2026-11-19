@@ -4,7 +4,7 @@ description: Adds one or more company records to the Carta CRM via the Carta CRM
 ---
 
 <!-- carta:plugin-version -->
-<carta-plugin>carta-crm:1.20.20</carta-plugin>
+<carta-plugin>carta-crm:1.20.21</carta-plugin>
 
 ## Overview
 

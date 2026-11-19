@@ -4,7 +4,7 @@ description: "Renders the Carta CRM Home: a landing view with pipeline by stage,
 ---
 
 <!-- carta:plugin-version -->
-<carta-plugin>carta-crm:1.20.20</carta-plugin>
+<carta-plugin>carta-crm:1.20.21</carta-plugin>
 
 # Carta CRM Home
 

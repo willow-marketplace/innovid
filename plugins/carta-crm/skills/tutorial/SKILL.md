@@ -4,7 +4,7 @@ description: 'Interactive ~5-minute walkthrough of the Carta CRM plugin. Covers 
 ---
 
 <!-- carta:plugin-version -->
-<carta-plugin>carta-crm:1.20.20</carta-plugin>
+<carta-plugin>carta-crm:1.20.21</carta-plugin>
 
 # Carta CRM Tutorial
 

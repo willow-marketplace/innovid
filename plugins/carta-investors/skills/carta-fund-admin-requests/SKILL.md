@@ -4,7 +4,7 @@ description: 'Send work to your Carta Fund Admin team and track it. Opens a requ
 ---
 
 <!-- carta:plugin-version -->
-<carta-plugin>carta-investors:7.49.2</carta-plugin>
+<carta-plugin>carta-investors:7.53.4</carta-plugin>
 
 <!-- Part of the official Carta AI Agent Plugin -->
 
@@ -201,8 +201,12 @@ column. Show **Tasks to complete** first, then **In progress**; collapse
 Close with:
 
 ```
-Enter a number to open that case, or: [N] New request  [R] Refresh
+Enter a number to open that case, or: [N] New request  [R] Refresh  [W] Open Workhub
 ```
+
+**W** calls `open_workhub` (no params), which opens the user's Carta Workhub beside the chat:
+these requests, with their threads, next to the rest of the firm's open work. If the call fails
+or answers that it can't be shown here, say the Workhub didn't open; the links above still work.
 
 > **Checkpoint**: Call `mcp__<SERVER>__skill_checkpoint(skill_name="carta-investors:carta-fund-admin-requests", checkpoint_label="skill_finished")` after the closing line.
 

@@ -4,19 +4,19 @@
     "headline": "Fund Performance now reads Carta through its current tools. Rebuild it so it keeps loading as Carta's connector changes."
   },
   "carta-home-build": {
-    "version": "1.25.4",
-    "headline": "A capital call partner with $30 or less left to pay now reads as Paid, up from $25. Rebuild to get it."
+    "version": "1.25.5",
+    "headline": "The Skill directory search is more forgiving: a topic name finds its skills, a half-typed word or a plural still matches, and results narrow as you type. Rebuild to get it."
   },
   "carta-lp-summary": {
     "version": "1.5.0",
     "headline": "The page now opens on your latest finalized quarter, and an As of menu beside the title switches to any earlier quarter."
   },
   "carta-soi": {
-    "version": "1.4.11",
+    "version": "1.4.12",
     "headline": "SOI now has an Investment Cash Flows tab: every dated investment, proceed and terminal value behind Deal IRR, grouped by company and fund, following the same fund, as-of and exited filters."
   },
   "carta-workhub-build": {
-    "version": "1.13.2",
-    "headline": "When KYC forms are waiting on you, you can now choose which ones Claude helps you fill in: one, several or all of them. Rebuild to get it."
+    "version": "2.0.0",
+    "headline": "Carta Workhub now opens inside Claude from the Carta connector, and this page no longer gets updates."
   }
 }

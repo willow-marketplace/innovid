@@ -4,7 +4,8 @@ Convert core WebAssembly modules to the WASM Component Model format.
 
 ## Overview
 
-Fastly Compute uses the WebAssembly Component Model for its services. If you have a core WASM module (traditional `.wasm` binary), you need to adapt it to a component before it can run on Fastly.
+Use `viceroy adapt` when you need a component from a core WASM module.
+Package separately: `fastly compute deploy` requires `.tar.gz`, not `.wasm`.
 
 ## Quick Start
 
@@ -124,19 +125,21 @@ Some features may work in Viceroy but not in Fastly production:
 # 1. Build your Rust application
 cargo build --target wasm32-wasip1 --release
 
-# 2. Adapt to component (if not using fastly CLI)
+# 2. Adapt to a component for this custom pipeline
+mkdir -p bin
 viceroy adapt target/wasm32-wasip1/release/myapp.wasm -o bin/main.wasm
 
 # 3. Test locally
 viceroy -C fastly.toml bin/main.wasm
 
-# 4. Deploy to Fastly
+# 4. Package the binary with the project's fastly.toml
+fastly compute pack --wasm-binary bin/main.wasm
+
+# 5. Deploy the package
 fastly compute deploy
 ```
 
 ## Note on Fastly CLI
 
-When using `fastly compute build`, the CLI handles adaptation automatically. You typically only need `viceroy adapt` for:
-- Custom build pipelines
-- Debugging adaptation issues
-- Working with modules from other sources
+`fastly compute build` runs the language build or custom script, annotates Wasm, and packages it; it does not adapt modules.
+Add adaptation to the build if needed, or use `fastly compute serve --viceroy-args "--adapt"` for local-only adaptation.

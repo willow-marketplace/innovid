@@ -2,7 +2,7 @@
   "name": "posthog",
   "version": "1.0.0",
   "description": "Access PostHog analytics, feature flags, experiments, error tracking, and insights directly from Antigravity",
-  "updatedAt": "2026-11-17T14:42:13.938Z",
+  "updatedAt": "2026-11-19T00:06:02.686Z",
   "author": {
     "url": "https://posthog.com",
     "name": "PostHog",
@@ -20,6 +20,7 @@
     "dashboards",
     "llm-analytics"
   ],
+  "logo": "assets/posthog-logomark-square.svg",
   "skills": "./skills/",
   "commands": "./commands/",
   "agents": [
@@ -33,17 +34,6 @@
           {
             "type": "command",
             "command": "\"${CLAUDE_PLUGIN_ROOT:-$PLUGIN_ROOT}/hooks/gate-exec-write.sh\""
-          }
-        ]
-      }
-    ],
-    "PostToolUse": [
-      {
-        "matcher": "Skill",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "\"${CLAUDE_PLUGIN_ROOT:-$PLUGIN_ROOT}/hooks/skill-invoked.sh\""
           }
         ]
       }
@@ -65,7 +55,8 @@
       "type": "http",
       "headers": {
         "x-posthog-mcp-consumer": "plugin"
-      }
+      },
+      "headersHelper": "cat claude-code-headers.json || type claude-code-headers.json"
     }
   }
 }

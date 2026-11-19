@@ -61,82 +61,55 @@ agents killed by a wall-clock limit:
    later publish stalls on a cold edge-sync. Don't build the spec only inside
    a `curl --data` argument and lose it when the call blocks.
 
-2. **Match the check to the question.** "Does this VCL compile / is the spec
-   shape accepted?" is answered by a _single_ `POST /fiddle` reading `valid` —
-   ~1-3s, no execution, no edge-sync wait (see gotcha #5). You only need the
-   full publish → execute → SSE round trip when you must observe _runtime_
-   assertion results (actual `clientFetch`/`originFetches`/`events` values),
-   and that pays the 10-120s edge-sync floor per publish. **Executing is the
-   exception, not the default** — reach for it deliberately, and always bound
-   your wait; never block indefinitely on the stream.
+2. Choose by input and required result.
+   - Compile without a request or edge-sync wait.
+     fastly vcl check recv.vcl
+   - Replay one request from VCL bodies. Use for CI status or header checks. Skip spec creation.
+     fastly vcl run recv.vcl --path /example --json
+     Default origin is https://http-me.fastly.dev
+     Override with --origin URL
+   - Local proxy with remote execution and redeploy on edits.
+     fastly vcl serve recv.vcl --watch --addr 127.0.0.1:8787
+     Set --addr HOST:PORT. Default listener is 127.0.0.1:7676
+   - Use the helper when the task requires a Fiddle JSON spec, DSL assertions, multiple requests in one fiddle, an existing fiddle ID, or a shareable URL.
+     Copy supplied VCL bodies into matching vcl slots unless asked to edit them. Use --lint-only for compile-only specs.
+     Bound execution wait after creating or updating a fiddle.
 
-### Lint-only (the common case): compile check, no execution
+Pass subroutine bodies without sub vcl_* wrappers.
+Get public-upload authorization before running any route, including check.
+`fastly vcl run` can execute the request more than once when retrying incomplete results; use idempotent requests and avoid irreversible side effects.
+See fastly-cli references/vcl.md for more flags and result fields.
+
+### Helper
 
 ```bash
 bash "$FIDDLE_SKILL_DIR/scripts/run-fiddle.sh" --lint-only fiddle.json
 # {fiddle_id, url, valid, lintStatus}. Exit 0 = compiles, 2 = lint error
 # (details on stderr). No /execute, no SSE, no edge-sync wait.
-```
 
-The raw equivalent is one call — POST and read `valid`:
-
-```bash
-UA='fiddle-skill-example/1.0'
-curl -sS --max-time 30 -X POST https://fiddle.fastly.dev/fiddle \
-  -H 'Content-Type: application/json' -H "User-Agent: $UA" \
-  --data @fiddle.json | jq '{valid, lintStatus}'   # valid==true ⇒ it compiles
-```
-
-### Full round trip (only when you need runtime results)
-
-When you genuinely need to see assertions pass/fail on the edge, the bundled
-helper handles publish → execute → SSE → completion-detection in one call,
-with a bounded `--max-wait` (default 180s per attempt) so it can't hang:
-
-```bash
 bash "$FIDDLE_SKILL_DIR/scripts/run-fiddle.sh" "$FIDDLE_SKILL_DIR/examples/robots.json"
 # Prints fiddle URL, then pass/fail JSON per assertion (including body_preview
 # and status by default). Exits non-zero on failure. Pass --no-bodies for
-# compact output.
+# compact output. Each attempt is bounded by --max-wait (default 180s).
 
 # Iterate against an already-published fiddle without paying edge-sync again:
 bash "$FIDDLE_SKILL_DIR/scripts/run-fiddle.sh" --id <fiddle-id>           # re-execute (warmest, ~2s)
 bash "$FIDDLE_SKILL_DIR/scripts/run-fiddle.sh" --id <fiddle-id> spec.json # PUT then execute
 ```
 
-The equivalent raw-curl flow, for reference or when the helper isn't available:
+### Raw API, without the helper
 
 ```bash
 UA='fiddle-skill-example/1.0'
-
-# 1. Create. Capture the ID and the validity flag.
-RESP=$(curl -sS -X POST https://fiddle.fastly.dev/fiddle \
-  -H 'Content-Type: application/json' -H 'Accept: application/json' \
-  -H "User-Agent: $UA" \
-  --data '{
-    "origins": ["https://http-me.fastly.dev"],
-    "vcl": {
-      "init": "# Synthetic robots.txt response\n# via error restart pattern",
-      "recv": "if (req.url.path == \"/robots.txt\") {\n  error 601;\n}",
-      "error": "if (obj.status == 601) {\n  set obj.status = 200;\n  synthetic {\"User-agent: BadBot\"};\n  return(deliver);\n}"
-    },
-    "requests": [
-      { "path": "/robots.txt",
-        "headers": "X-Custom: value\nX-Other: second",
-        "tests": ["clientFetch.status is 200", "clientFetch.bodyPreview includes \"BadBot\""] }
-    ]
-  }')
+RESP=$(curl -sS --max-time 30 -X POST https://fiddle.fastly.dev/fiddle \
+  -H 'Content-Type: application/json' -H "User-Agent: $UA" --data @fiddle.json)
+echo "$RESP" | jq '{valid, lintStatus}'   # stop here if valid is false
 FID=$(echo "$RESP" | jq -r '.fiddle.id')
-echo "$RESP" | jq '{valid, lintStatus}'   # bail here if valid is false
 
-# 2. Execute. Subscribe to the SSE stream IMMEDIATELY — session IDs expire fast.
+# Open the stream right away: session IDs expire within seconds
 SID=$(curl -sS -X POST "https://fiddle.fastly.dev/fiddle/$FID/execute?cacheID=1" \
-        -H 'Accept: application/json' -H "User-Agent: $UA" | jq -r '.sessionID')
-
-# 3. Stream results. Emits repeated `event: waitingForSync` (~10-20s on first
-#    publish) then `event: updateResult` with full pass/fail data. ALWAYS cap
-#    the stream with --max-time so a slow/cold sync can't block you forever;
-#    on timeout, re-execute the same $FID (warm, ~2s) rather than re-publishing.
+  -H 'Accept: application/json' -H "User-Agent: $UA" | jq -r '.sessionID')
+# waitingForSync, then updateResult; if results are incomplete, re-execute $FID
 curl -sS -N --max-time 120 -H "User-Agent: $UA" "https://fiddle.fastly.dev/results/$SID/stream"
 ```
 
@@ -182,6 +155,13 @@ Fiddles are read by humans in a browser. These aren't surprises, but they make s
 - **Send `User-Agent: <tool>/<version>` on every API call.** Fiddle is unauthenticated shared infra; default `curl/x.y` or library UAs are bad citizenship. This is the API call's UA, not the simulated request's `headers`.
 
 ## Testing in CI
+
+CLI exit 0 can include HTTP errors. Assert status. Run checks sequentially in the shared sandbox.
+
+```bash
+fastly vcl run recv.vcl --path /example --json > result.json &&
+  jq -e '.response.status == 200' result.json
+```
 
 Reference implementation: [fastly/demo-fiddle-ci](https://github.com/fastly/demo-fiddle-ci) — a Node + Mocha harness. Clone it and write your `{spec, scenarios[]}`.
 

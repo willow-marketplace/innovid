@@ -17,6 +17,10 @@ viceroy -C fastly.toml bin/main.wasm
 viceroy --addr 0.0.0.0:8080 bin/main.wasm
 ```
 
+Use `fastly compute serve --watch` to install Viceroy, build, serve, and rebuild/restart on changes.
+Use `fastly compute serve --file bin/main.wasm` for an existing binary.
+To treat stdout as a logging endpoint, pass the Viceroy flag through the CLI: `fastly compute serve --viceroy-args="--log-stdout"`.
+
 ## Command Reference
 
 ```bash

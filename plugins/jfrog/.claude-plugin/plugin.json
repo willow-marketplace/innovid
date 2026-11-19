@@ -2,7 +2,7 @@
   "name": "jfrog",
   "version": "1.0.0",
   "description": "Official JFrog plugin. Connect Claude Code to JFrog to manage, secure, and govern your software supply chain. Give agents the context to build secure, compliant software.",
-  "updatedAt": "2026-11-17T14:42:13.855Z",
+  "updatedAt": "2026-11-19T00:02:30.914Z",
   "author": {
     "url": "https://jfrog.com",
     "name": "JFrog Ltd.",
@@ -69,7 +69,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "npm_config_fetch_retries=0 npm_config_fetch_timeout=10000 JF_AGENT_GUARD_ENFORCE_DEADLINE=\"$(($(date +%s) + 25))\" npx --yes --prefer-offline --registry \"${JFROG_AGENT_GUARD_REPO:-https://releases.jfrog.io/artifactory/api/npm/coding-agents-npm/}\" @jfrog/agent-guard --enforce-skill --client claude-code"
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/modules/core/enforce-skill.mjs\" --client claude-code --prefer-offline"
           }
         ]
       }
@@ -79,7 +79,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "npm_config_fetch_retries=0 npm_config_fetch_timeout=10000 JF_AGENT_GUARD_ENFORCE_DEADLINE=\"$(($(date +%s) + 25))\" npx --yes --prefer-offline --registry \"${JFROG_AGENT_GUARD_REPO:-https://releases.jfrog.io/artifactory/api/npm/coding-agents-npm/}\" @jfrog/agent-guard --enforce-skill --client claude-code"
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/modules/core/enforce-skill.mjs\" --client claude-code --prefer-offline"
           }
         ]
       }

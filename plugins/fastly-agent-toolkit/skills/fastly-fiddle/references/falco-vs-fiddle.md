@@ -27,7 +27,9 @@ Ordered pipeline; each stage must pass (green) before the next runs:
 1. falco lint — trigger: on edit. Speed: <1s, local.
 2. falco test — trigger: lint passes. Speed: <1s per test, watch mode.
 3. Fiddle CI run — trigger: falco tests green. Speed: 10-60s, real edge, pre-merge gate.
-4. fastly deploy — trigger: Fiddle CI green. Target: staging service.
+4. After Fiddle CI is green, upload to the intended service with `fastly service vcl custom create` or `update`, then run `fastly service version validate`.
+   `fastly service version stage` stages that service's version in its staging environment; it does not deploy to a separate staging service.
+   If using a separate staging service, target that service explicitly.
 
 The Fiddle run is a gate, not an inner loop. Keep its test suite focused on assertions that only Fiddle can verify — don't duplicate every falco unit test in Fiddle form.
 
@@ -45,16 +47,13 @@ The two tools have **different assertion DSLs**. You cannot reuse test files bet
 | State / return     | `assert.state(lookup)`                               | `events.where(fnName=recv)[0].return is "lookup"`                       |
 | Error raised       | `assert.error(404)`                                  | `clientFetch.status is 404` + `events.where(fnName=error).count() is 1` |
 
-## One more thing: Fiddle as a remote linter
-
-If your CI host can't install falco (no Go toolchain, no Homebrew, whatever), Fiddle's `POST /fiddle` returns structured lint diagnostics without executing. Costs one HTTP round trip.
+## Remote linting
 
 ```bash
-curl -sS -X POST https://fiddle.fastly.dev/fiddle \
-  -H 'Content-Type: application/json' \
-  --data @fiddle.json | jq '{valid, lintStatus}'
+# Authorized public upload; recv.vcl contains a body, no sub vcl_recv wrapper
+# Returns {valid, diagnostics}; nonzero on compile failure; no request execution
+fastly vcl check recv.vcl --json
 ```
 
-Exit non-zero when `.valid == false`. See the `api.md` reference ("Lint-only workflow").
-
-This is a fallback, not a replacement — falco's linter is faster, offline, and has richer rule configuration.
+Read the fastly-cli VCL sandbox reference for CLI caveats.
+For JSON specs, use the helper's `--lint-only` or the `api.md` reference ("Lint-only workflow"); for offline linting, use Falco.

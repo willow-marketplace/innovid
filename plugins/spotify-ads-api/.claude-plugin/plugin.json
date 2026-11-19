@@ -1,8 +1,8 @@
 {
   "name": "spotify-ads-api",
-  "version": "1.9.0",
+  "version": "1.10.0",
   "description": "Manage Spotify ad campaigns, audiences, measurement, account access, assets, and reporting with natural language and OAuth.",
-  "updatedAt": "2026-11-17T14:42:13.867Z",
+  "updatedAt": "2026-11-19T00:02:28.672Z",
   "author": {
     "name": "Alex Murphy"
   },

@@ -4,7 +4,7 @@ description: "Answer quick questions about one company's cap table, like who own
 ---
 
 <!-- carta:plugin-version -->
-<carta-plugin>carta-cap-table:6.114.20</carta-plugin>
+<carta-plugin>carta-cap-table:6.115.2</carta-plugin>
 
 <!-- Part of the official Carta AI Agent Plugin -->
 
@@ -64,7 +64,9 @@ read_tool({"name": "cap_table__list__grants", "arguments": {"corporation_id": <c
 - Vesting of one grant, valuations (409A, FMV), round history and issuance have their own
   skills. Load the matching skill. To edit, cancel, transfer or buy back an issued security,
   record an option exercise, or approve or reject an exercise request, load
-  carta-manage-securities: it shows a preview before any change.
+  carta-manage-securities: it shows a preview before any change. To change vesting, load
+  carta-vesting. For board consents and board members, load carta-boardroom. For the users
+  of the company's Carta account and their access levels, load carta-company-users.
 - To write a company update or investor update, call `read_tool` with
   `cap_table__compute__create_communication_preview`. Apply a plan only with the named
   `cap_table__mutate__apply_plan` tool on the same Carta connector, never with `call_tool`:

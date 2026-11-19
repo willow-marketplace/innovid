@@ -205,7 +205,7 @@ fastly compute serve --viceroy-path /usr/local/bin/viceroy
 fastly compute serve --viceroy-check
 
 # Pass additional arguments to Viceroy
-fastly compute serve --viceroy-args "--log-level=debug"
+fastly compute serve --viceroy-args "--log-stdout"
 ```
 
 **Key flags**:
@@ -224,6 +224,7 @@ fastly compute serve --viceroy-args "--log-level=debug"
 - `--viceroy-path` - Path to a user-installed Viceroy binary
 
 The local server uses Viceroy to emulate the Fastly Compute environment.
+`serve` supplies missing backend Host overrides; see the viceroy skill's backend configuration reference for hostname/port defaults and IP exclusions.
 
 WebSocket passthrough is enabled by default. To disable it, use the manifest setting:
 
@@ -361,7 +362,7 @@ language = "rust"
 service_id = "YOUR_SERVICE_ID"
 
 [scripts]
-build = "cargo build --release --target wasm32-wasi"
+build = "cargo build --release --target wasm32-wasip1"
 post_init = "npm install"
 
 [setup]

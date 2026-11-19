@@ -4,7 +4,7 @@ description: Adds a note to a deal in the Carta CRM via the Carta CRM MCP Server
 ---
 
 <!-- carta:plugin-version -->
-<carta-plugin>carta-crm:1.20.20</carta-plugin>
+<carta-plugin>carta-crm:1.20.21</carta-plugin>
 
 ## Overview
 

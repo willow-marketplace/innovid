@@ -115,7 +115,14 @@ Manage notification integrations for alerts. Supported types: mailinglist, micro
 | Rotate webhook signing key     | `POST`   | `/notifications/integrations/{integration_id}/rotateSigningKey` |
 | Send mailing list confirmation | `POST`   | `/notifications/mailinglist-confirmations`                      |
 
-Create body: `{"name": "...", "type": "slack", "config": {"webhook": "https://hooks.slack.com/..."}}`.
+Prefer the CLI for Slack integration creation, with the webhook URL supplied locally:
+
+```bash
+fastly integration slack create --name NAME --webhook "$WEBHOOK_URL"
+```
+
+Do not print the webhook URL or enable shell tracing.
+See the fastly-cli skill's notifications reference for other integration commands.
 
 ## Starred Services
 

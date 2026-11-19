@@ -7,13 +7,15 @@ using the plugin, see [README.md](README.md).
 
 The skill files in this repository are the single source of truth for every
 plugin route below — each route's manifest or package points back at the same
-`skills/` directory rather than keeping a copy of its own in git:
+`skills/` directory rather than keeping a copy of its own in git. The one
+exception is `agent-plugin/`, whose copy `scripts/build-manifest.js` generates:
 
 | Route | How it gets the files | MCP config it reads | Reports itself as |
 | --- | --- | --- | --- |
 | Claude Code plugin | `/plugin marketplace add postmanlabs/postman-plugin` clones this repo | `mcp.claude-code.json` | `postman-claude-code-plugin` |
 | Cursor plugin | `.cursor-plugin/plugin.json` points at this repo's `skills/` dir | `mcp.cursor.json` | `postman-cursor-plugin` |
-| GitHub Copilot CLI plugin | `.github/plugin/plugin.json` points at the same `skills/` dir and its own `hooks/copilot-hooks.json`, which runs the same scripts | `mcp.copilot.json` | `postman-copilot-plugin` |
+| GitHub Copilot CLI plugin | `copilot plugin marketplace add postmanlabs/postman-plugin` reads `.github/plugin/marketplace.json`, which installs `agent-plugin/`: an [Agent Plugins](https://agent-plugins.org) plugin with generated copies of `skills/` and the hook scripts, and its hook in `com.github.copilot/hooks/hooks.json` | `agent-plugin/mcp.json` | `postman-agent-plugin` |
+| GitHub Copilot CLI plugin, legacy (deprecated) | a direct install of the repo root, or a marketplace read without `.github/plugin/marketplace.json`: `.github/plugin/plugin.json` points at `skills/` and `hooks/copilot-hooks.json`. Frozen at 0.2.0 and gets no new features; removed once awesome-copilot lists `agent-plugin/` and existing installs have had a release to move over | `mcp.copilot.json` | `postman-copilot-plugin` |
 | Kimi Code plugin | `.kimi-plugin/plugin.json` points at the same `skills/` dir | `mcpServers` in `.kimi-plugin/plugin.json` | `postman-kimi-plugin` |
 | Antigravity plugin | `agy plugin install https://github.com/postmanlabs/postman-plugin` clones this repo; `.antigravity-plugin/plugin.json` points at the same `skills/` dir | `mcp_config.json` | `postman-antigravity-plugin` |
 | Codex plugin | `.codex-plugin/plugin.json` points at the same `skills/` dir | `mcp.codex.json` | `postman-codex-plugin` |
@@ -90,7 +92,10 @@ it lands.
 .claude-plugin/marketplace.json   the marketplace Claude Code adds
 .claude-plugin/plugin.json        the Claude Code plugin manifest
 .cursor-plugin/plugin.json        the Cursor plugin manifest
-.github/plugin/plugin.json        the GitHub Copilot CLI plugin manifest — never a root `plugin.json`, which would send Codex down its Agent Plugins loader
+.github/plugin/marketplace.json   the marketplace Copilot CLI adds; Copilot reads it before .claude-plugin/marketplace.json, and it installs agent-plugin/
+.github/plugin/plugin.json        the deprecated GitHub Copilot CLI plugin manifest, frozen at 0.2.0 — never a root `plugin.json`, which would send Codex down its Agent Plugins loader
+agent-plugin/                     GitHub Copilot CLI's Agent Plugins plugin; plugin.json and mcp.json are hand-written, everything else is generated
+agent-plugin/com.github.copilot/  Copilot-only files; Copilot reads an Agent Plugins plugin's hooks only from com.github.copilot/hooks/hooks.json
 .kimi-plugin/plugin.json          the Kimi Code plugin manifest — carries its MCP block inline, and names Kimi's generated copy of the mandate
 .antigravity-plugin/plugin.json   the Antigravity plugin manifest
 rules/GEMINI.md                   Antigravity's generated copy of the mandate, loaded as an always-on rule
@@ -112,8 +117,9 @@ mcp.pi.json                       Pi's MCP config, registered by the Pi extensio
 mcp_config.json                   Antigravity's MCP config — must keep this exact root filename
 skills/<name>/SKILL.md            one skill per directory — see skills/ for the current list
 manifest.json                     generated index of the skill files
-scripts/build-manifest.js         regenerates it, and Kimi's and Antigravity's copies of the mandate
+scripts/build-manifest.js         regenerates it, Kimi's and Antigravity's copies of the mandate, and agent-plugin/'s copies of skills/ and the hooks
 scripts/routes.js                 every route, read by the pre-commit guard and the installer's tests
+test/                             one harness per route, checking what the agent delivers, and the stand-in in test/lib/
 ```
 
 ## The MCP server config
@@ -124,6 +130,7 @@ traffic can be attributed to the agent it came from:
 ```
 mcp.claude-code.json        <- .claude-plugin/plugin.json  "mcpServers": "./mcp.claude-code.json"
 mcp.cursor.json             <- .cursor-plugin/plugin.json  "mcpServers": "./mcp.cursor.json"
+agent-plugin/mcp.json       <- the Agent Plugins spec reads this filename from the plugin root
 mcp.copilot.json            <- .github/plugin/plugin.json  "mcpServers": "./mcp.copilot.json"
 mcp.codex.json              <- .codex-plugin/plugin.json   "mcpServers": "./mcp.codex.json"
 .kimi-plugin/plugin.json       inline — Kimi documents no path form
@@ -151,6 +158,8 @@ all:
   route the manifest `version` and both header strings must agree, and nothing
   enforces that either — a mismatch is accepted at runtime and the traffic is
   filed under a version that was never cut.
+  GitHub Copilot CLI's legacy route is deprecated and frozen at 0.2.0: a
+  Copilot release bumps only `agent-plugin/plugin.json` and `agent-plugin/mcp.json`.
 - **The URL's mode segment** (`/mcp` vs `/minimal`) selects a different tool
   surface. Unifying it changes which tools the `/minimal` routes (Kimi Code,
   opencode) get — a product decision, not a tidy-up.
@@ -273,7 +282,7 @@ it, so the mandate names them as 2.3.0 does and the line covers older releases.
 `node scripts/build-manifest.js` writes it, so don't edit it by hand: `--check`
 fails CI and the pre-commit guard when it is stale.
 
-`scripts/kimi-harness.js` loads the entry skill by the name the mandate gives,
+`test/kimi-harness.js` loads the entry skill by the name the mandate gives,
 without the prefix when Kimi lists skills bare. CI's `kimi` job runs it against
 a pinned Kimi from before 2.3.0, and the `Installer smoke` workflow against the
 latest, so both forms are checked.
@@ -317,7 +326,7 @@ un-namespaced and its Skill tool rejects `postman:api-engineer`, so when the
 hook's environment has `DROID_PLUGIN_ROOT` set it rewrites `` `postman:<skill>` `` to
 `` `<skill>` ``, as the OpenCode plugin does.
 
-`scripts/factory-harness.js` installs this checkout into Droid as a local
+`test/factory-harness.js` installs this checkout into Droid as a local
 marketplace under a throwaway home and runs one `droid exec` against a local
 stand-in for both the model and the MCP server. It checks that the session
 lists every skill and carries the mandate, that the mandated skill loads, and
@@ -326,7 +335,7 @@ against a pinned Droid; the `Installer smoke` workflow runs it against the
 latest one nightly:
 
 ```
-DROID_BIN=<path to droid> node scripts/factory-harness.js
+DROID_BIN=<path to droid> node test/factory-harness.js
 ```
 
 ## Checking what each route delivers
@@ -336,18 +345,19 @@ under a throwaway home, and checks what the agent sends its model and the MCP
 server: every skill in `manifest.json` listed, the session-start mandate in the
 form that agent resolves (`postman:` names for Claude Code and Kimi Code, bare
 names elsewhere; Codex gets none), the skill the mandate names loaded, and the route's MCP headers.
-`scripts/lib/harness.js` holds the stand-in they share. CI's job per route runs
+`test/lib/harness.js` holds the stand-in they share. CI's job per route runs
 each harness against a pinned agent; the `Installer smoke` workflow runs it
 against the latest one nightly.
 
 ```
-CLAUDE_BIN=<path to claude> node scripts/claude-code-harness.js
-CODEX_BIN=<path to codex> node scripts/codex-harness.js
-COPILOT_BIN=<path to copilot> node scripts/copilot-harness.js
-KIMI_BIN=<path to kimi> node scripts/kimi-harness.js
-AGY_BIN=<path to agy> node scripts/antigravity-harness.js
-CURSOR_API_KEY=<key> CURSOR_BIN=<path to cursor-agent> node scripts/cursor-harness.js
-DROID_BIN=<path to droid> node scripts/factory-harness.js
+CLAUDE_BIN=<path to claude> node test/claude-code-harness.js
+CODEX_BIN=<path to codex> node test/codex-harness.js
+COPILOT_BIN=<path to copilot> node test/copilot-harness.js
+COPILOT_ROUTE=legacy COPILOT_BIN=<path to copilot> node test/copilot-harness.js
+KIMI_BIN=<path to kimi> node test/kimi-harness.js
+AGY_BIN=<path to agy> node test/antigravity-harness.js
+CURSOR_API_KEY=<key> CURSOR_BIN=<path to cursor-agent> node test/cursor-harness.js
+DROID_BIN=<path to droid> node test/factory-harness.js
 (cd opencode && npm run test:harness)
 (cd installer && PI_BIN=<path to pi> npm run test:pi-harness)
 ```
@@ -358,7 +368,10 @@ declares no hooks (`"hooks": {}`; without the key Codex falls back to
 harness runs with `--dangerously-bypass-hook-trust` and asserts that no hook
 runs. Copilot CLI's harness runs it with `COPILOT_OFFLINE=true`
 and a BYOK provider, `COPILOT_PROVIDER_BASE_URL`, pointed at the stand-in, so it
-needs no GitHub account. Cursor's CLI has no stand-in model, so its harness asks
+needs no GitHub account. It installs `agent-plugin/` through
+`.github/plugin/marketplace.json`; with `COPILOT_ROUTE=legacy` it leaves that
+file out of the copy, so Copilot installs the repo root and loads
+`.github/plugin/plugin.json`. Cursor's CLI has no stand-in model, so its harness asks
 Cursor's model to quote the mandate and the skill it names, and needs a
 `CURSOR_API_KEY`; CI's Cursor steps are commented out for now, so run it
 locally. When they return, CI reads the key from the repository secret of that name. It
@@ -385,9 +398,9 @@ wherever one exists:
 
 | Agent | What it runs |
 | --- | --- |
-| Claude Code | `claude plugin` against Anthropic's `claude-plugins-official` catalog, then uninstalls a user-scope `postman@postman` so skills don't load twice; a failed install leaves that copy in place |
+| Claude Code | `claude plugin` against this repo as the `postman` marketplace; stops before changes if its registered source or user settings pin it away from `main`. After installing, uninstalls a user-scope `postman@claude-plugins-official` so skills don't load twice (a failed install leaves that copy in place), and sets `autoUpdate: true` on the marketplace's `extraKnownMarketplaces` entry in `settings.json` (under `CLAUDE_CONFIG_DIR` when set), the key the `/plugin` toggle writes, unless the user already set it |
 | Codex | `codex plugin` against this repo as the `postman` marketplace |
-| GitHub Copilot CLI | `copilot plugin` against this repo as the `postman` marketplace (Copilot reads `.claude-plugin/marketplace.json`), replacing a direct install, which Copilot is deprecating |
+| GitHub Copilot CLI | `copilot plugin` against this repo as the `postman` marketplace (Copilot reads `.github/plugin/marketplace.json`, which installs `agent-plugin/`), replacing a direct install, which Copilot is deprecating |
 | Cursor | a clone at `~/.cursor/plugins/local/postman`. A fresh install is skipped when the Cursor Marketplace copy is present, but an existing clone is kept and updated: Cursor keeps a disabled Marketplace copy on disk too, so the installer can't tell whether that copy is enabled |
 | Factory Droid | `droid plugin` against this repo as the `postman-plugin` marketplace |
 | Antigravity | `agy plugin install https://github.com/postmanlabs/postman-plugin`, again on a re-run, which replaces the installed copy; `agy plugin uninstall postman` removes it |
@@ -467,19 +480,22 @@ already under way:
    publishes it, so a new version can't be rehearsed in CI: `npm pack --dry-run`
    in `installer/` is the rehearsal.
 
-Every run of `release.yml`, a dry run included, waits for a `headless-postman`
-member to approve it in the `npm-publish` environment before the publish job starts.
+Every run of `release.yml` for a tag that isn't a release candidate, a dry run
+included, waits for a `headless-postman` member to approve it in the
+`npm-publish` environment before the publish job starts. A release candidate
+(`-rc.N`) publishes in the `npm-next` environment, which has no reviewers, and
+in a concurrency group of its own, so it never queues behind a release that is
+waiting for approval.
 
 Every push to `main` that changes a shipped file (`SHIPPED` in `release.mjs`)
 also cuts a release candidate by itself: `.github/workflows/rc.yml` runs
 `release.mjs next-rc`, commits the bump on a `release/postman-plugin-<version>`
-branch, smokes that commit, tags it and dispatches `release.yml`, which waits
-for the approval above and then publishes to `next`. `next-rc` takes the bump
+branch, smokes that commit, tags it and dispatches `release.yml`, which
+publishes it to `next`. `next-rc` takes the bump
 from the conventional-commit prefixes since npm's `latest` (`feat` is minor, `!`
 or `BREAKING CHANGE:` is major, anything else is patch; a 0.x package never
 reaches 1.0.0 this way) and the number from the first `-rc.N` that neither npm nor
-an origin tag has claimed. Approve the newest waiting run and reject the older ones:
-`release.yml` refuses a version below its dist-tag.
+an origin tag has claimed. `release.yml` refuses a version below its dist-tag.
 
 Keep the workflow's filename: npm's trusted publisher for the package is
 pinned to `release.yml`.
@@ -489,6 +505,12 @@ pinned to `release.yml`.
 1. Edit the file under `skills/<skill>/`.
 2. Run `node scripts/build-manifest.js`.
 3. Commit all of it. CI runs `--check` and fails if you forget step 2.
+
+`.github/workflows/sync-agent-plugin.yml` runs step 2 for a same-repo pull request that touches `skills/`
+or `hooks/`, and pushes the result to the pull request's branch, so pull before you push again. It needs an
+`AGENT_PLUGIN_SYNC_TOKEN` secret (a GitHub App token or a fine-grained PAT with `contents: write`), because
+a push made with `GITHUB_TOKEN` starts no workflow and `Validate` would never run on the new commit. Without
+the secret it does nothing, and `Manifest` fails as before. A fork's pull request is never synced.
 
 Don't bump a version in the change itself; a release PR does that (see
 `AGENTS.md`). `node scripts/route-versions.js` lists the routes a release must

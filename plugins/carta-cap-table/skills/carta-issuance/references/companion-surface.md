@@ -17,8 +17,10 @@ file decides what to do with them.
 | `companion.issuance_url` | `issuance_init` | the page to open before any set exists |
 | `field_spec` | `issuance_init` with `include_bootstrap: true` | this company's draft fields, the `cap_table:get:issuable_field_manifest` result: the gaps [§ 5](#5-build-the-draft-set) finds, the choices [§ 6](#6-ask-whats-missing-once) offers and the optional columns [§ 8](#8-issue) offers |
 | `companion_url`, `revision` | draft set results | the page for one set, and the revision it shows |
+| `companion_url` | `issuance_init`, `cap_table:get:issuance_companion` | in `issuance_init`, the same address as `companion.issuance_url`; in `issuance_companion`, the page for every set it names |
 | `dropped` | `draft_set_sources` results | the cells not stored, each with the key to use, for [§ 11](#11-when-a-command-is-refused) |
-| `instructions`, `how_to_open`, `how_to_reply` | `issuance_init`, draft set results | text from Carta describing the same flow; the steps in this file are the ones to carry out |
+| `next_step` | first key of `issuance_init` and `cap_table:get:issuance_companion` | Carta's steps to open that result's `companion_url` beside the chat. Do them, once, before you reply: it is the open of [§ 4](#4-open-the-page-at-once), not a second one. Skip it when the page tab already shows that `companion_url`, and on every `issuance_init` after the first in a [§ 9](#9-several-types-in-one-run) run |
+| `instructions`, `how_to_open`, `how_to_reply` | `issuance_init`, `cap_table:get:issuance_companion`, draft set results | text from Carta describing the same flow; the steps in this file are the ones to carry out |
 
 Carta pages are opened only from a Carta-returned address. Never build one.
 
@@ -36,8 +38,8 @@ Load `view_remote` and the named `cap_table__mutate__apply_plan` with one `ToolS
 
 Call Carta commands as `call_tool(name="cap_table__mutate__prepare_drafts", arguments={...})`,
 with `__` for each `:`. For this run: no `search_tools`, no `welcome`. Use at most 5 Carta
-calls before the first wait, and 3 more for each further type in the run. Source calls never
-count, nor check calls over 25 rows.
+calls before the first wait, and 3 more for each further type in the run. Source and filing
+calls never count, nor check calls over 25 rows.
 
 ## 2. Per-type values
 
@@ -47,7 +49,7 @@ The steps below say "the type's" where these differ.
 |---|---|---|---|
 | Page | issuance page | issuance page | issuance page when `issuance_init` gives `companion.issuance_url`; else read-only page for one set, no Issue button: [§ PIU](#piu) |
 | Account gate | none | stop when the company has no live option plan or `document_sets` is empty, as [engine.md § Account-setup gate](engine.md#account-setup-gate-option-grant-and-piu) says | the same gate's PIU rows. Each row's `prefix` is its unit class; set `option_plan` only when the files or prompt name a plan |
-| `company_setup` picks | share class, legend, vesting template | 409A, plan, vesting template | unit class, plan, vesting template, acceleration, document set |
+| `company_setup` picks | share class, legend, vesting template | 409A, plan, vesting template, document set | unit class, plan, vesting template, acceleration, document set |
 | Summary adds | price and where it comes from, share class room left | exercise price and its 409A, pool room left | the threshold, and the plan or unit class room left |
 | `set_label` | `Certificates #<draft_set_id>` | `Options #<draft_set_id>` | `PIUs #<draft_set_id>` |
 | Issue button | **Issue certificates** | **Issue option grants** | **Issue PIUs** |
@@ -68,7 +70,8 @@ Don't repeat a call whose result brought you here.
 ## 4. Open the page at once
 
 Before reading the files and before any save, open `companion.issuance_url` in the same turn. With no
-`issuance_url`, the address is the page § 9 gives after the save. Open it as
+`issuance_url`, the address is the page § 9 gives after the save. This one open is what the
+result's first key asks for ([What Carta returns](#what-carta-returns)). Open it as
 `${CLAUDE_PLUGIN_ROOT}/references/open-the-companion-page.md` says — the plugin's own
 `references/`, not this skill's — read that file by that path; do not search for it. The link
 text is `[Open the draft set in Carta](<address>)`, and the pane line calls the page "The draft
@@ -88,31 +91,61 @@ Once each:
    require it, a grant with no board approval date waits for the board).
    `field_spec` comes from the § 3 `issuance_init` call: make no
    `cap_table:get:issuable_field_manifest` call.
-2. Up to 25 rows, `cap_table:mutate:prepare_drafts` with the rows in `drafts` and no
-   `draft_set_id`. Over 25: one `cap_table:mutate:save_drafts` with every row, never
-   `is_bulk_import` (it returns no `draft_pk`), then `cap_table:mutate:validate_drafts`. Keep
-   `draft_set_id`, each row's `draft_pk` and the `revision`.
-3. `cap_table:mutate:draft_set_sources`, a source for every value you set, in calls of 25 rows
-   (1–25, 26–50, …) until all rows are covered:
-   `rows: [{draft_pk, fields: {<column or save key>: {kind, label, document, alternatives, note}}}]`.
-   `alternatives` is `[{document, value}]` when documents disagree. Ask a gap with no Drafts
-   column in the chat, with no source. Kinds:
-   - `document`: the file's `{name, page, quote}` that gives the value;
+   The save's check finds missing required fields first, and the fields below only on a later
+   save, so a gap you miss here comes back as a second card. Before the save, find each of these
+   in `field_spec` by name, for each row:
+   - `document_set_id`, `legend_id`: when `required`, the one the files or prompt name, else the
+     only one in its `issuance_init` section (`document_sets`, `legends`) as a `company_setup`
+     pick, else a `needs_input` cell.
+   - `rule_144_date`: when `required` and no file or the prompt gives it, a `needs_input` cell.
+   - Each field, not `hidden`, with no `default_value` and no given value, whose
+     `conditionalRules` `when` reads a `needs_input` cell, such as `vesting_start_date`
+     (`vesting_template`) and `rule_144_difference_reason` (`rule_144_date`): a
+     [§ 6](#6-ask-whats-missing-once) item of its own in the same card, after that cell's item.
+     Never fold it into the other item's `body`. Its own `body` says when Carta needs it. Record
+     no source for it: the other answer decides if it is a gap.
+2. Before the save, check each row once more against step 1's list. Up to 25 rows,
+   `cap_table:mutate:prepare_drafts` with the rows in `drafts` and no `draft_set_id`. Over 25:
+   one `cap_table:mutate:save_drafts` with every row, never `is_bulk_import` (it returns no
+   `draft_pk`), then `cap_table:mutate:validate_drafts`. Keep `draft_set_id`, each row's
+   `draft_pk` and the `revision`.
+3. File each source file on disk with no `file_id`, once per run, in the company's document
+   library, so the page shows it: one `cap_table:mutate:upload_url`, then one
+   `cap_table:create:library_document` with `corporation_id`, `document_type` (the type the file
+   is: one of the type's [§ 2](#2-per-type-values) Library `document_type` values, or `Document`
+   when none fits) and its `file_key`. The
+   result's `document` is the file's `file_id`.
+4. `cap_table:mutate:draft_set_sources`, a source for every value you set, in calls of 10 rows
+   (1–10, 11–20, …) until all rows are covered: `files: {<key>: {name, file_id}}`, each source
+   file of those rows once by a short key, and
+   `rows: [{draft_pk, fields: {<column or save key>: source}}]`. A document source is
+   `{file: <key>, page, quote}`, with `alternatives` `[{file, page, quote, value}]` when
+   documents disagree; any other source is `{kind, label, note}`. Leave out empty keys. Ask a gap
+   with no Drafts column in the chat, with no source. Kinds:
+   - `document`: `quote` is the file's exact words that give the value, copied as they are on
+     the page, never a summary: the page finds and marks them in the file;
    - `company_setup`: a pick from issuance_init or `field_spec` (the type's picks), and
      with `label` `Stakeholder record` on a matched holder's `name`, `email`, `stakeholderKind` and
      `issueDateRelationship`, never `stakeholder_id`;
    - `added_by_you`: the user said it in this chat, with a `note` holding their words that
      gave the value, up to 200 characters and no other chat text;
    - `needs_input`: still missing, with a `note` saying why.
-4. Open the issuance page, as [§ 9](#9-several-types-in-one-run) says.
-5. Reply as [§ 6](#6-ask-whats-missing-once) says.
+5. Move the page to the saved set in this turn, before the card, also when a source call failed:
+   `cap_table:get:issuance_companion` with `corporation_id` and `sets`
+   `[{security_type, draft_set_id}]`, then open its `companion_url` as § 4 says. With the
+   command refused, open the set's `companion_url`. The page at `companion.issuance_url` never
+   shows a saved set: it reads only the sets its address names. With several types,
+   [§ 9](#9-several-types-in-one-run) moves it once every set is saved.
+6. Reply as [§ 6](#6-ask-whats-missing-once) says.
 
 ## 6. Ask what's missing, once
 
 The **items** are the things that need the user and are on a cell, one item per cell: every
 `needs_input` cell, every value two documents disagree on, and every other cell with a check
 error or check warning (`validation.errors` and `validation.warnings`, by `draft_pk` and
-column), also when the prompt or a document gave that cell's value. A check message on a cell
+column), also when the prompt or a document gave that cell's value, except a check warning on a
+value the user just gave ([§ 7](#7-answers)). After each `needs_input` item come its dependent
+fields, as [§ 5](#5-build-the-draft-set) step 1 says. A check message on a cell
 that is already an item (a gap, or two documents that disagree) goes in that item's `body`, and
 is not a second item. A check message on a cell is never a line of text. A
 `cap_table:get:draft_set_companion` read's `open_inputs` are items too: `reason` `missing` is a
@@ -128,12 +161,13 @@ answers, the reply is these parts, in this order, and no other text:
    board consent covers it yet" when none does), the type's summary items. A check message on a
    cell is an item, never a line here. A thing that needs the user and is on no cell (a banner error, a
    possible duplicate stakeholder, a file you could not read) adds one line here.
-2. "N things need you, in the card above.", with N the number of items. Only when the set has an
-   empty optional column ([§ 8](#the-optional-columns-once-per-set) step 1: a `field_spec` field
-   with `required` false, not `hidden` and with no `default_value`, that no row fills), add " Ask
-   me if you also want optional details." to that line: the card never posts when it is done, so
-   the user may go straight to Issue. With no such field, as when every field is required, the
-   line ends at "in the card above.". The text names no item,
+2. "N things need you, in the card above.", with N the number of items. The line ends there,
+   with one exception: the set has an empty optional column ([§ 8](#the-optional-columns-once-per-set)
+   step 1: a `field_spec` field with `required` false, not `hidden` and with no `default_value`,
+   that no row fills). Only then add " Ask me if you also want optional details." to that line:
+   the card never posts when it is done, so the user may go straight to Issue. Before you add
+   it, name to yourself the `field_spec` field that makes the exception. With no such field
+   (every field has `required` true or a `default_value`), never add it. The text names no item,
    no field of an item and no value an item asks about: the card holds them, once.
 3. The reply's page line, as [§ 12](#12-end-every-turn-that-wrote-with-the-way-to-the-page)
    says, alone: no line about the browser before it. It is the last line of the reply.
@@ -150,6 +184,9 @@ answers, the reply is these parts, in this order, and no other text:
 [Open the draft set in Carta](<address>)
 ```
 
+In this example, every `field_spec` field is required or has a default, so the count line ends
+at "in the card above.".
+
 With no item, there is no card: go on to [§ 8](#8-issue); its optional columns decide the reply.
 
 ### The card
@@ -163,11 +200,12 @@ to the company's. Each `body` says why the item needs the user and what Carta ne
 | Item | `kind` and `options` |
 |---|---|
 | a gap with `field_spec` `values` | `pick_one`, options from its `values` and `enum_labels`, the recommended one first |
+| a gap with a `source` | `pick_one`, options from its `issuance_init` section, by `id` and `name` |
 | another gap | `type_value`, with `input` (`text`, `email`, `date` or `number`) from its `type` |
 | a check warning on a filled cell | `pick_one` on that cell: the value you propose, then `Keep <current value>` with the cell's current value; the `body` gives the check's message |
 | a check error on a filled cell | `pick_one` on that cell with only the values you propose, no `Keep`; the `body` gives the check's message |
 | a name that can be several people | `which_person`, with `term`, the name as the documents give it, and options from the stakeholder search |
-| two documents disagree | `documents_disagree`, with `documents` `[{name, page, value}]` |
+| two documents disagree | `documents_disagree`, with `documents` `[{name, page, value}]`, each `value` as `save_drafts` takes it for that column, and one option per value, labelled with the value. When a board consent gives one, recommend it unless the type's *Never recommend* row lists that field, labelled `<value> · board consent` with `detail` `Board consent p.N approves it`, and label each other `<value> · needs new approval` |
 
 Recommend an option only when a document or the prompt states it, its detail cites the company's
 habit ("Your last 2 grants used it"), or it is the only candidate. Never recommend what the
@@ -234,8 +272,12 @@ apply it anyway. Then:
 
 1. One `cap_table:mutate:save_drafts` on the same `draft_set_id`, rows by `draft_pk`.
 2. `cap_table:mutate:validate_drafts`.
-3. `cap_table:mutate:draft_set_sources` for changed values, one call per 25 rows, as
+3. `cap_table:mutate:draft_set_sources` for changed values, one call per 10 rows, as
    `added_by_you`, each `note` the user's words for it.
+
+After either path, a check warning on a value the user just gave, in the card or in the chat, is
+not a new item: the user chose that value, and the page shows the warning. A check error on it is
+an item.
 
 `new_person` on a which_person item: save the row's `name` and `email`, no `stakeholder_id`. On
 an option grant, a choice the board consent doesn't approve: say the row will be held for board
@@ -304,8 +346,11 @@ nothing. Else ask one `AskUserQuestion` naming the preview's `revision`: "Issue 
 Issue option's `preview` holds the review, with `issue_summary`'s agreement, signatories and
 holders to email from the read, and the preview's `summary`. Never print the review as prose
 before the question: the host shows that prose only as a one-line summary. Once confirmed, apply
-the plan and follow its job as [issue-and-close.md § Apply the plan](issue-and-close.md#apply-the-plan) says, then read `cap_table:get:draft_set_companion` with
-`issue_id`, the job's `task_id`, say [What issued](#what-issued), and close on its `status`. A job still `running` after 3 reads: say these words, *"The issue is
+the plan as [issue-and-close.md § Apply the plan](issue-and-close.md#apply-the-plan) says. Then read the job with
+`cap_table:get:task` and the apply's `task.task_id` until `done` is true, at most 3 times. The draft set read
+does not show the job state, so never read the set in its place. When the job is done, read
+`cap_table:get:draft_set_companion` one time with `issue_id`, the job's `task_id`, say [What issued](#what-issued), and close on its `status`.
+A job still `running` after 3 `get:task` reads: say these words, *"The issue is
 still running in Carta."*, and never apply again. Not confirmed: say "The draft set is still a draft. Nothing is issued
 yet.", then the close; outside the turn that built the set, add no *What I drafted* block. A
 save after the preview makes the plan stale: preview and confirm again.
@@ -331,7 +376,7 @@ this run, not one type with the others as follow-ups.
 
 1. `cap_table:get:issuance_init` once per type, with that type's `security_type`. Open the page
    once, from the first result.
-2. Build one draft set per type with that type's § 5 steps 1 to 3. Never start a second set of
+2. Build one draft set per type with that type's § 5 steps 1 to 4. Never start a second set of
    one type.
 3. One card per set that has items, one after the other with no text between them, then one
    reply for every set, as § 6 says: one *What I drafted* block, its lines for each set
@@ -365,14 +410,6 @@ Where the page did not open, confirm and issue one set at a time, each with its 
 
 ## 10. Follow-through
 
-Before you close, file each source file of this run that has no `file_id` in any of its sets and
-is on disk, once, in the company's document library: one `cap_table:mutate:upload_url`, then one
-`cap_table:create:library_document` with `corporation_id`, `document_type` (the type the file
-is: one of the type's library types, or `Document` when none fits) and its `file_key`. Then one
-`cap_table:mutate:draft_set_sources` call per set and 25 rows, for every cell, in each set of
-this run, whose source names that file, the same source with its `file_id` set to the result's
-`document`, so Documents reads Saved to Carta.
-
 Close as the skill does, and say where the files went: "the 5 source files are in Issuance
 documents", adding "and corporate documents" when one was filed as `Document`. Name any file not
 filed and ask the user to upload it to Issuance documents. On a card host, one `view_remote`
@@ -393,7 +430,8 @@ id, say why, preview again, then `cap_table:mutate:apply_plan` once confirmed.
 
 ## 11. When a command is refused
 
-Carry on silently: `draft_set_sources` refused twice, skip sources; no `view_remote`, ask in the
+Carry on silently: `draft_set_sources` refused twice, skip sources; a file not filed, its
+sources have no `file_id`; no `view_remote`, ask in the
 chat; no `get:draft_set_companion`, use the chat confirm in § 8. Send a refused
 `draft_set_sources` call again once, and each `dropped` cell again once, under the key its
 `problem` names.
@@ -436,7 +474,9 @@ back in the same turn, so the close goes at the end of what you write after it.
 **The user asks to see the page** ("show me the page", "where is it?"). In Claude's browser,
 `navigate` the page tab to the address (under step 2, the page of the set the user names, else of
 the set the run last talked about), as that file's § Open the address says, with its one retry,
-then end with the pane line and post no link. Elsewhere, post the link.
+then end with the pane line and post no link. Elsewhere, post the link. A card message that asks
+to show where a document says a value carries its own address on the issuance page: open that
+address, not the step 1 address, as its message says, and save nothing.
 
 A turn whose writes all failed changed nothing, so the page has nothing new to show: name no
 Carta page and no address, under any label, and post no pane line unless this turn opened or

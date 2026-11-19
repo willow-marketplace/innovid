@@ -4,7 +4,7 @@ description: Runs a saved report in the Carta CRM and renders its rows as a tabl
 ---
 
 <!-- carta:plugin-version -->
-<carta-plugin>carta-crm:1.20.20</carta-plugin>
+<carta-plugin>carta-crm:1.20.21</carta-plugin>
 
 ## Overview
 

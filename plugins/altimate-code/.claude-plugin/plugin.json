@@ -1,8 +1,8 @@
 {
   "name": "altimate-code",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "description": "Gives Claude Code altimate-code's model-free data tools (column-level lineage, impact analysis, PII detection, data-diff, FinOps, query equivalence, dialect translation, warehouse queries) through its MCP server, or through `altimate tool run` when MCP servers are not allowed, with delegation to the altimate-code agent for long dbt jobs, access to a linked Altimate workspace's knowledge, and the workspace's team rules in each session.",
-  "updatedAt": "2026-11-17T14:42:13.990Z",
+  "updatedAt": "2026-11-19T00:01:11.500Z",
   "author": {
     "url": "https://altimate.ai",
     "name": "AltimateAI"
@@ -56,11 +56,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks-handlers/session-start.sh\""
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks-handlers/workspace-rules.sh\" session-start"
           },
           {
             "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks-handlers/workspace-rules.sh\" session-start"
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks-handlers/session-start.sh\""
           }
         ]
       }

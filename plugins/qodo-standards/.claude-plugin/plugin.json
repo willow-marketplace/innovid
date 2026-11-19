@@ -1,8 +1,8 @@
 {
   "name": "qodo-standards",
-  "version": "2.3.1",
+  "version": "2.3.2",
   "description": "Optional Qodo standards discovery and review rules/skills administration workflows.",
-  "updatedAt": "2026-11-17T14:42:14.019Z",
+  "updatedAt": "2026-11-19T00:01:21.264Z",
   "author": {
     "url": "https://www.qodo.ai",
     "name": "Qodo",

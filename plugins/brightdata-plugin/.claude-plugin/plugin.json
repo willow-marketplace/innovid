@@ -2,7 +2,7 @@
   "name": "brightdata-plugin",
   "version": "1.0.0",
   "description": "Web scraping, Google search, structured data extraction, and MCP server integration powered by Bright Data. Includes 7 skills: scrape any webpage as markdown (with bot detection/CAPTCHA bypass), search Google with structured JSON results, extract data from 40+ websites (Amazon, LinkedIn, Instagram, TikTok, YouTube, and more), orchestrate Bright Data's 60+ MCP tools, built-in best practices for Web Unlocker, SERP API, Web Scraper API, and Browser API, Python SDK best practices for the brightda...",
-  "updatedAt": "2026-11-17T14:42:13.950Z",
+  "updatedAt": "2026-11-19T00:02:33.968Z",
   "author": {
     "url": "https://brightdata.com",
     "name": "Bright Data",

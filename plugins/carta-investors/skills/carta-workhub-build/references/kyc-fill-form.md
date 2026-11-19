@@ -315,6 +315,16 @@ when `kyc__create__document` takes that argument. When that command offers none,
 document can be attached but its issue date cannot be given from here: list it on the Step 9 list
 for the form, as a field only the form can fill. Do not guess a date.
 
+An entity investor whose kind is not saved yet lists one item only: `institutionType` (for a
+trust whose subtype is not saved, `trustType`), with `options`: the kinds the form offers this
+investor, each a `label` and the `value` to save. Nothing else is listed until it is saved, and
+Step 3 has no form for the investor until then: it answers that kyc-service "found no form for this
+party". Ask the user which one fits with `AskUserQuestion`, one option per entry by its `label`, and
+never pick it from the entity's name or documents alone. Save the `value` of their pick as Step 6
+does, `{"institution": {"type": "<value>"}}`, or `{"institution": {"trustType": "<value>"}}` for a
+trust's subtype, then read this step again. When the item carries no `options`, ask the form's
+question and leave it for the form.
+
 A roster shortfall is for the user to fix in the form at Step 9. If they then ask you to fill
 the new party, read this again for its `entityId` once they say they have finished in the
 form.
@@ -335,9 +345,16 @@ It gives the shapes and labels of what Step 2 listed as missing. It describes th
 
 | Part | What it says |
 | --- | --- |
-| `checks[].fields[]` | the questions: `fieldId`, `required`, `name`, `description` |
+| `checks[].fields[]` | the questions: `fieldId`, `required`, `name`, `description`, `options` (each a `label`, the form's wording, and the `value` to send), and `sub` (a question's own questions, shaped the same) |
 | `checks[].documents[]` | the documents: `fileType`, `required`, `anyOf` (any one of these types will do), `fieldId` for a document the firm wrote itself |
 | `supportingEntityRules[]` | the people or entities the investor must add in the form: `relationType` (beneficial owner, control person, trustee…), `roleKey` for a role the firm wrote itself (empty for a standard role), `minCount`/`maxCount`, `minOwnershipPct` |
+
+A question with `options` takes one of their `value`s: send the `value` of the option whose
+`label` is the user's answer. Never work a value out from its own name or from the `fieldId`: some
+read the opposite way round. "Does the entity have beneficial owners of 25% or more?"
+(`noBeneficialOwners`) stores Yes as `OPTIONAL_BOOL_VALUE_FALSE` and No as
+`OPTIONAL_BOOL_VALUE_TRUE`, and its `description` says so. When you trim this read, with `jq` or
+otherwise, keep every option's `label` and every `description`.
 
 This read describes the investor only. To learn what a saved person or entity is asked for, read
 it again with `entity_id` (and, for a party that holds several roles, `relation_type` and
@@ -362,6 +379,10 @@ came from, masked as the Rules say. Below it, list what is still needed.
 
 Ask with `AskUserQuestion`: `Save these answers` / `I'll correct some first` /
 `Stop`. Save only on `Save these answers`, and ask again after any correction.
+
+A party whose only UK tax number is its UTR still owes a reason it has no other one (Step 6,
+`utr`). Before this question, ask for it with `AskUserQuestion` when the user has not given it,
+and show it in the table. Never write a reason yourself, and never propose the UTR row on its own.
 
 ## Step 6 — Save the answers
 
@@ -394,7 +415,7 @@ Shapes the form refuses otherwise:
 | an address | the **whole** address object. A section you send replaces the stored one, so a partial address loses the rest. |
 | a field the other kind declares, or one the firm wrote | under `individual`/`institution` as `customFields`, keyed by its camelCase `fieldId` |
 | `taxInfo` (tax residencies) | the **whole** list, one row per residency, and never without a residency row: a party's `taxInfo` always starts with at least one. A number outside the US: `{"taxCountry": "GB", "taxIdType": "TAX_ID_TYPE_TIN", "taxId": "…"}`; no number: `{"taxCountry": "VG", "taxIdMissingReason": "…"}` (the user's own reason). A row with a number and no `taxIdType` still owes the reason |
-| `utr` (UK Unique Taxpayer Reference) | not a field of its own: one more `taxInfo` row, `{"taxCountry": "GB", "taxIdType": "TAX_ID_TYPE_UTR", "taxId": "…"}`, sent after the party's residency rows, never alone: the form drops a lone UTR row on its next save. A party whose only UK number is its UTR still sends a residency row for `GB`, `{"taxCountry": "GB", "taxIdMissingReason": "…"}` (the user's own reason it has no other number), then the UTR row. Without a UTR, the same UTR row with `"taxIdMissingReason": "…"` (the user's own reason) in place of `taxId` |
+| `utr` (UK Unique Taxpayer Reference) | not a field of its own: one more `taxInfo` row, `{"taxCountry": "GB", "taxIdType": "TAX_ID_TYPE_UTR", "taxId": "…"}`, sent after the party's residency rows, never alone: the form drops a lone UTR row on its next save. A party whose only UK number is its UTR still sends a residency row for `GB`, `{"taxCountry": "GB", "taxIdMissingReason": "…"}` (the user's own reason it has no other number, asked in Step 5), then the UTR row. `kyc__mutate__answers` refuses a `taxInfo` of UTR rows only and names the shape to send: send that shape, never the same list again. Without a UTR, the same UTR row with `"taxIdMissingReason": "…"` (the user's own reason) in place of `taxId` |
 
 Not answered here: the tax records, the Investor Profile and the declarations, which have
 commands of their own (Steps 6b–6d), and the nature of business (`businessNature`), a closed list
@@ -414,7 +435,8 @@ call_tool({"name": "kyc__mutate__tax_records",
 
 Keys are the tax records Step 2 lists, each holding the sub-fields Step 2 names. Save
 `taxReportingDetails` first, or in the same call; the other records are refused until it is
-saved. Yes/no answers are `OPTIONAL_BOOL_VALUE_TRUE` / `OPTIONAL_BOOL_VALUE_FALSE`. Add `entity_id` for a supporting party.
+saved. Yes/no answers are `OPTIONAL_BOOL_VALUE_TRUE` / `OPTIONAL_BOOL_VALUE_FALSE`, unless the
+question's `options` (Step 3) label them otherwise. Add `entity_id` for a supporting party.
 Only the answers you send change. The CRS certification and signature are the user's to give in
 the form: never send them. Show the answers in Step 5's table first, as for any other answer.
 
@@ -528,12 +550,13 @@ once: never fetch links ahead for later files.
 
 ### 7c — Send the file
 
-Run this on one line, exactly as written: `allowed-tools` matches the command text, so any other
-form makes the user approve every file. `<fields_json>` is 7b's `fields` object as JSON,
+Run this on one line, exactly as written, with `<plugin_root>` replaced by the plugin root
+named by the SKILL.md that sent you here, written out in full: the shell does not set `CLAUDE_PLUGIN_ROOT`, and
+`allowed-tools` matches the command text, so any other form makes the user approve every file. `<fields_json>` is 7b's `fields` object as JSON,
 unchanged. Single-quote every value; a value containing `'` is written `'\''`.
 
 ```bash
-uv run "${CLAUDE_PLUGIN_ROOT}/skills/carta-upload-firm-document/scripts/send_to_storage.py" '<url>' '<fields_json>' '<file_path>'
+uv run "<plugin_root>/skills/carta-upload-firm-document/scripts/send_to_storage.py" '<url>' '<fields_json>' '<file_path>'
 ```
 
 The script checks that `url` is Carta's document storage and that the file exists, and prints

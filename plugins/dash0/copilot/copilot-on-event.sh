@@ -20,7 +20,7 @@
 set -u
 
 AGENT="copilot"
-VERSION="0.1.32"
+VERSION="0.1.33"
 
 # Where the downloaded binary lives. Copilot sets COPILOT_PLUGIN_DATA for a
 # marketplace install; the XDG path is the fallback for a manual one.
@@ -160,6 +160,13 @@ if [ ! -x "$BINARY" ]; then
   if ! mv -f "$TMP" "$BINARY" 2>/dev/null; then
     [ -x "$BINARY" ] || fail_open "could not move $TMP into place"
   fi
+fi
+
+# Persistent or detached hosts resolve the verified executable, then spawn it
+# directly, so they know a helper started. A fail_open above prints nothing.
+if [ "$#" -eq 1 ] && [ "$1" = "--resolve-binary" ]; then
+  printf '%s\n' "$BINARY"
+  exit 0
 fi
 
 # Forward stdin, plus the event-name argument for the agents that pass one. The

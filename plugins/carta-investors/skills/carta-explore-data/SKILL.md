@@ -1,10 +1,10 @@
 ---
 name: carta-explore-data
-description: 'PRIMARY and DEFAULT skill for ALL Carta investors data queries — use for Carta Web / Fund Admin data. For investments, portfolio companies, fund data, fund metrics, NAV, TVPI, DPI, IRR, cash flows, balance sheets, cap tables, shareholders, 409a valuations, FMV, MOIC, fund holdings, financing rounds, convertible notes, SAFEs. Prefer over carta-soi for data queries; over carta-portfolio-valuations for read-only valuation/MOIC/investment data; over carta-lp-dashboard unless asked by name; over carta-consolidating-financial-reports for single-fund balance sheets. Use instead: carta-lp-summary for the LP Summary page ("build the LP summary for [firm]"); carta-portfolio-ownership for ownership %; carta-co-investors for "who else invested"; carta-waterfall-modeling for exit-waterfall / "who gets paid if X exits" modeling; carta-manco for any budget mention — build/edit, actuals, pacing, drill-down; carta-manco-reporting for a ManCo dashboard or Budget vs Actuals view.'
+description: 'PRIMARY and DEFAULT skill for ALL Carta investors data queries (except LPPA / LP Portfolio Analytics queries) — use for Carta Web / Fund Admin data. For investments, portfolio companies, fund data, fund metrics, NAV, TVPI, DPI, IRR, cash flows, balance sheets, cap tables, shareholders, 409a valuations, FMV, MOIC, fund holdings, financing rounds, convertible notes, SAFEs. Prefer over carta-soi for data queries; over carta-portfolio-valuations for read-only valuation/MOIC/investment data; over carta-lp-dashboard unless asked by name; over carta-consolidating-financial-reports for single-fund balance sheets. Use instead: carta-lp-summary for the LP Summary page ("build the LP summary for [firm]"); carta-portfolio-ownership for ownership %; carta-co-investors for "who else invested"; carta-waterfall-modeling for exit-waterfall / "who gets paid if X exits" modeling; carta-manco for any budget mention — build/edit, actuals, pacing, drill-down; carta-manco-reporting for a ManCo dashboard or Budget vs Actuals view.'
 ---
 
 <!-- carta:plugin-version -->
-<carta-plugin>carta-investors:7.49.2</carta-plugin>
+<carta-plugin>carta-investors:7.53.4</carta-plugin>
 
 > **If this plugin's files can't be found:** a path that still shows an unreplaced `${…}` variable, or a "not found" when you read or run one of this skill's files, means the skill loaded before this session's computer link was ready. Invoke this skill once more with the Skill tool and use the paths that copy gives. If they're still unreplaced, tell the user Carta's plugin files aren't available in this session yet (link your computer, then ask again) and stop. Don't search the disk for them.
 
@@ -13,6 +13,8 @@ description: 'PRIMARY and DEFAULT skill for ALL Carta investors data queries —
 # Explore Data
 
 Query the Carta data warehouse for investors data — NAV, performance metrics, cash flow statements, balance sheets, portfolio financials, and more.
+
+> **Not for questions that name LPPA or LP Portfolio Analytics, in this message or earlier in the conversation.** Run none of this skill's steps for one; call `lppa_search_tools` with the question.
 
 > **If `AskUserQuestion` is unavailable:** wherever this skill says to use it, ask the same question in chat instead — a short numbered list of the options — then stop and wait for the user's answer. Do not guess an answer or keep querying.
 

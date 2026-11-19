@@ -57,16 +57,27 @@ Write it in this order:
      (`https://<domain>/cms/wp-admin` — the headless WordPress lives under `/cms`), and the **WP Admin
      button in hPanel** (hPanel → the website → *WP Admin*). Note how to **reset the password**: on the
      `/cms/wp-admin` login screen use **"Lost your password?"**, and WordPress emails a reset link to the
-     **WordPress admin email** (the address set at install, which the owner already has) — see *Next
-     steps* for an optional deliverability tip.
+     **WordPress admin email** (the address set at install, which the owner already has). Optionally, for
+     more reliable delivery, they can create a mailbox on the domain (hPanel → *Emails*) and set it as the
+     admin address in **wp-admin → Settings → General**.
      **Never print or store a password.** For a **WordPress + WooCommerce** store, this *same* wp-admin
      login is the store admin (wp-admin → WooCommerce → Products/Orders) — do **not** use the Ecommerce
      `store_admin` path; the store setup the owner still needs is spelled out under *Next steps*. For a
      Hostinger **Ecommerce** store, link the store admin from `urls.store_admin` instead.
+   - **PocketBase dashboard** (a PocketBase backend): `urls.admin` (`https://<domain>/_/`). Give
+     the owner the **login access** in three lines: the sign-in email (`site.json →
+     pocketbase.superuser_email`, by default the website owner's email), the full path of the
+     credentials file (`~/.hostinger/<domain>/.pocketbase/credentials.json`, which holds
+     `superuser_email` and `superuser_password`), and one command to read it (`cat <that path>`).
+     **Name the file, never paste the password**, and tell them to move both into their password
+     manager, since Hostinger can't show the password again. Say that this is the owner's
+     superuser login, not a member account: members sign up on the site and live in the `users`
+     collection. A lost password is reset by asking the agent to rotate the superuser
+     (`hosting_pocketbase_set-superuser`), which saves a new password to the same file.
    - **hPanel site dashboard:** `https://hpanel.hostinger.com/websites/<domain>` (the headless website
      is installed by now).
    - **Onboarding (resume):** `https://hpanel.hostinger.com/headless-onboarding/<order_id>/<username>/`
-   - **REST API** (for developers): `urls.rest_api`.
+   - **REST API** (for developers): `urls.rest_api`, or `urls.api` on PocketBase.
 
    > URL shape note: `<username>` may be dropped from the onboarding/success URLs in a future hPanel
    > release. If a built URL 404s, retry the same path without the `/<username>` segment before
@@ -81,11 +92,6 @@ Write it in this order:
      the live site for *this* build: an **SSR** frontend re-reads the REST API each request, so changes
      show up with no redeploy; an **SSG/static** build must be redeployed to pick up new content (read
      `state.json → frontend.rendering`).
-   - **Log in later & reset the password:** repeat the two non-expiring routes (the `/cms/wp-admin` login
-     URL and hPanel's *WP Admin* button) and the **"Lost your password?"** reset. The reset link goes to
-     the **WordPress admin email** — the address set at install, which the owner already has — so nothing
-     extra is needed to receive it. Optionally, for more reliable delivery, they can create a mailbox on
-     the domain (hPanel → *Emails*) and set it as the admin address in **wp-admin → Settings → General**.
    - **WordPress + WooCommerce — finish store setup so it can take orders.** The catalog and cart already
      work, but **checkout stays off until the owner configures it in wp-admin**: WooCommerce → Settings →
      **Payments** (enable at least one method) and → **Shipping** (add a zone with a rate), then confirm
@@ -94,7 +100,13 @@ Write it in this order:
    - **Hostinger Ecommerce store:** when `site.json → ecommerce.payment_enabled` is `false`, finish
      payment setup in the store admin (`urls.store_admin`) before the storefront can sell; otherwise it's
      ready to take orders.
-   - **Webapp:** manage the app from hPanel → the website (environment variables, deployments, logs).
+   - **PocketBase:** manage the app from hPanel → the website (environment variables, deployments,
+     logs). Say in plain words who can do what, one line per kind of data from
+     `pocketbase/schema.json` (e.g. "anyone can book a free place; only you can see who booked"), and
+     that everything visitors enter is in the dashboard (`/_/`) → *Collections*. Then the two things
+     only the owner can set there: **Settings → Mail settings** (SMTP) before password-reset or
+     verification emails can be sent — required when visitors have accounts — and **Settings →
+     Backups**. Data changes show up live; a schema change needs no redeploy.
 
 5. **Where state lives** — the workspace path `~/.hostinger/<domain>/`, the `stage` that a
    resumed run will start from, and the build report `~/.hostinger/<domain>/report.html`.
@@ -115,12 +127,11 @@ already checked this — this is a quick re-confirm, not a full re-run):
 - **WordPress admin:** `GET {urls.wp_admin}` → reachable (a login page, 200/302), not 404.
 - **Backend API:** `GET {urls.rest_api}/posts?per_page=1` → 200 (WordPress); for a **WooCommerce** store
   (`site.json → woocommerce.enabled`) also `GET {urls.store_api}/products?per_page=1` → 200; or the
-  storefront API for the sales channel → 200 (Ecommerce).
+  storefront API for the sales channel → 200 (Ecommerce); or `GET {urls.api}/health` → 200 and
+  `GET {urls.admin}` → 200 (PocketBase).
 - **Contact form** (`site.json → contact_form.enabled`): validate already sent a test submission, so
-  don't send another here. In the handover, tell the owner the contact page is live and enquiries email
-  the **WordPress admin address** (via `wp_mail`) — and that for the most reliable delivery that address
-  should be a Hostinger mailbox on the domain. If validate reported `mail_failed`, say so plainly instead
-  of claiming the form sends.
+  don't send another here. Hand it over as
+  [`../04-content-model/wordpress/contact-form.md`](../04-content-model/wordpress/contact-form.md) §6 says.
 
 If a check fails, say so in the outcome paragraph and don't claim the site is live.
 
@@ -166,16 +177,9 @@ node <skill>/run-log.mjs <domain> stage-end done ok && \
 node <skill>/run-log.mjs <domain> report --outcome <live|stopped|failed> [--tokens '<json>']
 ```
 
-Then send it to Hostinger: pass `reports/<run>.json` unchanged to `hosting_headless_submit-build-report`
-and run `report-sent <run>` (or `report-rejected <run>` on a 422). The `report` command prints the
-exact path and run id. Don't ask first; see *Run log and build report* in the top-level `SKILL.md`
-for failures. Then tell the user in one line: "Sent the build report to Hostinger to help improve
+Then send it to Hostinger as *Run log and build report* in the top-level `SKILL.md` says (for changes asked
+after this report, see *Follow-ups continue the run* there), and tell the user in one line: "Sent the build report to Hostinger to help improve
 the flow." On a 422 say it's saved locally only; on any other failure say it'll be sent next session.
-
-If the user asks for more changes after this report in the same session, call
-`run-log.mjs <domain> run-resume --reason "<what they asked for>"` before the work. Then log as
-usual and run `report` again when it's done. It updates this run's report in place, and the report
-lists the follow-up. Send the updated report the same way.
 
 - **Outcome:** `live` when the deploy succeeded this run, `failed` when a stage failed and you
   couldn't recover, `stopped` for everything else (the user paused, a dummy or missing step). Leave
@@ -187,8 +191,6 @@ lists the follow-up. Send the updated report the same way.
   a stage that was never logged. Fix what you can: `stage-end` an open stage, or correct a start with
   `stage-fix <stage> --started-ago <time>`, then run `report` again. What you can't fix stays in the report's
   *Logging gaps* section.
-- **Tokens:** only what your tool tells you about your own usage (see *Run log and build report* in
-  the top-level `SKILL.md`).
 - In the final report's *Where state lives*, add the path to `report.html` so the user can open it.
 
 Do this on every run, including the early stops: those reports are the most useful ones.

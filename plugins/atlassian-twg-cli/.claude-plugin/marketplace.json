@@ -10,7 +10,7 @@
   "plugins": [
     {
       "name": "atlassian-twg-cli",
-      "description": "Teamwork Graph CLI is Atlassian's agent-first interface to your entire work context: Jira issues, Confluence pages, Bitbucket PRs, along with your connected third-party data sources. Purpose-built for coding agents like Claude Code (terminal or desktop), and powered by Atlassian's context graph. Try: \"draft a Jira issue from this PR and link it to the epic.\" Using Claude Code in the browser? Install the Atlassian Rovo MCP plugin instead. Run /twg-setup after install to connect Atlassian Teamwork Graph CLI to Claude Code.",
+      "description": "Your code lives in your repo. The reasons behind it live in Jira work items, Confluence specs, PRs, Loom videos and Slack threads. Teamwork Graph CLI (twg) gives Claude Code one command-line interface to that context. Claude runs twg commands, gets structured JSON back, and pulls in only what the task needs. Commands use your Atlassian sign-in, so Claude can only access what you have permission to see. Run /twg-setup to get started.\n\nHow it works:\n1. Install the plugin.\n2. Run /twg-setup to install twg and sign in with your Atlassian account.\n3. Ask in plain English. Claude picks the right twg command and runs it.\n\nTry it:\n- \"Draft a Jira work item from this PR and link it to the epic\"\n- \"Find the Confluence spec for this feature and check my branch against it\"\n- \"What are my open Jira work items?\"\n- \"Summarize the work I did this week\"\n- \"Create a Bitbucket PR for my current branch\"\n\nNote: If you're using Claude Code in the browser, install the Atlassian Rovo MCP plugin instead.",
       "source": "./",
       "category": "productivity"
     }

@@ -4,7 +4,7 @@ description: Publishes the Carta CRM Home as a live artifact — a standalone pa
 ---
 
 <!-- carta:plugin-version -->
-<carta-plugin>carta-crm:1.20.20</carta-plugin>
+<carta-plugin>carta-crm:1.20.21</carta-plugin>
 
 # Carta CRM Home — publish
 

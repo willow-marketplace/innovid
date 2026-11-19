@@ -25,7 +25,7 @@ fastly auth list
 The recommended way to authenticate.
 
 ```bash
-# Login interactively (opens browser for SSO)
+# Store an existing API token through a secure local prompt
 fastly auth login
 
 # Login with SSO and store as the default token
@@ -35,7 +35,10 @@ fastly auth login --sso --token default
 fastly auth login --sso --token staging
 ```
 
-Login creates a token and stores it locally.
+Without `--sso`, login prompts for an existing API token, validates it, and stores it under the token's API name (or `default`).
+With `--sso`, login opens the browser and requires `--token NAME` to name the stored credential.
+Either way, the stored credential becomes the default.
+The user should complete either flow locally, never paste credentials into chat.
 
 ## Stored Tokens
 
@@ -136,15 +139,14 @@ The old commands (`auth-token list`, `auth-token create`, `auth-token describe`,
 ## Account Information
 
 ```bash
-# View current user/account
+# View current user as Name <Login>
 fastly whoami
 
-# Output includes:
-# - Customer ID
-# - Account name
-# - User email
-# - User role
+# Include customer, user, token metadata, and service access
+fastly whoami -v
 ```
+
+Verbose output includes the customer ID and name, user login, and token scope, but not the user's role.
 
 ## Service Authorization
 

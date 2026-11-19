@@ -4,7 +4,7 @@ description: Aggregates recent deal flow in the Carta CRM into a dealmaker-facin
 ---
 
 <!-- carta:plugin-version -->
-<carta-plugin>carta-crm:1.20.20</carta-plugin>
+<carta-plugin>carta-crm:1.20.21</carta-plugin>
 
 ## Overview
 

@@ -4,7 +4,7 @@ description: 'Internal step of carta-reporting: saves a report as an Excel file.
 ---
 
 <!-- carta:plugin-version -->
-<carta-plugin>carta-cap-table:6.114.20</carta-plugin>
+<carta-plugin>carta-cap-table:6.115.2</carta-plugin>
 
 # Excel Export
 

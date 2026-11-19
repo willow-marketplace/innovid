@@ -1,42 +1,23 @@
 ---
 name: ask
-description: Ask natural language questions about incidents, on-call, services, and reliability data. Translates your question into Rootly API calls and returns structured answers.
+description: Ask a legal question grounded in the user's GC AI knowledge base, optionally against specific documents. Use for legal research, summarization, or Q&A over the user's own files, playbooks, and skills rather than the model's general knowledge.
 ---
 
-# Natural Language Query
+# Ask GC AI a grounded question
 
-You are answering a natural language question about the user's incident, on-call, or reliability data using Rootly's MCP tools.
+Answer a legal question using the user's GC AI knowledge base so the response is grounded in their own material, not general model knowledge.
 
-## Workflow
+## Steps
 
-### 1. Understand the Question
+1. **Bring in any referenced documents first.** If the question is about a specific file the user attached, upload it (`upload_file`, or `start_file_upload` plus `finish_file_upload` for a sandbox file) and poll `get_files({ id })` until `ready`. If the question is about material already in GC AI, locate it with `get_files`, `get_projects`, or `get_playbooks` as needed.
 
-Parse the user's question from `$ARGUMENTS`. Identify what data they need.
+2. **Ask.** Call `ask_gcai` with the question, scoping it to the relevant files or project when there is one. It is a long-running job: poll `ask_gcai_status` until `status` is `succeeded`, `failed`, or `canceled`.
 
-### 2. Discover Available Tools
+3. **Present the answer.** Return the grounded answer with its citations to the underlying documents. Do not add legal conclusions the source material does not support.
 
-Call `mcp__rootly__list_endpoints` to see the full list of available Rootly MCP tools and their capabilities. This helps you select the right tools for the query.
+4. **Offer to keep it.** If the user wants a record of the exchange in their GC AI history, call `ask_gcai_save_chat`. Only save when the user asks; it writes to their account.
 
-### 3. Execute Queries
+## Notes
 
-Select the most appropriate tools for the question. You may need multiple calls to fully answer the question. Common patterns:
-
-- "How many incidents last week?" -> `mcp__rootly__search_incidents` with date filters
-- "Who's on call?" -> `mcp__rootly__get_oncall_handoff_summary`
-- "What happened with [service]?" -> `mcp__rootly__search_incidents` filtered by service
-- "Show me critical incidents" -> `mcp__rootly__search_incidents` filtered by severity
-- "Any patterns in auth service failures?" -> `mcp__rootly__search_incidents` + `mcp__rootly__find_related_incidents`
-
-### 4. Present Answer
-
-Provide a clear, structured answer with supporting data. Include:
-- Direct answer to the question
-- Supporting data in tables or lists where helpful
-- Source attribution (which tools/queries produced the data)
-
-### 5. Limitations
-
-Be explicit about what you can't answer. If the question requires data that isn't available through the Rootly MCP tools, say so clearly rather than guessing or hallucinating. For example:
-
-- "I can't answer questions about infrastructure metrics -- Rootly tracks incidents, not system metrics."
-- "This question requires data from [other system]. I can only query Rootly incident and on-call data."
+- Prefer grounding over recall. If the knowledge base has nothing relevant, say so plainly instead of answering from general knowledge.
+- Complete the whole chain in one turn. Poll jobs yourself; never ask the user to wait.

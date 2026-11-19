@@ -1,8 +1,8 @@
 {
   "name": "nightvision",
-  "version": "1.4.1",
+  "version": "1.6.0",
   "description": "Skills for working with NightVision, a DAST and Source Intelligence platform that finds exploitable vulnerabilities in web applications, REST APIs and AI-backed endpoints",
-  "updatedAt": "2026-11-17T14:42:13.905Z",
+  "updatedAt": "2026-11-19T00:03:02.150Z",
   "author": {
     "url": "https://nightviz.ai",
     "name": "NightVision Engineering",
@@ -21,5 +21,28 @@
     "ai-security",
     "quantum-readiness"
   ],
-  "skills": "./skills/"
+  "skills": "./skills/",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/session-start.sh\""
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/stop-gate.sh\""
+          }
+        ]
+      }
+    ]
+  }
 }

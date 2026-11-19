@@ -13,7 +13,8 @@ For tasks like "create a caching frontend" or "set up a reverse proxy," always u
 
 ## JSON Output Field Names
 
-**IMPORTANT**: When using `--json` with Fastly CLI commands, field names are **PascalCase**, not lowercase. Common fields:
+JSON fields: service list/describe uses PascalCase; `service version validate --json` uses lowercase `valid` and `message`; top-level `domain` uses lowercase API fields.
+Common service fields:
 
 | JSON field      | Example value              |
 | --------------- | -------------------------- |
@@ -51,7 +52,10 @@ fastly service delete --service-id SERVICE_ID
 
 Every service has versions. Only one version can be active at a time. Active versions are automatically locked and cannot be modified — you must clone them first.
 
-**New services start with version 1, which is unlocked.** Configure everything (domain, backend, snippets) on version 1 using `--version 1`, then activate once. Do NOT use `--autoclone` or `--version latest` on a brand new service — `--autoclone` is only needed when modifying an already-active (locked) version, and `--version latest` combined with `--autoclone` in chained commands causes each command to clone a new version, scattering your configuration across multiple versions.
+- New services: configure domains, backends, and snippets on unlocked `--version 1`, then validate and activate once.
+- `--autoclone` clones only active or locked versions; on an editable version it is a no-op.
+- Live services: clone once and reuse the returned version number.
+  Repeated `--version active --autoclone` starts from the active version each time, scattering edits across clones; `latest` can move when another operator creates a version.
 
 ```bash
 fastly service version list --service-id SERVICE_ID
@@ -95,6 +99,18 @@ fastly service backend update \
 
 fastly service backend delete --service-id SERVICE_ID --version 1 --name origin
 ```
+
+### Backend IAM Authentication
+
+```bash
+# Vendor IAM values, not Fastly API credentials; also supported by backend create
+fastly service backend update \
+  --service-id SERVICE_ID --version VERSION --name origin \
+  --iam-vendor VENDOR --iam-role ROLE --iam-region REGION --iam-product PRODUCT
+```
+
+`--iam-vendor` enables IAM; `--iam-external-id` defaults to your Fastly customer ID.
+Omitted IAM flags do not clear values on update.
 
 ### Origin Shielding
 
@@ -192,10 +208,22 @@ fastly service backend create \
 
 Domains control which hostnames route to your service.
 
-**IMPORTANT**: There are two CLI command families with similar names but completely different behavior:
+- `fastly service domain create --name HOST --service-id SERVICE_ID --version VERSION`: version-scoped `/service/{id}/version/{v}/domain`; use for clone-modify-activate and shared test domains.
+- `fastly domain create --fqdn HOST --service-id SERVICE_ID`: supported `/domain-management/v1/domains`; UUID objects, optional service association, no `--version` or `--autoclone`.
+  Inspect with `fastly domain describe --domain-id DOMAIN_ID --json`.
 
-- `fastly service domain create` — version-scoped, calls `/service/{id}/version/{v}/domain`. **Use this one.**
-- `fastly domain create` — calls the newer `/domain-management/v1/domains` API, uses `--fqdn` instead of `--name`, and **returns 403 Forbidden** for most accounts. For test domains (`*.global.ssl.fastly.net`, `*.edgecompute.app`), it returns **400 Bad Request** with "Invalid value for fqdn". Never use it.
+Warning: `fastly domain update` sends `service_id` and `description` as null when omitted; a null service ID detaches the domain.
+Pass the existing `--service-id` and `--description` on every update.
+`--routing-config-id ID` attaches a routing configuration; `--routing-config-id nil` removes it.
+
+```bash
+fastly domain update \
+  --domain-id DOMAIN_ID \
+  --service-id SERVICE_ID \
+  --description "Existing description" \
+  --routing-config-id ROUTING_CONFIG_ID
+```
+Investigate 403 as an access error, not a reason to switch command families.
 
 ### Test Domains
 
@@ -292,7 +320,8 @@ fastly service dictionary list --version=VERSION --service-id SERVICE_ID [--json
 fastly service dictionary create --version=VERSION --service-id SERVICE_ID [--name NAME] [--autoclone] [--write-only]
 fastly service dictionary delete --name=NAME --version=VERSION --service-id SERVICE_ID [--autoclone]
 fastly service dictionary describe --name=NAME --version=VERSION --service-id SERVICE_ID [--json]
-fastly service dictionary update --name=NAME --version=VERSION --service-id SERVICE_ID [--new-name] [--autoclone] [--write-only]
+# update needs --new-name, --write-only, or both
+fastly service dictionary update --name=NAME --version=VERSION --service-id SERVICE_ID [--new-name NEW_NAME] [--write-only true|false] [--autoclone]
 
 fastly service dictionary-entry create --dictionary-id=DICT_ID --key=KEY --value=VALUE --service-id SERVICE_ID
 fastly service dictionary-entry delete --dictionary-id=DICT_ID --key=KEY --service-id SERVICE_ID
@@ -313,7 +342,9 @@ fastly service rate-limit create \
   --rps-limit 100 \
   --window-size 60 \
   --action response \
-  --response-status 429
+  --response-status 429 \
+  --response-content 'Too many requests' \
+  --response-content-type text/plain
 
 fastly service rate-limit describe --id=ID [--json]
 fastly service rate-limit update --id=ID --rps-limit 200
@@ -433,9 +464,15 @@ Always validate before activating when you can do so safely.
 fastly service version validate --service-id SERVICE_ID --version VERSION
 ```
 
-Returns validation status on success, or a list of errors explaining what's missing (e.g., no domain, no backend).
+`--json` returns lowercase `valid` (boolean) and `message` (string).
+Invalid configurations still exit successfully if the API request succeeds; gate activation on `valid`, not exit status:
 
-The CLI prints only the API's `msg` field. For the `errors`, `warnings` and `messages` arrays, call the API:
+```bash
+fastly service version validate --service-id SERVICE_ID --version VERSION --json > validation.json &&
+  jq -e '.valid == true' validation.json
+```
+
+CLI output exposes the validation result and API `msg`; get full `errors`, `warnings`, and `messages` arrays from the API:
 
 ```bash
 curl -s "https://api.fastly.com/service/$SERVICE_ID/version/$VERSION/validate" \

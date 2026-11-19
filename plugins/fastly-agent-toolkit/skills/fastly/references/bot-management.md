@@ -76,6 +76,15 @@ curl -X PATCH -H "Fastly-Key: $FASTLY_API_TOKEN" \
   "https://api.fastly.com/enabled-products/v1/bot_management/services/$SERVICE_ID/configuration"
 ```
 
+## Bot policy
+
+```bash
+# Workspaces are created in the UI only; empty result: ask the user to create one
+fastly bot-management workspace list --service-id SERVICE_ID
+```
+
+Values missing from `--help`: workspace `--protection-mode off|log|block`; category `--action allow|block|challenge`; bot `--action allow|block|challenge|inherit`.
+
 ## Documentation
 
 URLs below serve Markdown (use the `Accept: text/markdown` header).

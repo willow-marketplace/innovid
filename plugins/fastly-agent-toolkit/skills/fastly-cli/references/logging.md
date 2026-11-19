@@ -7,6 +7,7 @@ Configure real-time log streaming from Fastly edge to various destinations.
 | Provider             | Command                                   |
 | -------------------- | ----------------------------------------- |
 | Amazon S3            | `fastly service logging s3`               |
+| Object Storage (FOS) | `fastly service logging fos`              |
 | Google Cloud Storage | `fastly service logging gcs`              |
 | Google BigQuery      | `fastly service logging bigquery`         |
 | Google Pub/Sub       | `fastly service logging googlepubsub`     |
@@ -69,6 +70,9 @@ fastly service logging s3 create \
 
 ### Google Cloud Storage
 
+GCS and BigQuery require the service account JSON's `private_key`, not the whole document.
+Keep the extraction inside the command substitution; do not print it separately or enable shell tracing.
+
 ```bash
 fastly service logging gcs create \
   --service-id SERVICE_ID \
@@ -76,7 +80,7 @@ fastly service logging gcs create \
   --name gcs-logs \
   --bucket my-fastly-logs \
   --user service-account@project.iam.gserviceaccount.com \
-  --secret-key "$(cat service-account.json)" \
+  --secret-key "$(jq -r '.private_key' service-account.json)" \
   --path "/logs/%Y/%m/%d/" \
   --period 3600
 ```
@@ -92,7 +96,7 @@ fastly service logging bigquery create \
   --dataset fastly_logs \
   --table cdn_requests \
   --user service-account@project.iam.gserviceaccount.com \
-  --secret-key "$(cat service-account.json)" \
+  --secret-key "$(jq -r '.private_key' service-account.json)" \
   --format '{"timestamp":"%{begin:%Y-%m-%dT%H:%M:%S}t","client_ip":"%h","request":"%r","status":%>s}'
 ```
 
@@ -103,7 +107,7 @@ fastly service logging datadog create \
   --service-id SERVICE_ID \
   --version 1 \
   --name datadog-logs \
-  --token YOUR_DATADOG_API_KEY \
+  --auth-token YOUR_DATADOG_API_KEY \
   --region US \
   --format '{"ddsource":"fastly","service":"%{req.service_id}V","host":"%{Fastly-Orig-Host}i"}'
 ```
@@ -116,7 +120,7 @@ fastly service logging splunk create \
   --version 1 \
   --name splunk-logs \
   --url https://http-inputs-yourdomain.splunkcloud.com/services/collector \
-  --token YOUR_HEC_TOKEN \
+  --auth-token YOUR_HEC_TOKEN \
   --format '{"time":%{begin:%s}t,"host":"%h","event":{"request":"%r","status":%>s}}'
 ```
 

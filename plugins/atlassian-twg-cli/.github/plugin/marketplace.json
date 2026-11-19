@@ -9,7 +9,7 @@
   "plugins": [
     {
       "name": "atlassian-twg-cli",
-      "description": "Teamwork Graph CLI is Atlassian's agent-first interface to your entire work context: Jira issues, Confluence pages, Bitbucket PRs, along with your connected third-party data sources. Purpose-built for coding agents like GitHub Copilot (terminal or desktop), and powered by Atlassian's context graph. Try: \"draft a Jira issue from this PR and link it to the epic.\" Using GitHub Copilot in the browser? Install the Atlassian Rovo MCP plugin instead. Run /twg-setup after install to connect Atlassian Teamwork Graph CLI to GitHub Copilot.",
+      "description": "Your code lives in your repo. The reasons behind it are spread across Jira work items, Confluence specs, pull requests, incidents, Loom videos and Slack threads.\n\nThis plugin installs and configures Teamwork Graph CLI (twg), giving GitHub Copilot one command-line interface to that context. Teamwork Graph maps the work items, docs, PRs, people and decisions across Jira, Confluence, Bitbucket, Jira Service Management, Loom, GitHub, Slack, Google Drive and Salesforce. Copilot runs twg commands, gets structured JSON back, and pulls in only what the task needs.\n\nIt can start with a work item, follow it to the linked spec, then the related PR. Because the output is structured JSON, you can also script it, pipe it, or use it in CI. Commands use your Atlassian sign-in, so Copilot can only access what you have permission to see. Run /twg-setup to install twg and sign in, then ask in plain English.",
       "source": "./",
       "category": "productivity",
       "tags": [

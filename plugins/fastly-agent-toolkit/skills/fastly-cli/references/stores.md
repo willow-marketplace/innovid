@@ -33,7 +33,7 @@ fastly kv-store describe --store-id STORE_ID
 fastly kv-store delete --store-id STORE_ID
 
 # Delete all entries in a store (keeps the store itself)
-fastly kv-store delete --store-id STORE_ID --all --concurrency=100 --max-errors=100
+fastly kv-store-entry delete --store-id STORE_ID --all
 ```
 
 ### Entry Management
@@ -381,8 +381,8 @@ When automating store operations, allow time for changes to propagate before rea
 Ask the user for explicit confirmation before running these commands:
 
 - `fastly kv-store delete` - Permanently deletes a KV store and all its entries
-- `fastly kv-store delete --all` - Permanently deletes all entries in a KV store
-- `fastly kv-store-entry delete --all` - Permanently deletes all entries in a KV store
+- `fastly kv-store delete --all` - Permanently deletes all entries and then the KV store itself
+- `fastly kv-store-entry delete --all` - Permanently deletes all entries but keeps the KV store
 - `fastly config-store delete` - Permanently deletes a config store
 - `fastly config-store-entry delete --all` - Permanently deletes all entries in a config store
 - `fastly secret-store delete` - Permanently deletes a secret store and its secrets

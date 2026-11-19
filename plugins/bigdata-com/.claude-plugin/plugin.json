@@ -2,7 +2,7 @@
   "name": "bigdata-com",
   "version": "2.0.0",
   "description": "Financial research on companies, sectors, countries and markets with Bigdata.com data: market wraps and watchlist checks, company briefs and why a stock moved, earnings previews and reviews, deep dives, theses, valuation and comps, scenarios, earnings quality, moats, capital allocation, risk and credit, deals and special situations, sector, theme, country and macro comparisons, and screens. Every report cites its sources, states what the price implies, and gives no buy, hold or sell call. Powered by the Bigdata.com MCP connector.",
-  "updatedAt": "2026-11-17T14:42:13.949Z",
+  "updatedAt": "2026-11-19T00:01:33.823Z",
   "author": {
     "name": "RavenPack",
     "email": "support@bigdata.com"

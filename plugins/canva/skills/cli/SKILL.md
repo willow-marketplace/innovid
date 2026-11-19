@@ -1,155 +1,100 @@
 ---
 name: cli
-description: Guide for using the Pinecone CLI (pc) to manage Pinecone resources from the terminal. The CLI supports ALL index types (standard, integrated, sparse) and all vector operations — unlike the MCP which only supports integrated indexes. Use for batch operations, vector management, backups, namespaces, CI/CD automation, and full control over Pinecone resources.
+description: Use the Canva CLI (`canva api`) for Canva REST API workflows with local files, scripts, and coding agents. Use when the request needs direct, programmatic work with Canva designs, folders, assets, exports, or other REST API resources.
 ---
 
-# Pinecone CLI (`pc`)
+# Canva CLI
 
-Manage Pinecone from the terminal. The CLI is especially valuable for vector operations across **all index types** — something the MCP currently can't do.
+Use the Canva CLI when a request requires direct, programmatic interaction with
+Canva or local files. Do not use it for purely conversational design work that
+is better handled through Canva's AI-assisted workflows.
 
-## CLI vs MCP
+## Set up the CLI when needed
 
-| | CLI | MCP |
-|---|---|---|
-| Index types | All (standard, integrated, sparse) | Integrated only |
-| Vector ops (upsert, query, fetch, update, delete) | ✅ | ❌ |
-| Text search on integrated indexes | ✅ | ✅ |
-| Backups, namespaces, org/project mgmt | ✅ | ❌ |
-| CI/CD / scripting | ✅ | ❌ |
+Before using the CLI, check whether `canva --version` succeeds.
 
----
+If the CLI is unavailable, explain that it requires Node.js v24 and npm v11.
+Install it only when the user has explicitly requested or approved installation:
 
-## Setup
-
-### Install (macOS)
-```bash
-brew tap pinecone-io/tap
-brew install pinecone-io/tap/pinecone
+```sh
+npm install -g @canva/cli@latest
 ```
 
-Other platforms (Linux, Windows) — download from [GitHub Releases](https://github.com/pinecone-io/cli/releases).
+Before accessing Canva resources, ensure the intended user is logged in:
 
-### Authenticate
-
-```bash
-# Interactive (recommended for local dev)
-pc login
-pc target -o "my-org" -p "my-project"
-
-# Service account (recommended for CI/CD)
-pc auth configure --client-id "$PINECONE_CLIENT_ID" --client-secret "$PINECONE_CLIENT_SECRET"
-
-# API key (quick testing)
-pc config set-api-key $PINECONE_API_KEY
+```sh
+canva login
 ```
 
-Check status: `pc auth status` · `pc target --show`
+Login opens a browser authorization flow and requires the user to approve
+access. In a remote or headless environment, use canva login --mode manual.
+Do not request, print, inspect, or copy the locally stored auth token.
+When multiple Canva accounts are relevant, require the user to identify the
+intended profile before running commands against it. Use --profile <name> for
+a one-off command rather than changing the active profile unless the user asks
+to switch it.
 
-> **Note for agent sessions**: If you need to run `pc login` inside an agent loop, the browser auth link may not surface correctly. It's best to authenticate **before** starting an agent session. Run `pc login` in your terminal directly, then invoke the agent once you're authenticated.
+## Find the right operation
 
-### Authenticating the CLI does not set `PINECONE_API_KEY`
+Do not guess commands, flags, or request shapes.
 
-`pc login` authenticates the CLI tool itself — it does **not** set `PINECONE_API_KEY` in your environment. Python scripts, Node.js SDKs, and other tools that use the Pinecone SDK need `PINECONE_API_KEY` set separately.
+- Start with `canva api --help`, then narrow by resource group.
+- Use `canva api <group> <command> --help` to inspect flags.
+- Use `canva api describe <group> <command>` when the command contract is
+  needed as JSON.
+- CLI commands follow REST API operation names, not URL paths.
+- Prefer documented flags. Use `--body @file.json` only when a nested JSON
+  payload cannot be expressed with flags.
 
-Use the CLI to create a key and export it in one step:
+## Authenticate and validate
 
-```bash
-KEY=$(pc api-key create --name agent-sdk-key --json | jq -r '.value')
-export PINECONE_API_KEY="$KEY"
-```
+- Commands act as the logged-in Canva account. Run `canva login` when needed.
+- If a request returns `MISSING_SCOPE`, log in again before retrying.
+- Before a command that creates, changes, or uploads content, run it with
+  `--dry-run` when available to validate its arguments and login without making
+  the API request.
+- Ensure the target design, folder, asset, or other resource is unambiguous
+  before making a state-changing request.
 
-Without `jq`: run `pc api-key create --name agent-sdk-key --json` and copy the `"value"` field manually.
+## Interpret results
 
----
+When a request reaches the API, the CLI returns one JSON object on standard
+output.
 
-## Common Commands
+- Check `ok` before treating a request as successful.
+- On success, use `data` for the API response.
+- On failure, report `error.code`, `error.message`, and relevant
+  `meta.status`; do not invent a recovery.
+- Consider `next` as a possible follow-up, such as logging in, but verify the
+  suggested command is appropriate before running it.
+- If invalid arguments or unknown flags produce a usage error, consult
+  `--help` rather than retrying with guessed flags.
 
-| Task | Command |
-|---|---|
-| List indexes | `pc index list` |
-| Create serverless index | `pc index create -n my-index -d 1536 -m cosine -c aws -r us-east-1` |
-| Index stats | `pc index stats -n my-index` |
-| Upload vectors from file | `pc index vector upsert -n my-index --file ./vectors.json` |
-| Query by vector | `pc index vector query -n my-index --vector '[0.1, ...]' -k 10 --include-metadata` |
-| Query by vector ID | `pc index vector query -n my-index --id "doc-123" -k 10` |
-| Fetch vectors by ID | `pc index vector fetch -n my-index --ids '["vec1","vec2"]'` |
-| List vector IDs | `pc index vector list -n my-index` |
-| Delete vectors by filter | `pc index vector delete -n my-index --filter '{"genre":"classical"}'` |
-| List namespaces | `pc index namespace list -n my-index` |
-| Create backup | `pc backup create -i my-index -n "my-backup"` |
-| JSON output (for scripting) | Add `-j` to any command |
+## Handle asynchronous operations
 
----
+Some operations, including asset uploads, return a job instead of a completed
+resource.
 
-## Interesting Things You Can Do
+- Save the returned job ID.
+- Poll the corresponding “Get job” command after a short delay.
+- While the status is `in_progress`, use exponential backoff between polls:
+  increase the wait after each unsuccessful poll, respect the endpoint’s rate
+  limits, and never issue concurrent or tight-loop polls.
+- Stop polling immediately when the job becomes `success` or `failed`.
+- On success, return the resulting resource ID and useful links.
+- On failure, return the job error and stop; do not retry the original request
+  unless the user asks.
+- If the job remains in progress beyond the available task time, report its job
+  ID and latest status so it can be checked again later.
 
-### Query with custom vectors (not just text)
-Unlike the MCP, the CLI lets you query any index with raw vector values — useful when you generate embeddings externally (OpenAI, HuggingFace, etc.):
-```bash
-pc index vector query -n my-index \
-  --vector '[0.1, 0.2, ..., 0.9]' \
-  --filter '{"source":{"$eq":"docs"}}' \
-  -k 20 --include-metadata
-```
+## Report back
 
-### Pipe embeddings directly into queries
-```bash
-jq -c '.embedding' doc.json | pc index vector query -n my-index --vector - -k 10
-```
+Summarize the action, exact target, result, and useful IDs or Canva URLs.
+Never include credentials, access tokens, or unnecessary raw response data.
 
-### Bulk metadata update with preview
-```bash
-# Preview first
-pc index vector update -n my-index \
-  --filter '{"env":{"$eq":"staging"}}' \
-  --metadata '{"env":"production"}' \
-  --dry-run
+## Reference
 
-# Apply
-pc index vector update -n my-index \
-  --filter '{"env":{"$eq":"staging"}}' \
-  --metadata '{"env":"production"}'
-```
-
-### Backup and restore
-```bash
-# Snapshot before a migration
-pc backup create -i my-index -n "pre-migration"
-
-# Restore to a new index if something goes wrong
-pc backup restore -i <backup-uuid> -n my-index-restored
-```
-
-### Automate in CI/CD
-```bash
-export PINECONE_CLIENT_ID="..."
-export PINECONE_CLIENT_SECRET="..."
-pc auth configure --client-id "$PINECONE_CLIENT_ID" --client-secret "$PINECONE_CLIENT_SECRET"
-pc index vector upsert -n my-index --file ./vectors.jsonl --batch-size 1000
-```
-
-### Script against JSON output
-```bash
-# Get all index names as a list
-pc index list -j | jq -r '.[] | .name'
-
-# Check if an index exists before creating
-if ! pc index describe -n my-index -j 2>/dev/null | jq -e '.name' > /dev/null; then
-  pc index create -n my-index -d 1536 -m cosine -c aws -r us-east-1
-fi
-```
-
----
-
-## Reference Files
-
-- [Full command reference](references/command-reference.md) — all commands with flags and examples
-- [Troubleshooting & best practices](references/troubleshooting.md)
-
-## Documentation
-
-- [CLI Quickstart](https://docs.pinecone.io/reference/cli/quickstart)
-- [Command Reference](https://docs.pinecone.io/reference/cli/command-reference)
-- [Authentication](https://docs.pinecone.io/reference/cli/authentication)
-- [Target Context](https://docs.pinecone.io/reference/cli/target-context)
-- [GitHub Releases](https://github.com/pinecone-io/cli/releases)
+- [Canva CLI](https://www.canva.dev/docs/apps/canva-cli/) — installation,
+  authentication, profiles, and app-development commands.
+- [Making REST API requests from the CLI](https://www.canva.dev/docs/apps/canva-cli/making-rest-api-requests/) —
+  `canva api` command discovery, inputs, response format, and async jobs.

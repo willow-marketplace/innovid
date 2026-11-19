@@ -1,99 +1,38 @@
 ---
 name: datasets
-description: Use when creating or repairing dataset manifests, or when a collection needs queried or joined test inputs, a reusable named view, spreadsheet worksheet data, live database rows, or script access through pm.datasets(). Chooses between a simple iteration file and a dataset while preserving query semantics, portability, and credential boundaries. Use for requests such as "run this collection over database rows".
+description: Use when the data is already collected and sold as a download, a huge generic corpus needed once where a few months old is fine ("every US company with more than 50 staff", a one-time training set). Also when the user holds a dataset_id that turns out to be a marketplace row, or asks what a ready dataset costs. Not for fresh, specific, or recurring collection, which is scraping and belongs to the scrape skill.
 ---
 
-# Datasets
+# datasets
 
-A dataset gives files and database sources a queryable interface; a saved view
-turns the query into reusable test input. That is useful when filtering,
-joining, or refreshing rows is part of the test. A one-off CSV/JSON run can
-stay with `collection run -d`; a dataset should earn its extra configuration.
+Buy the download instead of scraping. The Dataset Marketplace sells data that was already collected. Using it involves no scraping at all. The user buys a dataset and downloads it.
 
-## Choose the data and execution path
+## When this is the answer
 
-1. Prefer local file sources for reproducible fixtures. A live database is
-   useful when current data is the point, but adds authentication, entitlement,
-   network, and credential requirements even in a local `.dataset.yaml`.
-   Check `postman dataset <action> -h` and the actual source capability before
-   promising a workflow; source support can vary with the installed CLI.
-2. Use the default federated SQLite query path to join supported sources.
-   `--source <name>` instead sends SQL to one source in its native dialect.
-   Switching modes to silence a SQL error changes query semantics. JDBC
-   requires the native path and cannot join in the federated layer; native
-   database connectors can support federation.
-3. Choose credentials before choosing a database connector. JDBC variables
-   and properties accept shared-vault references such as
-   `vault:<vaultId>/<secretId>`, resolved at query time. Native database
-   credentials are stored literally in dataset configuration on the documented
-   CLI surface; inspect current support before use, and keep secret-bearing
-   configuration out of Git. Literal values passed through stdin avoid argv
-   exposure but can still be persisted in YAML. See **variables** for vault
-   handling. A connector that enables a join may have a worse credential
-   boundary than JDBC; do not hide that tradeoff.
-4. Choose iteration or script access deliberately. The paired
-   `--iteration-data-dataset <path-or-id>` and
-   `--iteration-data-view <name-or-id>` flags feed one row per collection
-   iteration, with columns exposed as variables. They exclude `-d` and require
-   a parameter-free view because the runner has no query-parameter input.
-   Repeatable `--dataset <path-or-dir>` instead exposes `pm.datasets()` to
-   scripts; it does not itself create row-driven iterations.
+Three things must all be true. Anything less is a scraping job, not a purchase.
 
-## Build a portable, queryable artifact
+| Condition | Example that passes | Example that fails |
+|---|---|---|
+| A huge generic corpus, not specific inputs | "every US company with more than 50 staff" | "the follower count for instagram.com/nasa" |
+| Needed once, or on a schedule a dataset subscription covers | a one-time training set | a nightly price feed |
+| A few months old is fine | market research | live inventory |
 
-Create a local manifest with `postman dataset create <path.dataset.yaml>
---name <name>`, then attach sources with `dataset source add`. Source commands
-supply IDs and validation that hand-written entries can miss. When inspecting
-or repairing manifest fields, consult [Dataset YAML](reference/schema.md).
-Existing-dataset commands accept a local path or workspace ID; `list` needs a local path for
-local discovery, while workspace create/list use `--workspace`.
+Any one of them false and the answer is the `scrape` skill. Need it once, or on a schedule a dataset subscription covers, buy the dataset. Need it fresher, or for specific inputs, scrape it.
 
-File sources are copied into `data_dir` unless `--ref-only` is used. That option
-records absolute paths and makes the dataset machine-specific. For a workspace
-dataset, adding `--file` alone registers a local filesystem source; `--upload`
-is what uploads bytes. Datasets are pushed along with the workspace; there is
-no separate `dataset push`.
+## The agent's job: check and route
 
-For spreadsheet sources, use the worksheet-aware guidance in
-[Spreadsheet sources](reference/spreadsheets.md). For ordinary source names,
-prefer normalized identifiers: table names lowercase, collapse repeated
-underscores, and strip edge underscores. A source called `users` is queried
-as `users`, not `source_users`. Verify actual tables before interpreting an
-unknown-table error as missing data.
+The agent checks whether the marketplace covers the ask, then hands off. It does not buy. Buying moves money, so a person does it in the control panel at `https://brightdata.com/cp/datasets/browse`, on their own account, after looking at a sample and the field coverage. There is no reason for an agent to be in that loop.
 
-For JDBC, `dataset jdbc inspect <driver.jar>` supplies driver class, URL
-template, variables, and properties for `source add`; `--from-source` can reuse
-a connection. JDBC addition tests connectivity unless disabled; native source
-addition needs a separate `dataset source test`. This distinction prevents
-mistaking a saved source for a working connection.
+Evidence costs up to four calls: three free reads and one probe. The probe starts nothing for a download for sale or for a scraper with a required input, but it can start a billed job on a scraper with no required input. The exact calls, and which ids are safe to probe, are in `references/marketplace.md`. When the check hits, say it in one line:
 
-Prove the query with `dataset query` before saving it with `dataset view create`,
-then run the view. Query parameters are positional (`$1`, `$2`, with `-p`
-values in order). Commit the manifest and intended source files; keep engine
-state such as `data.db`, `meta.db`, `daemon.log`, and caches out of the repo.
-Dataset commands do not create a `.postman/resources.yaml` registry entry.
-Deletion removes the manifest but preserves source files that may be shared.
-Deleting a workspace dataset is permanent; establish that intent rather than
-treating deletion as a way to repair a query.
+> Bright Data already sells a dataset that looks like this, priced per record, so buying the download may be cheaper and faster than scraping it. Browse it at brightdata.com/cp/datasets/browse. Say the word and I will scrape it instead.
 
-## Interpret failures and results
+Then stop and wait. Do not build a scraper in the background as a hedge, and do not ask the user for payment details.
 
-A generic server-error wrapper can hide SQL or connection errors. Use structured
-`--json` errors and their remediation, or `--debug` when necessary, to identify
-the layer before retrying. `source test` separates database connectivity from
-SQL errors; file/URL sources have no connection to test. Engine startup failures
-may need `data_dir`'s daemon log rather than a different query.
+The agent cannot price a purchase. `GET /datasets/list` gives a row's record count (`size`) but no price. The cost per record and the total appear on the order page in the control panel, so the person decides there.
 
-Script dataset access is lazy, and invalid YAML can be skipped with a warning
-rather than failing the run. On a hosted collection, `--dataset` is not an
-access-control boundary: scripts can access other datasets readable by the
-session. Inspect the collection's data access before running untrusted scripts
-with that session.
+## A dataset_id the user already holds
 
-## Verification
+A user can arrive holding a `dataset_id` that turns out to be a marketplace row and ask to trigger it. The first job is correcting the premise. It cannot be triggered, it is a download for sale. Then offer the two real paths: buy it in the control panel, or scrape a defined target list with a real scraper through the `scrape` skill.
 
-Report the queried columns and row count, local/workspace location, live versus
-copied sources, and federated versus native execution. For iteration runs,
-compare the actual iteration count with the intended view rows and configured
-limits. Matching counts establishes wiring, not that the data covers every
-behavior the test needs. Creating a manifest alone proves neither.
+`references/marketplace.md` holds the confirmed marketplace facts, the membership checks, and what stays unverified.

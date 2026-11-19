@@ -6,7 +6,9 @@ When `--override-host` differs from `--address`, you MUST set `--ssl-cert-hostna
 
 ## 403/400 on domain create
 
-Use `fastly service domain create` (version-scoped API), not `fastly domain create`. The versionless `fastly domain create` returns 403 for most accounts, and returns 400 for `*.global.ssl.fastly.net` / `*.edgecompute.app` test domains with "Invalid value for fqdn". Always use `fastly service domain create`.
+Both command families are valid: `fastly service domain create --name HOST --version VERSION` manages a service-version domain, while `fastly domain create --fqdn HOST` uses the versionless Domain Management API.
+Use the versioned command for the shared `*.global.ssl.fastly.net` test-domain workflow.
+For a 400, inspect the API error detail for invalid or already-registered names; for a 403, check account access and token permissions rather than treating top-level `domain` as unsupported.
 
 ## "version is locked"
 
@@ -14,11 +16,14 @@ Use `--autoclone` or clone first with `fastly service version clone`.
 
 ## New service setup
 
-Version 1 is unlocked — add domain, backend, and snippets all on `--version 1`, then activate once. Do NOT use `--autoclone` or `--version latest` on a new service — it causes unnecessary version cloning and scattered configuration.
+Version 1 is unlocked: add domain, backend, and snippets all on `--version 1`, then validate and activate once.
+`--autoclone` is unnecessary but does not clone an editable version.
+For a live service, clone once and reuse the returned version number; repeated `--version active --autoclone` commands can create separate clones and scatter changes.
 
 ## VCL commands
 
-Snippet/custom VCL commands are under `fastly service vcl` (e.g. `fastly service vcl snippet create`, `fastly service vcl custom create`), NOT `fastly vcl snippet create`.
+Use `fastly service vcl snippet ...` and `fastly service vcl custom ...` for production service configuration; top-level snippet/custom paths are deprecated aliases.
+`fastly vcl check`, `run`, and `serve` instead use a public sandbox and do not update your service.
 
 ## `--content` and missing files
 

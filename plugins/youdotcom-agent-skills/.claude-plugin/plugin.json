@@ -2,7 +2,7 @@
   "name": "youdotcom-agent-skills",
   "version": "1.0.0",
   "description": "Live web search, full-page content extraction, and cited research for Claude. Look up current docs, API references, changelogs, error fixes, and web data while you code, plus finance data and guided You.com API integration.",
-  "updatedAt": "2026-11-17T14:42:13.864Z",
+  "updatedAt": "2026-11-19T00:02:29.218Z",
   "author": {
     "url": "https://you.com",
     "name": "You.com",

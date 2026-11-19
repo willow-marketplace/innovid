@@ -379,7 +379,7 @@ allOf:
       title: Managing Paths in Rill
       type: object
     - description: |
-        The `embeds` property configures [embedded dashboards](/developers/embed). Use `open_url` to give emails from reports created in an embed a link back to your application.
+        The `embeds` property configures [embedded dashboards](/developers/embed). Use `open_url` to give emails from reports and alerts created in an embed a link back to your application.
       properties:
         embeds:
             additionalProperties: false
@@ -389,7 +389,7 @@ allOf:
                     open_url: https://app.example.com/analytics/open
             properties:
                 open_url:
-                    description: Base URL for open links in emails sent by reports created from an embed. Only the report's creator gets the link. It should be a page in your application that runs your embed integration. Rill keeps the URL as-is and appends a `rill_open` parameter to its query string (before any fragment), which the page should pass as `open` when calling `GetIFrame`. Must be an absolute `http` or `https` URL without a `rill_open` parameter.
+                    description: Base URL for open links in emails sent by reports and alerts created from an embed. Only the creator of the report or alert gets the link. It should be a page in your application that runs your embed integration. Rill keeps the URL as-is and appends a `rill_open` parameter to its query string (before any fragment), which the page should pass as `open` when calling `GetIFrame`. Must be an absolute `http` or `https` URL without a `rill_open` parameter.
                     format: uri
                     type: string
             type: object

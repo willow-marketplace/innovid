@@ -10,12 +10,48 @@ Two phases around the **instance barrier** (see the top-level `SKILL.md`):
 - **Prepare — no instance.** Build the content helper from `brief.md` and generate the content it
   calls for. Runs *during* the provision wait; needs only the brief.
 - **Push — needs the instance.** Create that content in the backend. Gated on
-  `provision.status == "completed"`; routes to `wordpress/` or `ecommerce/`.
+  `provision.status == "completed"`; routes to `wordpress/`, `ecommerce/` or `pocketbase/`.
 
 **In:** `brief.md`. **Out:** `content-model.md` (+ any generated media under
 `~/.hostinger/<domain>/media/`).
 
 > Don't wait for provisioning — the helper comes from the brief alone.
+
+---
+
+## Prepare in a subagent
+
+**Content subagent: skip this section and start at *Prepare phase*.** Main agent with a subagent
+tool: don't do the prepare phase yourself (*Content and design at the same time* in the top-level
+`SKILL.md`). Ask the image-source question (*Images* below), then launch one background subagent
+with the prompt below and go on to design. One subagent keeps the whole site in one voice and leaves
+no files to merge.
+
+Send the prompt as it is, filling only the `<…>` slots. Add nothing to it: word counts, item counts,
+extra photos or extra sections make the subagent slower, and the push waits for it.
+
+```text
+You are the content subagent of a Hostinger headless build for <domain>. Do content prepare
+yourself, start to finish, and skip the section "Prepare in a subagent".
+
+Workspace: ~/.hostinger/<domain>/ (brief.md is there). Skill folder: <skill folder>.
+Backend: <backend from brief.md>. Image source the user chose: <their answer>.
+
+Follow <skill folder>/steps/04-content-model/SKILL.md → "Prepare phase". For the file format: on
+wordpress, with or without WooCommerce, also <skill folder>/steps/04-content-model/wordpress/SKILL.md
+→ "Step 1 — Write content.json" (the catalog goes under "store"); on pocketbase, also
+<skill folder>/steps/04-content-model/pocketbase/SKILL.md → "Prepare phase"; on ecommerce,
+content-model.md holds the products.
+Take sizes and counts from brief.md and those files only.
+
+Write only content-model.md, content.json or pocketbase/schema.json, and media/. Leave state.json,
+the run log, design.md and brand/ alone, and call neither the Hostinger connector nor the live site.
+You can't ask the user anything: the image question is already answered above, and wherever a file
+says to offer or ask the user, or brief.md is silent, pick what fits the site and list it as a gap.
+For Hostinger AI images, write their briefs only; the main agent generates them later.
+
+Report back: the files you wrote, the page, article and product counts, and any gaps.
+```
 
 ---
 
@@ -82,6 +118,10 @@ Guidance:
   copy, terms, menu and image details into `~/.hostinger/<domain>/content.json` (format: `wordpress/SKILL.md`
   Step 1), not into `content-model.md`, so nothing is written twice. `content-model.md` keeps the fixed
   values, the prompts and the image briefs.
+- **PocketBase: the fixed copy still comes from here.** Title, Description, Navigation and Pages are
+  built into the frontend as on any backend; drop Articles and Products unless the brief has them. What
+  visitors create (accounts, bookings, comments, votes, order requests) is designed in
+  `pocketbase/schema.json` by `pocketbase/SKILL.md`'s prepare phase, run alongside this one.
 - **Optional sections.** Drop **Articles** if the brief has no article-like content. Drop **Products**
   for a non-commerce brief; for a commerce brief, generate the product catalog here (names, prices,
   descriptions, collections, images) — that's prepare work, and the `ecommerce` push phase then creates
@@ -100,7 +140,7 @@ not an answer, see *When you ask the user* in the top-level `SKILL.md`):
 | Option | Tool | Backends | Needs the live instance? |
 |---|---|---|---|
 | **A — Hostinger AI image generation** *(default for WordPress / WooCommerce)* | `wordpress_ai-content_generate-images` | WordPress, WordPress + WooCommerce | **yes** — runs at the instance barrier |
-| **B — Unsplash stock photos** *(default for Ecommerce / Webapp; the fallback everywhere)* | Unsplash API, or web fetch of Unsplash search pages | any | no — pure prepare work |
+| **B — Unsplash stock photos** *(default for Ecommerce / PocketBase; the fallback everywhere)* | Unsplash API, or web fetch of Unsplash search pages | any | no — pure prepare work |
 
 > **Do not silently fall back to stock on a WordPress site.** On WordPress / WooCommerce the default is
 > **Hostinger AI (Option A)** — on-brand, generated from `design.md`. Using Unsplash on a WordPress build
@@ -115,7 +155,7 @@ you use.**
 
 **During the prepare wait, write an image brief for each image** into `content-model.md` no matter the
 option (subject, `image_type`, aspect, and the alt text you expect). Option B can also *fetch* the
-photo now (below); Option A only generates once the instance exists, so its briefs wait for the barrier.
+photo now (see Option B); Option A only generates once the instance exists, so its briefs wait for the barrier.
 
 #### Option A — Hostinger AI image generation (WordPress backends)
 
@@ -156,75 +196,16 @@ runs **at the instance barrier** (after `provision.status == "completed"`), usin
    right before the push, and put each `url` in its article's or product's `image` in `content.json`
    (with `alt` and `filename`).
 
-   On `failed`, retry once with a tightened prompt; if it fails again, fall back to Option B and note
-   the gap. Never block the whole push on a single image.
+   On `failed`, retry once with a tightened prompt; if it fails again, fall back to Option B ([`images-unsplash.md`](images-unsplash.md))
+   and note the gap. Never block the whole push on a single image.
 
 #### Option B — stock photos from Unsplash (any backend, no instance)
 
-This is still prepare work and needs no live backend: you pick the photos and record their URLs here,
-and the push phase uploads them.
-
-Source every image in a few batched calls, not a search and a fetch per photo:
-
-1. **Find candidates, a page of them per fetch.** Group the image briefs into a few themes (e.g.
-   "sourdough bread", "bakery interior", "Lisbon street").
-   - With an `UNSPLASH_ACCESS_KEY` in the environment, use the official API, one call per theme:
-     `GET https://api.unsplash.com/search/photos?query=<theme>&orientation=landscape&per_page=20` with
-     header `Authorization: Client-ID <key>`. Each result's `urls.raw` is the file, `alt_description`
-     what it shows and `user.name` the photographer; for each photo you keep, also `GET` its
-     `links.download_location` (same header), as the API terms require.
-   - Without a key, open the theme's search page `https://unsplash.com/s/photos/<theme-with-dashes>`
-     with your **web-fetch tool**, once per theme, and ask it to list every free photo on the page with
-     its `images.unsplash.com/photo-<…>` URL quoted exactly (the part before `?`), the photo page
-     link, the alt text and the photographer. One fetch returns 10–20 candidates. Skip the
-     `plus.unsplash.com/premium_photo-…` results: they are Unsplash+ and not free. Fetch the themes in
-     parallel when your tool allows several calls at once. Fall back to a web search limited to
-     `unsplash.com` plus a fetch of one photo page (`https://unsplash.com/photos/<…>`) only for a
-     subject no search page covers.
-   - Every other `unsplash.com` request (curl on any page, `/photos/<id>/download`, `/napi/…`,
-     `/oembed`) hits a bot challenge: a `307` to `/.within.website` (Anubis) or a 401. If your fetch
-     tool gets the challenge page too, stop: no user-agent spoofing or other workarounds. On a
-     WordPress backend where Option A hasn't already failed, offer it; otherwise ask the user for an
-     `UNSPLASH_ACCESS_KEY` or record the gap (step 5).
-2. **Check them all in one command.** Pick a candidate per image brief from the alt text, then in one
-   shell command request each web-size URL
-   (`https://images.unsplash.com/photo-<…>?w=1600&q=80&fm=jpg&fit=max`, query string replaced) and
-   confirm 200 `image/jpeg`, and save a small preview (`?w=500`) of each into one folder, e.g.:
-
-   ```bash
-   mkdir -p ~/.hostinger/<domain>/media/previews && cd ~/.hostinger/<domain>/media/previews && \
-   for id in photo-<a> photo-<b>; do
-     curl -s -o /dev/null -w "$id %{http_code} %{content_type}\n" "https://images.unsplash.com/$id?w=1600&q=80&fm=jpg&fit=max"
-     curl -s -o "$id.jpg" "https://images.unsplash.com/$id?w=500&q=60&fm=jpg&fit=max"
-   done
-   ```
-
-   The upload ability needs this direct file URL, not the photo page.
-3. **Look before you keep it.** View the previews, all in one turn where your tool can open several
-   images at once. Alt text from a search page describes the photo better than a search snippet, but
-   a photo often isn't quite what its title says. Reject anything off-topic and take the next
-   candidate from the same list. If nothing fits exactly, take the closest real photo and note the gap
-   rather than mislabel it.
-4. **Write alt text from what the photo shows**, not from the article's image brief. For example,
-   use "Shopfronts and parked scooters on a Hanoi street" even if the article is about rain.
-5. **Record it** under each article in `content-model.md` (on WordPress, in the article's `image` in
-   `content.json` instead: `url`, `alt`, `filename`, and the credit as `caption`):
-
-   ```markdown
-   Image: https://images.unsplash.com/photo-<…>?w=1600&q=80&fm=jpg&fit=max
-   Image credit: <Photographer> — https://unsplash.com/photos/<id> (Unsplash License)
-   Image alt: <what the photo shows>
-   Image file: <site>-<subject>.jpg
-   ```
-
-   If you can't get a real photo, write `Image gap: <reason>` in place of these lines and tell the
-   user. Never substitute drawn or generated images without saying so.
-
-Unsplash photos are free to use under the Unsplash License. Still credit the photographer: the push
-phase stores "Photo by <Photographer> on Unsplash" as the image caption.
+Follow [`images-unsplash.md`](images-unsplash.md). It is prepare work and needs no live backend.
 
 Then update `state.json`: set `stage` to the next prepare stage still to do, fresh `updated_at`. Do
-**not** advance past the barrier here.
+**not** advance past the barrier here. A content subagent skips this: the main agent owns
+`state.json`.
 
 ---
 
@@ -241,18 +222,14 @@ token) to create the menu, pages, posts, categories and media:
 | WordPress | `wordpress/SKILL.md` |
 | WordPress + WooCommerce | `wordpress/SKILL.md` — pushes WP content **and** seeds the WooCommerce catalog (its WooCommerce section + `wordpress/woocommerce.md`) |
 | Ecommerce | `ecommerce/SKILL.md` |
-| Webapp | — (no push; skip to frontend) |
+| PocketBase | `pocketbase/SKILL.md` — applies `pocketbase/schema.json` (collections, access rules, seed records) to the backend and verifies it |
 
-> **Supported backends: `wordpress` (optionally with a WooCommerce store), `ecommerce`, and `webapp`** —
-> where `webapp` is "supported" by **skipping this whole stage** (it has no content backend; see the note
-> below). A **WordPress + WooCommerce** brief routes to `wordpress/SKILL.md`, which pushes the WP content
-> **and** seeds the WooCommerce catalog in the same push. PocketBase is not available in this version.
+> **Supported backends: `wordpress` (optionally with a WooCommerce store), `ecommerce` and `pocketbase`.**
+> A **WordPress + WooCommerce** brief routes to `wordpress/SKILL.md`, which pushes the WP content
+> **and** seeds the WooCommerce catalog in the same push. A **PocketBase** brief pushes its collections,
+> rules and seed records through `pocketbase/SKILL.md`; its fixed copy stays in `content-model.md` and
+> is built into the frontend, since PocketBase holds what visitors create, not the site's pages.
 > Push to whichever single backend provision set up (see the provision router) — don't try to push to two
 > backends here.
->
-> **Webapp has no content backend.** There is no CMS or store to seed, so a `webapp` brief **skips this
-> whole stage** — both prepare and push. The app owns its own data (its own API or database). Leave
-> `content-model.md` unwritten, mark content-model `skipped` in the run log, and go straight to the
-> frontend step.
 
 After the push completes, update `state.json` and continue to the frontend **data** phase.

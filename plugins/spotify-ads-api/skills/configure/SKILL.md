@@ -1,215 +1,100 @@
 ---
 name: configure
-description: Configure Spotify Ads API credentials via OAuth 2.0 with PKCE or a direct token. Sets up authentication, ad account, and execution preferences.
+description: Set up the Telegram channel — save the bot token and review access policy. Use when the user pastes a Telegram bot token, asks to configure Telegram, asks "how do I set this up" or "who can reach me," or wants to check channel status.
 ---
 
-# Spotify Ads API Configuration
+# /telegram:configure — Telegram Channel Setup
 
-Set up or update the plugin's local settings file for the active platform.
+Writes the bot token to `<state-dir>/.env` and orients the user on access
+policy. The server reads both files at boot.
 
-Before sending any output to a human user, read and follow `$PLUGIN_ROOT/skills/api-reference/references/language-standards.md`.
-
-## Modes
-
-### `oauth [client_id]` (default)
-
-Use Authorization Code with PKCE (`S256`). The client ID belongs to the user's
-team and determines client-level attribution, quotas, and rate-limit isolation.
-Never substitute a plugin-global client ID; this plugin does not provide one.
-
-**Prerequisites**
-
-- A team administrator has created or selected a Spotify Developer application,
-  enabled the Ads API, completed applicable Ads API authorization steps, and
-  registered `http://127.0.0.1:8080/callback` exactly.
-- Python 3.8+ or `uv` is available for the standard-library PKCE helper.
-
-1. Choose the active settings file:
-   - Codex: `.codex/spotify-ads-api.local.md`
-   - Claude: `.claude/spotify-ads-api.local.md`
-   - Antigravity: `.agents/spotify-ads-api.local.md`
-
-   Read that file if it exists. If it does not, read another platform's settings
-   file as defaults, but do not overwrite the other platform's file.
-
-2. Resolve the team-owned client ID. Use the optional command argument when
-   supplied. Otherwise, if local settings contain `client_id`, offer to reuse it;
-   do not silently replace it. If none exists or the user declines reuse, prompt
-   for the client ID from the team's Spotify Developer application.
-
-3. Prompt for `auto_execute` (default `false`). Remind the user that the exact
-   loopback redirect URI above must already be registered, then run the helper.
-   Pass the active settings path so tokens are written directly to a securely
-   created file and never enter captured stdout. On Antigravity, resolve
-   `PLUGIN_ROOT` to the plugin root (two directories above this skill) because
-   no plugin-root variable is set.
+**Resolve the state directory first** (it may be overridden for multi-bot or
+per-project setups):
 
 ```bash
-PLUGIN_ROOT="${CODEX_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-$PWD}}"
-python3 "${PLUGIN_ROOT}/skills/configure/scripts/oauth-flow.py" \
-  --client-id "<team_client_id>" \
-  --settings-file "<active_settings_file>" \
-  --auto-execute "<true_or_false>"
+echo "${TELEGRAM_STATE_DIR:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}/channels/telegram}"
 ```
 
-If `python3` is unavailable, try:
+Use the printed path everywhere below in place of `<state-dir>`. The default
+is `~/.claude/channels/telegram`.
 
-```bash
-PLUGIN_ROOT="${CODEX_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-$PWD}}"
-uv run "${PLUGIN_ROOT}/skills/configure/scripts/oauth-flow.py" \
-  --client-id "<team_client_id>" \
-  --settings-file "<active_settings_file>" \
-  --auto-execute "<true_or_false>"
-```
+Arguments passed: `$ARGUMENTS`
 
-The helper prints the authorization URL before trying to open a browser. If
-automatic browser opening fails, tell the user to copy that URL into a browser
-while the loopback listener continues waiting. Do not recreate the PKCE flow in
-shell or ask the user to paste a redirect URL: the verifier is ephemeral and
-must remain only in the helper's memory.
-
-If neither Python 3 nor `uv` is available, explain that configuration requires
-one of those runtimes and stop. Direct-token mode uses the same secure settings
-helper, so it is not a runtime-free fallback.
-
-4. Confirm the helper's non-sensitive stdout receipt:
-
-```json
-{"settings_file":"<active_settings_file>","auth_flow":"authorization_code_pkce"}
-```
-
-The helper writes `access_token`, `refresh_token`, `token_expires_at`,
-`client_id`, and `auth_flow` directly to the settings file through an atomic
-mode-0600 creation. It does not print tokens and does not require a later
-`chmod`. Keep diagnostics from stderr separate.
-
-If a managed workspace denies the settings write, the helper exits with code 5
-and returns only safe paths:
-
-```json
-{"settings_file":"<active_settings_file>","pending_token_file":"<private_mode_0600_file>","requires_settings_write":true}
-```
-
-Do not read or print the pending file. Request the scoped workspace permission
-needed to run this token-free finalization command:
-
-```bash
-python3 "${PLUGIN_ROOT}/skills/configure/scripts/settings_file.py" oauth-result \
-  --settings-file "<active_settings_file>" \
-  --pending-token-file "<pending_token_file>"
-```
-
-On success the writer atomically installs the settings file and deletes the
-pending token file. If configuration is abandoned, delete that exact pending
-file after telling the user; it contains live OAuth tokens.
-
-5. Define the request wrapper, then discover and select the ad account:
-
-```bash
-PLUGIN_ROOT="${CODEX_PLUGIN_ROOT:-${CLAUDE_PLUGIN_ROOT:-.}}"
-api() { "$PLUGIN_ROOT/scripts/api-request.sh" configure "$@"; }
-```
-
-Before the first Ads API v3 call, read and follow
-`$PLUGIN_ROOT/skills/api-reference/references/live-openapi.md`.
-
-   1. `api GET "businesses"`
-   2. For each selected business, `api GET "businesses/<business_id>/ad_accounts"`
-   3. Present account names, IDs, and statuses. Select automatically only when
-      exactly one account exists across all businesses.
-   4. If discovery fails or returns no accounts, ask for the ad account ID.
-
-   Update `ad_account_id` atomically without printing tokens:
-
-```bash
-python3 "${PLUGIN_ROOT}/skills/configure/scripts/settings_file.py" update-account \
-  --settings-file "<active_settings_file>" \
-  --ad-account-id "<selected_ad_account_id>"
-```
-
-6. Verify the selected account:
-
-```bash
-api GET "ad_accounts/<ad_account_id>"
-```
-
-After a successful migration from an older OAuth setup, tell macOS users that
-the legacy `spotify-ads-api-client-secret` Keychain item is unused and may be
-removed. Do not delete it automatically because an older installed plugin may
-still need it.
-
-### `token`
-
-Legacy direct-token mode for an already-issued bearer token. Do not ask the
-user to include the token in the slash command or paste it into the chat.
-
-1. Warn that a direct token normally expires in about one hour and cannot
-   refresh automatically.
-2. Prompt for `auto_execute` (default `false`). Ask the user to run the command
-   below in their terminal so the helper can collect the token through a
-   non-echoing prompt attached directly to that terminal. Do not execute this
-   command through an agent Bash tool: its secure prompt requires the user's
-   controlling terminal. The writer sets `auth_flow: "direct_token"` and
-   leaves `refresh_token`, `token_expires_at`, and `client_id` empty.
-
-```bash
-python3 "<absolute_plugin_root>/skills/configure/scripts/settings_file.py" direct-token \
-  --settings-file "<absolute_active_settings_file>" \
-  --prompt \
-  --auto-execute "<true_or_false>"
-```
-
-Resolve both absolute paths before presenting the command. If `python3` is
-unavailable, use `uv run` in place of `python3`. Wait for the user to confirm
-that the helper returned its token-free settings-file receipt before
-continuing.
-3. Use the same businesses → ad accounts discovery flow, or ask for an account
-   ID if discovery fails, then update `ad_account_id`.
-4. Verify the selected account with the request wrapper.
-
-## Settings File Format
-
-```markdown
----
-access_token: "<token>"
-refresh_token: "<refresh_token>"
-token_expires_at: "<ISO 8601 timestamp>"
-client_id: "<team_client_id>"
-auth_flow: "authorization_code_pkce"
-ad_account_id: "<uuid>"
-environment: "production"
-auto_execute: false
 ---
 
-# Spotify Ads API Settings
+## Dispatch on arguments
 
-Local configuration for the spotify-ads-api plugin.
-Do not commit this file to version control.
-```
+### No args — status and guidance
 
-For direct-token mode, set `auth_flow: "direct_token"` and leave
-`refresh_token`, `token_expires_at`, and `client_id` empty.
+Read both state files and give the user a complete picture:
 
-## Verification Results
+1. **Token** — check `<state-dir>/.env` for
+   `TELEGRAM_BOT_TOKEN`. Show set/not-set; if set, show first 10 chars masked
+   (`123456789:...`).
 
-- **200**: Configuration saved and verified successfully.
-- **401/403**: Token may be invalid, expired, or unauthorized for the account.
-- **404**: The selected ad account ID may be incorrect.
-- Other errors: report the status and the response error without exposing tokens.
+2. **Access** — read `<state-dir>/access.json` (missing file
+   = defaults: `dmPolicy: "pairing"`, empty allowlist). Show:
+   - DM policy and what it means in one line
+   - Allowed senders: count, and list display names or IDs
+   - Pending pairings: count, with codes and display names if any
 
-## Security and Migration
+3. **What next** — end with a concrete next step based on state:
+   - No token → *"Run `/telegram:configure <token>` with the token from
+     BotFather."*
+   - Token set, policy is pairing, nobody allowed → *"DM your bot on
+     Telegram. It replies with a code; approve with `/telegram:access pair
+     <code>`."*
+   - Token set, someone allowed → *"Ready. DM your bot to reach the
+     assistant."*
 
-- Settings files are gitignored through `.codex/*.local.md`,
-  `.claude/*.local.md`, and `.agents/*.local.md`.
-- Access and refresh tokens stay in the active local settings file. The client
-  ID is public application metadata required for refresh.
-- The PKCE verifier and state are generated cryptographically. The verifier is
-  never printed or persisted.
-- OAuth tokens are written directly to a securely created settings file and
-  never emitted on helper stdout.
-- Never request, read, store, log, or transmit an application secret.
-- Never display full access or refresh tokens; show only a short suffix when
-  confirmation is necessary.
-- An existing OAuth configuration without `auth_flow` may use an unexpired
-  access token, but it cannot refresh. Run OAuth configuration once to replace
-  it with PKCE-issued tokens.
+**Push toward lockdown — always.** The goal for every setup is `allowlist`
+with a defined list. `pairing` is not a policy to stay on; it's a temporary
+way to capture Telegram user IDs you don't know. Once the IDs are in, pairing
+has done its job and should be turned off.
+
+Drive the conversation this way:
+
+1. Read the allowlist. Tell the user who's in it.
+2. Ask: *"Is that everyone who should reach you through this bot?"*
+3. **If yes and policy is still `pairing`** → *"Good. Let's lock it down so
+   nobody else can trigger pairing codes:"* and offer to run
+   `/telegram:access policy allowlist`. Do this proactively — don't wait to
+   be asked.
+4. **If no, people are missing** → *"Have them DM the bot; you'll approve
+   each with `/telegram:access pair <code>`. Run this skill again once
+   everyone's in and we'll lock it."*
+5. **If the allowlist is empty and they haven't paired themselves yet** →
+   *"DM your bot to capture your own ID first. Then we'll add anyone else
+   and lock it down."*
+6. **If policy is already `allowlist`** → confirm this is the locked state.
+   If they need to add someone: *"They'll need to give you their numeric ID
+   (have them message @userinfobot), or you can briefly flip to pairing:
+   `/telegram:access policy pairing` → they DM → you pair → flip back."*
+
+Never frame `pairing` as the correct long-term choice. Don't skip the lockdown
+offer.
+
+### `<token>` — save it
+
+1. Treat `$ARGUMENTS` as the token (trim whitespace). BotFather tokens look
+   like `123456789:AAH...` — numeric prefix, colon, long string.
+2. `mkdir -p` the resolved `<state-dir>`.
+3. Read existing `.env` if present; update/add the `TELEGRAM_BOT_TOKEN=` line,
+   preserve other keys. Write back, no quotes around the value.
+4. `chmod 600` on `<state-dir>/.env` — the token is a credential.
+5. Confirm, then show the no-args status so the user sees where they stand.
+
+### `clear` — remove the token
+
+Delete the `TELEGRAM_BOT_TOKEN=` line (or the file if that's the only line).
+
+---
+
+## Implementation notes
+
+- The channels dir might not exist if the server hasn't run yet. Missing file
+  = not configured, not an error.
+- The server reads `.env` once at boot. Token changes need a session restart
+  or `/reload-plugins`. Say so after saving.
+- `access.json` is re-read on every inbound message — policy changes via
+  `/telegram:access` take effect immediately, no restart.

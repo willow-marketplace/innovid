@@ -38,6 +38,7 @@ After installing, restart Claude Code and run `/mcp` to complete OAuth authentic
 | `carta-explore-data` | Query and explore investors data — NAV, partners, investments, accounting |
 | `carta-form-adv` | Form ADV Schedule D regulatory data and firm rollup |
 | `carta-fund-performance` | Fund performance page, and chat answers comparing a fund against peer benchmark cohorts |
+| `carta-round-benchmarks` | Carta-wide round size, pre- and post-money valuation and percent-sold percentiles by stage, sector and US metro, and where a given round falls among them. Needs round benchmarks enabled on the account. |
 | `carta-fund-forecasting` | Read-only Carta Fund Forecasting (formerly Tactyc) — list funds, fund-wide KPIs (TVPI, DPI, IRR, MOIC, NAV, reserves), performance tables, and per-investment analytics. |
 | `carta-loan-dashboard` | Loan portfolio dashboard as a live Cowork artifact — KPI tiles (commitments, drawn, outstanding, scheduled payments) and every active loan, with a side panel per loan for terms, key dates, payments and draws. Refreshes from Carta each time it is opened. Invoke with "show my loans" or "loan dashboard". |
 | `carta-lp-dashboard` | LP portfolio dashboard as a live Cowork artifact — fund allocations by firm, capital activity, NAV and quarterly fund performance, with TVPI, DPI and RVPI, for LPs viewing their own Carta portfolio. Its Documents tab and a document finder cover the LP's own K-1s, capital call and distribution notices, financial statements, PCAPs, subscription agreements and side letters, with an optional zip download (desktop / CLI). Refreshes from Carta each time it is opened. Invoke with "show my LP dashboard", "get my K-1s for 2023" or "show my capital call notices". |
@@ -102,7 +103,6 @@ machine when Claude Code fires the event, and none of them blocks or changes a c
 | Event | What runs | What it does |
 |-------|-----------|--------------|
 | PreToolUse (Carta MCP `call_tool`) | `node scripts/hooks/guard-own-sync-push.js` | Denies a budget-report push that differs from the plan `own_sync.py` wrote; otherwise prints nothing. |
-| PostToolUse (Carta MCP `execute_query`) | `node scripts/hooks/warn-empty-query.js` | Tells Claude when a query returned no rows. |
 
 ## Credentials
 

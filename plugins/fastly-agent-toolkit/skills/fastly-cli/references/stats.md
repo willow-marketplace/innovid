@@ -44,8 +44,13 @@ The repeatable flags are joined with commas before the request goes out, so repe
 passing one comma-separated value are equivalent. The documented `--metric` cap of 10 is enforced by
 neither the CLI nor the API: 20 names in one call come back echoed in `meta.metric`.
 
-`--json` emits NDJSON, one object per line with no wrapping array. Use `jq -s` to slurp before
-aggregating.
+JSON output depends on the command:
+
+- `historical`, `aggregate`, and `realtime` emit individual records with no wrapping array (NDJSON).
+  Use `jq -s` to slurp before aggregating.
+- `domain-inspector` and `origin-inspector` emit one complete `{status, meta, data}` response.
+  Read `.data[]` and `.meta.next_cursor` directly, without slurping.
+- `usage` emits one object keyed by region; with `--by-service`, it is keyed by region then service ID.
 
 Read `meta.next_cursor` from an inspector response and feed it back as `--cursor` until it comes
 back empty, or the result is silently truncated at `--limit` rows.

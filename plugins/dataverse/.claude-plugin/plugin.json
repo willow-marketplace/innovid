@@ -2,7 +2,7 @@
   "name": "dataverse",
   "version": "1.19.0",
   "description": "Build and manage Microsoft Dataverse solutions: connect environments, query and import data, design schemas, configure security, and manage solution lifecycles.",
-  "updatedAt": "2026-11-17T14:42:13.948Z",
+  "updatedAt": "2026-11-19T00:02:04.139Z",
   "author": {
     "url": "https://www.microsoft.com",
     "name": "Microsoft"

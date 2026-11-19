@@ -11,38 +11,17 @@ is where it becomes real code. There's no per-framework recipe — use good judg
 as the contract, and ask only for the clarifications you genuinely need. **Out:** source in the site
 workspace `~/.hostinger/<domain>/src/`.
 
-> ## ⚠️ Build mode: "Bring your own frontend"? Read this first (any backend)
-> Read `brief.md` → **Build mode**. When it is **Bring your own frontend**, the user already has a
-> frontend (the project in the folder the command was run in) and this step **wires it to the backend
-> from `site.json` — it does not scaffold a new project and there is usually no `design.md` to
-> implement** (the design step deferred to the user). **Use their project as the source**: copy or
-> point `~/.hostinger/<domain>/src/` at it, keep its framework and UI, and collaborate on changes at
-> the user's direction (vibe-code with them). Your job is to connect it to the live backend (WordPress
-> `wp/v2` reads, the WooCommerce/Ecommerce Store API, env/keys) and make it deployable (set
-> `engines.node` to `22`, remove any `.htaccess`), then hand off to deploy. This generalises the Webapp
-> "existing app" case below to WordPress and Ecommerce too. When **Build mode is "Agent designs and
-> builds"**, ignore this box and proceed normally (scaffold + implement `design.md`).
+> **Build mode "Bring your own frontend"? Read this first (any backend).** Read `brief.md` → **Build mode**.
+> When it is **Bring your own frontend**, follow [`bring-your-own-frontend.md`](bring-your-own-frontend.md): wire the user's own project to the
+> backend instead of scaffolding one. When it is **Agent designs and builds**, proceed normally.
 
-> ## ⚠️ Webapp backend? Read this first
-> A `webapp` brief has **no CMS/store and no `content-model.md`** — the app owns its own data (its own
-> API, or the MySQL database recorded in `site.json → database`). It comes in two shapes, decided back in
-> **refine**:
->
-> - **An existing app under Build mode "Bring your own frontend"** (refine routes "deploy my app" here). **Use their
->   project as the source** — copy/point `~/.hostinger/<domain>/src/` at it and keep its own framework and
->   UI. **Do not scaffold a new project, and do not re-implement `design.md` over it** (so **the design
->   step does not apply** to an app that brings its own UI). Your job is only to make it deployable: set
->   `engines.node` to `22`, remove any `.htaccess`, wire its data/env, then hand off to deploy. **Skip the
->   Step 2 design pass**, and ignore the `content-model.md` requirement in Step 3.
-> - **A new app built from the brief.** Scaffold and build it from `brief.md` (and `design.md` if the
->   design step produced one — design *does* run for a from-scratch app). Its data is owned by the app, so
->   there is still **no `content-model.md`** to bind against. An existing app under **Build mode "Agent
->   designs and builds"** takes this shape too, but starts from its source: copy the project at
->   `brief.md` → **Existing project** into `~/.hostinger/<domain>/src/`, keep its framework, screens,
->   features and data wiring, and rebuild its UI to `design.md` instead of scaffolding a new project.
->
-> Framework choice (Step 1), the build, and hand-off (Step 4) apply to both. The per-backend bullets in
-> Step 3 are **WordPress / WooCommerce / Ecommerce only** — for a webapp follow the Webapp bullet there.
+> **PocketBase backend?** A `pocketbase` brief has **no CMS/store**: the app's data lives in the
+> PocketBase backend recorded in `site.json → pocketbase`, its collections in `pocketbase/schema.json`
+> (and the `## Data` section of `content-model.md`), and its fixed copy in `content-model.md`. A new
+> app is scaffolded from `brief.md` and `design.md` and binds its forms and views to the collections
+> in `pocketbase/schema.json`; an existing app under **Agent designs and builds** starts from its
+> source, keeps its screens and features, wires its data to the backend and rebuilds its UI to
+> `design.md`. In Step 3 follow the PocketBase bullet.
 
 ## Step 1 — Pick the framework (guess → default → confirm)
 
@@ -53,17 +32,17 @@ it, and the backend constraint:
   Next.js is the default, not a requirement (Express, Nuxt, SvelteKit, etc. are all fine).
 - **WordPress + WooCommerce → SSR required** (same reason — cart/checkout need per-request rendering).
 - **WordPress → SSG (Astro)** when the brief says SSG, otherwise **SSR (Next.js default)**.
-- **Webapp → the app's own stack.** An **existing app** keeps its current framework (don't impose one), including
+- **PocketBase → the app's own stack.** An **existing app** keeps its current framework (don't impose one), including
   one rebuilt under **Agent designs and builds**; a
   **new app** uses whatever fits the brief (SSR or SPA). Either way it deploys as a Node.js app (Step 8) —
-  an SSR app runs a server, a SPA builds to static output.
+  an SSR app runs a server, a SPA builds to static output. The app must not serve anything under
+  `/api` or `/_`: PocketBase owns those paths on this domain, so server routes go under another prefix
+  (`/server`): Next.js `app/server/…` never `app/api/…`, and likewise no Nuxt `server/api/`, SvelteKit
+  `src/routes/api/` or Astro `src/pages/api/`.
 - Map rendering → framework: **`ssr` → Next.js**, **`ssg` → Astro** — unless the brief/prompt explicitly
   names another supported framework, in which case use that.
 
-Supported frameworks (what the Hostinger build pipeline can deploy — the `app_type` in Step 8 deploy):
-
-- **Server/SSR-capable:** Next.js, Nuxt.js, Astro, SvelteKit, Express, NestJS, Fastify.
-- **Static / SPA:** React, Vue, Angular, Vite, Parcel, Preact, Svelte, (Astro / SvelteKit static too).
+Supported frameworks are the ones in deploy's *Build configurations* table (`../08-deploy/SKILL.md`).
 
 Confirm the framework with the user in one line only if the brief left it open. Record the choice in
 `state.json`:
@@ -72,8 +51,7 @@ Confirm the framework with the user in one line only if the brief left it open. 
 { "frontend": { "framework": "nextjs", "rendering": "ssr" } }
 ```
 
-If the brief is silent, default to **Next.js SSR**. Ecommerce must be SSR (never SSG) — but the SSR
-framework itself is free to be any supported one, not just Next.js.
+If the brief is silent, default to **Next.js SSR**.
 
 ## Step 2 — Implement `design.md` (don't re-design)
 
@@ -115,50 +93,32 @@ Read the backend from `site.json`:
     Leave HTML fields (`content.rendered`, an excerpt shown as HTML) as they are, and never inject a
     decoded field as raw HTML.
   - **Contact form** (`site.json → contact_form.enabled: true`, any WordPress backend) → render the
-    contact page's form and submit it **client-side** to Contact Form 7's public feedback endpoint. Put a
-    `submitContactForm(data)` helper in the one data module: build a `FormData` with the field names from
-    `contact_form.fields` (e.g. `your-name`, `your-email`, `your-subject`, `your-message`) **plus CF7's
-    hidden fields** — `_wpcf7` = `contact_form.form_id`, `_wpcf7_version`, `_wpcf7_locale` (e.g. `en_US`),
-    `_wpcf7_unit_tag` (any stable string), `_wpcf7_container_post` = `0` — and `POST` it to
-    `contact_form.feedback_url` **without setting `Content-Type`** (let the browser add the multipart
-    boundary). `/cms` is same-origin, so no CORS and no secret. Branch on the JSON `status`: `mail_sent`
-    → success state; `validation_failed` → map `invalid_fields[].field` to per-input errors;
-    `spam`/`aborted`/`mail_failed` → a generic "couldn't send, try again" message. Include the honeypot
-    decoy field named in `contact_form.honeypot_field` (e.g. `your_website`), rendered hidden/off-screen,
-    **empty**, `autocomplete="off"`, `tabindex="-1"` — the deployed spam guard rejects it if filled. A user
-    validation error is a **normal UI state, not a build error**. When `contact_form.enabled` is `false` or absent, render the contact page with
-    plain contact details and **no form** — graceful, like disabled checkout; never half-build. Full
-    contract: `../04-content-model/wordpress/contact-form.md` §3.
+    contact page's form and submit it **client-side** to `contact_form.feedback_url` exactly as
+    [`../04-content-model/wordpress/contact-form.md`](../04-content-model/wordpress/contact-form.md) §3
+    says. When `contact_form.enabled` is `false` or absent, render the contact page with plain contact
+    details and **no form** — graceful, like disabled checkout; never half-build.
 - **WordPress + WooCommerce** (`site.json → woocommerce.enabled: true`) → the WordPress bullet above **plus**
-  the store. Read the catalog over the **public WooCommerce Store API** (`site.json → urls.store_api`,
-  `/cms/wp-json/wc/store/v1`, no auth, open CORS): `GET /products` (prices are **integer minor units** on
-  `prices.price` with `prices.currency_minor_unit` — divide to display), `GET /products/categories`. Cart,
-  coupons and checkout are **client-side** against the Store API with the `Nonce` + `Cart-Token` headers
-  (`GET /cart`, `POST /cart/add-item`, `/cart/apply-coupon`, `POST /checkout`) — see
-  `../04-content-model/wordpress/woocommerce.md`. **Never embed a consumer key client-side**; the
-  storefront is fully public. Blog/pages on the same site still come from `urls.rest_api` (`wp/v2`) + Yoast.
-  - **Honour `site.json → woocommerce.payment_enabled`.** It is `false` until the owner enables a payment
-    gateway + shipping in wp-admin (that config isn't reachable headlessly — see the provision note). While
-    `false`, build the full catalog, product pages and the client-side cart as normal, but render a
-    graceful disabled-checkout state (e.g. a disabled "Checkout" with "Checkout isn't set up yet"), **don't
-    call `/checkout`**, and don't treat it as a build error. When `true`, wire checkout (`payment_method`
-    `"cod"` works out of the box).
-- **Ecommerce** → the **public Hostinger Storefront Core V2 API** (`https://api-ecommerce.hostinger.com/v2`,
-  no auth, open CORS), keyed on the **custom sales channel** (`site.json → ecommerce.sales_channel.id`):
-  `GET /channels/<scha_*>/products` (prices are **minor units** on variants), `POST /channels/<scha_*>/checkout`
-  for buying. Cart is client-side; never embed a token. Read
-  `ecommerce_miscellaneous_custom-storefront-setup-instructions` for the authoritative, current guide.
-  - **Honour `site.json → ecommerce.payment_enabled`.** When it is `false` (free account / no paid
-    Ecommerce plan — see the provision gate), there is **no checkout**: build the full catalog, product
-    pages and the client-side cart as normal, but **do not call the checkout endpoint**. Instead render
-    a clear, graceful state at the checkout step — e.g. a disabled "Checkout" button with a short note
-    like "Online checkout isn't available on this plan yet" (and/or a contact/enquiry fallback). A
-    missing checkout is **not** a build error here — never leave the storefront half-built, throw, or
-    retry checkout because payment is off. When `payment_enabled` is `true`, wire checkout normally.
-- **Webapp** → **no `content-model.md` and no headless backend to read**. The app uses its own data source:
-  the MySQL database from `site.json → database` (through the `DB_*` / `DATABASE_URL` env vars — set at
-  provision/deploy, see `../03-provision/webapp/SKILL.md` Step 3; `127.0.0.1` only resolves on the server,
-  not locally), or whatever external API the app calls. For an existing app, keep its data layer as-is.
+  the store, read over the **public WooCommerce Store API** (`site.json → urls.store_api`): follow
+  [`../04-content-model/wordpress/woocommerce.md`](../04-content-model/wordpress/woocommerce.md) §2 for
+  the calls, headers and minor-unit prices, and §4 for `site.json → woocommerce.payment_enabled` (while
+  `false`, a graceful disabled-checkout state, no `/checkout` call, not a build error). **Never embed a
+  consumer key client-side.**
+- **Ecommerce** → the public Hostinger Storefront Core V2 API: follow [`ecommerce.md`](ecommerce.md).
+- **PocketBase** → the `pocketbase` SDK against the backend on the same domain, following
+  [`../04-content-model/pocketbase/frontend.md`](../04-content-model/pocketbase/frontend.md) (skip its
+  static `.htaccess` section: a headless site deploys as Node.js and keeps no `.htaccess`). In the one
+  data module: `new PocketBase(<origin>)` where the origin is `window.location.origin` in the browser
+  and `site.json → urls.site` in local dev and on the server, then `pb.autoCancellation(false)` once.
+  Build filters with `pb.filter()`, load a list then subscribe to it for live views, and unsubscribe on
+  unmount. Build each form and view against the fields in `pocketbase/schema.json`, and show a rule
+  rejection (a 400 with no field errors, a 404 on update) as a normal "not allowed" state. Add the
+  sign-in form only when the schema has an auth collection visitors use
+  ([`../04-content-model/pocketbase/auth.md`](../04-content-model/pocketbase/auth.md)). A public form
+  includes its recipe's honeypot field, empty and hidden. **The superuser password never reaches the
+  frontend**; server-side superuser work reads `PB_URL`, `PB_SUPERUSER_EMAIL` and
+  `PB_SUPERUSER_PASSWORD` from the app's environment variables and signs in **its own** server-only
+  client, never the shared `pb` that renders pages for visitors (`frontend.md`, Node.js apps). For an
+  existing app, keep its screens and swap its data calls to the backend.
 
 Guidelines (framework-agnostic):
 
@@ -166,10 +126,10 @@ Guidelines (framework-agnostic):
   to inspect, one base URL to switch. Keep it swappable so the shell can build against stubs first.
 - **Fetch at request time for SSR** (fresh content, no rebuild); a static build fetches at build time.
 - **A failed or incomplete fetch is an error, not a silent empty/placeholder.** Planned content missing
-  from the API is a build error too — a site that builds with holes ships with holes. *(WordPress/Ecommerce;
-  a webapp has no planned content to check.)*
-- **`content-model.md` is the source for what should exist** (pages, nav, collections mapping) — for
-  WordPress/Ecommerce only; a **webapp has no `content-model.md`**.
+  from the API is a build error too — a site that builds with holes ships with holes. *(On PocketBase
+  the planned content is the fixed pages plus the seed records.)*
+- **`content-model.md` is the source for what should exist** (pages, nav, collections mapping) — on
+  every backend; on PocketBase it also carries the `## Data` section.
 - **No `.htaccess`** in the project (deploy would overwrite the live one); don't commit `node_modules`
   or build output.
 - Set `engines.node` to `22` (the deploy builds on Node 22).
@@ -182,11 +142,22 @@ Guidelines (framework-agnostic):
 
 ## Step 4 — Hand off
 
-Confirm the project builds clean locally against the live backend, no placeholder/fixture content
-remains, and `state.json → frontend` matches what you built. Update `state.json` (`stage: "validate"`).
+Confirm the project builds clean locally against the live backend, looks right at desktop and phone
+width (below), no placeholder/fixture content remains, and `state.json → frontend` matches what you
+built. Update `state.json` (`stage: "validate"`).
 Validate (Step 7) owns the clean rebuild + user preview; deploy (Step 8) ships it with the `app_type`
 and output directory that match the chosen framework + rendering.
 
-> **Webapp:** just confirm the app builds clean and `state.json → frontend` is right — there's no
-> `content-model.md` or headless backend to check. A DB-backed app can't reach its database locally
-> (`127.0.0.1` is server-only), so its data layer is verified **after** deploy, not here.
+**Visual check.** With the site running locally against the live backend, look at the home page and one
+page of each template (e.g. a post, a product, the contact page) at desktop and phone width. Take all the
+screenshots first, then open them all in one turn where your tool can open several images at once, since
+each separate look costs a model turn. Don't tile several pages onto one image or take one tall
+full-page shot: the viewer shrinks big images, and a shrunk page hides small bugs like a wrapped line.
+After a fix, re-shoot only what changed. Phone width is where most layout bugs show. Headless Chrome
+won't size a window below ~500 px, so a phone-width window comes back cropped: set a 390 px viewport
+(e.g. Playwright), or put one route in 1280 px and 390 px iframes side by side on a local page to get
+both widths in one image. The live site runs this same build, so it needs no screenshots; deploy checks
+that it serves.
+
+> **PocketBase:** the app reaches the live backend from local dev (`frontend.md`, Local development),
+> so check one list and one create against it here, then delete the test records before handing over.

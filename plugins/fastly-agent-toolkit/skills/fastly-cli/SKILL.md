@@ -5,7 +5,8 @@ description: Executes Fastly CLI commands for managing CDN services, Compute dep
 
 ## Trigger and scope
 
-CRITICAL: many subcommands have unintuitive paths (e.g. `fastly domain create` fails with 403, correct is `fastly service domain create`; logging is under `fastly service logging`; alerts under `fastly service alert`; rate limits under `fastly service rate-limit`).
+`fastly service domain create --name`: version-scoped domains; `fastly domain create --fqdn`: versionless Domain Management API.
+Logging is under `fastly service logging`, alerts under `fastly service alert`, and rate limits under `fastly service rate-limit`.
 
 Covers: services, backends, domains, VCL snippets, cache purging, Compute/WASM deploys, log streaming (S3/Datadog/Splunk/Kafka/25+ providers), NGWAF/WAF, TLS/mTLS, KV/config/secret stores, stats, alerts, rate limiting, ACLs, and auth tokens.
 
@@ -19,7 +20,7 @@ JSON examples also need `jq`; origin checks use `curl` and `openssl`.
 Compute builds need the project's language toolchain and dependencies.
 
 Use credentials already configured in the user's local CLI or environment.
-If authentication is missing, have the user complete `fastly auth login --sso` locally or configure `FASTLY_API_TOKEN` outside chat.
+If authentication is missing, have the user complete `fastly auth login --sso --token default` locally or configure `FASTLY_API_TOKEN` outside chat.
 Never ask for an API key in chat, print a token, or enable shell tracing on authenticated commands.
 
 ## References
@@ -29,6 +30,7 @@ Never ask for an API key in chat, print a token, or enable shell tracing on auth
 | Authentication | [auth.md](references/auth.md)                   | Login, stored tokens, service auth, CI/CD auth setup                                  |
 | Compute        | [compute.md](references/compute.md)             | Building/deploying edge applications, local dev server                                |
 | Services       | [services.md](references/services.md)           | Service CRUD, backends, domains, ACLs, dictionaries, VCL, purging, rate limiting      |
+| VCL sandbox    | [vcl.md](references/vcl.md)                     | `vcl check/run/serve`, subroutine-body files, real-edge tests without a service       |
 | Logging        | [logging.md](references/logging.md)             | Log streaming to S3, GCS, Datadog, Splunk, Kafka, 25+ providers                       |
 | NGWAF          | [ngwaf.md](references/ngwaf.md)                 | Next-Gen WAF workspaces, IP/country lists, rules, signals, thresholds, alerts         |
 | Notifications  | [notifications.md](references/notifications.md) | Slack/PagerDuty/webhook integrations, audit log event mappings                        |
@@ -46,19 +48,20 @@ fastly <command> <subcommand> [flags]
 
 ### Top-Level Commands
 
-| Category     | Commands                                                                                        |
-| ------------ | ----------------------------------------------------------------------------------------------- |
-| **Compute**  | `compute` - Build and deploy edge applications                                                  |
-| **Services** | `service` - Manage CDN services, logging, backends, VCL, ACLs, purging                          |
-| **Security** | `ngwaf` - Web application firewall                                                              |
-| **TLS**      | `tls-subscription`, `tls-custom`, `tls-platform`, `tls-config` - Certificate management         |
-| **Storage**  | `kv-store`, `config-store`, `secret-store` - Edge data stores                                   |
-| **Auth**     | `auth` - Login, stored tokens, active token output, revocation; `auth-token` (deprecated)       |
-| **Info**     | `stats`, `ip-list`, `pops`, `whoami` - Information queries                                      |
-| **Notify**   | `integration` - Notification destinations; `audit-log event-mapping` - Event triggers           |
-| **Other**    | `dashboard`, `domain`, `dns`, `apisecurity`, `products`, `object-storage`, `tools`              |
-| **Routing**  | `routing-config` - Route URL paths to services; attach with `domain update --routing-config-id` |
-| **AI**       | `ai-runtime-control` - Virtual keys, provider connections, sessions, usage metrics              |
+| Category  | Commands                                                                                        |
+| --------- | ----------------------------------------------------------------------------------------------- |
+| Compute   | `compute` - Build and deploy edge applications                                                  |
+| Services  | `service` - Manage CDN services, logging, backends, VCL, ACLs, purging                          |
+| VCL tests | `vcl check`, `vcl run`, `vcl serve` - Compile and test through the public Fiddle sandbox        |
+| Security  | `ngwaf` - Web application firewall                                                              |
+| TLS       | `tls-subscription`, `tls-custom`, `tls-platform`, `tls-config` - Certificate management         |
+| Storage   | `kv-store`, `config-store`, `secret-store` - Edge data stores                                   |
+| Auth      | `auth` - Login, stored tokens, active token output, revocation; `auth-token` (deprecated)       |
+| Info      | `stats`, `ip-list`, `pops`, `whoami` - Information queries                                      |
+| Notify    | `integration` - Notification destinations; `audit-log event-mapping` - Event triggers           |
+| Other     | `dashboard`, `domain`, `dns`, `apisecurity`, `products`, `object-storage`, `tools`              |
+| Routing   | `routing-config` - Route URL paths to services; attach with `domain update --routing-config-id` |
+| AI        | `ai-runtime-control` - Virtual keys, provider connections, sessions, usage metrics              |
 
 ## Global Flags
 
@@ -100,10 +103,11 @@ Available on most commands:
 - `ActiveVersion` shape varies; prefer `--version active`, or parse with `jq -r '.ActiveVersion.Number // .ActiveVersion'`
 - CLI version is `fastly version` (not `fastly --version`)
 - POP/shield lookup is `fastly pops`; it has no `list` subcommand and no `--json`; use the `SHIELD` column value (not POP `CODE`) for `--shield`
-- Auth: `fastly auth login --sso` to login, or set `FASTLY_API_TOKEN` env var
+- Auth: `fastly auth login --sso --token default` to log in, or set `FASTLY_API_TOKEN` locally
 - For commands that need the active API token, use `$(fastly auth token)`; select a specific stored token with `$(fastly auth token --token TOKEN_NAME)`
 - `auth token` refuses terminal output, but agent-captured stdout may be non-terminal; never run it standalone or echo its result
 - Logging is under `service logging` (e.g. `fastly service logging s3 create`)
+- `fastly domain update` sends omitted `--service-id` and `--description` as null, detaching the domain; pass both on every update, including `--routing-config-id` changes
 - Config: use `fastly config --location` to find the platform-specific CLI config file; `fastly.toml` is the project manifest
 
 ## Common Flag Examples
@@ -117,12 +121,10 @@ These are the flags that cause the most confusion. Copy-paste these patterns dir
 # Without it, you get "version is locked" errors and waste time cloning manually.
 fastly service backend create --service-id $SID --version active --autoclone \
   --name my-origin --address origin.example.com --port 443 --use-ssl
-
-fastly service domain create --service-id $SID --version active --autoclone \
-  --name cdn.example.com
 ```
 
 Pass `--autoclone` when creating, updating, or deleting backends, domains, snippets, VCL, conditions, headers, or other version-scoped resources on an existing service.
+For multiple edits, clone once and reuse the returned version number; repeated `--version active --autoclone` commands can put each change on a different clone.
 For a brand new service, configure the unlocked `--version 1` without `--autoclone`, then validate and activate once, as shown in the new-service workflow below.
 
 ### Boolean flags (--use-ssl, --use-ssl is NOT --use-ssl true)

@@ -78,6 +78,20 @@ Call \`mcp__postiz__schedulePostTool\` with a \`socialPost\` array. Each item:
 \`mcp__postiz__postsListTool\` lists posts between two dates.
 \`mcp__postiz__postSettingsTool\` updates the settings of a post that has not
 been published yet.
+\`mcp__postiz__postAttachmentsTool\` replaces the attachments of a post that
+has not been published yet: pass the full list the post should have, an empty
+list removes them all.
+
+## Analytics
+
+Analytics are separate from the posting steps above: do not compose or
+schedule anything for an analytics request.
+\`mcp__postiz__integrationAnalyticsTool\` returns the analytics of a channel
+(pass the channel \`id\`, and \`days\` for the period, 7 by default).
+\`mcp__postiz__postAnalyticsTool\` returns the analytics of a published post:
+find the post with \`mcp__postiz__postsListTool\` first and pass its \`id\`.
+The metrics differ per platform. An empty result means there is no data to
+show, not an error.
 
 ## Setup
 

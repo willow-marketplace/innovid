@@ -55,8 +55,8 @@ fastly tls-subscription create \
 # Describe subscription (add --include to get DNS challenge details)
 fastly tls-subscription describe --id SUBSCRIPTION_ID --include tls_authorizations --json
 
-# Update subscription
-fastly tls-subscription update --id SUBSCRIPTION_ID
+# Update the TLS configuration; add --force if the subscription has active domains
+fastly tls-subscription update --id SUBSCRIPTION_ID --config CONFIG_ID
 
 # Delete subscription
 fastly tls-subscription delete --id SUBSCRIPTION_ID
@@ -108,7 +108,7 @@ fastly tls-custom private-key list [--json]
 # Upload private key
 fastly tls-custom private-key create \
   --name my-key \
-  --key "$(cat private.key)"
+  --key-path private.key
 
 # Describe key
 fastly tls-custom private-key describe --id KEY_ID [--json]
@@ -125,7 +125,7 @@ fastly tls-custom certificate list [--json]
 
 # Upload certificate
 fastly tls-custom certificate create \
-  --cert-blob "$(cat certificate.crt)" \
+  --cert-path certificate.crt \
   --name my-cert
 
 # Describe certificate
@@ -230,11 +230,11 @@ fastly tls-subscription describe --id SUBSCRIPTION_ID
 
 ```bash
 # 1. Upload private key
-fastly tls-custom private-key create --name my-key --key "$(cat private.key)"
+fastly tls-custom private-key create --name my-key --key-path private.key
 
 # 2. Upload certificate
 fastly tls-custom certificate create \
-  --cert-blob "$(cat certificate.crt)" \
+  --cert-path certificate.crt \
   --name my-cert
 
 # 3. Enable certificate for domain
@@ -263,11 +263,11 @@ fastly tls-custom certificate update \
 
 ```bash
 # 1. Upload new private key
-fastly tls-custom private-key create --name new-key --key "$(cat new-private.key)"
+fastly tls-custom private-key create --name new-key --key-path new-private.key
 
 # 2. Upload new certificate
 fastly tls-custom certificate create \
-  --cert-blob "$(cat new-certificate.crt)" \
+  --cert-path new-certificate.crt \
   --name new-cert
 
 # 3. Update activation to use new certificate
@@ -282,12 +282,17 @@ fastly tls-custom private-key delete --id OLD_KEY_ID
 
 ### Add Domain to Existing Subscription
 
-```bash
-# Get current subscription details
-fastly tls-subscription describe --id SUBSCRIPTION_ID
+Read the existing domains first, then repeat `--domain` for every domain to retain and the new domain.
+An ID-only update does not specify a domain to add.
+Updating a subscription with active domains requires `--force`; omitting an active domain from the list breaks its TLS.
 
-# Update subscription
-fastly tls-subscription update --id SUBSCRIPTION_ID
+```bash
+fastly tls-subscription describe --id SUBSCRIPTION_ID --json
+
+# Example: retain www.example.com (active) and add api.example.com
+fastly tls-subscription update --id SUBSCRIPTION_ID --force \
+  --domain www.example.com \
+  --domain api.example.com
 ```
 
 ## Certificate Requirements

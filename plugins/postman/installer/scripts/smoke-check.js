@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { spawnCliSync } from '../../scripts/lib/cli.js';
+import { spawnCliSync } from '../../test/lib/cli.js';
 import { registeredRef } from '../dist/hosts/codex.js';
 import { installedPlugins } from '../dist/hosts/factory.js';
 import { parseJsonc } from '../dist/hosts/opencode-config.js';
@@ -51,7 +51,7 @@ const lines = (text, needle) => text.split(/\r?\n/).filter((line) => line.includ
 // checks what a remove takes out besides the plugin.
 const AGENTS = {
     'claude-code': {
-        expected: ['postman@claude-plugins-official [user]'],
+        expected: ['postman@postman [user]'],
         found: () => JSON.parse(output('claude', ['plugin', 'list', '--json']))
             .filter(({ id }) => id.startsWith('postman@')).map(({ id, scope }) => `${id} [${scope}]`),
         alsoRemoved: () => assert.ok(!JSON.parse(output('claude', ['plugin', 'marketplace', 'list', '--json'])).some(({ name }) => name === 'postman'),

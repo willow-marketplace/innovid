@@ -4,7 +4,7 @@ description: Updates an existing deal record in the Carta CRM. Use this skill wh
 ---
 
 <!-- carta:plugin-version -->
-<carta-plugin>carta-crm:1.20.20</carta-plugin>
+<carta-plugin>carta-crm:1.20.21</carta-plugin>
 
 ## Overview
 

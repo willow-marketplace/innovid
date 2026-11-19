@@ -28,6 +28,10 @@ Define origin servers that your Compute service communicates with.
   override_host = "api.example.com"
 ```
 
+`fastly compute serve` defaults missing/empty `override_host` to the URL hostname plus explicit port: `http://localhost:8000` becomes `localhost:8000`.
+It excludes IPv4/IPv6 literals and preserves nonempty overrides.
+Direct `viceroy` requires explicit `override_host` for equivalent behavior.
+
 ### Backend Options
 
 | Field                | Required | Description                                        |

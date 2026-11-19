@@ -1,10 +1,10 @@
 ---
 name: carta-manage-securities
-description: "Edit, cancel, transfer or buy back (repurchase) an issued security, with a preview before anything changes. Covers fixing, correcting, amending, cancelling, partly cancelling, uncancelling or undoing the termination of a certificate, option grant, SAFE, note, RSU, RSA, SAR, CBU, PIU or warrant; transferring shares, an RSA, a PIU, a warrant or a note; buying back shares; recording an option exercise; and approving or rejecting exercise requests. Not for changing post-termination exercise periods (done in the Carta web app). Not for a departure: someone who left and loses their unvested equity is a termination."
+description: "Edit, cancel, transfer or buy back (repurchase) an issued security, with a preview before anything changes. Covers fixing, correcting, amending, cancelling, partly cancelling, uncancelling or undoing the termination of a certificate, option grant, SAFE, note, RSU, RSA, SAR, CBU, PIU or warrant; transferring shares, an RSA, a PIU, a warrant or a note; buying back shares; recording an option exercise; and approving or rejecting exercise requests. For a post-termination exercise period, it says where to change it in the Carta web app and what it can edit on the grant. Not for a departure: someone who left and loses their unvested equity is a termination."
 ---
 
 <!-- carta:plugin-version -->
-<carta-plugin>carta-cap-table:6.114.20</carta-plugin>
+<carta-plugin>carta-cap-table:6.115.2</carta-plugin>
 
 # Manage securities
 
@@ -52,7 +52,9 @@ user's words first: "RSU" or "restricted stock unit" is
 "incentive unit" is `piu`, "warrant" is `warrant`, and "certificate", "share certificate" or
 "stock certificate" is `certificate`, and so are "shares" or "stock" when they name the security
 itself (as in "ES-123 (Shares)"), never as a count ("100 shares") or inside another type's name
-("stock option", "restricted stock unit"). "Units" alone is not a type word. With no
+("stock option", "restricted stock unit"). "Units" alone is not a type word. A type word gives
+the type of only the label after it: in "certificate CS-1 and ES-12", ES-12 gets its type from
+its prefix. With no
 type word, a `CN-` or `SAFE-` label is a `convertible_note`, an `RSU-` label is an `rsu`, a `PIU-`
 label is a `piu`, a `SAR-` or `UAR-` label is a `sar`, a `CBU-` label is a `cbu` and an `ES-` label
 is an `option_grant`. A prefix is only a first guess, not a type the user named: `CBU-3` starts as
@@ -136,7 +138,8 @@ stop: *"I can't reach Carta. Connect Carta in your connector settings, then try 
    looks wrong"), always send `look_first: true` on the first type's bootstrap, so the Change page
    opens before the first preview. With no field named, bootstrap each type first, then ask which
    field in one `AskUserQuestion`, with one question for each type
-   ([change-flow.md § Open the page first](references/change-flow.md#open-the-page-first)). Which
+   ([change-flow.md § Open the page first](references/change-flow.md#open-the-page-first)), never
+   in text. Which
    preview takes this bootstrap's `thread_id` is in step 4.
 2. **Read the bootstrap.**
    - `blockers`: for `hard_stop`, quote `message` and `fix`, then stop. Ask about each
@@ -147,7 +150,8 @@ stop: *"I can't reach Carta. Connect Carta in your connector settings, then try 
      person and 2+ rows are selectable, ask which ones in one `AskUserQuestion`.
 3. **Collect the inputs** for the action. Use the user's words; ask only for what is missing,
    in one `AskUserQuestion` with up to 4 questions. When more inputs are missing, ask again for
-   the rest. Send dates as `YYYY-MM-DD`. Turn a relative date ("last Friday") into a date from
+   the rest. When the request has several changes, start the first question with the split
+   sentence in [§ Several changes](#several-changes). Send dates as `YYYY-MM-DD`. Turn a relative date ("last Friday") into a date from
    the bootstrap's `today`, and show it. Every preview takes
    `company`. The modify, cancel, partial cancel, reverse cancel, undo termination and
    `transfer_other_security_preview` previews also take `security_type`, the same as the
@@ -187,7 +191,9 @@ stop: *"I can't reach Carta. Connect Carta in your connector settings, then try 
    When a result has a `companion_url`, post it as `[See it in Carta](<companion_url>)`, never as
    a bare address.
    Put the link of the latest page in your last message: after the answer to a question, after
-   a blocked preview and after a `look_first` bootstrap. A link in a question is not a link.
+   a blocked preview and after a `look_first` bootstrap. After a `look_first` bootstrap with no
+   field named, ask the field question first and post the link after the answer. A link in a
+   question is not a link.
 6. **List the side effects.** Show every `side_effects` label with the table, before the approval.
    Name each one that cannot be undone, such as an email to a holder.
 7. **Approval.** When the email side effect counts more emails than holders, first ask **"Send these N
@@ -217,7 +223,7 @@ Quote Carta's `message` word for word in each case ([Hard rule 4](#hard-rules)).
 | `out_of_scope` | Say the user's access does not reach these securities or their plan. Stop. Do not retry. |
 | `not_found` on `thread_id` | Preview again with no `thread_id`. The page then has a new address: post the new `companion_url`. |
 | `not_found` on `security` or `securities` | Call the bootstrap again to get the ids. Never guess an id. |
-| `not_found` on `recipients[N].stakeholder` | Say this person is not a stakeholder of the company. Ask for the name or email as Carta shows it, or say to add the person in Carta first. |
+| `not_found` on `recipients[N].stakeholder` | Say this person is not a stakeholder of the company. In your last message, say to add the person in Carta first, and ask for the name or email as Carta shows it if the person is already there. |
 | `invalid_argument` on a file key | Never write a key. Upload the file as [transfer-buyback-exercise.md § Agreements](references/transfer-buyback-exercise.md#agreements) says, then preview again once. |
 | Bootstrap `not_found` on `label` | Make sure `label` is a list, one label per item. Then follow [§ Actions](#actions). |
 | Bootstrap "Unknown field in `fields`" | `fields` picks bootstrap sections, not the fields to edit. Leave it out. |
@@ -246,7 +252,8 @@ reasons are separate changes. Run each change as its own pass through steps 1 to
 split first, with the type of each security: *"These are two changes, an edit of certificate CS-1
 and a cancel of option grant ES-12. I'll apply them one at a time, starting with CS-1."* Put this
 sentence at the start of the first `AskUserQuestion` question, or of your message when there is no
-question: text before a tool call is hidden. Each pass
+question: text before a tool call is hidden. Say it also when a bootstrap or a preview blocks one
+of the changes. Each pass
 has its own bootstrap and its own thread, as [§ Flow](#flow) step 4 says, never an earlier
 pass's. Each exercise request is its own pass too, from the same list.
 
@@ -254,7 +261,8 @@ pass's. Each exercise request is its own pass too, from the same list.
 
 End the run with one short message and nothing after it:
 
-- One line: what was done and on which company.
+- One line: what was done and on which company. For several changes, start with their count,
+  such as *"Two changes on Meetly: 1 applied, 1 not applied."*
 - One bullet per security that changed: label, field, before → after. For a transfer, buyback
   or exercise: label, what happened and the quantity, for example `CS-12 · 100 shares
   transferred to the Smith Family Trust`. For an exercise request: the holder, the grant label

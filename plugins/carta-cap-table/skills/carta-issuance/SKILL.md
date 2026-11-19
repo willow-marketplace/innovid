@@ -4,7 +4,7 @@ description: Issue shares, option grants or units to people on your cap table. U
 ---
 
 <!-- carta:plugin-version -->
-<carta-plugin>carta-cap-table:6.114.20</carta-plugin>
+<carta-plugin>carta-cap-table:6.115.2</carta-plugin>
 
 # Issue Securities
 

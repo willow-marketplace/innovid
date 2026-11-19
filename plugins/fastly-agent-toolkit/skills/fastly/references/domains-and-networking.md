@@ -12,7 +12,10 @@ Base: `https://api.fastly.com` | Auth: `Fastly-Key: $FASTLY_API_TOKEN` | Docs: h
 
 **Routing traffic to Fastly.** After configuring a domain on a Fastly service, update your DNS records to point to Fastly. Until DNS is properly configured, Fastly cannot serve traffic for that domain. Incoming requests are routed to the correct service based on the Host header matching a configured domain. The versioned domain check endpoints (`/check` and `/check_all`) verify whether DNS is correctly pointed.
 
-**Test domains with shared TLS.** For quick testing without DNS or TLS setup, add a versioned domain like `my-name.global.ssl.fastly.net` to your service. DNS for `*.global.ssl.fastly.net` already points to Fastly edge IPs and uses a shared TLS certificate. Adding `foo.global.ssl.fastly.net` automatically makes `foo.freetls.fastly.net` available with HTTP/2. Use the versioned domain API (`/service/{id}/version/{v}/domain`) or the CLI command `fastly service domain create` — the versionless Domain Management API (`fastly domain create`) rejects these domains with a 400 error.
+Shared test domains: add `foo.global.ssl.fastly.net` through `/service/{id}/version/{v}/domain` or `fastly service domain create`.
+Wildcard DNS already points to Fastly edge IPs with shared TLS; no DNS/TLS setup needed.
+This also enables `foo.freetls.fastly.net` with HTTP/2.
+Versionless Domain Management uses `fastly domain create --fqdn`.
 
 **Billing zones.** TLS configurations expose a maximum billing zone (MBZ) controlling which POPs serve traffic, because IP transit costs vary by region. **MBZ100**: North America, Hawaii, and Europe only (lowest egress cost). **MBZ200**: all POPs except Africa, India, and South Korea. **Global**: all POPs worldwide. The billing zone is a property of the DNS name associated with a TLS configuration, not the TLS configuration itself.
 
@@ -47,6 +50,12 @@ fastly domain create --fqdn www.example.com --service-id SU1Z0isxPaozGVKXdv0eY
 
 fastly domain list --service-id SU1Z0isxPaozGVKXdv0eY
 ```
+
+- Supported commands, not `fastly service domain` aliases; no `--version` or `--autoclone`.
+- Warning: `domain update` sends `service_id` and `description` as null when omitted, even for routing-only edits; a null service ID detaches the domain.
+  Pass the existing `--service-id` and `--description` on every update.
+- `domain list --json`: one page, lowercase `data` array and `meta` object.
+  Select `.data[].id`; pass `.meta.next_cursor` to `--cursor` for the next page.
 
 ## End-to-End: Custom Domain with TLS
 

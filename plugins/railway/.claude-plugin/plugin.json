@@ -1,8 +1,8 @@
 {
   "name": "railway",
-  "version": "1.7.0",
+  "version": "1.7.1",
   "description": "Deploy, configure, monitor, and troubleshoot apps, databases, and infrastructure on Railway from Antigravity with Railway's agent skill and hosted MCP server.",
-  "updatedAt": "2026-11-17T14:42:13.939Z",
+  "updatedAt": "2026-11-19T00:01:15.106Z",
   "author": {
     "url": "https://railway.com",
     "name": "Railway",

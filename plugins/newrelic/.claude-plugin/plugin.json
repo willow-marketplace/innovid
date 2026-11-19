@@ -1,8 +1,8 @@
 {
   "name": "newrelic",
-  "version": "1.0.0",
+  "version": "1.1.1",
   "description": "New Relic observability intelligence for Claude Code. Investigate APM performance, analyze cloud costs, debug Kubernetes, write NRQL queries, and respond to alerts — all from your terminal using New Relic telemetry data.",
-  "updatedAt": "2026-11-17T14:42:13.989Z",
+  "updatedAt": "2026-11-19T00:03:01.443Z",
   "author": {
     "url": "https://newrelic.com",
     "name": "New Relic"

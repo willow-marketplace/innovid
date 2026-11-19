@@ -26,10 +26,10 @@ All hooks are registered in `hooks/hooks.json` and run via `node "${CLAUDE_PLUGI
 
 | Event | Hook | Matcher | Timeout |
 |-------|------|---------|---------|
-| SessionStart | `session-start-seen-skills.mjs` | `startup\|resume\|clear\|compact` | — |
-| SessionStart | `session-start-profiler.mjs` | `startup\|resume\|clear\|compact` | — |
-| SessionStart | `inject-claude-md.mjs` `--part 1/2` | `startup\|resume\|clear\|compact` | — |
-| SessionStart | `inject-claude-md.mjs` `--part 2/2` | `startup\|resume\|clear\|compact` | — |
+| SessionStart | `session-start-seen-skills.mjs` | `startup\|resume\|clear\|compact` | 15s |
+| SessionStart | `session-start-profiler.mjs` | `startup\|resume\|clear\|compact` | 15s |
+| SessionStart | `inject-claude-md.mjs` `--part 1/2` | `startup\|resume\|clear\|compact` | 15s |
+| SessionStart | `inject-claude-md.mjs` `--part 2/2` | `startup\|resume\|clear\|compact` | 15s |
 | PostToolUse | `posttooluse-skill-telemetry.mjs` | `Skill` | 5s |
 | SessionEnd | `session-end-cleanup.mjs` | — | — |
 
@@ -82,7 +82,7 @@ Special triggers in PreToolUse:
 
 ### Skill Structure (`skills/<name>/SKILL.md`)
 
-38 skills in `skills/`. Each has a `SKILL.md` with YAML frontmatter:
+39 skills in `skills/`. Each has a `SKILL.md` with YAML frontmatter:
 
 ```yaml
 ---
