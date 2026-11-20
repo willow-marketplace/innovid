@@ -2,7 +2,7 @@
   "name": "grafana-cloud-mcp",
   "version": "1.0.0",
   "description": "Query Grafana Cloud metrics, logs, traces and profiles, manage dashboards, alerts and incidents, and ask Grafana Assistant through the hosted MCP server.",
-  "updatedAt": "2026-11-20T00:02:16.103Z",
+  "updatedAt": "2026-11-20T12:02:22.057Z",
   "author": {
     "name": "Grafana Labs",
     "email": "grafana-assistant@grafana.com"

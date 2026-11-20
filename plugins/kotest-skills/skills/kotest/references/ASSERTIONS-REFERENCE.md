@@ -166,7 +166,7 @@ c.shouldBeBetween(lower, upper)        // inclusive
 
 n.shouldBeBetween(1, 10)
 n.shouldBeInRange(1..100)
-n.shouldBeEven(); n.shouldBeOdd(); n.shouldBeZero()
+n.shouldBeEven(); n.shouldBeOdd(); n.shouldBeZero()  // In 6.2.7, Int/Long.shouldBeOdd() rejects negative odd values
 n.shouldBePositive(); n.shouldBeNegative()
 d shouldBe (3.14 plusOrMinus 0.01)     // floating-point tolerance
 d.shouldBeNaN(); d.shouldBePositiveInfinity()
@@ -182,7 +182,7 @@ import io.kotest.matchers.string.*
 str.shouldBeEmpty(); str.shouldBeBlank()
 str.shouldBeLowerCase(); str.shouldBeUpperCase()
 str shouldContain "sub"; str shouldContain Regex("a+")
-str.shouldContainIgnoringCase("SUB")
+str.shouldContainIgnoringCase("SUB")  // 6.2.7 searches lowercased copies, so Unicode match indices can shift
 str.shouldContainOnlyDigits(); str.shouldContainADigit()
 str.shouldContainOnlyOnce("sub")
 str.shouldContainInOrder("a", "b", "c")

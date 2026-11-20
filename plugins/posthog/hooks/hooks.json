@@ -2,7 +2,7 @@
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "__exec$",
+        "matcher": "__exec(-read|-write)?$",
         "hooks": [
           {
             "type": "command",

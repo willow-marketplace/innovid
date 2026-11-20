@@ -2,7 +2,7 @@
   "name": "posthog",
   "version": "1.0.0",
   "description": "Access PostHog analytics, feature flags, experiments, error tracking, and insights directly from Antigravity",
-  "updatedAt": "2026-11-20T00:04:18.848Z",
+  "updatedAt": "2026-11-20T12:02:56.864Z",
   "author": {
     "url": "https://posthog.com",
     "name": "PostHog",
@@ -29,7 +29,7 @@
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "__exec$",
+        "matcher": "__exec(-read|-write)?$",
         "hooks": [
           {
             "type": "command",

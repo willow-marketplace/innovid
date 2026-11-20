@@ -311,7 +311,7 @@ allOf:
                 variables:
                     additionalProperties:
                         type: string
-                    description: Custom CSS variables for dark theme
+                    description: CSS variables for the dark theme, as a map from variable name to value. See [Variables](/reference/project-files/themes#variables) for the supported names. A variable can also be set directly in `dark`, next to `primary`; if it is set in both places, the value under `variables` is used.
                     type: object
             type: object
         light:
@@ -332,7 +332,7 @@ allOf:
                 variables:
                     additionalProperties:
                         type: string
-                    description: Custom CSS variables for light theme
+                    description: CSS variables for the light theme, as a map from variable name to value. See [Variables](/reference/project-files/themes#variables) for the supported names. A variable can also be set directly in `light`, next to `primary`; if it is set in both places, the value under `variables` is used.
                     type: object
             type: object
         type:
@@ -347,7 +347,7 @@ allOf:
 description: |
     In your Rill project directory, create a `<theme_name>.yaml` file in any directory containing `type: theme`. Rill will automatically ingest the theme next time you run `rill start` or deploy to Rill Cloud.
 
-    To apply that theme to a dashboard, add `default_theme: <name of theme>` to the yaml file for that dashboard. Alternatively, you can add this to the end of the URL in your browser: `?theme=<name of theme>`
+    To apply that theme to a dashboard, add `theme: <name of theme>` to the YAML file for that dashboard.
 examples:
     - dark:
         primary: '#818CF8'
@@ -357,19 +357,40 @@ examples:
         secondary: '#8B5CF6'
       type: theme
     - dark:
-        color-sequential-1: hsl(180deg 40% 30%)
-        color-sequential-5: hsl(180deg 50% 50%)
-        color-sequential-9: hsl(180deg 60% 70%)
+        primary: '#2DD4BF'
+        secondary: '#FBBF24'
+        variables:
+            border: '#334155'
+            fg-primary: '#F1F5F9'
+            radius: 1rem
+            surface-background: '#0B1120'
+            surface-card: '#111827'
+      light:
+        primary: '#0F766E'
+        secondary: '#F59E0B'
+        variables:
+            border: '#CBD5E1'
+            fg-primary: '#0F172A'
+            radius: 1rem
+            surface-background: '#F8FAFC'
+            surface-card: '#FFFFFF'
+      type: theme
+    - dark:
         primary: 2DD4BF
         secondary: 34D399
+        variables:
+            color-sequential-1: hsl(180deg 40% 30%)
+            color-sequential-5: hsl(180deg 50% 50%)
+            color-sequential-9: hsl(180deg 60% 70%)
       light:
-        color-qualitative-1: hsl(156deg 56% 52%)
-        color-qualitative-2: hsl(27deg 100% 65%)
-        color-sequential-1: hsl(180deg 80% 95%)
-        color-sequential-5: hsl(180deg 80% 50%)
-        color-sequential-9: hsl(180deg 80% 25%)
         primary: '#14B8A6'
         secondary: '#10B981'
+        variables:
+            color-qualitative-1: hsl(156deg 56% 52%)
+            color-qualitative-2: hsl(27deg 100% 65%)
+            color-sequential-1: hsl(180deg 80% 95%)
+            color-sequential-5: hsl(180deg 80% 50%)
+            color-sequential-9: hsl(180deg 80% 25%)
       type: theme
     - dark:
         kpi-negative: '#f87171'

@@ -1,79 +1,84 @@
 ---
 name: setup
-description: Run the LinqAlpha setup flow — connection check, capability tour, default-source opt-in. Use ONLY when the user invokes /linq-alpha:setup or asks to set up or connect the LinqAlpha plugin; for questions about LinqAlpha's capabilities or any research request, use the research skill instead.
+description: Set up the Rootly plugin. Verifies MCP server connection via OAuth2 or API token and guides through configuration. Run this after installing the plugin.
 ---
 
-Run the LinqAlpha setup flow. Apply the `research` skill for capability
-detail. Complete every step in order; step 3 is unconditional.
+# Rootly Plugin Setup
 
-## 1. Connection check
+You are running the first-time setup for the Rootly Claude plugin. Follow these steps in order:
 
-- Confirm that LinqAlpha tools are available in this conversation. If they are
-  absent, tell the user to enable the plugin under **Settings → Plugins**,
-  complete LinqAlpha authorization if prompted, and start a new conversation.
-  Then stop.
-- Make one lightweight read-only call (`list_guides`) to confirm the
-  connection works. On an authorization error, walk the user through
-  reconnecting instead of retrying the call repeatedly.
+## Step 1: Verify MCP Connection
 
-## 2. Capability tour
+First, test the MCP server connection by calling `mcp__rootly__get_server_version`.
 
-- Summarize briefly what the user can do with LinqAlpha, grouped as in the
-  `research` capability map and based on the tools actually available in
-  this conversation. Describe capabilities in plain terms — do not name
-  upstream data vendors, and do not enumerate documentation guide titles;
-  guides are reference material for Claude to consult, not a list to read out.
-- Offer one or two concrete example prompts the user could try next.
+- **Succeeds**: The MCP server is reachable. Continue to Step 2.
+- **Fails with 401 / OAuth prompt**: Claude should automatically start the OAuth2 flow -- a browser window will open for you to log in to Rootly and grant access. Once authorized, retry `mcp__rootly__get_server_version`.
+- **Fails with other error**: MCP server connection issue. Check network connectivity to `https://mcp.rootly.com`.
 
-## 3. Final step — default-source opt-in (unconditional)
+## Step 2: Verify Authentication
 
-This step always runs. Never end the setup response without the user's
-explicit answer to it. The user invoking /setup by name is not an answer,
-and a previously saved preference is not a reason to skip — it only changes
-which prompt you show.
+Call `mcp__rootly__getCurrentUser` to confirm your identity.
 
-- If no default-source preference exists in memory, ask exactly:
+- **Succeeds**: Authentication is working. Report the authenticated user and team, then continue to Step 3.
+- **Fails**: Authentication issue. Provide troubleshooting:
 
-  > Shall I remember LinqAlpha as your default source for financial data? You
-  > can remove this anytime with /linq-alpha:remove.
+> **Authentication Troubleshooting**
+>
+> This plugin uses **OAuth2** by default -- Claude handles the login flow automatically when it connects to the MCP server. No API token is needed for MCP commands.
+>
+> If OAuth2 is not working:
+> 1. Ensure your Rootly organization has OAuth2 enabled
+> 2. Try disconnecting and reconnecting the MCP server: `/mcp` > find Rootly > disconnect > reconnect
+> 3. Check that your browser can reach `https://rootly.com/oauth/authorize`
+>
+> **Fallback: API Token (for hook scripts or environments without browser access)**
+>
+> Hook scripts (active-incident warnings on commit/push) still need an API token:
+> 1. Go to your Rootly dashboard: **Settings > API Keys**
+> 2. Create a new API key
+> 3. Provide the token through the plugin's userConfig prompt, or `export ROOTLY_API_TOKEN="..."`
+>
+> API tokens are optional for MCP commands -- OAuth2 is the recommended auth method.
 
-  Options: [Yes, remember it] / [No, don't save]
+Then stop here -- no further steps possible without working authentication.
 
-- If the preference already exists (the /linq-alpha:setup marker), state
-  exactly: "Your LinqAlpha default-source preference is already saved." and
-  offer: [Keep it] / [Remove it]
+## Step 3: Service Mapping Configuration
 
-- Render this as an interactive choice where the surface supports it;
-  otherwise ask in plain text and wait for the user's reply.
+Check if `.claude/rootly-config.json` exists in the current project directory.
 
-## 4. Store only on a clear yes
+**If the file does NOT exist**, offer to create it:
 
-- **Memory available** — save one memory entry: "Prefers LinqAlpha as the
-  default source for financial data (fundamentals, estimates, transcripts,
-  prices, macro). Saved via /linq-alpha:setup with the user's approval."
-- **Memory unavailable** (disabled by the organization, or not available on
-  this surface) — say the preference cannot be stored here and that the
-  plugin still works per conversation.
+1. Ask the user which Rootly service(s) correspond to this repository
+2. Ask which team owns this service (optional)
+3. Create `.claude/rootly-config.json` with the format:
+   ```json
+   {
+     "services": ["service-name-1", "service-name-2"],
+     "team": "team-name"
+   }
+   ```
 
-The preference lives in the user's own memory. This plugin does not write to
-any file outside itself.
+**If the file exists**, read and display its current configuration.
 
-If the user declines or does not clearly agree, confirm that nothing was
-saved.
+## Step 4: Show Quick-Start Guide
 
-## 5. Confirm
+Once setup is complete, display:
 
-- State exactly what was saved, quoting the stored text, and where it lives:
-  **Settings → Memory**.
-- State the undo: `/linq-alpha:remove` at any time, or editing the entry
-  directly under Settings → Memory.
-
-## Rules
-
-- Never save any preference without the user's explicit yes in this
-  conversation.
-- The preference is user-owned context in the user's memory, which they can
-  view, edit, and delete. Never describe it as changing system prompts or
-  enforced configuration.
-- Save at most the single default-source preference described above; do not
-  add any other standing instruction.
+> **Rootly plugin is ready!**
+>
+> **Authentication**: OAuth2 (logged in as {user name})
+>
+> | Command | Description |
+> |---------|-------------|
+> | `/rootly:deploy-check` | Check deployment safety before pushing |
+> | `/rootly:respond [incident-id]` | Investigate and respond to an incident |
+> | `/rootly:oncall` | View on-call dashboard |
+> | `/rootly:retro [incident-id]` | Generate post-incident retrospective |
+> | `/rootly:status` | Service health overview |
+> | `/rootly:ask [question]` | Ask questions about your incident data |
+> | `/rootly:brief [incident-id]` | Generate stakeholder brief for executives |
+> | `/rootly:handoff [incident-id]` | Prepare incident or on-call handoff docs |
+>
+> Hooks are active:
+> - **Session start**: Connection validation (already ran)
+> - **Pre-commit/push**: Active critical incident warnings (requires API token in plugin config)

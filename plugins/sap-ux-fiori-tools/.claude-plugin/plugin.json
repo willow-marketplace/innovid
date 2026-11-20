@@ -1,8 +1,8 @@
 {
   "name": "sap-ux-fiori-tools",
-  "version": "1.17.1",
+  "version": "1.17.2",
   "description": "MCP server and skills for SAP Fiori development. Build, modify, and test SAP Fiori Elements applications with AI assistance.",
-  "updatedAt": "2026-11-20T00:01:46.827Z",
+  "updatedAt": "2026-11-20T12:03:08.592Z",
   "author": {
     "url": "https://www.sap.com",
     "name": "SAP SE",

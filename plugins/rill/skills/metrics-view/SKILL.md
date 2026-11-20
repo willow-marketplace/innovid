@@ -829,6 +829,22 @@ allOf:
         table:
             description: Refers to the table powering the dashboard, should be used instead of model for dashboards create from external OLAP tables (either table or model is required)
             type: string
+        tag_order:
+            description: |
+                Display order of the `tags` set on dimensions and measures, for example in the tag lists of the dimension and measure pickers and the pivot table.
+                Tags listed here come first, in this order, followed by any other tags in the order they first appear on a dimension or measure.
+                Each tag must be set on at least one dimension or measure.
+                A derived metrics view uses the parent's order unless it sets its own.
+
+                ```yaml
+                tag_order:
+                  - Revenue
+                  - Engagement
+                  - Geography
+                ```
+            items:
+                type: string
+            type: array
         time_grains:
             description: Time grains offered by dashboards for bucketing the time dimension. Accepts the standard grains (second, minute, hour, day, week, month, quarter, year) and the multiples 5m, 10m, 15m, 30m, 2h, 3h, 4h, 6h, 8h and 12h (also spelled like `10 minutes`). When set, it replaces the default list, which is the standard grains at or above `smallest_time_grain`. Multiples are aligned to the start of the day in the dashboard time zone.
             items:

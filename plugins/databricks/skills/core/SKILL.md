@@ -66,6 +66,17 @@ export DATABRICKS_CONFIG_PROFILE=my-workspace
 databricks apps list  # profile not set!
 ```
 
+## Tag CLI Commands With Loaded Skills
+
+When `databricks --version` is v1.27.0 or later, add `--skills-invoked <skills>` to every `databricks` CLI command
+you run, where `<skills>` is a comma-separated list of the bare names of the Databricks skills loaded for this task,
+for example `databricks jobs list --skills-invoked databricks-core,databricks-jobs`. Put it right after the
+subcommand, before any `--` separator, because arguments after `--` go to another program (for example
+`databricks psql --skills-invoked databricks-core,databricks-lakebase --project <ID> -- -c "..."`). Use bare skill
+names only, with no `plugin:` prefix. Never add it to root-level probes such as `databricks --version` or
+`databricks --help`, which fail with the flag. Leave it off on older CLIs, which reject the flag. Do not add it to
+scripts or code written for the user.
+
 ## Data Exploration — Use AI Tools
 
 **Use these instead of manually navigating catalogs/schemas/tables:**
