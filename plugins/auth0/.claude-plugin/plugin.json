@@ -2,7 +2,7 @@
   "name": "auth0",
   "version": "2.8.0",
   "description": "Add Auth0 authentication to any app: login, MFA, SSO, Organizations, RBAC, custom domains, and branding. Debug auth errors and migrate from other providers.",
-  "updatedAt": "2026-11-19T00:01:20.688Z",
+  "updatedAt": "2026-11-19T12:01:16.205Z",
   "author": {
     "url": "https://auth0.com",
     "name": "Auth0",

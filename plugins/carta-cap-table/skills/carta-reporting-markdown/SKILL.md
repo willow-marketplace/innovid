@@ -4,7 +4,7 @@ description: "Internal step of carta-reporting: walks you through shaping a repo
 ---
 
 <!-- carta:plugin-version -->
-<carta-plugin>carta-cap-table:6.115.2</carta-plugin>
+<carta-plugin>carta-cap-table:6.117.0</carta-plugin>
 
 # Transform Configuration
 

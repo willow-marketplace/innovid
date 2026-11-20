@@ -108,9 +108,9 @@ session and no OKF work is possible.
 ### Tool Availability Gate
 
 **Before the first OKF step of any task, you MUST confirm that the MCP tools
-`peek`, `list_regions`, `expand`, and `write_okf` are all present in your tool
-list.** They may carry a harness-specific server-name prefix; a prefixed name
-counts as present.
+`peek`, `list_regions`, `expand`, and `write_okf` are all present** (either as
+direct or server-prefixed tools, or under `<mcp_servers>` as lazy-loaded MCP
+tools invoked via `call_mcp_tool` — both count as present).
 
 -   **All four present**: proceed with the OKF workflow.
 -   **Any one missing**: do NOT start the workflow. Tell the user the server is
@@ -168,23 +168,22 @@ every OKF call goes through MCP.
     where that is.
 
 If the client reports that the server failed to connect, run the command from
-step 4 by hand and read the traceback; a missing dependency or an incomplete
-install shows up there directly.
+step 4 by hand and read the traceback for missing dependencies.
 
 ### Credential, Project, and Permission Errors
 
 If any OKF tool returns an error about credentials, a missing project (for
-example `Project was not passed and could not be determined from the
-environment`), or permission denied (401 or 403), the environment is not set up,
-not the request. Relay the error verbatim together with the matching fix from
-step 3 and **STOP**:
+example
+`Project was not passed and could not be determined from the environment`), or
+permission denied (401 or 403), the environment is not set up, not the request.
+Relay the error and its `Fix:` line verbatim and **STOP**:
 
 -   Missing or expired credentials: `gcloud auth application-default login`.
 -   Missing project: `gcloud config set project <project-id>`, or the `env`
     block in step 4.
--   Permission denied: the authenticated principal needs read access to the
-    object, and `storage.objects.update` for `write_okf`; ask the user to grant
-    it.
+-   Permission denied: follow `Fix:` (`--disable-quota-project` or
+    `set-quota-project` for `serviceusage.services.use`, or grant
+    `storage.objects.get` / `storage.objects.update` on the object).
 
 Do **NOT** change the user's gcloud configuration or credentials yourself, do
 NOT guess a project, and do NOT retry the operation through `gcloud storage`,
@@ -198,22 +197,21 @@ NOT guess a project, and do NOT retry the operation through `gcloud storage`,
 
 Retrieves the Tier 0 summary of the GCS object from its Object Context.
 
--   **Args**:
-    -   `gs_uri`: Target GCS URI (e.g.,
-        `'gs://my-bucket/documents/report.pdf'`).
+-   **Args**: `gs_uri` (target GCS URI, e.g.,
+    `'gs://my-bucket/documents/report.pdf'`).
 -   **Returns**:
     -   High-level summary string if OKF Object Context exists.
     -   Stale index warning if the underlying object generation changed.
     -   Diagnostic `OKF_NOT_FOUND` error detailing remaining Object Context
-        capacity and pre-existing Object Context entries.
+        capacity, pre-existing Object Context entries, and Object Attributes
+        (including `content_encoding` when set).
 
 ### 2. List Regions Tool (`list_regions`)
 
 Retrieves the Tier 1/2 Table of Contents (region index) stored in the object's
 Object Context.
 
--   **Args**:
-    -   `gs_uri`: Target GCS URI.
+-   **Args**: `gs_uri` (target GCS URI).
 -   **Returns**:
     -   Formatted JSON string containing a list of region descriptors, each
         with:
@@ -230,12 +228,13 @@ Object Context.
 
 Fetches a specific byte-range slice from the GCS object payload.
 
--   **Args**:
-    -   `gs_uri`: Target GCS URI.
-    -   `start_byte`: 0-indexed start offset (inclusive).
-    -   `end_byte`: 0-indexed end offset (inclusive).
+-   **Args**: `gs_uri` (target GCS URI), `start_byte` (0-indexed inclusive start
+    offset), `end_byte` (0-indexed inclusive end offset; for `content_encoding`
+    `"gzip"` or `"x-gzip"` objects, `size` is stored compressed bytes while
+    `expand` and `write_okf` use decompressed byte offsets).
 -   **Returns**:
-    -   UTF-8 decoded text slice (or Base64-encoded string for binary data).
+    -   UTF-8 decoded text slice (trimming any split boundary UTF-8 bytes), or
+        Base64 prefixed with `[Base64-encoded binary data]` for binary data.
     -   Stale index warning string if the underlying object generation changed
         since OKF index creation.
 
@@ -244,28 +243,27 @@ Fetches a specific byte-range slice from the GCS object payload.
 Writes an OKF manifest into GCS Object Context (`okf.r.000`, `okf.sum`, etc.).
 
 -   **Args**:
-
     -   `gs_uri`: Target GCS URI.
-
-    -   `summary`: High-level overview string of the object.
-
+    -   `summary`: High-level overview string of the object. Must be non-empty,
+        start with a letter or digit, and omit single quotes, double quotes,
+        backslashes, and forward slashes (GCS Object Context value rule; e.g.,
+        write `application octet-stream` or `p50 and p99`).
     -   `regions_json`: JSON array string of region descriptors (e.g., `'[{"id":
         "r0", "start_byte": 0, "end_byte": 1024, "title": "Introduction",
         "keywords": ["overview"]}]'`).
-
         -   **Grounded Byte Boundaries**: Offsets MUST be 0-indexed integers
-            satisfying `0 <= start_byte <= end_byte < object_size`. Regions MUST
-            be listed in ascending order by `start_byte` and cannot overlap (for
-            inclusive byte ranges, next `start_byte` must be at least previous
-            `end_byte + 1`). `write_okf` strictly validates against actual
-            object size and rejects inverted, negative, out-of-order,
-            overlapping, or out-of-bounds byte ranges.
-
+            satisfying `0 <= start_byte <= end_byte < object_size` (using
+            decompressed size when `content_encoding` is `"gzip"` or
+            `"x-gzip"`). Regions MUST be listed in ascending order by
+            `start_byte` and cannot overlap
+            (`next start_byte >= previous end_byte + 1`). `write_okf` rejects
+            inverted, negative, out-of-order, overlapping, or out-of-bounds byte
+            ranges.
     -   `created_at`: (Optional) ISO 8601 timestamp string (defaults to current
         UTC time).
 -   **Returns**:
-
-    -   Success message or error message if Object Context capacity is exceeded.
+    -   Success message or error message if Object Context validation or
+        capacity limits fail.
 
 --------------------------------------------------------------------------------
 
@@ -307,9 +305,14 @@ Object Context** (`custom_contexts`) via `write_okf`. Before scanning an object
 to split it into regions or calling `write_okf`, apply this gate:
 
 -   **Small Objects (`< 20 KB`) on Read Queries**: If the user only asked a
-    read, search, or diagnostic question and `Object Attributes.size < 20480`,
-    do **NOT** generate an OKF index — read the object directly with
-    `expand(gs_uri, 0, size - 1)` and answer the question.
+    read, search, or diagnostic question and `Object Attributes.size < 20480`
+    without `content_encoding` `"gzip"` or `"x-gzip"`, do **NOT** generate an
+    OKF index — read directly with `expand(gs_uri, 0, size - 1)` and answer.
+    When `content_encoding` is `"gzip"` or `"x-gzip"` (`size` is compressed),
+    read `expand(gs_uri, 0, 20479)` first and probe
+    `expand(gs_uri, 20480, 20480)` if EOF is not obvious; if data continues,
+    treat the object as `>= 20 KB` and apply the Confirmation Gate below before
+    scanning or calling `write_okf`.
 -   **When Confirmation Is Required (Ask Once, Then Stop)**: Whenever `peek` or
     `list_regions` returns `OKF_NOT_FOUND` on an object `>= 20 KB` (or returns a
     `Stale OKF index` warning) and the user has **not** already explicitly
@@ -341,32 +344,24 @@ to split it into regions or calling `write_okf`, apply this gate:
 ### Steps to Generate and Commit OKF:
 
 1.  **Leverage Pre-existing Object Context, Custom Metadata & Attributes**:
-
-    -   Inspect the returned `Existing Object Contexts`, `Existing Custom
-        Metadata`, and `Object Attributes` from the diagnostic message.
-    -   Use these rich signals (e.g., `environment`, `category`, `log-type`,
-        `content_type`, `size`) to inform and enrich your generated summary,
-        region titles, and keywords.
-
+    -   Inspect the returned `Existing Object Contexts`,
+        `Existing Custom Metadata`, and `Object Attributes` (`environment`,
+        `category`, `log-type`, `content_type`, `content_encoding`, `size`) to
+        enrich your generated summary, region titles, and keywords.
 2.  **Evaluate Splitting Heuristics**:
-
-    -   **Small Objects (< 20 KB)**: If the entire object easily fits in context
-        and is small, read directly via `expand(gs_uri, 0, size - 1)` or
-        standard tools without forcing OKF indexing (unless the user explicitly
-        asked to generate an OKF index for it).
-    -   **Large/Medium Objects (> 20 KB to multi-GB)**: Segment the object into
+    -   **Small Objects (< 20 KB)**: If decompressed content fits in `< 20 KB`,
+        read directly via `expand(gs_uri, 0, size - 1)` (or
+        `expand(gs_uri, 0, 20479)` + probe `start_byte = 20480` when
+        `content_encoding` is `"gzip"` or `"x-gzip"`) without forcing OKF
+        indexing unless explicitly requested.
+    -   **Large/Medium Objects (>= 20 KB to multi-GB)**: Segment the object into
         semantic, logical regions (e.g., chapters, log phases, data tables,
-        video keyframe intervals) using inclusive byte ranges. This is a
-        critical step, think of it as generating the most useful summary and
-        Table of Contents for the object. If needed, make a couple of detailed
-        plans first on how to split the object. For example, splitting naively
-        by paragraphs on a text document is not great. You want to keep
-        collecting paragraphs together that are semantically related so it
-        surfaces as one semantic region. Look to see what tools you have at your
-        disposal for best semantic splitting -- for example, you may have a PDF
-        parser or even a local small model like Gemma. You split the object once
-        and every agent uses it later on so it is ok to pay a high cost for this
-        splitting.
+        video keyframe intervals) using inclusive byte ranges bounded by
+        `object_size` (decompressed size for `"gzip"`/`"x-gzip"`). Group
+        semantically related paragraphs into cohesive Table of Contents regions
+        rather than splitting naively by paragraph, using available parsers
+        (such as PDF parsers or local models) since the index is written once
+        and reused by all downstream agents.
     -   **Homogeneous Logs / Structured Dumps**: Split based on timestamp
         boundaries or major processing milestones.
 
@@ -472,7 +467,7 @@ CLOUDSDK_METRICS_ENVIRONMENT="gcs-skills gcs-skills/1.0 (skill:google-cloud-stor
         entries (limits an object to ~45–50 OKF regions maximum).
     -   Hard total byte limit per GCS object: `25,600` bytes across all Object
         Context keys.
-    -   Hard limit per Object Context value: `256` bytes (compression & fallback
+    -   Hard limit per Object Context value: `256` bytes (encoding & fallback
         truncation are handled automatically by `write_okf`).
 -   **Detect Stale Indices**: If `peek` or `list_regions` returns a `Stale OKF
     index` warning (indicating the underlying blob generation changed since

@@ -98,7 +98,7 @@ npx output workflow status <workflowId>
 ### Review What Happened
 
 ```bash
-npx output workflow debug <workflowId> --json
+npx output workflow debug <workflowId>
 ```
 
 This shows:

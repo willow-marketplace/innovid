@@ -2,7 +2,7 @@
   "name": "synthflow",
   "version": "1.4.1",
   "description": "Connects Claude Code to the Synthflow AI voice-agent platform through its hosted MCP server, with skills for reviewing and reporting on calls, diagnosing failed calls, auditing prompts, making safe agent changes, building actions, and running regression tests, plus a docs-search connector.",
-  "updatedAt": "2026-11-19T00:02:01.554Z",
+  "updatedAt": "2026-11-19T12:03:14.309Z",
   "author": {
     "name": "Synthflow",
     "email": "fionn@synthflow.ai"

@@ -2,7 +2,7 @@
   "name": "teamcity-cli",
   "version": "1.0.0",
   "description": "Agent skill for interacting with TeamCity CI/CD using the teamcity CLI. Enables Claude to explore builds, view logs, start jobs, manage queues, agents, and more.",
-  "updatedAt": "2026-11-17T15:44:22.793Z",
+  "updatedAt": "2026-11-19T00:27:28.809Z",
   "author": {
     "name": "JetBrains"
   },

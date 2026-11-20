@@ -2,6 +2,17 @@
 
 All notable changes to this repository are documented in this file.
 
+## Shared local review cards
+
+- Antigravity 1.3.2, Claude 1.3.4 and Codex 1.2.2 show CLI findings in chat.
+  On compatible clients, inline presentation uses only the card ID returned
+  by the completed CLI review. Without a usable ID, no presentation call is made.
+
+## Antigravity plugin [1.3.1] - Marketplace packaging
+
+- Include `coderabbit-setup` in the Marketplace ZIP. The setup workflow is
+  shared with Claude and Codex and follows each host's configured connections.
+
 ## Antigravity plugin [1.3.0] - Release candidate
 
 - Add the hosted CodeRabbit MCP server with Antigravity's native OAuth discovery.

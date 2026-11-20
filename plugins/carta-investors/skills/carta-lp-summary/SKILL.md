@@ -6,7 +6,7 @@ description: |-
 ---
 
 <!-- carta:plugin-version -->
-<carta-plugin>carta-investors:7.53.4</carta-plugin>
+<carta-plugin>carta-investors:7.56.4</carta-plugin>
 
 [PATTERN carta-writing-style v0.0.2]
 [PATTERN etiquette v0.0.6]

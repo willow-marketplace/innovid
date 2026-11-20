@@ -11,6 +11,7 @@ import type { Args, EngineInterface, EventResult, On, RenderElement, ToolCallRes
 
 import type { CommentsState, CommentsThread } from '../../types'
 import { later, runTool } from '../altimate-cli'
+import { openTracked } from '../usage'
 import type { BashCall, ContextLines, EditedFile, FileCall } from '../tool-chain'
 import type { BandUi, FeatureContext } from './index'
 
@@ -40,7 +41,7 @@ const LOCKED_NOTE = ' The thread stays locked until the list shows the post or a
 const REFUSALS = new Set(['read_only', 'missing_text', 'missing_ids', 'unknown_thread', 'incomplete_list'])
 const MIN_POLL_SECONDS = 30
 const MAX_POLL_SECONDS = 86_400
-const NEEDS_NEWER_CLI = 'Team comments need a newer altimate-code (this one has no docs_share_comments tool): npm install -g altimate-code@latest'
+const NEEDS_NEWER_CLI = 'Team comments need a newer altimate-code (this one has no docs_share_comments tool): npm i -g @altimateai/altimate-code'
 
 const INITIAL: CommentsState = { root: null, project: null, threads: [], loadedAt: null, loading: false, needs: null, error: null, partial: null, note: null, drafts: {}, posting: null }
 
@@ -98,7 +99,7 @@ export function register(on: On, context: FeatureContext) {
 
   on('command.run', { command: COMMAND }, async $ => {
     try {
-      await $.ui.open({ id: PANE, title: PANE_TITLE, focus: true, closeOnEscape: true })
+      await openCommentsPane($)
       // Running the command again is how a missing tool is looked for again, after an update.
       await change($, current => ({ ...current, needs: null, note: null }))
       later($, () => open($))
@@ -246,7 +247,7 @@ export async function bandLine($: EngineInterface, ui: BandUi): Promise<RenderEl
         💬 {current.threads.length} open team comment{current.threads.length === 1 ? '' : 's'}
         {current.project ? ` on ${current.project}` : ''}{' '}
       </Text>
-      <Button key="comments-open" label="Open" onPress={() => later($, () => $.ui.open({ id: PANE, title: PANE_TITLE, focus: true, closeOnEscape: true }))} />
+      <Button key="comments-open" label="Open" onPress={() => later($, () => openCommentsPane($))} />
     </Box>
   )
 }
@@ -379,6 +380,11 @@ function startPoll($: EngineInterface) {
   if (interactive && poll === null) poll = $.clock.every(pollSeconds * 1000, () => later($, () => load($)))
 }
 
+/** The pane a person opens (/comments, the band's Open), counted as a use of it. */
+function openCommentsPane($: EngineInterface) {
+  return openTracked($, 'comments', () => $.ui.open({ id: PANE, title: PANE_TITLE, focus: true, closeOnEscape: true }))
+}
+
 async function open($: EngineInterface) {
   // The project being read stays the pane's project: only a session with none yet looks at its own folder.
   if (!(await get($)).root) await attach($, await $.session.cwd())
@@ -489,7 +495,7 @@ async function fetchThreads($: EngineInterface) {
     await change($, current => ({
       ...current,
       loading: false,
-      error: missing ? 'Team comments need the altimate-code CLI: npm install -g altimate-code@latest' : `Could not load the comments: ${oneLine(String(error))}`,
+      error: missing ? 'Team comments need the altimate-code CLI: npm i -g @altimateai/altimate-code' : `Could not load the comments: ${oneLine(String(error))}`,
     }))
   }
 }

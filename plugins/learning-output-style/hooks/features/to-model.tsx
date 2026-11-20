@@ -5,6 +5,7 @@ import { atom, read, update } from 'claude-code'
 import type { Args, EngineInterface, EventResult, On, RenderElement, ToolCallResult } from 'claude-code'
 
 import { MISSING_BINARY, later, runTool } from '../altimate-cli'
+import { openTracked } from '../usage'
 import type { BashCall, ContextLines, EditedFile, FileCall } from '../tool-chain'
 import type { ToModelState } from '../../types'
 import { projectLayout } from '../lineage-graph'
@@ -14,11 +15,11 @@ const COMMAND = 'to-model'
 const PANE = 'altimate-to-model'
 const PANE_TITLE = 'Raw SQL to dbt model'
 const TOOL = 'dbt_map_relations'
-const UPGRADE = `/${COMMAND} needs a newer altimate-code (npm install -g altimate-code@latest): its ${TOOL} tool is missing.`
+const UPGRADE = `/${COMMAND} needs a newer altimate-code (npm i -g @altimateai/altimate-code): its ${TOOL} tool is missing.`
 const USAGE = 'Usage: /to-model <model_name> [path/to/query.sql], or select the SQL first and run /to-model <model_name>.'
 // A model name is a dbt identifier: it becomes a file name and a ref() target.
 const MODEL_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/
-const NO_CLI = `/${COMMAND} needs the altimate-code CLI on your PATH (npm install -g altimate-code).`
+const NO_CLI = `/${COMMAND} needs the altimate-code CLI on your PATH (npm i -g @altimateai/altimate-code).`
 const UNREADABLE = `/${COMMAND} could not read altimate-code's answer: update the plugin and altimate-code to matching versions.`
 
 type MatchKind = RelationRow['match']
@@ -215,7 +216,7 @@ export function register(on: On, context: FeatureContext) {
     const view: ToModelState = { name: parsed.name, source: got.source, dialect, rows: sortRows(rows), sql: got.sql, modelsDir }
     await update($, stateAtom, () => view)
     try {
-      await $.ui.open({ id: PANE, title: PANE_TITLE, focus: true, closeOnEscape: true })
+      await openTracked($, 'to_model', () => $.ui.open({ id: PANE, title: PANE_TITLE, focus: true, closeOnEscape: true }))
     } catch {
       // No surface to draw on: the prompt below still carries the whole mapping.
     }

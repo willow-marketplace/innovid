@@ -47,7 +47,7 @@ export const config = {
 };
 ```
 
-Bun reduces average latency by ~28% in CPU-bound workloads. Currently in Public Beta — supports Next.js, Express, Hono, and Nitro.
+Bun reduces average latency by ~28% in CPU-bound workloads. Currently in Public Beta — configurable for all frameworks, including Next.js.
 
 ## Basic Example
 

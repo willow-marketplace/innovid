@@ -79,18 +79,20 @@ test('without context lines the result is passed on as it came', async () => {
 
 test('the features are listed in the stated order, and the status line joins its parts in it', () => {
   expect(FEATURE_IDS).toEqual(['runs', 'defer', 'toModel', 'comments', 'cost', 'health', 'sqlGraph', 'docs', 'cteProfile'])
-  expect(STATUS_ORDER).toEqual(['integrations', ...FEATURE_IDS])
+  expect(STATUS_ORDER).toEqual(['integrations', ...FEATURE_IDS, 'altimateCode'])
   // Parts join in that order whatever order they were set in; feature parts alone get the plugin's mark.
   expect(statusLineOf({ cost: '2 GB', integrations: '1 synced', runs: '3 runs' })).toBe('1 synced · 3 runs · 2 GB')
   expect(statusLineOf({ integrations: '1 synced' })).toBe('1 synced')
   expect(statusLineOf({ docs: '80% documented' })).toBe('⚡ Altimate · 80% documented')
   expect(statusLineOf({ integrations: '', runs: '' })).toBeUndefined()
+  expect(statusLineOf({ runs: '3 runs', altimateCode: 'old', integrations: '1 synced' })).toBe('1 synced · 3 runs · old')
 })
 
 test('through the plugin, a Bash call reaches the tool unchanged and its result comes back with no added context', async ($, on) => {
   // The session beneath has nothing to report, so no feature that is built holds a call or adds to one it has no reason to.
   mock.clock(on)
   on('ui.status', () => ({ value: undefined }))
+  on('session.cwd', () => ({ value: '/repo' }))
   on('session.root', () => ({ value: '/repo' }))
   on('fs.exists', () => ({ value: false }))
   on('process.run', (_: unknown, e: { argv: readonly string[] }) => ({ value: { isStdoutTruncated: false, isStderrTruncated: false, ...(nothingToReport(e.argv) ?? { exitCode: 1, stdout: '', stderr: 'no CLI here' }) } }))
@@ -166,9 +168,25 @@ test('a phase that never settles is given up on: the call passes through unchang
   expect(await afterCall(edit, ok, null, steps)).toBe(ok)
   expect(seen).toEqual(
     ['bashRewrite', 'bashGate', 'bashAfter', 'readBefore', 'editAfter', 'readOrEditAfter'].map(
-      phase => `log:tool chain · ${phase} did not finish within 5000 ms or failed: the call goes on unchanged`,
+      phase => `log:tool chain · ${phase} did not finish within ${phase === 'editAfter' ? 35000 : 5000} ms or failed: the call goes on unchanged`,
     ),
   )
+})
+
+test('the edit phase may hold an edit longer than the others: a slow check still rides on its result', async () => {
+  const deadlines: number[] = []
+  const { steps } = recording({
+    editAfter: async () => ['held note'],
+    limit: (async (work: Promise<unknown>, ms: number) => {
+      deadlines.push(ms)
+      return work
+    }) as any,
+  })
+  const edit = { tool: 'Edit', file_path: '/repo/models/a.sql' } as any
+  const result = await afterCall(edit, ok, null, steps)
+  expect((result as any).context).toContain('held note')
+  // editAfter, then readOrEditAfter.
+  expect(deadlines).toEqual([35000, 5000])
 })
 
 test('a phase that throws at once is treated like one that timed out', async () => {

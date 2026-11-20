@@ -4,7 +4,7 @@ description: Data collection for an investment firm's portfolio companies — as
 ---
 
 <!-- carta:plugin-version -->
-<carta-plugin>carta-investors:7.53.4</carta-plugin>
+<carta-plugin>carta-investors:7.56.4</carta-plugin>
 
 > **If this plugin's files can't be found:** a path that still shows an unreplaced `${…}` variable, or a "not found" when you read or run one of this skill's files, means the skill loaded before this session's computer link was ready. Invoke this skill once more with the Skill tool and use the paths that copy gives. If they're still unreplaced, tell the user Carta's plugin files aren't available in this session yet (link your computer, then ask again) and stop. Don't search the disk for them.
 
@@ -85,7 +85,9 @@ Run Step 2's settings check on **every** candidate, in parallel, in one reply. T
 | More than one has it enabled | Now ask, listing only the enabled ones. |
 
 A firm the user cannot reach comes back as a 404 or a permission error — that counts as not
-enabled, so it drops out of the running without a question.
+enabled, so it drops out of the running without a question. A `break_the_glass_required` is not
+a drop-out and not a reason to elevate yet: the candidate stays in the running with its settings
+unknown. When it is still viable, ask which firm, and elevate only for the one the user picks.
 
 **Do not ask while the answer is still discoverable.** A name that matches three accounts, only
 one of which collects data, has one real answer; asking makes the user do the elimination you can
@@ -154,6 +156,7 @@ opens with — take it from there rather than from however the user happened to 
 | Ask why a contact seems to be missing, or who a company's request is addressed to | `references/contacts.md`, Step 1 alone |
 | Change who is contacted, on any number of companies | `references/contacts.md`, from Step 1 |
 | Get numbers out of a newsletter, deck or email a company already sent, or upload a document the firm has for a company | Hand it over — see "A document the firm already has goes to its skill" below |
+| Extract a file a company uploaded to its request | Hand it over — see "A submitted file goes to its session" below |
 
 **Extraction is not collection.** Reading numbers out of a newsletter, a board deck or an email a
 company already sent is extraction — a separate capability, and not something a request does. A
@@ -169,6 +172,16 @@ session's skill list, invoke it with `upload <path>` (comma-separated for severa
 arguments for a paste), mid-flow or not. Uploading it does not answer a request and needs none.
 Do not ask which skill to use, and do not name the skill to the user. When it is not listed, say
 in one sentence that uploading a document isn't available in this chat.
+
+**A submitted file goes to its session, without asking.** Carta can open an extraction session
+for the files a company submits to its request. When the user asks to extract one ("extract the
+balance sheet LiveKindly submitted") and `carta-investors:carta-portco-financials-and-kpis` is listed, invoke it with
+`review org-id=<organization_pk>`, the company and the user's words, e.g.
+`review org-id=3849 LiveKindly — "extract the balance sheet LiveKindly submitted"`. That skill
+lists the sessions ready to review, the company's first, and opens the one the user picks, or says
+the submission has no session to review there. When
+it is not listed, say in one sentence that extracting a submitted file isn't available in this
+chat.
 
 **Defining is not collecting.** A custom metric and a firm's own document type are both
 definitions: creating one adds it to the firm's vocabulary and asks nobody for anything. Asking a
@@ -218,6 +231,17 @@ table above is enough to choose one.
 > **Checkpoint**: Call `mcp__<SERVER>__skill_checkpoint(skill_name="carta-investors:carta-data-collection", checkpoint_label="skill_finished")` once the action's result has reached the user: the form is open, a send, schedule or change has been made and summarized, or the answer to a read is shown. A route this skill cannot do, such as extraction, finishes when its one-sentence answer and offer are shown.
 
 ## Applies to every action
+
+**A Carta call answers `break_the_glass_required`:** the person is Carta staff reaching a firm or
+company they are not a member of. Only for the firm or company this run has settled on — never for a
+candidate Step 1 is still comparing — lift it once: call `mcp__<SERVER>__break_the_glass` (load it
+with `ToolSearch` `select:` first when it is deferred), or, when that tool is not in this session,
+run what the error's `fix` names, `call_tool` with `name` `context_tools__create__break_the_glass`.
+Pass the `entity_type` and `entity_pk` the error names and a `rationale` naming the failed command
+and the user's ask, then retry the failed call once. Do not ask first: the user's request is the
+authorization, and Carta records the grant in its audit trail. Say in one line that you opened
+break-the-glass access to the firm or company. When the elevation or the retry fails, say they don't
+have access to it in Carta and stop. Never elevate before a call has failed with that error.
 
 **A send emails people outside Carta and cannot be recalled.** Ask the confirmation question, end
 your reply, and wait. Never write in the same reply as the question — the action's reference says

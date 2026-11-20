@@ -4,7 +4,7 @@ description: Board consents and board members in Carta. See consents and who sig
 ---
 
 <!-- carta:plugin-version -->
-<carta-plugin>carta-cap-table:6.115.2</carta-plugin>
+<carta-plugin>carta-cap-table:6.117.0</carta-plugin>
 
 # Boardroom
 

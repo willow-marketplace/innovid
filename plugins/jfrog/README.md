@@ -138,12 +138,14 @@ The hook soft-fails (never breaks the session): missing project key, Agent Guard
 | Env | Purpose |
 | --- | --- |
 | `JF_AGENT_REWRITE_MCP_JSON_DISABLE=1` | Kill switch — skip rewrite and watchPaths registration |
-| `JFROG_AGENT_GUARD_VERSION` | Override pinned `@jfrog/agent-guard` version |
+| `JFROG_AGENT_GUARD_VERSION` | Override the pinned `@jfrog/agent-guard` version of the MCP rewrite |
 | `JFROG_AGENT_GUARD_REPO` | Private npm registry for `@jfrog/agent-guard` |
 | `JFROG_AGENT_GUARD_BIN` | Local Agent Guard binary (skips npx) |
 | `JF_ALIGN_MCP_JSON_ROOTS` | Override discovery roots (POSIX `:`/`,`; Windows `;`/`,`) |
 | `JF_REWRITE_MCP_JSON_LOCK_PATH` | Override rewrite concurrency lock file path |
 | `CLAUDE_CONFIG_DIR` | Claude config root (default `~/.claude`) |
+
+Hooks run a pinned `@jfrog/agent-guard` through `npx` from `https://releases.jfrog.io/artifactory/api/npm/coding-agents-npm/` (or `JFROG_AGENT_GUARD_REPO`): `1.23.0` for the MCP rewrite, `1.26.0` for everything else. Both versions are set in `modules/core/rewrite-mcp-json.mjs`.
 
 ---
 
@@ -180,6 +182,38 @@ or credentials.
 
 **Logs.** `~/.jfrog/shadow/local-shadow-hook.log` (whether the scan started and why not)
 and `~/.jfrog/shadow/local-shadow.log` (scan results).
+
+---
+
+## Plugin telemetry
+
+The plugin reports a small lifecycle event so JFrog can count installs per harness and
+version. This is separate from the Local Shadow AI scan above and from JFrog CLI usage
+reporting; each has its own switch.
+
+**When it runs.** At session start, from a hidden background process that never delays the
+session and prints nothing. At most one event per session: `install` the first time,
+`update` after the plugin or hooks version changes, otherwise `active` at most once a day.
+
+**What it sends.** The event type, a random install ID (one per OS user), the harness, the
+plugin and hooks versions (on `update`, also the previous ones), the OS family, how the
+JFrog Platform URL was found, and a reason code. When the event goes to the JFrog endpoint
+below, it also carries your JFrog Platform's host name (without the port), if there is one.
+It does not send prompts, code, file paths, usernames, emails or tokens.
+
+**Where it goes.** Your JFrog Platform first (`JFROG_URL`, `JF_URL`, the JFrog CLI default
+server, or `telemetry.jpdUrl` in `~/.jfrog/agents-conf.json`). If none is found, or your
+JFrog Platform can't be reached or turns the event away, it goes to a JFrog endpoint in the
+EU (`https://pluginmetrics.jfrog.io`). The anonymous send honors `HTTPS_PROXY` and
+`NO_PROXY`.
+
+**Local files.** `~/.jfrog/telemetry/` (install ID, per-harness receipt and backoff state).
+
+**Turn it off.** Set any one of `JF_AGENT_TELEMETRY_DISABLE=1`, `DO_NOT_TRACK=1`, or
+`"telemetry": { "enabled": false }` in `~/.jfrog/agents-conf.json`. With telemetry off, no
+event is sent and no background process starts.
+
+Full details: [Plugin telemetry](docs/plugin-telemetry.md).
 
 ---
 

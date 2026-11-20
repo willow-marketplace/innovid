@@ -2,7 +2,7 @@
   "name": "sentry",
   "version": "1.4.6",
   "description": "Sentry Plugin for Claude Code to help with debugging including MCP and skill capabilities.",
-  "updatedAt": "2026-11-19T00:01:35.034Z",
+  "updatedAt": "2026-11-20T00:01:30.243Z",
   "author": {
     "name": "Sentry"
   },

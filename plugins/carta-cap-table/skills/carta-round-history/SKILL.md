@@ -4,7 +4,7 @@ description: "See every priced funding round a company raised: date, price, amou
 ---
 
 <!-- carta:plugin-version -->
-<carta-plugin>carta-cap-table:6.115.2</carta-plugin>
+<carta-plugin>carta-cap-table:6.117.0</carta-plugin>
 
 <!-- Part of the official Carta AI Agent Plugin -->
 

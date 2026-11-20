@@ -4,7 +4,7 @@ description: 'Get started: see what Claude can do with your cap table. Use when 
 ---
 
 <!-- carta:plugin-version -->
-<carta-plugin>carta-cap-table:6.115.2</carta-plugin>
+<carta-plugin>carta-cap-table:6.117.0</carta-plugin>
 
 # Carta start
 

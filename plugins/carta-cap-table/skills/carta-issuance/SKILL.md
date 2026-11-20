@@ -1,10 +1,10 @@
 ---
 name: carta-issuance
-description: Issue shares, option grants or units to people on your cap table. Use when the user asks to issue certificates, stock certificates, option grants (ISO, NSO, EMI, CSOP, Unapproved, Startup Concessions, Non-Concessional, ZEPO), profits interest units (PIUs), to draft shares, grants or units, or to resume issuing from a draft set. USE WHEN the user says "issue", "grant", "draft", "award", "give equity", "give shares", "give stock", "create a certificate", "create a grant", "issue PIUs", "set up an option grant", "issue equity to a named person", or names any specific security type above. Also USE WHEN the user points at a spreadsheet, CSV, Carta import template, or a grant/award document as the source of the issuance ("issue the grants in this file", "here's our import template"). Also USE WHEN asked for help issuing with nothing attached ("help me issue options in Carta", "can I issue grant awards?"). To edit or cancel an issued security, use carta-manage-securities.
+description: Issue shares, option grants or units to people on your cap table. Use when the user asks to issue certificates, stock certificates, option grants (ISO, NSO, EMI, CSOP, Unapproved, Startup Concessions, Non-Concessional, ZEPO), profits interest units (PIUs), to draft shares, grants or units, or to resume issuing from a draft set. USE WHEN the user says "issue", "grant", "draft", "award", "give equity", "give shares", "create a certificate", "create a grant", "issue PIUs", "set up an option grant", or names any specific security type above. Also USE WHEN the user points at a spreadsheet, CSV, Carta import template, or a grant/award document as the source ("issue the grants in this file", "here's our import template"). Also USE WHEN asked for help issuing with nothing attached ("help me issue options in Carta", "can I issue grant awards?"). To edit or cancel an issued security, use carta-manage-securities. For a summary of equity already issued ("how's our equity issuance looking?"), use carta-cap-table.
 ---
 
 <!-- carta:plugin-version -->
-<carta-plugin>carta-cap-table:6.115.2</carta-plugin>
+<carta-plugin>carta-cap-table:6.117.0</carta-plugin>
 
 # Issue Securities
 

@@ -4,7 +4,7 @@ description: "Track who still needs to sign witness and spousal consent forms. S
 ---
 
 <!-- carta:plugin-version -->
-<carta-plugin>carta-cap-table:6.115.2</carta-plugin>
+<carta-plugin>carta-cap-table:6.117.0</carta-plugin>
 
 <!-- Part of the official Carta AI Agent Plugin -->
 

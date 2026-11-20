@@ -2,7 +2,7 @@
   "name": "prisma",
   "version": "1.0.0",
   "description": "Prisma MCP integration for Postgres database management, schema migrations, SQL queries, and connection string management. Provision Prisma Postgres databases, run migrations, and interact with your data directly.",
-  "updatedAt": "2026-11-19T00:01:09.136Z",
+  "updatedAt": "2026-11-19T12:02:56.100Z",
   "author": {
     "name": "Prisma"
   },

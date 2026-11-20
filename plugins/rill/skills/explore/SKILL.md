@@ -108,6 +108,16 @@ time_ranges:
 defaults:
   time_range: P30D
   comparison_mode: time
+  # Default filter: one Metrics SQL filter expression (not a map by metrics view as in a canvas)
+  filters: "region = 'EMEA'"
+
+# Optional: filters that always stay in the filter bar (pinned),
+# and filters that must have a value before the dashboard renders (required)
+filters:
+  pinned:
+    - product_category
+  required:
+    - region
 
 # Optional: pin specific time zones to the top of the selector
 time_zones:
@@ -122,6 +132,19 @@ theme: my_theme
 security:
   access: "{{ .user.admin }} OR '{{ .user.email }}' LIKE '%@example.com'"
 ```
+
+## Default, pinned and required filters
+
+`filters.pinned` and `filters.required` list dimensions or measures by name. Every name must be shown in the explore, otherwise the explore fails to reconcile. They control different things:
+
+- **`pinned`**: keeps the filter in the filter bar, even without a value, so users can change it without opening the filter menu. Users cannot remove it.
+- **`required`**: the dashboard is not rendered until the filter has a value. Required filters are implicitly pinned; do not also list them under `pinned`.
+
+`defaults.filters` is a single Metrics SQL filter expression that is applied when the dashboard is first opened, for example `"region = 'EMEA' AND product_category IN ('Shoes', 'Bags')"`. It can only reference dimensions and measures shown in the explore. Filter on a measure with a subquery, for example `"region IN (SELECT region FROM metrics_view HAVING total_revenue > 1000)"`.
+
+Use `required` for filters that are unsafe or meaningless to omit (for example a tenant or customer scope), and pair it with a value in `defaults.filters` when the dashboard should open without prompting. These settings shape the dashboard only; use security policies on the metrics view to restrict the data a user can access.
+
+All three also work in a metrics view's inline `explore:` block.
 
 ## Minimal stand-alone example
 
@@ -165,6 +188,7 @@ allOf:
                     time_range: P1M
                     comparison_mode: dimension #time, none
                     comparison_dimension: filename
+                    filters: "country = 'US' AND device IN ('mobile', 'tablet')"
                   ```
             properties:
                 comparison_dimension:
@@ -180,6 +204,9 @@ allOf:
                 dimensions:
                     $ref: '#/definitions/field_selector_properties'
                     description: Provides the default dimensions to load on viewing the dashboard
+                filters:
+                    description: Default filter applied when a user initially loads the dashboard, written as a Metrics SQL `WHERE` expression, for example `country = 'US' AND device IN ('mobile', 'tablet')`. It can only reference dimensions and measures shown in the explore. An explore has a single metrics view, so this is one expression and not a map keyed by metrics view as on a canvas dashboard.
+                    type: string
                 measures:
                     $ref: '#/definitions/field_selector_properties'
                     description: Provides the default measures to load on viewing the dashboard
@@ -211,6 +238,29 @@ allOf:
                 hide_pivot:
                     description: When true, hides the pivot table view in embedded mode
                     type: boolean
+            type: object
+        filters:
+            additionalProperties: false
+            description: |
+                Configures the filters of the explore dashboard.
+                  ```yaml
+                  filters:
+                    pinned:
+                      - device
+                    required:
+                      - advertiser
+                  ```
+            properties:
+                pinned:
+                    description: Dimension or measure names to pin in the filter bar. Pinned filters stay visible even when they have no value, and viewers cannot remove them. Each name must be a measure or a dimension shown in the explore, other than a time dimension.
+                    items:
+                        type: string
+                    type: array
+                required:
+                    description: Dimension or measure names that must have a value before the explore renders. Required filters are implicitly pinned. Combine with `defaults.filters` so the explore opens with a value already set. Each name must be a measure or a dimension shown in the explore, other than a time dimension.
+                    items:
+                        type: string
+                    type: array
             type: object
         lock_time_zone:
             description: When true, the dashboard will be locked to the first time provided in the time_zones list. When no time_zones are provided, the dashboard will be locked to UTC

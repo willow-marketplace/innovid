@@ -4,7 +4,7 @@ description: "Build or open a live dashboard for one company's cap table, publis
 ---
 
 <!-- carta:plugin-version -->
-<carta-plugin>carta-cap-table:6.115.2</carta-plugin>
+<carta-plugin>carta-cap-table:6.117.0</carta-plugin>
 
 # Carta Home (cap table) — Build / Redeploy / Open
 

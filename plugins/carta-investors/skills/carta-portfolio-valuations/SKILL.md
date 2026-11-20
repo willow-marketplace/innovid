@@ -1,10 +1,10 @@
 ---
 name: carta-portfolio-valuations
-description: Portfolio valuations workflow — firm selection, dashboard, bulk-create valuations on one or many companies (refresh, manual EV), and dive-in on a single valuation. TRIGGER in chat or Cowork when the user mentions working on, reviewing, or running portfolio valuations, opens one company's valuation, or updates the EV / company value (e.g. "work on my valuations today", "review our portfolio valuations", "run all my Q2 valuations", "which companies need new valuations", "open MangoCart's draft valuation", "set the company value for MangoCart", "batch valuations", "auto-run valuations", "PWERM", "probability-weighted valuation", "weight upside and downside"). DO NOT TRIGGER for 409A valuations, cap table valuations or valuation history / FMV (carta-valuation-history), to goal-seek or tune the EV to a target, or to turn the valuation tool on for a firm (this skill runs valuations only once it is already enabled). Use carta-valuations-excel when a workbook is open in Claude for Excel.
+description: Portfolio valuations workflow — firm selection, dashboard, bulk-create valuations on one or many companies (refresh, manual EV), and dive-in on a single valuation. TRIGGER in chat or Cowork when the user mentions working on, reviewing, or running portfolio valuations, opens one company's valuation, or updates the EV / company value (e.g. "work on my valuations today", "review our portfolio valuations", "run all my Q2 valuations", "which companies need new valuations", "open MangoCart's draft valuation", "set the company value for MangoCart", "batch valuations", "auto-run valuations", "PWERM", "probability-weighted valuation", "weight upside and downside"). DO NOT TRIGGER for 409A or cap table valuations, for a read-only valuation, MOIC, FMV or history lookup that changes nothing (carta-explore-data, carta-valuation-history), to goal-seek or tune the EV to a target, or to turn the valuation tool on for a firm (the tool must already be enabled). Use carta-valuations-excel when a workbook is open in Excel.
 ---
 
 <!-- carta:plugin-version -->
-<carta-plugin>carta-investors:7.53.4</carta-plugin>
+<carta-plugin>carta-investors:7.56.4</carta-plugin>
 
 > **If this plugin's files can't be found:** a path that still shows an unreplaced `${…}` variable, or a "not found" when you read or run one of this skill's files, means the skill loaded before this session's computer link was ready. Invoke this skill once more with the Skill tool and use the paths that copy gives. If they're still unreplaced, tell the user Carta's plugin files aren't available in this session yet (link your computer, then ask again) and stop. Don't search the disk for them.
 
@@ -12,7 +12,7 @@ description: Portfolio valuations workflow — firm selection, dashboard, bulk-c
 
 # Portfolio Valuations Workflow Skill
 
-**Plugin root in reference files.** Reference files write the plugin root as a `CLAUDE_PLUGIN_ROOT` variable in braces. Bash does not set that variable, so never run it as written: replace it with the literal plugin root `${CLAUDE_PLUGIN_ROOT}`, keep every quote, and keep the command on one line.
+**Plugin root in reference files.** Reference files write the plugin root as a `CLAUDE_PLUGIN_ROOT` variable in braces, and Bash does not set that variable — a command run with the braces still in it resolves to `/skills/...` and fails. Before reading or running such a path, replace that variable with this plugin's root, which is `${CLAUDE_PLUGIN_ROOT}` (filled in when this skill loads). Keep every quote, and keep the command on one line.
 
 Entry point for the portfolio valuations workflow, paired with Carta's
 valuation pages. The chat does the work; the page shows it. This skill never builds an artifact or starts a local preview
@@ -64,6 +64,12 @@ If every one of these is already loaded, skip the search.
 
 **Run this once, on first invocation of the skill, right after the Startup message and before anything else.**
 One probe up front — never a check scattered through the individual flows. Every step after this may assume access is settled.
+
+**One exemption:** a request to *learn* PWERM (the Routing table's tutorial row) reads
+`references/tutorial.md` without this gate. It is a worked example on invented data and calls
+nothing, so there is no access to probe — and asking a learner to have the product enabled
+before they can read about it is backwards. The tutorial's closing offer to build a real one
+comes back here first.
 
 A caller without Portfolio Valuations is stopped in one of **two** ways, and
 which one they hit depends on how their access is configured:
@@ -414,7 +420,12 @@ gave is not.
 
 **After every write, show the user what was saved** so they can check
 it without being interrupted first. One row or line per changed field:
-`{Field} — {full previous value, or "—" if new} → {full saved value}`.
+`{Field} — {full previous value, or "—" if new} → {full saved value}`,
+then, **unless the write was a finalize or a delete**, one line saying
+how to change it back ("Say the word and I'll put the 60/40 split
+back."). Those two can't be undone, so offering a way back would promise
+something that isn't there — and the call it leads to, `FINAL` → `DRAFT`,
+answers 400.
 Build it from the write's response (or a re-fetch), not from what you
 sent. If the user spots a mistake, fix it with another write.
 
@@ -466,6 +477,30 @@ the user:
 For these two, say what will happen, ask, and call the write only on an
 explicit yes. An earlier "finalize it" or "delete it" is the request,
 not the confirmation.
+
+### Why saving a valuation input needs no confirm
+
+A valuation input — an approach, a weight, a company value, an allocation —
+is **Tier 1, Informative** friction. It mutates data others read, which is
+the tier that can warrant a confirm, but it sits at the low end of it for
+one reason: **the undo path is the next save.** A DRAFT or
+IN_REVIEW valuation stays writable, every input is re-readable, and saving
+again replaces the value outright. Nothing has left Carta and no downstream
+consumer has been told.
+
+That stops being true at `FINAL`, which is why finalize is the gate — and
+why it is a one-way door: only Carta staff can reopen a finalized
+valuation.
+
+This covers a saved input, not every write. A bulk create reaches many
+companies at once and asks first (`references/bulk/bulk-runner.md`
+Step 3.4).
+
+It is also why the saved-values summary in **Writes** ends with the way
+back for a write that a later save can reverse: an action that reports
+the new value but not how to undo it is not Informative, it is
+unannounced. Finalize and delete are the exceptions in both directions —
+they ask first, and they promise no way back.
 
 ---
 
@@ -564,11 +599,12 @@ may be stale:
 ## Routing: match the request to a capability
 
 This skill does three things — **review the dashboard**, **bulk-create
-valuations**, and **dive into one valuation**. There is **no fixed
-sequence**: read the user's first message, match it against the table
-below, and enter that capability directly. The only hard prerequisite is
-**firm selection** (Step 1) — resolve `org_pk` first, then act on the
-matched capability.
+valuations**, and **dive into one valuation** — and can teach PWERM on
+invented data. There is **no fixed sequence**: read the user's first
+message, match it against the table below, and enter that capability
+directly. The only hard prerequisite is **firm selection** (Step 1) —
+resolve `org_pk` first, then act on the matched capability — except the
+PWERM tutorial row, which needs no firm.
 
 ### Global interrupt: fund holdings request (any point in the flow)
 
@@ -581,6 +617,7 @@ output, not the fund-level split.
 
 | The user's request… | Enter |
 |---|---|
+| Learning PWERM, no company in mind ("walk me through PWERM", "how does a probability-weighted valuation work", "show me an example PWERM", "I've never built one of these") | **Read `references/tutorial.md` and run it now.** Skip Gate 1 and Step 1: it is a worked example on invented data, so it needs no firm, no company and no call. Its closing offer to build a real one re-enters at Gate 1, then Step 1, then takes the named company through this table's single-company row so **Step 2.5** resolves its project. |
 | **One** company named, or single-company drill-down ("show me MangoCart's valuations", "let's work on Acme today", "I want to pick comps myself", "review Acme's cap table", "let's go step by step on Acme", "update the EV for Acme") | **Dive into one** — after Step 1, go to **Step 2.5**: show the recap, then route the request. If the candidate isn't identified, ask which one. |
 | **Multiple** companies named ("review MangoCart and Acme") | **Bulk-create** with that pre-selected set — see *Multi-company entry* below. |
 | Open-ended: generic / unscoped ("I want to work on my portfolio valuations", "let's work on valuations today", "work on portfolio valuations for {firm}"), review / status phrasing scoped to the portfolio ("review my Q2 valuations", "which companies need new valuations"), bare / help-ish (empty message, "help", "what can you do", "get started", "show me what you can do", bare `/carta-portfolio-valuations`), or ambiguous | After Step 1, present the *dashboard-on-screen* or *no-dashboard* fork (below, whichever matches what Step 1's open call did) and wait. Do **not** render the portfolio table or jump into `references/bulk/bulk-runner.md` until the user asks. |
@@ -727,7 +764,7 @@ SELECT
     ALLOCATION_METHODOLOGY
 FROM FUND_ADMIN.FUND_HOLDINGS_VALUE
 WHERE (<one clause per company: TARGET_NAME ILIKE '%{name}%' AND VALUATION_DATE = '{date}'>)
-ORDER BY FUND_HOLDINGS_VALUE DESC
+ORDER BY FUND_HOLDINGS_VALUE DESC, TARGET_NAME, FUND_NAME, VALUATION_DATE
 ```
 
 Other shapes: `FUND_NAME ILIKE '%{fund}%'` for a fund; just
@@ -737,6 +774,23 @@ Other shapes: `FUND_NAME ILIKE '%{fund}%'` for a fund; just
 Call `read_tool({"name": "dwh__execute__query", "arguments": {"sql": "<query>", "limit": 200}})`.
 For an open-ended question, `dwh__execute__question` (plain English) is an
 acceptable fallback.
+
+**Don't stop at the cap.** A firm-wide read can exceed 200 rows, and a table that stops there
+reads as the whole portfolio. When a page comes back with exactly `limit` rows, there is more:
+page on with `OFFSET`
+(`... ORDER BY FUND_HOLDINGS_VALUE DESC, TARGET_NAME, FUND_NAME, VALUATION_DATE LIMIT 200 OFFSET 200`)
+until a page returns fewer, and merge the pages before rendering.
+
+**Every page carries that same full `ORDER BY`.** Holdings value alone is not unique — written
+down to zero, null, or the same figure across funds — and the warehouse does not promise tied
+rows come back in the same order twice. Order by value alone and a tie straddling a page
+boundary means page 2 repeats rows from page 1 and drops others, in a table the next line tells
+you to present as complete.
+
+Two pages is usually the whole firm. If it is still going after **five** — a thousand rows,
+more than anyone reads in chat — stop there and say so plainly: give the count loaded, say
+there are more, and offer to narrow by fund, date or company. Never show a truncated set as
+complete.
 
 Display results as a markdown table with columns: **Company**, **Fund**,
 **Valuation Date**, **Holdings Value**, **Invested Capital**,
@@ -753,7 +807,9 @@ Then return control to wherever the user was — don't force a new menu.
 
 ## Step 1: Firm selection (prerequisite — resolve before any capability)
 
-Every capability needs `org_pk`, so resolve the firm first.
+Every capability needs `org_pk`, so resolve the firm first. **Except the tutorial** (the Routing
+table's PWERM tutorial row): it runs on invented data and names no firm, so don't ask for one
+before it. Ask when its closing offer is taken up.
 
 **Never load the portfolio on entry.** `list:portfolio_dashboard` is slow,
 so the skill does not call it when it starts: not ahead of time, not in
@@ -763,7 +819,7 @@ or starts a bulk run. Firm selection needs only `list_contexts`,
 `list_accounts` and `set_context`.
 
 1. Call `list_contexts` to check for an active firm and get the firm name.
-   - **The user gave a numeric firm ID** (e.g. "Krakatoa Ventures (firm id = 1)"):
+   - **The user gave a numeric firm ID** (e.g. "`<firm name>` (firm id = `<firm_id>`)"):
      find the firm whose `carta_id` equals that number, use the number as
      `org_pk`, and **skip `list_accounts`**. A firm's `carta_id` is the same
      integer as its `organization_pk`. The user has already chosen the firm, so
@@ -1037,15 +1093,16 @@ offering to open the updated valuation (**Writes**).
 | "review the cap table", "show holders", "ownership %" | `references/dive-in/cap-table-review.md` |
 | "review financials", "show revenue", "what's the EBITDA", "refresh financials", "enter / add / work on the financials" | `references/dive-in/financials-review.md` (enter, add or work on → its Step 0 offers import from Carta, entry in chat, or entering them manually in the financials view) |
 | "I'll enter the financials manually", "let me type in the financials myself", "show me a form / table to enter financials" | `references/dive-in/edit-financials-view.md` — opens the financials view for the user to fill in. Takes precedence over the `financials-review.md` row for any request to enter the financials by hand. |
-| "let me enter the inputs for the methods", "I want to type in the GPC / post-money / custom value myself", "I'll set the weights myself", "manually set the weighting", "let me weigh the methods" | `references/dive-in/methodology-edit-view.md` — opens the methods table for the user to fill in. Takes precedence over the `set-approaches.md` row for any request to enter method inputs or weights by hand. Not for a weighted PWERM scenario — the table reaches only the standard scenario; that file's **Check the candidate isn't probability-weighted first** says how to tell (`get:scenarios` `templateType`) and sends a weighted one to `references/dive-in/pwerm.md` Step 4. |
+| "let me enter the inputs for the methods", "I want to type in the GPC / post-money / custom value myself", "I'll set the weights myself", "manually set the weighting", "let me weigh the methods" | `references/dive-in/methodology-edit-view.md` — opens the methods table for the user to fill in. Takes precedence over the `set-approaches.md` row for any request to enter method inputs or weights by hand. Not for a weighted PWERM scenario — the table reaches only the standard scenario; that file's **Check the candidate isn't probability-weighted first** says how to tell (`get:valuation` `templateType`) and sends a weighted one to `references/dive-in/pwerm.md` Step 4. |
 | "set approaches", "change methodology", "use GPC / M&A / post-money / backsolve", "Custom Value", "manual EV", "set the company value to {N}" | `references/dive-in/set-approaches.md` |
 | "find comps", "update comps", "add a peer", "drop {ticker}" | `references/dive-in/comps.md` |
 | "run GPC analysis", "recommend multiples", "set the 75th percentile", "quartile stats" | `references/dive-in/gpc-analysis.md` (requires `gpc` enabled; if not, read `set-approaches.md` first) |
-| "work on Backsolve", "run backsolve", "select a backsolve share class", "solve for equity value", "override the backsolve value", "make an equity adjustment", "adjust the equity value" | `references/dive-in/backsolve/backsolve.md` (requires `backsolve` enabled; if not, read `set-approaches.md` first — an override/adjustment request on an already-computed candidate enters directly at that file's Step 5) |
+| "work on Backsolve", "run backsolve", "select a backsolve share class", "solve for equity value", "override the backsolve value", "make an equity adjustment", "adjust the equity value" | `references/dive-in/backsolve/backsolve.md` (requires `backsolve` enabled; if not, read `set-approaches.md` first — an override/adjustment request on an already-computed candidate enters at that file's **Entry point: equity adjustment**, after its `templateType` check, which goes on to Step 5) |
 | "how is the backsolve calculated", "explain the backsolve math", "how do we arrive at this value", "walk me through the backsolve numbers", "how does backsolve work", "how is the equity value derived", "show me the formulas", "show me the math" | `references/dive-in/backsolve/backsolve-explained.md` (only enter on explicit "explain / how is it calculated / show me the formulas" phrasing — do NOT enter for requests to configure or run backsolve) |
 | "create an Excel spreadsheet for the backsolve", "export backsolve to Excel", "give me the backsolve in a spreadsheet" | `references/dive-in/backsolve/backsolve-excel.md` — the file writes directly into the current sheet when Claude for Excel is active and says so plainly otherwise |
 | "run waterfall / OPM / CSE", "allocate to share classes", "compute holdings value" | `references/dive-in/allocation.md`, for every target kind. Its Gate 0 decides which methodologies to offer; don't call `get:configuration` here or for any other row. Requires a positive EV; if zero or negative, say so and route to `set-approaches.md`. Pass `valuationId` along with the usual ids. |
-| "probability-weighted valuation", "PWERM", "weight an upside and a downside", "blend the scenarios", "70/30 on these outcomes", "re-weight the scenarios", "change the downside to 40%" | `references/dive-in/pwerm.md` — one candidate holding several weighted scenarios, blended into one value. Takes precedence over the `add-candidate.md` row whenever the outcomes are to be weighted together rather than compared side by side; that file's opening section settles an ambiguous ask. |
+| "probability-weighted valuation", "PWERM", "weight an upside and a downside", "blend the scenarios", "70/30 on these outcomes" | `references/dive-in/pwerm.md` — one candidate holding several weighted scenarios, blended into one value. Takes precedence over the `add-candidate.md` row whenever the outcomes are to be weighted together rather than compared side by side; that file's opening section settles an ambiguous ask. |
+| "add a scenario", "add a stretch case", "change the weights", "make the downside 40%", "drop the upside case", "change the downside exit value", "the base case should be {N}" — on a candidate that already has weighted scenarios | `references/dive-in/pwerm.md` § **Changing an existing PWERM candidate**. It checks the candidate's status first: a FINAL one is locked and only Carta staff can reopen it. |
 | "add another scenario", "create a Version 2", "what if {X}" | `references/dive-in/add-candidate.md` — separate versions to compare. For outcomes weighted into one blended value, use the PWERM row above. |
 | "create a new valuation", "start a Q2 valuation", "new valuation as of {date}" | `references/dive-in/create-val.md` |
 | "draft audit notes", "produce the audit memo" | `references/dive-in/audit-notes.md` |
@@ -1079,8 +1136,8 @@ Pad the labels so the values line up in one column:
 ```
 MangoCart, Inc. summary
 
-• Company value    -
-• Holdings value   -
+• Company value    $0 — not set up yet
+• Holdings value   $0 — needs a company value first
 
 Inputs:
 [ ] Financials (Required)
@@ -1123,7 +1180,7 @@ A Custom Value valuation requires neither input, so neither is marked
 IMIM summary
 
 • Company value    €10,000
-• Holdings value   -
+• Holdings value   €0 — allocation hasn't run
 
 Inputs:
 [ ] Financials
@@ -1136,10 +1193,12 @@ Next steps:
 ````
 
 - **Company value** is End Goal item 4 and **Holdings value** is item 5.
-  They are plain bullets (`•`), never checkboxes. Show the current value
-  next to the item, or `-` when it's zero or negative (same exception to
-  the **Table values** rule as the bulk results table: on a draft, zero or
-  a debt-only negative means the value isn't set up yet).
+  They are plain bullets (`•`), never checkboxes. **Show the actual value,
+  signed** — a negative company value is a real figure the analyst needs to
+  see, and hiding it behind a dash is the one thing that stops them acting
+  on it. Where it is zero or negative on a draft, follow the figure with a
+  short reason on the same line rather than masking the number:
+  `• Company value    −$2,100,000 — not set up yet, or debt exceeds it`.
   Format it in the valuation's currency
   (`get:valuation` → `currencyCode`); with none, show the bare number (see
   **Currency default**).
@@ -1240,6 +1299,11 @@ Fetch all pages fresh:
 3. Merge all `companies` arrays from every page response into one array.
    Do **not** render the dashboard until the last page is received.
 
+**Say where you are while it loads.** Nothing renders until the last page, so on a large
+portfolio the user waits with no sign anything is happening. After each page past the first,
+say `Loaded {companies.length} of {totalCompanies} companies…` — one short line, replaced as
+it goes, not a running list.
+
 Each page response shape:
 - `companies` — portfolio companies in this page. Each item has:
   `name`, `corporationId`, `isCartaCorporation`, `hasCorpCapTable`,
@@ -1298,10 +1362,14 @@ a single sequence across all actionable groups. Only render non-empty groups;
 precede each with a bold section label using the label name only
 (e.g. **Recent financing rounds**, **Draft valuation**) — do not include group numbers.
 
-**Valuation groups** (Draft valuation, Final valuation) columns: `#`, `Portfolio Company`,
-`Latest Val. Date`, `Status`, `Approach`, `Company Value`, `Holdings Value`.
+**One column set for the valuation groups and the No valuation group**, so they read as one
+table split by heading rather than three unrelated ones: `#`, `Portfolio Company`,
+`Latest Val. Date`, `Status`, `Approach`, `Company Value`, `Holdings Value`. The events groups
+below (financing rounds, tender offers, share transfers) keep their own columns.
 
-**No valuation** group columns: `#` and `Portfolio Company` only. Do not include valuation columns.
+The **No valuation** group has nothing for the last five, so fill them with `—`. Dropping the
+columns instead makes the eye re-learn the layout at each heading, and hides that the empty
+cells are the point of that group.
 
 In the `Portfolio Company` cell, suffix the name with `[C]` if
 `isCartaCorporation == true` (e.g., `MangoCart, Inc. [C]`).
