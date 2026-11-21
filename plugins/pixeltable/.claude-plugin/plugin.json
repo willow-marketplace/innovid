@@ -2,7 +2,7 @@
   "name": "pixeltable",
   "version": "2.14.1",
   "description": "Multimodal RAG, video search, image similarity search, agent memory, and embeddings stored with your data. Tables, computed columns, vector search, and video, audio, image, and document pipelines.",
-  "updatedAt": "2026-11-21T00:02:59.156Z",
+  "updatedAt": "2026-11-21T12:02:07.924Z",
   "author": {
     "url": "https://github.com/pixeltable",
     "name": "Pixeltable"

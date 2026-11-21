@@ -2,7 +2,7 @@
   "name": "netlify-skills",
   "version": "1.9.0",
   "description": "Build and deploy on Netlify: functions, edge functions, blobs, database, identity, forms, image CDN, caching, and AI Gateway, plus the Netlify MCP server.",
-  "updatedAt": "2026-11-21T00:02:45.082Z",
+  "updatedAt": "2026-11-21T12:02:01.939Z",
   "author": {
     "url": "https://www.netlify.com",
     "name": "Netlify"

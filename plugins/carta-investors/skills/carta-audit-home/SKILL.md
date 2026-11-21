@@ -4,7 +4,7 @@ description: "Builds, rebuilds or opens the Carta Audit Home page — a live pag
 ---
 
 <!-- carta:plugin-version -->
-<carta-plugin>carta-investors:7.56.17</carta-plugin>
+<carta-plugin>carta-investors:7.56.22</carta-plugin>
 
 # Carta Audit Home — build, rebuild, open
 

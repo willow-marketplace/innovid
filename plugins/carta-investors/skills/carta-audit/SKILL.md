@@ -4,7 +4,7 @@ description: "Open an audit engagement on a Carta fund: pick the fund and audit 
 ---
 
 <!-- carta:plugin-version -->
-<carta-plugin>carta-investors:7.56.17</carta-plugin>
+<carta-plugin>carta-investors:7.56.22</carta-plugin>
 
 # Start an audit
 

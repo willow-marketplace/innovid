@@ -2,7 +2,7 @@
   "name": "dynatrace",
   "version": "10.0.0",
   "description": "Investigate production issues with real Dynatrace data: problems and root causes, logs, metrics, traces, and vulnerabilities, via skills and the MCP server.",
-  "updatedAt": "2026-11-21T00:04:50.202Z",
+  "updatedAt": "2026-11-21T12:02:04.274Z",
   "author": {
     "url": "https://www.dynatrace.com",
     "name": "Dynatrace"

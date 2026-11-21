@@ -2,7 +2,7 @@
   "name": "deploy-on-aws",
   "version": "1.4.0",
   "description": "Deploy applications to AWS with architecture recommendations, cost estimates, and IaC deployment. Generate validated AWS architecture diagrams as draw.io XML.",
-  "updatedAt": "2026-11-21T00:02:10.240Z",
+  "updatedAt": "2026-11-21T12:01:38.587Z",
   "author": {
     "name": "Amazon Web Services"
   },

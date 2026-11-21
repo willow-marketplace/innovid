@@ -4,7 +4,7 @@ description: "Build a custom cap table report as a table, Excel file or interact
 ---
 
 <!-- carta:plugin-version -->
-<carta-plugin>carta-cap-table:6.118.1</carta-plugin>
+<carta-plugin>carta-cap-table:6.118.2</carta-plugin>
 
 # Custom Reports
 

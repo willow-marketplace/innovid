@@ -2,7 +2,7 @@
   "name": "dominodatalab",
   "version": "2026.603.11",
   "description": "Domino Data Lab skills for Workspaces, Jobs, Compute Environments, Datasets, Projects, Apps, model endpoints and monitoring, MLflow experiment tracking, GenAI tracing, Flows, Spark/Ray/Dask clusters, governance, and the Domino APIs and SDKs",
-  "updatedAt": "2026-11-21T00:02:14.604Z",
+  "updatedAt": "2026-11-21T12:01:41.256Z",
   "author": {
     "url": "https://www.domino.ai",
     "name": "Domino Data Lab"

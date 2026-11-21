@@ -1,8 +1,8 @@
 {
   "name": "theme-examples",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "An example plugin to read, copy and change: thirty-eight animated backdrops behind the chat in the desktop app, with frosted-glass panels: one per project or per session. /custom-theme list names them. Fireworks go off over the theme when Claude says \"merged\"; /fireworks sets them off by hand.",
-  "updatedAt": "2026-11-21T00:03:40.596Z",
+  "updatedAt": "2026-11-21T12:01:40.991Z",
   "author": {
     "name": "Anthropic",
     "email": "support@anthropic.com"

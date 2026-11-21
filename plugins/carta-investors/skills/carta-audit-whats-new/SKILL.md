@@ -4,7 +4,7 @@ description: "Report which of a fund's audit documents are new, changed, or no l
 ---
 
 <!-- carta:plugin-version -->
-<carta-plugin>carta-investors:7.56.17</carta-plugin>
+<carta-plugin>carta-investors:7.56.22</carta-plugin>
 
 # What's new since last check
 

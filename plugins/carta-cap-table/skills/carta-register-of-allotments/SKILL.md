@@ -4,7 +4,7 @@ description: "See a UK company's share allotments and SH01 filing status. This i
 ---
 
 <!-- carta:plugin-version -->
-<carta-plugin>carta-cap-table:6.118.1</carta-plugin>
+<carta-plugin>carta-cap-table:6.118.2</carta-plugin>
 
 <!-- Part of the official Carta AI Agent Plugin -->
 
