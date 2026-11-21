@@ -2,7 +2,7 @@
   "name": "workos",
   "version": "1.0.0",
   "description": "Set up WorkOS AuthKit with no account: npx workos@latest install provisions an environment you can claim later. Also covers SSO, Directory Sync, RBAC, Vault, Audit Logs, migrations, and API references.",
-  "updatedAt": "2026-11-21T00:02:11.457Z",
+  "updatedAt": "2026-11-21T00:04:18.473Z",
   "author": {
     "name": "WorkOS",
     "email": "support@workos.com"

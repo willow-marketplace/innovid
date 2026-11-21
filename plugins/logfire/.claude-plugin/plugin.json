@@ -2,7 +2,7 @@
   "name": "logfire",
   "version": "1.0.0",
   "description": "Instrument applications and infrastructure, investigate telemetry, and manage Pydantic Logfire workflows across Python, TypeScript, Rust, or any language.",
-  "updatedAt": "2026-11-21T00:02:26.987Z",
+  "updatedAt": "2026-11-21T00:04:22.026Z",
   "author": {
     "name": "Pydantic",
     "email": "support@pydantic.dev"

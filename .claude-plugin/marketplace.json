@@ -120,7 +120,7 @@
       ],
       "category": "Developer Tools",
       "displayName": "Superpowers",
-      "updatedAt": "2026-11-20T00:01:54.236Z"
+      "updatedAt": "2026-11-21T00:03:39.093Z"
     },
     {
       "name": "warp",
@@ -387,7 +387,7 @@
         "secrets"
       ],
       "category": "security",
-      "updatedAt": "2026-11-21T00:01:32.401Z"
+      "updatedAt": "2026-11-21T00:03:19.834Z"
     },
     {
       "name": "snowflake-cortex-code",
@@ -407,7 +407,7 @@
         "data"
       ],
       "category": "development",
-      "updatedAt": "2026-11-21T00:01:30.337Z"
+      "updatedAt": "2026-11-21T00:03:18.392Z"
     },
     {
       "name": "slack",
@@ -421,7 +421,7 @@
       "homepage": "https://docs.slack.dev/ai/slack-skills-plugin",
       "repository": "https://github.com/slackapi/slack-skills-plugin",
       "category": "productivity",
-      "updatedAt": "2026-11-21T00:01:31.386Z"
+      "updatedAt": "2026-11-21T00:03:18.221Z"
     },
     {
       "name": "postman",
@@ -447,7 +447,7 @@
       ],
       "category": "Developer Tools",
       "displayName": "Postman",
-      "updatedAt": "2026-11-21T00:03:01.320Z"
+      "updatedAt": "2026-11-21T00:04:15.519Z"
     },
     {
       "name": "notion",
@@ -503,7 +503,7 @@
         "infrastructure"
       ],
       "category": "development",
-      "updatedAt": "2026-11-21T00:01:45.931Z"
+      "updatedAt": "2026-11-21T00:03:39.902Z"
     },
     {
       "name": "github",
@@ -684,7 +684,7 @@
       },
       "homepage": "https://sentry.io",
       "category": "monitoring",
-      "updatedAt": "2026-11-21T00:01:27.058Z"
+      "updatedAt": "2026-11-21T00:03:15.076Z"
     },
     {
       "name": "sentry",
@@ -703,7 +703,7 @@
         "error-tracking"
       ],
       "category": "monitoring",
-      "updatedAt": "2026-11-21T00:01:27.317Z"
+      "updatedAt": "2026-11-21T00:03:15.538Z"
     },
     {
       "name": "zoom-plugin",
@@ -733,7 +733,7 @@
         "mcp"
       ],
       "category": "development",
-      "updatedAt": "2026-11-21T00:02:27.434Z"
+      "updatedAt": "2026-11-21T00:04:38.114Z"
     },
     {
       "name": "microsoft-docs",
@@ -1289,7 +1289,7 @@
         "best-practices"
       ],
       "category": "development",
-      "updatedAt": "2026-11-21T00:02:02.951Z"
+      "updatedAt": "2026-11-21T00:03:58.715Z"
     },
     {
       "name": "ui5-modernization",
@@ -1310,7 +1310,7 @@
         "upgrade"
       ],
       "category": "development",
-      "updatedAt": "2026-11-21T00:02:02.963Z"
+      "updatedAt": "2026-11-21T00:03:58.812Z"
     },
     {
       "name": "vercel",
@@ -1333,7 +1333,7 @@
       ],
       "category": "deployment",
       "displayName": "Vercel",
-      "updatedAt": "2026-11-21T00:02:26.981Z"
+      "updatedAt": "2026-11-21T00:04:22.272Z"
     },
     {
       "name": "valtown",
@@ -1353,7 +1353,7 @@
       ],
       "category": "deployment",
       "displayName": "Val Town",
-      "updatedAt": "2026-11-21T00:02:27.434Z"
+      "updatedAt": "2026-11-21T00:04:38.114Z"
     },
     {
       "name": "vanta",
@@ -1375,7 +1375,7 @@
         "risk"
       ],
       "category": "security",
-      "updatedAt": "2026-11-21T00:02:04.677Z"
+      "updatedAt": "2026-11-21T00:04:12.913Z"
     },
     {
       "name": "youdotcom-agent-skills",
@@ -1414,7 +1414,7 @@
       ],
       "category": "productivity",
       "displayName": "You.com Web Search & Research",
-      "updatedAt": "2026-11-21T00:02:12.346Z"
+      "updatedAt": "2026-11-21T00:04:20.713Z"
     },
     {
       "name": "unreal-engine-skills-for-claude-code",
@@ -1427,7 +1427,7 @@
       },
       "homepage": "https://dev.epicgames.com/documentation/unreal-engine/unreal-mcp-in-unreal-editor",
       "category": "development",
-      "updatedAt": "2026-11-21T00:02:02.023Z"
+      "updatedAt": "2026-11-21T00:04:10.144Z"
     },
     {
       "name": "langfuse",
@@ -1449,7 +1449,7 @@
         "evaluation"
       ],
       "category": "monitoring",
-      "updatedAt": "2026-11-21T00:02:14.786Z"
+      "updatedAt": "2026-11-21T00:04:22.089Z"
     },
     {
       "name": "zscaler",
@@ -1461,7 +1461,7 @@
       },
       "homepage": "https://github.com/zscaler/zscaler-mcp-server",
       "category": "security",
-      "updatedAt": "2026-11-21T00:02:26.175Z"
+      "updatedAt": "2026-11-21T00:04:41.554Z"
     },
     {
       "name": "zoominfo",
@@ -1542,7 +1542,7 @@
         "mcp"
       ],
       "category": "productivity",
-      "updatedAt": "2026-11-21T00:02:49.917Z"
+      "updatedAt": "2026-11-21T00:04:24.516Z"
     },
     {
       "name": "windsor-ai",
@@ -1606,7 +1606,7 @@
       ],
       "category": "productivity",
       "displayName": "Windsor.ai Ads and Marketing Data",
-      "updatedAt": "2026-11-21T00:02:52.987Z"
+      "updatedAt": "2026-11-21T00:04:24.533Z"
     },
     {
       "name": "wix",
@@ -1714,7 +1714,7 @@
       ],
       "category": "development",
       "displayName": "Wix: AI website builder & custom domains",
-      "updatedAt": "2026-11-21T00:03:01.829Z"
+      "updatedAt": "2026-11-21T00:05:05.139Z"
     },
     {
       "name": "sumup",
@@ -1745,7 +1745,7 @@
         "testing"
       ],
       "category": "development",
-      "updatedAt": "2026-11-21T00:01:39.666Z"
+      "updatedAt": "2026-11-21T00:03:30.165Z"
     },
     {
       "name": "workos",
@@ -1759,7 +1759,7 @@
       "homepage": "https://workos.com",
       "repository": "https://github.com/workos/skills",
       "category": "security",
-      "updatedAt": "2026-11-21T00:02:11.457Z"
+      "updatedAt": "2026-11-21T00:04:18.473Z"
     },
     {
       "name": "wordpress.com",
@@ -1780,7 +1780,7 @@
       "homepage": "https://villagesql.com",
       "category": "database",
       "displayName": "VillageSQL Skills",
-      "updatedAt": "2026-11-21T00:02:07.278Z"
+      "updatedAt": "2026-11-21T00:04:14.721Z"
     },
     {
       "name": "ui5-typescript-conversion",
@@ -1802,7 +1802,7 @@
         "conversion"
       ],
       "category": "development",
-      "updatedAt": "2026-11-21T00:02:01.093Z"
+      "updatedAt": "2026-11-21T00:03:58.611Z"
     },
     {
       "name": "spotify-ads-api",
@@ -1824,7 +1824,7 @@
         "reporting"
       ],
       "category": "productivity",
-      "updatedAt": "2026-11-21T00:02:21.437Z"
+      "updatedAt": "2026-11-21T00:04:22.694Z"
     },
     {
       "name": "tavily",
@@ -1848,7 +1848,7 @@
       ],
       "category": "development",
       "displayName": "Tavily",
-      "updatedAt": "2026-11-21T00:01:47.029Z"
+      "updatedAt": "2026-11-21T00:03:40.708Z"
     },
     {
       "name": "togetherai-skills",
@@ -1872,7 +1872,7 @@
         "audio"
       ],
       "category": "development",
-      "updatedAt": "2026-11-21T00:01:56.642Z"
+      "updatedAt": "2026-11-21T00:03:52.714Z"
     },
     {
       "name": "zilliz",
@@ -1884,7 +1884,7 @@
       },
       "homepage": "https://docs.zilliz.com",
       "category": "database",
-      "updatedAt": "2026-11-21T00:02:12.419Z"
+      "updatedAt": "2026-11-21T00:04:19.300Z"
     },
     {
       "name": "zapier",
@@ -1920,7 +1920,7 @@
       ],
       "category": "Productivity",
       "displayName": "Zapier",
-      "updatedAt": "2026-11-21T00:02:12.138Z"
+      "updatedAt": "2026-11-21T00:04:17.603Z"
     },
     {
       "name": "supabase",
@@ -1949,7 +1949,7 @@
       ],
       "category": "Databases",
       "displayName": "Supabase",
-      "updatedAt": "2026-11-21T00:01:45.730Z"
+      "updatedAt": "2026-11-21T00:03:46.758Z"
     },
     {
       "name": "stripe",
@@ -1974,7 +1974,7 @@
       ],
       "category": "development",
       "displayName": "Stripe",
-      "updatedAt": "2026-11-21T00:02:52.979Z"
+      "updatedAt": "2026-11-21T00:03:28.064Z"
     },
     {
       "name": "twilio-developer-kit",
@@ -1986,7 +1986,7 @@
       },
       "homepage": "https://www.twilio.com",
       "category": "development",
-      "updatedAt": "2026-11-21T00:01:59.734Z"
+      "updatedAt": "2026-11-21T00:03:53.490Z"
     },
     {
       "name": "atomic-agents",
@@ -2031,7 +2031,7 @@
       "homepage": "https://github.com/zytedata/claude-skills",
       "repository": "https://github.com/zytedata/claude-skills",
       "category": "automation",
-      "updatedAt": "2026-11-21T00:02:15.802Z"
+      "updatedAt": "2026-11-21T00:04:23.567Z"
     },
     {
       "name": "telegram",
@@ -2045,7 +2045,7 @@
         "mcp"
       ],
       "category": "productivity",
-      "updatedAt": "2026-11-21T00:02:21.437Z"
+      "updatedAt": "2026-11-21T00:04:22.694Z"
     },
     {
       "name": "vanta-mcp-plugin",
@@ -2067,7 +2067,7 @@
         "risk"
       ],
       "category": "security",
-      "updatedAt": "2026-11-21T00:02:04.676Z"
+      "updatedAt": "2026-11-21T00:04:12.895Z"
     },
     {
       "name": "vibe-prospecting",
@@ -2091,7 +2091,7 @@
         "contacts"
       ],
       "category": "productivity",
-      "updatedAt": "2026-11-21T00:02:07.182Z"
+      "updatedAt": "2026-11-21T00:04:14.092Z"
     },
     {
       "name": "idmp-plugin",
@@ -2195,7 +2195,7 @@
         "mcp"
       ],
       "category": "productivity",
-      "updatedAt": "2026-11-21T00:02:28.636Z"
+      "updatedAt": "2026-11-21T00:04:21.226Z"
     },
     {
       "name": "learn-with-coursera",
@@ -3070,7 +3070,7 @@
         "company-research",
         "business-intelligence"
       ],
-      "updatedAt": "2026-11-21T00:02:44.605Z"
+      "updatedAt": "2026-11-21T00:04:21.293Z"
     },
     {
       "name": "plugin-dev",
@@ -3319,7 +3319,7 @@
       "homepage": "https://cloud.google.com/spanner",
       "repository": "https://github.com/GoogleCloudPlatform/spanner-plugin",
       "category": "database",
-      "updatedAt": "2026-11-21T00:01:35.005Z"
+      "updatedAt": "2026-11-21T00:03:21.821Z"
     },
     {
       "name": "qodo-skills",
@@ -3555,7 +3555,7 @@
         "mcp"
       ],
       "category": "development",
-      "updatedAt": "2026-11-21T00:02:13.962Z"
+      "updatedAt": "2026-11-21T00:03:54.255Z"
     },
     {
       "name": "save-to-spotify",
@@ -3760,7 +3760,7 @@
         "mcp"
       ],
       "category": "productivity",
-      "updatedAt": "2026-11-21T00:02:21.499Z"
+      "updatedAt": "2026-11-21T00:04:22.694Z"
     },
     {
       "name": "intercom",
@@ -3819,7 +3819,7 @@
       },
       "homepage": "https://github.com/pydantic/skills/tree/main/plugins/logfire",
       "category": "monitoring",
-      "updatedAt": "2026-11-21T00:02:26.987Z"
+      "updatedAt": "2026-11-21T00:04:22.026Z"
     },
     {
       "name": "logrocket",
@@ -3987,7 +3987,7 @@
       "homepage": "https://github.com/sourcegraph-community/sourcegraph-claudecode-plugin",
       "repository": "https://github.com/sourcegraph-community/sourcegraph-claudecode-plugin",
       "category": "development",
-      "updatedAt": "2026-11-21T00:01:33.116Z"
+      "updatedAt": "2026-11-21T00:03:21.182Z"
     },
     {
       "name": "posthog",
@@ -4114,7 +4114,7 @@
         "admin-api"
       ],
       "category": "development",
-      "updatedAt": "2026-11-21T00:01:38.387Z"
+      "updatedAt": "2026-11-21T00:03:25.861Z"
     },
     {
       "name": "shopify",
@@ -4155,7 +4155,7 @@
       ],
       "category": "productivity",
       "displayName": "CodeRabbit",
-      "updatedAt": "2026-11-21T00:02:54.559Z"
+      "updatedAt": "2026-11-21T00:04:15.519Z"
     },
     {
       "name": "fullstory",
@@ -4350,7 +4350,7 @@
         "name": "Firecrawl"
       },
       "category": "development",
-      "updatedAt": "2026-11-21T00:02:52.987Z"
+      "updatedAt": "2026-11-21T00:04:15.519Z"
     },
     {
       "name": "alloydb",
@@ -5016,7 +5016,7 @@
       ],
       "category": "database",
       "displayName": "Convex",
-      "updatedAt": "2026-11-21T00:03:05.933Z"
+      "updatedAt": "2026-11-21T00:04:22.005Z"
     },
     {
       "name": "amplitude",
@@ -5029,7 +5029,7 @@
         "email": "support@amplitude.com"
       },
       "category": "monitoring",
-      "updatedAt": "2026-11-21T00:02:15.917Z"
+      "updatedAt": "2026-11-21T00:04:24.516Z"
     },
     {
       "name": "aws-dev-toolkit",
@@ -5175,7 +5175,7 @@
         "mcp"
       ],
       "category": "productivity",
-      "updatedAt": "2026-11-21T00:02:21.437Z"
+      "updatedAt": "2026-11-21T00:04:22.694Z"
     },
     {
       "name": "explanatory-output-style",
@@ -5728,7 +5728,7 @@
         "ui-testing"
       ],
       "category": "development",
-      "updatedAt": "2026-11-21T00:03:05.919Z"
+      "updatedAt": "2026-11-21T00:04:15.519Z"
     },
     {
       "name": "aws-core",
@@ -5960,7 +5960,7 @@
         "data-engineering"
       ],
       "category": "database",
-      "updatedAt": "2026-11-21T00:03:12.346Z"
+      "updatedAt": "2026-11-21T00:04:15.519Z"
     },
     {
       "name": "duende-skills",
@@ -5973,7 +5973,7 @@
       },
       "repository": "https://github.com/DuendeSoftware/duende-skills",
       "category": "security",
-      "updatedAt": "2026-11-21T00:01:44.118Z"
+      "updatedAt": "2026-11-21T00:03:29.679Z"
     },
     {
       "name": "build-with-wordpress",
@@ -6474,7 +6474,7 @@
         "vulnerability-scanning"
       ],
       "category": "security",
-      "updatedAt": "2026-11-21T00:01:46.519Z"
+      "updatedAt": "2026-11-21T00:03:39.093Z"
     },
     {
       "name": "ui-theme-designer",
@@ -6594,7 +6594,7 @@
         "commerce"
       ],
       "category": "development",
-      "updatedAt": "2026-11-21T00:03:12.346Z"
+      "updatedAt": "2026-11-21T00:04:15.519Z"
     },
     {
       "name": "shippo",
@@ -6803,7 +6803,7 @@
         "name": "Confluent"
       },
       "category": "development",
-      "updatedAt": "2026-11-21T00:01:42.095Z"
+      "updatedAt": "2026-11-21T00:03:27.943Z"
     },
     {
       "name": "synthflow",
@@ -6905,7 +6905,7 @@
       ],
       "category": "design",
       "displayName": "Superdesign",
-      "updatedAt": "2026-11-21T00:01:46.958Z"
+      "updatedAt": "2026-11-21T00:03:46.068Z"
     },
     {
       "name": "kotest-skills",
@@ -6962,7 +6962,7 @@
       ],
       "category": "development",
       "displayName": "Unity",
-      "updatedAt": "2026-11-21T00:02:10.121Z"
+      "updatedAt": "2026-11-21T00:04:12.749Z"
     },
     {
       "name": "activecampaign",
@@ -6987,7 +6987,7 @@
       ],
       "category": "productivity",
       "displayName": "ActiveCampaign",
-      "updatedAt": "2026-11-21T00:02:15.546Z"
+      "updatedAt": "2026-11-21T00:04:23.721Z"
     },
     {
       "name": "scandit-sdk",
@@ -7035,7 +7035,7 @@
       ],
       "category": "development",
       "displayName": "Scandit SDK",
-      "updatedAt": "2026-11-21T00:01:27.122Z"
+      "updatedAt": "2026-11-21T00:03:14.569Z"
     },
     {
       "name": "i-have-adhd",
@@ -7115,7 +7115,7 @@
       ],
       "category": "productivity",
       "displayName": "HubSpot Sales",
-      "updatedAt": "2026-11-21T00:02:15.961Z"
+      "updatedAt": "2026-11-21T00:04:24.533Z"
     },
     {
       "name": "dynatrace",
@@ -7139,7 +7139,7 @@
       ],
       "category": "Observability",
       "displayName": "Dynatrace",
-      "updatedAt": "2026-11-21T00:02:32.723Z"
+      "updatedAt": "2026-11-21T00:04:50.202Z"
     },
     {
       "name": "blackrock-advisor-center-plugin",
@@ -7248,7 +7248,7 @@
       ],
       "category": "productivity",
       "displayName": "Pendo Analytics",
-      "updatedAt": "2026-11-21T00:02:49.917Z"
+      "updatedAt": "2026-11-21T00:04:21.081Z"
     },
     {
       "name": "pendo-guides",
@@ -7338,7 +7338,7 @@
       ],
       "category": "productivity",
       "displayName": "Zocks Advisor Intelligence",
-      "updatedAt": "2026-11-21T00:02:15.037Z"
+      "updatedAt": "2026-11-21T00:04:21.310Z"
     },
     {
       "name": "chronograph-lp",
@@ -7455,7 +7455,7 @@
       ],
       "category": "productivity",
       "displayName": "Wingspan",
-      "updatedAt": "2026-11-21T00:02:17.284Z"
+      "updatedAt": "2026-11-21T00:04:26.176Z"
     },
     {
       "name": "govtribe",
@@ -7548,7 +7548,7 @@
       ],
       "category": "productivity",
       "displayName": "Amazon Selling Partner",
-      "updatedAt": "2026-11-21T00:02:18.037Z"
+      "updatedAt": "2026-11-21T00:04:27.320Z"
     },
     {
       "name": "data-agent-kit",
@@ -7584,7 +7584,7 @@
       ],
       "category": "development",
       "displayName": "Salesforce Development",
-      "updatedAt": "2026-11-21T00:02:52.987Z"
+      "updatedAt": "2026-11-21T00:04:22.026Z"
     },
     {
       "name": "champion-kit",
@@ -7616,7 +7616,7 @@
         "email": "support@anthropic.com"
       },
       "category": "design",
-      "updatedAt": "2026-11-21T00:01:46.237Z"
+      "updatedAt": "2026-11-21T00:03:40.596Z"
     },
     {
       "name": "sap-ux-fiori-tools",
@@ -7639,7 +7639,7 @@
         "fiori-elements"
       ],
       "category": "development",
-      "updatedAt": "2026-11-21T00:01:37.855Z"
+      "updatedAt": "2026-11-21T00:03:28.140Z"
     },
     {
       "name": "caveman",
