@@ -4,7 +4,7 @@ description: Calculate how SAFEs and convertible notes convert into shares in a 
 ---
 
 <!-- carta:plugin-version -->
-<carta-plugin>carta-cap-table:6.117.0</carta-plugin>
+<carta-plugin>carta-cap-table:6.118.1</carta-plugin>
 
 <!-- Part of the official Carta AI Agent Plugin -->
 

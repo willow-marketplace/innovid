@@ -1,0 +1,62 @@
+{
+  "name": "windsor-social-media",
+  "displayName": "Windsor.ai for Social Media",
+  "version": "0.1.0",
+  "repository": "https://github.com/windsor-ai/claude-windsor-social-media-plugin",
+  "description": "Publish and manage organic social from Claude through Windsor.ai. Publish Reels, image, carousel and story posts to Instagram, text and photo posts to Facebook Pages and LinkedIn company pages, text and image posts to Threads, and local posts to Google Business Profile. Reply to, hide or delete Instagram comments, answer Threads replies, reply to Google reviews, and update Google Business Profile hours and listing details. Report on reach, views, engagement, follower growth, Reels watch time and top posts across Instagram, Facebook Pages, LinkedIn Pages, Threads, TikTok, YouTube and Google Business Profile. Claude shows every post, reply and edit and asks for your yes before running it.",
+  "marketplaceDescription": "Windsor.ai for Social Media: publish, moderate and report on Instagram, Facebook Pages, LinkedIn Pages, Threads, TikTok, YouTube and Google Business Profile from Claude.",
+  "keywords": [
+    "social-media",
+    "organic-social",
+    "social-media-management",
+    "publishing",
+    "community-management",
+    "instagram",
+    "instagram-reels",
+    "reels",
+    "facebook-pages",
+    "linkedin-pages",
+    "threads",
+    "tiktok",
+    "youtube",
+    "youtube-shorts",
+    "google-business-profile",
+    "google-reviews",
+    "review-replies",
+    "comment-moderation",
+    "engagement",
+    "agency",
+    "mcp"
+  ],
+  "mcp": {
+    "server": "windsor-social-media",
+    "url": "https://mcp.windsor.ai/social_media/",
+    "description": "Windsor.ai for Social Media: Instagram, Facebook Pages, LinkedIn Pages, Threads, TikTok, YouTube and Google Business Profile data, publishing and moderation"
+  },
+  "skills": [
+    "instagram",
+    "facebook-organic",
+    "linkedin-pages",
+    "threads",
+    "tiktok-organic",
+    "youtube",
+    "google-business-profile",
+    "social-media-insights",
+    "social-media-publish",
+    "social-media-engage"
+  ],
+  "commands": [
+    "social-report",
+    "instagram-report",
+    "publish-post",
+    "comment-inbox",
+    "review-replies"
+  ],
+  "agents": [
+    "social-media-analyst"
+  ],
+  "replacements": {
+    "/windsor-connect": "/social-media-get-started",
+    "use /windsor-insights.": "use the main Windsor.ai plugin or connector."
+  }
+}

@@ -2,7 +2,7 @@
   "name": "vsql-extension-builder",
   "version": "1.0.0",
   "description": "Skills for VillageSQL (MySQL with extensions): build extensions end-to-end (including porting PostgreSQL extensions to MySQL) and install VillageSQL Server.",
-  "updatedAt": "2026-11-20T12:03:32.468Z",
+  "updatedAt": "2026-11-21T00:02:07.278Z",
   "author": {
     "name": "VillageSQL"
   },

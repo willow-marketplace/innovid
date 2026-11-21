@@ -33,7 +33,7 @@ are connected and the request is ambiguous, ask which account.
 ## 2. Reading Microsoft Ads data
 
 1. Call `get_fields` for `bing` to get valid field ids (e.g. campaign,
-   ad_group, keyword, ad, date, spend/cost, impressions, clicks, CTR, CPC,
+   ad_group_name, keyword, ad, date, spend, impressions, clicks, CTR, CPC,
    conversions, CPA, ROAS — use the exact ids returned, not these examples).
 2. If the analysis needs segmentation or attribution controls, call
    `get_options` to see the connector's options and valid values.
@@ -45,13 +45,13 @@ are connected and the request is ambiguous, ask which account.
      `this_month`, `this_year`, `last_year`. Append `T` to include today
      (e.g. `last_7dT`, `this_monthT`).
    - `options`: only if `get_options` showed relevant ones.
-   - `filters`: optional conditions, e.g. `[["cost", "gt", 100]]`; combine with
+   - `filters`: optional conditions, e.g. `[["spend", "gt", 100]]`; combine with
      `"and"`/`"or"` and nest as needed.
 
 Common requests → recipe:
 
 - **Overview / trend:** fields `date` + the metrics, over a preset range.
-- **By campaign or ad group:** fields `campaign`/`ad_group` + metrics;
+- **By campaign or ad group:** fields `campaign`/`ad_group_name` + metrics;
   sort/aggregate in your answer.
 - **Best / worst campaign or ad group:** pull the entity + the metric, then
   rank; return only what was asked (e.g. just the name) if the user

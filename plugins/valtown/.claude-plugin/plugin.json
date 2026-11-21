@@ -2,7 +2,7 @@
   "name": "valtown",
   "version": "1.0.0",
   "description": "Build and deploy on Val Town. Bundles the Val Town MCP server and platform skills (HTTP vals, cron/intervals, SQLite, email, OAuth, React UI, third-party integrations).",
-  "updatedAt": "2026-11-20T12:03:42.211Z",
+  "updatedAt": "2026-11-21T00:02:27.434Z",
   "author": {
     "name": "Val Town"
   },

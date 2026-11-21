@@ -104,9 +104,12 @@ the summary below as guidance, not gospel. They cover:
 Budget and creation mechanics:
 
 - Money amounts are in the account currency's **minor unit** (e.g. cents):
-  `5000` means 50.00 — not micros. Convert the user's amount before calling.
-- Budget actions (`set_campaign_budget`, `set_adset_budget`, `spend_cap`) set
-  an **absolute** value, not a delta. To "raise by 20%", read the current
+  `5000` means 50.00, not micros. Currencies without cents (CLP, COP, CRC,
+  HUF, IDR, ISK, JPY, KRW, PYG, TWD, VND) use whole units instead: `300000`
+  means 300,000 COP. Convert the user's amount before calling.
+- Budget actions (`set_campaign_budget`, `set_adset_budget`, and the
+  `spend_cap` parameter of `update_campaign`) set an **absolute** value, not a
+  delta. To "raise by 20%", read the current
   value first, compute the new absolute amount, and set that.
 - `create_campaign`, `create_adset`, `create_ad`, and `boost_post` all
   produce **paused** objects by default, so nothing spends until the user

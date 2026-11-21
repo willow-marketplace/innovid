@@ -5,8 +5,8 @@ Manage and analyze Google Ads, Meta Ads, Instagram, TikTok Ads, LinkedIn Ads and
 ## What This Plugin Does
 
 - **Report on ad accounts:** campaigns, ad groups, keywords, search terms, quality score, impression share, spend, conversions and cost per conversion, across one platform or several at once
-- **Report on Instagram:** post reach, saves, engagement and follower growth
-- **Make changes after you confirm:** pause or enable campaigns, change budgets, set Google Ads bids and bidding strategies, create Google Ads campaigns and responsive search ads, push negative keywords, publish Instagram posts, carousels, reels and stories, and reply to, hide or delete Instagram comments
+- **Report on organic social:** reach, views, engagement, follower growth and Reels watch time across Instagram, Facebook Pages, LinkedIn Pages, Threads, TikTok, YouTube and Google Business Profile
+- **Make changes after you confirm:** pause or enable campaigns, change budgets, set Google Ads bids and bidding strategies, create Google Ads campaigns and responsive search ads, push negative keywords, publish Instagram posts, carousels, Reels and stories, post to Facebook Pages, LinkedIn Pages, Threads and Google Business Profile, reply to, hide or delete Instagram comments, answer Threads replies and Google reviews, and update Google Business Profile hours and listing details
 - **Combine sources:** ad spend next to GA4 sessions, CRM deals or Shopify orders
 - **Use the data in code:** seed dashboards, generate fixtures and TypeScript types, build data pipelines
 
@@ -35,13 +35,16 @@ After installing, you'll be prompted to authenticate with your Windsor.ai accoun
 |---------|-------------|
 | `/campaign-report` | Quick 30-day campaign performance summary |
 | `/search-terms` | Google Ads search terms that spend without converting, pushed as negative keywords after you approve |
-| `/instagram-report` | Instagram posts from the last 30 days by reach, saves and follows, against the account average |
+| `/instagram-report` | Instagram posts and Reels from the last 30 days by reach, saves, shares and watch time, against the account average |
+| `/publish-post` | Draft one post or Reel, adapt it per platform and publish it after you approve every version |
+| `/comment-inbox` | Instagram comments and Threads replies with no answer from the account, with drafted replies, posted or hidden after you approve |
+| `/review-replies` | Google reviews without an owner reply, with drafted replies, published after you approve |
 | `/windsor-sources` | List all connected platforms and available fields |
 | `/windsor-types` | Generate TypeScript type definitions for a connector |
 | `/setup` | Sign in, connect a first account and run a first report |
 | `/performance-review` | Cross-platform review of ads, organic, analytics, CRM and revenue against the previous period |
 | `/wasted-spend` | Non-converting spend across all ad platforms, fixed after you approve |
-| `/social-report` | Organic results across Instagram, Facebook Pages, LinkedIn Pages, TikTok and YouTube |
+| `/social-report` | Reach, engagement, follower change and the three best posts per platform across Instagram, Facebook Pages, LinkedIn Pages, Threads, TikTok and YouTube |
 | `/pipeline-report` | CRM pipeline by stage, value and owner |
 | `/revenue-report` | Weekly revenue, orders and refunds from commerce and finance sources |
 | `/optimization-review` | Read-only review of every connected ad account ending in numbered proposals; safe to run unattended |
@@ -61,9 +64,9 @@ Claude loads these automatically when a request matches, or you can call them by
 | `/windsor-connect` | Connecting or reconnecting accounts and checking what is connected |
 | `/windsor-export` | Recurring exports to Sheets, BigQuery, Snowflake and other destinations |
 | `/google-ads`, `/facebook-ads`, `/tiktok-ads`, `/linkedin-ads`, `/microsoft-ads` | Paid ads reporting and campaign management |
-| `/instagram`, `/facebook-organic`, `/linkedin-pages`, `/tiktok-organic`, `/youtube`, `/google-business-profile` | Organic social and local-listing insights, publishing and comment/review moderation |
+| `/instagram`, `/facebook-organic`, `/linkedin-pages`, `/threads`, `/tiktok-organic`, `/youtube`, `/google-business-profile` | Organic social and local-listing insights, publishing and comment/review moderation |
 | `/instagram-public` | Public/competitor Instagram profile and post lookup |
-| `/social-media-insights`, `/social-media-create` | Cross-platform organic reporting and posting |
+| `/social-media-insights`, `/social-media-publish`, `/social-media-engage` | Cross-platform organic reporting, publishing, and comment, reply and review handling |
 | `/google-analytics-4`, `/google-search-console`, `/web-analytics-insights` | Web analytics and search performance |
 | `/hubspot`, `/gohighlevel`, `/crm-insights`, `/crm-manage` | CRM pipeline, contacts and confirmed record changes |
 | `/klaviyo`, `/google-merchant-center`, `/ecommerce-insights`, `/ecommerce-manage` | E-commerce, email flows, product feeds and listings |
@@ -75,6 +78,7 @@ Claude loads these automatically when a request matches, or you can call them by
 - **Marketing Analyst** handles multi-step performance work for one business or client across ads, organic, analytics and revenue: diagnosing a drop, finding what drives results, weekly reviews with recommended changes.
 - **Portfolio Analyst** runs the same review across many accounts at once — every client of an agency, or every brand, site, location or market of one business — and returns one row per entity with flags and proposed changes. Read-only.
 - **Attribution Analyst** joins ad spend to analytics, CRM, store and accounting records to show which channels produce leads, customers and revenue, and reports how much of the data actually matched. Read-only.
+- **Social Media Analyst** handles multi-step organic social work: which formats and topics drive reach, why reach dropped, weekly social reviews, or the same review across every client or brand. Read-only; it proposes posts and replies for you to confirm.
 - **Business Data Analyst** handles developer work: cross-platform data pulls, ETL pipelines and dashboard data integration.
 
 ## Supported Data Sources
@@ -83,7 +87,7 @@ Claude loads these automatically when a request matches, or you can call them by
 
 **Ads:** Google Ads · Meta Ads · TikTok Ads · LinkedIn Ads · Microsoft Ads · Amazon Ads · and more
 
-**Social and search:** Instagram · Facebook Pages · TikTok Organic · LinkedIn Pages · Google Search Console · YouTube · Google My Business · Pinterest · Snapchat · Twitter/X · and more
+**Social and search:** Instagram · Facebook Pages · Threads · TikTok Organic · LinkedIn Pages · Google Search Console · YouTube · Google Business Profile · Pinterest · Snapchat · Twitter/X · and more
 
 **CRM & Sales:** HubSpot · Salesforce · Pipedrive · Zoho CRM · and more
 

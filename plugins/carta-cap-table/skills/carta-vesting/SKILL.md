@@ -4,7 +4,7 @@ description: "What a security or holder has vested and what vests next, and vest
 ---
 
 <!-- carta:plugin-version -->
-<carta-plugin>carta-cap-table:6.117.0</carta-plugin>
+<carta-plugin>carta-cap-table:6.118.1</carta-plugin>
 
 # Vesting
 

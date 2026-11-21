@@ -1,80 +1,52 @@
 ---
 name: google-business-profile
-description: Analyze Google Business Profile (local listing) performance and manage it through Windsor.ai. Use when the user asks about a business location's insights — views, clicks, and impressions — reviews and ratings, or local post performance. It can also publish or update a local post, reply to a review, upload a photo, update location details (address, categories, service area), or update hours and open status, always after the user confirms the exact change. Do not use for paid Google Ads, organic Google Search Console, GA4, or other platforms.
+description: "Google Business Profile through Windsor.ai: location views, clicks, calls, direction requests and search keywords, reviews and ratings, local posts and photos, and confirmed changes; publish or update a local post, reply to a review, add a photo, update the description, website, phone numbers, categories, attributes, services, service area or address, and set regular hours, holiday hours or temporary closure. Use for questions about a business location on Google Search and Maps. Do not use for Google Ads, Search Console or GA4."
 ---
 
 # Google Business Profile via Windsor.ai
 
-Windsor.ai pulls Google Business Profile insights, reviews, and local posts, and
-can manage the listing, through the Google Business Profile APIs. The connector
-id is `google_my_business`. Pass `google_my_business` as the connector on every
-tool call; the Windsor.ai server serves all connectors, so it is never implied.
+The connector id is `google_my_business`. It covers the user's own Google Business Profile locations: performance, reviews, local posts and photos, and listing management. It has no ad or website search data; Google Ads (`google_ads`) and Search Console (`searchconsole`) are separate connectors.
 
-Reads are the main job. The connector also exposes write actions, currently
-`create_local_post`, `update_local_post`, `reply_to_review`, `upload_media`,
-`update_location`, `update_address`, `update_categories`, `update_service_area`,
-`update_attributes`, `update_service_items`, `set_regular_hours`,
-`set_special_hours`, and `set_open_status` (the live set is whatever
-`list_actions` returns). It has no ad or cost data (that lives in the Google
-Ads connector) and no organic search data (that's Google Search Console);
-route those questions there.
+Write actions today are `create_local_post`, `update_local_post`, `reply_to_review`, `upload_media`, `update_location`, `update_categories`, `update_attributes`, `update_service_items`, `update_service_area`, `update_address`, `set_regular_hours`, `set_special_hours` and `set_open_status`. The live set and each action's parameters are whatever `list_actions` returns. New posts follow the social-media-publish skill and review replies follow the social-media-engage skill.
 
-Golden rules:
-
-- **Never guess field, location, or option names** — get them from `get_fields`,
-  `get_connectors`, and `get_options`. Call those first.
-- **Changes are public and immediate.** A local post, a review reply, or a
-  listing edit is visible to anyone looking up the business. Show the exact
-  change and call `execute_action` only after an explicit yes.
-- Report what the user asked for, concisely.
-
-## 1. Ground yourself first
-
-Call `get_connectors` to see which locations/accounts are connected (each has
-an id and usually a name). If none is connected, help the user connect:
-`get_connector_authorization_url` (or `get_connector_connect_info` for the auth
-type and steps) and give them the setup link — don't describe manual dashboard
-navigation. If several locations are connected and the request is ambiguous,
-ask which one.
-
-## 2. Reading performance, reviews, and posts
-
-1. Call `get_fields` for `google_my_business` to get valid field ids. These
-   span location insights (views, clicks, impressions, by date), location and
-   account metadata (address, categories, hours, labels, website), reviews
-   (count, average rating, review text and update time), and local posts and
-   media. Use the exact ids returned, not these examples.
-2. Call `get_data` with `fields`, the target location/`account`(s), and a date
-   range (`date_from`/`date_to` or a `date_preset` like `last_7d`, `last_30d`,
-   `this_month`; append `T` to include today) for time-series fields; location,
-   review, and post metadata are typically current-state and don't need a date
-   range.
-
-If a metric the user wants isn't in `get_fields`, say so rather than
-substituting a different one.
-
-## 3. Managing the listing (write actions)
-
+## Reading
 1. Call `get_connectors` to pick the location; ask if several are connected.
-2. Call `list_actions` for `google_my_business` and read the schema of the
-   action the user wants (a local post, a review reply, an attribute, address,
-   category, hours, or open-status change, or a photo upload — a photo needs a
-   publicly reachable image URL).
-3. For a review reply, read the review first with `get_data` so the reply
-   addresses what the reviewer actually wrote. For any edit to existing
-   content (a post, the address, hours), show the current value and the
-   proposed value together.
-4. Draft the exact text or value and show it in full, then wait for an
-   explicit yes. Never publish or save placeholder content.
-5. Call `execute_action` once and report the result from the tool, including
-   anything it returns (e.g. a post id or URL).
-6. If the action is refused because write actions are not enabled for the
-   account, send the user to
-   https://onboard.windsor.ai/app/settings/account and retry after they
-   confirm.
+2. Call `get_fields` for `google_my_business` and use the exact ids it returns.
+3. Call `get_data` with the fields, the location and a date range.
 
-## 4. Reference real data, don't fabricate
+Fields that are easy to misread:
+- `impressions` is Maps plus Search, desktop plus mobile; the split is in `impressions_desktop_maps`, `impressions_desktop_search`, `impressions_mobile_maps` and `impressions_mobile_search`. `clicks` is `call_clicks` plus `website_clicks`.
+- By default, review rows and local post rows cover only reviews and posts created in the requested range. Use a wide range to list older ones.
+- `review_average_rating` and `review_count` are limited to the range; `review_average_rating_total` and `review_total_count` are all-time.
+- `location_*` fields describe the listing's current state (address, categories, hours, attributes, services, service area).
 
-On an error (unknown field/connector/location), call the relevant discovery
-tool and retry with correct ids, or report the specific error. Never invent
-view counts, ratings, review text, or location details.
+## Changing the listing
+Every change follows read, propose, confirm, execute:
+1. Read the current value with `get_data` (the matching `location_*`, `post_*` or `review_*` fields).
+2. Call `list_actions` and build params from the schema.
+3. Show the current value and the new value side by side, and wait for an explicit yes.
+4. Call `execute_action` once and report the result. Google may review listing edits before they appear.
+
+Actions that replace a whole set (resend everything the listing should keep):
+- `update_service_items` replaces all services; read `location_service_items` first.
+- `update_categories` sets the primary category and replaces every additional category (at most 9); omitting `additional_category_ids` removes them all. Read `location_primary_category_id` and `location_additional_categories` first.
+- `update_service_area` replaces all places (at most 20); read `location_service_area` first.
+- `set_regular_hours` replaces all weekly hours; a day with no period shows as closed. Read `location_regular_hours_periods` first.
+- `set_special_hours` replaces all special dates. Read `location_special_hours_periods` first and resend every upcoming exceptional date the listing should keep together with the new ones.
+- `update_attributes` is the exception: it changes only the attributes named.
+
+Actions that can unpublish the listing:
+- `update_address`, and `update_service_area` with `hide_business_address=true`, can send the listing back into Google's verification, which may unpublish it until the business verifies again. They refuse to run unless `acknowledge_reverification_risk` is true. State this risk in the confirmation and set it only after the user approves that risk explicitly.
+- Run `update_address`, `update_service_area` and `update_location` with `validate_only=true` first when the user is unsure; success means Google accepted the request for validation, not that anything changed.
+- `update_address` replaces the whole address. Use `keep_map_pin=true` only when the business has not moved.
+- `update_categories` can also trigger re-verification in some cases; say so.
+
+Other notes:
+- `upload_media` with category COVER or PROFILE replaces the current cover or profile photo. Photos must be public JPG or PNG URLs, at least 250x250 px and 10 KB.
+- `update_location` changes the description (up to 750 characters), website and phone numbers. Additional phone numbers are kept unless `additional_phones` is sent; `[]` removes them.
+- `set_open_status` switches between OPEN and CLOSED_TEMPORARILY; it is reversible.
+- `reply_to_review` replaces an existing reply.
+- If write actions are not enabled for the account, send the user to https://onboard.windsor.ai/app/settings/account.
+
+## Reference real data
+On an error (unknown field or location), call the relevant discovery tool and retry with correct values, or report the specific error. Never invent view counts, ratings, review text or listing details.

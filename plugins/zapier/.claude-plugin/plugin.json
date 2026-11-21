@@ -1,8 +1,8 @@
 {
   "name": "zapier",
-  "version": "1.1.0",
-  "description": "Automate workflows across 10,000+ apps. Run one-off actions or build automations with triggers.",
-  "updatedAt": "2026-11-20T12:03:33.501Z",
+  "version": "1.2.0",
+  "description": "Automate workflows across 10,000+ apps. Run one-off actions or build automations for YouTube, Instagram, Gmail, Facebook Pages, LinkedIn, Slack, Pinterest.",
+  "updatedAt": "2026-11-21T00:02:12.138Z",
   "author": {
     "url": "https://zapier.com",
     "name": "Zapier",
@@ -21,7 +21,14 @@
     "api",
     "no-code",
     "ai-tools",
-    "productivity"
+    "productivity",
+    "youtube",
+    "instagram",
+    "gmail",
+    "facebook-pages",
+    "linkedin",
+    "slack",
+    "pinterest"
   ],
   "displayName": "Zapier",
   "logo": "assets/logo.svg",

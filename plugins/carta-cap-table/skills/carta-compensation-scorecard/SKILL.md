@@ -4,7 +4,7 @@ description: "See how your employees' pay compares to market: the Carta Total Co
 ---
 
 <!-- carta:plugin-version -->
-<carta-plugin>carta-cap-table:6.117.0</carta-plugin>
+<carta-plugin>carta-cap-table:6.118.1</carta-plugin>
 
 # CTC Scorecard
 

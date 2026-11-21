@@ -2,7 +2,7 @@
   "name": "paypal",
   "version": "1.2.0",
   "description": "PayPal development plugin for Claude — integrate payments, subscriptions, invoices, disputes, and more using PayPal's APIs and MCP server",
-  "updatedAt": "2026-11-20T12:03:32.821Z",
+  "updatedAt": "2026-11-21T00:03:12.346Z",
   "author": {
     "url": "https://developer.paypal.com",
     "name": "PayPal"

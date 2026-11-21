@@ -2,7 +2,7 @@
   "name": "lovable",
   "version": "1.0.0",
   "description": "Build, run and grow real apps from Claude with Lovable. Bundles the official Lovable MCP server (remote, OAuth 2.1) with 13 skills: launch pages, a CRM filled with lookalike customers, research and hiring trackers, plain-language answers from an app's live database, a workspace security review, root-cause fixes shipped live, and idea, spreadsheet or Claude Design to a working app. Every skill asks before spending credits and before publishing.",
-  "updatedAt": "2026-11-20T12:02:31.851Z",
+  "updatedAt": "2026-11-21T00:02:27.959Z",
   "author": {
     "url": "https://lovable.dev",
     "name": "Lovable"

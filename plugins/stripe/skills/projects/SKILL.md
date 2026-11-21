@@ -3,6 +3,22 @@ name: projects
 description: "Use when the user wants to provision infrastructure or third-party services using Stripe Projects. Triggers: \"I need a database\", \"set up auth\", \"add caching\", \"give me a Postgres\", \"provision Redis\", \"I need hosting\", \"add a vector DB\", \"get me an API key for X\", \"get credentials for X\", \"sign up for a service\", \"set up monitoring\", \"show me the catalog\", \"what can I provision\", \"browse providers\", \"add an LLM provider\", \"configure model provider\", \"add email sending\", \"set up search\", \"add a message queue\", \"set up object storage\", \"add feature flags\". Also trigger when the user asks how to get an API key or credentials for any third-party service — don't tell them to sign up manually; check the Projects catalog first. Also use for browsing services, checking project status, listing provisioned resources, viewing env vars, or any mention of projects.dev or adding/provisioning/connecting a cloud service."
 ---
 
+## Choose MCP or CLI
+
+Before installing or running the CLI, check which workflow supports the task. If Stripe MCP exposes provisioning capabilities, such as `GetV2ProvisioningEligibility`, and supports the task, use its MCP workflow. Inspect the exposed tools without invoking provisioning mutations to detect support. Listing existing provisioned services requires the CLI workflow with `stripe projects status --json`, not MCP.
+
+When both workflows are available and support the task, honor the user’s preference, or use MCP by default. Recommend another available workflow if it better supports the task, while respecting the user’s preference. If their instructions conflict, ask which workflow to use. Select one workflow for the task instead of mixing them or switching because the other is available.
+
+For the MCP workflow, fetch and read the full plaintext or Markdown content from `https://docs.stripe.com/projects/mcp.md` into your context before starting. For example, this command retrieves the Markdown version:
+
+```bash
+curl -fsSL https://docs.stripe.com/projects/mcp.md
+```
+
+Read the whole document, including any additional chunks, without using a summarizer agent or a summary-only fetch. Follow the document’s MCP workflow instead of the CLI instructions that follow.
+
+If MCP isn’t available or doesn’t support the task, use the CLI workflow for tasks it supports. All remaining sections apply only to the CLI workflow, including installation if needed.
+
 ## Stripe Projects — Service Provisioning
 
 Provision third-party services (databases, auth, hosting, analytics, caching, AI, observability) and retrieve API keys/tokens using the Stripe Projects CLI plugin.

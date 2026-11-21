@@ -1,79 +1,39 @@
 ---
 name: facebook-organic
-description: Analyze Facebook Page (organic) performance through Windsor.ai. Use when the user asks about their Facebook Page's organic insights — reach, impressions, engagement, reactions, follows/fans, or the performance of individual posts, videos, and Reels, by date/week/month or by country. It can also publish a photo post or a text and link post to a Page, always after the user approves the full draft. Do not use for Facebook Ads (those live in the Meta/Facebook Ads connector), boosting posts, Instagram, or other platforms.
+description: "Facebook Pages (organic) through Windsor.ai: Page and post insights (views, reach, engagement, reactions, follows, video and Reels plays), post comments for reading, and publishing a text, link or photo post to a Page after the user approves the full draft. Use for questions about the user's own Facebook Page. Do not use for Facebook Ads (Meta Ads), boosting posts, Instagram, or replying to Facebook comments (no such action exists here)."
 ---
 
-# Facebook Organic (Pages) via Windsor.ai
+# Facebook Pages (organic) via Windsor.ai
 
-Windsor.ai pulls Facebook **Page organic** insights from the Facebook Graph API.
-The connector id is `facebook_organic`. Pass `facebook_organic` as the connector on every tool call; the Windsor.ai server
-serves all connectors, so it is never implied.
+The connector id is `facebook_organic`. It covers the user's own Facebook Pages: Page and post insights, post comments (read only), and publishing. It has no ad or cost data; Facebook Ads and boosts are in the Meta Ads connector (`facebook`), a separate connector.
 
-Reads are the main job. The connector also exposes write actions, currently
-`create_post` and `create_photo_post` (the live set is whatever `list_actions`
-returns). It has **no ad or cost data** (Facebook Ads live in the Meta/Facebook
-Ads connector, so route ad-spend and boost requests there), it does not cover
-Instagram, and it does not change Page settings; say those are out of scope
-here.
+Write actions today are `create_post`, `create_photo_post` and `upload_photo`. There are no actions to reply to, hide or delete Facebook comments; say so if asked. The live set and each action's parameters are whatever `list_actions` returns. Publishing follows the social-media-publish skill.
 
-Golden rules:
-
-- **Never guess field, page, or option names** — get them from `get_fields`,
-  `get_connectors`, and `get_options`. Call those first.
-- **Publishing is public and immediate.** Show the full post text (and the
-  photo URL) and call `execute_action` only after an explicit yes.
-- Report what the user asked for, concisely.
-
-## 1. Ground yourself first
-
-Call `get_connectors` to see which Facebook Pages are connected (each has an id
-and usually a name). If none is connected, help the user connect:
-`get_connector_authorization_url` (or `get_connector_connect_info` for the auth
-type and steps) and give them the setup link — don't describe manual dashboard
-navigation. If several Pages are connected and the request is ambiguous, ask
-which one.
-
-## 2. Reading Page insights
-
-1. Call `get_fields` for `facebook_organic` to get valid field ids. These span
-   Page-level metrics (reach, impressions, engaged users, follows/fans, video
-   and Reels plays) and post-level fields (reactions, comments, shares, clicks,
-   post reach/impressions). Use the exact ids returned, not these examples.
-2. Call `get_data` with `fields`, the target Page/`account`(s), and a date range
-   (`date_from`/`date_to` or a `date_preset` like `last_7d`, `last_30d`,
-   `this_month`; append `T` to include today). Add `filters` as needed.
-
-Facebook Organic specifics to respect:
-
-- **One broken-down (segmented) metric per request.** The connector can't return
-  multiple broken-down metrics in one call — request them separately and combine
-  in your answer rather than asking for several at once.
-- **Weekly/monthly aggregation.** Requesting a week field (`week_iso`/
-  `year_week_iso`, or `week`/`year_week`) returns one row per week; a month field
-  (`month`/`year_month`) one row per month. Facebook **deduplicates** unique
-  metrics (reach, unique impressions) over the period, so use the week/month
-  field for weekly/monthly totals — do **not** sum daily rows, which over-counts
-  uniques.
-
-If a metric the user wants isn't in `get_fields`, say so rather than
-substituting a different one. There is no cost/spend data here.
-
-## 3. Publishing a post
-
+## Reading insights
 1. Call `get_connectors` to pick the Page; ask if several are connected.
-2. Call `list_actions` for `facebook_organic` and read the schema of
-   `create_post` or `create_photo_post`; a photo post needs a publicly
-   reachable image URL.
-3. Draft the post as text first and show it in full, exactly as it will
-   appear, then wait for an explicit yes. Never publish placeholder text.
-4. Call `execute_action` once and report the result from the tool, including
-   any post id or URL it returns.
-5. If the action is refused because write actions are not enabled for the
-   account, send the user to https://onboard.windsor.ai/app/settings/account
-   and retry after they confirm.
+2. Call `get_fields` for `facebook_organic` and use the exact ids it returns. Page-level fields (`page_*`), post fields (`post_*`), video fields and comment fields (`comment_*`) come from different tables, so read them in separate calls.
+3. Call `get_data` with the fields, the Page and a date range.
 
-## 4. Reference real data, don't fabricate
+Fields that are easy to misread:
+- Unique metrics (reach and unique views) are deduplicated per period. For weekly or monthly unique values, request `year_week_iso` or `year_month` together with `period`, and check that `period` is week or month in the result; do not sum daily rows.
+- `post_impressions_unique` and `page_impressions_unique` are deprecated; use `post_total_media_view_unique` and `page_total_media_view_unique`, which return the same values.
+- `page_follows` is the lifetime total; `page_daily_follows_unique` and `page_daily_unfollows_unique` are daily changes.
+- `post_engagements` is reactions plus comments plus shares on a post.
 
-On an error (unknown field/connector/page), call the relevant discovery tool and
-retry with correct ids, or report the specific error. Never invent reach,
-engagement, follower counts, post ids, or post text.
+Reels are read from their own table (no Reel publishing action exists here):
+- `reels_description`, `reels_permalink_url`, `reels_post_type` (video or reel).
+- `fb_reels_total_plays` (plays including replays), `blue_reels_play_count` (plays without replays), `fb_reels_replay_count`.
+- `video_post_impressions_unique` (people who saw the Reel; `reels_post_impressions_unique` is deprecated).
+- `post_video_avg_time_watched` and `post_video_view_time` are in milliseconds and include replays.
+- `post_video_total_reactions`, `post_video_social_actions_comment`, `post_video_social_actions_share`, `post_video_followers` (estimated follows within 24 hours of watching).
+
+Useful post fields: `post_id`, `post_created_time`, `post_message`, `permalink_url`, `post_total_media_view_unique`, `post_engagements`, `post_reactions_total`, `post_comments_total`, `post_clicks`. Useful comment fields: `comment_id`, `comment_text`, `comment_timestamp`, `comment_is_hidden`.
+
+## Publishing
+- `create_post` takes a message, a link, or both. `create_photo_post` takes a public image URL, or a `photo_id` from `upload_photo`, plus an optional caption.
+- `upload_photo` takes one local image file (JPEG, PNG or GIF, at most 4 MB) through `upload_files` and publishes nothing. Facebook deletes an unpublished photo after about 24 hours, so publish it in the same session.
+- If a read or write fails with a message asking the user to log in to facebook.com, the connection has expired: reconnect it with `get_connector_connect_info`.
+- If write actions are not enabled for the account, send the user to https://onboard.windsor.ai/app/settings/account.
+
+## Reference real data
+On an error (unknown field or Page), call the relevant discovery tool and retry with correct values, or report the specific error. Never invent reach, engagement, follower counts, post ids or post text.

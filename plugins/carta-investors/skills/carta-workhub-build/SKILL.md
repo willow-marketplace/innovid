@@ -4,7 +4,7 @@ description: "Opens the Carta Workhub for a GP. The Workhub is an app in the Car
 ---
 
 <!-- carta:plugin-version -->
-<carta-plugin>carta-investors:7.56.10</carta-plugin>
+<carta-plugin>carta-investors:7.56.17</carta-plugin>
 
 # Carta Workhub
 

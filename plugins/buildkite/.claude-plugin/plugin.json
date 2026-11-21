@@ -2,7 +2,7 @@
   "name": "buildkite",
   "version": "1.0.0",
   "description": "Official Buildkite skills for Claude Code, Cursor, and other AI coding agents — pipelines, migration, preflight, agent runtime, CLI, and API",
-  "updatedAt": "2026-11-20T12:01:37.549Z",
+  "updatedAt": "2026-11-21T00:01:38.238Z",
   "skills": "./skills/",
   "mcpServers": {
     "buildkite": {

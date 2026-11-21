@@ -363,6 +363,29 @@ Covers Swift/SwiftUI integration, lifecycle management, token handling, offline 
 
 ---
 
+### 🔄 mapbox-ios-swiftui-migration
+
+**Move iOS Mapbox map and navigation screens from UIKit to SwiftUI.**
+
+Covers the Mapbox parts of the screen (the SwiftUI `Map` view, `Viewport`, map content for styles and annotations, event modifiers, `MapReader`, and hosting Navigation SDK v3 views) and marks which SwiftUI APIs are stable and which are experimental. Keeps the map looking and behaving the same, one screen at a time.
+
+**Use when:**
+
+- Migrating a UIKit `MapView`, storyboard scene or `UIViewRepresentable` wrapper to the SwiftUI `Map`
+- Estimating how much work it is to move map screens to SwiftUI
+- Fixing a map that broke after moving to SwiftUI
+
+**Key topics:**
+
+- UIKit → SwiftUI mappings for Maps SDK v11
+- Behavior changes surfaced as decisions (map recreation, one layer per annotation, draggable annotations, safe-area padding)
+- Navigation SDK v3 screens with `NavigationMapView` hosted in SwiftUI
+- Common SwiftUI mistakes (map in a toggling branch, camera events in `@State`, layers lost on style reload)
+
+[View skill →](./skills/mapbox-ios-swiftui-migration/SKILL.md)
+
+---
+
 ### 📱 mapbox-android-patterns
 
 **Integration patterns for Mapbox Maps SDK on Android with Kotlin, Jetpack Compose, and mobile optimization.**
@@ -391,6 +414,52 @@ Covers Kotlin/Jetpack Compose integration, lifecycle management, token handling,
 - Common Android mistakes and solutions
 
 [View skill →](./skills/mapbox-android-patterns/SKILL.md)
+
+---
+
+### 📋 mapbox-android-sdk-inventory
+
+**Read-only inventory of what an Android app uses from the Mapbox SDKs today.**
+
+Reports the declared and resolved version of every Mapbox dependency, the modules used, every Mapbox class, function, overload and constant the code calls with file and line, the parameters passed, and the non-code configuration. It describes and doesn't recommend. The full report goes to files, with a JSON record so two runs can be compared.
+
+**Use when:**
+
+- Answering "what do we use from Mapbox?"
+- Comparing two runs, for example before and after a migration
+- Checking exactly which options the app passes, such as route request parameters
+
+**Key topics:**
+
+- Declared and resolved dependency versions, per module and variant
+- Call sites by API area, with lifecycle context
+- Parameter values marked literal, constant, dynamic or SDK default
+- Style, manifest, XML, offline and token locations (never token values)
+
+[View skill →](./skills/mapbox-android-sdk-inventory/SKILL.md)
+
+---
+
+### 🔄 mapbox-android-compose-migration
+
+**Move Android Mapbox map and navigation screens from the View system to Jetpack Compose.**
+
+Covers the Mapbox parts of the screen (the `MapboxMap` composable, viewport state, style and annotation composables, `MapEffect`, lifecycle, and Navigation SDK v3 wiring) and works alongside Google's XML-to-Compose skill for the rest of the screen. Keeps the map looking and behaving the same, one screen at a time.
+
+**Use when:**
+
+- Migrating an XML or `AndroidView`-wrapped `MapView` to Compose
+- Estimating how much work it is to move map screens to Compose
+- Fixing a map that broke after moving to Compose
+
+**Key topics:**
+
+- View → Compose mappings for Maps SDK v11
+- Behavior changes surfaced as decisions (style slot, ornaments, camera on rotation)
+- Navigation SDK v3 on a `MapboxMap` composable, with View-based UI components in `AndroidView`
+- Common Compose mistakes (rerunning `MapEffect`, one layer per annotation, map recreation)
+
+[View skill →](./skills/mapbox-android-compose-migration/SKILL.md)
 
 ---
 
@@ -645,6 +714,103 @@ Covers API equivalents, coordinate order gotchas, pattern translations, and step
 - Framework integration (React, Vue, etc.)
 
 [View skill →](./skills/mapbox-google-maps-migration/SKILL.md)
+
+---
+
+### 🔄 mapbox-ios-maps-v10-to-v11-migration
+
+**Migrate an iOS app from Mapbox Maps SDK v10 to v11 with a coding agent.**
+
+Runs a five-step workflow: inventory every v10 symbol, plan the work by area with effort and blockers, migrate one area at a time, verify, and report. Migrates to the current recommended v11 APIs instead of porting line by line, and never changes the app's style.
+
+**Use when:**
+
+- Upgrading an iOS app from Maps SDK v10 to v11
+- Estimating how much work a v10 → v11 migration is
+- Fixing a build that broke after bumping to v11
+
+**Key topics:**
+
+- v10 → v11 mappings for UIKit and SwiftUI
+- Tap handling → Featureset Interactions; selection by source rewrite → Feature State
+- Typed events and subscription tokens
+- Behavior changes surfaced as decisions (default style now Standard, puck bearing, 3D puck scale)
+- Access token, location provider, offline and HTTP interceptor changes
+- Inventory, plan, decision log and migration summary templates
+
+[View skill →](./skills/mapbox-ios-maps-v10-to-v11-migration/SKILL.md)
+
+---
+
+### 🔄 mapbox-android-maps-v10-to-v11-migration
+
+**Migrate an Android app from Mapbox Maps SDK v10 to v11 with a coding agent.**
+
+The same five-step workflow as the iOS skill, with Android mappings for Kotlin, Java, Views and Jetpack Compose.
+
+**Use when:**
+
+- Upgrading an Android app from Maps SDK v10 to v11
+- Estimating how much work a v10 → v11 migration is
+- Fixing a build that broke after bumping to v11
+
+**Key topics:**
+
+- v10 → v11 mappings for Views and Jetpack Compose
+- Tap handling → Featureset Interactions; selection by source rewrite → Feature State
+- Behavior changes surfaced as decisions (default style now Standard, built-in style constants, puck bearing)
+- Access token, location engine, offline and HTTP interceptor changes
+- Inventory, plan, decision log and migration summary templates
+
+[View skill →](./skills/mapbox-android-maps-v10-to-v11-migration/SKILL.md)
+
+---
+
+### 🧭 mapbox-ios-navigation-v2-to-v3-migration
+
+**Migrate an iOS app from Mapbox Navigation SDK v2 to v3 with a coding agent.**
+
+The same five-step workflow as the Maps migration skill, which it uses for the map layer (Navigation v3 requires Maps v11). Focuses on what changes behavior: removed decision callbacks, the app's own telemetry hooks, and the move to Swift Package Manager.
+
+**Use when:**
+
+- Upgrading an iOS app from Navigation SDK v2 to v3
+- Estimating how much work a v2 → v3 migration is
+- Fixing a build that broke after bumping to v3
+
+**Key topics:**
+
+- v2 → v3 mappings for `MapboxNavigationCore` and `MapboxNavigationUIKit`
+- Behavior changes as decisions: reroute veto, arrival and leg advancing, location discarding, custom routing
+- App telemetry hooks: every v2 callback mapped to its v3 source, with data that is lost called out
+- CocoaPods or Carthage to Swift Package Manager, Swift concurrency, provider lifecycle, SPI-only features
+- Staged rollout with v2 and v3 implementations behind one app interface
+
+[View skill →](./skills/mapbox-ios-navigation-v2-to-v3-migration/SKILL.md)
+
+---
+
+### 🧭 mapbox-android-navigation-v2-to-v3-migration
+
+**Migrate an Android app from Mapbox Navigation SDK v2 to v3 with a coding agent.**
+
+The same five-step workflow as the Maps migration skill, which it uses for the map layer (Navigation v3 requires Maps v11). Focuses on what changes behavior: removed hooks, the app's own telemetry, and Drop-in UI.
+
+**Use when:**
+
+- Upgrading an Android app from Navigation SDK v2 to v3
+- Estimating how much work a v2 → v3 migration is
+- Fixing a build that broke after bumping to v3
+
+**Key topics:**
+
+- v2 → v3 mappings, including the move to `com.mapbox.navigationcore` artifacts
+- Behavior changes as decisions: reroute control, automatic alternatives, replay, speed limit units
+- App telemetry hooks: every v2 observer mapped to its v3 source, with data that is lost called out
+- Drop-in UI: a copy of the public v2 Drop-in sources adapted to v3 (recommended, on approval), the UX Framework, or the app's own UI
+- Build toolchain upgrade (AGP 8, R8 rules) and staged rollout
+
+[View skill →](./skills/mapbox-android-navigation-v2-to-v3-migration/SKILL.md)
 
 ---
 

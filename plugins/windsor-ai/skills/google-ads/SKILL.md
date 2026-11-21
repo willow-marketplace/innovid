@@ -79,7 +79,7 @@ schemas — treat the summary below as guidance, not gospel. They cover:
 - **Budget & bidding:** `set_campaign_budget` (`daily` or `lifetime`, with
   `apply_to_shared_budget` for shared budgets), `set_campaign_bidding_strategy`
   (manual CPC, target CPA/ROAS, maximize conversions/clicks, …),
-  `set_target_cpa`, `set_cpc_bid_ceiling`, `set_max_cpc`.
+  `set_target_cpa`, `set_target_roas`, `set_cpc_bid_ceiling`, `set_max_cpc`.
 - **Customer Match audiences:** `create_customer_match_list`,
   `upload_customer_match_list` (async — poll `get_customer_match_upload_status`),
   `rename_customer_match_list`, `delete_customer_match_list`, and
@@ -89,8 +89,11 @@ schemas — treat the summary below as guidance, not gospel. They cover:
 
 Budget mechanics:
 
-- Money amounts are in **micros**: 1,000,000 micros = 1 unit of the account
-  currency, so `50000000` = 50.00. Convert the user's amount to micros.
+- Budgets, bids and target CPA are in **micros**: 1,000,000 micros = 1 unit
+  of the account currency, so `50000000` = 50.00. Convert the user's amount
+  to micros. Target ROAS is a ratio instead (`4.0` means 400%). Reported
+  fields such as `spend`, `cost`, `cpc` and `cost_per_conversion` are already
+  in currency units; only fields whose id ends in `_micros` are micros.
 - `set_campaign_budget` / targets set an **absolute** value, not a delta. To
   "raise by 20%", read the current value first, compute the new absolute
   amount, and set that.

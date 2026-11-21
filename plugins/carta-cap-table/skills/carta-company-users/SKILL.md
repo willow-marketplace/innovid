@@ -4,7 +4,7 @@ description: "See and change who can use a company's Carta account: list its use
 ---
 
 <!-- carta:plugin-version -->
-<carta-plugin>carta-cap-table:6.117.0</carta-plugin>
+<carta-plugin>carta-cap-table:6.118.1</carta-plugin>
 
 # Company users and roles
 

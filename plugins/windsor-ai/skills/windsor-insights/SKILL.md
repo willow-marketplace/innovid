@@ -20,14 +20,14 @@ Read live data from any connected source through Windsor.ai and turn it into a c
 - Keep field sets small, request only the accounts you need, and check for truncated or paginated results before claiming complete coverage.
 
 ## Accuracy guardrails
-- Money fields are in the account currency; state it. Google Ads amounts arrive in micros (1,000,000 micros = 1.00); convert before showing.
+- Money fields are in the account currency; state it. On Google Ads only fields whose id ends in `_micros` are in micros (1,000,000 = 1.00); `spend`, `cost`, `cpc` and `cost_per_conversion` are already in currency units.
 - Conversions can be fractional. Do not round them into integers silently.
 - Attribution windows and metric definitions differ per platform; do not present cross-platform numbers as like for like.
 - If a field the user wants is not in get_fields, say so rather than substituting a different metric.
 
 ## Platform notes
-- Google Ads: money fields arrive in micros (1,000,000 = 1.00); search terms cannot be requested together with keyword fields, so read them in separate calls.
-- Meta Ads, Facebook Pages, Instagram: reach and other unique metrics are deduplicated over the period; use the week or month field for weekly or monthly totals instead of summing daily rows. Facebook Pages returns one broken-down metric per request.
+- Google Ads: `spend`, `cost`, `cpc`, `cost_per_conversion` and `budget_amount` are in the account currency; only fields whose id ends in `_micros` are in micros (1,000,000 = 1.00). Search terms cannot be requested together with keyword fields, so read them in separate calls.
+- Meta Ads, Facebook Pages, Instagram: reach and other unique metrics are deduplicated over the period; use `year_week_iso` or `year_month` for weekly or monthly totals instead of summing daily rows (the plain `week` and `month` fields merge years). Facebook Pages returns one broken-down metric per request.
 - GA4: conversions are key events; there is no cost data, so join ad spend from the ad connectors for ROAS.
 - Search Console: data lags about two to three days; position is an average (lower is better) and CTR is clicks / impressions.
 - CRM (HubSpot, Salesforce, Pipedrive, GoHighLevel): deal value is in the account currency; stage and close-date fields differ per CRM, so read them from get_fields.

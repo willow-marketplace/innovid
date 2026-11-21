@@ -2,7 +2,7 @@
   "name": "pagerduty",
   "version": "1.2.0",
   "description": "A collection of Claude Code plugins developed by PagerDuty for pre-commit risk assessment and PagerDuty skill creation for AI agents (Early Access).",
-  "updatedAt": "2026-11-20T12:02:51.163Z",
+  "updatedAt": "2026-11-21T00:02:48.942Z",
   "author": {
     "name": "PagerDuty"
   },
