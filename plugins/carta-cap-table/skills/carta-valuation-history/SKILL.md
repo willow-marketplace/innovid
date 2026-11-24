@@ -4,7 +4,7 @@ description: "See a company's 409A and other valuations, and when the current on
 ---
 
 <!-- carta:plugin-version -->
-<carta-plugin>carta-cap-table:6.118.2</carta-plugin>
+<carta-plugin>carta-cap-table:6.120.3</carta-plugin>
 
 <!-- Part of the official Carta AI Agent Plugin -->
 

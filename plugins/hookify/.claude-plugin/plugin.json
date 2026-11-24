@@ -2,7 +2,7 @@
   "name": "hookify",
   "version": "1.0.0",
   "description": "Easily create hooks to prevent unwanted behaviors by analyzing conversation patterns",
-  "updatedAt": "2026-11-21T12:02:09.311Z",
+  "updatedAt": "2026-11-24T00:02:58.468Z",
   "author": {
     "name": "Anthropic",
     "email": "support@anthropic.com"

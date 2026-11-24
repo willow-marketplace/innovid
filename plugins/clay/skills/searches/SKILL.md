@@ -86,9 +86,9 @@ continue only if confirmed, otherwise offer a smaller pull/stop. Skip absent quo
 
 On `quota_exceeded` (HTTP 402), stop and read `searches-advanced` → Quotas before any
 retry/report. Only an explicit per-request cap permits one smaller-page retry; never
-shrink pages or recreate searches to evade other caps. Make the upgrade link supplied
-by the error prominent, near the top of the reply and as the last line, preserving the
-full URL and its attribution; do not construct a billing URL when none is supplied.
+shrink pages or recreate searches to evade other caps. Show the upgrade link supplied
+by the error once, as the last line of the reply, preserving the full URL and its
+attribution; do not construct a billing URL when none is supplied.
 Preserve its support guidance.
 A `plan_upgrade_required` or `auth_forbidden` error saying advanced filters or exclusions
 aren’t on the plan is a plan restriction, not a sign-in problem. Searches report it as

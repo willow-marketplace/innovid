@@ -82,8 +82,8 @@ flags, and examples; that help is the contract.
 
 If `clay credits top-up once` fails with `validation_error` (exit 2) saying the plan
 can’t buy credits (free and trial plans), don’t retry. If the error’s `message`
-includes an upgrade URL, make it extremely prominent: near the top of the reply and
-again as the last line (`Upgrade your plan now at: <url>`), keeping the URL intact.
+includes an upgrade URL, show it once, as the last line of the reply (`Upgrade your
+plan now at: <url>`), keeping the URL intact.
 Otherwise relay the error without constructing a billing URL.
 
 ```bash
@@ -152,9 +152,8 @@ is about results already requested vs a cap, or a named period reset, stop
 paging; for shrink/retry rules follow the `searches` skill's Quotas section — do
 not invent a top-up path for result caps.
 
-For a search quota error, take the upgrade URL from the error’s `message` and make it
-extremely prominent: near the top of the reply and again as the last line (`Upgrade
-your plan now at: <url>`). Preserve its full URL, including attribution. If the error
+For a search quota error, take the upgrade URL from the error’s `message` and show it
+once, as the last line of the reply (`Upgrade your plan now at: <url>`). Preserve its full URL, including attribution. If the error
 says to contact support or an account admin, lead with that path and still add the
 upgrade line when the error supplies a link. If no upgrade link is supplied, relay the
 error’s support, account-admin or reset guidance without constructing a billing URL.

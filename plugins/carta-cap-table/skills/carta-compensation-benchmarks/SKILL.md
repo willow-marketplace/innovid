@@ -4,7 +4,7 @@ description: "See market pay for a role: salary, equity and total cash. Retrieve
 ---
 
 <!-- carta:plugin-version -->
-<carta-plugin>carta-cap-table:6.118.2</carta-plugin>
+<carta-plugin>carta-cap-table:6.120.3</carta-plugin>
 
 # Benchmark Query
 

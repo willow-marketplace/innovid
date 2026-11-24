@@ -38,6 +38,17 @@ per-item price only when its applicability and execution count are known. Label 
 as estimates; do not invent ranges, extrapolate from model knowledge, or infer charges or
 refunds from generic success/failure status. Actual charges require accounting evidence.
 
+For a workflow, `clay workflows estimate-credits <workflowId>` is a supported per-run estimate:
+it prices each node's configured action, connection, and model the way the editor does,
+native waterfalls included. Add `--node <nodeId>` for one node, such as a waterfall, or
+`--published` for the live version. Quote it as an estimate when `isEstimate` is true. A
+waterfall's figure is the average of its providers' prices, since a run stops at the first
+provider that returns a result. When `hasFanOut` is true, it is a per-item floor. Multiply
+it by a record count only when each record starts one run. Re-run it after editing the
+workflow. A null `estimatedCredits` means a step in scope can't be priced, such as a missing
+action or a waterfall without configured providers: the cost is unknown, not zero, so say
+you cannot reliably estimate it rather than quoting a figure.
+
 Assuming Clay-managed credentials or one execution per item does not verify a configured
 price. When only catalog pricing is available, do not present it as the per-item cost of the
 requested run or multiply it by the requested volume, even with stated assumptions or an

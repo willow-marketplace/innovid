@@ -2,7 +2,7 @@
   "name": "jfrog",
   "version": "1.0.0",
   "description": "Official JFrog plugin. Connect Claude Code to JFrog to manage, secure, and govern your software supply chain. Give agents the context to build secure, compliant software.",
-  "updatedAt": "2026-11-21T12:01:48.790Z",
+  "updatedAt": "2026-11-24T00:02:32.243Z",
   "author": {
     "url": "https://jfrog.com",
     "name": "JFrog Ltd.",
@@ -80,6 +80,16 @@
           {
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/modules/core/enforce-skill.mjs\" --client claude-code --prefer-offline"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/modules/core/local-shadow-trigger.mjs\" user_prompt_submit"
           }
         ]
       }

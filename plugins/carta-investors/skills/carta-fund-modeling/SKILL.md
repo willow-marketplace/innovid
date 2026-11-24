@@ -4,7 +4,7 @@ description: 'Spin up an interactive local web console for FIRM-LEVEL scenario m
 ---
 
 <!-- carta:plugin-version -->
-<carta-plugin>carta-investors:7.56.22</carta-plugin>
+<carta-plugin>carta-investors:7.59.4</carta-plugin>
 
 > **If this plugin's files can't be found:** a path that still shows an unreplaced `${…}` variable, or a "not found" when you read or run one of this skill's files, means the skill loaded before this session's computer link was ready. Invoke this skill once more with the Skill tool and use the paths that copy gives. If they're still unreplaced, tell the user Carta's plugin files aren't available in this session yet (link your computer, then ask again) and stop. Don't search the disk for them. One exception: when Gate 0's `detect-surface` can't run, or a hosted hand-off's own `gate-in-app-browser.md` read fails, take the sandboxed/hosted branch instead of stopping — the hosted app itself needs no plugin files.
 

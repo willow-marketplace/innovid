@@ -3,22 +3,6 @@ name: projects
 description: "Use when the user wants to provision infrastructure or third-party services using Stripe Projects. Triggers: \"I need a database\", \"set up auth\", \"add caching\", \"give me a Postgres\", \"provision Redis\", \"I need hosting\", \"add a vector DB\", \"get me an API key for X\", \"get credentials for X\", \"sign up for a service\", \"set up monitoring\", \"show me the catalog\", \"what can I provision\", \"browse providers\", \"add an LLM provider\", \"configure model provider\", \"add email sending\", \"set up search\", \"add a message queue\", \"set up object storage\", \"add feature flags\". Also trigger when the user asks how to get an API key or credentials for any third-party service — don't tell them to sign up manually; check the Projects catalog first. Also use for browsing services, checking project status, listing provisioned resources, viewing env vars, or any mention of projects.dev or adding/provisioning/connecting a cloud service."
 ---
 
-## Choose MCP or CLI
-
-Before installing or running the CLI, check which workflow supports the task. If Stripe MCP exposes provisioning capabilities, such as `GetV2ProvisioningEligibility`, and supports the task, use its MCP workflow. Inspect the exposed tools without invoking provisioning mutations to detect support. Listing existing provisioned services requires the CLI workflow with `stripe projects status --json`, not MCP.
-
-When both workflows are available and support the task, honor the user’s preference, or use MCP by default. Recommend another available workflow if it better supports the task, while respecting the user’s preference. If their instructions conflict, ask which workflow to use. Select one workflow for the task instead of mixing them or switching because the other is available.
-
-For the MCP workflow, fetch and read the full plaintext or Markdown content from `https://docs.stripe.com/projects/mcp.md` into your context before starting. For example, this command retrieves the Markdown version:
-
-```bash
-curl -fsSL https://docs.stripe.com/projects/mcp.md
-```
-
-Read the whole document, including any additional chunks, without using a summarizer agent or a summary-only fetch. Follow the document’s MCP workflow instead of the CLI instructions that follow.
-
-If MCP isn’t available or doesn’t support the task, use the CLI workflow for tasks it supports. All remaining sections apply only to the CLI workflow, including installation if needed.
-
 ## Stripe Projects — Service Provisioning
 
 Provision third-party services (databases, auth, hosting, analytics, caching, AI, observability) and retrieve API keys/tokens using the Stripe Projects CLI plugin.
@@ -33,7 +17,9 @@ Check if the Stripe CLI is available:
 which stripe && stripe --version
 ```
 
-If the CLI is missing or its output says a newer version is required, install or upgrade to the current release on macOS or Linux with the install script:
+If the CLI is missing or needs an upgrade, explain what's needed and ask for the user's approval. Wait for approval before running the install script or using another installation method. If the user declines, skip the installation or upgrade.
+
+On macOS or Linux, use the install script.
 
 ```bash
 curl -fsSL https://cli.stripe.com/install.sh | sh
@@ -41,7 +27,7 @@ curl -fsSL https://cli.stripe.com/install.sh | sh
 
 Follow the installer’s PATH instructions, then run `stripe --version` to verify that the CLI is available before continuing. For other platforms, follow the [installation](https://docs.stripe.com/cli/install) or [upgrade](https://docs.stripe.com/cli/upgrade) instructions.
 
-Then ensure the Projects plugin is installed:
+If the Projects plugin is missing, ask for the user's approval and wait for it before installing the plugin. If the user declines, skip the installation.
 
 ```bash
 stripe plugin install projects
@@ -71,7 +57,10 @@ Check if a project is already initialized:
 stripe projects status --json
 ```
 
-If status reports that this workspace has no initialized project, run:
+If status reports that this workspace has no initialized project, explain that
+the command accepts the Stripe Projects terms and installs the local
+`stripe-projects-cli` skill. Ask for the user's approval and wait for it before
+running the command.
 
 ```bash
 stripe projects init --accept-tos --yes --json
@@ -80,11 +69,9 @@ stripe projects init --accept-tos --yes --json
 - If init returns a browser pairing handoff (`BROWSER_AUTH_REQUIRED` with `details.reason` set to `handoff_prepared`), show the user `details.browser_url` and `details.verification_code`. Wait for them to approve in the browser and confirm, then retry the same init command with its original arguments. Rerunning re-presents the same code until it expires; don’t start a separate `stripe login`.
 - For other status or init failures, follow the CLI’s message, next steps, and retry conditions. Share any required action with the user. Don’t treat every status failure as an uninitialized project or retry a failed mutation without CLI guidance.
 
-`stripe projects init` installs the local `stripe-projects-cli` skill with the post-init command reference.
-
 ### Step 4: Hand Off to stripe-projects-cli
 
-Use Read to open `.agents/skills/stripe-projects-cli/SKILL.md`, falling back to `.claude/skills/stripe-projects-cli/SKILL.md` if needed. If neither file exists, retry `stripe projects init --accept-tos --yes --json` **once** to repair the installation, then check both paths again. If init fails or the skill is still missing, follow the CLI’s message and next steps, report the problem to the user, and stop. Don’t keep retrying init.
+Use Read to open `.agents/skills/stripe-projects-cli/SKILL.md`, falling back to `.claude/skills/stripe-projects-cli/SKILL.md` if needed. If neither file exists, retry `stripe projects init --accept-tos --yes --json` **once** to repair the installation. If the user hasn't approved that command yet, ask and wait for approval before running it. Then check both paths again. If init fails or the skill is still missing, follow the CLI's message and next steps, report the problem to the user, and stop. Don't keep retrying init.
 
 Continue with the locally installed skill to add the requested provider, manage credentials, or configure the project. Invoke `stripe-projects-cli` with the Skill tool when available; otherwise follow the `SKILL.md` you read directly. Let the CLI output guide any provider-specific next steps. Keep the user’s chosen project and account; don’t switch accounts automatically. Browser approval alone does not establish Projects readiness.
 

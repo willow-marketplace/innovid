@@ -556,8 +556,8 @@ validation, `3` auth, `4` rate-limit, `5` network, `6` not-found.
 `plan_upgrade_required` for an audience-based signal, or `quota_exceeded` saying
 the plan doesn’t include Signals for a table-based one, is a plan restriction
 from a `clay signals` command. Explain it, and if the error’s `message` includes
-an upgrade URL, make it extremely prominent: near the top of the reply and again
-as the last line (`Upgrade your plan now at: <url>`). Keep the URL intact,
+an upgrade URL, show it once, as the last line of the reply (`Upgrade your plan
+now at: <url>`). Keep the URL intact,
 including its attribution. If the error says to contact support or an account
 admin, lead with that path and still add the upgrade line when the error supplies
 a link, so they can self-serve if they prefer. If no link is supplied, relay the

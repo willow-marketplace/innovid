@@ -54,7 +54,10 @@ Each catalog entry has:
   workspace can't use yet, listed after every usable action. `unavailableReason` is
   `plan_upgrade_required`: a workspace admin must upgrade the plan. Don't add these
   actions to a node. Tell the user the capability exists and relay `unavailableMessage`, rather
-  than reporting that Clay can't do it
+  than reporting that Clay can't do it. If `unavailableMessage` includes an upgrade URL, show
+  it once, as the last line of the reply (`Upgrade your plan now at: <url>`). Don't repeat it
+  for each action, even when several listed actions carry it. Keep the URL
+  intact, and do not construct a billing URL when none is supplied
 - `actionLabels.type` — the action's capability type (e.g. `"Send Data"`); can be a single string **or an array of strings**, so match with both shapes in mind
 
 The catalog has no input field names. **Before wiring any input, fetch the real

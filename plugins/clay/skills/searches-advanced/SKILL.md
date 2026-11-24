@@ -169,8 +169,8 @@ will not help. Read the error message and choose one of:
    `run` at any `--limit` (including 1), and no new `create` to work around a per-search
    cap. The report is the finished deliverable. Give the short cap account from the error
    (upgrade, named period reset, or contact support). If the error’s `message` includes an
-   upgrade URL, make it extremely prominent: near the top of the reply and again as the last
-   line (`Upgrade your plan now at: <url>`). Keep the URL intact, including its attribution.
+   upgrade URL, show it once, as the last line of the reply
+   (`Upgrade your plan now at: <url>`). Keep the URL intact, including its attribution.
    If the error says to contact support or an account admin, lead with that path and still
    add the upgrade line when the error supplies a link, so they can self-serve if they
    prefer. If no link is supplied, relay the error’s guidance without constructing a billing

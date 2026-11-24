@@ -6,7 +6,7 @@ A coding agent plugin that brings Cloudinary's media management capabilities dir
 
 ### MCP Servers (`mcp.json`)
 
-Five Cloudinary MCP servers are pre-configured:
+Six Cloudinary MCP servers are pre-configured:
 
 | Server | Description |
 |---|---|
@@ -14,9 +14,10 @@ Five Cloudinary MCP servers are pre-configured:
 | `cloudinary-env-config` | Configure your Cloudinary environment settings |
 | `cloudinary-smd` | Work with structured metadata on assets |
 | `cloudinary-analysis` | Analyze images and videos with AI |
+| `cloudinary-video` | Stream live video, generate video from images, and get visual transcripts |
 | `cloudinary-mediaflows` | Build and run automated media workflows |
 
-> **Auth:** The first four servers use OAuth2 — you'll be prompted to log in with your Cloudinary account on first use via Cursor or Claude. The `cloudinary-mediaflows` server requires your Cloudinary credentials (`cloud_name`, `api_key`, `api_secret`) to be set in the headers in `mcp.json`.
+> **Auth:** The first five servers use OAuth2 — you'll be prompted to log in with your Cloudinary account on first use via Cursor or Claude. The `cloudinary-mediaflows` server requires your Cloudinary credentials (`cloud_name`, `api_key`, `api_secret`) to be set in the headers in `mcp.json`.
 
 ### Skills
 

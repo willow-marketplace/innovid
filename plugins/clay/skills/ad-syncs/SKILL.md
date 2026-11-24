@@ -49,8 +49,8 @@ or `Vibe`, written in lowercase inside `type=<provider>-ad-audience` (e.g.
 
 When a `clay ad-syncs` command is blocked by the workspace’s plan
 (`plan_upgrade_required`), explain the restriction. If the error’s `message`
-includes an upgrade URL, make it extremely prominent: near the top of the reply
-and again as the last line (`Upgrade your plan now at: <url>`). Keep the URL
+includes an upgrade URL, show it once, as the last line of the reply
+(`Upgrade your plan now at: <url>`). Keep the URL
 intact so its attribution is preserved. If the error supplies no link, relay
 its guidance without constructing a billing URL. Do not retry the command,
 recommend signing in again, or suggest buying credits to unlock a plan-gated

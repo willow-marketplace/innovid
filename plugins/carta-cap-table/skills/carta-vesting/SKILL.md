@@ -4,7 +4,7 @@ description: "What a security or holder has vested and what vests next, and vest
 ---
 
 <!-- carta:plugin-version -->
-<carta-plugin>carta-cap-table:6.118.2</carta-plugin>
+<carta-plugin>carta-cap-table:6.120.3</carta-plugin>
 
 # Vesting
 
@@ -75,7 +75,8 @@ read, *Writes* for a change. `list_accounts` returns `id: "corporation_pk:<n>"`;
    to `cap_table__list__vesting`, at most 100 per call. Send the labels, not the ids. When the user
    named a type, keep only the rows of that `type` from `cap_table__list__vesting`:
    `cap_table__list__ownership` gives RSUs, SARs and CBUs the type `option_grant`. Show and name
-   only the securities of that type. Do not name the other securities. When 2+ holders match, ask
+   only the securities of that type. Do not name the other securities, and do not say that the
+   holder has other securities. When 2+ holders match, ask
    which in one `AskUserQuestion`.
 3. **Show it.** For one security, lead with one sentence: how much has vested, what vests next
    and when, and when it is fully vested. Then show its tranches by date in a table with these 4

@@ -17,6 +17,10 @@
       "type": "streamable-http",
       "url": "https://analysis.mcp.cloudinary.com/mcp"
     },
+    "cloudinary-video": {
+      "type": "streamable-http",
+      "url": "https://video.mcp.cloudinary.com/mcp"
+    },
     "cloudinary-mediaflows": {
       "type": "streamable-http",
       "url": "https://mediaflows.mcp.cloudinary.com/v2/mcp",

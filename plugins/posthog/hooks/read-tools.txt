@@ -403,7 +403,6 @@ llma-skill-file-get
 llma-skill-get
 llma-skill-list
 llma-tagger-list
-llma-tagger-test-hog
 llma-trace-review-get
 llma-trace-review-list
 logs-alerts-events-list
@@ -453,6 +452,7 @@ metric-describe
 metric-list
 metric-names-list
 metrics-dashboard-panels-validate
+notebooks-app-get
 notebooks-compute-options
 notebooks-get
 notebooks-list

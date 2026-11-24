@@ -57,6 +57,16 @@
           }
         ]
       }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/modules/core/local-shadow-trigger.mjs\" user_prompt_submit"
+          }
+        ]
+      }
     ]
   }
 }

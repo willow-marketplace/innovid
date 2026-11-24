@@ -1,8 +1,8 @@
 {
   "name": "pixeltable",
-  "version": "2.14.1",
+  "version": "2.14.2",
   "description": "Multimodal RAG, video search, image similarity search, agent memory, and embeddings stored with your data. Tables, computed columns, vector search, and video, audio, image, and document pipelines.",
-  "updatedAt": "2026-11-21T12:02:07.924Z",
+  "updatedAt": "2026-11-24T00:02:56.545Z",
   "author": {
     "url": "https://github.com/pixeltable",
     "name": "Pixeltable"
@@ -38,17 +38,6 @@
     "./agents/pixeltable-debugger.md"
   ],
   "hooks": {
-    "SessionStart": [
-      {
-        "matcher": "startup|resume|clear|compact",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "sh -c 'for p in python python3 \"py -3\"; do $p -c \"import sys; sys.exit(sys.version_info < (3, 9))\" >/dev/null 2>&1 && exec $p \"$0\"; done; exit 0' \"${CLAUDE_PLUGIN_ROOT}/hooks/session_orientation.py\""
-          }
-        ]
-      }
-    ],
     "PostToolUse": [
       {
         "matcher": "Write|Edit|MultiEdit|NotebookEdit",
@@ -56,6 +45,17 @@
           {
             "type": "command",
             "command": "sh -c 'for p in python python3 \"py -3\"; do $p -c \"import sys; sys.exit(sys.version_info < (3, 9))\" >/dev/null 2>&1 && exec $p \"$0\"; done; exit 0' \"${CLAUDE_PLUGIN_ROOT}/hooks/validate_antipatterns.py\""
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh -c 'for p in python python3 \"py -3\"; do $p -c \"import sys; sys.exit(sys.version_info < (3, 9))\" >/dev/null 2>&1 && exec $p \"$0\"; done; exit 0' \"${CLAUDE_PLUGIN_ROOT}/hooks/session_orientation.py\""
           }
         ]
       }

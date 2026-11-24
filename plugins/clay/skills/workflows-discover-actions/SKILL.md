@@ -60,7 +60,19 @@ and ordered `providers`. Give every
 provider entry a unique `id` (including repeated providers), `authAccountId: null` for the
 workspace's default connection or an accessible provider connection ID, and
 `inputOverrides: { inputMappingConfig: {}, inputRefs: {} }`.
-Start with `sharedInputs: { inputMappingConfig: {}, inputRefs: {} }` and `validation: null`.
+Start with `sharedInputs: { inputMappingConfig: {}, inputRefs: {} }`.
+
+Validation runs inside the waterfall. Set `validation` to
+`{ actionPackageId, actionKey, authAccountId, requireValidationSuccess, options: {} }`,
+taking the validator from the candidate's `defaultValidation`, or `null` when the candidate
+has none and no validation was requested. Like providers, `authAccountId` is `null` for the
+workspace's default connection or an accessible connection ID. A result that fails validation always moves on to the
+next provider. `requireValidationSuccess` decides a result the validator could not check (an
+error or no data): `false` accepts it, `true` moves on. Use `false` unless the request or source
+also rejects results that could not be checked. For another validator, find it with `clay workflows actions search` and use
+its package ID and action key. Custom waterfalls (`attribute: "custom"`) take `validation: null`.
+Do not add a validator node after a native waterfall for a check its `validation` performs.
+
 Inspect the providers with `clay workflows actions schema <packageId> <actionKey>` to identify
 their required inputs and semantic types. Map shared inputs by semantic type, preserving upstream reference
 expressions and `inputRefs`; each reference is `{ sourceNodeId, path }`, with `path`
@@ -80,7 +92,8 @@ To revise an existing native waterfall, read `clay workflows nodes get <workflow
 (or the full graph) and modify `node.waterfallConfig`. Send the complete config using
 `clay workflows nodes update <workflowId> <nodeId> --input <json|file|->` with only the
 `waterfallConfig` field. Preserve the template selection, provider IDs and ordering, and any
-settings not being changed. A provider or validator added with `authAccountId: null` starts on
+settings not being changed. To add validation, use the shape above. To change existing validation,
+edit `node.waterfallConfig.validation` in place and keep its `options`. A provider or validator added with `authAccountId: null` starts on
 the workspace's private default connection when it has one; steps already in the waterfall
 keep their account, where `null` means Clay's connection. To put a new step on Clay's
 connection, add it, then set its `authAccountId` to `null` in a second update. Shared inputs use semantic types; provider input overrides use

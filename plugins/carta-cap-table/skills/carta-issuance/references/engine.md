@@ -130,7 +130,7 @@ doubles as the account-level hard stop and as Phase 0.5's reference-data fetch, 
 ### Step 1 — Load every tool in ONE ToolSearch call
 
 ```
-ToolSearch: "select:mcp__carta__read_tool,mcp__carta__call_tool,mcp__carta__search_tools,mcp__carta__welcome,mcp__carta__list_accounts,mcp__carta__get_current_user,mcp__carta__cap_table__get__draft_set_companion,mcp__carta__cap_table__mutate__apply_plan,mcp__carta__view_remote,mcp__carta__view_remote_next"
+ToolSearch: "select:mcp__carta__read_tool,mcp__carta__call_tool,mcp__carta__search_tools,mcp__carta__welcome,mcp__carta__list_accounts,mcp__carta__get_current_user,mcp__carta__cap_table__get__draft_set_companion,mcp__carta__cap_table__mutate__apply_plan,mcp__carta__view_remote_inline,mcp__carta__view_remote_next"
 ```
 
 `mcp__carta__` is the placeholder prefix ([Step 2](#step-2--command-names-and-base_url)) — when
@@ -144,7 +144,7 @@ no tool ending in `read_tool` / `call_tool` / `list_accounts` / `welcome` exists
 genuinely gone: say so and stop. Everything else that looks like an answer is not one
 ([SKILL.md § Do not diagnose the Carta connection](../SKILL.md#do-not-diagnose-the-carta-connection)).
 
-One call, the complete set for the run. `view_remote` is there for the
+One call, the complete set for the run. `view_remote_inline` is there for the
 [companion surface](companion-surface.md); `cap_table__get__draft_set_companion` matches only when Carta offers the
 companion, so no match is the normal case, never a connection signal. `cap_table__mutate__apply_plan` is the issue
 ([SKILL.md § Issue](../SKILL.md#issue)).
@@ -300,9 +300,9 @@ ahead of a check that invalidated all of them. The stop costs one call and it is
 first, so take it first. Everything the gate reads, Phase 0.5 reuses; it is not an extra fetch.
 
 **Then read the response for `companion.available`.** When it is `true` and no hard stop
-fired, take the companion row ([SKILL.md § Pick the surface](../SKILL.md#pick-the-surface)) and
-read [companion-surface.md](companion-surface.md), unless the user chose the surface or the run
-resumes a draft set: the one change of surface after selection.
+fired, take the companion row ([SKILL.md § Pick the surface](../SKILL.md#pick-the-surface)) when
+the table picks it, and read [companion-surface.md](companion-surface.md): the one change of
+surface after selection.
 
 **On the chat surface, the companion fields are not for this run.** The fields in
 [companion-surface.md § What Carta returns](companion-surface.md#what-carta-returns), in this
@@ -334,8 +334,9 @@ exercise-price field — it is the failure this whole phase exists to prevent, a
 fallback when the parser is unavailable.
 
 Carta's own import template has sheets for out-of-scope types, so an uploaded workbook
-routinely contains rows this skill can't issue. This phase skips them and reports the count —
-never reshape an RSU row into an option grant to make it fit.
+routinely contains rows the import doesn't read. This phase skips them and reports the count:
+issue them from the chat on the companion surface, or in the Drafts UI. Never reshape an RSU row
+into an option grant to make it fit.
 
 ---
 

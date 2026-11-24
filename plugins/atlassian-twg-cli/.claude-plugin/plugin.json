@@ -2,7 +2,7 @@
   "name": "atlassian-twg-cli",
   "version": "1.0.15",
   "description": "Your code lives in your repo. The reasons behind it are spread across Jira work items, Confluence specs, pull requests, incidents, Loom videos and Slack threads. Teamwork Graph CLI (twg) gives Antigravity's agents one command-line interface to that context.\n\n- One graph across your tools. Teamwork Graph maps the work items, docs, PRs, people and decisions across Jira, Confluence, Bitbucket, Jira Service Management, Loom, GitHub, Slack, Google Drive and Salesforce.\n- Built for agents. Agents run twg commands to get structured JSON, pulling in only the context the task needs.\n- Easy to script. Output is structured JSON, so you can script it, pipe it, or use it in CI.\n- Runs as you. Commands use your Atlassian sign-in, so agents can only access what you have permission to see.\n\nHow it works:\n1. Install the plugin.\n2. Run /twg-setup to install twg and sign in with your Atlassian account.\n3. Ask in plain English. The agent picks the right twg command and runs it.\n\nTry it:\n- \"Set up Teamwork Graph CLI\"\n- \"Summarize my last 7 days: workstreams, key people, blockers, next actions. Use twg work query and twg collaborators.\"\n- \"I was away for a week. Catch me up on this project: updates, decisions, blockers, replies, next actions.\"",
-  "updatedAt": "2026-11-21T12:01:15.806Z",
+  "updatedAt": "2026-11-24T00:01:22.812Z",
   "author": {
     "url": "https://www.atlassian.com",
     "name": "Atlassian"

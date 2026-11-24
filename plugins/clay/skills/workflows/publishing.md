@@ -71,6 +71,20 @@ match the restored draft.
 2. After a successful draft e2e test, if the user wants automation to run this graph,
    run `clay workflows publish <workflowId>`. Use `--name` only to label the
    published version, not to rename the workflow.
+   If the draft adds people to draft sequences (Add person to sequence steps), publishing
+   also launches them. Tell the user before publishing; to publish without launching them,
+   add `--no-launch-sequences`. Report `sequenceLaunches` from the output: the workflow is
+   published even when a sequence in `failed` or `pendingApproval` didn't launch.
+   For every entry in `sequenceLaunches.pendingApproval`, call `presentApprovalRequestToUser`
+   with its `actionApprovalRequestId` and wait for the decision. Approving executes the
+   existing activation request. Report the outcome of each request.
+   If publishing itself needs approval, present that request first. After it executes,
+   use `result.body.snapshot.id` from the approved request to read the exact version with
+   `clay workflows snapshots get <workflowId> <snapshotId>`. If sequence launch was requested,
+   check the status of each sequence referenced by an Add person to sequence step in that
+   version. Launch each draft with `clay sequences launch <id>` if available, or ask the user
+   to launch it from its page in Clay. If the approved snapshot cannot be identified, leave
+   the sequences in draft. Honor `--no-launch-sequences` throughout approval.
 3. If they edit a workflow that is already live, remind them that draft changes
    stay draft-only until they publish again — and that live automation, including
    Find leads runs, still runs the previous live version until then.

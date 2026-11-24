@@ -4,7 +4,7 @@ description: Check whether a fund's audit documents are complete and ready to wo
 ---
 
 <!-- carta:plugin-version -->
-<carta-plugin>carta-investors:7.56.22</carta-plugin>
+<carta-plugin>carta-investors:7.59.4</carta-plugin>
 
 # Audit readiness
 

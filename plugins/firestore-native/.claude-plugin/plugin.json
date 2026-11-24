@@ -2,7 +2,7 @@
   "name": "firestore-native",
   "version": "0.3.5",
   "description": "Connect and interact with Firestore databases, collections, and documents.",
-  "updatedAt": "2026-11-21T12:01:41.926Z",
+  "updatedAt": "2026-11-24T00:02:23.756Z",
   "author": {
     "name": "Google LLC",
     "email": "data-cloud-ai-integrations@google.com"

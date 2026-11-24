@@ -2,7 +2,7 @@
   "name": "cloudflare",
   "version": "1.0.4",
   "description": "Build, deploy and manage apps on Cloudflare Workers, storage and AI, with platform skills and the Cloudflare API through one MCP server.",
-  "updatedAt": "2026-11-21T12:01:33.757Z",
+  "updatedAt": "2026-11-24T00:01:52.030Z",
   "author": {
     "url": "https://www.cloudflare.com",
     "name": "Cloudflare",

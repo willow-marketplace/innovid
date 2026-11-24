@@ -4,6 +4,10 @@
       "url": "https://structured-metadata.mcp.cloudinary.com/mcp",
       "type": "streamable-http"
     },
+    "cloudinary-video": {
+      "url": "https://video.mcp.cloudinary.com/mcp",
+      "type": "streamable-http"
+    },
     "cloudinary-analysis": {
       "url": "https://analysis.mcp.cloudinary.com/mcp",
       "type": "streamable-http"

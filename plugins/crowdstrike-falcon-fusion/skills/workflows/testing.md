@@ -274,6 +274,50 @@ Structure the recap as a short per-node walkthrough (or a small table: node → 
 
 **Locate results in the graph, don't just list them.** Pair the walkthrough with a `clay workflows diagram <workflowId>` render and overlay the run status onto it, so the user sees _where_ each result (or failure) came from — either annotate each node's label with a status marker or put a small "node → status" table beside the diagram. See `presenting.md` for the status markers and the annotation convention. Pull each node's status from `runs get --nodes` (or the per-step statuses from `runs steps`) to build the overlay.
 
+## Before hand-off
+
+Before you tell the user that a workflow you built or changed is done or ready, run the saved
+draft end to end once on a real record:
+
+- **Use a real record:** one that came from the workflow's source (a CSV row, a table row, a
+  segment member, a search result, the inputs of a live or backfill run) or a row the user saved
+  or gave you. AI-generated sample rows (`origin` `ai` in `clay workflows test-data list`) and
+  inputs you made up or added yourself don't count: they have the shape you expect, not the shape
+  the source sends. If there is no real record, ask the user once for a real example. Without one,
+  say in the hand-off that the workflow is unverified on real data.
+- **Get consent before writes outside Clay.** A test run executes every step for real. If the run
+  would reach a step that writes or sends outside Clay (CRM create/update, sequence or campaign
+  enrollment, Slack, email or other messages, HTTP requests that change data), the user agrees first:
+  - In a managed Clay session, starting the run puts it on hold for approval, and the approval card
+    is the ask: it says the run may change data outside Clay. Don't also ask in chat. If the card
+    doesn't say so, mention the outside write in the reply that raises the card.
+  - Ask in chat before starting the run instead, naming those steps and the record, when it may not
+    be held: outside a managed Clay session until a command there has been held for approval, and
+    after any run in this conversation started without being held.
+  - A rerun after a fix that would repeat a create, enrollment or send for a record that already got
+    one (a second contact, enrollment or message) needs fresh consent the same way: its own card, or
+    a chat ask when it may not be held.
+
+  If the user declines, don't start the run another way: test the steps before the write with
+  `clay workflows nodes test`, check the inputs the write step would receive, and say the workflow
+  was not run end to end.
+
+- Start a full run (`clay workflows test-data run` or `runs test`), not a run that starts at one node.
+- Wait at most 5 minutes: `clay workflows runs get <runId> --wait 300 --verbose`. If it is still
+  running, hand off with the run link and its current status, and say what is not yet checked.
+- Check that every node on the path completed, no required input reached a node empty, any branch
+  for no results or no match went the way this record calls for, and written values read back.
+- If something is wrong, fix it and run the same record again (it needs fresh consent if that rerun
+  would repeat a create, enrollment or send). If existing logic does the opposite
+  of what the user asked, fix it when that is within the request; otherwise propose the fix and ask.
+  Either way, don't call it done.
+- Check each requirement the user stated against the saved workflow. If one isn't met, the workflow
+  isn't done: say which one and why, rather than listing it as a caveat.
+- In the hand-off, link the run and say what it showed.
+
+When a run is held for approval, the card is the ask; don't ask about it again in chat. If the user
+declines, or the run can't start, say plainly in the hand-off that the workflow was not run end to end.
+
 ## Example workflow
 
 1. Start a test: `echo '{}' | clay workflows runs test wf_abc --inputs -`

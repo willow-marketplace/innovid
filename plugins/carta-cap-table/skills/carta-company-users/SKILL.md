@@ -4,7 +4,7 @@ description: "See and change who can use a company's Carta account: list its use
 ---
 
 <!-- carta:plugin-version -->
-<carta-plugin>carta-cap-table:6.118.2</carta-plugin>
+<carta-plugin>carta-cap-table:6.120.3</carta-plugin>
 
 # Company users and roles
 
@@ -67,9 +67,9 @@ connector is present.
 
 The company: follow `${CLAUDE_PLUGIN_ROOT}/references/find-the-company.md` (the plugin's own
 `references/`, not this skill's; read it by that path, do not search for it). The first read
-sends `company` as the id or name the user gave, or no `company`. Each preview and the apply
-send that read's `meta.company.id`; the approval question names `meta.company.name`, or the
-company `label` the user picked when that name is empty.
+sends the id or name the user gave as `company`, never as `corporation_id`, or no `company`.
+Each preview and the apply send that read's `meta.company.id`; the approval question names
+`meta.company.name`, or the company `label` the user picked when that name is empty.
 
 ## Flow
 
