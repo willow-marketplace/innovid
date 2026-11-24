@@ -733,7 +733,7 @@
         "mcp"
       ],
       "category": "development",
-      "updatedAt": "2026-11-21T12:02:01.947Z"
+      "updatedAt": "2026-11-24T00:03:44.227Z"
     },
     {
       "name": "microsoft-docs",
@@ -1353,7 +1353,7 @@
       ],
       "category": "deployment",
       "displayName": "Val Town",
-      "updatedAt": "2026-11-24T00:03:33.173Z"
+      "updatedAt": "2026-11-24T00:03:44.227Z"
     },
     {
       "name": "vanta",
@@ -1461,7 +1461,7 @@
       },
       "homepage": "https://github.com/zscaler/zscaler-mcp-server",
       "category": "security",
-      "updatedAt": "2026-11-24T00:02:46.029Z"
+      "updatedAt": "2026-11-24T00:03:43.984Z"
     },
     {
       "name": "zoominfo",
@@ -1714,7 +1714,7 @@
       ],
       "category": "development",
       "displayName": "Wix: AI website builder & custom domains",
-      "updatedAt": "2026-11-24T00:03:10.896Z"
+      "updatedAt": "2026-11-24T00:03:53.906Z"
     },
     {
       "name": "sumup",
@@ -6923,7 +6923,7 @@
         "kotlin",
         "testing"
       ],
-      "updatedAt": "2026-11-20T12:04:15.354Z"
+      "updatedAt": "2026-11-24T12:01:01.192Z"
     },
     {
       "name": "http4k",
@@ -7140,7 +7140,7 @@
       ],
       "category": "Observability",
       "displayName": "Dynatrace",
-      "updatedAt": "2026-11-24T00:02:50.876Z"
+      "updatedAt": "2026-11-24T00:03:45.779Z"
     },
     {
       "name": "blackrock-advisor-center-plugin",
