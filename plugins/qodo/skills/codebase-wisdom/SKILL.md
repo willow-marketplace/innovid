@@ -97,7 +97,7 @@ incompatibility, stop with skill and user files unchanged; do not retry through 
 
 ```
 qodo --version                                             # compatibility probe — run this FIRST
-qodo read whoami --json --skill qodo-codebase-wisdom --skill-version 1.1.8 --distribution marketplace --host claude-code
+qodo read whoami --json --skill qodo-codebase-wisdom --skill-version 1.1.9 --distribution marketplace --host claude-code
 qodo read codebase search-repos --query "payments" --json      # resolve a repo slug — do this FIRST
 qodo read codebase grep --repo owner/repo --pattern "chargeCard" --json
 qodo read codebase read-file --repo owner/repo --path src/pay.py --json

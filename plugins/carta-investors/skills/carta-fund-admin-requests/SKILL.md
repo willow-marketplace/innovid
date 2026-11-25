@@ -4,7 +4,7 @@ description: 'Send work to your Carta Fund Admin team and track it. Opens a requ
 ---
 
 <!-- carta:plugin-version -->
-<carta-plugin>carta-investors:7.59.4</carta-plugin>
+<carta-plugin>carta-investors:7.62.4</carta-plugin>
 
 <!-- Part of the official Carta AI Agent Plugin -->
 

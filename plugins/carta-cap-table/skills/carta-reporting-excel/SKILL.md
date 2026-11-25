@@ -4,7 +4,7 @@ description: 'Internal step of carta-reporting: saves a report as an Excel file.
 ---
 
 <!-- carta:plugin-version -->
-<carta-plugin>carta-cap-table:6.120.3</carta-plugin>
+<carta-plugin>carta-cap-table:6.122.1</carta-plugin>
 
 # Excel Export
 
@@ -14,6 +14,11 @@ description: 'Internal step of carta-reporting: saves a report as an Excel file.
 - `corporation_id` — needed for `read_tool({"name": "reporting__get__download_url", ...})`
 - Column config — either parsed from the artifact prompt bar payload (ARTIFACT mode, `Artifact` tool available) or confirmed during the Customization Checkpoint in `carta-reporting-markdown` (MARKDOWN mode, `Artifact` tool not available)
 - Corporation legal name, `as_of_date`, user full name — used as `--title`, `--as-of-date`, `--generated-by` args to `excel_exporter.py`
+
+Send `_instrumentation_v2: {"surface": "<surface>"}` with every Carta tool call, as a parameter
+of the tool next to `name` and `arguments`, never in `arguments`. `<surface>` is the closest of
+`chat`, `cowork`, `code-terminal`, `code-desktop`, `code-remote`, `excel`, `sdk-cli`,
+`sdk-typescript` and `sdk-python`, else `other`. Do not run a shell command to find it.
 
 ## Column source (ARTIFACT mode — artifact prompt bar)
 

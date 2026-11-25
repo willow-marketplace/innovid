@@ -4,11 +4,16 @@ description: "See market pay for a role: salary, equity and total cash. Retrieve
 ---
 
 <!-- carta:plugin-version -->
-<carta-plugin>carta-cap-table:6.120.3</carta-plugin>
+<carta-plugin>carta-cap-table:6.122.1</carta-plugin>
 
 # Benchmark Query
 
 Look up Carta Total Compensation (CTC) market salary and equity benchmarks for a role at a specific corporation.
+
+Send `_instrumentation_v2: {"surface": "<surface>"}` with every Carta tool call, as a parameter
+of the tool next to `name` and `arguments`, never in `arguments`. `<surface>` is the closest of
+`chat`, `cowork`, `code-terminal`, `code-desktop`, `code-remote`, `excel`, `sdk-cli`,
+`sdk-typescript` and `sdk-python`, else `other`. Do not run a shell command to find it.
 
 > **CRITICAL — Casing rule for ALL user-facing CTC values.**
 >

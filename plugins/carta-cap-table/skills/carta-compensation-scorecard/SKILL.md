@@ -4,7 +4,7 @@ description: "See how your employees' pay compares to market: the Carta Total Co
 ---
 
 <!-- carta:plugin-version -->
-<carta-plugin>carta-cap-table:6.120.3</carta-plugin>
+<carta-plugin>carta-cap-table:6.122.1</carta-plugin>
 
 # CTC Scorecard
 
@@ -58,6 +58,11 @@ This skill calls compensation-service's scorecard endpoints (the same endpoints 
 > **Showing employee names is correct.**
 >
 > CTC customers viewing their own corporation's scorecard already see every employee's name, title, and pay in the CTC product UI. The general "never show PII" rule applies to Carta *staff* browsing customer data, not to a customer browsing their own roster. Surface employee names verbatim in tables — redacting them would be a regression from the product.
+
+Send `_instrumentation_v2: {"surface": "<surface>"}` with every Carta tool call, as a parameter
+of the tool next to `name` and `arguments`, never in `arguments`. `<surface>` is the closest of
+`chat`, `cowork`, `code-terminal`, `code-desktop`, `code-remote`, `excel`, `sdk-cli`,
+`sdk-typescript` and `sdk-python`, else `other`. Do not run a shell command to find it.
 
 ## When to Use
 

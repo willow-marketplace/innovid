@@ -1,7 +1,7 @@
-# The companion surface
+# The issuance run
 
-Read this when [SKILL.md § Pick the surface](../SKILL.md#pick-the-surface) selects
-**companion**. Carta offers the company an issuance page — an Overview and a tab per draft set.
+Every run follows this file, for all nine types ([SKILL.md § The run](../SKILL.md#the-run)), with
+[engine.md](engine.md) for the rules it builds on. Carta offers the company an issuance page — an Overview and a tab per draft set.
 Each tab shows the Drafts page's set, each value's source, a check and **Issue**. The page takes
 no data input: values change through a save in this chat or on the Drafts page. The page shows
 only as [the issuance app](#the-issuance-app) beside the chat. Never open a Carta address in a
@@ -15,14 +15,13 @@ file decides what to do with them.
 
 | Field | Where | Use |
 |---|---|---|
-| `companion.available` | `issuance_init` | `true` selects this surface |
-| `companion.issuance_url` | `issuance_init` | for a PIU, Carta has its issuance page ([§ PIU](#piu)). Never open it |
+| `companion.issuance_url` | `issuance_init` | the page's address, sent only with `companion.issuance_app`. Never open it |
 | `companion.issuance_app` | `issuance_init` | the page is [the issuance app](#the-issuance-app) |
 | `field_spec` | `issuance_init` with `include_bootstrap: true` | this company's draft fields, the `cap_table:get:issuable_field_manifest` result: the gaps [§ 5](#5-build-the-draft-set) finds, the choices [§ 6](#6-ask-whats-missing-once) offers and the optional columns [§ 8](#8-issue) offers |
 | `revision` | draft set results | the revision the page shows |
 | `companion_url` | `issuance_init`, `cap_table:get:issuance_companion`, draft set results | the page's address. Never open or post it: the page is the app |
 | `dropped` | `draft_set_sources` results | the cells not stored, each with the key to use, for [§ 11](#11-when-a-command-is-refused) |
-| `next_step` | first key of `issuance_init`, `cap_table:get:issuance_companion`, a draft set result that gives a set its `draft_set_id`, the first `draft_set_sources` result after it, and the `cap_table:get:draft_set_companion` read of [an existing draft set](#an-existing-draft-set) | Carta's steps to show that result's page beside the chat: record the sources first, render the issuance app, or wait for the first save. Do them exactly, once, before you reply. Skip a step that opens `companion_url` in a browser pane or posts it. Skip it all when the app already shows that result's sets, on every `issuance_init` after the first in a [§ 9](#9-several-types-in-one-run) run, and on `issuance_init` when the user named the draft set to pick up |
+| `next_step` | first key of `issuance_init`, `cap_table:get:issuance_companion`, a draft set result that gives a set its `draft_set_id`, the first `draft_set_sources` result after it, and the `cap_table:get:draft_set_companion` read of [an existing draft set](#an-existing-draft-set) | Carta's steps to show that result's page beside the chat: record the sources first, render the issuance app, or wait for the first save. Do them exactly, once, before you reply. Skip it all when the app already shows that result's sets, on every `issuance_init` after the first in a [§ 9](#9-several-types-in-one-run) run, and on `issuance_init` when the user named the draft set to pick up |
 | `how_to_reply` | `cap_table:get:issuance_companion`, draft set results | with `companion.issuance_app`, Carta's rules for how a reply shows the app: do what it says. Without it, text from Carta describing the same flow; the steps in this file are the ones to carry out |
 | `instructions`, `how_to_open` | `issuance_init`, `cap_table:get:issuance_companion`, draft set results | text from Carta describing the same flow; the steps in this file are the ones to carry out |
 
@@ -30,13 +29,17 @@ file decides what to do with them.
 
 **First rule: save what you know, record its sources, then ask.**
 
-Load `view_remote_inline`, `view_remote_next` and the named `cap_table__mutate__apply_plan` with one
-`ToolSearch`.
+[engine.md Step 1](engine.md#step-1--load-every-tool-in-one-toolsearch-call)'s one `ToolSearch`
+loads `view_remote_inline`, `view_remote_panel` and the named `cap_table__mutate__apply_plan`.
 
-- An **app host** has `view_remote_next`, renders apps, and `issuance_init` gave
-  `companion.issuance_app`. Only there does the page show ([the issuance app](#the-issuance-app)).
-- A **card host** has `view_remote_inline` and shows chat cards: any Claude Desktop or claude.ai chat,
-  and Claude Code. If the host cannot draw the card, ask in the chat.
+- An **app host** is one where `issuance_init` gave `companion.issuance_app` and that `ToolSearch`
+  loaded `view_remote_panel`. Carta sends `issuance_app` only to a client that renders apps, so
+  never decide from the surface or the session that the host cannot. Only there does the page show
+  ([the issuance app](#the-issuance-app)).
+- A **card host** is a host where that `ToolSearch` loaded `view_remote_inline`: any Claude Desktop
+  or claude.ai chat, and Claude Code. There, every item goes in the card. Never decide from the
+  surface or the session that the host cannot draw it. Ask in the chat only when the tool did not
+  load, Carta refused the card call, or the user says the card does not show.
 
 Call Carta commands as `call_tool(name="cap_table__mutate__prepare_drafts", arguments={...})`,
 with `__` for each `:`. For this run: no `search_tools`, no `welcome`. Use at most 5 Carta
@@ -56,10 +59,10 @@ The steps below say "the type's" where these differ.
 | Issue button | **Issue certificates** | **Issue option grants** | **Issue PIUs** |
 | `cap_table:list:securities` `type` | `certificate` | `option` | `piu` |
 | Library `document_type` | `Stock Purchase Agreement`, `Board Consent`, `Equity Agreement` | `Option Agreement`, `Board Consent`, `Equity Plan` | `PIU Award Agreement`, `Board Consent`, `Equity Plan` |
-| Never recommend; for every type also a jurisdiction or exemption, which person a name means, which company | a share class, a price that follows a valuation | a share class, a price that follows a valuation | a unit class, a plan, a threshold |
+| Never recommend; for every type also a jurisdiction or exemption, which person a name means, which company | a share class, a price that follows a valuation | a share class, a price that follows a valuation | a unit class, a plan |
 
 For `convertible_note`, `rsa`, `warrant`, `rsu`, `sar` and `cbu`, also read
-[companion-only-types.md](companion-only-types.md): its columns add to this table, its
+[other-types.md](other-types.md): its columns add to this table, its
 § No block yet comes before [§ 5](#5-build-the-draft-set) saves a note or warrant set, and its
 § Close replaces the per-type text of [issue-and-close.md](issue-and-close.md).
 
@@ -92,6 +95,11 @@ Once each:
    Leave out any unknown value; never guess or wait. Each field that `field_spec`, or one of its
    `conditionalRules`, requires for the row, not `hidden`, with no `default_value` and no
    given value, is a `needs_input` cell; so is the vesting schedule when nothing gives it.
+   A PIU's `threshold_value` and `threshold_value_type` that only `draft_set_init.lastThresholds`
+   gives are `needs_input` cells too, each a [§ 6](#6-ask-whats-missing-once) item as
+   [the card](#the-card)'s threshold row says. The last PIU gives them only together: when the
+   files or prompt give one, the other is an ordinary gap
+   ([piu-fields.md § Threshold value and type](piu-fields.md#threshold-value-and-type)).
    No other field is a gap, except one the type's own reference names (a debt note's maturity
    date): with no given value, leave it out and Carta's default stands (when `field_spec` does not
    require it, a grant with no board approval date waits for the board).
@@ -130,7 +138,8 @@ Once each:
      whole output unchanged; never type or rebuild the bytes yourself. A larger file stays
      unfiled.
 4. `cap_table:mutate:draft_set_sources`, a source for every value you set, in calls of 50 rows
-   (1–50, 51–100, …) until all rows are covered. Each call has `files: {<key>: {name, file_id}}`,
+   (1–50, 51–100, …) until all rows are covered. Record them on every host, also with no app: the
+   set keeps them for any app that opens it later. Each call has `files: {<key>: {name, file_id}}`,
    each source file of those rows once by a short key; `shared.row_columns`, the columns one
    quote on each row's page holds (a table's row: name, email, quantity, type, start date; a
    letter's equity sentence: quantity, type); and `rows: [{draft_pk, source, fields}]` with every
@@ -158,8 +167,6 @@ Once each:
 
 ## An existing draft set
 
-A PIU with no `companion.issuance_url` runs on the chat surface, as [§ PIU](#piu) says, not here.
-
 The user names a draft set of this type ("resume draft set 472", "the Oct 30 board consents
 set"), or gives files and names none.
 Keep the set this finds: never start a second one of this
@@ -184,8 +191,9 @@ type, so no `prepare_drafts` and no save without its `draft_set_id`.
    `[{security_type, draft_set_id}]`, then render the app as its `next_step` says. With no app
    there is no page: go on in the chat.
 5. Record sources for every saved value the files at hand give, as [§ 5](#5-build-the-draft-set)
-   steps 3 and 4 say: file the files first, then `draft_set_sources` in § 5 step 4's calls. Each
-   open input of the read that the files leave empty is a `needs_input` source. A value the
+   steps 3 and 4 say: file the files first, then `draft_set_sources` in § 5 step 4's calls. Rows
+   pasted in the chat are files here too, with `added_by_you` sources, also when every value
+   matches the saved one. Each open input of the read that the files leave empty is a `needs_input` source. A value the
    files give that differs from the saved one is not saved over it: it is a
    [§ 6](#6-ask-whats-missing-once) item on that cell, a `pick_one` of the file's value and
    `Keep <saved value>`. With no files, record nothing here.
@@ -223,13 +231,13 @@ answers, the reply is these parts, in this order, and no other text:
    board consent covers it yet" when none does), the type's summary items. A check message on a
    cell is an item, never a line here. A thing that needs the user and is on no cell (a banner error, a
    possible duplicate stakeholder, a file you could not read) adds one line here.
-2. "N things need you, in the card above.", with N the number of items. The line ends there,
-   with one exception: the set has an empty optional column ([§ 8](#the-optional-columns-once-per-set)
-   step 1: a `field_spec` field with `required` false, not `hidden` and with no `default_value`,
-   that no row fills). Only then add " Ask me if you also want optional details." to that line:
-   the card never posts when it is done, so the user may go straight to Issue. Before you add
-   it, name to yourself the `field_spec` field that makes the exception. With no such field
-   (every field has `required` true or a `default_value`), never add it. The text names no item,
+2. "N things need you, in the card above.", with N the number of items. Then look in
+   `field_spec` for an empty optional column ([§ 8](#the-optional-columns-once-per-set) step 1:
+   a field with `required` false, not `hidden` and with no `default_value`, that no row fills).
+   Name that field to yourself. Only when you can name one, add " Ask me if you also want
+   optional details." to that line: the card never posts when it is done, so the user may go
+   straight to Issue. When every field has `required` true or a `default_value`, you can name
+   none: the line ends at "in the card above.", with no other words. The text names no item,
    no field of an item and no value an item asks about: the card holds them, once.
 3. The close, as [§ 12](#12-end-every-turn-that-wrote) says. It is the last line of the reply.
 
@@ -263,13 +271,15 @@ to the company's. Each `body` says why the item needs the user and what Carta ne
 | a gap with `field_spec` `values` | `pick_one`, options from its `values` and `enum_labels`, the recommended one first |
 | a gap with a `source` | `pick_one`, options from its `issuance_init` section, by `id` and `name` |
 | another gap | `type_value`, with `input` (`text`, `email`, `date` or `number`) from its `type` |
+| a PIU's threshold from `draft_set_init.lastThresholds` | two `pick_one` items, each with `detail` `Issued <issueDate>`. `threshold_value`: one option, recommended, the last PIU's value, labelled `<currency> <value> <per unit \| overall> · from <label>`, worded as [piu-fields.md § Threshold value and type](piu-fields.md#threshold-value-and-type) says; the user may type another. `threshold_value_type`: `Unit` and `Overall`, that row's type recommended |
 | a check warning on a filled cell | `pick_one` on that cell: the value you propose, then `Keep <current value>` with the cell's current value; the `body` gives the check's message |
 | a check error on a filled cell | `pick_one` on that cell with only the values you propose, no `Keep`; the `body` gives the check's message |
 | a name that can be several people | `which_person`, with `term`, the name as the documents give it, and options from the stakeholder search |
 | two documents disagree | `documents_disagree`, with `documents` `[{name, page, value}]`, each `value` as `save_drafts` takes it for that column, and one option per value, labelled with the value. When a board consent gives one, recommend it unless the type's *Never recommend* row lists that field, labelled `<value> · board consent` with `detail` `Board consent p.N approves it`, and label each other `<value> · needs new approval` |
 
 Recommend an option only when a document or the prompt states it, its detail cites the company's
-habit ("Your last 2 grants used it"), or it is the only candidate. Never recommend what the
+habit ("Your last 2 grants used it"), it is the only candidate, or it is a PIU's threshold
+taken from `draft_set_init.lastThresholds`. Never recommend what the
 type's *Never recommend* row lists. A proposed fix follows the same rule: it is an option, and
 recommended only when the rule allows. A check item never offers a value that no document, the
 prompt, the company's data or the check's message gives: with no value to propose, a check error is a `type_value`
@@ -277,20 +287,24 @@ item on that cell, and a check warning is a `pick_one` with only `Keep <current 
 
 ### No card host
 
-Only where there is no card host, or it cannot draw the card: in place of the card, one
-`AskUserQuestion` with the first 4 items, one question each (up to 4 options each), and with more
-items, one more `AskUserQuestion` after its answers. Never ask one item per call, and never put
-two items in one question. A `type_value` item, a check error with no
-value to propose included, offers no value of your own: its options are `I'll type it` and
-`Leave it for now`, and the user types the value as the free-text answer. A picked option label
+Only where the card host rule of [§ 1](#1-tools) sends the run to the chat. Build first: the
+first question comes after [§ 5](#5-build-the-draft-set) saved the set and recorded its sources,
+never before the save. Then, in place of the card, one `AskUserQuestion` with the first 4 items,
+one question each (up to 4 options each), and with more items, one more `AskUserQuestion` after
+its answers, also when the user left every answer open. Never ask one item per call, and never
+put two items in one question. A `type_value` item, a check error with no value to propose
+included, offers no value of your own, also no "today" for a date: its options are
+`I'll type it` and `Leave it for now`, and the user types the value as the free-text answer. A picked option label
 is never a value: `Leave it for now`, or `I'll type it` with nothing typed, is no answer, so save
 nothing for that item, and it stays open. Write no text before the first question, and never
 list the items in text. After the answers, save the real answers as § 7 says. The reply then is
 these parts, in this order, and no other text:
 
-1. The *What I drafted* block of [The reply](#the-reply).
+1. The *What I drafted* block of [The reply](#the-reply). A check warning is an item, so it is
+   never a line there.
 2. "Saved your N answers.", with N the saved answers only. With none, leave the line out.
-3. While items are open: "N things still need you. Say when, and I'll ask again." Else § 8.
+3. While items are open, this line word for word, with only N changed: "N things still need
+   you. Say when, and I'll ask again." Nothing goes between its two sentences. Else § 8.
 4. The close.
 
 Outside § 8's review, the reply names no item: the user just saw them in the questions. So no
@@ -369,11 +383,12 @@ optional columns, one time per set:
    A reply in the turn that built the set starts with part 1 of [The reply](#the-reply), one
    time; § 8 adds it in no later turn. A free-text answer picks the empty optional columns whose
    `label` it names.
-4. Each picked column: ask its value for every row, one item per row: a `pick_one` with the
-   field's `values` and `enum_labels` when it has them, else a `type_value` with `input` from
-   its `type`, each `body` saying the column is optional. On a card host, the items go in one
-   `need_input` card ([The card](#the-card)), never in an `AskUserQuestion`, and the reply is as
-   [The reply](#the-reply) says; elsewhere, as [No card host](#no-card-host) says. Save the
+4. Each picked column: on a card host, one `need_input` card ([The card](#the-card)), never an
+   `AskUserQuestion`, also right after the step 2 question, and the reply is as
+   [The reply](#the-reply) says; elsewhere, as [No card host](#no-card-host) says. It asks the
+   column's value for every row, one item per row: a `pick_one` with the field's `values` and
+   `enum_labels` when it has them, else a `type_value` with `input` from its `type`, each `body`
+   saying the column is optional. Save the
    answers as § 7 says, with `added_by_you` sources. An optional row left empty is no open
    input: after these answers, go on to the review.
 
@@ -400,22 +415,16 @@ issue it from the chat there.
 still issuing. Null: if `status` is `issued`, `partially_issued` or `pending_board_approval`,
 close on it with § 10; otherwise say Issue is not pressed yet.
 
-**Elsewhere**, read `cap_table:get:draft_set_companion`, then call
-`cap_table:compute:issue_draft_set_preview` with `company`, `security_type`, `draft_set_id` and
-`version`: copy the read's `version`, and leave it out only when the read has none. A blocked preview: say each failed check, and issue
-nothing. Else ask one `AskUserQuestion` naming the preview's `revision`: "Issue revision 7?". Its
-Issue option's `preview` holds the review, with `issue_summary`'s agreement, signatories and
-holders to email from the read, and the preview's `summary`. Never print the review as prose
-before the question: the host shows that prose only as a one-line summary. Once confirmed, apply
-the plan as [issue-and-close.md § Apply the plan](issue-and-close.md#apply-the-plan) says. Then read the job with
-`cap_table:get:task` and the apply's `task.task_id` until `done` is true, at most 3 times. The draft set read
-does not show the job state, so never read the set in its place. When the job is done, read
-`cap_table:get:draft_set_companion` one time with `issue_id`, the job's `task_id`, say [What issued](#what-issued), and close on its `status`.
-A job still `running` after 3 `get:task` reads: say these words, *"The issue is
-still running in Carta."*, and never apply again. Not confirmed: say "The draft set is still a draft. Nothing is issued
-yet.", then the close, as [§ 12](#12-end-every-turn-that-wrote) says; outside the turn that
-built the set, add no *What I drafted* block. A save after the preview makes the plan stale:
-preview and confirm again.
+**Elsewhere**, read `cap_table:get:draft_set_companion`, then preview the issue as
+[issue-and-close.md § The preview](issue-and-close.md#the-preview) says. Unless the preview is
+blocked, ask one `AskUserQuestion` naming the preview's `revision`: "Issue revision 7?". Its Issue
+option's `preview` holds the review, with `issue_summary`'s agreement, signatories and holders to
+email from the read, and the preview's `summary`. Never print the review as prose before the
+question: the host shows that prose only as a one-line summary. Once confirmed, apply the plan and
+read its job as [issue-and-close.md § Apply the plan](issue-and-close.md#apply-the-plan) says. Not
+confirmed: say "The draft set is still a draft. Nothing is issued yet.", then the close, as
+[§ 12](#12-end-every-turn-that-wrote) says; outside the turn that built the set, add no *What I
+drafted* block.
 
 #### What issued
 
@@ -481,14 +490,14 @@ id, say why, preview again, then `cap_table:mutate:apply_plan` once confirmed.
 
 Carry on silently: `draft_set_sources` refused twice, skip sources, and with
 [the issuance app](#the-issuance-app), for a set a save just gave its `draft_set_id`, render it
-now: one `view_remote_next` with the run's `sets`; a file not filed, its
-sources have no `file_id`; no `view_remote_inline`, ask in the
-chat; no `get:draft_set_companion`, use the chat confirm in § 8. Send a refused
+now: one `view_remote_panel` with the run's `sets`; a file not filed, its
+sources have no `file_id`; no `view_remote_inline`, ask in the chat; a view refused with
+"Use <tool>(...)", load that tool and call it once, as it says. Send a refused
 `draft_set_sources` call again once, and each `dropped` cell again once, under the key its
 `problem` names.
 
 A refusal that has a row in [mutate-recovery.md § Errors on any call](mutate-recovery.md#errors-on-any-call)
-is not the companion being unavailable: stay on this surface, and do what its row says.
+is not the issuance page being unavailable: stay on this run, and do what its row says.
 
 A `prepare_drafts` or `save_drafts` row with an `error {code, field, message}` is not saved: say
 its `message`. With a `field`, fix that field and send the row again with its `draft_pk`; with no
@@ -503,7 +512,7 @@ the issuance app shows, end its reply with "The draft set is open beside the cha
 host, end a turn that leaves the set a draft with `When you are ready, say "issue them".`, as
 [issue-and-close.md § Say what is live](issue-and-close.md#say-what-is-live-after-every-write)
 says. At a terminal state, close as [issue-and-close.md § Closing](issue-and-close.md#closing)
-says, or for a type in [companion-only-types.md](companion-only-types.md) as its § Close says.
+says, or for a type in [other-types.md](other-types.md) as its § Close says.
 
 One close per turn, even when the turn made several writes. Only a closing question may follow
 the close: a question at the end of the reply, such as § 8's. The § 6 card comes before the
@@ -523,7 +532,7 @@ render stays in the chat, so render it only at these times:
 - **After a later save that gives another set its `draft_set_id`**, record its sources, then render
   it again as that sources result's `next_step` says.
 - **When the user asks to see the page** once a save has given a set its `draft_set_id`, render it
-  again at once: one `view_remote_next` with the run's `sets`, no other call first, and no link.
+  again at once: one `view_remote_panel` with the run's `sets`, no other call first, and no link.
   Before that, say the page opens beside the chat after the first save, and render nothing.
 - **On [an existing draft set](#an-existing-draft-set)**, render it once, at that section's step 4:
   no save gives the set its `draft_set_id` in this run.
@@ -532,8 +541,8 @@ render stays in the chat, so render it only at these times:
 A card message that asks where a document says a value: name the set's tab and the cell to select
 in the app, and save nothing.
 
-**No `view_remote_next` after one `ToolSearch`, the host cannot render apps, or `issuance_init`
-gave no `companion.issuance_app`**: there is no app and no page. Go on in the chat: review and
+**No `view_remote_panel` after one `ToolSearch`, or this chat's `issuance_init` answered without
+`companion.issuance_app`**: there is no app and no page. Go on in the chat: review and
 issue as [§ 8](#8-issue)'s *Elsewhere* says. A request to see the page, or where a document says a
 value, gets an answer in the chat: the file, page and quote from the sources you recorded.
 
@@ -541,10 +550,3 @@ value, gets an answer in the chat: the file, page and quote from the sources you
 
 Until issued it is a **draft set**, never an issuance. After, say Issued or Held for board
 approval. No ids in your text except `set_label`.
-
-## PIU
-
-A PIU with `companion.issuance_url` runs as every other type, and the admin issues it with
-**Issue PIUs** in the app. A PIU with no `companion.issuance_url` has no issuance page: run it on
-[the chat surface](chat-surface.md), every phase, budget and gate there, as if Carta offered no
-companion. Never open the `companion_url` its draft set results carry.

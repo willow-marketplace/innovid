@@ -2,7 +2,7 @@
   "name": "code-modernization",
   "version": "1.1.0",
   "description": "Guided modernization for any legacy codebase: start with /modernize, get an assessment, an interactive map, the business rules mined from the code, and a plan you approve, then an upgrade, a rewrite or a rebuild with independent proof that the new code behaves like the old. Includes security hardening, a one-page report, specialist agents, and an optional live progress pane (early access).",
-  "updatedAt": "2026-11-24T00:01:49.096Z",
+  "updatedAt": "2026-11-25T00:01:54.560Z",
   "author": {
     "name": "Anthropic",
     "email": "support@anthropic.com"

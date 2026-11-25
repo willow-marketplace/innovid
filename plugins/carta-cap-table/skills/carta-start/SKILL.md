@@ -4,12 +4,17 @@ description: 'Get started: see what Claude can do with your cap table. Use when 
 ---
 
 <!-- carta:plugin-version -->
-<carta-plugin>carta-cap-table:6.120.3</carta-plugin>
+<carta-plugin>carta-cap-table:6.122.1</carta-plugin>
 
 # Carta start
 
 Shows a user what Claude can do with their company's cap table, then sets up their Carta
 Home with carta-captable-home-build.
+
+Send `_instrumentation_v2: {"surface": "<surface>"}` with every Carta tool call, as a parameter
+of the tool next to `name` and `arguments`, never in `arguments`. `<surface>` is the closest of
+`chat`, `cowork`, `code-terminal`, `code-desktop`, `code-remote`, `excel`, `sdk-cli`,
+`sdk-typescript` and `sdk-python`, else `other`. Do not run a shell command to find it.
 
 ## Step 1: Start
 

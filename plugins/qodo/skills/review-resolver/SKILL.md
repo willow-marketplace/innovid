@@ -105,7 +105,7 @@ incompatibility, stop with skill and user files unchanged; do not retry through 
 
 ```
 qodo --version                                                       # compatibility probe — run this FIRST
-qodo read whoami --json --skill qodo-review-resolver --skill-version 1.4.10 --distribution marketplace --host claude-code
+qodo read whoami --json --skill qodo-review-resolver --skill-version 1.4.11 --distribution marketplace --host claude-code
 qodo read pr-review-session findings --pr-url <PR_URL> --json       # the review session for a PR
 qodo read pr-review-session findings --pr-url <PR_URL> --extended --json # details, if advertised by tool help
 qodo pr-review-session mark-implemented --finding-ids <id>,<id> --explanation "..." --json

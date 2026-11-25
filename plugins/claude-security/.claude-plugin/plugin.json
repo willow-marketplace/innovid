@@ -1,8 +1,8 @@
 {
   "name": "claude-security",
-  "version": "0.12.0",
-  "description": "Deep vulnerability scanning of your own code, run entirely inside your Claude Code session at a chosen effort tier, with every finding challenged before it is reported and the verification tally computed in code. Turns surviving findings into targeted patches, each verified by a panel of agents, that you apply when you choose. See the plugin README for the tiers, the report format, and the trust model.",
-  "updatedAt": "2026-11-24T00:01:43.991Z",
+  "version": "0.13.0",
+  "description": "Find and fix vulnerabilities before attackers exploit them. A team of agents maps your code, hunts for exploitable flaws and challenges every finding, so you spend your time on real bugs. Get patches analyzed by a panel of agents, and apply them when you choose. Triage other scanners' results, build a threat model, review pull requests with a GitHub Action, and see your hosted Claude Security findings.",
+  "updatedAt": "2026-11-25T00:01:51.963Z",
   "author": {
     "name": "Anthropic",
     "email": "support@anthropic.com"
@@ -17,7 +17,11 @@
     "remediation",
     "autofix"
   ],
+  "displayName": "Claude Security plugin",
   "skills": "./skills/",
+  "agents": [
+    "./agents/attack-surface-redactor.md"
+  ],
   "hooks": {
     "UserPromptExpansion": [
       {
@@ -26,6 +30,15 @@
           {
             "type": "command",
             "command": "sh \"${CLAUDE_PLUGIN_ROOT}/hooks/hooks.sh\" banner"
+          }
+        ]
+      },
+      {
+        "matcher": "^claude-security:threat-model$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}/hooks/hooks.sh\" turn || true"
           }
         ]
       }
@@ -67,6 +80,17 @@
           {
             "type": "command",
             "command": "sh \"${CLAUDE_PLUGIN_ROOT}/hooks/hooks.sh\" unanswered || true"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}/hooks/hooks.sh\" guard || true"
           }
         ]
       }

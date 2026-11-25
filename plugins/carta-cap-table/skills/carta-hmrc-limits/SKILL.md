@@ -4,7 +4,7 @@ description: Check how much of a UK company's EMI and CSOP allowance is left. Re
 ---
 
 <!-- carta:plugin-version -->
-<carta-plugin>carta-cap-table:6.120.3</carta-plugin>
+<carta-plugin>carta-cap-table:6.122.1</carta-plugin>
 
 <!-- Part of the official Carta AI Agent Plugin -->
 
@@ -12,6 +12,11 @@ description: Check how much of a UK company's EMI and CSOP allowance is left. Re
 
 Report how much of a UK company's HMRC share-scheme allowances its outstanding grants use —
 at company level and per option holder.
+
+Send `_instrumentation_v2: {"surface": "<surface>"}` with every Carta tool call, as a parameter
+of the tool next to `name` and `arguments`, never in `arguments`. `<surface>` is the closest of
+`chat`, `cowork`, `code-terminal`, `code-desktop`, `code-remote`, `excel`, `sdk-cli`,
+`sdk-typescript` and `sdk-python`, else `other`. Do not run a shell command to find it.
 
 ## When to Use
 

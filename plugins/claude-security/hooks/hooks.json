@@ -9,6 +9,15 @@
             "command": "sh \"${CLAUDE_PLUGIN_ROOT}/hooks/hooks.sh\" banner"
           }
         ]
+      },
+      {
+        "matcher": "^claude-security:threat-model$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}/hooks/hooks.sh\" turn || true"
+          }
+        ]
       }
     ],
     "PostToolUse": [
@@ -48,6 +57,17 @@
           {
             "type": "command",
             "command": "sh \"${CLAUDE_PLUGIN_ROOT}/hooks/hooks.sh\" unanswered || true"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}/hooks/hooks.sh\" guard || true"
           }
         ]
       }

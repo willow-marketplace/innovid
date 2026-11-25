@@ -4,13 +4,18 @@ description: "See how much one person or grant has vested, and when the rest ves
 ---
 
 <!-- carta:plugin-version -->
-<carta-plugin>carta-cap-table:6.120.3</carta-plugin>
+<carta-plugin>carta-cap-table:6.122.1</carta-plugin>
 
 <!-- Part of the official Carta AI Agent Plugin -->
 
 # Grant Vesting Data
 
 Fetch the full vesting schedule for a grant — options, RSUs, SARs, or CBUs — and present it with useful context, not just the raw table.
+
+Send `_instrumentation_v2: {"surface": "<surface>"}` with every Carta tool call, as a parameter
+of the tool next to `name` and `arguments`, never in `arguments`. `<surface>` is the closest of
+`chat`, `cowork`, `code-terminal`, `code-desktop`, `code-remote`, `excel`, `sdk-cli`,
+`sdk-typescript` and `sdk-python`, else `other`. Do not run a shell command to find it.
 
 ## When to Use
 

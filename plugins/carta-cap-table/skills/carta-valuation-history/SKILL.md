@@ -4,7 +4,7 @@ description: "See a company's 409A and other valuations, and when the current on
 ---
 
 <!-- carta:plugin-version -->
-<carta-plugin>carta-cap-table:6.120.3</carta-plugin>
+<carta-plugin>carta-cap-table:6.122.1</carta-plugin>
 
 <!-- Part of the official Carta AI Agent Plugin -->
 
@@ -13,6 +13,11 @@ description: "See a company's 409A and other valuations, and when the current on
 Fetch a company's fair market value (FMV) history.
 
 **FMV is not always a 409A.** A 409A is the US instrument; a UK company is valued under an **EMI** or **CSOP** agreement with HMRC, and other companies use a **share-price** report. Read whichever the company actually has, and never tell a company with a valid EMI valuation that it has none.
+
+Send `_instrumentation_v2: {"surface": "<surface>"}` with every Carta tool call, as a parameter
+of the tool next to `name` and `arguments`, never in `arguments`. `<surface>` is the closest of
+`chat`, `cowork`, `code-terminal`, `code-desktop`, `code-remote`, `excel`, `sdk-cli`,
+`sdk-typescript` and `sdk-python`, else `other`. Do not run a shell command to find it.
 
 ## When to Use
 
