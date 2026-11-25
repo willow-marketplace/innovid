@@ -733,7 +733,7 @@
         "mcp"
       ],
       "category": "development",
-      "updatedAt": "2026-11-25T00:03:44.837Z"
+      "updatedAt": "2026-11-25T00:04:00.420Z"
     },
     {
       "name": "microsoft-docs",
@@ -1353,7 +1353,7 @@
       ],
       "category": "deployment",
       "displayName": "Val Town",
-      "updatedAt": "2026-11-25T00:03:44.881Z"
+      "updatedAt": "2026-11-25T00:04:00.420Z"
     },
     {
       "name": "vanta",
@@ -1447,7 +1447,7 @@
       },
       "homepage": "https://github.com/zscaler/zscaler-mcp-server",
       "category": "security",
-      "updatedAt": "2026-11-25T00:03:08.161Z"
+      "updatedAt": "2026-11-25T00:03:59.099Z"
     },
     {
       "name": "zoominfo",
@@ -1700,7 +1700,7 @@
       ],
       "category": "development",
       "displayName": "Wix: AI website builder & custom domains",
-      "updatedAt": "2026-11-25T00:03:33.532Z"
+      "updatedAt": "2026-11-25T00:04:17.178Z"
     },
     {
       "name": "sumup",
@@ -1810,7 +1810,7 @@
         "reporting"
       ],
       "category": "productivity",
-      "updatedAt": "2026-11-25T00:03:23.329Z"
+      "updatedAt": "2026-11-25T00:03:53.976Z"
     },
     {
       "name": "tavily",
@@ -2017,7 +2017,7 @@
       "homepage": "https://github.com/zytedata/claude-skills",
       "repository": "https://github.com/zytedata/claude-skills",
       "category": "automation",
-      "updatedAt": "2026-11-25T00:02:56.960Z"
+      "updatedAt": "2026-11-25T00:03:53.526Z"
     },
     {
       "name": "telegram",
@@ -2031,7 +2031,7 @@
         "mcp"
       ],
       "category": "productivity",
-      "updatedAt": "2026-11-25T00:03:23.339Z"
+      "updatedAt": "2026-11-25T00:03:53.976Z"
     },
     {
       "name": "vanta-mcp-plugin",
@@ -3746,7 +3746,7 @@
         "mcp"
       ],
       "category": "productivity",
-      "updatedAt": "2026-11-25T00:03:23.329Z"
+      "updatedAt": "2026-11-25T00:03:53.976Z"
     },
     {
       "name": "intercom",
@@ -4142,7 +4142,7 @@
       ],
       "category": "productivity",
       "displayName": "CodeRabbit",
-      "updatedAt": "2026-11-24T00:03:34.743Z"
+      "updatedAt": "2026-11-25T00:03:47.368Z"
     },
     {
       "name": "fullstory",
@@ -5162,7 +5162,7 @@
         "mcp"
       ],
       "category": "productivity",
-      "updatedAt": "2026-11-25T00:03:23.329Z"
+      "updatedAt": "2026-11-25T00:03:53.976Z"
     },
     {
       "name": "explanatory-output-style",
@@ -7127,7 +7127,7 @@
       ],
       "category": "Observability",
       "displayName": "Dynatrace",
-      "updatedAt": "2026-11-25T00:03:13.717Z"
+      "updatedAt": "2026-11-25T00:04:06.916Z"
     },
     {
       "name": "blackrock-advisor-center-plugin",
@@ -7443,7 +7443,7 @@
       ],
       "category": "productivity",
       "displayName": "Wingspan",
-      "updatedAt": "2026-11-25T00:02:57.908Z"
+      "updatedAt": "2026-11-25T00:03:54.024Z"
     },
     {
       "name": "govtribe",
@@ -7536,7 +7536,7 @@
       ],
       "category": "productivity",
       "displayName": "Amazon Selling Partner",
-      "updatedAt": "2026-11-25T00:02:59.003Z"
+      "updatedAt": "2026-11-25T00:03:54.956Z"
     },
     {
       "name": "data-agent-kit",
