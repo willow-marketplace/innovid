@@ -2,7 +2,7 @@
   "name": "linq-alpha",
   "version": "0.4.4",
   "description": "Connect Claude to LinqAlpha, guide capability-based provider selection, and load the live organization contract without bundling LinqAlpha's internal orchestration policy.",
-  "updatedAt": "2026-11-25T00:03:10.254Z",
+  "updatedAt": "2026-11-26T00:03:10.949Z",
   "author": {
     "name": "LinqAlpha",
     "email": "support@linqalpha.com"

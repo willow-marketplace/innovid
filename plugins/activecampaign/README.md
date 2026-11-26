@@ -28,9 +28,9 @@ Skills activate on their own when Claude detects relevant context — you don't 
 
 | Skill | Helps with | What it does |
 |-------|------------|--------------|
-| **Reporting Analyst** | Performance questions, metrics, reports | Pulls your campaign, automation, and deal records and produces structured analysis grounded in your real data |
-| **Campaign Strategist** | Campaign planning, email content, targeting | Plans the campaign from your account data, then generates the email itself: a new AI-drafted campaign from a prompt, edits to copy or tone, copies of past sends, subject and preheader changes |
-| **Automation Builder** | Workflow design, triggers, drip sequences | Recommends automation patterns and triggers; can enroll contacts and manage the tags that trigger workflows |
+| **Reporting Analyst** | Performance questions, metrics, reports | Ranks and compares campaigns by opens, clicks, bounces, and unsubscribes over any date range, and reads automation and deal records, grounded in your real data |
+| **Campaign Strategist** | Campaign planning, email content, targeting, sending | Plans the campaign from your account data, then generates it from a prompt or web page, imports an email you already have, edits or copies past sends, undoes changes, and sends or schedules after you confirm the summary |
+| **Automation Builder** | Workflow design, triggers, drip sequences | Designs automations, drafts them for review or builds and saves them, edits existing ones, and enrolls contacts |
 | **Contact Operations** | Segmentation, bulk updates, list/field management | Advises on organization strategy and executes contact/tag/list/field changes with a preview-and-confirm step |
 | **Deals & CRM** | Pipelines, stages, deals, owners, custom objects | Builds and operates your CRM — creates pipelines, stages, and deals, moves deals, reassigns owners, models custom objects, all with preview-and-confirm |
 | **Deliverability Advisor** | Spam issues, bounces, authentication | Diagnoses deliverability problems and provides SPF/DKIM/DMARC guidance |
@@ -76,21 +76,22 @@ The portable `mcp.json` points at ActiveCampaign's shared MCP endpoint (`https:/
 ## What the Plugin Can and Can't Do
 
 ### Can read
-Contacts, tags, custom fields, campaigns, email activities, automations, lists, deals, pipelines, stages, deal activities, custom objects, and groups.
+Contacts, tags, custom fields, campaigns and their performance reports, email activities, automations, lists, deals, pipelines, stages, deal activities, custom objects, groups, and (for admins) your sending domain's DKIM and DMARC status.
 
-### Can change (with preview-and-confirm)
+### Can change (with a preview and your explicit yes)
 - **Contacts & data:** create/update contacts, create and apply tags, list membership, custom fields and values, bulk import contacts.
 - **CRM / deals:** create and update deals, deal notes, bulk owner reassignment, create/update pipelines and stages, move deals between stages, create custom objects.
-- **Automation membership:** enroll/remove contacts from automations, and manage the tags that trigger them.
-- **Campaigns:** generate a new AI-drafted email campaign from a prompt (using your brand kit and content-manager images), rewrite copy or tone on an existing campaign, copy a past campaign as a new draft, rename it, and change the subject line, preheader, or sender. Drafts land in your account ready to review.
+- **Automations:** draft an automation for review, build and save one from a description, edit an existing one, and enroll or remove contacts.
+- **Campaigns:** generate a campaign from a prompt or web page (brand is applied automatically), import an email you already have, edit copy or design, copy a past campaign with changes, undo a change, set the audience, and send now or schedule a one-time or A/B campaign. Sending always shows you a summary first and waits for your yes.
 
-Every change follows a **read → preview → confirm → execute → verify** flow, and each one also triggers Claude's own permission prompt — a deliberate second check before anything is written to your live account.
+Every change follows a **read, preview, confirm, execute, verify** flow. Your client may also show its own permission prompt; that's an extra check, not a replacement for your yes.
 
 ### Can't do
-- **Send or schedule campaigns** — the plugin creates and edits the draft; you review and send it in the ActiveCampaign UI.
-- **Create automations or edit automation steps** — the plugin designs the flow; you build it in ActiveCampaign's automation builder.
-- **Compute aggregate metrics** (win rate, completion rate, average deal value, totals) — reports show the underlying records and counts; use ActiveCampaign's native reporting for true roll-ups.
-- **Verify DNS / inbox placement** — the Deliverability Advisor guides SPF/DKIM/DMARC but can't read your DNS directly.
+- **Send RSS, recurring, or date-based campaigns**, verify a sender domain, or lift contact limits. Those stay in ActiveCampaign.
+- **Compute automation or deal aggregates** (automation-wide completion rate, win rate, average deal value, totals). Reports show the records and counts; use ActiveCampaign's native reporting for those roll-ups. Campaign rates and rankings, and per-goal automation rates, are available.
+- **See inbox placement.** The Deliverability Advisor checks authentication and campaign metrics, not where mail lands.
+
+Which tools are available can vary by client and account permissions; the skills only use tools the connected server lists.
 
 ---
 
@@ -146,7 +147,7 @@ The plugin connects your agent to ActiveCampaign through ActiveCampaign's MCP se
 - **Commands** run pre-built reporting workflows (Claude Code).
 - **Agents** handle multi-step tasks (Claude Code).
 
-Reading your data is seamless. Anything that **changes** your account is always previewed for your confirmation first and gated by a permission prompt — so nothing is modified without your explicit go-ahead.
+Reading your data is seamless. Anything that **changes** your account is previewed first and waits for your explicit yes, so nothing is modified without your go-ahead. Text inside your account data (contact notes, imported files, email HTML) is treated as data and can never authorize a change on its own.
 
 ---
 
@@ -155,7 +156,8 @@ Reading your data is seamless. Anything that **changes** your account is always 
 - **Analyze:** "How are my recent campaigns performing?"
 - **Report:** `/activecampaign:weekly-digest`
 - **Plan:** "Build me a 30-day re-engagement plan for contacts who haven't opened in 90 days."
-- **Organize contacts:** "Tag everyone who hasn't opened an email in 90 days as `cold`." → Claude shows you how many match and warns if it would trigger an automation, then applies it on your confirmation.
+- **Organize contacts:** "Tag everyone on the Webinar list as `event:webinar-2026`." → Claude shows you how many match and warns if it would trigger an automation, then applies it on your confirmation.
+- **Create and send:** "Write a campaign announcing our new pricing page, link: …" → Claude asks about the image, generates the draft, and when you're ready, shows the send summary and sends only after your yes.
 - **Build CRM:** "Set up a Partnerships pipeline with stages Outreach, Demo, Negotiation, Closed." → Claude previews the pipeline, then creates it on your confirmation and verifies the result.
 - **Troubleshoot:** "Why are my emails going to spam?"
 
@@ -163,20 +165,27 @@ Reading your data is seamless. Anything that **changes** your account is always 
 
 ## Data Handling & Privacy
 
-- **What the plugin is.** Configuration only — skills, commands, agents, and an MCP connection. It contains no code of its own and stores none of your data.
+- **What the plugin is.** Configuration only: skills, commands, agents, and an MCP connection. It stores none of your data. The `scripts/` folder holds maintainer tooling (consistency checks and the ChatGPT export); the plugin never runs it.
 - **Where your data goes.** When you use the plugin, Claude calls ActiveCampaign's MCP server using your account URL and your authorization. Your ActiveCampaign data flows between your account and Claude to answer your requests, governed by ActiveCampaign's Terms of Service and Privacy Policy and Anthropic's terms for Claude.
 - **Authentication.** Access is via OAuth against your own ActiveCampaign account. The plugin never asks for or stores API keys; the only setting it collects is your MCP Server URL.
-- **Changes are gated.** Every write to your account is previewed for your confirmation and additionally gated by Claude's permission prompt.
+- **Changes are gated.** Every write to your account is previewed and waits for your explicit yes. Your client's own permission prompt, if it shows one, is an additional check.
 - **Scope.** The plugin can only do what the MCP server exposes and what your account permissions allow. It cannot reach other accounts or data outside your ActiveCampaign account.
 
 ---
 
 ## Known Limitations
 
-1. **Campaigns and automations are guided, not built** — the plugin can read them and design new ones, but creating/sending campaigns and building automations is done in the ActiveCampaign UI.
-2. **No aggregate metrics** — reports present records and counts; use ActiveCampaign's native reporting for win rates, averages, and totals.
-3. **Per-account URL** — you enter your subdomain URL during setup.
-4. **No DNS verification** — the Deliverability Advisor guides authentication but can't read your DNS records directly.
+1. **Some sends stay in ActiveCampaign.** RSS, recurring, and date-based campaigns, sender domain verification, and contact limits are handled in the ActiveCampaign UI.
+2. **No automation or deal aggregates.** Campaign rates and rankings and automation goal rates are available; automation-wide completion rates, win rates, averages, and totals come from ActiveCampaign's native reporting.
+3. **Per-account URL.** You enter your subdomain URL during setup in Claude Code.
+4. **Authentication checks are admin-only.** Non-admin users get guidance instead of a live DKIM/DMARC check.
+
+## Maintaining the plugin
+
+- `shared/safety.md` holds the safety rules every skill shares. Edit it there, then run `scripts/sync-shared.sh` to copy it into each skill.
+- `scripts/check-tool-refs.sh` fails if a skill, agent, or command names a tool the server doesn't define (`tools/server-tools.txt`). Refresh that list with `scripts/refresh-tool-snapshot.sh <path-to-ac-mcp-server>`.
+- `scripts/export-openai.sh <previous-chatgpt-package.zip> <version> [release-notes.txt]` builds the ChatGPT package in `dist/`, keeping the existing listing's identity.
+- CI runs the first two checks on every pull request.
 
 ---
 

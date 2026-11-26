@@ -1,0 +1,8 @@
+# Backticked names in the skills that look like tools but are parameters or
+# deliberate references. scripts/check-tool-refs.sh skips these.
+update_subject
+update_preheader
+copy_changes
+# Misspelling used in some server tool descriptions; skills name it on purpose
+# so the model maps it to is_phone_only_contacts_enabled.
+is_phone_only_contact_enabled

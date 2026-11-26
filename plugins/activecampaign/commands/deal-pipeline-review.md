@@ -17,7 +17,7 @@ When the user runs `/deal-pipeline-review`, produce a comprehensive analysis of 
 
 1. **Get pipeline structure**: Use `list_deal_pipelines` to get pipelines, then `list_deal_stages` to read each pipeline's stage flow.
 
-2. **Get deal records by status**: Use `list_deals` filtered by status — open, won, lost — and sorted by value where useful. Report the count each query returns and show the deals. (One call per status per turn; follow `next_page` only to show more deals.)
+2. **Get deal records by status**: Use `list_deals` filtered by status (0 = open, 1 = won, 2 = lost) and sorted by value where useful. Report the count each query returns and show the deals. Deal values are in cents: convert for display, using the currency on the deal record. A deal returned with only id, title, and `isDisabled=true` is in a pipeline the user can't access; say so rather than counting it as empty. (Follow `next_page` only to show more deals.)
 
 3. **Read deals per stage**: Show how many deals each query surfaces in each stage and list them. Do not sum stage values into a total or compute a stage-to-stage conversion rate.
 

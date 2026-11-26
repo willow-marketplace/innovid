@@ -4,7 +4,7 @@ description: Give a company's ASC 718 stock comp (SBC) expense for a period from
 ---
 
 <!-- carta:plugin-version -->
-<carta-plugin>carta-cap-table:6.122.1</carta-plugin>
+<carta-plugin>carta-cap-table:6.122.11</carta-plugin>
 
 <!-- Part of the official Carta AI Agent Plugin -->
 
@@ -22,7 +22,8 @@ period, say so and point to running one.
 Send `_instrumentation_v2: {"surface": "<surface>"}` with every Carta tool call, as a parameter
 of the tool next to `name` and `arguments`, never in `arguments`. `<surface>` is the closest of
 `chat`, `cowork`, `code-terminal`, `code-desktop`, `code-remote`, `excel`, `sdk-cli`,
-`sdk-typescript` and `sdk-python`, else `other`. Do not run a shell command to find it.
+`sdk-typescript` and `sdk-python`, else `other`. Run no shell command for this or any other
+`_instrumentation_v2` field: send `session_id` only when your system prompt already shows it.
 
 ## When to Use
 

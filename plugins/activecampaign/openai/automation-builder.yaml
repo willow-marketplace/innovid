@@ -1,0 +1,4 @@
+interface:
+  display_name: "ActiveCampaign Automation Builder"
+  short_description: "Design and troubleshoot marketing automations"
+  default_prompt: "Use $automation-builder to design a welcome automation for my audience."

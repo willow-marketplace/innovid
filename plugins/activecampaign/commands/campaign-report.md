@@ -9,49 +9,47 @@ Generate a performance report for recent email campaigns.
 
 ## Instructions
 
-When the user runs `/campaign-report`, produce a comprehensive campaign performance summary.
+When the user runs `/campaign-report`, produce a campaign performance summary from `run_campaign_performance_report`, the tool built for campaign metrics. It returns per-campaign counts and rates and can rank campaigns, so you don't need to call `get_campaign` once per campaign.
 
-> **Server rule:** The MCP server does not compute aggregates. Report the per-campaign counts that `get_campaign` returns. Do **not** synthesize a blended "average open rate" or "total sends" across campaigns — present each campaign's own numbers and let the reader compare. If the user explicitly wants account-wide averages, tell them that lives in AC's native reporting.
+> **Server rule:** Show the numbers and rates the report returns. Don't compute a blended "average open rate" or "total sends" across campaigns yourself.
 
 ### Steps
 
-1. **Fetch recent campaigns**: Use `list_campaigns` with status "sent" to get the most recently sent campaigns. Default to the last 10 campaigns unless the user specifies a different range. (One call per turn; follow `next_page` only if you need more records to show.)
+1. **Campaign performance**: One call to `run_campaign_performance_report` with `module=campaigns`, `explore=all_campaigns_performance`, columns `campaign_id`, `campaign_name`, `last_sent_date`, `total_sends`, `unique_total_opens`, `open_rate`, `unique_subscriber_clicks`, `click_rate`, `total_bounces`, `bounce_rate`, `total_unsubscribes`, `unsubscribe_rate`, sorted by `last_sent_date` DESC, `limit` 10 (or what the user asked for).
+   - A date range goes in `params` (`view_distinct_campaigns_event_date_start` / `_end`, inclusive).
+   - A campaign name goes in `filter` (`campaign_name` CONTAINS).
+   - "Best" or "worst" by a metric: sort by that metric instead.
 
-2. **Get per-campaign numbers**: For each campaign, use `get_campaign` to read the send count, open count, click count, bounce count, and unsubscribe count **as the API returns them**. If `get_campaign` returns a rate directly, show it; if it returns only raw counts, show the counts — do not derive new rates from a population the server told you not to aggregate.
+2. **Link performance**: For the one or two campaigns with the most clicks, call the `link_clicks` explore with that `campaign_id` (EQ filter), sorted by `unique_subscriber_clicks`.
 
-3. **Get link performance**: For the few campaigns with the most clicks, use `get_campaign_links` to identify which links drove clicks.
-
-4. **Present the report** in this format:
+3. **Present the report**:
 
 ```
 ## Campaign Performance Report
 
-### Campaigns (Last [N], status: sent)
-| Campaign | Sent Date | Sends | Opens | Clicks | Bounces | Unsubs |
-|----------|-----------|-------|-------|--------|---------|--------|
-| ...      | ...       | ...   | ...   | ...    | ...     | ...    |
+### Campaigns ([N], [date range or "most recent"])
+| Campaign | Last sent | Sends | Open rate | Click rate | Bounce rate | Unsub rate |
+|----------|-----------|-------|-----------|------------|-------------|------------|
+| ...      | ...       | ...   | ...       | ...        | ...         | ...        |
 
-(Show each campaign's own counts exactly as returned. Include a rate column only if the API itself returned that rate.)
+(Values as returned by the report.)
 
 ### Standouts
-1. **[Campaign Name]** — highest opens/clicks in this set
-   - Top link: [URL] ([X] clicks)
+1. **[Campaign]**: highest [metric] in this set
+   - Top link: [URL] ([X] unique clicks)
 
 ### Patterns
-- [Qualitative observation grounded in specific campaigns — e.g. "your three most recent sends each had fewer opens than the one before"]
+- [Observation tied to specific campaigns, e.g. "the three most recent sends each opened lower than the one before"]
 
 ### Recommendations
-- [Specific, actionable suggestion tied to the records above]
-
-### Not measured here
-- Account-wide averages/rates aren't available via MCP — see AC's native campaign reporting for those.
+- [Specific suggestion tied to the campaigns above]
 ```
 
 ### Handling edge cases
-- If no sent campaigns exist, tell the user and suggest creating their first campaign
-- If the user specifies a campaign by name, use `list_campaigns` to search for it and report on that specific campaign
-- If a campaign's returned numbers look unusual, flag it qualitatively and suggest possible causes (deliverability, list quality) — without inventing a rate the API didn't provide
+- No campaigns in the range: say so and offer a wider range.
+- A campaign with unusual numbers: flag it and suggest causes (deliverability, list quality), and offer the deliverability-advisor skill.
+- Questions about automation performance aren't covered by this report; say so.
 
 ### Arguments
-- The user may optionally specify a campaign name, date range, or number of campaigns to include
-- Example: `/campaign-report last 5` or `/campaign-report "March Newsletter"`
+- Optional campaign name, count, or date range
+- Examples: `/campaign-report last 5`, `/campaign-report "March Newsletter"`, `/campaign-report June`

@@ -1,8 +1,8 @@
 {
   "name": "incident-io",
-  "version": "1.20261123.1181",
+  "version": "1.20261125.1029",
   "description": "Respond to and investigate incidents, manage on-call schedules and escalations, and write runbooks and skills. Bundles the official incident.io MCP server.",
-  "updatedAt": "2026-11-25T00:02:55.794Z",
+  "updatedAt": "2026-11-26T00:02:56.750Z",
   "author": {
     "url": "https://incident.io",
     "name": "incident.io"
@@ -19,6 +19,19 @@
   ],
   "displayName": "incident.io",
   "skills": "./skills/",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/report-telemetry\""
+          }
+        ]
+      }
+    ]
+  },
   "mcpServers": {
     "incident_io": {
       "url": "https://mcp.incident.io/mcp",

@@ -34,7 +34,7 @@ holds a value before review, and a `None` or empty is a skill bug.
     "currency":                <autofill per so_type>,            # always
     "needs_board_approval":    <bool>,                            # always — true=pending, false=approved
     "board_approval_date":     <user, YYYY-MM-DD>,                # omit when needs_board_approval=true
-    "issue_date":              <user, YYYY-MM-DD>,                # always — OMIT when needs_board_approval is true
+    "issue_date":              <file/user, else knowns_seed.today_iso, YYYY-MM-DD>,  # always — OMIT when needs_board_approval is true
     "vesting_template":        <template.id | null>,              # always — null only after explicit "No vesting"
     "vesting_start_date":      <issue_date as MM/DD/YYYY>,        # non-milestone template (CharField)
     # A pending grant has no issue date: the server refuses one before the board approves.
@@ -102,13 +102,10 @@ fields](#review-only-fields-option-grant--never-sent-to-the-mutate)).
 
 ### Board approval resolution
 
-Runs before the issue-date prompt unless the user already volunteered a board approval date
-(then `needs_board_approval = false`, use the date, skip the prompt). `AskUserQuestion`:
-
-| Label | `needs_board_approval` | `board_approval_date` |
-|---|---|---|
-| `"Yes — board approved today"` | `false` | today (`YYYY-MM-DD`) — **not** `issue_date` |
-| `"Yes — approved on a different date"` | `false` | follow-up; `YYYY-MM-DD` or `MM/DD/YYYY` |
-| `"No — pending board approval"` | `true` | **omit from the row entirely** (empty string errors; a date contradicts pending) |
+A board approval date the files or prompt give: `needs_board_approval = false` and that date.
+With none, [companion-surface.md § 5](companion-surface.md#5-build-the-draft-set) decides:
+`field_spec` requires `board_approval_date` → `needs_board_approval = false` and the date is a
+gap; else `needs_board_approval = true` and **omit `board_approval_date` from the row entirely**
+(an empty string errors; a date contradicts pending).
 
 Render the review's Board approval cell as `Pending — needs board approval` when `true`.

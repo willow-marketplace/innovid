@@ -5,9 +5,28 @@ description: ONLY load this skill when the user explicitly types $cortex-run, /c
 
 # Cortex Code (Explicit Invocation)
 
-Send a prompt directly to Cortex Code CLI, bypassing the auto-routing keyword filter. Use this when the user explicitly wants Cortex Code to handle their request.
+Send a prompt to the selected Cortex Code backend, bypassing the auto-routing
+keyword filter. Use this when the user explicitly wants Cortex Code to handle
+their request.
 
-## Prerequisites
+## First: Select the backend
+
+Before checking CLI prerequisites, run:
+
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/run_python.sh" "${CLAUDE_PLUGIN_ROOT}/scripts/router/backend.py"
+```
+
+Codex may use `${PLUGIN_ROOT}` instead. In Devin, use the absolute plugin root the prompt hook gives you. Stop on an error.
+
+- `remote`: take the text after `$cortex-run` or `/cortex-run` as the task (ask
+  for a task if none was provided), then read and follow
+  [Remote MCP delegation](../cortex-router/references/remote-mcp.md). Use only the
+  exact returned native MCP tool. **Skip all local prerequisites and steps below**.
+  Remote mode does not provide local envelopes or automatic file access.
+- `local`: follow the existing CLI workflow below.
+
+## Local CLI prerequisites
 
 Cortex Code CLI must be installed and on PATH:
 
@@ -50,7 +69,7 @@ Pick the envelope based on what the operation needs:
 | **RESEARCH** | Exploration + web access | Edit, Write, destructive Bash |
 | **DEPLOY** | Full access needed | Nothing |
 
-Default to **RW** unless the request is clearly read-only.
+Default to **RO**. Use **RW** only when the user asked to create, alter, load or delete something.
 
 ### Step 4: Execute via Cortex Code
 
@@ -64,15 +83,15 @@ or bypass the plugin.
 ```bash
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/run_python.sh" "${CLAUDE_PLUGIN_ROOT}/scripts/router/execute_cortex.py" \
   --prompt "USER_PROMPT_HERE" \
-  --envelope "RW"
+  --envelope "RO"
 ```
 
-For read-only queries:
+When the user asked for a change (create, alter, load or delete):
 
 ```bash
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/run_python.sh" "${CLAUDE_PLUGIN_ROOT}/scripts/router/execute_cortex.py" \
   --prompt "USER_PROMPT_HERE" \
-  --envelope "RO"
+  --envelope "RW"
 ```
 
 To specify a Snowflake connection:
@@ -80,7 +99,7 @@ To specify a Snowflake connection:
 ```bash
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/run_python.sh" "${CLAUDE_PLUGIN_ROOT}/scripts/router/execute_cortex.py" \
   --prompt "USER_PROMPT_HERE" \
-  --envelope "RW" \
+  --envelope "RO" \
   --connection "connection_name"
 ```
 

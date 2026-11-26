@@ -4,7 +4,7 @@ description: "Carta-wide market benchmarks for venture rounds: round size, pre- 
 ---
 
 <!-- carta:plugin-version -->
-<carta-plugin>carta-investors:7.62.4</carta-plugin>
+<carta-plugin>carta-investors:7.68.4</carta-plugin>
 
 <!-- Part of the official Carta AI Agent Plugin -->
 

@@ -4,7 +4,7 @@ description: "Match a job title to Carta's standard job area, level and track. C
 ---
 
 <!-- carta:plugin-version -->
-<carta-plugin>carta-cap-table:6.122.1</carta-plugin>
+<carta-plugin>carta-cap-table:6.122.11</carta-plugin>
 
 # CTC RoleMatcher
 

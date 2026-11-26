@@ -3,6 +3,30 @@
 All notable changes to the ActiveCampaign plugin are documented here.
 This project follows [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+- **Send and schedule campaigns.** Your agent can check a one-time or A/B campaign is ready, show you exactly who it goes to and what it says, and send or schedule it after your yes. It can also import an email you already have, undo a change for free, set the audience, and tell you whether a send was actually delivered.
+- **Build and edit automations.** Describe a workflow and your agent can draft it for review (nothing saved) or build and save it, then edit it later. It reports emails that are still being written instead of calling the automation done.
+- **Campaign rankings and rates.** Reports now use ActiveCampaign's campaign performance report, so "which campaigns did best last quarter" and bounce or unsubscribe trends get real numbers.
+- **Automation goal rates.** Reports and `/automation-audit` show each automation goal's completion rate and average time to complete.
+- **Domain authentication checks.** For admins, the Deliverability Advisor checks DKIM and DMARC for your From domain directly.
+- **Shared safety rules** in every skill: explicit yes before any change, account content treated as data (a note or imported file can't trigger a change), and no repeat sends or imports when a result is unclear.
+- **ChatGPT export** (`scripts/export-openai.sh`) that builds the ChatGPT package from these skills while keeping the existing listing.
+
+### Changed
+- **Campaign creation** follows the current tools: brand is applied automatically, images come from your Content Manager by name, and page links go straight to the generator.
+- **Large contact changes** go through one bulk import instead of contact-by-contact batches. The preview now names the automations an import could start and offers to skip them.
+- **Untagging is no longer offered.** No tool removes tags, so the plugin says so instead of promising it.
+- **Contacts without an email** are supported when your account allows phone-only contacts.
+- **Custom objects** ask whether the schema should be private or public, and never fall back to public if private fails.
+
+### Fixed
+- `/campaign-report` used a campaign status that doesn't exist ("sent"); it now reads the performance report directly.
+- Deal values are treated as cents, and deals in pipelines you can't access are labeled instead of counted as empty.
+- Skills no longer claim that reads are pre-approved or that a client's permission prompt counts as your consent. Their `allowed-tools` lists, which never matched the plugin's tool names, are removed.
+- Removed references to retired tools (`list_brand_kits`, `search_content_manager_images`, `list_custom_object_schemas`, `create_custom_object_schema`).
+
 ## [0.3.2] — Cursor support and campaign creation
 
 ### Added

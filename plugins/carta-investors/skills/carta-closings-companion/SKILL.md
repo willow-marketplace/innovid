@@ -4,7 +4,7 @@ description: "Work a fund's closings from chat: \"show closing contacts for {fun
 ---
 
 <!-- carta:plugin-version -->
-<carta-plugin>carta-investors:7.62.4</carta-plugin>
+<carta-plugin>carta-investors:7.68.4</carta-plugin>
 
 <!-- Part of the official Carta AI Agent Plugin -->
 

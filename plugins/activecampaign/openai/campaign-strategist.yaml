@@ -1,0 +1,4 @@
+interface:
+  display_name: "ActiveCampaign Campaign Strategist"
+  short_description: "Plan, build, and send ActiveCampaign email campaigns"
+  default_prompt: "Use $campaign-strategist to plan and create an email campaign."

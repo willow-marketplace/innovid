@@ -115,6 +115,11 @@ SCENARIOS: list[Scenario] = [
         "accepted_tools": ["create-slack-app"],
     },
     {
+        "id": "skill-test-app-deno-workflow",
+        "prompt": "Help me test my Deno Slack SDK app's workflow and its link trigger in my sandbox",
+        "accepted_tools": ["test-slack-app"],
+    },
+    {
         "id": "skill-deploy-app-keep-running",
         "prompt": "Deploy my Slack app somewhere it keeps running after I close my laptop",
         "accepted_tools": ["deploy-slack-app"],
@@ -139,6 +144,11 @@ SCENARIOS: list[Scenario] = [
     {
         "id": "skill-deploy-app-tear-down",
         "prompt": "Tear down my deployed Slack app on Railway, I'm done testing it",
+        "accepted_tools": ["deploy-slack-app"],
+    },
+    {
+        "id": "skill-deploy-app-deno",
+        "prompt": "Deploy my Deno Slack SDK app with its workflows and triggers so it keeps running",
         "accepted_tools": ["deploy-slack-app"],
     },
     {

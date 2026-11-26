@@ -1,0 +1,4 @@
+interface:
+  display_name: "ActiveCampaign Reporting Analyst"
+  short_description: "Analyze campaign, automation, and CRM performance"
+  default_prompt: "Use $reporting-analyst to analyze my recent marketing performance."

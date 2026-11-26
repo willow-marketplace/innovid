@@ -4,7 +4,7 @@ description: Explain what a column in a Carta report means. For users already wo
 ---
 
 <!-- carta:plugin-version -->
-<carta-plugin>carta-cap-table:6.122.1</carta-plugin>
+<carta-plugin>carta-cap-table:6.122.11</carta-plugin>
 
 <!-- Part of the official Carta AI Agent Plugin -->
 

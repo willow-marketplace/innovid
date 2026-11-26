@@ -17,7 +17,7 @@ When the user runs `/audience-health`, produce a comprehensive health assessment
 
 1. **List overview**: Use `list_lists` to get lists and the subscriber counts the API returns per list.
 
-2. **Contact status counts**: Use `list_contacts` filtered by status, one status per query as needed, and report the count each query returns: active, unsubscribed, bounced, unconfirmed. Present them as raw counts side by side — do not convert to percentages of a total.
+2. **Contact status counts**: Use `list_contacts` with `limit=1` and a `status` filter (1 = active, 2 = unsubscribed, 3 = bounced, 0 = unconfirmed), and report the `meta.total` each query returns. Present them as raw counts side by side — do not convert to percentages of a total.
 
 3. **Tag analysis**: Use `list_tags` to assess tag usage qualitatively — how many tags exist, whether naming looks consistent, signs of ad-hoc/over-tagging.
 

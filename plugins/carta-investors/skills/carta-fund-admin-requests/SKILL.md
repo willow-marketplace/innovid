@@ -1,27 +1,36 @@
 ---
 name: carta-fund-admin-requests
-description: 'Send work to your Carta Fund Admin team and track it. Opens a request the team reads, acts on, and replies to — the off-ramp for anything no other Carta skill or command can do. TRIGGER: "ask Carta to", "have Carta do", "send this to my fund admin", "ask my fund admin team", "can Carta do this for me", "check on my request", "did Carta reply", "what requests do I have open", "reply to Carta", "follow up on my request", plus ANY action request (create/change/send/restate/reconcile/split/fix) that no other skill or Carta command covers. NOT FOR: reporting a bug or feature request about this plugin (call fa:create:feedback directly); questions answerable from Carta data (use carta-explore-data); capital call reminders to LPs (that is a Carta command, not a Fund Admin request); drafting capital calls or distributions (carta-workhub-build).'
+description: "Tracks the GP's Carta Fund Admin requests, and sends one when the Carta Workhub can't open or the user attached files. Reads and answers Carta's replies. TRIGGER: \"check on my request\", \"did Carta reply\", \"reply to Carta\", \"follow up on my request\", and a request list or new request carta-workhub-build hands over because the Workhub couldn't open or files are attached. NOT FOR: sending a new request, \"ask Carta to\" or \"have my fund admin team\", or listing open requests when the Workhub opens (carta-workhub-build); plugin bugs or feature requests (fa:create:feedback); Carta data questions (carta-explore-data); capital call reminders to LPs (a Carta command); drafting capital calls or distributions (carta-workhub-build); reviewing or approving work the Workhub hosts, such as expense payments, financial packages, management fees or cash reconciliation (carta-workhub-build); cap table access requests (not Fund Admin work); fund closings and LP invites (carta-crm:fund-closings)."
 ---
 
 <!-- carta:plugin-version -->
-<carta-plugin>carta-investors:7.62.4</carta-plugin>
+<carta-plugin>carta-investors:7.68.4</carta-plugin>
 
 <!-- Part of the official Carta AI Agent Plugin -->
 
-# Ask Carta to do something
+# Your requests to Carta's Fund Admin team
 
-A request opens a case your Carta Fund Admin team works async. It is the answer
-whenever the user wants something **done** and no other skill or Carta command
-can do it — not a dead end, and never a warehouse query instead.
+A request opens a case your Carta Fund Admin team works async. This skill reads a request's
+thread with Carta's replies and replies on one. It lists the user's requests (Flow 2) only when
+the Workhub couldn't open and `carta-workhub-build` handed the list here: where the Workhub opens,
+every request list is shown there. When the user asks about one request without naming it, find
+it with Flow 2's reads and ask which one only when more than one matches; that is not a request
+list.
 
-**A capital call or distribution is not a request.** When the connector has `open_workhub`
-and the user asks to draft, call or set up a capital call or distribution, call
-`open_workhub` and draft it with the Workhub's `draft_capital_activity` app tool,
-so the user reviews the draft beside the chat. Send no request for it, and do not
-reply with a Carta link to it. When the Workhub doesn't open, follow
-`carta-workhub-build`'s fallback: say nothing was drafted and offer Carta's capital
-activity commands instead. When a Carta result leads with `open_app`, do what it
-says before replying: it shows what the call made in the Workhub.
+New requests are sent from the Carta Workhub: `carta-workhub-build` opens it and files them
+with its `send_request` app tool. This skill sends one (Flow 1) only when `carta-workhub-build`
+hands it here: the Workhub couldn't open, or the user attached files, which Flow 1 uploads. It
+never hands a send back.
+
+**A capital call or distribution goes to `carta-workhub-build`**, which always opens the Workhub
+and drafts it there. A capital call the Workhub draft can't do (a parallel entity capital call, for
+example), or one the Workhub's `draft_capital_activity` tool refuses, goes to the Carta Fund Admin
+team as a request, where Carta's Fund Admin agent picks it up: `carta-workhub-build` files it with
+the Workhub's `send_request` app tool, and hands it here when the Workhub couldn't open or the
+user attached files. Send it through Flow 1.
+
+When a Carta result leads with `open_app`, do what it says before replying: it shows what the call
+made in the Workhub.
 
 ## Commands
 
@@ -70,7 +79,8 @@ uploads returned, at most 15. Leave it out when nothing is attached.
 
 ## Gate 1 — is this a hand-off or a question? [Hard gate]
 
-Run this **before drafting anything.** A statement that something is wrong is not
+Run this **before drafting anything.** It is the only such question on the path from
+`carta-workhub-build`, which hands a prompt here before asking anything. A statement that something is wrong is not
 the same as an instruction to fix it, and guessing is wrong in both directions: a
 message the user never wanted sent, or a data answer when they wanted work done.
 
@@ -107,7 +117,8 @@ markdown does not block execution and you will answer your own question:
 they see the exact text first, every time.
 
 1. **Draft it.** Write the message yourself from what the user said. Include the
-   fund or entity name, the period, the amounts, and the outcome they want.
+   fund or entity name, the period, each amount with its currency code read from the data (never
+   assumed to be USD), and the outcome they want.
    Detail is what lets the team act without coming back to ask. Name each file the
    user attached and say what it is, so the team knows what to ask for if one does
    not attach.
@@ -213,6 +224,10 @@ Close with:
 Enter a number to open that case, or: [N] New request  [R] Refresh  [W] Open Workhub
 ```
 
+**N** opens the Workhub with `open_workhub` and files the new request with its `send_request` app
+tool, drafted as Flow 1 step 1 says; it uses Flow 1 when the Workhub doesn't open or the user
+attached files.
+
 **W** calls `open_workhub` (no params), which opens the user's Carta Workhub beside the chat:
 these requests, with their threads, next to the rest of the firm's open work. If the call fails
 or answers that it can't be shown here, say the Workhub didn't open; the links above still work.
@@ -242,6 +257,10 @@ State plainly whether the ball is with Carta or the user, then:
 3 - Back to queue
 ```
 
+**Back to queue** opens the Workhub with `open_workhub`, where the user's requests are listed;
+when it doesn't open, it shows Flow 2's list in chat.
+
+
 > **Checkpoint**: Call `mcp__<SERVER>__skill_checkpoint(skill_name="carta-investors:carta-fund-admin-requests", checkpoint_label="skill_finished")` after the options.
 
 ## Flow 4 — Reply
@@ -257,7 +276,7 @@ the files in the confirm, upload after the yes, and pass the tokens as
 
 Name only the files whose tokens were sent.
 
-Then offer **Back to queue**.
+Then offer **Back to queue**, as Flow 3 describes it.
 
 > **Checkpoint**: Call `mcp__<SERVER>__skill_checkpoint(skill_name="carta-investors:carta-fund-admin-requests", checkpoint_label="skill_finished")` after the confirmation.
 
@@ -274,7 +293,7 @@ Then offer **Back to queue**.
 | No Fund Admin subscription | Gate 0 message; stop |
 | Messaging not enabled for the account | Gate 0 message; stop — no retry, no other channel |
 | No active firm in the session | Call `list_contexts`, then `set_context`; retry once |
-| `fa__create__fund-admin-message` returns no `workflow_id` | Say the request may not have been created and to check with their Carta team before resending — do **not** resend automatically, it would open a second case |
+| A send (`fa__create__fund-admin-message`, or the Workhub's `send_request` from **N**) errors or returns no case | Say the request may not have been created and to check the Workhub or their Carta team before resending — do **not** resend automatically or fall back to Flow 1, it would open a second case |
 | `workflow_id` not found | Wrong case number — ask them to confirm it |
 | A file can't be attached: upload not available, file too large, more than 15 files, or the upload failed | Describe the document in the message and say the team will ask for it. Never hold the send for it |
-| User is reporting a plugin bug | Not a Fund Admin request — call `fa:create:feedback` directly, then call `mcp__<SERVER>__skill_checkpoint(skill_name="carta-investors:carta-fund-admin-requests", checkpoint_label="skill_finished")` |
+| User is reporting a plugin bug or asking for a plugin feature | Not a Fund Admin request — call `fa:create:feedback` directly, then call `mcp__<SERVER>__skill_checkpoint(skill_name="carta-investors:carta-fund-admin-requests", checkpoint_label="skill_finished")` |

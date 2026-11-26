@@ -1,0 +1,4 @@
+interface:
+  display_name: "ActiveCampaign Deliverability Advisor"
+  short_description: "Diagnose email delivery and sender reputation"
+  default_prompt: "Use $deliverability-advisor to diagnose my email deliverability issues."

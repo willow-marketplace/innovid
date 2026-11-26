@@ -18,8 +18,7 @@ Two more reads, each at its own moment:
   [option-grant-fields.md](option-grant-fields.md), *or*
   [certificate-fields.md](certificate-fields.md), *or* [piu-fields.md](piu-fields.md), *or*
   [other-types.md](other-types.md) for the other six types, once that
-  resolves — exactly one, and never before. Loading the wrong one is pure cost, and a grant run
-  has no use for Rule 144.
+  resolves — exactly one, and never before. A grant run has no use for Rule 144.
 
 ---
 
@@ -41,15 +40,13 @@ five bind too, because they govern building the rows and the payload.
    If one is missing, recover **before** the call, in order: (a) the row template's documented
    default; (b) re-run the stakeholder lookup (`detail=full`) and re-stamp
    `issue_date_relationship` / `email` / `stakeholder_kind`; (c) `AskUserQuestion`.
-   This is load-bearing because both failure modes are **silent**: `save_drafts` accepts
-   incomplete rows without complaint, and at issue time a row with `stakeholder_id=null` slips
-   duplicate detection, creates zero securities, and still returns success. That the server
-   accepts a row is therefore never a reason to send one — **never offer to save past a missing
+   Both failures are **silent**: `save_drafts` accepts incomplete rows, and at issue time a row
+   with `stakeholder_id=null` slips duplicate detection and creates zero securities, yet returns
+   success. That the server accepts a row is never a reason to send one — **never offer to save past a missing
    `always` field, and never describe the server's tolerance to the user as an option**: *"Carta
    will accept these rows but they'll fail validation"* is not a choice to offer.
 5. **Never ask who the grantees are before the rest.** A missing recipient is one open input
-   among the others, never a gating question ahead of them — this is the single most common
-   way this skill goes wrong. Two sub-rules follow from it:
+   among the others, never a gating question ahead of them. Two sub-rules follow from it:
    - **A bare "N \<securities\>" is a quantity, not a headcount.** *"100 option grants"*,
      *"100 certificates"* — the server's `quantity` field counts shares/options for **one**
      recipient, so with no named people and no plural-**person** language, build **one** row
@@ -85,9 +82,7 @@ The incidents behind these rules — including the ones that look redundant — 
   `Drafts 2026-11-12 06:18`): say "the draft set".
 - **Explain jargon on first use** (Rule 144 date, Section 4(a)(2), INDIVIDUAL, legend).
 - **No raw ids or payload field names in customer-facing text — ever**
-  ([SKILL.md hard rule 8](../SKILL.md#hard-rules)). Humanize payload keys before surfacing
-  them, server `banner_errors` included: `_` → space, Title Case, with the exceptions listed in
-  [labels.md](labels.md).
+  ([SKILL.md hard rule 8](../SKILL.md#hard-rules)).
 
 ---
 
@@ -156,8 +151,8 @@ way; `arguments`, never `params`. Names this skill once got wrong are marked.
 | `cap_table:get:document_sets` | `cap_table__get__document_sets` |
 | `cap_table:get:legends` | `cap_table__get__legends` |
 | `cap_table:get:vesting_templates` | `cap_table__get__vesting_templates` |
-| `cap_table:get:acceleration_templates` | `cap_table__get__acceleration_templates` |
-| `cap_table:get:409a_valuations` — **not** `valuations_409a` | `cap_table__get__409a_valuations` |
+| `cap_table:list:acceleration_templates` | `cap_table__list__acceleration_templates` |
+| `cap_table:list:valuations` with `type: "409a"` — **not** `valuations_409a` | `cap_table__list__valuations` |
 | `cap_table:get:valuations` — the international ones; **not** `international_valuations` | `cap_table__get__valuations` |
 | `cap_table:get:load_drafts` | `cap_table__get__load_drafts` |
 | `cap_table:list:draft_sets` — resume by name | `cap_table__list__draft_sets` |
@@ -197,14 +192,11 @@ environment is unknown rather than assuming production.
 
 The hard stop is
 [SKILL.md § The connected Carta must be the intended Carta](../SKILL.md#the-connected-carta-must-be-the-intended-carta)'s,
-and it binds here too:
-`corporation_id` is not unique across environments, so aiming at the wrong one reads one
-company's cap table and later issues real securities onto it. The connected environment is
+and it binds here too. The connected environment is
 the one behind the `read_tool` and `call_tool` you loaded in Step 1 — a readable prefix names it
 (`…_Carta_Demo__` → demo, a `-test` or sandbox suffix likewise, unsuffixed → production), and
 `get_current_user`'s `environment` settles it, including behind a UUID prefix (its `base_url`
-host when `environment` reads `unknown`). A connector offering only `authenticate` is not
-connected, and no example in this skill names the user's environment. Three cases:
+host when `environment` reads `unknown`). Three cases:
 
 - **The request names no environment** → the connected one is intended. Continue, say nothing.
 - **It names or implies one and that differs** → **hard stop before the first Carta call.**
@@ -215,9 +207,6 @@ connected, and no example in this skill names the user's environment. Three case
 > writing to — the wrong company. Confirm which environment you want, or connect that Carta
 > server."*
 
-**Never settle this yourself** by using the connected server because it is the only one
-present. Being the only option is not the same as being the right one.
-
 #### When a call fails
 
 Classify the failure before you report it: no Carta tool under any prefix means genuinely
@@ -227,12 +216,10 @@ gateway error, HTML body or timeout is transient and gets **one** retry
 
 **The retry cap is one, and it is a hard cap.** It counts **the failing operation, not the
 call**: if `save_drafts` fails twice, a follow-up issue preview against the same draft set
-is not a fresh attempt — it is the third try at the same write, and a traced run burned three
-500s that way. A second failure means waiting: re-running the same call against a 502 cannot
-succeed, and repeated attempts are the inner-loop thrash this skill's budgets exist to prevent.
-Do not vary the call to make a retry look novel, do not fall back to a different tool or a
-`search_tools` probe, and do not treat an HTML error body as a data payload to parse
-— an HTML response to a JSON call is an outage signal, never content.
+is not a fresh attempt — it is the third try at the same write. A second failure means waiting: re-running the same call against a 502 cannot
+succeed.
+Do not vary the call to make a retry look novel, and do not fall back to a different tool or a
+`search_tools` probe.
 
 ### Step 3 — Resolve the corporation by name
 
@@ -243,10 +230,8 @@ name lookup; don't substitute a `search_tools` guess for it. Its `id` reads
 `corporation_pk:<n>`: send only the number `<n>` as `corporation_id`. Carta refuses the
 prefixed string.
 
-**Several exact name matches: probe at most three, then ask.** A real run got **25
-corporations named exactly "Meetly"**, re-ran the lookup at `detail="full"` for nothing (it
-carries no extra distinguishing field), then swept the list corp by corp — twice — spending 57%
-of its calls before any issuance work began. Instead:
+**Several exact name matches: probe at most three, then ask.** A re-run at `detail="full"`
+carries no extra distinguishing field.
 
 1. If the prompt named a holder, probe **at most three** candidates with
    `cap_table:get:stakeholders` — wire `cap_table__get__stakeholders` —
@@ -270,9 +255,7 @@ before the rest of the reference data, before any save.** One
 - **Option grant:** `document_sets.count == 0`, and **PIU:** `certificate_share_classes.count
   == 0` — the [account-setup gate](#account-setup-gate-option-grant-and-piu).
 
-Ordering is the whole point. A traced run resolved a company, swept 24 candidates and fetched a
-162-row roster before reading the plan list that stopped the run — 36 of its 63 calls spent
-ahead of a check that invalidated all of them. The stop costs one call and it is knowable
+Ordering is the whole point. The stop costs one call and it is knowable
 first, so take it first. Everything the gate reads, Phase 0.5 reuses; it is not an extra fetch.
 The other six types have their gates in [other-types.md](other-types.md).
 
@@ -343,8 +326,8 @@ mcp__carta__read_tool({"name": "cap_table__get__issuance_init", "arguments": {
   [Blockers](#blockers--act-on-them-first) says. An unparseable date is **refused, not
   ignored** — send `YYYY-MM-DD` or omit the key.
 
-**The sections it returns, per type** — each with the same `{count, results}` shape as its
-standalone command:
+**The sections it returns, per type** — each in the same shape as its
+standalone command, except `valuations_409a`, which is `{count, current_409a, history}`:
 
 - *Option grant* — `vesting_templates`, `acceleration_templates`, `document_sets`,
   `valuations_409a`, `international_valuations`, `option_plans`.
@@ -363,14 +346,15 @@ Every section is fetched server-side in parallel, so `stakeholder_names` and
 
 **Partial failure is non-fatal.** A section that failed comes back `null` and is named in the
 top-level `errors` array (`[{section, message}]`); fall back to that section's own standalone
-command. **The command name is not always the section name** — two of them differ, and both
+command. **The command name is not always the section name** — three of them differ, and all
 sit on this fallback path, so they fail exactly when the run is already degraded:
 
 | Failed section | Fallback command | Wire name |
 |---|---|---|
-| `valuations_409a` | `cap_table:get:409a_valuations` | `cap_table__get__409a_valuations` |
+| `valuations_409a` | `cap_table:list:valuations` with `type: "409a"` | `cap_table__list__valuations` |
 | `international_valuations` | `cap_table:get:valuations` | `cap_table__get__valuations` |
-| `option_plans`, `document_sets`, `vesting_templates`, `acceleration_templates`, `legends`, `certificate_share_classes`, `stakeholders` | `cap_table:get:<section name>` | `cap_table__get__<section name>` |
+| `acceleration_templates` | `cap_table:list:acceleration_templates` | `cap_table__list__acceleration_templates` |
+| `option_plans`, `document_sets`, `vesting_templates`, `legends`, `certificate_share_classes`, `stakeholders` | `cap_table:get:<section name>` | `cap_table__get__<section name>` |
 
 `draft_set_init` has **no** standalone command — it arrives only as a section of this response.
 When it is missing, treat its fields as unknown ([PIU eligibility](#piu-check-issuer-eligibility)
@@ -391,8 +375,7 @@ Runs once, immediately after the `issuance_init` payload is read — before FMV,
 plan, or any save ([Step 4](#step-4--run-the-account-level-hard-stops-first)) — and
 skipped entirely for `certificate`.
 
-**Read the count from its section under that exact name.** A real run aborted a valid
-issuance by reading `acceleration_templates`' zero as `document_sets`'
+**Read the count from its section under that exact name**
 ([incidents.md § Reading server data wrong](incidents.md#reading-server-data-wrong)).
 `count >= 1` always passes, and no other section's zero ever gates.
 
@@ -536,9 +519,11 @@ Read `international_valuations.active` — already filtered to live valuations s
    `expiration_date`) rather than just "none on file", and ask for the price.
 
 **If the section is missing** — a US-only corp can be refused it, since it is permissioned
-separately, in which case it comes back `null` in `errors`. Fall back to `valuations_409a`
-(command `cap_table:get:409a_valuations`): use `current_409a` when its `is_expired` is false,
-and treat `is_expired: true` as the expired case.
+separately, in which case it comes back `null` in `errors`. Fall back to the `valuations_409a`
+section: use `current_409a` when its `is_expired` is false, and treat `is_expired: true` as the
+expired case. When that section failed too, read `cap_table:list:valuations` with
+`type: "409a"`: rows are newest first; use the first row with `status: "active"` and its
+`price.amount`. When no row is active, it is the expired case.
 
 **Derive the jurisdiction too** — it gates which three `so_type`s the option-type question may
 offer ([payload-reference.md § Picklists](payload-reference.md#picklists)), and offering a UK

@@ -12,7 +12,7 @@ description: "Build native UI with the @expo/ui package: real SwiftUI on iOS and
 ## Installation
 
 ```bash
-npx expo install @expo/ui
+npx --yes @expo/agent-cli@latest install @expo/ui
 ```
 
 Every `@expo/ui` tree — universal or platform-specific — must be wrapped in `Host`.

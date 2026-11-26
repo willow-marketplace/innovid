@@ -1,0 +1,22 @@
+name: checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  skills:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Shared safety rules are in sync
+        run: scripts/sync-shared.sh --check
+      - name: Every tool name exists on the server
+        run: scripts/check-tool-refs.sh
+      - name: No allowed-tools pre-approval in skills
+        run: |
+          if grep -l '^allowed-tools:' skills/*/SKILL.md; then
+            echo "Skills must not pre-approve tools; see CHANGELOG (Unreleased)." >&2
+            exit 1
+          fi

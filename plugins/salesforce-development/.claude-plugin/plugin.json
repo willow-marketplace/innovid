@@ -2,7 +2,7 @@
   "name": "salesforce-development",
   "version": "2.8.0",
   "description": "Build Salesforce apps and agents using these core building blocks: metadata, Apex, deploy/retrieve, security, reporting, and generated installed-versus-available capability discovery.",
-  "updatedAt": "2026-11-25T00:03:47.368Z",
+  "updatedAt": "2026-11-26T00:03:57.661Z",
   "author": {
     "url": "https://github.com/forcedotcom/sf-skills",
     "name": "Salesforce"

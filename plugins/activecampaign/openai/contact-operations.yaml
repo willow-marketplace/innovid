@@ -1,0 +1,4 @@
+interface:
+  display_name: "ActiveCampaign Contact Operations"
+  short_description: "Safely manage contacts, tags, lists, and fields"
+  default_prompt: "Use $contact-operations to organize and safely update my contacts."

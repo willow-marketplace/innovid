@@ -2,7 +2,7 @@
   "name": "activecampaign",
   "version": "0.3.2",
   "description": "Marketing automation, CRM, and email marketing powered by ActiveCampaign. Manage contacts, campaigns, automations, deals, and get AI-powered marketing insights — all from Claude.",
-  "updatedAt": "2026-11-25T00:03:53.295Z",
+  "updatedAt": "2026-11-26T00:03:57.626Z",
   "author": {
     "url": "https://www.activecampaign.com",
     "name": "ActiveCampaign",
@@ -23,8 +23,8 @@
   "skills": "./skills/",
   "commands": "./commands/",
   "agents": [
-    "./agents/data-operations.md",
-    "./agents/marketing-planner.md"
+    "./agents/marketing-planner.md",
+    "./agents/data-operations.md"
   ],
   "mcpServers": {
     "activecampaign": {

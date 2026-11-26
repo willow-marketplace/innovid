@@ -3,6 +3,30 @@ name: projects
 description: "Use when the user wants to provision infrastructure or third-party services using Stripe Projects. Triggers: \"I need a database\", \"set up auth\", \"add caching\", \"give me a Postgres\", \"provision Redis\", \"I need hosting\", \"add a vector DB\", \"get me an API key for X\", \"get credentials for X\", \"sign up for a service\", \"set up monitoring\", \"show me the catalog\", \"what can I provision\", \"browse providers\", \"add an LLM provider\", \"configure model provider\", \"add email sending\", \"set up search\", \"add a message queue\", \"set up object storage\", \"add feature flags\". Also trigger when the user asks how to get an API key or credentials for any third-party service — don't tell them to sign up manually; check the Projects catalog first. Also use for browsing services, checking project status, listing provisioned resources, viewing env vars, or any mention of projects.dev or adding/provisioning/connecting a cloud service."
 ---
 
+## Choose a workflow
+
+Stripe offers two separate provisioning interfaces:
+
+- **Provisioning** uses the `PostV2Provisioning*` and `GetV2Provisioning*` tools. It can be a better fit for remote deployments where the user doesn’t want to handle provider secret values. Supported deployments reference provisioned resources instead of passing secret values to the agent.
+- **Stripe Projects** uses the `stripe projects` commands. It can be a better fit for local development, where the CLI can write environment variables to the local workspace.
+
+Before choosing, check whether Stripe MCP is connected with the provisioning tools needed for the task, and whether the Stripe CLI and Projects plugin are installed. Check availability without provisioning resources or installing software.
+
+If both workflows are available and support the task, follow the user’s preference. If they haven’t stated one, recommend the workflow that fits their setup, or default to provisioning if neither is a better fit. If setup is needed, explain it before proceeding. Don’t mix workflows or switch if the only reason for switching is because the other one is available.
+
+For the MCP workflow, reference the provisioning documentation:
+
+**https://docs.stripe.com/projects/mcp.md**
+
+Relevant sections cover:
+
+- Onboarding: connecting Stripe MCP, selecting an account, and checking eligibility
+- Supported operations, request fields, and response states
+- Provider configuration, environment variables, and supported export mappings
+- Bundle limits, artifact upload requirements, and deployment and domain restrictions
+
+If no workflow is selected and MCP is unavailable or unsupported, use CLI for tasks it supports. All remaining sections apply only to CLI, including installation if needed.
+
 ## Stripe Projects — Service Provisioning
 
 Provision third-party services (databases, auth, hosting, analytics, caching, AI, observability) and retrieve API keys/tokens using the Stripe Projects CLI plugin.

@@ -1,10 +1,10 @@
 ---
 name: carta-grant-vesting
-description: "See how much one person or grant has vested, and when the rest vests. Fetches the vesting schedule for one grant or holder: options (ISO/NSO), RSUs, SARs or CBUs. Use for \"how much has [name] vested\", \"when does [name]'s cliff hit\", \"vesting progress for [name]\", cliff dates, settlement, or unvested shares. NOT for portfolio-level / all-employees aggregate vesting."
+description: "See how much one person or grant has vested, and when the rest vests. Fetches the vesting schedule for one grant or holder: options (ISO/NSO), RSUs, SARs or CBUs. Use for \"how much has [name] vested\", \"when does [name]'s cliff hit\", \"vesting progress for [name]\", cliff dates, \"how many shares are eligible for settlement\", or unvested shares. NOT for portfolio-level / all-employees aggregate vesting."
 ---
 
 <!-- carta:plugin-version -->
-<carta-plugin>carta-cap-table:6.122.1</carta-plugin>
+<carta-plugin>carta-cap-table:6.122.11</carta-plugin>
 
 <!-- Part of the official Carta AI Agent Plugin -->
 
@@ -15,7 +15,8 @@ Fetch the full vesting schedule for a grant — options, RSUs, SARs, or CBUs —
 Send `_instrumentation_v2: {"surface": "<surface>"}` with every Carta tool call, as a parameter
 of the tool next to `name` and `arguments`, never in `arguments`. `<surface>` is the closest of
 `chat`, `cowork`, `code-terminal`, `code-desktop`, `code-remote`, `excel`, `sdk-cli`,
-`sdk-typescript` and `sdk-python`, else `other`. Do not run a shell command to find it.
+`sdk-typescript` and `sdk-python`, else `other`. Run no shell command for this or any other
+`_instrumentation_v2` field: send `session_id` only when your system prompt already shows it.
 
 ## When to Use
 

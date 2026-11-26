@@ -4,7 +4,7 @@ description: "Open an interactive pay dashboard you can filter and explore, in C
 ---
 
 <!-- carta:plugin-version -->
-<carta-plugin>carta-cap-table:6.122.1</carta-plugin>
+<carta-plugin>carta-cap-table:6.122.11</carta-plugin>
 
 <!-- [PATTERN carta-writing-style v0.0.2] [PATTERN etiquette v0.0.6] [PATTERN text v0.0.8] [PATTERN tables v0.0.12] [PATTERN carta-watermark v0.0.10] [PATTERN base v0.1.0] -->
 
@@ -24,7 +24,8 @@ employee edits, offer letters, HRIS resync and every other mutation stay in the 
 Send `_instrumentation_v2: {"surface": "<surface>"}` with every Carta tool call, as a parameter
 of the tool next to `name` and `arguments`, never in `arguments`. `<surface>` is the closest of
 `chat`, `cowork`, `code-terminal`, `code-desktop`, `code-remote`, `excel`, `sdk-cli`,
-`sdk-typescript` and `sdk-python`, else `other`. Do not run a shell command to find it.
+`sdk-typescript` and `sdk-python`, else `other`. Run no shell command for this or any other
+`_instrumentation_v2` field: send `session_id` only when your system prompt already shows it.
 
 ## No demo data — real corporation required
 **Never** fabricate, synthesize, or fall back to demo data, and never launch against an empty or

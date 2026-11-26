@@ -1,0 +1,4 @@
+interface:
+  display_name: "ActiveCampaign Deals and CRM"
+  short_description: "Build and manage pipelines, stages, and deals"
+  default_prompt: "Use $deals-crm to review and improve my sales pipeline."

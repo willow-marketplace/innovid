@@ -4,7 +4,7 @@ description: Pull a fund's audit documents — every audit area, or just the are
 ---
 
 <!-- carta:plugin-version -->
-<carta-plugin>carta-investors:7.62.4</carta-plugin>
+<carta-plugin>carta-investors:7.68.4</carta-plugin>
 
 # Download audit documents
 

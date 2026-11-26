@@ -1,12 +1,11 @@
 # The issuance run
 
 Every run follows this file, for all nine types ([SKILL.md § The run](../SKILL.md#the-run)), with
-[engine.md](engine.md) for the rules it builds on. Carta offers the company an issuance page — an Overview and a tab per draft set.
-Each tab shows the Drafts page's set, each value's source, a check and **Issue**. The page takes
+[engine.md](engine.md) for the rules it builds on. Carta offers the company an issuance page: an Overview, and a tab per draft set with its values,
+their sources, a check and **Issue**. The page takes
 no data input: values change through a save in this chat or on the Drafts page. The page shows
 only as [the issuance app](#the-issuance-app) beside the chat. Never open a Carta address in a
-browser pane or a Chrome tab, and never post a link to the page. With no app, the run goes on in
-the chat. The skill's [hard rules](../SKILL.md#hard-rules) still bind.
+browser pane or a Chrome tab, and never post a link to the page. The skill's [hard rules](../SKILL.md#hard-rules) still bind.
 
 ## What Carta returns
 
@@ -27,7 +26,8 @@ file decides what to do with them.
 
 ## 1. Tools
 
-**First rule: save what you know, record its sources, then ask.**
+**First rule: save what you know, record its sources, then ask.** This is true on every host:
+with no app, the set still keeps its sources, also for 100 rows.
 
 [engine.md Step 1](engine.md#step-1--load-every-tool-in-one-toolsearch-call)'s one `ToolSearch`
 loads `view_remote_inline`, `view_remote_panel` and the named `cap_table__mutate__apply_plan`.
@@ -72,7 +72,9 @@ For `convertible_note`, `rsa`, `warrant`, `rsu`, `sar` and `cbu`, also read
 2. `cap_table:get:issuance_init` with `corporation_id`, `security_type`, `stakeholder_names`,
    `include_bootstrap: true` and `issue_date` only when the user named a date other than today
    ([engine.md § Voice & defaults](engine.md#voice--defaults)).
-3. Apply the type's account gate.
+3. A result with no `companion`: the type goes to the Drafts UI, as
+   [SKILL.md](../SKILL.md)'s out-of-scope rule says. Save nothing, and stop.
+4. Apply the type's account gate.
 
 Don't repeat a call whose result brought you here.
 
@@ -92,7 +94,11 @@ again: follow that section in place of this one.
 Once each:
 
 1. Resolve every row from the files and prompt, as [engine.md § Phase 1](engine.md) does.
-   Leave out any unknown value; never guess or wait. Each field that `field_spec`, or one of its
+   Leave out any unknown value; never guess or wait. An `issue_date` no file or the prompt gives
+   is `knowns_seed.today_iso`, a `company_setup` source, never asked (none on a row waiting for
+   the board). A value engine.md § Phase 1 pushes back on,
+   such as a non-ZEPO `0` exercise price, goes back to the user before any save, on every host:
+   one `AskUserQuestion` that offers no value of your own. Save nothing until it is valid. Each field that `field_spec`, or one of its
    `conditionalRules`, requires for the row, not `hidden`, with no `default_value` and no
    given value, is a `needs_input` cell; so is the vesting schedule when nothing gives it.
    A PIU's `threshold_value` and `threshold_value_type` that only `draft_set_init.lastThresholds`
@@ -123,37 +129,38 @@ Once each:
    one `cap_table:mutate:save_drafts` with every row, never `is_bulk_import` (it returns no
    `draft_pk`), then `cap_table:mutate:validate_drafts`. Keep `draft_set_id`, each row's
    `draft_pk` and the `revision`.
-3. File each source file the user gave with no `file_id`, attached or on disk, once per run, in
-   the company's document library, so the page shows it. One `cap_table:create:library_document`
-   per file with `corporation_id`, `name` (its file name), `document_type` (the type the file is:
-   one of the type's [§ 2](#2-per-type-values) Library `document_type` values, or `Document` when
-   none fits) and one of these. The result's `document` is the file's `file_id`.
-   - First try `file_key`: `cap_table:mutate:upload_url` with `filename`, then send the file in
-     one shell command, each of its `fields` first, then `Content-Type` (the file's type, as
-     `application/pdf`), then the file:
-     `curl -sS -o /dev/null -w '%{http_code}' --form-string '<field>=<value>' --form-string 'Content-Type=<file type>' -F 'file=@<path>' '<url>'`.
-     S3 answers `204`; with any other answer, or no network, that POST can't run.
-   - Only when that POST can't run, and the file is under 100 KB (`wc -c <path>`), `filename`
-     and `file_content_base64`: encode it with a command (`base64 -w0 <path>`) and paste its
-     whole output unchanged; never type or rebuild the bytes yourself. A larger file stays
-     unfiled.
-4. `cap_table:mutate:draft_set_sources`, a source for every value you set, in calls of 50 rows
-   (1–50, 51–100, …) until all rows are covered. Record them on every host, also with no app: the
-   set keeps them for any app that opens it later. Each call has `files: {<key>: {name, file_id}}`,
-   each source file of those rows once by a short key; `shared.row_columns`, the columns one
+3. `cap_table:mutate:draft_set_sources`, a source for every value you set, in calls of 50 rows
+   (1–50, 51–100, …) until all rows are covered, on every host, also with no app. Each call has
+   `files: {<key>: {...}}`, each source file of those rows once by a short key; `shared.row_columns`, the columns one
    quote on each row's page holds (a table's row: name, email, quantity, type, start date; a
    letter's equity sentence: quantity, type); and `rows: [{draft_pk, source, fields}]` with every
    row: `source` quoting those words, and `fields` (`{<column or save key>: source}`), each with
-   its own quote, for any other value or source. The first call also has `shared.fields`
+   its own quote, for any other value or source. The first rows call also has `shared.fields`
    (`{<column or save key>: source}`), recorded on every row of the set: each source whose page
    and quote are the same on every row (plan, price, vesting, the consent's date), never a
-   `needs_input`. A document
-   source is `{file: <key>, page, quote}`, with `alternatives` `[{file, page, quote, value}]` when
-   documents disagree; any other source is `{kind, label, note}`. Leave out empty keys. Ask a gap
-   with no Drafts column in the chat, with no source. Record them also when step 3 filed nothing:
-   a source needs no `file_id`, and rows pasted in the chat take `added_by_you` sources, each
-   row's `source` with that row's line as its `note`. A big set is never a reason to skip a
-   source: 100 rows is two calls. Kinds:
+   `needs_input`.
+   They also file each source file in the company's library, for the page. Each `files` entry
+   is `{name, document_type, …}`: its file name, its type (one of the type's
+   [§ 2](#2-per-type-values) Library `document_type` values, else `Document`), and one of these:
+   - A file with a `file_id`: `file_id`.
+   - A file under 10 KB (`wc -c` below `10240`): before the rows, a `draft_set_sources`
+     call of its own with only that entry in `files`: `file_content_base64` the whole output of
+     `base64 < <path> | tr -d '\n'` pasted unchanged, never retyped or shortened, and
+     `sha256` from `shasum -a 256 <path>`. One file's bytes per call (more come through cut).
+     Its result's `filed` gives the `file_id` later calls send.
+   - A file of 10 KB or more, before the rows: `cap_table:mutate:upload_url` with `filename`,
+     then send the file, `fields` first:
+     `curl -sS -o /dev/null -w '%{http_code}' --form-string '<field>=<value>' --form-string 'Content-Type=<file type>' -F 'file=@<path>' '<url>'`.
+     S3 answers `204`; then one `cap_table:create:library_document` with `corporation_id`,
+     `name`, `document_type` and `file_key`, whose `document` is the `file_id`.
+   A file neither way can file (no command reads it, or the upload is not `204`)
+   has `{name}` alone ([§ 10](#10-follow-through) names it). A `not_filed` file is
+   sent again, up to twice, as its `reason` says.
+   A document source is `{file: <key>, page, quote}`, with `alternatives` `[{file, page, quote,
+   value}]` when documents disagree; any other source is `{kind, label, note}`. Leave out empty
+   keys. Ask a gap with no Drafts column in the chat, with no source. Rows pasted in the chat take
+   `added_by_you` sources, each row's `source` with that row's line as its `note`. A big set is
+   never a reason to skip a source: 100 rows is two calls. Kinds:
    - `document`: `quote` is the file's exact words that give the value, copied as they are on
      the page, never a summary: the page finds and marks them in the file. Every document and
      alternative has one (a call without is refused): in a letter, the sentence with the value;
@@ -163,7 +170,8 @@ Once each:
    - `added_by_you`: the user said it in this chat, with a `note` holding their words that
      gave the value, up to 200 characters and no other chat text;
    - `needs_input`: still missing, with a `note` saying why.
-5. Reply as [§ 6](#6-ask-whats-missing-once) says.
+4. Reply as [§ 6](#6-ask-whats-missing-once) says.
+
 
 ## An existing draft set
 
@@ -189,9 +197,9 @@ type, so no `prepare_drafts` and no save without its `draft_set_id`.
 4. Show the page once: with [the issuance app](#the-issuance-app),
    `cap_table:get:issuance_companion` with `corporation_id` and `sets`
    `[{security_type, draft_set_id}]`, then render the app as its `next_step` says. With no app
-   there is no page: go on in the chat.
-5. Record sources for every saved value the files at hand give, as [§ 5](#5-build-the-draft-set)
-   steps 3 and 4 say: file the files first, then `draft_set_sources` in § 5 step 4's calls. Rows
+   there is no page: go on with the next step.
+5. Before the card, on every host, record sources for every saved value the files at hand give, as [§ 5](#5-build-the-draft-set)
+   step 3 says. Rows
    pasted in the chat are files here too, with `added_by_you` sources, also when every value
    matches the saved one. Each open input of the read that the files leave empty is a `needs_input` source. A value the
    files give that differs from the saved one is not saved over it: it is a
@@ -201,8 +209,7 @@ type, so no `prepare_drafts` and no save without its `draft_set_id`.
    list of the gaps in text and never "send me the values". With no open input, go on to
    [§ 8](#8-issue).
 7. The reply is § 6's, with "Picked up <`set_label`>, saved earlier." as the first line of
-   *What I drafted*. As there, its count line names no holder, field or value the card asks
-   about.
+   *What I drafted*.
 
 Answers then re-save this set as [§ 7](#7-answers) says. `load_drafts` and the read take the
 place of the save and its check in [§ 1](#1-tools)'s call count, and the
@@ -228,9 +235,9 @@ answers, the reply is these parts, in this order, and no other text:
 
 1. **What I drafted**: that heading, then 4 short lines or fewer: the files read, the holders
    matched ("2 existing, 5 new"), what you drafted and the board consent that covers it ("no
-   board consent covers it yet" when none does), the type's summary items. A check message on a
-   cell is an item, never a line here. A thing that needs the user and is on no cell (a banner error, a
-   possible duplicate stakeholder, a file you could not read) adds one line here.
+   board consent covers it yet" when none does), the type's summary items. A thing that needs the user and is on no cell (a banner error, a
+   possible duplicate stakeholder, a file you could not read, no live valuation with the link
+   [engine.md § Blockers](engine.md#blockers--act-on-them-first) gives) adds one line here.
 2. "N things need you, in the card above.", with N the number of items. Then look in
    `field_spec` for an empty optional column ([§ 8](#the-optional-columns-once-per-set) step 1:
    a field with `required` false, not `hidden` and with no `default_value`, that no row fills).
@@ -238,7 +245,8 @@ answers, the reply is these parts, in this order, and no other text:
    optional details." to that line: the card never posts when it is done, so the user may go
    straight to Issue. When every field has `required` true or a `default_value`, you can name
    none: the line ends at "in the card above.", with no other words. The text names no item,
-   no field of an item and no value an item asks about: the card holds them, once.
+   no field of an item and no value an item asks about, also in a sentence after the count line:
+   the card holds them, once.
 3. The close, as [§ 12](#12-end-every-turn-that-wrote) says. It is the last line of the reply.
 
 ```
@@ -252,9 +260,6 @@ answers, the reply is these parts, in this order, and no other text:
 
 <the close, as § 12 says>
 ```
-
-In this example, every `field_spec` field is required or has a default, so the count line ends
-at "in the card above.".
 
 With no item, there is no card: go on to [§ 8](#8-issue); its optional columns decide the reply.
 
@@ -300,15 +305,14 @@ nothing for that item, and it stays open. Write no text before the first questio
 list the items in text. After the answers, save the real answers as § 7 says. The reply then is
 these parts, in this order, and no other text:
 
-1. The *What I drafted* block of [The reply](#the-reply). A check warning is an item, so it is
-   never a line there.
+1. The *What I drafted* block of [The reply](#the-reply).
 2. "Saved your N answers.", with N the saved answers only. With none, leave the line out.
 3. While items are open, this line word for word, with only N changed: "N things still need
    you. Say when, and I'll ask again." Nothing goes between its two sentences. Else § 8.
 4. The close.
 
-Outside § 8's review, the reply names no item: the user just saw them in the questions. So no
-list of the open items, no field, no value, no check message.
+Outside § 8's review, the reply names no item, field, value or check message: the user just saw
+them in the questions.
 
 ```
 **What I drafted**
@@ -320,6 +324,31 @@ list of the open items, no field, no value, no check message.
 
 <the close, as § 12 says>
 ```
+
+### Asked again
+
+The card above stays open: the build draws it once and a card save draws none. On a later turn on
+this set, draw it again only when the message turns to its open questions ("I already answered
+them", what's left, what you need, review, issue or carry on), or the set's last read this turn
+(after any save or check it makes, else § 8's) has an `open_inputs` entry no card on this set has
+asked. Then:
+
+1. Save each answer the message gives ([§ 7](#7-answers)).
+2. Read `cap_table:get:draft_set_companion`. With no `open_inputs`, go on to [§ 8](#8-issue).
+3. One `need_input` card ([The card](#the-card)) with that read's `revision`, one item per
+   `open_inputs` entry and no other. Then reply with only: the answer if the message asked about
+   something else, "We still need these N answers before we can continue.", word for word with N
+   the number of items in the card, and the close if the turn wrote
+   ([§ 12](#12-end-every-turn-that-wrote)), naming no item, field or value.
+   With no card host, ask them as [No card host](#no-card-host) says.
+
+A message about something else, such as a value you used, the vesting or the page, gets its
+answer and no card, and the answer names no open item: the card above still stands. A `Saved in
+the card` context is never a reason on its own.
+
+After the turn's last save or check, read the set again before you reply. For an unasked
+`open_inputs` entry, such as one a change in Carta made, answer the message as the paragraph above
+says, then draw the card and add its line as step 3 says.
 
 ### Possible duplicate stakeholders
 
@@ -337,8 +366,8 @@ for it.
 **Saved in the card.** Card context that starts `Saved in the card (draft set N, revision R):`
 comes with the user's next message. It lists values the card already saved, with their
 sources. Don't save those values and don't call `draft_set_sources` for them: make one
-`cap_table:mutate:validate_drafts` call, keep the revision it returns, then go on to the other
-items and § 8.
+`cap_table:mutate:validate_drafts` call and keep the revision it returns. Then read the set and
+answer as [Asked again](#asked-again) says: the answer names none of the open items.
 
 **Any other answer re-saves the same set**: an answer in the chat, or a card message that lists
 values the card did not save, one line per value with its row, column key and save key. Card
@@ -348,7 +377,7 @@ apply it anyway. Then:
 1. One `cap_table:mutate:save_drafts` on the same `draft_set_id`, rows by `draft_pk`.
 2. `cap_table:mutate:validate_drafts`.
 3. `cap_table:mutate:draft_set_sources` for changed values, in [§ 5](#5-build-the-draft-set)
-   step 4's calls of 50 rows, each value in its row's `fields` as `added_by_you`, with no
+   step 3's calls of 50 rows, each value in its row's `fields` as `added_by_you`, with no
    `shared` and no row `source`, each `note` the user's words for it.
 
 After either path, a check warning on a value the user just gave, in the card or in the chat, is
@@ -366,9 +395,7 @@ still ends as [§ 12](#12-end-every-turn-that-wrote) says.
 
 ### The optional columns, once per set
 
-The first time no input is open on a set (after the build, after a `Saved in the card` context,
-or after the last answer in the chat), offer the set's empty
-optional columns, one time per set:
+The first time no input is open on a set, offer its empty optional columns once:
 
 1. The **empty optional columns** are the `field_spec` fields with `required` false, not
    `hidden` and with no `default_value`, that no row of the set has a value for. With none, reply
@@ -378,7 +405,7 @@ optional columns, one time per set:
    columns in `field_spec` order as options, each labelled with its `label` (the column's title
    on the page), then `No, review and issue`. Sets that reach this point in the same turn share
    one `AskUserQuestion`, one question per set, each starting with its `set_label`. The
-   suggestions card is for after the issue, so it never asks this.
+   suggestions card never asks this.
 3. `No, review and issue`, or no column picked: go on to the review below, then the close.
    A reply in the turn that built the set starts with part 1 of [The reply](#the-reply), one
    time; § 8 adds it in no later turn. A free-text answer picks the empty optional columns whose
@@ -420,8 +447,9 @@ close on it with § 10; otherwise say Issue is not pressed yet.
 blocked, ask one `AskUserQuestion` naming the preview's `revision`: "Issue revision 7?". Its Issue
 option's `preview` holds the review, with `issue_summary`'s agreement, signatories and holders to
 email from the read, and the preview's `summary`. Never print the review as prose before the
-question: the host shows that prose only as a one-line summary. Once confirmed, apply the plan and
-read its job as [issue-and-close.md § Apply the plan](issue-and-close.md#apply-the-plan) says. Not
+question: the host shows that prose only as a one-line summary. Once confirmed, apply the plan,
+read its job with `cap_table:get:task`, and on success read the set with the job's `task_id` as
+`issue_id`, as [issue-and-close.md § Apply the plan](issue-and-close.md#apply-the-plan) says. Not
 confirmed: say "The draft set is still a draft. Nothing is issued yet.", then the close, as
 [§ 12](#12-end-every-turn-that-wrote) says; outside the turn that built the set, add no *What I
 drafted* block.
@@ -437,8 +465,8 @@ can create it. Where the issuance app shows, the app shows it; elsewhere link it
 **Each turn on this set**, before any write, read `cap_table:get:draft_set_companion`. Its
 `status`: `issued` or `partially_issued`, close; `pending_board_approval`, say the set is held
 for board approval; `draft`, carry on. For each `edited_in_drafts` value, say once "I saw you
-changed <title> for <holder> in Carta", and keep it. Ask its new `open_inputs` as § 6 does, and
-save the answers by `payload_key`.
+changed <title> for <holder> in Carta", and keep it. Ask its `open_inputs` as § 6
+[Asked again](#asked-again) says, and save the answers by `payload_key`.
 
 ## 9. Several types in one run
 
@@ -446,7 +474,7 @@ When the files and prompt hold two or more of the types with an issuance page, b
 this run, not one type with the others as follow-ups.
 
 1. `cap_table:get:issuance_init` once per type, with that type's `security_type`.
-2. Build one draft set per type with that type's § 5 steps 1 to 4. Never start a second set of
+2. Build one draft set per type with that type's § 5 steps 1 to 3. Never start a second set of
    one type.
 3. One card per set that has items, one after the other with no text between them, then one
    reply for every set, as § 6 says: one *What I drafted* block, its lines for each set
@@ -470,7 +498,7 @@ With no app host, confirm and issue one set at a time, each with its own revisio
 
 Close as the skill does, and say where the files went: "the 5 source files are in Issuance
 documents", adding "and corporate documents" when one was filed as `Document`. Name any file not
-filed and ask the user to upload it to Issuance documents. On a card host, one `view_remote_inline`
+filed, say in one line why, and ask the user to upload it to Issuance documents. On a card host, one `view_remote_inline`
 with `name: cap_table:view:draft_set_card`, params `corporation_id`, `card: suggestions` and 2 or
 3 of the `items` ({id, title}) below. Elsewhere, one line naming them. A tap is only a chat
 message; act on it:
@@ -521,6 +549,10 @@ back in the same turn, so the close goes at the end of what you write after it.
 
 A turn whose writes all failed changed nothing: end it with no close and no address.
 
+No `wrap_up` action, or any other next-step button, answers, opens or points at the card, such as
+"Answer in the card": a button only sends its label as a chat message. The user answers in the
+card.
+
 ## The issuance app
 
 With `companion.issuance_app` on an app host, the issuance page is an app beside the chat. Each
@@ -541,8 +573,8 @@ render stays in the chat, so render it only at these times:
 A card message that asks where a document says a value: name the set's tab and the cell to select
 in the app, and save nothing.
 
-**No `view_remote_panel` after one `ToolSearch`, or this chat's `issuance_init` answered without
-`companion.issuance_app`**: there is no app and no page. Go on in the chat: review and
+**No `view_remote_panel` after one `ToolSearch`, or this chat's `issuance_init` answered with a
+`companion` that has no `issuance_app`**: there is no app and no page. Go on in the chat: review and
 issue as [§ 8](#8-issue)'s *Elsewhere* says. A request to see the page, or where a document says a
 value, gets an answer in the chat: the file, page and quote from the sources you recorded.
 

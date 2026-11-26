@@ -1,8 +1,8 @@
 {
   "name": "hostinger",
-  "version": "1.3.8",
-  "description": "Deploy, manage and monitor Hostinger services — Websites, Domains & DNS, Ecommerce, Email, Email Marketing, WordPress, Subscriptions & Payments, and VPS. Runs as a remote MCP server with browser (OAuth) sign-in — nothing to install locally.",
-  "updatedAt": "2026-11-25T00:02:19.015Z",
+  "version": "1.4.0",
+  "description": "Deploy, manage and monitor Hostinger services — Websites, Domains & DNS, Ecommerce, Email, Email Marketing, WordPress, Subscriptions & Payments, and VPS. Includes skills for web hosting and for VPS (deploy, provision, secure, audit, troubleshoot). Runs as a remote MCP server with browser (OAuth) sign-in — nothing to install locally.",
+  "updatedAt": "2026-11-26T00:02:40.222Z",
   "author": {
     "url": "https://www.hostinger.com",
     "name": "Hostinger"

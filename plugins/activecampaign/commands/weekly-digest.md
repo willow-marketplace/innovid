@@ -15,13 +15,13 @@ When the user runs `/weekly-digest`, produce a comprehensive weekly summary of t
 
 ### Steps
 
-1. **Campaign activity**: Use `list_campaigns` to find campaigns sent in the last 7 days. For a notable one, use `get_campaign` to read its returned counts. Show each campaign's own numbers — don't blend them.
+1. **Campaign activity**: One call to `run_campaign_performance_report` (`module=campaigns`, `explore=all_campaigns_performance`) with the last 7 days in `params` (`view_distinct_campaigns_event_date_start` / `_end`), columns `campaign_name`, `last_sent_date`, `total_sends`, `open_rate`, `click_rate`, sorted by `last_sent_date` DESC. Show each campaign's own numbers as returned; don't blend them.
 
 2. **Automation activity**: Use `list_automations` to list active automations and the entered/completed counts carried on each record.
 
 3. **Contact growth**: Use `list_contacts` with date filters to find contacts added in the last 7 days (show the count the query returns / the records). Use `list_lists` for list names and the subscriber counts the API returns per list.
 
-4. **Deal activity**: Use `list_deals` filtered by status and date to show deals created / won / lost in the window as records, sorted by value where useful. Use `list_deal_pipelines` / `list_deal_stages` for pipeline context. Do not total the values — list the deals.
+4. **Deal activity**: Use `list_deals` filtered by date (and status: 0 = open, 1 = won, 2 = lost) to show deals in the window as records, sorted by value where useful. Deal values are in cents; convert for display. Use `list_deal_pipelines` / `list_deal_stages` for pipeline context. Do not total the values — list the deals.
 
 5. **Present the digest** in this format:
 
